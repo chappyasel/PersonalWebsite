@@ -38,7 +38,7 @@ export default function VisionRideControls() {
           if (state.visionRidePhase === "cruising") {
             recordFieldNoteEvent({
               type: "vision-ride-entered",
-              pixelLook: state.pixelLook,
+              profile: state.visionRideSessionProfile,
             });
             capture("homepage_vision_ride_entered", {});
           }

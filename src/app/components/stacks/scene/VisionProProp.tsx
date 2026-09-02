@@ -4,98 +4,31 @@ import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import {
+  type VisionProDisplayVariant,
+  createVisionProDisplayTexture,
+} from "./visionProDisplay";
+import { useVisionProDisplayVariant } from "./visionProDisplayDiagnostics";
 import { VISION_PRO_MODEL_URL, VISION_PRO_POSE } from "./visionProGeometry";
+
+export {
+  createVisionProDisplayTexture,
+  visionProDisplayPixel,
+} from "./visionProDisplay";
+export type {
+  ActiveVisionProDisplayVariant,
+  VisionProDisplayVariant,
+} from "./visionProDisplay";
 
 type VisionProMesh = THREE.Mesh<
   THREE.BufferGeometry,
   THREE.Material | THREE.Material[]
 >;
 
-/** One-line trial switch for the owner-authored front-display comparison. */
-export const VISION_PRO_DISPLAY_ENABLED = false;
-const VISION_PRO_DISPLAY_TEXTURE_WIDTH = 128;
-const VISION_PRO_DISPLAY_TEXTURE_HEIGHT = 64;
-
-function clamp01(value: number) {
-  return Math.max(0, Math.min(1, value));
-}
-
-function smoothstep(edge0: number, edge1: number, value: number) {
-  const amount = clamp01((value - edge0) / (edge1 - edge0));
-  return amount * amount * (3 - 2 * amount);
-}
-
-/** Sample the soft two-lobed display shown beneath Apple's smoked visor.
- * Coordinates use the texture convention: (0, 0) is the lower-left corner. */
-export function visionProDisplayPixel(
-  u: number,
-  v: number,
-): readonly [number, number, number, number] {
-  const leftEllipse =
-    ((u - 0.34) / 0.31) ** 2 + ((v - 0.53) / 0.39) ** 2;
-  const rightEllipse =
-    ((u - 0.66) / 0.31) ** 2 + ((v - 0.53) / 0.39) ** 2;
-  const lobeDistance = Math.min(leftEllipse, rightEllipse);
-  const outerCoverage = 1 - smoothstep(0.9, 1, lobeDistance);
-  const noseBoundary =
-    0.12 + 0.34 * Math.exp(-Math.pow((u - 0.5) / 0.105, 2));
-  const noseCoverage = smoothstep(noseBoundary, noseBoundary + 0.035, v);
-  const alpha = clamp01(outerCoverage * noseCoverage);
-
-  const blend = smoothstep(0.1, 0.9, u);
-  const left = [238, 68, 132] as const;
-  const right = [82, 72, 222] as const;
-  const centerGlow = Math.exp(-Math.pow((u - 0.48) / 0.23, 2)) * 18;
-  const verticalGlow = 0.82 + 0.18 * Math.sin(clamp01(v) * Math.PI);
-  const color = (from: number, to: number) =>
-    Math.round(
-      clamp01(((from + (to - from) * blend + centerGlow) * verticalGlow) / 255) *
-        255,
-    );
-
-  return [
-    color(left[0], right[0]),
-    color(left[1], right[1]),
-    color(left[2], right[2]),
-    Math.round(alpha * 255),
-  ];
-}
-
-export function createVisionProDisplayTexture() {
-  const data = new Uint8Array(
-    VISION_PRO_DISPLAY_TEXTURE_WIDTH * VISION_PRO_DISPLAY_TEXTURE_HEIGHT * 4,
-  );
-  for (let y = 0; y < VISION_PRO_DISPLAY_TEXTURE_HEIGHT; y += 1) {
-    for (let x = 0; x < VISION_PRO_DISPLAY_TEXTURE_WIDTH; x += 1) {
-      const pixel = visionProDisplayPixel(
-        x / (VISION_PRO_DISPLAY_TEXTURE_WIDTH - 1),
-        y / (VISION_PRO_DISPLAY_TEXTURE_HEIGHT - 1),
-      );
-      data.set(pixel, (y * VISION_PRO_DISPLAY_TEXTURE_WIDTH + x) * 4);
-    }
-  }
-  const texture = new THREE.DataTexture(
-    data,
-    VISION_PRO_DISPLAY_TEXTURE_WIDTH,
-    VISION_PRO_DISPLAY_TEXTURE_HEIGHT,
-    THREE.RGBAFormat,
-  );
-  texture.name = "vision-pro-display-gradient";
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.flipY = false;
-  texture.needsUpdate = true;
-  return texture;
-}
-
 /** The source display primitive has no TEXCOORD_0 attribute because its
  * original material was uniform. Project its local front plane into UV space
  * so the shaped display texture does not sample one transparent corner. */
-export function createVisionProDisplayGeometry(
-  source: THREE.BufferGeometry,
-) {
+export function createVisionProDisplayGeometry(source: THREE.BufferGeometry) {
   const geometry = source.clone();
   const position = geometry.getAttribute("position");
   geometry.computeBoundingBox();
@@ -114,7 +47,7 @@ export function createVisionProDisplayGeometry(
 
 type VisionProMaterialOptions = Readonly<{
   dark: boolean;
-  displayEnabled?: boolean;
+  displayVariant?: VisionProDisplayVariant;
   displayTexture?: THREE.Texture | null;
 }>;
 
@@ -122,7 +55,7 @@ export function tuneVisionProMaterial(
   material: THREE.Material,
   {
     dark,
-    displayEnabled = VISION_PRO_DISPLAY_ENABLED,
+    displayVariant = "dormant",
     displayTexture = null,
   }: VisionProMaterialOptions,
 ) {
@@ -138,11 +71,18 @@ export function tuneVisionProMaterial(
   }
 
   // The source's display plane is a flat rectangle beneath the curved visor.
-  // Keep its trial state explicit so the owner can compare an illuminated
-  // EyeSight-like layer against the clean reflective-glass presentation.
+  // Keep its trial state explicit so the owner can compare the ride preview
+  // against the clean reflective-glass presentation.
   if (material.name === "1708700653640") {
+    const displayEnabled =
+      displayVariant !== "dormant" && displayTexture !== null;
     material.visible = displayEnabled;
-    if (!displayEnabled) return;
+    if (!displayEnabled) {
+      material.map = null;
+      material.emissiveMap = null;
+      material.needsUpdate = true;
+      return;
+    }
     material.color.set("#7b6874");
     material.emissive.set("#ffffff");
     material.emissiveIntensity = dark ? 0.88 : 0.74;
@@ -162,7 +102,14 @@ export function tuneVisionProMaterial(
  * intentionally excluded from the shelf export. */
 export function VisionProProp({ dark }: { dark: boolean }) {
   const { scene } = useGLTF(VISION_PRO_MODEL_URL, false);
-  const displayTexture = useMemo(() => createVisionProDisplayTexture(), []);
+  const displayVariant = useVisionProDisplayVariant();
+  const displayTexture = useMemo(
+    () =>
+      displayVariant === "dormant"
+        ? null
+        : createVisionProDisplayTexture(displayVariant),
+    [displayVariant],
+  );
   const model = useMemo(() => {
     const clone = scene.clone(true);
     clone.traverse((object) => {
@@ -175,16 +122,23 @@ export function VisionProProp({ dark }: { dark: boolean }) {
       const materials = Array.isArray(mesh.material)
         ? mesh.material
         : [mesh.material];
-      if (materials.some((material) => material.name === "1708700653640")) {
+      if (
+        displayTexture &&
+        materials.some((material) => material.name === "1708700653640")
+      ) {
         mesh.geometry = createVisionProDisplayGeometry(mesh.geometry);
         mesh.userData.ownsVisionProDisplayGeometry = true;
       }
       for (const material of materials) {
-        tuneVisionProMaterial(material, { dark, displayTexture });
+        tuneVisionProMaterial(material, {
+          dark,
+          displayTexture,
+          displayVariant,
+        });
       }
     });
     return clone;
-  }, [dark, displayTexture, scene]);
+  }, [dark, displayTexture, displayVariant, scene]);
 
   useEffect(
     () => () => {
@@ -200,7 +154,12 @@ export function VisionProProp({ dark }: { dark: boolean }) {
     },
     [model],
   );
-  useEffect(() => () => displayTexture.dispose(), [displayTexture]);
+  useEffect(
+    () => () => {
+      displayTexture?.dispose();
+    },
+    [displayTexture],
+  );
 
   return (
     <primitive

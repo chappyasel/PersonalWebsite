@@ -36,15 +36,24 @@ export const VISION_RIDE_BREATH = {
   carGrowth: 1.25,
 } as const;
 
+export type VisionRideBreathConfig = Readonly<{
+  halfCycleSeconds: number;
+  sunGrowth: number;
+  carGrowth: number;
+}>;
+
 export const VISION_RIDE_BREATH_PERIOD_SECONDS =
   VISION_RIDE_BREATH.halfCycleSeconds * 2;
 
 /** Raised cosine in [0, 1]: 0 at t=0, 1 at the half cycle, 0 again at the
  * full period. Smooth at both turning points so the direction change is
  * never felt. */
-export function breathPhase(elapsed: number) {
+export function breathPhase(
+  elapsed: number,
+  config: VisionRideBreathConfig = VISION_RIDE_BREATH,
+) {
   const angle =
-    (Math.PI * 2 * Math.max(0, elapsed)) / VISION_RIDE_BREATH_PERIOD_SECONDS;
+    (Math.PI * Math.max(0, elapsed)) / config.halfCycleSeconds;
   return 0.5 - 0.5 * Math.cos(angle);
 }
 
@@ -75,12 +84,13 @@ export function environmentBreath(
   elapsed: number,
   reducedMotion: boolean,
   chaseDistance: number,
+  config: VisionRideBreathConfig = VISION_RIDE_BREATH,
 ): EnvironmentBreath {
-  const phase = reducedMotion ? 0 : breathPhase(elapsed);
-  const carScale = 1 + VISION_RIDE_BREATH.carGrowth * phase;
+  const phase = reducedMotion ? 0 : breathPhase(elapsed, config);
+  const carScale = 1 + config.carGrowth * phase;
   return {
     phase,
-    sunScale: 1 + VISION_RIDE_BREATH.sunGrowth * phase,
+    sunScale: 1 + config.sunGrowth * phase,
     carScale,
     chaseOffset: chaseOffsetForScale(carScale, chaseDistance),
   };

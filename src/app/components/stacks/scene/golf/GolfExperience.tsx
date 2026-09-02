@@ -634,7 +634,9 @@ export default function GolfExperience({
         loose.struckFor = 0;
         return;
       }
-      recordFieldNoteEvent({ type: "golf-prop-struck" });
+      recordFieldNoteEvent({ type: "golf-prop-struck", propId: loose.id });
+      if (loose.id === "action:about:vision-ride")
+        useStacks.getState().armVisionRideModifier("golf");
       // Not the golf trajectory scaled down. These props live in the rigid
       // body world, whose floor is flat at ground height, while the meadow
       // climbs half a metre toward the green; a can carried 17 m would land

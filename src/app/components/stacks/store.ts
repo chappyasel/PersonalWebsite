@@ -20,12 +20,20 @@ import {
 } from "./modal/modelArtifactHandoff";
 import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
 import { propReactionsSuppressed } from "./scene/reactionEngagement";
+import { visionProDisplayDiagnosticsController } from "./scene/visionProDisplayDiagnostics";
 import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
 import type {
   VisionRideAssetStatus,
   VisionRideExitMethod,
   VisionRidePhase,
 } from "./visionRide/visionRideState";
+import {
+  DEFAULT_VISION_RIDE_SESSION_PROFILE,
+  EMPTY_VISION_RIDE_MODIFIERS,
+  type VisionRideModifier,
+  type VisionRideModifiers,
+  type VisionRideSessionProfile,
+} from "./visionRide/visionRideProfiles";
 
 function recordArtifactFieldNote(id: SceneArtifactId) {
   const artifact = sceneArtifactById(id);
@@ -38,6 +46,26 @@ function recordArtifactFieldNote(id: SceneArtifactId) {
 }
 
 export const progressRef = { current: 0 };
+
+function showVisionRidePreview(
+  modifiers: VisionRideModifiers,
+  pixelLook: PixelLook,
+) {
+  const variant =
+    pixelLook === "levels"
+      ? "8-bit"
+      : pixelLook === "palette"
+        ? "16-bit"
+        : modifiers.golf
+          ? "golf"
+          : modifiers.redline
+            ? "redline"
+            : modifiers.night
+              ? "3:45"
+              : "retrowave";
+  visionProDisplayDiagnosticsController.setVariant(variant);
+  visionProDisplayDiagnosticsController.setEnabled(true);
+}
 
 /** High-frequency coarse-pointer signals. Consumers sample these from their
  * own animation frames; pointer movement never enters React state. */
@@ -125,6 +153,11 @@ type StacksState = {
   visionRideStartedAt: number | null;
   visionRideModelStatus: VisionRideAssetStatus;
   visionRideAnnouncement: string;
+  /** Session-only modifiers armed by authored room interactions. The ride
+   * captures them at entry so its world cannot change halfway through. */
+  visionRideModifiers: VisionRideModifiers;
+  visionRideShakers: readonly string[];
+  visionRideSessionProfile: VisionRideSessionProfile;
   /** True only while the ride curtain is opaque or the room is unmounted.
    * Room post effects and ambient camera life key off this, not the phase,
    * so they survive the visible part of the donning flight and are back
@@ -189,6 +222,8 @@ type StacksState = {
   setDragging: (dragging: string | null) => void;
   setFocusedInteraction: (focusedInteraction: string | null) => void;
   setPressedInteraction: (pressedInteraction: string | null) => void;
+  armVisionRideModifier: (modifier: VisionRideModifier) => void;
+  noteVisionRideShaker: (shakerId: string) => void;
   beginVisionRide: () => void;
   markVisionRideReady: () => void;
   startVisionRide: () => void;
@@ -230,6 +265,9 @@ export const useStacks = create<StacksState>((set) => ({
   visionRideStartedAt: null,
   visionRideModelStatus: "idle",
   visionRideAnnouncement: "",
+  visionRideModifiers: EMPTY_VISION_RIDE_MODIFIERS,
+  visionRideShakers: [],
+  visionRideSessionProfile: DEFAULT_VISION_RIDE_SESSION_PROFILE,
   visionRideRoomHidden: false,
   settledUnit: null,
   unitMapPreview: null,
@@ -247,7 +285,10 @@ export const useStacks = create<StacksState>((set) => ({
   setPixelLook: (pixelLook, pixelOrigin = null) => {
     if (pixelLook !== "off")
       recordFieldNoteEvent({ type: "pixel-look-entered", look: pixelLook });
-    set({ pixelLook, pixelOrigin });
+    set((state) => {
+      showVisionRidePreview(state.visionRideModifiers, pixelLook);
+      return { pixelLook, pixelOrigin };
+    });
   },
   jumpTo: null,
   travelTo: null,
@@ -389,25 +430,62 @@ export const useStacks = create<StacksState>((set) => ({
   setDragging: (dragging) => set({ dragging }),
   setFocusedInteraction: (focusedInteraction) => set({ focusedInteraction }),
   setPressedInteraction: (pressedInteraction) => set({ pressedInteraction }),
+  armVisionRideModifier: (modifier) =>
+    set((state) => {
+      if (state.visionRideModifiers[modifier]) return state;
+      const visionRideModifiers = {
+        ...state.visionRideModifiers,
+        [modifier]: true,
+      };
+      showVisionRidePreview(visionRideModifiers, state.pixelLook);
+      return { visionRideModifiers };
+    }),
+  noteVisionRideShaker: (shakerId) =>
+    set((state) => {
+      const visionRideShakers = state.visionRideShakers.includes(shakerId)
+        ? state.visionRideShakers
+        : [...state.visionRideShakers, shakerId];
+      const visionRideModifiers =
+        visionRideShakers.length >= 3
+          ? { ...state.visionRideModifiers, redline: true }
+          : state.visionRideModifiers;
+      if (
+        visionRideModifiers.redline &&
+        !state.visionRideModifiers.redline
+      )
+        showVisionRidePreview(visionRideModifiers, state.pixelLook);
+      return {
+        visionRideShakers,
+        visionRideModifiers,
+      };
+    }),
   beginVisionRide: () =>
-    set((state) =>
-      state.visionRidePhase !== "idle" || state.visionRideSessionFailed
-        ? state
-        : {
-            visionRidePhase: "donning",
-            visionRideReady: false,
-            visionRideError: null,
-            visionRideExitMethod: null,
-            visionRideStartedAt: null,
-            visionRideModelStatus: "loading",
-            visionRideAnnouncement: "Putting on Apple Vision Pro.",
-            visionRideRoomHidden: false,
-            hovered: null,
-            dragging: null,
-            focusedInteraction: null,
-            pressedInteraction: null,
-          },
-    ),
+    set((state) => {
+      if (
+        state.visionRidePhase !== "idle" ||
+        state.visionRideSessionFailed
+      )
+        return state;
+      showVisionRidePreview(state.visionRideModifiers, state.pixelLook);
+      return {
+        visionRidePhase: "donning",
+        visionRideReady: false,
+        visionRideError: null,
+        visionRideExitMethod: null,
+        visionRideStartedAt: null,
+        visionRideModelStatus: "loading",
+        visionRideAnnouncement: "Putting on Apple Vision Pro.",
+        visionRideSessionProfile: {
+          ...state.visionRideModifiers,
+          pixelLook: state.pixelLook,
+        },
+        visionRideRoomHidden: false,
+        hovered: null,
+        dragging: null,
+        focusedInteraction: null,
+        pressedInteraction: null,
+      };
+    }),
   markVisionRideReady: () =>
     set((state) =>
       state.visionRidePhase === "donning"

@@ -13,7 +13,12 @@ import {
 } from "react";
 
 import VisionRideTransition from "./VisionRideTransition";
+import {
+  useVisionRidePreviewOverrides,
+  visionRidePreviewModifiers,
+} from "./visionRideDiagnostics";
 import type { VisionRideTerrainTier } from "./visionRideTerrain";
+import { resolveVisionRideProfile } from "./visionRideProfiles";
 
 const VisionRideWorld = lazy(() => import("./VisionRideWorld"));
 
@@ -44,6 +49,21 @@ export default function VisionRideExperience({
   tier: VisionRideTerrainTier;
 }) {
   const phase = useStacks((state) => state.visionRidePhase);
+  const sessionProfile = useStacks((state) => state.visionRideSessionProfile);
+  const preview = useVisionRidePreviewOverrides();
+  const profile = useMemo(
+    () => {
+      const modifiers = visionRidePreviewModifiers(preview.scenePreview);
+      return resolveVisionRideProfile({
+        ...sessionProfile,
+        ...(modifiers ?? null),
+        pixelLook:
+          preview.finishPreview === "authored"
+            ? sessionProfile.pixelLook
+            : preview.finishPreview,
+      });
+    }, [preview.finishPreview, preview.scenePreview, sessionProfile],
+  );
   const reducedMotion = useMemo(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
@@ -66,7 +86,7 @@ export default function VisionRideExperience({
           onError={(error) => useStacks.getState().failVisionRide(error)}
         >
           <Suspense fallback={null}>
-            <VisionRideWorld tier={tier} />
+            <VisionRideWorld tier={tier} profile={profile} />
           </Suspense>
         </VisionRideErrorBoundary>
       )}

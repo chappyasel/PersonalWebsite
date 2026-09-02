@@ -205,7 +205,11 @@ _Avoid_: Generic page transition, every-visit spectacle, random flourish
 Vision Pro on the About shelf. It owns the whole viewport during an authored
 cinematic journey, settles into a seamless retrowave loop, and returns the
 visitor to the same place in the Homepage scene; it is not a driving game or a
-second navigable world.
+second navigable world. The room can tune that one world before entry: the
+alarm clock arms its 3:45 sky, all three Training shakers arm Redline motion,
+the Projects boards supply the pixel finish, and striking Vision Pro in the
+Training golf bay arms its green fairway treatment. Entry captures the active
+Reality Stack so nothing changes halfway through the ride.
 _Avoid_: Vision Pro world, driving mode, minigame
 
 **Sky** — the world's backdrop, always set in Chappy's morning hours. Dark

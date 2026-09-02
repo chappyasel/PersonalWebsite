@@ -7,13 +7,17 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { describe, expect, it } from "vitest";
 
 import {
-  VISION_PRO_DISPLAY_ENABLED,
   createVisionProDisplayGeometry,
   createVisionProDisplayTexture,
   tuneVisionProMaterial,
   visionProDisplayPixel,
 } from "./VisionProProp";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
+import {
+  DEFAULT_VISION_PRO_DISPLAY_DIAGNOSTICS,
+  createVisionProDisplayDiagnosticsController,
+  resolveVisionProDisplayVariant,
+} from "./visionProDisplayDiagnostics";
 import {
   VISION_PRO_MODEL_SCALE,
   VISION_PRO_POSE,
@@ -86,7 +90,10 @@ function transformedVertices(root: THREE.Object3D, meshName?: string) {
 
 describe("Vision Pro web model", () => {
   it("keeps the trial display off and gives the visor a crisp reflective finish", () => {
-    expect(VISION_PRO_DISPLAY_ENABLED).toBe(false);
+    expect(DEFAULT_VISION_PRO_DISPLAY_DIAGNOSTICS.enabled).toBe(false);
+    expect(
+      resolveVisionProDisplayVariant(DEFAULT_VISION_PRO_DISPLAY_DIAGNOSTICS),
+    ).toBe("dormant");
     const glass = new THREE.MeshStandardMaterial();
     glass.name = "Front Glass";
 
@@ -103,7 +110,7 @@ describe("Vision Pro web model", () => {
 
     tuneVisionProMaterial(display, {
       dark: false,
-      displayEnabled: false,
+      displayVariant: "dormant",
     });
 
     expect(display.visible).toBe(false);
@@ -116,7 +123,7 @@ describe("Vision Pro web model", () => {
 
     tuneVisionProMaterial(display, {
       dark: false,
-      displayEnabled: true,
+      displayVariant: "retrowave",
       displayTexture: texture,
     });
 
@@ -144,6 +151,69 @@ describe("Vision Pro web model", () => {
     expect(right[3]).toBeGreaterThan(240);
     expect(left[0]).toBeGreaterThan(left[2]);
     expect(right[2]).toBeGreaterThan(right[0]);
+  });
+
+  it("renders coherent retrowave, 8-bit, and 16-bit display variants", () => {
+    const retrowave = visionProDisplayPixel(0.34, 0.74, "retrowave");
+    const eightBitA = visionProDisplayPixel(0.311, 0.72, "8-bit");
+    const eightBitB = visionProDisplayPixel(0.312, 0.73, "8-bit");
+    const sixteenBit = visionProDisplayPixel(0.34, 0.74, "16-bit");
+    const dormant = visionProDisplayPixel(0.34, 0.74, "dormant");
+
+    expect(retrowave[3]).toBeGreaterThan(240);
+    expect(eightBitA.slice(0, 3)).toEqual(eightBitB.slice(0, 3));
+    expect(sixteenBit.slice(0, 3)).not.toEqual(retrowave.slice(0, 3));
+    expect(dormant).toEqual([0, 0, 0, 0]);
+  });
+
+  it("gives each authored room modifier a distinct front-display preview", () => {
+    const point = [0.3, 0.28] as const;
+    const night = visionProDisplayPixel(...point, "3:45");
+    const redline = visionProDisplayPixel(...point, "redline");
+    const golf = visionProDisplayPixel(...point, "golf");
+
+    expect(new Set([night.join(), redline.join(), golf.join()]).size).toBe(3);
+    expect(golf[1]).toBeGreaterThan(golf[0]);
+    expect(redline[0]).toBeGreaterThan(redline[1]);
+    expect(night[2]).toBeGreaterThan(night[0]);
+  });
+
+  it("keeps variant selection independent from the experimental enable gate", () => {
+    const controller = createVisionProDisplayDiagnosticsController();
+    let notifications = 0;
+    controller.subscribe(() => {
+      notifications += 1;
+    });
+
+    controller.setVariant("16-bit");
+    expect(controller.getSnapshot()).toEqual({
+      enabled: false,
+      variant: "16-bit",
+    });
+    expect(resolveVisionProDisplayVariant(controller.getSnapshot())).toBe(
+      "dormant",
+    );
+
+    controller.setEnabled(true);
+    expect(resolveVisionProDisplayVariant(controller.getSnapshot())).toBe(
+      "16-bit",
+    );
+    expect(notifications).toBe(2);
+  });
+
+  it("uses nearest filtering for the pixel-treated textures", () => {
+    const retrowave = createVisionProDisplayTexture("retrowave");
+    const eightBit = createVisionProDisplayTexture("8-bit");
+    const sixteenBit = createVisionProDisplayTexture("16-bit");
+
+    expect(retrowave.magFilter).toBe(THREE.LinearFilter);
+    expect(eightBit.magFilter).toBe(THREE.NearestFilter);
+    expect(sixteenBit.magFilter).toBe(THREE.NearestFilter);
+    expect(eightBit.generateMipmaps).toBe(false);
+
+    retrowave.dispose();
+    eightBit.dispose();
+    sixteenBit.dispose();
   });
 
   it("projects UVs onto the source display primitive that ships without them", async () => {

@@ -2,6 +2,11 @@ import { useStacks } from "../store";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { visionRideRoomMounted } from "./visionRideState";
+import {
+  DEFAULT_VISION_RIDE_SESSION_PROFILE,
+  EMPTY_VISION_RIDE_MODIFIERS,
+} from "./visionRideProfiles";
+import { visionProDisplayDiagnosticsController } from "../scene/visionProDisplayDiagnostics";
 
 describe("Vision ride state machine", () => {
   beforeEach(() => {
@@ -14,7 +19,11 @@ describe("Vision ride state machine", () => {
       visionRideStartedAt: null,
       visionRideModelStatus: "idle",
       visionRideAnnouncement: "",
+      visionRideModifiers: EMPTY_VISION_RIDE_MODIFIERS,
+      visionRideShakers: [],
+      visionRideSessionProfile: DEFAULT_VISION_RIDE_SESSION_PROFILE,
     });
+    visionProDisplayDiagnosticsController.reset();
   });
 
   it("prevents re-entry and starts only after readiness", () => {
@@ -83,5 +92,26 @@ describe("Vision ride state machine", () => {
     state.setVisionRideRoomHidden(true);
     state.beginVisionRide();
     expect(useStacks.getState().visionRideRoomHidden).toBe(false);
+  });
+
+  it("arms room modifiers and freezes them with the finish at entry", () => {
+    const state = useStacks.getState();
+    state.armVisionRideModifier("night");
+    for (const shaker of ["clear", "navy", "amber"])
+      useStacks.getState().noteVisionRideShaker(shaker);
+    useStacks.getState().armVisionRideModifier("golf");
+    useStacks.getState().setPixelLook("palette");
+    useStacks.getState().beginVisionRide();
+
+    expect(useStacks.getState().visionRideSessionProfile).toEqual({
+      night: true,
+      redline: true,
+      golf: true,
+      pixelLook: "palette",
+    });
+    expect(visionProDisplayDiagnosticsController.getSnapshot()).toMatchObject({
+      enabled: true,
+      variant: "16-bit",
+    });
   });
 });

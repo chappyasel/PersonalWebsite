@@ -17,8 +17,9 @@ import {
   arrivalProgress,
   chaseAimY,
   chaseFraming,
+  lateralReach,
 } from "./visionRideCamera";
-import { VISION_RIDE_PALETTE, glslVec3 } from "./visionRidePalette";
+import { glslVec3, type VisionRidePalette } from "./visionRidePalette";
 import {
   VISION_RIDE_PARALLAX,
   chaseAimX,
@@ -47,6 +48,7 @@ import {
   mountainWindowOffsets,
   visionRideTerrainSegments,
 } from "./visionRideTerrain";
+import type { VisionRideProfile } from "./visionRideProfiles";
 
 export const VISION_RIDE_CAR_URL =
   "/models/vision-ride-lamborghini.glb" as const;
@@ -68,19 +70,19 @@ const SKY_VERTEX = `
 // The terrain fog calls this same function at full depth. Sharing the exact
 // sky evaluation—not merely a similar purple—makes the final recycled mesh
 // edge disappear instead of leaving a coloured silhouette against the dome.
-const SKY_COLOR_GLSL = `
+const skyColorGlsl = (palette: VisionRidePalette) => `
   vec3 ditherSky(vec3 color) {
     float pattern = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y) * 2.0, 4.0);
     return floor(color * 40.0 + pattern * 0.25) / 40.0;
   }
   vec3 skyColor(float h, float breath) {
     float lift = breath * 0.03;
-    vec3 indigo = ${glslVec3(VISION_RIDE_PALETTE.skyTop)};
-    vec3 purple = ${glslVec3(VISION_RIDE_PALETTE.skyUpper)};
-    vec3 violet = ${glslVec3(VISION_RIDE_PALETTE.skyViolet)};
-    vec3 magenta = ${glslVec3(VISION_RIDE_PALETTE.skyMagenta)};
-    vec3 pink = ${glslVec3(VISION_RIDE_PALETTE.skyPink)};
-    vec3 coral = mix(${glslVec3(VISION_RIDE_PALETTE.skyHorizon)}, ${glslVec3(VISION_RIDE_PALETTE.skyHorizonCrest)}, breath);
+    vec3 indigo = ${glslVec3(palette.skyTop)};
+    vec3 purple = ${glslVec3(palette.skyUpper)};
+    vec3 violet = ${glslVec3(palette.skyViolet)};
+    vec3 magenta = ${glslVec3(palette.skyMagenta)};
+    vec3 pink = ${glslVec3(palette.skyPink)};
+    vec3 coral = mix(${glslVec3(palette.skyHorizon)}, ${glslVec3(palette.skyHorizonCrest)}, breath);
     vec3 below = vec3(0.10, 0.02, 0.19);
     vec3 color = mix(pink, magenta, smoothstep(0.035, 0.11 + lift, h));
     color = mix(color, violet, smoothstep(0.11 + lift, 0.20 + lift, h));
@@ -95,10 +97,10 @@ const SKY_COLOR_GLSL = `
 // owns the upper frame, violet is only a short bridge into saturated magenta,
 // and the horizon resolves decisively to orange. uBreath lifts those lower
 // bands and warms the horizon slightly at the crest of the slow cycle.
-const SKY_FRAGMENT = `
+const skyFragment = (palette: VisionRidePalette) => `
   varying vec3 vWorld;
   uniform float uBreath;
-  ${SKY_COLOR_GLSL}
+  ${skyColorGlsl(palette)}
   void main() {
     gl_FragColor = vec4(ditherSky(skyColor(vWorld.y, uBreath)), 1.0);
   }
@@ -163,7 +165,7 @@ const SUN_VERTEX = `
   }
 `;
 
-const SUN_FRAGMENT = `
+const sunFragment = (palette: VisionRidePalette) => `
   varying vec2 vUv;
   uniform float uTime;
   uniform float uMotion;
@@ -180,9 +182,9 @@ const SUN_FRAGMENT = `
     // A bright yellow crown rolls through peach into an electric pink foot.
     // Two blends keep the yellow upper third broad instead of muddying the
     // whole disc with a single yellow-to-magenta interpolation.
-    vec3 top = ${glslVec3(VISION_RIDE_PALETTE.sunTop)};
-    vec3 middle = ${glslVec3(VISION_RIDE_PALETTE.sunMiddle)};
-    vec3 bottom = ${glslVec3(VISION_RIDE_PALETTE.sunFoot)};
+    vec3 top = ${glslVec3(palette.sunTop)};
+    vec3 middle = ${glslVec3(palette.sunMiddle)};
+    vec3 bottom = ${glslVec3(palette.sunFoot)};
     vec3 color = mix(bottom, middle, smoothstep(0.08, 0.52, vUv.y));
     color = mix(color, top, smoothstep(0.48, 0.78, vUv.y));
 
@@ -232,7 +234,7 @@ const SUN_FRAGMENT = `
   }
 `;
 
-const SUN_GLOW_FRAGMENT = `
+const sunGlowFragment = (palette: VisionRidePalette) => `
   varying vec2 vUv;
   void main() {
     vec2 p = (vUv - 0.5) * 2.0;
@@ -241,8 +243,8 @@ const SUN_GLOW_FRAGMENT = `
     float outer = (1.0 - smoothstep(0.24, 1.0, radius)) * 0.18;
     float alpha = corona * 0.28 + outer * 0.08;
     if (alpha < 0.002) discard;
-    vec3 pink = ${glslVec3(VISION_RIDE_PALETTE.sunFoot)};
-    vec3 yellow = ${glslVec3(VISION_RIDE_PALETTE.sunTop)};
+    vec3 pink = ${glslVec3(palette.sunFoot)};
+    vec3 yellow = ${glslVec3(palette.sunTop)};
     vec3 color = mix(pink, yellow, smoothstep(0.25, 0.78, vUv.y));
     gl_FragColor = vec4(color * (0.44 + corona * 0.76), alpha);
   }
@@ -254,7 +256,7 @@ const GRID_LINE_WIDTH_PX = 1.7;
 // Road and mountain fills use this exact screen-space mix. gl_FragCoord is
 // measured in drawing-buffer pixels, so the matching viewport-height uniform
 // keeps the gradient fixed to the frame across camera movement and DPR.
-const SURFACE_GRADIENT_GLSL = `
+const surfaceGradientGlsl = (palette: VisionRidePalette) => `
   uniform float uViewportHeight;
   vec3 ditherSurface(vec3 color) {
     float pattern = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y) * 2.0, 4.0);
@@ -262,8 +264,8 @@ const SURFACE_GRADIENT_GLSL = `
   }
   vec3 surfaceColor() {
     float viewportY = gl_FragCoord.y / max(uViewportHeight, 1.0);
-    float foreground = 1.0 - smoothstep(${VISION_RIDE_PALETTE.surfaceGradientBottom.toFixed(2)}, ${VISION_RIDE_PALETTE.surfaceGradientTop.toFixed(2)}, viewportY);
-    return mix(${glslVec3(VISION_RIDE_PALETTE.surfaceBase)}, ${glslVec3(VISION_RIDE_PALETTE.surfaceBottom)}, foreground);
+    float foreground = 1.0 - smoothstep(${palette.surfaceGradientBottom.toFixed(2)}, ${palette.surfaceGradientTop.toFixed(2)}, viewportY);
+    return mix(${glslVec3(palette.surfaceBase)}, ${glslVec3(palette.surfaceBottom)}, foreground);
   }
 `;
 
@@ -297,7 +299,7 @@ const LANDSCAPE_VERTEX = `
 // cyan wire on top.
 // Lines dim with distance before fwidth would fuse them into a solid blue
 // plane. The shared dither keeps both dark surfaces in the same bands.
-const LANDSCAPE_FRAGMENT = `
+const landscapeFragment = (palette: VisionRidePalette) => `
   varying vec2 vUv;
   varying vec2 vFacetUv;
   varying float vMountain;
@@ -305,8 +307,8 @@ const LANDSCAPE_FRAGMENT = `
   varying float vViewDepth;
   varying float vSkyHeight;
   uniform float uBreath;
-  ${SKY_COLOR_GLSL}
-  ${SURFACE_GRADIENT_GLSL}
+  ${skyColorGlsl(palette)}
+  ${surfaceGradientGlsl(palette)}
   void main() {
     // fwidth converts the metric grid into screen derivatives, so this is a
     // constant pixel width from the foreground through the horizon.
@@ -327,16 +329,16 @@ const LANDSCAPE_FRAGMENT = `
     line = max(line, facetLine);
     float glow = max(0.0, 1.0 - edge * 0.5) * 0.06;
     vec3 base = surfaceColor();
-    vec3 neon = ${glslVec3(VISION_RIDE_PALETTE.roadLine)};
+    vec3 neon = ${glslVec3(palette.roadLine)};
     vec3 color = mix(base, neon, max(line, glow));
     // Custom view-space fog is intentional: the parent scene's short-range
     // room fog is not calibrated for this 190 m chase. Applying it here also
     // guarantees the road and both mountain flanks haze as one surface.
     float fogAmount = smoothstep(
-      ${VISION_RIDE_PALETTE.surfaceFogNear.toFixed(1)},
-      ${VISION_RIDE_PALETTE.surfaceFogFar.toFixed(1)},
+      ${palette.surfaceFogNear.toFixed(1)},
+      ${palette.surfaceFogFar.toFixed(1)},
       vViewDepth
-    ) * ${VISION_RIDE_PALETTE.surfaceFogMax.toFixed(2)};
+    ) * ${palette.surfaceFogMax.toFixed(2)};
     vec3 paintedSurface = ditherSurface(color);
     vec3 paintedSky = ditherSky(skyColor(vSkyHeight, uBreath));
     gl_FragColor = vec4(mix(paintedSurface, paintedSky, fogAmount), 1.0);
@@ -431,10 +433,12 @@ function RetrowaveSky({
   starCount,
   reducedMotion,
   breath,
+  profile,
 }: {
   starCount: number;
   reducedMotion: boolean;
   breath: RefObject<EnvironmentBreath>;
+  profile: VisionRideProfile;
 }) {
   const stars = useMemo(() => deterministicStars(starCount), [starCount]);
   const starSizes = useMemo(
@@ -450,6 +454,18 @@ function RetrowaveSky({
   const starMaterial = useRef<THREE.ShaderMaterial>(null);
   const sunMaterial = useRef<THREE.ShaderMaterial>(null);
   const sun = useRef<THREE.Group>(null);
+  const skyShader = useMemo(
+    () => skyFragment(profile.palette),
+    [profile.palette],
+  );
+  const discShader = useMemo(
+    () => sunFragment(profile.palette),
+    [profile.palette],
+  );
+  const glowShader = useMemo(
+    () => sunGlowFragment(profile.palette),
+    [profile.palette],
+  );
   useFrame((state) => {
     const cycle = breath.current;
     if (skyMaterial.current)
@@ -460,7 +476,8 @@ function RetrowaveSky({
     }
     if (sunMaterial.current)
       sunMaterial.current.uniforms.uTime!.value = state.clock.elapsedTime;
-    if (sun.current) sun.current.scale.setScalar(cycle.sunScale);
+    if (sun.current)
+      sun.current.scale.setScalar(cycle.sunScale * profile.sunBaseScale);
   });
   return (
     <>
@@ -477,7 +494,7 @@ function RetrowaveSky({
           toneMapped={false}
           uniforms={{ uBreath: { value: 0 } }}
           vertexShader={SKY_VERTEX}
-          fragmentShader={SKY_FRAGMENT}
+          fragmentShader={skyShader}
         />
       </mesh>
       <points frustumCulled={false} renderOrder={ORDER.stars}>
@@ -525,7 +542,7 @@ function RetrowaveSky({
             toneMapped={false}
             blending={THREE.AdditiveBlending}
             vertexShader={SUN_VERTEX}
-            fragmentShader={SUN_GLOW_FRAGMENT}
+            fragmentShader={glowShader}
           />
         </mesh>
         <mesh renderOrder={ORDER.sun}>
@@ -551,7 +568,7 @@ function RetrowaveSky({
               uMotion: { value: reducedMotion ? 0 : 1 },
             }}
             vertexShader={SUN_VERTEX}
-            fragmentShader={SUN_FRAGMENT}
+            fragmentShader={discShader}
           />
         </mesh>
       </group>
@@ -562,9 +579,11 @@ function RetrowaveSky({
 function UnifiedLandscape({
   reducedMotion,
   breath,
+  profile,
 }: {
   reducedMotion: boolean;
   breath: RefObject<EnvironmentBreath>;
+  profile: VisionRideProfile;
 }) {
   const near = useRef<THREE.Mesh>(null);
   const middle = useRef<THREE.Mesh>(null);
@@ -592,9 +611,9 @@ function UnifiedLandscape({
           uBreath: { value: 0 },
         },
         vertexShader: LANDSCAPE_VERTEX,
-        fragmentShader: LANDSCAPE_FRAGMENT,
+        fragmentShader: landscapeFragment(profile.palette),
       }),
-    [viewportHeight],
+    [profile.palette, viewportHeight],
   );
 
   useEffect(
@@ -607,7 +626,9 @@ function UnifiedLandscape({
 
   useFrame((state) => {
     material.uniforms.uBreath!.value = breath.current.phase;
-    const travel = reducedMotion ? 0 : state.clock.elapsedTime * 12;
+    const travel = reducedMotion
+      ? 0
+      : state.clock.elapsedTime * profile.speedMetresPerSecond;
     const [nearOffset, middleOffset, horizonOffset] =
       mountainWindowOffsets(travel);
     if (near.current) near.current.position.z = nearOffset;
@@ -645,7 +666,13 @@ function UnifiedLandscape({
   );
 }
 
-function Lamborghini({ reducedMotion }: { reducedMotion: boolean }) {
+function Lamborghini({
+  reducedMotion,
+  profile,
+}: {
+  reducedMotion: boolean;
+  profile: VisionRideProfile;
+}) {
   const { scene } = useGLTF(VISION_RIDE_CAR_URL, false);
   const root = useRef<THREE.Group>(null);
   const wheels = useRef<THREE.Object3D[]>([]);
@@ -718,15 +745,25 @@ function Lamborghini({ reducedMotion }: { reducedMotion: boolean }) {
     [car],
   );
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const group = root.current;
     if (!group) return;
     const time = reducedMotion ? 0 : state.clock.elapsedTime;
-    group.position.y = reducedMotion ? 0 : 0.035 + Math.sin(time * 3.1) * 0.025;
-    group.position.x = reducedMotion ? 0 : Math.sin(time * 0.42) * 0.22;
-    group.rotation.z = reducedMotion ? 0 : Math.sin(time * 0.83) * 0.008;
+    const motion = profile.carMotionScale;
+    group.position.y = reducedMotion
+      ? 0
+      : 0.035 + Math.sin(time * 3.1 * motion) * 0.025 * motion;
+    group.position.x = reducedMotion
+      ? 0
+      : Math.sin(time * 0.42 * motion) * 0.22 * motion;
+    group.rotation.z = reducedMotion
+      ? 0
+      : Math.sin(time * 0.83 * motion) * 0.008 * motion;
     if (!reducedMotion)
-      for (const wheel of wheels.current) wheel.rotation.x -= 0.12;
+      for (const wheel of wheels.current)
+        wheel.rotation.x -=
+          0.12 * 60 * Math.min(delta, 1 / 20) *
+          (profile.speedMetresPerSecond / 12);
   });
 
   return (
@@ -742,8 +779,10 @@ function Lamborghini({ reducedMotion }: { reducedMotion: boolean }) {
 
 export default function VisionRideWorld({
   tier,
+  profile,
 }: {
   tier: VisionRideTerrainTier;
+  profile: VisionRideProfile;
 }) {
   const phase = useStacks((state) => state.visionRidePhase);
   const markReady = useStacks((state) => state.markVisionRideReady);
@@ -759,11 +798,17 @@ export default function VisionRideWorld({
   const keyAxis = useRef({ x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0 });
   const breath = useRef<EnvironmentBreath>(
-    environmentBreath(0, true, chaseFraming(false).chaseDistance),
+    environmentBreath(
+      0,
+      true,
+      chaseFraming(false).chaseDistance,
+      profile.breath,
+    ),
   );
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
   const size = useThree((state) => state.size);
-  const { stars } = visionRideTerrainSegments(tier);
+  const { stars: tierStars } = visionRideTerrainSegments(tier);
+  const stars = Math.max(0, Math.round(tierStars * profile.starCountScale));
 
   // The ride's fullscreen "Remove Vision Pro" button owns pointer events
   // over the canvas, so the fiber pointer never updates here. Listen on the
@@ -797,7 +842,10 @@ export default function VisionRideWorld({
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        isEditableShortcutTarget(event.target)
+        isEditableShortcutTarget(event.target) ||
+        // The world mounts during donning, before it owns input; claim keys
+        // only while the ride is actually cruising.
+        useStacks.getState().visionRidePhase !== "cruising"
       )
         return;
       event.preventDefault();
@@ -806,14 +854,22 @@ export default function VisionRideWorld({
     const onKeyUp = (event: KeyboardEvent) => {
       pressed.delete(event.code);
     };
+    // A tab switch or page transition can drop the keyup, which would leave
+    // the camera drifting until the same key is pressed again, so the set is
+    // cleared whenever the page loses focus or visibility.
     const clear = () => pressed.clear();
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") pressed.clear();
+    };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", clear);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", clear);
+      document.removeEventListener("visibilitychange", onVisibility);
       pressed.clear();
     };
   }, [reducedMotion]);
@@ -838,6 +894,7 @@ export default function VisionRideWorld({
       elapsed,
       reducedMotion,
       framing.chaseDistance,
+      profile.breath,
     );
     breath.current = cycle;
     // Damped pointer parallax + keys + ambient drift around the chase
@@ -850,19 +907,23 @@ export default function VisionRideWorld({
     const wanted = keyAxes(keysPressed.current);
     keyAxis.current.x = rampKeyAxis(keyAxis.current.x, wanted.x, delta);
     keyAxis.current.y = rampKeyAxis(keyAxis.current.y, wanted.y, delta);
-    const target = parallaxTarget({
+    const unscaledTarget = parallaxTarget({
       pointerX: pointer.current.x + keyAxis.current.x,
       pointerY: pointer.current.y + keyAxis.current.y,
       time: state.clock.elapsedTime,
       portrait,
       reducedMotion,
     });
+    const target = {
+      x: unscaledTarget.x * profile.parallaxScale,
+      y: unscaledTarget.y * profile.parallaxScale,
+      z: unscaledTarget.z * profile.parallaxScale,
+    };
     const damp = 1 - Math.exp(-VISION_RIDE_PARALLAX.dampingPerSecond * delta);
     parallax.current.x += (target.x - parallax.current.x) * damp;
     parallax.current.y += (target.y - parallax.current.y) * damp;
     parallax.current.z += (target.z - parallax.current.z) * damp;
     const pose = arrivalPose(framing, intro);
-    const lateral = pose.position[0] + parallax.current.x * intro;
     const eyeY =
       pose.position[1] +
       ((reducedMotion ? 0 : Math.sin(elapsed * 0.72) * 0.018) +
@@ -873,6 +934,21 @@ export default function VisionRideWorld({
       // The convex pull shrinks with the breath's closure, so the pointer
       // or keys at their extreme never stack a full pull on the crest.
       (cycle.chaseOffset + parallax.current.z / cycle.carScale) * intro;
+    // The lateral shift is capped by the room the frame has beside the car's
+    // rear at this depth. A fixed 2.1 m reach at the 2.25x crest yawed the
+    // fender past the side of a portrait or 4:3 frame.
+    const reach = lateralReach(
+      framing,
+      size.width / size.height,
+      cameraZ,
+      VISION_RIDE_PARALLAX.aimShare,
+    );
+    const shiftX = THREE.MathUtils.clamp(
+      parallax.current.x * intro,
+      -reach,
+      reach,
+    );
+    const lateral = pose.position[0] + shiftX;
     camera.position.set(lateral, eyeY, cameraZ);
     // The aim shares only part of the lateral offset, so the live shift is
     // a truck: the vanishing point slides one way and the car drifts the
@@ -881,7 +957,7 @@ export default function VisionRideWorld({
     // the frame edge. Both blend in over the pull-back from the shot's own
     // aim, which starts on the car's flank.
     camera.lookAt(
-      pose.aim[0] + chaseAimX(parallax.current.x) * intro,
+      pose.aim[0] + chaseAimX(shiftX),
       THREE.MathUtils.lerp(
         pose.aim[1],
         chaseAimY(framing, eyeY, cameraZ),
@@ -901,17 +977,32 @@ export default function VisionRideWorld({
         starCount={stars}
         reducedMotion={reducedMotion}
         breath={breath}
+        profile={profile}
       />
-      <UnifiedLandscape reducedMotion={reducedMotion} breath={breath} />
-      <hemisphereLight args={["#b9c7ff", "#3a004d", 1.5]} />
-      <directionalLight color="#ff9a63" intensity={3.2} position={[-6, 8, 5]} />
+      <UnifiedLandscape
+        reducedMotion={reducedMotion}
+        breath={breath}
+        profile={profile}
+      />
+      <hemisphereLight
+        args={[
+          profile.hemisphere.sky,
+          profile.hemisphere.ground,
+          profile.hemisphere.intensity,
+        ]}
+      />
+      <directionalLight
+        color={profile.directional.color}
+        intensity={profile.directional.intensity}
+        position={[-6, 8, 5]}
+      />
       <pointLight
-        color="#ff2b9f"
-        intensity={18}
+        color={profile.point.color}
+        intensity={profile.point.intensity}
         distance={28}
         position={[4, 4, -4]}
       />
-      <Lamborghini reducedMotion={reducedMotion} />
+      <Lamborghini reducedMotion={reducedMotion} profile={profile} />
       {retroFxEnabled && <ScreenDitherOverlay reducedMotion={reducedMotion} />}
     </group>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import type { PhotoArtifactId } from "../../sceneArtifacts";
+import { GOLF_UNIT_INDEX } from "../../data";
 import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import VisionRideSource from "../../visionRide/VisionRideSource";
@@ -607,6 +608,11 @@ export default function UnitAbout({
               shadeWidth={0.44}
               shape="box"
               massKg={0.65}
+              hittable={{
+                radius: 0.22,
+                contactHeight: 0.13,
+                bayUnitIndex: GOLF_UNIT_INDEX,
+              }}
               onTap={() => void activateVisionRide()}
               onHoverIntent={() => void preloadVisionRide()}
               actionLabel="Put on Apple Vision Pro"

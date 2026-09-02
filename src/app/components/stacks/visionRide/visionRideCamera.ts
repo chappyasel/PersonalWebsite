@@ -38,6 +38,10 @@ export const VISION_RIDE_CAMERA = {
   /** Rear axle's distance behind the anchor, from the model's RL/RR wheel
    * nodes; the nearest ground contact the chase camera has to keep in frame. */
   carRearAxleMetres: 1.45,
+  /** Half-width of the body proper, mirrors excluded, from the model. The
+   * lateral shift is capped so this much of the rear stays inside the frame;
+   * a mirror tip leaving the edge is invisible, a fender is not. */
+  carHalfWidthMetres: 1.02,
   /** Lowest point of the body mesh, decoded from the model. Taken at the
    * rear face when framing, which is conservative: the sills at mid-length
    * are the true low point and sit further from the eye. */
@@ -149,6 +153,30 @@ export function arrivalPose(framing: ChaseFraming, progress: number) {
     startAim[2] + (endAim[2] - startAim[2]) * turn,
   ];
   return { position, aim };
+}
+
+/**
+ * Metres the camera may truck sideways from a given depth without pushing
+ * the car's rear body past the side of the frame. The horizontal field at
+ * the rear face's distance leaves `half-width minus the body` of room; the
+ * aim shares part of the truck, so the car moves across the frame by only
+ * the unshared fraction of the offset, and the cap is scaled up by that.
+ * Narrow portrait frames at the breath's crest have almost no room, which
+ * is where a fixed metre reach yawed the fender out of frame.
+ */
+export function lateralReach(
+  framing: ChaseFraming,
+  aspect: number,
+  cameraZ: number,
+  aimShare: number,
+) {
+  const cam = VISION_RIDE_CAMERA;
+  const rearDistance = cameraZ - (cam.carZ + cam.carLengthMetres / 2);
+  const halfWidth =
+    rearDistance * Math.tan((framing.fov * Math.PI) / 360) * aspect;
+  const room = halfWidth - cam.carHalfWidthMetres;
+  if (!(room > 0)) return 0;
+  return (room * 0.9) / (1 - aimShare);
 }
 
 /**

@@ -14,8 +14,8 @@ describe("Field Notes catalog", () => {
     expect(counts).toEqual({
       Common: 13,
       Uncommon: 10,
-      Rare: 7,
-      Legendary: 4,
+      Rare: 10,
+      Legendary: 5,
     });
   });
 
@@ -24,7 +24,13 @@ describe("Field Notes catalog", () => {
       FIELD_NOTES.filter((note) => note.rarity === "Legendary").map(
         (note) => note.id,
       ),
-    ).toEqual(["around-the-room", "hole-in-one", "full-stack", "full-journal"]);
+    ).toEqual([
+      "around-the-room",
+      "hole-in-one",
+      "full-stack",
+      "reality-stack",
+      "full-journal",
+    ]);
   });
 
   it("keeps the album-side discovery in the deliberate-habit tier", () => {
@@ -85,5 +91,20 @@ describe("Field Notes catalog", () => {
       "butterfly-effect": "Uncommon",
       "wrong-sport": "Uncommon",
     });
+  });
+
+  it("recognizes every authored reality and reserves Legendary for their full stack", () => {
+    expect(
+      FIELD_NOTES.filter((note) =>
+        ["night-shift", "redline", "fore-sight", "reality-stack"].includes(
+          note.id,
+        ),
+      ).map(({ id, rarity, hidden }) => ({ id, rarity, hidden })),
+    ).toEqual([
+      { id: "night-shift", rarity: "Rare", hidden: true },
+      { id: "redline", rarity: "Rare", hidden: true },
+      { id: "fore-sight", rarity: "Rare", hidden: true },
+      { id: "reality-stack", rarity: "Legendary", hidden: true },
+    ]);
   });
 });

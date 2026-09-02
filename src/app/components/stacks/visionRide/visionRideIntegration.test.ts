@@ -11,12 +11,24 @@ describe("Vision ride integration", () => {
     expect(about).toContain("onTap={() => void activateVisionRide()}");
     expect(about).toContain("onHoverIntent={() => void preloadVisionRide()}");
     expect(about).toContain('actionLabel="Put on Apple Vision Pro"');
+    expect(about).toContain("bayUnitIndex: GOLF_UNIT_INDEX");
     expect(about).not.toContain(
       'href="https://www.apple.com/apple-vision-pro/"',
     );
     const entry = read("./visionRideEntry.ts");
     expect(entry).not.toContain("window.open");
     expect(entry).toContain("state.visionRideSessionFailed");
+  });
+
+  it("lets the Training golf bay arm the fairway reality only by striking Vision Pro", () => {
+    const golf = read("../scene/golf/GolfExperience.tsx");
+    expect(golf).toContain(
+      'recordFieldNoteEvent({ type: "golf-prop-struck", propId: loose.id })',
+    );
+    expect(golf).toContain(
+      'loose.id === "action:about:vision-ride"',
+    );
+    expect(golf).toContain('armVisionRideModifier("golf")');
   });
 
   it("keeps native accessible entry, removal, and Apple source controls", () => {
@@ -38,7 +50,7 @@ describe("Vision ride integration", () => {
     const entry = read("./visionRideEntry.ts");
     expect(controls).toContain('state.visionRidePhase === "cruising"');
     expect(controls).toContain('type: "vision-ride-entered"');
-    expect(controls).toContain("pixelLook: state.pixelLook");
+    expect(controls).toContain("profile: state.visionRideSessionProfile");
     expect(entry).not.toContain("recordFieldNoteEvent");
   });
 
@@ -46,19 +58,19 @@ describe("Vision ride integration", () => {
     const world = read("./VisionRideWorld.tsx");
     const terrain = read("./visionRideTerrain.ts");
     const transition = read("./VisionRideTransition.tsx");
-    expect(world).toContain("LANDSCAPE_FRAGMENT");
+    expect(world).toContain("landscapeFragment");
     expect(world).toContain("vViewDepth");
     expect(world).toContain("skyColor(vSkyHeight, uBreath)");
     expect(world).toContain("ditherSky(skyColor(vSkyHeight, uBreath))");
-    expect(world).toContain("VISION_RIDE_PALETTE.surfaceFogNear");
-    expect(world).toContain("VISION_RIDE_PALETTE.surfaceFogFar");
-    expect(world).toContain("VISION_RIDE_PALETTE.surfaceFogMax");
+    expect(world).toContain("palette.surfaceFogNear");
+    expect(world).toContain("palette.surfaceFogFar");
+    expect(world).toContain("palette.surfaceFogMax");
     expect(world).toContain("vFacetUv");
     expect(world).toContain("ScreenDitherOverlay");
     expect(world).toContain("deterministicStarSizes");
     expect(world).toContain("deterministicStarTwinkle");
-    expect(world).toContain("VISION_RIDE_PALETTE.skyTop");
-    expect(world).toContain("VISION_RIDE_PALETTE.sunTop");
+    expect(world).toContain("palette.skyTop");
+    expect(world).toContain("palette.sunTop");
     expect(world).toContain("440.0, hero");
     expect(world).toContain("fwidth(vUv) * ${GRID_LINE_WIDTH_PX.toFixed(1)}");
     expect(world).toContain("VISION_RIDE_SUN_DIAMETER_METRES,");
@@ -113,10 +125,12 @@ describe("Vision ride integration", () => {
     // The cycle is evaluated against the orientation's settled chase
     // distance, so the car's growth is the same fraction on every viewport.
     expect(world).toMatch(
-      /environmentBreath\(\s*elapsed,\s*reducedMotion,\s*framing\.chaseDistance,?\s*\)/,
+      /environmentBreath\(\s*elapsed,\s*reducedMotion,\s*framing\.chaseDistance,\s*profile\.breath,?\s*\)/,
     );
     expect(world).toContain("uniforms.uBreath!.value = cycle.phase");
-    expect(world).toContain("sun.current.scale.setScalar(cycle.sunScale)");
+    expect(world).toContain(
+      "sun.current.scale.setScalar(cycle.sunScale * profile.sunBaseScale)",
+    );
     expect(world).toContain(
       "(cycle.chaseOffset + parallax.current.z / cycle.carScale) * intro",
     );
@@ -141,17 +155,21 @@ describe("Vision ride integration", () => {
     expect(world).toContain("isEditableShortcutTarget(event.target)");
     expect(world).toContain("keyAxes(keysPressed.current)");
     // The aim shares the lateral shift: a truck, not an orbit about the car.
-    expect(world).toMatch(/pose\.aim\[0\] \+ chaseAimX\(parallax\.current\.x\) \* intro/);
+    expect(world).toContain("lateralReach(");
+    expect(world).toContain("parallax.current.x * intro,\n      -reach,\n      reach,");
+    expect(world).toContain("pose.aim[0] + chaseAimX(shiftX)");
+    expect(world).toContain('useStacks.getState().visionRidePhase !== "cruising"');
+    expect(world).toContain('document.addEventListener("visibilitychange", onVisibility)');
     // lookAt pins the car's nominal position on every viewport, and the
     // framing itself comes from the pure, per-orientation module.
     expect(world).toContain("const framing = chaseFraming(portrait);");
     // Road, mountains, horizon and sun-foot colours come from the palette module.
-    expect(world).toContain("SURFACE_GRADIENT_GLSL");
-    expect(world).toContain("glslVec3(VISION_RIDE_PALETTE.surfaceBottom)");
-    expect(world).toContain("glslVec3(VISION_RIDE_PALETTE.surfaceBase)");
-    expect(world).toContain("glslVec3(VISION_RIDE_PALETTE.roadLine)");
-    expect(world).toContain("glslVec3(VISION_RIDE_PALETTE.skyHorizon)");
-    expect(world).toContain("glslVec3(VISION_RIDE_PALETTE.sunFoot)");
+    expect(world).toContain("surfaceGradientGlsl");
+    expect(world).toContain("glslVec3(palette.surfaceBottom)");
+    expect(world).toContain("glslVec3(palette.surfaceBase)");
+    expect(world).toContain("glslVec3(palette.roadLine)");
+    expect(world).toContain("glslVec3(palette.skyHorizon)");
+    expect(world).toContain("glslVec3(palette.sunFoot)");
     // The single fill derives its gradient from the drawing-buffer coordinate,
     // independent of camera distance and terrain height.
     expect(world).toContain("uniform float uViewportHeight;");
@@ -197,12 +215,12 @@ describe("Vision ride integration", () => {
   it("renders the sun as a yellow-to-pink disc with horizontal cut-outs", () => {
     const world = read("./VisionRideWorld.tsx");
     const shader = world.slice(
-      world.indexOf("const SUN_FRAGMENT"),
+      world.indexOf("const sunFragment"),
       world.indexOf("const GRID_CELL_METRES"),
     );
-    expect(shader).toContain("VISION_RIDE_PALETTE.sunTop");
-    expect(shader).toContain("VISION_RIDE_PALETTE.sunMiddle");
-    expect(shader).toContain("VISION_RIDE_PALETTE.sunFoot");
+    expect(shader).toContain("palette.sunTop");
+    expect(shader).toContain("palette.sunMiddle");
+    expect(shader).toContain("palette.sunFoot");
     expect(shader).toContain("float bandPhase = fract");
     expect(shader).toContain("float grooveWidth");
     expect(shader).toContain("float stripeRegion");
@@ -215,7 +233,7 @@ describe("Vision ride integration", () => {
     expect(world).toContain("uMotion: { value: reducedMotion ? 0 : 1 }");
     expect(shader).toContain("vec3 grooveColor");
     expect(shader).toContain("max(disc, rimHalo)");
-    expect(world).toContain("const SUN_GLOW_FRAGMENT");
+    expect(world).toContain("const sunGlowFragment");
     expect(world).toContain("THREE.AdditiveBlending");
     expect(world).toContain("VISION_RIDE_SUN_DIAMETER_METRES * 1.5");
     expect(world).toContain("vec3 sunColor");

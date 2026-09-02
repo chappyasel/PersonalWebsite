@@ -40,7 +40,10 @@ import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MathUtils, Uniform, Vector2, Vector3, Vector4 } from "three";
 
 import { useCinematicSun } from "./cinematicSun";
-import { useVisionRideRetroFxEnabled } from "../visionRide/visionRideDiagnostics";
+import {
+  useVisionRidePreviewOverrides,
+  useVisionRideRetroFxEnabled,
+} from "../visionRide/visionRideDiagnostics";
 import { captureLensCenterFromSearch, sideLensPlan } from "./lensGeometry";
 import {
   DB32_PALETTE,
@@ -629,6 +632,7 @@ export default function Effects({
     (state) => state.visionRideRoomHidden,
   );
   const visionRideRetroFxEnabled = useVisionRideRetroFxEnabled();
+  const visionRidePreview = useVisionRidePreviewOverrides();
   const captureLensCenter = useMemo(
     () =>
       typeof window === "undefined"
@@ -643,7 +647,11 @@ export default function Effects({
   // come back the moment a wipe to "off" completes. The pass itself stays
   // mounted until a wipe to "off" has finished, so the photograph is never
   // cut back in under an unfinished circle.
-  const pixelLook = useStacks((state) => state.pixelLook);
+  const authoredPixelLook = useStacks((state) => state.pixelLook);
+  const pixelLook =
+    visionRideRoomHidden && visionRidePreview.finishPreview !== "authored"
+      ? visionRidePreview.finishPreview
+      : authoredPixelLook;
   const pixelOrigin = useStacks((state) => state.pixelOrigin);
   const [settledPixel, setSettledPixel] = useState<PixelLook>(pixelLook);
   const pixelMounted = pixelLook !== "off" || settledPixel !== "off";

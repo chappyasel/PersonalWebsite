@@ -7,6 +7,27 @@
  */
 export type Rgb = readonly [number, number, number];
 
+export type VisionRidePalette = Readonly<{
+  skyTop: Rgb;
+  skyUpper: Rgb;
+  skyViolet: Rgb;
+  skyMagenta: Rgb;
+  skyPink: Rgb;
+  skyHorizon: Rgb;
+  skyHorizonCrest: Rgb;
+  sunTop: Rgb;
+  sunMiddle: Rgb;
+  sunFoot: Rgb;
+  surfaceBase: Rgb;
+  surfaceBottom: Rgb;
+  roadLine: Rgb;
+  surfaceFogNear: number;
+  surfaceFogFar: number;
+  surfaceFogMax: number;
+  surfaceGradientBottom: number;
+  surfaceGradientTop: number;
+}>;
+
 /** Display-space samples from the approved reference image. These are the
  * calibration targets after tone mapping, not shader inputs. */
 export const VISION_RIDE_REFERENCE_SRGB = {
@@ -64,7 +85,7 @@ export const VISION_RIDE_PALETTE = {
    * tint briefly, then finish the blend above the frame midpoint. */
   surfaceGradientBottom: 0.06,
   surfaceGradientTop: 0.68,
-} as const;
+} as const satisfies VisionRidePalette;
 
 function smoothstep(edge0: number, edge1: number, value: number) {
   const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));

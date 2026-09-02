@@ -1182,6 +1182,8 @@ export function EggClock({
       unitIndex={unitIndex}
       hoverKey={hoverKey}
       onTrigger={() => {
+        if (faceStyle === "alarm")
+          useStacks.getState().armVisionRideModifier("night");
         if (reducedMotion() || sweep.current) return;
         sweep.current = { start: performance.now() };
       }}

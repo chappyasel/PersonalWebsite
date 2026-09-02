@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { VISION_RIDE_BREATH, chaseOffsetForScale } from "./visionRideBreath";
@@ -15,11 +16,12 @@ import {
   cameraZRange,
   chaseAimY,
   chaseFraming,
+  lateralReach,
   nearestVisibleGroundZ,
   roadEdgeEntryZ,
   settledCarWidthFraction,
 } from "./visionRideCamera";
-import { VISION_RIDE_PARALLAX } from "./visionRideParallax";
+import { VISION_RIDE_PARALLAX, chaseAimX } from "./visionRideParallax";
 import {
   VISION_RIDE_MOUNTAIN_HORIZON_METRES,
   VISION_RIDE_ROAD_HALF_WIDTH,
@@ -271,6 +273,84 @@ describe("Vision ride chase framing", () => {
         // The roof stays inside the top edge too.
         const roof = Math.atan2(eyeY - 1.15, cameraZ - rearBumperZ);
         expect(pitch - roof).toBeLessThan(halfFov);
+      }
+    }
+  });
+  it("keeps the car's rear inside the frame at the crest with the shift at its extremes", () => {
+    // Codex's finding on PR #45: with a full 2.1 m truck at the 2.25x crest
+    // the rear body yawed past the side of a portrait or 4:3 frame. The
+    // shift is now capped by the room the frame has beside the body, and
+    // the convex pull shrinks with the closure.
+    const cam = VISION_RIDE_CAMERA;
+    const crestScale = 1 + VISION_RIDE_BREATH.carGrowth;
+    const rearZ = cam.carZ + cam.carLengthMetres / 2;
+    const halfWidth = cam.carHalfWidthMetres;
+    for (const aspect of [1128 / 2356, 9 / 16, 3 / 4, 4 / 3, 16 / 10, 16 / 9]) {
+      const portrait = aspect < 1;
+      const framing = chaseFraming(portrait);
+      const scale = portrait ? VISION_RIDE_PARALLAX.portraitScale : 1;
+      const cameraZ =
+        framing.chaseZ +
+        chaseOffsetForScale(crestScale, framing.chaseDistance) -
+        (VISION_RIDE_PARALLAX.convexZ * scale) / crestScale;
+      const reach = lateralReach(
+        framing,
+        aspect,
+        cameraZ,
+        VISION_RIDE_PARALLAX.aimShare,
+      );
+      // Wide frames keep most of the authored reach; narrow ones give it up.
+      if (aspect > 1.5) expect(reach).toBeGreaterThan(0.5);
+      expect(reach).toBeLessThanOrEqual(VISION_RIDE_PARALLAX.maxX * 2);
+      for (const sx of [-1, 1]) {
+        for (const sy of [-1, 0, 1]) {
+          const x = sx * Math.min(VISION_RIDE_PARALLAX.maxX * scale, reach);
+          const eyeY = framing.eyeY + sy * VISION_RIDE_PARALLAX.maxY * scale;
+          const camera = new THREE.PerspectiveCamera(
+            framing.fov,
+            aspect,
+            0.1,
+            100,
+          );
+          camera.position.set(x, eyeY, cameraZ);
+          camera.lookAt(
+            chaseAimX(x),
+            chaseAimY(framing, eyeY, cameraZ),
+            framing.carZ,
+          );
+          camera.updateMatrixWorld();
+          for (const cx of [-halfWidth, halfWidth]) {
+            for (const cy of [cam.carBottomMetres, 1.15]) {
+              const ndc = new THREE.Vector3(cx, cy, rearZ).project(camera);
+              expect(Math.abs(ndc.x)).toBeLessThanOrEqual(1);
+              expect(Math.abs(ndc.y)).toBeLessThanOrEqual(1);
+            }
+          }
+        }
+      }
+      // Settled, the cap never binds on a landscape frame: the authored
+      // reach is what the pointer and keys get.
+      if (!portrait) {
+        expect(
+          lateralReach(
+            framing,
+            aspect,
+            framing.chaseZ,
+            VISION_RIDE_PARALLAX.aimShare,
+          ),
+        ).toBeGreaterThanOrEqual(VISION_RIDE_PARALLAX.maxX);
+      }
+    }
+  });
+
+  it("caps the reach at zero when the frame has no room beside the body", () => {
+    const framing = chaseFraming(true);
+    expect(lateralReach(framing, 0.2, framing.chaseZ - 6, 0.3)).toBe(0);
+    for (const share of [0, 0.3, 0.6]) {
+      for (const aspect of [0.5, 1, 1.78]) {
+        const reach = lateralReach(framing, aspect, framing.chaseZ, share);
+        expect(reach).toBeGreaterThanOrEqual(0);
+        expect(Number.isFinite(reach)).toBe(true);
       }
     }
   });

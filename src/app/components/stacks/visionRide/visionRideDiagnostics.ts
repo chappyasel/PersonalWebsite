@@ -1,8 +1,28 @@
 import { useSyncExternalStore } from "react";
 
+import type { PixelLook } from "../scene/pixelArt";
+import type { VisionRideModifiers } from "./visionRideProfiles";
+
+export const VISION_RIDE_SCENE_PREVIEWS = [
+  "authored",
+  "canonical",
+  "night",
+  "redline",
+  "golf",
+  "night-redline",
+  "night-golf",
+  "redline-golf",
+  "full-stack",
+] as const;
+export type VisionRideScenePreview =
+  (typeof VISION_RIDE_SCENE_PREVIEWS)[number];
+export type VisionRideFinishPreview = "authored" | PixelLook;
+
 type Snapshot = Readonly<{
   enabled: boolean;
   retroFxEnabled: boolean;
+  scenePreview: VisionRideScenePreview;
+  finishPreview: VisionRideFinishPreview;
 }>;
 type Listener = () => void;
 
@@ -14,6 +34,8 @@ function enabledFromLocation() {
 let snapshot: Snapshot = {
   enabled: enabledFromLocation(),
   retroFxEnabled: true,
+  scenePreview: "authored",
+  finishPreview: "authored",
 };
 const listeners = new Set<Listener>();
 
@@ -44,7 +66,40 @@ export const visionRideDiagnosticsController = {
     snapshot = { ...snapshot, retroFxEnabled };
     publish();
   },
+  setScenePreview: (scenePreview: VisionRideScenePreview) => {
+    if (snapshot.scenePreview === scenePreview) return;
+    snapshot = { ...snapshot, scenePreview };
+    publish();
+  },
+  setFinishPreview: (finishPreview: VisionRideFinishPreview) => {
+    if (snapshot.finishPreview === finishPreview) return;
+    snapshot = { ...snapshot, finishPreview };
+    publish();
+  },
 };
+
+export function visionRidePreviewModifiers(
+  preview: VisionRideScenePreview,
+): VisionRideModifiers | null {
+  if (preview === "authored") return null;
+  return {
+    night:
+      preview === "night" ||
+      preview === "night-redline" ||
+      preview === "night-golf" ||
+      preview === "full-stack",
+    redline:
+      preview === "redline" ||
+      preview === "night-redline" ||
+      preview === "redline-golf" ||
+      preview === "full-stack",
+    golf:
+      preview === "golf" ||
+      preview === "night-golf" ||
+      preview === "redline-golf" ||
+      preview === "full-stack",
+  };
+}
 
 export function useVisionRideEnabled() {
   return useSyncExternalStore(
@@ -59,5 +114,13 @@ export function useVisionRideRetroFxEnabled() {
     visionRideDiagnosticsController.subscribe,
     () => visionRideDiagnosticsController.getSnapshot().retroFxEnabled,
     () => true,
+  );
+}
+
+export function useVisionRidePreviewOverrides() {
+  return useSyncExternalStore(
+    visionRideDiagnosticsController.subscribe,
+    visionRideDiagnosticsController.getSnapshot,
+    visionRideDiagnosticsController.getSnapshot,
   );
 }

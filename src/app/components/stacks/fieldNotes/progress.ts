@@ -4,6 +4,10 @@ import { useSyncExternalStore } from "react";
 
 import { FIELD_NOTES, FIELD_NOTE_BY_ID, type FieldNoteId } from "./catalog";
 import { resetFieldNotePlacements } from "./placement";
+import {
+  type VisionRideSessionProfile,
+  visionRideFullStack,
+} from "../visionRide/visionRideProfiles";
 
 export const FIELD_NOTES_STORAGE_KEY = "stacks:field-notes:v1";
 export const FIELD_NOTES_VERSION = 1;
@@ -55,13 +59,13 @@ export type FieldNoteEvent =
     }>
   | Readonly<{ type: "butterfly-landed-on-held-prop" }>
   | Readonly<{ type: "golf-ball-holed"; firstShot: boolean }>
-  | Readonly<{ type: "golf-prop-struck" }>
+  | Readonly<{ type: "golf-prop-struck"; propId?: string }>
   | Readonly<{ type: "session-started"; day: string }>
   | Readonly<{ type: "prop-carried-far"; propId: string }>
   | Readonly<{ type: "dice-stacked" }>
   | Readonly<{
       type: "vision-ride-entered";
-      pixelLook: "off" | "levels" | "palette";
+      profile: VisionRideSessionProfile;
     }>
   | Readonly<{ type: "stamp-placed"; noteId: string }>;
 
@@ -282,8 +286,13 @@ export function reduceFieldNotesProgress(
       break;
     case "vision-ride-entered":
       award(earned, awarded, "future-perfect", now);
-      if (event.pixelLook !== "off")
+      if (event.profile.pixelLook !== "off")
         award(earned, awarded, "reality-distortion-field", now);
+      if (event.profile.night) award(earned, awarded, "night-shift", now);
+      if (event.profile.redline) award(earned, awarded, "redline", now);
+      if (event.profile.golf) award(earned, awarded, "fore-sight", now);
+      if (visionRideFullStack(event.profile))
+        award(earned, awarded, "reality-stack", now);
       break;
     case "stamp-placed":
       if (FIELD_NOTE_BY_ID.has(event.noteId as FieldNoteId))

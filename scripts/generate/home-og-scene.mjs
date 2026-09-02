@@ -272,17 +272,11 @@ const startingInputs = await homeOgInputManifest({ root: ROOT });
 
 const browser = await chromium.launch({
   headless: true,
-  args: [
-    "--enable-webgl",
-    "--ignore-gpu-blocklist",
-    // Headless Chromium falls back to SwiftShader, which takes over a minute
-    // to bring the cinematic profile to its first real frame on an M-series
-    // Mac. Metal brings that to seconds. Linux CI has no Metal and keeps the
-    // software path.
-    ...(process.platform === "darwin"
-      ? ["--enable-gpu", "--use-angle=metal"]
-      : []),
-  ],
+  // Software WebGL on every platform, deliberately: local and CI captures
+  // must come off the same renderer or the "unchanged" pixel tolerance
+  // rewrites the committed card on renderer noise alone. It costs over a
+  // minute to reach the first real frame at the cinematic profile.
+  args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 
 try {

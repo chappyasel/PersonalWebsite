@@ -141,4 +141,13 @@ describe("Vision ride environmental breathing", () => {
       });
     }
   });
+
+  it("accepts an authored profile without changing the default cycle", () => {
+    const redline = { halfCycleSeconds: 15, sunGrowth: 0.68, carGrowth: 1.5 };
+    expect(breathPhase(15, redline)).toBeCloseTo(1, 9);
+    const crest = environmentBreath(15, false, landscape, redline);
+    expect(crest.sunScale).toBeCloseTo(1.68, 9);
+    expect(crest.carScale).toBeCloseTo(2.5, 9);
+    expect(breathPhase(half)).toBeCloseTo(1, 9);
+  });
 });

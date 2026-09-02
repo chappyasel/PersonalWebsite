@@ -135,7 +135,18 @@ describe("Field Notes progress", () => {
     ["wrong-sport", { type: "golf-prop-struck" }],
     ["long-haul", { type: "prop-carried-far", propId: "grab:mug" }],
     ["full-stack", { type: "dice-stacked" }],
-    ["future-perfect", { type: "vision-ride-entered", pixelLook: "off" }],
+    [
+      "future-perfect",
+      {
+        type: "vision-ride-entered",
+        profile: {
+          night: false,
+          redline: false,
+          golf: false,
+          pixelLook: "off",
+        },
+      },
+    ],
   ] satisfies readonly (readonly [string, FieldNoteEvent])[])(
     "earns %s from its semantic event",
     (id, event) => {
@@ -222,7 +233,15 @@ describe("Field Notes progress", () => {
     (pixelLook) => {
       const result = reduceFieldNotesProgress(
         EMPTY_FIELD_NOTES_PROGRESS,
-        { type: "vision-ride-entered", pixelLook },
+        {
+          type: "vision-ride-entered",
+          profile: {
+            night: false,
+            redline: false,
+            golf: false,
+            pixelLook,
+          },
+        },
         2_000,
       );
 
@@ -234,6 +253,31 @@ describe("Field Notes progress", () => {
       expect(result.progress.earned["reality-distortion-field"]).toBe(2_000);
     },
   );
+
+  it("awards each authored ride modifier and the Legendary full stack", () => {
+    const result = reduceFieldNotesProgress(
+      EMPTY_FIELD_NOTES_PROGRESS,
+      {
+        type: "vision-ride-entered",
+        profile: {
+          night: true,
+          redline: true,
+          golf: true,
+          pixelLook: "levels",
+        },
+      },
+      2_000,
+    );
+
+    expect(result.awarded).toEqual([
+      "future-perfect",
+      "reality-distortion-field",
+      "night-shift",
+      "redline",
+      "fore-sight",
+      "reality-stack",
+    ]);
+  });
 
   it("counts portal destinations, not portal props, toward the open house", () => {
     const sameDestination = apply(
