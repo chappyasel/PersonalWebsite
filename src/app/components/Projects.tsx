@@ -231,7 +231,7 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
           <div className="flex items-center justify-between gap-3">
             <h3 className="flex items-center gap-2 text-lg font-semibold md:text-xl">
               <GithubLogoIcon weight="duotone" className="size-5 shrink-0" />
-              Public repos
+              Public Repos
             </h3>
             <Link
               href={placard.repositoriesUrl}
