@@ -60,6 +60,55 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('role="tabpanel"');
   });
 
+  it("keeps the Vision Pro wake display behind live session controls", () => {
+    const frontDisplayControls = registrySource.slice(
+      registrySource.indexOf('id: "render.vision-pro-display"'),
+      registrySource.indexOf('id: "render.vision-ride"'),
+    );
+    expect(registrySource).toContain('id: "render.vision-pro-display"');
+    expect(registrySource).toContain('label: "Latch Vision Pro display"');
+    expect(registrySource).toContain(
+      "visionProDisplayDiagnosticsController.setEnabled",
+    );
+    expect(registrySource).toContain('id: "render.vision-pro-display-variant"');
+    expect(registrySource).toContain('{ value: "3:45", label: "3:45" }');
+    expect(registrySource).toContain('{ value: "golf", label: "Golf" }');
+    expect(frontDisplayControls).not.toContain(
+      '{ value: "8-bit", label: "8-bit" }',
+    );
+    expect(frontDisplayControls).not.toContain(
+      '{ value: "16-bit", label: "16-bit" }',
+    );
+    expect(registrySource).toContain("defaultValue: false");
+    expect(registrySource).toContain("renderTargetAllocations: 0");
+    expect(registrySource).toContain("textureSamples: 0");
+    expect(registrySource).toContain("perFrameWork: false");
+  });
+
+  it("can preview every Vision Ride modifier and finish without firing discoveries", () => {
+    expect(registrySource).toContain(
+      'id: "render.vision-ride-scene-preview"',
+    );
+    expect(registrySource).toContain('{ value: "night", label: "3:45" }');
+    expect(registrySource).toContain(
+      '{ value: "redline", label: "Redline" }',
+    );
+    expect(registrySource).toContain('{ value: "golf", label: "Fairway" }');
+    expect(registrySource).toContain(
+      '{ value: "full-stack", label: "All scene modifiers" }',
+    );
+    expect(registrySource).toContain(
+      'id: "render.vision-ride-finish-preview"',
+    );
+    expect(registrySource).toContain('{ value: "levels", label: "8-bit" }');
+    expect(registrySource).toContain(
+      '{ value: "palette", label: "16-bit" }',
+    );
+    expect(registrySource).toContain(
+      "without satisfying its discovery or Field Note",
+    );
+  });
+
   it("keeps Field Notes test controls in the Simulate view", () => {
     expect(diagnosticsSource).toContain(
       "function FieldNotesDiagnosticsControls",

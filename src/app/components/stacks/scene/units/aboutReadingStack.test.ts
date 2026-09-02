@@ -1,5 +1,5 @@
 import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
-import { SHELF_GEOMETRY } from "../shelfGeometry";
+import { ABOUT_LOWER_LANDMARK_Z } from "../aboutScenePose";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -65,7 +65,7 @@ describe("About recent-reading fan", () => {
       ABOUT_BOOT_LANDMARKS["reading-stack"].x - READING_FAN_SPACING_X,
       10,
     );
-    expect(poses[0].base[2]).toBeCloseTo(-0.13, 10);
+    expect(poses[0].base[2]).toBeCloseTo(CURRENT_READING_BASE[2], 10);
     expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(
       Math.cos((Math.PI * 2) / 9),
       8,
@@ -82,7 +82,7 @@ describe("About recent-reading fan", () => {
     expect(poses[2].base[2]).toBeGreaterThan(poses[1].base[2]);
   });
 
-  it("keeps the tighter fan's jackets as far apart as the 0.21 fan's", () => {
+  it("tightens the camera overlap without reducing physical clearance", () => {
     // Perpendicular distance between neighbouring cover planes, which is what
     // decides whether a thick jacket intersects the next one.
     const yaw = (Math.PI * 2) / 9;
@@ -91,7 +91,7 @@ describe("About recent-reading fan", () => {
     expect(
       separation(READING_FAN_SPACING_X, READING_FAN_SPACING_Z),
     ).toBeGreaterThanOrEqual(separation(0.21, 0.075) - 0.002);
-    expect(READING_FAN_SPACING_X).toBeGreaterThan(ABOUT_READING_BOOK.width / 2);
+    expect(READING_FAN_SPACING_X).toBeLessThan(0.18);
   });
 
   it("keeps the same clear air between books of different thicknesses", () => {
@@ -136,18 +136,16 @@ describe("About recent-reading fan", () => {
 
     expect(bounds.bottom).toBeCloseTo(0, 8);
     expect(bounds.top).toBeCloseTo(ABOUT_READING_BOOK.depth, 8);
-    expect(bounds.right - bounds.left).toBeGreaterThan(
-      ABOUT_READING_BOOK.width * 2,
-    );
+    expect(bounds.right - bounds.left).toBeGreaterThan(0.55);
   });
 
-  it("centers the widened fan on its shelf mark and shelf depth", () => {
+  it("centers the tightened fan on the owner-reviewed shelf mark and depth", () => {
     const poses = readingStackPoses();
     const mean = (axis: 0 | 2) =>
       poses.reduce((sum, pose) => sum + pose.base[axis], 0) / poses.length;
 
     expect(mean(0)).toBeCloseTo(ABOUT_BOOT_LANDMARKS["reading-stack"].x, 10);
-    expect(mean(2)).toBeCloseTo(SHELF_GEOMETRY.lower.centerZ, 2);
+    expect(mean(2)).toBeCloseTo(ABOUT_LOWER_LANDMARK_Z["reading-stack"], 10);
   });
 
   it("squares the jacket while carried and returns to the authored fan", () => {

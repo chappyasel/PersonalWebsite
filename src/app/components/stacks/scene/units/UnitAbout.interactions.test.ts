@@ -144,10 +144,7 @@ describe("About shelf throwable props", () => {
     expect(hover).toContain("physicsIgnore: true");
   });
 
-  it("gives all three desk metals the same shimmer and camera-facing tilt", () => {
-    const appleStart = source.indexOf('hoverKey="shimmer:apple"');
-    const appleEnd = source.indexOf("<ReadingStack", appleStart);
-    const deskMetals = source.slice(appleStart, appleEnd);
+  it("keeps the authored desk metals on their shimmer treatment", () => {
     const tjStart = authoredPropsSource.indexOf("function TJMedallionBody");
     const tjEnd = authoredPropsSource.indexOf(
       "export function ShakerProp",
@@ -155,17 +152,18 @@ describe("About shelf throwable props", () => {
     );
     const tj = authoredPropsSource.slice(tjStart, tjEnd);
 
-    expect(appleStart).toBeGreaterThanOrEqual(0);
-    expect(deskMetals).not.toContain("tiltOnHover={false}");
+    expect(source).not.toContain('hoverKey="shimmer:apple"');
     expect(tjStart).toBeGreaterThanOrEqual(0);
     expect(tj).toContain("useMetalShimmer");
   });
 
-  it("uses the authored sizes for the four lower-shelf awards", () => {
-    expect(source.match(/scale=\{ABOUT_LOWER_AWARD_SCALE\}/g)).toHaveLength(1);
+  it("uses the authored sizes for the lower-shelf keepsakes", () => {
     expect(source).toContain("scale={ABOUT_AIC_SCALE}");
     expect(source).toContain("scale={ABOUT_COORDINATION_GLOBE_SCALE}");
-    expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale).toBeCloseTo(0.726);
+    expect(source).toContain("<VisionProProp dark={dark} />");
+    expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale).toBeCloseTo(
+      0.726 * 1.0569,
+    );
   });
 
   it("gives the AIC mark a padded pointer target that physics ignores", () => {
@@ -182,7 +180,7 @@ describe("About shelf throwable props", () => {
     expect(source.match(/colliderProfile="foliage-base"/g)).toHaveLength(3);
   });
 
-  it("stacks the four Role Icons beside the Apple as half-size Portals", () => {
+  it("stacks the four Role Icons beside Vision Pro as half-size Portals", () => {
     const start = source.indexOf('name={aboutLandmarkNodeName("role-icons")}');
     const end = source.indexOf('hoverKey="grab:ai-collective-mark"', start);
     const stack = source.slice(start, end);

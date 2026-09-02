@@ -20,10 +20,7 @@ import {
   worldZoomFromPinch,
   worldZoomFromVerticalDrag,
 } from "../mobile/travel";
-import {
-  isHittableBall,
-  tapHittableBall,
-} from "../scene/golf/hittableBalls";
+import { isHittableBall, tapHittableBall } from "../scene/golf/hittableBalls";
 import { projectedInteractionBounds } from "../scene/interactionProjection";
 import {
   getSceneInteraction,
@@ -455,7 +452,13 @@ export default function TouchInteractionLayer() {
       latestEvent.current = event;
       const store = useStacks.getState();
       const exposed = exposedWorldEvent(event);
-      if (!exposed || store.modalOpen || store.panelState !== "closed") return;
+      if (
+        !exposed ||
+        store.modalOpen ||
+        store.panelState !== "closed" ||
+        store.visionRidePhase !== "idle"
+      )
+        return;
       if (isSeated()) {
         clearPickup();
         backgroundGesture.current = null;

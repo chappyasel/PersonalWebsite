@@ -16,6 +16,7 @@
 //   node scripts/stacks-models.mjs --inspect alarm-clock
 //                                             # print front-plane clusters
 //                                             # (dial registration data)
+//   node scripts/stacks-models.mjs --licenses # refresh attribution only
 //
 // Verified pipeline facts (docs/research/2026-08-09-stacks-v3-*.md + v4):
 // - All CreativeTrio models share ONE byte-identical 128×128 palette atlas;
@@ -677,12 +678,32 @@ const MANIFEST = [
     author: "iPoly3D",
     license: "CC0 1.0",
   },
+  {
+    name: "vision-ride-lamborghini",
+    title: "CAR Model",
+    id: "5zUWP5UsLg-",
+    url: "https://static.poly.pizza/f8c6bcd5-92a2-4f88-b821-64935a00216f.glb",
+    rideCar: true,
+    preserveNodes: true,
+    noAo: true,
+    unit: "vision ride only",
+    author: "Ignition Labs",
+    license: "CC-BY 3.0",
+    page: "https://poly.pizza/m/5zUWP5UsLg-",
+  },
 ];
 
 // Assets adapted directly from open-source repositories rather than fetched
 // from Poly Pizza. They still belong in the generated public roster so a
 // routine model-pipeline run can never erase a required notice.
 const VENDORED_LICENSES = [
+  {
+    file: "vision-pro.glb",
+    title: "Apple Vision Pro",
+    author: "Unknown (owner-supplied archive)",
+    license: "Owner-supplied",
+    source: "Local Apple+Vision+pro.rar archive",
+  },
   {
     file: "grass-tuft.glb",
     title: "FluffyGrass tuft LODs (with grass-tuft-alpha.webp)",
@@ -748,6 +769,92 @@ function extractImage(json, bin) {
     view.byteOffset ?? 0,
     (view.byteOffset ?? 0) + view.byteLength,
   );
+}
+
+function replaceBufferViewData(json, bin, viewIndex, replacement) {
+  const view = json.bufferViews[viewIndex];
+  const start = view.byteOffset ?? 0;
+  const end = start + view.byteLength;
+  const padding = (4 - (replacement.length % 4)) % 4;
+  const nextData = Buffer.concat([replacement, Buffer.alloc(padding)]);
+  const nextBin = Buffer.concat([
+    bin.subarray(0, start),
+    nextData,
+    bin.subarray(end),
+  ]);
+  const delta = nextData.length - view.byteLength;
+  view.byteLength = replacement.length;
+  for (const [index, candidate] of json.bufferViews.entries()) {
+    if (index === viewIndex) continue;
+    if ((candidate.byteOffset ?? 0) >= end)
+      candidate.byteOffset = (candidate.byteOffset ?? 0) + delta;
+  }
+  json.buffers[0].byteLength = nextBin.length;
+  return nextBin;
+}
+
+async function prepareRideCar(buf, spec) {
+  const { default: sharp } = await import("sharp");
+  const { json } = parseGlb(buf);
+  let { bin } = parseGlb(buf);
+  const diffuse = json.images?.[0];
+  if (!diffuse || diffuse.bufferView === undefined)
+    throw new Error(`${spec.name}: diffuse texture missing`);
+  const sourceTexture = extractImage(json, bin);
+  if (!sourceTexture) throw new Error(`${spec.name}: diffuse bytes missing`);
+  const { data, info } = await sharp(sourceTexture)
+    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  for (let offset = 0; offset < data.length; offset += info.channels) {
+    const red = data[offset];
+    const green = data[offset + 1];
+    const blue = data[offset + 2];
+    const high = Math.max(red, green, blue);
+    const low = Math.min(red, green, blue);
+    const saturated = high - low > 42;
+    const yellowOrange = red > green * 1.04 && green > blue * 1.22;
+    if (!saturated || !yellowOrange) continue;
+    const light = (red + green + blue) / 3;
+    data[offset] = Math.min(255, light * 1.48 + 45);
+    data[offset + 1] = Math.max(10, light * 0.18);
+    data[offset + 2] = Math.min(255, light * 0.82 + 60);
+  }
+  const pinkTexture = await sharp(data, { raw: info })
+    .jpeg({ quality: 78, chromaSubsampling: "4:2:0" })
+    .toBuffer();
+  bin = replaceBufferViewData(json, bin, diffuse.bufferView, pinkTexture);
+  diffuse.mimeType = "image/jpeg";
+
+  const body = json.materials?.[0]?.pbrMetallicRoughness;
+  if (!body) throw new Error(`${spec.name}: body material missing`);
+  delete body.metallicRoughnessTexture;
+  body.metallicFactor = 0.48;
+  body.roughnessFactor = 0.3;
+  const glass = json.materials?.[1]?.pbrMetallicRoughness;
+  if (glass) {
+    glass.baseColorFactor = [0.018, 0.035, 0.12, 0.82];
+    glass.metallicFactor = 0.12;
+    glass.roughnessFactor = 0.16;
+  }
+
+  const expectedNodes = [
+    "Lamborghini_Aventador_Body",
+    "Lamborghini_Aventador_Glass",
+    "Lamborghini_Aventador_Wheel_FL",
+    "Lamborghini_Aventador_Wheel_FR",
+    "Lamborghini_Aventador_Wheel_RL",
+    "Lamborghini_Aventador_Wheel_RR",
+  ];
+  for (const name of expectedNodes) {
+    const node = json.nodes?.find((candidate) => candidate.name === name);
+    if (!node) throw new Error(`${spec.name}: required node ${name} missing`);
+    // The source is 489.44069 units long. Bake the official Aventador S
+    // Roadster length into every root so the runtime scale stays 1.
+    node.scale = [4.797 / 489.44069, 4.797 / 489.44069, 4.797 / 489.44069];
+  }
+  return buildGlb(json, bin);
 }
 
 function stripTextures(json) {
@@ -1060,7 +1167,7 @@ function writeLicenses() {
   ];
   const manifest = {
     generated: "scripts/stacks-models.mjs",
-    note: "Source models are CC0 except the credited CC-BY set and the vendored MIT FluffyGrass asset below.",
+    note: "Source models are CC0 except the credited CC-BY set, the vendored MIT FluffyGrass asset, and the owner-supplied Vision Pro asset listed below.",
     attributionRequired: ccby,
     models: entries,
   };
@@ -1211,7 +1318,8 @@ async function buildModels({ bakeAo = false, only = null } = {}) {
         );
       }
     }
-    const cut = surgery(raw, spec);
+    const prepared = spec.rideCar ? await prepareRideCar(raw, spec) : raw;
+    const cut = surgery(prepared, spec);
     const pre = path.join(tmp, `${spec.name}.pre.glb`);
     const centered = path.join(tmp, `${spec.name}.center.glb`);
     const out = path.join(OUT, `${spec.name}.glb`);
@@ -1277,6 +1385,9 @@ async function buildModels({ bakeAo = false, only = null } = {}) {
         "false",
         "--texture-compress",
         "false",
+        ...(spec.preserveNodes
+          ? ["--flatten", "false", "--join", "false", "--palette", "false"]
+          : []),
         ...(spec.simplify ? ["--simplify-error", String(spec.simplify)] : []),
       ],
       { stdio: "pipe" },
@@ -1406,7 +1517,9 @@ const args = process.argv.slice(2);
 const atlasArg = args.indexOf("--atlas");
 const inspectArg = args.indexOf("--inspect");
 const onlyArg = args.indexOf("--only");
-if (atlasArg !== -1) {
+if (args.includes("--licenses")) {
+  writeLicenses();
+} else if (atlasArg !== -1) {
   await buildAtlases(Number(args[atlasArg + 1] ?? 1));
 } else if (inspectArg !== -1) {
   await inspect(args[inspectArg + 1]);

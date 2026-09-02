@@ -3,22 +3,16 @@ import {
   ABOUT_AIC_BASE_WIDTH,
   ABOUT_AIC_MARK_DEPTH,
   ABOUT_AIC_MARK_WIDTH,
-  ABOUT_APPLE_BASE_DEPTH,
-  ABOUT_APPLE_BASE_WIDTH,
-  ABOUT_APPLE_MARK_DEPTH,
-  ABOUT_APPLE_MARK_WIDTH,
 } from "./aboutAwardGeometry";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
 import {
   ABOUT_ROLE_STACK_HEIGHT,
-  ABOUT_ROLE_STACK_WIDTH,
+  ABOUT_ROLE_STACK_PROFILE_WIDTH,
 } from "./aboutRoleIcons";
 import {
   ABOUT_AIC_MARK_YAW,
   ABOUT_AIC_ORB_SIZE_INCREASE,
   ABOUT_AIC_ROOT_YAW,
-  ABOUT_APPLE_MARK_YAW,
-  ABOUT_APPLE_ROOT_YAW,
   ABOUT_AWARD_SIZE_INCREASE,
   ABOUT_LANDMARK_X,
   ABOUT_MODEL_POSES,
@@ -32,6 +26,10 @@ import {
 import { PORTRAIT_FRAME_SIZE, PORTRAIT_IMAGE } from "./portraitFrameGeometry";
 import type { ShelfPlankId } from "./shelfGeometry";
 import { TJ_MEDALLION_POSE } from "./tjMedallionGeometry";
+import {
+  ABOUT_READING_BOOK,
+  ABOUT_READING_STACK_PROFILE_WIDTH,
+} from "./units/aboutReadingStack";
 
 export {
   ABOUT_AIC_ORB_SIZE_INCREASE,
@@ -52,7 +50,7 @@ export type AboutLandmarkGlyph =
   | "collective-mark"
   | "coordination-globe"
   | "medallion"
-  | "apple"
+  | "vision-pro"
   | "role-icons"
   | "reading-stack";
 
@@ -186,10 +184,8 @@ export const ABOUT_BOOT_COMPOSITION = [
     colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
     sceneScale: ABOUT_MODEL_POSES["large-plant"].scale,
   },
-  // The whole lower row below moved 0.29 left, into the cactus's old slot,
-  // to open honest air beside the Apple mark for the Role Icons. Every gap
-  // between the lamp and the four awards is unchanged; only the reading fan
-  // tightened.
+  // The lower row is packed around a physically scaled Vision Pro, which now
+  // occupies the former Apple-mark slot between TJ and the Role Icons.
   {
     id: "desk-lamp",
     shelf: "lower",
@@ -263,46 +259,39 @@ export const ABOUT_BOOT_COMPOSITION = [
     sceneScale: TJ_MEDALLION_POSE.scale,
   },
   {
-    id: "apple",
+    id: "vision-pro",
     shelf: "lower",
-    x: ABOUT_LANDMARK_X.apple,
-    glyph: "apple",
+    x: ABOUT_LANDMARK_X["vision-pro"],
+    glyph: "vision-pro",
     profile: {
-      width:
-        Math.max(
-          aboutProjectedBoxWidth(
-            ABOUT_APPLE_BASE_WIDTH,
-            ABOUT_APPLE_BASE_DEPTH,
-            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
-          ),
-          aboutProjectedBoxWidth(
-            ABOUT_APPLE_MARK_WIDTH,
-            ABOUT_APPLE_MARK_DEPTH,
-            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
-          ),
-        ) *
-        1.32 *
-        ABOUT_AWARD_SIZE_INCREASE,
-      height: 0.176 * 1.32 * ABOUT_AWARD_SIZE_INCREASE,
+      width: ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"].profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"].profile[1],
     },
-    colorProfile: { light: "#545a60", dark: "#3b4045" },
+    colorProfile: { light: "#b8bec2", dark: "#939ba1" },
+    sceneScale: ABOUT_MODEL_POSES["vision-pro"].scale,
   },
   {
-    // Four Role Icons, two by two, beside the Apple mark. The tiles carry
+    // Four Role Icons, two by two, beside Vision Pro. The tiles carry
     // their own brand colors, so this landmark has no single colorProfile.
     id: "role-icons",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["role-icons"],
     glyph: "role-icons",
-    profile: { width: ABOUT_ROLE_STACK_WIDTH, height: ABOUT_ROLE_STACK_HEIGHT },
+    profile: {
+      width: ABOUT_ROLE_STACK_PROFILE_WIDTH,
+      height: ABOUT_ROLE_STACK_HEIGHT,
+    },
   },
   {
-    // Three covers at 0.18 spacing, fanned from the same right edge as before.
+    // Three equally spaced covers, tightened to the owner's edited footprint.
     id: "reading-stack",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["reading-stack"],
     glyph: "reading-stack",
-    profile: { width: 0.66, height: 0.5 },
+    profile: {
+      width: ABOUT_READING_STACK_PROFILE_WIDTH,
+      height: ABOUT_READING_BOOK.depth,
+    },
   },
 ] as const satisfies readonly AboutBootLandmark[];
 

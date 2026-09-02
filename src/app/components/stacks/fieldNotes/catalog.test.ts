@@ -12,10 +12,10 @@ describe("Field Notes catalog", () => {
     );
 
     expect(counts).toEqual({
-      Common: 12,
+      Common: 13,
       Uncommon: 10,
-      Rare: 6,
-      Legendary: 4,
+      Rare: 10,
+      Legendary: 5,
     });
   });
 
@@ -24,7 +24,13 @@ describe("Field Notes catalog", () => {
       FIELD_NOTES.filter((note) => note.rarity === "Legendary").map(
         (note) => note.id,
       ),
-    ).toEqual(["around-the-room", "hole-in-one", "full-stack", "full-journal"]);
+    ).toEqual([
+      "around-the-room",
+      "hole-in-one",
+      "full-stack",
+      "reality-stack",
+      "full-journal",
+    ]);
   });
 
   it("keeps the album-side discovery in the deliberate-habit tier", () => {
@@ -44,6 +50,34 @@ describe("Field Notes catalog", () => {
     expect(FIELD_NOTES.at(-1)?.id).toBe("full-journal");
   });
 
+  it("pairs the visible Vision Pro ride with its hidden pixel combination", () => {
+    expect(
+      FIELD_NOTES.filter((note) =>
+        ["future-perfect", "reality-distortion-field"].includes(note.id),
+      ),
+    ).toEqual([
+      {
+        id: "future-perfect",
+        title: "Future Perfect",
+        rarity: "Common",
+        artwork: "vision",
+        hidden: false,
+        hint: "The headset on About is more than a keepsake.",
+        foundCopy: "Put on Apple Vision Pro and entered the retrowave ride.",
+      },
+      {
+        id: "reality-distortion-field",
+        title: "Reality Distortion Field",
+        rarity: "Rare",
+        artwork: "retro-vision",
+        hidden: true,
+        hint: null,
+        foundCopy:
+          "Entered the Vision Pro ride with an 8-bit or 16-bit finish active.",
+      },
+    ]);
+  });
+
   it("keeps unusual one-off interactions below the completion tier", () => {
     expect(
       Object.fromEntries(
@@ -57,5 +91,20 @@ describe("Field Notes catalog", () => {
       "butterfly-effect": "Uncommon",
       "wrong-sport": "Uncommon",
     });
+  });
+
+  it("recognizes every authored reality and reserves Legendary for their full stack", () => {
+    expect(
+      FIELD_NOTES.filter((note) =>
+        ["night-shift", "redline", "fore-sight", "reality-stack"].includes(
+          note.id,
+        ),
+      ).map(({ id, rarity, hidden }) => ({ id, rarity, hidden })),
+    ).toEqual([
+      { id: "night-shift", rarity: "Rare", hidden: true },
+      { id: "redline", rarity: "Rare", hidden: true },
+      { id: "fore-sight", rarity: "Rare", hidden: true },
+      { id: "reality-stack", rarity: "Legendary", hidden: true },
+    ]);
   });
 });

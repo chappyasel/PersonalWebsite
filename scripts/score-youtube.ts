@@ -10,6 +10,7 @@
  *   npx tsx scripts/score-youtube.ts --prepare-near-ten-calibration --execute
  *   npx tsx scripts/score-youtube.ts --scope calibration --execute
  *   npx tsx scripts/score-youtube.ts --scope all --execute --activate
+ *   npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate
  */
 import {
   calibrationEdgeBuckets,
@@ -35,7 +36,7 @@ import {
 } from "../src/server/db/schema";
 import { Output, gateway, generateText } from "ai";
 import "dotenv/config";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { createHash } from "node:crypto";
 import postgres from "postgres";
@@ -70,6 +71,7 @@ type Options = {
   toneValueCalibration: boolean;
   nearTenCalibration: boolean;
   activate: boolean;
+  topUp: boolean;
   scope: Scope;
   dimensions: ScoreDimension[];
   limit: number | null;
@@ -127,6 +129,7 @@ function parseOptions(args: string[]): Options {
     toneValueCalibration: args.includes("--prepare-tone-value-calibration"),
     nearTenCalibration: args.includes("--prepare-near-ten-calibration"),
     activate: args.includes("--activate"),
+    topUp: args.includes("--top-up"),
     scope,
     dimensions,
     limit,
@@ -534,15 +537,21 @@ async function activateRun(runId: number, dimension: ScoreDimension) {
   });
 }
 
-async function scoreDimension(
+/**
+ * The newest run a fresh pass may append to. Every part of a run's identity has
+ * to match what this script would produce today, otherwise appending would mix
+ * two models' judgments inside one run. `--top-up` widens the search to the
+ * live active run, which is the difference between scoring the few hundred
+ * videos that arrived since the last pass and rescoring all 42,000.
+ */
+async function findReusableRun(
   dimension: ScoreDimension,
-  videos: VideoInput[],
-  options: Options,
-  spendSoFar: number,
-): Promise<number> {
-  const [resumableRun] = await db
+  includeActive: boolean,
+) {
+  const [run] = await db
     .select({
       id: ytClassifierRuns.id,
+      status: ytClassifierRuns.status,
       inputTokens: ytClassifierRuns.inputTokens,
       outputTokens: ytClassifierRuns.outputTokens,
       costUsd: ytClassifierRuns.costUsd,
@@ -551,7 +560,9 @@ async function scoreDimension(
     .where(
       and(
         eq(ytClassifierRuns.dimension, dimension),
-        eq(ytClassifierRuns.status, "running"),
+        includeActive
+          ? inArray(ytClassifierRuns.status, ["running", "active"])
+          : eq(ytClassifierRuns.status, "running"),
         eq(ytClassifierRuns.model, MODEL_ID),
         eq(ytClassifierRuns.promptVersion, PROMPT_VERSIONS[dimension]),
         eq(ytClassifierRuns.formulaVersion, FORMULA_VERSION),
@@ -560,7 +571,20 @@ async function scoreDimension(
     )
     .orderBy(desc(ytClassifierRuns.id))
     .limit(1);
+  return run;
+}
+
+async function scoreDimension(
+  dimension: ScoreDimension,
+  videos: VideoInput[],
+  options: Options,
+  spendSoFar: number,
+): Promise<number> {
+  const resumableRun = await findReusableRun(dimension, options.topUp);
   let run = resumableRun;
+  // A resumed run keeps whatever status it had, so a failure mid-top-up
+  // restores the live run instead of quietly leaving the dashboard unscored.
+  const priorStatus = resumableRun?.status ?? "running";
   if (!run) {
     const [createdRun] = await db
       .insert(ytClassifierRuns)
@@ -574,6 +598,7 @@ async function scoreDimension(
       })
       .returning({
         id: ytClassifierRuns.id,
+        status: ytClassifierRuns.status,
         inputTokens: ytClassifierRuns.inputTokens,
         outputTokens: ytClassifierRuns.outputTokens,
         costUsd: ytClassifierRuns.costUsd,
@@ -595,7 +620,15 @@ async function scoreDimension(
   let inputTokens = run.inputTokens;
   let outputTokens = run.outputTokens;
   let costUsd = run.costUsd;
+  // The run's stored cost is its lifetime ledger. The ceiling governs this
+  // invocation, so measure spend from where the resumed run left off; a
+  // top-up that costs twelve cents must not inherit the six dollars the
+  // original pass spent.
+  const costAtStart = costUsd;
   let processed = videos.length - pendingVideos.length;
+  console.log(
+    `${dimension}: run ${run.id} has ${processed} of ${videos.length} videos; scoring ${pendingVideos.length}.`,
+  );
   let nextProgressLog = Math.floor(processed / 400) * 400 + 400;
   try {
     const batches = Array.from(
@@ -609,9 +642,9 @@ async function scoreDimension(
       while (workerError === undefined) {
         const batch = batches[nextBatch++];
         if (!batch) return;
-        if (spendSoFar + costUsd >= options.maxCostUsd) {
+        if (spendSoFar + costUsd - costAtStart >= options.maxCostUsd) {
           workerError = new Error(
-            `Cost ceiling reached at $${(spendSoFar + costUsd).toFixed(4)}`,
+            `Cost ceiling reached at $${(spendSoFar + costUsd - costAtStart).toFixed(4)}`,
           );
           return;
         }
@@ -641,7 +674,7 @@ async function scoreDimension(
           .where(eq(ytClassifierRuns.id, run.id));
         if (processed === videos.length || processed >= nextProgressLog) {
           console.log(
-            `${dimension}: ${processed}/${videos.length}, run cost $${costUsd.toFixed(4)}`,
+            `${dimension}: ${processed}/${videos.length}, $${(costUsd - costAtStart).toFixed(4)} this pass`,
           );
           while (nextProgressLog <= processed) nextProgressLog += 400;
         }
@@ -665,14 +698,14 @@ async function scoreDimension(
       .where(eq(ytClassifierRuns.id, run.id));
     if (options.activate) await activateRun(run.id, dimension);
     console.log(
-      `${dimension} run ${run.id} complete${options.activate ? " and active" : ""}`,
+      `${dimension} run ${run.id} complete${options.activate ? " and active" : ""}; spent $${(costUsd - costAtStart).toFixed(4)} this pass`,
     );
-    return costUsd;
+    return costUsd - costAtStart;
   } catch (error) {
     await db
       .update(ytClassifierRuns)
       .set({
-        status: "running",
+        status: priorStatus,
         completedAt: null,
         inputTokens,
         outputTokens,
@@ -698,12 +731,29 @@ async function main() {
     (options.scope === "calibration"
       ? CALIBRATION_SIZE
       : Number(fullCount?.[0]?.count ?? 0));
-  const estimate =
-    estimatedCount *
-    options.dimensions.length *
-    PREFLIGHT_COST_PER_VIDEO_DIMENSION_USD;
+  // Under --top-up most of that corpus is already scored, so quote the work
+  // that is actually left rather than the size of the library.
+  const perDimensionCounts = await Promise.all(
+    options.dimensions.map(async (dimension) => {
+      if (!options.topUp) return estimatedCount;
+      const run = await findReusableRun(dimension, true);
+      if (!run) return estimatedCount;
+      const [row] = await db.execute<{ count: string | number }>(sql`
+        SELECT COUNT(*) AS count
+        FROM yt_videos v
+        WHERE v.title IS NOT NULL AND v.title !~* '^https?://'
+          AND NOT EXISTS (
+            SELECT 1 FROM yt_classifications c
+            WHERE c.run_id = ${run.id} AND c.video_id = v.video_id
+          )
+      `);
+      return Math.min(estimatedCount, Number(row?.count ?? 0));
+    }),
+  );
+  const plannedCount = perDimensionCounts.reduce((sum, n) => sum + n, 0);
+  const estimate = plannedCount * PREFLIGHT_COST_PER_VIDEO_DIMENSION_USD;
   console.log(
-    `Model ${MODEL_ID} via Gateway Flex; estimated ${estimatedCount} videos × ${options.dimensions.length} dimensions ≈ $${estimate.toFixed(2)}; hard ceiling $${options.maxCostUsd.toFixed(2)}`,
+    `Model ${MODEL_ID} via Gateway Flex; ${options.topUp ? "top-up of " : ""}${perDimensionCounts.join(" + ")} videos across ${options.dimensions.length} dimension(s) ≈ $${estimate.toFixed(2)}; hard ceiling $${options.maxCostUsd.toFixed(2)}`,
   );
   if (!options.execute) {
     console.log("Preflight only. Add --execute to write or spend.");

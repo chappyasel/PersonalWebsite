@@ -11,8 +11,12 @@ import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
+import {
+  ABOUT_APPLE_LIGHT_YAW,
+  ABOUT_LOWER_AWARD_SCALE,
+} from "../aboutCoordinationLayout";
 import { EggLamp, Sway } from "../eggs";
-import { reducedMotion } from "../objects";
+import { DeskApple, reducedMotion } from "../objects";
 import { DeskFrame, deskFrameHeight } from "../photos";
 import { type PixelLook, nextPixelLook } from "../pixelArt";
 import { ShelfUnit } from "../primitives";
@@ -31,8 +35,10 @@ import {
 } from "./projectsShelfLighting";
 import { type UnitProps } from "./types";
 import {
+  PROJECT_APPLE_MARK_POSE,
   PROJECT_APPLE_PHOTO_POSE,
   PROJECT_PHOTO_DIMENSIONS,
+  PROJECT_SMALL_PLANT_POSE,
   REVIEWED_SHELF_LAYOUT,
 } from "./unitShelfLayout";
 
@@ -588,7 +594,7 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
       >
         {/* The upper shelf is a row of project objects rather than framed UI.
           The visible practical on the left supplies the warm reflection that
-          moves across the two polished icon faces. */}
+          moves across the two polished icon faces and the Apple mark. */}
         <group position={[REVIEWED_SHELF_LAYOUT.projects.topLampX, 0, -0.08]}>
           <EggLamp
             unitIndex={index}
@@ -659,8 +665,40 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
         </ProjectPhoto>
         <Grabbable
           unitIndex={index}
+          hoverKey="shimmer:apple"
+          metal
+          base={[
+            REVIEWED_SHELF_LAYOUT.projects.topAppleMarkX,
+            0,
+            PROJECT_APPLE_MARK_POSE.baseZ,
+          ]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.26}
+          shape="box"
+          massKg={0.35}
+          href="https://www.apple.com/"
+          portalLabel="Apple"
+          portalDetail={["Former AR/VR Software Engineer"]}
+        >
+          <group
+            rotation={[
+              0,
+              ABOUT_APPLE_LIGHT_YAW + PROJECT_APPLE_MARK_POSE.rotationY,
+              0,
+            ]}
+            scale={ABOUT_LOWER_AWARD_SCALE * PROJECT_APPLE_MARK_POSE.scaleRatio}
+          >
+            <DeskApple palette={palette} unitIndex={index} />
+          </group>
+        </Grabbable>
+        <Grabbable
+          unitIndex={index}
           hoverKey="grab:plant:projects-small"
-          base={[REVIEWED_SHELF_LAYOUT.projects.topPlantX, 0, -0.02]}
+          base={[
+            REVIEWED_SHELF_LAYOUT.projects.topPlantX,
+            0,
+            PROJECT_SMALL_PLANT_POSE.baseZ,
+          ]}
           shadeColor={palette.shadow}
           shadeWidth={0.42}
           shape="box"

@@ -34,6 +34,10 @@ import {
   useStacks,
 } from "../store";
 import {
+  APPLE_VISION_PRO_URL,
+  activateVisionRide,
+} from "../visionRide/visionRideEntry";
+import {
   BookOpenIcon,
   BookOpenTextIcon,
   BooksIcon,
@@ -63,6 +67,7 @@ import {
   useRef,
   useState,
 } from "react";
+import audioLicenses from "~~/audio/LICENSES.json";
 import licenses from "~~/models/LICENSES.json";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
@@ -539,6 +544,12 @@ const AUTHOR_LIST = new Intl.ListFormat("en", {
   style: "long",
   type: "conjunction",
 }).format(licenses.attributionRequired);
+const AUDIO_AUTHOR_LIST = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction",
+}).format(
+  audioLicenses.stacksAttributionRequired.map((credit) => credit.author),
+);
 
 /** The full library. Production is the real subdomain; in dev it follows
  * whatever host the site is being served from. */
@@ -2337,6 +2348,18 @@ export default function PlacardLayer({
           <div className="flex flex-col items-center gap-2 pt-4">
             {slots.contact}
           </div>
+          <div className="sr-only">
+            <button type="button" onClick={() => void activateVisionRide()}>
+              Put on Apple Vision Pro
+            </button>
+            <a
+              href={APPLE_VISION_PRO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Apple Vision Pro product page
+            </a>
+          </div>
           {/* Known photo-source links are mirrored into the DOM because canvas
             raycast targets have no focus order or accessible name. */}
           {PHOTO_SOURCES.length > 0 && (
@@ -2375,6 +2398,10 @@ export default function PlacardLayer({
             <a href="/models/LICENSES.json">
               The full roster of models and their licences is published at
               /models/LICENSES.json
+            </a>
+            {`. Scene audio includes CC-BY work by ${AUDIO_AUTHOR_LIST}. `}
+            <a href="/audio/LICENSES.json">
+              The full audio credit roster is published at /audio/LICENSES.json
             </a>
             .
           </p>

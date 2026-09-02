@@ -265,6 +265,62 @@ describe("Field Notes stamp interactions", () => {
     expect(stage.getAttribute("aria-busy")).toBe("false");
   });
 
+  it("keeps the final desktop spread opaque while turning back", async () => {
+    vi.useFakeTimers();
+    render(
+      <Dialog.Root open>
+        <CompactAlbum
+          open
+          progress={EMPTY_FIELD_NOTES_PROGRESS}
+          onClose={() => undefined}
+        />
+      </Dialog.Root>,
+    );
+
+    const stage = document.querySelector<HTMLElement>(
+      ".field-notes-book-stage",
+    )!;
+    const next = () =>
+      fireEvent.click(
+        within(stage).getByRole("button", { name: "Next album page" }),
+      );
+
+    next();
+    await act(async () => vi.advanceTimersByTime(1200));
+    next();
+    await act(async () => vi.advanceTimersByTime(1200));
+
+    const settledPages = stage.querySelectorAll(
+      ".field-notes-page-spread > .field-notes-page",
+    );
+    expect(settledPages).toHaveLength(2);
+    expect(settledPages[1]?.className).toContain("field-notes-blank-page");
+
+    fireEvent.click(
+      within(stage).getByRole("button", { name: "Previous album page" }),
+    );
+
+    const staticRight = stage.querySelector<HTMLElement>(
+      '.field-notes-turn-static[data-side="right"]',
+    )!;
+    expect(staticRight.querySelector(".field-notes-blank-page")).toBeTruthy();
+    expect(within(staticRight).queryByText("Findings 25 to 36")).toBeNull();
+
+    const leaf = stage.querySelector<HTMLElement>(
+      '.field-notes-turn-leaf[data-direction="previous"]',
+    )!;
+    expect(
+      within(leaf.querySelector(".field-notes-turn-front")!).getByText(
+        "Findings 37 to 48",
+      ),
+    ).toBeTruthy();
+    expect(
+      within(leaf.querySelector(".field-notes-turn-back")!).getByText(
+        "Findings 25 to 36",
+      ),
+    ).toBeTruthy();
+  });
+
   it("mounts saved stamp placement before a page turn starts painting", async () => {
     window.localStorage.setItem(
       FIELD_NOTE_PLACEMENT_STORAGE_KEY,

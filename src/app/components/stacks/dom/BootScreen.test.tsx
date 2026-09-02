@@ -4,10 +4,6 @@ import {
   ABOUT_AIC_BASE_WIDTH,
   ABOUT_AIC_MARK_DEPTH,
   ABOUT_AIC_MARK_WIDTH,
-  ABOUT_APPLE_BASE_DEPTH,
-  ABOUT_APPLE_BASE_WIDTH,
-  ABOUT_APPLE_MARK_DEPTH,
-  ABOUT_APPLE_MARK_WIDTH,
 } from "../scene/aboutAwardGeometry";
 import {
   ABOUT_BOOT_COMPOSITION,
@@ -22,8 +18,6 @@ import { ABOUT_ROLES } from "../scene/aboutRoleIcons";
 import {
   ABOUT_AIC_MARK_YAW,
   ABOUT_AIC_ROOT_YAW,
-  ABOUT_APPLE_MARK_YAW,
-  ABOUT_APPLE_ROOT_YAW,
   ABOUT_MODEL_POSES,
 } from "../scene/aboutScenePose";
 import {
@@ -40,6 +34,7 @@ import {
   readingBookPageCorePerspectiveElevation,
   readingStackPoses,
 } from "../scene/units/aboutReadingStack";
+import { VISION_PRO_PROFILE } from "../scene/visionProGeometry";
 import { CAMERA } from "../scene/worldLayout";
 import { PALETTES } from "../theme";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -438,34 +433,27 @@ describe("Homepage entrance", () => {
     expect(markup).not.toContain("data-boot-book-face");
   });
 
-  it("keeps the Apple mark's traced shape at its complete live yaw", () => {
+  it("traces Vision Pro's real band, enclosure, and glass geometry", () => {
     const markup = renderBoot();
-    const apple = /<path[^>]*data-boot-apple=""[^>]*>/.exec(markup)?.[0];
 
-    expect(apple).toBeDefined();
-    expect(apple).toContain(
-      `transform="matrix(${Math.cos(ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW)}`,
-    );
-    expect(apple).toContain("C ");
+    expect(markup).toContain('data-boot-vision-pro=""');
+    expect(markup).toContain('class="stacks-boot-vision-band"');
+    expect(markup).toContain('class="stacks-boot-vision-silhouette"');
+    expect(markup).toContain('class="stacks-boot-vision-enclosure"');
+    expect(markup).toContain('class="stacks-boot-vision-glass"');
     expect(markup).toContain(
-      `data-boot-apple-root-yaw="${ABOUT_APPLE_ROOT_YAW}"`,
+      `d="${ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"].parts.glass}"`,
     );
-    expect(markup).toContain(
-      `data-boot-apple-mark-yaw="${ABOUT_APPLE_MARK_YAW}"`,
-    );
+    expect(
+      markup.indexOf('class="stacks-boot-vision-silhouette"'),
+    ).toBeLessThan(markup.indexOf('class="stacks-boot-vision-band"'));
+    expect(markup).not.toContain("data-boot-apple");
   });
 
-  it("gives both metal marks a directional shine and seats the Apple behind its base", () => {
+  it("keeps the AIC mark's directional shine", () => {
     const markup = renderBoot();
-    const appleStart = markup.indexOf("data-boot-apple-root-yaw");
-    const appleEnd = markup.indexOf("</g>", appleStart);
-    const apple = markup.slice(appleStart, appleEnd);
 
     expect(markup).toContain('id="stacks-boot-aic-shine"');
-    expect(apple).toContain('id="stacks-boot-apple-shine"');
-    expect(apple.indexOf('data-boot-apple=""')).toBeLessThan(
-      apple.indexOf('data-boot-apple-base=""'),
-    );
   });
 
   it("uses the live TJ medallion artwork instead of an approximate boot mark", () => {
@@ -478,18 +466,12 @@ describe("Homepage entrance", () => {
     expect(markup).not.toContain('class="stacks-boot-tj-detail"');
   });
 
-  it("applies the live uniform scales to the AIC and Apple boot glyphs", () => {
+  it("applies the live uniform scale to the AIC boot glyph", () => {
     const markup = renderBoot();
     const aicScale = Number(/data-boot-aic-scale="([^"]+)"/.exec(markup)?.[1]);
-    const appleScale = Number(
-      /data-boot-apple-scale="([^"]+)"/.exec(markup)?.[1],
-    );
 
     expect(aicScale).toBeCloseTo(
       ABOUT_BOOT_LANDMARKS["ai-collective"].profile.height / 0.208,
-    );
-    expect(appleScale).toBeCloseTo(
-      ABOUT_BOOT_LANDMARKS.apple.profile.height / 0.176,
     );
     expect(markup).toContain(`data-boot-aic-root-yaw="${ABOUT_AIC_ROOT_YAW}"`);
     expect(markup).toContain(`data-boot-aic-mark-yaw="${ABOUT_AIC_MARK_YAW}"`);
@@ -530,24 +512,9 @@ describe("Homepage entrance", () => {
       width: 0.21 * 1.386 * 1.1 * 1.2,
       height: 0.255 * 1.386 * 1.1 * 1.2,
     });
-    expect(ABOUT_BOOT_LANDMARKS.apple.profile).toEqual({
-      width:
-        Math.max(
-          aboutProjectedBoxWidth(
-            ABOUT_APPLE_BASE_WIDTH,
-            ABOUT_APPLE_BASE_DEPTH,
-            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
-          ),
-          aboutProjectedBoxWidth(
-            ABOUT_APPLE_MARK_WIDTH,
-            ABOUT_APPLE_MARK_DEPTH,
-            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
-          ),
-        ) *
-        1.32 *
-        1.1,
-      height: 0.176 * 1.32 * 1.1,
-    });
+    expect(ABOUT_BOOT_LANDMARKS["vision-pro"].profile).toEqual(
+      VISION_PRO_PROFILE,
+    );
   });
 
   it("draws the four Role Icons with their live yaw and artwork", () => {
@@ -570,11 +537,14 @@ describe("Homepage entrance", () => {
       const artwork = new RegExp(
         `<image class="stacks-boot-role-artwork"[^>]*data-boot-role-artwork="${role.id}"[^>]*>`,
       ).exec(markup)?.[0];
-      expect(artwork).not.toContain("clip-path");
+      expect(markup).toContain(`id="stacks-boot-role-clip-${role.id}"`);
+      expect(artwork).toContain(
+        `clip-path="url(#stacks-boot-role-clip-${role.id})"`,
+      );
     }
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].shelf).toBe("lower");
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].x).toBeGreaterThan(
-      ABOUT_BOOT_LANDMARKS.apple.x,
+      ABOUT_BOOT_LANDMARKS["vision-pro"].x,
     );
   });
 
@@ -664,7 +634,7 @@ describe("Homepage entrance", () => {
       "ai-collective",
       "coordination-globe",
       "tj-medallion",
-      "apple",
+      "vision-pro",
     ] as const;
 
     for (const id of coloredLandmarks) {

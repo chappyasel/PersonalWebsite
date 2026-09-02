@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import * as fs from "fs";
 
+import { readExportProvenance } from "~/lib/youtube/coverage";
 import {
   type YouTubeVideoMetadata,
   fetchYouTubeVideoMetadata,
@@ -34,6 +35,11 @@ export type YtSyncResult = {
   totalVideos: number;
   enrichedVideos: number;
   deletedVideos: number;
+  /** When Google built the archive — the instant the history is complete to. */
+  exportCreatedAt: Date | null;
+  /** Newest watch event in the archive. */
+  latestWatchAt: Date | null;
+  sourceFile: string | null;
 };
 
 /** Extract video ID from YouTube URL */
@@ -96,6 +102,20 @@ export async function syncYouTube(
 
     console.log(
       `Parsed ${parsed.length} videos, ${deletedCount} deleted/unavailable`,
+    );
+
+    // What this archive can vouch for. The newest watch event tells you when
+    // Chappy last opened YouTube; the export's build time tells you how far
+    // the silence after it has actually been checked.
+    const provenance = readExportProvenance(localFilePath);
+    const latestWatchAt = parsed.reduce<Date | null>(
+      (newest, entry) =>
+        newest === null || entry.watchedAt > newest ? entry.watchedAt : newest,
+      null,
+    );
+    console.log(
+      `Archive built ${provenance.exportCreatedAt?.toISOString() ?? "unknown"}` +
+        `, newest watch ${latestWatchAt?.toISOString() ?? "none"}`,
     );
 
     // 3. Load cached metadata from existing DB rows before we delete them
@@ -373,6 +393,9 @@ export async function syncYouTube(
       totalVideos: parsed.length,
       enrichedVideos: enrichedCount,
       deletedVideos: deletedCount,
+      exportCreatedAt: provenance.exportCreatedAt,
+      latestWatchAt: latestWatchAt,
+      sourceFile: provenance.sourceFile,
     };
 
     await completeSyncRecord(syncId, "success", result);
@@ -408,6 +431,9 @@ async function completeSyncRecord(
       totalVideos: result?.totalVideos ?? null,
       enrichedVideos: result?.enrichedVideos ?? null,
       deletedVideos: result?.deletedVideos ?? null,
+      exportCreatedAt: result?.exportCreatedAt ?? null,
+      latestWatchAt: result?.latestWatchAt ?? null,
+      sourceFile: result?.sourceFile ?? null,
       errors: error
         ? JSON.stringify([
             error instanceof Error ? error.message : "Unknown error",

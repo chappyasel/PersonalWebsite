@@ -394,6 +394,14 @@ export const ytSyncMetadata = pgTable("yt_sync_metadata", {
   deletedVideos: integer("deleted_videos"),
   errors: text("errors"),
   triggeredBy: varchar("triggered_by", { length: 50 }).notNull(),
+  /** When Google built the Takeout archive this sync ingested. The history is
+   *  complete through this instant, so a day between the newest watch event
+   *  and here is a real zero-watch day rather than data that has not arrived. */
+  exportCreatedAt: timestamp("export_created_at", { withTimezone: true }),
+  /** Newest watch event in the ingested archive. */
+  latestWatchAt: timestamp("latest_watch_at", { withTimezone: true }),
+  /** Archive the sync read, e.g. `takeout-20260830T231302Z-1-001.zip`. */
+  sourceFile: varchar("source_file", { length: 256 }),
 });
 
 // ── Normalized YouTube information-diet entities ───────────────────

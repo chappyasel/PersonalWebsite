@@ -20,7 +20,20 @@ import {
 } from "./modal/modelArtifactHandoff";
 import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
 import { propReactionsSuppressed } from "./scene/reactionEngagement";
+import { visionProDisplayDiagnosticsController } from "./scene/visionProDisplayDiagnostics";
 import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
+import type {
+  VisionRideAssetStatus,
+  VisionRideExitMethod,
+  VisionRidePhase,
+} from "./visionRide/visionRideState";
+import {
+  DEFAULT_VISION_RIDE_SESSION_PROFILE,
+  EMPTY_VISION_RIDE_MODIFIERS,
+  type VisionRideModifier,
+  type VisionRideModifiers,
+  type VisionRideSessionProfile,
+} from "./visionRide/visionRideProfiles";
 
 function recordArtifactFieldNote(id: SceneArtifactId) {
   const artifact = sceneArtifactById(id);
@@ -33,6 +46,18 @@ function recordArtifactFieldNote(id: SceneArtifactId) {
 }
 
 export const progressRef = { current: 0 };
+
+function selectVisionRidePreview(modifiers: VisionRideModifiers) {
+  const variant =
+    modifiers.golf
+      ? "golf"
+      : modifiers.redline
+        ? "redline"
+        : modifiers.night
+          ? "3:45"
+          : "retrowave";
+  visionProDisplayDiagnosticsController.setVariant(variant);
+}
 
 /** High-frequency coarse-pointer signals. Consumers sample these from their
  * own animation frames; pointer movement never enters React state. */
@@ -112,6 +137,24 @@ type StacksState = {
    * in touchWorldRef so one finger move cannot fan out through React. */
   focusedInteraction: string | null;
   pressedInteraction: string | null;
+  visionRidePhase: VisionRidePhase;
+  visionRideReady: boolean;
+  visionRideSessionFailed: boolean;
+  visionRideError: string | null;
+  visionRideExitMethod: VisionRideExitMethod | null;
+  visionRideStartedAt: number | null;
+  visionRideModelStatus: VisionRideAssetStatus;
+  visionRideAnnouncement: string;
+  /** Session-only modifiers armed by authored room interactions. The ride
+   * captures them at entry so its world cannot change halfway through. */
+  visionRideModifiers: VisionRideModifiers;
+  visionRideShakers: readonly string[];
+  visionRideSessionProfile: VisionRideSessionProfile;
+  /** True only while the ride curtain is opaque or the room is unmounted.
+   * Room post effects and ambient camera life key off this, not the phase,
+   * so they survive the visible part of the donning flight and are back
+   * under the opaque return hold before the shelf is revealed. */
+  visionRideRoomHidden: boolean;
   settledUnit: number | null;
   unitMapPreview: number | null;
   /** True while the visitor is sitting in the About reading chair. The module
@@ -171,6 +214,17 @@ type StacksState = {
   setDragging: (dragging: string | null) => void;
   setFocusedInteraction: (focusedInteraction: string | null) => void;
   setPressedInteraction: (pressedInteraction: string | null) => void;
+  armVisionRideModifier: (modifier: VisionRideModifier) => void;
+  noteVisionRideShaker: (shakerId: string) => void;
+  beginVisionRide: () => void;
+  markVisionRideReady: () => void;
+  startVisionRide: () => void;
+  requestVisionRideExit: (method: VisionRideExitMethod) => void;
+  showVisionRideReturn: () => void;
+  finishVisionRide: () => void;
+  failVisionRide: (error: unknown) => void;
+  resetVisionRide: () => void;
+  setVisionRideRoomHidden: (hidden: boolean) => void;
   setSettledUnit: (settledUnit: number | null) => void;
   setUnitMapPreview: (unitMapPreview: number | null) => void;
   setJumpTo: (jumpTo: ((unit: number) => void) | null) => void;
@@ -195,6 +249,18 @@ export const useStacks = create<StacksState>((set) => ({
   dragging: null,
   focusedInteraction: null,
   pressedInteraction: null,
+  visionRidePhase: "idle",
+  visionRideReady: false,
+  visionRideSessionFailed: false,
+  visionRideError: null,
+  visionRideExitMethod: null,
+  visionRideStartedAt: null,
+  visionRideModelStatus: "idle",
+  visionRideAnnouncement: "",
+  visionRideModifiers: EMPTY_VISION_RIDE_MODIFIERS,
+  visionRideShakers: [],
+  visionRideSessionProfile: DEFAULT_VISION_RIDE_SESSION_PROFILE,
+  visionRideRoomHidden: false,
   settledUnit: null,
   unitMapPreview: null,
   seated: false,
@@ -353,6 +419,133 @@ export const useStacks = create<StacksState>((set) => ({
   setDragging: (dragging) => set({ dragging }),
   setFocusedInteraction: (focusedInteraction) => set({ focusedInteraction }),
   setPressedInteraction: (pressedInteraction) => set({ pressedInteraction }),
+  armVisionRideModifier: (modifier) =>
+    set((state) => {
+      if (state.visionRideModifiers[modifier]) return state;
+      const visionRideModifiers = {
+        ...state.visionRideModifiers,
+        [modifier]: true,
+      };
+      selectVisionRidePreview(visionRideModifiers);
+      return { visionRideModifiers };
+    }),
+  noteVisionRideShaker: (shakerId) =>
+    set((state) => {
+      const visionRideShakers = state.visionRideShakers.includes(shakerId)
+        ? state.visionRideShakers
+        : [...state.visionRideShakers, shakerId];
+      const visionRideModifiers =
+        visionRideShakers.length >= 3
+          ? { ...state.visionRideModifiers, redline: true }
+          : state.visionRideModifiers;
+      if (
+        visionRideModifiers.redline &&
+        !state.visionRideModifiers.redline
+      )
+        selectVisionRidePreview(visionRideModifiers);
+      return {
+        visionRideShakers,
+        visionRideModifiers,
+      };
+    }),
+  beginVisionRide: () =>
+    set((state) => {
+      if (
+        state.visionRidePhase !== "idle" ||
+        state.visionRideSessionFailed
+      )
+        return state;
+      selectVisionRidePreview(state.visionRideModifiers);
+      visionProDisplayDiagnosticsController.setEnabled(true);
+      return {
+        visionRidePhase: "donning",
+        visionRideReady: false,
+        visionRideError: null,
+        visionRideExitMethod: null,
+        visionRideStartedAt: null,
+        visionRideModelStatus: "loading",
+        visionRideAnnouncement: "Putting on Apple Vision Pro.",
+        visionRideSessionProfile: {
+          ...state.visionRideModifiers,
+          pixelLook: state.pixelLook,
+        },
+        visionRideRoomHidden: false,
+        hovered: null,
+        dragging: null,
+        focusedInteraction: null,
+        pressedInteraction: null,
+      };
+    }),
+  markVisionRideReady: () =>
+    set((state) =>
+      state.visionRidePhase === "donning"
+        ? { visionRideReady: true, visionRideModelStatus: "ready" }
+        : state,
+    ),
+  startVisionRide: () =>
+    set((state) =>
+      state.visionRidePhase === "donning" && state.visionRideReady
+        ? {
+            visionRidePhase: "cruising",
+            visionRideStartedAt: performance.now(),
+            visionRideAnnouncement: "Apple Vision Pro ride started.",
+          }
+        : state,
+    ),
+  requestVisionRideExit: (visionRideExitMethod) =>
+    set((state) =>
+      state.visionRidePhase === "idle" ||
+      state.visionRidePhase === "doffing" ||
+      state.visionRidePhase === "returning"
+        ? state
+        : {
+            visionRidePhase: "doffing",
+            visionRideExitMethod,
+            visionRideAnnouncement: "Removing Apple Vision Pro.",
+          },
+    ),
+  showVisionRideReturn: () =>
+    set((state) =>
+      state.visionRidePhase === "doffing"
+        ? { visionRidePhase: "returning" }
+        : state,
+    ),
+  finishVisionRide: () =>
+    set({
+      visionRidePhase: "idle",
+      visionRideReady: false,
+      visionRideExitMethod: null,
+      visionRideStartedAt: null,
+      visionRideModelStatus: "idle",
+      visionRideAnnouncement: "Apple Vision Pro removed.",
+      visionRideRoomHidden: false,
+    }),
+  failVisionRide: (error) =>
+    set((state) => ({
+      visionRideSessionFailed: true,
+      visionRideError:
+        error instanceof Error ? error.message : "Vision ride failed to load",
+      visionRideModelStatus: "failed",
+      visionRideExitMethod: "error",
+      visionRidePhase: state.visionRidePhase === "idle" ? "idle" : "doffing",
+      visionRideAnnouncement:
+        "The Apple Vision Pro ride could not load. The shelf has been restored.",
+    })),
+  resetVisionRide: () =>
+    set({
+      visionRidePhase: "idle",
+      visionRideReady: false,
+      visionRideExitMethod: null,
+      visionRideStartedAt: null,
+      visionRideModelStatus: "idle",
+      visionRideRoomHidden: false,
+    }),
+  setVisionRideRoomHidden: (visionRideRoomHidden) =>
+    set((state) =>
+      state.visionRideRoomHidden === visionRideRoomHidden
+        ? state
+        : { visionRideRoomHidden },
+    ),
   setSettledUnit: (settledUnit) => set({ settledUnit }),
   setUnitMapPreview: (unitMapPreview) => set({ unitMapPreview }),
   setJumpTo: (jumpTo) => set({ jumpTo }),

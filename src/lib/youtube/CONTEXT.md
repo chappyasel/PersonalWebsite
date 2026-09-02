@@ -52,6 +52,10 @@ _Avoid_: Headline Score, mood dimensions
 The explicit state for a video whose available evidence cannot support a Learning Value or Positivity judgment; it is not a neutral score.
 _Avoid_: Unknown = 0.5, default score
 
+**Coverage Through**:
+The instant the ingested history is complete to, which is when Google built the most recent Takeout archive that was successfully ingested. A day between the newest Watch Event and Coverage Through was checked and found empty, so it counts as zero viewing; a day after it has simply not been exported yet and is absent rather than zero.
+_Avoid_: Last sync, last watch, today
+
 **Estimated Exposure**:
 A modeled amount of viewing associated with a watch event, calculated as the Video's full runtime divided by the assumed 2.2× playback speed; it is not confirmed time watched or proof that the Video was completed.
 _Avoid_: Actual watch time, completed viewing

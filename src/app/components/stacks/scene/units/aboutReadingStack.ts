@@ -1,4 +1,4 @@
-import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
+import { ABOUT_LANDMARK_X, ABOUT_LOWER_LANDMARK_Z } from "../aboutScenePose";
 
 export const ABOUT_READING_BOOK = {
   width: 0.3135,
@@ -69,11 +69,11 @@ export function readingBookAtAuthoredPose(
   );
 }
 
-export const ABOUT_SMALL_PLANT_X = ABOUT_BOOT_LANDMARKS.succulent.x;
+export const ABOUT_SMALL_PLANT_X = ABOUT_LANDMARK_X.succulent;
 /** Measured GLB width 1.4887 × authored 0.18 scale ÷ 2, rounded outward. */
 export const ABOUT_SMALL_PLANT_ENVELOPE = 0.135;
 export const ABOUT_TOP_COLLECTIVE_PHOTO_X =
-  ABOUT_BOOT_LANDMARKS["collective-frame"].x;
+  ABOUT_LANDMARK_X["collective-frame"];
 export const ABOUT_TOP_COLLECTIVE_PHOTO_LEFT =
   ABOUT_TOP_COLLECTIVE_PHOTO_X - 0.3072 / 2;
 
@@ -82,31 +82,20 @@ export const CURRENT_READING_ROTATION: [number, number, number] = [
   0,
   (Math.PI * 2) / 9,
 ];
-/** Cover-to-cover step along the shelf. 0.21 until the Role Icons needed the
- * air to the fan's left; at 0.18 each rear jacket still shows more than half
- * its width. */
-export const READING_FAN_SPACING_X = 0.18;
-/** Depth step per cover. Chosen with the x step so the perpendicular gap
- * between neighbouring jackets stays what it was at 0.21 / 0.075: the jacket
- * normal at 40° is (-sin 40°, 0, cos 40°), and 0.643·0.18 − 0.766·0.05 ≈
- * 0.643·0.21 − 0.766·0.075. */
-export const READING_FAN_SPACING_Z = 0.05;
+/** Best-fit equal step through the three edited X centers. It tightens the
+ * former 0.18 fan by 15%, leaving more of each rear jacket camera-overlapped. */
+export const READING_FAN_SPACING_X = 0.1529;
 
 const READING_FAN_YAW = CURRENT_READING_ROTATION[2];
 const READING_FAN_NORMAL = [
   -Math.sin(READING_FAN_YAW),
   Math.cos(READING_FAN_YAW),
 ] as const;
-const READING_FAN_TANGENT = [
-  Math.cos(READING_FAN_YAW),
-  Math.sin(READING_FAN_YAW),
-] as const;
-const READING_FAN_TANGENT_STEP =
-  READING_FAN_SPACING_X * READING_FAN_TANGENT[0] +
-  READING_FAN_SPACING_Z * READING_FAN_TANGENT[1];
+const PREVIOUS_READING_FAN_SPACING_X = 0.18;
+const PREVIOUS_READING_FAN_SPACING_Z = 0.05;
 const READING_FAN_CENTER_SEPARATION = Math.abs(
-  READING_FAN_SPACING_X * READING_FAN_NORMAL[0] +
-    READING_FAN_SPACING_Z * READING_FAN_NORMAL[1],
+  PREVIOUS_READING_FAN_SPACING_X * READING_FAN_NORMAL[0] +
+    PREVIOUS_READING_FAN_SPACING_Z * READING_FAN_NORMAL[1],
 );
 
 /** Empty air measured perpendicular to two neighbouring covers. Their center
@@ -114,12 +103,30 @@ const READING_FAN_CENTER_SEPARATION = Math.abs(
 export const READING_FAN_CLEARANCE =
   READING_FAN_CENTER_SEPARATION - ABOUT_READING_BOOK.thickness;
 
+function readingFanDepthStep(leftThickness: number, rightThickness: number) {
+  const normalSeparation =
+    READING_FAN_CLEARANCE + (leftThickness + rightThickness) / 2;
+  return (
+    (Math.sin(READING_FAN_YAW) * READING_FAN_SPACING_X - normalSeparation) /
+    Math.cos(READING_FAN_YAW)
+  );
+}
+
+/** Default depth step. Live books keep this X cadence and vary only depth to
+ * preserve the same physical clearance across different jacket thicknesses. */
+export const READING_FAN_SPACING_Z = readingFanDepthStep(
+  ABOUT_READING_BOOK.thickness,
+  ABOUT_READING_BOOK.thickness,
+);
+
+export const ABOUT_READING_STACK_PROFILE_WIDTH =
+  READING_FAN_SPACING_X * 2 +
+  ABOUT_READING_BOOK.width * Math.cos(READING_FAN_YAW);
+
 export const CURRENT_READING_BASE: [number, number, number] = [
-  ABOUT_BOOT_LANDMARKS["reading-stack"].x - READING_FAN_SPACING_X,
+  ABOUT_LANDMARK_X["reading-stack"] - READING_FAN_SPACING_X,
   ABOUT_READING_BOOK.depth / 2,
-  // One depth step behind the lower plank's centre (−0.08), so the middle
-  // cover sits on it and the fan's mean depth stays where it was.
-  -0.13,
+  ABOUT_LOWER_LANDMARK_Z["reading-stack"] - READING_FAN_SPACING_Z,
 ];
 
 /** Matches Three's default intrinsic XYZ Euler matrix. */
@@ -164,19 +171,8 @@ function readingThicknessAt(thicknesses: readonly number[], index: number) {
     : ABOUT_READING_BOOK.thickness;
 }
 
-function readingFanStep(leftThickness: number, rightThickness: number) {
-  const normalSeparation =
-    READING_FAN_CLEARANCE + (leftThickness + rightThickness) / 2;
-  return [
-    READING_FAN_TANGENT[0] * READING_FAN_TANGENT_STEP -
-      READING_FAN_NORMAL[0] * normalSeparation,
-    READING_FAN_TANGENT[1] * READING_FAN_TANGENT_STEP -
-      READING_FAN_NORMAL[1] * normalSeparation,
-  ] as const;
-}
-
 /** Three grounded books turned 40° toward the About practical. The cadence
- * keeps the same camera overlap while live book thickness controls the clear
+ * is exactly even in X while live thickness moves only depth to preserve clear
  * air between adjacent covers. */
 export function readingStackPoses(
   thicknesses: readonly number[] = [],
@@ -186,25 +182,25 @@ export function readingStackPoses(
     readingThicknessAt(thicknesses, 1),
     readingThicknessAt(thicknesses, 2),
   ] as const;
-  const firstStep = readingFanStep(
+  const firstDepthStep = readingFanDepthStep(
     resolvedThicknesses[0],
     resolvedThicknesses[1],
   );
-  const secondStep = readingFanStep(
+  const secondDepthStep = readingFanDepthStep(
     resolvedThicknesses[1],
     resolvedThicknesses[2],
   );
   const offsets = [
     [0, 0],
-    firstStep,
-    [firstStep[0] + secondStep[0], firstStep[1] + secondStep[1]],
+    [READING_FAN_SPACING_X, firstDepthStep],
+    [READING_FAN_SPACING_X * 2, firstDepthStep + secondDepthStep],
   ] as const;
   const meanOffsetX =
     offsets.reduce((sum, offset) => sum + offset[0], 0) / offsets.length;
   const meanOffsetZ =
     offsets.reduce((sum, offset) => sum + offset[1], 0) / offsets.length;
-  const centerX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
-  const centerZ = CURRENT_READING_BASE[2] + READING_FAN_SPACING_Z;
+  const centerX = ABOUT_LANDMARK_X["reading-stack"];
+  const centerZ = ABOUT_LOWER_LANDMARK_Z["reading-stack"];
 
   return offsets.map((offset, index) => ({
     index,

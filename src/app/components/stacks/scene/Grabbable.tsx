@@ -782,7 +782,14 @@ export default function Grabbable({
    * left still. The radius is the ball's, in world units; the carrier origin
    * is its bottom. A tap on the ball asks the bay first and falls through to
    * the ordinary activation only if the bay declines. */
-  hittable?: { radius: number; contactHeight?: number; golf?: boolean };
+  hittable?: {
+    radius: number;
+    contactHeight?: number;
+    golf?: boolean;
+    /** Golf bay that may claim this prop. Defaults to its home unit. A prop
+     * carried across the room can opt into another unit's authored bay. */
+    bayUnitIndex?: number;
+  };
   /** One-shot response when a press first crosses the drag threshold. This
    * also fires for an anchored (`draggable={false}`) object, allowing a drag
    * gesture to animate its contents without turning the object into a loose
@@ -847,6 +854,7 @@ export default function Grabbable({
   const hittableRadius = hittable?.radius;
   const hittableContactHeight = hittable?.contactHeight ?? hittableRadius;
   const hittableGolf = hittable?.golf === true;
+  const hittableBayUnitIndex = hittable?.bayUnitIndex ?? unitIndex;
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
@@ -1147,7 +1155,7 @@ export default function Grabbable({
     if (!entry) return;
     return registerHittableBall({
       key: hoverKey,
-      unitIndex,
+      unitIndex: hittableBayUnitIndex,
       radius: hittableRadius,
       contactHeight: hittableContactHeight ?? hittableRadius,
       massKg: massKg ?? 0.2,
@@ -1196,11 +1204,11 @@ export default function Grabbable({
   }, [
     hittableContactHeight,
     hittableGolf,
+    hittableBayUnitIndex,
     hittableRadius,
     hoverKey,
     massKg,
     physicsScene,
-    unitIndex,
     velocity,
   ]);
 
@@ -1261,6 +1269,7 @@ export default function Grabbable({
         !!g && entry?.physicsActivation === "detach" && !entry.physicsActivated;
 
       const store = useStacks.getState();
+      if (store.visionRidePhase !== "idle") return;
       authoredParked.current = false;
       authoredOffscreenFor.current = 0;
       velocity.set(0, 0, 0);
@@ -1429,6 +1438,7 @@ export default function Grabbable({
       // starts a carry, and a second pointer's release ends someone else's.
       if (!event.isPrimary || event.button !== 0) return false;
       const store = useStacks.getState();
+      if (store.visionRidePhase !== "idle") return false;
       // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
       // are both primary at once. One prop in hand at a time, always.
       if (store.dragging) return false;

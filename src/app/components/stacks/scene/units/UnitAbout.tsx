@@ -1,8 +1,14 @@
 "use client";
 
 import type { PhotoArtifactId } from "../../sceneArtifacts";
+import { GOLF_UNIT_INDEX } from "../../data";
 import { useStacks } from "../../store";
 import { proxied } from "../../theme";
+import VisionRideSource from "../../visionRide/VisionRideSource";
+import {
+  activateVisionRide,
+  preloadVisionRide,
+} from "../../visionRide/visionRideEntry";
 import { TJMedallionProp } from "../AuthoredProps";
 import { CoordinationGlobe } from "../CoordinationGlobe";
 import Grabbable from "../Grabbable";
@@ -12,6 +18,7 @@ import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { RoundedBox } from "../RoundedBox";
 import SitChair from "../SitChair";
+import { VisionProProp } from "../VisionProProp";
 import {
   ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
@@ -24,10 +31,8 @@ import {
 } from "../aboutBootComposition";
 import {
   ABOUT_AIC_SCALE,
-  ABOUT_APPLE_LIGHT_YAW,
   ABOUT_COORDINATION_GLOBE_SCALE,
   ABOUT_LAMP_ROOT_YAW,
-  ABOUT_LOWER_AWARD_SCALE,
   ABOUT_TJ_LIGHT_YAW,
   aboutLampHeadQuaternion,
 } from "../aboutCoordinationLayout";
@@ -39,6 +44,7 @@ import {
 import {
   ABOUT_AIC_MARK_YAW,
   ABOUT_AIC_ROOT_YAW,
+  ABOUT_LOWER_LANDMARK_Z,
   ABOUT_MODEL_POSES,
   ABOUT_PHOTO_POSES,
   ABOUT_TOP_LANDMARK_Z,
@@ -46,7 +52,7 @@ import {
 import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
-import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
+import { PortraitFrame, useMetalShimmer } from "../objects";
 import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit } from "../primitives";
 import { propReactionIsEngaged } from "../reactionEngagement";
@@ -592,39 +598,40 @@ export default function UnitAbout({
           <group>
             <Grabbable
               unitIndex={index}
-              hoverKey="shimmer:apple"
-              metal
+              hoverKey="action:about:vision-ride"
               base={[
-                ABOUT_BOOT_LANDMARKS.apple.x,
+                ABOUT_BOOT_LANDMARKS["vision-pro"].x,
                 0,
-                SHELF_GEOMETRY.lower.centerZ,
+                ABOUT_LOWER_LANDMARK_Z["vision-pro"],
               ]}
               shadeColor={palette.shadow}
-              shadeWidth={0.26}
+              shadeWidth={0.44}
               shape="box"
-              massKg={0.35}
-              // A Portal like the TJ medallion and the AIC mark beside it, so
-              // the label can say what the object stands for (owner: make the
-              // tooltips describe). The click still fires the mark's sweep.
-              href="https://www.apple.com/"
-              portalLabel="Apple"
+              massKg={0.65}
+              hittable={{
+                radius: 0.22,
+                contactHeight: 0.13,
+                bayUnitIndex: GOLF_UNIT_INDEX,
+              }}
+              onTap={() => void activateVisionRide()}
+              onHoverIntent={() => void preloadVisionRide()}
+              actionLabel="Put on Apple Vision Pro"
+              portalLabel="Apple Vision Pro"
               portalDetail={["Former AR/VR Software Engineer"]}
             >
-              <group
-                name={aboutLandmarkNodeName("apple")}
-                rotation={[0, ABOUT_APPLE_LIGHT_YAW, 0]}
-                scale={ABOUT_LOWER_AWARD_SCALE}
-              >
-                <DeskApple palette={palette} unitIndex={index} />
-              </group>
+              <VisionRideSource>
+                <group name={aboutLandmarkNodeName("vision-pro")}>
+                  <VisionProProp dark={dark} />
+                </group>
+              </VisionRideSource>
             </Grabbable>
-            {/* The Role Icons: where he works now, beside the mark of where
-                he worked. Four Project Icon billets at half the Projects
+            {/* The Role Icons: where he works now, beside the product he
+                worked on. Four Project Icon billets at half the Projects
                 edge, stacked two by two like the dice; each is a Portal to its
                 organization and every tile is its own Movable Prop. */}
             <group name={aboutLandmarkNodeName("role-icons")}>
               {ABOUT_ROLES.map((role) => {
-                const [dx, dy] = aboutRoleIconOffset(role);
+                const [dx, dy, dz] = aboutRoleIconOffset(role);
                 return (
                   <ProjectIcon
                     key={role.id}
@@ -635,7 +642,7 @@ export default function UnitAbout({
                     base={[
                       ABOUT_BOOT_LANDMARKS["role-icons"].x + dx,
                       dy,
-                      SHELF_GEOMETRY.lower.centerZ,
+                      ABOUT_LOWER_LANDMARK_Z["role-icons"] + dz,
                     ]}
                     artwork={role.artwork}
                     fallbackColor={role.fallbackColor}
@@ -657,7 +664,7 @@ export default function UnitAbout({
               base={[
                 ABOUT_BOOT_LANDMARKS["ai-collective"].x,
                 0,
-                SHELF_GEOMETRY.lower.centerZ,
+                ABOUT_LOWER_LANDMARK_Z["ai-collective"],
               ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
@@ -703,7 +710,7 @@ export default function UnitAbout({
               base={[
                 ABOUT_BOOT_LANDMARKS["coordination-globe"].x,
                 0,
-                SHELF_GEOMETRY.lower.centerZ,
+                ABOUT_LOWER_LANDMARK_Z["coordination-globe"],
               ]}
               scale={ABOUT_COORDINATION_GLOBE_SCALE}
             />
@@ -726,7 +733,7 @@ export default function UnitAbout({
                 base={[
                   ABOUT_BOOT_LANDMARKS["tj-medallion"].x,
                   0,
-                  SHELF_GEOMETRY.lower.centerZ,
+                  ABOUT_LOWER_LANDMARK_Z["tj-medallion"],
                 ]}
                 href="https://tjhsst.fcps.edu/"
                 portalLabel="TJHSST"
@@ -742,7 +749,13 @@ export default function UnitAbout({
             {/* The warm practical from the original desk composition. The
                 model and its measured light rig share this one transform;
                 fixed task lighting is architecture, not a throwable prop. */}
-            <group position={[ABOUT_BOOT_LANDMARKS["desk-lamp"].x, 0, -0.06]}>
+            <group
+              position={[
+                ABOUT_BOOT_LANDMARKS["desk-lamp"].x,
+                0,
+                ABOUT_LOWER_LANDMARK_Z["desk-lamp"],
+              ]}
+            >
               <group name={aboutLandmarkNodeName("desk-lamp")}>
                 <EggLamp
                   unitIndex={index}

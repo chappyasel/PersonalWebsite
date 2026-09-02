@@ -331,7 +331,56 @@ the completed state until the visitor finds the new entry.
     - First hint: Even these stamps aren't glued down.
     - Notes:
 
-32. [ ] **Full Journal** `◇`
+32. [x] **Future Perfect** `◇`
+
+    - Rarity: Common.
+    - Earned by: Put on Apple Vision Pro and successfully enter the retrowave
+      ride.
+    - First hint: The headset on About is more than a keepsake.
+    - Notes:
+
+33. [x] **Reality Distortion Field** `?`
+
+    - Rarity: Rare. Hidden until found.
+    - Earned by: Enter the Vision Pro ride while either the 8-bit or 16-bit
+      Projects finish is active.
+    - First hint: None before discovery.
+    - Notes:
+
+34. [x] **Night Shift** `?`
+
+    - Rarity: Rare. Hidden until found.
+    - Earned by: Set the alarm clock to 3:45, then successfully enter the
+      Vision Pro ride.
+    - First hint: None before discovery.
+    - Notes: The altered ride, not the clock interaction alone, awards it.
+
+35. [x] **Redline** `?`
+
+    - Rarity: Rare. Hidden until found.
+    - Earned by: Wake all three Training shakers, then successfully enter the
+      Vision Pro ride.
+    - First hint: None before discovery.
+    - Notes: The altered ride, not `Shake Well` alone, awards it.
+
+36. [x] **Fore Sight** `?`
+
+    - Rarity: Rare. Hidden until found.
+    - Earned by: Carry Apple Vision Pro into the Training golf bay, hit it
+      with the club, then successfully enter its fairway reality.
+    - First hint: None before discovery.
+    - Notes: `Wrong Sport` may be earned by any non-golf prop; this discovery
+      requires Vision Pro specifically.
+
+37. [x] **Reality Stack** `?`
+
+    - Rarity: Legendary. Hidden until found.
+    - Earned by: Enter one ride with the 3:45, Redline, fairway, and either
+      pixel-finish modifier active together.
+    - First hint: None before discovery.
+    - Notes: The four semantic modifiers compose independently.
+
+38. [ ] **Full Journal** `◇`
     - Rarity: Legendary.
     - Earned by: Earn every other Field Note. Awarded in the same moment as
       the final other discovery.

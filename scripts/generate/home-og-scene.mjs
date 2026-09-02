@@ -272,6 +272,10 @@ const startingInputs = await homeOgInputManifest({ root: ROOT });
 
 const browser = await chromium.launch({
   headless: true,
+  // Software WebGL on every platform, deliberately: local and CI captures
+  // must come off the same renderer or the "unchanged" pixel tolerance
+  // rewrites the committed card on renderer noise alone. It costs over a
+  // minute to reach the first real frame at the cinematic profile.
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 
@@ -319,6 +323,15 @@ try {
       timeout: 120_000,
     },
   );
+  // The first painted frame is the backdrop alone: textures and the meadow
+  // are still loading, and two identical black samples count as settled.
+  // The world flag flips once the scene has painted real frames, and it does
+  // so in capture mode too. Under software WebGL that can take well over a
+  // minute, hence the long ceiling.
+  await page.waitForSelector('html[data-world="ready"]', {
+    state: "attached",
+    timeout: 300_000,
+  });
   // `.stacks-og-ui` uses `display: contents`, so hiding only that wrapper is
   // not enough in Chromium. Hide its descendants directly while retaining
   // their layout measurements for the scene's authored camera composition.

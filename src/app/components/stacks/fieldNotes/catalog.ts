@@ -39,6 +39,8 @@ export type FieldNoteArtwork =
   | "calendar"
   | "dice"
   | "stamp"
+  | "vision"
+  | "retro-vision"
   | "journal";
 
 export type FieldNoteDefinition = Readonly<{
@@ -334,6 +336,63 @@ export const FIELD_NOTES = [
     hidden: false,
     hint: "Even these stamps aren't glued down.",
     foundCopy: "Rearranged five stamps in this album.",
+  },
+  {
+    id: "future-perfect",
+    title: "Future Perfect",
+    rarity: "Common",
+    artwork: "vision",
+    hidden: false,
+    hint: "The headset on About is more than a keepsake.",
+    foundCopy: "Put on Apple Vision Pro and entered the retrowave ride.",
+  },
+  {
+    id: "reality-distortion-field",
+    title: "Reality Distortion Field",
+    rarity: "Rare",
+    artwork: "retro-vision",
+    hidden: true,
+    hint: null,
+    foundCopy:
+      "Entered the Vision Pro ride with an 8-bit or 16-bit finish active.",
+  },
+  {
+    id: "night-shift",
+    title: "Night Shift",
+    rarity: "Rare",
+    artwork: "alarm",
+    hidden: true,
+    hint: null,
+    foundCopy: "Entered the Vision Pro ride after setting the alarm to 3:45.",
+  },
+  {
+    id: "redline",
+    title: "Redline",
+    rarity: "Rare",
+    artwork: "shaker",
+    hidden: true,
+    hint: null,
+    foundCopy: "Entered the Vision Pro ride after waking all three shakers.",
+  },
+  {
+    id: "fore-sight",
+    title: "Fore Sight",
+    rarity: "Rare",
+    artwork: "golf",
+    hidden: true,
+    hint: null,
+    foundCopy:
+      "Hit Apple Vision Pro with the golf club, then entered its fairway reality.",
+  },
+  {
+    id: "reality-stack",
+    title: "Reality Stack",
+    rarity: "Legendary",
+    artwork: "retro-vision",
+    hidden: true,
+    hint: null,
+    foundCopy:
+      "Combined 3:45, Redline, the fairway, and a pixel finish in one Vision Pro ride.",
   },
   {
     id: "full-journal",

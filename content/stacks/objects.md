@@ -53,7 +53,7 @@ Jasper, at 45 Lansing, in the same skyline material as the bridge and the tower.
 The hit area covers the whole building, but the response is confined to one
 window on floor 33.
 
-## shelf:*:top
+## shelf:\*:top
 
 Title: Top Shelf Plank
 Status: written
@@ -62,7 +62,7 @@ The physical plank. It carries no interaction of its own and never competes with
 a prop for focus; it is addressable only so the insects have the real shelf
 surface to land on. One per unit, `shelf:<unit>:top`.
 
-## shelf:*:lower
+## shelf:\*:lower
 
 Title: Lower Shelf Plank
 Status: written
@@ -72,18 +72,15 @@ reason. `shelf:<unit>:lower`.
 
 <!-- Unit 0 — About -->
 
-## shimmer:apple
+## action:about:vision-ride
 
-Title: Apple Mark
+Title: Apple Vision Pro
 Status: written
-Link: Apple https://www.apple.com/
+Link: Apple Vision Pro https://www.apple.com/apple-vision-pro/
 
-An extruded Apple mark on a bead-blasted billet. Click it and a band of light
-runs across the face. It sits square to the plank on purpose: this face is the
-one near-mirror in the room, and turned off square it swings out of the lit half
-of the environment probe and goes black. I worked there as an AR/VR software
-engineer, on the teams that launched Vision Pro and the early Apple Intelligence
-prototypes.
+Put on the product I worked on at Apple for a retrowave ride. The shelf model keeps its continuous front glass,
+aluminum enclosure, light seal, Solo Knit Band, Digital Crown, and top button. I
+was an AR/VR software engineer on the teams that launched Vision Pro.
 
 ## link:about:role:madrona
 
@@ -91,7 +88,7 @@ Title: Madrona
 Status: written
 Link: Madrona https://www.madrona.com/
 
-One of four role tiles stacked two by two beside the Apple mark. I am a venture
+One of four role tiles stacked two by two beside Vision Pro. I am a venture
 scout at Madrona.
 
 ## link:about:role:roam
@@ -142,7 +139,7 @@ nodes turning inside it. Green nodes are people, blue nodes are agents. Hover it
 and one improbably long chord grows across the sphere; drag it and the shockwave
 runs out through the rest of the room.
 
-## grab:reading:*
+## grab:reading:\*
 
 Title: Currently Reading
 Status: written
@@ -274,7 +271,7 @@ wrong the moment the couch replaced the old chair.
 
 <!-- Unit 1 — Book Notes -->
 
-## book:*
+## book:\*
 
 Title: Featured Books
 Status: written
@@ -287,7 +284,7 @@ notes. Matching is by book id and not by title, because the library holds two
 reads of 7 Habits of Highly Effective People and only the 2023 one is ticked.
 Ids are `book:<bookId>`.
 
-## link:riser:1:*
+## link:riser:1:\*
 
 Title: Riser Books
 Status: written
@@ -298,7 +295,7 @@ cover's carry group, and its exposed fore-edge is its own way into the library.
 It pulls toward the viewer only, so it never steals the cover standing on it.
 Ids are `link:riser:1:<bookId>`.
 
-## link:row:1:15:*
+## link:row:1:15:\*
 
 Title: Top Packed Row
 Status: written
@@ -308,7 +305,7 @@ The top packed row: real finished reads, newest first, every spine sized from
 its own page count. No covers here, because a second face-out book competes with
 the featured ones standing in front of it. Each volume opens its own notes.
 
-## link:row:1:40:*
+## link:row:1:40:\*
 
 Title: Lower Packed Row
 Status: written
@@ -317,7 +314,7 @@ Link: Book Notes https://books.chappyasel.com
 The lower row picks up where the top row stopped, so the shelf reads newest at
 the top instead of restarting halfway down.
 
-## link:row:1:*:*:*
+## link:row:1:_:_:\*
 
 Title: Flat Book Stacks
 Status: written
@@ -750,7 +747,7 @@ A 1 kg pouch of collagen peptides, stepped forward from the other two and turned
 the other way so three near-identical white pouches at one depth do not read as
 one wide object. 20 g a day, for tendons and skin.
 
-## grab:mio:hydrate:*
+## grab:mio:hydrate:\*
 
 Title: MiO Hydrate
 Status: written
@@ -764,7 +761,7 @@ way. There were six on this plank until six read as a case bought that week;
 three reads as the ones that are open. There is no model behind any of them: the
 whole skin is one drawn label wrapped on a lathed egg.
 
-## grab:mio:lemonade:*
+## grab:mio:lemonade:\*
 
 Title: MiO Lemonade
 Status: written
@@ -829,7 +826,7 @@ Status: written
 
 The frosted white case on top of the front pair.
 
-## grab:pills:bottle:*
+## grab:pills:bottle:\*
 
 Title: Supplement Bottles
 Status: written
@@ -850,7 +847,7 @@ Status: written
 
 Aimed straight down the pill-case row. Click it off and on.
 
-## link:row:3:68:*
+## link:row:3:68:\*
 
 Title: Manual Row
 Status: written
@@ -1084,6 +1081,17 @@ Status: needs-owner
 
 NEEDS: which WWDC year this is and what you were there for.
 
+## shimmer:apple
+
+Title: Apple Mark
+Status: written
+Link: Apple https://www.apple.com/
+
+An extruded Apple mark on a bead-blasted billet, now beside my Apple photo on
+the Projects shelf. Click it and a band of light runs across the face. It sits
+square to the plank so the polished mark keeps reflecting the room instead of
+turning black.
+
 ## grab:plant:projects-small
 
 Title: Small Potted Plant
@@ -1243,7 +1251,7 @@ Link: Book Notes https://books.chappyasel.com
 
 An open book left on the top shelf. It opens the library.
 
-## link:row:5:75:*
+## link:row:5:75:\*
 
 Title: Musings Book Row
 Status: written

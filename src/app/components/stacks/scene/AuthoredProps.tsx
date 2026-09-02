@@ -410,6 +410,7 @@ export function ShakerProp({
       onTap={
         interactiveEgg
           ? () => {
+              useStacks.getState().noteVisionRideShaker(hoverKey);
               if (prefersReducedMotion()) return;
               startedAt.current = performance.now();
             }

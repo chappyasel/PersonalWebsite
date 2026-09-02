@@ -40,6 +40,7 @@ function DayCell({
   videoCount,
   isToday,
   isCurrentMonth,
+  isCovered,
 }: {
   day: number;
   dateStr: string;
@@ -47,6 +48,9 @@ function DayCell({
   videoCount: number;
   isToday: boolean;
   isCurrentMonth: boolean;
+  /** Whether the ingested history reaches this day. Past the boundary an empty
+   *  cell would otherwise read as a day of no watching. */
+  isCovered: boolean;
 }) {
   const opacity = hoursToOpacity(hours);
 
@@ -56,16 +60,20 @@ function DayCell({
         !isCurrentMonth ? "opacity-0" : ""
       }`}
       aria-label={
-        hours > 0
-          ? `${dateStr}: ${hours.toFixed(1)}h (${videoCount} videos)`
-          : dateStr
+        !isCovered
+          ? `${dateStr}: not exported yet`
+          : hours > 0
+            ? `${dateStr}: ${hours.toFixed(1)}h (${videoCount} videos)`
+            : `${dateStr}: no watching`
       }
     >
       <span
         className={`text-[10px] tabular-nums leading-tight ${
           hours > 0
             ? "font-semibold text-neutral-800 dark:text-neutral-100"
-            : "text-neutral-400 dark:text-neutral-500"
+            : isCovered
+              ? "text-neutral-400 dark:text-neutral-500"
+              : "text-neutral-300 dark:text-neutral-600"
         } ${isToday ? "rounded-full bg-neutral-800 px-1 text-white dark:bg-neutral-200 dark:text-neutral-900" : ""}`}
       >
         {day}
@@ -77,8 +85,10 @@ function DayCell({
             backgroundColor: `rgba(239, 68, 68, ${opacity})`,
           }}
         />
-      ) : (
+      ) : isCovered ? (
         <div className="mt-0.5 h-1.5" />
+      ) : (
+        <div className="mt-0.5 h-1.5 w-2/3 rounded-full border border-dashed border-neutral-300 dark:border-neutral-600" />
       )}
     </div>
   );
@@ -88,10 +98,13 @@ function MonthMiniCalendar({
   year,
   month,
   dayMap,
+  coveredThrough,
 }: {
   year: number;
   month: number;
   dayMap: Record<string, { totalHours: number; videoCount: number }>;
+  /** Last day the ingested history speaks for (YYYY-MM-DD), or null if unknown. */
+  coveredThrough: string | null;
 }) {
   const today = new Date();
   const todayDay =
@@ -136,6 +149,9 @@ function MonthMiniCalendar({
               videoCount={entry?.videoCount ?? 0}
               isToday={cell.day === todayDay}
               isCurrentMonth={cell.inMonth}
+              isCovered={
+                coveredThrough === null || !dateStr || dateStr <= coveredThrough
+              }
             />
           );
         })}
@@ -157,14 +173,13 @@ export function YearCalendar() {
     : currentYear;
 
   const dayMap: Record<string, { totalHours: number; videoCount: number }> = {};
-  if (calendarData) {
-    for (const entry of calendarData) {
-      dayMap[entry.date] = {
-        totalHours: entry.totalHours,
-        videoCount: entry.videoCount,
-      };
-    }
+  for (const entry of calendarData?.days ?? []) {
+    dayMap[entry.date] = {
+      totalHours: entry.totalHours,
+      videoCount: entry.videoCount,
+    };
   }
+  const coveredThrough = calendarData?.coveredThrough ?? null;
 
   return (
     <div>
@@ -202,6 +217,7 @@ export function YearCalendar() {
               year={year}
               month={month}
               dayMap={dayMap}
+              coveredThrough={coveredThrough}
             />
           ))}
         </div>

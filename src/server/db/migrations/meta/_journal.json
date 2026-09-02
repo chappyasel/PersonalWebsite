@@ -120,6 +120,13 @@
       "when": 1787747097613,
       "tag": "0016_stormy_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1788263726454,
+      "tag": "0017_silly_beyonder",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,7 @@ import { type StacksData, type StacksSlots, UNITS } from "./data";
 import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
+import VisionRideControls from "./dom/VisionRideControls";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
@@ -606,6 +607,7 @@ export default function StacksHome({
             </Profiler>
             <ScrollBridges />
           </div>
+          <VisionRideControls />
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or
               transforming the world itself — both would turn the placards'

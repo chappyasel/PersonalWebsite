@@ -9,6 +9,10 @@ const homeSource = fs.readFileSync(
   new URL("../StacksHome.tsx", import.meta.url),
   "utf8",
 );
+const artworkSource = fs.readFileSync(
+  new URL("./FieldNoteArtwork.tsx", import.meta.url),
+  "utf8",
+);
 
 const hint = source.slice(
   source.indexOf("function StampHint"),
@@ -59,7 +63,7 @@ describe("Field Notes stamp tooltip presentation", () => {
       ),
     ].map((match) => match.slice(1).join(":"));
 
-    expect(recipes).toHaveLength(32);
+    expect(recipes).toHaveLength(34);
     expect(new Set(recipes).size).toBe(recipes.length);
     expect(designBlock).toContain(
       "camera: { palette: 11, frame: 0, layout: 4, pattern: 9 }",
@@ -77,7 +81,7 @@ describe("Field Notes stamp tooltip presentation", () => {
     const letteringStyles = [
       ...letteringBlock.matchAll(/style: "([^"]+)"/g),
     ].map((match) => match[1]);
-    expect(letteringStyles).toHaveLength(32);
+    expect(letteringStyles).toHaveLength(34);
     expect(new Set(letteringStyles).size).toBe(8);
     expect(letteringBlock).toContain('denomination: "360°"');
     expect(letteringBlock).toContain('primary: "Heavy mail"');
@@ -92,12 +96,27 @@ describe("Field Notes stamp tooltip presentation", () => {
     const iconWeights = [...iconBlock.matchAll(/weight: "([^"]+)"/g)].map(
       (match) => match[1],
     );
-    expect(iconWeights).toHaveLength(32);
+    expect(iconWeights).toHaveLength(34);
     expect(new Set(iconWeights).size).toBe(6);
     expect(iconBlock).toContain("scale: 1.34");
     expect(iconBlock.match(/echo: true/g)).toHaveLength(16);
     expect(source).toContain("FieldNoteAccentIcon");
     expect(source).toContain("--stamp-icon-rotate");
+  });
+
+  it("gives the Vision Pro discoveries distinct abstract artwork", () => {
+    expect(artworkSource).toContain('data-field-note-artwork="spatial-lens"');
+    expect(artworkSource).toContain(
+      'data-field-note-artwork="distortion-field"',
+    );
+    expect(artworkSource).not.toContain("VirtualRealityIcon");
+    expect(artworkSource).not.toContain("GogglesIcon");
+    expect(source).toContain(
+      '.field-notes-stamp-art[data-artwork="vision"]',
+    );
+    expect(source).toContain(
+      '.field-notes-stamp-art[data-artwork="retro-vision"]',
+    );
   });
 
   it("keeps notification test controls out of the visitor chrome", () => {

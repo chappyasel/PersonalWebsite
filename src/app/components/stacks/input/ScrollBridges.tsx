@@ -11,10 +11,6 @@
 // propagation: drei's ScrollControls attaches its own passive wheel handler
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
-import { useEffect, useRef } from "react";
-
-import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
-
 import {
   GOLF_STOP_POSITION,
   UNIT_COUNT,
@@ -34,6 +30,9 @@ import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, useStacks } from "../store";
+import { useEffect, useRef } from "react";
+
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
   if (e.deltaMode === 1) return axisDelta * 33; // lines
@@ -44,13 +43,20 @@ function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
 type BridgeInteractionState = Pick<
   ReturnType<typeof useStacks.getState>,
   "dragging" | "modalOpen" | "panelState"
->;
+> & {
+  visionRidePhase?: ReturnType<typeof useStacks.getState>["visionRidePhase"];
+};
 
 /** One prop/overlay gets a gesture at a time. In particular, Pointer Events
  * can hand a touch drag to a Grabbable before this Touch Events bridge sees
  * `touchmove`; continuing here would move the room underneath the prop. */
 export function blocksWorldTouchTravel(state: BridgeInteractionState) {
-  return !!state.dragging || state.modalOpen || state.panelState !== "closed";
+  return (
+    !!state.dragging ||
+    state.modalOpen ||
+    state.panelState !== "closed" ||
+    (state.visionRidePhase !== undefined && state.visionRidePhase !== "idle")
+  );
 }
 
 /** DOM cards opt out of world navigation without needing to stop bubbling.
@@ -133,6 +139,7 @@ export function backgroundWorldGesture(
     universalSearchOpen ||
     state.modalOpen ||
     state.dragging ||
+    (state.visionRidePhase !== undefined && state.visionRidePhase !== "idle") ||
     scrollableTarget
   )
     return "blocked";
@@ -147,10 +154,13 @@ export function shouldMirrorWorldHistory(
   state: Pick<
     ReturnType<typeof useStacks.getState>,
     "modalOpen" | "panelState" | "unitMapPreview"
-  >,
+  > & {
+    visionRidePhase?: ReturnType<typeof useStacks.getState>["visionRidePhase"];
+  },
 ) {
   return (
     !state.modalOpen &&
+    (state.visionRidePhase === undefined || state.visionRidePhase === "idle") &&
     state.panelState === "closed" &&
     state.unitMapPreview === null
   );
@@ -241,7 +251,7 @@ export default function ScrollBridges() {
     };
     const onPopState = () => {
       const state = useStacks.getState();
-      if (state.modalOpen) return;
+      if (state.modalOpen || state.visionRidePhase !== "idle") return;
       // Browser back while the mobile panel is up closes the panel — the
       // pushed entry belongs to it — and never travels.
       if (state.panelState === "open" || state.panelState === "opening") {
@@ -341,7 +351,12 @@ export default function ScrollBridges() {
       coarseTravel = false;
       window.clearTimeout(settleTimer);
       const state = useStacks.getState();
-      if (state.dragging || state.modalOpen || state.panelState !== "closed")
+      if (
+        state.dragging ||
+        state.modalOpen ||
+        state.panelState !== "closed" ||
+        state.visionRidePhase !== "idle"
+      )
         return;
       const destination = touchSwipeDestination({
         startScrollLeft: coarseStartScrollLeft,
@@ -417,6 +432,7 @@ export default function ScrollBridges() {
         direction !== 0 &&
         !state.modalOpen &&
         state.panelState === "closed" &&
+        state.visionRidePhase === "idle" &&
         !freeRoamDiagnosticsController.getSnapshot().enabled
       ) {
         reconcileScrollRange();
@@ -431,7 +447,12 @@ export default function ScrollBridges() {
     const onKey = (e: KeyboardEvent) => {
       if (!shouldHandleWorldNavigationKey(e, isUniversalSearchOpen())) return;
       const state = useStacks.getState();
-      if (state.modalOpen || state.panelState !== "closed") return;
+      if (
+        state.modalOpen ||
+        state.panelState !== "closed" ||
+        state.visionRidePhase !== "idle"
+      )
+        return;
       const target = e.target as HTMLElement | null;
       if (isStacksScrollableTarget(target)) return;
       const panDirection = worldPanDirection(e.key);

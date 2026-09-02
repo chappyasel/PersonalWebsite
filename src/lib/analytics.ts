@@ -97,6 +97,14 @@ export type AnalyticsEventProperties = {
     section: HomepageSection;
     delivery_mode: HomepageDeliveryMode;
   };
+  homepage_vision_ride_entered: Record<string, never>;
+  homepage_vision_ride_exited: {
+    dwell_ms: number;
+    exit_method: "button" | "escape" | "disabled" | "error";
+  };
+  homepage_vision_ride_load_failed: {
+    stage: "chunk" | "model" | "shader" | "audio-controller";
+  };
   [HOMEPAGE_PORTAL_ACTIVATED_EVENT]: {
     door_id: string;
     section: HomepageSection;

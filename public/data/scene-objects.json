@@ -28,30 +28,30 @@
     "body": "Jasper, at 45 Lansing, in the same skyline material as the bridge and the tower.\nThe hit area covers the whole building, but the response is confined to one\nwindow on floor 33."
   },
   {
-    "id": "shelf:*:top",
+    "id": "shelf:\\*:top",
     "title": "Top Shelf Plank",
     "status": "written",
     "links": [],
     "body": "The physical plank. It carries no interaction of its own and never competes with\na prop for focus; it is addressable only so the insects have the real shelf\nsurface to land on. One per unit, `shelf:<unit>:top`."
   },
   {
-    "id": "shelf:*:lower",
+    "id": "shelf:\\*:lower",
     "title": "Lower Shelf Plank",
     "status": "written",
     "links": [],
     "body": "The lower plank, addressable on the same terms as the top one and for the same\nreason. `shelf:<unit>:lower`."
   },
   {
-    "id": "shimmer:apple",
-    "title": "Apple Mark",
+    "id": "action:about:vision-ride",
+    "title": "Apple Vision Pro",
     "status": "written",
     "links": [
       {
-        "label": "Apple",
-        "href": "https://www.apple.com/"
+        "label": "Apple Vision Pro",
+        "href": "https://www.apple.com/apple-vision-pro/"
       }
     ],
-    "body": "An extruded Apple mark on a bead-blasted billet. Click it and a band of light\nruns across the face. It sits square to the plank on purpose: this face is the\none near-mirror in the room, and turned off square it swings out of the lit half\nof the environment probe and goes black. I worked there as an AR/VR software\nengineer, on the teams that launched Vision Pro and the early Apple Intelligence\nprototypes."
+    "body": "Put on the product I worked on at Apple for a retrowave ride. The shelf model keeps its continuous front glass,\naluminum enclosure, light seal, Solo Knit Band, Digital Crown, and top button. I\nwas an AR/VR software engineer on the teams that launched Vision Pro."
   },
   {
     "id": "link:about:role:madrona",
@@ -63,7 +63,7 @@
         "href": "https://www.madrona.com/"
       }
     ],
-    "body": "One of four role tiles stacked two by two beside the Apple mark. I am a venture\nscout at Madrona."
+    "body": "One of four role tiles stacked two by two beside Vision Pro. I am a venture\nscout at Madrona."
   },
   {
     "id": "link:about:role:roam",
@@ -126,7 +126,7 @@
     "body": "A small black hole on a black hexagonal plinth with a live network of sixty\nnodes turning inside it. Green nodes are people, blue nodes are agents. Hover it\nand one improbably long chord grows across the sphere; drag it and the shockwave\nruns out through the rest of the room."
   },
   {
-    "id": "grab:reading:*",
+    "id": "grab:reading:\\*",
     "title": "Currently Reading",
     "status": "written",
     "links": [
@@ -260,7 +260,7 @@
     "body": "Click the chair and you sit down in it, and the Washington skyline comes up\nbehind you. The view on the other side is the sky shader that is already\nrunning, so sitting down costs no download. Three files own the mechanic and\nnone of them imports another: the chair owns the click and the ways out, the\ncamera rig owns the easing. The seat pose is measured off whatever model is\nactually in the chair slot, because it was hard-coded once and went silently\nwrong the moment the couch replaced the old chair."
   },
   {
-    "id": "book:*",
+    "id": "book:\\*",
     "title": "Featured Books",
     "status": "written",
     "links": [
@@ -272,7 +272,7 @@
     "body": "The books I have ticked as featured, standing cover-out in front of the packed\nrow instead of in it. A bookshelf already has a physical vocabulary for \"this\none matters\" and that is it. Each carries its real jacket and previews its own\nnotes. Matching is by book id and not by title, because the library holds two\nreads of 7 Habits of Highly Effective People and only the 2023 one is ticked.\nIds are `book:<bookId>`."
   },
   {
-    "id": "link:riser:1:*",
+    "id": "link:riser:1:\\*",
     "title": "Riser Books",
     "status": "written",
     "links": [
@@ -284,7 +284,7 @@
     "body": "The flat book a featured cover stands on. It is a real volume, outside the\ncover's carry group, and its exposed fore-edge is its own way into the library.\nIt pulls toward the viewer only, so it never steals the cover standing on it.\nIds are `link:riser:1:<bookId>`."
   },
   {
-    "id": "link:row:1:15:*",
+    "id": "link:row:1:15:\\*",
     "title": "Top Packed Row",
     "status": "written",
     "links": [
@@ -296,7 +296,7 @@
     "body": "The top packed row: real finished reads, newest first, every spine sized from\nits own page count. No covers here, because a second face-out book competes with\nthe featured ones standing in front of it. Each volume opens its own notes."
   },
   {
-    "id": "link:row:1:40:*",
+    "id": "link:row:1:40:\\*",
     "title": "Lower Packed Row",
     "status": "written",
     "links": [
@@ -308,7 +308,7 @@
     "body": "The lower row picks up where the top row stopped, so the shelf reads newest at\nthe top instead of restarting halfway down."
   },
   {
-    "id": "link:row:1:*:*:*",
+    "id": "link:row:1:_:_:\\*",
     "title": "Flat Book Stacks",
     "status": "written",
     "links": [
@@ -764,7 +764,7 @@
     "body": "A 1 kg pouch of collagen peptides, stepped forward from the other two and turned\nthe other way so three near-identical white pouches at one depth do not read as\none wide object. 20 g a day, for tendons and skin."
   },
   {
-    "id": "grab:mio:hydrate:*",
+    "id": "grab:mio:hydrate:\\*",
     "title": "MiO Hydrate",
     "status": "written",
     "links": [
@@ -776,7 +776,7 @@
     "body": "Two bottles of MiO Hydrate, Berry Blast, in the 1.62 oz size. It goes into the\nblender bottle with water, lemon juice and a little caffeine, as a home-brewed\nlow-calorie substitute for Gatorade. The bottles stand the way they land when\nyou put them down, gaps uneven, one forward and one back, each turned its own\nway. There were six on this plank until six read as a case bought that week;\nthree reads as the ones that are open. There is no model behind any of them: the\nwhole skin is one drawn label wrapped on a lathed egg."
   },
   {
-    "id": "grab:mio:lemonade:*",
+    "id": "grab:mio:lemonade:\\*",
     "title": "MiO Lemonade",
     "status": "written",
     "links": [
@@ -835,7 +835,7 @@
     "body": "The frosted white case on top of the front pair."
   },
   {
-    "id": "grab:pills:bottle:*",
+    "id": "grab:pills:bottle:\\*",
     "title": "Supplement Bottles",
     "status": "written",
     "links": [
@@ -854,7 +854,7 @@
     "body": "Aimed straight down the pill-case row. Click it off and on."
   },
   {
-    "id": "link:row:3:68:*",
+    "id": "link:row:3:68:\\*",
     "title": "Manual Row",
     "status": "written",
     "links": [
@@ -1098,6 +1098,18 @@
     "needs": "which WWDC year this is and what you were there for."
   },
   {
+    "id": "shimmer:apple",
+    "title": "Apple Mark",
+    "status": "written",
+    "links": [
+      {
+        "label": "Apple",
+        "href": "https://www.apple.com/"
+      }
+    ],
+    "body": "An extruded Apple mark on a bead-blasted billet, now beside my Apple photo on\nthe Projects shelf. Click it and a band of light runs across the face. It sits\nsquare to the plank so the polished mark keeps reflecting the room instead of\nturning black."
+  },
+  {
     "id": "grab:plant:projects-small",
     "title": "Small Potted Plant",
     "status": "written",
@@ -1237,7 +1249,7 @@
     "body": "An open book left on the top shelf. It opens the library."
   },
   {
-    "id": "link:row:5:75:*",
+    "id": "link:row:5:75:\\*",
     "title": "Musings Book Row",
     "status": "written",
     "links": [

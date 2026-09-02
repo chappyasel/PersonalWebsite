@@ -3,25 +3,35 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SCENE_AUDIO_MIX,
   SceneAudioRuntime,
+  VISION_RIDE_ENTRY_WHOOSH_SECONDS,
+  VISION_RIDE_EXIT_WHOOSH_SECONDS,
+  VISION_RIDE_SOUNDTRACK_GAIN,
+  VISION_RIDE_STATIC_PEAK,
+  VISION_RIDE_WHOOSH_ATTACK_SECONDS,
   spatialGain,
   windGainForMotion,
 } from "./sceneAudio";
 
 class FakeParam {
   value = 1;
-  setValueAtTime(value: number) {
+  schedule: Array<{ method: "set" | "ramp"; value: number; time?: number }> =
+    [];
+  setValueAtTime(value: number, time?: number) {
     this.value = value;
+    this.schedule.push({ method: "set", value, time });
     return this;
   }
   cancelScheduledValues() {
     return this;
   }
-  exponentialRampToValueAtTime(value: number) {
+  exponentialRampToValueAtTime(value: number, time?: number) {
     this.value = value;
+    this.schedule.push({ method: "ramp", value, time });
     return this;
   }
-  linearRampToValueAtTime(value: number) {
+  linearRampToValueAtTime(value: number, time?: number) {
     this.value = value;
+    this.schedule.push({ method: "ramp", value, time });
     return this;
   }
 }
@@ -41,6 +51,13 @@ class FakeSource extends FakeNode {
   stop = vi.fn();
 }
 
+class FakeOscillator extends FakeNode {
+  type: OscillatorType = "sine";
+  frequency = new FakeParam();
+  start = vi.fn();
+  stop = vi.fn();
+}
+
 class FakePanner extends FakeNode {
   panningModel = "HRTF";
   distanceModel = "inverse";
@@ -52,6 +69,12 @@ class FakePanner extends FakeNode {
   positionZ = new FakeParam();
 }
 
+class FakeFilter extends FakeNode {
+  type: BiquadFilterType = "lowpass";
+  frequency = new FakeParam();
+  Q = new FakeParam();
+}
+
 class FakeAudioContext {
   static latest: FakeAudioContext | null = null;
   static decodeImpl:
@@ -61,6 +84,8 @@ class FakeAudioContext {
   currentTime = 0;
   destination = {};
   sources: FakeSource[] = [];
+  oscillators: FakeOscillator[] = [];
+  filters: FakeFilter[] = [];
   listener = {
     positionX: new FakeParam(),
     positionY: new FakeParam(),
@@ -84,8 +109,11 @@ class FakeAudioContext {
   constructor() {
     FakeAudioContext.latest = this;
   }
+  gains: Array<{ gain: FakeParam }> = [];
   createGain() {
-    return Object.assign(new FakeNode(), { gain: new FakeParam() });
+    const gain = Object.assign(new FakeNode(), { gain: new FakeParam() });
+    this.gains.push(gain);
+    return gain;
   }
   createDynamicsCompressor() {
     return Object.assign(new FakeNode(), {
@@ -100,6 +128,23 @@ class FakeAudioContext {
     const source = new FakeSource();
     this.sources.push(source);
     return source;
+  }
+  createBuffer(_channels: number, length: number, sampleRate: number) {
+    const channel = new Float32Array(length);
+    return {
+      duration: length / sampleRate,
+      getChannelData: () => channel,
+    };
+  }
+  createBiquadFilter() {
+    const filter = new FakeFilter();
+    this.filters.push(filter);
+    return filter;
+  }
+  createOscillator() {
+    const oscillator = new FakeOscillator();
+    this.oscillators.push(oscillator);
+    return oscillator;
   }
   createPanner() {
     return new FakePanner();
@@ -202,6 +247,213 @@ describe("scene audio policy", () => {
     runtime.setMuted(false);
     expect(runtime.snapshot().muted).toBe(false);
     expect(runtime.play("golf-strike", { x: 0, y: 0, z: 0 })).toBe(true);
+    runtime.teardown();
+  });
+
+  it("does not fetch the ride soundtrack while muted and starts it after unmute", async () => {
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.setMuted(true);
+    runtime.unlock();
+    runtime.startVisionRide();
+    await Promise.resolve();
+    const fetchMock = vi.mocked(fetch);
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        (typeof url === "string"
+          ? url
+          : url instanceof URL
+            ? url.href
+            : url.url
+        ).includes("synthwave"),
+      ),
+    ).toBe(false);
+
+    runtime.setMuted(false);
+    await vi.waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) =>
+          (typeof url === "string"
+            ? url
+            : url instanceof URL
+              ? url.href
+              : url.url
+          ).includes("synthwave"),
+        ),
+      ).toBe(true),
+    );
+    await vi.waitFor(() =>
+      expect(runtime.snapshot().rideStatus).toBe("playing"),
+    );
+    runtime.teardown();
+  });
+
+  it("never replays entry static when audio unlocks after the road is visible", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.setMuted(true);
+    runtime.unlock();
+    runtime.startVisionRide();
+
+    // The visual transition has finished before the user enables sound.
+    runtime.finishVisionRideEntry();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.setMuted(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await vi.waitFor(() =>
+      expect(runtime.snapshot().rideStatus).toBe("playing"),
+    );
+    // The decoded soundtrack loops, but no second looping source (static)
+    // may appear after the picture is already open.
+    expect(
+      FakeAudioContext.latest!.sources.filter((source) => source.loop),
+    ).toHaveLength(1);
+    runtime.teardown();
+  });
+
+  it("stops opening static synchronously at the visual boundary", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    const loopsBeforeSwitchOn = FakeAudioContext.latest!.sources.filter(
+      (source) => source.loop,
+    );
+    expect(loopsBeforeSwitchOn).toHaveLength(1); // soundtrack only
+    runtime.beginVisionRideSwitchOn();
+    const staticSource = FakeAudioContext.latest!.sources.find(
+      (source) => source.loop && !loopsBeforeSwitchOn.includes(source),
+    );
+    expect(staticSource).toBeDefined();
+    runtime.finishVisionRideEntry();
+    expect(staticSource!.stop).toHaveBeenCalled();
+    runtime.teardown();
+  });
+
+  it("crossfades the ride bus, softens reduced-motion transitions, and tears down", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    runtime.startAmbience();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(true);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(runtime.snapshot().rideRequested).toBe(true);
+    expect(FakeAudioContext.latest?.oscillators).toHaveLength(1);
+
+    runtime.beginVisionRideExit();
+    expect(FakeAudioContext.latest?.oscillators).toHaveLength(2);
+    runtime.stopVisionRide();
+    // The ride bus fades over 0.5 s under the return curtain; sources stop
+    // once the fade has landed.
+    await vi.advanceTimersByTimeAsync(521);
+    expect(runtime.snapshot().rideRequested).toBe(false);
+    expect(
+      FakeAudioContext.latest?.oscillators.every(
+        (oscillator) => oscillator.stop.mock.calls.length > 0,
+      ),
+    ).toBe(true);
+    runtime.teardown();
+  });
+
+  it("does not leave synthesized engine noise running under the drive", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(
+      FakeAudioContext.latest!.oscillators.filter(
+        (oscillator) => oscillator.stop.mock.calls.length === 0,
+      ),
+    ).toHaveLength(0);
+    runtime.teardown();
+  });
+
+  it("keeps transition static audible over the soundtrack without overpowering it", () => {
+    expect(VISION_RIDE_STATIC_PEAK).toBeGreaterThanOrEqual(
+      VISION_RIDE_SOUNDTRACK_GAIN * 0.25,
+    );
+    expect(VISION_RIDE_STATIC_PEAK).toBeLessThan(
+      VISION_RIDE_SOUNDTRACK_GAIN * 0.5,
+    );
+  });
+
+  it("gates broadband television static instead of swelling like a puff", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(false);
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.beginVisionRideSwitchOn();
+
+    expect(FakeAudioContext.latest!.filters.map((filter) => filter.type)).toEqual([
+      "highpass",
+      "lowpass",
+    ]);
+    const staticEnvelope = FakeAudioContext.latest!.gains
+      .map((node) => node.gain.schedule)
+      .find((schedule) =>
+        schedule.some((event) => event.value === VISION_RIDE_STATIC_PEAK),
+      );
+    expect(staticEnvelope).toBeDefined();
+    expect(staticEnvelope![1]!.time).toBeLessThanOrEqual(0.02);
+    expect(staticEnvelope).toHaveLength(4);
+    expect(staticEnvelope![2]).toMatchObject({
+      method: "set",
+      value: VISION_RIDE_STATIC_PEAK,
+    });
+    expect(staticEnvelope![2]!.time).toBeCloseTo(0.5, 5);
+    runtime.teardown();
+  });
+
+  it("shapes both ride whooshes with a short attack before the release", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(false);
+    await vi.advanceTimersByTimeAsync(1);
+    const whooshSchedule = (peak: number) =>
+      FakeAudioContext.latest!.gains.map((node) => node.gain.schedule).find(
+        (schedule) =>
+          schedule.length === 3 &&
+          schedule[0]!.method === "set" &&
+          schedule[0]!.value === 0.0001 &&
+          schedule[1]!.method === "ramp" &&
+          schedule[1]!.value === peak &&
+          schedule[2]!.method === "ramp" &&
+          schedule[2]!.value === 0.0001,
+      );
+    const entry = whooshSchedule(0.018);
+    expect(entry).toBeDefined();
+    expect(entry![1]!.time).toBeCloseTo(VISION_RIDE_WHOOSH_ATTACK_SECONDS, 5);
+    expect(entry![2]!.time).toBeCloseTo(VISION_RIDE_ENTRY_WHOOSH_SECONDS, 5);
+
+    runtime.beginVisionRideExit();
+    const exit = whooshSchedule(0.022);
+    expect(exit).toBeDefined();
+    expect(exit![1]!.time).toBeCloseTo(VISION_RIDE_WHOOSH_ATTACK_SECONDS, 5);
+    expect(exit![2]!.time).toBeCloseTo(VISION_RIDE_EXIT_WHOOSH_SECONDS, 5);
+    expect(VISION_RIDE_WHOOSH_ATTACK_SECONDS).toBeLessThan(
+      Math.min(
+        VISION_RIDE_ENTRY_WHOOSH_SECONDS,
+        VISION_RIDE_EXIT_WHOOSH_SECONDS,
+      ) * 0.25,
+    );
     runtime.teardown();
   });
 

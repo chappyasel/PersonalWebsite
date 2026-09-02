@@ -42,8 +42,8 @@ describe("free-roam movement", () => {
   const SPEED_METRES_PER_SECOND = 4;
   const STEP = SPEED_METRES_PER_SECOND * FRAME;
 
-  const move = (keys: ReadonlySet<string>, delta = FRAME) =>
-    freeRoamTranslation(keys, delta);
+  const move = (keys: ReadonlySet<string>, yaw = 0, delta = FRAME) =>
+    freeRoamTranslation(keys, yaw, delta);
 
   it("walks the camera forward at four metres per second", () => {
     // Forward is world minus-Z, the way the shelves face the visitor.
@@ -88,18 +88,20 @@ describe("free-roam movement", () => {
     expect(FREE_ROAM_MOVEMENT_CODES.size).toBe(8);
   });
 
-  it("moves along the room's axes, whichever way the camera faces", () => {
-    // The shelves stand on the world axes and the layout editor's gizmo and
-    // nudges move props along them; a key has to mean the same direction as
-    // those. The policy never sees the camera's orientation, so turning to
-    // look at a prop cannot bend what W does: held keys and the step are
-    // the only required inputs.
-    expect(freeRoamTranslation.length).toBe(2);
+  it("moves forward along the camera's heading", () => {
+    // A quarter-turn left makes camera-forward world minus-X.
+    const forward = move(held("KeyW"), Math.PI / 2);
 
-    const forward = move(held("KeyW"));
-    expect(forward.x).toBeCloseTo(0, 12);
+    expect(forward.x).toBeCloseTo(-STEP, 12);
     expect(forward.y).toBeCloseTo(0, 12);
-    expect(forward.z).toBeCloseTo(-STEP, 12);
+    expect(forward.z).toBeCloseTo(0, 12);
+  });
+
+  it("keeps Q/E on world Y while WASD follows the camera heading", () => {
+    const rise = move(held("KeyE"), Math.PI / 2);
+
+    expect(rise.y).toBeCloseTo(STEP, 12);
+    expect(Math.hypot(rise.x, rise.z)).toBeCloseTo(0, 12);
   });
 
   it("does not let a diagonal outrun a straight line", () => {
@@ -107,7 +109,7 @@ describe("free-roam movement", () => {
   });
 
   it("clamps a long frame to fifty milliseconds of travel", () => {
-    const stalled = move(held("KeyW"), 4);
+    const stalled = move(held("KeyW"), 0, 4);
 
     expect(stalled.length()).toBeCloseTo(SPEED_METRES_PER_SECOND * 0.05, 12);
     expect(freeRoamStepSeconds(4)).toBe(0.05);
@@ -116,7 +118,7 @@ describe("free-roam movement", () => {
 
   it("reuses the caller's vector so the frame loop allocates nothing", () => {
     const scratch = new THREE.Vector3();
-    expect(freeRoamTranslation(held("KeyW"), FRAME, scratch)).toBe(scratch);
+    expect(freeRoamTranslation(held("KeyW"), 0, FRAME, scratch)).toBe(scratch);
   });
 });
 

@@ -23,10 +23,6 @@ import {
   ABOUT_AIC_MARK_DEPTH,
   ABOUT_AIC_MARK_HEIGHT,
   ABOUT_AIC_MARK_WIDTH,
-  ABOUT_APPLE_BASE_DEPTH,
-  ABOUT_APPLE_BASE_WIDTH,
-  ABOUT_APPLE_MARK_DEPTH,
-  ABOUT_APPLE_MARK_HEIGHT,
 } from "../scene/aboutAwardGeometry";
 import {
   ABOUT_BOOT_PAINT_COMPOSITION,
@@ -49,11 +45,8 @@ import {
 import {
   ABOUT_AIC_MARK_YAW,
   ABOUT_AIC_ROOT_YAW,
-  ABOUT_APPLE_MARK_YAW,
-  ABOUT_APPLE_ROOT_YAW,
   ABOUT_MODEL_POSES,
 } from "../scene/aboutScenePose";
-import { APPLE_OUTLINE } from "../scene/appleOutline";
 import {
   COORDINATION_BASE_BOTTOM_RADIUS,
   COORDINATION_BASE_HEIGHT,
@@ -808,11 +801,7 @@ function ModelSilhouetteGlyph({
   height: number;
 }) {
   const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES[id];
-  const [, , sourceWidth, sourceHeight] = silhouette.viewBox;
-  const transform =
-    "projection" in silhouette
-      ? `matrix(${silhouette.projection.map((value) => value * SCENE_TO_BOOT_SVG).join(" ")})`
-      : `translate(${-width / 2} ${-height}) scale(${width / sourceWidth} ${height / sourceHeight})`;
+  const transform = modelSilhouetteTransform(id, width, height);
   return (
     <path
       className="stacks-boot-model-silhouette"
@@ -822,6 +811,18 @@ function ModelSilhouetteGlyph({
       transform={transform}
     />
   );
+}
+
+function modelSilhouetteTransform(
+  id: keyof typeof ABOUT_BOOT_MODEL_SILHOUETTES,
+  width: number,
+  height: number,
+) {
+  const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES[id];
+  const [, , sourceWidth, sourceHeight] = silhouette.viewBox;
+  return "projection" in silhouette
+    ? `matrix(${silhouette.projection.map((value) => value * SCENE_TO_BOOT_SVG).join(" ")})`
+    : `translate(${-width / 2} ${-height}) scale(${width / sourceWidth} ${height / sourceHeight})`;
 }
 
 function DirectionalShineGradient({ id }: { id: string }) {
@@ -1063,20 +1064,6 @@ function CoordinationGlobeGlyph({ height }: { height: number }) {
   );
 }
 
-function appleGlyphPath(height: number, bottom: number): string {
-  const point = (x: number, y: number) =>
-    `${x * height} ${-(bottom + y * height)}`;
-  return APPLE_OUTLINE.map(({ start, curves }) => {
-    const segments = curves
-      .map(
-        ([x1, y1, x2, y2, x, y]) =>
-          `C ${point(x1, y1)} ${point(x2, y2)} ${point(x, y)}`,
-      )
-      .join(" ");
-    return `M ${point(start[0], start[1])} ${segments} Z`;
-  }).join(" ");
-}
-
 /** Four flat tiles in their own brand colors, at the exact offsets the live
  * Role Icons stand at, so the silhouette hands off to the billets in place.
  * Each rect carries its own light/dark pair: the item-level object color
@@ -1099,8 +1086,21 @@ function RoleIconStackGlyph() {
     const topY = -(dy * SCENE_TO_BOOT_SVG + size);
     const faceTop = topY + body.faceInset * SCENE_TO_BOOT_SVG;
     const faceHeight = faceSize * SCENE_TO_BOOT_SVG;
+    const faceRadius =
+      Math.max(body.fallbackFaceRadius, body.radius - body.faceInset) *
+      SCENE_TO_BOOT_SVG;
+    const clipId = `stacks-boot-role-clip-${role.id}`;
     return (
       <g key={role.id} data-boot-role={role.id} data-boot-role-yaw={role.yaw}>
+        <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
+          <rect
+            x={centerX + faceShiftX - projectedFaceWidth / 2}
+            y={faceTop}
+            width={projectedFaceWidth}
+            height={faceHeight}
+            rx={faceRadius}
+          />
+        </clipPath>
         <rect
           className="stacks-boot-role-icon-body"
           x={centerX - projectedBodyWidth / 2}
@@ -1115,7 +1115,7 @@ function RoleIconStackGlyph() {
           y={faceTop}
           width={projectedFaceWidth}
           height={faceHeight}
-          rx={body.fallbackFaceRadius * SCENE_TO_BOOT_SVG}
+          rx={faceRadius}
           style={
             {
               "--stacks-boot-role-light": role.bootColor.light,
@@ -1125,6 +1125,7 @@ function RoleIconStackGlyph() {
         />
         <image
           className="stacks-boot-role-artwork"
+          clipPath={`url(#${clipId})`}
           data-boot-role-artwork={role.id}
           href={role.artwork}
           x={centerX + faceShiftX - projectedFaceWidth / 2}
@@ -1136,6 +1137,39 @@ function RoleIconStackGlyph() {
       </g>
     );
   });
+}
+
+function VisionProGlyph({ width, height }: { width: number; height: number }) {
+  const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"];
+  const transform = modelSilhouetteTransform("vision-pro", width, height);
+  return (
+    <g data-boot-vision-pro="">
+      <path
+        className="stacks-boot-vision-silhouette"
+        d={silhouette.path}
+        fillRule="evenodd"
+        transform={transform}
+      />
+      <path
+        className="stacks-boot-vision-band"
+        d={silhouette.parts.band}
+        fillRule="evenodd"
+        transform={transform}
+      />
+      <path
+        className="stacks-boot-vision-enclosure"
+        d={silhouette.parts.enclosure}
+        fillRule="evenodd"
+        transform={transform}
+      />
+      <path
+        className="stacks-boot-vision-glass"
+        d={silhouette.parts.glass}
+        fillRule="evenodd"
+        transform={transform}
+      />
+    </g>
+  );
 }
 
 function LandmarkGlyph({
@@ -1179,46 +1213,8 @@ function LandmarkGlyph({
     case "medallion": {
       return <TJMedallionGlyph width={width} height={height} />;
     }
-    case "apple": {
-      const scale = landmark.profile.height / 0.176;
-      const baseHeight = 0.021 * SCENE_TO_BOOT_SVG;
-      const appleYaw = ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW;
-      const baseWidth =
-        (Math.abs(Math.cos(appleYaw)) * ABOUT_APPLE_BASE_WIDTH +
-          Math.abs(Math.sin(appleYaw)) * ABOUT_APPLE_BASE_DEPTH) *
-        SCENE_TO_BOOT_SVG;
-      const markHeight = ABOUT_APPLE_MARK_HEIGHT * SCENE_TO_BOOT_SVG;
-      const markBottom = 0.017 * SCENE_TO_BOOT_SVG;
-      const markShiftX =
-        Math.sin(appleYaw) * (ABOUT_APPLE_MARK_DEPTH / 2) * SCENE_TO_BOOT_SVG;
-      return (
-        <g
-          data-boot-apple-root-yaw={ABOUT_APPLE_ROOT_YAW}
-          data-boot-apple-mark-yaw={ABOUT_APPLE_MARK_YAW}
-          data-boot-apple-scale={scale}
-          transform={`scale(${scale})`}
-        >
-          <defs>
-            <DirectionalShineGradient id="stacks-boot-apple-shine" />
-          </defs>
-          <path
-            className="stacks-boot-apple"
-            data-boot-apple=""
-            d={appleGlyphPath(markHeight, markBottom)}
-            transform={`matrix(${Math.cos(appleYaw)} 0 0 1 ${markShiftX} 0)`}
-          />
-          <rect
-            className="stacks-boot-metal-fill"
-            data-boot-apple-base=""
-            x={-baseWidth / 2}
-            y={-baseHeight}
-            width={baseWidth}
-            height={baseHeight}
-            rx="1"
-          />
-        </g>
-      );
-    }
+    case "vision-pro":
+      return <VisionProGlyph width={width} height={height} />;
     case "role-icons":
       return <RoleIconStackGlyph />;
     case "reading-stack":

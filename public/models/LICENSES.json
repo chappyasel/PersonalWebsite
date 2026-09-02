@@ -1,6 +1,6 @@
 {
   "generated": "scripts/stacks-models.mjs",
-  "note": "Source models are CC0 except the credited CC-BY set and the vendored MIT FluffyGrass asset below.",
+  "note": "Source models are CC0 except the credited CC-BY set, the vendored MIT FluffyGrass asset, and the owner-supplied Vision Pro asset listed below.",
   "attributionRequired": [
     "J-Toastie",
     "Poly by Google",
@@ -10,7 +10,8 @@
     "Robert Mirabelle",
     "Alex Safayan",
     "jeremy",
-    "Mauricio Martínez González"
+    "Mauricio Martínez González",
+    "Ignition Labs"
   ],
   "models": [
     {
@@ -299,6 +300,20 @@
       "author": "iPoly3D",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/qqRVRerNSu"
+    },
+    {
+      "file": "vision-ride-lamborghini.glb",
+      "title": "CAR Model",
+      "author": "Ignition Labs",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/5zUWP5UsLg-"
+    },
+    {
+      "file": "vision-pro.glb",
+      "title": "Apple Vision Pro",
+      "author": "Unknown (owner-supplied archive)",
+      "license": "Owner-supplied",
+      "source": "Local Apple+Vision+pro.rar archive"
     },
     {
       "file": "grass-tuft.glb",

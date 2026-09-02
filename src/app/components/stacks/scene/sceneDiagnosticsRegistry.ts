@@ -1,3 +1,9 @@
+import {
+  type VisionRideFinishPreview,
+  type VisionRideScenePreview,
+  visionRideDiagnosticsController,
+} from "../visionRide/visionRideDiagnostics";
+
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
 import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
@@ -25,6 +31,7 @@ import {
   scenePerformanceController,
 } from "./scenePerformance";
 import { sceneQualityController } from "./sceneQualityController";
+import { visionProDisplayDiagnosticsController } from "./visionProDisplayDiagnostics";
 
 export type SceneDiagnosticsPanel = "render" | "simulate" | "inspect";
 export type DiagnosticControlValue = boolean | number | string | null;
@@ -264,6 +271,157 @@ const RESOLUTION_CEILING_VALUES = Object.freeze({
 });
 
 const descriptors: readonly MutableDescriptor[] = Object.freeze([
+  booleanDescriptor({
+    id: "render.vision-pro-display",
+    panel: "render",
+    group: "render.optional",
+    label: "Latch Vision Pro display",
+    help: "Hold the shelf headset's front display fully awake for this page load.",
+    defaultValue: false,
+    experimental: false,
+    store: visionProDisplayDiagnosticsController,
+    read: () => visionProDisplayDiagnosticsController.getSnapshot().enabled,
+    update: (value) =>
+      visionProDisplayDiagnosticsController.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One 128 by 64 procedural texture sampled by the display plane.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  mutableDescriptor({
+    id: "render.vision-pro-display-variant",
+    panel: "render",
+    group: "render.optional",
+    label: "Front display look",
+    help: "Choose the artwork used by the hover wake and latched display.",
+    valueKind: "enum",
+    allowedValues: {
+      kind: "set",
+      values: [
+        { value: "retrowave", label: "Retrowave" },
+        { value: "3:45", label: "3:45" },
+        { value: "redline", label: "Redline" },
+        { value: "golf", label: "Golf" },
+      ],
+    },
+    defaultValue: "retrowave",
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: visionProDisplayDiagnosticsController,
+    read: () => visionProDisplayDiagnosticsController.getSnapshot().variant,
+    update: (value) =>
+      visionProDisplayDiagnosticsController.setVariant(
+        value as "retrowave" | "3:45" | "redline" | "golf",
+      ),
+  }),
+  booleanDescriptor({
+    id: "render.vision-ride",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride",
+    help: "Enable the Apple Vision Pro retrowave ride for this page load.",
+    defaultValue: true,
+    experimental: false,
+    reloadInput: "novisionride",
+    store: visionRideDiagnosticsController,
+    read: () => visionRideDiagnosticsController.getSnapshot().enabled,
+    update: (value) =>
+      visionRideDiagnosticsController.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "Lazy ride world, car, and soundtrack",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.vision-ride-retro-fx",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride retro finish",
+    help: "Add the ride-only CRT texture, vignette, and stronger neon bloom.",
+    defaultValue: true,
+    experimental: false,
+    store: visionRideDiagnosticsController,
+    read: () =>
+      visionRideDiagnosticsController.getSnapshot().retroFxEnabled,
+    update: (value) =>
+      visionRideDiagnosticsController.setRetroFxEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One translucent screen shader and stronger existing bloom",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  mutableDescriptor({
+    id: "render.vision-ride-scene-preview",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride scene",
+    help: "Preview an authored Reality Stack combination without satisfying its discovery or Field Note.",
+    valueKind: "enum",
+    allowedValues: {
+      kind: "set",
+      values: [
+        { value: "authored", label: "Authored triggers" },
+        { value: "canonical", label: "Canonical" },
+        { value: "night", label: "3:45" },
+        { value: "redline", label: "Redline" },
+        { value: "golf", label: "Fairway" },
+        { value: "night-redline", label: "3:45 + Redline" },
+        { value: "night-golf", label: "3:45 + Fairway" },
+        { value: "redline-golf", label: "Redline + Fairway" },
+        { value: "full-stack", label: "All scene modifiers" },
+      ],
+    },
+    defaultValue: "authored",
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: visionRideDiagnosticsController,
+    read: () => visionRideDiagnosticsController.getSnapshot().scenePreview,
+    update: (value) =>
+      visionRideDiagnosticsController.setScenePreview(
+        value as VisionRideScenePreview,
+      ),
+  }),
+  mutableDescriptor({
+    id: "render.vision-ride-finish-preview",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride finish",
+    help: "Preview the clean, 8-bit, or 16-bit finish without satisfying its discovery or Field Note.",
+    valueKind: "enum",
+    allowedValues: {
+      kind: "set",
+      values: [
+        { value: "authored", label: "Authored trigger" },
+        { value: "off", label: "Clean" },
+        { value: "levels", label: "8-bit" },
+        { value: "palette", label: "16-bit" },
+      ],
+    },
+    defaultValue: "authored",
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: visionRideDiagnosticsController,
+    read: () => visionRideDiagnosticsController.getSnapshot().finishPreview,
+    update: (value) =>
+      visionRideDiagnosticsController.setFinishPreview(
+        value as VisionRideFinishPreview,
+      ),
+  }),
   booleanDescriptor({
     id: "camera.authored-depth",
     panel: "simulate",

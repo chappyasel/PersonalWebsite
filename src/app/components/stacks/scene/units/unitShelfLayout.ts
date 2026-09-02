@@ -1,3 +1,9 @@
+import {
+  ABOUT_APPLE_BASE_DEPTH,
+  ABOUT_APPLE_BASE_WIDTH,
+} from "../aboutAwardGeometry";
+import { ABOUT_LOWER_AWARD_SCALE } from "../aboutLampPose";
+import { ABOUT_APPLE_MARK_YAW, ABOUT_APPLE_ROOT_YAW } from "../aboutScenePose";
 import { deskFrameWidth } from "../photoGeometry";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 
@@ -25,15 +31,55 @@ export const PROJECT_PHOTO_DIMENSIONS = {
 } as const;
 
 export const PROJECT_APPLE_PHOTO_POSE = {
-  baseZ: 0.08,
-  rotation: [-0.06, -0.1, 0] as const,
+  baseZ: 0.0503,
+  // Combines the frame's old lean with the layout editor's +0.2112 yaw.
+  rotation: [
+    -0.06006882511488772, 0.11082233295654853, 0.012648384603073642,
+  ] as const,
 } as const;
+
+export const PROJECT_APPLE_MARK_POSE = {
+  baseZ: 0.0445,
+  rotationY: -0.1532,
+  scaleRatio: 0.9233,
+} as const;
+
+export const PROJECT_SMALL_PLANT_POSE = {
+  baseZ: -0.2044,
+} as const;
+
+const PROJECT_APPLE_MARK_AUTHORED_HALF_X =
+  (ABOUT_LOWER_AWARD_SCALE / 2) *
+  (Math.abs(Math.cos(ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW)) *
+    ABOUT_APPLE_BASE_WIDTH +
+    Math.abs(Math.sin(ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW)) *
+      ABOUT_APPLE_BASE_DEPTH);
 
 const PROJECT_ARTIFACT_BASE_DIMENSIONS = {
   icon: 0.32,
   die: 0.16,
   lampHalfX: 0.164,
   applePhotoHalfX: deskFrameWidth(PROJECT_PHOTO_DIMENSIONS.apple.width) / 2,
+  appleMarkHalfX:
+    ABOUT_LOWER_AWARD_SCALE *
+    PROJECT_APPLE_MARK_POSE.scaleRatio *
+    0.5 *
+    (Math.abs(
+      Math.cos(
+        ABOUT_APPLE_ROOT_YAW +
+          ABOUT_APPLE_MARK_YAW +
+          PROJECT_APPLE_MARK_POSE.rotationY,
+      ),
+    ) *
+      ABOUT_APPLE_BASE_WIDTH +
+      Math.abs(
+        Math.sin(
+          ABOUT_APPLE_ROOT_YAW +
+            ABOUT_APPLE_MARK_YAW +
+            PROJECT_APPLE_MARK_POSE.rotationY,
+        ),
+      ) *
+        ABOUT_APPLE_BASE_DEPTH),
   plantHalfX: 0.171,
 } as const;
 
@@ -52,18 +98,20 @@ function justifyShelfRow(halfWidths: readonly number[]) {
   return { centers, gap };
 }
 
-const PROJECT_TOP_ROW = justifyShelfRow([
+// Preserve the four untouched positions from the previously justified row.
+// The owner placed the photo, Apple mark, and plant independently afterward.
+const PROJECT_TOP_ROW_BASELINE = justifyShelfRow([
   PROJECT_ARTIFACT_BASE_DIMENSIONS.lampHalfX,
   PROJECT_ARTIFACT_BASE_DIMENSIONS.icon / 2,
   (PROJECT_ARTIFACT_BASE_DIMENSIONS.die * 3) / 2,
   PROJECT_ARTIFACT_BASE_DIMENSIONS.icon / 2,
   PROJECT_ARTIFACT_BASE_DIMENSIONS.applePhotoHalfX,
+  PROJECT_APPLE_MARK_AUTHORED_HALF_X,
   PROJECT_ARTIFACT_BASE_DIMENSIONS.plantHalfX,
 ]);
 
 export const PROJECT_ARTIFACT_DIMENSIONS = {
   ...PROJECT_ARTIFACT_BASE_DIMENSIONS,
-  topRowGap: PROJECT_TOP_ROW.gap,
 } as const;
 
 const DIE = PROJECT_ARTIFACT_DIMENSIONS.die;
@@ -129,14 +177,14 @@ export const PROJECT_DICE_LAYOUT = [
  * packer. These make spacing and support executable rather than visual-only. */
 export const REVIEWED_SHELF_LAYOUT = {
   projects: {
-    // Derived from the visible GLB, billet, dice, and framed-photo envelopes.
-    // Five internal gaps and both plank margins are therefore identical.
-    topLampX: PROJECT_TOP_ROW.centers[0]!,
-    topWeightliftingIconX: PROJECT_TOP_ROW.centers[1]!,
-    topDiceCenterX: PROJECT_TOP_ROW.centers[2]!,
-    topHomeworkIconX: PROJECT_TOP_ROW.centers[3]!,
-    topApplePhotoX: PROJECT_TOP_ROW.centers[4]!,
-    topPlantX: PROJECT_TOP_ROW.centers[5]!,
+    topLampX: PROJECT_TOP_ROW_BASELINE.centers[0]!,
+    topWeightliftingIconX: PROJECT_TOP_ROW_BASELINE.centers[1]!,
+    topDiceCenterX: PROJECT_TOP_ROW_BASELINE.centers[2]!,
+    topHomeworkIconX: PROJECT_TOP_ROW_BASELINE.centers[3]!,
+    // Owner placement via the scene layout editor, 2026-09-01.
+    topApplePhotoX: 0.6252,
+    topAppleMarkX: 0.9342,
+    topPlantX: 1.2101,
     trophyX: -0.72,
     trophyHalfX: 0.15,
     facebookPhotoX: -0.405,
@@ -191,6 +239,7 @@ export function reviewedShelfLayoutSnapshot() {
       projects.topDiceCenterX,
       projects.topHomeworkIconX,
       projects.topApplePhotoX,
+      projects.topAppleMarkX,
       projects.topPlantX,
     ],
     projectsLampIconGap:
@@ -209,10 +258,14 @@ export function reviewedShelfLayoutSnapshot() {
       projects.topApplePhotoX -
       PROJECT_ARTIFACT_DIMENSIONS.applePhotoHalfX -
       (projects.topHomeworkIconX + PROJECT_ARTIFACT_DIMENSIONS.icon / 2),
-    projectsPhotoPlantGap:
+    projectsPhotoAppleGap:
+      projects.topAppleMarkX -
+      PROJECT_ARTIFACT_DIMENSIONS.appleMarkHalfX -
+      (projects.topApplePhotoX + PROJECT_ARTIFACT_DIMENSIONS.applePhotoHalfX),
+    projectsApplePlantGap:
       projects.topPlantX -
       PROJECT_ARTIFACT_DIMENSIONS.plantHalfX -
-      (projects.topApplePhotoX + PROJECT_ARTIFACT_DIMENSIONS.applePhotoHalfX),
+      (projects.topAppleMarkX + PROJECT_ARTIFACT_DIMENSIONS.appleMarkHalfX),
     projectsTopLeftMargin:
       projects.topLampX -
       PROJECT_ARTIFACT_DIMENSIONS.lampHalfX +

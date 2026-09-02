@@ -149,6 +149,22 @@ describe("Coordination globe presentation contract", () => {
     expect(engagement).toMatch(/emitShockwave\(\s*\{[\s\S]*?\},\s*true,?\s*\)/);
   });
 
+  it("plays the licensed boom from the orb when its shockwave fires", () => {
+    const shockwaveStart = globeSource.indexOf("const emitShockwave");
+    const shockwaveEnd = globeSource.indexOf(
+      "useEffect(() => {",
+      shockwaveStart,
+    );
+    const shockwave = globeSource.slice(shockwaveStart, shockwaveEnd);
+
+    expect(shockwave).toContain(
+      'sceneAudio.play(\n        "coordination-boom"',
+    );
+    expect(shockwave.indexOf("sceneAudio.play(")).toBeGreaterThan(
+      shockwave.indexOf("lastShockwaveAt.current = now"),
+    );
+  });
+
   it("limits the pointer hit to the visible singularity", () => {
     const hitStart = globeSource.indexOf(
       'name="interaction-hit:coordination-globe"',
@@ -487,9 +503,6 @@ describe("Coordination globe presentation contract", () => {
     );
     expect(bootSource).toContain(
       "Math.abs(Math.sin(ABOUT_AIC_ROOT_YAW)) * ABOUT_AIC_BASE_DEPTH",
-    );
-    expect(bootSource).toContain(
-      "Math.abs(Math.sin(appleYaw)) * ABOUT_APPLE_BASE_DEPTH",
     );
   });
 
