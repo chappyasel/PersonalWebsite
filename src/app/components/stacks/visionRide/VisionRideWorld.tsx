@@ -1,13 +1,19 @@
 "use client";
 
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { useStacks } from "../store";
 import { useGLTF } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { type RefObject, useEffect, useMemo, useRef } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import * as THREE from "three";
 
 import { type EnvironmentBreath, environmentBreath } from "./visionRideBreath";
-import { useVisionRideRetroFxEnabled } from "./visionRideDiagnostics";
 import {
   VISION_RIDE_CAMERA,
   VISION_RIDE_GRID_CELL_METRES,
@@ -19,7 +25,23 @@ import {
   chaseFraming,
   lateralReach,
 } from "./visionRideCamera";
-import { glslVec3, type VisionRidePalette } from "./visionRidePalette";
+import {
+  useVisionRideLightTrailsEnabled,
+  useVisionRideMileMarkersEnabled,
+  useVisionRideRetroFxEnabled,
+} from "./visionRideDiagnostics";
+import {
+  VISION_RIDE_LIGHT_TRAIL,
+  lightTrailCarPose,
+  lightTrailParticleDistance,
+  lightTrailRestAnchor,
+} from "./visionRideLightTrails";
+import {
+  VISION_RIDE_MILE_MARKER,
+  mileMarkerDigitSegments,
+  mileMarkerPresentation,
+} from "./visionRideMileMarker";
+import { type VisionRidePalette, glslVec3 } from "./visionRidePalette";
 import {
   VISION_RIDE_PARALLAX,
   chaseAimX,
@@ -29,7 +51,7 @@ import {
   parallaxTarget,
   rampKeyAxis,
 } from "./visionRideParallax";
-import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
+import type { VisionRideProfile } from "./visionRideProfiles";
 import {
   VISION_RIDE_MOUNTAIN_FACET_DEPTH_METRES,
   VISION_RIDE_MOUNTAIN_FACET_WIDTH_METRES,
@@ -48,7 +70,7 @@ import {
   mountainWindowOffsets,
   visionRideTerrainSegments,
 } from "./visionRideTerrain";
-import type { VisionRideProfile } from "./visionRideProfiles";
+import { visionRideTouchRuntime } from "./visionRideTouch";
 
 export const VISION_RIDE_CAR_URL =
   "/models/vision-ride-lamborghini.glb" as const;
@@ -398,6 +420,51 @@ const SCREEN_TEXTURE_FRAGMENT = `
   }
 `;
 
+const LIGHT_TRAIL_PARTICLE_VERTEX = `
+  attribute float aLife;
+  attribute float aSeed;
+  uniform float uPixelRatio;
+  uniform float uPointSize;
+  uniform float uTime;
+  varying float vLife;
+  varying float vShimmer;
+
+  void main() {
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    float taper = mix(1.0, 0.2, smoothstep(0.08, 1.0, aLife));
+    vLife = aLife;
+    vShimmer = 0.9 + 0.1 * sin(uTime * 8.0 + aSeed * 19.0);
+    gl_PointSize = min(
+      42.0,
+      uPointSize * uPixelRatio * 300.0 * taper /
+        max(1.0, -viewPosition.z)
+    );
+    gl_Position = projectionMatrix * viewPosition;
+  }
+`;
+
+const LIGHT_TRAIL_PARTICLE_FRAGMENT = `
+  uniform vec3 uColor;
+  varying float vLife;
+  varying float vShimmer;
+
+  void main() {
+    vec2 point = gl_PointCoord * 2.0 - 1.0;
+    float radiusSquared = dot(point, point);
+    if (radiusSquared > 1.0) discard;
+
+    float halo = exp(-radiusSquared * 3.4);
+    float core = exp(-radiusSquared * 42.0);
+    float head = smoothstep(0.0, 0.018, vLife);
+    float tail = 1.0 - smoothstep(0.5, 1.0, vLife);
+    float alpha = (halo * 0.34 + core * 0.82) * head * tail * vShimmer;
+    if (alpha < 0.008) discard;
+
+    vec3 hotCore = mix(uColor * 1.8, vec3(1.0, 0.82, 0.94) * 3.2, core);
+    gl_FragColor = vec4(hotCore, alpha);
+  }
+`;
+
 // Render order. Sky, stars and sun draw first and write no depth, so the
 // terrain always paints over them: the sun cannot come forward of a ridge at
 // any travel phase, and a star can never sit in front of a mountain. The
@@ -691,6 +758,242 @@ function UnifiedLandscape({
   );
 }
 
+const MILE_MARKER_SEGMENTS = {
+  a: [0, 0.34, 0.32, 0.045],
+  b: [0.18, 0.18, 0.045, 0.28],
+  c: [0.18, -0.18, 0.045, 0.28],
+  d: [0, -0.34, 0.32, 0.045],
+  e: [-0.18, -0.18, 0.045, 0.28],
+  f: [-0.18, 0.18, 0.045, 0.28],
+  g: [0, 0, 0.32, 0.045],
+} as const;
+
+function writeMileMarkerInstances(
+  mesh: THREE.InstancedMesh,
+  number: number,
+  matrix: THREE.Matrix4,
+) {
+  let instance = 0;
+  const write = (x: number, y: number, width: number, height: number) => {
+    matrix.makeScale(width, height, 0.055);
+    matrix.setPosition(x, y, 0);
+    mesh.setMatrixAt(instance, matrix);
+    instance += 1;
+  };
+  write(0, 1.18, 0.055, 2.36);
+  write(0.7, 2.32, 1.4, 0.055);
+  write(0.42, 0.055, 0.84, 0.055);
+  const digits = mileMarkerDigitSegments(number);
+  for (let digit = 0; digit < digits.length; digit += 1) {
+    const originX = 0.56 + digit * 0.48;
+    for (const segment of digits[digit]!) {
+      const [x, y, width, height] =
+        MILE_MARKER_SEGMENTS[segment as keyof typeof MILE_MARKER_SEGMENTS];
+      write(originX + x, 1.2 + y, width, height);
+    }
+  }
+  mesh.count = instance;
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function DigitalMileMarker({
+  active,
+  reducedMotion,
+  profile,
+}: {
+  active: boolean;
+  reducedMotion: boolean;
+  profile: VisionRideProfile;
+}) {
+  const group = useRef<THREE.Group>(null);
+  const segments = useRef<THREE.InstancedMesh>(null);
+  const markerMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const displayedNumber = useRef(-1);
+  const startedAt = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!segments.current) return;
+    writeMileMarkerInstances(segments.current, 0, markerMatrix);
+  }, [markerMatrix]);
+
+  useFrame((state) => {
+    if (!group.current) return;
+    if (!active) {
+      startedAt.current = null;
+      group.current.visible = false;
+      return;
+    }
+    startedAt.current ??= state.clock.elapsedTime;
+    const beat = mileMarkerPresentation(
+      state.clock.elapsedTime - startedAt.current,
+      profile.speedMetresPerSecond,
+      reducedMotion,
+    );
+    group.current.visible = beat.visible;
+    group.current.position.set(
+      VISION_RIDE_ROAD_HALF_WIDTH +
+        VISION_RIDE_MILE_MARKER.shoulderOffsetMetres,
+      0,
+      beat.z,
+    );
+    if (
+      beat.visible &&
+      segments.current &&
+      displayedNumber.current !== beat.number
+    ) {
+      displayedNumber.current = beat.number;
+      writeMileMarkerInstances(segments.current, beat.number, markerMatrix);
+    }
+  });
+
+  return (
+    <group ref={group} visible={false}>
+      <instancedMesh
+        ref={segments}
+        args={[undefined, undefined, 17]}
+        frustumCulled={false}
+      >
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial
+          color={profile.directional.color}
+          toneMapped={false}
+        />
+      </instancedMesh>
+    </group>
+  );
+}
+
+function CarLightTrails({ profile }: { profile: VisionRideProfile }) {
+  const dpr = useThree((state) => state.viewport.dpr);
+  const particleCount = VISION_RIDE_LIGHT_TRAIL.particlesPerLamp * 2;
+  const travelDistance = useRef(0);
+  const carTransform = useMemo(() => new THREE.Object3D(), []);
+  const localAnchor = useMemo(() => new THREE.Vector3(), []);
+  const worldAnchor = useMemo(() => new THREE.Vector3(), []);
+  const geometry = useMemo(() => {
+    const result = new THREE.BufferGeometry();
+    const positionValues = new Float32Array(particleCount * 3);
+    const lifeValues = new Float32Array(particleCount);
+    for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+      const side = sideIndex === 0 ? -1 : 1;
+      const rest = lightTrailRestAnchor(side);
+      for (
+        let index = 0;
+        index < VISION_RIDE_LIGHT_TRAIL.particlesPerLamp;
+        index += 1
+      ) {
+        const distance = lightTrailParticleDistance({
+          index,
+          sideIndex: sideIndex as 0 | 1,
+          travelDistanceMetres: 0,
+        });
+        const particleIndex =
+          sideIndex * VISION_RIDE_LIGHT_TRAIL.particlesPerLamp + index;
+        positionValues.set(
+          [rest.x, rest.y, rest.z + distance],
+          particleIndex * 3,
+        );
+        lifeValues[particleIndex] =
+          distance / VISION_RIDE_LIGHT_TRAIL.lengthMetres;
+      }
+    }
+    const positions = new THREE.BufferAttribute(positionValues, 3);
+    positions.setUsage(THREE.DynamicDrawUsage);
+    const lives = new THREE.BufferAttribute(lifeValues, 1);
+    lives.setUsage(THREE.DynamicDrawUsage);
+    const seeds = new Float32Array(particleCount);
+    for (let index = 0; index < particleCount; index += 1)
+      seeds[index] = ((index * 73) % 97) / 97;
+    result.setAttribute("position", positions);
+    result.setAttribute("aLife", lives);
+    result.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
+    return result;
+  }, [particleCount]);
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color(profile.point.color) },
+          uPixelRatio: { value: dpr },
+          uPointSize: { value: VISION_RIDE_LIGHT_TRAIL.pointSizeMetres },
+          uTime: { value: 0 },
+        },
+        vertexShader: LIGHT_TRAIL_PARTICLE_VERTEX,
+        fragmentShader: LIGHT_TRAIL_PARTICLE_FRAGMENT,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false,
+      }),
+    [dpr, profile.point.color],
+  );
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => material.dispose(), [material]);
+
+  useFrame((state, delta) => {
+    travelDistance.current +=
+      profile.speedMetresPerSecond * Math.min(delta, 1 / 20);
+    const time = state.clock.elapsedTime;
+    material.uniforms.uTime!.value = time;
+    material.uniforms.uPixelRatio!.value = dpr;
+    const positions = geometry.getAttribute(
+      "position",
+    ) as THREE.BufferAttribute;
+    const lives = geometry.getAttribute("aLife") as THREE.BufferAttribute;
+
+    for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+      const side = sideIndex === 0 ? -1 : 1;
+      localAnchor.set(
+        -side * VISION_RIDE_LIGHT_TRAIL.lampLocalX,
+        VISION_RIDE_LIGHT_TRAIL.lampLocalY,
+        VISION_RIDE_LIGHT_TRAIL.lampLocalZ,
+      );
+      for (
+        let index = 0;
+        index < VISION_RIDE_LIGHT_TRAIL.particlesPerLamp;
+        index += 1
+      ) {
+        const distance = lightTrailParticleDistance({
+          index,
+          sideIndex: sideIndex as 0 | 1,
+          travelDistanceMetres: travelDistance.current,
+        });
+        const historicalTime =
+          time - distance / Math.max(0.001, profile.speedMetresPerSecond);
+        const pose = lightTrailCarPose({
+          time: historicalTime,
+          motion: profile.car,
+        });
+        carTransform.position.set(pose.x, pose.y, VISION_RIDE_CAMERA.carZ);
+        carTransform.rotation.set(0, Math.PI, pose.roll);
+        carTransform.updateMatrix();
+        worldAnchor.copy(localAnchor).applyMatrix4(carTransform.matrix);
+        worldAnchor.z += distance;
+
+        const particleIndex =
+          sideIndex * VISION_RIDE_LIGHT_TRAIL.particlesPerLamp + index;
+        positions.setXYZ(
+          particleIndex,
+          worldAnchor.x,
+          worldAnchor.y,
+          worldAnchor.z,
+        );
+        lives.setX(
+          particleIndex,
+          distance / VISION_RIDE_LIGHT_TRAIL.lengthMetres,
+        );
+      }
+    }
+    positions.needsUpdate = true;
+    lives.needsUpdate = true;
+  });
+
+  return (
+    <points geometry={geometry} material={material} frustumCulled={false} />
+  );
+}
+
 function Lamborghini({
   reducedMotion,
   profile,
@@ -793,7 +1096,8 @@ function Lamborghini({
     if (!reducedMotion)
       for (const wheel of wheels)
         wheel.rotation.x +=
-          (profile.speedMetresPerSecond / VISION_RIDE_CAMERA.wheelRadiusMetres) *
+          (profile.speedMetresPerSecond /
+            VISION_RIDE_CAMERA.wheelRadiusMetres) *
           Math.min(delta, 1 / 20);
   });
 
@@ -818,6 +1122,8 @@ export default function VisionRideWorld({
   const phase = useStacks((state) => state.visionRidePhase);
   const markReady = useStacks((state) => state.markVisionRideReady);
   const retroFxEnabled = useVisionRideRetroFxEnabled();
+  const mileMarkersEnabled = useVisionRideMileMarkersEnabled();
+  const lightTrailsEnabled = useVisionRideLightTrailsEnabled();
   const reducedMotion = useMemo(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
@@ -842,13 +1148,14 @@ export default function VisionRideWorld({
   const stars = Math.max(0, Math.round(tierStars * profile.starCountScale));
 
   // The ride's fullscreen "Remove Vision Pro" button owns pointer events
-  // over the canvas, so the fiber pointer never updates here. Listen on the
-  // window instead; touch is excluded because a tap is the exit gesture and
-  // would jerk the orbit on its way out.
+  // over the canvas, so the fiber pointer never updates here. Mouse and pen
+  // listen on the window; touch comes through the control's drag-arbitrated
+  // runtime so a quick tap can remain the exit gesture.
   useEffect(() => {
     if (reducedMotion) return;
     const onMove = (event: PointerEvent) => {
       if (event.pointerType === "touch") return;
+      visionRideTouchRuntime.abandon();
       pointer.current = normalizedPointer(
         event.clientX,
         event.clientY,
@@ -938,9 +1245,11 @@ export default function VisionRideWorld({
     const wanted = keyAxes(keysPressed.current);
     keyAxis.current.x = rampKeyAxis(keyAxis.current.x, wanted.x, delta);
     keyAxis.current.y = rampKeyAxis(keyAxis.current.y, wanted.y, delta);
+    const touch = visionRideTouchRuntime.getSnapshot();
+    const steering = touch.engaged ? touch : pointer.current;
     const unscaledTarget = parallaxTarget({
-      pointerX: pointer.current.x + keyAxis.current.x,
-      pointerY: pointer.current.y + keyAxis.current.y,
+      pointerX: steering.x + keyAxis.current.x,
+      pointerY: steering.y + keyAxis.current.y,
       time: state.clock.elapsedTime,
       portrait,
       reducedMotion,
@@ -1015,6 +1324,16 @@ export default function VisionRideWorld({
         breath={breath}
         profile={profile}
       />
+      {mileMarkersEnabled && !reducedMotion ? (
+        <DigitalMileMarker
+          active={phase === "cruising" || phase === "doffing"}
+          reducedMotion={false}
+          profile={profile}
+        />
+      ) : null}
+      {lightTrailsEnabled && !reducedMotion ? (
+        <CarLightTrails profile={profile} />
+      ) : null}
       <hemisphereLight
         args={[
           profile.hemisphere.sky,

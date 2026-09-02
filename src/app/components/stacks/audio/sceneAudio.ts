@@ -88,7 +88,11 @@ export const VISION_RIDE_SOUNDTRACK =
 // slamming in at full gain, then releases over the remainder.
 export const VISION_RIDE_ENTRY_WHOOSH_SECONDS = 1.5;
 /** Flicker + vertical collapse + line hold + dot shrink of the exit. */
-export const VISION_RIDE_EXIT_WHOOSH_SECONDS = 1.4;
+export const VISION_RIDE_EXIT_WHOOSH_SECONDS =
+  VISION_RIDE_TIMELINE.exit.flickerSeconds +
+  VISION_RIDE_TIMELINE.exit.collapseSeconds +
+  VISION_RIDE_TIMELINE.exit.lineHoldSeconds +
+  VISION_RIDE_TIMELINE.exit.dotSeconds;
 export const VISION_RIDE_WHOOSH_ATTACK_SECONDS = 0.12;
 // Broadcast static hiss under the set switching on and off. Entry begins only
 // after the headset is seated and follows the visible snow through the CRT

@@ -34,26 +34,27 @@ export const VISION_RIDE_TIMELINE = {
     reducedApertureSeconds: 0.2,
   },
   exit: {
-    /** Full-frame static burst before the picture begins collapsing. */
-    flickerSeconds: 0.46,
+    /** Short, full-frame static burst. It starts on the first frame after the
+     * exit request so the screen answers the visitor before it collapses. */
+    flickerSeconds: 0.3,
     /** Vertical collapse of the picture to a line. */
-    collapseSeconds: 0.5,
+    collapseSeconds: 0.34,
     /** The bright line holds before shrinking. */
-    lineHoldSeconds: 0.16,
+    lineHoldSeconds: 0.08,
     /** Horizontal shrink of the line to a dot. */
-    dotSeconds: 0.28,
+    dotSeconds: 0.18,
     /** Black with the dot's afterglow dying. */
-    blackHoldSeconds: 0.3,
+    blackHoldSeconds: 0.12,
     reducedCollapseSeconds: 0.14,
     /** Opaque hold at the start of the return, long enough for the room's
      * post effects to remount before the headset pulls away. */
     returnHoldSeconds: 0.18,
-    returnFlightSeconds: 1.5,
+    returnFlightSeconds: 1.25,
     reducedReturnSeconds: 0.16,
     /** Begin revealing almost as soon as the return moves. The shrinking
      * visor follows the headset, exposing the room from the face outward. */
-    revealDelaySeconds: 0.02,
-    curtainRevealSeconds: 0.34,
+    revealDelaySeconds: 0.01,
+    curtainRevealSeconds: 0.48,
   },
 } as const;
 
@@ -238,13 +239,13 @@ export function doffingPresentation(
   }
   if (elapsed < flickerSeconds) {
     const noise = flickerNoise(elapsed);
-    const dip = noise > 0.55 ? (noise - 0.55) * 0.25 : 0;
+    const dip = noise > 0.45 ? (noise - 0.45) * 0.18 : 0;
     return {
       crtOpen: 1 - dip,
       apertureWidth: 1,
       apertureHeight: 1 - dip,
       beam: dip > 0 ? 0.6 : 0,
-      staticAmount: 0.65 + noise * 0.35,
+      staticAmount: 0.88 + noise * 0.12,
       complete: false,
     };
   }

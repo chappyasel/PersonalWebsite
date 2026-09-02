@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { visionRidePreviewModifiers } from "./visionRideDiagnostics";
+import {
+  visionRideDiagnosticsController,
+  visionRidePreviewModifiers,
+} from "./visionRideDiagnostics";
 
 describe("Vision Ride diagnostics", () => {
+  it("keeps mile markers and light trails parked by default", () => {
+    expect(visionRideDiagnosticsController.getSnapshot()).toMatchObject({
+      mileMarkersEnabled: false,
+      lightTrailsEnabled: false,
+    });
+  });
+
   it("leaves the authored session alone by default", () => {
     expect(visionRidePreviewModifiers("authored")).toBeNull();
   });

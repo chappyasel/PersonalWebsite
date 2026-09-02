@@ -4,7 +4,7 @@ import {
   BarbellIcon,
   BooksIcon,
   CodeIcon,
-  CompassIcon,
+  GearIcon,
   type Icon,
   MicrophoneStageIcon,
   PenNibIcon,
@@ -48,7 +48,7 @@ export type Unit = {
   railLabel?: string;
   /** The section's own glyph, so the rail entry and the heading it leads to
    * are the same mark. Taken from each section's h1 — BooksIcon, BarbellIcon,
-   * MicrophoneStageIcon, CodeIcon, PenNibIcon, CompassIcon. About gets the
+   * MicrophoneStageIcon, CodeIcon, PenNibIcon, GearIcon. About gets the
    * person glyph because its placard intentionally has no heading. */
   icon: Icon;
 };
@@ -62,7 +62,7 @@ export const UNITS: Unit[] = [
     label: "Weightlifting",
     icon: BarbellIcon,
   },
-  { slug: "systems", label: "Systems", icon: CompassIcon },
+  { slug: "systems", label: "Systems", icon: GearIcon },
   { slug: "projects", label: "Projects", icon: CodeIcon },
   {
     slug: "blog",

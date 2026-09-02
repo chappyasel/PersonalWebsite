@@ -25,9 +25,7 @@ describe("Vision ride integration", () => {
     expect(golf).toContain(
       'recordFieldNoteEvent({ type: "golf-prop-struck", propId: loose.id })',
     );
-    expect(golf).toContain(
-      'loose.id === "action:about:vision-ride"',
-    );
+    expect(golf).toContain('loose.id === "action:about:vision-ride"');
     expect(golf).toContain('armVisionRideModifier("golf")');
   });
 
@@ -40,6 +38,7 @@ describe("Vision ride integration", () => {
     expect(controls).toContain(
       'className="pointer-events-auto fixed inset-0 cursor-default bg-transparent outline-none"',
     );
+    expect(controls).toContain('style={{ touchAction: "none" }}');
     expect(controls).not.toContain("rounded-full");
     expect(controls).toContain('aria-live="polite"');
     expect(controls).toContain('event.key !== "Escape"');
@@ -85,6 +84,9 @@ describe("Vision ride integration", () => {
     expect(transition).toContain("uApertureH");
     expect(transition).toContain("uBeam");
     expect(transition).toContain("uCenter");
+    expect(transition).toContain("step(0.001, uApertureH)");
+    expect(transition).toContain("float visionProProfile");
+    expect(transition).toContain("float noseRelief");
     expect(transition).toContain("headsetFlightChoreography");
     expect(transition).toContain("getWorldPosition(projectedVisorCenter)");
     expect(transition).toContain("Math.PI");
@@ -92,12 +94,16 @@ describe("Vision ride integration", () => {
 
   it("renders the road and both mountain flanks as one shared landscape mesh", () => {
     const world = read("./VisionRideWorld.tsx");
+    const landscape = world.slice(
+      world.indexOf("function UnifiedLandscape"),
+      world.indexOf("const MILE_MARKER_SEGMENTS"),
+    );
     expect(world).toContain("generateUnifiedLandscape");
-    expect(world).toContain("function UnifiedLandscape");
-    expect(world).toContain("geometry={geometry}");
-    expect(world).toContain("material={material}");
-    expect(world.match(/geometry=\{geometry\}/g)).toHaveLength(3);
-    expect(world.match(/material=\{material\}/g)).toHaveLength(3);
+    expect(landscape).toContain("function UnifiedLandscape");
+    expect(landscape).toContain("geometry={geometry}");
+    expect(landscape).toContain("material={material}");
+    expect(landscape.match(/geometry=\{geometry\}/g)).toHaveLength(3);
+    expect(landscape.match(/material=\{material\}/g)).toHaveLength(3);
     expect(world).not.toContain("function MovingGrid");
     expect(world).not.toContain("function WireframeMountains");
     expect(world).not.toContain("MountainChunkMeshes");
@@ -149,6 +155,17 @@ describe("Vision ride integration", () => {
     expect(world).toContain('window.addEventListener("pointermove", onMove');
     expect(world).toContain("normalizedPointer(");
     expect(world).toContain('if (event.pointerType === "touch") return;');
+    expect(world).toContain("visionRideTouchRuntime.getSnapshot()");
+    expect(controls).toContain("visionRideTouchRuntime.begin");
+    expect(controls).toContain("visionRideTouchRuntime.move");
+    expect(controls).toContain("visionRideTouchRuntime.end");
+    expect(controls).toContain("suppressClickUntil");
+    expect(controls).toContain(
+      'event.pointerType !== "touch" || reducedMotion',
+    );
+    expect(controls).toContain(
+      'useStacks.getState().requestVisionRideExit("button")',
+    );
     expect(world).not.toContain("state.pointer.x");
     // WASD and the arrows feed the same shift, by key code, and never steal
     // a keystroke from a text field or a modifier chord.
@@ -159,7 +176,9 @@ describe("Vision ride integration", () => {
     expect(world).toContain("keyAxes(keysPressed.current)");
     // The aim shares the lateral shift: a truck, not an orbit about the car.
     expect(world).toContain("lateralReach(");
-    expect(world).toContain("parallax.current.x * intro,\n      -reach,\n      reach,");
+    expect(world).toContain(
+      "parallax.current.x * intro,\n      -reach,\n      reach,",
+    );
     expect(world).toContain("pose.aim[0] + chaseAimX(shiftX)");
     // The wheels are returned by the car memo, not kept in a ref the effect
     // cleanup empties: a profile change ran the old cleanup after the new
@@ -167,11 +186,15 @@ describe("Vision ride integration", () => {
     expect(world).toContain("const { car, wheels } = useMemo(() => {");
     expect(world).toContain("return { car: clone, wheels };");
     expect(world).not.toContain("wheels.current");
-    expect(world).toContain(
-      "profile.speedMetresPerSecond / VISION_RIDE_CAMERA.wheelRadiusMetres",
+    expect(world).toMatch(
+      /profile\.speedMetresPerSecond\s*\/\s*VISION_RIDE_CAMERA\.wheelRadiusMetres/,
     );
-    expect(world).toContain('useStacks.getState().visionRidePhase !== "cruising"');
-    expect(world).toContain('document.addEventListener("visibilitychange", onVisibility)');
+    expect(world).toContain(
+      'useStacks.getState().visionRidePhase !== "cruising"',
+    );
+    expect(world).toContain(
+      'document.addEventListener("visibilitychange", onVisibility)',
+    );
     // lookAt pins the car's nominal position on every viewport, and the
     // framing itself comes from the pure, per-orientation module.
     expect(world).toContain("const framing = chaseFraming(portrait);");
@@ -194,8 +217,12 @@ describe("Vision ride integration", () => {
     // Grid coordinates come from the shared mesh and its three recycled
     // instances move together. There is no independent scrolling texture.
     expect(world).toContain("const landscapeVertex = (terrain:");
-    expect(world).toContain("position.x / ${(GRID_CELL_METRES * terrain.gridCellXScale)");
-    expect(world).toContain("-position.z / ${(GRID_CELL_METRES * terrain.gridCellYScale)");
+    expect(world).toContain(
+      "position.x / ${(GRID_CELL_METRES * terrain.gridCellXScale)",
+    );
+    expect(world).toContain(
+      "-position.z / ${(GRID_CELL_METRES * terrain.gridCellYScale)",
+    );
     expect(world).toContain("mountainWindowOffsets(travel)");
     expect(world).not.toContain("uniform float uTravel");
     expect(world).toContain("profile.terrain.heightScale");
@@ -204,6 +231,42 @@ describe("Vision ride integration", () => {
     expect(world).toMatch(
       /camera\.lookAt\(\s*pose\.aim\[0\][^;]*chaseAimY\([^)]*\)[^;]*pose\.aim\[2\],?\s*\)/,
     );
+  });
+
+  it("uses sparse digital mile markers instead of repeated roadside lights", () => {
+    const world = read("./VisionRideWorld.tsx");
+    const diagnostics = read("./visionRideDiagnostics.ts");
+    const registry = read("../scene/sceneDiagnosticsRegistry.ts");
+    expect(world).toContain("function DigitalMileMarker");
+    expect(world).toContain("<instancedMesh");
+    expect(world).toContain("mileMarkerPresentation(");
+    expect(world).toContain("mileMarkersEnabled && !reducedMotion");
+    expect(world).not.toContain("RoadsideMarkers");
+    expect(diagnostics).toContain("useVisionRideMileMarkersEnabled");
+    expect(registry).toContain('id: "render.vision-ride-mile-markers"');
+    expect(registry).toContain('label: "Vision Ride mile markers"');
+    expect(registry).toContain("setMileMarkersEnabled");
+    expect(registry).toContain("renderTargetAllocations: 0");
+    expect(registry).toContain("textureSamples: 0");
+    expect(registry).toContain("perFrameWork: false");
+  });
+
+  it("uses native glowing particles from the real lamps behind a live zero-cost control", () => {
+    const world = read("./VisionRideWorld.tsx");
+    const diagnostics = read("./visionRideDiagnostics.ts");
+    const registry = read("../scene/sceneDiagnosticsRegistry.ts");
+    expect(world).toContain("function CarLightTrails");
+    expect(world).toContain("<points");
+    expect(world).toContain("lightTrailParticleDistance({");
+    expect(world).toContain("gl_PointCoord");
+    expect(world).toContain("THREE.AdditiveBlending");
+    expect(world).not.toContain("LIGHT_TRAIL_FRAGMENT");
+    expect(world).not.toContain("tailLights");
+    expect(world).toContain("lightTrailsEnabled && !reducedMotion");
+    expect(diagnostics).toContain("useVisionRideLightTrailsEnabled");
+    expect(registry).toContain('id: "render.vision-ride-light-trails"');
+    expect(registry).toContain('label: "Vision Ride light trails"');
+    expect(registry).toContain("setLightTrailsEnabled");
   });
 
   it("paints the curtain from a navy static palette with no green or red lead", () => {
@@ -265,7 +328,9 @@ describe("Vision ride integration", () => {
 
   it("feeds the HDR sun into stronger ride-specific shared bloom", () => {
     const effects = read("../scene/Effects.tsx");
-    expect(effects).toContain("visionRideRetroFxEnabled\n                ? 0.82");
+    expect(effects).toContain(
+      "visionRideRetroFxEnabled\n                ? 0.82",
+    );
     expect(effects).toContain("Math.max(1.9, plan.bloomIntensity.dark)");
     expect(effects).toContain(
       "visionRideRoomHidden && visionRideRetroFxEnabled",
@@ -377,9 +442,12 @@ describe("Vision ride integration", () => {
     // runtime's import, so this pins every module on that path.
     for (const relative of [
       "./visionRideEntry.ts",
+      "./visionRideLightTrails.ts",
+      "./visionRideMileMarker.ts",
       "./visionRideRuntime.ts",
       "./visionRideProfiles.ts",
       "./visionRideState.ts",
+      "./visionRideTouch.ts",
       "./visionRideDiagnostics.ts",
       "./visionRideTransitionTimeline.ts",
       "../dom/VisionRideControls.tsx",
@@ -393,5 +461,4 @@ describe("Vision ride integration", () => {
       expect(source, relative).not.toMatch(/^import \* as THREE from "three"/m);
     }
   });
-
 });

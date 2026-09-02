@@ -11,6 +11,7 @@ import {
   createVisionProDisplayTexture,
   tuneVisionProMaterial,
   visionProDisplayWakeBrightness,
+  visionProDisplayPreviewRequested,
   visionProDisplayPixel,
 } from "./VisionProProp";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
@@ -27,6 +28,10 @@ import {
 
 const MODEL = path.join(process.cwd(), "public/models/vision-pro.glb");
 const MAX_MODEL_BYTES = 300 * 1024;
+const COMPONENT_SOURCE = fs.readFileSync(
+  new URL("./VisionProProp.tsx", import.meta.url),
+  "utf8",
+);
 
 type GlbJson = {
   images?: Array<{ name?: string }>;
@@ -90,6 +95,23 @@ function transformedVertices(root: THREE.Object3D, meshName?: string) {
 }
 
 describe("Vision Pro web model", () => {
+  it("keeps the raycast model mounted when the front display wakes", () => {
+    const modelMemoStart = COMPONENT_SOURCE.indexOf(
+      "const model = useMemo(() => {",
+    );
+    const modelMemoEnd = COMPONENT_SOURCE.indexOf(
+      "useLayoutEffect(() => {",
+      modelMemoStart,
+    );
+    const modelMemo = COMPONENT_SOURCE.slice(modelMemoStart, modelMemoEnd);
+
+    expect(modelMemoStart).toBeGreaterThanOrEqual(0);
+    expect(modelMemo).not.toContain("displayTexture");
+    expect(modelMemo).not.toContain("renderedVariant");
+    expect(modelMemo).not.toContain("dark");
+    expect(modelMemo).toContain("}, [scene]);");
+  });
+
   it("keeps the trial display off and gives the visor a crisp reflective finish", () => {
     expect(DEFAULT_VISION_PRO_DISPLAY_DIAGNOSTICS.enabled).toBe(false);
     expect(
@@ -185,6 +207,33 @@ describe("Vision Pro web model", () => {
     expect(visionProDisplayWakeBrightness(false, false)).toBe(0);
     expect(visionProDisplayWakeBrightness(false, true)).toBeCloseTo(0.3, 6);
     expect(visionProDisplayWakeBrightness(true, false)).toBe(1);
+  });
+
+  it("holds the dim preview through the donning flight", () => {
+    expect(
+      visionProDisplayPreviewRequested({
+        hovered: "action:about:vision-ride",
+        focusedInteraction: null,
+        pressedInteraction: null,
+        visionRidePhase: "idle",
+      }),
+    ).toBe(true);
+    expect(
+      visionProDisplayPreviewRequested({
+        hovered: null,
+        focusedInteraction: null,
+        pressedInteraction: null,
+        visionRidePhase: "donning",
+      }),
+    ).toBe(true);
+    expect(
+      visionProDisplayPreviewRequested({
+        hovered: null,
+        focusedInteraction: null,
+        pressedInteraction: null,
+        visionRidePhase: "cruising",
+      }),
+    ).toBe(false);
   });
 
   it("gives each authored room modifier a distinct front-display preview", () => {

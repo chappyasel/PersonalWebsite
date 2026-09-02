@@ -1,6 +1,6 @@
+import type { PixelLook } from "../scene/pixelArt";
 import { useSyncExternalStore } from "react";
 
-import type { PixelLook } from "../scene/pixelArt";
 import type { VisionRideModifiers } from "./visionRideProfiles";
 
 export const VISION_RIDE_SCENE_PREVIEWS = [
@@ -21,6 +21,8 @@ export type VisionRideFinishPreview = "authored" | PixelLook;
 type Snapshot = Readonly<{
   enabled: boolean;
   retroFxEnabled: boolean;
+  mileMarkersEnabled: boolean;
+  lightTrailsEnabled: boolean;
   scenePreview: VisionRideScenePreview;
   finishPreview: VisionRideFinishPreview;
 }>;
@@ -34,6 +36,8 @@ function enabledFromLocation() {
 let snapshot: Snapshot = {
   enabled: enabledFromLocation(),
   retroFxEnabled: true,
+  mileMarkersEnabled: false,
+  lightTrailsEnabled: false,
   scenePreview: "authored",
   finishPreview: "authored",
 };
@@ -64,6 +68,16 @@ export const visionRideDiagnosticsController = {
   setRetroFxEnabled: (retroFxEnabled: boolean) => {
     if (snapshot.retroFxEnabled === retroFxEnabled) return;
     snapshot = { ...snapshot, retroFxEnabled };
+    publish();
+  },
+  setMileMarkersEnabled: (mileMarkersEnabled: boolean) => {
+    if (snapshot.mileMarkersEnabled === mileMarkersEnabled) return;
+    snapshot = { ...snapshot, mileMarkersEnabled };
+    publish();
+  },
+  setLightTrailsEnabled: (lightTrailsEnabled: boolean) => {
+    if (snapshot.lightTrailsEnabled === lightTrailsEnabled) return;
+    snapshot = { ...snapshot, lightTrailsEnabled };
     publish();
   },
   setScenePreview: (scenePreview: VisionRideScenePreview) => {
@@ -114,6 +128,22 @@ export function useVisionRideRetroFxEnabled() {
     visionRideDiagnosticsController.subscribe,
     () => visionRideDiagnosticsController.getSnapshot().retroFxEnabled,
     () => true,
+  );
+}
+
+export function useVisionRideMileMarkersEnabled() {
+  return useSyncExternalStore(
+    visionRideDiagnosticsController.subscribe,
+    () => visionRideDiagnosticsController.getSnapshot().mileMarkersEnabled,
+    () => false,
+  );
+}
+
+export function useVisionRideLightTrailsEnabled() {
+  return useSyncExternalStore(
+    visionRideDiagnosticsController.subscribe,
+    () => visionRideDiagnosticsController.getSnapshot().lightTrailsEnabled,
+    () => false,
   );
 }
 

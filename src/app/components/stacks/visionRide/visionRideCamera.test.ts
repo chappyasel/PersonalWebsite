@@ -24,8 +24,8 @@ import {
 import { VISION_RIDE_PARALLAX, chaseAimX } from "./visionRideParallax";
 import {
   VISION_RIDE_MOUNTAIN_HORIZON_METRES,
-  VISION_RIDE_ROAD_HALF_WIDTH,
   VISION_RIDE_MOUNTAIN_NEAR_COVERAGE_Z,
+  VISION_RIDE_ROAD_HALF_WIDTH,
   mountainCoverageComplete,
   mountainWindowOffsets,
 } from "./visionRideTerrain";
@@ -59,14 +59,20 @@ describe("Vision ride chase framing", () => {
       expect(first.aim[2]).toBeLessThan(cam.carZ + cam.carLengthMetres / 2);
       // Lands exactly on the settled chase pose and aim.
       const last = arrivalPose(framing, 1);
-      expect(last.position).toEqual([framing.restX, framing.eyeY, framing.chaseZ]);
+      expect(last.position).toEqual([
+        framing.restX,
+        framing.eyeY,
+        framing.chaseZ,
+      ]);
       expect(last.aim).toEqual([0, framing.lookY, framing.carZ]);
       // Never leaves the road, never dips into the grid, never crosses the
       // car's body, and the eye always ends up further back than it began.
       let previousZ = -Infinity;
       for (let p = 0; p <= 1.0001; p += 0.02) {
         const pose = arrivalPose(framing, p);
-        expect(Math.abs(pose.position[0])).toBeLessThan(VISION_RIDE_ROAD_HALF_WIDTH);
+        expect(Math.abs(pose.position[0])).toBeLessThan(
+          VISION_RIDE_ROAD_HALF_WIDTH,
+        );
         expect(pose.position[1]).toBeGreaterThan(0.3);
         const insideBody =
           Math.abs(pose.position[0]) < 1.2 &&
@@ -79,8 +85,12 @@ describe("Vision ride chase framing", () => {
     // The hold covers the switch-on, then the pull eases in and out.
     expect(arrivalProgress(0)).toBe(0);
     expect(arrivalProgress(VISION_RIDE_ARRIVAL.holdSeconds)).toBe(0);
-    expect(arrivalProgress(VISION_RIDE_ARRIVAL.holdSeconds + 0.3)).toBeGreaterThan(0);
-    expect(arrivalProgress(VISION_RIDE_ARRIVAL.holdSeconds + 0.3)).toBeLessThan(0.05);
+    expect(
+      arrivalProgress(VISION_RIDE_ARRIVAL.holdSeconds + 0.3),
+    ).toBeGreaterThan(0);
+    expect(arrivalProgress(VISION_RIDE_ARRIVAL.holdSeconds + 0.3)).toBeLessThan(
+      0.05,
+    );
     expect(arrivalProgress(VISION_RIDE_INTRO_SECONDS)).toBe(1);
     expect(arrivalProgress(99)).toBe(1);
   });
@@ -239,12 +249,14 @@ describe("Vision ride chase framing", () => {
         );
         // And the car's anchor stays within a couple of degrees of centre,
         // so the swell reads as growth in place rather than a slide.
-        const anchorBelowCentre = Math.atan2(eyeY - lookY, cameraZ - carZ) - pitch;
+        const anchorBelowCentre =
+          Math.atan2(eyeY - lookY, cameraZ - carZ) - pitch;
         expect(Math.abs(anchorBelowCentre)).toBeLessThan((2.5 * Math.PI) / 180);
       }
       // Landscape needs the tilt at the crest; portrait's wider field does not.
       const crestZ = chaseZ + chaseOffsetForScale(crestScale, chaseDistance);
-      if (portrait) expect(chaseAimY(framing, eyeY, crestZ)).toBeCloseTo(lookY, 9);
+      if (portrait)
+        expect(chaseAimY(framing, eyeY, crestZ)).toBeCloseTo(lookY, 9);
       else expect(chaseAimY(framing, eyeY, crestZ)).toBeLessThan(lookY - 0.05);
     }
   });
@@ -260,16 +272,33 @@ describe("Vision ride chase framing", () => {
     for (const portrait of [false, true]) {
       const framing = chaseFraming(portrait);
       const halfFov = (framing.fov * Math.PI) / 360;
-      const lift = VISION_RIDE_PARALLAX.maxY * (portrait ? VISION_RIDE_PARALLAX.portraitScale : 1);
+      const inputScale = portrait ? VISION_RIDE_PARALLAX.portraitInputScale : 1;
+      const lift =
+        VISION_RIDE_PARALLAX.maxY * inputScale +
+        (portrait
+          ? VISION_RIDE_PARALLAX.swayY * VISION_RIDE_PARALLAX.portraitSwayScale
+          : VISION_RIDE_PARALLAX.swayY);
       const cameraZ =
         framing.chaseZ +
-        chaseOffsetForScale(1 + VISION_RIDE_BREATH.carGrowth, framing.chaseDistance) -
-        VISION_RIDE_PARALLAX.convexZ;
-      for (const eyeY of [framing.eyeY - lift, framing.eyeY, framing.eyeY + lift]) {
+        chaseOffsetForScale(
+          1 + VISION_RIDE_BREATH.carGrowth,
+          framing.chaseDistance,
+        ) -
+        VISION_RIDE_PARALLAX.convexZ * inputScale;
+      for (const eyeY of [
+        framing.eyeY - lift,
+        framing.eyeY,
+        framing.eyeY + lift,
+      ]) {
         const aimY = chaseAimY(framing, eyeY, cameraZ);
         const pitch = Math.atan2(eyeY - aimY, cameraZ - framing.carZ);
-        const rearBottom = Math.atan2(eyeY - cam.carBottomMetres, cameraZ - rearBumperZ);
-        expect(rearBottom - pitch).toBeLessThanOrEqual(halfFov - clearance + 1e-9);
+        const rearBottom = Math.atan2(
+          eyeY - cam.carBottomMetres,
+          cameraZ - rearBumperZ,
+        );
+        expect(rearBottom - pitch).toBeLessThanOrEqual(
+          halfFov - clearance + 1e-9,
+        );
         // The roof stays inside the top edge too.
         const roof = Math.atan2(eyeY - 1.15, cameraZ - rearBumperZ);
         expect(pitch - roof).toBeLessThan(halfFov);
@@ -288,11 +317,18 @@ describe("Vision ride chase framing", () => {
     for (const aspect of [1128 / 2356, 9 / 16, 3 / 4, 4 / 3, 16 / 10, 16 / 9]) {
       const portrait = aspect < 1;
       const framing = chaseFraming(portrait);
-      const scale = portrait ? VISION_RIDE_PARALLAX.portraitScale : 1;
+      const inputScale = portrait ? VISION_RIDE_PARALLAX.portraitInputScale : 1;
+      const swayScale = portrait ? VISION_RIDE_PARALLAX.portraitSwayScale : 1;
+      const maxShiftX =
+        VISION_RIDE_PARALLAX.maxX * inputScale +
+        VISION_RIDE_PARALLAX.swayX * swayScale;
+      const maxShiftY =
+        VISION_RIDE_PARALLAX.maxY * inputScale +
+        VISION_RIDE_PARALLAX.swayY * swayScale;
       const cameraZ =
         framing.chaseZ +
         chaseOffsetForScale(crestScale, framing.chaseDistance) -
-        (VISION_RIDE_PARALLAX.convexZ * scale) / crestScale;
+        (VISION_RIDE_PARALLAX.convexZ * inputScale) / crestScale;
       const reach = lateralReach(
         framing,
         aspect,
@@ -304,8 +340,8 @@ describe("Vision ride chase framing", () => {
       expect(reach).toBeLessThanOrEqual(VISION_RIDE_PARALLAX.maxX * 2);
       for (const sx of [-1, 1]) {
         for (const sy of [-1, 0, 1]) {
-          const x = sx * Math.min(VISION_RIDE_PARALLAX.maxX * scale, reach);
-          const eyeY = framing.eyeY + sy * VISION_RIDE_PARALLAX.maxY * scale;
+          const x = sx * Math.min(maxShiftX, reach);
+          const eyeY = framing.eyeY + sy * maxShiftY;
           const camera = new THREE.PerspectiveCamera(
             framing.fov,
             aspect,

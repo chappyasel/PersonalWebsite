@@ -31,8 +31,11 @@ export const VISION_RIDE_PARALLAX = {
    * camera. 0 is an orbit about the car, 1 a pure truck with the vanishing
    * point pinned. */
   aimShare: 0.3,
-  /** Portrait keeps the effect but shallower. */
-  portraitScale: 0.55,
+  /** Portrait steering stays controlled while idle sway gets enough travel
+   * to separate the road, car, sun, and mountain layers. */
+  portraitInputScale: 0.62,
+  portraitSwayScale: 1.3,
+  portraitSwayTimeScale: 1.65,
   /** Exponential damping rate for the component (per second). */
   dampingPerSecond: 3,
   /** Rate a held key ramps its axis toward full (per second), and back. */
@@ -140,12 +143,18 @@ export function parallaxTarget(input: {
   reducedMotion: boolean;
 }): ParallaxTarget {
   if (input.reducedMotion) return { x: 0, y: 0, z: 0 };
-  const scale = input.portrait ? VISION_RIDE_PARALLAX.portraitScale : 1;
+  const inputScale = input.portrait
+    ? VISION_RIDE_PARALLAX.portraitInputScale
+    : 1;
+  const swayScale = input.portrait ? VISION_RIDE_PARALLAX.portraitSwayScale : 1;
+  const swayTime =
+    input.time *
+    (input.portrait ? VISION_RIDE_PARALLAX.portraitSwayTimeScale : 1);
   const pointer = pointerParallax(input.pointerX, input.pointerY);
-  const sway = ambientSway(input.time);
+  const sway = ambientSway(swayTime);
   return {
-    x: (pointer.x + sway.x) * scale,
-    y: (pointer.y + sway.y) * scale,
-    z: pointer.z * scale,
+    x: pointer.x * inputScale + sway.x * swayScale,
+    y: pointer.y * inputScale + sway.y * swayScale,
+    z: pointer.z * inputScale,
   };
 }
