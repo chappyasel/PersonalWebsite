@@ -19,12 +19,11 @@ import type {
 } from "~/server/queries/weightlifting";
 
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
-
+  MOSAIC_DAYS,
+  type MosaicCell,
+  PlacardMosaic,
+  mosaicDateLabel,
+} from "./stacks/dom/PlacardMosaic";
 import {
   PlacardCardHeading,
   PlacardLinkCard,
@@ -60,13 +59,6 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-function formatShortDate(dateStr: string) {
-  return parseLocalDate(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function categoryLabel(categories: Record<string, number>) {
   const entries = Object.entries(categories);
   if (entries.length === 0) return "Workout";
@@ -94,131 +86,42 @@ function categoryBackground(categories: Record<string, number>) {
   return `linear-gradient(to right, ${stops.join(", ")})`;
 }
 
-function useActivityCells(data: ActivityMosaicData) {
-  const cells = useMemo(() => {
+function useActivityCells(data: ActivityMosaicData): MosaicCell[] {
+  return useMemo(() => {
     if (!data.endDate) return [];
 
     const dayMap = new Map(data.days.map((day) => [day.date, day]));
-    const startDate = addDays(parseLocalDate(data.endDate), -363);
+    const startDate = addDays(parseLocalDate(data.endDate), -(MOSAIC_DAYS - 1));
 
-    const items = Array.from({ length: MOSAIC_DAYS }).map((_, index) => {
-      const date = addDays(startDate, index);
-      const key = dateToKey(date);
+    return Array.from({ length: MOSAIC_DAYS }).map((_, index) => {
+      const key = dateToKey(addDays(startDate, index));
       const day = dayMap.get(key);
       const intensity =
         day && data.maxVolume
           ? Math.max(0.24, Math.min(1, day.volume / data.maxVolume))
           : 0;
-
-      const week = Math.floor(index / 7);
-      const dayOfWeek = index % 7;
-
+      const volume = day?.volume ?? 0;
       return {
         key,
-        categories: day?.categories ?? {},
-        volume: day?.volume ?? 0,
-        intensity,
-        tooltipHeading: formatShortDate(key),
+        background: categoryBackground(day?.categories ?? {}),
+        opacity: volume > 0 ? 0.25 + intensity * 0.75 : 0.08,
+        active: volume > 0,
+        tooltipHeading: mosaicDateLabel(key),
         tooltipDetail: day
           ? `${formatVolume(day.volume)} lbs · ${categoryLabel(day.categories)}`
           : "Rest",
-        blockIndex: Math.floor(week / MOSAIC_COLUMNS),
-        gridColumn: (week % MOSAIC_COLUMNS) + 1,
-        gridRow: dayOfWeek + 1,
       };
     });
-
-    // Derived from MOSAIC_BLOCKS rather than listed, so changing the block
-    // count is one constant and not three places that can disagree.
-    return Array.from({ length: MOSAIC_BLOCKS }, (_, block) =>
-      items.filter((cell) => cell.blockIndex === block),
-    );
   }, [data]);
-
-  const displayStartDate = cells[0]?.[0]?.key ?? data?.startDate ?? null;
-  const displayEndDate =
-    cells[cells.length - 1]?.[MOSAIC_BLOCK_DAYS - 1]?.key ??
-    data?.endDate ??
-    null;
-
-  return { cells, displayStartDate, displayEndDate };
 }
 
-// Four bands of a quarter-year rather than two of a half-year: same 364 days,
-// same one-cell-per-day honesty, but each cell gets twice the width. At 26
-// columns the year was legible as a texture and unreadable as data — the owner
-// called it "too compact".
-const MOSAIC_COLUMNS = 13;
-const MOSAIC_ROWS = 7;
-const MOSAIC_BLOCKS = 4;
-const MOSAIC_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS * MOSAIC_BLOCKS;
-/** Days in one band. The end-date label reads the last cell of the last one. */
-const MOSAIC_BLOCK_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS;
-
 function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
-  const { cells } = useActivityCells(data);
-
+  const cells = useActivityCells(data);
   return (
-    <div
-      className="h-[300px] sm:h-[340px]"
-      role="img"
-      aria-label={`${data.activeDays} training days in the last 12 months`}
-    >
-      <TooltipProvider delayDuration={150}>
-        <div
-          className="grid h-full gap-3"
-          style={{
-            gridTemplateRows: `repeat(${MOSAIC_BLOCKS}, minmax(0, 1fr))`,
-          }}
-        >
-          {cells.map((block, blockIndex) => (
-            <div
-              key={blockIndex}
-              className="grid h-full gap-1"
-              style={{
-                gridTemplateColumns: `repeat(${MOSAIC_COLUMNS}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${MOSAIC_ROWS}, minmax(0, 1fr))`,
-              }}
-            >
-              {block.map((cell) => (
-                <Tooltip key={cell.key}>
-                  <TooltipTrigger asChild>
-                    <div
-                      className={`size-full rounded-[3px] ${
-                        cell.volume > 0
-                          ? "transition-transform duration-200 hover:scale-125"
-                          : ""
-                      }`}
-                      style={{
-                        background: categoryBackground(cell.categories),
-                        opacity:
-                          cell.volume > 0 ? 0.25 + cell.intensity * 0.75 : 0.08,
-                        gridColumn: cell.gridColumn,
-                        gridRow: cell.gridRow,
-                      }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    sideOffset={8}
-                    className="max-w-56"
-                  >
-                    <div className="flex flex-col gap-0.5">
-                      <p className="font-semibold leading-none">
-                        {cell.tooltipHeading}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {cell.tooltipDetail}
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-          ))}
-        </div>
-      </TooltipProvider>
-    </div>
+    <PlacardMosaic
+      cells={cells}
+      label={`${data.activeDays} training days in the last 12 months`}
+    />
   );
 }
 

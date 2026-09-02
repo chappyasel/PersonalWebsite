@@ -3,10 +3,18 @@ import { describe, expect, it } from "vitest";
 import {
   GITHUB_ACTIVE_LIMIT,
   GITHUB_MORE_LIMIT,
+  GITHUB_MOSAIC_DAYS,
   buildGitHubPlacard,
-  contributionWeeks,
+  longestStreak,
+  yearBars,
 } from "./placard";
-import { type GitHubActivity, type GitHubRepo } from "./types";
+import {
+  type GitHubActivity,
+  type GitHubContributionDay,
+  type GitHubRepo,
+} from "./types";
+
+const NOW = new Date("2026-07-02T00:00:00Z"); // day 183 of 365
 
 function repo(overrides: Partial<GitHubRepo> & { name: string }): GitHubRepo {
   const owner = overrides.owner ?? "chappyasel";
@@ -25,21 +33,29 @@ function repo(overrides: Partial<GitHubRepo> & { name: string }): GitHubRepo {
   };
 }
 
+function day(date: string, count: number): GitHubContributionDay {
+  return { date, count, level: count === 0 ? 0 : 2 };
+}
+
 function activity(overrides: Partial<GitHubActivity> = {}): GitHubActivity {
   return {
     login: "chappyasel",
-    fetchedAt: "2026-09-02T00:00:00Z",
+    fetchedAt: "2026-07-02T00:00:00Z",
     contributions: {
-      from: "2025-09-02T00:00:00Z",
-      to: "2026-09-02T00:00:00Z",
+      from: "2025-07-02T00:00:00Z",
+      to: "2026-07-02T00:00:00Z",
       total: 10,
       restricted: 4,
       days: [
-        { date: "2026-08-31", count: 0, level: 0 }, // Monday
-        { date: "2026-09-01", count: 3, level: 2 },
-        { date: "2026-09-02", count: 1, level: 1 },
+        day("2026-06-30", 0),
+        day("2026-07-01", 3),
+        day("2026-07-02", 1),
       ],
     },
+    years: [
+      { year: 2024, total: 100 },
+      { year: 2026, total: 500 },
+    ],
     publicRepoCount: 3,
     repos: [],
     activeRepos: [],
@@ -47,49 +63,78 @@ function activity(overrides: Partial<GitHubActivity> = {}): GitHubActivity {
   };
 }
 
-describe("contributionWeeks", () => {
-  it("lays days out in Sunday-first columns and pads partial weeks", () => {
-    const weeks = contributionWeeks(activity().contributions.days);
-    expect(weeks).toHaveLength(1);
-    expect(weeks[0]!.map((day) => day?.date ?? null)).toEqual([
-      null,
-      "2026-08-31",
-      "2026-09-01",
-      "2026-09-02",
-      null,
-      null,
-      null,
+describe("longestStreak", () => {
+  it("counts the longest run of days with any contribution", () => {
+    expect(
+      longestStreak([
+        day("2026-01-01", 1),
+        day("2026-01-02", 2),
+        day("2026-01-03", 0),
+        day("2026-01-04", 1),
+        day("2026-01-05", 1),
+        day("2026-01-06", 1),
+      ]),
+    ).toBe(3);
+    expect(longestStreak([])).toBe(0);
+  });
+});
+
+describe("yearBars", () => {
+  it("fills missing years with zero and projects only the current year", () => {
+    const bars = yearBars(
+      [
+        { year: 2024, total: 100 },
+        { year: 2026, total: 500 },
+      ],
+      NOW,
+    );
+    expect(bars.map((bar) => [bar.year, bar.value])).toEqual([
+      [2024, 100],
+      [2025, 0],
+      [2026, 500],
     ]);
+    expect(bars[0]!.projectedRemainder).toBe(0);
+    expect(bars[1]!.projectedRemainder).toBe(0);
+    // 183 of 365 days elapsed: 500 * (182 / 183) remains at this pace.
+    expect(bars[2]!.projectedRemainder).toBeCloseTo(500 * (182 / 183), 6);
   });
 
-  it("starts a new column at each Sunday", () => {
-    const days = Array.from({ length: 10 }, (_, index) => ({
-      date: `2026-09-${String(5 + index).padStart(2, "0")}`, // Sat 5 Sep
-      count: index,
-      level: 0 as const,
-    }));
-    const weeks = contributionWeeks(days);
-    expect(weeks).toHaveLength(3);
-    expect(weeks[0]![6]?.date).toBe("2026-09-05");
-    expect(weeks[1]![0]?.date).toBe("2026-09-06");
-    expect(weeks[2]![1]?.date).toBe("2026-09-14");
-    expect(weeks[2]![2]).toBeNull();
-  });
-
-  it("returns no columns for no days", () => {
-    expect(contributionWeeks([])).toEqual([]);
+  it("starts at the current year when there is no history", () => {
+    expect(yearBars([], NOW)).toEqual([
+      { year: 2026, value: 0, projectedRemainder: 0 },
+    ]);
   });
 });
 
 describe("buildGitHubPlacard", () => {
-  it("counts active days and reads the mosaic range off the days", () => {
-    const placard = buildGitHubPlacard(activity());
-    expect(placard.contributions.activeDays).toBe(2);
-    expect(placard.contributions.from).toBe("2026-08-31");
-    expect(placard.contributions.to).toBe("2026-09-02");
-    expect(placard.contributions.total).toBe(10);
-    expect(placard.contributions.restricted).toBe(4);
+  it("derives the last-year figures and the all-time total", () => {
+    const placard = buildGitHubPlacard(activity(), { now: NOW });
+    expect(placard.lastYear.total).toBe(10);
+    expect(placard.lastYear.restricted).toBe(4);
+    expect(placard.lastYear.privateShare).toBe(40);
+    expect(placard.lastYear.activeDays).toBe(2);
+    expect(placard.lastYear.longestStreak).toBe(2);
+    expect(placard.lastYear.from).toBe("2026-06-30");
+    expect(placard.lastYear.to).toBe("2026-07-02");
+    expect(placard.allTime).toBe(600);
+    expect(placard.since).toBe(2024);
     expect(placard.profileUrl).toBe("https://github.com/chappyasel");
+  });
+
+  it("keeps only the trailing mosaic window of days", () => {
+    const days = Array.from({ length: GITHUB_MOSAIC_DAYS + 5 }, (_, index) =>
+      day(`d${index}`, index),
+    );
+    const placard = buildGitHubPlacard(
+      activity({
+        contributions: { ...activity().contributions, days },
+      }),
+      { now: NOW },
+    );
+    expect(placard.lastYear.days).toHaveLength(GITHUB_MOSAIC_DAYS);
+    expect(placard.lastYear.days[0]!.date).toBe("d5");
+    // Active days and the streak still read the whole year GitHub returned.
+    expect(placard.lastYear.activeDays).toBe(GITHUB_MOSAIC_DAYS + 4);
   });
 
   it("orders the active list by commits, marks organization owners, and caps it", () => {
@@ -104,6 +149,7 @@ describe("buildGitHubPlacard", () => {
           { ...repo({ name: "d" }), commits: 4 },
         ],
       }),
+      { now: NOW },
     );
     expect(placard.active).toHaveLength(GITHUB_ACTIVE_LIMIT);
     expect(placard.active.map((r) => r.name)).toEqual([
@@ -124,7 +170,7 @@ describe("buildGitHubPlacard", () => {
         repos: [repo({ name: "PersonalWebsite" }), repo({ name: "old" })],
         activeRepos: [{ ...repo({ name: "PersonalWebsite" }), commits: 5 }],
       }),
-      { featuredRepos: ["chappyasel/personalwebsite"] },
+      { featuredRepos: ["chappyasel/personalwebsite"], now: NOW },
     );
     expect(placard.active.map((r) => r.name)).toEqual(["PersonalWebsite"]);
     expect(placard.more.map((r) => r.name)).toEqual(["old"]);
@@ -142,6 +188,7 @@ describe("buildGitHubPlacard", () => {
         ],
         activeRepos: [{ ...repo({ name: "active" }), commits: 2 }],
       }),
+      { now: NOW },
     );
     expect(placard.more.map((r) => r.name)).toEqual(["kept"]);
     expect(placard.more[0]).not.toHaveProperty("commits");
@@ -154,7 +201,7 @@ describe("buildGitHubPlacard", () => {
         pushedAt: `2020-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`,
       }),
     );
-    const placard = buildGitHubPlacard(activity({ repos }));
+    const placard = buildGitHubPlacard(activity({ repos }), { now: NOW });
     expect(placard.more).toHaveLength(GITHUB_MORE_LIMIT);
     expect(placard.more[0]!.name).toBe(`r${GITHUB_MORE_LIMIT + 1}`);
   });

@@ -1,3 +1,5 @@
+import { effectiveDaysInYear } from "~/lib/stats/yoy";
+
 import {
   GITHUB_PROFILE_URL,
   GITHUB_REPOSITORIES_URL,
@@ -20,20 +22,34 @@ export type GitHubPlacardRepo = {
   commits?: number;
 };
 
+export type GitHubPlacardYear = {
+  year: number;
+  value: number;
+  /** For the current year, the rest of the year at the pace so far. */
+  projectedRemainder: number;
+};
+
 export type GitHubPlacard = {
   login: string;
   profileUrl: string;
   repositoriesUrl: string;
   fetchedAt: string;
-  contributions: {
+  /** Every contribution GitHub has for the account, all years summed. */
+  allTime: number;
+  /** The first year on the year bars. */
+  since: number;
+  years: GitHubPlacardYear[];
+  lastYear: {
     total: number;
     restricted: number;
-    /** First and last calendar dates on the mosaic, YYYY-MM-DD. */
+    /** Whole-number percentage of `total` made in private repositories. */
+    privateShare: number;
+    activeDays: number;
+    longestStreak: number;
+    /** The trailing `MOSAIC_DAYS` days, oldest first, for the banded mosaic. */
+    days: GitHubContributionDay[];
     from: string;
     to: string;
-    /** Columns of seven weekday rows, Sunday first; null pads partial weeks. */
-    weeks: (GitHubContributionDay | null)[][];
-    activeDays: number;
   };
   publicRepoCount: number;
   /** Public repositories, own or organization, that received commits this year. */
@@ -44,31 +60,8 @@ export type GitHubPlacard = {
 
 export const GITHUB_ACTIVE_LIMIT = 5;
 export const GITHUB_MORE_LIMIT = 6;
-
-function weekday(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(Date.UTC(year!, month! - 1, day)).getUTCDay();
-}
-
-/**
- * GitHub's calendar is columns of weeks, Sunday at the top. The snapshot
- * stores days flat, so rebuild the columns from the first day's weekday and
- * pad the partial first and last weeks with nulls instead of shifting them.
- */
-export function contributionWeeks(days: readonly GitHubContributionDay[]) {
-  if (days.length === 0) return [] as (GitHubContributionDay | null)[][];
-  const offset = weekday(days[0]!.date);
-  const columns = Math.ceil((offset + days.length) / 7);
-  const weeks: (GitHubContributionDay | null)[][] = Array.from(
-    { length: columns },
-    () => Array.from({ length: 7 }, () => null),
-  );
-  days.forEach((day, index) => {
-    const slot = offset + index;
-    weeks[Math.floor(slot / 7)]![slot % 7] = day;
-  });
-  return weeks;
-}
+/** Same 364-day window as the Weightlifting mosaic's four 13-week bands. */
+export const GITHUB_MOSAIC_DAYS = 364;
 
 function placardRepo(
   repo: GitHubRepo,
@@ -88,6 +81,46 @@ function placardRepo(
   };
 }
 
+/** Longest run of consecutive days with at least one contribution. */
+export function longestStreak(days: readonly GitHubContributionDay[]) {
+  let best = 0;
+  let run = 0;
+  for (const day of days) {
+    run = day.count > 0 ? run + 1 : 0;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+/**
+ * One bar per calendar year from the first year GitHub knows to the current
+ * one, gaps filled with zero. The current year carries a projected remainder
+ * at the pace so far, the same arithmetic as the Weightlifting placard.
+ */
+export function yearBars(
+  years: readonly { year: number; total: number }[],
+  now: Date,
+): GitHubPlacardYear[] {
+  const currentYear = now.getUTCFullYear();
+  const totals = new Map(years.map((entry) => [entry.year, entry.total]));
+  const firstYear = Math.min(currentYear, ...years.map((entry) => entry.year));
+  const daysInCurrentYear = Math.round(
+    (Date.UTC(currentYear + 1, 0, 1) - Date.UTC(currentYear, 0, 1)) /
+      86_400_000,
+  );
+  const elapsed =
+    effectiveDaysInYear(String(currentYear), now) / daysInCurrentYear;
+  return Array.from({ length: currentYear - firstYear + 1 }, (_, index) => {
+    const year = firstYear + index;
+    const value = totals.get(year) ?? 0;
+    const projectedRemainder =
+      year === currentYear && elapsed > 0 && elapsed < 1
+        ? (value * (1 - elapsed)) / elapsed
+        : 0;
+    return { year, value, projectedRemainder };
+  });
+}
+
 /**
  * Shape the fetched activity into what the Projects placard shows.
  *
@@ -98,7 +131,10 @@ function placardRepo(
  */
 export function buildGitHubPlacard(
   activity: GitHubActivity,
-  { featuredRepos = [] }: { featuredRepos?: readonly string[] } = {},
+  {
+    featuredRepos = [],
+    now = new Date(),
+  }: { featuredRepos?: readonly string[]; now?: Date } = {},
 ): GitHubPlacard {
   const featured = new Set(featuredRepos.map((name) => name.toLowerCase()));
   const active = activity.activeRepos
@@ -125,19 +161,27 @@ export function buildGitHubPlacard(
     .slice(0, GITHUB_MORE_LIMIT)
     .map((repo) => placardRepo(repo, activity.login));
 
-  const days = activity.contributions.days;
+  const allDays = activity.contributions.days;
+  const days = allDays.slice(-GITHUB_MOSAIC_DAYS);
+  const years = yearBars(activity.years, now);
+  const { total, restricted } = activity.contributions;
   return {
     login: activity.login,
     profileUrl: GITHUB_PROFILE_URL,
     repositoriesUrl: GITHUB_REPOSITORIES_URL,
     fetchedAt: activity.fetchedAt,
-    contributions: {
-      total: activity.contributions.total,
-      restricted: activity.contributions.restricted,
+    allTime: years.reduce((sum, year) => sum + year.value, 0),
+    since: years[0]?.year ?? now.getUTCFullYear(),
+    years,
+    lastYear: {
+      total,
+      restricted,
+      privateShare: total > 0 ? Math.round((restricted / total) * 100) : 0,
+      activeDays: allDays.filter((day) => day.count > 0).length,
+      longestStreak: longestStreak(allDays),
+      days,
       from: days[0]?.date ?? activity.contributions.from.slice(0, 10),
       to: days[days.length - 1]?.date ?? activity.contributions.to.slice(0, 10),
-      weeks: contributionWeeks(days),
-      activeDays: days.filter((day) => day.count > 0).length,
     },
     publicRepoCount: activity.publicRepoCount,
     active,
