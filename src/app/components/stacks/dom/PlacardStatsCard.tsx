@@ -213,11 +213,11 @@ function PlacardYearBars({
 }
 
 /**
- * Headline figure and three stats, with either year bars under the headline
- * (Weightlifting) or a full-width `footer` beneath both columns (the GitHub
- * card, whose calendar needs the whole width). Without years the left
- * column drops its minimum height so no blank slot is left where the bars
- * would have stood.
+ * Headline figure and three stats, with a chart under the headline: the
+ * year bars when `years` is given (Weightlifting), or whatever `chart` is
+ * passed in their place (the GitHub card's contribution calendar). With
+ * neither, the left column drops its minimum height so no blank slot is
+ * left where a chart would have stood.
  */
 export function PlacardStatsCard({
   headline,
@@ -227,7 +227,7 @@ export function PlacardStatsCard({
   yearUnit,
   stats,
   compactMobile = false,
-  footer,
+  chart,
 }: {
   headline: string;
   headlineIcon: Icon;
@@ -236,9 +236,11 @@ export function PlacardStatsCard({
   yearUnit?: string;
   stats: PlacardStat[];
   compactMobile?: boolean;
-  footer?: React.ReactNode;
+  /** Rendered where the year bars would go, in the left column. */
+  chart?: React.ReactNode;
 }) {
   const bars = years !== undefined && yearUnit !== undefined;
+  const hasChart = bars || chart !== undefined;
   return (
     <div
       data-mobile-compact-stats={compactMobile ? "" : undefined}
@@ -247,7 +249,7 @@ export function PlacardStatsCard({
       <div
         className={cn(
           "flex min-w-0 flex-col justify-between pr-4 min-[1200px]:pr-5",
-          bars && "min-h-44 min-[1200px]:min-h-52",
+          hasChart && "min-h-44 min-[1200px]:min-h-52",
         )}
       >
         <div>
@@ -265,7 +267,9 @@ export function PlacardStatsCard({
             unit={yearUnit}
             compactMobile={compactMobile}
           />
-        ) : null}
+        ) : (
+          chart
+        )}
       </div>
       <div className="flex min-w-0 flex-col justify-between border-l border-foreground/10 pl-4 text-right min-[1200px]:pl-5">
         {stats.map(({ icon: StatIcon, label, value }) => (
@@ -280,7 +284,6 @@ export function PlacardStatsCard({
           </div>
         ))}
       </div>
-      {footer ? <div className="col-span-2 mt-5">{footer}</div> : null}
     </div>
   );
 }

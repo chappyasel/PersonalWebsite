@@ -43,14 +43,15 @@ const MONTHS = [
   "Dec",
 ];
 
-/** GitHub's own five-step green, light and dark, so the graph reads as the
- * one on his profile and not a restyling of it. */
+/** GitHub's five steps in the placard's ink, so the squares sit in the card
+ * the way the year bars do (bg-foreground/75) instead of arriving in
+ * GitHub green. An empty day keeps the faint floor the bars' track uses. */
 const LEVEL_CLASS = [
-  "bg-[#ebedf0] dark:bg-[#2a2f36]",
-  "bg-[#9be9a8] dark:bg-[#0e4429]",
-  "bg-[#40c463] dark:bg-[#006d32]",
-  "bg-[#30a14e] dark:bg-[#26a641]",
-  "bg-[#216e39] dark:bg-[#39d353]",
+  "bg-foreground/[0.08]",
+  "bg-foreground/30",
+  "bg-foreground/[0.52]",
+  "bg-foreground/[0.76]",
+  "bg-foreground",
 ] as const;
 
 /** "Sep 1" at local noon so no zone shifts the day. */
@@ -68,11 +69,11 @@ function dayCaption(day: GitHubContributionDay) {
 }
 
 /**
- * The contribution graph as GitHub draws it: one column per week, Sunday at
- * the top, square cells, month names over the first week of each month, and
- * a Less-to-More legend. The whole year always fits the card width, so the
- * squares shrink on a phone rather than scrolling sideways, which would
- * fight the sheet's own gestures.
+ * The contribution graph as GitHub lays it out, in the slot the Weightlifting
+ * card gives its year bars: one column per week, Sunday at the top, square
+ * cells, a month name under the first week of each month where the bars
+ * carry their year labels. The year always fits the column, so the squares
+ * are small; the month row hides on narrow screens where it would overlap.
  */
 function ContributionCalendar({
   days,
@@ -86,24 +87,9 @@ function ContributionCalendar({
   const columns = `repeat(${weeks.length}, minmax(0, 1fr))`;
   return (
     <div role="img" aria-label={label}>
-      <div
-        className="grid h-3.5 text-[10px] leading-none text-muted-foreground"
-        style={{ gridTemplateColumns: columns }}
-        aria-hidden
-      >
-        {labels.map(({ column, month }) => (
-          <span
-            key={column}
-            className="whitespace-nowrap"
-            style={{ gridColumn: column + 1 }}
-          >
-            {MONTHS[month - 1]}
-          </span>
-        ))}
-      </div>
       <TooltipProvider delayDuration={100}>
         <div
-          className="grid gap-[2px]"
+          className="grid gap-px"
           style={{
             gridTemplateColumns: columns,
             gridTemplateRows: "repeat(7, minmax(0, 1fr))",
@@ -117,10 +103,10 @@ function ContributionCalendar({
                   <TooltipTrigger asChild>
                     <div
                       className={cn(
-                        "aspect-square w-full rounded-[2px]",
+                        "aspect-square w-full rounded-[1px]",
                         LEVEL_CLASS[day.level],
                         day.count > 0 &&
-                          "transition-transform duration-150 hover:scale-125",
+                          "transition-transform duration-150 hover:scale-150",
                       )}
                     />
                   </TooltipTrigger>
@@ -140,28 +126,32 @@ function ContributionCalendar({
           )}
         </div>
       </TooltipProvider>
+      <div
+        className="mt-1.5 hidden h-3 text-[10px] leading-none text-muted-foreground sm:grid"
+        style={{ gridTemplateColumns: columns }}
+        aria-hidden
+      >
+        {labels.map(({ column, month }) => (
+          <span
+            key={column}
+            className="whitespace-nowrap"
+            style={{ gridColumn: column + 1 }}
+          >
+            {MONTHS[month - 1]}
+          </span>
+        ))}
+      </div>
     </div>
-  );
-}
-
-function Legend() {
-  return (
-    <span className="flex items-center gap-[3px]" aria-hidden>
-      <span className="mr-0.5">Less</span>
-      {LEVEL_CLASS.map((level) => (
-        <span key={level} className={cn("size-2.5 rounded-[2px]", level)} />
-      ))}
-      <span className="ml-0.5">More</span>
-    </span>
   );
 }
 
 /**
  * The live half of the Projects placard, in the Weightlifting stats card's
- * shape with GitHub's own contribution graph where that card keeps its year
- * bars. The repositories tab on GitHub is mostly student work from 2015 to
- * 2018 and says nothing about the last year, most of which happened in
- * private repositories; this card is what that tab cannot show.
+ * exact shape: the headline, GitHub's contribution graph where that card
+ * keeps its year bars, three figures past the divider. The repositories tab
+ * on GitHub is mostly student work from 2015 to 2018 and says nothing about
+ * the last year, most of which happened in private repositories; this card
+ * is what that tab cannot show.
  */
 export default function GitHubActivityCard({
   placard,
@@ -181,6 +171,12 @@ export default function GitHubActivityCard({
         headlineIcon={GithubLogoIcon}
         headlineLabel={`Contributions since ${placard.since}`}
         compactMobile
+        chart={
+          <ContributionCalendar
+            days={lastYear.days}
+            label={`${count(lastYear.total)} GitHub contributions on ${count(lastYear.activeDays)} days in the last 12 months`}
+          />
+        }
         stats={[
           {
             icon: CalendarDotsIcon,
@@ -198,22 +194,6 @@ export default function GitHubActivityCard({
             value: `${count(lastYear.longestStreak)}d`,
           },
         ]}
-        footer={
-          <>
-            <ContributionCalendar
-              days={lastYear.days}
-              label={`${count(lastYear.total)} GitHub contributions on ${count(lastYear.activeDays)} days in the last 12 months`}
-            />
-            <div className="mt-2.5 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-              <span>
-                {lastYear.restricted > 0
-                  ? `${lastYear.privateShare}% in private repositories`
-                  : "Last 12 months"}
-              </span>
-              <Legend />
-            </div>
-          </>
-        }
       />
     </PlacardLinkCard>
   );
