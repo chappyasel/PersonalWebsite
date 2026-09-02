@@ -1,6 +1,5 @@
 import { type Metadata, type Viewport } from "next";
 import blogData from "public/data/blog-posts.json";
-import projectsData from "public/data/projects.json";
 import speakingData from "public/data/speaking.json";
 import React from "react";
 
@@ -8,6 +7,7 @@ import { readingBookEdgeColors } from "~/lib/books/coverEdgeColor.server";
 import { buildHomepageBookPlacard } from "~/lib/books/homepagePlacard";
 import { getDefaultBooks } from "~/server/queries/books";
 import { orEmpty } from "~/server/queries/degrade";
+import { getGitHubActivity } from "~/server/queries/github";
 import {
   EMPTY_WEIGHTLIFTING_PLACARD,
   emptyActivityMosaic,
@@ -46,15 +46,6 @@ export const viewport: Viewport = {
   colorScheme: "light dark",
   viewportFit: "cover",
 };
-
-// The three projects that get framed screenshots in the 3D Projects unit.
-// liars-dice replaced fantasy in v4 — the fantasy image is a GitHub file
-// listing, illegible at frame scale (audit §3-Projects).
-const SCENE_PROJECT_IMAGES = [
-  "weightlifting.jpg",
-  "liars-dice.png",
-  "homework.jpg",
-];
 
 // Scene-only still overrides for the Talks frames (JSON data untouched):
 // frame 2's source thumbnail is a photo of a projected slide — a document,
@@ -143,19 +134,23 @@ async function HomePageContent({
   const featuredBooks = allBooks.filter(
     (book) => book.isFeatured && book.coverUrl,
   );
-  const [activity, liftingPlacard, featuredBookColors] = await Promise.all([
-    orEmpty(
-      "home:activity",
-      () => getCachedActivityMosaic(12),
-      emptyActivityMosaic(12),
-    ),
-    orEmpty(
-      "home:lifting",
-      getCachedWeightliftingPlacard,
-      EMPTY_WEIGHTLIFTING_PLACARD,
-    ),
-    readingBookEdgeColors(featuredBooks),
-  ]);
+  const [activity, liftingPlacard, featuredBookColors, github] =
+    await Promise.all([
+      orEmpty(
+        "home:activity",
+        () => getCachedActivityMosaic(12),
+        emptyActivityMosaic(12),
+      ),
+      orEmpty(
+        "home:lifting",
+        getCachedWeightliftingPlacard,
+        EMPTY_WEIGHTLIFTING_PLACARD,
+      ),
+      readingBookEdgeColors(featuredBooks),
+      // Live when GITHUB_TOKEN is set, the committed snapshot otherwise; the
+      // Projects placard drops its GitHub cards if neither can be read.
+      orEmpty("home:github", getGitHubActivity, null),
+    ]);
   const bookPlacard = buildHomepageBookPlacard(allBooks);
   const bookStats = bookPlacard.stats;
   const bookCovers = allBooks.slice(0, 60).map((book) => ({
@@ -212,18 +207,10 @@ async function HomePageContent({
       url: talk.url,
       still: SCENE_TALK_STILLS[i] ?? talk.thumbnail,
     })),
-    projects: SCENE_PROJECT_IMAGES.flatMap((image) => {
-      const project = projectsData.projects.find((p) => p.image === image);
-      return project
-        ? [
-            {
-              name: project.name,
-              link: project.link,
-              image: `/images/projects/${image}`,
-            },
-          ]
-        : [];
-    }),
+    // The Projects unit stopped framing placard screenshots when it got its
+    // Project Icons (docs/projects-shelf-spec.md); the scene only ever used
+    // this list to warm those textures, so there is nothing left to warm.
+    projects: [],
     // Six, because NotebookLean stands six spines on the Musings shelf and
     // maps a click key to each. At three, half the row was blank slabs that
     // fell through to a generic "open the blog" link — the one unit whose
@@ -244,7 +231,7 @@ async function HomePageContent({
     systems: <PersonalSystems />,
     talks: <Talks />,
     blog: <BlogPosts />,
-    projects: <Projects />,
+    projects: <Projects github={github} />,
     quotes: <Quotes />,
   };
 

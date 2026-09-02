@@ -66,8 +66,23 @@ const sources: PublicIndexSourceTexts = {
       {
         name: "Linked project",
         link: "/liarsdice",
+        image: "/images/stacks/v8/512/projects-icon.webp",
         languages: ["React", "TypeScript"],
         description: "A probability tool",
+      },
+      {
+        name: "Captured project",
+        link: "/liarsdice",
+        image: "capture.png",
+        languages: ["React"],
+        description: "An old capture",
+      },
+      {
+        name: "Escaping image project",
+        link: "/liarsdice",
+        image: "//example.com/escape.png",
+        languages: ["React"],
+        description: "Its image must not leave the origin",
       },
       {
         name: "Unavailable project",
@@ -175,9 +190,19 @@ describe("createPublicSearchIndex", () => {
           source: "project",
           label: "Linked project",
           target: { kind: "site", site: "home", path: "/liarsdice" },
+          image: "/images/stacks/v8/512/projects-icon.webp",
+        }),
+        expect.objectContaining({
+          id: "public:project:captured-project",
+          image: "/images/projects/capture.png",
         }),
       ]),
     );
+    const escaping = index.documents.find(
+      (document) => document.id === "public:project:escaping-image-project",
+    );
+    expect(escaping).toBeDefined();
+    expect(escaping).not.toHaveProperty("image");
     expect(
       index.documents.some(
         (document) => document.label === "Unavailable project",

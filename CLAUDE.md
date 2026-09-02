@@ -104,7 +104,10 @@ pnpm db:migrate:prod  # Run migrations on production database
 
 - **Path Aliases**: Use `~/*` for src imports (e.g., `~/server/db`), `~~/*` for public assets (configured in tsconfig.json)
 - **Type Safety**: End-to-end types from database through tRPC to frontend using SuperJSON transformer
-- **Static Data**: Projects and blog posts stored in `/public/data/` JSON files
+- **Static Data**: Projects and blog posts stored in `/public/data/` JSON files.
+  `github.json` is the committed snapshot of GitHub activity behind the Projects
+  placard; `pnpm generate:github` refreshes it, and with `GITHUB_TOKEN` set the
+  page fetches live data instead (`src/server/queries/github.ts`)
 - **tRPC Setup**: Uses v11 RC with React Query integration, batch streaming, and development timing middleware
 - **API Routes**: All new API endpoints MUST be created as tRPC routers in `/src/server/api/routers/`
   - Do NOT create new REST endpoints in `/src/app/api/` (except webhooks or third-party integrations)
