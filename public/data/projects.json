@@ -18,7 +18,7 @@
     {
       "name": "meta-kb",
       "link": "https://github.com/chappyasel/meta-kb",
-      "image": "/images/projects/meta-kb.webp",
+      "image": "/images/projects/meta-kb-tile.webp",
       "meta": "Open source · 2026",
       "repo": "chappyasel/meta-kb",
       "languages": ["TypeScript", "Bun"],
@@ -27,7 +27,7 @@
     {
       "name": "This website",
       "link": "https://github.com/chappyasel/PersonalWebsite",
-      "image": "/images/stacks/home-og-scene.jpg",
+      "image": "/images/projects/this-website-tile.webp",
       "meta": "Web · open source",
       "repo": "chappyasel/PersonalWebsite",
       "languages": ["TypeScript", "Next.js", "tRPC", "three.js"],
@@ -36,7 +36,7 @@
     {
       "name": "Liar's Dice",
       "link": "/liarsdice",
-      "image": "/images/projects/liars-dice.png",
+      "image": "/images/projects/liars-dice-tile.webp",
       "meta": "Web · on this site",
       "languages": ["React", "TypeScript"],
       "description": "A calculator for Liar's Dice. Enter your hand, the dice on the table, and the current bid, and it gives the probability of every possible call so you can decide whether to raise or challenge. The odds are exact. Reading the other players is still on you."

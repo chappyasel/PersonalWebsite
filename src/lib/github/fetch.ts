@@ -25,6 +25,7 @@ const ACTIVITY_QUERY = /* GraphQL */ `
   query GitHubActivity($login: String!) {
     user(login: $login) {
       contributionsCollection {
+        contributionYears
         startedAt
         endedAt
         restrictedContributionsCount
@@ -99,6 +100,7 @@ const rawResponseSchema = z.object({
   data: z.object({
     user: z.object({
       contributionsCollection: z.object({
+        contributionYears: z.array(z.number().int()),
         startedAt: z.string(),
         endedAt: z.string(),
         restrictedContributionsCount: z.number().int(),
@@ -138,6 +140,56 @@ const rawResponseSchema = z.object({
 });
 
 type RawRepo = z.infer<typeof rawRepoSchema>;
+
+/**
+ * GitHub caps a contributionsCollection at one year, so the per-year totals
+ * behind the year bars are one aliased collection per calendar year, in a
+ * second request once the first has said which years exist.
+ */
+function yearsQuery(years: readonly number[]) {
+  const fields = years
+    .map(
+      (year) =>
+        `y${year}: contributionsCollection(from: "${year}-01-01T00:00:00Z", to: "${year}-12-31T23:59:59Z") { contributionCalendar { totalContributions } }`,
+    )
+    .join("\n");
+  return `query GitHubYears($login: String!) { user(login: $login) { ${fields} } }`;
+}
+
+const rawYearsSchema = z.object({
+  data: z.object({
+    user: z.record(
+      z.string(),
+      z.object({
+        contributionCalendar: z.object({ totalContributions: z.number().int() }),
+      }),
+    ),
+  }),
+});
+
+async function graphql(token: string, query: string, login: string) {
+  const response = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      authorization: `bearer ${token}`,
+      "content-type": "application/json",
+      "user-agent": "chappyasel.com projects placard",
+    },
+    body: JSON.stringify({ query, variables: { login } }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub GraphQL responded ${response.status}`);
+  }
+  const body: unknown = await response.json();
+  const errors = (body as { errors?: { message: string }[] }).errors;
+  if (errors?.length) {
+    throw new Error(
+      `GitHub GraphQL: ${errors.map((e) => e.message).join("; ")}`,
+    );
+  }
+  return body;
+}
 
 const LEVELS: Record<string, GitHubContributionLevel> = {
   NONE: 0,
@@ -180,26 +232,21 @@ export async function fetchGitHubActivity({
   login: string;
   now?: Date;
 }): Promise<GitHubActivity> {
-  const response = await fetch(GRAPHQL_ENDPOINT, {
-    method: "POST",
-    headers: {
-      authorization: `bearer ${token}`,
-      "content-type": "application/json",
-      "user-agent": "chappyasel.com projects placard",
-    },
-    body: JSON.stringify({ query: ACTIVITY_QUERY, variables: { login } }),
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`GitHub GraphQL responded ${response.status}`);
-  }
-  const body: unknown = await response.json();
-  const errors = (body as { errors?: { message: string }[] }).errors;
-  if (errors?.length) {
-    throw new Error(`GitHub GraphQL: ${errors.map((e) => e.message).join("; ")}`);
-  }
-  const { user } = rawResponseSchema.parse(body).data;
+  const { user } = rawResponseSchema.parse(
+    await graphql(token, ACTIVITY_QUERY, login),
+  ).data;
   const calendar = user.contributionsCollection.contributionCalendar;
+
+  const yearList = [...user.contributionsCollection.contributionYears].sort(
+    (a, b) => a - b,
+  );
+  const yearTotals = rawYearsSchema.parse(
+    await graphql(token, yearsQuery(yearList), login),
+  ).data.user;
+  const years = yearList.map((year) => ({
+    year,
+    total: yearTotals[`y${year}`]?.contributionCalendar.totalContributions ?? 0,
+  }));
 
   const activeRepos: GitHubActiveRepo[] = [];
   for (const entry of user.contributionsCollection
@@ -228,6 +275,7 @@ export async function fetchGitHubActivity({
         })),
       ),
     },
+    years,
     publicRepoCount: user.repositories.totalCount,
     repos: user.repositories.nodes
       .map(publicRepo)

@@ -62,6 +62,14 @@ export const gitHubActivitySchema = z.object({
     /** One entry per calendar day, oldest first. */
     days: z.array(contributionDaySchema),
   }),
+  /** Contributions per calendar year since the account's first, ascending.
+   * The current year is a year-to-date figure. */
+  years: z.array(
+    z.object({
+      year: z.number().int(),
+      total: z.number().int().nonnegative(),
+    }),
+  ),
   /** Public repositories under the account, forks included. */
   publicRepoCount: z.number().int().nonnegative(),
   /** Those repositories, most recently pushed first. */
@@ -74,4 +82,5 @@ export type GitHubContributionLevel = z.infer<typeof contributionLevelSchema>;
 export type GitHubContributionDay = z.infer<typeof contributionDaySchema>;
 export type GitHubRepo = z.infer<typeof repoSchema>;
 export type GitHubActiveRepo = z.infer<typeof activeRepoSchema>;
+export type GitHubYear = GitHubActivity["years"][number];
 export type GitHubActivity = z.infer<typeof gitHubActivitySchema>;
