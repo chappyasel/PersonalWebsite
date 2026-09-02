@@ -38,6 +38,10 @@ export const VISION_RIDE_CAMERA = {
   /** Rear axle's distance behind the anchor, from the model's RL/RR wheel
    * nodes; the nearest ground contact the chase camera has to keep in frame. */
   carRearAxleMetres: 1.45,
+  /** Wheel radius from the model's wheel nodes (their scale, 0.339 front and
+   * 0.357 rear, is the decode of a unit sphere); the spin rate is road speed
+   * over this. */
+  wheelRadiusMetres: 0.35,
   /** Half-width of the body proper, mirrors excluded, from the model. The
    * lateral shift is capped so this much of the rear stays inside the frame;
    * a mirror tip leaving the edge is invisible, a fender is not. */

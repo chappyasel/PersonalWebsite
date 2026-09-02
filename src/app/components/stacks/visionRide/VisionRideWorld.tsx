@@ -83,7 +83,7 @@ const skyColorGlsl = (palette: VisionRidePalette) => `
     vec3 magenta = ${glslVec3(palette.skyMagenta)};
     vec3 pink = ${glslVec3(palette.skyPink)};
     vec3 coral = mix(${glslVec3(palette.skyHorizon)}, ${glslVec3(palette.skyHorizonCrest)}, breath);
-    vec3 below = vec3(0.10, 0.02, 0.19);
+    vec3 below = ${glslVec3(palette.skyBelow)};
     vec3 color = mix(pink, magenta, smoothstep(0.035, 0.11 + lift, h));
     color = mix(color, violet, smoothstep(0.11 + lift, 0.20 + lift, h));
     color = mix(color, purple, smoothstep(0.19 + lift, 0.32 + lift, h));
@@ -132,7 +132,7 @@ const STAR_VERTEX = `
 // halo, and heroes add a four-point cross that decays along each arm. A
 // radial feather takes everything to zero before the sprite's edge, so the
 // cross arms fade out instead of clipping against the point's square.
-const STAR_FRAGMENT = `
+const starFragment = (palette: VisionRidePalette) => `
   varying float vSize;
   varying float vTwinkle;
   void main() {
@@ -152,7 +152,7 @@ const STAR_FRAGMENT = `
     float feather = 1.0 - smoothstep(${VISION_RIDE_STAR_FEATHER.start.toFixed(2)}, ${VISION_RIDE_STAR_FEATHER.end.toFixed(2)}, r);
     float alpha = (core + halo + rays) * vTwinkle * feather;
     if (alpha < 0.01) discard;
-    vec3 color = mix(vec3(1.0, 0.95, 0.98), vec3(0.86, 0.90, 1.0), hero * 0.5);
+    vec3 color = mix(${glslVec3(palette.starCore)}, ${glslVec3(palette.starHero)}, hero * 0.5);
     gl_FragColor = vec4(color, min(alpha, 1.0));
   }
 `;
@@ -165,7 +165,10 @@ const SUN_VERTEX = `
   }
 `;
 
-const sunFragment = (palette: VisionRidePalette) => `
+const sunFragment = (
+  palette: VisionRidePalette,
+  style: VisionRideProfile["sunStyle"],
+) => `
   varying vec2 vUv;
   uniform float uTime;
   uniform float uMotion;
@@ -197,20 +200,20 @@ const sunFragment = (palette: VisionRidePalette) => `
     float stripeRegion = 1.0 - smoothstep(0.64, 0.70, vUv.y);
     // One band drifts upward roughly every three seconds. uMotion freezes the
     // scan pattern for visitors who prefer reduced motion.
-    float bandPhase = fract((vUv.y + 0.018) * 18.0 - uTime * 0.32 * uMotion);
-    float grooveWidth = mix(0.055, 0.20, smoothstep(0.30, 0.95, lower));
+    float bandPhase = fract((vUv.y + 0.018) * ${style.bandCount.toFixed(1)} - uTime * ${style.bandSpeed.toFixed(2)} * uMotion);
+    float grooveWidth = mix(${style.grooveMin.toFixed(3)}, ${style.grooveMax.toFixed(3)}, smoothstep(0.30, 0.95, lower));
     float signedBand = bandPhase < 0.5 ? bandPhase : bandPhase - 1.0;
     float bandDistance = abs(signedBand);
     float halfGroove = grooveWidth * 0.5;
-    float feather = max(fwidth(vUv.y * 18.0) * 1.5, 0.018);
+    float feather = max(fwidth(vUv.y * ${style.bandCount.toFixed(1)}) * 1.5, 0.018);
     float groove = 1.0 - smoothstep(
       halfGroove,
       halfGroove + feather,
       bandDistance
     );
     groove *= stripeRegion;
-    vec3 grooveTop = vec3(0.86, 0.34, 0.055);
-    vec3 grooveBottom = vec3(0.78, 0.005, 0.72);
+    vec3 grooveTop = ${glslVec3(palette.sunGrooveTop)};
+    vec3 grooveBottom = ${glslVec3(palette.sunGrooveBottom)};
     vec3 grooveColor = mix(grooveBottom, grooveTop, smoothstep(0.2, 0.82, vUv.y));
     color = mix(color, grooveColor, groove * 0.64);
 
@@ -221,7 +224,7 @@ const sunFragment = (palette: VisionRidePalette) => `
       stripeRegion;
     float upperBevel = bevel * smoothstep(-feather, feather, signedBand);
     float lowerBevel = bevel * (1.0 - smoothstep(-feather, feather, signedBand));
-    color += vec3(1.0, 0.48, 0.16) * upperBevel * 0.16;
+    color += ${glslVec3(palette.sunBevel)} * upperBevel * 0.16;
     color *= 1.0 - lowerBevel * 0.18;
 
     // Solid bands are HDR; painted grooves deliberately stay below the bloom
@@ -251,7 +254,6 @@ const sunGlowFragment = (palette: VisionRidePalette) => `
 `;
 
 const GRID_CELL_METRES = VISION_RIDE_GRID_CELL_METRES;
-const GRID_LINE_WIDTH_PX = 1.7;
 
 // Road and mountain fills use this exact screen-space mix. gl_FragCoord is
 // measured in drawing-buffer pixels, so the matching viewport-height uniform
@@ -269,7 +271,7 @@ const surfaceGradientGlsl = (palette: VisionRidePalette) => `
   }
 `;
 
-const LANDSCAPE_VERTEX = `
+const landscapeVertex = (terrain: VisionRideProfile["terrain"]) => `
   varying vec2 vUv;
   varying vec2 vFacetUv;
   varying float vMountain;
@@ -279,7 +281,10 @@ const LANDSCAPE_VERTEX = `
   void main() {
     // These are the mesh's own metre-grid coordinates. The road and mountain
     // vertices therefore cannot restart or drift apart at the shoulder.
-    vUv = vec2(position.x, -position.z) / ${GRID_CELL_METRES.toFixed(3)};
+    vUv = vec2(
+      position.x / ${(GRID_CELL_METRES * terrain.gridCellXScale).toFixed(3)},
+      -position.z / ${(GRID_CELL_METRES * terrain.gridCellYScale).toFixed(3)}
+    );
     float outsideRoad = max(0.0, abs(position.x) - ${VISION_RIDE_ROAD_HALF_WIDTH.toFixed(1)});
     vFacetUv = vec2(
       outsideRoad / ${VISION_RIDE_MOUNTAIN_FACET_WIDTH_METRES.toFixed(3)},
@@ -299,7 +304,11 @@ const LANDSCAPE_VERTEX = `
 // cyan wire on top.
 // Lines dim with distance before fwidth would fuse them into a solid blue
 // plane. The shared dither keeps both dark surfaces in the same bands.
-const landscapeFragment = (palette: VisionRidePalette) => `
+const landscapeFragment = (
+  palette: VisionRidePalette,
+  lineWidthPx: number,
+  lineOpacity: number,
+) => `
   varying vec2 vUv;
   varying vec2 vFacetUv;
   varying float vMountain;
@@ -312,7 +321,7 @@ const landscapeFragment = (palette: VisionRidePalette) => `
   void main() {
     // fwidth converts the metric grid into screen derivatives, so this is a
     // constant pixel width from the foreground through the horizon.
-    vec2 cell = abs(fract(vUv + 0.5) - 0.5) / max(fwidth(vUv) * ${GRID_LINE_WIDTH_PX.toFixed(1)}, vec2(0.001));
+    vec2 cell = abs(fract(vUv + 0.5) - 0.5) / max(fwidth(vUv) * ${lineWidthPx.toFixed(2)}, vec2(0.001));
     float edge = min(min(cell.x, cell.y), 4.0);
     float distanceFade = 1.0 - smoothstep(0.35, 0.95, vDepth);
     float line = (1.0 - min(edge, 1.0)) * distanceFade;
@@ -321,16 +330,17 @@ const landscapeFragment = (palette: VisionRidePalette) => `
     // expose the large low-poly planes present in the reference.
     vec2 facet = fract(vFacetUv);
     vec2 facetBoundary = min(facet, 1.0 - facet) /
-      max(fwidth(vFacetUv) * ${GRID_LINE_WIDTH_PX.toFixed(1)}, vec2(0.001));
+      max(fwidth(vFacetUv) * ${lineWidthPx.toFixed(2)}, vec2(0.001));
     float diagonal = abs(facet.x + facet.y - 1.0) /
-      max(fwidth(vFacetUv.x + vFacetUv.y) * ${GRID_LINE_WIDTH_PX.toFixed(1)}, 0.001);
+      max(fwidth(vFacetUv.x + vFacetUv.y) * ${lineWidthPx.toFixed(2)}, 0.001);
     float facetEdge = min(min(facetBoundary.x, facetBoundary.y), diagonal);
     float facetLine = (1.0 - min(facetEdge, 1.0)) * vMountain * distanceFade;
     line = max(line, facetLine);
     float glow = max(0.0, 1.0 - edge * 0.5) * 0.06;
     vec3 base = surfaceColor();
     vec3 neon = ${glslVec3(palette.roadLine)};
-    vec3 color = mix(base, neon, max(line, glow));
+    float wire = max(line, glow) * ${lineOpacity.toFixed(2)};
+    vec3 color = mix(base, neon, wire);
     // Custom view-space fog is intentional: the parent scene's short-range
     // room fog is not calibrated for this 190 m chase. Applying it here also
     // guarantees the road and both mountain flanks haze as one surface.
@@ -458,9 +468,13 @@ function RetrowaveSky({
     () => skyFragment(profile.palette),
     [profile.palette],
   );
-  const discShader = useMemo(
-    () => sunFragment(profile.palette),
+  const starsShader = useMemo(
+    () => starFragment(profile.palette),
     [profile.palette],
+  );
+  const discShader = useMemo(
+    () => sunFragment(profile.palette, profile.sunStyle),
+    [profile.palette, profile.sunStyle],
   );
   const glowShader = useMemo(
     () => sunGlowFragment(profile.palette),
@@ -488,6 +502,7 @@ function RetrowaveSky({
       >
         <sphereGeometry args={[1, 32, 18]} />
         <shaderMaterial
+          key={skyShader}
           ref={skyMaterial}
           side={THREE.BackSide}
           depthWrite={false}
@@ -507,6 +522,7 @@ function RetrowaveSky({
           />
         </bufferGeometry>
         <shaderMaterial
+          key={starsShader}
           ref={starMaterial}
           depthWrite={false}
           toneMapped={false}
@@ -517,7 +533,7 @@ function RetrowaveSky({
             uMotion: { value: reducedMotion ? 0 : 1 },
           }}
           vertexShader={STAR_VERTEX}
-          fragmentShader={STAR_FRAGMENT}
+          fragmentShader={starsShader}
         />
       </points>
       <group
@@ -537,6 +553,7 @@ function RetrowaveSky({
             ]}
           />
           <shaderMaterial
+            key={glowShader}
             transparent
             depthWrite={false}
             toneMapped={false}
@@ -556,6 +573,7 @@ function RetrowaveSky({
               when this material participates in the transparent queue.
               Explicit ordering still keeps the disc behind the terrain. */}
           <shaderMaterial
+            key={discShader}
             ref={sunMaterial}
             transparent
             depthWrite={false}
@@ -610,10 +628,14 @@ function UnifiedLandscape({
           uViewportHeight: { value: viewportHeight },
           uBreath: { value: 0 },
         },
-        vertexShader: LANDSCAPE_VERTEX,
-        fragmentShader: landscapeFragment(profile.palette),
+        vertexShader: landscapeVertex(profile.terrain),
+        fragmentShader: landscapeFragment(
+          profile.palette,
+          profile.terrain.lineWidthPx,
+          profile.terrain.lineOpacity,
+        ),
       }),
-    [profile.palette, viewportHeight],
+    [profile.palette, profile.terrain, viewportHeight],
   );
 
   useEffect(
@@ -643,6 +665,7 @@ function UnifiedLandscape({
         geometry={geometry}
         material={material}
         position={[0, -0.02, 0]}
+        scale={[1, profile.terrain.heightScale, 1]}
         frustumCulled={false}
         renderOrder={ORDER.mountains}
       />
@@ -651,6 +674,7 @@ function UnifiedLandscape({
         geometry={geometry}
         material={material}
         position={[0, -0.02, -VISION_RIDE_PERIOD_METRES]}
+        scale={[1, profile.terrain.heightScale, 1]}
         frustumCulled={false}
         renderOrder={ORDER.mountains}
       />
@@ -659,6 +683,7 @@ function UnifiedLandscape({
         geometry={geometry}
         material={material}
         position={[0, -0.02, -VISION_RIDE_PERIOD_METRES * 2]}
+        scale={[1, profile.terrain.heightScale, 1]}
         frustumCulled={false}
         renderOrder={ORDER.mountains}
       />
@@ -675,9 +700,13 @@ function Lamborghini({
 }) {
   const { scene } = useGLTF(VISION_RIDE_CAR_URL, false);
   const root = useRef<THREE.Group>(null);
-  const wheels = useRef<THREE.Object3D[]>([]);
-  const car = useMemo(() => {
+  // The wheels travel with the car they were cloned from. They used to live
+  // in a ref that the memo filled and the effect cleanup emptied; when the
+  // profile changes React runs the old cleanup after the new memo, so the
+  // list was wiped and the wheels stopped turning.
+  const { car, wheels } = useMemo(() => {
     const clone = scene.clone(true);
+    const wheels: THREE.Object3D[] = [];
     clone.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const mesh = object as THREE.Mesh<
@@ -696,14 +725,14 @@ function Lamborghini({
         }
         mesh.geometry = geometry;
         mesh.material = new THREE.MeshStandardMaterial({
-          color: "#10071c",
+          color: profile.car.wheel,
           metalness: 0.42,
           roughness: 0.48,
         });
-        wheels.current.push(mesh);
+        wheels.push(mesh);
       } else if (mesh.name.includes("Glass")) {
         mesh.material = new THREE.MeshPhysicalMaterial({
-          color: "#071330",
+          color: profile.car.glass,
           metalness: 0.18,
           roughness: 0.14,
           transparent: true,
@@ -714,7 +743,7 @@ function Lamborghini({
           ? mesh.material[0]
           : mesh.material;
         mesh.material = new THREE.MeshPhysicalMaterial({
-          color: "#ffffff",
+          color: profile.car.body,
           map: source instanceof THREE.MeshStandardMaterial ? source.map : null,
           metalness: 0.5,
           roughness: 0.27,
@@ -723,8 +752,8 @@ function Lamborghini({
         });
       }
     });
-    return clone;
-  }, [scene]);
+    return { car: clone, wheels };
+  }, [profile.car, scene]);
 
   useEffect(
     () => () => {
@@ -740,7 +769,6 @@ function Lamborghini({
         for (const material of materials) material.dispose();
         if (mesh.name.includes("Wheel")) mesh.geometry.dispose();
       });
-      wheels.current = [];
     },
     [car],
   );
@@ -749,21 +777,24 @@ function Lamborghini({
     const group = root.current;
     if (!group) return;
     const time = reducedMotion ? 0 : state.clock.elapsedTime;
-    const motion = profile.carMotionScale;
     group.position.y = reducedMotion
       ? 0
-      : 0.035 + Math.sin(time * 3.1 * motion) * 0.025 * motion;
+      : 0.035 +
+        Math.sin(time * profile.car.bounceRate) * profile.car.bounceAmount;
     group.position.x = reducedMotion
       ? 0
-      : Math.sin(time * 0.42 * motion) * 0.22 * motion;
+      : Math.sin(time * profile.car.weaveRate) * profile.car.weaveAmount;
     group.rotation.z = reducedMotion
       ? 0
-      : Math.sin(time * 0.83 * motion) * 0.008 * motion;
+      : Math.sin(time * profile.car.rollRate) * profile.car.rollAmount;
+    // Wheels roll at the road speed: angular rate is speed over radius. The
+    // model faces -z after the group's half turn, so its wheel axle is world
+    // -x, and rolling forward is a positive turn about the mesh's own x.
     if (!reducedMotion)
-      for (const wheel of wheels.current)
-        wheel.rotation.x -=
-          0.12 * 60 * Math.min(delta, 1 / 20) *
-          (profile.speedMetresPerSecond / 12);
+      for (const wheel of wheels)
+        wheel.rotation.x +=
+          (profile.speedMetresPerSecond / VISION_RIDE_CAMERA.wheelRadiusMetres) *
+          Math.min(delta, 1 / 20);
   });
 
   return (

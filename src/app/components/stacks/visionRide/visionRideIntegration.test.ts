@@ -72,7 +72,10 @@ describe("Vision ride integration", () => {
     expect(world).toContain("palette.skyTop");
     expect(world).toContain("palette.sunTop");
     expect(world).toContain("440.0, hero");
-    expect(world).toContain("fwidth(vUv) * ${GRID_LINE_WIDTH_PX.toFixed(1)}");
+    expect(world).toContain("fwidth(vUv) * ${lineWidthPx.toFixed(2)}");
+    expect(world).toContain(
+      "float wire = max(line, glow) * ${lineOpacity.toFixed(2)}",
+    );
     expect(world).toContain("VISION_RIDE_SUN_DIAMETER_METRES,");
     expect(world).toContain("VISION_RIDE_SUN_DIAMETER_METRES * 1.5");
     expect(world).toContain("-VISION_RIDE_SUN_DEPTH_METRES");
@@ -158,6 +161,15 @@ describe("Vision ride integration", () => {
     expect(world).toContain("lateralReach(");
     expect(world).toContain("parallax.current.x * intro,\n      -reach,\n      reach,");
     expect(world).toContain("pose.aim[0] + chaseAimX(shiftX)");
+    // The wheels are returned by the car memo, not kept in a ref the effect
+    // cleanup empties: a profile change ran the old cleanup after the new
+    // memo and the wheels stopped turning.
+    expect(world).toContain("const { car, wheels } = useMemo(() => {");
+    expect(world).toContain("return { car: clone, wheels };");
+    expect(world).not.toContain("wheels.current");
+    expect(world).toContain(
+      "profile.speedMetresPerSecond / VISION_RIDE_CAMERA.wheelRadiusMetres",
+    );
     expect(world).toContain('useStacks.getState().visionRidePhase !== "cruising"');
     expect(world).toContain('document.addEventListener("visibilitychange", onVisibility)');
     // lookAt pins the car's nominal position on every viewport, and the
@@ -181,10 +193,12 @@ describe("Vision ride integration", () => {
     );
     // Grid coordinates come from the shared mesh and its three recycled
     // instances move together. There is no independent scrolling texture.
-    expect(world).toContain("vUv = vec2(position.x, -position.z)");
+    expect(world).toContain("const landscapeVertex = (terrain:");
+    expect(world).toContain("position.x / ${(GRID_CELL_METRES * terrain.gridCellXScale)");
+    expect(world).toContain("-position.z / ${(GRID_CELL_METRES * terrain.gridCellYScale)");
     expect(world).toContain("mountainWindowOffsets(travel)");
     expect(world).not.toContain("uniform float uTravel");
-    expect(world).toContain("/ ${GRID_CELL_METRES.toFixed(3)}");
+    expect(world).toContain("profile.terrain.heightScale");
     // lookAt still pins the car's nominal x and z; only the aim height moves,
     // and only to keep the car's rear inside the frame.
     expect(world).toMatch(
@@ -225,10 +239,10 @@ describe("Vision ride integration", () => {
     expect(shader).toContain("float grooveWidth");
     expect(shader).toContain("float stripeRegion");
     expect(shader).toContain("groove *= stripeRegion");
-    expect(shader).toContain("fwidth(vUv.y * 18.0)");
+    expect(shader).toContain("fwidth(vUv.y * ${style.bandCount.toFixed(1)})");
     expect(shader).toContain("float upperBevel");
     expect(shader).toContain("float lowerBevel");
-    expect(shader).toContain("uTime * 0.32 * uMotion");
+    expect(shader).toContain("uTime * ${style.bandSpeed.toFixed(2)} * uMotion");
     expect(world).toContain("ref={sunMaterial}");
     expect(world).toContain("uMotion: { value: reducedMotion ? 0 : 1 }");
     expect(shader).toContain("vec3 grooveColor");
@@ -238,6 +252,15 @@ describe("Vision ride integration", () => {
     expect(world).toContain("VISION_RIDE_SUN_DIAMETER_METRES * 1.5");
     expect(world).toContain("vec3 sunColor");
     expect(world).toContain("only honors the circular alpha");
+  });
+
+  it("recompiles every profile-authored sky material when its shader changes", () => {
+    const world = read("./VisionRideWorld.tsx");
+
+    expect(world).toContain("key={skyShader}");
+    expect(world).toContain("key={starsShader}");
+    expect(world).toContain("key={glowShader}");
+    expect(world).toContain("key={discShader}");
   });
 
   it("feeds the HDR sun into stronger ride-specific shared bloom", () => {

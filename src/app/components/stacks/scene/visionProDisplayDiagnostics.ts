@@ -43,9 +43,9 @@ export function createVisionProDisplayDiagnosticsController() {
   });
 }
 
-/** Session-only diagnostic state. Future authored triggers can choose a
- * variant without turning the experiment on; the Render control remains the
- * gate until the front display is approved for production. */
+/** Session-only display state. Authored triggers choose the artwork while the
+ * shelf interaction owns its dim hover wake; enabled means the display has
+ * been latched fully on by activation or the Render diagnostic. */
 export const visionProDisplayDiagnosticsController =
   createVisionProDisplayDiagnosticsController();
 
@@ -63,5 +63,13 @@ export function useVisionProDisplayVariant() {
         visionProDisplayDiagnosticsController.getSnapshot(),
       ),
     () => "dormant" as const,
+  );
+}
+
+export function useVisionProDisplaySnapshot() {
+  return useSyncExternalStore(
+    visionProDisplayDiagnosticsController.subscribe,
+    visionProDisplayDiagnosticsController.getSnapshot,
+    () => DEFAULT_VISION_PRO_DISPLAY_DIAGNOSTICS,
   );
 }

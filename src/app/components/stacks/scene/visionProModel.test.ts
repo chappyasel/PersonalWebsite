@@ -10,6 +10,7 @@ import {
   createVisionProDisplayGeometry,
   createVisionProDisplayTexture,
   tuneVisionProMaterial,
+  visionProDisplayWakeBrightness,
   visionProDisplayPixel,
 } from "./VisionProProp";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
@@ -137,7 +138,7 @@ describe("Vision Pro web model", () => {
     texture.dispose();
   });
 
-  it("masks the display into two colored lobes with a nose cutout", () => {
+  it("masks the display to the glass crown, temples, and nose relief", () => {
     const corner = visionProDisplayPixel(0, 0);
     const nose = visionProDisplayPixel(0.5, 0.2);
     const bridge = visionProDisplayPixel(0.5, 0.68);
@@ -146,24 +147,44 @@ describe("Vision Pro web model", () => {
 
     expect(corner[3]).toBe(0);
     expect(nose[3]).toBe(0);
-    expect(bridge[3]).toBeGreaterThan(240);
+    expect(bridge[3]).toBeGreaterThan(180);
     expect(left[3]).toBeGreaterThan(240);
     expect(right[3]).toBeGreaterThan(240);
     expect(left[0]).toBeGreaterThan(left[2]);
     expect(right[2]).toBeGreaterThan(right[0]);
   });
 
-  it("renders coherent retrowave, 8-bit, and 16-bit display variants", () => {
+  it("feathers the display beneath the smoked-glass perimeter", () => {
+    const outsideTemple = visionProDisplayPixel(0, 0.55);
+    const softTemple = visionProDisplayPixel(0.04, 0.55);
+    const innerTemple = visionProDisplayPixel(0.1, 0.55);
+    const lobeCore = visionProDisplayPixel(0.31, 0.55);
+    const softCrown = visionProDisplayPixel(0.5, 0.89);
+    const innerCrown = visionProDisplayPixel(0.5, 0.82);
+    const softNose = visionProDisplayPixel(0.5, 0.52);
+
+    expect(outsideTemple[3]).toBeLessThan(3);
+    expect(softTemple[3]).toBeGreaterThan(0);
+    expect(softTemple[3]).toBeLessThan(innerTemple[3]);
+    expect(innerTemple[3]).toBeLessThan(lobeCore[3]);
+    expect(softCrown[3]).toBeGreaterThan(0);
+    expect(softCrown[3]).toBeLessThan(innerCrown[3]);
+    expect(softNose[3]).toBeGreaterThan(0);
+    expect(softNose[3]).toBeLessThan(240);
+  });
+
+  it("renders a coherent retrowave display and dormant state", () => {
     const retrowave = visionProDisplayPixel(0.34, 0.74, "retrowave");
-    const eightBitA = visionProDisplayPixel(0.311, 0.72, "8-bit");
-    const eightBitB = visionProDisplayPixel(0.312, 0.73, "8-bit");
-    const sixteenBit = visionProDisplayPixel(0.34, 0.74, "16-bit");
     const dormant = visionProDisplayPixel(0.34, 0.74, "dormant");
 
-    expect(retrowave[3]).toBeGreaterThan(240);
-    expect(eightBitA.slice(0, 3)).toEqual(eightBitB.slice(0, 3));
-    expect(sixteenBit.slice(0, 3)).not.toEqual(retrowave.slice(0, 3));
+    expect(retrowave[3]).toBeGreaterThan(180);
     expect(dormant).toEqual([0, 0, 0, 0]);
+  });
+
+  it("wakes dimly on hover or focus and latches fully on activation", () => {
+    expect(visionProDisplayWakeBrightness(false, false)).toBe(0);
+    expect(visionProDisplayWakeBrightness(false, true)).toBeCloseTo(0.3, 6);
+    expect(visionProDisplayWakeBrightness(true, false)).toBe(1);
   });
 
   it("gives each authored room modifier a distinct front-display preview", () => {
@@ -178,17 +199,17 @@ describe("Vision Pro web model", () => {
     expect(night[2]).toBeGreaterThan(night[0]);
   });
 
-  it("keeps variant selection independent from the experimental enable gate", () => {
+  it("keeps variant selection independent from the latch", () => {
     const controller = createVisionProDisplayDiagnosticsController();
     let notifications = 0;
     controller.subscribe(() => {
       notifications += 1;
     });
 
-    controller.setVariant("16-bit");
+    controller.setVariant("golf");
     expect(controller.getSnapshot()).toEqual({
       enabled: false,
-      variant: "16-bit",
+      variant: "golf",
     });
     expect(resolveVisionProDisplayVariant(controller.getSnapshot())).toBe(
       "dormant",
@@ -196,24 +217,22 @@ describe("Vision Pro web model", () => {
 
     controller.setEnabled(true);
     expect(resolveVisionProDisplayVariant(controller.getSnapshot())).toBe(
-      "16-bit",
+      "golf",
     );
     expect(notifications).toBe(2);
   });
 
-  it("uses nearest filtering for the pixel-treated textures", () => {
+  it("lets the scene-level finish pixelate every display texture", () => {
     const retrowave = createVisionProDisplayTexture("retrowave");
-    const eightBit = createVisionProDisplayTexture("8-bit");
-    const sixteenBit = createVisionProDisplayTexture("16-bit");
+    const golf = createVisionProDisplayTexture("golf");
 
     expect(retrowave.magFilter).toBe(THREE.LinearFilter);
-    expect(eightBit.magFilter).toBe(THREE.NearestFilter);
-    expect(sixteenBit.magFilter).toBe(THREE.NearestFilter);
-    expect(eightBit.generateMipmaps).toBe(false);
+    expect(golf.magFilter).toBe(THREE.LinearFilter);
+    expect(retrowave.generateMipmaps).toBe(true);
+    expect(golf.generateMipmaps).toBe(true);
 
     retrowave.dispose();
-    eightBit.dispose();
-    sixteenBit.dispose();
+    golf.dispose();
   });
 
   it("projects UVs onto the source display primitive that ships without them", async () => {

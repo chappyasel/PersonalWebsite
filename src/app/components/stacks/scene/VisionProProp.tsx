@@ -1,14 +1,16 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
+import { useStacks } from "../store";
 import {
+  type ActiveVisionProDisplayVariant,
   type VisionProDisplayVariant,
   createVisionProDisplayTexture,
 } from "./visionProDisplay";
-import { useVisionProDisplayVariant } from "./visionProDisplayDiagnostics";
+import { useVisionProDisplaySnapshot } from "./visionProDisplayDiagnostics";
 import { VISION_PRO_MODEL_URL, VISION_PRO_POSE } from "./visionProGeometry";
 
 export {
@@ -49,7 +51,28 @@ type VisionProMaterialOptions = Readonly<{
   dark: boolean;
   displayVariant?: VisionProDisplayVariant;
   displayTexture?: THREE.Texture | null;
+  displayBrightness?: number;
 }>;
+
+const VISION_PRO_INTERACTION_ID = "action:about:vision-ride";
+const VISION_PRO_HOVER_BRIGHTNESS = 0.3;
+
+export function visionProDisplayWakeBrightness(
+  enabled: boolean,
+  engaged: boolean,
+) {
+  return enabled ? 1 : engaged ? VISION_PRO_HOVER_BRIGHTNESS : 0;
+}
+
+function applyVisionProDisplayBrightness(
+  material: THREE.MeshStandardMaterial,
+  dark: boolean,
+  brightness: number,
+) {
+  material.visible = brightness > 0.001;
+  material.emissiveIntensity = (dark ? 0.82 : 0.7) * brightness;
+  material.opacity = 0.8 * brightness;
+}
 
 export function tuneVisionProMaterial(
   material: THREE.Material,
@@ -57,6 +80,7 @@ export function tuneVisionProMaterial(
     dark,
     displayVariant = "dormant",
     displayTexture = null,
+    displayBrightness = 1,
   }: VisionProMaterialOptions,
 ) {
   if (!(material instanceof THREE.MeshStandardMaterial)) return;
@@ -85,13 +109,12 @@ export function tuneVisionProMaterial(
     }
     material.color.set("#7b6874");
     material.emissive.set("#ffffff");
-    material.emissiveIntensity = dark ? 0.88 : 0.74;
-    material.opacity = 0.86;
     material.transparent = true;
     material.depthWrite = false;
-    material.alphaTest = 0.01;
+    material.alphaTest = 0;
     material.map = displayTexture;
     material.emissiveMap = displayTexture;
+    applyVisionProDisplayBrightness(material, dark, displayBrightness);
     material.needsUpdate = true;
   }
 }
@@ -102,13 +125,33 @@ export function tuneVisionProMaterial(
  * intentionally excluded from the shelf export. */
 export function VisionProProp({ dark }: { dark: boolean }) {
   const { scene } = useGLTF(VISION_PRO_MODEL_URL, false);
-  const displayVariant = useVisionProDisplayVariant();
+  const displaySnapshot = useVisionProDisplaySnapshot();
+  const engaged = useStacks(
+    (state) =>
+      state.hovered === VISION_PRO_INTERACTION_ID ||
+      state.focusedInteraction === VISION_PRO_INTERACTION_ID ||
+      state.pressedInteraction === VISION_PRO_INTERACTION_ID,
+  );
+  const targetBrightness = visionProDisplayWakeBrightness(
+    displaySnapshot.enabled,
+    engaged,
+  );
+  const brightnessRef = useRef(displaySnapshot.enabled ? 1 : 0);
+  const [renderedVariant, setRenderedVariant] =
+    useState<ActiveVisionProDisplayVariant | null>(() =>
+      displaySnapshot.enabled ? displaySnapshot.variant : null,
+    );
+
+  useEffect(() => {
+    if (targetBrightness > 0) setRenderedVariant(displaySnapshot.variant);
+  }, [displaySnapshot.variant, targetBrightness]);
+
   const displayTexture = useMemo(
     () =>
-      displayVariant === "dormant"
+      renderedVariant === null
         ? null
-        : createVisionProDisplayTexture(displayVariant),
-    [displayVariant],
+        : createVisionProDisplayTexture(renderedVariant),
+    [renderedVariant],
   );
   const model = useMemo(() => {
     const clone = scene.clone(true);
@@ -133,12 +176,57 @@ export function VisionProProp({ dark }: { dark: boolean }) {
         tuneVisionProMaterial(material, {
           dark,
           displayTexture,
-          displayVariant,
+          displayVariant: renderedVariant ?? "dormant",
+          displayBrightness: brightnessRef.current,
         });
       }
     });
     return clone;
-  }, [dark, displayTexture, displayVariant, scene]);
+  }, [dark, displayTexture, renderedVariant, scene]);
+
+  useEffect(() => {
+    if (!displayTexture) return;
+    const materials: THREE.MeshStandardMaterial[] = [];
+    model.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const meshMaterials = Array.isArray(object.material)
+        ? object.material
+        : [object.material];
+      for (const material of meshMaterials) {
+        if (
+          material instanceof THREE.MeshStandardMaterial &&
+          material.name === "1708700653640"
+        )
+          materials.push(material);
+      }
+    });
+
+    const start = brightnessRef.current;
+    const delta = targetBrightness - start;
+    if (Math.abs(delta) < 0.001) {
+      if (targetBrightness === 0) setRenderedVariant(null);
+      return;
+    }
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const duration = reducedMotion ? 120 : delta > 0 ? 350 : 500;
+    let frame = 0;
+    let startedAt = 0;
+    const animate = (now: number) => {
+      if (startedAt === 0) startedAt = now;
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = progress * progress * (3 - 2 * progress);
+      const brightness = start + delta * eased;
+      brightnessRef.current = brightness;
+      for (const material of materials)
+        applyVisionProDisplayBrightness(material, dark, brightness);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+      else if (targetBrightness === 0) setRenderedVariant(null);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [dark, displayTexture, model, targetBrightness]);
 
   useEffect(
     () => () => {

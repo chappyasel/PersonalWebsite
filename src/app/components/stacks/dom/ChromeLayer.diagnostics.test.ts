@@ -60,17 +60,25 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('role="tabpanel"');
   });
 
-  it("keeps the experimental Vision Pro display behind a live default-off control", () => {
+  it("keeps the Vision Pro wake display behind live session controls", () => {
+    const frontDisplayControls = registrySource.slice(
+      registrySource.indexOf('id: "render.vision-pro-display"'),
+      registrySource.indexOf('id: "render.vision-ride"'),
+    );
     expect(registrySource).toContain('id: "render.vision-pro-display"');
-    expect(registrySource).toContain('label: "Vision Pro front display"');
+    expect(registrySource).toContain('label: "Latch Vision Pro display"');
     expect(registrySource).toContain(
       "visionProDisplayDiagnosticsController.setEnabled",
     );
     expect(registrySource).toContain('id: "render.vision-pro-display-variant"');
     expect(registrySource).toContain('{ value: "3:45", label: "3:45" }');
     expect(registrySource).toContain('{ value: "golf", label: "Golf" }');
-    expect(registrySource).toContain('{ value: "8-bit", label: "8-bit" }');
-    expect(registrySource).toContain('{ value: "16-bit", label: "16-bit" }');
+    expect(frontDisplayControls).not.toContain(
+      '{ value: "8-bit", label: "8-bit" }',
+    );
+    expect(frontDisplayControls).not.toContain(
+      '{ value: "16-bit", label: "16-bit" }',
+    );
     expect(registrySource).toContain("defaultValue: false");
     expect(registrySource).toContain("renderTargetAllocations: 0");
     expect(registrySource).toContain("textureSamples: 0");

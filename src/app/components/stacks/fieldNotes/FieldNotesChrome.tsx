@@ -1616,6 +1616,15 @@ function StampPage({
   );
 }
 
+function BlankAlbumPage() {
+  return (
+    <section
+      aria-hidden
+      className="field-notes-blank-page field-notes-page field-notes-album-paper relative h-[var(--field-notes-page-height)] bg-[#f2e7cf] shadow-[inset_0_0_32px_rgba(91,63,32,0.08)]"
+    />
+  );
+}
+
 function PageTurnButton({
   direction,
   disabled,
@@ -1900,6 +1909,11 @@ export function CompactAlbum({
         stampsPerPage={DESKTOP_STAMPS_PER_PAGE}
       />
     )),
+    // A real endpaper keeps the cover from showing through and masks the
+    // destination page until the final left-hand leaf has turned back.
+    ...((DESKTOP_STAMP_PAGE_COUNT + 1) % 2 === 1
+      ? [<BlankAlbumPage key="desktop:blank" />]
+      : []),
   ];
   const mobilePages = [
     <OverviewPage key="mobile:overview" progress={progress} />,

@@ -1,15 +1,11 @@
 import * as THREE from "three";
 
-import { DB32_PALETTE } from "./pixelArt";
-
 export type VisionProDisplayVariant =
   | "dormant"
   | "retrowave"
   | "3:45"
   | "redline"
-  | "golf"
-  | "8-bit"
-  | "16-bit";
+  | "golf";
 
 export type ActiveVisionProDisplayVariant = Exclude<
   VisionProDisplayVariant,
@@ -32,15 +28,45 @@ function mix(from: number, to: number, amount: number) {
   return from + (to - from) * amount;
 }
 
-/** The soft two-lobed shape visible beneath the headset's smoked visor. */
+/** A diffused light field beneath the front glass. Two wide Gaussian lobes
+ * blend through the bridge, then a much softer visor contour keeps their
+ * faint tails off the source model's rectangular display strip. This avoids
+ * a readable mask edge: the artwork dissolves through the smoked laminate
+ * before it reaches the crown, temples, or nose relief. */
 export function visionProDisplayCoverage(u: number, v: number) {
-  const leftEllipse = ((u - 0.34) / 0.31) ** 2 + ((v - 0.53) / 0.39) ** 2;
-  const rightEllipse = ((u - 0.66) / 0.31) ** 2 + ((v - 0.53) / 0.39) ** 2;
-  const outerCoverage =
-    1 - smoothstep(0.9, 1, Math.min(leftEllipse, rightEllipse));
-  const noseBoundary = 0.12 + 0.34 * Math.exp(-Math.pow((u - 0.5) / 0.105, 2));
-  const noseCoverage = smoothstep(noseBoundary, noseBoundary + 0.035, v);
-  return clamp01(outerCoverage * noseCoverage);
+  const lobe = (centerX: number) =>
+    Math.exp(
+      -Math.pow((u - centerX) / 0.24, 2) -
+        Math.pow((v - 0.56) / 0.3, 2),
+    );
+  const leftLobe = lobe(0.31);
+  const rightLobe = lobe(0.69);
+  const blendedLobes = 1 - (1 - leftLobe) * (1 - rightLobe);
+  const lightField = clamp01((blendedLobes - 0.04) / 0.8);
+
+  const horizontal = Math.abs((u - 0.5) / 0.51);
+  const templeRoll = horizontal ** 8;
+  const topBoundary =
+    0.95 - 0.03 * horizontal * horizontal - 0.13 * templeRoll;
+  const noseRelief = 0.38 * Math.exp(-Math.pow((u - 0.5) / 0.115, 2));
+  const bottomBoundary =
+    0.04 + 0.02 * horizontal * horizontal + 0.22 * templeRoll + noseRelief;
+
+  const edgeFeather = 0.16;
+  const templeCoverage = 1 - smoothstep(0.78, 1, horizontal);
+  const topCoverage = 1 - smoothstep(
+    topBoundary - edgeFeather,
+    topBoundary,
+    v,
+  );
+  const bottomCoverage = smoothstep(
+    bottomBoundary,
+    bottomBoundary + edgeFeather,
+    v,
+  );
+  return clamp01(
+    lightField * templeCoverage * topCoverage * bottomCoverage,
+  );
 }
 
 function hash2(x: number, y: number) {
@@ -145,48 +171,6 @@ function retrowaveColor(
   ];
 }
 
-const BAYER_4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5] as const;
-
-function quantize8Bit(
-  color: readonly [number, number, number],
-  blockX: number,
-  blockY: number,
-): readonly [number, number, number] {
-  const threshold =
-    (BAYER_4[(blockY % 4) * 4 + (blockX % 4)]! / 15 - 0.5) * 0.6;
-  return color.map((channel) => {
-    const value = clamp01(channel / 255 + threshold / 7);
-    return Math.round((Math.round(value * 7) / 7) * 255);
-  }) as [number, number, number];
-}
-
-function nearestDb32(
-  color: readonly [number, number, number],
-): readonly [number, number, number] {
-  let nearest = DB32_PALETTE[0]!;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const candidate of DB32_PALETTE) {
-    const red = color[0] / 255 - candidate[0];
-    const green = color[1] / 255 - candidate[1];
-    const blue = color[2] / 255 - candidate[2];
-    const distance = red * red + green * green + blue * blue;
-    if (distance >= nearestDistance) continue;
-    nearest = candidate;
-    nearestDistance = distance;
-  }
-  return nearest.map((channel) => Math.round(channel * 255)) as [
-    number,
-    number,
-    number,
-  ];
-}
-
-function snap(value: number, cells: number) {
-  return (
-    (Math.min(cells - 1, Math.floor(clamp01(value) * cells)) + 0.5) / cells
-  );
-}
-
 /** Sample one variant. Coordinates follow the texture convention, with
  * (0, 0) at the lower-left corner. Dormant returns a transparent pixel so
  * callers can resolve variants without a separate sentinel color. */
@@ -198,19 +182,7 @@ export function visionProDisplayPixel(
   if (variant === "dormant") return [0, 0, 0, 0];
 
   const alpha = Math.round(visionProDisplayCoverage(u, v) * 255);
-  if (!["8-bit", "16-bit"].includes(variant))
-    return [...retrowaveColor(u, v, variant), alpha];
-
-  const cellsX = variant === "8-bit" ? 32 : 64;
-  const cellsY = variant === "8-bit" ? 16 : 32;
-  const blockX = Math.min(cellsX - 1, Math.floor(clamp01(u) * cellsX));
-  const blockY = Math.min(cellsY - 1, Math.floor(clamp01(v) * cellsY));
-  const source = retrowaveColor(snap(u, cellsX), snap(v, cellsY));
-  const color =
-    variant === "8-bit"
-      ? quantize8Bit(source, blockX, blockY)
-      : nearestDb32(source);
-  return [...color, alpha];
+  return [...retrowaveColor(u, v, variant), alpha];
 }
 
 export function createVisionProDisplayTexture(
@@ -235,14 +207,11 @@ export function createVisionProDisplayTexture(
     VISION_PRO_DISPLAY_TEXTURE_HEIGHT,
     THREE.RGBAFormat,
   );
-  const pixelated = variant === "8-bit" || variant === "16-bit";
   texture.name = `vision-pro-display-${variant}`;
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = pixelated ? THREE.NearestFilter : THREE.LinearFilter;
-  texture.minFilter = pixelated
-    ? THREE.NearestFilter
-    : THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = !pixelated;
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
   texture.flipY = false;
   texture.needsUpdate = true;
   return texture;

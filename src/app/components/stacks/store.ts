@@ -47,24 +47,16 @@ function recordArtifactFieldNote(id: SceneArtifactId) {
 
 export const progressRef = { current: 0 };
 
-function showVisionRidePreview(
-  modifiers: VisionRideModifiers,
-  pixelLook: PixelLook,
-) {
+function selectVisionRidePreview(modifiers: VisionRideModifiers) {
   const variant =
-    pixelLook === "levels"
-      ? "8-bit"
-      : pixelLook === "palette"
-        ? "16-bit"
-        : modifiers.golf
-          ? "golf"
-          : modifiers.redline
-            ? "redline"
-            : modifiers.night
-              ? "3:45"
-              : "retrowave";
+    modifiers.golf
+      ? "golf"
+      : modifiers.redline
+        ? "redline"
+        : modifiers.night
+          ? "3:45"
+          : "retrowave";
   visionProDisplayDiagnosticsController.setVariant(variant);
-  visionProDisplayDiagnosticsController.setEnabled(true);
 }
 
 /** High-frequency coarse-pointer signals. Consumers sample these from their
@@ -285,10 +277,7 @@ export const useStacks = create<StacksState>((set) => ({
   setPixelLook: (pixelLook, pixelOrigin = null) => {
     if (pixelLook !== "off")
       recordFieldNoteEvent({ type: "pixel-look-entered", look: pixelLook });
-    set((state) => {
-      showVisionRidePreview(state.visionRideModifiers, pixelLook);
-      return { pixelLook, pixelOrigin };
-    });
+    set({ pixelLook, pixelOrigin });
   },
   jumpTo: null,
   travelTo: null,
@@ -437,7 +426,7 @@ export const useStacks = create<StacksState>((set) => ({
         ...state.visionRideModifiers,
         [modifier]: true,
       };
-      showVisionRidePreview(visionRideModifiers, state.pixelLook);
+      selectVisionRidePreview(visionRideModifiers);
       return { visionRideModifiers };
     }),
   noteVisionRideShaker: (shakerId) =>
@@ -453,7 +442,7 @@ export const useStacks = create<StacksState>((set) => ({
         visionRideModifiers.redline &&
         !state.visionRideModifiers.redline
       )
-        showVisionRidePreview(visionRideModifiers, state.pixelLook);
+        selectVisionRidePreview(visionRideModifiers);
       return {
         visionRideShakers,
         visionRideModifiers,
@@ -466,7 +455,8 @@ export const useStacks = create<StacksState>((set) => ({
         state.visionRideSessionFailed
       )
         return state;
-      showVisionRidePreview(state.visionRideModifiers, state.pixelLook);
+      selectVisionRidePreview(state.visionRideModifiers);
+      visionProDisplayDiagnosticsController.setEnabled(true);
       return {
         visionRidePhase: "donning",
         visionRideReady: false,

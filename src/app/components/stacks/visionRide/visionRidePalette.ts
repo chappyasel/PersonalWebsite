@@ -15,9 +15,15 @@ export type VisionRidePalette = Readonly<{
   skyPink: Rgb;
   skyHorizon: Rgb;
   skyHorizonCrest: Rgb;
+  skyBelow: Rgb;
+  starCore: Rgb;
+  starHero: Rgb;
   sunTop: Rgb;
   sunMiddle: Rgb;
   sunFoot: Rgb;
+  sunGrooveTop: Rgb;
+  sunGrooveBottom: Rgb;
+  sunBevel: Rgb;
   surfaceBase: Rgb;
   surfaceBottom: Rgb;
   roadLine: Rgb;
@@ -57,11 +63,17 @@ export const VISION_RIDE_PALETTE = {
   skyHorizon: [1.0, 0.18, 0.05] as Rgb,
   /** Horizon at the crest of the breathing cycle: a touch warmer. */
   skyHorizonCrest: [1.0, 0.24, 0.06] as Rgb,
+  skyBelow: [0.1, 0.02, 0.19] as Rgb,
+  starCore: [1.0, 0.95, 0.98] as Rgb,
+  starHero: [0.86, 0.9, 1.0] as Rgb,
   /** The striped synthwave sun: electric yellow at the crown, warm peach
    * through the middle, and hot pink where it meets the horizon. */
   sunTop: [0.93, 1.0, 0.035] as Rgb,
   sunMiddle: [0.92, 0.34, 0.29] as Rgb,
   sunFoot: [0.78, 0.004, 0.84] as Rgb,
+  sunGrooveTop: [0.86, 0.34, 0.055] as Rgb,
+  sunGrooveBottom: [0.78, 0.005, 0.72] as Rgb,
+  sunBevel: [1.0, 0.48, 0.16] as Rgb,
   /** Shared road and mountain fill above the foreground gradient. */
   surfaceBase: [0.02, 0.012, 0.07] as Rgb,
   /** Shared road and mountain fill at the bottom of the viewport. The

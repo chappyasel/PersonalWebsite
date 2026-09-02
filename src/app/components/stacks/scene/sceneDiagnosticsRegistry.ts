@@ -275,10 +275,10 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     id: "render.vision-pro-display",
     panel: "render",
     group: "render.optional",
-    label: "Vision Pro front display",
-    help: "Light the shelf headset's front glass for this page load.",
+    label: "Latch Vision Pro display",
+    help: "Hold the shelf headset's front display fully awake for this page load.",
     defaultValue: false,
-    experimental: true,
+    experimental: false,
     store: visionProDisplayDiagnosticsController,
     read: () => visionProDisplayDiagnosticsController.getSnapshot().enabled,
     update: (value) =>
@@ -298,7 +298,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "render",
     group: "render.optional",
     label: "Front display look",
-    help: "Preview the canonical ride art or either Projects pixel finish.",
+    help: "Choose the artwork used by the hover wake and latched display.",
     valueKind: "enum",
     allowedValues: {
       kind: "set",
@@ -307,8 +307,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
         { value: "3:45", label: "3:45" },
         { value: "redline", label: "Redline" },
         { value: "golf", label: "Golf" },
-        { value: "8-bit", label: "8-bit" },
-        { value: "16-bit", label: "16-bit" },
       ],
     },
     defaultValue: "retrowave",
@@ -318,10 +316,8 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     read: () => visionProDisplayDiagnosticsController.getSnapshot().variant,
     update: (value) =>
       visionProDisplayDiagnosticsController.setVariant(
-        value as "retrowave" | "3:45" | "redline" | "golf" | "8-bit" | "16-bit",
+        value as "retrowave" | "3:45" | "redline" | "golf",
       ),
-    disabled: () =>
-      !visionProDisplayDiagnosticsController.getSnapshot().enabled,
   }),
   booleanDescriptor({
     id: "render.vision-ride",

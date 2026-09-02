@@ -111,7 +111,7 @@ describe("Vision ride state machine", () => {
     });
     expect(visionProDisplayDiagnosticsController.getSnapshot()).toMatchObject({
       enabled: true,
-      variant: "16-bit",
+      variant: "golf",
     });
   });
 });
