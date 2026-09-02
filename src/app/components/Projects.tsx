@@ -75,7 +75,7 @@ export default function Projects({
       {PROJECTS.map((project) => (
         <ProjectItem key={project.name} project={project} />
       ))}
-      {placard && placard.active.length + placard.more.length > 0 ? (
+      {placard && placard.repos.length > 0 ? (
         <RepositoriesCard placard={placard} />
       ) : null}
     </section>
@@ -189,29 +189,13 @@ function RepoRow({
   );
 }
 
-function RepoGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </p>
-      <ul className="mt-1.5 divide-y divide-foreground/10">{children}</ul>
-    </div>
-  );
-}
-
 /**
- * The individual repositories, after the projects: where this year's commits
- * went (own and organization repos alike), then the older public repos by
- * last push. The old cards were screenshots of these repositories' file
- * listings; a line with the repository's own description is more honest
- * about what they are.
+ * The individual repositories, after the projects: public ones, his own and
+ * the organization ones he committed to this year, newest push first, the
+ * way the repositories tab sorts. The old cards were screenshots of these
+ * repositories' file listings; a line with the repository's own description
+ * is more honest about what they are, and a repository without one stays
+ * off the list until it gets one.
  */
 function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
   return (
@@ -241,32 +225,17 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
               <ArrowUpRightIcon weight="bold" className="size-3.5" />
             </Link>
           </div>
-          {placard.active.length > 0 ? (
-            <RepoGroup title="Where this year&apos;s commits went">
-              {placard.active.map((repo) => (
-                <RepoRow
-                  key={repo.nameWithOwner}
-                  repo={repo}
-                  detail={[`${count(repo.commits ?? 0)} commits`, repo.language]
-                    .filter(Boolean)
-                    .join(" · ")}
-                />
-              ))}
-            </RepoGroup>
-          ) : null}
-          {placard.more.length > 0 ? (
-            <RepoGroup title="Earlier">
-              {placard.more.map((repo) => (
-                <RepoRow
-                  key={repo.nameWithOwner}
-                  repo={repo}
-                  detail={[repo.language, getTimeAgo(repo.pushedAt)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                />
-              ))}
-            </RepoGroup>
-          ) : null}
+          <ul className="mt-3 divide-y divide-foreground/10">
+            {placard.repos.map((repo) => (
+              <RepoRow
+                key={repo.nameWithOwner}
+                repo={repo}
+                detail={[repo.language, getTimeAgo(repo.pushedAt)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            ))}
+          </ul>
         </div>
       </div>
     </TiltCard>
