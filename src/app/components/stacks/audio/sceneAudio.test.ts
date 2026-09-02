@@ -477,6 +477,25 @@ describe("scene audio policy", () => {
     runtime.teardown();
   });
 
+  it("keeps the Coordination boom ready for its first spatial trigger", async () => {
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    const position = { x: 2, y: 1, z: -3 };
+
+    expect(runtime.play("coordination-boom", position, 0.75)).toBe(true);
+    expect(runtime.play("coordination-boom", position, 0.75)).toBe(false);
+    await vi.waitFor(() =>
+      expect(
+        FakeAudioContext.latest?.sources.some(
+          (source) => source.start.mock.calls.length > 0,
+        ),
+      ).toBe(true),
+    );
+    expect(fetch).toHaveBeenCalledWith("/audio/stacks/coordination-boom.ogg");
+    runtime.teardown();
+  });
+
   it("does not drop the first strike while its priority sample is decoding", async () => {
     let finishDecode!: (buffer: { duration: number }) => void;
     const decode = new Promise<{ duration: number }>((resolve) => {

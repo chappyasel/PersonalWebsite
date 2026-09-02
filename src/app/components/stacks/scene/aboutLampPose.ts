@@ -1,8 +1,8 @@
 import {
   ABOUT_AIC_ORB_SIZE_INCREASE,
   ABOUT_APPLE_ROOT_YAW,
-  ABOUT_AWARD_SIZE_INCREASE,
   ABOUT_LANDMARK_X,
+  ABOUT_LOWER_AWARD_SCALE,
   ABOUT_LOWER_LANDMARK_Z,
   ABOUT_MODEL_POSES,
 } from "./aboutScenePose";
@@ -13,8 +13,11 @@ import {
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
 import { TJ_MEDALLION_POSE } from "./tjMedallionGeometry";
 
+// The lower-award scale lives in aboutScenePose so the boot screen's shelf
+// layout can read it without this module's lamp math, which needs three.
+// Re-exported for the scene units that always took it from here.
+export { ABOUT_LOWER_AWARD_SCALE } from "./aboutScenePose";
 export const ABOUT_LAMP_ROOT_YAW = ABOUT_MODEL_POSES["desk-lamp"].rotation[1];
-export const ABOUT_LOWER_AWARD_SCALE = 1.32 * ABOUT_AWARD_SIZE_INCREASE;
 export const ABOUT_AIC_SCALE =
   ABOUT_LOWER_AWARD_SCALE * ABOUT_AIC_ORB_SIZE_INCREASE;
 export const ABOUT_COORDINATION_GLOBE_SCALE =
