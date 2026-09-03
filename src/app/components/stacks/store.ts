@@ -492,7 +492,8 @@ export const useStacks = create<StacksState>((set) => ({
       return {
         visionRidePhase: "cruising",
         visionRideStartedAt: performance.now(),
-        visionRideAnnouncement: "Apple Vision Pro ride started.",
+        visionRideAnnouncement:
+          "Apple Vision Pro ride started. Use WASD or arrow keys to drive. Press Escape to remove the headset.",
       };
     }),
   requestVisionRideExit: (visionRideExitMethod) =>

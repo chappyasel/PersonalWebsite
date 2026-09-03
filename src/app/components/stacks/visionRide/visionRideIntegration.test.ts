@@ -140,9 +140,9 @@ describe("Vision ride integration", () => {
     expect(world).toContain(
       "sun.current.scale.setScalar(cycle.sunScale * profile.sunBaseScale)",
     );
-    expect(world).toContain(
-      "(cycle.chaseOffset + parallax.current.z / cycle.carScale) * intro",
-    );
+    expect(world).toContain("cycle.chaseOffset +");
+    expect(world).toContain("parallax.current.z / cycle.carScale +");
+    expect(world).toContain("driveChaseOffsetMetres(motion.current.throttle)");
     // The aim comes from the live eye so the tilt that keeps the bumper in
     // frame covers the pointer's pull as well as the breath.
     expect(world).toMatch(/chaseAimY\(\s*framing,\s*eyeY,\s*cameraZ,?\s*\)/);
@@ -167,13 +167,17 @@ describe("Vision ride integration", () => {
       'useStacks.getState().requestVisionRideExit("button")',
     );
     expect(world).not.toContain("state.pointer.x");
-    // WASD and the arrows feed the same shift, by key code, and never steal
-    // a keystroke from a text field or a modifier chord.
+    // WASD and the arrows drive steering and throttle by key code, and never
+    // steal a keystroke from a text field or modifier chord.
     expect(world).toContain('window.addEventListener("keydown", onKeyDown)');
     expect(world).toContain('window.addEventListener("keyup", onKeyUp)');
-    expect(world).toContain("isVisionRideShiftKey(event.code)");
+    expect(world).toContain("isVisionRideDriveKey(event.code)");
     expect(world).toContain("isEditableShortcutTarget(event.target)");
-    expect(world).toContain("keyAxes(keysPressed.current)");
+    expect(world).toContain("driveAxes(keysPressed.current)");
+    expect(world).toContain("driveSpeedMultiplier(next.throttle)");
+    expect(world).toContain("driveChaseOffsetMetres(motion.current.throttle)");
+    expect(world).toContain("uDriveTint");
+    expect(world).toContain("driveVisualResponse(");
     // The aim shares the lateral shift: a truck, not an orbit about the car.
     expect(world).toContain("lateralReach(");
     expect(world).toContain(
@@ -187,7 +191,7 @@ describe("Vision ride integration", () => {
     expect(world).toContain("return { car: clone, wheels };");
     expect(world).not.toContain("wheels.current");
     expect(world).toMatch(
-      /profile\.speedMetresPerSecond\s*\/\s*VISION_RIDE_CAMERA\.wheelRadiusMetres/,
+      /motion\.current\.speedMetresPerSecond\s*\/\s*VISION_RIDE_CAMERA\.wheelRadiusMetres/,
     );
     expect(world).toContain(
       'useStacks.getState().visionRidePhase !== "cruising"',
@@ -233,12 +237,17 @@ describe("Vision ride integration", () => {
     );
   });
 
-  it("uses sparse digital mile markers instead of repeated roadside lights", () => {
+  it("uses sparse road-wide holographic checkpoints instead of roadside lights", () => {
     const world = read("./VisionRideWorld.tsx");
     const diagnostics = read("./visionRideDiagnostics.ts");
     const registry = read("../scene/sceneDiagnosticsRegistry.ts");
-    expect(world).toContain("function DigitalMileMarker");
+    expect(world).toContain("function HolographicCheckpoint");
     expect(world).toContain("<instancedMesh");
+    expect(world).toContain("CHECKPOINT_FRAGMENT");
+    expect(world).toContain("writeCheckpointShards(");
+    expect(world).toContain("checkpointShatterProgress(");
+    expect(world).toContain("CHECKPOINT_SHARD_COUNT");
+    expect(world).toContain("VISION_RIDE_ROAD_HALF_WIDTH * 2 + 0.25");
     expect(world).toContain("mileMarkerPresentation(");
     expect(world).toContain("mileMarkersEnabled && !reducedMotion");
     expect(world).not.toContain("RoadsideMarkers");
@@ -251,18 +260,52 @@ describe("Vision ride integration", () => {
     expect(registry).toContain("perFrameWork: false");
   });
 
-  it("uses native glowing particles from the real lamps behind a live zero-cost control", () => {
+  it("accumulates continuous light ribbons behind a live zero-cost control", () => {
     const world = read("./VisionRideWorld.tsx");
     const diagnostics = read("./visionRideDiagnostics.ts");
     const registry = read("../scene/sceneDiagnosticsRegistry.ts");
-    expect(world).toContain("function CarLightTrails");
-    expect(world).toContain("<points");
-    expect(world).toContain("lightTrailParticleDistance({");
-    expect(world).toContain("gl_PointCoord");
+    expect(world).toContain("function CarLightRibbons");
+    expect(world).toContain("LIGHT_RIBBON_VERTEX");
+    expect(world).toContain("LIGHT_RIBBON_FRAGMENT");
+    expect(world).toContain("LightRibbonSample");
+    expect(world).toContain("lightRibbonPresentation({");
+    expect(world).toContain("lightRibbonShouldRetainSample({");
+    expect(world).toContain('setAttribute("aOpacity"');
+    expect(world).toContain('setAttribute("aEmitterSpan"');
+    expect(world).toContain('setAttribute("aBloomLayer"');
+    expect(world).toContain("LIGHT_EMITTER_SEGMENTS");
+    expect(world).toContain("LIGHT_EXTRUSION_LAYER_SCALES");
+    expect(world).toContain("function LamborghiniRearLights");
+    expect(world).toContain("writeRearLampInstances");
+    expect(world).toContain("coreColor");
+    expect(world).toContain("bloomColor");
+    expect(world).toContain("haloColor");
+    expect(world).toContain("lightsEnabled={lightTrailsEnabled}");
+    expect(world).toContain("renderOrder={ORDER.dither - 4}");
+    expect(world).toContain("renderOrder={ORDER.dither - 3}");
+    expect(world).toContain("renderOrder={ORDER.dither - 2}");
+    expect(world).toContain("renderOrder={ORDER.dither - 1}");
+    expect(world).toContain("writeLightExtrusionVertices");
+    expect(world).toContain("emitterHalfWidthMetres");
+    expect(world).toContain("emitterHalfHeightMetres");
+    expect(world).not.toContain("lamborghiniYBranch");
+    expect(world).not.toContain("motifPhase");
+    expect(world).toContain("THREE.DynamicDrawUsage");
+    expect(world).toContain("renderOrder={ORDER.dither - 1}");
+    expect(world).not.toContain("function CarLightTrails");
     expect(world).toContain("THREE.AdditiveBlending");
-    expect(world).not.toContain("LIGHT_TRAIL_FRAGMENT");
+    expect(world).not.toContain("LIGHT_TRAIL_PARTICLE_FRAGMENT");
     expect(world).not.toContain("tailLights");
     expect(world).toContain("lightTrailsEnabled && !reducedMotion");
+    expect(world).toContain(
+      'active={phase === "cruising" || phase === "doffing"}',
+    );
+    expect(world).toContain("motion: -10");
+    expect(world).toContain("camera: -5");
+    expect(world).toContain("lightTrails: 0");
+    expect(world).toContain("}, VISION_RIDE_FRAME_PRIORITY.motion);");
+    expect(world).toContain("}, VISION_RIDE_FRAME_PRIORITY.camera);");
+    expect(world).toContain("}, VISION_RIDE_FRAME_PRIORITY.lightTrails);");
     expect(diagnostics).toContain("useVisionRideLightTrailsEnabled");
     expect(registry).toContain('id: "render.vision-ride-light-trails"');
     expect(registry).toContain('label: "Vision Ride light trails"');
@@ -442,6 +485,7 @@ describe("Vision ride integration", () => {
     // runtime's import, so this pins every module on that path.
     for (const relative of [
       "./visionRideEntry.ts",
+      "./visionRideDriving.ts",
       "./visionRideLightTrails.ts",
       "./visionRideMileMarker.ts",
       "./visionRideRuntime.ts",

@@ -36,8 +36,8 @@ function enabledFromLocation() {
 let snapshot: Snapshot = {
   enabled: enabledFromLocation(),
   retroFxEnabled: true,
-  mileMarkersEnabled: false,
-  lightTrailsEnabled: false,
+  mileMarkersEnabled: true,
+  lightTrailsEnabled: true,
   scenePreview: "authored",
   finishPreview: "authored",
 };
@@ -135,7 +135,7 @@ export function useVisionRideMileMarkersEnabled() {
   return useSyncExternalStore(
     visionRideDiagnosticsController.subscribe,
     () => visionRideDiagnosticsController.getSnapshot().mileMarkersEnabled,
-    () => false,
+    () => true,
   );
 }
 
@@ -143,7 +143,7 @@ export function useVisionRideLightTrailsEnabled() {
   return useSyncExternalStore(
     visionRideDiagnosticsController.subscribe,
     () => visionRideDiagnosticsController.getSnapshot().lightTrailsEnabled,
-    () => false,
+    () => true,
   );
 }
 

@@ -31,13 +31,25 @@ import {
   useVisionRideRetroFxEnabled,
 } from "./visionRideDiagnostics";
 import {
+  VISION_RIDE_DRIVING,
+  type VisionRideMotion,
+  advanceDriveState,
+  driveAxes,
+  driveChaseOffsetMetres,
+  driveSpeedMultiplier,
+  driveVisualResponse,
+  isVisionRideDriveKey,
+} from "./visionRideDriving";
+import {
+  type LightRibbonSample,
   VISION_RIDE_LIGHT_TRAIL,
+  lightRibbonPresentation,
+  lightRibbonShouldRetainSample,
   lightTrailCarPose,
-  lightTrailParticleDistance,
-  lightTrailRestAnchor,
 } from "./visionRideLightTrails";
 import {
   VISION_RIDE_MILE_MARKER,
+  checkpointShatterProgress,
   mileMarkerDigitSegments,
   mileMarkerPresentation,
 } from "./visionRideMileMarker";
@@ -45,11 +57,8 @@ import { type VisionRidePalette, glslVec3 } from "./visionRidePalette";
 import {
   VISION_RIDE_PARALLAX,
   chaseAimX,
-  isVisionRideShiftKey,
-  keyAxes,
   normalizedPointer,
   parallaxTarget,
-  rampKeyAxis,
 } from "./visionRideParallax";
 import type { VisionRideProfile } from "./visionRideProfiles";
 import {
@@ -392,6 +401,7 @@ const SCREEN_TEXTURE_FRAGMENT = `
   varying vec2 vUv;
   uniform float uTime;
   uniform float uMotion;
+  uniform float uDriveTint;
   float noise(vec2 point) {
     return fract(sin(dot(point, vec2(12.9898, 78.233))) * 43758.5453);
   }
@@ -415,53 +425,57 @@ const SCREEN_TEXTURE_FRAGMENT = `
         : vec3(0.035, 0.025, 0.12);
     float alpha = 0.012 + checker * 0.024 + scanline * 0.044 +
       vignette * 0.19 + flicker * 0.008 + grain * 0.018;
-    vec3 tint = vec3(0.008, 0.0, 0.022) + phosphor * 0.48;
+    vec3 accelerationTint = vec3(0.0, 0.009, 0.022);
+    vec3 brakingTint = vec3(0.016, 0.002, -0.003);
+    vec3 driveTint = uDriveTint >= 0.0 ? accelerationTint : brakingTint;
+    vec3 tint = vec3(0.008, 0.0, 0.022) + phosphor * 0.48 +
+      driveTint * abs(uDriveTint);
     gl_FragColor = vec4(tint, alpha);
   }
 `;
 
-const LIGHT_TRAIL_PARTICLE_VERTEX = `
-  attribute float aLife;
-  attribute float aSeed;
-  uniform float uPixelRatio;
-  uniform float uPointSize;
-  uniform float uTime;
-  varying float vLife;
-  varying float vShimmer;
+const LIGHT_RIBBON_VERTEX = `
+  attribute float aEmitterSpan;
+  attribute float aBloomLayer;
+  attribute float aOpacity;
+  varying float vEmitterSpan;
+  varying float vBloomLayer;
+  varying float vOpacity;
 
   void main() {
-    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
-    float taper = mix(1.0, 0.2, smoothstep(0.08, 1.0, aLife));
-    vLife = aLife;
-    vShimmer = 0.9 + 0.1 * sin(uTime * 8.0 + aSeed * 19.0);
-    gl_PointSize = min(
-      42.0,
-      uPointSize * uPixelRatio * 300.0 * taper /
-        max(1.0, -viewPosition.z)
-    );
-    gl_Position = projectionMatrix * viewPosition;
+    vEmitterSpan = aEmitterSpan;
+    vBloomLayer = aBloomLayer;
+    vOpacity = aOpacity;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
   }
 `;
 
-const LIGHT_TRAIL_PARTICLE_FRAGMENT = `
+const LIGHT_RIBBON_FRAGMENT = `
   uniform vec3 uColor;
-  varying float vLife;
-  varying float vShimmer;
+  varying float vEmitterSpan;
+  varying float vBloomLayer;
+  varying float vOpacity;
 
   void main() {
-    vec2 point = gl_PointCoord * 2.0 - 1.0;
-    float radiusSquared = dot(point, point);
-    if (radiusSquared > 1.0) discard;
-
-    float halo = exp(-radiusSquared * 3.4);
-    float core = exp(-radiusSquared * 42.0);
-    float head = smoothstep(0.0, 0.018, vLife);
-    float tail = 1.0 - smoothstep(0.5, 1.0, vLife);
-    float alpha = (halo * 0.34 + core * 0.82) * head * tail * vShimmer;
-    if (alpha < 0.008) discard;
-
-    vec3 hotCore = mix(uColor * 1.8, vec3(1.0, 0.82, 0.94) * 3.2, core);
-    gl_FragColor = vec4(hotCore, alpha);
+    float distanceAlongEmitter = abs(vEmitterSpan);
+    float filament = 1.0 - smoothstep(0.84, 1.03, distanceAlongEmitter);
+    float softEdge = 1.0 - smoothstep(0.58, 1.43, distanceAlongEmitter);
+    float layerMix = min(1.0, vBloomLayer * 0.5);
+    float edgeProfile = mix(filament, softEdge, layerMix);
+    float layerAlpha = vBloomLayer < 0.5
+      ? 0.16
+      : vBloomLayer < 1.5
+        ? 0.06
+        : 0.018;
+    float alpha = edgeProfile * layerAlpha * vOpacity;
+    if (alpha < 0.001) discard;
+    vec3 hotCore = mix(
+      uColor * 1.35,
+      vec3(1.0, 0.72, 0.90) * 2.05,
+      filament * 0.48
+    );
+    vec3 color = vBloomLayer < 0.5 ? hotCore : uColor * 1.08;
+    gl_FragColor = vec4(color, alpha);
   }
 `;
 
@@ -478,13 +492,29 @@ const ORDER = {
   dither: 9_000,
 } as const;
 
+const VISION_RIDE_FRAME_PRIORITY = {
+  motion: -10,
+  camera: -5,
+  lightTrails: 0,
+} as const;
+
 const SKY_SPHERE_RADIUS = 420;
 
-function ScreenDitherOverlay({ reducedMotion }: { reducedMotion: boolean }) {
+function ScreenDitherOverlay({
+  reducedMotion,
+  motion,
+}: {
+  reducedMotion: boolean;
+  motion: RefObject<VisionRideMotion>;
+}) {
   const material = useRef<THREE.ShaderMaterial>(null);
   useFrame((state) => {
-    if (material.current)
+    if (material.current) {
       material.current.uniforms.uTime!.value = state.clock.elapsedTime;
+      material.current.uniforms.uDriveTint!.value = driveVisualResponse(
+        motion.current.throttle,
+      );
+    }
   });
   return (
     <mesh frustumCulled={false} renderOrder={ORDER.dither}>
@@ -498,6 +528,7 @@ function ScreenDitherOverlay({ reducedMotion }: { reducedMotion: boolean }) {
         uniforms={{
           uTime: { value: 0 },
           uMotion: { value: reducedMotion ? 0 : 1 },
+          uDriveTint: { value: 0 },
         }}
         vertexShader={SCREEN_TEXTURE_VERTEX}
         fragmentShader={SCREEN_TEXTURE_FRAGMENT}
@@ -665,10 +696,12 @@ function UnifiedLandscape({
   reducedMotion,
   breath,
   profile,
+  motion,
 }: {
   reducedMotion: boolean;
   breath: RefObject<EnvironmentBreath>;
   profile: VisionRideProfile;
+  motion: RefObject<VisionRideMotion>;
 }) {
   const near = useRef<THREE.Mesh>(null);
   const middle = useRef<THREE.Mesh>(null);
@@ -713,11 +746,9 @@ function UnifiedLandscape({
   );
   useEffect(() => () => material.dispose(), [material]);
 
-  useFrame((state) => {
+  useFrame(() => {
     material.uniforms.uBreath!.value = breath.current.phase;
-    const travel = reducedMotion
-      ? 0
-      : state.clock.elapsedTime * profile.speedMetresPerSecond;
+    const travel = reducedMotion ? 0 : motion.current.travelDistanceMetres;
     const [nearOffset, middleOffset, horizonOffset] =
       mountainWindowOffsets(travel);
     if (near.current) near.current.position.z = nearOffset;
@@ -768,81 +799,265 @@ const MILE_MARKER_SEGMENTS = {
   g: [0, 0, 0.32, 0.045],
 } as const;
 
-function writeMileMarkerInstances(
+const CHECKPOINT_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const CHECKPOINT_FRAGMENT = `
+  varying vec2 vUv;
+  uniform vec3 uColor;
+  uniform float uTime;
+  uniform float uProgress;
+  uniform float uIntegrity;
+
+  void main() {
+    float edgeX = smoothstep(0.0, 0.08, vUv.x) *
+      (1.0 - smoothstep(0.92, 1.0, vUv.x));
+    float edgeY = smoothstep(0.0, 0.06, vUv.y) *
+      (1.0 - smoothstep(0.94, 1.0, vUv.y));
+    float scan = smoothstep(
+      0.78,
+      1.0,
+      0.5 + 0.5 * sin(vUv.y * 150.0 - uTime * 8.0)
+    );
+    float columns = smoothstep(
+      0.9,
+      1.0,
+      0.5 + 0.5 * sin(vUv.x * 92.0)
+    );
+    float sweepPosition = fract(uTime * 0.18 + uProgress * 0.35);
+    float sweep = exp(-pow((vUv.y - sweepPosition) * 18.0, 2.0));
+    float pulse = 0.88 + 0.12 * sin(uTime * 4.0);
+    float alpha = (0.018 + scan * 0.055 + columns * 0.025 + sweep * 0.14) *
+      edgeX * edgeY * pulse * uIntegrity;
+    if (alpha < 0.006) discard;
+    gl_FragColor = vec4(uColor * (1.5 + sweep * 1.8), alpha);
+  }
+`;
+
+const CHECKPOINT_SHARD_COLUMNS = 9;
+const CHECKPOINT_SHARD_ROWS = 4;
+const CHECKPOINT_SHARD_COUNT =
+  CHECKPOINT_SHARD_COLUMNS * CHECKPOINT_SHARD_ROWS * 2;
+const CHECKPOINT_SHARD_VERTICES = new Float32Array([
+  -0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0,
+]);
+
+type CheckpointShardTransform = {
+  matrix: THREE.Matrix4;
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  scale: THREE.Vector3;
+  rotation: THREE.Euler;
+};
+
+function writeCheckpointShards(
+  mesh: THREE.InstancedMesh,
+  progress: number,
+  impactX: number,
+  transform: CheckpointShardTransform,
+) {
+  const span = VISION_RIDE_ROAD_HALF_WIDTH * 2 + 0.25;
+  const height = VISION_RIDE_MILE_MARKER.heightMetres - 0.14;
+  const cellWidth = span / CHECKPOINT_SHARD_COLUMNS;
+  const cellHeight = height / CHECKPOINT_SHARD_ROWS;
+  const burst = 1 - (1 - progress) ** 3;
+  const shrink = 1 - THREE.MathUtils.smoothstep(progress, 0.62, 1) * 0.76;
+  let instance = 0;
+
+  for (let row = 0; row < CHECKPOINT_SHARD_ROWS; row += 1) {
+    for (let column = 0; column < CHECKPOINT_SHARD_COLUMNS; column += 1) {
+      const baseX = -span / 2 + (column + 0.5) * cellWidth;
+      const baseY = 0.07 + (row + 0.5) * cellHeight;
+      for (let triangle = 0; triangle < 2; triangle += 1) {
+        const seed = ((instance * 47 + 19) % 101) / 101;
+        const radialX = baseX - impactX;
+        transform.position.set(
+          baseX + (radialX * 0.24 + (seed - 0.5) * 0.34) * burst * 3.2,
+          baseY + ((baseY - 0.78) * 0.26 + seed * 0.28) * burst * 3.2,
+          (0.35 + seed * 0.82) * burst * 2.4,
+        );
+        transform.rotation.set(
+          (seed - 0.5) * burst * 3.4,
+          (0.5 - seed) * burst * 4.1,
+          triangle * Math.PI + (seed - 0.5) * burst * 3.8,
+        );
+        transform.quaternion.setFromEuler(transform.rotation);
+        transform.scale.set(cellWidth * shrink, cellHeight * shrink, 1);
+        transform.matrix.compose(
+          transform.position,
+          transform.quaternion,
+          transform.scale,
+        );
+        mesh.setMatrixAt(instance, transform.matrix);
+        instance += 1;
+      }
+    }
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function writeCheckpointInstances(
   mesh: THREE.InstancedMesh,
   number: number,
   matrix: THREE.Matrix4,
 ) {
   let instance = 0;
-  const write = (x: number, y: number, width: number, height: number) => {
-    matrix.makeScale(width, height, 0.055);
-    matrix.setPosition(x, y, 0);
+  const write = (
+    x: number,
+    y: number,
+    z: number,
+    width: number,
+    height: number,
+    depth: number,
+    rotationZ = 0,
+  ) => {
+    matrix.makeRotationZ(rotationZ);
+    matrix.scale(new THREE.Vector3(width, height, depth));
+    matrix.setPosition(x, y, z);
     mesh.setMatrixAt(instance, matrix);
     instance += 1;
   };
-  write(0, 1.18, 0.055, 2.36);
-  write(0.7, 2.32, 1.4, 0.055);
-  write(0.42, 0.055, 0.84, 0.055);
+
+  const marker = VISION_RIDE_MILE_MARKER;
+  const edge = VISION_RIDE_ROAD_HALF_WIDTH + 0.16;
+  const width = edge * 2;
+  for (const z of [-marker.depthMetres / 2, marker.depthMetres / 2]) {
+    write(-edge, marker.heightMetres / 2, z, 0.075, marker.heightMetres, 0.07);
+    write(edge, marker.heightMetres / 2, z, 0.075, marker.heightMetres, 0.07);
+    write(0, marker.heightMetres, z, width, 0.075, 0.07);
+    write(0, 0.055, z, width, 0.035, 0.07);
+  }
+  for (const x of [-edge, 0, edge]) {
+    write(x, marker.heightMetres, 0, 0.075, 0.075, marker.depthMetres);
+    write(x, 0.055, 0, 0.075, 0.035, marker.depthMetres);
+  }
+
+  // Seven shallow chevrons hang across the full lane width. The hologram
+  // curtain supplies the surface; these bars give it a readable 3D spine.
+  for (let arrow = -3; arrow <= 3; arrow += 1) {
+    const x = arrow * 1.08;
+    write(x - 0.13, 2.34, 0, 0.34, 0.055, 0.07, Math.PI / 4);
+    write(x + 0.13, 2.34, 0, 0.34, 0.055, 0.07, -Math.PI / 4);
+  }
+
   const digits = mileMarkerDigitSegments(number);
   for (let digit = 0; digit < digits.length; digit += 1) {
-    const originX = 0.56 + digit * 0.48;
+    const originX = -0.24 + digit * 0.48;
     for (const segment of digits[digit]!) {
       const [x, y, width, height] =
         MILE_MARKER_SEGMENTS[segment as keyof typeof MILE_MARKER_SEGMENTS];
-      write(originX + x, 1.2 + y, width, height);
+      write(originX + x, 1.45 + y, -0.245, width, height, 0.055);
     }
   }
   mesh.count = instance;
   mesh.instanceMatrix.needsUpdate = true;
 }
 
-function DigitalMileMarker({
+function HolographicCheckpoint({
   active,
   reducedMotion,
   profile,
+  motion,
 }: {
   active: boolean;
   reducedMotion: boolean;
   profile: VisionRideProfile;
+  motion: RefObject<VisionRideMotion>;
 }) {
   const group = useRef<THREE.Group>(null);
   const segments = useRef<THREE.InstancedMesh>(null);
+  const frameMaterial = useRef<THREE.MeshBasicMaterial>(null);
+  const curtain = useRef<THREE.ShaderMaterial>(null);
+  const shards = useRef<THREE.InstancedMesh>(null);
+  const shardMaterial = useRef<THREE.MeshBasicMaterial>(null);
   const markerMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const shardTransform = useMemo<CheckpointShardTransform>(
+    () => ({
+      matrix: new THREE.Matrix4(),
+      position: new THREE.Vector3(),
+      quaternion: new THREE.Quaternion(),
+      scale: new THREE.Vector3(),
+      rotation: new THREE.Euler(),
+    }),
+    [],
+  );
   const displayedNumber = useRef(-1);
   const startedAt = useRef<number | null>(null);
+  const checkpoint = useRef({ number: 0, travelDistanceMetres: 0 });
+  const previousShatter = useRef(0);
+  const shatterImpactX = useRef(0);
 
   useLayoutEffect(() => {
     if (!segments.current) return;
-    writeMileMarkerInstances(segments.current, 0, markerMatrix);
+    writeCheckpointInstances(segments.current, 0, markerMatrix);
   }, [markerMatrix]);
 
   useFrame((state) => {
     if (!group.current) return;
     if (!active) {
       startedAt.current = null;
+      checkpoint.current.number = 0;
+      previousShatter.current = 0;
       group.current.visible = false;
       return;
     }
     startedAt.current ??= state.clock.elapsedTime;
+    const elapsed = state.clock.elapsedTime - startedAt.current;
+    const number = Math.floor(elapsed / VISION_RIDE_MILE_MARKER.periodSeconds);
+    if (number > 0 && checkpoint.current.number !== number) {
+      checkpoint.current.number = number;
+      checkpoint.current.travelDistanceMetres =
+        motion.current.travelDistanceMetres;
+    }
     const beat = mileMarkerPresentation(
-      state.clock.elapsedTime - startedAt.current,
-      profile.speedMetresPerSecond,
+      elapsed,
+      motion.current.travelDistanceMetres -
+        checkpoint.current.travelDistanceMetres,
       reducedMotion,
     );
     group.current.visible = beat.visible;
-    group.current.position.set(
-      VISION_RIDE_ROAD_HALF_WIDTH +
-        VISION_RIDE_MILE_MARKER.shoulderOffsetMetres,
-      0,
-      beat.z,
-    );
+    group.current.position.set(0, 0, beat.z);
+    const impactZ =
+      VISION_RIDE_CAMERA.carZ - VISION_RIDE_CAMERA.carLengthMetres / 2;
+    const shatter = checkpointShatterProgress(beat.z, impactZ);
+    if (shatter > 0 && previousShatter.current === 0)
+      shatterImpactX.current =
+        motion.current.steering * VISION_RIDE_DRIVING.steeringOffsetMetres;
+    previousShatter.current = shatter;
+    if (curtain.current) {
+      curtain.current.uniforms.uTime!.value = state.clock.elapsedTime;
+      curtain.current.uniforms.uProgress!.value = beat.progress;
+      curtain.current.uniforms.uIntegrity!.value =
+        1 - THREE.MathUtils.smoothstep(shatter, 0, 0.72);
+    }
+    if (frameMaterial.current)
+      frameMaterial.current.opacity =
+        0.86 * (1 - THREE.MathUtils.smoothstep(shatter, 0.42, 1) * 0.76);
+    if (shards.current && shardMaterial.current) {
+      const visible = shatter > 0 && shatter < 1;
+      shards.current.visible = visible;
+      if (visible) {
+        writeCheckpointShards(
+          shards.current,
+          shatter,
+          shatterImpactX.current,
+          shardTransform,
+        );
+        shardMaterial.current.opacity = Math.sin(shatter * Math.PI) * 0.58;
+      }
+    }
     if (
       beat.visible &&
       segments.current &&
       displayedNumber.current !== beat.number
     ) {
       displayedNumber.current = beat.number;
-      writeMileMarkerInstances(segments.current, beat.number, markerMatrix);
+      writeCheckpointInstances(segments.current, beat.number, markerMatrix);
     }
   });
 
@@ -850,12 +1065,67 @@ function DigitalMileMarker({
     <group ref={group} visible={false}>
       <instancedMesh
         ref={segments}
-        args={[undefined, undefined, 17]}
+        args={[undefined, undefined, 48]}
         frustumCulled={false}
       >
         <boxGeometry args={[1, 1, 1]} />
         <meshBasicMaterial
+          ref={frameMaterial}
           color={profile.directional.color}
+          transparent
+          opacity={0.86}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </instancedMesh>
+      <mesh
+        position={[0, VISION_RIDE_MILE_MARKER.heightMetres / 2, 0]}
+        frustumCulled={false}
+      >
+        <planeGeometry
+          args={[
+            VISION_RIDE_ROAD_HALF_WIDTH * 2 + 0.25,
+            VISION_RIDE_MILE_MARKER.heightMetres - 0.14,
+          ]}
+        />
+        <shaderMaterial
+          ref={curtain}
+          transparent
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+          uniforms={{
+            uColor: { value: new THREE.Color(profile.directional.color) },
+            uTime: { value: 0 },
+            uProgress: { value: 0 },
+            uIntegrity: { value: 1 },
+          }}
+          vertexShader={CHECKPOINT_VERTEX}
+          fragmentShader={CHECKPOINT_FRAGMENT}
+        />
+      </mesh>
+      <instancedMesh
+        ref={shards}
+        args={[undefined, undefined, CHECKPOINT_SHARD_COUNT]}
+        visible={false}
+        frustumCulled={false}
+      >
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[CHECKPOINT_SHARD_VERTICES, 3]}
+          />
+        </bufferGeometry>
+        <meshBasicMaterial
+          ref={shardMaterial}
+          color={profile.directional.color}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
       </instancedMesh>
@@ -863,143 +1133,581 @@ function DigitalMileMarker({
   );
 }
 
-function CarLightTrails({ profile }: { profile: VisionRideProfile }) {
-  const dpr = useThree((state) => state.viewport.dpr);
-  const particleCount = VISION_RIDE_LIGHT_TRAIL.particlesPerLamp * 2;
-  const travelDistance = useRef(0);
+type LightExtrusionSample = LightRibbonSample &
+  Readonly<{
+    rightX: number;
+    rightY: number;
+    upX: number;
+    upY: number;
+  }>;
+
+type LightRibbonPoint = Readonly<{
+  x: number;
+  y: number;
+  opacity: number;
+  scale: number;
+  rightX: number;
+  rightY: number;
+  upX: number;
+  upY: number;
+}>;
+
+// One continuous spine plus three pairs of forks reproduces the rotated-Y
+// signature across each rear lamp. Every segment is swept through the same
+// camera history, so the visible result is an extrusion of the emitter rather
+// than a Y pattern printed onto a generic ribbon.
+const LIGHT_EMITTER_SEGMENTS = [
+  [-1, 0, 1, 0],
+  [-0.55, 0, -0.82, 1],
+  [-0.55, 0, -0.82, -1],
+  [0, 0, -0.27, 1],
+  [0, 0, -0.27, -1],
+  [0.55, 0, 0.28, 1],
+  [0.55, 0, 0.28, -1],
+] as const;
+
+const LIGHT_EXTRUSION_LAYER_SCALES = [1, 1.68, 2.42] as const;
+
+function writeRearLampInstances(
+  mesh: THREE.InstancedMesh,
+  thicknessScale: number,
+  zOffset: number,
+) {
+  const trail = VISION_RIDE_LIGHT_TRAIL;
+  const position = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const matrix = new THREE.Matrix4();
+  const zAxis = new THREE.Vector3(0, 0, 1);
+  let instance = 0;
+
+  for (const side of [-1, 1] as const) {
+    for (const [startX, startY, endX, endY] of LIGHT_EMITTER_SEGMENTS) {
+      const mirroredStartX = startX * side;
+      const mirroredEndX = endX * side;
+      const x1 =
+        side * trail.lampLocalX +
+        mirroredStartX * trail.emitterHalfWidthMetres;
+      const y1 = trail.lampLocalY + startY * trail.emitterHalfHeightMetres;
+      const x2 =
+        side * trail.lampLocalX +
+        mirroredEndX * trail.emitterHalfWidthMetres;
+      const y2 = trail.lampLocalY + endY * trail.emitterHalfHeightMetres;
+      const deltaX = x2 - x1;
+      const deltaY = y2 - y1;
+      const length = Math.hypot(deltaX, deltaY);
+
+      position.set(
+        (x1 + x2) / 2,
+        (y1 + y2) / 2,
+        trail.lampLocalZ + zOffset,
+      );
+      rotation.setFromAxisAngle(zAxis, Math.atan2(deltaY, deltaX));
+      scale.set(
+        length * (thicknessScale > 1 ? 1.16 : 1),
+        0.016 * thicknessScale,
+        1,
+      );
+      matrix.compose(position, rotation, scale);
+      mesh.setMatrixAt(instance, matrix);
+      instance += 1;
+    }
+  }
+  mesh.count = instance;
+  mesh.instanceMatrix.needsUpdate = true;
+}
+
+function LamborghiniRearLights({ color }: { color: string }) {
+  const halo = useRef<THREE.InstancedMesh>(null);
+  const bloom = useRef<THREE.InstancedMesh>(null);
+  const core = useRef<THREE.InstancedMesh>(null);
+  const haloColor = useMemo(
+    () => new THREE.Color(color).multiplyScalar(1.35),
+    [color],
+  );
+  const bloomColor = useMemo(
+    () => new THREE.Color(color).multiplyScalar(1.9),
+    [color],
+  );
+  const coreColor = useMemo(
+    () => new THREE.Color(color).multiplyScalar(3.1),
+    [color],
+  );
+
+  useLayoutEffect(() => {
+    if (halo.current) writeRearLampInstances(halo.current, 8.5, -0.016);
+    if (bloom.current) writeRearLampInstances(bloom.current, 4.4, -0.019);
+    if (core.current) writeRearLampInstances(core.current, 1, -0.022);
+  }, []);
+
+  const instanceCount = LIGHT_EMITTER_SEGMENTS.length * 2;
+  return (
+    <>
+      <instancedMesh
+        ref={halo}
+        args={[undefined, undefined, instanceCount]}
+        frustumCulled={false}
+        renderOrder={ORDER.dither - 3}
+      >
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial
+          color={haloColor}
+          transparent
+          opacity={0.13}
+          depthTest={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </instancedMesh>
+      <instancedMesh
+        ref={bloom}
+        args={[undefined, undefined, instanceCount]}
+        frustumCulled={false}
+        renderOrder={ORDER.dither - 2}
+      >
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial
+          color={bloomColor}
+          transparent
+          opacity={0.34}
+          depthTest={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </instancedMesh>
+      <instancedMesh
+        ref={core}
+        args={[undefined, undefined, instanceCount]}
+        frustumCulled={false}
+        renderOrder={ORDER.dither - 1}
+      >
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial
+          color={coreColor}
+          transparent
+          opacity={1}
+          depthTest={false}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </instancedMesh>
+    </>
+  );
+}
+
+function writeLightExtrusionVertices(input: {
+  sideIndex: number;
+  points: readonly LightRibbonPoint[];
+  positions: THREE.BufferAttribute;
+  emitterSpans: THREE.BufferAttribute;
+  bloomLayers: THREE.BufferAttribute;
+  opacities: THREE.BufferAttribute;
+}) {
+  const trail = VISION_RIDE_LIGHT_TRAIL;
+  const count = input.points.length;
+  const fallback = input.points[count - 1] ?? {
+    x: 0,
+    y: 0,
+    opacity: 0,
+    scale: 1,
+    rightX: 0,
+    rightY: 0,
+    upX: 0,
+    upY: 0,
+  };
+  const mirroredX = input.sideIndex === 0 ? -1 : 1;
+  const verticesPerSegment = trail.samplesPerLamp * 2;
+  const extrusionsPerSide =
+    LIGHT_EMITTER_SEGMENTS.length * LIGHT_EXTRUSION_LAYER_SCALES.length;
+  const sideOffset = input.sideIndex * extrusionsPerSide;
+  const expandedSpan = 1 + trail.emitterEndBloomFraction * 2;
+
+  for (
+    let layerIndex = 0;
+    layerIndex < LIGHT_EXTRUSION_LAYER_SCALES.length;
+    layerIndex += 1
+  ) {
+    const layerScale = LIGHT_EXTRUSION_LAYER_SCALES[layerIndex]!;
+    for (
+      let segmentIndex = 0;
+      segmentIndex < LIGHT_EMITTER_SEGMENTS.length;
+      segmentIndex += 1
+    ) {
+      const [startX, startY, endX, endY] =
+        LIGHT_EMITTER_SEGMENTS[segmentIndex]!;
+      for (let index = 0; index < trail.samplesPerLamp; index += 1) {
+        const point = input.points[index] ?? fallback;
+        const rightX = point.rightX * point.scale * mirroredX * layerScale;
+        const rightY = point.rightY * point.scale * mirroredX * layerScale;
+        const upX = point.upX * point.scale * layerScale;
+        const upY = point.upY * point.scale * layerScale;
+        const sourceStartX = point.x + rightX * startX + upX * startY;
+        const sourceStartY = point.y + rightY * startX + upY * startY;
+        const sourceEndX = point.x + rightX * endX + upX * endY;
+        const sourceEndY = point.y + rightY * endX + upY * endY;
+        const segmentX = sourceEndX - sourceStartX;
+        const segmentY = sourceEndY - sourceStartY;
+        const bloom = trail.emitterEndBloomFraction;
+        const extrusion =
+          sideOffset +
+          layerIndex * LIGHT_EMITTER_SEGMENTS.length +
+          segmentIndex;
+        const vertex = extrusion * verticesPerSegment + index * 2;
+        const opacity = index < count ? point.opacity : 0;
+
+        input.positions.setXYZ(
+          vertex,
+          sourceStartX - segmentX * bloom,
+          sourceStartY - segmentY * bloom,
+          0,
+        );
+        input.positions.setXYZ(
+          vertex + 1,
+          sourceEndX + segmentX * bloom,
+          sourceEndY + segmentY * bloom,
+          0,
+        );
+        input.emitterSpans.setX(vertex, -expandedSpan);
+        input.emitterSpans.setX(vertex + 1, expandedSpan);
+        input.bloomLayers.setX(vertex, layerIndex);
+        input.bloomLayers.setX(vertex + 1, layerIndex);
+        input.opacities.setX(vertex, opacity);
+        input.opacities.setX(vertex + 1, opacity);
+      }
+    }
+  }
+}
+
+function CarLightRibbons({
+  active,
+  profile,
+  motion,
+}: {
+  active: boolean;
+  profile: VisionRideProfile;
+  motion: RefObject<VisionRideMotion>;
+}) {
   const carTransform = useMemo(() => new THREE.Object3D(), []);
   const localAnchor = useMemo(() => new THREE.Vector3(), []);
   const worldAnchor = useMemo(() => new THREE.Vector3(), []);
+  const basisAnchor = useMemo(() => new THREE.Vector3(), []);
+  const projectedLamps = useMemo(
+    () => [new THREE.Vector3(), new THREE.Vector3()] as const,
+    [],
+  );
+  const projectedRights = useMemo(
+    () => [new THREE.Vector3(), new THREE.Vector3()] as const,
+    [],
+  );
+  const projectedUps = useMemo(
+    () => [new THREE.Vector3(), new THREE.Vector3()] as const,
+    [],
+  );
+  const projectedVanishingPoint = useMemo(() => new THREE.Vector3(), []);
+  const histories = useRef<[LightExtrusionSample[], LightExtrusionSample[]]>([
+    [],
+    [],
+  ]);
+  const previousProjected = useRef<
+    [LightExtrusionSample, LightExtrusionSample] | null
+  >(null);
+  const sampleRemainder = useRef(0);
+  const wasActive = useRef(false);
+
   const geometry = useMemo(() => {
+    const trail = VISION_RIDE_LIGHT_TRAIL;
+    const extrusionCount =
+      LIGHT_EMITTER_SEGMENTS.length *
+      LIGHT_EXTRUSION_LAYER_SCALES.length *
+      2;
+    const vertexCount = trail.samplesPerLamp * 2 * extrusionCount;
     const result = new THREE.BufferGeometry();
-    const positionValues = new Float32Array(particleCount * 3);
-    const lifeValues = new Float32Array(particleCount);
-    for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
-      const side = sideIndex === 0 ? -1 : 1;
-      const rest = lightTrailRestAnchor(side);
-      for (
-        let index = 0;
-        index < VISION_RIDE_LIGHT_TRAIL.particlesPerLamp;
-        index += 1
-      ) {
-        const distance = lightTrailParticleDistance({
-          index,
-          sideIndex: sideIndex as 0 | 1,
-          travelDistanceMetres: 0,
-        });
-        const particleIndex =
-          sideIndex * VISION_RIDE_LIGHT_TRAIL.particlesPerLamp + index;
-        positionValues.set(
-          [rest.x, rest.y, rest.z + distance],
-          particleIndex * 3,
+    const positions = new THREE.BufferAttribute(
+      new Float32Array(vertexCount * 3),
+      3,
+    );
+    const opacities = new THREE.BufferAttribute(
+      new Float32Array(vertexCount),
+      1,
+    );
+    const emitterSpans = new THREE.BufferAttribute(
+      new Float32Array(vertexCount),
+      1,
+    );
+    const bloomLayers = new THREE.BufferAttribute(
+      new Float32Array(vertexCount),
+      1,
+    );
+    const indices = new Uint16Array(
+      (trail.samplesPerLamp - 1) * 6 * extrusionCount,
+    );
+
+    positions.setUsage(THREE.DynamicDrawUsage);
+    opacities.setUsage(THREE.DynamicDrawUsage);
+    emitterSpans.setUsage(THREE.DynamicDrawUsage);
+    bloomLayers.setUsage(THREE.DynamicDrawUsage);
+    for (let extrusion = 0; extrusion < extrusionCount; extrusion += 1) {
+      const vertexOffset = extrusion * trail.samplesPerLamp * 2;
+      const indexOffset = extrusion * (trail.samplesPerLamp - 1) * 6;
+      for (let index = 0; index < trail.samplesPerLamp; index += 1) {
+        if (index === trail.samplesPerLamp - 1) continue;
+        const vertex = vertexOffset + index * 2;
+        const target = indexOffset + index * 6;
+        indices.set(
+          [vertex, vertex + 1, vertex + 2, vertex + 1, vertex + 3, vertex + 2],
+          target,
         );
-        lifeValues[particleIndex] =
-          distance / VISION_RIDE_LIGHT_TRAIL.lengthMetres;
       }
     }
-    const positions = new THREE.BufferAttribute(positionValues, 3);
-    positions.setUsage(THREE.DynamicDrawUsage);
-    const lives = new THREE.BufferAttribute(lifeValues, 1);
-    lives.setUsage(THREE.DynamicDrawUsage);
-    const seeds = new Float32Array(particleCount);
-    for (let index = 0; index < particleCount; index += 1)
-      seeds[index] = ((index * 73) % 97) / 97;
     result.setAttribute("position", positions);
-    result.setAttribute("aLife", lives);
-    result.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
+    result.setAttribute("aOpacity", opacities);
+    result.setAttribute("aEmitterSpan", emitterSpans);
+    result.setAttribute("aBloomLayer", bloomLayers);
+    result.setIndex(new THREE.BufferAttribute(indices, 1));
     return result;
-  }, [particleCount]);
+  }, []);
+
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
         uniforms: {
           uColor: { value: new THREE.Color(profile.point.color) },
-          uPixelRatio: { value: dpr },
-          uPointSize: { value: VISION_RIDE_LIGHT_TRAIL.pointSizeMetres },
-          uTime: { value: 0 },
         },
-        vertexShader: LIGHT_TRAIL_PARTICLE_VERTEX,
-        fragmentShader: LIGHT_TRAIL_PARTICLE_FRAGMENT,
+        vertexShader: LIGHT_RIBBON_VERTEX,
+        fragmentShader: LIGHT_RIBBON_FRAGMENT,
         transparent: true,
+        depthTest: false,
         depthWrite: false,
+        side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending,
         toneMapped: false,
       }),
-    [dpr, profile.point.color],
+    [profile.point.color],
   );
 
   useEffect(() => () => geometry.dispose(), [geometry]);
   useEffect(() => () => material.dispose(), [material]);
 
   useFrame((state, delta) => {
-    travelDistance.current +=
-      profile.speedMetresPerSecond * Math.min(delta, 1 / 20);
-    const time = state.clock.elapsedTime;
-    material.uniforms.uTime!.value = time;
-    material.uniforms.uPixelRatio!.value = dpr;
-    const positions = geometry.getAttribute(
-      "position",
+    const opacityAttribute = geometry.getAttribute(
+      "aOpacity",
     ) as THREE.BufferAttribute;
-    const lives = geometry.getAttribute("aLife") as THREE.BufferAttribute;
+    if (!active) {
+      if (wasActive.current) {
+        histories.current = [[], []];
+        previousProjected.current = null;
+        sampleRemainder.current = 0;
+        opacityAttribute.array.fill(0);
+        opacityAttribute.needsUpdate = true;
+      }
+      wasActive.current = false;
+      return;
+    }
+    wasActive.current = true;
 
-    for (let sideIndex = 0; sideIndex < 2; sideIndex += 1) {
+    const time = state.clock.elapsedTime;
+    const currentTravelDistance = motion.current.travelDistanceMetres;
+    const pose = lightTrailCarPose({ time, motion: profile.car });
+    carTransform.position.set(
+      pose.x +
+        motion.current.steering * VISION_RIDE_DRIVING.steeringOffsetMetres,
+      pose.y,
+      VISION_RIDE_CAMERA.carZ,
+    );
+    carTransform.rotation.set(
+      0,
+      Math.PI +
+        motion.current.steering * VISION_RIDE_DRIVING.steeringYawRadians,
+      pose.roll -
+        motion.current.steering * VISION_RIDE_DRIVING.steeringRollRadians,
+    );
+    carTransform.updateMatrix();
+    state.camera.updateMatrixWorld();
+
+    for (const sideIndex of [0, 1] as const) {
       const side = sideIndex === 0 ? -1 : 1;
       localAnchor.set(
         -side * VISION_RIDE_LIGHT_TRAIL.lampLocalX,
         VISION_RIDE_LIGHT_TRAIL.lampLocalY,
         VISION_RIDE_LIGHT_TRAIL.lampLocalZ,
       );
-      for (
-        let index = 0;
-        index < VISION_RIDE_LIGHT_TRAIL.particlesPerLamp;
-        index += 1
-      ) {
-        const distance = lightTrailParticleDistance({
-          index,
-          sideIndex: sideIndex as 0 | 1,
-          travelDistanceMetres: travelDistance.current,
-        });
-        const historicalTime =
-          time - distance / Math.max(0.001, profile.speedMetresPerSecond);
-        const pose = lightTrailCarPose({
-          time: historicalTime,
-          motion: profile.car,
-        });
-        carTransform.position.set(pose.x, pose.y, VISION_RIDE_CAMERA.carZ);
-        carTransform.rotation.set(0, Math.PI, pose.roll);
-        carTransform.updateMatrix();
-        worldAnchor.copy(localAnchor).applyMatrix4(carTransform.matrix);
-        worldAnchor.z += distance;
+      worldAnchor.copy(localAnchor).applyMatrix4(carTransform.matrix);
+      projectedLamps[sideIndex].copy(worldAnchor).project(state.camera);
+      basisAnchor
+        .set(
+          localAnchor.x + VISION_RIDE_LIGHT_TRAIL.emitterHalfWidthMetres,
+          localAnchor.y,
+          localAnchor.z,
+        )
+        .applyMatrix4(carTransform.matrix);
+      projectedRights[sideIndex].copy(basisAnchor).project(state.camera);
+      basisAnchor
+        .set(
+          localAnchor.x,
+          localAnchor.y + VISION_RIDE_LIGHT_TRAIL.emitterHalfHeightMetres,
+          localAnchor.z,
+        )
+        .applyMatrix4(carTransform.matrix);
+      projectedUps[sideIndex].copy(basisAnchor).project(state.camera);
+    }
+    projectedVanishingPoint
+      .set(0, VISION_RIDE_CAMERA.lookY, -120)
+      .project(state.camera);
 
-        const particleIndex =
-          sideIndex * VISION_RIDE_LIGHT_TRAIL.particlesPerLamp + index;
-        positions.setXYZ(
-          particleIndex,
-          worldAnchor.x,
-          worldAnchor.y,
-          worldAnchor.z,
-        );
-        lives.setX(
-          particleIndex,
-          distance / VISION_RIDE_LIGHT_TRAIL.lengthMetres,
-        );
+    const currentProjected = [0, 1].map((sideIndex) => ({
+      x: projectedLamps[sideIndex]!.x,
+      y: projectedLamps[sideIndex]!.y,
+      rightX: projectedRights[sideIndex]!.x - projectedLamps[sideIndex]!.x,
+      rightY: projectedRights[sideIndex]!.y - projectedLamps[sideIndex]!.y,
+      upX: projectedUps[sideIndex]!.x - projectedLamps[sideIndex]!.x,
+      upY: projectedUps[sideIndex]!.y - projectedLamps[sideIndex]!.y,
+      capturedAtSeconds: time,
+      travelDistanceMetres: currentTravelDistance,
+    })) as [LightExtrusionSample, LightExtrusionSample];
+
+    const previous = previousProjected.current;
+    if (!previous) {
+      previousProjected.current = currentProjected;
+      for (const sideIndex of [0, 1] as const)
+        histories.current[sideIndex].push(currentProjected[sideIndex]);
+    } else {
+      const frameDelta = Math.min(0.1, Math.max(0, delta));
+      const interval = VISION_RIDE_LIGHT_TRAIL.sampleIntervalSeconds;
+      let sampleOffset = interval - sampleRemainder.current;
+      while (sampleOffset <= frameDelta + 0.000_001) {
+        const interpolation = frameDelta > 0 ? sampleOffset / frameDelta : 1;
+        for (const sideIndex of [0, 1] as const) {
+          const history = histories.current[sideIndex];
+          history.push({
+            x: THREE.MathUtils.lerp(
+              previous[sideIndex].x,
+              currentProjected[sideIndex].x,
+              interpolation,
+            ),
+            y: THREE.MathUtils.lerp(
+              previous[sideIndex].y,
+              currentProjected[sideIndex].y,
+              interpolation,
+            ),
+            rightX: THREE.MathUtils.lerp(
+              previous[sideIndex].rightX,
+              currentProjected[sideIndex].rightX,
+              interpolation,
+            ),
+            rightY: THREE.MathUtils.lerp(
+              previous[sideIndex].rightY,
+              currentProjected[sideIndex].rightY,
+              interpolation,
+            ),
+            upX: THREE.MathUtils.lerp(
+              previous[sideIndex].upX,
+              currentProjected[sideIndex].upX,
+              interpolation,
+            ),
+            upY: THREE.MathUtils.lerp(
+              previous[sideIndex].upY,
+              currentProjected[sideIndex].upY,
+              interpolation,
+            ),
+            capturedAtSeconds: time - frameDelta + sampleOffset,
+            travelDistanceMetres: THREE.MathUtils.lerp(
+              previous[sideIndex].travelDistanceMetres,
+              currentTravelDistance,
+              interpolation,
+            ),
+          });
+          if (history.length > VISION_RIDE_LIGHT_TRAIL.samplesPerLamp)
+            history.shift();
+        }
+        sampleOffset += interval;
       }
+      sampleRemainder.current =
+        (sampleRemainder.current + frameDelta) % interval;
+      previousProjected.current = currentProjected;
+    }
+
+    const positions = geometry.getAttribute(
+      "position",
+    ) as THREE.BufferAttribute;
+    const emitterSpans = geometry.getAttribute(
+      "aEmitterSpan",
+    ) as THREE.BufferAttribute;
+    const bloomLayers = geometry.getAttribute(
+      "aBloomLayer",
+    ) as THREE.BufferAttribute;
+    for (const sideIndex of [0, 1] as const) {
+      histories.current[sideIndex] = histories.current[sideIndex].filter(
+        (sample) =>
+          lightRibbonShouldRetainSample({
+            sample,
+            nowSeconds: time,
+            speedMultiplier: motion.current.speedMultiplier,
+          }),
+      );
+      const points = histories.current[sideIndex].map((sample) => {
+        const presentation = lightRibbonPresentation({
+          sample,
+          nowSeconds: time,
+          travelDistanceMetres: currentTravelDistance,
+          speedMultiplier: motion.current.speedMultiplier,
+          vanishingPointNdcX: projectedVanishingPoint.x,
+          offscreenMarginNdc:
+            (Math.abs(sample.rightY) + Math.abs(sample.upY)) *
+            VISION_RIDE_LIGHT_TRAIL.maximumEmitterScale *
+            LIGHT_EXTRUSION_LAYER_SCALES[
+              LIGHT_EXTRUSION_LAYER_SCALES.length - 1
+            ]! *
+            (1 + VISION_RIDE_LIGHT_TRAIL.emitterEndBloomFraction * 2),
+        });
+        return {
+          ...presentation,
+          rightX: sample.rightX,
+          rightY: sample.rightY,
+          upX: sample.upX,
+          upY: sample.upY,
+        };
+      });
+      writeLightExtrusionVertices({
+        sideIndex,
+        points,
+        positions,
+        emitterSpans,
+        bloomLayers,
+        opacities: opacityAttribute,
+      });
     }
     positions.needsUpdate = true;
-    lives.needsUpdate = true;
-  });
+    emitterSpans.needsUpdate = true;
+    bloomLayers.needsUpdate = true;
+    opacityAttribute.needsUpdate = true;
+  }, VISION_RIDE_FRAME_PRIORITY.lightTrails);
 
   return (
-    <points geometry={geometry} material={material} frustumCulled={false} />
+    <mesh
+      geometry={geometry}
+      material={material}
+      frustumCulled={false}
+      renderOrder={ORDER.dither - 4}
+    />
   );
 }
 
 function Lamborghini({
   reducedMotion,
+  lightsEnabled,
   profile,
+  motion,
 }: {
   reducedMotion: boolean;
+  lightsEnabled: boolean;
   profile: VisionRideProfile;
+  motion: RefObject<VisionRideMotion>;
 }) {
   const { scene } = useGLTF(VISION_RIDE_CAR_URL, false);
   const root = useRef<THREE.Group>(null);
@@ -1086,17 +1794,23 @@ function Lamborghini({
         Math.sin(time * profile.car.bounceRate) * profile.car.bounceAmount;
     group.position.x = reducedMotion
       ? 0
-      : Math.sin(time * profile.car.weaveRate) * profile.car.weaveAmount;
+      : Math.sin(time * profile.car.weaveRate) * profile.car.weaveAmount +
+        motion.current.steering * VISION_RIDE_DRIVING.steeringOffsetMetres;
     group.rotation.z = reducedMotion
       ? 0
-      : Math.sin(time * profile.car.rollRate) * profile.car.rollAmount;
+      : Math.sin(time * profile.car.rollRate) * profile.car.rollAmount -
+        motion.current.steering * VISION_RIDE_DRIVING.steeringRollRadians;
+    group.rotation.y = reducedMotion
+      ? Math.PI
+      : Math.PI +
+        motion.current.steering * VISION_RIDE_DRIVING.steeringYawRadians;
     // Wheels roll at the road speed: angular rate is speed over radius. The
     // model faces -z after the group's half turn, so its wheel axle is world
     // -x, and rolling forward is a positive turn about the mesh's own x.
     if (!reducedMotion)
       for (const wheel of wheels)
         wheel.rotation.x +=
-          (profile.speedMetresPerSecond /
+          (motion.current.speedMetresPerSecond /
             VISION_RIDE_CAMERA.wheelRadiusMetres) *
           Math.min(delta, 1 / 20);
   });
@@ -1108,6 +1822,7 @@ function Lamborghini({
       rotation={[0, Math.PI, 0]}
     >
       <primitive object={car} dispose={null} />
+      {lightsEnabled ? <LamborghiniRearLights color={profile.point.color} /> : null}
     </group>
   );
 }
@@ -1132,7 +1847,13 @@ export default function VisionRideWorld({
   const introStartedAt = useRef<number | null>(null);
   const parallax = useRef({ x: 0, y: 0, z: 0 });
   const keysPressed = useRef(new Set<string>());
-  const keyAxis = useRef({ x: 0, y: 0 });
+  const motion = useRef<VisionRideMotion>({
+    steering: 0,
+    throttle: 0,
+    speedMultiplier: 1,
+    speedMetresPerSecond: profile.speedMetresPerSecond,
+    travelDistanceMetres: 0,
+  });
   const pointer = useRef({ x: 0, y: 0 });
   const breath = useRef<EnvironmentBreath>(
     environmentBreath(
@@ -1167,16 +1888,16 @@ export default function VisionRideWorld({
     return () => window.removeEventListener("pointermove", onMove);
   }, [reducedMotion]);
 
-  // WASD and the arrows drive the same shift as the pointer, by key code so
-  // the layout does not matter. Held keys are tracked as a set and read per
-  // frame; the ride is the only thing on screen, so the arrows are claimed
-  // (no page scroll) unless a text field has focus or a modifier is down.
+  // WASD and the arrows drive the car by key code so keyboard layout does not
+  // matter. Held keys are tracked as a set and read per frame; the ride is the
+  // only thing on screen, so arrows are claimed unless a field has focus or a
+  // modifier is down.
   useEffect(() => {
     if (reducedMotion) return;
     const pressed = keysPressed.current;
     const onKeyDown = (event: KeyboardEvent) => {
       if (
-        !isVisionRideShiftKey(event.code) ||
+        !isVisionRideDriveKey(event.code) ||
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
@@ -1212,6 +1933,30 @@ export default function VisionRideWorld({
     };
   }, [reducedMotion]);
 
+  useFrame((_, delta) => {
+    if (phase !== "cruising" && phase !== "doffing") return;
+    if (reducedMotion) {
+      motion.current.steering = 0;
+      motion.current.throttle = 0;
+      motion.current.speedMultiplier = 1;
+      motion.current.speedMetresPerSecond = profile.speedMetresPerSecond;
+      return;
+    }
+    const next = advanceDriveState(
+      motion.current,
+      driveAxes(keysPressed.current),
+      Math.min(delta, 1 / 20),
+    );
+    const speedMultiplier = driveSpeedMultiplier(next.throttle);
+    motion.current.steering = next.steering;
+    motion.current.throttle = next.throttle;
+    motion.current.speedMultiplier = speedMultiplier;
+    motion.current.speedMetresPerSecond =
+      profile.speedMetresPerSecond * speedMultiplier;
+    motion.current.travelDistanceMetres +=
+      motion.current.speedMetresPerSecond * Math.min(delta, 1 / 20);
+  }, VISION_RIDE_FRAME_PRIORITY.motion);
+
   useFrame((state, delta) => {
     if (!readySent.current) {
       readySent.current = true;
@@ -1235,21 +1980,17 @@ export default function VisionRideWorld({
       profile.breath,
     );
     breath.current = cycle;
-    // Damped pointer parallax + keys + ambient drift around the chase
+    // Damped pointer parallax + ambient drift around the chase
     // target, live from the moment the chase settles (2.8 s), not faded in
     // over the 14 s arrival sweep: gating it on the intro made the mouse
     // feel dead for the first several seconds of the ride. Exponential
     // smoothing against delta, not a per-frame factor, so the feel is
-    // identical at 60 and 120 Hz. Keys ramp linearly so a tap nudges and a
-    // hold sweeps to the extreme.
-    const wanted = keyAxes(keysPressed.current);
-    keyAxis.current.x = rampKeyAxis(keyAxis.current.x, wanted.x, delta);
-    keyAxis.current.y = rampKeyAxis(keyAxis.current.y, wanted.y, delta);
+    // identical at 60 and 120 Hz.
     const touch = visionRideTouchRuntime.getSnapshot();
     const steering = touch.engaged ? touch : pointer.current;
     const unscaledTarget = parallaxTarget({
-      pointerX: steering.x + keyAxis.current.x,
-      pointerY: steering.y + keyAxis.current.y,
+      pointerX: steering.x,
+      pointerY: steering.y,
       time: state.clock.elapsedTime,
       portrait,
       reducedMotion,
@@ -1272,8 +2013,13 @@ export default function VisionRideWorld({
     const cameraZ =
       pose.position[2] +
       // The convex pull shrinks with the breath's closure, so the pointer
-      // or keys at their extreme never stack a full pull on the crest.
-      (cycle.chaseOffset + parallax.current.z / cycle.carScale) * intro;
+      // at its extreme never stacks a full pull on the crest. Throttle adds
+      // only a few centimetres at first and tops out at a restrained chase
+      // lag: acceleration lets the car pull away, braking closes the gap.
+      (cycle.chaseOffset +
+        parallax.current.z / cycle.carScale +
+        driveChaseOffsetMetres(motion.current.throttle)) *
+        intro;
     // The lateral shift is capped by the room the frame has beside the car's
     // rear at this depth. A fixed 2.1 m reach at the 2.25x crest yawed the
     // fender past the side of a portrait or 4:3 frame.
@@ -1309,7 +2055,7 @@ export default function VisionRideWorld({
       camera.fov = framing.fov;
       camera.updateProjectionMatrix();
     }
-  });
+  }, VISION_RIDE_FRAME_PRIORITY.camera);
 
   return (
     <group visible={phase === "cruising" || phase === "doffing"}>
@@ -1323,16 +2069,22 @@ export default function VisionRideWorld({
         reducedMotion={reducedMotion}
         breath={breath}
         profile={profile}
+        motion={motion}
       />
       {mileMarkersEnabled && !reducedMotion ? (
-        <DigitalMileMarker
+        <HolographicCheckpoint
           active={phase === "cruising" || phase === "doffing"}
           reducedMotion={false}
           profile={profile}
+          motion={motion}
         />
       ) : null}
       {lightTrailsEnabled && !reducedMotion ? (
-        <CarLightTrails profile={profile} />
+        <CarLightRibbons
+          active={phase === "cruising" || phase === "doffing"}
+          profile={profile}
+          motion={motion}
+        />
       ) : null}
       <hemisphereLight
         args={[
@@ -1352,8 +2104,15 @@ export default function VisionRideWorld({
         distance={28}
         position={[4, 4, -4]}
       />
-      <Lamborghini reducedMotion={reducedMotion} profile={profile} />
-      {retroFxEnabled && <ScreenDitherOverlay reducedMotion={reducedMotion} />}
+      <Lamborghini
+        reducedMotion={reducedMotion}
+        lightsEnabled={lightTrailsEnabled}
+        profile={profile}
+        motion={motion}
+      />
+      {retroFxEnabled && (
+        <ScreenDitherOverlay reducedMotion={reducedMotion} motion={motion} />
+      )}
     </group>
   );
 }

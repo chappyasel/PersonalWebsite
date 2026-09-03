@@ -369,8 +369,8 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "render",
     group: "render.optional",
     label: "Vision Ride mile markers",
-    help: "Pass one numbered digital roadside pylon every 30 seconds.",
-    defaultValue: false,
+    help: "Pass through one road-wide holographic checkpoint every 30 seconds.",
+    defaultValue: true,
     experimental: false,
     store: visionRideDiagnosticsController,
     read: () =>
@@ -379,7 +379,8 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       visionRideDiagnosticsController.setMileMarkersEnabled(Boolean(value)),
     productionCost: {
       activeValues: [true],
-      enabled: "One instanced line pylon and one position update per frame",
+      enabled:
+        "One checkpoint frame, one holographic curtain, and one instanced shard field",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,
@@ -392,8 +393,8 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "render",
     group: "render.optional",
     label: "Vision Ride light trails",
-    help: "Stream soft glowing particles from the car's real rear-lamp centers.",
-    defaultValue: false,
+    help: "Extrude both Lamborghini-Y lamp silhouettes through camera history with layered bloom.",
+    defaultValue: true,
     experimental: false,
     store: visionRideDiagnosticsController,
     read: () =>
@@ -402,7 +403,8 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       visionRideDiagnosticsController.setLightTrailsEnabled(Boolean(value)),
     productionCost: {
       activeValues: [true],
-      enabled: "One native Points draw with 112 procedural particles",
+      enabled:
+        "One dynamic extrusion draw plus three 14-instance lamp-glow draws",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,

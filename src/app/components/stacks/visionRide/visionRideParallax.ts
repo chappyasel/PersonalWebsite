@@ -1,6 +1,5 @@
 /**
- * Pure target math for the ride camera's shift: pointer parallax, WASD and
- * arrow keys, and an ambient drift, all summed into one target.
+ * Pure target math for the ride camera's pointer shift and ambient drift.
  *
  * The shift is a truck, not an orbit. The camera moves sideways across the
  * road (and up and down), and the aim follows the car only by `aimShare`
@@ -38,8 +37,6 @@ export const VISION_RIDE_PARALLAX = {
   portraitSwayTimeScale: 1.65,
   /** Exponential damping rate for the component (per second). */
   dampingPerSecond: 3,
-  /** Rate a held key ramps its axis toward full (per second), and back. */
-  keyRampPerSecond: 2.5,
   /** Ambient sway amplitudes (metres) and rates (Hz). */
   swayX: 0.16,
   swayY: 0.06,
@@ -47,41 +44,6 @@ export const VISION_RIDE_PARALLAX = {
   swayX2Hz: 0.023,
   swayYHz: 0.041,
 } as const;
-
-/** Keys that shift the ride camera, by `KeyboardEvent.code` so the
- * layout does not matter: WASD or the arrows. */
-export const VISION_RIDE_SHIFT_KEYS = {
-  left: ["KeyA", "ArrowLeft"],
-  right: ["KeyD", "ArrowRight"],
-  up: ["KeyW", "ArrowUp"],
-  down: ["KeyS", "ArrowDown"],
-} as const;
-
-export function isVisionRideShiftKey(code: string) {
-  return Object.values(VISION_RIDE_SHIFT_KEYS).some((codes) =>
-    (codes as readonly string[]).includes(code),
-  );
-}
-
-/** The [-1, 1] axis targets a set of held key codes asks for. Opposing keys
- * cancel; unrelated keys are ignored. */
-export function keyAxes(pressed: ReadonlySet<string>) {
-  const held = (codes: readonly string[]) =>
-    codes.some((code) => pressed.has(code)) ? 1 : 0;
-  const keys = VISION_RIDE_SHIFT_KEYS;
-  return {
-    x: held(keys.right) - held(keys.left),
-    y: held(keys.up) - held(keys.down),
-  };
-}
-
-/** Move a key axis toward its target at the ramp rate, never overshooting. */
-export function rampKeyAxis(current: number, target: number, delta: number) {
-  const step = VISION_RIDE_PARALLAX.keyRampPerSecond * Math.max(0, delta);
-  if (current < target) return Math.min(target, current + step);
-  if (current > target) return Math.max(target, current - step);
-  return current;
-}
 
 /** Look-at x for a camera offset laterally by `parallaxX`. */
 export function chaseAimX(parallaxX: number) {

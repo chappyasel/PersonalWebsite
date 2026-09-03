@@ -1,38 +1,52 @@
 export const VISION_RIDE_MILE_MARKER = {
   periodSeconds: 30,
-  passSeconds: 6,
+  farZ: -72,
   nearZ: 7,
-  shoulderOffsetMetres: 0.35,
+  heightMetres: 3.1,
+  depthMetres: 0.44,
+  shatterDistanceMetres: 6.4,
 } as const;
 
 export type MileMarkerPresentation = Readonly<{
   visible: boolean;
   number: number;
   z: number;
+  progress: number;
 }>;
 
-/** One numbered marker enters from the profile's speed-matched distance and
- * passes the camera every 30 seconds. Nothing hangs beside the road between
- * passes. */
+/** One road-spanning checkpoint enters every 30 seconds and advances by the
+ * actual integrated road distance, so throttle changes affect it naturally. */
 export function mileMarkerPresentation(
   elapsed: number,
-  speedMetresPerSecond: number,
+  distanceSinceCheckpoint: number,
   reducedMotion: boolean,
 ): MileMarkerPresentation {
   const marker = VISION_RIDE_MILE_MARKER;
   if (reducedMotion || elapsed < marker.periodSeconds)
-    return { visible: false, number: 0, z: marker.nearZ };
+    return { visible: false, number: 0, z: marker.farZ, progress: 0 };
   const number = Math.floor(elapsed / marker.periodSeconds);
-  const local = elapsed - number * marker.periodSeconds;
-  const visible = local <= marker.passSeconds;
+  const distance = Math.max(0, distanceSinceCheckpoint);
+  const span = marker.nearZ - marker.farZ;
+  const z = marker.farZ + distance;
   return {
-    visible,
+    visible: z <= marker.nearZ,
     number: number % 100,
-    z:
-      marker.nearZ -
-      speedMetresPerSecond *
-        (marker.passSeconds - Math.min(local, marker.passSeconds)),
+    z,
+    progress: Math.max(0, Math.min(1, distance / span)),
   };
+}
+
+export function checkpointShatterProgress(
+  checkpointZ: number,
+  impactZ: number,
+) {
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      (checkpointZ - impactZ) / VISION_RIDE_MILE_MARKER.shatterDistanceMetres,
+    ),
+  );
 }
 
 const DIGIT_SEGMENTS = [

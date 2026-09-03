@@ -6,10 +6,10 @@ import {
 } from "./visionRideDiagnostics";
 
 describe("Vision Ride diagnostics", () => {
-  it("keeps mile markers and light trails parked by default", () => {
+  it("runs checkpoints and camera-reactive light trails by default", () => {
     expect(visionRideDiagnosticsController.getSnapshot()).toMatchObject({
-      mileMarkersEnabled: false,
-      lightTrailsEnabled: false,
+      mileMarkersEnabled: true,
+      lightTrailsEnabled: true,
     });
   });
 

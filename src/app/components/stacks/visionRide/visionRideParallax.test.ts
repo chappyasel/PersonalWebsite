@@ -3,15 +3,11 @@ import { describe, expect, it } from "vitest";
 import { VISION_RIDE_CAMERA } from "./visionRideCamera";
 import {
   VISION_RIDE_PARALLAX,
-  VISION_RIDE_SHIFT_KEYS,
   ambientSway,
   chaseAimX,
-  isVisionRideShiftKey,
-  keyAxes,
   normalizedPointer,
   parallaxTarget,
   pointerParallax,
-  rampKeyAxis,
 } from "./visionRideParallax";
 import { VISION_RIDE_ROAD_HALF_WIDTH } from "./visionRideTerrain";
 
@@ -66,34 +62,6 @@ describe("Vision ride parallax", () => {
     expect(maxY / maxX).toBeLessThan(0.35);
     expect(convexZ / maxX).toBeGreaterThan(0.2);
     expect(convexZ / maxX).toBeLessThan(0.35);
-  });
-
-  it("maps WASD and the arrows onto the same axes, opposing keys cancelling", () => {
-    expect(keyAxes(new Set())).toEqual({ x: 0, y: 0 });
-    expect(keyAxes(new Set(["KeyD"]))).toEqual({ x: 1, y: 0 });
-    expect(keyAxes(new Set(["ArrowLeft"]))).toEqual({ x: -1, y: 0 });
-    expect(keyAxes(new Set(["KeyW"]))).toEqual({ x: 0, y: 1 });
-    expect(keyAxes(new Set(["ArrowDown"]))).toEqual({ x: 0, y: -1 });
-    expect(keyAxes(new Set(["KeyA", "ArrowRight"]))).toEqual({ x: 0, y: 0 });
-    expect(keyAxes(new Set(["KeyD", "ArrowUp", "KeyQ"]))).toEqual({
-      x: 1,
-      y: 1,
-    });
-    for (const codes of Object.values(VISION_RIDE_SHIFT_KEYS))
-      for (const code of codes) expect(isVisionRideShiftKey(code)).toBe(true);
-    for (const code of ["KeyQ", "Space", "Escape", "Enter"])
-      expect(isVisionRideShiftKey(code)).toBe(false);
-    // A held key reaches full in under half a second and never overshoots.
-    let axis = 0;
-    for (let i = 0; i < 30; i++) axis = rampKeyAxis(axis, 1, 1 / 60);
-    expect(axis).toBeGreaterThan(0.9);
-    expect(axis).toBeLessThanOrEqual(1);
-    expect(rampKeyAxis(0.98, 1, 1)).toBe(1);
-    expect(rampKeyAxis(1, 0, 1)).toBe(0);
-    expect(rampKeyAxis(-0.5, -0.5, 0.1)).toBe(-0.5);
-    // Keys add to the pointer and the sum is clamped to the same extremes.
-    expect(pointerParallax(0.6 + 1, 0).x).toBe(maxX);
-    expect(pointerParallax(-0.2 + -1, 0).x).toBe(-maxX);
   });
 
   it("bounds the extremes and clamps out-of-range pointers", () => {
