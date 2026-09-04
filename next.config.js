@@ -23,6 +23,14 @@ const config = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      // Nothing links /favicon.ico any more, but crawlers and old bookmarks
+      // still ask for it. Serve the generated tab icon; the subdomain proxy
+      // exempts the path, so every host gets the same face.
+      { source: "/favicon.ico", destination: "/icon" },
+    ];
+  },
   async headers() {
     return [
       {

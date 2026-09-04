@@ -79,7 +79,9 @@ export const metadata: Metadata = {
   ),
   title: "Chappy Asel",
   description: HOMEPAGE_DESCRIPTION,
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  // No `icons` here on purpose: app/icon.tsx and app/apple-icon.tsx link
+  // themselves, and a config entry at the root would silence every
+  // section's own icon.tsx (see src/lib/icons/siteIconMetadata.ts).
 };
 
 export default function RootLayout({

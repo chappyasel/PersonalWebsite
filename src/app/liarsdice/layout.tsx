@@ -1,7 +1,10 @@
 import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
+
 export const metadata: Metadata = {
+  icons: siteIconMetadata("/liarsdice"),
   title: "Liar's Dice Calculator ~ Chappy Asel",
   description:
     "Probability calculator for Liar's Dice. Compute optimal bids and call probabilities.",

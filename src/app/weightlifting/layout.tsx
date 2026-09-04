@@ -1,16 +1,19 @@
 import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
 import { devSubdomainUrl } from "~/lib/util";
 import { TRPCReactProvider } from "~/trpc/react";
 import { SITE_PAGES } from "~/lib/site/pages";
 
+const origin =
+  process.env.NODE_ENV === "production"
+    ? "https://weightlifting.chappyasel.com"
+    : devSubdomainUrl("weightlifting");
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NODE_ENV === "production"
-      ? "https://weightlifting.chappyasel.com"
-      : devSubdomainUrl("weightlifting"),
-  ),
+  metadataBase: new URL(origin),
+  icons: siteIconMetadata(origin),
   title: "Weightlifting ~ Chappy Asel",
   description: SITE_PAGES.weightlifting.description,
   keywords: ["weightlifting", "workout tracker", "personal records", "Chappy Asel"],

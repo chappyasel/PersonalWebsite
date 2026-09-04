@@ -55,3 +55,6 @@ npm-debug.log*
 # youtube takeout data
 /data/youtube/
 .gstack/
+
+# favicon preview sheets (pnpm preview:favicons)
+/favicon-previews

@@ -7,10 +7,21 @@ import {
 
 import { env } from "~/env";
 
+/**
+ * A section's own icon routes (/dad/icon/tab, /youtube/tab-icon). They are
+ * public: the browser asks for them from the password gate itself.
+ */
+const SECTION_ICON_PATH = /^\/[a-z]+\/(?:icon\/[a-z]+|tab-icon)$/;
+
 export async function proxy(req: NextRequest) {
   // Protect Dad sub-routes with the same signed token used by the layout and API.
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/dad/") && !pathname.startsWith("/dad/api")) {
+  const isSectionIcon = SECTION_ICON_PATH.test(pathname);
+  if (
+    pathname.startsWith("/dad/") &&
+    !pathname.startsWith("/dad/api") &&
+    !isSectionIcon
+  ) {
     const token = req.cookies.get(DAD_ACCESS_COOKIE_NAME)?.value;
     if (!isValidDadAccessToken(token, env.DAD_CONTENT_PASSWORD)) {
       return NextResponse.redirect(new URL("/dad", req.url));
@@ -18,7 +29,8 @@ export async function proxy(req: NextRequest) {
   }
   if (
     pathname.startsWith("/youtube/") &&
-    !pathname.startsWith("/youtube/api")
+    !pathname.startsWith("/youtube/api") &&
+    !isSectionIcon
   ) {
     const token = req.cookies.get("youtube-access")?.value;
     if (!token) {
