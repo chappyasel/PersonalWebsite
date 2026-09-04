@@ -53,6 +53,16 @@ rendering sources remain watched. When the About frame intentionally changes,
 run `pnpm generate:home-og:local` and stage both outputs named by the warning. CI
 repeats the freshness check if a local hook is bypassed.
 
+Neither gate measures bundle size, and nothing else does either. The homepage
+first load matters: it is the boot path for the 3D room, and one value import
+of three.js on the page's static graph adds about 98 KB gzipped before first
+paint. `initialGraph.test.ts` guards that one case by walking the import graph.
+There is deliberately no byte ceiling. A gzipped first-load budget used to run
+on `postbuild` and it failed production builds after merges, so it was removed
+on 2026-09-04. Do not add it back in any form that can fail `pnpm build`. If a
+change is likely to grow the homepage first load by a lot, say so in the PR and
+let the owner decide.
+
 Run `pnpm typegen` before `pnpm exec tsc --noEmit` or `pnpm lint` in a fresh
 worktree. `next-env.d.ts` and `.next/types` are gitignored, and without them
 the `public/images/...` imports in About and Projects fail to resolve.
