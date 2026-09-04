@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sceneQualityStorageBucket } from "./quality";
 import type { SceneQualityAxes } from "./qualityAxes";
 import {
+  SURVIVAL_LEARNING_TTL_MS,
   clearLearnedQuality,
   learningAvailable,
   readLearnedQuality,
+  readLearnedSurvivalUntil,
   writeLearnedQuality,
 } from "./qualityLearning";
 
@@ -13,6 +15,7 @@ const axes: SceneQualityAxes = {
   resolutionStep: 7,
   effects: "lean",
   content: "reduced",
+  survival: false,
 };
 
 const bucket = () =>
@@ -66,6 +69,8 @@ describe("cross-visit quality learning", () => {
       resolutionStep: 7,
       effects: "lean",
       content: "reduced",
+      survival: false,
+      survivalUntil: null,
       profile: "efficient",
     });
   });
@@ -76,6 +81,61 @@ describe("cross-visit quality learning", () => {
     expect(restored.resolutionStep).toBe(axes.resolutionStep);
     expect(restored.effects).toBe(axes.effects);
     expect(restored.content).toBe(axes.content);
+  });
+
+  it("leases survival across a near-term revisit without pinning it forever", () => {
+    const writtenAt = 1_000_000;
+    writeLearnedQuality(bucket(), { ...axes, survival: true }, null, writtenAt);
+
+    expect(readLearnedQuality(bucket(), writtenAt + 1)?.survival).toBe(true);
+    expect(
+      readLearnedQuality(bucket(), writtenAt + SURVIVAL_LEARNING_TTL_MS)
+        ?.survival,
+    ).toBe(false);
+  });
+
+  it("preserves a restored survival deadline instead of renewing it", () => {
+    const writtenAt = 1_000_000;
+    const originalUntil = writeLearnedQuality(
+      bucket(),
+      { ...axes, survival: true },
+      null,
+      writtenAt,
+    );
+    const rewrittenUntil = writeLearnedQuality(
+      bucket(),
+      { ...axes, survival: true },
+      null,
+      writtenAt + 10_000,
+      originalUntil,
+    );
+
+    expect(rewrittenUntil).toBe(originalUntil);
+    expect(readLearnedQuality(bucket(), originalUntil!)?.survival).toBe(false);
+  });
+
+  it("exposes an active survival lease before renderer capability is known", () => {
+    const writtenAt = 1_000_000;
+    const until = writeLearnedQuality(
+      bucket(),
+      { ...axes, survival: true },
+      null,
+      writtenAt,
+    );
+    const unknownCapabilityBucket = bucket().replace(":standard:", ":unknown:");
+
+    expect(
+      readLearnedSurvivalUntil(unknownCapabilityBucket, writtenAt + 1),
+    ).toBe(until);
+    expect(
+      readLearnedSurvivalUntil(unknownCapabilityBucket, until!),
+    ).toBeNull();
+  });
+
+  it("clears the opening survival lease with the learned quality", () => {
+    writeLearnedQuality(bucket(), { ...axes, survival: true }, null, 1_000_000);
+    clearLearnedQuality(bucket());
+    expect(readLearnedSurvivalUntil(bucket(), 1_000_001)).toBeNull();
   });
 
   it("keys the entry by the versioned bucket", () => {
@@ -138,7 +198,12 @@ describe("cross-visit quality learning", () => {
     writeLearnedQuality(bucket(), axes, "efficient");
     writeLearnedQuality(
       bucket(),
-      { resolutionStep: 11, effects: "full", content: "full" },
+      {
+        resolutionStep: 11,
+        effects: "full",
+        content: "full",
+        survival: false,
+      },
       "showcase",
     );
     expect(readLearnedQuality(bucket())!.resolutionStep).toBe(11);

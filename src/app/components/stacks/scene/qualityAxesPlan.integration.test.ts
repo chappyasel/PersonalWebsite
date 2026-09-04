@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  type SceneQualityMetrics,
-  resolveSceneQualityPlan,
-} from "./quality";
+import { type SceneQualityMetrics, resolveSceneQualityPlan } from "./quality";
 import {
   initialSceneQualityAxisState,
   reduceSceneQualityAxes,
@@ -51,6 +48,7 @@ const planFor = (state: ReturnType<typeof soak>) =>
     contentTier: state.axes.content,
     effectsTier: state.axes.effects,
     resolutionStep: state.axes.resolutionStep,
+    survival: state.axes.survival,
   });
 
 describe("axes reach the rendered plan", () => {
@@ -61,6 +59,7 @@ describe("axes reach the rendered plan", () => {
     const plan = planFor(state);
     expect(plan.effects.ambientOcclusion).toBe(false);
     expect(plan.effects.depthOfField).toBe(false);
+    expect(plan.environment.meadow).toBe(false);
   });
 
   it("keeps them on when the axis is at full", () => {
@@ -139,6 +138,7 @@ describe("axes reach the rendered plan", () => {
       contentTier: state.axes.content,
       effectsTier: state.axes.effects,
       resolutionStep: state.axes.resolutionStep,
+      survival: state.axes.survival,
     });
 
     expect(plan.dpr).toBe(3);

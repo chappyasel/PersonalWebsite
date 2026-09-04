@@ -9,7 +9,11 @@ import {
   createSceneDiagnosticsRegistry,
   sceneDiagnosticsRegistry,
 } from "./sceneDiagnosticsRegistry";
-import { DEFAULT_SCENE_PERFORMANCE_SETTINGS } from "./scenePerformance";
+import {
+  DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+  scenePerformanceController,
+} from "./scenePerformance";
+import { sceneQualityController } from "./sceneQualityController";
 
 const diagnosticsSource = fs.readFileSync(
   new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
@@ -33,6 +37,21 @@ class NoWorkRenderer {
 }
 
 describe("Scene Diagnostics registry", () => {
+  it("reads and overrides the resolved automatic meadow state", () => {
+    scenePerformanceController.reset();
+    sceneQualityController.resetControls();
+    sceneQualityController.publishRuntime({
+      plan: { environment: { meadow: false } },
+    } as Parameters<typeof sceneQualityController.publishRuntime>[0]);
+
+    expect(sceneDiagnosticsRegistry.read("render.meadow")).toBe(false);
+    sceneDiagnosticsRegistry.update("render.meadow", true);
+    expect(scenePerformanceController.isOverridden("meadow")).toBe(true);
+    expect(sceneDiagnosticsRegistry.read("render.meadow")).toBe(true);
+
+    scenePerformanceController.reset();
+    sceneQualityController.resetControls();
+  });
   it("owns unique stable IDs and complete descriptor metadata", () => {
     const ids = sceneDiagnosticsRegistry.descriptors.map(
       (descriptor) => descriptor.id,
@@ -112,6 +131,36 @@ describe("Scene Diagnostics registry", () => {
         expect(diagnosticsSource).toContain('id="inspect.scope"');
       else expect(diagnosticsSource).toContain(`groupId="${section.id}"`);
     }
+  });
+
+  it("offers the named test profiles as one reload-aware control", () => {
+    const control = sceneDiagnosticsRegistry.descriptors.find(
+      (descriptor) => descriptor.id === "quality.test-profile",
+    );
+    expect(control).toMatchObject({
+      group: "render.profile",
+      valueKind: "enum",
+      defaultValue: null,
+      reloadInput: "perf-profile",
+    });
+    expect(
+      control?.allowedValues.kind === "set"
+        ? control.allowedValues.values.map((option) => option.value)
+        : [],
+    ).toEqual([
+      null,
+      "constrained",
+      "unknown-device",
+      "floor",
+      "low-dpr",
+      "no-composer",
+      "light-boot",
+      "no-meadow",
+      "retina-stress",
+    ]);
+    expect(() =>
+      sceneDiagnosticsRegistry.update("quality.test-profile", "nope"),
+    ).toThrow(/Invalid value/);
   });
 
   it("gives every scene performance setting exactly one generated control", () => {

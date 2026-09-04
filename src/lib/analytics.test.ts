@@ -3,11 +3,62 @@ import { describe, expect, it, vi } from "vitest";
 import {
   type AnalyticsEvent,
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
+  PERFORMANCE_DIAGNOSTIC_BEACON_MAX_BYTES,
+  analyticsCaptureOptions,
   createAnalyticsInterface,
   sanitizeAnalyticsProperties,
 } from "./analytics";
 
 describe("analytics interface", () => {
+  it("keeps bounded support diagnostics off the delayed analytics batch", () => {
+    const diagnostic = {
+      schema_version: 3,
+      diagnostic_run_id: "run.0",
+      diagnostic_report_id: "run.0:runtime:post_reveal_window:20000",
+      diagnostic_build_id: "test-build",
+      report_kind: "runtime",
+      capture_reason: "post_reveal_window",
+      checkpoint_index: null,
+      instrumented: true,
+      elapsed_ms: 20_000,
+      boot_status: "live",
+      boot_path: "cold",
+      blocking_gate: null,
+      diagnostic_hint: "runtime_healthy",
+      test_profile: null,
+      dominant_constraint: "headroom",
+      effective_fps: 60,
+      frame_p95_ms: 16.7,
+      dropped_frame_ratio: 0,
+      survival_active: false,
+      first_frame_ms: null,
+      meadow_ready_ms: null,
+      revealed_ms: null,
+      live_ms: null,
+      report_truncated_for_transport: false,
+      report_bytes: PERFORMANCE_DIAGNOSTIC_BEACON_MAX_BYTES,
+      report: {},
+    } as const;
+
+    expect(
+      analyticsCaptureOptions("homepage_performance_diagnostic", diagnostic),
+    ).toEqual({
+      send_instantly: true,
+      transport: "sendBeacon",
+    });
+    expect(
+      analyticsCaptureOptions("homepage_performance_diagnostic", {
+        ...diagnostic,
+        report_bytes: PERFORMANCE_DIAGNOSTIC_BEACON_MAX_BYTES + 1,
+      }),
+    ).toEqual({ send_instantly: true, transport: "fetch" });
+    expect(
+      analyticsCaptureOptions("homepage_contact_selected", {
+        method: "linkedin",
+      }),
+    ).toBeUndefined();
+  });
+
   it("keeps Portal activation on one legacy analytics contract", async () => {
     const deliver = vi.fn();
     const analytics = createAnalyticsInterface({

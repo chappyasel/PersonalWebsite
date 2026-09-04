@@ -1,5 +1,9 @@
 import { useStacks } from "../store";
-import { useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
+
+/** The resolved production plan plus any live Meadow override. Components
+ * outside the provider fall back to the raw setting for isolated tests. */
+export const SceneMeadowVisibilityContext = createContext<boolean | null>(null);
 
 export type PlacardGlassMode = "auto" | "native" | "paper";
 export type PracticalGlowMode = "aperture" | "halo" | "sprite";
@@ -233,10 +237,13 @@ class ScenePerformanceController {
   };
 
   update(patch: Partial<ScenePerformanceSettings>) {
+    let overrideChanged = false;
     for (const key of Object.keys(patch) as Array<
       keyof ScenePerformanceSettings
-    >)
+    >) {
+      overrideChanged ||= !this.overrides.has(key);
       this.overrides.add(key);
+    }
     const next = { ...this.snapshot, ...patch };
     if (
       Object.keys(next).every((key) =>
@@ -245,15 +252,21 @@ class ScenePerformanceController {
           this.snapshot[key as keyof ScenePerformanceSettings],
         ),
       )
-    )
+    ) {
+      if (overrideChanged) {
+        this.snapshot = Object.freeze({ ...this.snapshot });
+        for (const listener of this.listeners) listener();
+      }
       return;
+    }
     this.snapshot = next;
     for (const listener of this.listeners) listener();
   }
 
   updateBoolean(key: ScenePerformanceBooleanSetting, value: boolean) {
+    const overrideChanged = !this.overrides.has(key);
     this.overrides.add(key);
-    if (this.snapshot[key] === value) return;
+    if (this.snapshot[key] === value && !overrideChanged) return;
     this.snapshot = Object.freeze({ ...this.snapshot, [key]: value });
     for (const listener of this.listeners) listener();
   }
@@ -282,6 +295,12 @@ export function useScenePerformanceSettings() {
     scenePerformanceController.getSnapshot,
     scenePerformanceController.getSnapshot,
   );
+}
+
+export function useResolvedMeadowVisibility() {
+  const resolved = useContext(SceneMeadowVisibilityContext);
+  const settings = useScenePerformanceSettings();
+  return resolved ?? settings.meadow;
 }
 
 export function useUnitRealLights(unitIndex: number) {

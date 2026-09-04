@@ -71,6 +71,7 @@ export function sceneQualityPersistenceStatus(
     state.axisChangedAt.resolution,
     state.axisChangedAt.effects,
     state.axisChangedAt.content,
+    state.axisChangedAt.survival,
   );
   if (state.validation == null || state.validation.at < stableAt)
     return blocked("unvalidated");

@@ -14,6 +14,7 @@ const sample = (at: number) => ({
     resolutionStep: 8,
     effects: "lean" as const,
     content: "reduced" as const,
+    survival: false,
   },
   metrics: {
     targetFrameMs: 16.667,

@@ -43,7 +43,12 @@ import { registerInsectCollisionRoot } from "./insectFlightWorld";
 import { UnitInsectPerches } from "./insectPerches";
 import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
 import type { SceneQualityPlan } from "./quality";
-import { scenePrewarmDeferred } from "./scenePerformance";
+import {
+  SceneMeadowVisibilityContext,
+  scenePerformanceController,
+  scenePrewarmDeferred,
+  useScenePerformanceSettings,
+} from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   SceneUnitActivityDriver,
@@ -426,8 +431,12 @@ function Scene({
       captureHeadOnFromSearch(window.location.search),
     [],
   );
+  const performanceSettings = useScenePerformanceSettings();
+  const meadowVisible = scenePerformanceController.isOverridden("meadow")
+    ? performanceSettings.meadow
+    : quality.environment.meadow;
   return (
-    <>
+    <SceneMeadowVisibilityContext.Provider value={meadowVisible}>
       {/* CameraRig FIRST. r3f executes useFrame callbacks in mount order; the
           environment and interactive content must read the camera after it
           has moved for this frame. */}
@@ -459,7 +468,7 @@ function Scene({
           <PhysicsDiagnosticsOverlay />
         </>
       ) : null}
-    </>
+    </SceneMeadowVisibilityContext.Provider>
   );
 }
 

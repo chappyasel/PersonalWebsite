@@ -7,6 +7,7 @@ import * as THREE from "three";
 
 import { GOLF_CUP } from "./golf/golfCourse";
 import { GOLF_FOG_POLICY } from "./golf/golfPresentation";
+import { useResolvedMeadowVisibility } from "./scenePerformance";
 
 const FLAG_URL = "/models/golf-flag.glb";
 const FLAG_LOGO_URL = "/images/stacks/reginald-solo-logo.webp";
@@ -25,6 +26,7 @@ export default function WavingGolfFlag({
   rotation?: [number, number, number];
   scale?: number;
 }) {
+  const meadowVisible = useResolvedMeadowVisibility();
   const gltf = useGLTF(FLAG_URL);
   const logo = useTexture(FLAG_LOGO_URL);
   useEffect(() => {
@@ -136,42 +138,46 @@ export default function WavingGolfFlag({
           />
         </mesh>
       </group>
-      <mesh position={[0, -GOLF_CUP.depth / 2, 0]}>
-        <cylinderGeometry
-          args={[
-            GOLF_CUP.radius,
-            GOLF_CUP.radius * 0.92,
-            GOLF_CUP.depth,
-            32,
-            1,
-            true,
-          ]}
-        />
-        <meshStandardMaterial
-          color={dark ? "#111613" : "#30372f"}
-          roughness={1}
-          side={THREE.BackSide}
-        />
-      </mesh>
-      <mesh
-        position={[0, -GOLF_CUP.depth + 0.002, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <circleGeometry args={[GOLF_CUP.radius * 0.92, 32]} />
-        <meshStandardMaterial
-          color={dark ? "#020303" : "#080a08"}
-          roughness={1}
-        />
-      </mesh>
-      <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry
-          args={[GOLF_CUP.radius * 0.985, GOLF_CUP.radius * 1.08, 32]}
-        />
-        <meshStandardMaterial
-          color={dark ? "#334329" : "#48623a"}
-          roughness={0.94}
-        />
-      </mesh>
+      {meadowVisible ? (
+        <>
+          <mesh position={[0, -GOLF_CUP.depth / 2, 0]}>
+            <cylinderGeometry
+              args={[
+                GOLF_CUP.radius,
+                GOLF_CUP.radius * 0.92,
+                GOLF_CUP.depth,
+                32,
+                1,
+                true,
+              ]}
+            />
+            <meshStandardMaterial
+              color={dark ? "#111613" : "#30372f"}
+              roughness={1}
+              side={THREE.BackSide}
+            />
+          </mesh>
+          <mesh
+            position={[0, -GOLF_CUP.depth + 0.002, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <circleGeometry args={[GOLF_CUP.radius * 0.92, 32]} />
+            <meshStandardMaterial
+              color={dark ? "#020303" : "#080a08"}
+              roughness={1}
+            />
+          </mesh>
+          <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry
+              args={[GOLF_CUP.radius * 0.985, GOLF_CUP.radius * 1.08, 32]}
+            />
+            <meshStandardMaterial
+              color={dark ? "#334329" : "#48623a"}
+              roughness={0.94}
+            />
+          </mesh>
+        </>
+      ) : null}
     </group>
   );
 }

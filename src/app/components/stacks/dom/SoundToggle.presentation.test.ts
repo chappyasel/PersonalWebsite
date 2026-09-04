@@ -19,7 +19,7 @@ describe("scene sound control", () => {
     expect(chrome).toContain('className="stacks-scene-controls"');
     expect(chrome).toContain("<ThemeToggle");
     expect(chrome).toContain(
-      'className="stacks-on-background-text !rounded-full',
+      'className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full',
     );
     expect(chrome).toContain("<SoundToggle className=");
     expect(chrome).toContain("flex-direction: row-reverse");

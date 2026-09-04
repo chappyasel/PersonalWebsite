@@ -88,9 +88,15 @@ describe("scene quality persistence eligibility", () => {
     const state = {
       ...readyState(),
       settledAt: 6_000,
-      axisChangedAt: { resolution: 4_000, effects: 3_000, content: 5_000 },
+      axisChangedAt: {
+        resolution: 4_000,
+        effects: 3_000,
+        content: 5_000,
+        survival: 7_000,
+      },
+      validation: { ...readyState().validation!, at: 7_000 },
     };
-    const readyAt = 6_000 + QUALITY_PERSIST_STABLE_MS;
+    const readyAt = 7_000 + QUALITY_PERSIST_STABLE_MS;
 
     expect(sceneQualityPersistenceStatus(state, gates, readyAt - 1)).toEqual({
       eligible: false,

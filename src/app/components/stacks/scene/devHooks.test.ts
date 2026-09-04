@@ -71,9 +71,11 @@ describe("scene diagnostics query modes", () => {
     expect(sceneInstrumentationRequestedBySearch("?hud=1")).toBe(false);
   });
 
-  it("keeps full debug and the performance harness instrumented", () => {
+  it("keeps full debug, automatic reports, and the harness instrumented", () => {
     expect(sceneDiagnosticsQueryMode("?debug=1")).toBe("debug");
     expect(sceneInstrumentationRequestedBySearch("?debug=1")).toBe(true);
+    expect(sceneDiagnosticsQueryMode("?perf-report=1")).toBe("report");
+    expect(sceneInstrumentationRequestedBySearch("?perf-report=1")).toBe(true);
     expect(sceneDiagnosticsQueryMode("?harness=1")).toBe("harness");
     expect(sceneInstrumentationRequestedBySearch("?harness=1")).toBe(true);
   });
@@ -89,5 +91,16 @@ describe("scene diagnostics query modes", () => {
   it("gives harness and debug precedence over the lightweight HUD", () => {
     expect(sceneDiagnosticsQueryMode("?hud=1&debug=1")).toBe("debug");
     expect(sceneDiagnosticsQueryMode("?hud=1&harness=1")).toBe("harness");
+  });
+
+  it("shows the compact HUD for a named test profile without instrumenting it", () => {
+    expect(sceneDiagnosticsQueryMode("?perf-profile=floor")).toBe("hud");
+    expect(sceneInstrumentationRequestedBySearch("?perf-profile=floor")).toBe(
+      false,
+    );
+    expect(sceneDiagnosticsQueryMode("?perf-profile=floor&perf-report=1")).toBe(
+      "report",
+    );
+    expect(sceneDiagnosticsQueryMode("?perf-profile=nope")).toBe("none");
   });
 });

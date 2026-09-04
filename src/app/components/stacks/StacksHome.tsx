@@ -36,6 +36,7 @@ import VisionRideControls from "./dom/VisionRideControls";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
+import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
 
@@ -61,6 +62,154 @@ const recordPerformanceCommit: ProfilerOnRenderCallback = (
     baseDurationMs: baseDuration,
   });
 };
+
+/** An explicit support visit records the boot machine's facts. The ten-second
+ * checkpoint means the evidence ships while a visitor is still stuck, rather
+ * than relying on the gate eventually opening. */
+function useAutomaticPerformanceDiagnostic() {
+  useEffect(() => {
+    // Keep the recorder out of the normal entry bundle. Only an opted-in
+    // support visit loads the reporter.
+    if (!performanceDiagnosticRequested(window.location.search)) return;
+
+    let disposed = false;
+    let stop = () => {
+      // The diagnostic chunk has not installed its listeners yet.
+    };
+
+    void import("./performanceDiagnostic")
+      .then(
+        ({
+          PERFORMANCE_DIAGNOSTIC_CHECKPOINTS_MS,
+          WorldBootDiagnosticRecorder,
+          browserPerformanceDiagnosticContext,
+          createPerformanceDiagnosticEvent,
+          performanceDiagnosticRunId,
+          submitPerformanceDiagnostic,
+        }) => {
+          if (disposed) return;
+          const recorder = new WorldBootDiagnosticRecorder();
+          let terminalCaptured = false;
+          let observedEpoch: number | null = null;
+          let checkpoints: number[] = [];
+          const publishedCheckpoints = new Set<number>();
+
+          const publish = (
+            reportKind:
+              | "diagnostic_start"
+              | "boot_checkpoint"
+              | "boot_complete",
+            captureReason:
+              | "diagnostic_started"
+              | "slow_boot_checkpoint"
+              | "boot_terminal"
+              | "pagehide",
+            checkpointIndex: number | null = null,
+          ) => {
+            const now = performance.now();
+            const state = worldBoot.getState();
+            recorder.observe(state, now);
+            const bootReport = recorder.snapshot(now);
+            const report = {
+              boot: bootReport,
+              browser: browserPerformanceDiagnosticContext(),
+            };
+            const event = createPerformanceDiagnosticEvent({
+              diagnosticRunId: performanceDiagnosticRunId(state.epoch),
+              reportKind,
+              captureReason,
+              checkpointIndex,
+              elapsedMs: bootReport.elapsed_ms,
+              bootStatus: state.status,
+              bootPath: state.loadPath,
+              blockingGate: bootReport.blocking_gate,
+              report,
+            });
+            void submitPerformanceDiagnostic(event);
+          };
+
+          const armCheckpoints = (
+            state: ReturnType<typeof worldBoot.getState>,
+          ) => {
+            for (const checkpoint of checkpoints)
+              window.clearTimeout(checkpoint);
+            checkpoints = [];
+            if (state.startedAt === null) return;
+            const epoch = state.epoch;
+            checkpoints = PERFORMANCE_DIAGNOSTIC_CHECKPOINTS_MS.map(
+              (checkpointAt, index) => {
+                const checkpointIndex = index + 1;
+                const delay = Math.max(
+                  0,
+                  checkpointAt - (performance.now() - state.startedAt!),
+                );
+                return window.setTimeout(() => {
+                  if (worldBoot.getState().epoch !== epoch) return;
+                  if (
+                    terminalCaptured ||
+                    publishedCheckpoints.has(checkpointIndex)
+                  )
+                    return;
+                  publishedCheckpoints.add(checkpointIndex);
+                  publish(
+                    "boot_checkpoint",
+                    "slow_boot_checkpoint",
+                    checkpointIndex,
+                  );
+                }, delay);
+              },
+            );
+          };
+
+          const observe = () => {
+            const state = worldBoot.getState();
+            if (state.startedAt !== null && state.epoch !== observedEpoch) {
+              observedEpoch = state.epoch;
+              terminalCaptured = false;
+              publishedCheckpoints.clear();
+              publish("diagnostic_start", "diagnostic_started", 0);
+              armCheckpoints(state);
+            }
+            recorder.observe(state, performance.now());
+            if (
+              !terminalCaptured &&
+              (state.status === "revealing" ||
+                state.status === "live" ||
+                state.status === "failed" ||
+                state.status === "ineligible")
+            ) {
+              terminalCaptured = true;
+              for (const checkpoint of checkpoints)
+                window.clearTimeout(checkpoint);
+              publish("boot_complete", "boot_terminal");
+            }
+          };
+
+          observe();
+          const unsubscribe = worldBoot.subscribe(observe);
+          const onPageHide = () => {
+            if (terminalCaptured) return;
+            publish("boot_checkpoint", "pagehide");
+          };
+          window.addEventListener("pagehide", onPageHide);
+          stop = () => {
+            unsubscribe();
+            for (const checkpoint of checkpoints)
+              window.clearTimeout(checkpoint);
+            window.removeEventListener("pagehide", onPageHide);
+          };
+        },
+      )
+      .catch(() => {
+        // Diagnostics must never interfere with homepage delivery.
+      });
+
+    return () => {
+      disposed = true;
+      stop();
+    };
+  }, []);
+}
 
 /** A chunk that fails to load throws during render, which would blank the
  * page. Catch it and fall back to the document — that IS the fallback. */
@@ -93,6 +242,7 @@ export default function StacksHome({
   slots: StacksSlots;
 }) {
   const boot = useWorldBoot();
+  useAutomaticPerformanceDiagnostic();
   const { epoch, mode, revealed, worldMounted } = boot;
   const settledUnit = useStacks((state) => state.settledUnit);
   const seated = useStacks((state) => state.seated);

@@ -14,6 +14,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import * as THREE from "three";
@@ -47,7 +48,7 @@ import {
   getSceneImpulse,
   sceneImpulseSkyScale,
 } from "./sceneImpulse";
-import { useScenePerformanceSettings } from "./scenePerformance";
+import { useResolvedMeadowVisibility } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import { getSeatAmount } from "./seated";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -206,6 +207,7 @@ const SKY_FRAGMENT = `
 #endif
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
   uniform float uPost;     // 1 = composer owns the frame
+  uniform float uMeadow;   // 1 when terrain hides the skyline below grade
   uniform float uFires[${FIREWORK_LAYERS}]; // launch ages, < 0 idle
   uniform float uFireSeeds[${FIREWORK_LAYERS}]; // each launch deals its own shells
   uniform float uSeat;     // 0 at the shelf … 1 seated (scene/seated.ts)
@@ -1793,7 +1795,13 @@ const SKY_FRAGMENT = `
       bayLight = dotMask * seq;
     }
 
-    float ground = smoothstep(-0.10, -0.02, e);
+    // The full meadow hides the skyline's below-grade mass. The meadow-off
+    // comparison has no terrain to do that job, so dissolve the city into
+    // the horizon from above instead of exposing a dark rectangular plinth.
+    float meadowGround = smoothstep(-0.10, -0.02, e);
+    float noMeadowGround = smoothstep(0.0, 0.012, e);
+    float exposedGround = (1.0 - uMeadow) * uDark;
+    float ground = mix(meadowGround, noMeadowGround, exposedGround);
     float structures = clamp(city + sutro + trans + sales + jasper + bridge + ggb, 0.0, 1.0) * ground;
     hillMask *= ground;
 
@@ -2806,12 +2814,14 @@ function CoordinationEnvironmentFault({
 
 function SkyDome({
   dark,
+  meadow,
   simplify,
   cloudDetail,
   cinematicPlus,
   coordinationFlickerSignal,
 }: {
   dark: boolean;
+  meadow: boolean;
   simplify: boolean;
   cloudDetail: boolean;
   cinematicPlus: boolean;
@@ -2848,6 +2858,7 @@ function SkyDome({
       uCoordinationFlicker: { value: 1 },
       uSimplify: { value: 0 },
       uPost: { value: 0 },
+      uMeadow: { value: meadow ? 1 : 0 },
       uFires: {
         value: fireAges.current,
       },
@@ -2895,6 +2906,7 @@ function SkyDome({
         fragmentShader: SKY_FRAGMENT,
       });
     return {
+      uniforms,
       detailed: create(true),
       simple: create(false),
       detailedPlus: create(true, true),
@@ -3030,6 +3042,12 @@ function SkyDome({
   }, []);
   useFrame(({ clock, camera, pointer, raycaster, size }, delta) => {
     const u = material.uniforms;
+    u.uMeadow!.value = THREE.MathUtils.damp(
+      u.uMeadow!.value as number,
+      meadow ? 1 : 0,
+      5,
+      delta,
+    );
     u.uDark!.value = THREE.MathUtils.damp(
       u.uDark!.value as number,
       dark ? 1 : 0,
@@ -3820,7 +3838,7 @@ export default function SceneEnvironment({
   quality: Pick<SceneQualityPlan, "environment" | "butterflies" | "wildlife">;
 }) {
   const { cinematicPlus } = useSceneQualityControls();
-  const performanceSettings = useScenePerformanceSettings();
+  const resolvedMeadowVisible = useResolvedMeadowVisibility();
   const coordinationDiagnostics = useSyncExternalStore(
     coordinationGlobeDiagnosticsController.subscribe,
     coordinationGlobeDiagnosticsController.getSnapshot,
@@ -3836,13 +3854,18 @@ export default function SceneEnvironment({
     freeRoamDiagnosticsController.getSnapshot,
   );
   const daylightCinematicPlus = cinematicPlus && !dark;
-  const meadow = MEADOW_ENABLED && performanceSettings.meadow;
+  const meadowRequested = MEADOW_ENABLED && resolvedMeadowVisible;
+  const [meadowMounted, setMeadowMounted] = useState(meadowRequested);
+  useEffect(() => {
+    if (meadowRequested) setMeadowMounted(true);
+  }, [meadowRequested]);
+  const meadowRetiring = meadowMounted && !meadowRequested;
   const scope = useWorldBootScope();
   // No meadow, nothing for the reveal gate to wait on — report ready NOW so
   // a ?nomeadow (or flag-off) boot reveals at the pre-meadow timing.
   useEffect(() => {
-    if (!meadow) scope.send({ type: "meadowReady" });
-  }, [meadow, scope]);
+    if (!meadowMounted) scope.send({ type: "meadowReady" });
+  }, [meadowMounted, scope]);
   return (
     <>
       {activeCoordinationFlickerSignal ? (
@@ -3855,12 +3878,13 @@ export default function SceneEnvironment({
       ) : null}
       <SkyDome
         dark={dark}
+        meadow={meadowRequested}
         simplify={false}
         cloudDetail={quality.environment.cloudDetail === "full"}
         cinematicPlus={daylightCinematicPlus}
         coordinationFlickerSignal={activeCoordinationFlickerSignal}
       />
-      {meadow && (
+      {meadowMounted && (
         <Suspense fallback={null}>
           <Meadow
             key={MEADOW_LAYOUT_REVISION}
@@ -3870,6 +3894,8 @@ export default function SceneEnvironment({
             grassDeformation={quality.environment.grassDeformation}
             contentTier={quality.environment.contentTier}
             environmentFlickerSignal={activeCoordinationFlickerSignal}
+            retiring={meadowRetiring}
+            onRetired={() => setMeadowMounted(false)}
           />
           {/* Inside the same gate as the field they fly over: ?nomeadow must
               not leave three butterflies over a bare floor. */}

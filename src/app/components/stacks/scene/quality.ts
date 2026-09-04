@@ -8,6 +8,7 @@ import {
   SCENE_FRAME_BUDGET_HZ,
   SCENE_FRAME_BUDGET_MS,
 } from "./frameBudget";
+import { performanceProfileFromSearch } from "./performanceProfiles";
 
 export type DurableQualityRung = 0 | 1 | 2 | 3;
 export type SceneQualityProfile =
@@ -241,6 +242,9 @@ export type SceneQualityPlan = Readonly<{
     analyticFixtureHalos: boolean;
   }>;
   environment: Readonly<{
+    /** False only in the automatic last-resort survival state. A live
+     * diagnostics override may still mount the meadow for comparison. */
+    meadow: boolean;
     meadowDensity: number;
     meadowRung: 0 | 1 | 2 | 3;
     /** What the meadow actually draws. Automatic mode drives this from the
@@ -542,6 +546,7 @@ export function resolveSceneQualityPlan({
   contentTier,
   effectsTier,
   resolutionStep,
+  survival = false,
   resolutionCeiling = null,
 }: {
   mode: SceneQualityMode;
@@ -558,6 +563,8 @@ export function resolveSceneQualityPlan({
    * profile's own tier, which is what a forced preset resolves to. */
   contentTier?: SceneContentTier;
   effectsTier?: SceneEffectsTier;
+  /** Last-resort automatic state. Forced profiles never pass this. */
+  survival?: boolean;
   /** Supplied by the resolution axis: 0 is the floor, 11 the ceiling. The
    * ladder is computed against this plan's own cap, so the top step is
    * exactly the resolution the profile would have chosen anyway. Null leaves
@@ -718,6 +725,7 @@ export function resolveSceneQualityPlan({
         overrides?.practicalGlowMode === "halo",
     },
     environment: {
+      meadow: !survival,
       meadowDensity: definition.meadowDensity,
       meadowRung: definition.meadowRung,
       contentTier: resolvedContentTier,
@@ -1494,9 +1502,16 @@ export function qualityProfileFromValue(
   return null;
 }
 
+/** An explicit `?quality=` wins. Without one, a named `?perf-profile=`
+ * supplies its own mode so the opening axes start where the profile says. */
 export function qualityModeFromSearch(search: string): SceneQualityMode {
-  const raw = new URLSearchParams(search).get("quality");
-  return raw == null ? "auto" : (qualityProfileFromValue(raw) ?? "auto");
+  const params = new URLSearchParams(search);
+  const raw = params.get("quality");
+  if (raw === "auto") return "auto";
+  const explicit = raw == null ? null : qualityProfileFromValue(raw);
+  // An unreadable `quality` value is no instruction at all, so it falls
+  // through to the profile rather than silently cancelling it.
+  return explicit ?? performanceProfileFromSearch(params)?.quality ?? "auto";
 }
 
 export function forcedQualityFromSearch(

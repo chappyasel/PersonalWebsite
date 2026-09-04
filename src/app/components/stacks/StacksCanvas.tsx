@@ -23,6 +23,7 @@ import {
   useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type * as THREE from "three";
 
@@ -38,6 +39,7 @@ import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { setLoadProgress } from "./loading";
 import { modelArtifactRoomShouldFreeze } from "./modal/modelArtifactHandoff";
+import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -47,6 +49,7 @@ import {
   onDevHooksRequested,
   onSceneHooksRequested,
   sceneDevHooksRequestedBySearch,
+  sceneDiagnosticsQueryMode,
   sceneInstrumentationRequestedBySearch,
 } from "./scene/devHooks";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
@@ -57,6 +60,10 @@ import type {
   MeadowDiagnosticsUpdate,
 } from "./scene/meadowDiagnostics";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
+import {
+  performanceProfileController,
+  performanceProfileFromSearch,
+} from "./scene/performanceProfiles";
 import {
   browserPerformanceTraceSession,
   downloadPerformanceTrace,
@@ -95,6 +102,7 @@ import {
   type LearnedQuality,
   clearLearnedQuality,
   readLearnedQuality,
+  readLearnedSurvivalUntil,
   writeLearnedQuality,
 } from "./scene/qualityLearning";
 import {
@@ -582,6 +590,7 @@ function installDevHooks() {
             queryFlags: [
               ...new Set(new URLSearchParams(window.location.search).keys()),
             ],
+            testProfile: performanceProfileController.getSnapshot(),
             theme: document.documentElement.classList.contains("dark")
               ? "dark"
               : "light",
@@ -716,7 +725,7 @@ function ContextSafeEffects({
  * a postprocessed frame report only its final fullscreen pass. Reset once at
  * the start of the R3F frame instead so the HUD/harness see the whole
  * multi-pass frame. */
-function PerformanceProbe() {
+function PerformanceProbe({ instrumentFrames }: { instrumentFrames: boolean }) {
   const coarseTouchCapability = useTapFirstCapability();
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
@@ -728,9 +737,10 @@ function PerformanceProbe() {
     };
   }, [gl]);
   useFrame((_, delta) => {
-    // This probe exists only after diagnostics opt in. Exclude every such
-    // frame rather than teaching the controller to react to its observer.
-    markSceneFrameInstrumented();
+    // The full diagnostics harness changes the measured workload and must not
+    // teach Auto. The lightweight support report keeps Auto live so it records
+    // the same recovery policy a visitor actually experiences.
+    if (instrumentFrames) markSceneFrameInstrumented();
     if (scenePerformanceTrace.isActive() && !document.hidden) {
       const state = useStacks.getState();
       const quality = qualitySnapshot as {
@@ -803,6 +813,162 @@ function PerformanceTraceObservers() {
     };
   }, []);
   return null;
+}
+
+/** `?perf-report=1` owns a bounded trace and sends its compact form after the
+ * visitor has had time to move through the room. The report keeps aggregates,
+ * renderer edges, and quality evidence. It never uploads resource names or
+ * raw per-frame records. */
+function AutomaticPerformanceDiagnosticRun() {
+  useEffect(() => {
+    let disposed = false;
+    let stop = () => {
+      // The diagnostic chunk has not installed its listeners yet.
+    };
+
+    void import("./performanceDiagnostic")
+      .then(
+        ({
+          PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
+          PERFORMANCE_DIAGNOSTIC_RUNTIME_MS,
+          compactScenePerformanceDiagnostic,
+          createPerformanceDiagnosticEvent,
+          performanceDiagnosticRunId,
+          submitPerformanceDiagnostic,
+          worldBootBlockingGate,
+        }) => {
+          if (disposed) return;
+          const initialState = worldBoot.getState();
+          const runId = performanceDiagnosticRunId(initialState.epoch);
+          const ownsTrace = !scenePerformanceTrace.isActive();
+          if (ownsTrace) {
+            scenePerformanceTrace.start({
+              session: browserPerformanceTraceSession({
+                diagnosticRunId: runId,
+                queryFlags: [
+                  ...new Set(
+                    new URLSearchParams(window.location.search).keys(),
+                  ),
+                ],
+                testProfile: performanceProfileController.getSnapshot(),
+                theme: document.documentElement.classList.contains("dark")
+                  ? "dark"
+                  : "light",
+                buildMode: process.env.NODE_ENV,
+                quality: { ...qualitySnapshot },
+                performanceSettings: scenePerformanceController.getSnapshot(),
+                autoReport: true,
+              }),
+            });
+            performanceSampler.start();
+          }
+
+          let finished = false;
+          let postRevealTimer = 0;
+          const finish = (
+            reason:
+              | "post_reveal_window"
+              | "boot_failed"
+              | "capture_deadline"
+              | "pagehide",
+          ) => {
+            if (finished) return;
+            finished = true;
+            window.clearTimeout(postRevealTimer);
+            if (ownsTrace) performanceSampler.stop();
+            const trace = ownsTrace
+              ? scenePerformanceTrace.stop()
+              : scenePerformanceTrace.report();
+            const quality = window.__stacks?.qualityLog("snapshot") ?? null;
+            const report = compactScenePerformanceDiagnostic({
+              trace,
+              quality,
+            });
+            const state = worldBoot.getState();
+            const event = createPerformanceDiagnosticEvent({
+              diagnosticRunId: runId,
+              reportKind: "runtime",
+              captureReason: reason,
+              elapsedMs: Math.max(
+                0,
+                Math.round(
+                  performance.now() - (state.startedAt ?? performance.now()),
+                ),
+              ),
+              bootStatus: state.status,
+              bootPath: state.loadPath,
+              blockingGate: worldBootBlockingGate(state),
+              report,
+            });
+            void submitPerformanceDiagnostic(event);
+          };
+
+          const observeBoot = () => {
+            const state = worldBoot.getState();
+            if (state.status === "failed") {
+              finish("boot_failed");
+              return;
+            }
+            if (
+              postRevealTimer === 0 &&
+              (state.status === "revealing" || state.status === "live")
+            ) {
+              postRevealTimer = window.setTimeout(
+                () => finish("post_reveal_window"),
+                PERFORMANCE_DIAGNOSTIC_RUNTIME_MS,
+              );
+            }
+          };
+
+          observeBoot();
+          const unsubscribe = worldBoot.subscribe(observeBoot);
+          const deadline = window.setTimeout(
+            () => finish("capture_deadline"),
+            PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
+          );
+          const onPageHide = () => finish("pagehide");
+          window.addEventListener("pagehide", onPageHide);
+          stop = () => {
+            unsubscribe();
+            window.clearTimeout(postRevealTimer);
+            window.clearTimeout(deadline);
+            window.removeEventListener("pagehide", onPageHide);
+            if (!finished && ownsTrace) {
+              performanceSampler.stop();
+              scenePerformanceTrace.stop();
+            }
+          };
+        },
+      )
+      .catch(() => {
+        // A support-only reporter may fail without affecting the room.
+      });
+
+    return () => {
+      disposed = true;
+      stop();
+    };
+  }, []);
+  return null;
+}
+
+const subscribeToWorldBoot = (listener: () => void) =>
+  worldBoot.subscribe(listener);
+const readWorldBootEpoch = () => worldBoot.getState().epoch;
+
+function AutomaticPerformanceDiagnosticEpoch() {
+  const epoch = useSyncExternalStore(
+    subscribeToWorldBoot,
+    readWorldBootEpoch,
+    readWorldBootEpoch,
+  );
+  return <AutomaticPerformanceDiagnosticRun key={epoch} />;
+}
+
+function AutomaticPerformanceDiagnostic() {
+  return performanceDiagnosticRequested(window.location.search) ? (
+    <AutomaticPerformanceDiagnosticEpoch />
+  ) : null;
 }
 
 /** Two-second rolling window evaluated four times a second, graded against an
@@ -1223,6 +1389,11 @@ export default function StacksCanvas({
     if (typeof window === "undefined") return false;
     return sceneInstrumentationRequestedBySearch(window.location.search);
   });
+  const [supportReportMode] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      sceneDiagnosticsQueryMode(window.location.search) === "report",
+  );
   const qualityEvidenceRequested =
     process.env.NODE_ENV !== "production" ||
     diagnosticsRequested ||
@@ -1255,18 +1426,46 @@ export default function StacksCanvas({
       }),
     // Once WebGL evidence arrives, the learned device class stays fixed for
     // this mount. Live frame windows adapt the axes; they must not switch the
-    // persistence bucket and restore a different axis triple underneath it.
+    // persistence bucket and restore a different adaptive state underneath it.
     // A resize likewise does not turn this into a new device.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rendererCapability],
   );
+  // A named test profile neither restores nor saves learned quality. The run
+  // must start from the device estimate to be comparable, and it must not
+  // teach the owner's next ordinary visit what a deliberately hobbled one saw.
+  const learningSuspended = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      performanceProfileFromSearch(window.location.search) !== null,
+    [],
+  );
   // Restored as a STARTING POINT, never as a floor or a ceiling: the device
   // that was thermally throttled last visit may not be this visit.
   const restoredLearning = useMemo<LearnedQuality | null>(() => {
-    if (typeof window === "undefined" || queryMode !== "auto") return null;
+    if (
+      typeof window === "undefined" ||
+      queryMode !== "auto" ||
+      learningSuspended
+    )
+      return null;
     return readLearnedQuality(storageBucket);
-  }, [queryMode, storageBucket]);
+  }, [learningSuspended, queryMode, storageBucket]);
+  const openingSurvivalUntil = useMemo(() => {
+    if (
+      typeof window === "undefined" ||
+      queryMode !== "auto" ||
+      learningSuspended
+    )
+      return null;
+    return readLearnedSurvivalUntil(storageBucket);
+  }, [learningSuspended, queryMode, storageBucket]);
   const restoredProfile = restoredLearning?.profile ?? null;
+  const survivalLeaseUntilRef = useRef<number | null>(
+    restoredLearning?.survival
+      ? restoredLearning.survivalUntil
+      : openingSurvivalUntil,
+  );
   const logicalCores =
     typeof navigator === "undefined" ? null : navigator.hardwareConcurrency;
   const deviceMemory =
@@ -1321,14 +1520,18 @@ export default function StacksCanvas({
           : SCENE_RESOLUTION_MAX_STEP,
         typeof document === "undefined" || !document.hidden,
       );
-      if (!restoredLearning) return base;
+      if (!restoredLearning && openingSurvivalUntil == null) return base;
       const restored = reduceSceneQualityAxes(base, {
         type: "restore",
         now: startedAt,
         axes: {
-          resolutionStep: restoredLearning.resolutionStep,
-          effects: restoredLearning.effects,
-          content: restoredLearning.content,
+          resolutionStep:
+            restoredLearning?.resolutionStep ?? base.axes.resolutionStep,
+          effects: restoredLearning?.effects ?? base.axes.effects,
+          content: restoredLearning?.content ?? base.axes.content,
+          survival:
+            (restoredLearning?.survival ?? false) ||
+            openingSurvivalUntil != null,
         },
       });
       return {
@@ -1358,9 +1561,16 @@ export default function StacksCanvas({
   useEffect(() => {
     if (previousCapabilityBucket.current === storageBucket) return;
     previousCapabilityBucket.current = storageBucket;
-    if (mode !== "auto" || rendererCapability === "unknown") return;
+    if (
+      mode !== "auto" ||
+      rendererCapability === "unknown" ||
+      learningSuspended
+    )
+      return;
     const stored = readLearnedQuality(storageBucket);
     if (!stored) return;
+    if (stored.survival) survivalLeaseUntilRef.current = stored.survivalUntil;
+    else if (!axesRef.current.survival) survivalLeaseUntilRef.current = null;
     setLearnedProfile(stored.profile);
     dispatchAxes({
       type: "restore",
@@ -1369,9 +1579,10 @@ export default function StacksCanvas({
         resolutionStep: stored.resolutionStep,
         effects: stored.effects,
         content: stored.content,
+        survival: stored.survival || axesRef.current.survival,
       },
     });
-  }, [mode, rendererCapability, storageBucket]);
+  }, [learningSuspended, mode, rendererCapability, storageBucket]);
 
   useEffect(() => {
     if (queryMode !== "auto") sceneQualityController.setMode(queryMode);
@@ -1414,6 +1625,7 @@ export default function StacksCanvas({
     if (resetRequest.current === qualityControls.resetRequest) return;
     resetRequest.current = qualityControls.resetRequest;
     clearLearnedQuality(storageBucket);
+    survivalLeaseUntilRef.current = null;
     setLearnedProfile(null);
   }, [mode, qualityControls.resetRequest, storageBucket]);
 
@@ -1437,7 +1649,8 @@ export default function StacksCanvas({
     if (
       previous.resolutionStep === axisState.axes.resolutionStep &&
       previous.effects === axisState.axes.effects &&
-      previous.content === axisState.axes.content
+      previous.content === axisState.axes.content &&
+      previous.survival === axisState.axes.survival
     )
       return;
     const at = performance.now();
@@ -1520,10 +1733,11 @@ export default function StacksCanvas({
       resolveSceneQualityPlan({
         mode,
         profile: renderProfile,
-        // Automatic mode derives the rendered plan directly from this triple.
+        // Automatic mode derives the rendered plan directly from these axes.
         // A forced preset resolves its own authored tiers instead.
         contentTier: mode === "auto" ? axisState.axes.content : undefined,
         effectsTier: mode === "auto" ? axisState.axes.effects : undefined,
+        survival: mode === "auto" && axisState.axes.survival,
         // Pinned under the harness so end-to-end tests that assert an exact
         // device pixel ratio are not racing a continuously adapting value.
         // Pinning is the correct fix there; loosening the assertion is not.
@@ -1590,6 +1804,7 @@ export default function StacksCanvas({
       axisState.axes.content,
       axisState.axes.effects,
       axisState.axes.resolutionStep,
+      axisState.axes.survival,
       qualityControls.resolutionStep,
       qualityControls.depthOfFieldBokehMultiplier,
       qualityControls.depthOfFieldResolutionScale,
@@ -1721,9 +1936,25 @@ export default function StacksCanvas({
         now,
         metrics,
         visible: usable,
+        allowSurvival:
+          !harnessPinnedResolution &&
+          qualityControls.resolutionStep == null &&
+          resolutionCeiling == null &&
+          (!diagnosticsRequested || supportReportMode) &&
+          !scenePerformanceController.isOverridden("meadow") &&
+          performanceSettings.meadow,
       });
     },
-    [qualityControls.frozen, qualityEvidenceRequested],
+    [
+      diagnosticsRequested,
+      harnessPinnedResolution,
+      performanceSettings.meadow,
+      qualityControls.frozen,
+      qualityControls.resolutionStep,
+      qualityEvidenceRequested,
+      resolutionCeiling,
+      supportReportMode,
+    ],
   );
   const onComposerError = useCallback(() => {
     const now = performance.now();
@@ -1759,7 +1990,8 @@ export default function StacksCanvas({
     const gates = {
       automatic: mode === "auto",
       documentVisible: !document.hidden,
-      samplesUsable: !qualityControls.frozen && !diagnosticsRequested,
+      samplesUsable:
+        !qualityControls.frozen && !diagnosticsRequested && !learningSuspended,
       composerHealthy: !composerFailed,
       sceneTravelling: isSceneTraveling(),
     };
@@ -1781,10 +2013,17 @@ export default function StacksCanvas({
         !currentStatus.eligible ||
         axesRef.current.resolutionStep !== scheduled.resolutionStep ||
         axesRef.current.effects !== scheduled.effects ||
-        axesRef.current.content !== scheduled.content
+        axesRef.current.content !== scheduled.content ||
+        axesRef.current.survival !== scheduled.survival
       )
         return;
-      writeLearnedQuality(storageBucket, scheduled, null);
+      survivalLeaseUntilRef.current = writeLearnedQuality(
+        storageBucket,
+        scheduled,
+        null,
+        Date.now(),
+        survivalLeaseUntilRef.current,
+      );
       setLearnedProfile(null);
     }, remaining);
     return () => window.clearTimeout(timeout);
@@ -1794,12 +2033,19 @@ export default function StacksCanvas({
     persistenceState,
     mode,
     diagnosticsRequested,
+    learningSuspended,
     qualityControls.frozen,
     storageBucket,
   ]);
 
   const cooldownMs = 0;
-  const fallbackStatus = composerFailed ? "direct-effects-error" : "composer";
+  // An error outranks a choice: a composer that failed and was also switched
+  // off is still a failure, and the HUD's DIRECT tag should say why.
+  const fallbackStatus = composerFailed
+    ? "direct-effects-error"
+    : performanceSettings.postprocessing
+      ? "composer"
+      : "direct-manual";
   const transitionReason =
     axisState.lastChange?.reason ??
     (composerFailed ? "effects-error" : "startup");
@@ -1815,7 +2061,8 @@ export default function StacksCanvas({
       automatic: mode === "auto",
       documentVisible:
         typeof document === "undefined" ? true : !document.hidden,
-      samplesUsable: !qualityControls.frozen && !diagnosticsRequested,
+      samplesUsable:
+        !qualityControls.frozen && !diagnosticsRequested && !learningSuspended,
       composerHealthy: !composerFailed,
       sceneTravelling: isSceneTraveling(),
     },
@@ -1846,6 +2093,7 @@ export default function StacksCanvas({
     gpuSince: axisState.gpuSince,
     cpuSince: axisState.cpuSince,
     headroomSince: axisState.headroomSince,
+    survivalSince: axisState.survivalSince,
     foregroundReadyAt: axisState.foregroundReadyAt,
     validation: axisState.validation,
     unhelpfulResolutionSteps: axisState.unhelpfulResolutionSteps,
@@ -1973,6 +2221,7 @@ export default function StacksCanvas({
     >
       <LoadReporter />
       <TouchInteractionLayer />
+      <AutomaticPerformanceDiagnostic />
       <Canvas
         events={pointerEvents}
         shadows="soft"
@@ -2069,10 +2318,14 @@ export default function StacksCanvas({
         )}
         {diagnosticsRequested ? (
           <>
-            <PerformanceProbe />
+            <PerformanceProbe instrumentFrames={!supportReportMode} />
             <PerformanceTraceObservers />
-            <SceneMatrixCostProbe />
-            <StaticWorldInvariantProbe />
+            {!supportReportMode ? (
+              <>
+                <SceneMatrixCostProbe />
+                <StaticWorldInvariantProbe />
+              </>
+            ) : null}
           </>
         ) : null}
         <AdaptiveQualityProbe
