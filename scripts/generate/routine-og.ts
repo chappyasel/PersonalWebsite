@@ -5,15 +5,15 @@
  *
  * Outputs: public/images/routine-og.png
  */
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
+import { NIGHT, nightSky } from "../../src/lib/og/daylight";
+import { Resvg } from "@resvg/resvg-js";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
+import React from "react";
+import satori from "satori";
 import { fileURLToPath } from "url";
 
-import satori from "satori";
-import { Resvg } from "@resvg/resvg-js";
-import React from "react";
-
-import { NIGHT, nightSky } from "../../src/lib/og/daylight";
+import { sectionLabelRows } from "./og-section-glyph";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,14 +41,14 @@ const data = JSON.parse(readFileSync(DATA_PATH, "utf-8")) as {
   rants: { id: string; title: string }[];
 };
 
-const sections = [
-  "Why So Early?",
-  "Morning",
-  "Evening",
-  "Supp Stacks",
+const sections: { id: string; text: string }[] = [
+  { id: "why-early", text: "Why So Early?" },
+  { id: "morning", text: "Morning" },
+  { id: "evening", text: "Evening" },
+  { id: "supp-stacks", text: "Supp Stacks" },
   ...data.rants
     .filter((r) => r.id !== "supp-stacks")
-    .map((r) => rantLabels[r.id] ?? r.title),
+    .map((r) => ({ id: r.id, text: rantLabels[r.id] ?? r.title })),
 ];
 
 function joinWithDots(
@@ -151,20 +151,19 @@ function OGImage() {
           marginBottom: "8px",
         },
       }),
-      // Schedule beats, tinted by arm of the day
+      // Schedule beats, tinted by arm of the day. Repeated by hand from the
+      // synced routine; routine.data.test.ts fails when they drift.
       joinWithDots(
         [
           { text: "3:45am wake", color: NIGHT.am },
-          { text: "6:00am lift", color: NIGHT.am },
+          { text: "6:15am lift", color: NIGHT.am },
           { text: "9:15pm sleep", color: NIGHT.pm },
         ],
         30,
       ),
-      // Section labels from the synced data
-      joinWithDots(
-        sections.map((s) => ({ text: s })),
-        21,
-      ),
+      // Section labels from the synced data as two centred rows, each label
+      // behind the glyph the page gives that section
+      sectionLabelRows(sections, { fontSize: 24, glyphSize: 25 }),
     ),
   );
 }

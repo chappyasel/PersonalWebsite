@@ -15,8 +15,6 @@
  * Imports are relative (not `~`) so scripts/generate can load this file
  * under tsx without path-alias resolution.
  */
-import React from "react";
-
 import {
   MOON,
   SKYLINE_HEIGHT,
@@ -25,6 +23,7 @@ import {
   SKYLINE_VIEWBOX,
   SKYLINE_WIDTH,
 } from "../../components/daylight/skylineGeometry";
+import React from "react";
 
 export const DAYLIGHT = {
   skyTop: "#126bb0",
@@ -116,14 +115,45 @@ export const NIGHT = {
   deep: "#10141d",
 } as const;
 
+/**
+ * The seven section accents at night, from the `.dark .daylight-root` block
+ * in daylight.css with the same +2 lightness NIGHT.am and NIGHT.pm carry
+ * over their CSS twins, so a glyph reads against the sky at card size.
+ */
+export const NIGHT_ACCENT = {
+  am: NIGHT.am,
+  pm: NIGHT.pm,
+  moss: "hsl(150, 22%, 64%)",
+  coral: "hsl(10, 52%, 72%)",
+  coffee: "hsl(26, 36%, 66%)",
+  indigo: "hsl(256, 30%, 76%)",
+  plum: "hsl(288, 20%, 70%)",
+} as const;
+
 /** The page hero's star field, as card-space fractions (x%, y%, size px). */
 const STARS: Array<[number, number, number, number]> = [
-  [12, 14, 3, 1], [47, 19, 3.5, 1], [76, 16, 3, 0.95], [94, 21, 2.5, 0.8],
-  [7, 5, 2.5, 0.85], [55, 26, 2, 0.75], [70, 4, 3, 0.95], [97, 11, 3.5, 0.85],
-  [18, 29, 2, 0.7], [36, 12, 2.5, 0.8], [59, 6, 2, 0.75], [86, 24, 3, 0.85],
-  [31, 8, 3, 0.95], [63, 9, 2.5, 0.85], [88, 6, 3.5, 0.95], [22, 25, 2.5, 0.75],
-  [40, 4, 3.5, 0.9], [83, 27, 2.5, 0.7], [4, 19, 2, 0.7], [27, 17, 3, 0.85],
-  [51, 15, 2.5, 0.75], [67, 22, 2, 0.7],
+  [12, 14, 3, 1],
+  [47, 19, 3.5, 1],
+  [76, 16, 3, 0.95],
+  [94, 21, 2.5, 0.8],
+  [7, 5, 2.5, 0.85],
+  [55, 26, 2, 0.75],
+  [70, 4, 3, 0.95],
+  [97, 11, 3.5, 0.85],
+  [18, 29, 2, 0.7],
+  [36, 12, 2.5, 0.8],
+  [59, 6, 2, 0.75],
+  [86, 24, 3, 0.85],
+  [31, 8, 3, 0.95],
+  [63, 9, 2.5, 0.85],
+  [88, 6, 3.5, 0.95],
+  [22, 25, 2.5, 0.75],
+  [40, 4, 3.5, 0.9],
+  [83, 27, 2.5, 0.7],
+  [4, 19, 2, 0.7],
+  [27, 17, 3, 0.85],
+  [51, 15, 2.5, 0.75],
+  [67, 22, 2, 0.7],
 ];
 
 /**
