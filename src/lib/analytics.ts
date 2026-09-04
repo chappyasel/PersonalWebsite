@@ -135,6 +135,11 @@ export type AnalyticsEventProperties = {
     book_id: string;
     book_title: string;
   };
+  book_tag_opened: {
+    book_id: string;
+    book_title: string;
+    tag: string;
+  };
   universal_search_opened: {
     source: "keyboard";
   };

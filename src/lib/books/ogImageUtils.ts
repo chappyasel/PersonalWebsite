@@ -270,3 +270,23 @@ export function getTextColorAndOverlay(luminance: number): {
     usesDarkText: isLight,
   };
 }
+
+/**
+ * Read an image's pixel size so a frame can hug the whole cover
+ * @param imageBuffer - The image data as ArrayBuffer
+ * @returns Width and height in pixels, or null if sharp cannot read it
+ */
+export async function getImageDimensions(
+  imageBuffer: ArrayBuffer,
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const { width, height } = await sharp(Buffer.from(imageBuffer)).metadata();
+    if (!width || !height) {
+      return null;
+    }
+    return { width, height };
+  } catch (error) {
+    console.error("Error reading image dimensions:", error);
+    return null;
+  }
+}

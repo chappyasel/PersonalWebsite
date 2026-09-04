@@ -2,7 +2,7 @@
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -12,7 +12,12 @@ import {
   useState,
 } from "react";
 
-import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
+import {
+  getBookPath,
+  getBookShareUrl,
+  getBooksPath,
+  getBooksTagQuery,
+} from "~/lib/books/paths";
 import { copyTextToClipboard } from "~/lib/clipboard";
 import {
   type ModalOrigin,
@@ -64,6 +69,9 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
   const { closeModal, openModalById } = useModalActions();
   const pathname = usePathname();
+  // The card that opened this modal pushed the shelf's own query along with
+  // the book path, so these are the shelf's size, sort and filters.
+  const searchParams = useSearchParams();
   const [copied, setCopied] = useState(false);
   // Expanded = the shell has grown to the viewport and stays there — a
   // purely presentational takeover, like the modal-sheet expand. The ref
@@ -220,6 +228,42 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     fromStacks && presentation
       ? `${presentation.booksHref}/${bookId}`
       : getBookPath(bookId);
+
+  // A tag leads to the shelf narrowed to that tag. Over the 3D homepage that
+  // is a real cross-host link; on Books it is the grid already sitting under
+  // this modal, reached without leaving the page (handleTagSelect).
+  const tagHref = (tag: string) =>
+    fromStacks && presentation
+      ? `${presentation.booksHref}/?${getBooksTagQuery(tag)}`
+      : getBooksPath(getBooksTagQuery(tag, searchParams.toString()));
+
+  // The modal sits on a history entry of its own, above the shelf's. Closing
+  // through the X pops that entry; a tag instead REWRITES it into the
+  // narrowed shelf, so the grid underneath re-filters in place and Back still
+  // returns to the shelf as it was. Never history.back() here: after the
+  // rewrite there is no modal entry left to pop, and a pop would leave the
+  // site. Modified clicks fall through to the plain link.
+  const handleTagSelect = (
+    tag: string,
+    event: ReactMouseEvent<HTMLAnchorElement>,
+  ) => {
+    if (fromStacks) return;
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    if (isClosingRef.current) return;
+    event.preventDefault();
+    isClosingRef.current = true;
+    releaseOverlayChrome();
+    (document.activeElement as HTMLElement)?.blur();
+    window.history.replaceState(null, "", tagHref(tag));
+    closeModal();
+  };
 
   // The iOS-pop expand, ported from the modal sheet: the shell's real box
   // flies out to the viewport with content reflowing live, then simply
@@ -571,6 +615,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       modalBookCount={
                         fromStacks ? presentation.bookCount : undefined
                       }
+                      tagHref={tagHref}
+                      onTagSelect={handleTagSelect}
                     />
                   ) : (
                     <div className="relative h-full">

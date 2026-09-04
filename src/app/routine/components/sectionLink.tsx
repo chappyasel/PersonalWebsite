@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import { SECTION_JUMP_EVENT } from "~/components/daylight/sectionJump";
+
 /**
  * Scrolls to (and optionally expands) a section when the URL hash matches its
- * id — on initial load and on subsequent hashchange events. Pass `setOpen` for
- * collapsible sections so a deep link auto-expands them.
+ * id — on initial load, on hashchange, and on an in-page section jump (which
+ * replaces the hash, so no hashchange fires). Pass `setOpen` for collapsible
+ * sections so a deep link auto-expands them.
  */
 export function useHashTarget(id: string, setOpen?: (open: boolean) => void) {
   useEffect(() => {
@@ -25,7 +28,11 @@ export function useHashTarget(id: string, setOpen?: (open: boolean) => void) {
     }
     handle();
     window.addEventListener("hashchange", handle);
-    return () => window.removeEventListener("hashchange", handle);
+    window.addEventListener(SECTION_JUMP_EVENT, handle);
+    return () => {
+      window.removeEventListener("hashchange", handle);
+      window.removeEventListener(SECTION_JUMP_EVENT, handle);
+    };
   }, [id, setOpen]);
 }
 

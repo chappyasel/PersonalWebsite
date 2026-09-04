@@ -63,12 +63,29 @@ describe("BookDetailContent note availability", () => {
   });
 
   it("uses the compact cover and spacing on standalone mobile pages", () => {
-    expect(detailSource).toContain(
-      ': [isModal ? "220px" : "200px", "42px"]',
+    expect(detailSource).toContain(": [isModal ? 220 : 200, 42]");
+    expect(detailSource).toContain(": [isModal ? 24 : 16, isModal ? 16 : 12]");
+  });
+
+  it("keeps the notes moving at scroll speed while the header folds", () => {
+    // The header holds its folded height in the flow and overflows onto a
+    // spacer at rest, so its collapse never displaces the notes. Narrow
+    // page: 16 + 200 + 16 at rest, 12 + 42 + 10 folded. Narrow modal:
+    // 24 + 220 + 16 at rest, 16 + 42 + 16 folded.
+    const page = renderCurrentBook(false);
+    const modal = renderCurrentBook(true);
+    expect(page).toMatch(/sticky top-0 z-20[^>]*height:64px/);
+    expect(page).toMatch(/data-book-header-spacer[^>]*height:168px/);
+    expect(modal).toMatch(/sticky top-0 z-20[^>]*height:74px/);
+    expect(modal).toMatch(/data-book-header-spacer[^>]*height:186px/);
+    // The fold runs over exactly that spacer's height.
+    expect(detailSource).toContain("scrollTop / geometry.shrink");
+    // While the spring lags a fast fling, the overflowing part of the header
+    // is backed so it covers the notes instead of drawing over them.
+    expect(detailSource).toMatch(
+      /data-book-header-backing[\s\S]*?height: headerOverflow/,
     );
-    expect(detailSource).toContain(
-      ': [isModal ? "24px" : "16px", isModal ? "16px" : "12px"]',
-    );
+    expect(page).toMatch(/data-book-header-backing[^>]*top:64px;height:168px/);
   });
 
   it("keeps the standalone breadcrumb in the same visual order as the external one", () => {
@@ -125,9 +142,7 @@ describe("BookDetailContent note availability", () => {
     );
     expect(markup).not.toContain("Published:");
     expect(markup).toContain('aria-label="Book actions"');
-    expect(markup).toContain(
-      "grid-cols-[1rem_4.25rem_minmax(0,1fr)]",
-    );
+    expect(markup).toContain("grid-cols-[1rem_4.25rem_minmax(0,1fr)]");
     expect(markup).toContain("text-xs");
     expect(markup).toContain("w-fit min-w-0 max-w-full justify-self-start");
     expect(markup).not.toContain("md:grid-cols-3");
@@ -143,28 +158,83 @@ describe("BookDetailContent note availability", () => {
     expect(detailSource).toMatch(
       /const ratingOpacity = useTransform\([\s\S]*?\[0\.22, 0\.4\]/,
     );
-    expect(
-      detailSource.indexOf("style={{ opacity: factsOpacity }}"),
-    ).toBeLessThan(detailSource.indexOf("style={{ opacity: ratingOpacity }}"));
+    expect(detailSource.indexOf("opacity: factsOpacity")).toBeLessThan(
+      detailSource.indexOf("opacity: ratingOpacity"),
+    );
   });
 
   it("collapses mobile metadata in separate bottom-up stages", () => {
     expect(detailSource).not.toContain("fullMetadataOpacity");
     expect(detailSource).toMatch(
-      /data-mobile-book-segment="identity"[\s\S]*?style=\{\{ opacity: mobileIdentityOpacity \}\}/,
+      /data-mobile-book-segment="identity"[\s\S]*?style=\{\{\s*opacity: mobileIdentityOpacity,\s*visibility: mobileIdentityVisibility,?\s*\}\}/,
     );
     expect(detailSource).toMatch(
-      /data-mobile-book-segment="facts"[\s\S]*?style=\{\{ opacity: mobileFactsOpacity \}\}/,
+      /data-mobile-book-segment="facts"[\s\S]*?style=\{\{\s*opacity: mobileFactsOpacity,\s*visibility: mobileFactsVisibility,?\s*\}\}/,
     );
     expect(detailSource).toMatch(
-      /data-mobile-book-segment="rating"[\s\S]*?style=\{\{ opacity: mobileRatingOpacity \}\}/,
+      /data-mobile-book-segment="rating"[\s\S]*?style=\{\{\s*opacity: mobileRatingOpacity,\s*visibility: mobileRatingVisibility,?\s*\}\}/,
     );
     expect(detailSource).toMatch(
-      /data-mobile-book-segment="tags"[\s\S]*?style=\{\{ opacity: mobileTagsOpacity \}\}/,
+      /data-mobile-book-segment="tags"[\s\S]*?style=\{\{\s*opacity: mobileTagsOpacity,\s*visibility: mobileTagsVisibility,?\s*\}\}/,
     );
     expect(detailSource).toMatch(
-      /data-mobile-book-segment="actions"[\s\S]*?style=\{\{ opacity: mobileActionsOpacity \}\}/,
+      /data-mobile-book-segment="actions"[\s\S]*?style=\{\{\s*opacity: mobileActionsOpacity,\s*visibility: mobileActionsVisibility,?\s*\}\}/,
     );
+  });
+
+  it("lets the header overshoot on a hard stop in either direction", () => {
+    const match =
+      /const HEADER_SPRING = \{[^}]*stiffness: (\d+), damping: (\d+)/.exec(
+        detailSource,
+      );
+    expect(match).not.toBeNull();
+    const stiffness = Number(match![1]);
+    const damping = Number(match![2]);
+    // Underdamped, but not bouncy: one small overshoot, then rest.
+    expect(damping).toBeLessThan(2 * Math.sqrt(stiffness));
+    expect(damping).toBeGreaterThan(Math.sqrt(stiffness));
+    // The silhouette sizes are unclamped so that overshoot is visible.
+    for (const size of ["coverHeight", "headerPadding", "titleFontSize"]) {
+      expect(detailSource).toMatch(
+        new RegExp(`const ${size} = useTransform\\([\\s\\S]*?overshoot,\\n`),
+      );
+    }
+    expect(detailSource).not.toContain("useSpring(");
+  });
+
+  it("mounts a fresh title column when the breakpoint flips", () => {
+    // Both columns are motion.divs in the same slot. Without distinct keys
+    // React reuses the node and Framer's imperative styles from the compact
+    // column (visibility hidden, opacity 0) survive onto the wide one.
+    expect(detailSource).toMatch(
+      /key="wide"[\s\S]*?className="relative min-w-0 flex-1 overflow-visible pr-12"/,
+    );
+    expect(detailSource).toMatch(
+      /key="compact"[\s\S]*?className="flex min-w-0 flex-1 flex-col gap-0 pr-24"/,
+    );
+  });
+
+  it("keeps scroll anchoring off the book scroller", () => {
+    // The header is in flow above the notes, so as it shrinks the browser
+    // would scroll the container back to hold the notes still, and fight the
+    // spring into a rubber band. Both presentations opt out.
+    expect(renderCurrentBook(false)).toContain("[overflow-anchor:none]");
+    expect(renderCurrentBook(true)).toContain("[overflow-anchor:none]");
+  });
+
+  it("takes faded metadata out of the hit test", () => {
+    // Opacity alone left the action row clickable under the folded header.
+    expect(detailSource).toMatch(
+      /function useHiddenWhenClear[\s\S]*?value > 0 \? "visible" : "hidden"/,
+    );
+    expect(detailSource.match(/visibility: \w+Visibility/g)).toHaveLength(10);
+    for (const segment of ["facts", "rating", "tags", "actions"]) {
+      expect(detailSource).toMatch(
+        new RegExp(
+          `opacity: ${segment}Opacity,\\s*visibility: ${segment}Visibility`,
+        ),
+      );
+    }
   });
 
   it("hands the mobile identity to the sticky header without a readable overlap", () => {

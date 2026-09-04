@@ -43,6 +43,8 @@ type BadgeColors = {
   bg: string;
   fg: string;
   border: string;
+  /** The same outline, firmer: for a badge that is also a link, on hover. */
+  borderHover: string;
 };
 
 // Helper function to generate badge colors
@@ -70,6 +72,7 @@ function getBadgeColors(
     bg: `hsl(${hue},${s},${bgL})`,
     fg: `hsl(${hue},${s},${fgL})`,
     border: `hsla(${hue},${s},${fgL},0.3)`,
+    borderHover: `hsla(${hue},${s},${fgL},0.6)`,
   };
 }
 

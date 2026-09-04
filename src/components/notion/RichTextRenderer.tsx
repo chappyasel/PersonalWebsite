@@ -4,6 +4,7 @@ import Link from "next/link";
 import React from "react";
 
 import BookLink from "~/components/books/BookLink";
+import SectionLink from "~/components/daylight/SectionLink";
 import {
   sectionAccentClass,
   sectionIcon,
@@ -211,8 +212,8 @@ export default function RichTextRenderer({
             const sectionId = rt.link.slice(1);
             const accent = sectionAccentClass(sectionId) ?? "";
             el = READ_MORE.test(rt.text) ? (
-              <Link
-                href={rt.link}
+              <SectionLink
+                id={sectionId}
                 aria-label={`Read more in ${humanizeSlug(sectionId)}`}
                 className="ml-0.5 inline-flex items-center gap-0.5 align-baseline opacity-80 transition-opacity hover:opacity-100"
               >
@@ -226,16 +227,19 @@ export default function RichTextRenderer({
                   weight="bold"
                   className="inline-block -translate-y-px text-muted-foreground/70"
                 />
-              </Link>
+              </SectionLink>
             ) : (
-              <Link href={rt.link} className={`whitespace-nowrap ${linkClass}`}>
+              <SectionLink
+                id={sectionId}
+                className={`whitespace-nowrap ${linkClass}`}
+              >
                 <XrefIcon
                   size={13}
                   weight="duotone"
                   className={`mr-1 inline-block -translate-y-px opacity-80 ${accent}`}
                 />
                 {el}
-              </Link>
+              </SectionLink>
             );
           } else if (page) {
             el = (

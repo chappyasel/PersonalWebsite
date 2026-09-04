@@ -8,6 +8,7 @@ import {
   getBookWithNotes,
   getSlugByNotionId,
 } from "~/lib/books/ogDataAccess";
+import { getBooksOrigin } from "~/lib/books/origin";
 import { isNotionId } from "~/lib/books/slugify";
 import { db } from "~/server/db";
 
@@ -65,8 +66,11 @@ export async function generateMetadata({
       alternates: {
         canonical: `/${bookId}`,
       },
+      // Next resolves openGraph and alternates against metadataBase but
+      // writes icons out verbatim, and a bare /:bookId/icon only resolves on
+      // the books host. Absolute, it works from /books/:bookId too.
       icons: {
-        icon: `/${bookId}/icon`,
+        icon: `${getBooksOrigin()}/${bookId}/icon`,
       },
     };
   } catch {

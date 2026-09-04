@@ -2,7 +2,6 @@ import type { Icon } from "@phosphor-icons/react";
 import {
   BookmarkSimpleIcon,
   BooksIcon,
-  CalendarBlankIcon,
   CalendarIcon,
   ClockIcon,
   HeadphonesIcon,
@@ -23,6 +22,7 @@ import {
 } from "~/lib/books/ogImageUtils";
 import { phosphorSvg } from "~/lib/og/phosphor";
 
+import { BookOgByline } from "./BookOgByline";
 import { loadGeorgiaProBold, loadGeorgiaProRegular } from "./fonts";
 import {
   formatLength,
@@ -96,18 +96,10 @@ export default async function Image({
     const displayTitle = titleStyle.shouldTruncate
       ? truncateTitle(book.title)
       : book.title;
-    // The facts the page lists under the author, in its order and with its
-    // glyphs: published, length, then whichever reading row applies.
+    // The remaining facts the page lists under the byline, in order and with
+    // their glyphs: length, then whichever reading row applies.
     type Fact = { key: string; icon: Icon; label: string; value: string };
     const facts: Fact[] = [];
-    if (book.publicationYear) {
-      facts.push({
-        key: "published",
-        icon: CalendarBlankIcon,
-        label: "Published",
-        value: String(book.publicationYear),
-      });
-    }
     const length = formatLength(book.audioLengthMin, book.pageCount);
     if (length) {
       facts.push({
@@ -218,8 +210,8 @@ export default async function Image({
             <div
               style={{
                 display: "flex",
-                width: "300px",
-                height: "450px",
+                width: "307px",
+                height: "460px",
                 borderRadius: "20px",
                 overflow: "hidden",
                 boxShadow: "0px 12px 48px rgba(0, 0, 0, 0.3)",
@@ -230,8 +222,8 @@ export default async function Image({
               <img
                 src={coverImageSrc}
                 alt={book.title}
-                width="300"
-                height="450"
+                width="307"
+                height="460"
                 style={{
                   objectFit: "cover",
                 }}
@@ -240,7 +232,7 @@ export default async function Image({
 
             {/* Content: the page's header column at card scale. Same
                 order, weights, and relative spacing as BookDetailContent:
-                breadcrumb, title, muted regular-weight author, the facts
+                breadcrumb, title, muted regular-weight byline, the facts
                 list as glyph + label + value rows, stars underneath. */}
             <div
               style={{
@@ -284,17 +276,12 @@ export default async function Image({
                 {displayTitle}
               </h1>
 
-              <p
-                style={{
-                  fontSize: "40px",
-                  fontWeight: 400,
-                  color: textColorWithOpacity(0.78),
-                  margin: "6px 0 0",
-                  lineHeight: 1.2,
-                }}
-              >
-                {book.author}
-              </p>
+              <BookOgByline
+                author={book.author}
+                publicationYear={book.publicationYear}
+                color={textColorWithOpacity(0.78)}
+                separatorColor={textColorWithOpacity(0.38)}
+              />
 
               {facts.length > 0 && (
                 <div

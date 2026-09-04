@@ -5,7 +5,11 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { getBookShareUrl } from "~/lib/books/paths";
+import {
+  getBookShareUrl,
+  getBooksPath,
+  getBooksTagQuery,
+} from "~/lib/books/paths";
 import type { BaseBook } from "~/lib/books/types";
 import { copyTextToClipboard } from "~/lib/clipboard";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
@@ -20,6 +24,11 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
+
+  // Same directory-relative shape as the breadcrumb, so it resolves on both
+  // hosts. This page is prerendered, so it cannot read the query the way the
+  // modal does without giving that up; the breadcrumb drops it too.
+  const tagHref = (tag: string) => getBooksPath(getBooksTagQuery(tag));
 
   // Handle Escape key to navigate back to books grid
   useEffect(() => {
@@ -62,6 +71,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
             copied={copied}
             bookId={bookId}
             bookshelfBookCount={bookshelfBookCount}
+            tagHref={tagHref}
           />
         </div>
       </motion.div>
