@@ -112,6 +112,7 @@ import {
 } from "./mobileSheetGeometry";
 import { nextPlacardToPrepare } from "./placardResidency";
 import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
+import { pressLandsInRoom } from "./roomPress";
 import {
   formatLength,
   formatReadDates,
@@ -1335,17 +1336,15 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     if (active && expanded) setDismissed(false);
   }, [active, expanded, setDismissed]);
 
-  // Any press in the exposed room collapses an expanded sheet. The section
-  // rail is excluded because its own click handler collapses AND completes
-  // the requested navigation; pre-closing here would make that handler see a
-  // transitional state and lose the destination.
+  // Any press in the exposed room collapses an expanded sheet. Only the
+  // room: a press on a surface presented over the world (a document sheet,
+  // the book modal, the photo viewer) is not a press in the room, and the
+  // close is a history.back() that would pop that surface instead. See
+  // roomPress.ts for the exclusions.
   useEffect(() => {
     if (!active || !expanded) return;
     const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest("[data-stacks-mobile-panel]")) return;
-      if (target.closest(".stacks-unit-rail-mobile")) return;
+      if (!pressLandsInRoom(event.target)) return;
       closeStacksPanel();
     };
     window.addEventListener("pointerdown", onPointerDown, { capture: true });

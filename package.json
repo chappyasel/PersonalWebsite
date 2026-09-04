@@ -54,6 +54,7 @@
     "generate:routine": "tsx ./scripts/generate/routine.ts",
     "generate:scene-objects": "tsx ./scripts/generate/scene-object-notes.ts",
     "generate:github": "tsx ./scripts/generate/github-activity.ts",
+    "preview:favicons": "node ./scripts/favicon-previews.mjs",
     "add-book-covers": "tsx ./scripts/add-book-covers.ts",
     "add-book-covers:dry-run": "tsx ./scripts/add-book-covers.ts --dry-run",
     "backfill:book-flags": "dotenv -e .env -- tsx ./scripts/backfill-book-flags.ts",

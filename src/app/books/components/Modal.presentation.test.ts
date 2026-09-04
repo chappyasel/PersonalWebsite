@@ -14,4 +14,23 @@ describe("book modal presentation", () => {
       "originOwnsExit\n                    ? { opacity: 0, scale: 1, y: 0 }",
     );
   });
+
+  it("rewrites the modal's own history entry into the narrowed shelf on a tag press", () => {
+    const handler = modal.slice(
+      modal.indexOf("const handleTagSelect = ("),
+      modal.indexOf("};", modal.indexOf("const handleTagSelect = (")),
+    );
+    expect(handler).toContain("if (fromStacks) return;");
+    expect(handler).toContain("if (isClosingRef.current) return;");
+    expect(handler).toContain("isClosingRef.current = true;");
+    expect(handler).toContain(
+      'window.history.replaceState(null, "", tagHref(tag));',
+    );
+    expect(handler).toContain("closeModal();");
+    expect(handler).not.toContain("history.back()");
+    expect(modal).toContain("onTagSelect={handleTagSelect}");
+    expect(modal).toContain(
+      "`${presentation.booksHref}/?${getBooksTagQuery(tag)}`",
+    );
+  });
 });

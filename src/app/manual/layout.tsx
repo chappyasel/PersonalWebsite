@@ -1,15 +1,18 @@
 import { type Metadata } from "next";
+import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
 import { devSubdomainUrl } from "~/lib/util";
 
 import "~/styles/daylight.css";
 import { SITE_PAGES } from "~/lib/site/pages";
 
+const origin =
+  process.env.NODE_ENV === "production"
+    ? "https://manual.chappyasel.com"
+    : devSubdomainUrl("manual");
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NODE_ENV === "production"
-      ? "https://manual.chappyasel.com"
-      : devSubdomainUrl("manual"),
-  ),
+  metadataBase: new URL(origin),
+  icons: siteIconMetadata(origin),
   title: "Personal Operating Manual ~ Chappy Asel",
   description:
     SITE_PAGES.manual.description,

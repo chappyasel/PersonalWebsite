@@ -63,6 +63,30 @@ export function phosphorSvg(
   );
 }
 
+/**
+ * The same glyph as raw `<path>` markup for a hand-built SVG document (the
+ * section favicons), with the viewBox edge the paths are drawn in. Fill is
+ * left off so the embedding document colours the group.
+ */
+export function phosphorPaths(
+  Glyph: Icon,
+  weight: IconWeight = "fill",
+): { viewBoxSize: number; markup: string } {
+  const svg = phosphorSvg(Glyph, { size: 256, weight });
+  const props = svg.props as { viewBox?: string; children?: ReactNode };
+  const viewBoxSize = Number(props.viewBox?.split(" ")[2] ?? 256) || 256;
+  const markup: string[] = [];
+  for (const child of React.Children.toArray(props.children)) {
+    if (!React.isValidElement(child) || child.type !== "path") continue;
+    const attrs = Object.entries(child.props as Record<string, unknown>)
+      .filter(([key, value]) => key !== "children" && value !== undefined)
+      .map(([key, value]) => `${key}="${String(value).replace(/"/g, "&quot;")}"`)
+      .join(" ");
+    markup.push(`<path ${attrs}/>`);
+  }
+  return { viewBoxSize, markup: markup.join("") };
+}
+
 function flattenFragments(children: ReactNode): ReactNode[] {
   const out: ReactNode[] = [];
   for (const child of React.Children.toArray(children)) {

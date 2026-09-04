@@ -5,16 +5,14 @@ import { BooksLayoutWrapper } from "./components/BooksLayoutWrapper";
 import { ModalHost } from "./components/ModalHost";
 
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
-import { devSubdomainUrl } from "~/lib/util";
+import { getBooksOrigin } from "~/lib/books/origin";
+import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
 import { SITE_PAGES } from "~/lib/site/pages";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NODE_ENV === "production"
-      ? "https://books.chappyasel.com"
-      : devSubdomainUrl("books"),
-  ),
+  metadataBase: new URL(getBooksOrigin()),
+  icons: siteIconMetadata(getBooksOrigin()),
   title: "Book Notes ~ Chappy Asel",
   description: SITE_PAGES.books.description,
   keywords: ["book notes", "book reviews", "reading list", "Chappy Asel"],

@@ -29,7 +29,7 @@ import { authoredTravelStops } from "../mobile/travel";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
-import { closeStacksPanel, useStacks } from "../store";
+import { closeStacksPanel, isPanelHistoryEntry, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
@@ -253,8 +253,11 @@ export default function ScrollBridges() {
       const state = useStacks.getState();
       if (state.modalOpen || state.visionRidePhase !== "idle") return;
       // Browser back while the mobile panel is up closes the panel — the
-      // pushed entry belongs to it — and never travels.
+      // pushed entry belongs to it — and never travels. Unless the pop
+      // LANDED on the panel's entry: that is a surface stacked above it (a
+      // document sheet, the book modal) closing, and the panel stays.
       if (state.panelState === "open" || state.panelState === "opening") {
+        if (isPanelHistoryEntry(window.history.state)) return;
         state.setPanelState("closing");
         return;
       }
