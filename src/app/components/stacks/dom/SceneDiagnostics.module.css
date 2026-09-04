@@ -108,6 +108,54 @@
   outline: 1px solid rgb(125 220 255 / 0.7);
   outline-offset: 1px;
 }
+:global(.stacks-dev-hud-capture-status),
+:global(.stacks-dev-hud-profile-status) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-block-size: 9px;
+  margin-block-start: 2px;
+  padding-inline: 3px;
+  color: rgb(255 255 255 / 0.5);
+  font:
+    650 6.5px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.055em;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.72);
+  white-space: nowrap;
+}
+:global(.stacks-dev-hud-capture-status) > i,
+:global(.stacks-dev-hud-profile-status) > i {
+  inline-size: 4px;
+  block-size: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 5px currentColor;
+}
+:global(.stacks-dev-hud-profile-status) {
+  color: var(--diagnostics-accent);
+}
+:global(.stacks-dev-hud-capture-status)[data-state="armed"] {
+  color: rgb(255 255 255 / 0.52);
+}
+:global(.stacks-dev-hud-capture-status)[data-state="recording"] {
+  color: var(--diagnostics-accent);
+}
+:global(.stacks-dev-hud-capture-status)[data-state="ready"] {
+  color: var(--diagnostics-success);
+}
+:global(.stacks-dev-hud-capture-status)[data-state="queued"] {
+  color: var(--diagnostics-success);
+}
+:global(.stacks-dev-hud-capture-status)[data-state="uploaded"] {
+  color: var(--diagnostics-success);
+}
+:global(.stacks-dev-hud-capture-status)[data-state="fallback"] {
+  color: var(--diagnostics-warning);
+}
 :global(.stacks-dev-hud):hover,
 :global(.stacks-dev-hud):focus-visible,
 :global(.stacks-dev-hud)[aria-expanded="true"] {

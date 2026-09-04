@@ -60,7 +60,8 @@ describe("scene layout editor presentation", () => {
     );
     expect(diagnosticsSource).toContain("Enable layout editing");
     expect(diagnosticsSource).toContain("Copy layout snapshot");
-    expect(diagnosticsSource).toContain("Page Up/Down for height");
+    expect(diagnosticsSource).toContain('label="Page Up or Page Down"');
+    expect(diagnosticsSource).toContain("move Y");
     expect(diagnosticsSource).toContain("Move, rotate, and scale");
     expect(diagnosticsSource).toContain("Uniform scale");
     expect(diagnosticsSource).toContain("⌘Z undo");
@@ -163,7 +164,9 @@ describe("scene layout editor presentation", () => {
     expect(grabbableSource).toContain(
       "const layoutOverride = useSceneLayoutOverride(hoverKey)",
     );
-    expect(grabbableSource).toContain("sceneLayoutEditorController.overrideFor");
+    expect(grabbableSource).toContain(
+      "sceneLayoutEditorController.overrideFor",
+    );
     expect(grabbableSource).toContain("scale={restScale}");
     // Registration keeps reporting the AUTHORED numbers, so exported deltas
     // stay measured against the source however many times a prop has moved.
@@ -194,7 +197,9 @@ describe("scene layout editor presentation", () => {
     expect(gizmoSource).toContain("setEvents({");
     expect(gizmoSource).toContain("setEvents({ filter: undefined })");
     // Drawing on top is only half of it, and was already true.
-    expect(gizmoSource.match(/depthTest=\{false\}/g)?.length).toBeGreaterThan(1);
+    expect(gizmoSource.match(/depthTest=\{false\}/g)?.length).toBeGreaterThan(
+      1,
+    );
   });
 
   it("registers every movable prop and keeps friendly About labels", () => {

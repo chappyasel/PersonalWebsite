@@ -86,24 +86,16 @@ describe("development diagnostics chrome", () => {
   });
 
   it("can preview every Vision Ride modifier and finish without firing discoveries", () => {
-    expect(registrySource).toContain(
-      'id: "render.vision-ride-scene-preview"',
-    );
+    expect(registrySource).toContain('id: "render.vision-ride-scene-preview"');
     expect(registrySource).toContain('{ value: "night", label: "3:45" }');
-    expect(registrySource).toContain(
-      '{ value: "redline", label: "Redline" }',
-    );
+    expect(registrySource).toContain('{ value: "redline", label: "Redline" }');
     expect(registrySource).toContain('{ value: "golf", label: "Fairway" }');
     expect(registrySource).toContain(
       '{ value: "full-stack", label: "All scene modifiers" }',
     );
-    expect(registrySource).toContain(
-      'id: "render.vision-ride-finish-preview"',
-    );
+    expect(registrySource).toContain('id: "render.vision-ride-finish-preview"');
     expect(registrySource).toContain('{ value: "levels", label: "8-bit" }');
-    expect(registrySource).toContain(
-      '{ value: "palette", label: "16-bit" }',
-    );
+    expect(registrySource).toContain('{ value: "palette", label: "16-bit" }');
     expect(registrySource).toContain(
       "without satisfying its discovery or Field Note",
     );
@@ -234,6 +226,13 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsStyles).toContain('[data-tone="danger"]');
   });
 
+  it("names an active performance profile beside the compact HUD", () => {
+    expect(diagnosticsSource).toContain("stacks-dev-hud-profile-status");
+    expect(diagnosticsSource).toContain("activeProfile.toUpperCase()");
+    expect(diagnosticsSource).toContain("activeProfile={activeProfile}");
+    expect(diagnosticsStyles).toContain(".stacks-dev-hud-profile-status");
+  });
+
   it("exposes adaptive quality controls and the full live policy status", () => {
     expect(registrySource).toContain("Quality mode");
     expect(registrySource).toContain('optionGroup: "Manual only"');
@@ -274,7 +273,8 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("function PerformanceTraceControls");
     expect(diagnosticsSource).toContain("Performance trace");
     expect(diagnosticsSource).toContain("Start capture");
-    expect(diagnosticsSource).toContain("Download JSON");
+    expect(diagnosticsSource).toContain("Download full trace");
+    expect(diagnosticsSource).toContain("Download diagnostic");
     expect(diagnosticsSource).toContain("report.summary.settled.frameMs.p95");
     expect(diagnosticsSource).toContain("report.summary.travel.frameMs.p95");
     expect(diagnosticsSource).toContain(
@@ -442,6 +442,16 @@ describe("production diagnostics activation", () => {
 
     expect(hudBranch).toContain("setRequest({ initiallyOpen: false })");
     expect(hudBranch).not.toContain("requestDevHooks()");
+  });
+
+  it("shows the compact HUD for an automatic performance report", () => {
+    expect(chromeSource).toContain(
+      'if (queryMode === "report" && request === null)',
+    );
+    expect(chromeSource).toContain("setRequest({ initiallyOpen: false })");
+    expect(diagnosticsSource).toContain("performanceCaptureStatus");
+    expect(diagnosticsSource).toContain("stacks-dev-hud-capture-status");
+    expect(diagnosticsSource).toContain("chappy:analytics-captured");
   });
 
   it("does not production-gate the diagnostics loader", () => {

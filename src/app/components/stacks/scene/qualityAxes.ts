@@ -17,11 +17,12 @@ import {
   sceneResolutionScale,
 } from "./quality";
 
-// The three-axis quality controller.
+// The adaptive quality controller: three reversible axes plus survival.
 //
 // WHY THIS IS SEPARATE FROM quality.ts. quality.ts owns the profile table and
 // the plan every consumer already reads. This module owns the decision of
-// where on the three axes to stand. Keeping them apart means the axis policy
+// where on the ordinary axes to stand and whether the last-resort survival
+// state is active. Keeping them apart means the axis policy
 // is a pure reducer with no rendering surface, so its timing rules can be
 // driven directly by tests rather than inferred from a rendered frame.
 //
@@ -67,6 +68,11 @@ export const QUALITY_EFFECTS_RISE_MS = 15_000;
 export const QUALITY_EFFECTS_RETRY_MS = 60_000;
 export const QUALITY_CONTENT_FALL_MS = 10_000;
 export const QUALITY_CONTENT_RISE_MS = 60_000;
+/** Last-resort dwell after every lever that can help the measured constraint
+ * is exhausted. Removing the meadow is a large visual change, so it needs a
+ * fresh severe run at the floor rather than inheriting time accumulated while
+ * cheaper axes were still moving. */
+export const QUALITY_SURVIVAL_FALL_MS = 10_000;
 
 /** Travel is bounded and known in advance, so the headroom can be taken
  * before a frame is missed rather than after. */
@@ -109,13 +115,16 @@ export const QUALITY_AXIS_P50_IMPROVEMENT_RATIO = 0.9;
 export const QUALITY_SEVERE_P95_MULTIPLIER = 1.75;
 export const QUALITY_SEVERE_DROPPED_RATIO = 0.35;
 
-export type QualityAxisName = "resolution" | "effects" | "content";
+export type QualityAxisName = "resolution" | "effects" | "content" | "survival";
 
 export type SceneQualityAxes = Readonly<{
   /** 0 is the floor, 11 is the ceiling. */
   resolutionStep: number;
   effects: SceneEffectsTier;
   content: SceneContentTier;
+  /** One-way for this visit. True removes the meadow and its habitat after
+   * ordinary quality controls have failed to restore usable pacing. */
+  survival: boolean;
 }>;
 
 export type QualityAxisChange = Readonly<{
@@ -197,6 +206,12 @@ export type SceneQualityTransition =
         axis: "content";
         fromValue: SceneContentTier;
         toValue: SceneContentTier;
+      }>)
+  | (SceneQualityTransitionBase &
+      Readonly<{
+        axis: "survival";
+        fromValue: boolean;
+        toValue: boolean;
       }>);
 
 export type SceneQualityAxisState = Readonly<{
@@ -228,6 +243,9 @@ export type SceneQualityAxisState = Readonly<{
   gpuSince: number | null;
   cpuSince: number | null;
   headroomSince: number | null;
+  /** Severe time observed only after the applicable ordinary axes reached
+   * their floors. Reset as soon as pressure eases or another lever returns. */
+  survivalSince: number | null;
   /** The window that justified the last change, held until a later window
    * shows the change helped. Null means no axis is blocked. */
   pendingBaseline: SceneQualityMetrics | null;
@@ -265,7 +283,7 @@ export type SceneQualityAxisState = Readonly<{
   /** Bounded non-axis boundaries needed to interpret foreground and travel
    * evidence without enabling the expensive trace recorder. */
   lifecycle: readonly SceneQualityLifecycleEvent[];
-  /** Fresh evidence that accepted the current axis triple for persistence. */
+  /** Fresh evidence that accepted the current adaptive state for persistence. */
   validation: Readonly<{
     at: number;
     reason: "improved-decline" | "acceptable-pacing";
@@ -344,6 +362,7 @@ export function initialSceneQualityAxisState(
     axes: {
       resolutionStep,
       ...AXES_BY_PROFILE[profile],
+      survival: false,
     },
     forced,
     travelling: false,
@@ -354,12 +373,18 @@ export function initialSceneQualityAxisState(
     foregroundReadyAt: documentVisible
       ? now + QUALITY_TRAVEL_VALIDATION_MS
       : null,
-    axisChangedAt: { resolution: now, effects: now, content: now },
+    axisChangedAt: {
+      resolution: now,
+      effects: now,
+      content: now,
+      survival: now,
+    },
     resolutionRetryAt: null,
     effectsRetryAt: null,
     gpuSince: null,
     cpuSince: null,
     headroomSince: null,
+    survivalSince: null,
     pendingBaseline: null,
     pendingBaselineExpiresAt: null,
     lastChange: null,
@@ -384,6 +409,9 @@ export type SceneQualityAxisEvent =
       /** False on WebKit/iOS, where changing DPR presents cleared black
        * frames while the drawing buffer is reallocated. */
       allowResolutionChange?: boolean;
+      /** False while diagnostics, harness pins, or an explicit meadow
+       * override make the sampled frame unlike the production policy. */
+      allowSurvival?: boolean;
     }>
   | Readonly<{
       type: "travel-start";
@@ -474,6 +502,7 @@ const clearedClocks = {
   gpuSince: null,
   cpuSince: null,
   headroomSince: null,
+  survivalSince: null,
 } as const;
 
 /** Stamp an axis as just moved. Only that axis has to re-earn its sustain;
@@ -535,6 +564,7 @@ function reduceSceneQualityAxesCore(
           resolution: event.now,
           effects: event.now,
           content: event.now,
+          survival: event.now,
         },
         pendingBaseline: null,
         pendingBaselineExpiresAt: null,
@@ -571,7 +601,10 @@ function reduceSceneQualityAxesCore(
         forced: event.profile,
         // A forced preset pins the visible tiers. Resolution stays free, so a
         // forced Safety can still shed pixels under pressure.
-        axes: { ...state.axes, ...AXES_BY_PROFILE[event.profile] },
+        axes: {
+          ...state.axes,
+          ...AXES_BY_PROFILE[event.profile],
+        },
         ...clearedClocks,
         pendingBaseline: null,
         pendingBaselineExpiresAt: null,
@@ -595,6 +628,7 @@ function reduceSceneQualityAxesCore(
           resolution: event.now,
           effects: event.now,
           content: event.now,
+          survival: event.now,
         },
       };
     }
@@ -691,6 +725,7 @@ function reduceSceneQualityAxesCore(
     case "sample": {
       const { now, metrics, visible } = event;
       const allowResolutionChange = event.allowResolutionChange !== false;
+      const allowSurvival = event.allowSurvival !== false;
       if (!visible || metrics.sampleCount < 2 || !Number.isFinite(metrics.p95))
         return state;
       if (
@@ -881,6 +916,57 @@ function reduceSceneQualityAxesCore(
           validation: pendingImproved
             ? { at: now, reason: "improved-decline", metrics }
             : next.validation,
+        };
+
+      const resolutionExhausted =
+        !allowResolutionChange ||
+        next.axes.resolutionStep === 0 ||
+        (metrics.gpuMs == null &&
+          next.unhelpfulResolutionSteps >= QUALITY_RESOLUTION_GIVE_UP_STEPS);
+      const allAxesAtFloor =
+        next.axes.resolutionStep === 0 &&
+        next.axes.effects === SCENE_EFFECTS_TIERS[0] &&
+        next.axes.content === SCENE_CONTENT_TIERS[0];
+      // Only axes that can relieve the measured bottleneck are prerequisites.
+      // Pixels and post-processing do not help a main-thread-bound frame;
+      // content is likewise reserved for measured CPU pressure. Unknown
+      // pressure gets the strictest rule because attribution has not earned a
+      // more targeted decision.
+      const applicableAxesAtFloor =
+        (constraint === "cpu" &&
+          next.axes.content === SCENE_CONTENT_TIERS[0]) ||
+        (constraint === "gpu" &&
+          resolutionExhausted &&
+          next.axes.effects === SCENE_EFFECTS_TIERS[0]) ||
+        (constraint === "unknown" && allAxesAtFloor);
+      const survivalEligible =
+        allowSurvival &&
+        !next.forced &&
+        !next.axes.survival &&
+        severe &&
+        !guarding &&
+        applicableAxesAtFloor;
+      const survivalSince = survivalEligible
+        ? (next.survivalSince ?? now)
+        : null;
+      if (survivalSince !== next.survivalSince)
+        next = { ...next, survivalSince };
+      if (
+        survivalEligible &&
+        sustainedFor(survivalSince, now) >= QUALITY_SURVIVAL_FALL_MS
+      )
+        return {
+          ...next,
+          axes: { ...next.axes, survival: true },
+          axisChangedAt: moved(next, "survival", now),
+          survivalSince: null,
+          pendingBaseline: metrics,
+          pendingBaselineExpiresAt: now + QUALITY_AXIS_BLOCK_MS,
+          lastChange: {
+            axis: "survival",
+            direction: "down",
+            reason: "pressure",
+          },
         };
 
       // Three consecutive over-budget travels earn one content step at rest.
@@ -1254,6 +1340,15 @@ function transitionsForAxisChanges(
       ),
       fromValue: before.axes.content,
       toValue: after.axes.content,
+    });
+  }
+  if (before.axes.survival !== after.axes.survival) {
+    transitions.push({
+      ...common,
+      axis: "survival",
+      direction: after.axes.survival ? "down" : "up",
+      fromValue: before.axes.survival,
+      toValue: after.axes.survival,
     });
   }
 

@@ -285,6 +285,7 @@ describe("scene quality policy", () => {
       cinematic.effects.depthOfFieldBokehScale / cinematic.dpr,
     ).toBeCloseTo(1.1875, 8);
     expect(plan("showcase").environment).toEqual({
+      meadow: true,
       meadowDensity: 1,
       meadowRung: 3,
       contentTier: "full",
@@ -1418,6 +1419,18 @@ describe("the resolution axis inside the plan", () => {
 
     expect(resolved.environment.contentTier).toBe("minimal");
     expect(resolved.wildlife.suspendOffscreen).toBe(true);
+  });
+
+  it("removes the meadow only when the automatic survival state asks for it", () => {
+    expect(
+      resolveSceneQualityPlan({
+        ...narrow,
+        mode: "auto",
+        profile: "showcase",
+        survival: true,
+      }).environment.meadow,
+    ).toBe(false);
+    expect(plan("safety").environment.meadow).toBe(true);
   });
 });
 

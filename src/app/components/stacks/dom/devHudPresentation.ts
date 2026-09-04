@@ -17,7 +17,7 @@ export type DevHudRow = Readonly<{
   segments: readonly DevHudSegment[];
 }>;
 
-type QualityAxis = "resolution" | "effects" | "content";
+type QualityAxis = "resolution" | "effects" | "content" | "survival";
 
 export type DevHudInput = Readonly<{
   fps: number | null;
@@ -34,6 +34,7 @@ export type DevHudInput = Readonly<{
   resolutionStep: number | null;
   effectsTier: "cinematic" | "full" | "lean" | "minimal" | null;
   contentTier: "full" | "reduced" | "minimal" | null;
+  survival: boolean | null;
   constraint: "cpu" | "gpu" | "headroom" | "unknown" | null;
   lastTransition: Readonly<{
     axis: QualityAxis;
@@ -155,9 +156,7 @@ function recentAxis(
   };
 }
 
-function constraintSegment(
-  value: DevHudInput["constraint"],
-): DevHudSegment {
+function constraintSegment(value: DevHudInput["constraint"]): DevHudSegment {
   if (value === "cpu" || value === "gpu")
     return { text: value.toUpperCase(), tone: "danger", emphasis: true };
   if (value === "headroom")
@@ -170,12 +169,12 @@ function constraintSegment(
 function runtimeStatus(input: DevHudInput): DevHudSegment | null {
   if (input.fallbackStatus?.startsWith("direct"))
     return { text: "DIRECT", tone: "danger", emphasis: true };
-  if (input.frozen)
-    return { text: "FROZEN", tone: "warning", emphasis: true };
+  if (input.survival)
+    return { text: "SURVIVAL", tone: "warning", emphasis: true };
+  if (input.frozen) return { text: "FROZEN", tone: "warning", emphasis: true };
   if (input.customOverrides)
     return { text: "CUSTOM", tone: "accent", emphasis: true };
-  if (input.moving)
-    return { text: "TRAVEL", tone: "accent", emphasis: true };
+  if (input.moving) return { text: "TRAVEL", tone: "accent", emphasis: true };
   return null;
 }
 

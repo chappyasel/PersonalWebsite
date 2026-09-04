@@ -4,8 +4,17 @@
  */
 await import("./src/env.js");
 
+const diagnosticBuildId = (
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  "local"
+).slice(0, 12);
+
 /** @type {import("next").NextConfig} */
 const config = {
+  env: {
+    NEXT_PUBLIC_STACKS_BUILD_ID: diagnosticBuildId,
+  },
   // React Three Fiber releases an unmounted Canvas on a 500 ms delay. React
   // Strict Mode's development remount reuses that canvas/root before the old
   // cleanup runs, so the cleanup force-loses the live replacement context.

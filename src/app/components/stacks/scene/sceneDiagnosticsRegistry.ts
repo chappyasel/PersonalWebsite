@@ -15,6 +15,13 @@ import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnos
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import { MEADOW_WIND } from "./meadowMotion";
 import { modelArtifactDiagnosticsController } from "./modelArtifactDiagnostics";
+import { PERFORMANCE_PROFILE_PRESENTATION } from "./performanceProfilePresentation";
+import {
+  PERFORMANCE_PROFILE_IDS,
+  PERFORMANCE_PROFILE_PARAM,
+  type PerformanceProfileId,
+  performanceProfileController,
+} from "./performanceProfiles";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
 import {
   DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
@@ -140,6 +147,7 @@ const SECTION_DEFINITIONS = Object.freeze([
   { id: "simulate.meadow", panel: "simulate", label: "Meadow wind" },
   { id: "simulate.insects", panel: "simulate", label: "Insect behavior" },
   { id: "simulate.physics", panel: "simulate", label: "Physics runtime" },
+  { id: "render.profile", panel: "render", label: "Test profile" },
   { id: "render.quality", panel: "render", label: "Quality mode" },
   { id: "render.resolution", panel: "render", label: "Resolution" },
   {
@@ -180,6 +188,25 @@ const DEFAULT_LIGHTHOUSE = lighthouseBeaconDiagnosticsController.getSnapshot();
 const DEFAULT_MEADOW = meadowDiagnosticsController.getSnapshot();
 const DEFAULT_PHYSICS = physicsDiagnosticsController.getSnapshot();
 const DEFAULT_QUALITY = sceneQualityController.getSnapshot();
+const resolvedMeadowStore: DiagnosticRegistryStore = {
+  subscribe: (listener) => {
+    const stopPerformance = scenePerformanceController.subscribe(listener);
+    const stopQuality = sceneQualityController.subscribeRuntime(listener);
+    return () => {
+      stopPerformance();
+      stopQuality();
+    };
+  },
+};
+
+const readResolvedMeadow = () => {
+  const settings = scenePerformanceController.getSnapshot();
+  if (scenePerformanceController.isOverridden("meadow")) return settings.meadow;
+  return (
+    sceneQualityController.getRuntimeSnapshot()?.plan.environment.meadow ??
+    settings.meadow
+  );
+};
 
 function booleanDescriptor(
   descriptor: Omit<
@@ -259,6 +286,17 @@ const RESOLUTION_STEP_VALUES = Object.freeze({
   ]),
 });
 
+const PERFORMANCE_PROFILE_VALUES = Object.freeze({
+  kind: "set" as const,
+  values: Object.freeze([
+    { value: null, label: "None (production policy)" },
+    ...PERFORMANCE_PROFILE_IDS.map((id) => ({
+      value: id,
+      label: PERFORMANCE_PROFILE_PRESENTATION[id].label,
+    })),
+  ]),
+});
+
 const RESOLUTION_CEILING_VALUES = Object.freeze({
   kind: "set" as const,
   values: Object.freeze([
@@ -271,6 +309,25 @@ const RESOLUTION_CEILING_VALUES = Object.freeze({
 });
 
 const descriptors: readonly MutableDescriptor[] = Object.freeze([
+  mutableDescriptor({
+    id: "quality.test-profile",
+    panel: "render",
+    group: "render.profile",
+    label: "Profile",
+    help: "Put the scene under one named workload profile. Quality mode, scale ceiling, Auto freeze, and the composer switch apply now; prewarm and photo residency apply on reload.",
+    valueKind: "enum",
+    allowedValues: PERFORMANCE_PROFILE_VALUES,
+    defaultValue: null,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    reloadInput: PERFORMANCE_PROFILE_PARAM,
+    store: performanceProfileController,
+    read: () => performanceProfileController.getSnapshot(),
+    update: (value) =>
+      sceneDiagnosticsRuntime.applyProfile(
+        value as PerformanceProfileId | null,
+      ),
+  }),
   booleanDescriptor({
     id: "render.vision-pro-display",
     panel: "render",
@@ -806,13 +863,21 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       },
     },
   }),
-  performanceBoolean({
+  booleanDescriptor({
     id: "render.meadow",
     panel: "render",
     group: "render.optional",
     label: "Meadow",
     help: "Mount meadow geometry, materials, animation, and interactions.",
-    key: "meadow",
+    performanceSetting: "meadow",
+    defaultValue: DEFAULT_SCENE_PERFORMANCE_SETTINGS.meadow,
+    store: resolvedMeadowStore,
+    read: readResolvedMeadow,
+    update: (value) =>
+      sceneDiagnosticsRuntime.updatePerformanceBoolean(
+        "meadow",
+        Boolean(value),
+      ),
     experimental: false,
     reloadInput: "nomeadow",
     productionCost: {

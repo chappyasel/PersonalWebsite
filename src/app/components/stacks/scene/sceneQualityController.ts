@@ -26,7 +26,7 @@ export type SceneQualityRuntimeSnapshot = Readonly<{
   /** Which resource the last sampling window was short of, derived from
    * `metrics`. Null until the first window lands. */
   constraint: SceneFrameConstraint | null;
-  /** The live axis triple. In automatic mode this, not the profile name, is
+  /** The live adaptive state. In automatic mode this, not the profile name, is
    * where the scene actually stands. */
   axes: SceneQualityAxes;
   /** Set when a preset is forced, so the overlay can show the preset and the
@@ -36,7 +36,13 @@ export type SceneQualityRuntimeSnapshot = Readonly<{
   learnedProfile: string | null;
   cooldownRemainingMs: number;
   transitionReason: QualityTransitionReason | QualityAxisChange["reason"];
-  fallbackStatus: "composer" | "direct-effects-error" | "direct-safety";
+  /** `direct-manual` means the composer was switched off on purpose, by a
+   * reload switch, a profile, or the console, rather than lost to an error. */
+  fallbackStatus:
+    | "composer"
+    | "direct-effects-error"
+    | "direct-safety"
+    | "direct-manual";
 }>;
 
 export type SceneQualityControlSnapshot = Readonly<{

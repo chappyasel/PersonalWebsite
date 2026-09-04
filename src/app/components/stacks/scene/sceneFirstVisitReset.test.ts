@@ -22,6 +22,7 @@ describe("first-visit scene reset", () => {
     const local = memoryStorage({
       "stacks-quality:v6:integrated:medium": "old",
       "stacks-quality:v7:integrated:medium": "current",
+      "stacks-quality:survival:v1:medium": '{"survivalUntil":1}',
       "stacks-scene-sound-muted:v1": "true",
       "stacks-warm": '{"t":1}',
       theme: "dark",
@@ -52,6 +53,9 @@ describe("first-visit scene reset", () => {
     expect(sceneFirstVisitUrl(href)).toBe(
       "https://example.com/?utm_source=test#books",
     );
+    expect(
+      sceneFirstVisitUrl("https://example.com/?perf-profile=floor&hud=1"),
+    ).toBe("https://example.com/");
   });
 
   it("does not let blocked storage prevent the other store from resetting", () => {

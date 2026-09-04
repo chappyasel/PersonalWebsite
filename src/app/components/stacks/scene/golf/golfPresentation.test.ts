@@ -11,6 +11,7 @@ import {
   GOLF_GREEN_COLORS,
   GOLF_GREEN_FOG_SCALE,
   GOLF_SOUND_POLICY,
+  golfBallCupOpacity,
   golfBallRenderedScale,
   golfBallResolutionScale,
   golfBallVisualScale,
@@ -69,9 +70,9 @@ describe("golf presentation policy", () => {
     expect(golfBallRenderedScale(GOLF_GREEN_BALL_SCALE, 1)).toBe(
       GOLF_GREEN_BALL_SCALE,
     );
-    expect(
-      golfBallRenderedScale(GOLF_GREEN_BALL_SCALE, 0.6),
-    ).toBeCloseTo(GOLF_GREEN_BALL_SCALE * GOLF_BALL_LOW_RES_MAX_SCALE);
+    expect(golfBallRenderedScale(GOLF_GREEN_BALL_SCALE, 0.6)).toBeCloseTo(
+      GOLF_GREEN_BALL_SCALE * GOLF_BALL_LOW_RES_MAX_SCALE,
+    );
   });
 
   it("does not let scene fog recolor the flag or pastel confetti", () => {
@@ -113,5 +114,24 @@ describe("golf presentation policy", () => {
     ball.impacts = 1;
     ball.position.z = -7;
     expect(golfBallVisualScale(ball, cup)).toBeCloseTo(GOLF_GREEN_BALL_SCALE);
+  });
+
+  it("lets a holed ball disappear below an absent meadow surface", () => {
+    const ball = {
+      phase: "cup" as const,
+      position: { x: 0, y: 0.05, z: 0 },
+      radius: 0.05,
+      opacity: 1,
+    };
+
+    expect(golfBallCupOpacity(ball, 0, true)).toBe(1);
+    expect(golfBallCupOpacity(ball, 0, false)).toBe(1);
+    ball.position.y = 0;
+    expect(golfBallCupOpacity(ball, 0, false)).toBeGreaterThan(0);
+    expect(golfBallCupOpacity(ball, 0, false)).toBeLessThan(1);
+    ball.position.y = -0.07;
+    expect(golfBallCupOpacity(ball, 0, false)).toBe(0);
+
+    expect(golfBallCupOpacity({ ...ball, phase: "roll" }, 0, false)).toBe(1);
   });
 });

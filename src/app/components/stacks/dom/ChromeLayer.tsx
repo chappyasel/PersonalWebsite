@@ -69,9 +69,9 @@ export function ChromeReveal({
 }
 
 /** Development keeps the compact HUD visible without enabling the expensive
- * scene probes. Production loads the same cheap monitor for ?hud=1; the
- * backtick (where game consoles live; H is the visitor's hide-interface key)
- * and ?debug=1 opt into the full instrumented console. */
+ * scene probes. Production loads the same monitor for ?hud=1 and the explicit
+ * automatic report URL. The backtick (where game consoles live; H is the
+ * visitor's hide-interface key) and ?debug=1 open the full console. */
 function SceneDiagnosticsLoader() {
   const [request, setRequest] = useState<{
     initiallyOpen: boolean;
@@ -166,7 +166,11 @@ function SceneDiagnosticsLoader() {
 
   useEffect(() => {
     const queryMode = sceneDiagnosticsQueryMode(window.location.search);
-    if (process.env.NODE_ENV === "development" || queryMode === "hud")
+    if (
+      process.env.NODE_ENV === "development" ||
+      queryMode === "hud" ||
+      queryMode === "report"
+    )
       requestSceneHooks();
     if (queryMode === "debug" && request?.initiallyOpen !== true) {
       requestDevHooks();
@@ -177,6 +181,13 @@ function SceneDiagnosticsLoader() {
       // The canvas installs only its cheap read hooks for this URL. Loading the
       // compact HUD must not signal full instrumentation, which would mount
       // frame tracing, matrix timing and the perch sweep.
+      setRequest({ initiallyOpen: false });
+      return;
+    }
+    if (queryMode === "report" && request === null) {
+      // The report URL already opts into instrumentation in StacksCanvas. The
+      // compact HUD only makes that state visible; it does not add a second
+      // request or open the full console over the scene.
       setRequest({ initiallyOpen: false });
       return;
     }
@@ -475,8 +486,8 @@ export default function ChromeLayer() {
         data-tap-first={tapFirst || undefined}
       >
         <ChromeReveal index={2} className="stacks-scene-controls">
-          <ThemeToggle className="stacks-on-background-text !rounded-full stacks-mobile-secondary-chrome hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
-          <SoundToggle className="stacks-on-background-text !rounded-full stacks-mobile-secondary-chrome hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
+          <ThemeToggle className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
+          <SoundToggle className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
         </ChromeReveal>
       </div>
     </>

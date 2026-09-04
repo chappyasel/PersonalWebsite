@@ -1,3 +1,4 @@
+import { GOLF_CUP } from "./golfCourse";
 import type { GolfBallState, GolfVec3 } from "./golfTypes";
 
 export type GolfRgb = readonly [number, number, number];
@@ -75,8 +76,7 @@ export function golfBallResolutionScale(pixelRatio: number) {
     1,
     Math.max(
       0,
-      (GOLF_BALL_LOW_RES_DPR - pixelRatio) /
-        (GOLF_BALL_LOW_RES_DPR - floor),
+      (GOLF_BALL_LOW_RES_DPR - pixelRatio) / (GOLF_BALL_LOW_RES_DPR - floor),
     ),
   );
   return 1 + (GOLF_BALL_LOW_RES_MAX_SCALE - 1) * progress;
@@ -87,10 +87,27 @@ export function golfBallRenderedScale(
   pixelRatio: number,
 ) {
   if (authoredScale >= 1) return authoredScale;
-  return Math.min(
+  return Math.min(1, authoredScale * golfBallResolutionScale(pixelRatio));
+}
+
+/** The terrain normally occludes a holed ball as it drops through the cup.
+ * When the meadow is deliberately unmounted, fade over that same physical
+ * drop so the successful shot still completes without exposing the ball at
+ * the invisible cup bottom. */
+export function golfBallCupOpacity(
+  ball: Pick<GolfBallState, "phase" | "position" | "radius" | "opacity">,
+  cupY: number,
+  meadowVisible: boolean,
+) {
+  if (meadowVisible || ball.phase !== "cup") return ball.opacity;
+  const visibleY = cupY + ball.radius;
+  const hiddenY = cupY - GOLF_CUP.depth + ball.radius;
+  const progress = Math.min(
     1,
-    authoredScale * golfBallResolutionScale(pixelRatio),
+    Math.max(0, (visibleY - ball.position.y) / (visibleY - hiddenY)),
   );
+  const eased = progress * progress * (3 - 2 * progress);
+  return ball.opacity * (1 - eased);
 }
 
 /** The authored foreground ball is deliberately readable at interaction

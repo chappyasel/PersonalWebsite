@@ -93,6 +93,70 @@ export type AnalyticsEventProperties = {
     cause: Exclude<HomepageBootOutcome, "ready">;
     duration_ms: number;
   };
+  homepage_performance_diagnostic: {
+    schema_version: 3;
+    diagnostic_run_id: string;
+    diagnostic_report_id: string;
+    diagnostic_build_id: string;
+    report_kind:
+      | "diagnostic_start"
+      | "boot_checkpoint"
+      | "boot_complete"
+      | "runtime";
+    capture_reason:
+      | "diagnostic_started"
+      | "slow_boot_checkpoint"
+      | "boot_terminal"
+      | "post_reveal_window"
+      | "boot_failed"
+      | "capture_deadline"
+      | "pagehide";
+    checkpoint_index: number | null;
+    instrumented: true;
+    elapsed_ms: number;
+    boot_status:
+      | "unstarted"
+      | "ineligible"
+      | "booting"
+      | "revealing"
+      | "live"
+      | "failed"
+      | "exited";
+    boot_path: HomepageBootPath;
+    blocking_gate:
+      | "starting"
+      | "assets"
+      | "firstFrame"
+      | "meadow"
+      | "opening"
+      | null;
+    diagnostic_hint:
+      | "boot_start"
+      | "boot_assets"
+      | "boot_first_frame"
+      | "boot_meadow"
+      | "boot_opening"
+      | "boot_complete"
+      | "runtime_healthy"
+      | "runtime_cpu"
+      | "runtime_gpu"
+      | "runtime_mixed"
+      | "runtime_unknown"
+      | "insufficient_data";
+    test_profile: string | null;
+    dominant_constraint: "cpu" | "gpu" | "headroom" | "unknown" | null;
+    effective_fps: number | null;
+    frame_p95_ms: number | null;
+    dropped_frame_ratio: number | null;
+    survival_active: boolean | null;
+    first_frame_ms: number | null;
+    meadow_ready_ms: number | null;
+    revealed_ms: number | null;
+    live_ms: number | null;
+    report_truncated_for_transport: boolean;
+    report_bytes: number;
+    report: Record<string, unknown>;
+  };
   homepage_section_arrived: {
     section: HomepageSection;
     delivery_mode: HomepageDeliveryMode;
@@ -451,13 +515,38 @@ function initializeAnalytics(): Promise<PostHog | null> {
 }
 
 const ANALYTICS_RETRY_DELAYS_MS = [1000, 5000, 30000] as const;
+export const PERFORMANCE_DIAGNOSTIC_BEACON_MAX_BYTES = 48_000;
+
+export function analyticsCaptureOptions<Event extends AnalyticsEvent>(
+  event: Event,
+  properties: AnalyticsEventProperties[Event],
+) {
+  if (event !== "homepage_performance_diagnostic") return undefined;
+  const reportBytes = Number(
+    (properties as AnalyticsEventProperties["homepage_performance_diagnostic"])
+      .report_bytes,
+  );
+  return {
+    send_instantly: true,
+    transport:
+      Number.isFinite(reportBytes) &&
+      reportBytes <= PERFORMANCE_DIAGNOSTIC_BEACON_MAX_BYTES
+        ? ("sendBeacon" as const)
+        : ("fetch" as const),
+  };
+}
 
 const analytics = createAnalyticsInterface({
   loadTransport: async () => {
     const posthog = await initializeAnalytics();
     if (!posthog) return null;
     return (event, properties) => {
-      posthog.capture(event, properties);
+      const queued = posthog.capture(
+        event,
+        properties,
+        analyticsCaptureOptions(event, properties),
+      );
+      if (!queued) return;
       try {
         window.dispatchEvent(
           new CustomEvent("chappy:analytics-captured", {
@@ -479,6 +568,12 @@ const analytics = createAnalyticsInterface({
 
 export const capture = analytics.capture;
 export const captureOnce = analytics.captureOnce;
+
+/** Diagnostic visits may opt in to early transport setup so a pagehide report
+ * can use the already-loaded beacon path. Ordinary visits remain idle-loaded. */
+export function startAnalyticsDelivery(): Promise<void> {
+  return analytics.start();
+}
 
 export function scheduleAnalyticsInitialization(): void {
   if (typeof window === "undefined") return;

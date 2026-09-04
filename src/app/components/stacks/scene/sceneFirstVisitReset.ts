@@ -23,6 +23,7 @@ export const SCENE_QUERY_OVERRIDE_KEYS = [
   "hud",
   "harness",
   "quality",
+  "perf-profile",
   "nopostfx",
   "nodof",
   "notiltshift",

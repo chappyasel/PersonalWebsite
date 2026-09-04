@@ -13,6 +13,7 @@ import {
   meadowPhysicalResponse,
   meadowTrailReady,
 } from "../meadowMotion";
+import { useResolvedMeadowVisibility } from "../scenePerformance";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import type { UnitProps } from "../units/types";
 import { unitPose } from "../worldLayout";
@@ -64,6 +65,7 @@ import {
   GOLF_CLUB_FINISH,
   GOLF_CONFETTI_COLORS,
   GOLF_FOG_POLICY,
+  golfBallCupOpacity,
   golfBallRenderedScale,
   golfBallVisualScale,
   golfVisualSpinStep,
@@ -271,6 +273,7 @@ export default function GolfExperience({
   plantedTeeRemoved?: boolean;
 }) {
   const gl = useThree((state) => state.gl);
+  const meadowVisible = useResolvedMeadowVisibility();
   const pose = unitPose(index);
   const yaw = pose.rotation[1];
   const c = Math.cos(yaw);
@@ -486,7 +489,7 @@ export default function GolfExperience({
             horizontalSpeed > 1e-5 ? direction.z / horizontalSpeed : 0,
           ...response,
         });
-        if (motion.turfPuff) {
+        if (motion.turfPuff && meadowVisible) {
           const puff = puffs.current.find((candidate) => candidate.age >= 1.2);
           if (puff?.mesh) {
             puff.age = 0;
@@ -521,7 +524,7 @@ export default function GolfExperience({
           }
       }
     },
-    [celebrate, motion.turfPuff, toWorld, toWorldDirection],
+    [celebrate, motion.turfPuff, meadowVisible, toWorld, toWorldDirection],
   );
 
   const world = useMemo<GolfWorld>(
@@ -938,6 +941,7 @@ export default function GolfExperience({
       }
       const group = ballGroups.current[ball.id];
       const material = ballMaterials.current[ball.id];
+      const visibleOpacity = golfBallCupOpacity(ball, cup.y, meadowVisible);
       if (group) {
         group.visible = !GHOST_HIDDEN_PHASES.has(ball.phase);
         const visualScale = golfBallRenderedScale(
@@ -958,9 +962,9 @@ export default function GolfExperience({
           spin.rotation.z += step.z;
         }
       }
-      if (material) material.opacity = ball.opacity;
+      if (material) material.opacity = visibleOpacity;
       const mark = ballMarks.current[ball.id];
-      if (mark) mark.opacity = ball.opacity;
+      if (mark) mark.opacity = visibleOpacity;
       const glint = glints.current[ball.id];
       if (glint) {
         const speed = Math.hypot(
@@ -968,7 +972,7 @@ export default function GolfExperience({
           ball.velocity.y,
           ball.velocity.z,
         );
-        glint.visible = motion.glint && speed > 1.4 && ball.opacity > 0.2;
+        glint.visible = motion.glint && speed > 1.4 && visibleOpacity > 0.2;
         (glint.material as THREE.MeshBasicMaterial).opacity = Math.min(
           0.32,
           speed * 0.025,
@@ -1166,22 +1170,25 @@ export default function GolfExperience({
         suppressed={!motion.confetti}
         active={confettiActive}
       />
-      {motion.staticCupGlow && celebration > 0 && labelVisible && (
-        <mesh
-          position={[cup.x, cup.y + 0.012, cup.z]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <ringGeometry
-            args={[GOLF_CUP.radius * 1.2, GOLF_CUP.radius * 1.85, 32]}
-          />
-          <meshBasicMaterial
-            color="#f5d86c"
-            transparent
-            opacity={0.72}
-            toneMapped={false}
-          />
-        </mesh>
-      )}
+      {meadowVisible &&
+        motion.staticCupGlow &&
+        celebration > 0 &&
+        labelVisible && (
+          <mesh
+            position={[cup.x, cup.y + 0.012, cup.z]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry
+              args={[GOLF_CUP.radius * 1.2, GOLF_CUP.radius * 1.85, 32]}
+            />
+            <meshBasicMaterial
+              color="#f5d86c"
+              transparent
+              opacity={0.72}
+              toneMapped={false}
+            />
+          </mesh>
+        )}
       {labelVisible && (
         <Html
           position={[cup.x, cup.y + 0.72, cup.z]}

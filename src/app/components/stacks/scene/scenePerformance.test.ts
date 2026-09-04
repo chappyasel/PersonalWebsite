@@ -216,4 +216,21 @@ describe("reversible scene performance settings", () => {
     expect(notifications).toBe(2);
     unsubscribe();
   });
+
+  it("notifies when a default-valued setting becomes an explicit override", () => {
+    scenePerformanceController.reset();
+    const before = scenePerformanceController.getSnapshot();
+    let notifications = 0;
+    const unsubscribe = scenePerformanceController.subscribe(() => {
+      notifications += 1;
+    });
+
+    scenePerformanceController.updateBoolean("meadow", true);
+
+    expect(scenePerformanceController.isOverridden("meadow")).toBe(true);
+    expect(scenePerformanceController.getSnapshot()).not.toBe(before);
+    expect(notifications).toBe(1);
+    scenePerformanceController.reset();
+    unsubscribe();
+  });
 });

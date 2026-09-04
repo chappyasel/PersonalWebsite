@@ -31,6 +31,14 @@ const environment = fs.readFileSync(
   new URL("./SceneEnvironment.tsx", import.meta.url),
   "utf8",
 );
+const wavingGolfFlag = fs.readFileSync(
+  new URL("./WavingGolfFlag.tsx", import.meta.url),
+  "utf8",
+);
+const golfExperience = fs.readFileSync(
+  new URL("./golf/GolfExperience.tsx", import.meta.url),
+  "utf8",
+);
 const canvas = fs.readFileSync(
   new URL("../StacksCanvas.tsx", import.meta.url),
   "utf8",
@@ -157,11 +165,40 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("gl={SCENE_CANVAS_CONTEXT}");
   });
 
+  it("keeps the no-meadow comparison visually grounded without restoring terrain work", () => {
+    expect(environment).toContain("uniform float uMeadow;");
+    expect(environment).toContain(
+      "float exposedGround = (1.0 - uMeadow) * uDark;",
+    );
+    expect(environment).toContain(
+      "float ground = mix(meadowGround, noMeadowGround, exposedGround);",
+    );
+    expect(environment).toContain("u.uMeadow!.value = THREE.MathUtils.damp(");
+    expect(wavingGolfFlag).toContain("useResolvedMeadowVisibility");
+    expect(wavingGolfFlag).toContain("{meadowVisible ? (");
+    expect(golfExperience).toContain("useResolvedMeadowVisibility");
+    expect(golfExperience).toContain("golfBallCupOpacity(");
+    expect(golfExperience).toContain("meadowVisible,");
+  });
+
   it("mounts diagnostic sweeps only after an explicit request", () => {
     expect(canvas).toContain("{diagnosticsRequested ? (");
+    expect(canvas).toContain(
+      "<PerformanceProbe instrumentFrames={!supportReportMode} />",
+    );
+    expect(canvas).toContain("{!supportReportMode ? (");
     expect(canvas).toContain("<StaticWorldInvariantProbe />");
     expect(scene).toContain(
       'process.env.NODE_ENV === "development" && diagnosticsRequested',
+    );
+  });
+
+  it("restarts automatic diagnostics for a new boot generation", () => {
+    expect(home).toContain("state.epoch !== observedEpoch");
+    expect(home).toContain("armCheckpoints(state)");
+    expect(home).toContain("PERFORMANCE_DIAGNOSTIC_CHECKPOINTS_MS.map");
+    expect(canvas).toContain(
+      "<AutomaticPerformanceDiagnosticRun key={epoch} />",
     );
   });
 
@@ -390,5 +427,22 @@ describe("scene performance integration", () => {
     );
     expect(lift).toContain("suspendSettledHoverWork");
     expect(lift).toContain("settled.current");
+  });
+
+  it("fades the automatic survival meadow before releasing its work", () => {
+    expect(scene).toContain("quality.environment.meadow");
+    expect(scene).toContain(
+      'scenePerformanceController.isOverridden("meadow")',
+    );
+    expect(environment).toContain("useResolvedMeadowVisibility");
+    expect(environment).toContain("meadowRetiring");
+    expect(environment).toContain("onRetired");
+    expect(environment).toContain("THREE.MathUtils.damp(");
+    expect(meadow).toContain("MEADOW_RETIRE_SECONDS");
+    expect(meadow).toContain("gl_FragColor = vec4(col, uOpacity)");
+    expect(meadow).toContain("onRetiredRef.current?.()");
+    expect(canvas).toContain(
+      "survival: stored.survival || axesRef.current.survival",
+    );
   });
 });

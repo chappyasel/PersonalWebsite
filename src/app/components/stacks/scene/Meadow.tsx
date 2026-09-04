@@ -109,6 +109,7 @@ import { StaticWorldRoot } from "./staticWorld";
 
 const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
+export const MEADOW_RETIRE_SECONDS = 0.8;
 
 // Flower-only colors live here. Grass colors are part of PALETTES because the
 // boot vignette now uses the same meadow tone to bridge its sky and wood.
@@ -245,6 +246,7 @@ const MEADOW_PULSE_LAYERS = 6;
 const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uTime;
   uniform float uDark;
+  uniform float uOpacity;
   // Pointer poke: ground-plane hit under the cursor (.xy = world x/z),
   // radius (.z) and eased strength (.w). Tufts and flower heads lean away
   // from it — the lawn answers the pointer like the props do. uPokeF is
@@ -537,7 +539,7 @@ const GRASS_FRAGMENT = /* glsl */ `
     #ifdef COORDINATION_ENVIRONMENT_FLICKER
       col *= uEnvironmentFlicker;
     #endif
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(col, uOpacity);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -689,7 +691,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     #ifdef COORDINATION_ENVIRONMENT_FLICKER
       col *= uEnvironmentFlicker;
     #endif
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(col, uOpacity);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -908,7 +910,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
     #ifdef COORDINATION_ENVIRONMENT_FLICKER
       col *= uEnvironmentFlicker;
     #endif
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(col, uOpacity);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -1072,6 +1074,8 @@ export default function Meadow({
   grassDeformation = "off",
   contentTier = "full",
   environmentFlickerSignal = null,
+  retiring = false,
+  onRetired,
 }: {
   dark: boolean;
   /** Quality rung (3 = full). Maps 1:1 onto MEADOW_RUNG_* counts; the
@@ -1088,6 +1092,10 @@ export default function Meadow({
   contentTier?: SceneContentTier;
   /** Shared Coordination exposure fault. Null compiles the fragment work out. */
   environmentFlickerSignal?: MutableRefObject<number> | null;
+  /** Fade the complete field before its parent releases every meadow-owned
+   * allocation and per-frame subscription. */
+  retiring?: boolean;
+  onRetired?: () => void;
 }) {
   const gl = useThree((state) => state.gl);
   const { cinematicPlus } = useSceneQualityControls();
@@ -1136,6 +1144,9 @@ export default function Meadow({
   /** Dev-only density override: a 0..1 fraction of the full buffers that
    * beats the rung while set. Never written in production. */
   const densityRef = useRef<number | null>(null);
+  const retireComplete = useRef(false);
+  const onRetiredRef = useRef(onRetired);
+  onRetiredRef.current = onRetired;
 
   const gltf = useGLTF(TUFT_URL, false);
   const alphaMap = useTexture(ALPHA_URL);
@@ -1196,6 +1207,7 @@ export default function Meadow({
     const shared = {
       uTime: { value: 0 },
       uDark: { value: dark ? 1 : 0 },
+      uOpacity: { value: 1 },
       uDawn: { value: 0 },
       uSeat: { value: 0 },
       uWindAmp: { value: MEADOW_WIND.amplitude as number },
@@ -1318,6 +1330,20 @@ export default function Meadow({
     // Theme transitions run through uDark; remounting would make them snap.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const materials = [
+      built.terrainMaterial,
+      built.grassMaterial,
+      built.farGrassMaterial,
+      built.deformedGrassMaterial,
+      built.deformedFarGrassMaterial,
+      built.flowerMaterial,
+    ];
+    retireComplete.current = false;
+    if (!retiring) built.shared.uOpacity.value = 1;
+    for (const material of materials) material.transparent = retiring;
+  }, [built, retiring]);
 
   // ShaderMaterial does not opt into Three's light/shadow uniforms by
   // default. Switch that contract and its compile-time branch together so
@@ -1582,6 +1608,7 @@ export default function Meadow({
   useEffect(
     () => () => {
       resetMeadowDisturbance();
+      sceneAudio.setWindLevel(0);
       built.flowerGeometry.dispose();
       built.terrainMaterial.dispose();
       built.grassMaterial.dispose();
@@ -1600,6 +1627,16 @@ export default function Meadow({
   // assignment per tile. Visibility itself remains Three's frustum test.
   useFrame(({ clock, gl, camera, pointer }, delta) => {
     const shared = built.shared;
+    if (retiring) {
+      shared.uOpacity.value = Math.max(
+        0,
+        shared.uOpacity.value - delta / MEADOW_RETIRE_SECONDS,
+      );
+      if (shared.uOpacity.value === 0 && !retireComplete.current) {
+        retireComplete.current = true;
+        onRetiredRef.current?.();
+      }
+    }
     const nowSeconds = performance.now() / 1000;
     const disturbance = getMeadowDisturbance();
     deformation.applyResetRevision(disturbance.resetRevision);

@@ -17,6 +17,7 @@ const base: DevHudInput = {
   resolutionStep: 7,
   effectsTier: "full",
   contentTier: "full",
+  survival: false,
   constraint: "gpu",
   lastTransition: {
     axis: "resolution",
@@ -36,7 +37,9 @@ const base: DevHudInput = {
 };
 
 const rowText = (input: DevHudInput, row: number) =>
-  createDevHudRows(input)[row]?.segments.map(({ text }) => text).join("");
+  createDevHudRows(input)
+    [row]?.segments.map(({ text }) => text)
+    .join("");
 
 describe("compact development HUD presentation", () => {
   it("formats four fixed-purpose rows without explanatory labels", () => {
@@ -56,8 +59,8 @@ describe("compact development HUD presentation", () => {
 
   it("colors each performance value against its own policy-aligned threshold", () => {
     const tones = (input: DevHudInput) =>
-      createDevHudRows(input)[0]?.segments
-        .filter(({ emphasis }) => emphasis)
+      createDevHudRows(input)[0]
+        ?.segments.filter(({ emphasis }) => emphasis)
         .map(({ tone }) => tone);
 
     expect(tones(base)).toEqual(["positive", "positive", "positive"]);
@@ -127,10 +130,32 @@ describe("compact development HUD presentation", () => {
     expect(effects?.map(({ text }) => text).join("")).not.toContain("FROZEN");
   });
 
+  it("tags a deliberately switched-off composer as DIRECT, not as a custom override", () => {
+    const rows = createDevHudRows({
+      ...base,
+      customOverrides: true,
+      fallbackStatus: "direct-manual",
+    });
+    const effects = rows[3]?.segments;
+
+    expect(effects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: "DIRECT", tone: "danger" }),
+      ]),
+    );
+    expect(effects?.map(({ text }) => text).join("")).not.toContain("CUSTOM");
+  });
+
   it("identifies capture-grade ultra AO without widening the row model", () => {
-    expect(
-      rowText({ ...base, ambientOcclusionQuality: "ultra" }, 3),
-    ).toContain("AOU");
+    expect(rowText({ ...base, ambientOcclusionQuality: "ultra" }, 3)).toContain(
+      "AOU",
+    );
+  });
+
+  it("shows the automatic survival state without adding another HUD row", () => {
+    const rows = createDevHudRows({ ...base, survival: true });
+    expect(rows).toHaveLength(4);
+    expect(rowText({ ...base, survival: true }, 3)).toContain("SURVIVAL");
   });
 
   it("keeps every worst-case row inside the fixed copy budget", () => {
@@ -166,7 +191,10 @@ describe("compact development HUD presentation", () => {
 
   it("shows dashes during startup and preserves a real missing-hook error", () => {
     expect(
-      rowText({ ...base, hooksStatus: "starting", profile: null, fps: null }, 0),
+      rowText(
+        { ...base, hooksStatus: "starting", profile: null, fps: null },
+        0,
+      ),
     ).toBe("– FPS · –ms · –%");
     expect(
       rowText({ ...base, hooksStatus: "starting", profile: null }, 1),

@@ -19,6 +19,7 @@ import {
   QUALITY_RESOLUTION_DWELL_MS,
   QUALITY_RESOLUTION_GIVE_UP_STEPS,
   QUALITY_RESOLUTION_RETRY_MS,
+  QUALITY_SURVIVAL_FALL_MS,
   QUALITY_TRAVEL_OVER_BUDGET_LIMIT,
   QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
   SCENE_RESOLUTION_FLOOR,
@@ -345,6 +346,7 @@ describe("the production quality transition journal", () => {
         resolutionStep: 10,
         effects: "lean",
         content: "reduced",
+        survival: false,
       },
     });
 
@@ -502,6 +504,7 @@ describe("axis independence", () => {
       "resolutionStep",
       "effects",
       "content",
+      "survival",
     ]);
   });
 
@@ -572,7 +575,12 @@ describe("the one-axis-at-a-time block", () => {
    * only axis left with anywhere to go is content. */
   const afterUnprovenChange = (): SceneQualityAxisState => ({
     ...start(),
-    axes: { resolutionStep: 0, effects: "minimal", content: "full" },
+    axes: {
+      resolutionStep: 0,
+      effects: "minimal",
+      content: "full",
+      survival: false,
+    },
     pendingBaseline: cpuBound,
     lastChange: { axis: "resolution", direction: "down", reason: "pressure" },
   });
@@ -631,7 +639,12 @@ describe("the one-axis-at-a-time block", () => {
 describe("effects and content time constants", () => {
   const atFloor = (): SceneQualityAxisState => ({
     ...start(),
-    axes: { resolutionStep: 0, effects: "full", content: "full" },
+    axes: {
+      resolutionStep: 0,
+      effects: "full",
+      content: "full",
+      survival: false,
+    },
   });
 
   it("moves effects on a sustained GPU constraint and leaves content alone", () => {
@@ -691,16 +704,26 @@ describe("effects and content time constants", () => {
   it("moves content on a sustained CPU constraint once effects are lowest", () => {
     const base: SceneQualityAxisState = {
       ...start(),
-      axes: { resolutionStep: 0, effects: "minimal", content: "full" },
+      axes: {
+        resolutionStep: 0,
+        effects: "minimal",
+        content: "full",
+        survival: false,
+      },
     };
     const state = hold(base, cpuBound, 2_000, QUALITY_CONTENT_FALL_MS + 500);
     expect(state.axes.content).toBe("reduced");
   });
 
-  it("leaves content alone under a GPU constraint however long it lasts", () => {
+  it("keeps the CPU-oriented content axis out of a GPU decision", () => {
     const base: SceneQualityAxisState = {
       ...start(),
-      axes: { resolutionStep: 0, effects: "minimal", content: "full" },
+      axes: {
+        resolutionStep: 0,
+        effects: "minimal",
+        content: "full",
+        survival: false,
+      },
     };
     const state = hold(base, gpuBound, 2_000, QUALITY_CONTENT_FALL_MS * 2);
     expect(state.axes.content).toBe("full");
@@ -709,7 +732,12 @@ describe("effects and content time constants", () => {
   it("climbs back on sustained headroom", () => {
     const base: SceneQualityAxisState = {
       ...start(),
-      axes: { resolutionStep: 0, effects: "lean", content: "reduced" },
+      axes: {
+        resolutionStep: 0,
+        effects: "lean",
+        content: "reduced",
+        survival: false,
+      },
     };
     const state = hold(base, headroom, 2_000, QUALITY_CONTENT_RISE_MS + 1_000);
     expect(state.axes.content).toBe("full");
@@ -718,6 +746,202 @@ describe("effects and content time constants", () => {
   it("climbs effects sooner than content, since content is the visible one", () => {
     expect(QUALITY_EFFECTS_RISE_MS).toBeLessThan(QUALITY_CONTENT_RISE_MS);
     expect(QUALITY_EFFECTS_FALL_MS).toBeLessThan(QUALITY_CONTENT_FALL_MS);
+  });
+});
+
+describe("the survival rung", () => {
+  const severeCpu = metrics({
+    p95: 40,
+    droppedFrameRatio: 0.5,
+    cpuMs: 14,
+  });
+  const severeGpu = metrics({
+    p95: 40,
+    droppedFrameRatio: 0.5,
+    cpuMs: 4,
+  });
+  const severeUnknown = metrics({
+    p95: 40,
+    droppedFrameRatio: 0.5,
+    cpuMs: 9,
+  });
+  const cpuFloor = (): SceneQualityAxisState => ({
+    ...start(),
+    axes: {
+      ...start().axes,
+      content: "minimal",
+      survival: false,
+    },
+  });
+
+  it("waits for a fresh severe run after the useful CPU axis reaches its floor", () => {
+    const short = hold(
+      cpuFloor(),
+      severeCpu,
+      2_000,
+      QUALITY_SURVIVAL_FALL_MS - 250,
+    );
+    expect(short.axes.survival).toBe(false);
+
+    const complete = hold(
+      cpuFloor(),
+      severeCpu,
+      2_000,
+      QUALITY_SURVIVAL_FALL_MS,
+    );
+    expect(complete.axes.survival).toBe(true);
+    expect(complete.transitions.at(-1)).toMatchObject({
+      axis: "survival",
+      direction: "down",
+      reason: "sample-pressure",
+      fromValue: false,
+      toValue: true,
+    });
+  });
+
+  it("resets the survival dwell when severe pressure breaks", () => {
+    let state = hold(
+      cpuFloor(),
+      severeCpu,
+      2_000,
+      QUALITY_SURVIVAL_FALL_MS - 1_000,
+    );
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 12_000,
+      metrics: headroom,
+      visible: true,
+    });
+    state = hold(state, severeCpu, 12_250, QUALITY_SURVIVAL_FALL_MS - 1_000);
+    expect(state.axes.survival).toBe(false);
+  });
+
+  it("does not retire the meadow while a useful GPU axis remains", () => {
+    const state = hold(
+      {
+        ...start(),
+        axes: {
+          resolutionStep: 0,
+          effects: "lean",
+          content: "reduced",
+          survival: false,
+        },
+      },
+      severeGpu,
+      2_000,
+      QUALITY_SURVIVAL_FALL_MS,
+    );
+    expect(state.axes.survival).toBe(false);
+    expect(state.axes.effects).toBe("minimal");
+  });
+
+  it("keeps survival one-way while restoring ordinary axes on headroom", () => {
+    let state = hold(cpuFloor(), severeCpu, 2_000, QUALITY_SURVIVAL_FALL_MS);
+    state = hold(state, headroom, 20_000, QUALITY_CONTENT_RISE_MS * 2 + 500);
+    expect(state.axes.survival).toBe(true);
+    expect(state.axes.content).toBe("full");
+    expect(state.validation).not.toBeNull();
+  });
+
+  it("preserves survival across a forced-profile comparison", () => {
+    let state = hold(cpuFloor(), severeCpu, 2_000, QUALITY_SURVIVAL_FALL_MS);
+    state = reduceSceneQualityAxes(state, {
+      type: "force",
+      now: 20_000,
+      profile: "showcase",
+    });
+    expect(state.axes.survival).toBe(true);
+    state = reduceSceneQualityAxes(state, {
+      type: "force",
+      now: 21_000,
+      profile: null,
+    });
+    expect(state.axes.survival).toBe(true);
+  });
+
+  it("never enters survival while a preset is forced", () => {
+    const state = hold(
+      { ...cpuFloor(), forced: "safety" },
+      severeCpu,
+      2_000,
+      QUALITY_SURVIVAL_FALL_MS * 2,
+    );
+    expect(state.axes.survival).toBe(false);
+  });
+
+  it("does not learn survival from a pinned or diagnostic frame", () => {
+    let state = cpuFloor();
+    for (
+      let now = 2_000;
+      now <= 2_000 + QUALITY_SURVIVAL_FALL_MS * 2;
+      now += 250
+    )
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: severeCpu,
+        visible: true,
+        allowSurvival: false,
+      });
+    expect(state.axes.survival).toBe(false);
+    expect(state.survivalSince).toBeNull();
+  });
+
+  it("requires every ordinary floor when severe pressure is unattributed", () => {
+    const complete = hold(
+      {
+        ...start(),
+        axes: {
+          resolutionStep: 0,
+          effects: "minimal",
+          content: "minimal",
+          survival: false,
+        },
+      },
+      severeUnknown,
+      2_000,
+      QUALITY_SURVIVAL_FALL_MS,
+    );
+    expect(complete.axes.survival).toBe(true);
+
+    let locked: SceneQualityAxisState = {
+      ...start(),
+      axes: {
+        resolutionStep: 8,
+        effects: "minimal",
+        content: "minimal",
+        survival: false,
+      },
+    };
+    for (let now = 2_000; now <= 2_000 + QUALITY_SURVIVAL_FALL_MS; now += 250)
+      locked = reduceSceneQualityAxes(locked, {
+        type: "sample",
+        now,
+        metrics: severeUnknown,
+        visible: true,
+        allowResolutionChange: false,
+      });
+    expect(locked.axes.survival).toBe(false);
+  });
+
+  it("repays travel resolution while the meadow remains retired", () => {
+    const state = hold(
+      {
+        ...cpuFloor(),
+        axes: {
+          ...cpuFloor().axes,
+          resolutionStep: 9,
+          survival: true,
+        },
+        preTravelStep: 11,
+      },
+      headroom,
+      2_000,
+      QUALITY_RESOLUTION_DWELL_MS * 3,
+    );
+    expect(state.axes.resolutionStep).toBe(11);
+    expect(state.axes.survival).toBe(true);
+    expect(state.preTravelStep).toBeNull();
   });
 });
 
@@ -1373,7 +1597,12 @@ describe("inferred GPU decline accounting", () => {
     let state: SceneQualityAxisState = {
       ...start("efficient"),
       axes: { ...start("efficient").axes, resolutionStep: 6 },
-      axisChangedAt: { resolution: 0, effects: 0, content: 0 },
+      axisChangedAt: {
+        resolution: 0,
+        effects: 0,
+        content: 0,
+        survival: 0,
+      },
     };
 
     for (let now = 250; now <= 60_000; now += 250) {
@@ -1445,7 +1674,12 @@ describe("inferred GPU decline accounting", () => {
       ...start("efficient"),
       forced: "efficient",
       axes: { ...start("efficient").axes, resolutionStep: 4 },
-      axisChangedAt: { resolution: 0, effects: 0, content: 0 },
+      axisChangedAt: {
+        resolution: 0,
+        effects: 0,
+        content: 0,
+        survival: 0,
+      },
     };
 
     for (let now = 250; now <= 60_000; now += 250) {
@@ -1585,12 +1819,14 @@ describe("reachability from a cold start", () => {
     expect(axes.resolutionStep).toBeGreaterThan(0);
   });
 
-  it("takes measured GPU pressure to the cheapest pixels and effects, and no further", () => {
-    // Geometry is not the GPU's problem here, so content must not move.
+  it("takes ordinary measured GPU pressure to pixels and effects only", () => {
+    // Geometry is not the GPU's problem here, so content does not move before
+    // the last-resort field retirement.
     expect(soak(measuredGpuBound).axes).toEqual({
       resolutionStep: 0,
       effects: "minimal",
       content: "full",
+      survival: false,
     });
   });
 
@@ -1599,6 +1835,7 @@ describe("reachability from a cold start", () => {
       resolutionStep: SCENE_RESOLUTION_MAX_STEP,
       effects: "full",
       content: "full",
+      survival: false,
     });
   });
 
@@ -1681,7 +1918,12 @@ describe("recovery", () => {
   it("holds a cheaper effects tier before retrying visible spatial passes", () => {
     let state: SceneQualityAxisState = {
       ...start(),
-      axes: { resolutionStep: 0, effects: "lean", content: "full" },
+      axes: {
+        resolutionStep: 0,
+        effects: "lean",
+        content: "full",
+        survival: false,
+      },
       effectsRetryAt: 10_000 + QUALITY_EFFECTS_RETRY_MS,
     };
 

@@ -10,6 +10,11 @@ import {
 } from "../fieldNotes/progress";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
+import {
+  downloadPerformanceDiagnosticBundle,
+  localPerformanceDiagnostic,
+} from "../performanceDiagnostic";
+import { performanceDiagnosticRequested } from "../performanceDiagnosticRequest";
 import { requestDevHooks } from "../scene/devHooks";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
@@ -17,6 +22,16 @@ import {
   summarizeInsectPerchDiagnostics,
 } from "../scene/insectPerchDiagnostic";
 import { meadowDiagnosticsController } from "../scene/meadowDiagnostics";
+import {
+  PERFORMANCE_PROFILE_PRESENTATION,
+  describePerformanceProfile,
+} from "../scene/performanceProfilePresentation";
+import {
+  PERFORMANCE_PROFILES,
+  type PerformanceProfileId,
+  performanceProfileController,
+  performanceProfileUrl,
+} from "../scene/performanceProfiles";
 import {
   downloadPerformanceTrace,
   scenePerformanceTrace,
@@ -48,6 +63,10 @@ import { KeycapSequence } from "~/components/ui/keycap";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
+import {
+  type PerformanceCaptureStatus,
+  performanceCaptureStatus,
+} from "./performanceCaptureStatus";
 import { qualityRenderingReadout } from "./qualityReadout";
 
 /** Plain words for the constraint, because "cpu"/"gpu" alone reads as a
@@ -60,6 +79,10 @@ const CONSTRAINT_LABEL = {
 } as const;
 
 type DevHudSnapshot = DevHudInput;
+
+const subscribeToLocalDiagnostic = (listener: () => void) =>
+  localPerformanceDiagnostic.subscribe(listener);
+const readLocalDiagnostic = () => localPerformanceDiagnostic.getSnapshot();
 
 const EMPTY_DEV_HUD: DevHudSnapshot = {
   fps: null,
@@ -76,6 +99,7 @@ const EMPTY_DEV_HUD: DevHudSnapshot = {
   resolutionStep: null,
   effectsTier: null,
   contentTier: null,
+  survival: null,
   constraint: null,
   lastTransition: null,
   dpr: null,
@@ -110,7 +134,10 @@ function lastQualityTransition(
   const direction = transition?.direction;
   const at = numeric(transition?.at);
   if (
-    (axis !== "resolution" && axis !== "effects" && axis !== "content") ||
+    (axis !== "resolution" &&
+      axis !== "effects" &&
+      axis !== "content" &&
+      axis !== "survival") ||
     (direction !== "down" && direction !== "up") ||
     at == null
   )
@@ -161,6 +188,7 @@ function rendererSnapshot(): DevHudSnapshot {
       contentTier === "minimal"
         ? contentTier
         : null,
+    survival: typeof axes?.survival === "boolean" ? axes.survival : null,
     constraint:
       constraint === "cpu" ||
       constraint === "gpu" ||
@@ -198,13 +226,15 @@ function rendererSnapshot(): DevHudSnapshot {
 /** A live readout of the same rolling scene window that drives Auto. */
 function DevPerformanceHud({
   expanded,
-  tracing,
+  captureStatus,
+  activeProfile,
   launcher,
   onDismiss,
   onToggle,
 }: {
   expanded: boolean;
-  tracing: boolean;
+  captureStatus: PerformanceCaptureStatus | null;
+  activeProfile: PerformanceProfileId | null;
   launcher: React.RefObject<HTMLButtonElement | null>;
   onDismiss: () => void;
   onToggle: () => void;
@@ -220,9 +250,17 @@ function DevPerformanceHud({
   }, []);
 
   const rows = createDevHudRows(snapshot);
-  const launcherDescription = tracing
-    ? "Performance trace recording. Press ` to stop and review."
-    : "Press ` to open FPS, policy, effects, and rendering decisions.";
+  const tracing = captureStatus?.state === "recording";
+  const profileStatus = activeProfile
+    ? `TEST · ${activeProfile.toUpperCase()}`
+    : null;
+  const launcherDescription = [
+    profileStatus,
+    captureStatus?.label,
+    "Press ` to open FPS, policy, effects, and rendering decisions.",
+  ]
+    .filter(Boolean)
+    .join(". ");
 
   return (
     <div className="stacks-dev-hud-shell">
@@ -256,6 +294,22 @@ function DevPerformanceHud({
       <span id="stacks-dev-hud-description" className="sr-only">
         {launcherDescription}
       </span>
+      {profileStatus ? (
+        <span className="stacks-dev-hud-profile-status" role="status">
+          <i aria-hidden="true" />
+          {profileStatus}
+        </span>
+      ) : null}
+      {captureStatus ? (
+        <span
+          className="stacks-dev-hud-capture-status"
+          data-state={captureStatus.state}
+          role="status"
+        >
+          <i aria-hidden="true" />
+          {captureStatus.label}
+        </span>
+      ) : null}
       <button
         type="button"
         className="stacks-dev-hud-dismiss"
@@ -773,6 +827,11 @@ function PerformanceTraceControls({
     scenePerformanceTrace.getStatus,
   );
   const report = status.hasReport ? scenePerformanceTrace.report() : null;
+  const diagnosticBundle = useSyncExternalStore(
+    subscribeToLocalDiagnostic,
+    readLocalDiagnostic,
+    readLocalDiagnostic,
+  );
   const signalCounts = new Map<string, number>();
   for (const spike of report?.spikes ?? [])
     for (const signal of spike.signals)
@@ -799,6 +858,10 @@ function PerformanceTraceControls({
         Start closes this console. Pause, pan across a few shelves, then press `
         to stop and review; attach the JSON for analysis.
       </p>
+      <p>
+        The compact diagnostic includes browser and device facts, the user
+        agent, and query keys. It omits query values and resource paths.
+      </p>
       <div className="stacks-diagnostics-actions">
         <button type="button" disabled={status.active} onClick={onStartCapture}>
           {report ? "New capture" : "Start capture"}
@@ -815,7 +878,14 @@ function PerformanceTraceControls({
           disabled={!report || status.active}
           onClick={() => report && downloadPerformanceTrace(report)}
         >
-          Download JSON
+          Download full trace
+        </button>
+        <button
+          type="button"
+          disabled={diagnosticBundle.events.length === 0}
+          onClick={() => downloadPerformanceDiagnosticBundle(diagnosticBundle)}
+        >
+          Download diagnostic
         </button>
         <button
           type="button"
@@ -851,6 +921,12 @@ function PerformanceTraceControls({
             {strongestSignals || "No correlated spike signals found."}
           </small>
         </div>
+      ) : null}
+      {diagnosticBundle.events.length > 0 ? (
+        <small>
+          Diagnostic bundle: {diagnosticBundle.events.length} compact boot and
+          runtime {diagnosticBundle.events.length === 1 ? "report" : "reports"}.
+        </small>
       ) : null}
     </details>
   );
@@ -1168,6 +1244,24 @@ export default function SceneDiagnostics({
     scenePerformanceTrace.getStatus,
     scenePerformanceTrace.getStatus,
   );
+  const [automaticReport] = useState(() =>
+    performanceDiagnosticRequested(window.location.search),
+  );
+  const activeProfile = useSyncExternalStore(
+    performanceProfileController.subscribe,
+    performanceProfileController.getSnapshot,
+    performanceProfileController.getSnapshot,
+  );
+  const [automaticReportQueued, setAutomaticReportQueued] = useState(false);
+  const [automaticReportUploaded, setAutomaticReportUploaded] = useState(false);
+  const [automaticReportFallback, setAutomaticReportFallback] = useState(false);
+  const captureStatus = performanceCaptureStatus({
+    automaticReport,
+    automaticReportQueued,
+    automaticReportUploaded,
+    automaticReportFallback,
+    trace: traceStatus,
+  });
   const meadowSnapshot = useSyncExternalStore(
     meadowDiagnosticsController.subscribe,
     meadowDiagnosticsController.getSnapshot,
@@ -1206,6 +1300,43 @@ export default function SceneDiagnostics({
     qualityControls.runtime?.plan.effects.depthOfFieldResolutionScale ??
     0.6;
 
+  useEffect(() => {
+    if (!automaticReport) return;
+    const onAnalyticsCaptured = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          event?: unknown;
+        }>
+      ).detail;
+      if (detail?.event === "homepage_performance_diagnostic")
+        setAutomaticReportQueued(true);
+    };
+    window.addEventListener("chappy:analytics-captured", onAnalyticsCaptured);
+    const onDiagnosticDelivery = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          status?: "uploaded" | "sdk_fallback";
+        }>
+      ).detail;
+      if (detail?.status === "uploaded") setAutomaticReportUploaded(true);
+      if (detail?.status === "sdk_fallback") setAutomaticReportFallback(true);
+    };
+    window.addEventListener(
+      "chappy:performance-diagnostic-delivery",
+      onDiagnosticDelivery,
+    );
+    return () => {
+      window.removeEventListener(
+        "chappy:analytics-captured",
+        onAnalyticsCaptured,
+      );
+      window.removeEventListener(
+        "chappy:performance-diagnostic-delivery",
+        onDiagnosticDelivery,
+      );
+    };
+  }, [automaticReport]);
+
   const setAllOverlays = (enabled: boolean) => {
     sceneDiagnosticsRegistry.setGroup("inspect.overlays", enabled);
   };
@@ -1236,7 +1367,8 @@ export default function SceneDiagnostics({
         return;
       event.preventDefault();
       if (!open) requestDevHooks();
-      if (!open && traceStatus.active) window.__stacks?.trace("stop");
+      if (!open && traceStatus.active && !automaticReport)
+        window.__stacks?.trace("stop");
       setOpen((current) => {
         if (current) requestAnimationFrame(() => launcher.current?.focus());
         return !current;
@@ -1244,7 +1376,7 @@ export default function SceneDiagnostics({
     };
     window.addEventListener("keydown", onShortcut);
     return () => window.removeEventListener("keydown", onShortcut);
-  }, [open, traceStatus.active]);
+  }, [automaticReport, open, traceStatus.active]);
 
   const startPerformanceTrace = () => {
     setOpen(false);
@@ -1255,7 +1387,8 @@ export default function SceneDiagnostics({
 
   const toggleConsole = () => {
     if (!open) requestDevHooks();
-    if (!open && traceStatus.active) window.__stacks?.trace("stop");
+    if (!open && traceStatus.active && !automaticReport)
+      window.__stacks?.trace("stop");
     setOpen((current) => !current);
   };
 
@@ -1340,11 +1473,11 @@ export default function SceneDiagnostics({
             <p className="stacks-diagnostics-note">
               Free roam never captures the mouse. Hold the right button and drag
               to look. WASD follows the camera on a level plane, Q/E moves
-              down/up, and hold Shift for one-third speed. R
-              resumes or exits free roam, Shift+R starts from the current view,
-              and ` opens debug. Left click selects an editable prop. The same
-              gizmo moves, rotates, and scales it; ⌘Z undoes. Arrows move on
-              X/Z; use Page Up/Down for height.
+              down/up, and hold Shift for one-third speed. R resumes or exits
+              free roam, Shift+R starts from the current view, and ` opens
+              debug. Left click selects an editable prop. The same gizmo moves,
+              rotates, and scales it; ⌘Z undoes. Arrows move on X/Z; use Page
+              Up/Down for height.
             </p>
           </DiagnosticRegistrySection>
 
@@ -1438,6 +1571,46 @@ export default function SceneDiagnostics({
             <strong>Scene quality</strong>
           </header>
           <DiagnosticRegistrySection
+            groupId="render.profile"
+            snapshot={diagnosticSnapshot}
+          >
+            {activeProfile ? (
+              <div className="stacks-diagnostics-current">
+                <span>Now</span>
+                <strong>
+                  {PERFORMANCE_PROFILE_PRESENTATION[activeProfile].label}
+                </strong>
+                <small>
+                  {PERFORMANCE_PROFILE_PRESENTATION[activeProfile].question}
+                </small>
+                <small>
+                  {describePerformanceProfile(
+                    PERFORMANCE_PROFILES[activeProfile],
+                  )}
+                </small>
+              </div>
+            ) : null}
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                onClick={() =>
+                  window.location.assign(
+                    performanceProfileUrl(window.location.href, activeProfile),
+                  )
+                }
+              >
+                {activeProfile
+                  ? "Reload under this profile"
+                  : "Reload without a profile"}
+              </button>
+            </div>
+            <small>
+              Boot residency, photo residency, and the learned-quality
+              suspension only take effect on reload. The reload keeps every
+              other query switch, so a perf-report visit stays a report.
+            </small>
+          </DiagnosticRegistrySection>
+          <DiagnosticRegistrySection
             groupId="render.quality"
             snapshot={diagnosticSnapshot}
           >
@@ -1452,7 +1625,7 @@ export default function SceneDiagnostics({
               </strong>
               <small>
                 {qualityControls.runtime
-                  ? `Effective ${qualityControls.runtime.plan.profile} · fx ${qualityControls.runtime.axes.effects} · geo ${qualityControls.runtime.axes.content}`
+                  ? `Effective ${qualityControls.runtime.plan.profile} · fx ${qualityControls.runtime.axes.effects} · geo ${qualityControls.runtime.axes.content}${qualityControls.runtime.axes.survival ? " · survival" : ""}`
                   : "Waiting for the scene to publish its render plan"}
               </small>
             </div>
@@ -1856,7 +2029,8 @@ export default function SceneDiagnostics({
         {hudVisible ? (
           <DevPerformanceHud
             expanded={open}
-            tracing={traceStatus.active}
+            captureStatus={captureStatus}
+            activeProfile={activeProfile}
             launcher={launcher}
             onDismiss={() => setHudVisible(false)}
             onToggle={toggleConsole}

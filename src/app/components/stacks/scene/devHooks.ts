@@ -8,6 +8,9 @@
 // were never installed, so every field read null and the profile row said
 // "Waiting" forever. The request has to be a signal the canvas can hear
 // later, not a query parameter read once.
+import { performanceDiagnosticRequested } from "../performanceDiagnosticRequest";
+
+import { performanceProfileIdFromSearch } from "./performanceProfileRequest";
 
 let sceneHooksRequestedValue = false;
 let requested = false;
@@ -18,6 +21,7 @@ export type SceneDiagnosticsQueryMode =
   | "none"
   | "hud"
   | "debug"
+  | "report"
   | "harness";
 
 /** Resolve the URL's diagnostics surface once so the chrome and canvas cannot
@@ -29,7 +33,11 @@ export function sceneDiagnosticsQueryMode(
     typeof search === "string" ? new URLSearchParams(search) : search;
   if (params.has("harness")) return "harness";
   if (params.get("debug") === "1") return "debug";
+  if (performanceDiagnosticRequested(params)) return "report";
   if (params.get("hud") === "1") return "hud";
+  // A named test profile is never an ordinary visit, and the person running
+  // it needs to see which preset and scale the scene actually landed on.
+  if (performanceProfileIdFromSearch(params) !== null) return "hud";
   return "none";
 }
 
@@ -45,7 +53,7 @@ export function sceneInstrumentationRequestedBySearch(
   search: string | URLSearchParams,
 ) {
   const mode = sceneDiagnosticsQueryMode(search);
-  return mode === "debug" || mode === "harness";
+  return mode === "debug" || mode === "report" || mode === "harness";
 }
 
 /** Ask the canvas for the cheap read hooks used by the compact HUD. This is a
