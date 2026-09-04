@@ -825,6 +825,7 @@ const FLOWER_VERTEX = /* glsl */ `
 
 const FLOWER_FRAGMENT = /* glsl */ `
   uniform float uDark;
+  uniform float uOpacity;
   uniform float uSeat;
   uniform float uFogEnabled;
   #ifdef COORDINATION_ENVIRONMENT_FLICKER

@@ -17,13 +17,17 @@ function diagnosticEvent() {
   });
 }
 
-function request(body: string, origin = "https://www.chappyasel.com") {
+function request(
+  body: string,
+  origin = "https://www.chappyasel.com",
+  schema = "4",
+) {
   return new Request("https://www.chappyasel.com/api/performance-diagnostic", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       origin,
-      "x-stacks-diagnostic": "3",
+      "x-stacks-diagnostic": schema,
     },
     body,
   });
@@ -86,6 +90,41 @@ describe("performance diagnostic relay", () => {
     expect(crossOrigin.status).toBe(403);
     expect(malformed.status).toBe(400);
     expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("accepts runtime checkpoints and rejects stale or incomplete schema payloads", async () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_test");
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://us.i.posthog.com");
+    const upstream = vi.fn(async () =>
+      Response.json({ status: "Ok" }, { status: 200 }),
+    );
+    vi.stubGlobal("fetch", upstream);
+    const checkpoint = createPerformanceDiagnosticEvent({
+      diagnosticRunId: "test-run.checkpoint",
+      reportKind: "runtime_checkpoint",
+      captureReason: "post_reveal_checkpoint",
+      checkpointIndex: 1,
+      elapsedMs: 12_000,
+      bootStatus: "live",
+      bootPath: "warm",
+      blockingGate: null,
+      postRevealObservedMs: 5_000,
+      pagehidePersisted: true,
+      report: { runtime_capture: { pagehide_persisted: true } },
+    });
+
+    const accepted = await POST(request(JSON.stringify(checkpoint)));
+    const staleHeader = await POST(
+      request(JSON.stringify(checkpoint), undefined, "3"),
+    );
+    const incomplete: Partial<typeof checkpoint> = { ...checkpoint };
+    delete incomplete.pagehide_persisted;
+    const incompleteBody = await POST(request(JSON.stringify(incomplete)));
+
+    expect(accepted.status).toBe(202);
+    expect(staleHeader.status).toBe(403);
+    expect(incompleteBody.status).toBe(400);
+    expect(upstream).toHaveBeenCalledOnce();
   });
 
   it("returns a retryable failure when PostHog does not accept the event", async () => {

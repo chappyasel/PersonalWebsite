@@ -40,6 +40,15 @@ import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { setLoadProgress } from "./loading";
 import { modelArtifactRoomShouldFreeze } from "./modal/modelArtifactHandoff";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
+import {
+  PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_CHECKPOINTS,
+  PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
+  PerformanceDiagnosticRuntimeWindow,
+  PerformanceDiagnosticVisibleClock,
+  performanceDiagnosticPageHideAction,
+  performanceDiagnosticProgress,
+  performanceDiagnosticSchedule,
+} from "./performanceDiagnosticRuntime";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -829,8 +838,6 @@ function AutomaticPerformanceDiagnosticRun() {
     void import("./performanceDiagnostic")
       .then(
         ({
-          PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
-          PERFORMANCE_DIAGNOSTIC_RUNTIME_MS,
           compactScenePerformanceDiagnostic,
           createPerformanceDiagnosticEvent,
           performanceDiagnosticRunId,
@@ -864,43 +871,203 @@ function AutomaticPerformanceDiagnosticRun() {
           }
 
           let finished = false;
-          let postRevealTimer = 0;
+          let checkpointIndex = 0;
+          let checkpointTimer = 0;
+          let completionTimer = 0;
+          let progressTimer = 0;
+          let deadline = 0;
+          const runtimeWindow = new PerformanceDiagnosticRuntimeWindow();
+          const deadlineWindow = new PerformanceDiagnosticVisibleClock(
+            PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
+          );
+          const lifecycle: Array<{
+            at_ms: number;
+            type:
+              | "visibility-visible"
+              | "visibility-hidden"
+              | "pageshow"
+              | "pagehide";
+            persisted: boolean | null;
+          }> = [];
+
+          performanceDiagnosticProgress.reset();
+          deadlineWindow.start(performance.now(), !document.hidden);
+
+          const elapsedSinceBoot = (now: number) => {
+            const startedAt = worldBoot.getState().startedAt;
+            return Math.max(0, Math.round(now - (startedAt ?? now)));
+          };
+          const recordLifecycle = (
+            type: (typeof lifecycle)[number]["type"],
+            now: number,
+            persisted: boolean | null = null,
+          ) => {
+            lifecycle.push({
+              at_ms: elapsedSinceBoot(now),
+              type,
+              persisted,
+            });
+            if (lifecycle.length > 16)
+              lifecycle.splice(0, lifecycle.length - 16);
+          };
+          const clearRuntimeTimers = () => {
+            window.clearTimeout(checkpointTimer);
+            window.clearTimeout(completionTimer);
+            window.clearTimeout(deadline);
+            window.clearInterval(progressTimer);
+            checkpointTimer = 0;
+            completionTimer = 0;
+            deadline = 0;
+            progressTimer = 0;
+          };
+          const publishProgress = () => {
+            const snapshot = runtimeWindow.snapshot(performance.now());
+            performanceDiagnosticProgress.publish({
+              started: snapshot.started,
+              paused: snapshot.paused,
+              observedMs: snapshot.observedMs,
+              remainingMs: snapshot.remainingMs,
+            });
+          };
+          const buildEvent = ({
+            reportKind,
+            reason,
+            pagehidePersisted,
+            terminal,
+            reportCheckpointIndex,
+          }: {
+            reportKind: "runtime_checkpoint" | "runtime";
+            reason:
+              | "post_reveal_checkpoint"
+              | "post_reveal_window"
+              | "boot_failed"
+              | "capture_deadline"
+              | "pagehide";
+            pagehidePersisted: boolean | null;
+            terminal: boolean;
+            reportCheckpointIndex?: number;
+          }) => {
+            const now = performance.now();
+            const runtime = runtimeWindow.snapshot(now);
+            const capture = deadlineWindow.snapshot(now);
+            if (terminal && ownsTrace) performanceSampler.stop();
+            const trace =
+              terminal && ownsTrace
+                ? scenePerformanceTrace.stop()
+                : scenePerformanceTrace.report();
+            const quality = window.__stacks?.qualityLog("snapshot") ?? null;
+            const compact = compactScenePerformanceDiagnostic({
+              trace,
+              quality,
+            });
+            const report = {
+              ...compact,
+              runtime_capture: {
+                post_reveal_observed_ms: Math.round(runtime.observedMs),
+                capture_visible_ms: Math.round(capture.observedMs),
+                paused: runtime.paused,
+                pagehide_persisted: pagehidePersisted,
+                visibility: document.visibilityState,
+                focused: document.hasFocus(),
+                lifecycle: lifecycle.slice(-16),
+              },
+            };
+            const state = worldBoot.getState();
+            return createPerformanceDiagnosticEvent({
+              diagnosticRunId: runId,
+              reportKind,
+              captureReason: reason,
+              checkpointIndex: reportCheckpointIndex,
+              elapsedMs: elapsedSinceBoot(now),
+              bootStatus: state.status,
+              bootPath: state.loadPath,
+              blockingGate: worldBootBlockingGate(state),
+              postRevealObservedMs: runtime.observedMs,
+              pagehidePersisted,
+              report,
+            });
+          };
+
+          const publishCheckpoint = (
+            reason: "post_reveal_checkpoint" | "pagehide",
+            pagehidePersisted: boolean | null,
+          ) => {
+            if (
+              finished ||
+              checkpointIndex >= PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_CHECKPOINTS
+            )
+              return;
+            checkpointIndex += 1;
+            const event = buildEvent({
+              reportKind: "runtime_checkpoint",
+              reason,
+              pagehidePersisted,
+              terminal: false,
+              reportCheckpointIndex: checkpointIndex,
+            });
+            void submitPerformanceDiagnostic(event);
+          };
+
           const finish = (
             reason:
               | "post_reveal_window"
               | "boot_failed"
               | "capture_deadline"
               | "pagehide",
+            pagehidePersisted: boolean | null = null,
           ) => {
             if (finished) return;
             finished = true;
-            window.clearTimeout(postRevealTimer);
-            if (ownsTrace) performanceSampler.stop();
-            const trace = ownsTrace
-              ? scenePerformanceTrace.stop()
-              : scenePerformanceTrace.report();
-            const quality = window.__stacks?.qualityLog("snapshot") ?? null;
-            const report = compactScenePerformanceDiagnostic({
-              trace,
-              quality,
-            });
-            const state = worldBoot.getState();
-            const event = createPerformanceDiagnosticEvent({
-              diagnosticRunId: runId,
+            clearRuntimeTimers();
+            const event = buildEvent({
               reportKind: "runtime",
-              captureReason: reason,
-              elapsedMs: Math.max(
-                0,
-                Math.round(
-                  performance.now() - (state.startedAt ?? performance.now()),
-                ),
-              ),
-              bootStatus: state.status,
-              bootPath: state.loadPath,
-              blockingGate: worldBootBlockingGate(state),
-              report,
+              reason,
+              pagehidePersisted,
+              terminal: true,
+            });
+            const runtime = runtimeWindow.snapshot(performance.now());
+            performanceDiagnosticProgress.publish({
+              started: runtime.started,
+              paused: false,
+              observedMs: runtime.observedMs,
+              remainingMs: null,
             });
             void submitPerformanceDiagnostic(event);
+          };
+
+          const armRuntimeTimers = () => {
+            clearRuntimeTimers();
+            if (finished) return;
+            const runtime = runtimeWindow.snapshot(performance.now());
+            const capture = deadlineWindow.snapshot(performance.now());
+            const schedule = performanceDiagnosticSchedule({
+              finished,
+              runtime,
+              capture,
+              checkpointCount: checkpointIndex,
+            });
+            publishProgress();
+            if (schedule.deadlineInMs !== null) {
+              deadline = window.setTimeout(
+                () => finish("capture_deadline"),
+                schedule.deadlineInMs,
+              );
+            }
+            if (schedule.checkpointInMs !== null) {
+              checkpointTimer = window.setTimeout(() => {
+                runtimeWindow.markCheckpointSent();
+                publishCheckpoint("post_reveal_checkpoint", null);
+                armRuntimeTimers();
+              }, schedule.checkpointInMs);
+            }
+            if (schedule.completionInMs !== null) {
+              completionTimer = window.setTimeout(
+                () => finish("post_reveal_window"),
+                schedule.completionInMs,
+              );
+            }
+            if (schedule.progressActive)
+              progressTimer = window.setInterval(publishProgress, 1_000);
           };
 
           const observeBoot = () => {
@@ -910,29 +1077,68 @@ function AutomaticPerformanceDiagnosticRun() {
               return;
             }
             if (
-              postRevealTimer === 0 &&
+              !runtimeWindow.snapshot(performance.now()).started &&
               (state.status === "revealing" || state.status === "live")
             ) {
-              postRevealTimer = window.setTimeout(
-                () => finish("post_reveal_window"),
-                PERFORMANCE_DIAGNOSTIC_RUNTIME_MS,
-              );
+              runtimeWindow.start(performance.now(), !document.hidden);
+              armRuntimeTimers();
             }
           };
 
           observeBoot();
           const unsubscribe = worldBoot.subscribe(observeBoot);
-          const deadline = window.setTimeout(
-            () => finish("capture_deadline"),
-            PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
-          );
-          const onPageHide = () => finish("pagehide");
+          armRuntimeTimers();
+          const onVisibility = () => {
+            if (finished) return;
+            const now = performance.now();
+            const visible = !document.hidden;
+            recordLifecycle(
+              visible ? "visibility-visible" : "visibility-hidden",
+              now,
+            );
+            runtimeWindow.setVisible(visible, now);
+            deadlineWindow.setVisible(visible, now);
+            armRuntimeTimers();
+          };
+          const onPageHide = (event: PageTransitionEvent) => {
+            if (finished) return;
+            const now = performance.now();
+            recordLifecycle("pagehide", now, event.persisted);
+            runtimeWindow.setVisible(false, now);
+            deadlineWindow.setVisible(false, now);
+            clearRuntimeTimers();
+            if (
+              performanceDiagnosticPageHideAction(event.persisted) ===
+              "checkpoint"
+            ) {
+              const runtime = runtimeWindow.snapshot(now);
+              if (runtime.checkpointRemainingMs === 0)
+                runtimeWindow.markCheckpointSent();
+              publishCheckpoint("pagehide", true);
+              publishProgress();
+              return;
+            }
+            finish("pagehide", false);
+          };
+          const onPageShow = (event: PageTransitionEvent) => {
+            if (!event.persisted || finished) return;
+            const now = performance.now();
+            recordLifecycle("pageshow", now, true);
+            runtimeWindow.setVisible(!document.hidden, now);
+            deadlineWindow.setVisible(!document.hidden, now);
+            armRuntimeTimers();
+          };
+          document.addEventListener("visibilitychange", onVisibility);
           window.addEventListener("pagehide", onPageHide);
+          window.addEventListener("pageshow", onPageShow);
           stop = () => {
             unsubscribe();
-            window.clearTimeout(postRevealTimer);
+            clearRuntimeTimers();
             window.clearTimeout(deadline);
+            document.removeEventListener("visibilitychange", onVisibility);
             window.removeEventListener("pagehide", onPageHide);
+            window.removeEventListener("pageshow", onPageShow);
+            performanceDiagnosticProgress.reset();
             if (!finished && ownsTrace) {
               performanceSampler.stop();
               scenePerformanceTrace.stop();

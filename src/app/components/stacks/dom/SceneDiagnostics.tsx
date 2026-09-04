@@ -15,6 +15,7 @@ import {
   localPerformanceDiagnostic,
 } from "../performanceDiagnostic";
 import { performanceDiagnosticRequested } from "../performanceDiagnosticRequest";
+import { performanceDiagnosticProgress } from "../performanceDiagnosticRuntime";
 import { requestDevHooks } from "../scene/devHooks";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
@@ -65,6 +66,7 @@ import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
 import {
   type PerformanceCaptureStatus,
+  isFinalPerformanceDiagnosticDelivery,
   performanceCaptureStatus,
 } from "./performanceCaptureStatus";
 import { qualityRenderingReadout } from "./qualityReadout";
@@ -275,6 +277,7 @@ function DevPerformanceHud({
         aria-describedby="stacks-dev-hud-description"
         aria-haspopup="dialog"
         data-tracing={tracing || undefined}
+        data-capture-state={captureStatus?.state}
         onClick={onToggle}
       >
         {rows.map((row) => (
@@ -290,26 +293,30 @@ function DevPerformanceHud({
             ))}
           </span>
         ))}
+        {profileStatus || captureStatus ? (
+          <span className="stacks-dev-hud-statuses">
+            {profileStatus ? (
+              <span className="stacks-dev-hud-profile-status">
+                <i aria-hidden="true" />
+                {profileStatus}
+              </span>
+            ) : null}
+            {captureStatus ? (
+              <span
+                className="stacks-dev-hud-capture-status"
+                data-state={captureStatus.state}
+                role="status"
+              >
+                <i aria-hidden="true" />
+                {captureStatus.label}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
       </button>
       <span id="stacks-dev-hud-description" className="sr-only">
         {launcherDescription}
       </span>
-      {profileStatus ? (
-        <span className="stacks-dev-hud-profile-status" role="status">
-          <i aria-hidden="true" />
-          {profileStatus}
-        </span>
-      ) : null}
-      {captureStatus ? (
-        <span
-          className="stacks-dev-hud-capture-status"
-          data-state={captureStatus.state}
-          role="status"
-        >
-          <i aria-hidden="true" />
-          {captureStatus.label}
-        </span>
-      ) : null}
       <button
         type="button"
         className="stacks-dev-hud-dismiss"
@@ -1244,6 +1251,11 @@ export default function SceneDiagnostics({
     scenePerformanceTrace.getStatus,
     scenePerformanceTrace.getStatus,
   );
+  const runtimeProgress = useSyncExternalStore(
+    performanceDiagnosticProgress.subscribe,
+    performanceDiagnosticProgress.getSnapshot,
+    performanceDiagnosticProgress.getSnapshot,
+  );
   const [automaticReport] = useState(() =>
     performanceDiagnosticRequested(window.location.search),
   );
@@ -1260,6 +1272,7 @@ export default function SceneDiagnostics({
     automaticReportQueued,
     automaticReportUploaded,
     automaticReportFallback,
+    runtimeProgress,
     trace: traceStatus,
   });
   const meadowSnapshot = useSyncExternalStore(
@@ -1306,9 +1319,13 @@ export default function SceneDiagnostics({
       const detail = (
         event as CustomEvent<{
           event?: unknown;
+          properties?: { report_kind?: unknown };
         }>
       ).detail;
-      if (detail?.event === "homepage_performance_diagnostic")
+      if (
+        detail?.event === "homepage_performance_diagnostic" &&
+        detail.properties?.report_kind === "runtime"
+      )
         setAutomaticReportQueued(true);
     };
     window.addEventListener("chappy:analytics-captured", onAnalyticsCaptured);
@@ -1316,8 +1333,10 @@ export default function SceneDiagnostics({
       const detail = (
         event as CustomEvent<{
           status?: "uploaded" | "sdk_fallback";
+          reportKind?: unknown;
         }>
       ).detail;
+      if (!isFinalPerformanceDiagnosticDelivery(detail?.reportKind)) return;
       if (detail?.status === "uploaded") setAutomaticReportUploaded(true);
       if (detail?.status === "sdk_fallback") setAutomaticReportFallback(true);
     };

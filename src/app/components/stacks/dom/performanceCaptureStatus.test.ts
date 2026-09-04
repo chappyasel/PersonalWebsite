@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { performanceCaptureStatus } from "./performanceCaptureStatus";
+import {
+  isFinalPerformanceDiagnosticDelivery,
+  performanceCaptureStatus,
+} from "./performanceCaptureStatus";
 
 describe("performance capture HUD status", () => {
   it("shows the automatic report lifecycle", () => {
@@ -32,6 +35,51 @@ describe("performance capture HUD status", () => {
         trace: { active: true, hasReport: false },
       }),
     ).toEqual({ label: "AUTO REPORT · RECORDING", state: "recording" });
+    expect(
+      performanceCaptureStatus({
+        automaticReport: true,
+        automaticReportQueued: true,
+        runtimeProgress: {
+          started: true,
+          paused: false,
+          remainingMs: 9_001,
+        },
+        trace: { active: true, hasReport: false },
+      }),
+    ).toEqual({
+      label: "AUTO REPORT · KEEP OPEN 10s",
+      state: "recording",
+    });
+    expect(
+      performanceCaptureStatus({
+        automaticReport: true,
+        automaticReportQueued: true,
+        runtimeProgress: {
+          started: true,
+          paused: true,
+          remainingMs: 8_000,
+        },
+        trace: { active: true, hasReport: false },
+      }),
+    ).toEqual({
+      label: "AUTO REPORT · PAUSED · 8s LEFT",
+      state: "paused",
+    });
+    expect(
+      performanceCaptureStatus({
+        automaticReport: true,
+        automaticReportQueued: false,
+        runtimeProgress: {
+          started: true,
+          paused: false,
+          remainingMs: 0,
+        },
+        trace: { active: true, hasReport: false },
+      }),
+    ).toEqual({
+      label: "AUTO REPORT · FINALIZING",
+      state: "recording",
+    });
     expect(
       performanceCaptureStatus({
         automaticReport: true,
@@ -75,5 +123,16 @@ describe("performance capture HUD status", () => {
         trace: { active: false, hasReport: false },
       }),
     ).toBeNull();
+  });
+
+  it("only treats the terminal runtime delivery as the final upload", () => {
+    expect(isFinalPerformanceDiagnosticDelivery("diagnostic_start")).toBe(
+      false,
+    );
+    expect(isFinalPerformanceDiagnosticDelivery("boot_complete")).toBe(false);
+    expect(isFinalPerformanceDiagnosticDelivery("runtime_checkpoint")).toBe(
+      false,
+    );
+    expect(isFinalPerformanceDiagnosticDelivery("runtime")).toBe(true);
   });
 });

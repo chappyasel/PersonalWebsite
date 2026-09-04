@@ -185,7 +185,7 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsStyles).toContain("min-inline-size: 168px");
     expect(diagnosticsStyles).toContain("max-inline-size: 168px");
     expect(diagnosticsStyles).toContain(
-      "grid-template-rows: repeat(4, 1.12em)",
+      "grid-template-rows: repeat(4, 1.12em) auto",
     );
     expect(diagnosticsStyles).toContain("inline-size: 100%");
     expect(diagnosticsStyles).toContain("text-overflow: ellipsis");
@@ -445,12 +445,27 @@ describe("production diagnostics activation", () => {
   });
 
   it("shows the compact HUD for an automatic performance report", () => {
+    const hudStart = diagnosticsSource.indexOf(
+      'className="stacks-dev-hud"',
+    );
+    const hudEnd = diagnosticsSource.indexOf("</button>", hudStart);
+    const hud = diagnosticsSource.slice(hudStart, hudEnd);
+
     expect(chromeSource).toContain(
       'if (queryMode === "report" && request === null)',
     );
     expect(chromeSource).toContain("setRequest({ initiallyOpen: false })");
     expect(diagnosticsSource).toContain("performanceCaptureStatus");
-    expect(diagnosticsSource).toContain("stacks-dev-hud-capture-status");
+    expect(hudStart).toBeGreaterThanOrEqual(0);
+    expect(hud).toContain("stacks-dev-hud-capture-status");
+    expect(hud).toContain("data-capture-state={captureStatus?.state}");
+    expect(diagnosticsStyles).toContain(
+      '[data-capture-state="recording"]',
+    );
+    expect(diagnosticsStyles).toContain('[data-capture-state="paused"]');
+    expect(diagnosticsStyles).toContain(
+      '[data-capture-state="uploaded"]',
+    );
     expect(diagnosticsSource).toContain("chappy:analytics-captured");
   });
 

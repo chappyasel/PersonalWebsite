@@ -9,12 +9,14 @@ const REPORT_KINDS = new Set([
   "diagnostic_start",
   "boot_checkpoint",
   "boot_complete",
+  "runtime_checkpoint",
   "runtime",
 ]);
 const CAPTURE_REASONS = new Set([
   "diagnostic_started",
   "slow_boot_checkpoint",
   "boot_terminal",
+  "post_reveal_checkpoint",
   "post_reveal_window",
   "boot_failed",
   "capture_deadline",
@@ -65,6 +67,8 @@ const EVENT_KEYS = new Set([
   "boot_status",
   "boot_path",
   "blocking_gate",
+  "post_reveal_observed_ms",
+  "pagehide_persisted",
   "diagnostic_hint",
   "test_profile",
   "dominant_constraint",
@@ -115,7 +119,7 @@ function isPerformanceDiagnosticEvent(
   const event = value as Partial<PerformanceDiagnosticEvent>;
   return (
     Object.keys(value).every((key) => EVENT_KEYS.has(key)) &&
-    event.schema_version === 3 &&
+    event.schema_version === 4 &&
     typeof event.diagnostic_run_id === "string" &&
     event.diagnostic_run_id.length > 0 &&
     event.diagnostic_run_id.length <= 200 &&
@@ -144,6 +148,12 @@ function isPerformanceDiagnosticEvent(
     (event.blocking_gate === null ||
       (typeof event.blocking_gate === "string" &&
         BLOCKING_GATES.has(event.blocking_gate))) &&
+    (event.post_reveal_observed_ms === null ||
+      (typeof event.post_reveal_observed_ms === "number" &&
+        Number.isFinite(event.post_reveal_observed_ms) &&
+        event.post_reveal_observed_ms >= 0)) &&
+    (event.pagehide_persisted === null ||
+      typeof event.pagehide_persisted === "boolean") &&
     typeof event.diagnostic_hint === "string" &&
     DIAGNOSTIC_HINTS.has(event.diagnostic_hint) &&
     (event.test_profile === null || typeof event.test_profile === "string") &&
@@ -182,7 +192,7 @@ function posthogCaptureUrl(host: string) {
 
 export async function POST(request: Request) {
   if (
-    request.headers.get("x-stacks-diagnostic") !== "3" ||
+    request.headers.get("x-stacks-diagnostic") !== "4" ||
     !isSameOriginDiagnosticRequest(request)
   )
     return NextResponse.json({ accepted: false }, { status: 403 });
@@ -224,7 +234,7 @@ export async function POST(request: Request) {
           ...event,
           $process_person_profile: false,
           $lib: "stacks-diagnostic-relay",
-          $lib_version: "3",
+          $lib_version: "4",
         },
         timestamp: new Date().toISOString(),
       }),

@@ -285,6 +285,7 @@ describe("scene performance diagnostic compaction", () => {
       bootStatus: "live",
       bootPath: "cold",
       blockingGate: null,
+      postRevealObservedMs: 15_000,
       report,
     });
     expect(event).toMatchObject({
@@ -292,7 +293,45 @@ describe("scene performance diagnostic compaction", () => {
       effective_fps: 60,
       frame_p95_ms: 16,
       dropped_frame_ratio: 0,
+      post_reveal_observed_ms: 15_000,
+      pagehide_persisted: null,
       report_truncated_for_transport: false,
+    });
+  });
+
+  it("keeps runtime checkpoints queryable without treating them as boot reports", () => {
+    const event = createPerformanceDiagnosticEvent({
+      diagnosticRunId: "run.checkpoint",
+      reportKind: "runtime_checkpoint",
+      captureReason: "post_reveal_checkpoint",
+      checkpointIndex: 1,
+      elapsedMs: 12_000,
+      bootStatus: "live",
+      bootPath: "warm",
+      blockingGate: null,
+      postRevealObservedMs: 5_000,
+      report: {
+        trace: {
+          summary: {
+            targetFrameMs: 16.667,
+            settled: {
+              count: 20,
+              fps: 30,
+              droppedFrameRatio: 0.4,
+              frameMs: { p95: 42 },
+            },
+          },
+        },
+      },
+    });
+
+    expect(event).toMatchObject({
+      report_kind: "runtime_checkpoint",
+      capture_reason: "post_reveal_checkpoint",
+      checkpoint_index: 1,
+      diagnostic_hint: "runtime_unknown",
+      effective_fps: 30,
+      post_reveal_observed_ms: 5_000,
     });
   });
 
@@ -351,7 +390,10 @@ describe("scene performance diagnostic compaction", () => {
       bootStatus: "booting",
       bootPath: "cold",
       blockingGate: "meadow",
+      postRevealObservedMs: 2_286,
+      pagehidePersisted: false,
       report: {
+        unprunable_padding: "z".repeat(50_000),
         trace: {
           summary: {},
           spikes: Array.from({ length: 100 }, (_, index) => ({
@@ -369,13 +411,29 @@ describe("scene performance diagnostic compaction", () => {
             lifecycle: [],
           },
         },
+        runtime_capture: {
+          post_reveal_observed_ms: 2_286,
+          pagehide_persisted: false,
+          lifecycle: [{ at_ms: 11_321, type: "pagehide", persisted: false }],
+        },
       },
     });
 
     expect(event.report_truncated_for_transport).toBe(true);
+    expect(event).toMatchObject({
+      post_reveal_observed_ms: 2_286,
+      pagehide_persisted: false,
+    });
     expect(event.report_bytes).toBeLessThanOrEqual(
       PERFORMANCE_DIAGNOSTIC_REPORT_MAX_BYTES,
     );
+    expect(event.report).toMatchObject({
+      transport: { summary_only: true },
+      runtime_capture: {
+        post_reveal_observed_ms: 2_286,
+        pagehide_persisted: false,
+      },
+    });
   });
 });
 

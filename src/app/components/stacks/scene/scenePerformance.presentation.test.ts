@@ -430,6 +430,18 @@ describe("scene performance integration", () => {
   });
 
   it("fades the automatic survival meadow before releasing its work", () => {
+    const flowerFragmentStart = meadow.indexOf("const FLOWER_FRAGMENT");
+    const flowerFragmentEnd = meadow.indexOf(
+      "// ---------------------------------------------------------------------------",
+      flowerFragmentStart,
+    );
+    const flowerFragment = meadow.slice(
+      flowerFragmentStart,
+      flowerFragmentEnd,
+    );
+
+    expect(flowerFragmentStart).toBeGreaterThanOrEqual(0);
+    expect(flowerFragment).toContain("uniform float uOpacity;");
     expect(scene).toContain("quality.environment.meadow");
     expect(scene).toContain(
       'scenePerformanceController.isOverridden("meadow")',

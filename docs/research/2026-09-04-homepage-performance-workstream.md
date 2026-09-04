@@ -24,18 +24,24 @@ Report from a visitor:
 
 - The boot screen appeared promptly but remained for more than 10 seconds.
 - The revealed 3D scene was very laggy.
-- Device was an M2 MacBook Air. Browser, viewport, DPR, thermal state, and
-  network conditions are not yet known.
+- Device was an M2 MacBook Air. The support report identified a 2x DPR and a
+  nominal 4G connection. Browser thermal state remains unknown.
 
 This corrects the original shorthand of "slow initial load." The known problem
 is time inside World Boot, not time to first HTML or time to first boot-screen
 paint.
 
-Status: a local support run was attempted, but its payload is not yet
-queryable. The site's PostHog project key does not match any project exposed by
-the read-only PostHog connection on this machine. Do not treat the prior iPhone
-findings as an explanation for this Mac until a report from the affected device
-identifies the boot gate and runtime constraint.
+Status: one affected production run reached PostHog. First paint occurred at
+972 ms, the first WebGL frame at 1,878 ms, meadow readiness at 3,498 ms, and
+reveal at 9,035 ms. An asset batch reopened at 3,096 ms and did not complete
+until 7,411 ms. The trace also recorded six long tasks totaling 5,720 ms; its
+largest task lasted 3,141 ms. The first report therefore supports both late
+asset work and main-thread stalls during boot.
+
+The browser emitted `pagehide` 2,286 ms after reveal, so the first runtime
+report contains startup plus only a short post-reveal window. It was complete
+for transport, but it cannot establish sustained frame cost. A second affected
+run must remain visible for the full 15-second runtime window.
 
 ## Support capture
 
@@ -48,24 +54,26 @@ https://www.chappyasel.com/?perf-report=1
 The query switch is explicit and default-off. It creates
 `homepage_performance_diagnostic` events in PostHog:
 
-| `report_kind`      | When it is sent                                                                              | What it answers                                                                                     |
-| ------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `diagnostic_start` | As soon as the opted-in boot generation is observed                                          | Whether the reporter armed at all, plus the initial browser and navigation context                  |
-| `boot_checkpoint`  | Boot remains unresolved at 10 or 30 seconds, or the visitor leaves before a terminal outcome | Which real reveal gate is closed and whether the blocker changed while the visitor waited           |
-| `boot_complete`    | The world reveals, fails, or is declared ineligible                                          | How long each gate took and how boot ended                                                          |
-| `runtime`          | 15 seconds after reveal, on boot failure, on page hide, or at the 45-second capture deadline | Frame distribution, spikes, renderer edges, quality evidence, long-task totals, and resource totals |
+| `report_kind`        | When it is sent                                                                                                    | What it answers                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `diagnostic_start`   | As soon as the opted-in boot generation is observed                                                                | Whether the reporter armed at all, plus the initial browser and navigation context                  |
+| `boot_checkpoint`    | Boot remains unresolved at 10 or 30 seconds, or the visitor leaves before a terminal outcome                       | Which real reveal gate is closed and whether the blocker changed while the visitor waited           |
+| `boot_complete`      | The world reveals, fails, or is declared ineligible                                                                | How long each gate took and how boot ended                                                          |
+| `runtime_checkpoint` | Five visible seconds after reveal, or when the document enters the back-forward cache                              | Preserves an early runtime sample without ending the full capture                                   |
+| `runtime`            | 15 visible seconds after reveal, on boot failure, on final page hide, or at the 45-visible-second capture deadline | Frame distribution, spikes, renderer edges, quality evidence, long-task totals, and resource totals |
 
 Filter PostHog for `homepage_performance_diagnostic`. Events from one visit
 share `diagnostic_run_id`; each payload also has a deterministic
-`diagnostic_report_id` and the deployed `diagnostic_build_id`. Schema 3 keeps
+`diagnostic_report_id` and the deployed `diagnostic_build_id`. Schema 4 keeps
 the main verdict queryable without unpacking JSON: `diagnostic_hint`,
 `dominant_constraint`, `effective_fps`, `frame_p95_ms`,
 `dropped_frame_ratio`, `survival_active`, the boot milestone times, active
-test profile, payload size, and truncation status are top-level properties.
+test profile, visible post-reveal duration, page-hide cache status, payload
+size, and truncation status are top-level properties.
 
 If PostHog access is unavailable, press backtick to open Scene Diagnostics and
 use **Download diagnostic**. That file contains the same compact boot and
-runtime payloads. A redacted, eight-event rolling backup survives reloads for
+runtime payloads. A redacted, twelve-event rolling backup survives reloads for
 24 hours so an analytics failure or accidental reload does not destroy the
 only artifact. **Download full trace** remains available separately when raw
 frame and resource detail is needed.
@@ -78,25 +86,30 @@ Privacy and measurement constraints:
   type, which distinguishes one blocking fetch from many small requests without
   disclosing a path.
 - Query keys are retained so a report states which test switches were active.
+- Runtime capture counts visible post-reveal time. Hiding the tab pauses the
+  15-second clock. A persisted `pagehide` sends a checkpoint and resumes the
+  remaining window on `pageshow`; a final page exit sends the partial evidence
+  through the existing keepalive path.
 - The runtime report is compact and bounded. It uploads aggregates, at most 16
   spike summaries, and at most 24 recent quality samples and lifecycle events.
   The shared envelope removes verbose resolved-quality history and enforces a
   36 KB report ceiling. Oversized reports shed arrays before they shed
   summaries, and say when that happened.
 - The URL enables lightweight frame and browser observers, so every runtime
-  report remains marked `instrumented: true`. Schema 3 keeps Auto quality live
+  report remains marked `instrumented: true`. Schema 4 keeps Auto quality live
   and omits the matrix-cost and static-world probes used by the full debug
   harness. Auto may adapt during the support visit, but diagnostic visits do
   not persist that learned profile. Synchronous prewarm work still marks its
   own frame as instrumented. Validate any fix with an ordinary production run.
 - Normal visits do not load the reporter chunk or mount its scene probes.
 - Diagnostic events first use a size-limited, same-origin endpoint that
-  forwards only schema-3 allowlisted payloads to PostHog's public capture API.
-  A successful response produces the HUD's `Uploaded` state. The ordinary
-  browser SDK is the live-page fallback and retains the honest `Queued` state
-  because it cannot prove that PostHog stored its beacon. Both paths capture
-  anonymously. Missing analytics configuration fails closed and does not
-  affect homepage delivery.
+  forwards only schema-4 allowlisted payloads to PostHog's public capture API.
+  A successful final runtime response produces the HUD's `Uploaded` state;
+  acknowledgements for boot and checkpoint events do not end the countdown.
+  The ordinary browser SDK is the live-page fallback and retains the honest
+  `Queued` state because it cannot prove that PostHog stored its beacon. Both
+  paths capture anonymously. Missing analytics configuration fails closed and
+  does not affect homepage delivery.
 
 ## Reproduction profiles
 
@@ -275,6 +288,19 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
   latest-state page-exit checkpoint so a stuck gate can report before it
   resolves and show whether the blocker changed while the visitor waited.
 - Added a compact runtime report with no resource names or raw frames.
+- Added a five-second runtime checkpoint and a visible-time capture clock.
+  Hidden tabs pause the clock; back-forward-cache exits preserve a checkpoint
+  and resume after restoration. Final exits record the browser's `persisted`
+  verdict and the recent visibility lifecycle.
+- Changed the HUD to count down `KEEP OPEN 15s` after reveal and to show
+  `PAUSED` while the document is hidden. `Uploaded` now means the final runtime
+  report received relay acknowledgement, not that an earlier boot event did.
+- Moved the capture and test-profile states into the HUD instead of placing
+  them over the scene beneath it. The complete instrument keeps its translucent
+  glass while adding a state tint: cyan while recording, amber while paused or
+  on fallback, and green after capture or upload. A brighter label, border,
+  glow, and blurred backdrop keep the status legible against both light and
+  dark skies without hiding the scene.
 - Kept the diagnostic reporter on demand and the probes default-off. The lazy
   Scene Diagnostics panel shares that reporter module for its download action.
 - Made the compact HUD visible for `?perf-report=1`. It reports the automatic
@@ -286,10 +312,10 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
 - Opening the diagnostics drawer does not stop an automatic report. Manual
   traces retain the existing stop-and-review shortcut behavior.
 - Added a downloadable diagnostic bundle containing the exact compact boot and
-  runtime payloads. Its redacted eight-event rolling backup survives reloads
+  runtime payloads. Its redacted twelve-event rolling backup survives reloads
   for 24 hours.
 - Deepened the reporter behind one event-building interface. Boot and runtime
-  now share schema 3, deployment identity, deterministic report identity,
+  now share schema 4, deployment identity, deterministic report identity,
   bottleneck classification, top-level PostHog metrics, privacy compaction,
   and a 36 KB transport ceiling instead of reproducing those rules in two
   callers.
@@ -345,26 +371,38 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
   ordinary homepage graph. In the latest integrated production build, the
   homepage is 375.1 KB gzip against a 372.8 KB baseline: 2.3 KB of growth,
   within its 3 KB tolerance without moving the baseline.
+- A local production browser pass exposed an invalid meadow flower fragment
+  shader: its fade path read `uOpacity` without declaring the uniform. Added
+  the missing declaration and a source-level regression assertion. This was a
+  correctness bug found during validation; the existing M2 trace does not
+  establish that it caused the reported 10-second boot.
+- Re-ran the complete support flow against the corrected production build.
+  The HUD moved through `Armed`, `Recording`, the full `Keep open 15s`
+  countdown, `Captured`, and `Uploaded`. The start, boot-complete,
+  five-second checkpoint, and 15-visible-second final requests each received
+  `202` from the same-origin relay, which only acknowledges after PostHog's
+  capture endpoint accepts the event. The recorded final window contained
+  15,019 ms of post-reveal evidence.
 - Production compilation, route budgets, search-boundary checks, lint, type
-  checking, and all 2,918 unit tests passed. Chrome, its extension, and the
-  native host all passed their installation checks, but the extension channel
-  timed out while naming the session after the prescribed restart and retry.
-  No automated Chrome profile run was completed.
+  checking, and all 2,926 unit tests passed. A true background-tab pause was
+  not browser-tested: Superset panes remain visible, and the external Chrome
+  extension was not connected. The visible-time clock and pause/resume
+  scheduling remain covered by deterministic unit tests.
 
 ## Work queue
 
-| Priority | Idea                                               | Status                | Evidence required before shipping                                                                                                                                |
-| -------- | -------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0       | Capture the reported M2 boot and runtime           | Needs affected run    | One cold production run using `?perf-report=1`; a warm run is useful but secondary                                                                               |
-| P0       | Name the 10-second boot blocker                    | Awaiting M2 report    | Gate timeline plus navigation timing and final boot outcome                                                                                                      |
-| P0       | Re-baseline the current scene                      | Proposed              | Production build bundle report and physical-device traces after the recent scene growth                                                                          |
-| P1       | Start unknown devices at a cheaper profile         | Proposed, idea 3      | Compare time to reveal and first 15 seconds of cadence against the current balanced start; confirm no visible flash or oscillation                               |
-| P1       | Add a persisted survival rung                      | Implemented; validate | On weak hardware, confirm that the one-way fade materially restores pacing and that the next visit skips the meadow until the non-renewing 24-hour lease expires |
-| P1       | Reduce boot residency and prewarm scope            | Proposed              | Only if the report points to assets, first frame, meadow construction, shader compilation, or GPU upload                                                         |
-| P1       | Add real performance budgets                       | Proposed, idea 5      | Choose thresholds from current production distributions, then enforce lazy 3D bytes, asset bytes, boot p95, frame p95, dropped-frame ratio, and renderer counts  |
-| P2       | Stop rendering the fully settled room continuously | Proposed, idea 4      | Inventory every ambient system that needs time; prototype demand rendering or a capped idle cadence without freezing authored life                               |
-| P2       | Reduce full-frame effects or DPR sooner            | Evidence dependent    | A runtime report showing fill-rate pressure, healthy main-thread cost, and improvement under a controlled lower-resolution or lower-effects run                  |
-| P2       | Split units or defer nonlocal visuals              | Evidence dependent    | A boot or travel report showing parse, asset, compile, upload, or first-use stalls tied to all-unit residency                                                    |
+| Priority | Idea                                               | Status                         | Evidence required before shipping                                                                                                                                |
+| -------- | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0       | Capture the reported M2 boot and runtime           | Boot captured; runtime partial | Repeat the affected production run and keep it visible through the full 15-second runtime countdown                                                              |
+| P0       | Name the 10-second boot blocker                    | First evidence captured        | Late asset work and main-thread stalls both appear; isolate the 3,141 ms stall and the asset batch that completes at 7,411 ms                                    |
+| P0       | Re-baseline the current scene                      | Proposed                       | Production build bundle report and physical-device traces after the recent scene growth                                                                          |
+| P1       | Start unknown devices at a cheaper profile         | Proposed, idea 3               | Compare time to reveal and first 15 seconds of cadence against the current balanced start; confirm no visible flash or oscillation                               |
+| P1       | Add a persisted survival rung                      | Implemented; validate          | On weak hardware, confirm that the one-way fade materially restores pacing and that the next visit skips the meadow until the non-renewing 24-hour lease expires |
+| P1       | Reduce boot residency and prewarm scope            | Proposed                       | Only if the report points to assets, first frame, meadow construction, shader compilation, or GPU upload                                                         |
+| P1       | Add real performance budgets                       | Proposed, idea 5               | Choose thresholds from current production distributions, then enforce lazy 3D bytes, asset bytes, boot p95, frame p95, dropped-frame ratio, and renderer counts  |
+| P2       | Stop rendering the fully settled room continuously | Proposed, idea 4               | Inventory every ambient system that needs time; prototype demand rendering or a capped idle cadence without freezing authored life                               |
+| P2       | Reduce full-frame effects or DPR sooner            | Evidence dependent             | A runtime report showing fill-rate pressure, healthy main-thread cost, and improvement under a controlled lower-resolution or lower-effects run                  |
+| P2       | Split units or defer nonlocal visuals              | Evidence dependent             | A boot or travel report showing parse, asset, compile, upload, or first-use stalls tied to all-unit residency                                                    |
 
 ## How to run an experiment
 
@@ -427,13 +465,23 @@ compact payload in the tab. Production quality remains unchanged.
 
 ### 2026-09-04: A diagnostic upload gets an acknowledged first-party path
 
-Schema 3 sends opted-in diagnostic events through the site's own constrained
-endpoint before falling back to the browser SDK. The endpoint accepts only
-same-origin, allowlisted schema-3 payloads under 48 KB, forwards them
+Schema 3 introduced an opted-in diagnostic path through the site's own
+constrained endpoint before falling back to the browser SDK. The endpoint
+accepts only same-origin, allowlisted payloads under 48 KB, forwards them
 anonymously to PostHog, and reports success only after PostHog's capture API
 responds successfully. This makes `Uploaded` stronger than the earlier SDK
 `Queued` state without rerouting ordinary analytics or enabling automatic
 capture. A 24-hour redacted local backup remains the final recovery path.
+
+### 2026-09-04: Runtime duration means visible evidence
+
+The first affected M2 report ended on `pagehide` after only 2,286 ms of
+post-reveal evidence. Schema 4 keeps that early report but distinguishes a
+final exit from a back-forward-cache transition. A cached page sends a
+checkpoint, pauses the visible-time clock, and resumes the remaining capture
+on restoration. The normal five-second checkpoint preserves a useful sample
+if the visitor leaves later. The HUD counts down the full 15-second target and
+does not say `Uploaded` when only a boot or checkpoint event was acknowledged.
 
 ### 2026-09-04: Profiles compose switches and never touch learning
 
