@@ -8,7 +8,9 @@ import { Client } from "@notionhq/client";
 
 import {
   collectBlockIds,
+  downloadCustomEmoji,
   extractEmojiAndTitle,
+  resolveCustomEmoji,
   rewriteNotionPageLinks,
   rewriteNotionSelfLinks,
   richTextToPlain,
@@ -25,150 +27,103 @@ const OUTPUT_PATH = join(__dirname, "../../public/data/manual.json");
 const OUTPUT_DIR = join(__dirname, "../../public/data");
 const IMAGES_DIR = join(__dirname, "../../public/images/manual");
 const IMAGE_PATH_PREFIX = "/images/manual/";
+const EMOJI_DIR = join(__dirname, "../../public/images/notion-emoji");
+const EMOJI_PATH_PREFIX = "/images/notion-emoji/";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
-// ─── Section Extraction ───
+// ─── Page Structure ───
+//
+// The top level of the page has two zones:
+//
+//   hero      everything before the first section: a lead paragraph or two,
+//             then heading_3 panels ("📌 TL;DR", "My 30-Second Self-Intro",
+//             "My Personal Mission Statement", ...) each owning the flat
+//             blocks that follow it up to the next heading
+//   sections  every toggleable heading_1 (has_children); its children are the
+//             section body, and every block id inside it maps to the
+//             section's anchor so "Read more →" links land on-page
+//
+// The hero is read by position, not by heading text, so renaming, adding, or
+// reordering a panel in Notion flows through without touching this file. A
+// heading_1 with no children is a visual divider and is skipped. A flat block
+// that turns up after the first section has no home and is dropped loudly.
 
-/**
- * The page structure:
- *   heading_1 "📌 TL;DR" (no children)
- *   heading_3, bulleted_list_item, paragraph, etc. (flat hero content)
- *   heading_1 "🧬 Personality..." (has_children = true) → children are section content
- *   heading_1 "🤝 How We Collaborate" (has_children = true) → children
- *   ...etc
- *
- * So we process raw Notion blocks to split them into:
- * - Hero: everything from TL;DR heading_1 until the next heading_1
- * - Sections: each heading_1 with has_children=true
- */
 async function processPage(rawBlocks: any[]): Promise<{
-  hero: any;
+  hero: { lead: any[]; panels: any[] };
   sections: any[];
   anchorMap: Record<string, string>;
 }> {
+  const heroRaw: any[] = [];
   const sections: any[] = [];
-  const heroRawBlocks: any[] = [];
-  let inHero = false;
-
   // Notion block ID (no dashes) → local anchor, for self-link rewriting
   const anchorMap: Record<string, string> = {};
+  let sawSection = false;
 
   for (const block of rawBlocks) {
     if (block.type === "heading_1") {
-      const titleText = richTextToPlain(block.heading_1.rich_text);
-      const { icon, title } = extractEmojiAndTitle(titleText);
-
-      if (!inHero && titleText.toLowerCase().includes("tl;dr")) {
-        // Start of hero section (flat blocks follow)
-        inHero = true;
-        continue;
-      }
-
       if (block.has_children && block._children) {
-        // This is a section with children
-        inHero = false;
-        const sectionBlocks = await transformBlocks(
-          block._children,
-          IMAGES_DIR,
-          IMAGE_PATH_PREFIX,
-        );
-
+        sawSection = true;
+        const titleText = richTextToPlain(block.heading_1.rich_text);
+        const { icon, title } = extractEmojiAndTitle(titleText);
         const section = {
           id: slugify(title),
           title,
           icon,
-          blocks: sectionBlocks,
+          blocks: await transformBlocks(
+            block._children,
+            IMAGES_DIR,
+            IMAGE_PATH_PREFIX,
+          ),
         };
-
         // ManualSection renders id={section.id}, so fragments pointing at
         // this heading or anything inside it resolve to the section anchor
         for (const id of collectBlockIds(block)) {
           anchorMap[id] = `#${section.id}`;
         }
-
         sections.push(section);
-      } else {
-        inHero = false;
       }
-    } else if (inHero) {
-      heroRawBlocks.push(block);
-    }
-  }
-
-  // Transform hero blocks
-  const heroTransformed = await transformBlocks(
-    heroRawBlocks,
-    IMAGES_DIR,
-    IMAGE_PATH_PREFIX,
-  );
-  const hero = extractHeroData(heroTransformed);
-
-  return { hero, sections, anchorMap };
-}
-
-function extractHeroData(blocks: any[]): any {
-  const intro: string[] = [];
-  let missionStatement = "";
-  let goldenRule = "";
-  const quickLinks: { label: string; url: string }[] = [];
-
-  let currentHeading = "";
-
-  for (const block of blocks) {
-    if (block.type === "heading" && block.level === 3) {
-      const text = block.content.map((r: any) => r.text).join("");
-      currentHeading = text.toLowerCase();
       continue;
     }
 
-    if (currentHeading.includes("introduction") || currentHeading.includes("30-second")) {
-      if (block.type === "bulleted_list") {
-        for (const item of block.items) {
-          const text = item
-            .filter((b: any) => b.type === "paragraph")
-            .map((b: any) => b.content.map((r: any) => r.text).join(""))
-            .join("");
-          if (text) intro.push(text);
-        }
-      }
-    } else if (currentHeading.includes("mission")) {
-      if (block.type === "paragraph") {
-        const text = block.content.map((r: any) => r.text).join("");
-        if (text) missionStatement = text;
-      }
-    } else if (currentHeading.includes("golden rule")) {
-      if (block.type === "paragraph") {
-        const text = block.content.map((r: any) => r.text).join("");
-        if (text) goldenRule = text;
-      }
-    } else if (currentHeading.includes("quick links")) {
-      if (block.type === "bulleted_list") {
-        for (const item of block.items) {
-          for (const b of item) {
-            if (b.type === "paragraph") {
-              for (const rt of b.content) {
-                if (rt.link) {
-                  quickLinks.push({ label: rt.text, url: rt.link });
-                } else {
-                  // Check for "Label: url" pattern
-                  const parts = rt.text.split(": ");
-                  if (parts.length === 2 && parts[1].includes(".")) {
-                    quickLinks.push({
-                      label: parts[0].trim(),
-                      url: `https://${parts[1].trim()}`,
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+    if (sawSection) {
+      console.warn(
+        `  Dropped a stray ${block.type} block after the first section`,
+      );
+      continue;
     }
+    heroRaw.push(block);
   }
 
-  return { intro, missionStatement, goldenRule, quickLinks };
+  const hero = splitHero(
+    await transformBlocks(heroRaw, IMAGES_DIR, IMAGE_PATH_PREFIX),
+  );
+  return { hero, sections, anchorMap };
+}
+
+/**
+ * Blocks before the first heading are the lead; each heading opens a panel
+ * that owns everything up to the next one. Empty paragraphs never reach here
+ * (transformBlocks drops them), so a panel with no blocks is a heading with
+ * nothing under it and is left out.
+ */
+function splitHero(blocks: any[]): { lead: any[]; panels: any[] } {
+  const lead: any[] = [];
+  const panels: any[] = [];
+  let current: any = null;
+
+  for (const block of blocks) {
+    if (block.type === "heading") {
+      const text = block.content.map((r: any) => r.text).join("");
+      const { title } = extractEmojiAndTitle(text);
+      current = { id: slugify(title), title, blocks: [] };
+      panels.push(current);
+      continue;
+    }
+    (current ? current.blocks : lead).push(block);
+  }
+
+  return { lead, panels: panels.filter((p) => p.blocks.length > 0) };
 }
 
 // ─── Main ───
@@ -191,19 +146,39 @@ async function main() {
   mkdirSync(IMAGES_DIR, { recursive: true });
   const { hero, sections, anchorMap } = await processPage(rawBlocks);
 
-  console.log(`\nHero: ${hero.intro.length} intro bullets, mission: ${hero.missionStatement ? "yes" : "no"}, golden rule: ${hero.goldenRule ? "yes" : "no"}, ${hero.quickLinks.length} quick links`);
+  console.log(
+    `\nHero: ${hero.lead.length} lead block(s), ${hero.panels.length} panel(s)`,
+  );
+  for (const p of hero.panels) {
+    console.log(`  ${p.title} (${p.blocks.length} blocks)`);
+  }
   console.log(`Found ${sections.length} sections:`);
   for (const s of sections) {
     console.log(`  ${s.icon} ${s.title} (${s.blocks.length} blocks)`);
   }
 
-  // 4. Rewrite Notion self-links to local anchors, then cross-page links to public URLs
-  const rewrittenSections = rewriteNotionPageLinks(
-    rewriteNotionSelfLinks(sections, PAGE_ID, anchorMap),
+  // A page restructure that empties either zone is a generator bug, not a
+  // content change. Refuse to overwrite a good snapshot with a hollow one.
+  if (hero.panels.length === 0 || sections.length === 0) {
+    throw new Error(
+      "Page structure not understood: hero panels or sections came back empty",
+    );
+  }
+
+  // 4. Fetch workspace emoji referenced anywhere on the page
+  const emoji = await downloadCustomEmoji(EMOJI_DIR, EMOJI_PATH_PREFIX);
+
+  // 5. Self-links → local anchors, cross-page links → public URLs, custom
+  //    emoji → downloaded files. The hero takes the same passes as the
+  //    sections so its "Read more →" links stay on the page.
+  const output = resolveCustomEmoji(
+    rewriteNotionPageLinks(
+      rewriteNotionSelfLinks({ lastUpdated, hero, sections }, PAGE_ID, anchorMap),
+    ),
+    emoji,
   );
 
-  // 5. Assemble & write
-  const output = { lastUpdated, hero, sections: rewrittenSections };
+  // 6. Write
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
   console.log(`\nWritten to ${OUTPUT_PATH}`);

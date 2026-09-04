@@ -39,7 +39,15 @@ const THEME_ICON = {
 
 const LONG_PRESS_MS = 500;
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** Caption-line size: a 20px hit area and a 12px glyph, for a toggle that
+   * sits inside a line of small text rather than in a page corner. */
+  compact?: boolean;
+}) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -54,7 +62,15 @@ export function ThemeToggle({ className }: { className?: string }) {
   }, []);
 
   if (!mounted) {
-    return <div className="size-10 rounded-md bg-transparent" />;
+    return (
+      <div
+        className={cn(
+          compact ? "size-5 rounded" : "size-10 rounded-md",
+          "bg-transparent",
+          className,
+        )}
+      />
+    );
   }
 
   const current = normalizeTheme(theme);
@@ -114,12 +130,16 @@ export function ThemeToggle({ className }: { className?: string }) {
                 aria-haspopup="dialog"
                 aria-expanded={optionsOpen}
                 className={cn(
-                  "flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  compact ? "size-5 rounded" : "size-10 rounded-md",
+                  "flex items-center justify-center bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   className,
                 )}
                 data-theme-toggle
               >
-                <VisibleIcon className="h-4 w-4" weight="bold" />
+                <VisibleIcon
+                  className={compact ? "h-3 w-3" : "h-4 w-4"}
+                  weight="bold"
+                />
               </button>
             </TooltipTrigger>
           </PopoverAnchor>

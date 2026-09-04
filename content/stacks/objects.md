@@ -726,7 +726,7 @@ Link: Routine https://www.chappyasel.com/routine
 
 A 1 kg pouch of creatine monohydrate on the same bag, wearing a label I drew. It
 is the largest of the three powders and sits at the back edge of the plank. 10
-to 15 g in the morning stack, and the same again in each pre-workout bottle.
+to 15 g in the morning stack, and 15 to 20 g more in each pre-workout bottle.
 
 ## grab:bag:betaalanine
 
@@ -735,7 +735,7 @@ Status: written
 Link: Routine https://www.chappyasel.com/routine
 
 A 1 kg pouch of beta alanine, the smallest of the three, tucked in beside the
-creatine. 10 g goes into each pre-workout bottle.
+creatine. 15 g goes into each pre-workout bottle.
 
 ## grab:bag:collagen
 

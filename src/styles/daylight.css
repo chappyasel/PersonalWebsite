@@ -119,9 +119,13 @@
 
   /* A print on a dark wall keeps its light mat, dimmed to lamplight; the
      frame goes to dark walnut and the lip catches what light there is. */
-  --dl-mat: 40 10% 78%;
-  --dl-frame: 25 12% 23%;
-  --dl-frame-lip: 35 10% 42%;
+  /* A dark wall wants a dark mat: the print no longer glows as a light
+     slab on the page, and inverted line art sits in it as white on near-
+     black. The frame stays a shade lighter than the mat so it still reads
+     as a frame. */
+  --dl-mat: 30 6% 15%;
+  --dl-frame: 28 10% 32%;
+  --dl-frame-lip: 30 8% 22%;
 
   --dl-arc0: 18 20% 8%;
   --dl-arc1: 30 15% 7.5%;
@@ -787,11 +791,22 @@
   color: hsl(var(--dl-sky-ink) / 0.95);
   text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
   /* Let clicks fall through the column's empty padding to the sky beneath
-     (the bridge's tap target lives there); real controls re-enable. */
+     (the bridge's tap target lives there); real controls and the copy
+     re-enable below. */
   pointer-events: none;
 }
+/* The copy takes the pointer back so a drag can start a text selection on
+   it. None of it reaches the skyline strip in the bottom padding, so the
+   bridge's tap target stays reachable. */
 .dl-hero-inner a,
-.dl-hero-inner button {
+.dl-hero-inner button,
+.dl-hero-inner h1,
+.dl-hero-inner h2,
+.dl-hero-inner h3,
+.dl-hero-inner p,
+.dl-hero-inner li,
+.dl-hero-inner blockquote,
+.dl-hero-inner [data-daylight-hero-meta] {
   pointer-events: auto;
 }
 .dl-hero-title {
@@ -980,14 +995,9 @@
   /* The mat's bevel: a crisp line where the opening is cut. */
   box-shadow: 0 0 0 1px hsl(var(--dl-frame) / 0.28);
 }
-/* Inline book covers get the same treatment at reading-line scale. */
-.dl-cover {
-  padding: 1.5px;
-  background: hsl(var(--dl-mat));
-  border: 1px solid hsl(var(--dl-frame) / 0.8);
-  border-radius: 1px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
-}
+/* Inline book covers are NOT framed: BookLink draws them the way the
+   library does (clean art, rounded, a real shadow), so a book in running
+   text looks like the same book on the shelf. */
 
 /* ============ Section headers ============ */
 
@@ -1278,9 +1288,9 @@ body:has(.daylight-root) {
 /* ============ Intercepted-route sheet ============ */
 
 /* The sheet card is Tailwind-built in DaylightSheet, book-modal style; the
-   one thing the stylesheet owns is that the page's own theme toggle stays
-   home — inside the sheet the corner belongs to the open/close cluster, and
-   the theme follows the scene underneath. */
+   one thing the stylesheet owns is that the page's own theme toggle (on the
+   wayfinding line under the hero) stays home — inside the sheet the theme
+   follows the scene underneath. */
 .dl-sheet [data-theme-toggle] {
   display: none;
 }

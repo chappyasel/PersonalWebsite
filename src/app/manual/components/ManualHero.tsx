@@ -3,9 +3,9 @@ import React from "react";
 
 import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyHero from "~/components/daylight/SkyHero";
-import { ThemeToggle } from "~/components/ui/theme-toggle";
+import { NotionBlockRenderer } from "~/components/notion";
 
-import type { ManualData } from "../types";
+import type { BookLookup, ManualData } from "../types";
 
 function HeroPanel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -18,24 +18,29 @@ function HeroPanel({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+/**
+ * Everything below the title is Notion's: the lead paragraph is the page's
+ * own opening, and each panel is a heading above the first section (TL;DR,
+ * the 30-second intro, the mission statement) with the blocks under it. The
+ * site does not know the panels by name, so a renamed or added panel flows
+ * through on the next sync.
+ */
 export default function ManualHero({
   hero,
   lastUpdated,
+  bookLookup,
 }: {
   hero: ManualData["hero"];
   lastUpdated: string;
+  bookLookup?: BookLookup;
 }) {
   return (
     <>
       <SkyHero>
-        <div className="space-y-3">
-          {/* The toggle keeps the corner it has always had; the wayfinding
-              line that used to share this row now sits under the
-              description. */}
-          <div className="flex justify-end">
-            <ThemeToggle />
-          </div>
-
+        <div className="space-y-3 pt-10">
+          {/* The theme toggle sits on the wayfinding line under the
+              description (DaylightHeroMeta); the top padding keeps the title
+              where the toggle's row used to hold it. */}
           <div className="flex items-center gap-3">
             <BookOpenTextIcon
               size={28}
@@ -50,39 +55,39 @@ export default function ManualHero({
             </h1>
           </div>
 
-          <p className="max-w-[34rem] text-[0.9375rem]">
-            A guide to how I work, communicate, and collaborate
-          </p>
+          {hero.lead.length > 0 && (
+            <div className="max-w-[34rem] space-y-2 text-[0.9375rem]">
+              {hero.lead.map((block, i) => (
+                <NotionBlockRenderer
+                  key={i}
+                  block={block}
+                  bookLookup={bookLookup}
+                />
+              ))}
+            </div>
+          )}
 
           <DaylightHeroMeta lastUpdated={lastUpdated} />
         </div>
       </SkyHero>
 
-      <div className="mx-auto mt-10 max-w-[45rem] space-y-6 px-4">
-        {hero.intro.length > 0 && (
-          <HeroPanel label="My 30-Second Introduction">
-            <div className="space-y-2">
-              {hero.intro.map((line, i) => (
-                <p key={i} className="leading-relaxed">
-                  {line}
-                </p>
-              ))}
-            </div>
-          </HeroPanel>
-        )}
-
-        {hero.missionStatement && (
-          <HeroPanel label="My Personal Mission Statement">
-            <p className="leading-relaxed italic">{hero.missionStatement}</p>
-          </HeroPanel>
-        )}
-
-        {hero.goldenRule && (
-          <HeroPanel label="The Golden Rule of Working With Me">
-            <p className="leading-relaxed">{hero.goldenRule}</p>
-          </HeroPanel>
-        )}
-      </div>
+      {hero.panels.length > 0 && (
+        <div className="mx-auto mt-10 max-w-[45rem] space-y-6 px-4">
+          {hero.panels.map((panel) => (
+            <HeroPanel key={panel.id} label={panel.title}>
+              <div className="space-y-2">
+                {panel.blocks.map((block, i) => (
+                  <NotionBlockRenderer
+                    key={i}
+                    block={block}
+                    bookLookup={bookLookup}
+                  />
+                ))}
+              </div>
+            </HeroPanel>
+          ))}
+        </div>
+      )}
     </>
   );
 }

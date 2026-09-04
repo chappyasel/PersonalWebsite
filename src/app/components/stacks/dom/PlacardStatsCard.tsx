@@ -20,6 +20,10 @@ export type PlacardStat = {
   value: string;
 };
 
+/** "placard" is the homepage size. "card" fits a hover card: the same
+ * layout with the headline, bars, and stats scaled to a 24rem popover. */
+export type PlacardSize = "placard" | "card";
+
 export function PlacardLinkCard({
   href,
   label,
@@ -119,10 +123,12 @@ function PlacardYearBars({
   years,
   unit,
   compactMobile = false,
+  size = "placard",
 }: {
   years: PlacardYearDatum[];
   unit: string;
   compactMobile?: boolean;
+  size?: PlacardSize;
 }) {
   const tapFirst = useTapFirstCapability();
   const [touchedYear, setTouchedYear] = useState<number | null>(null);
@@ -135,7 +141,15 @@ function PlacardYearBars({
     <div
       data-year-bars=""
       data-mobile-compact={compactMobile ? "" : undefined}
-      className="flex h-[62px] items-end gap-1.5"
+      className={cn(
+        "flex items-end gap-1.5",
+        size === "card" ? "h-[46px]" : "h-[62px]",
+      )}
+      style={
+        size === "card"
+          ? ({ "--placard-year-bar-max": "32px" } as unknown as React.CSSProperties)
+          : undefined
+      }
       role="img"
       aria-label={years
         .map((year) => `${year.year}: ${year.value} ${unit}`)
@@ -231,6 +245,7 @@ export function PlacardStatsCard({
   stats,
   compactMobile = false,
   chart,
+  size = "placard",
 }: {
   headline: string;
   headlineIcon: Icon;
@@ -241,26 +256,53 @@ export function PlacardStatsCard({
   compactMobile?: boolean;
   /** Rendered where the year bars would go, in the left column. */
   chart?: React.ReactNode;
+  size?: PlacardSize;
 }) {
   const bars = years !== undefined && yearUnit !== undefined;
   const hasChart = bars || chart !== undefined;
+  const card = size === "card";
   return (
     <div
       data-mobile-compact-stats={compactMobile ? "" : undefined}
-      className="grid grid-cols-[minmax(0,1.25fr)_minmax(7rem,.75fr)] items-stretch min-[1200px]:grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)]"
+      data-placard-size={size}
+      className={cn(
+        "grid items-stretch",
+        card
+          ? "grid-cols-[minmax(0,1.25fr)_minmax(6rem,.75fr)]"
+          : "grid-cols-[minmax(0,1.25fr)_minmax(7rem,.75fr)] min-[1200px]:grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)]",
+      )}
     >
       <div
         className={cn(
-          "flex min-w-0 flex-col justify-between pr-4 min-[1200px]:pr-5",
-          hasChart && "min-h-44 min-[1200px]:min-h-52",
+          "flex min-w-0 flex-col justify-between",
+          card ? "pr-3" : "pr-4 min-[1200px]:pr-5",
+          hasChart &&
+            (card ? "min-h-[8.5rem]" : "min-h-44 min-[1200px]:min-h-52"),
         )}
       >
         <div>
-          <strong className="block whitespace-nowrap font-serif text-[clamp(3.25rem,13vw,5rem)] font-normal leading-[.78] tracking-[-0.055em] text-foreground">
+          <strong
+            className={cn(
+              "block whitespace-nowrap font-serif font-normal tracking-[-0.055em] text-foreground",
+              card
+                ? "text-[2.75rem] leading-[.8]"
+                : "text-[clamp(3.25rem,13vw,5rem)] leading-[.78]",
+            )}
+          >
             {headline}
           </strong>
-          <span className="mt-4 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground min-[1200px]:mt-5 min-[1200px]:text-xs">
-            <HeadlineIcon className="size-3.5 shrink-0" weight="bold" />
+          <span
+            className={cn(
+              "flex items-center gap-1.5 whitespace-nowrap text-muted-foreground",
+              card
+                ? "mt-2 text-[10px]"
+                : "mt-4 text-[11px] min-[1200px]:mt-5 min-[1200px]:text-xs",
+            )}
+          >
+            <HeadlineIcon
+              className={card ? "size-3 shrink-0" : "size-3.5 shrink-0"}
+              weight="bold"
+            />
             {headlineLabel}
           </span>
         </div>
@@ -269,19 +311,38 @@ export function PlacardStatsCard({
             years={years}
             unit={yearUnit}
             compactMobile={compactMobile}
+            size={size}
           />
         ) : (
           chart
         )}
       </div>
-      <div className="flex min-w-0 flex-col justify-between border-l border-foreground/10 pl-4 text-right min-[1200px]:pl-5">
+      <div
+        className={cn(
+          "flex min-w-0 flex-col justify-between border-l border-foreground/10 text-right",
+          card ? "pl-3" : "pl-4 min-[1200px]:pl-5",
+        )}
+      >
         {stats.map(({ icon: StatIcon, label, value }) => (
           <div key={label}>
-            <strong className="block text-[1.65rem] font-semibold tabular-nums leading-none text-foreground">
+            <strong
+              className={cn(
+                "block font-semibold tabular-nums leading-none text-foreground",
+                card ? "text-xl" : "text-[1.65rem]",
+              )}
+            >
               {value}
             </strong>
-            <span className="mt-1.5 flex items-center justify-end gap-1 whitespace-nowrap text-[11px] font-medium leading-none text-muted-foreground">
-              <StatIcon className="size-3.5 shrink-0" weight="bold" />
+            <span
+              className={cn(
+                "flex items-center justify-end gap-1 whitespace-nowrap font-medium leading-none text-muted-foreground",
+                card ? "mt-1 text-[10px]" : "mt-1.5 text-[11px]",
+              )}
+            >
+              <StatIcon
+                className={card ? "size-3 shrink-0" : "size-3.5 shrink-0"}
+                weight="bold"
+              />
               {label}
             </span>
           </div>

@@ -1,15 +1,13 @@
 import rawData from "../../../public/data/routine.json";
-import { inArray } from "drizzle-orm";
-
-import { db } from "~/server/db";
-import { orEmpty } from "~/server/queries/degrade";
-import { books } from "~/server/db/schema";
 
 import {
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
+import { SitePageCardsProvider } from "~/components/site/SitePageCards";
+import { lookupInlineBooks } from "~/lib/books/inlineLookup";
+import { loadSitePageCards } from "~/lib/site/pageCards";
 import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
 import RoutineTimeline from "./components/RoutineTimeline";
@@ -17,49 +15,17 @@ import SupplementCardsSection from "./components/SupplementCards";
 import { HashScrollSpacer } from "./components/sectionLink";
 
 import type { RoutineData } from "./types";
-import type { BookLookup } from "./types";
 
 const data = rawData as unknown as RoutineData;
 
-// Extract all book slugs from the JSON
-function extractBookSlugs(obj: unknown): string[] {
-  const slugs = new Set<string>();
-  const json = JSON.stringify(obj);
-  const re = /books\.chappyasel\.com\/([a-z0-9-]+)/g;
-  let m;
-  while ((m = re.exec(json)) !== null) {
-    if (m[1]) slugs.add(m[1]);
-  }
-  return [...slugs];
-}
-
-/**
- * The page itself is static JSON. The database only supplies titles and cover
- * thumbnails for inline book links, so an outage should drop the thumbnails
- * and leave every word on the page readable.
- */
-async function lookupBookRows(slugs: string[]) {
-  if (slugs.length === 0) return [];
-  return orEmpty(
-    "routine:books",
-    () =>
-      db
-        .select({ id: books.id, title: books.title, coverUrl: books.coverUrl })
-        .from(books)
-        .where(inArray(books.id, slugs)),
-    [],
-  );
-}
-
 export default async function RoutinePage() {
-  // Fetch book metadata for all referenced books
-  const slugs = extractBookSlugs(data);
-  const bookRows = await lookupBookRows(slugs);
-
-  const bookLookup: BookLookup = {};
-  for (const b of bookRows) {
-    bookLookup[b.id] = { title: b.title, coverUrl: b.coverUrl };
-  }
+  // The page is static JSON. The library only decorates its book links, and
+  // the placard loaders only feed the hover cards on links to the site's
+  // other pages.
+  const [bookLookup, cards] = await Promise.all([
+    lookupInlineBooks("routine:books", data),
+    loadSitePageCards("routine"),
+  ]);
 
   // Separate supp-stacks rant (merged into supplement section) from other rants
   const suppStacksRant = data.rants.find((r) => r.id === "supp-stacks");
@@ -87,9 +53,14 @@ export default async function RoutinePage() {
   ];
 
   return (
+    <SitePageCardsProvider cards={cards}>
     <div className="daylight-root dl-ground-arc min-h-screen bg-background text-muted-foreground">
       <main className="relative">
-        <RoutineHero intro={data.intro} lastUpdated={data.lastUpdated} />
+        <RoutineHero
+          intro={data.intro}
+          lastUpdated={data.lastUpdated}
+          bookLookup={bookLookup}
+        />
 
         {/* Content with TOC */}
         <div className="mx-auto max-w-5xl px-4 pb-12">
@@ -144,5 +115,6 @@ export default async function RoutinePage() {
         <SkyFooter />
       </main>
     </div>
+    </SitePageCardsProvider>
   );
 }

@@ -1,25 +1,23 @@
+import { ArrowBendRightDownIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import BookLink from "~/components/books/BookLink";
 import {
   sectionAccentClass,
   sectionIcon,
 } from "~/components/daylight/sectionIcons";
 import type { BookLookup, RichText } from "~/components/notion/types";
+import SiteLink from "~/components/site/SiteLink";
+import { bookSlugFromUrl, humanizeSlug } from "~/lib/books/inlineFacts";
+import { isBareUrl, SITE_PAGES, sitePageForHref } from "~/lib/site/pages";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-
-const customEmojiMap: Record<string, { src: string; alt: string }> = {
-  ":weightlifting-app:": {
-    src: "/images/manual/weightlifting-app.png",
-    alt: "Weightlifting App",
-  },
-};
 
 /**
  * Notion's background colors render as a low-opacity wash of the actual hue
@@ -112,36 +110,9 @@ function renderMBTIInline(text: string): React.ReactNode {
   );
 }
 
-function extractBookSlug(text: string): string | null {
-  const match = /^https?:\/\/books\.chappyasel\.com\/([a-z0-9-]+)\/?$/.exec(
-    text,
-  );
-  return match?.[1] ?? null;
-}
-
-function humanizeSlug(slug: string): string {
-  return slug
-    .split("-")
-    .map((w) =>
-      [
-        "a",
-        "an",
-        "the",
-        "of",
-        "and",
-        "for",
-        "in",
-        "on",
-        "to",
-        "with",
-        "is",
-      ].includes(w)
-        ? w
-        : w.charAt(0).toUpperCase() + w.slice(1),
-    )
-    .join(" ")
-    .replace(/^\w/, (c) => c.toUpperCase());
-}
+// The TL;DR hooks end in a "Read more →" link; the words give way to the
+// section's glyph and a bent arrow.
+const READ_MORE = /^\s*read more\s*(?:→|->)?\s*$/i;
 
 export default function RichTextRenderer({
   content,
@@ -153,17 +124,17 @@ export default function RichTextRenderer({
   return (
     <>
       {content.map((rt, i) => {
-        // Replace custom Notion emoji shortcodes with inline images
-        const customEmoji = customEmojiMap[rt.text.trim()];
-        if (customEmoji) {
+        // A workspace emoji run carries the file the generator downloaded;
+        // show it in place of the ":name:" shortcode.
+        if (rt.customEmoji?.src) {
           return (
             <Image
               key={i}
-              src={customEmoji.src}
-              alt={customEmoji.alt}
+              src={rt.customEmoji.src}
+              alt={humanizeSlug(rt.customEmoji.name)}
               width={20}
               height={20}
-              className="mb-[-2px] inline-block h-5 w-5 -translate-y-[1px] rounded"
+              className="mb-[-2px] inline-block h-[1.1em] w-[1.1em] -translate-y-[1px] rounded"
             />
           );
         }
@@ -174,35 +145,37 @@ export default function RichTextRenderer({
           return <React.Fragment key={i}>{mbtiRendered}</React.Fragment>;
         }
 
+        // A bare library URL becomes the shared book link: cover, title,
+        // hover card. Annotations on the run are ignored; the link owns its
+        // own styling.
+        const slug = bookSlugFromUrl(rt.text);
+        if (slug) {
+          return (
+            <BookLink
+              key={i}
+              href={rt.link ?? rt.text}
+              slug={slug}
+              book={bookLookup?.[slug]}
+            />
+          );
+        }
+
         // Same-page section references ("See ☕ Caffeine") swap their leading
-        // emoji for the section's Phosphor glyph at render time.
+        // emoji for the section's Phosphor glyph at render time; links to
+        // the site's own pages get that page's glyph, and a pasted URL gets
+        // the page's name instead of the address.
         const XrefIcon = rt.link?.startsWith("#")
           ? sectionIcon(rt.link.slice(1))
           : null;
-        const displayText = XrefIcon
-          ? rt.text.replace(/^\p{Extended_Pictographic}️?\s*/u, "")
-          : rt.text;
+        const page = !XrefIcon && rt.link ? sitePageForHref(rt.link) : null;
+        let displayText = rt.text;
+        if (XrefIcon) {
+          displayText = rt.text.replace(/^\p{Extended_Pictographic}️?\s*/u, "");
+        } else if (page && isBareUrl(rt.text)) {
+          displayText = SITE_PAGES[page].label;
+        }
 
-        // Replace raw book URLs with readable titles + cover images
-        const slug = extractBookSlug(rt.text);
-        const bookData = slug ? bookLookup?.[slug] : null;
-        const bookTitle = bookData?.title ?? (slug ? humanizeSlug(slug) : null);
-        let el: React.ReactNode = bookTitle ? (
-          <span className="inline-flex items-baseline gap-1.5">
-            {bookData?.coverUrl && (
-              <Image
-                src={bookData.coverUrl}
-                alt={bookTitle}
-                width={16}
-                height={24}
-                className="dl-cover mb-[-2px] inline-block h-[1.2rem] w-auto translate-y-[2px]"
-              />
-            )}
-            <em>{bookTitle}</em>
-          </span>
-        ) : (
-          displayText
-        );
+        let el: React.ReactNode = displayText;
 
         if (rt.bold) el = <strong className="font-semibold">{el}</strong>;
         if (rt.italic) el = <em>{el}</em>;
@@ -229,30 +202,59 @@ export default function RichTextRenderer({
         if (rt.link) {
           const isExternal =
             rt.link.startsWith("http") || rt.link.startsWith("//");
-          // Section references get a dotted underline so they read as
-          // wayfinding rather than citations.
-          el = XrefIcon ? (
-            <Link
-              href={rt.link}
-              className="whitespace-nowrap underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 transition-colors hover:decoration-muted-foreground/70"
-            >
-              <XrefIcon
-                size={13}
-                weight="duotone"
-                className={`mr-1 inline-block -translate-y-px opacity-80 ${sectionAccentClass(rt.link.slice(1)) ?? ""}`}
-              />
-              {el}
-            </Link>
-          ) : (
-            <Link
-              href={rt.link}
-              target={isExternal ? "_blank" : undefined}
-              rel={isExternal ? "noopener noreferrer" : undefined}
-              className="underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60"
-            >
-              {el}
-            </Link>
-          );
+          // Every link shares one underline. Section references and site
+          // pages add the target's glyph in front of the words; that, not a
+          // different underline, is what marks them as wayfinding.
+          const linkClass =
+            "underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60";
+          if (XrefIcon) {
+            const sectionId = rt.link.slice(1);
+            const accent = sectionAccentClass(sectionId) ?? "";
+            el = READ_MORE.test(rt.text) ? (
+              <Link
+                href={rt.link}
+                aria-label={`Read more in ${humanizeSlug(sectionId)}`}
+                className="ml-0.5 inline-flex items-center gap-0.5 align-baseline opacity-80 transition-opacity hover:opacity-100"
+              >
+                <XrefIcon
+                  size={13}
+                  weight="duotone"
+                  className={`inline-block -translate-y-px ${accent}`}
+                />
+                <ArrowBendRightDownIcon
+                  size={12}
+                  weight="bold"
+                  className="inline-block -translate-y-px text-muted-foreground/70"
+                />
+              </Link>
+            ) : (
+              <Link href={rt.link} className={`whitespace-nowrap ${linkClass}`}>
+                <XrefIcon
+                  size={13}
+                  weight="duotone"
+                  className={`mr-1 inline-block -translate-y-px opacity-80 ${accent}`}
+                />
+                {el}
+              </Link>
+            );
+          } else if (page) {
+            el = (
+              <SiteLink href={rt.link} page={page}>
+                {el}
+              </SiteLink>
+            );
+          } else {
+            el = (
+              <Link
+                href={rt.link}
+                target={isExternal ? "_blank" : undefined}
+                rel={isExternal ? "noopener noreferrer" : undefined}
+                className={linkClass}
+              >
+                {el}
+              </Link>
+            );
+          }
         }
 
         return <React.Fragment key={i}>{el}</React.Fragment>;

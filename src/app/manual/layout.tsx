@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { devSubdomainUrl } from "~/lib/util";
 
 import "~/styles/daylight.css";
+import { SITE_PAGES } from "~/lib/site/pages";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -11,11 +12,11 @@ export const metadata: Metadata = {
   ),
   title: "Personal Operating Manual ~ Chappy Asel",
   description:
-    "How I work, communicate, and collaborate. A guide to working with Chappy Asel.",
+    SITE_PAGES.manual.description,
   openGraph: {
     title: "Personal Operating Manual ~ Chappy Asel",
     description:
-      "How I work, communicate, and collaborate. A guide to working with Chappy Asel.",
+      SITE_PAGES.manual.description,
     url: "/",
     siteName: "Chappy's Personal Operating Manual",
     locale: "en_US",
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     creator: "@chappyasel",
     title: "Personal Operating Manual ~ Chappy Asel",
     description:
-      "How I work, communicate, and collaborate. A guide to working with Chappy Asel.",
+      SITE_PAGES.manual.description,
     images: ["/images/manual-og.png"],
   },
   alternates: {

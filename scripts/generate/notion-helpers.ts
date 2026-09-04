@@ -1,11 +1,17 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { createWriteStream, existsSync } from "fs";
+import { createWriteStream, existsSync, mkdirSync } from "fs";
 import http from "http";
 import https from "https";
 import { join } from "path";
 
+import sharp from "sharp";
+
 // ─── Rich Text Helpers ───
+
+// Workspace emoji seen during a run: name → remote file URL. Filled by
+// transformRichText, drained by downloadCustomEmoji.
+const customEmojiRegistry = new Map<string, string>();
 
 export function transformRichText(rt: any[]): any[] {
   return (rt ?? []).map((r) => {
@@ -16,6 +22,16 @@ export function transformRichText(rt: any[]): any[] {
     if (r.annotations?.color && r.annotations.color !== "default")
       out.color = r.annotations.color;
     if (r.href) out.link = cleanUrl(r.href);
+    if (r.type === "mention" && r.mention?.type === "custom_emoji") {
+      // A workspace emoji (":sunsama:") is a mention whose plain text is the
+      // shortcode. Remember the file so the run can carry a local path once
+      // downloadCustomEmoji has fetched it (see resolveCustomEmoji).
+      const { name, url } = r.mention.custom_emoji ?? {};
+      if (name && url) {
+        customEmojiRegistry.set(name, url);
+        out.customEmoji = { name };
+      }
+    }
     return out;
   });
 }
@@ -72,6 +88,135 @@ export function downloadFile(url: string, dest: string): Promise<void> {
       })
       .on("error", reject);
   });
+}
+
+// ─── Custom Emoji ───
+//
+// Both synced pages share one folder, so an emoji used on both is stored
+// once. The file keeps Notion's name (":sunsama:" → sunsama.png).
+
+export async function downloadCustomEmoji(
+  emojiDir: string,
+  emojiPathPrefix: string,
+): Promise<Record<string, string>> {
+  const resolved: Record<string, string> = {};
+  if (customEmojiRegistry.size === 0) return resolved;
+  mkdirSync(emojiDir, { recursive: true });
+  for (const [name, url] of customEmojiRegistry) {
+    const filename = `${name}.${getImageExtension(url)}`;
+    const dest = join(emojiDir, filename);
+    if (!existsSync(dest)) {
+      try {
+        await downloadFile(url, dest);
+        console.log(`  Downloaded custom emoji: ${filename}`);
+      } catch (err) {
+        console.warn(`  Failed to download custom emoji :${name}:`, err.message);
+        continue;
+      }
+    }
+    resolved[name] = `${emojiPathPrefix}${filename}`;
+  }
+  return resolved;
+}
+
+/**
+ * Stamp the downloaded path onto every rich-text run that names a custom
+ * emoji. A run whose file failed to download loses the marker and renders as
+ * its ":name:" text, which is what Notion's own export shows.
+ */
+export function resolveCustomEmoji(
+  obj: any,
+  resolved: Record<string, string>,
+): any {
+  if (Array.isArray(obj)) return obj.map((v) => resolveCustomEmoji(v, resolved));
+  if (obj && typeof obj === "object") {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === "customEmoji" && value && typeof value === "object") {
+        const src = resolved[(value as any).name];
+        if (src) result[key] = { ...(value as any), src };
+      } else {
+        result[key] = resolveCustomEmoji(value, resolved);
+      }
+    }
+    return result;
+  }
+  return obj;
+}
+
+// ─── Image Inversion ───
+//
+// The pages hang images as framed prints, and in dark mode a diagram drawn
+// black-on-white glows. Line art can simply be inverted at render time; a
+// photograph cannot. The sync decides per image from the pixels, and a
+// caption token overrides it either way: "[invert]" or "[no-invert]" (the
+// token is stripped from the alt text).
+
+const INVERT_TOKEN = /\s*\[(no-)?invert\]\s*/i;
+
+async function imageInvertible(
+  path: string,
+  caption: string,
+): Promise<boolean> {
+  const forced = INVERT_TOKEN.exec(caption);
+  if (forced) return !forced[1];
+  return looksLikeLineArt(path);
+}
+
+/**
+ * Two kinds of picture want inverting in dark mode.
+ *
+ * Ink on a light ground: most pixels are near white, and almost none are
+ * desaturated mid-tones. Charts, diagrams, and coloured bars on white are
+ * white plus ink; a photograph is full of mid-tone greys (skin, shadow,
+ * fabric) even when it is bright. Counting colours does not separate the
+ * two, because anti-aliased edges give a small graphic as many colours as
+ * a photo; the mid-tone share does.
+ *
+ * Dark marks on a transparent canvas: black strokes that vanish against a
+ * dark mat. Here the transparent pixels are the ground, so the test is on
+ * the marks alone, and only dark marks qualify; coloured or grey marks
+ * already read on a dark mat and are left as drawn.
+ *
+ * Strokes thin out under the downscale, so any pixel with visible alpha
+ * counts as a mark.
+ */
+async function looksLikeLineArt(path: string): Promise<boolean> {
+  try {
+    const { data, info } = await sharp(path)
+      .resize(96, 96, { fit: "inside" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const pixels = info.width * info.height;
+    if (pixels === 0) return false;
+
+    let light = 0;
+    let dark = 0;
+    let midGrey = 0;
+    let transparent = 0;
+    for (let i = 0; i < data.length; i += info.channels) {
+      const a = data[i + 3];
+      if (a < 32) {
+        transparent++;
+        continue;
+      }
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      if (min >= 200) light++;
+      if (max < 96) dark++;
+      if (max >= 90 && max < 200 && max - min < 48) midGrey++;
+    }
+    const marks = pixels - transparent;
+    if (marks === 0) return false;
+
+    if (transparent / pixels >= 0.3) return dark / marks >= 0.5;
+    return light / marks >= 0.5 && midGrey / marks <= 0.2;
+  } catch (err) {
+    console.warn(`  Could not analyse ${path}:`, err.message);
+    return false;
+  }
 }
 
 // ─── Block Walking ───
@@ -215,7 +360,11 @@ export async function transformBlock(
       }
 
       const caption = richTextToPlain(imgData.caption ?? []);
-      return { type: "image", src: localPath, alt: caption || "Image" };
+      const invert = await imageInvertible(destPath, caption);
+      const alt = caption.replace(INVERT_TOKEN, "").trim() || "Image";
+      return invert
+        ? { type: "image", src: localPath, alt, invert: true }
+        : { type: "image", src: localPath, alt };
     }
 
     case "table": {
@@ -338,7 +487,35 @@ export function slugify(text: string): string {
 const notionPageToUrl: Record<string, string> = {
   "151c5ab0d88d80f3a0efcf2e04f18a56": "https://chappyasel.com/routine",
   "253c5ab0d88d80888643c64e7dbe5d0c": "https://chappyasel.com/manual",
+  // The Book Notes root page and the Why We Sleep notes both live on the
+  // public library.
+  "340ec22372464d89a44e8005075bb7c4": "https://books.chappyasel.com/",
+  "1a8f4bfb2323462c82aa9c9fffb12186": "https://books.chappyasel.com/why-we-sleep",
 };
+
+// Notion Site slugs (chappyasel.notion.site/<slug>) that the site serves
+// itself. A slug with no entry (eg. /systems) stays as authored.
+const notionSiteToUrl: Record<string, string> = {
+  manual: "https://chappyasel.com/manual",
+  routine: "https://chappyasel.com/routine",
+};
+
+function rewritePublicNotionUrl(value: string): string {
+  // Notion links arrive as www.notion.so/<slug>-<id> or app.notion.com/p/<id>
+  const isNotionLink =
+    /https:\/\/(www\.notion\.so|app\.notion\.com)\//.test(value);
+  const page = isNotionLink ? /([a-f0-9]{32})/.exec(value) : null;
+  if (page?.[1] && notionPageToUrl[page[1]]) return notionPageToUrl[page[1]];
+
+  const site =
+    /^https:\/\/chappyasel\.notion\.site\/([a-z0-9-]+)\/?(?:[?#].*)?$/i.exec(
+      value,
+    );
+  const slug = site?.[1]?.toLowerCase();
+  if (slug && notionSiteToUrl[slug]) return notionSiteToUrl[slug];
+
+  return value;
+}
 
 /**
  * Collect the IDs (dashes stripped, as they appear in URL fragments) of a
@@ -366,9 +543,12 @@ export function rewriteNotionSelfLinks(
   pageId: string,
   anchorMap: Record<string, string>,
 ): any {
-  // www.notion.so/<id> is the legacy format, app.notion.com/p/<id> the current one
+  // Self-links arrive in three shapes: www.notion.so/<id>#<block>,
+  // app.notion.com/p/<id>#<block>, and, for links typed into the page rather
+  // than @-mentions, app.notion.com/p/<workspace>/<slug>-<id>#<block>. Any
+  // Notion URL whose path ends in this page's id is one.
   const selfPagePattern = new RegExp(
-    `https://(?:www\\.notion\\.so/|app\\.notion\\.com/p/)${pageId}#([a-f0-9]+)`,
+    `^https://(?:www\\.notion\\.so|app\\.notion\\.com)/(?:[^#?]*[-/])?${pageId}(?:\\?[^#]*)?#([a-f0-9]+)$`,
   );
   const rewrite = (value: any): any => {
     if (Array.isArray(value)) return value.map(rewrite);
@@ -377,7 +557,18 @@ export function rewriteNotionSelfLinks(
       for (const [key, v] of Object.entries(value)) {
         if (key === "link" && typeof v === "string") {
           const match = selfPagePattern.exec(v);
-          result[key] = (match?.[1] && anchorMap[match[1]]) || v;
+          if (!match) {
+            result[key] = v;
+          } else if (match[1] && anchorMap[match[1]]) {
+            result[key] = anchorMap[match[1]];
+          } else {
+            // A fragment with no local home (a block that was deleted, or
+            // one outside every section) must not send a visitor off to
+            // Notion: keep the words, drop the link.
+            console.warn(
+              `  Dropped self-link to block ${match[1]}: no section owns it`,
+            );
+          }
         } else {
           result[key] = rewrite(v);
         }
@@ -396,15 +587,7 @@ export function rewriteNotionPageLinks(obj: any): any {
     const result: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (key === "link" && typeof value === "string") {
-        // Notion links arrive as www.notion.so/<slug>-<id> or app.notion.com/p/<id>
-        const isNotionLink =
-          /https:\/\/(www\.notion\.so|app\.notion\.com)\//.test(value);
-        const match = isNotionLink ? /([a-f0-9]{32})/.exec(value) : null;
-        if (match?.[1] && notionPageToUrl[match[1]]) {
-          result[key] = notionPageToUrl[match[1]];
-        } else {
-          result[key] = value;
-        }
+        result[key] = rewritePublicNotionUrl(value);
       } else {
         result[key] = rewriteNotionPageLinks(value);
       }

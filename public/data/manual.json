@@ -1,38 +1,223 @@
 {
-  "lastUpdated": "2026-02-25T14:47:00.000Z",
+  "lastUpdated": "2026-09-04T03:56:00.000Z",
   "hero": {
-    "intro": [
-      "I taught myself to code at 12 and spent much of my teens building iOS apps – one of them became the #1 homework planner in the world and got acquired while I was in college. ",
-      "That led to Apple, where I worked on the Vision Pro and early Apple Intelligence prototypes.",
-      "But ever since writing my college thesis on the singularity, I've been obsessed with a problem nobody's really solving: the gap between how fast AI is moving and society's ability to keep up.",
-      "So when ChatGPT launched, I started building again – this time a weekly meetup with friends that's now become The AI Collective: 200,000+ members across 150+ chapters worldwide, a non-profit building the social infrastructure for AGI."
+    "lead": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "text": "I wrote this for anyone who works, builds, or spends a lot of time with me! I can be intense, direct, opinionated, and extremely systems-oriented. At my best, those traits make me a great collaborator; at their worst, I can be a lot 😅. This is my attempt to make it all explicit: how to get the best out of working with me, where I tend to get in my own way, and what you should expect from me in return. Definitely a living doc, so if your actual experience conflicts with anything here, please trust your experience and tell me so I can improve!"
+          }
+        ]
+      }
     ],
-    "missionStatement": "To be a loving, trustworthy, and inspiring leader committed to creating an environment of passion. To put the best interests of myself and the ones I love above all else. To be respected and well-regarded amongst all who know me. To be a rational, agentic, T-shaped, systems thinker committed to lifelong learning and growth with relentless ambition. To always keep the long-term in mind while also smelling the roses. To value the experiential over the material and high peaks over sustained happiness. To strive for superior physical, mental, and social health. To have a long-lasting positive impact on society by creating and empowering others to self-actualize. To make a dent in the universe.",
-    "goldenRule": "My trust in you is directly proportional to your agency in decisions, your accountability in results, and your candor in communication.",
-    "quickLinks": [
+    "panels": [
       {
-        "label": "chappyasel.com",
-        "url": "https://www.chappyasel.com/"
+        "id": "tl-dr",
+        "title": "TL;DR",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "My personality tests say I’m extreme in almost every direction 😅.",
+                      "bold": true
+                    },
+                    {
+                      "text": " I’m social, disciplined, comfortable with disagreement, hard to rattle "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#personality-strengths-blind-spots"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "My strengths and blind spots are the same traits at different intensities.",
+                      "bold": true
+                    },
+                    {
+                      "text": " Systems thinking can become rigidity; high standards can make me intimidating "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#personality-strengths-blind-spots"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I wake up at 3:45am and work weird hours.",
+                      "bold": true
+                    },
+                    {
+                      "text": " You absolutely don’t need to "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#how-we-collaborate"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I trust people who act with agency, own their results + tell me the truth.",
+                      "bold": true
+                    },
+                    {
+                      "text": " I owe you the autonomy to do that "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#how-we-collaborate"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I’m async-first.",
+                      "bold": true
+                    },
+                    {
+                      "text": " Write first; meet for debate, ambiguity, or something personal "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#how-we-collaborate"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Want a fast response?",
+                      "bold": true
+                    },
+                    {
+                      "text": " Lead with your rec + the context I need + a deadline "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#communication"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I lose messages in a 100+ convo queue.",
+                      "bold": true
+                    },
+                    {
+                      "text": " Please nudge me if I’m blocking you! "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#communication"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Please disagree with me!",
+                      "bold": true
+                    },
+                    {
+                      "text": " Direct feedback makes both me + the work better "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#feedback"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I take my hobbies way too seriously:",
+                      "bold": true
+                    },
+                    {
+                      "text": " natural bodybuilding + reading "
+                    },
+                    {
+                      "text": "Read more →",
+                      "link": "#hobbies"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
       },
       {
-        "label": "linkedin.com/in/chappyasel",
-        "url": "https://www.linkedin.com/in/chappyasel/"
+        "id": "my-30-second-self-intro",
+        "title": "My 30-Second Self-Intro",
+        "blocks": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "I taught myself to code at 12, built the world's #1 homework planner, then worked on the Apple Vision Pro and early Apple Intelligence prototypes. My senior thesis on the technological singularity convinced me to dedicate my career to helping society adapt to AGI. When ChatGPT launched, a weekly gathering in my living room became The AI Collective, a global nonprofit with over a quarter-million members and hundreds of chapters. I serve as chairman and am returning to what energizes me most: building from zero with exceptional people. Outside work, I'm a bookworm, natural bodybuilder, personal-systems nerd, and occasionally write and speak."
+              }
+            ]
+          }
+        ]
       },
       {
-        "label": "x.com/chappyasel",
-        "url": "https://x.com/chappyasel"
-      },
-      {
-        "label": "instagram.com/chappyasel",
-        "url": "https://www.instagram.com/chappyasel/"
-      },
-      {
-        "label": "github.com/chappyasel",
-        "url": "https://github.com/chappyasel"
-      },
-      {
-        "label": "medium.com/@chappyasel",
-        "url": "https://medium.com/@chappyasel"
+        "id": "my-personal-mission-statement",
+        "title": "My Personal Mission Statement",
+        "blocks": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "To be a loving, inspiring leader who helps others self-actualize by creating environments of passion and purpose. To invest deeply in family, friendship, and enduring relationships. To think rationally and systemically, act with agency, and realize my potential through lifelong learning, broad exploration, deep mastery, and relentless ambition. To play the long game while still stopping to smell the roses. To value the experiential over the material and peak experiences over passive comfort. To live with strength, energy, and an appetite for challenge and adventure, sustained by exceptional physical, mental, and social health. ",
+                "italic": true
+              },
+              {
+                "text": "To build the tools and institutions that turn AGI into broadly shared human flourishing. To make a dent in the universe.",
+                "bold": true,
+                "italic": true
+              }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -47,7 +232,7 @@
           "level": 3,
           "content": [
             {
-              "text": "5. My Personality Profile",
+              "text": "My Personality Profile",
               "bold": true
             }
           ]
@@ -78,7 +263,7 @@
                     "bold": true
                   },
                   {
-                    "text": " Very high Conscientiousness (114) & Extraversion (109); very low Agreeableness (61) & Neuroticism (39). As in, top 1-5% most extreme for all four."
+                    "text": " Very high Conscientiousness (108) & Extraversion (106); very low Agreeableness (61) & Neuroticism (38). As in, top 1-5% most extreme for all four 😅"
                   }
                 ]
               }
@@ -105,7 +290,8 @@
             {
               "type": "image",
               "src": "/images/manual/2f9c5ab0-d88d-8094-ba03-d33cc6ee12e0.png",
-              "alt": "Image"
+              "alt": "Image",
+              "invert": true
             },
             {
               "type": "numbered_list",
@@ -225,7 +411,7 @@
                       "type": "paragraph",
                       "content": [
                         {
-                          "text": "I am a mission-oriented, systems-builder energized by ambitious goals and rational debate. I thrive on turning chaos into order and driving a team toward a clear, world-changing objective."
+                          "text": "I am a mission-oriented systems-builder energized by ambitious goals and rational debate. I thrive on turning chaos into order and driving a team toward a clear, world-changing objective."
                         }
                       ]
                     }
@@ -235,7 +421,7 @@
                       "type": "paragraph",
                       "content": [
                         {
-                          "text": "My (very) high disagreeableness is a feature of my commitment to the mission. I believe that intellectual honesty and rigorous debate are the fastest path to the best ideas."
+                          "text": "I view my (very) high disagreeableness as a feature of my commitment to my mission. I believe that intellectual honesty and rigorous debate are the fastest path to the best ideas."
                         }
                       ]
                     }
@@ -250,30 +436,8 @@
           "level": 3,
           "content": [
             {
-              "text": "6. My Strengths",
+              "text": "My Strengths",
               "bold": true
-            }
-          ]
-        },
-        {
-          "type": "paragraph",
-          "content": [
-            {
-              "text": "My Gallup profile shows my talents are concentrated in "
-            },
-            {
-              "text": "Influencing",
-              "link": "https://www.gallup.com/cliftonstrengths/en/252089/influencing-domain.aspx"
-            },
-            {
-              "text": " and "
-            },
-            {
-              "text": "Executing",
-              "link": "https://www.gallup.com/cliftonstrengths/en/252086/executing-domain.aspx"
-            },
-            {
-              "text": ". You should leverage me accordingly."
             }
           ]
         },
@@ -295,14 +459,14 @@
               "link": "https://www.gallup.com/cliftonstrengths/en/252086/executing-domain.aspx"
             },
             {
-              "text": " — but my impact comes from how these combine with my drive for "
+              "text": " – but my impact comes from how these combine with my drive for "
             },
             {
               "text": "Significance",
               "link": "https://www.gallup.com/cliftonstrengths/en/252341/significance-theme.aspx"
             },
             {
-              "text": ". Leverage me accordingly."
+              "text": ". You should leverage me accordingly."
             }
           ]
         },
@@ -543,7 +707,7 @@
           "level": 3,
           "content": [
             {
-              "text": "7. My Blind Spots (Where I Need Your Help)",
+              "text": "My Blind Spots (Where I Need Your Help)",
               "bold": true
             }
           ]
@@ -552,7 +716,40 @@
           "type": "paragraph",
           "content": [
             {
-              "text": "I cannot see my own blind spots. I am counting on you to be part of my feedback loop. My commitment: if you name it, I will own it."
+              "text": "I'm working to notice and correct these before they affect others. You are always invited (but never responsible) to flag them! If you name it, I will do my best to pause, understand the impact, and repair rather than defend it."
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Over-structured:",
+              "bold": true
+            },
+            {
+              "text": " I LOVE systems and process. But sometimes situations call for fluidity, improvisation, or just vibing – and I can be too rigid when looseness would serve better."
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Help me: "
+                      },
+                      {
+                        "text": "\"This one doesn't need a framework – let's just riff.\"",
+                        "italic": true
+                      }
+                    ]
+                  }
+                ]
+              ]
             }
           ]
         },
@@ -600,7 +797,7 @@
               "bold": true
             },
             {
-              "text": "My energy and ambition can feel overwhelming. Not everyone operates at 3am-wake-up, vision-quest intensity – and I can inadvertently make others feel they're not keeping up."
+              "text": "I have a high internal clock + can be overwhelming → I inadvertently judge or blame others for not keeping up."
             }
           ],
           "children": [
@@ -625,11 +822,11 @@
           "type": "toggle",
           "title": [
             {
-              "text": "Impatience:",
+              "text": "Stress spillover",
               "bold": true
             },
             {
-              "text": " I have a high internal clock. When things feel slow, I push for shortcuts that skip necessary deliberation."
+              "text": ": When I'm underslept, dieting hard, overloaded, or frustrated, I can become tense, uncommunicative, abrasive, and harder to read."
             }
           ],
           "children": [
@@ -641,44 +838,7 @@
                     "type": "paragraph",
                     "content": [
                       {
-                        "text": "Help me: Make the case for slowing down. Say: "
-                      },
-                      {
-                        "text": "\"I think we need one more day to de-risk this. Here's why.\"",
-                        "italic": true
-                      }
-                    ]
-                  }
-                ]
-              ]
-            }
-          ]
-        },
-        {
-          "type": "toggle",
-          "title": [
-            {
-              "text": "Over-structured:",
-              "bold": true
-            },
-            {
-              "text": " I love systems and process. But sometimes situations call for fluidity, improvisation, or just vibing – and I can be too rigid when looseness would serve better."
-            }
-          ],
-          "children": [
-            {
-              "type": "bulleted_list",
-              "items": [
-                [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "text": "Help me: "
-                      },
-                      {
-                        "text": "\"This one doesn't need a framework – let's just riff.\"",
-                        "italic": true
+                        "text": "If I land sharply, I should pause, reset, and repair rather than expecting you to deal with it."
                       }
                     ]
                   }
@@ -728,7 +888,7 @@
           "level": 3,
           "content": [
             {
-              "text": "8. My Time & Availability",
+              "text": "My Time & Availability",
               "bold": true
             }
           ]
@@ -748,7 +908,7 @@
                     "text": "I am effectively always working (usually 80-100 h/w 😅), but my core, most responsive hours are "
                   },
                   {
-                    "text": "9am - 7pm PT",
+                    "text": "9am-7pm PT",
                     "bold": true
                   },
                   {
@@ -791,7 +951,7 @@
           "level": 3,
           "content": [
             {
-              "text": "9. Meetings",
+              "text": "Meetings",
               "bold": true
             }
           ]
@@ -835,7 +995,7 @@
                           "bold": true
                         },
                         {
-                          "text": " I expect the meeting leader to arrive on time and with a clear, written agenda."
+                          "text": " I expect the meeting leader to arrive on time and with a clear (and ideally written) agenda."
                         }
                       ]
                     }
@@ -863,7 +1023,14 @@
                           "bold": true
                         },
                         {
-                          "text": " A pre-read the night before is a gift to everyone in the meeting. It's by no means required, but it is always appreciated and allows us to use our synchronous time for the highest-value discussions."
+                          "text": " A pre-read in advance before is a gift to everyone in the meeting – "
+                        },
+                        {
+                          "text": "especially",
+                          "italic": true
+                        },
+                        {
+                          "text": " if it’s more of a homework assignment rather than passive read! It's by no means required, but it is always appreciated and allows us to use our synchronous time for the highest-value and most informed discussions."
                         }
                       ]
                     }
@@ -894,16 +1061,16 @@
                   "italic": true
                 },
                 {
-                  "text": " I am juggling a very high volume of open lines (often 100+ at a time). While I will see your message, it may occasionally take me ",
+                  "text": " I am often juggling a very high volume (100+ of open lines. While I will see your message, it may occasionally take me ",
                   "italic": true
                 },
                 {
-                  "text": "3-7 days",
+                  "text": "5-8 days",
                   "bold": true,
                   "italic": true
                 },
                 {
-                  "text": " to respond to non-urgent pings. Please do not take this personally; it is a function of my system for managing focus. If you need a faster response, read on!",
+                  "text": " to respond to non-urgent pings. Please do not take this personally; it is a function of my batching system for managing focus. If you need a faster response, read on!",
                   "italic": true
                 }
               ]
@@ -915,7 +1082,7 @@
           "level": 3,
           "content": [
             {
-              "text": "10. My Communication Principles",
+              "text": "My Communication Principles",
               "bold": true
             }
           ]
@@ -946,7 +1113,7 @@
                     "bold": true
                   },
                   {
-                    "text": "Be concise. Use bullet points. Get to the point quickly and put your recommendation or key question at the very top. I trust you've done the deep thinking; you don't need to show all your work in the initial message. Minimal ChatGPT fluff please!"
+                    "text": "Be concise. Use bullet points. Get to the point quickly and put your rec or key question at the top. I trust you've done the deep thinking; you don't need to show all your work in the initial message. Minimal ChatGPT fluff please!"
                   }
                 ]
               }
@@ -960,14 +1127,14 @@
                     "bold": true
                   },
                   {
-                    "text": "Before you ask for my input, ask yourself: "
+                    "text": "Please ask "
                   },
                   {
-                    "text": "\"Does Chappy have all the context he needs to make a decision on this in under two minutes?\"",
+                    "text": "\"does Chappy have all the context he needs to make an informed decision on this?\"",
                     "italic": true
                   },
                   {
-                    "text": " If no, provide the necessary background links or a one-sentence summary. Reducing friction for me is the fastest way to get a response."
+                    "text": " If no, provide the necessary background docs / links. Reducing friction is the fastest way to get a response!"
                   }
                 ]
               }
@@ -997,7 +1164,7 @@
           "level": 3,
           "content": [
             {
-              "text": "11. The Right Channel for the Job",
+              "text": "The Right Channel for the Job",
               "bold": true
             }
           ]
@@ -1021,7 +1188,7 @@
                     "color": "yellow_background"
                   },
                   {
-                    "text": ". I am in over 100 channels and rely on mentions to filter what's important."
+                    "text": ". I am in over 100 channels (in AIC) and rely on mentions to filter what's important."
                   }
                 ]
               }
@@ -1093,7 +1260,7 @@
           "level": 3,
           "content": [
             {
-              "text": "12. How to Give Me Feedback",
+              "text": "How to Give Me Feedback",
               "bold": true
             }
           ]
@@ -1106,144 +1273,118 @@
                 "type": "paragraph",
                 "content": [
                   {
-                    "text": "I am running a thousand miles an hour and have multiple blind spots. I consider it a core part of your job to help me see them. Your honest perspective is a gift that helps me, and the entire mission, get better."
+                    "text": "I am running a thousand miles an hour and am full of blind spots. Please help me see them! Your honest perspective is a gift that helps me and our shared mission get better."
                   }
                 ]
               }
-            ]
-          ]
-        },
-        {
-          "type": "toggle",
-          "title": [
-            {
-              "text": "The method:",
-              "bold": true
-            },
-            {
-              "text": " (a "
-            },
-            {
-              "text": "https://books.chappyasel.com/crucial-conversations",
-              "link": "https://books.chappyasel.com/crucial-conversations"
-            },
-            {
-              "text": " framework)"
-            }
-          ],
-          "children": [
-            {
-              "type": "bulleted_list",
-              "items": [
-                [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "text": "Ask for permission:",
-                        "bold": true
-                      },
-                      {
-                        "text": " Because I am constantly context-switching, the most effective way to give me feedback is to first get my attention. A simple Slack message like, "
-                      },
-                      {
-                        "text": "\"Hey Chappy, do you have 10 minutes for some feedback on X later today?\"",
-                        "italic": true
-                      },
-                      {
-                        "text": " is the perfect way to start. This allows me to switch into the right mental frame to actually hear you."
-                      }
-                    ]
-                  }
-                ],
-                [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "text": "Lead with the facts:",
-                        "bold": true
-                      },
-                      {
-                        "text": " Start with a neutral, specific observation. (eg. "
-                      },
-                      {
-                        "text": "\"In the leadership sync yesterday, when we discussed the budget, I noticed we moved to a decision without hearing from the broader team.\"",
-                        "italic": true
-                      },
-                      {
-                        "text": ")"
-                      }
-                    ]
-                  }
-                ],
-                [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "text": "Share Your story:",
-                        "bold": true
-                      },
-                      {
-                        "text": " Explain the impact this had on you or the project. (eg. "
-                      },
-                      {
-                        "text": "\"The story I told myself was that we are prioritizing speed over rigor in our financial planning, which makes me concerned about future risks.\"",
-                        "italic": true
-                      },
-                      {
-                        "text": ")"
-                      }
-                    ]
-                  }
-                ],
-                [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "text": "End with a question:",
-                        "bold": true
-                      },
-                      {
-                        "text": " Open the door for a real conversation. (eg. "
-                      },
-                      {
-                        "text": "\"I was hoping you could help me understand your thinking there?\"",
-                        "italic": true
-                      },
-                      {
-                        "text": ")"
-                      }
-                    ]
-                  }
-                ]
-              ]
-            }
-          ]
-        },
-        {
-          "type": "bulleted_list",
-          "items": [
+            ],
             [
               {
                 "type": "paragraph",
                 "content": [
                   {
-                    "text": "The golden rule:",
+                    "text": "The method:",
                     "bold": true
                   },
                   {
-                    "text": " I deeply value feedback that is well-reasoned, specific, and delivered with the clear intent of improving our mission. You will "
+                    "text": " (a "
                   },
                   {
-                    "text": "always",
-                    "italic": true
+                    "text": "https://books.chappyasel.com/crucial-conversations",
+                    "link": "https://books.chappyasel.com/crucial-conversations"
                   },
                   {
-                    "text": " be rewarded for courage and candor, and using the method above will ensure your feedback lands with maximum impact."
+                    "text": " framework)"
                   }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Ask for permission:",
+                          "bold": true
+                        },
+                        {
+                          "text": " Because I am constantly context-switching, the most effective way to give me feedback is to first get my attention. A simple Slack message like, "
+                        },
+                        {
+                          "text": "\"Hey Chappy, do you have 10 minutes for some feedback on X later today?\"",
+                          "italic": true
+                        },
+                        {
+                          "text": " is the perfect way to start. This allows me to switch into the right mental frame to actually hear you."
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Lead with the facts:",
+                          "bold": true
+                        },
+                        {
+                          "text": " Start with a neutral, specific observation. (eg. "
+                        },
+                        {
+                          "text": "\"In the leadership sync yesterday, when we discussed the budget, I noticed we moved to a decision without hearing from the broader team.\"",
+                          "italic": true
+                        },
+                        {
+                          "text": ")"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Share Your story:",
+                          "bold": true
+                        },
+                        {
+                          "text": " Explain the impact this had on you or the project. (eg. "
+                        },
+                        {
+                          "text": "\"The story I told myself was that we are prioritizing speed over rigor in our financial planning, which makes me concerned about future risks.\"",
+                          "italic": true
+                        },
+                        {
+                          "text": ")"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "End with a question:",
+                          "bold": true
+                        },
+                        {
+                          "text": " Open the door for a real conversation. (eg. "
+                        },
+                        {
+                          "text": "\"I was hoping you could help me understand your thinking there?\"",
+                          "italic": true
+                        },
+                        {
+                          "text": ")"
+                        }
+                      ]
+                    }
+                  ]
                 ]
               }
             ]
@@ -1254,7 +1395,7 @@
           "level": 3,
           "content": [
             {
-              "text": "13. How I Give Feedback",
+              "text": "How I Give Feedback",
               "bold": true
             }
           ]
@@ -1290,7 +1431,7 @@
                       "type": "paragraph",
                       "content": [
                         {
-                          "text": "My goal is always to care personally while challenging directly. My feedback is never personal; it is an investment in your growth because I believe in your potential and I want you, and the team, to succeed at the highest level."
+                          "text": "I aim to care personally while challenging directly. I intend to address the work or behavior rather than the person, but intent doesn't determine impact. If I land badly or make an unfair inference, tell me!"
                         }
                       ]
                     }
@@ -1382,6 +1523,15 @@
               }
             ]
           ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "This is definitely a WIP and probably always will be! If we've worked closely together: What here matches your experience? What's missing or wrong? I care much more about making this true than making it flattering.",
+              "italic": true
+            }
+          ]
         }
       ]
     },
@@ -1432,7 +1582,11 @@
                 "content": [
                   {
                     "text": ":weightlifting-app:",
-                    "bold": true
+                    "bold": true,
+                    "customEmoji": {
+                      "name": "weightlifting-app",
+                      "src": "/images/notion-emoji/weightlifting-app.png"
+                    }
                   },
                   {
                     "text": " ",
@@ -1454,12 +1608,11 @@
                 "type": "paragraph",
                 "content": [
                   {
-                    "text": "“From Nerd to Bodybuilder” (article)",
-                    "bold": true,
-                    "link": "https://medium.com/@chappyasel/from-nerd-to-bodybuilder-b9b13bb2d245"
+                    "text": "Check out all my workouts here: "
                   },
                   {
-                    "text": ": the story linking my tech mindset to lifting"
+                    "text": "https://weightlifting.chappyasel.com/",
+                    "link": "https://weightlifting.chappyasel.com/"
                   }
                 ]
               }
@@ -1469,22 +1622,17 @@
                 "type": "paragraph",
                 "content": [
                   {
-                    "text": "@boyswithgains (fitness Instagram)",
+                    "text": "“From Nerd to Bodybuilder” (article)",
                     "bold": true,
-                    "link": "https://www.instagram.com/boyswithgains/"
+                    "link": "https://medium.com/@chappyasel/from-nerd-to-bodybuilder-b9b13bb2d245"
                   },
                   {
-                    "text": ": progress logs, training clips, show prep, etc."
+                    "text": ": the story linking my tech mindset to lifting"
                   }
                 ]
               }
             ]
           ]
-        },
-        {
-          "type": "image",
-          "src": "/images/manual/258c5ab0-d88d-80de-9867-e225f4cbbc0c.png",
-          "alt": "Image"
         },
         {
           "type": "heading",
@@ -1866,11 +2014,6 @@
               ]
             }
           ]
-        },
-        {
-          "type": "image",
-          "src": "/images/manual/258c5ab0-d88d-80c1-b236-fdddba13236d.png",
-          "alt": "Image"
         }
       ]
     }

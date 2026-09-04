@@ -3,6 +3,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { devSubdomainUrl } from "~/lib/util";
 import { TRPCReactProvider } from "~/trpc/react";
+import { SITE_PAGES } from "~/lib/site/pages";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -11,12 +12,12 @@ export const metadata: Metadata = {
       : devSubdomainUrl("weightlifting"),
   ),
   title: "Weightlifting ~ Chappy Asel",
-  description: "Workout stats, personal records, and training log",
+  description: SITE_PAGES.weightlifting.description,
   keywords: ["weightlifting", "workout tracker", "personal records", "Chappy Asel"],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
     title: "Weightlifting ~ Chappy Asel",
-    description: "Workout stats, personal records, and training log",
+    description: SITE_PAGES.weightlifting.description,
     url: "/",
     siteName: "Chappy's Weightlifting Log",
     locale: "en_US",
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
     site: "@chappyasel",
     creator: "@chappyasel",
     title: "Weightlifting ~ Chappy Asel",
-    description: "Workout stats, personal records, and training log",
+    description: SITE_PAGES.weightlifting.description,
   },
   alternates: {
     canonical: "/",

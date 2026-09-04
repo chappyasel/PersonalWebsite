@@ -4,9 +4,6 @@ import { categoryColor } from "../weightlifting/lib/utils";
 import {
   BarbellIcon,
   CalendarDotsIcon,
-  ClockIcon,
-  HashIcon,
-  SquaresFourIcon,
   TrophyIcon,
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
@@ -27,20 +24,8 @@ import {
 import {
   PlacardCardHeading,
   PlacardLinkCard,
-  PlacardStatsCard,
 } from "./stacks/dom/PlacardStatsCard";
-
-function formatVolume(lbs: number): string {
-  if (lbs >= 1_000_000) return `${(lbs / 1_000_000).toFixed(1)}M`;
-  if (lbs >= 1_000) return `${(lbs / 1_000).toFixed(0)}K`;
-  return lbs.toLocaleString();
-}
-
-function formatCount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 10_000) return `${(value / 1_000).toFixed(1)}K`;
-  return value.toLocaleString();
-}
+import { WorkoutStatsCard, formatVolume } from "./stacks/dom/statsCards";
 
 function parseLocalDate(dateStr: string) {
   return new Date(`${dateStr}T12:00:00`);
@@ -121,43 +106,6 @@ function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
     <PlacardMosaic
       cells={cells}
       label={`${data.activeDays} training days in the last 12 months`}
-    />
-  );
-}
-
-function WorkoutStatsCard({ data }: { data: WeightliftingPlacardData }) {
-  const { stats } = data;
-  const trackedSince = data.yearly[0]?.year;
-
-  return (
-    <PlacardStatsCard
-      headline={stats.totalWorkouts.toLocaleString()}
-      headlineIcon={HashIcon}
-      headlineLabel={`Workouts${trackedSince ? ` since ${trackedSince}` : " logged"}`}
-      years={data.yearly.map((year) => ({
-        year: year.year,
-        value: year.workouts,
-        projectedRemainder: year.projectedRemainder,
-      }))}
-      yearUnit="workouts"
-      compactMobile
-      stats={[
-        {
-          icon: SquaresFourIcon,
-          label: "Sets",
-          value: formatCount(stats.totalSets),
-        },
-        {
-          icon: ClockIcon,
-          label: "Training Time",
-          value: `${(stats.totalDurationSeconds / 86_400).toFixed(1)}d`,
-        },
-        {
-          icon: BarbellIcon,
-          label: "Lbs lifted",
-          value: formatVolume(stats.totalVolume),
-        },
-      ]}
     />
   );
 }

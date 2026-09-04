@@ -7,6 +7,7 @@ import { ModalHost } from "./components/ModalHost";
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
+import { SITE_PAGES } from "~/lib/site/pages";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -15,12 +16,12 @@ export const metadata: Metadata = {
       : devSubdomainUrl("books"),
   ),
   title: "Book Notes ~ Chappy Asel",
-  description: "My reading collection with notes and reviews",
+  description: SITE_PAGES.books.description,
   keywords: ["book notes", "book reviews", "reading list", "Chappy Asel"],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
     title: "Book Notes ~ Chappy Asel",
-    description: "My reading collection with notes and reviews",
+    description: SITE_PAGES.books.description,
     url: "/",
     siteName: "Chappy's Book Notes",
     locale: "en_US",
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
     site: "@chappyasel",
     creator: "@chappyasel",
     title: "Book Notes ~ Chappy Asel",
-    description: "My reading collection with notes and reviews",
+    description: SITE_PAGES.books.description,
   },
   alternates: {
     canonical: "/",
