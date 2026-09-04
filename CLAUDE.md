@@ -53,10 +53,6 @@ rendering sources remain watched. When the About frame intentionally changes,
 run `pnpm generate:home-og:local` and stage both outputs named by the warning. CI
 repeats the freshness check if a local hook is bypassed.
 
-Neither covers route budgets. Those read gzipped chunk sizes out of `.next`, so
-they only mean anything right after a build, which is where `postbuild` already
-runs them.
-
 Run `pnpm typegen` before `pnpm exec tsc --noEmit` or `pnpm lint` in a fresh
 worktree. `next-env.d.ts` and `.next/types` are gitignored, and without them
 the `public/images/...` imports in About and Projects fail to resolve.

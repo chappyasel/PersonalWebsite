@@ -4,14 +4,13 @@ import { describe, expect, it } from "vitest";
 
 /**
  * The homepage's first route load must not carry three.js. The 3D room
- * arrives through `dynamic(() => import("./StacksCanvas"))`, and the route
- * budget (scripts/check-route-budgets.mjs) only holds because three lives
- * in that lazy chunk. Every module the page reaches statically, through the
- * boot screen, the placard, the chrome, the store, is in the initial client
- * chunk group, and one value import of three anywhere on that graph ships
- * the 98 KB core with the first paint. PR #45's production deploy failed the
- * budget on exactly that: a shelf-layout constant imported from the lamp
- * pose module, which computes with three.
+ * arrives through `dynamic(() => import("./StacksCanvas"))`, so three should
+ * only ever live in that lazy chunk. Every module the page reaches
+ * statically, through the boot screen, the placard, the chrome, the store,
+ * is in the initial client chunk group, and one value import of three
+ * anywhere on that graph ships the 98 KB core with the first paint. PR #45
+ * did exactly that: a shelf-layout constant imported from the lamp pose
+ * module, which computes with three.
  *
  * This walks the static import graph from the roots the page renders and
  * names the chain when it finds three, so the failure reads as a path, not
