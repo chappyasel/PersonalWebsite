@@ -7,10 +7,12 @@ import { recordModalOrigin } from "~/lib/originFlight";
 
 import TiltCard from "./TiltCard";
 
+// Repeated by hand from the synced routine; routine.data.test.ts fails when
+// these drift from public/data/routine.json.
 const timelineMarkers = [
   { time: "3:45am", label: "Wake", isAM: true },
-  { time: "6:00am", label: "Lift", isAM: true },
-  { time: "7:15am", label: "Work", isAM: true },
+  { time: "6:15am", label: "Lift", isAM: true },
+  { time: "7:30am", label: "Work", isAM: true },
   { time: "9:15pm", label: "Sleep", isAM: false },
 ];
 

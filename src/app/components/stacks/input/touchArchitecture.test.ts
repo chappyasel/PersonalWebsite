@@ -210,6 +210,10 @@ describe("coarse-pointer ownership", () => {
     // Search typing. The clearer must also yield to a focused editable.
     expect(home).toContain("selectableElementFor(document.activeElement)");
     expect(home).toContain("[data-book-modal-shell]");
+    // The intercepted-route sheet (routine, manual, an exercise page) mounts
+    // over the live world with the same guard active. It is matched by its
+    // scroller because expand strips the data-modal-sheet attribute.
+    expect(home).toContain("[data-modal-scroller]");
     expect(home).toContain(
       'document.addEventListener("selectionchange", clearSelection)',
     );

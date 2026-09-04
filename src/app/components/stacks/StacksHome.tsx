@@ -218,7 +218,7 @@ export default function StacksHome({
             : null;
       return (
         element?.closest(
-          '.placard-scroll, [data-book-modal-shell], [data-scene-artifact-inspector], input, textarea, [contenteditable="true"]',
+          '.placard-scroll, [data-book-modal-shell], [data-modal-scroller], [data-scene-artifact-inspector], input, textarea, [contenteditable="true"]',
         ) ?? null
       );
     };
@@ -249,7 +249,10 @@ export default function StacksHome({
     // WebKit may create the range on a sibling rather than on the canvas that
     // received the gesture. Catch selection at the document boundary and
     // clear anything the engine creates despite the CSS guard. Selection that
-    // begins in a placard or book modal is deliberately left alone.
+    // begins in a placard, the book modal, or an intercepted sheet (the
+    // routine and manual documents, an exercise page) is deliberately left
+    // alone. The sheet is matched by its scroller: expand removes the
+    // data-modal-sheet attribute, the scroller stays.
     document.addEventListener("selectstart", preventSelection, {
       capture: true,
     });

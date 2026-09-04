@@ -64,8 +64,8 @@ export const COMMAND_ENTRIES = [
   {
     id: "section-systems",
     kind: "destination",
-    label: "Systems",
-    aliases: ["personal systems"],
+    label: "Personal Systems",
+    aliases: ["systems"],
     keywords: ["manual", "routine"],
     icon: "systems",
     promoted: true,

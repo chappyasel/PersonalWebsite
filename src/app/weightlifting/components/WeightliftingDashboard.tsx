@@ -119,7 +119,7 @@ export function WeightliftingDashboard() {
                     transition={{ duration: 0.2 }}
                   >
                     <Image
-                      src="/images/manual/weightlifting-app.png"
+                      src="/images/notion-emoji/weightlifting-app.png"
                       alt="Weightlifting App"
                       width={36}
                       height={36}

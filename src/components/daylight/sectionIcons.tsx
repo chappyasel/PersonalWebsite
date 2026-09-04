@@ -62,7 +62,14 @@ const iconByEmoji: Record<string, Icon> = {
  * topic. The palette is closed — a new section picks from these seven, it
  * does not invent an eighth.
  */
-type Accent = "am" | "pm" | "moss" | "coral" | "coffee" | "indigo" | "plum";
+export type Accent =
+  | "am"
+  | "pm"
+  | "moss"
+  | "coral"
+  | "coffee"
+  | "indigo"
+  | "plum";
 
 const accentById: Record<string, Accent> = {
   // routine
@@ -92,12 +99,24 @@ const accentClass: Record<Accent, string> = {
   plum: "text-[hsl(var(--dl-plum))]",
 };
 
+/** The text class for one of the seven daylight accents, for glyphs that are
+ * not sections (site destinations in running text). */
+export function daylightAccentClass(accent: Accent): string {
+  return accentClass[accent];
+}
+
 export function sectionIcon(id: string, emoji?: string): Icon | null {
   return iconById[id] ?? (emoji ? (iconByEmoji[emoji] ?? null) : null);
 }
 
+/** The accent family itself, for renderers that cannot take a Tailwind
+ * class (the satori OG cards paint it from NIGHT_ACCENT). */
+export function sectionAccent(id: string): Accent | null {
+  return accentById[id] ?? null;
+}
+
 export function sectionAccentClass(id: string): string | null {
-  const accent = accentById[id];
+  const accent = sectionAccent(id);
   return accent ? accentClass[accent] : null;
 }
 

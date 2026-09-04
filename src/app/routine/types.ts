@@ -4,7 +4,8 @@ export type { NotionBlock, BookLookup };
 
 export type RoutineData = {
   lastUpdated: string;
-  intro: string;
+  /** The page's opening paragraphs, rich text so their links survive. */
+  intro: NotionBlock[];
   whyEarly: NotionBlock[];
   timeline: {
     am: TimelineEntry[];

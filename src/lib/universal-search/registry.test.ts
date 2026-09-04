@@ -21,7 +21,7 @@ describe("Universal Search command registry", () => {
       "Routine",
       "Weightlifting",
       "About",
-      "Systems",
+      "Personal Systems",
       "Projects",
       "Musings",
     ]);

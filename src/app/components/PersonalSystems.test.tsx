@@ -12,7 +12,7 @@ vi.mock("./TiltCard", () => ({
 describe("PersonalSystems", () => {
   it("uses one section heading before its two card headings", () => {
     const markup = renderToStaticMarkup(<PersonalSystems />);
-    const sectionTitle = markup.indexOf("Systems");
+    const sectionTitle = markup.indexOf("Personal Systems");
     const manualTitle = markup.indexOf("Personal Operating Manual");
     const routineTitle = markup.indexOf("Core Daily Routine");
 
@@ -23,9 +23,12 @@ describe("PersonalSystems", () => {
     expect(routineTitle).toBeGreaterThan(manualTitle);
   });
 
-  it("uses the same section name in the rail and resident panels", () => {
-    expect(UNITS.find((unit) => unit.slug === "systems")?.label).toBe(
-      "Systems",
-    );
+  it("uses the same section name in the sheet and resident panels", () => {
+    // The placard header prints unit.label and hides the body h1 only when
+    // the two say the same thing, so the full title lives in both places.
+    // The rail alone gets the short form.
+    const unit = UNITS.find((u) => u.slug === "systems");
+    expect(unit?.label).toBe("Personal Systems");
+    expect(unit?.railLabel).toBe("Systems");
   });
 });

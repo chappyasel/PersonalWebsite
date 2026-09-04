@@ -105,7 +105,9 @@ export default function NotionBlockRenderer({
 
     case "image":
       // The scene hangs its images as framed prints; the pages do the same —
-      // mat, hairline frame, soft shadow (styles in daylight.css).
+      // mat, hairline frame, soft shadow (styles in daylight.css). Line art
+      // the sync flagged as invertible flips to light-on-dark in dark mode,
+      // hue rotated back so coloured lines keep their colours.
       return (
         <figure className="my-5 flex justify-center">
           <span className="dl-print">
@@ -114,7 +116,7 @@ export default function NotionBlockRenderer({
               alt={block.alt}
               width={400}
               height={300}
-              className="max-h-72 w-auto"
+              className={`max-h-72 w-auto${block.invert ? " dark:invert dark:hue-rotate-180" : ""}`}
             />
           </span>
         </figure>

@@ -6,12 +6,22 @@ export type { NotionBlock as ManualBlock, RichText, BookLookup };
 export type ManualData = {
   lastUpdated: string;
   hero: {
-    intro: string[];
-    missionStatement: string;
-    goldenRule: string;
-    quickLinks: { label: string; url: string }[];
+    /** The page's opening paragraph(s), before the first hero heading. */
+    lead: NotionBlock[];
+    /**
+     * One panel per heading above the first section, in page order: TL;DR,
+     * the 30-second intro, the mission statement, and whatever Notion adds
+     * next. The site does not know their names.
+     */
+    panels: ManualHeroPanel[];
   };
   sections: ManualSection[];
+};
+
+export type ManualHeroPanel = {
+  id: string;
+  title: string;
+  blocks: NotionBlock[];
 };
 
 export type ManualSection = {

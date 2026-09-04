@@ -1,6 +1,37 @@
 {
-  "lastUpdated": "2026-06-08T03:14:00.000Z",
-  "intro": "Given my infamously early wakeup time and disciplined schedule, a lot of people have been asking for my morning routine and the rationale behind it these past couple of years!",
+  "lastUpdated": "2026-09-04T15:30:00.000Z",
+  "intro": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "text": "Given my infamously early wake-up time and disciplined schedule, a lot of people have asked for my daily routine and the rationale behind it over the years!"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "text": "This is basically how my broader "
+        },
+        {
+          "text": "Personal Systems",
+          "link": "https://chappyasel.notion.site/systems"
+        },
+        {
+          "text": " translate into what I actually do every day. Definitely a living doc, definitely not a schedule I follow perfectly, and always changing as I find ways to improve it! Hope you find something useful! For how I work with other people, check out my "
+        },
+        {
+          "text": "Personal Operating Manual",
+          "link": "https://chappyasel.com/manual"
+        },
+        {
+          "text": "!"
+        }
+      ]
+    }
+  ],
   "whyEarly": [
     {
       "type": "toggle",
@@ -15,7 +46,7 @@
           "type": "paragraph",
           "content": [
             {
-              "text": "Growing up, I was very definitively a night owl. It wasn’t until cutting for my bodybuilding competition when my hormones got thrown out of whack that I started naturally (uncontrollably) waking up at 4am, 3am, and sometimes even 2am wired 😅. Ever since mid-2022, I made the transition and haven’t looked back!"
+              "text": "Growing up, I was very definitively a night owl. It wasn’t until cutting for my first bodybuilding competition in 2022 when my hormones got thrown completely out of whack that I started naturally / uncontrollably waking up at 4am, 3am, and sometimes even 2am wired 😅. Ever since mid-2022, I made the permanent transition to that earlier time and haven’t looked back!"
             }
           ]
         }
@@ -25,7 +56,7 @@
       "type": "paragraph",
       "content": [
         {
-          "text": "Why wake up extremely early? The benefits are near-endless but here are a few of my favorites:"
+          "text": "Why wake up extremely early? Here are a few of my favorites:"
         }
       ]
     },
@@ -50,7 +81,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "It’s really not that hard to wake up early. Fundamentally, I’m still sleeping the same amount as anyone else would, I’m just shifting my schedule earlier. Commit to it for a couple of weeks and watch your circadian rhythm naturally shift!"
+                      "text": "It doesn’t really take any extraordinary willpower to wake up early! Fundamentally, I’m still sleeping the same amount as anyone else would, I’m just shifting my schedule earlier. Commit to it for a couple of weeks and watch your circadian rhythm naturally shift!"
                     }
                   ]
                 }
@@ -63,7 +94,7 @@
             "type": "paragraph",
             "content": [
               {
-                "text": "I get 3+ hours completely to myself",
+                "text": "I get 4+ hours completely to myself",
                 "bold": true
               }
             ]
@@ -76,7 +107,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "That means you’re fully in control of your schedule and no-one can disturb you!"
+                      "text": "That give me time to grab full control of my schedule before anyone can disturb me!"
                     }
                   ]
                 }
@@ -245,7 +276,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Immediately after waking, stand up to get blood flowing"
+                      "text": "Within 60s of waking stand up to get the blood flowing"
                     }
                   ]
                 }
@@ -265,17 +296,10 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Put on workout clothes, which were laid out the night before"
-                    }
-                  ]
-                }
-              ],
-              [
-                {
-                  "type": "paragraph",
-                  "content": [
+                      "text": "Put on workout clothes (laid out the night before"
+                    },
                     {
-                      "text": "Hop back into bed to increase body temperature"
+                      "text": ")"
                     }
                   ]
                 }
@@ -317,7 +341,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "🦞 OpenClaw sends a brief at 4am with agenda for the day, complete with background research on every meeting and task for the day. Social media posts + interactions are drafted. "
+                      "text": "Hop back into bed to increase body temperature"
                     }
                   ]
                 }
@@ -327,15 +351,90 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Review my quarterly + weekly goals and ✅ daily todo list ("
-                    },
-                    {
-                      "text": "Sunsama",
-                      "link": "https://www.sunsama.com/"
-                    },
-                    {
-                      "text": ") and read a few morning emails and texts to prime for the day"
+                      "text": "🤖 Review my Morning Briefing (aggregated and synthesized by Hermes agent)"
                     }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "✅ Morning planning:"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Record mental state (+2 thru -2)"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Calendar-capacity check"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Today’s #1 outcome, ≤ supporting commitments"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Align with quarterly + weekly outcomes"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":sunsama:",
+                            "customEmoji": {
+                              "name": "sunsama",
+                              "src": "/images/notion-emoji/sunsama.png"
+                            }
+                          },
+                          {
+                            "text": " Sunsama time-blocking"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Gratitude etc."
+                          }
+                        ]
+                      }
+                    ]
                   ]
                 }
               ]
@@ -355,7 +454,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Try to wait 30m+ after waking before drinking pre-workout (with two Alpha GPC pills)"
+                      "text": "Try to wait 30m+ after waking before starting to drink my pre-workout"
                     }
                   ]
                 },
@@ -384,7 +483,7 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Ideally, I wait 60-90 mins before starting to ingest caffeine. This helps to reduce mid-afternoon drowsiness immensely. Though it’s a delicate balance between that and being lethargic in the morning or even falling back asleep accidentally."
+                            "text": "Ideally, I wait 60-90 mins before starting to ingest caffeine. This helps to reduce mid-afternoon drowsiness immensely. Though it’s a delicate balance between that and being lethargic in the morning or even falling back asleep accidentally"
                           }
                         ]
                       }
@@ -418,7 +517,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "After 1.5 hours, body temperature is high enough to move to desk"
+                      "text": "After ~1.5 hours, body temperature is high enough to move to desk"
                     }
                   ]
                 }
@@ -446,7 +545,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "After finishing first ~300mg of caffeine, top up with another 400mg or so and drink that over the next ~30 mins. Also mixed in is 15-20g creatine, 15g beta alanine, 10-30g HydroPrime glycerol. "
+                      "text": "After finishing first ~300mg of caffeine, top up with another 400mg or so and drink that over the next 30-60 mins"
                     }
                   ]
                 }
@@ -456,7 +555,7 @@
         ]
       },
       {
-        "time": "6:00am",
+        "time": "6:15am",
         "title": "Lift",
         "blocks": [
           {
@@ -488,6 +587,16 @@
                   "content": [
                     {
                       "text": "I use "
+                    },
+                    {
+                      "text": ":weightlifting-app:",
+                      "customEmoji": {
+                        "name": "weightlifting-app",
+                        "src": "/images/notion-emoji/weightlifting-app.png"
+                      }
+                    },
+                    {
+                      "text": " "
                     },
                     {
                       "text": "Weightlifting App",
@@ -522,83 +631,103 @@
                     }
                   ]
                 }
-              ],
-              [
-                {
-                  "type": "paragraph",
-                  "content": [
+              ]
+            ]
+          },
+          {
+            "type": "toggle",
+            "title": [
+              {
+                "text": "Why do I lift in the morning?"
+              }
+            ],
+            "children": [
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
                     {
-                      "text": "Why do I lift in the morning?"
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I can consume as much caffeine as I want! As opposed to working out in the afternoon where I have to be weary about consuming too much caffeine and not being able to sleep at night."
+                        }
+                      ]
+                    },
+                    {
+                      "type": "bulleted_list",
+                      "items": [
+                        [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "text": "Caffeine consumed while fasting and shortly after waking hits like no other!"
+                              }
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "The morning endorphins propels me through the rest of the day"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I have to shower before my morning meetings. If I don’t work out then as well, that means I have to shower twice a day. Instead, I can stack the two together and save myself a bunch of time!"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I usually have the gym all to myself which means I can use whatever equipment I want!"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "The gym is a great mental break / escape / transition point. Good time to switch gears in the morning after some deep work"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Note: I definitely am sacrificing ~10% strength + intensity in the gym "
+                        }
+                      ]
                     }
                   ]
-                },
-                {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "I can consume as much caffeine as I want! As opposed to working out in the afternoon where I have to be weary about consuming too much caffeine and not being able to sleep at night."
-                          }
-                        ]
-                      },
-                      {
-                        "type": "bulleted_list",
-                        "items": [
-                          [
-                            {
-                              "type": "paragraph",
-                              "content": [
-                                {
-                                  "text": "Caffeine consumed while fasting and shortly after waking hits like no other!"
-                                }
-                              ]
-                            }
-                          ]
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "The morning endorphins release sets up the rest of the day perfectly"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "I have to shower before my morning meetings. If I don’t work out then as well, that means I have to shower twice a day. Instead, I can stack the two together and save myself a bunch of time!"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "I usually have the gym all to myself which means I can use whatever equipment I want! Packed gyms are no fun"
-                          }
-                        ]
-                      }
-                    ]
-                  ]
-                }
-              ]
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "time": "7:15am",
+        "time": "7:30am",
         "title": "Work",
         "blocks": [
           {
@@ -609,7 +738,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Return to work! This is some of my most productive time of the day as I have endorphins flowing and dawn is just starting to break. People still aren’t generally awake so I still have this time to myself!"
+                      "text": "Return to work! This is some of my most productive time of the day as I have endorphins flowing and dawn is just starting to break"
                     }
                   ]
                 }
@@ -640,7 +769,14 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Shampoo + facial cleanser at the same time → conditioner + body wash at the same time, leave each on for 1 min"
+                      "text": "Shampoo + facial cleanser at the same time → conditioner + body wash at the same time, leave each on for 1 min. I’m getting into cold showers for purposes of hormesis – inspired by "
+                    },
+                    {
+                      "text": "https://books.chappyasel.com/the-12-levers",
+                      "link": "https://books.chappyasel.com/the-12-levers"
+                    },
+                    {
+                      "text": "!"
                     }
                   ]
                 }
@@ -650,7 +786,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Blow dry hair, deodorant, Eau de Perfume, trim beard, shave, brush teeth, chapstick, facial moisturizer, facial caffeine solution, body moisturizer, sunscreen, hair product"
+                      "text": "Blow dry hair, deodorant, trim beard, shave, brush teeth, chapstick, facial moisturizer, facial caffeine solution, body moisturizer, sunscreen, Eau de Perfume, beard oil, hair product"
                     }
                   ]
                 }
@@ -660,7 +796,14 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "↑ Great time to listen to an audiobook! Also easy to stop morning routine and take notes"
+                      "text": "↑ This is a great time to listen to an audiobook! Also easy to frequently pause to jot down notes. In fact – this is how I read all my books – by filling gaps / idle time (eg. chores, walking, etc.). See"
+                    },
+                    {
+                      "text": "Book Notes",
+                      "link": "https://books.chappyasel.com/"
+                    },
+                    {
+                      "text": "! "
                     }
                   ]
                 }
@@ -716,14 +859,21 @@
                       "link": "https://www.amazon.com/PB2-Crunchy-Powdered-Peanut-Butter/dp/B08HFS7WCR?rdc=1&sr=8-1"
                     },
                     {
-                      "text": ", and a scoop of "
+                      "text": ", a scoop of "
                     },
                     {
                       "text": "greens powder",
                       "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7"
                     },
                     {
-                      "text": " (~300 cals)"
+                      "text": ", and optionally "
+                    },
+                    {
+                      "text": "Psyllium Husk",
+                      "link": "https://www.amazon.com/NOW-Supplements-Psyllium-Powder-24-Ounce/dp/B002RWUNYM?rdc=1&sr=8-9"
+                    },
+                    {
+                      "text": " (~350 cals)"
                     }
                   ]
                 }
@@ -733,7 +883,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Down both while either 1) watching the sun continue to rise and listening to a podcast or 2) at my desk working if I have meetings coming up"
+                      "text": "Down both while either 1) watching the sun rise and listening to a book or 2) at my desk working if I have meetings coming up that I need to prep for"
                     }
                   ]
                 }
@@ -764,7 +914,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Clean blender bottles and fill with hot water to avoid having to dish wash"
+                      "text": "Clean blender bottles and fill with hot water (I’ve found this prevents bacteria while avoiding having to dish wash – eg. for my protein shake bottle)"
                     }
                   ]
                 }
@@ -774,7 +924,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Refill 2 pre-workout blender bottles with 1) 400mg Gorilla Mode pre-workout, 2) 10-15g creatine, 3) 10g beta alanine and place on bedside stand (along with two Alpha GPC pills)"
+                      "text": "Refill 2 pre-workout blender bottles with 1) 350mg Nutricost pre-workout and 2) 400mg Gorilla Mode pre-workout. Also mix in 15-20g creatine, 15g beta alanine, 5-20g HydroPrime glycerol. Place on bedside stand (optionally along with two Alpha GPC pills)"
                     }
                   ]
                 }
@@ -839,7 +989,7 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Why? To absolutely minimize friction for tomorrow!"
+                            "text": "Why? To 1) batch 2) absolutely minimize friction for tomorrow!"
                           }
                         ]
                       }
@@ -865,7 +1015,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Smart lights automatically dim and yellow to match sunset. This creates an environment that encourages the release of melatonin, prepping the body for sleep"
+                      "text": "Smart lights automatically dim and yellow to match sunset. This creates an environment that encourages the release of melatonin, prepping my body for sleep"
                     }
                   ]
                 }
@@ -875,27 +1025,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "This is also shortly after dinner (if I’m eating dinner that day), so I start feeling a little more drowsy as digestion kicks in"
-                    }
-                  ]
-                }
-              ],
-              [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "I generally switch to less cognitively demanding tasks around now, eg. responding to texts and emails or personal / reflective tasks"
-                    }
-                  ]
-                }
-              ],
-              [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "🦞 OpenClaw sends a daily recap at 7pm with summaries of the day’s meetings, complete with aggregated next steps and drafts for followup emails / texts."
+                      "text": "This is also shortly after dinner (if I’m eating dinner that day), so I start feeling more drowsy as digestion kicks in"
                     }
                   ]
                 }
@@ -911,16 +1041,6 @@
           {
             "type": "bulleted_list",
             "items": [
-              [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "Review my day: ✅ daily todo list, score the day (-2, -1, 0, +1, or +2 with note) mentally walk through tomorrow"
-                    }
-                  ]
-                }
-              ],
               [
                 {
                   "type": "paragraph",
@@ -943,6 +1063,81 @@
                           {
                             "text": "💊 Supp Stacks",
                             "link": "#supp-stacks"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "🤖 Review my Evening Briefing (aggregated and synthesized by Hermes agent)"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "✅ Evening review:"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "#1 outcome: complete / partial / obsolete"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Day quality (+2 thru -2), Weekly Tweak adherence, Creation time (hours)"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "One good moment"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Tomorrow’s adjustment"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Mentally walk through tomorrow, lock in first task"
                           }
                         ]
                       }
@@ -1034,7 +1229,7 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "AirPods for listening to an audiobook"
+                            "text": "AirPods for listening to an audiobook and/or podcast (yes, I sleep with them in 😅)"
                           }
                         ]
                       }
@@ -1118,23 +1313,8 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Switch to a background podcast (eg. Lex Fridman)"
+                      "text": "Switch from a book to a background podcast (eg. Lex Fridman)"
                     }
-                  ]
-                },
-                {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Yes, I fall asleep wearing them 😅"
-                          }
-                        ]
-                      }
-                    ]
                   ]
                 }
               ],
@@ -1155,7 +1335,7 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Varies (5h-7.5h, avg. 6.25h) depending on weight. See "
+                            "text": "Varies (5h-7.5h, avg. 6.25h) depending on weight! See "
                           },
                           {
                             "text": "💤 Sleep Duration",
@@ -1336,7 +1516,7 @@
             },
             {
               "text": "Why We Sleep",
-              "link": "https://app.notion.com/p/1a8f4bfb2323462c82aa9c9fffb12186"
+              "link": "https://books.chappyasel.com/why-we-sleep"
             },
             {
               "text": ", here’s how alertness naturally varies throughout the day:"
@@ -1346,7 +1526,8 @@
         {
           "type": "image",
           "src": "/images/routine/17ac5ab0-d88d-808b-86f7-f9e0b30c93c6.jpeg",
-          "alt": "Image"
+          "alt": "Image",
+          "invert": true
         },
         {
           "type": "paragraph",
@@ -1936,7 +2117,7 @@
             },
             {
               "text": "Why We Sleep",
-              "link": "https://app.notion.com/p/1a8f4bfb2323462c82aa9c9fffb12186"
+              "link": "https://books.chappyasel.com/why-we-sleep"
             },
             {
               "text": " which makes a statistically rigorous argument for 8+ hours daily. However, studies also show that anywhere between 6-8 hours works. In fact, all cause mortality with 8 hours is actually "
@@ -1946,14 +2127,22 @@
               "italic": true
             },
             {
-              "text": " than with 5 hours: (caveat: correlation vs causation)"
+              "text": " than with 5 hours: (caveat: correlation vs causation). Also, my father was a lifelong 4-6hrs/night sleeper so I might’ve "
+            },
+            {
+              "text": "inherited the gene from him",
+              "link": "https://en.wikipedia.org/wiki/Familial_natural_short_sleep"
+            },
+            {
+              "text": "!"
             }
           ]
         },
         {
           "type": "image",
           "src": "/images/routine/17ac5ab0-d88d-80a3-8f55-fee0874432ac.jpeg",
-          "alt": "Image"
+          "alt": "Image",
+          "invert": true
         },
         {
           "type": "paragraph",
@@ -2040,7 +2229,7 @@
           "type": "paragraph",
           "content": [
             {
-              "text": "My top priority is always to get back to a good sleep schedule. In fact, I’ve even done 12-hour schedule flips (US ↔ India) without any jet lag whatsoever."
+              "text": "My top priority is always to get back to my normal sleep schedule. In fact, I’ve even done 12-hour schedule flips (US ↔ India) without any jet lag whatsoever."
             }
           ]
         },
@@ -2057,6 +2246,14 @@
           "content": [
             {
               "text": "Take the time to learn how your body reacts to both and how you can then use them as tools to get back on track after disruption!"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "For me, I find that once I get back into my normal sleep routine and have those first 4 hours in the morning to grab full control of my schedule that the rest falls back into place rather quickly 😄"
             }
           ]
         }

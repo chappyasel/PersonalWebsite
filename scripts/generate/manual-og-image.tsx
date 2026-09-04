@@ -5,15 +5,15 @@
  *
  * Outputs: public/images/manual-og.png
  */
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
+import { NIGHT, nightSky } from "../../src/lib/og/daylight";
+import { Resvg } from "@resvg/resvg-js";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
+import React from "react";
+import satori from "satori";
 import { fileURLToPath } from "url";
 
-import satori from "satori";
-import { Resvg } from "@resvg/resvg-js";
-import React from "react";
-
-import { NIGHT, nightSky } from "../../src/lib/og/daylight";
+import { sectionLabelRows } from "./og-section-glyph";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,41 +39,10 @@ const data = JSON.parse(readFileSync(DATA_PATH, "utf-8")) as {
   sections: { id: string; title: string }[];
 };
 
-const sections = data.sections.map((s) => shortTitles[s.id] ?? s.title);
-
-function joinWithDots(items: string[], fontSize: number) {
-  const children: React.ReactNode[] = [];
-  items.forEach((text, i) => {
-    if (i > 0) {
-      children.push(
-        React.createElement(
-          "span",
-          { key: `dot-${i}`, style: { color: NIGHT.inkFaint } },
-          "·",
-        ),
-      );
-    }
-    children.push(
-      React.createElement(
-        "span",
-        { key: text, style: { color: NIGHT.inkFaint } },
-        text,
-      ),
-    );
-  });
-  return React.createElement(
-    "div",
-    {
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: "14px",
-        fontSize: `${fontSize}px`,
-      },
-    },
-    ...children,
-  );
-}
+const sections = data.sections.map((s) => ({
+  id: s.id,
+  text: shortTitles[s.id] ?? s.title,
+}));
 
 function OGImage() {
   return React.createElement(
@@ -149,8 +118,9 @@ function OGImage() {
         },
         "How I work, communicate, and collaborate",
       ),
-      // Section labels from the synced data
-      joinWithDots(sections, 21),
+      // Section labels from the synced data as two centred rows, each label
+      // behind the glyph the page gives that section
+      sectionLabelRows(sections, { fontSize: 24, glyphSize: 25 }),
     ),
   );
 }

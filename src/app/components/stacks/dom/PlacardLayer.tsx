@@ -38,14 +38,11 @@ import {
   activateVisionRide,
 } from "../visionRide/visionRideEntry";
 import {
-  BookOpenIcon,
   BookOpenTextIcon,
   BooksIcon,
-  CalendarBlankIcon,
   CaretRightIcon,
   CaretUpIcon,
   ClockCounterClockwiseIcon,
-  ClockIcon,
   TagIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -87,8 +84,8 @@ import {
   PlacardCardHeading,
   PlacardLinkCard,
   PlacardNestedLinkCard,
-  PlacardStatsCard,
 } from "./PlacardStatsCard";
+import { BookStatsCard } from "./statsCards";
 import {
   chromeHidden,
   chromeKeyEventFrom,
@@ -566,45 +563,6 @@ function bookNotesHref(bookId: string) {
 function subjectBooksHref(subject: string) {
   const query = new URLSearchParams({ tags: subject });
   return `${booksHref()}/?${query.toString()}`;
-}
-
-function formatStat(value: number | null, suffix = "") {
-  return value === null ? "—" : `${value.toFixed(1)}${suffix}`;
-}
-
-function BookStatsCard({ data }: { data: HomepageBookPlacard }) {
-  const { stats } = data;
-  return (
-    <PlacardStatsCard
-      headline={stats.total.toLocaleString()}
-      headlineIcon={BookOpenIcon}
-      headlineLabel={`Books since ${stats.trackedSince ?? "the beginning"}`}
-      years={data.yearly.map((year) => ({
-        year: year.year,
-        value: year.books,
-        projectedRemainder: year.projectedRemainder,
-      }))}
-      yearUnit="books"
-      compactMobile
-      stats={[
-        {
-          icon: CalendarBlankIcon,
-          label: "Per year",
-          value: formatStat(stats.perYear),
-        },
-        {
-          icon: ClockIcon,
-          label: "Average read",
-          value: formatStat(stats.avgDays, "d"),
-        },
-        {
-          icon: BookOpenTextIcon,
-          label: "Pages / day",
-          value: formatStat(stats.pagesPerDay),
-        },
-      ]}
-    />
-  );
 }
 
 const SUBJECT_PLACEMENTS = [

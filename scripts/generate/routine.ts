@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
@@ -8,15 +8,14 @@ import { Client } from "@notionhq/client";
 
 import {
   collectBlockIds,
-  downloadFile,
+  downloadCustomEmoji,
   extractEmojiAndTitle,
-  getImageExtension,
+  resolveCustomEmoji,
   rewriteNotionPageLinks,
   rewriteNotionSelfLinks,
   richTextToPlain,
   slugify,
   transformBlocks,
-  transformRichText,
   walkBlocks,
 } from "./notion-helpers.js";
 
@@ -28,6 +27,8 @@ const OUTPUT_PATH = join(__dirname, "../../public/data/routine.json");
 const OUTPUT_DIR = join(__dirname, "../../public/data");
 const IMAGES_DIR = join(__dirname, "../../public/images/routine");
 const IMAGE_PATH_PREFIX = "/images/routine/";
+const EMOJI_DIR = join(__dirname, "../../public/images/notion-emoji");
+const EMOJI_PATH_PREFIX = "/images/notion-emoji/";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -112,35 +113,10 @@ function parseTimeFromTitle(titleText: string): { time: string; title: string } 
 // becomes a section registers its own block ID and all descendant block IDs,
 // so a fragment pointing anywhere inside a section lands on that section.
 
-// ─── Image Handling ───
-
-async function downloadImage(block: any): Promise<string | null> {
-  const imgData = block.image;
-  const url = imgData.file?.url ?? imgData.external?.url ?? "";
-  if (!url) return null;
-
-  const ext = getImageExtension(url);
-  const filename = `${block.id}.${ext}`;
-  const localPath = `${IMAGE_PATH_PREFIX}${filename}`;
-  const destPath = join(IMAGES_DIR, filename);
-
-  if (!existsSync(destPath)) {
-    try {
-      await downloadFile(url, destPath);
-      console.log(`  Downloaded image: ${filename}`);
-    } catch (err) {
-      console.warn(`  Failed to download image ${block.id}:`, err.message);
-      return null;
-    }
-  }
-
-  return localPath;
-}
-
 // ─── Page Processing ───
 //
 // The Notion page has FLAT sibling blocks (not nested under headings):
-//   paragraph (intro)
+//   paragraph (intro, one or more)
 //   heading_1 "Why So Early?" (toggleable, has_children=true → children are the content)
 //   heading_1 "The Routine™️" (NOT toggleable, has_children=false)
 //   heading_2 "🌅 AM" (flat sibling)
@@ -156,7 +132,9 @@ async function downloadImage(block: any): Promise<string | null> {
 //   ...
 
 async function processPage(rawBlocks: any[]) {
-  let intro = "";
+  // Every paragraph before the first heading_1, kept as rich text so the
+  // links in it survive (the intro points at the manual and Personal Systems)
+  const introRaw: any[] = [];
   const whyEarlyBlocks: any[] = [];
   const amEntries: any[] = [];
   const pmEntries: any[] = [];
@@ -312,14 +290,15 @@ async function processPage(rawBlocks: any[]) {
       continue;
     }
 
-    // ── intro paragraph (before any heading_1) ──
+    // ── intro paragraphs (before any heading_1) ──
     if (currentSection === "intro" && block.type === "paragraph") {
-      const text = richTextToPlain(block.paragraph.rich_text);
-      if (text.trim()) intro = text.trim();
+      introRaw.push(block);
     }
   }
 
   flushRant();
+
+  const intro = await transformBlocks(introRaw, IMAGES_DIR, IMAGE_PATH_PREFIX);
 
   return {
     result: {
@@ -353,7 +332,7 @@ async function main() {
   mkdirSync(IMAGES_DIR, { recursive: true });
   const { result, anchorMap } = await processPage(rawBlocks);
 
-  console.log(`\nIntro: ${result.intro ? "yes" : "no"}`);
+  console.log(`\nIntro: ${result.intro.length} paragraph(s)`);
   console.log(`Why Early: ${result.whyEarly.length} blocks`);
   console.log(`AM Timeline: ${result.timeline.am.length} entries`);
   for (const e of result.timeline.am) {
@@ -371,12 +350,23 @@ async function main() {
     console.log(`  ${r.icon} ${r.title} (${r.blocks.length} blocks)`);
   }
 
-  // 4. Rewrite Notion self-links to local anchors, then cross-page links to public URLs
-  const rewritten = rewriteNotionPageLinks(
-    rewriteNotionSelfLinks(result, PAGE_ID, anchorMap),
+  // A page restructure that empties the timeline is a generator bug, not a
+  // content change. Refuse to overwrite a good snapshot with a hollow one.
+  if (result.timeline.am.length === 0 || result.timeline.pm.length === 0) {
+    throw new Error("Page structure not understood: timeline came back empty");
+  }
+
+  // 4. Fetch workspace emoji referenced anywhere on the page
+  const emoji = await downloadCustomEmoji(EMOJI_DIR, EMOJI_PATH_PREFIX);
+
+  // 5. Self-links → local anchors, cross-page links → public URLs, custom
+  //    emoji → downloaded files
+  const rewritten = resolveCustomEmoji(
+    rewriteNotionPageLinks(rewriteNotionSelfLinks(result, PAGE_ID, anchorMap)),
+    emoji,
   );
 
-  // 5. Assemble & write
+  // 6. Assemble & write
   const output = { lastUpdated, ...rewritten };
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));

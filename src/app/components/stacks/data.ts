@@ -62,7 +62,12 @@ export const UNITS: Unit[] = [
     label: "Weightlifting",
     icon: BarbellIcon,
   },
-  { slug: "systems", label: "Systems", icon: GearIcon },
+  {
+    slug: "systems",
+    label: "Personal Systems",
+    railLabel: "Systems",
+    icon: GearIcon,
+  },
   { slug: "projects", label: "Projects", icon: CodeIcon },
   {
     slug: "blog",
