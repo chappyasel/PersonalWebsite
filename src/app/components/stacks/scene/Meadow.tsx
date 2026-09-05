@@ -825,6 +825,11 @@ const FLOWER_VERTEX = /* glsl */ `
 
 const FLOWER_FRAGMENT = /* glsl */ `
   uniform float uDark;
+  // The flowers declare their own uniforms rather than taking
+  // SHARED_UNIFORMS_GLSL, and this one was missing: the retire fade writes
+  // uOpacity into gl_FragColor below, so the program failed to compile and
+  // WebGL logged "'uOpacity' : undeclared identifier" once per material.
+  uniform float uOpacity;
   uniform float uSeat;
   uniform float uFogEnabled;
   #ifdef COORDINATION_ENVIRONMENT_FLICKER
