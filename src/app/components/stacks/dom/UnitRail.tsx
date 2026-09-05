@@ -18,6 +18,7 @@ import {
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
+import { MOBILE_RAIL_FONT_CLAMP } from "./mobileSheetGeometry";
 import {
   animate,
   motion,
@@ -39,8 +40,10 @@ import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
  * translates by this per unit, so the two must agree — one number, used
  * twice, rather than a class and a magic multiplier that drift apart. */
 const ROW_REM = 2.25;
-/** Every mobile button shares this rem-sized step, keeping all seven icons
- * centered as one row through root type-scale changes. */
+/** Every mobile button shares this step, in em of the rail row's font-size
+ * (a rem clamp that grows 1x to 1.2x with the viewport), keeping all seven
+ * icons centered as one row through root type-scale changes and the
+ * tablet's larger chrome alike. */
 const MOBILE_STEP_REM = 2.75;
 /** Shared marker geometry: the desktop and mobile rails should feel like two
  * orientations of one control, not unrelated navigation treatments. */
@@ -71,20 +74,23 @@ function useElasticIndicatorEdges({
   inset,
   length,
   step,
+  unit = "rem",
 }: {
   displayedUnit: number;
   inset: number;
   length: number;
   step: number;
+  /** The mobile rail sizes in em of a viewport-scaled row; desktop in rem. */
+  unit?: "rem" | "em";
 }) {
   const reduceMotion = useReducedMotion();
   const initialStart = displayedUnit * step + inset;
   const startEdge = useMotionValue(initialStart);
   const endEdge = useMotionValue(initialStart + length);
-  const start = useTransform(startEdge, (value) => `${value}rem`);
+  const start = useTransform(startEdge, (value) => `${value}${unit}`);
   const size = useTransform<number, string>(
     [startEdge, endEdge],
-    ([start = 0, end = 0]) => `${Math.max(0, end - start)}rem`,
+    ([start = 0, end = 0]) => `${Math.max(0, end - start)}${unit}`,
   );
 
   useEffect(() => {
@@ -180,6 +186,7 @@ function ElasticMobileIndicator({
     inset: (MOBILE_STEP_REM - length) / 2,
     length,
     step: MOBILE_STEP_REM,
+    unit: "em",
   });
   const crossSize = golfBall ? GOLF_BALL_DIAMETER_REM : INDICATOR_THICKNESS_REM;
 
@@ -190,8 +197,8 @@ function ElasticMobileIndicator({
       data-stacks-golf-ball={golfBall || undefined}
       className="stacks-on-background-mark pointer-events-none absolute rounded-full bg-foreground/85"
       animate={{
-        bottom: `${0.25 - (crossSize - INDICATOR_THICKNESS_REM) / 2}rem`,
-        height: `${crossSize}rem`,
+        bottom: `${0.25 - (crossSize - INDICATOR_THICKNESS_REM) / 2}em`,
+        height: `${crossSize}em`,
       }}
       transition={
         reduceMotion
@@ -653,7 +660,14 @@ export default function UnitRail() {
       >
         <div
           className="pointer-events-auto relative flex"
-          style={{ touchAction: "pan-y pinch-zoom" }}
+          // The row's font-size grows 1x to 1.2x with the viewport on the
+          // sheet title's curve (mobileSheetGeometry); the buttons, glyphs
+          // and indicator below are all in em of it. The scrub math reads
+          // the buttons' rects, so it needs no unit.
+          style={{
+            touchAction: "pan-y pinch-zoom",
+            fontSize: MOBILE_RAIL_FONT_CLAMP,
+          }}
           onPointerDown={(event) => {
             if (event.pointerType !== "touch") return;
             suppressNextMobileClick.current = false;
@@ -749,10 +763,10 @@ export default function UnitRail() {
                   go(i);
                 }}
                 onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}
-                className="stacks-on-background-text stacks-rail-row relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground"
+                className="stacks-on-background-text stacks-rail-row relative flex h-[3em] items-center justify-center rounded-xl pb-[0.25em] text-foreground"
                 style={
                   {
-                    width: `${MOBILE_STEP_REM}rem`,
+                    width: `${MOBILE_STEP_REM}em`,
                     "--stacks-mobile-rail-delay": `${Math.abs(i - activeUnit) * 30}ms`,
                   } as React.CSSProperties
                 }
@@ -760,7 +774,7 @@ export default function UnitRail() {
                 <Icon
                   aria-hidden
                   weight="bold"
-                  className="stacks-rail-icon size-[22px] shrink-0 text-foreground"
+                  className="stacks-rail-icon size-[1.375em] shrink-0 text-foreground"
                 />
                 {!tapFirst && (
                   <span

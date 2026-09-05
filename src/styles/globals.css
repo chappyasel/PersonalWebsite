@@ -389,6 +389,43 @@ html[data-world].dark .sheet-control:hover {
   }
 }
 
+/* PlacardStatsCard, wide form. The year-bar cards (Books, Weightlifting) put
+   the headline beside the bars once the card passes 38rem: a bar row across
+   a wider column runs long and leaves a pocket beside the number. The card's
+   grid is the query container. These live outside the Tailwind layers so
+   the attribute selectors survive content scanning and outrank the
+   component's min-[1200px] utilities. The mobile sheet's own rules in
+   PlacardLayer carry a matching block for the bar height. */
+@container (min-width: 38rem) {
+  [data-placard-split] > :first-child {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 2rem;
+    min-height: 11rem;
+  }
+  [data-placard-split] > :first-child > :first-child {
+    align-self: center;
+    flex-shrink: 0;
+  }
+  [data-placard-split] [data-year-bars] {
+    flex: 1 1 0%;
+    min-width: 0;
+    align-self: flex-end;
+    --placard-year-bar-max: 7rem;
+  }
+  /* The calendar card at the same width: the chart leaves its full-width
+     row for the left column under the headline, and the stats span both
+     rows, as the year-bar cards are laid out below 38rem. */
+  [data-placard-chart-row] > [data-placard-stats] {
+    grid-row: 1 / span 2;
+  }
+  [data-placard-chart-row] > [data-placard-chart] {
+    grid-column: 1;
+    grid-row: 2;
+    padding-right: 1.25rem;
+  }
+}
+
 html[data-font="georgia"] {
   --font-selected: "Georgia Pro";
 }

@@ -143,7 +143,13 @@ function PlacardYearBars({
       data-mobile-compact={compactMobile ? "" : undefined}
       className={cn(
         "flex items-end gap-1.5",
-        size === "card" ? "h-[46px]" : "h-[62px]",
+        // The placard's bar height follows the card's inline size (the grid
+        // above is the query container), so the bars grow with the column
+        // they sit in instead of holding 46px in a 530px card. The mobile
+        // sheet overrides both the variable and the height in PlacardLayer.
+        size === "card"
+          ? "h-[46px]"
+          : "h-[calc(var(--placard-year-bar-max)+1rem)] [--placard-year-bar-max:clamp(46px,12cqw,64px)]",
       )}
       style={
         size === "card"
@@ -235,6 +241,28 @@ function PlacardYearBars({
  * passed in their place (the GitHub card's contribution calendar). With
  * neither, the left column drops its minimum height so no blank slot is
  * left where a chart would have stood.
+ *
+ * The stats column is sized to its widest label, so the divider sits
+ * beside the figures instead of splitting the card 60/40 and leaving the
+ * right half mostly empty. Everything else goes to the headline and the
+ * chart. The grid is a container query root: the headline, the stat
+ * values, and the year bars scale in `cqw` of the card, which holds in all
+ * three shells (the desktop dock, the mobile sheet, the flat page) where a
+ * viewport unit only described one of them.
+ *
+ * Past 38rem of card width the year-bar cards put the headline beside the
+ * bars instead of above them (`data-placard-split`, rules in globals.css):
+ * a bar row across a 40rem column runs long and leaves a pocket beside the
+ * number.
+ *
+ * A `chart` (the GitHub calendar) takes a different shape: below 38rem the
+ * headline sits beside the stats in a top row and the chart spans the whole
+ * card underneath, because its 53 columns need the full width to be legible
+ * and the three stacked stats are always taller than the headline block,
+ * so that row has no pocket to fill. From 38rem (`data-placard-chart-row`,
+ * globals.css) the chart moves back under the headline in the left column
+ * and the stats span both rows: a 38rem column already gives the weeks 8px
+ * cells, and the beside-stats row was mostly air at that size.
  */
 export function PlacardStatsCard({
   headline,
@@ -259,50 +287,48 @@ export function PlacardStatsCard({
   size?: PlacardSize;
 }) {
   const bars = years !== undefined && yearUnit !== undefined;
-  const hasChart = bars || chart !== undefined;
+  const chartRow = !bars && chart !== undefined;
   const card = size === "card";
   return (
     <div
       data-mobile-compact-stats={compactMobile ? "" : undefined}
       data-placard-size={size}
+      data-placard-split={bars && !card ? "" : undefined}
+      data-placard-chart-row={chartRow ? "" : undefined}
       className={cn(
         "grid items-stretch",
+        // Three sizes drive the type: the headline, the stat values, and the
+        // one label size both share. Margins and icons are fractions of
+        // them (below), so the number-to-label gap is the same proportion
+        // everywhere and the mobile sheet and split form only swap the
+        // three values. `leading-none` follows each `text-[...]` on purpose:
+        // `cn` is tailwind-merge, which drops a leading class that a later
+        // font-size class would override, and that is how every stat value
+        // silently rendered at 1.5 line-height.
         card
-          ? "grid-cols-[minmax(0,1.25fr)_minmax(6rem,.75fr)]"
-          : "grid-cols-[minmax(0,1.25fr)_minmax(7rem,.75fr)] min-[1200px]:grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)]",
+          ? "grid-cols-[minmax(0,1.25fr)_minmax(6rem,.75fr)] [--placard-headline:2.75rem] [--placard-label:10px] [--placard-stat:1.25rem]"
+          : "grid-cols-[minmax(0,1fr)_auto] [container-type:inline-size] [--placard-headline:clamp(3.25rem,21cqw,7rem)] [--placard-label:clamp(11px,2.75cqw,16px)] [--placard-stat:clamp(1.65rem,6cqw,2.25rem)]",
       )}
     >
       <div
         className={cn(
-          "flex min-w-0 flex-col justify-between",
-          card ? "pr-3" : "pr-4 min-[1200px]:pr-5",
-          hasChart &&
-            (card ? "min-h-[8.5rem]" : "min-h-44 min-[1200px]:min-h-52"),
+          "flex min-w-0 flex-col",
+          // Beside the stats the headline block is the shorter of the two,
+          // so it centres on them; above the bars it holds the top.
+          chartRow ? "justify-center" : "justify-between",
+          card ? "pr-3" : "gap-5 pr-4 min-[1200px]:pr-5",
+          bars && (card ? "min-h-[8.5rem]" : "min-h-44 min-[1200px]:min-h-52"),
         )}
       >
         <div>
-          <strong
-            className={cn(
-              "block whitespace-nowrap font-serif font-normal tracking-[-0.055em] text-foreground",
-              card
-                ? "text-[2.75rem] leading-[.8]"
-                : "text-[clamp(3.25rem,13vw,5rem)] leading-[.78]",
-            )}
-          >
+          <strong className="block whitespace-nowrap font-serif font-normal tracking-[-0.055em] text-foreground text-[length:var(--placard-headline)] leading-[.78]">
             {headline}
           </strong>
-          <span
-            className={cn(
-              "flex items-center gap-1.5 whitespace-nowrap text-muted-foreground",
-              card
-                ? "mt-2 text-[10px]"
-                : "mt-4 text-[11px] min-[1200px]:mt-5 min-[1200px]:text-xs",
-            )}
-          >
-            <HeadlineIcon
-              className={card ? "size-3 shrink-0" : "size-3.5 shrink-0"}
-              weight="bold"
-            />
+          {/* 0.22 of the headline, not less: leading-[.78] crops the line
+              box to 0.04em below the baseline and Georgia's comma descends
+              0.2em, so anything under ~0.18em puts "2,315" into the label. */}
+          <span className="mt-[calc(var(--placard-headline)*0.22)] flex items-center gap-1.5 whitespace-nowrap text-muted-foreground text-[length:var(--placard-label)] leading-none">
+            <HeadlineIcon className="size-[1.15em] shrink-0" weight="bold" />
             {headlineLabel}
           </span>
         </div>
@@ -313,41 +339,38 @@ export function PlacardStatsCard({
             compactMobile={compactMobile}
             size={size}
           />
-        ) : (
-          chart
-        )}
+        ) : null}
       </div>
       <div
+        data-placard-stats=""
         className={cn(
           "flex min-w-0 flex-col justify-between border-l border-foreground/10 text-right",
           card ? "pl-3" : "pl-4 min-[1200px]:pl-5",
+          // The stats set the top row's height when the chart is below, so
+          // their spread has to come from a gap rather than from slack.
+          chartRow && "gap-3",
         )}
       >
         {stats.map(({ icon: StatIcon, label, value }) => (
           <div key={label}>
-            <strong
-              className={cn(
-                "block font-semibold tabular-nums leading-none text-foreground",
-                card ? "text-xl" : "text-[1.65rem]",
-              )}
-            >
+            <strong className="block font-semibold tabular-nums text-foreground text-[length:var(--placard-stat)] leading-none">
               {value}
             </strong>
-            <span
-              className={cn(
-                "flex items-center justify-end gap-1 whitespace-nowrap font-medium leading-none text-muted-foreground",
-                card ? "mt-1 text-[10px]" : "mt-1.5 text-[11px]",
-              )}
-            >
-              <StatIcon
-                className={card ? "size-3 shrink-0" : "size-3.5 shrink-0"}
-                weight="bold"
-              />
+            <span className="mt-[calc(var(--placard-stat)*0.15)] flex items-center justify-end gap-1 whitespace-nowrap font-medium text-muted-foreground text-[length:var(--placard-label)] leading-none">
+              <StatIcon className="size-[1.15em] shrink-0" weight="bold" />
               {label}
             </span>
           </div>
         ))}
       </div>
+      {chartRow ? (
+        <div
+          data-placard-chart=""
+          className={cn("col-span-2", card ? "mt-3" : "mt-4 min-[1200px]:mt-5")}
+        >
+          {chart}
+        </div>
+      ) : null}
     </div>
   );
 }

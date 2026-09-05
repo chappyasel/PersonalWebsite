@@ -1,7 +1,74 @@
 export type MobileSheetPanelState = "closed" | "opening" | "open" | "closing";
 
 export const MOBILE_SHEET_GRABBER_PX = 16;
+/** The title row's share of the sheet's height budget at the phone title
+ * size; `mobileSheetTitleRowPx` grows it with the title. */
 export const MOBILE_SHEET_TITLE_ROW_PX = 48;
+
+/** The sheet title: 20px on phones, growing with the viewport to 29px where
+ * the sheet reaches its 700px cap (~740px viewports). At tablet widths the
+ * cards inside carry desktop-sized figures, and a 20px title over a 104px
+ * headline read as the wrong section's label; 34 and then 31 were "a tad too much", so
+ * the growth is 36% less than the first cut. The CSS clamp and the px function are
+ * one curve; the header's font-size takes the clamp and its children size
+ * in em, so the row's height follows the same number the height budget
+ * below uses. The mobile rail scales its icons on this curve too. */
+export const MOBILE_SHEET_TITLE_MIN_PX = 20;
+export const MOBILE_SHEET_TITLE_MAX_PX = 29;
+const MOBILE_SHEET_TITLE_FROM_VW = 400;
+const MOBILE_SHEET_TITLE_TO_VW = 740;
+const MOBILE_SHEET_TITLE_SLOPE =
+  (MOBILE_SHEET_TITLE_MAX_PX - MOBILE_SHEET_TITLE_MIN_PX) /
+  (MOBILE_SHEET_TITLE_TO_VW - MOBILE_SHEET_TITLE_FROM_VW);
+const MOBILE_SHEET_TITLE_INTERCEPT =
+  MOBILE_SHEET_TITLE_MIN_PX - MOBILE_SHEET_TITLE_SLOPE * MOBILE_SHEET_TITLE_FROM_VW;
+/** In rem so a root type-size preference still scales the chrome; the px
+ * functions assume the 16px default, as the sheet's height budget does. */
+const ROOT_PX = 16;
+export const MOBILE_SHEET_TITLE_CLAMP = `clamp(${MOBILE_SHEET_TITLE_MIN_PX / ROOT_PX}rem, ${(MOBILE_SHEET_TITLE_INTERCEPT / ROOT_PX).toFixed(3)}rem + ${(MOBILE_SHEET_TITLE_SLOPE * 100).toFixed(3)}vw, ${MOBILE_SHEET_TITLE_MAX_PX / ROOT_PX}rem)`;
+/** The title's line box is 1.5 of its size (the inherited body leading; the
+ * truncating h2 needs the room for descenders). The header's padding above
+ * and below that box stays constant, so the row grows by 1.5px per title px. */
+export const MOBILE_SHEET_TITLE_LEADING = 1.5;
+
+/** The mobile icon rail rides the same curve, more gently: its em-sized
+ * row goes from 1x at the phone title to 1.2x where the title tops out, so
+ * seven 22px glyphs become 26px on a tablet without turning into a toolbar. */
+export const MOBILE_RAIL_SCALE_MAX = 1.2;
+const MOBILE_RAIL_SLOPE =
+  (ROOT_PX * (MOBILE_RAIL_SCALE_MAX - 1)) /
+  (MOBILE_SHEET_TITLE_TO_VW - MOBILE_SHEET_TITLE_FROM_VW);
+const MOBILE_RAIL_INTERCEPT =
+  ROOT_PX - MOBILE_RAIL_SLOPE * MOBILE_SHEET_TITLE_FROM_VW;
+/** The rail row's font-size; every rail dimension is in em of it. */
+export const MOBILE_RAIL_FONT_CLAMP = `clamp(1rem, ${(MOBILE_RAIL_INTERCEPT / ROOT_PX).toFixed(3)}rem + ${(MOBILE_RAIL_SLOPE * 100).toFixed(3)}vw, ${MOBILE_RAIL_SCALE_MAX}rem)`;
+
+export function mobileRailScale(viewportWidth: number) {
+  return (
+    1 +
+    (MOBILE_RAIL_SCALE_MAX - 1) *
+      ((mobileSheetTitlePx(viewportWidth) - MOBILE_SHEET_TITLE_MIN_PX) /
+        (MOBILE_SHEET_TITLE_MAX_PX - MOBILE_SHEET_TITLE_MIN_PX))
+  );
+}
+
+export function mobileSheetTitlePx(viewportWidth: number) {
+  return Math.min(
+    MOBILE_SHEET_TITLE_MAX_PX,
+    Math.max(
+      MOBILE_SHEET_TITLE_MIN_PX,
+      MOBILE_SHEET_TITLE_INTERCEPT + MOBILE_SHEET_TITLE_SLOPE * viewportWidth,
+    ),
+  );
+}
+
+export function mobileSheetTitleRowPx(viewportWidth: number) {
+  return (
+    MOBILE_SHEET_TITLE_ROW_PX +
+    MOBILE_SHEET_TITLE_LEADING *
+      (mobileSheetTitlePx(viewportWidth) - MOBILE_SHEET_TITLE_MIN_PX)
+  );
+}
 export const MOBILE_SHEET_OVERDRAG_RESISTANCE = 0.25;
 export const MOBILE_SHEET_SEAM_TOLERANCE_PX = 2;
 export const MOBILE_SHEET_WHEEL_COMMIT_PX = 36;
@@ -186,12 +253,19 @@ export function accumulateMobileSheetWheelIntent({
  * bottom control jumping in both directions. Pose changes now move one fixed
  * box; only its translateY changes.
  */
-export function mobileSheetGeometry(state: MobileSheetPanelState) {
+export function mobileSheetGeometry(
+  state: MobileSheetPanelState,
+  viewportWidth = 0,
+) {
   return {
     expanded: state === "opening" || state === "open",
     grabberPx: MOBILE_SHEET_GRABBER_PX,
     // The grabber overlays the title row instead of consuming its own band.
-    headerPx: Math.max(MOBILE_SHEET_GRABBER_PX, MOBILE_SHEET_TITLE_ROW_PX),
+    // The row grows with the title (tablet sheets), never with the pose.
+    headerPx: Math.max(
+      MOBILE_SHEET_GRABBER_PX,
+      mobileSheetTitleRowPx(viewportWidth),
+    ),
   } as const;
 }
 

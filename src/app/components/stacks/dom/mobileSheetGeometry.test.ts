@@ -6,7 +6,11 @@ import {
   accumulateMobileSheetWheelIntent,
   mobileSheetCameraCoverage,
   mobileSheetChipActive,
+  MOBILE_RAIL_FONT_CLAMP,
+  MOBILE_SHEET_TITLE_CLAMP,
   mobileSheetGeometry,
+  mobileRailScale,
+  mobileSheetTitlePx,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
@@ -152,6 +156,28 @@ describe("mobile sheet transition geometry", () => {
       true,
       false,
     ]);
+  });
+
+  it("grows the title row with the title, by its leading, and only past phones", () => {
+    expect(mobileSheetTitlePx(390)).toBe(20);
+    expect(mobileSheetTitlePx(400)).toBeCloseTo(20, 10);
+    expect(mobileSheetTitlePx(570)).toBeCloseTo(24.5, 10);
+    expect(mobileSheetTitlePx(740)).toBeCloseTo(29, 10);
+    expect(mobileSheetTitlePx(820)).toBe(29);
+    // The CSS clamp is the same curve, in rem at the 16px root.
+    expect(MOBILE_SHEET_TITLE_CLAMP).toBe(
+      "clamp(1.25rem, 0.588rem + 2.647vw, 1.8125rem)",
+    );
+    expect(mobileSheetGeometry("open", 390).headerPx).toBe(48);
+    expect(mobileSheetGeometry("open", 820).headerPx).toBe(48 + 1.5 * 9);
+    // The icon rail rides the same curve at a fifth of the growth.
+    expect(mobileRailScale(390)).toBe(1);
+    expect(mobileRailScale(570)).toBeCloseTo(1.1, 10);
+    expect(mobileRailScale(820)).toBe(1.2);
+    expect(MOBILE_RAIL_FONT_CLAMP).toBe("clamp(1rem, 0.765rem + 0.941vw, 1.2rem)");
+    expect(mobileSheetGeometry("closed", 820).headerPx).toBe(
+      mobileSheetGeometry("open", 820).headerPx,
+    );
   });
 
   it("derives all detents from one rendered box height", () => {
