@@ -67,6 +67,7 @@ import {
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
   cameraCompositionForViewport,
+  parallaxLookOffset,
   cameraDepthOffsetsForViewport,
   cameraForAspect,
   cameraXForScrollOffset,
@@ -167,6 +168,16 @@ function currentAboutShift(): number {
     window.innerHeight,
     railRightPxRef.current || RAIL_RIGHT_PX_FALLBACK,
   );
+}
+
+/** The rail measurement the other stops' lateral truck is solved against
+ * (`stopLateralOffset`), under the same gates as the About shift: none
+ * under OG capture, none below the desktop seam. */
+function currentRailRightPx(): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  if (captureHeadOnFromSearch(window.location.search)) return undefined;
+  if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return undefined;
+  return railRightPxRef.current || RAIL_RIGHT_PX_FALLBACK;
 }
 
 export default function CameraRig() {
@@ -666,7 +677,12 @@ export default function CameraRig() {
       size.width,
       size.height,
       scenePosition,
+      currentRailRightPx(),
     );
+    // The eye stands this far right of the scroll position at desktop stops
+    // so the shelf clears the dock; the look target rides the same offset
+    // below, so this is a truck, not a yaw.
+    const eyeX = targetX + composition.lateralOffset;
     const lookY = captureLookY ?? composition.lookY;
     const cameraY = captureCameraY ?? composition.y;
     const t = clock.elapsedTime;
@@ -727,7 +743,7 @@ export default function CameraRig() {
       }
       if (authoredBounds || !focusBounds.current.isEmpty()) {
         desiredFocusX = THREE.MathUtils.clamp(
-          focusCenter.current.x - (targetX + composition.lookXOffset),
+          focusCenter.current.x - eyeX,
           -0.28,
           0.28,
         );
@@ -824,10 +840,7 @@ export default function CameraRig() {
     const baseZ = composition.z - cameraZoom;
     look.current.x = THREE.MathUtils.damp(
       look.current.x,
-      targetX +
-        composition.lookXOffset +
-        focusX.current +
-        pointerX * 0.45 * calm,
+      eyeX + focusX.current + parallaxLookOffset(pointerX, composition) * calm,
       LOOK_X_LAMBDA,
       dt,
     );
@@ -903,7 +916,7 @@ export default function CameraRig() {
     if (cameraDepth.eyeHeight !== 0 || cameraDepth.pitchRadians !== 0) {
       authoredEyeY += cameraDepth.eyeHeight;
       const horizontalDistance = Math.hypot(
-        look.current.x - targetX,
+        look.current.x - eyeX,
         look.current.z - baseZ,
       );
       const baselinePitch = Math.atan2(
@@ -918,7 +931,7 @@ export default function CameraRig() {
 
     let seatBlend = 0;
     if (s === 0) {
-      camera.position.set(targetX, authoredEyeY, baseZ);
+      camera.position.set(eyeX, authoredEyeY, baseZ);
       camera.lookAt(travelLook.current);
     } else {
       // Seated pose keeps a breath and the pointer parallax: a camera that
@@ -970,7 +983,7 @@ export default function CameraRig() {
         ty + seatPointer.current.y * 0.45,
         tz,
       );
-      travelEye.current.set(targetX, authoredEyeY, baseZ);
+      travelEye.current.set(eyeX, authoredEyeY, baseZ);
 
       // The walk, as a quadratic Bezier rather than a straight line. The
       // chair stands between the camera and the shelf, so a diagonal glide
@@ -980,7 +993,7 @@ export default function CameraRig() {
       // path a person actually takes.
       const standZ = ez + STAND_BACK;
       ctrl.current.set(
-        targetX + (ex - targetX) * 0.15,
+        eyeX + (ex - eyeX) * 0.15,
         authoredEyeY + APPROACH_LIFT * 0.5,
         baseZ + (standZ - baseZ) * 0.55,
       );
@@ -992,7 +1005,7 @@ export default function CameraRig() {
       // standing at the shelf or while settled in the chair.
       const gait = walk * (1 - walk) * 4;
       walkPos.current.set(
-        b0 * targetX + b1 * ctrl.current.x + b2 * ex,
+        b0 * eyeX + b1 * ctrl.current.x + b2 * ex,
         b0 * authoredEyeY +
           b1 * ctrl.current.y +
           b2 * (authoredEyeY + APPROACH_LIFT) +
@@ -1050,7 +1063,7 @@ export default function CameraRig() {
     }
     cameraTravelDiagnostics.targetX = targetX;
     cameraTravelDiagnostics.lookX = look.current.x;
-    cameraTravelDiagnostics.lookLagX = look.current.x - targetX;
+    cameraTravelDiagnostics.lookLagX = look.current.x - eyeX;
 
     const movement = Math.abs(scenePosition - previousScenePosition.current);
     previousScenePosition.current = scenePosition;

@@ -301,7 +301,25 @@ export type CameraComposition = {
   y: number;
   z: number;
   fov: number;
-  lookXOffset: number;
+  /** Lateral truck in world units: the eye AND the look target both move
+   * by this, so the frame slides without yawing. On desktop stops 1..6 it
+   * is `stopLateralOffset`, which centres the shelf in the clear gap
+   * between the rail and the reading dock; About keeps its own solve
+   * (`aboutStopShift`, applied through the scroll stop) and stays at 0. */
+  lateralOffset: number;
+  /** Where the pointer parallax reads as neutral, in NDC x. The gap's
+   * midpoint on desktop (a mouse resting over the shelf gives the composed
+   * frame), 0 elsewhere. */
+  parallaxCentre: number;
+  /** The look target's full swing LEFT (carrying the shelf toward the dock)
+   * with the pointer at the viewport's left edge, world units. Where the
+   * shelf fits the gap, its clearance to the dock: it can touch the glass,
+   * never pass it. Where the gap is narrower than the shelf and the left
+   * end rests under the nav, enough to bring that end out to the rail
+   * margin, so every part of the shelf is reachable with the mouse alone.
+   * The nav side is transparent and always gets `PARALLAX_SWING`.
+   * `PARALLAX_SWING` where there is no dock. */
+  parallaxDockSwing: number;
   lookY: number;
   lookZ: number;
 };
@@ -338,7 +356,9 @@ function lerpComposition(
     y: lerp(from.y, to.y),
     z: lerp(from.z, to.z),
     fov: lerp(from.fov, to.fov),
-    lookXOffset: lerp(from.lookXOffset, to.lookXOffset),
+    lateralOffset: lerp(from.lateralOffset, to.lateralOffset),
+    parallaxCentre: lerp(from.parallaxCentre, to.parallaxCentre),
+    parallaxDockSwing: lerp(from.parallaxDockSwing, to.parallaxDockSwing),
     lookY: lerp(from.lookY, to.lookY),
     lookZ: lerp(from.lookZ, to.lookZ),
   };
@@ -347,24 +367,37 @@ function lerpComposition(
 /** Every stop uses the same shelf-relative distance. Odd units sit farther
  * back in world Z, so their camera and look target move back with them rather
  * than making those shelves appear smaller. Travel interpolates between the
- * adjacent stop compositions. */
+ * adjacent stop compositions. With `railRightPx` (the live rail measurement,
+ * desktop only; callers omit it under OG capture) stops 1..6 truck sideways
+ * so the shelf sits in the gap beside the dock instead of half behind it. */
 export function cameraCompositionForViewport(
   width: number,
   height: number,
   scenePosition: number,
+  railRightPx?: number,
 ): CameraComposition {
   const fallback = cameraForAspect(width / Math.max(1, height));
   const portrait = presentationProfileForViewport(width, height) === "portrait";
   const overviewDistance = portrait
     ? portraitShelfOverviewDistance(width, height)
     : fallback.z;
+  const framing =
+    railRightPx === undefined
+      ? null
+      : desktopStopFraming(width, height, railRightPx);
   const stop = (unit: number): CameraComposition => {
     const unitZ = unitPose(unit).position[2];
     return {
       y: portrait ? 0.25 : fallback.y,
       z: unitZ + overviewDistance,
       fov: portrait ? PORTRAIT_FOV : fallback.fov,
-      lookXOffset: 0,
+      lateralOffset: unit === 0 || !framing ? 0 : framing.lateralOffset,
+      parallaxCentre: framing ? framing.gapCentreNdc : 0,
+      parallaxDockSwing: framing
+        ? unit === 0
+          ? framing.aboutDockSwing
+          : framing.dockSwing
+        : PARALLAX_SWING,
       lookY: CAMERA_LOOK_Y,
       lookZ: unitZ + CAMERA_LOOK_Z_OFFSET,
     };
@@ -452,4 +485,147 @@ export function aboutStopShift(
   const camX =
     ABOUT_SHELF_LEFT.x - (frac - 0.5) * (cam.z - ABOUT_SHELF_LEFT.z) * 2 * tanH;
   return Math.min(ABOUT_STOP_MAX_SHIFT, Math.max(0, camX));
+}
+
+/** The desktop reading dock's left edge in CSS px, from the same two clamps
+ * PlacardLayer gives the dock (`--pw` and its gutter), at the 16px root
+ * size. A formula rather than a measurement because the dock is a pure
+ * function of the viewport, unlike the rail, whose width is a font's. */
+export function desktopDockLeftPx(vw: number): number {
+  const rem = 16;
+  const width = Math.min(40 * rem, Math.max(27 * rem, 0.225 * vw + 13 * rem));
+  const gutter = Math.min(
+    2 * rem,
+    Math.max(1.25 * rem, 0.6 * rem + 0.011 * vw),
+  );
+  return vw - width - gutter;
+}
+
+/** Maximum lateral truck at stops 1..6, in world units. Roughly 0.5-0.9 is
+ * what the solve wants at every desktop width (a square 1200 window asks
+ * for 1.08); the cap only guards the arithmetic against a rail measurement
+ * gone wrong. Unlike About's shift this never moves a scroll stop, so
+ * activeUnit rounding is not a constraint here. */
+export const STOP_LATERAL_MAX = 1.2;
+/** Clear air between the shelf's projected right edge and the dock's glass
+ * where the gap cannot fit the whole shelf. */
+export const DOCK_SHELF_MARGIN_PX = 16;
+/** Full pointer-parallax swing of the look target, in world units, at a
+ * pointer on the viewport's edge. */
+export const PARALLAX_SWING = 0.45;
+/** The dock-side swing may exceed PARALLAX_SWING where the shelf overflows
+ * the nav (square desktop windows); this bounds how far. 1.4 is an 13° yaw
+ * of the look target, reached only by a 1200x1000 window. */
+export const PARALLAX_DOCK_SWING_MAX = 1.4;
+
+export type DesktopStopFraming = Readonly<{
+  /** Truck for stops 1..6 (world units, camera right of the shelf). */
+  lateralOffset: number;
+  /** The rail-to-dock gap's midpoint in NDC x. */
+  gapCentreNdc: number;
+  /** The look target's full dock-side swing for stops 1..6, world units. */
+  dockSwing: number;
+  /** The same for About, whose stop `aboutStopShift` pins to the rail. */
+  aboutDockSwing: number;
+}>;
+
+/** The desktop framing at stops 1..6: how far right of a shelf's centre line
+ * the camera stands so the shelf's projected centre lands at the midpoint of
+ * the clear gap between the rail's widest label and the dock, plus what the
+ * pointer parallax needs to keep the shelf out of the dock. Every stop used
+ * to centre its shelf on the viewport, which put the shelf's right end
+ * behind the dock at any width under ~2560px: at 2000 the dock owns the
+ * frame from 1328px and the shelf ran to 1482 (owner screenshot, 2026-09-04).
+ *
+ * Solved at the shelf plane, distance `cam.z` from the eye, with a parallel
+ * optical axis: px per world unit = vw / (2·tanH·cam.z). Where the gap is
+ * narrower than the shelf (below ~1400px) the RIGHT edge holds
+ * DOCK_SHELF_MARGIN_PX off the dock and the left end runs under the nav:
+ * the nav is transparent text and the dock is opaque cards, so the nav is
+ * the side that can be seen through (owner, 2026-09-04). Portrait and
+ * mobile shells have no dock and no rail; callers pass no rail there. */
+export function desktopStopFraming(
+  vw: number,
+  vh: number,
+  railRightPx: number,
+): DesktopStopFraming {
+  const none: DesktopStopFraming = {
+    lateralOffset: 0,
+    gapCentreNdc: 0,
+    dockSwing: PARALLAX_SWING,
+    aboutDockSwing: PARALLAX_SWING,
+  };
+  if (vw < STACKS_DESKTOP_MIN_WIDTH) return none;
+  const aspect = vw / Math.max(1, vh);
+  const cam = cameraForAspect(aspect);
+  const tanH = Math.tan(((cam.fov / 2) * Math.PI) / 180) * aspect;
+  const pxPerWorld = vw / (2 * tanH * cam.z);
+  const halfShelfPx = (SHELF_GEOMETRY.width / 2) * pxPerWorld;
+  const railEdge = railRightPx + RAIL_SHELF_MARGIN_PX;
+  const dockEdge = desktopDockLeftPx(vw);
+  const mid = (railEdge + dockEdge) / 2;
+  const centrePx = Math.min(mid, dockEdge - DOCK_SHELF_MARGIN_PX - halfShelfPx);
+  const lateralOffset = Math.min(
+    STOP_LATERAL_MAX,
+    Math.max(0, (vw / 2 - centrePx) / pxPerWorld),
+  );
+  const landedRight = vw / 2 - lateralOffset * pxPerWorld + halfShelfPx;
+  // About's stop is a scroll shift solved elsewhere; its shelf's left edge
+  // projects from that shift the same way aboutStopShift derived it.
+  const aboutShift = aboutStopShift(vw, vh, railRightPx);
+  const aboutLeft =
+    vw *
+    (0.5 +
+      (ABOUT_SHELF_LEFT.x - aboutShift) /
+        ((cam.z - ABOUT_SHELF_LEFT.z) * 2 * tanH));
+  // The look target sits CAMERA_LOOK_Z_OFFSET behind the shelf plane, so a
+  // look offset moves the shelf by cam.z / (cam.z - offset) of itself.
+  const lookPerShelfWorld = (cam.z - CAMERA_LOOK_Z_OFFSET) / cam.z;
+  const dockSwingFor = (leftPx: number, rightPx: number) => {
+    const clearance = Math.max(0, dockEdge - rightPx) / pxPerWorld;
+    const underNav = Math.max(0, railEdge - leftPx) / pxPerWorld;
+    // Fits: swing to the glass, kept as a plain clearance so the shelf lands
+    // ~3% short of it. Overflows: swing until the left end reaches the rail
+    // margin, exact, and let the right end go under the opaque dock.
+    const touch = Math.min(PARALLAX_SWING, clearance);
+    const reveal = underNav * lookPerShelfWorld;
+    return Math.min(PARALLAX_DOCK_SWING_MAX, Math.max(touch, reveal));
+  };
+  return {
+    lateralOffset,
+    gapCentreNdc: (2 * mid) / vw - 1,
+    dockSwing: dockSwingFor(landedRight - 2 * halfShelfPx, landedRight),
+    aboutDockSwing: dockSwingFor(aboutLeft, aboutLeft + 2 * halfShelfPx),
+  };
+}
+
+/** The truck alone; see `desktopStopFraming`. */
+export function stopLateralOffset(
+  vw: number,
+  vh: number,
+  railRightPx: number,
+): number {
+  return desktopStopFraming(vw, vh, railRightPx).lateralOffset;
+}
+
+/** The pointer's contribution to the look target's x, in world units.
+ * `pointerX` is NDC; neutral is the composition's gap centre rather than
+ * the viewport centre. Each side of neutral maps its whole run to the
+ * viewport edge onto that side's full swing, so there is no dead zone: the
+ * mouse always moves the scene, and the dock side simply moves less where
+ * the shelf has less room (or more, where it has to come out from under
+ * the nav). Leftward yaws the camera left and carries the shelf toward the
+ * dock. With a centred composition and equal swings (mobile, OG capture)
+ * this is the original `pointerX * 0.45`. */
+export function parallaxLookOffset(
+  pointerX: number,
+  composition: Pick<CameraComposition, "parallaxCentre" | "parallaxDockSwing">,
+): number {
+  const centre = composition.parallaxCentre;
+  if (pointerX < centre) {
+    const rel = Math.max(-1, (pointerX - centre) / Math.max(0.05, 1 + centre));
+    return rel * composition.parallaxDockSwing;
+  }
+  const rel = Math.min(1, (pointerX - centre) / Math.max(0.05, 1 - centre));
+  return rel * PARALLAX_SWING;
 }

@@ -5,9 +5,17 @@ import {
   CAMERA_DEPTH_MAX_EYE_HEIGHT,
   CAMERA_DEPTH_MAX_PITCH_DEGREES,
   DEPTH_OF_FIELD_SHELF_Z,
+  DOCK_SHELF_MARGIN_PX,
+  PARALLAX_SWING,
+  RAIL_SHELF_MARGIN_PX,
   SHELF_OVERVIEW_MAX_DISTANCE,
+  STOP_LATERAL_MAX,
   TRAVEL_LEAD_IN,
   aboutStopShift,
+  desktopDockLeftPx,
+  desktopStopFraming,
+  parallaxLookOffset,
+  stopLateralOffset,
   apparentHeightScale,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
@@ -52,7 +60,7 @@ describe("mobile camera framing", () => {
       y: 0.25,
       z: overview,
       fov: 33,
-      lookXOffset: 0,
+      lateralOffset: 0,
       lookY: -0.08,
       lookZ: -0.2,
     });
@@ -60,7 +68,7 @@ describe("mobile camera framing", () => {
       y: 0.25,
       z: overview - 0.55,
       fov: 33,
-      lookXOffset: 0,
+      lateralOffset: 0,
       lookY: -0.08,
       lookZ: -0.75,
     });
@@ -248,6 +256,150 @@ describe("About lead-in", () => {
       13.2,
       10,
     );
+  });
+});
+
+describe("desktop stop centring", () => {
+  // The eye stands `shift` right of the shelf's centre line at distance
+  // CAMERA.z with a parallel axis, so the centre projects left of 0.5.
+  const pxPerWorld = (vw: number, vh: number) => {
+    const tanH = Math.tan((CAMERA.fov * Math.PI) / 360) * (vw / vh);
+    return vw / (2 * tanH * CAMERA.z);
+  };
+  const shelfCentrePx = (vw: number, vh: number, shift: number) =>
+    vw / 2 - shift * pxPerWorld(vw, vh);
+
+  it("derives the dock edge from the dock's own two clamps", () => {
+    expect(desktopDockLeftPx(1280)).toBeCloseTo(1280 - 496 - 23.68, 6);
+    expect(desktopDockLeftPx(2000)).toBeCloseTo(2000 - 640 - 31.6, 6);
+    expect(desktopDockLeftPx(3440)).toBe(3440 - 640 - 32);
+  });
+
+  it("puts the shelf centre at the midpoint of the rail-to-dock gap", () => {
+    // The owner's 2000px-wide screenshot: the shelf ran to 1482px while the
+    // dock owned the frame from 1328px.
+    const shift = stopLateralOffset(2000, 1254, 198);
+    const mid = (198 + RAIL_SHELF_MARGIN_PX + desktopDockLeftPx(2000)) / 2;
+    expect(shelfCentrePx(2000, 1254, shift)).toBeCloseTo(mid, 6);
+    expect(shift).toBeGreaterThan(0.5);
+    expect(shift).toBeLessThan(0.8);
+    const half = (SHELF_GEOMETRY.width / 2) * pxPerWorld(2000, 1254);
+    expect(mid + half).toBeLessThan(desktopDockLeftPx(2000));
+    expect(mid - half).toBeGreaterThan(198 + RAIL_SHELF_MARGIN_PX);
+  });
+
+  it("holds the right edge off the dock and runs the left end under the nav where the gap is narrower than the shelf", () => {
+    const vw = 1280;
+    const vh = 820;
+    const shift = stopLateralOffset(vw, vh, 179);
+    const half = (SHELF_GEOMETRY.width / 2) * pxPerWorld(vw, vh);
+    const right = shelfCentrePx(vw, vh, shift) + half;
+    expect(right).toBeCloseTo(desktopDockLeftPx(vw) - DOCK_SHELF_MARGIN_PX, 6);
+    // The nav is transparent text, the dock is opaque cards: the left end
+    // is the one that may be covered.
+    expect(right - 2 * half).toBeLessThan(179 + RAIL_SHELF_MARGIN_PX);
+  });
+
+  it("reads the pointer parallax from the gap centre and caps the swing toward the dock", () => {
+    const vw = 1920;
+    const vh = 1080;
+    const framing = desktopStopFraming(vw, vh, 198);
+    const composition = cameraCompositionForViewport(vw, vh, 2, 198);
+    const gapMid = (198 + RAIL_SHELF_MARGIN_PX + desktopDockLeftPx(vw)) / 2;
+    expect(composition.parallaxCentre).toBeCloseTo((2 * gapMid) / vw - 1, 10);
+    // A mouse resting over the shelf leaves the composed frame alone.
+    expect(parallaxLookOffset(composition.parallaxCentre, composition)).toBe(0);
+    // Toward the nav: the full swing, as before.
+    expect(parallaxLookOffset(1, composition)).toBeCloseTo(PARALLAX_SWING, 10);
+    // Toward the dock: the shelf may touch the glass but not pass it. The
+    // look target sits 0.2 behind the shelf plane, so the shelf moves
+    // CAMERA.z / (CAMERA.z + 0.2) of the look offset.
+    const swing = parallaxLookOffset(-1, composition);
+    expect(swing).toBeLessThan(0);
+    expect(swing).toBeGreaterThan(-PARALLAX_SWING);
+    const half = (SHELF_GEOMETRY.width / 2) * pxPerWorld(vw, vh);
+    const landedRight = shelfCentrePx(vw, vh, framing.lateralOffset) + half;
+    const shelfShiftPx =
+      -swing * (CAMERA.z / (CAMERA.z + 0.2)) * pxPerWorld(vw, vh);
+    expect(landedRight + shelfShiftPx).toBeLessThanOrEqual(
+      desktopDockLeftPx(vw),
+    );
+    expect(landedRight + shelfShiftPx).toBeGreaterThan(
+      desktopDockLeftPx(vw) - 8,
+    );
+    // No dead zone: halfway to the edge is half the swing on each side.
+    const c = composition.parallaxCentre;
+    expect(parallaxLookOffset(c - (1 + c) / 2, composition)).toBeCloseTo(
+      swing / 2,
+      10,
+    );
+    expect(parallaxLookOffset(c + (1 - c) / 2, composition)).toBeCloseTo(
+      PARALLAX_SWING / 2,
+      10,
+    );
+    // About is pinned to the rail by its own shift and has more room.
+    expect(
+      cameraCompositionForViewport(vw, vh, 0, 198).parallaxDockSwing,
+    ).toBeGreaterThan(composition.parallaxDockSwing);
+    // Without a rail (mobile, OG capture) nothing changes: viewport-centred,
+    // full swing both ways.
+    const bare = cameraCompositionForViewport(390, 844, 2);
+    expect(bare.parallaxCentre).toBe(0);
+    expect(parallaxLookOffset(-1, bare)).toBeCloseTo(-PARALLAX_SWING, 10);
+    expect(parallaxLookOffset(0.5, bare)).toBeCloseTo(PARALLAX_SWING / 2, 10);
+  });
+
+  it("lets the mouse bring a shelf out from under the nav in a square desktop window", () => {
+    // 2000×1730 (owner screenshot): the shelf projects wider than the gap,
+    // rests with its right edge off the dock and its left end under the nav.
+    const vw = 2000;
+    const vh = 1730;
+    const framing = desktopStopFraming(vw, vh, 198);
+    const half = (SHELF_GEOMETRY.width / 2) * pxPerWorld(vw, vh);
+    const railEdge = 198 + RAIL_SHELF_MARGIN_PX;
+    const landedLeft = shelfCentrePx(vw, vh, framing.lateralOffset) - half;
+    expect(landedLeft + 2 * half).toBeCloseTo(
+      desktopDockLeftPx(vw) - DOCK_SHELF_MARGIN_PX,
+      6,
+    );
+    expect(landedLeft).toBeLessThan(railEdge - 100);
+    // Mouse on the left edge: the swing exceeds the normal 0.45 by exactly
+    // what it takes to land the left end on the rail margin.
+    const composition = cameraCompositionForViewport(vw, vh, 3, 198);
+    const swing = parallaxLookOffset(-1, composition);
+    expect(-swing).toBeGreaterThan(PARALLAX_SWING);
+    const shelfShiftPx =
+      -swing * (CAMERA.z / (CAMERA.z + 0.2)) * pxPerWorld(vw, vh);
+    expect(landedLeft + shelfShiftPx).toBeCloseTo(railEdge, 4);
+    // Mouse on the right edge: the ordinary swing, left end further under
+    // the nav, right end still clear of the dock.
+    expect(parallaxLookOffset(1, composition)).toBeCloseTo(PARALLAX_SWING, 10);
+    // A wide window never asks for more than the ordinary swing.
+    expect(desktopStopFraming(1920, 1080, 198).dockSwing).toBeLessThanOrEqual(
+      PARALLAX_SWING,
+    );
+  });
+
+  it("is zero off desktop, bounded, and reaches stops 1..6 only", () => {
+    expect(stopLateralOffset(1199, 800, 179)).toBe(0);
+    expect(stopLateralOffset(390, 844, 0)).toBe(0);
+    for (const vw of [1200, 1440, 1920, 2560, 3440]) {
+      const shift = stopLateralOffset(vw, vw / 1.6, 198);
+      expect(shift).toBeGreaterThanOrEqual(0);
+      expect(shift).toBeLessThanOrEqual(STOP_LATERAL_MAX);
+    }
+    const shift = stopLateralOffset(2000, 1254, 198);
+    expect(cameraCompositionForViewport(2000, 1254, 0, 198).lateralOffset).toBe(
+      0,
+    );
+    expect(
+      cameraCompositionForViewport(2000, 1254, 1, 198).lateralOffset,
+    ).toBeCloseTo(shift, 10);
+    expect(
+      cameraCompositionForViewport(2000, 1254, 0.5, 198).lateralOffset,
+    ).toBeCloseTo(shift / 2, 10);
+    // No rail measurement (OG capture, mobile): the authored centre line.
+    expect(cameraCompositionForViewport(2000, 1254, 3).lateralOffset).toBe(0);
   });
 });
 

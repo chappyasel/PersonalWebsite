@@ -99,6 +99,7 @@ import {
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
   mobileSheetChipActive,
+  MOBILE_SHEET_TITLE_CLAMP,
   mobileSheetGeometry,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
@@ -954,9 +955,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   );
   const panelState = useStacks((s) => s.panelState);
   const unit = UNITS[unitIndex]!;
-  const sheetGeometry = mobileSheetGeometry(panelState);
-  const expanded = sheetGeometry.expanded;
   const metrics = useSheetMetrics();
+  const sheetGeometry = mobileSheetGeometry(panelState, metrics?.vw ?? 0);
+  const expanded = sheetGeometry.expanded;
   const reduceMotion = useStacksReducedMotion();
   const sheetHeaderPx = sheetGeometry.headerPx;
 
@@ -1421,7 +1422,14 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     parkSheet(false);
     sheetOpacity.set(1);
     setDismissed(false);
-    requestAnimationFrame(() => headerButtonRef.current?.focus());
+    // Move focus into the restored sheet without painting a focus ring on a
+    // row that is not a visible control (Chromium honours focusVisible).
+    requestAnimationFrame(() =>
+      headerButtonRef.current?.focus({
+        preventScroll: true,
+        focusVisible: false,
+      } as FocusOptions & { focusVisible: boolean }),
+    );
   }, [
     chipOpacity,
     chipVisibility,
@@ -2071,7 +2079,12 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
             </button>
             <div
               data-stacks-mobile-intro="header"
-              className="relative z-10 flex h-[52px] translate-y-1 items-center justify-between px-2"
+              // The row is the title's 1.5 line box plus a constant 11px above
+              // and below, so it grows with the title (MOBILE_SHEET_TITLE_CLAMP,
+              // 20px on phones to 34px at the 700px sheet) and the padding
+              // never changes. mobileSheetGeometry budgets the same growth.
+              className="relative z-10 flex h-[calc(1.5em+22px)] translate-y-1 items-center justify-between px-2"
+              style={{ fontSize: MOBILE_SHEET_TITLE_CLAMP }}
             >
               {/* Hoisted out of the body — see the effect above. It fades with
               the body it names, so a section change never shows one
@@ -2082,24 +2095,36 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${title} section panel`}
                 onClick={expanded ? collapse : expand}
                 data-stacks-swap-part="header"
-                className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-4 text-left text-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
+                // Title and icon size in em of the header's font-size above.
+                // Ink: the cards' foreground reads lighter here because it
+                // sits on the sheet's darker, busier glass rather than a card
+                // fill (measured identical, rgb 46 40 36), so the header
+                // mixes 35% toward black, toward white in dark mode. No ring:
+                // this is the sheet's grabber row, not a visible control, and
+                // the ring showed on the programmatic focus after a tap.
+                // Keyboard focus underlines instead.
+                className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-4 text-left text-[color:color-mix(in_srgb,hsl(var(--foreground)),black_35%)] decoration-foreground/40 decoration-2 underline-offset-[0.2em] outline-none focus-visible:underline dark:text-[color:color-mix(in_srgb,hsl(var(--foreground)),white_35%)]"
               >
                 <ShownIcon
                   aria-hidden
                   weight="bold"
-                  className="size-[1.375rem] shrink-0"
+                  className="size-[1.1em] shrink-0"
                 />
-                <h2 className="truncate font-serif text-xl font-semibold text-foreground">
+                <h2 className="truncate font-serif text-[1em] font-semibold leading-normal">
                   {title}
                 </h2>
               </button>
+              {/* The close control keeps its 44px phone target and grows
+                  with the title past that: 51px wide with a 27px glyph at
+                  the 34px title. Plain foreground: a step lighter than the
+                  title's ink, darker than the muted grey it had. */}
               <button
                 type="button"
                 aria-label="Close"
                 onClick={dismiss}
-                className="flex h-full w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground/45"
+                className="flex h-full w-[max(2.75rem,1.5em)] shrink-0 items-center justify-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-foreground/45"
               >
-                <XIcon className="size-5" weight="bold" />
+                <XIcon className="size-[max(1.25rem,0.8em)]" weight="bold" />
               </button>
             </div>
             {/* The mobile sheet keeps its masked-scroller dissolve. The sheet
@@ -2777,31 +2802,49 @@ export default function PlacardLayer({
           [data-stacks-mobile-panel] [data-mobile-compact-card] > [data-placard-surface] {
             padding: 1rem !important;
           }
+          /* The sheet swaps the card's three type sizes (PlacardStatsCard
+             derives margins and icons from them). 17cqw of the card is
+             12vw of a phone (a 390px viewport leaves a 276px card once the
+             sheet and card insets are paid), so phones render the headline
+             they rendered before; the stat values only grow past a phone. */
           [data-stacks-mobile-panel] [data-mobile-compact-stats] {
-            grid-template-columns: minmax(0, 1.2fr) minmax(6rem, 0.8fr);
+            grid-template-columns: minmax(0, 1fr) auto;
+            --placard-headline: clamp(2.75rem, 17cqw, 4.5rem);
+            --placard-stat: clamp(1.4rem, 4.5cqw, 2rem);
           }
           [data-stacks-mobile-panel] [data-mobile-compact-stats] > :first-child {
             min-height: 9rem;
             padding-right: 0.75rem;
           }
-          [data-stacks-mobile-panel] [data-mobile-compact-stats] > :last-child {
+          [data-stacks-mobile-panel] [data-mobile-compact-stats] > [data-placard-stats] {
             padding-left: 0.75rem;
-          }
-          [data-stacks-mobile-panel] [data-mobile-compact-stats] > :first-child > div:first-child > strong {
-            font-size: clamp(2.75rem, 12vw, 4rem);
-          }
-          [data-stacks-mobile-panel] [data-mobile-compact-stats] > :first-child > div:first-child > span {
-            margin-top: 0.5rem;
-          }
-          [data-stacks-mobile-panel] [data-mobile-compact-stats] > :last-child strong {
-            font-size: 1.4rem;
-          }
-          [data-stacks-mobile-panel] [data-mobile-compact-stats] > :last-child span {
-            margin-top: 5px;
           }
           [data-stacks-mobile-panel] [data-mobile-compact-stats] [data-year-bars] {
             --placard-year-bar-max: 34px;
             height: 3.125rem;
+          }
+          /* The tablet-width sheet is wide enough for the split form
+             (globals.css, data-placard-split). The headline loses the
+             phone's cap and fills the row, the row grows so the three stats
+             keep their spread, and the bars stand beside the headline at
+             the row's height instead of the phone's 34px. */
+          @container (min-width: 38rem) {
+            /* On the left column, not the grid: a container query never
+               matches the query container itself, only its descendants, and
+               the grid is the container. The headline inherits it. */
+            [data-stacks-mobile-panel] [data-mobile-compact-stats][data-placard-split] > :first-child {
+              --placard-headline: clamp(2.75rem, 17cqw, 6.5rem);
+              min-height: 11rem;
+            }
+            [data-stacks-mobile-panel] [data-mobile-compact-stats][data-placard-split] [data-year-bars] {
+              --placard-year-bar-max: 6rem;
+              height: 7rem;
+            }
+            /* The calendar back in the left column (globals.css) keeps the
+               sheet's column gutter. */
+            [data-stacks-mobile-panel] [data-mobile-compact-stats][data-placard-chart-row] > [data-placard-chart] {
+              padding-right: 0.75rem;
+            }
           }
           /* WebKit otherwise starts a native ghost-image drag before the
              sheet can claim the vertical gesture. The dragstart guard on the

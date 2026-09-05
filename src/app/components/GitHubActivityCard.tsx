@@ -73,14 +73,15 @@ function dayCaption(day: GitHubContributionDay) {
 }
 
 /**
- * The contribution graph as GitHub lays it out, in the slot the Weightlifting
- * card gives its year bars: one column per week, Sunday at the top, square
- * cells, a month name under the first week of each month where the bars
- * carry their year labels. The year always fits the column, so the squares
- * are small. Each square is a link to that day's activity on GitHub; the
- * squares stay out of the tab order because the card itself is the link
- * keyboard users get, and 180 stops in a row would be a wall. The month row
- * hides on narrow screens where it would overlap.
+ * The contribution graph as GitHub lays it out, across the whole card under
+ * the headline and the stats: one column per week, Sunday at the top, square
+ * cells, a month name under the first week of each month where the year
+ * bars carry their year labels. The year always fits the width, so the
+ * squares are as big as the card allows and no bigger. Each square is a
+ * link to that day's activity on GitHub; the squares stay out of the tab
+ * order because the card itself is the link keyboard users get, and 180
+ * stops in a row would be a wall. The month row hides on narrow screens
+ * where it would overlap.
  */
 function ContributionCalendar({
   login,
@@ -167,8 +168,8 @@ function ContributionCalendar({
 
 /**
  * The live half of the Projects placard, in the Weightlifting stats card's
- * exact shape: the headline, GitHub's contribution graph where that card
- * keeps its year bars, three figures past the divider. The headline is the
+ * type and figures: the headline beside the three figures, GitHub's
+ * contribution graph across the card beneath them. The headline is the
  * number GitHub prints above its own graph, the last year, because that is
  * the year the graph and the figures describe; the lifetime total sits with
  * the figures. The repositories tab on GitHub is mostly student work from
