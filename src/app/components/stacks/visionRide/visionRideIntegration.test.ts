@@ -140,12 +140,24 @@ describe("Vision ride integration", () => {
     expect(world).toContain(
       "sun.current.scale.setScalar(cycle.sunScale * profile.sunBaseScale)",
     );
-    expect(world).toContain("cycle.chaseOffset +");
-    expect(world).toContain("parallax.current.z / cycle.carScale +");
-    expect(world).toContain("driveChaseOffsetMetres(motion.current.throttle)");
+    // One depth composition: the breath, the wheel zoom and the pedal lean
+    // multiply the distance to the rear face, the pull shrinks with the
+    // breath, and the frame's floor keeps the fenders inside its edges.
+    expect(world).toContain("const depth = chaseDepth({");
+    expect(world).toContain("carScale: cycle.carScale,");
+    expect(world).toContain("zoomDistanceScale(zoom.current.value) *");
+    expect(world).toContain("driveChaseDistanceScale(motion.current.pedal)");
+    expect(world).toContain(
+      "pose.position[2] + (chase.position[2] - framing.chaseZ) * intro",
+    );
+    expect(world).not.toContain("driveChaseOffsetMetres");
     // The aim comes from the live eye so the tilt that keeps the bumper in
     // frame covers the pointer's pull as well as the breath.
-    expect(world).toMatch(/chaseAimY\(\s*framing,\s*eyeY,\s*cameraZ,?\s*\)/);
+    const cameraModule = read("./visionRideCamera.ts");
+    expect(cameraModule).toMatch(
+      /chaseAimY\(\s*framing,\s*input\.eyeY,\s*cameraZ,\s*path\.x,\s*aimX,?\s*\)/,
+    );
+    expect(world).not.toContain("chaseAimY(");
   });
 
   it("reads the pointer from the window because the exit button covers the canvas", () => {
@@ -175,15 +187,36 @@ describe("Vision ride integration", () => {
     expect(world).toContain("isEditableShortcutTarget(event.target)");
     expect(world).toContain("driveAxes(keysPressed.current)");
     expect(world).toContain("driveSpeedMultiplier(next.throttle)");
-    expect(world).toContain("driveChaseOffsetMetres(motion.current.throttle)");
+    // The camera lean rides the fast pedal channel, not the fifteen-second
+    // throttle, so a press reads at once.
+    expect(world).toContain("motion.current.pedal = next.pedal;");
+    expect(world).toContain("driveChaseDistanceScale(motion.current.pedal)");
+    // The wheel zooms the chase from the window in the capture phase and
+    // owns the event, so nothing under the ride travels.
+    expect(world).toContain('window.addEventListener("wheel", onWheel, {');
+    expect(world).toContain("wheelZoomDelta(event, window.innerHeight)");
+    expect(world).toContain("zoom.current.target = clampZoomLog(");
+    expect(world).toContain("advanceZoom(");
     expect(world).toContain("uDriveTint");
     expect(world).toContain("driveVisualResponse(");
-    // The aim shares the lateral shift: a truck, not an orbit about the car.
-    expect(world).toContain("lateralReach(");
+    // The swing is a parabola around the car, capped by projecting the
+    // body's corners into the live frame on the very pose that renders; the
+    // aim shares part of the lateral offset so it is not an orbit.
+    expect(world).toContain("swingLimit(framing, aspect, {");
     expect(world).toContain(
-      "parallax.current.x * intro,\n      -reach,\n      reach,",
+      "swing.current.value * intro,\n      -limit,\n      limit,",
     );
-    expect(world).toContain("pose.aim[0] + chaseAimX(shiftX)");
+    expect(world).toContain(
+      "chasePose(framing, { depth, swing: swingNow, eyeY })",
+    );
+    // Springs, not exponentials: the swing and the lift each carry a
+    // velocity and follow a rate-limited target.
+    expect(world).toContain("criticallyDamped(");
+    expect(world).toContain("VISION_RIDE_PARALLAX.swing,");
+    expect(world).toContain("VISION_RIDE_PARALLAX.lift,");
+    expect(world).not.toContain("dampingPerSecond");
+    expect(world).toContain("pose.aim[0] + chase.aim[0] * intro");
+    expect(world).not.toContain("lateralReach");
     // The wheels are returned by the car memo, not kept in a ref the effect
     // cleanup empties: a profile change ran the old cleanup after the new
     // memo and the wheels stopped turning.
@@ -230,10 +263,11 @@ describe("Vision ride integration", () => {
     expect(world).toContain("mountainWindowOffsets(travel)");
     expect(world).not.toContain("uniform float uTravel");
     expect(world).toContain("profile.terrain.heightScale");
-    // lookAt still pins the car's nominal x and z; only the aim height moves,
-    // and only to keep the car's rear inside the frame.
+    // lookAt still pins the car's nominal z; the aim's x shares part of the
+    // swing and its height moves only to keep the car's rear inside the
+    // frame, both from the shared chase pose.
     expect(world).toMatch(
-      /camera\.lookAt\(\s*pose\.aim\[0\][^;]*chaseAimY\([^)]*\)[^;]*pose\.aim\[2\],?\s*\)/,
+      /camera\.lookAt\(\s*pose\.aim\[0\] \+ chase\.aim\[0\] \* intro,[^;]*chase\.aim\[1\][^;]*pose\.aim\[2\],?\s*\)/,
     );
   });
 

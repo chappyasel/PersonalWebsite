@@ -21,9 +21,10 @@ import {
   VISION_RIDE_INTRO_SECONDS,
   arrivalPose,
   arrivalProgress,
-  chaseAimY,
+  chaseDepth,
   chaseFraming,
-  lateralReach,
+  chasePose,
+  swingLimit,
 } from "./visionRideCamera";
 import {
   useVisionRideLightTrailsEnabled,
@@ -35,7 +36,7 @@ import {
   type VisionRideMotion,
   advanceDriveState,
   driveAxes,
-  driveChaseOffsetMetres,
+  driveChaseDistanceScale,
   driveSpeedMultiplier,
   driveVisualResponse,
   isVisionRideDriveKey,
@@ -56,11 +57,15 @@ import {
 import { type VisionRidePalette, glslVec3 } from "./visionRidePalette";
 import {
   VISION_RIDE_PARALLAX,
-  chaseAimX,
   normalizedPointer,
   parallaxTarget,
 } from "./visionRideParallax";
 import type { VisionRideProfile } from "./visionRideProfiles";
+import {
+  SMOOTHED_AT_REST,
+  type SmoothedValue,
+  criticallyDamped,
+} from "./visionRideSmoothing";
 import {
   VISION_RIDE_MOUNTAIN_FACET_DEPTH_METRES,
   VISION_RIDE_MOUNTAIN_FACET_WIDTH_METRES,
@@ -80,6 +85,12 @@ import {
   visionRideTerrainSegments,
 } from "./visionRideTerrain";
 import { visionRideTouchRuntime } from "./visionRideTouch";
+import {
+  advanceZoom,
+  clampZoomLog,
+  wheelZoomDelta,
+  zoomDistanceScale,
+} from "./visionRideZoom";
 
 export const VISION_RIDE_CAR_URL =
   "/models/vision-ride-lamborghini.glb" as const;
@@ -1186,22 +1197,16 @@ function writeRearLampInstances(
       const mirroredStartX = startX * side;
       const mirroredEndX = endX * side;
       const x1 =
-        side * trail.lampLocalX +
-        mirroredStartX * trail.emitterHalfWidthMetres;
+        side * trail.lampLocalX + mirroredStartX * trail.emitterHalfWidthMetres;
       const y1 = trail.lampLocalY + startY * trail.emitterHalfHeightMetres;
       const x2 =
-        side * trail.lampLocalX +
-        mirroredEndX * trail.emitterHalfWidthMetres;
+        side * trail.lampLocalX + mirroredEndX * trail.emitterHalfWidthMetres;
       const y2 = trail.lampLocalY + endY * trail.emitterHalfHeightMetres;
       const deltaX = x2 - x1;
       const deltaY = y2 - y1;
       const length = Math.hypot(deltaX, deltaY);
 
-      position.set(
-        (x1 + x2) / 2,
-        (y1 + y2) / 2,
-        trail.lampLocalZ + zOffset,
-      );
+      position.set((x1 + x2) / 2, (y1 + y2) / 2, trail.lampLocalZ + zOffset);
       rotation.setFromAxisAngle(zAxis, Math.atan2(deltaY, deltaX));
       scale.set(
         length * (thicknessScale > 1 ? 1.16 : 1),
@@ -1423,9 +1428,7 @@ function CarLightRibbons({
   const geometry = useMemo(() => {
     const trail = VISION_RIDE_LIGHT_TRAIL;
     const extrusionCount =
-      LIGHT_EMITTER_SEGMENTS.length *
-      LIGHT_EXTRUSION_LAYER_SCALES.length *
-      2;
+      LIGHT_EMITTER_SEGMENTS.length * LIGHT_EXTRUSION_LAYER_SCALES.length * 2;
     const vertexCount = trail.samplesPerLamp * 2 * extrusionCount;
     const result = new THREE.BufferGeometry();
     const positions = new THREE.BufferAttribute(
@@ -1822,7 +1825,9 @@ function Lamborghini({
       rotation={[0, Math.PI, 0]}
     >
       <primitive object={car} dispose={null} />
-      {lightsEnabled ? <LamborghiniRearLights color={profile.point.color} /> : null}
+      {lightsEnabled ? (
+        <LamborghiniRearLights color={profile.point.color} />
+      ) : null}
     </group>
   );
 }
@@ -1845,16 +1850,24 @@ export default function VisionRideWorld({
   );
   const readySent = useRef(false);
   const introStartedAt = useRef<number | null>(null);
-  const parallax = useRef({ x: 0, y: 0, z: 0 });
+  /** Smoothed swing fraction and lift, each a rate-limited critically
+   * damped spring; the swing becomes a position on the parabola around
+   * the car once the depth is known. */
+  const swing = useRef<SmoothedValue>(SMOOTHED_AT_REST);
+  const lift = useRef<SmoothedValue>(SMOOTHED_AT_REST);
   const keysPressed = useRef(new Set<string>());
   const motion = useRef<VisionRideMotion>({
     steering: 0,
     throttle: 0,
+    pedal: 0,
     speedMultiplier: 1,
     speedMetresPerSecond: profile.speedMetresPerSecond,
     travelDistanceMetres: 0,
   });
   const pointer = useRef({ x: 0, y: 0 });
+  /** Wheel zoom in natural-log distance units: `target` moves with the
+   * wheel, `value` glides after it. Both start at 0, the settled chase. */
+  const zoom = useRef({ value: 0, target: 0 });
   const breath = useRef<EnvironmentBreath>(
     environmentBreath(
       0,
@@ -1933,11 +1946,35 @@ export default function VisionRideWorld({
     };
   }, [reducedMotion]);
 
+  // The wheel zooms the chase. It listens on the window in the capture
+  // phase for the same reason the pointer does (the exit button covers the
+  // canvas) and owns the event outright: the world's own wheel bridge steps
+  // aside during the ride without cancelling, which would otherwise let
+  // drei's scroll container travel underneath the ride.
+  useEffect(() => {
+    if (reducedMotion) return;
+    const onWheel = (event: WheelEvent) => {
+      if (useStacks.getState().visionRidePhase !== "cruising") return;
+      event.preventDefault();
+      event.stopPropagation();
+      zoom.current.target = clampZoomLog(
+        zoom.current.target + wheelZoomDelta(event, window.innerHeight),
+      );
+    };
+    window.addEventListener("wheel", onWheel, {
+      passive: false,
+      capture: true,
+    });
+    return () =>
+      window.removeEventListener("wheel", onWheel, { capture: true });
+  }, [reducedMotion]);
+
   useFrame((_, delta) => {
     if (phase !== "cruising" && phase !== "doffing") return;
     if (reducedMotion) {
       motion.current.steering = 0;
       motion.current.throttle = 0;
+      motion.current.pedal = 0;
       motion.current.speedMultiplier = 1;
       motion.current.speedMetresPerSecond = profile.speedMetresPerSecond;
       return;
@@ -1950,6 +1987,7 @@ export default function VisionRideWorld({
     const speedMultiplier = driveSpeedMultiplier(next.throttle);
     motion.current.steering = next.steering;
     motion.current.throttle = next.throttle;
+    motion.current.pedal = next.pedal;
     motion.current.speedMultiplier = speedMultiplier;
     motion.current.speedMetresPerSecond =
       profile.speedMetresPerSecond * speedMultiplier;
@@ -1980,12 +2018,13 @@ export default function VisionRideWorld({
       profile.breath,
     );
     breath.current = cycle;
-    // Damped pointer parallax + ambient drift around the chase
-    // target, live from the moment the chase settles (2.8 s), not faded in
-    // over the 14 s arrival sweep: gating it on the intro made the mouse
-    // feel dead for the first several seconds of the ride. Exponential
-    // smoothing against delta, not a per-frame factor, so the feel is
-    // identical at 60 and 120 Hz.
+    // Pointer swing and lift plus ambient drift around the chase target,
+    // live from the moment the chase settles, not faded in over the
+    // arrival: gating it on the intro made the mouse feel dead for the
+    // first several seconds of the ride. Each follows a rate-limited,
+    // critically damped spring rather than an exponential: the exponential
+    // started every move at full speed, which read as a snap once the
+    // swing became a 90 degree pan with four metres of dolly.
     const touch = visionRideTouchRuntime.getSnapshot();
     const steering = touch.engaged ? touch : pointer.current;
     const unscaledTarget = parallaxTarget({
@@ -1996,59 +2035,86 @@ export default function VisionRideWorld({
       reducedMotion,
     });
     const target = {
-      x: unscaledTarget.x * profile.parallaxScale,
+      swing: unscaledTarget.swing * profile.parallaxScale,
       y: unscaledTarget.y * profile.parallaxScale,
-      z: unscaledTarget.z * profile.parallaxScale,
     };
-    const damp = 1 - Math.exp(-VISION_RIDE_PARALLAX.dampingPerSecond * delta);
-    parallax.current.x += (target.x - parallax.current.x) * damp;
-    parallax.current.y += (target.y - parallax.current.y) * damp;
-    parallax.current.z += (target.z - parallax.current.z) * damp;
+    lift.current = criticallyDamped(
+      lift.current,
+      target.y,
+      VISION_RIDE_PARALLAX.lift,
+      delta,
+    );
     const pose = arrivalPose(framing, intro);
     const eyeY =
       pose.position[1] +
       ((reducedMotion ? 0 : Math.sin(elapsed * 0.72) * 0.018) +
-        parallax.current.y) *
+        lift.current.value) *
         intro;
-    const cameraZ =
-      pose.position[2] +
-      // The convex pull shrinks with the breath's closure, so the pointer
-      // at its extreme never stacks a full pull on the crest. Throttle adds
-      // only a few centimetres at first and tops out at a restrained chase
-      // lag: acceleration lets the car pull away, braking closes the gap.
-      (cycle.chaseOffset +
-        parallax.current.z / cycle.carScale +
-        driveChaseOffsetMetres(motion.current.throttle)) *
-        intro;
-    // The lateral shift is capped by the room the frame has beside the car's
-    // rear at this depth. A fixed 2.1 m reach at the 2.25x crest yawed the
-    // fender past the side of a portrait or 4:3 frame.
-    const reach = lateralReach(
+    const aspect = size.width / size.height;
+    zoom.current.value = advanceZoom(
+      zoom.current.value,
+      zoom.current.target,
+      delta,
+    );
+    // One depth composition. The breath, the wheel zoom and the pedal lean
+    // all multiply the on-axis distance to the car's rear face, so each
+    // reads as the same fraction of the frame at every orientation and
+    // wherever the others sit, and the frame's own floor keeps the fenders
+    // inside its edges when all of them stack. A press of the accelerator
+    // drops the eye back within half a second as the car pulls away; the
+    // brake closes it up.
+    const carX =
+      motion.current.steering * VISION_RIDE_DRIVING.steeringOffsetMetres;
+    const depth = chaseDepth({
       framing,
-      size.width / size.height,
-      cameraZ,
-      VISION_RIDE_PARALLAX.aimShare,
+      aspect,
+      carScale: cycle.carScale,
+      distanceScale:
+        zoomDistanceScale(zoom.current.value) *
+        driveChaseDistanceScale(motion.current.pedal),
+      carX,
+    });
+    // The swing is a parabola around the car that ends on a rear
+    // three-quarter view at the wall. It is capped by the frame: the
+    // largest swing at this depth and eye height that keeps every corner
+    // of the body inside the edges, found on the very pose that renders.
+    const limit = swingLimit(framing, aspect, {
+      depth,
+      eyeY,
+      carX,
+      direction: target.swing < 0 ? -1 : 1,
+    });
+    // The spring follows a target already inside the cap, so the eye eases
+    // up to the limit instead of hitting it; the clamp after is for a cap
+    // that moves under a settled eye, as the breath's crest does on a
+    // narrow frame.
+    swing.current = criticallyDamped(
+      swing.current,
+      THREE.MathUtils.clamp(target.swing, -limit, limit),
+      VISION_RIDE_PARALLAX.swing,
+      delta,
     );
-    const shiftX = THREE.MathUtils.clamp(
-      parallax.current.x * intro,
-      -reach,
-      reach,
+    const swingNow = THREE.MathUtils.clamp(
+      swing.current.value * intro,
+      -limit,
+      limit,
     );
-    const lateral = pose.position[0] + shiftX;
-    camera.position.set(lateral, eyeY, cameraZ);
-    // The aim shares only part of the lateral offset, so the live shift is
-    // a truck: the vanishing point slides one way and the car drifts the
-    // other, instead of the world orbiting a pinned car. Near the crest of
-    // the breath the camera tilts down just enough to keep the bumper above
-    // the frame edge. Both blend in over the pull-back from the shot's own
-    // aim, which starts on the car's flank.
+    const chase = chasePose(framing, { depth, swing: swingNow, eyeY });
+    // Everything live blends in over the pull-back from the opening shot's
+    // own pose, which starts beside the wheel aiming across the flank.
+    camera.position.set(
+      pose.position[0] + (chase.position[0] - framing.restX) * intro,
+      eyeY,
+      pose.position[2] + (chase.position[2] - framing.chaseZ) * intro,
+    );
+    // The aim shares only part of the lateral offset, so the swing reads
+    // as the eye moving around the car with the vanishing point sliding
+    // the other way, not the world orbiting a pinned car. Near the crest
+    // of the breath the aim tilts down just enough to keep the bumper
+    // above the frame edge.
     camera.lookAt(
-      pose.aim[0] + chaseAimX(shiftX),
-      THREE.MathUtils.lerp(
-        pose.aim[1],
-        chaseAimY(framing, eyeY, cameraZ),
-        intro,
-      ),
+      pose.aim[0] + chase.aim[0] * intro,
+      THREE.MathUtils.lerp(pose.aim[1], chase.aim[1], intro),
       pose.aim[2],
     );
     if (camera.fov !== framing.fov) {

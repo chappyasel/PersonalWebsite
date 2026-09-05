@@ -47,9 +47,11 @@ export const VISION_RIDE_STAR_SIZES = {
 /** Three shared landscape copies cover this far at every recycle phase. */
 export const VISION_RIDE_MOUNTAIN_HORIZON_METRES = 220;
 
-/** The shared mesh reaches behind every arrival camera, so its flat road
- * remains under the entire lower frame as the period recycles. */
-export const VISION_RIDE_MOUNTAIN_NEAR_METRES = 14;
+/** The shared mesh reaches behind every camera the ride can hold, with the
+ * grid's near margin to spare: the arrival, and the portrait chase with the
+ * wheel zoomed all the way out and the accelerator down (12.3 m), so its
+ * flat road remains under the entire lower frame as the period recycles. */
+export const VISION_RIDE_MOUNTAIN_NEAR_METRES = 19;
 
 /**
  * Sun placement. Deeper than every recycled landscape copy so ordinary
