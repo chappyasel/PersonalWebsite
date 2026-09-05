@@ -208,14 +208,25 @@ html[data-world] .sheet-control {
 .world-glass-control {
   color: rgb(255 255 255 / 0.86);
 }
+/* Sheet controls never float over the room: every sheet mounts them on its
+   own near-white panel. brightness(1.22) sampled off that panel clips past
+   white, and on an EDR screen (any recent iPhone) Safari paints the clipped
+   part into the display's headroom, so the discs glowed brighter than the
+   page. A heavier fill gives the same white disc without a filter that can
+   leave the gamut. The dark pair below darkens, which cannot clip. */
 html[data-world] .sheet-control {
+  --world-control-fill: rgb(255 255 255 / 0.56);
   color: hsl(var(--primary) / 0.84);
+  backdrop-filter: blur(30px) saturate(0.42);
 }
 .world-glass-control:hover,
 html[data-world] .sheet-control:hover {
   --world-control-border: rgb(255 255 255 / 0.3);
   --world-control-fill: rgb(255 255 255 / 0.23);
   --world-control-edge-top: rgb(255 255 255 / 0.36);
+}
+html[data-world] .sheet-control:hover {
+  --world-control-fill: rgb(255 255 255 / 0.66);
 }
 /* Dark glass absorbs the room like the placards do. Its border carries the
    shape instead of a pale fill across the whole control. */

@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { BaseBook } from "~/lib/books/types";
 
-import { BookDetailContent } from "./BookDetailContent";
+import { DisclosureCaret } from "~/components/ui/disclosure";
+
+import { BookDetailContent, underHeader } from "./BookDetailContent";
 
 const detailSource = readFileSync(
   new URL("./BookDetailContent.tsx", import.meta.url),
@@ -80,12 +82,16 @@ describe("BookDetailContent note availability", () => {
     expect(modal).toMatch(/data-book-header-spacer[^>]*height:186px/);
     // The fold runs over exactly that spacer's height.
     expect(detailSource).toContain("scrollTop / geometry.shrink");
-    // While the spring lags a fast fling, the overflowing part of the header
-    // is backed so it covers the notes instead of drawing over them.
+    // While the spring lags a fast fling, the overflowing part of the wide
+    // header is backed so its floating title column covers the notes
+    // instead of drawing over them. The narrow layout overflows only the
+    // opaque cover, over its own in-flow title, so it gets no backing (one
+    // painted a hard band across that title on every fling).
     expect(detailSource).toMatch(
-      /data-book-header-backing[\s\S]*?height: headerOverflow/,
+      /\{isLargeScreen && \([\s\S]*?data-book-header-backing[\s\S]*?height: headerOverflow/,
     );
-    expect(page).toMatch(/data-book-header-backing[^>]*top:64px;height:168px/);
+    expect(page).not.toContain("data-book-header-backing");
+    expect(modal).not.toContain("data-book-header-backing");
   });
 
   it("keeps the standalone breadcrumb in the same visual order as the external one", () => {
@@ -163,8 +169,27 @@ describe("BookDetailContent note availability", () => {
     );
   });
 
-  it("collapses mobile metadata in separate bottom-up stages", () => {
+  it("dissolves each mobile metadata row only as it slides under the header", () => {
+    // The rows sit in flow below the cover and scroll at finger speed, so a
+    // fade on the fold's clock left them invisible while still on screen:
+    // the fold is 186px, the block ~250px. Each row reads its own position.
     expect(detailSource).not.toContain("fullMetadataOpacity");
+    for (const segment of ["identity", "facts", "rating", "tags", "actions"]) {
+      const name = `mobile${segment[0]!.toUpperCase()}${segment.slice(1)}`;
+      expect(detailSource).toMatch(
+        new RegExp(
+          `const ${name}Opacity = useTransform\\(\\s*${name}Under,\\s*\\[0, (?:1|0\\.6)\\],\\s*\\[1, 0\\]`,
+        ),
+      );
+      expect(detailSource).toMatch(
+        new RegExp(
+          `ref=\\{bindMobileSegment\\("${segment}"\\)\\}\\s*data-mobile-book-segment="${segment}"`,
+        ),
+      );
+    }
+    expect(detailSource).not.toMatch(
+      /const mobile\w+Opacity = useTransform\(\s*smoothProgress/,
+    );
     expect(detailSource).toMatch(
       /data-mobile-book-segment="identity"[\s\S]*?style=\{\{\s*opacity: mobileIdentityOpacity,\s*visibility: mobileIdentityVisibility,?\s*\}\}/,
     );
@@ -237,12 +262,14 @@ describe("BookDetailContent note availability", () => {
     }
   });
 
-  it("hands the mobile identity to the sticky header without a readable overlap", () => {
+  it("hands the mobile identity to the sticky header as the resting title goes under", () => {
+    // Sequential, so the title never reads twice: the resting one is gone
+    // by 0.6 under; the compact one runs 0.5 to 0.8.
     expect(detailSource).toMatch(
-      /const compactHeaderOpacity = useTransform\([\s\S]*?\[0\.3, 0\.52\]/,
+      /const compactHeaderOpacity = useTransform\(\s*mobileIdentityUnder,\s*\[0\.5, 0\.8\]/,
     );
     expect(detailSource).toMatch(
-      /const mobileIdentityOpacity = useTransform\([\s\S]*?\[0\.12, 0\.34\]/,
+      /const mobileIdentityOpacity = useTransform\(\s*mobileIdentityUnder,\s*\[0, 0\.6\],\s*\[1, 0\]/,
     );
   });
 
@@ -311,6 +338,33 @@ describe("BookDetailContent note availability", () => {
     },
   );
 
+  it("folds a details block behind the site's shared disclosure caret", () => {
+    const withNotes = {
+      ...CURRENT_BOOK_WITHOUT_NOTES,
+      hasNotes: true,
+      notes:
+        "<details><summary>Spoilers</summary>\n\nHidden line\n\n</details>",
+    };
+    const markup = renderToStaticMarkup(
+      <BookDetailContent
+        book={withNotes}
+        fullBook={withNotes}
+        isLoadingNotes={false}
+        onShare={vi.fn()}
+        copied={false}
+        bookId={withNotes.id}
+        isModal
+      />,
+    );
+
+    expect(markup).toContain("Spoilers");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain(
+      renderToStaticMarkup(<DisclosureCaret open={false} />),
+    );
+    expect(markup).toMatch(/inert=""[^>]*>[^<]*<p>Hidden line<\/p>/);
+  });
+
   it("keeps the partial-notes copy when a current book has notes", () => {
     const markup = renderToStaticMarkup(
       <BookDetailContent
@@ -345,5 +399,22 @@ describe("BookDetailContent note availability", () => {
     expect(markup).toContain("No notes for this one");
     expect(markup).toContain("I read this one without taking notes!");
     expect(markup).not.toContain("I&#x27;m reading this one");
+  });
+});
+
+describe("underHeader", () => {
+  const edge = 90;
+  it("is clear while the row's top is still below the header's edge", () => {
+    expect(underHeader(edge, { top: 190, height: 86 })).toBe(0);
+    expect(underHeader(edge, { top: 90, height: 86 })).toBe(0);
+  });
+  it("grows with the share of the row that has gone under", () => {
+    expect(underHeader(edge, { top: 47, height: 86 })).toBeCloseTo(0.5, 5);
+    expect(underHeader(edge, { top: 4, height: 86 })).toBe(1);
+    expect(underHeader(edge, { top: -300, height: 86 })).toBe(1);
+  });
+  it("treats an empty row as under once its top passes the edge", () => {
+    expect(underHeader(edge, { top: 100, height: 0 })).toBe(0);
+    expect(underHeader(edge, { top: 80, height: 0 })).toBe(1);
   });
 });

@@ -239,7 +239,7 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
               rel="noopener noreferrer"
               className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
             >
-              github.com/{placard.login}
+              Github
               <ArrowUpRightIcon weight="bold" className="size-3.5" />
             </Link>
           </div>

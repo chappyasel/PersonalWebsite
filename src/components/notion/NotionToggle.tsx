@@ -1,11 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
-
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { useId, useState } from "react";
 
 import type { BookLookup, NotionBlock, RichText } from "~/components/notion/types";
+import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
 import NotionBlockRenderer from "./NotionBlockRenderer";
 import RichTextRenderer from "./RichTextRenderer";
 
@@ -19,39 +17,32 @@ export default function NotionToggle({
   bookLookup?: BookLookup;
 }) {
   const [open, setOpen] = useState(false);
+  const contentId = useId();
 
   return (
     <div>
       <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-start gap-2 py-1 text-left transition-colors hover:text-foreground"
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        // The caret sits in the gutter where a sibling list's bullets are (the
+        // renderer's lists are ml-4), so the title and the body start on the
+        // list text's column.
+        className="-ml-1 flex w-full items-start gap-2 rounded-sm py-1 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <CaretRightIcon
-          size={16}
-          weight="bold"
-          className={`mt-1 shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
-        />
+        <DisclosureCaret open={open} />
         <span className="font-medium">
           <RichTextRenderer content={title} bookLookup={bookLookup} />
         </span>
       </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2 pb-2 pl-6 pt-1">
-              {blocks.map((block, i) => (
-                <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DisclosurePanel id={contentId} open={open}>
+        <div className="space-y-2 pb-2 pl-4 pt-1">
+          {blocks.map((block, i) => (
+            <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+          ))}
+        </div>
+      </DisclosurePanel>
     </div>
   );
 }

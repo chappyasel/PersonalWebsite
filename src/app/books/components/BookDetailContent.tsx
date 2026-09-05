@@ -1,7 +1,6 @@
 "use client";
 
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
-import { PlayIcon } from "@phosphor-icons/react";
 import {
   ArrowSquareOutIcon,
   ArrowUpRightIcon,
@@ -23,7 +22,6 @@ import {
   motion,
   useMotionTemplate,
   useMotionValue,
-  useReducedMotion,
   useTransform,
 } from "framer-motion";
 import Link from "next/link";
@@ -31,8 +29,10 @@ import {
   Children,
   type ComponentPropsWithoutRef,
   type MouseEvent,
+  type ReactElement,
   type ReactNode,
   type RefObject,
+  cloneElement,
   isValidElement,
   useEffect,
   useId,
@@ -63,6 +63,7 @@ import {
   SheetExpandControl,
 } from "~/components/modal-sheet/SheetControls";
 import { Button } from "~/components/ui/button";
+import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
 import {
   Tooltip,
   TooltipContent,
@@ -229,6 +230,30 @@ function useHiddenWhenClear(opacity: MotionValue<number>) {
   return useTransform(opacity, (value) => (value > 0 ? "visible" : "hidden"));
 }
 
+/** The narrow layout's resting metadata rows, top to bottom. */
+const MOBILE_SEGMENTS = [
+  "identity",
+  "facts",
+  "rating",
+  "tags",
+  "actions",
+] as const;
+type MobileSegment = (typeof MOBILE_SEGMENTS)[number];
+
+/**
+ * How much of a box has slid under the header's bottom edge: 0 while the box
+ * is still clear of it, 1 once the whole box is above it. A row this drives
+ * dissolves only as it actually goes under, so it can never vanish from a
+ * spot the reader is still looking at.
+ */
+export function underHeader(
+  edge: number,
+  rect: { top: number; height: number },
+) {
+  if (rect.height <= 0) return rect.top < edge ? 1 : 0;
+  return Math.min(Math.max((edge - rect.top) / rect.height, 0), 1);
+}
+
 // One backdrop-filter cannot vary its radius across the element, so the
 // graduated edge comes from stacking these layers: each is masked to a band
 // that overlaps the next, radii halving downward, and each layer re-blurs the
@@ -342,11 +367,14 @@ function processDetailsBlocks(markdown: string): string {
 
 type MarkdownSummaryProps = ComponentPropsWithoutRef<"summary"> & {
   node?: unknown;
+  /** Set by AnimatedDetails, which owns the open state. */
+  open?: boolean;
 };
 
 function BookNoteSummary({
   children,
   node: _node,
+  open = false,
   className,
   ...props
 }: MarkdownSummaryProps) {
@@ -358,11 +386,7 @@ function BookNoteSummary({
         className,
       )}
     >
-      <PlayIcon
-        size={12}
-        weight="fill"
-        className="mt-[0.55em] shrink-0 transition-transform duration-200 group-data-[expanded=true]:rotate-90"
-      />
+      <DisclosureCaret open={open} />
       <span className="min-w-0 flex-1">
         {Children.map(children, (child) =>
           typeof child === "string" ? <InlineMarkdown source={child} /> : child,
@@ -382,10 +406,10 @@ function AnimatedDetails({
 }: AnimatedDetailsProps) {
   const [isOpen, setIsOpen] = useState(open);
   const contentId = useId();
-  const prefersReducedMotion = useReducedMotion();
   const childArray = Children.toArray(children);
   const summary = childArray.find(
-    (child) => isValidElement(child) && child.type === BookNoteSummary,
+    (child): child is ReactElement<MarkdownSummaryProps> =>
+      isValidElement(child) && child.type === BookNoteSummary,
   );
   const divProps = props as unknown as ComponentPropsWithoutRef<"div">;
 
@@ -402,7 +426,7 @@ function AnimatedDetails({
   return (
     <div
       {...divProps}
-      className={cn("group my-1.5 pl-[26px]", className)}
+      className={cn("my-1.5 pl-[26px]", className)}
       data-expanded={isOpen}
     >
       <button
@@ -412,26 +436,14 @@ function AnimatedDetails({
         className="block w-full appearance-none rounded-sm border-0 bg-transparent p-0 text-left [font:inherit] [line-height:inherit] focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         onClick={() => setIsOpen((current) => !current)}
       >
-        {summary}
+        {/* The summary comes from react-markdown, so it learns the state
+            here rather than from an ancestor selector, which a nested
+            details block would also match. */}
+        {cloneElement(summary, { open: isOpen })}
       </button>
-      <motion.div
-        id={contentId}
-        aria-hidden={!isOpen}
-        inert={!isOpen}
-        initial={false}
-        animate={{
-          height: isOpen ? "auto" : 0,
-          opacity: isOpen ? 1 : 0,
-        }}
-        transition={
-          prefersReducedMotion
-            ? { duration: 0 }
-            : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
-        }
-        className="overflow-hidden"
-      >
+      <DisclosurePanel id={contentId} open={isOpen}>
         {content}
-      </motion.div>
+      </DisclosurePanel>
     </div>
   );
 }
@@ -808,6 +820,7 @@ export function BookDetailContent({
   // the two springs above, chosen by which way the target just moved.
   const smoothProgress = useMotionValue(0);
   const progressTarget = useRef(0);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   // Responsive breakpoint detection
   const [isLargeScreen, setIsLargeScreen] = useState(false);
@@ -895,28 +908,65 @@ export function BookDetailContent({
   const titleAuthorGap = useTransform(smoothProgress, [0, 1], ["2px", "0px"]);
   const titleLineClamp = useTransform(smoothProgress, [0.4, 0.7], [2, 1]);
 
-  // Compact header text opacity - mobile only, fades in as user scrolls
-  const compactHeaderOpacity = useTransform(
-    smoothProgress,
-    [0.3, 0.52],
-    isLargeScreen ? [0, 0] : [0, 1],
-  );
+  // The narrow layout's metadata sits below the cover, in flow, and scrolls
+  // at finger speed like everything else; it used to fade on the fold's
+  // clock, which finishes 186px in while the block is still ~250px tall and
+  // fully on screen, so the fold ended on a blank column of invisible rows.
+  // Each segment now dissolves by how much of its own box has slid under the
+  // header's bottom edge (0 while clear, 1 once wholly under), so nothing
+  // disappears from a place the reader can still see.
+  const mobileIdentityUnder = useMotionValue(0);
+  const mobileFactsUnder = useMotionValue(0);
+  const mobileRatingUnder = useMotionValue(0);
+  const mobileTagsUnder = useMotionValue(0);
+  const mobileActionsUnder = useMotionValue(0);
+  const mobileSegments = useRef<Record<MobileSegment, HTMLDivElement | null>>({
+    identity: null,
+    facts: null,
+    rating: null,
+    tags: null,
+    actions: null,
+  });
+  // Motion values are stable per mount, so one map of them is too; the
+  // scroll effect reads it without listing five values as dependencies.
+  const mobileSegmentUnder = useRef<Record<MobileSegment, MotionValue<number>>>(
+    {
+      identity: mobileIdentityUnder,
+      facts: mobileFactsUnder,
+      rating: mobileRatingUnder,
+      tags: mobileTagsUnder,
+      actions: mobileActionsUnder,
+    },
+  ).current;
+  const bindMobileSegment =
+    (segment: MobileSegment) => (node: HTMLDivElement | null) => {
+      mobileSegments.current[segment] = node;
+    };
 
-  // Mobile metadata exits as an overlapping bottom-up wave. The compact
-  // sticky identity arrives while the resting identity is the final segment
-  // to leave, so there is no frame with neither title visible.
-  const mobileActionsOpacity = useTransform(smoothProgress, [0, 0.28], [1, 0]);
-  const mobileTagsOpacity = useTransform(smoothProgress, [0.12, 0.4], [1, 0]);
-  const mobileRatingOpacity = useTransform(
-    smoothProgress,
-    [0.26, 0.54],
+  // The identity leaves faster than the rows below it, so that it is gone
+  // before its replacement in the bar arrives (see compactHeaderOpacity).
+  // What is still below the edge at 0.6, at most the author line, sits
+  // inside the glass overhang, which is already dissolving it.
+  const mobileIdentityOpacity = useTransform(
+    mobileIdentityUnder,
+    [0, 0.6],
     [1, 0],
   );
-  const mobileFactsOpacity = useTransform(smoothProgress, [0.4, 0.68], [1, 0]);
-  const mobileIdentityOpacity = useTransform(
-    smoothProgress,
-    [0.12, 0.34],
-    [1, 0],
+  const mobileFactsOpacity = useTransform(mobileFactsUnder, [0, 1], [1, 0]);
+  const mobileRatingOpacity = useTransform(mobileRatingUnder, [0, 1], [1, 0]);
+  const mobileTagsOpacity = useTransform(mobileTagsUnder, [0, 1], [1, 0]);
+  const mobileActionsOpacity = useTransform(mobileActionsUnder, [0, 1], [1, 0]);
+
+  // The compact title beside the folded cover takes over from the resting
+  // one as that slides under the header. Sequential, not a crossfade: the
+  // resting title is down to a sixth when this starts and gone a third of
+  // the way through, so the page never reads the title twice. The resting
+  // title reaches the edge right as the fold completes (it starts 4px below
+  // the spacer), so the bar holds a bare cover for ~40px of scroll at most.
+  const compactHeaderOpacity = useTransform(
+    mobileIdentityUnder,
+    [0.5, 0.8],
+    isLargeScreen ? [0, 0] : [0, 1],
   );
 
   // Collapse from the bottom upward so the remaining content never appears
@@ -967,7 +1017,25 @@ export function BookDetailContent({
       return Math.min(Math.max(scrollTop / geometry.shrink, 0), 1);
     };
 
+    // The narrow layout's segments read their own position against the
+    // header's box, which is the folded height at all times, so the edge is
+    // stable even while the spring is still shaping the silhouette. Set
+    // directly rather than sprung: a dissolve keyed to where a row IS must
+    // track the row, not lag it.
+    const placeSegments = () => {
+      const header = headerRef.current;
+      if (!header) return;
+      const edge = header.getBoundingClientRect().bottom;
+      for (const segment of MOBILE_SEGMENTS) {
+        const node = mobileSegments.current[segment];
+        if (!node) continue;
+        const rect = node.getBoundingClientRect();
+        mobileSegmentUnder[segment].set(underHeader(edge, rect));
+      }
+    };
+
     const follow = () => {
+      placeSegments();
       const next = readProgress();
       if (next === progressTarget.current) return;
       progressTarget.current = next;
@@ -978,12 +1046,32 @@ export function BookDetailContent({
     // A restored scroll position lands folded without playing the fold.
     progressTarget.current = readProgress();
     smoothProgress.jump(progressTarget.current);
+    placeSegments();
+    // Fonts settling or the title rewrapping move the rows without a scroll.
+    // The rows are watched as well as the scroller: a rewrap changes a row's
+    // own box, never the modal scroller's.
+    const resize =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(placeSegments);
+    resize?.observe(contentEl ?? document.documentElement);
+    for (const segment of MOBILE_SEGMENTS) {
+      const node = mobileSegments.current[segment];
+      if (node) resize?.observe(node);
+    }
     scroller.addEventListener("scroll", follow, { passive: true });
     return () => {
+      resize?.disconnect();
       scroller.removeEventListener("scroll", follow);
       smoothProgress.stop();
     };
-  }, [contentRef, geometry.shrink, isModal, smoothProgress]);
+  }, [
+    contentRef,
+    geometry.shrink,
+    isModal,
+    mobileSegmentUnder,
+    smoothProgress,
+  ]);
 
   return (
     <div
@@ -1004,6 +1092,7 @@ export function BookDetailContent({
       {/* Unified Sticky Header. Its box is always the folded height; the
           resting silhouette overflows it, onto the spacer below. */}
       <motion.div
+        ref={headerRef}
         className="sticky top-0 z-20"
         style={{
           paddingTop: headerPadding,
@@ -1018,18 +1107,25 @@ export function BookDetailContent({
         />
         {/* Backing for the part of the header that overflows its box while
             the spring lags the scroll: during a fast fling the resting cover
-            and title would otherwise draw over the notes' first lines. Sized
-            to the overflow alone, so the folded header's glass still samples
-            the notes beneath it. */}
-        <motion.div
-          aria-hidden
-          data-book-header-backing
-          className={cn(
-            "pointer-events-none absolute inset-x-0 bg-background",
-            isModal && "dark:bg-muted",
-          )}
-          style={{ top: geometry.collapsed, height: headerOverflow }}
-        />
+            and title column would otherwise draw over the notes' first
+            lines. Sized to the overflow alone, so the folded header's glass
+            still samples the notes beneath it. Wide layout only: there the
+            title column's facts and tags float in the overflow with nothing
+            behind them. On the narrow layout the overflow is just the cover,
+            which is opaque, and what sits under it is the in-flow title, so
+            a full-width backing there painted a hard band across the top of
+            that title on every fling. */}
+        {isLargeScreen && (
+          <motion.div
+            aria-hidden
+            data-book-header-backing
+            className={cn(
+              "pointer-events-none absolute inset-x-0 bg-background",
+              isModal && "dark:bg-muted",
+            )}
+            style={{ top: geometry.collapsed, height: headerOverflow }}
+          />
+        )}
         {/* Keep the side inset close to the header's vertical inset. */}
         <div className="relative mx-auto w-full max-w-4xl">
           {/* Modal-only action buttons — the same cluster, in the same
@@ -1280,6 +1376,7 @@ export function BookDetailContent({
         <div className="mx-auto w-full max-w-4xl px-6 pb-4 pt-1 xs:px-14">
           <div className="flex flex-col gap-3 sm:gap-4">
             <motion.div
+              ref={bindMobileSegment("identity")}
               data-mobile-book-segment="identity"
               style={{
                 opacity: mobileIdentityOpacity,
@@ -1309,6 +1406,7 @@ export function BookDetailContent({
               <p className="text-base text-muted-foreground">{book.author}</p>
             </motion.div>
             <motion.div
+              ref={bindMobileSegment("facts")}
               data-mobile-book-segment="facts"
               style={{
                 opacity: mobileFactsOpacity,
@@ -1322,6 +1420,7 @@ export function BookDetailContent({
             {/* Rating follows the reading facts as their visual conclusion. */}
             {book.rating && (
               <motion.div
+                ref={bindMobileSegment("rating")}
                 data-mobile-book-segment="rating"
                 style={{
                   opacity: mobileRatingOpacity,
@@ -1349,6 +1448,7 @@ export function BookDetailContent({
             {/* Tags */}
             {book.tags.length > 0 && (
               <motion.div
+                ref={bindMobileSegment("tags")}
                 data-mobile-book-segment="tags"
                 style={{
                   opacity: mobileTagsOpacity,
@@ -1362,6 +1462,7 @@ export function BookDetailContent({
 
             {/* Actions */}
             <motion.div
+              ref={bindMobileSegment("actions")}
               data-mobile-book-segment="actions"
               style={{
                 opacity: mobileActionsOpacity,

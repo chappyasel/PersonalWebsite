@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 
-import { CaretRightIcon } from "@phosphor-icons/react";
-
 import AnchorLink from "~/components/daylight/AnchorLink";
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup } from "~/components/notion/types";
+import { DisclosureCaret } from "~/components/ui/disclosure";
 
 import type { RoutineSection as RoutineSectionType } from "../types";
 import { releaseHash, useHashTarget } from "./sectionLink";
@@ -52,17 +51,16 @@ export default function RoutineSection({
         />
         <h2 className="dl-h2">{section.title}</h2>
         <AnchorLink id={section.id} />
-        <CaretRightIcon
+        <DisclosureCaret
           data-routine-caret
-          size={16}
-          weight="bold"
-          className={`ml-auto shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          open={open}
+          className="ml-auto text-muted-foreground/40"
         />
       </div>
       <div
         data-routine-collapse
         data-open={open}
-        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out data-[open=true]:grid-rows-[1fr]"
+        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">
           <div className="space-y-3 pb-4 pt-3.5 text-[0.9375rem] text-muted-foreground">

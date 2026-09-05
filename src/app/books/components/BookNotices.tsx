@@ -12,7 +12,12 @@ import { type ReactNode, useId, useState } from "react";
 
 import { cn } from "~/lib/util";
 
-/** Shared shell so every book notice reads as the same kind of object. */
+/**
+ * Shared shell so every book notice reads as the same kind of object. The
+ * narrow layout (below md, where the metadata stacks under the cover) keeps
+ * the margins at 12px: the rows above it sit 12px apart, and 24px each side
+ * left the callout floating on its own.
+ */
 function BookNotice({
   icon,
   children,
@@ -25,7 +30,7 @@ function BookNotice({
   return (
     <aside
       className={cn(
-        "my-6 rounded-lg border border-border bg-muted/60 px-4 py-3.5 text-sm",
+        "my-3 rounded-lg border border-border bg-muted/60 px-4 py-3.5 text-sm md:my-6",
         className,
       )}
     >
@@ -54,7 +59,7 @@ export function AutomatedNotice() {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <aside className="my-6 rounded-lg border border-border bg-muted/60 px-4 py-3.5 text-sm">
+    <aside className="my-3 rounded-lg border border-border bg-muted/60 px-4 py-3.5 text-sm md:my-6">
       <p className="flex items-start gap-2.5 text-foreground">
         <SparkleIcon
           size={18}

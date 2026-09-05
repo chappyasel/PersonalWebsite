@@ -3,16 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import {
-  CaretRightIcon,
-  MoonStarsIcon,
-  SunIcon,
-} from "@phosphor-icons/react";
+import { MoonStarsIcon, SunIcon } from "@phosphor-icons/react";
 
 import AnchorLink from "~/components/daylight/AnchorLink";
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
+import { DisclosureCaret } from "~/components/ui/disclosure";
 
 import type { Supplement } from "../types";
 import { releaseHash, useHashTarget } from "./sectionLink";
@@ -148,17 +145,16 @@ export default function SupplementCardsSection({
         <SectionIcon id="supp-stacks" size={18} className="shrink-0" />
         <h2 className="dl-h2">Supp Stacks</h2>
         <AnchorLink id="supp-stacks" />
-        <CaretRightIcon
+        <DisclosureCaret
           data-routine-caret
-          size={16}
-          weight="bold"
-          className={`ml-auto shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          open={open}
+          className="ml-auto text-muted-foreground/40"
         />
       </div>
       <div
         data-routine-collapse
         data-open={open}
-        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out data-[open=true]:grid-rows-[1fr]"
+        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">
           <div className="space-y-6 pb-4 pt-3.5">

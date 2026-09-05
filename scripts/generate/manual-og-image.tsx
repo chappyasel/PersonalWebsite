@@ -5,6 +5,7 @@
  *
  * Outputs: public/images/manual-og.png
  */
+import { sectionShortTitle } from "../../src/components/daylight/sectionTitles";
 import { NIGHT, nightSky } from "../../src/lib/og/daylight";
 import { Resvg } from "@resvg/resvg-js";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
@@ -28,20 +29,16 @@ const HEIGHT = 630;
 
 /**
  * Section labels come from the synced data so they can never drift from the
- * live page. The one long personality title gets the same kind of compression
- * the reader does when scanning the page.
+ * live page. The one long personality title takes the same short form the
+ * page shows at phone widths.
  */
-const shortTitles: Record<string, string> = {
-  "personality-strengths-blind-spots": "Personality & Strengths",
-};
-
 const data = JSON.parse(readFileSync(DATA_PATH, "utf-8")) as {
   sections: { id: string; title: string }[];
 };
 
 const sections = data.sections.map((s) => ({
   id: s.id,
-  text: shortTitles[s.id] ?? s.title,
+  text: sectionShortTitle(s.id) ?? s.title,
 }));
 
 function OGImage() {
