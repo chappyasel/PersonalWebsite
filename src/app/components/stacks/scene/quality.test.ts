@@ -634,7 +634,7 @@ describe("scene quality policy", () => {
         cssHeight: 844,
         deviceDpr: 3,
       }),
-    ).toBe("stacks-quality:v10:constrained:small");
+    ).toBe("stacks-quality:v11:constrained:small");
   });
 });
 

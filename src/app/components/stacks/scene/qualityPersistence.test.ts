@@ -32,6 +32,7 @@ const readyState = (): SceneQualityAxisState => ({
 const gates = {
   automatic: true,
   documentVisible: true,
+  documentFocused: true,
   samplesUsable: true,
   composerHealthy: true,
   sceneTravelling: false,
@@ -129,6 +130,16 @@ describe("scene quality persistence eligibility", () => {
     expect(sceneQualityPersistenceStatus(state, gates, 100_000).reason).toBe(
       "travel-debt",
     );
+  });
+
+  it("blocks learning while the document is visible but its window is unfocused", () => {
+    expect(
+      sceneQualityPersistenceStatus(
+        readyState(),
+        { ...gates, documentFocused: false },
+        100_000,
+      ).reason,
+    ).toBe("unfocused");
   });
 
   it("blocks an unfinished decline comparison", () => {

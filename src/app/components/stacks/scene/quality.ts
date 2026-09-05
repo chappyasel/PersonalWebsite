@@ -833,7 +833,10 @@ export const QUALITY_DOWNGRADE_DROP_IMPROVEMENT = 0.03;
 // v9 accepted a lower p95 as proof that an inferred-GPU resolution cut helped
 // even when median cadence stayed at 35–40 FPS. A transient Safari cadence
 // loss could therefore persist an unnecessarily blurred resolution floor.
-const QUALITY_STORAGE_VERSION = 10;
+//
+// v10 treated a visible-but-unfocused iOS page as foreground evidence, so an
+// app switch could persist a false survival result and suppress the meadow.
+const QUALITY_STORAGE_VERSION = 11;
 
 export type SceneQualityMetrics = Readonly<{
   targetFrameMs: number;

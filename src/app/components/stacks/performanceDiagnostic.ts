@@ -442,6 +442,7 @@ function compactResolvedQuality(resolved: Readonly<Record<string, unknown>>) {
     "fallbackStatus",
     "constraint",
     "axes",
+    "survivalRecoveryAttempted",
     "persistence",
   ] as const;
   return Object.fromEntries(

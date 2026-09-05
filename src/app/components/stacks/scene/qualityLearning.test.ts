@@ -5,6 +5,7 @@ import type { SceneQualityAxes } from "./qualityAxes";
 import {
   SURVIVAL_LEARNING_TTL_MS,
   clearLearnedQuality,
+  clearLearnedSurvival,
   learningAvailable,
   readLearnedQuality,
   readLearnedSurvivalUntil,
@@ -138,16 +139,40 @@ describe("cross-visit quality learning", () => {
     expect(readLearnedSurvivalUntil(bucket(), 1_000_001)).toBeNull();
   });
 
+  it("clears survival after a live recovery without discarding learned axes", () => {
+    writeLearnedQuality(bucket(), { ...axes, survival: true }, null, 1_000_000);
+    clearLearnedSurvival(bucket());
+
+    expect(readLearnedSurvivalUntil(bucket(), 1_000_001)).toBeNull();
+    expect(readLearnedQuality(bucket(), 1_000_001)).toEqual({
+      resolutionStep: axes.resolutionStep,
+      effects: axes.effects,
+      content: axes.content,
+      survival: false,
+      survivalUntil: null,
+      profile: null,
+    });
+  });
+
+  it("ignores survival leases written by the previous policy", () => {
+    const pixelBucket = bucket().split(":").at(-1);
+    window.localStorage.setItem(
+      `stacks-quality:survival:v1:${pixelBucket}`,
+      JSON.stringify({ survivalUntil: 2_000_000 }),
+    );
+
+    expect(readLearnedSurvivalUntil(bucket(), 1_000_001)).toBeNull();
+  });
+
   it("keys the entry by the versioned bucket", () => {
-    expect(bucket()).toContain("stacks-quality:v10:");
+    expect(bucket()).toContain("stacks-quality:v11:");
   });
 
   it("ignores an entry written under the previous format version", () => {
-    // v9 could persist a resolution floor learned while Safari's median
-    // cadence stayed unchanged across ineffective inferred-GPU cuts.
-    const v9Key = bucket().replace(":v10:", ":v9:");
+    // v10 could learn survival from visible-but-unfocused iOS frames.
+    const v10Key = bucket().replace(":v11:", ":v10:");
     window.localStorage.setItem(
-      v9Key,
+      v10Key,
       JSON.stringify({
         resolutionStep: 2,
         effects: "lean",

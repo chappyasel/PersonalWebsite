@@ -10,7 +10,7 @@ export type SceneQualitySamplerFrame = Readonly<{
   frameMs: number;
   cpuMs: number;
   instrumented: boolean;
-  visible: boolean;
+  foreground: boolean;
 }>;
 
 export type SceneQualitySamplerResult = Readonly<{
@@ -35,9 +35,9 @@ type RetainedFrame = Readonly<{
  */
 export function createSceneQualitySampler({
   now,
-  visible,
-}: Readonly<{ now: number; visible: boolean }>) {
-  let documentVisible = visible;
+  foreground,
+}: Readonly<{ now: number; foreground: boolean }>) {
+  let foregroundActive = foreground;
   let frames: RetainedFrame[] = [];
   let lastSampleAt = now;
   let resumeFramesToDiscard = 0;
@@ -49,23 +49,24 @@ export function createSceneQualitySampler({
   };
 
   return {
-    setDocumentVisible(nextVisible: boolean, at: number) {
-      documentVisible = nextVisible;
-      clear(at, nextVisible);
+    setForegroundActive(nextActive: boolean, at: number) {
+      foregroundActive = nextActive;
+      clear(at, nextActive);
     },
 
-    /** A persisted pageshow is a resume even if visibility never changed. */
+    /** A persisted pageshow is a resume even if the browser never published
+     * a matching visibility transition. */
     resume(at: number) {
-      documentVisible = true;
+      foregroundActive = true;
       clear(at, true);
     },
 
     push(frame: SceneQualitySamplerFrame): SceneQualitySamplerResult | null {
-      if (frame.visible !== documentVisible) {
-        documentVisible = frame.visible;
-        clear(frame.now, frame.visible);
+      if (frame.foreground !== foregroundActive) {
+        foregroundActive = frame.foreground;
+        clear(frame.now, frame.foreground);
       }
-      if (!documentVisible) return null;
+      if (!foregroundActive) return null;
 
       if (resumeFramesToDiscard > 0) {
         resumeFramesToDiscard -= 1;

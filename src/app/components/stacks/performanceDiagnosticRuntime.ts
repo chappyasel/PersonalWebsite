@@ -73,7 +73,9 @@ class PerformanceDiagnosticProgressController {
   }
 }
 
-/** Counts visible time toward one diagnostic deadline. */
+/** Counts visible-and-focused foreground time toward one diagnostic deadline.
+ * The historical name remains because the clock itself accepts an already
+ * resolved eligibility boolean and has no browser dependency. */
 export class PerformanceDiagnosticVisibleClock {
   private observed = 0;
   private visibleSince: number | null = null;

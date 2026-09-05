@@ -191,15 +191,26 @@ cannot switch buckets and restore a different triple during the same mount.
 Cold-start device signals bias all three axes: a narrow touch viewport starts
 from Efficient's resolved DPR as well as its effects and content tiers, instead
 of starting Efficient geometry under Showcase resolution and visibly walking
-down. Measurement remains free to move in either direction. Version 10
-discards version 9 entries, because they may contain a resolution floor learned
-from a p95 improvement that never restored median cadence. Sampling begins only
-after reveal, shader precompile, and a settled validation window. A current axis
-triple becomes persistable only after a post-transition headroom or improved-cut
-window accepts it and the scene then stays unchanged for ten seconds. Repeated
-acceptable samples retain the first validation timestamp, so ordinary sampling
-cannot postpone that deadline forever; pressure that still fails validation is
-intentionally not learned.
+down. Measurement remains free to move in either direction. Version 11
+discards version 10 entries, because mobile Safari could leave the document
+visible while its window was unfocused and admit suspended frames. The
+renderer-independent survival lease is versioned separately for the same
+reason. Sampling begins only after reveal, shader precompile, and a settled
+validation window. Foreground evidence requires both document visibility and
+window focus; blur, page hide, freeze, and resume clear the rolling window and
+discard the two frame-cost samples that can straddle that boundary. A current
+axis triple becomes persistable only after a post-transition headroom or
+improved-cut window accepts it and the scene then stays unchanged for ten
+seconds. Repeated acceptable samples retain the first validation timestamp, so
+ordinary sampling cannot postpone that deadline forever; pressure that still
+fails validation is intentionally not learned.
+
+Survival is reversible once per mount, not an ordinary fourth quality ladder.
+After retirement, 15 seconds of uninterrupted foreground headroom permits one
+meadow recovery. The field fades in over 1.2 seconds; a second retirement locks
+survival for the rest of the mount so terrain, instance buffers, textures, and
+shader programs cannot oscillate. Successful recovery clears only the survival
+lease and retains learned resolution, effects, and content axes.
 
 The Safety contract has two checks. CI pins the tier mapping, projected
 triangle ceiling, physical-pixel floor, and every deterministic quality policy

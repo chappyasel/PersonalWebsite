@@ -43,6 +43,22 @@ report contains startup plus only a short post-reveal window. It was complete
 for transport, but it cannot establish sustained frame cost. A second affected
 run must remain visible for the full 15-second runtime window.
 
+### 2026-09-05: iPhone survival state after app switching
+
+An ordinary iPhone visit ran well, lost the meadow after switching away and
+back, then remained in survival after frame rate recovered. The downloaded
+quality log recorded 128 samples as `visible: true`, `focused: false`, and
+`usable: true`. Auto made four resolution decisions before the first focus
+event at 39.114 seconds. A later blur at 158.473 seconds was followed by a
+focus at 161.807 seconds without a visibility transition; the first resumed
+sample included a 109 ms tail before returning to normal pacing.
+
+The cause is the foreground contract, not evidence that the phone needs a
+permanent no-meadow mode. Mobile Safari can leave `document.hidden` false
+while the page is unfocused, so visibility alone admitted suspended and
+resume-contaminated frames. The prior survival policy then made that mistake
+one-way for the visit and eligible for a 24-hour lease.
+
 ## Support capture
 
 Send an affected visitor this URL:
@@ -54,13 +70,13 @@ https://www.chappyasel.com/?perf-report=1
 The query switch is explicit and default-off. It creates
 `homepage_performance_diagnostic` events in PostHog:
 
-| `report_kind`        | When it is sent                                                                                                    | What it answers                                                                                     |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `diagnostic_start`   | As soon as the opted-in boot generation is observed                                                                | Whether the reporter armed at all, plus the initial browser and navigation context                  |
-| `boot_checkpoint`    | Boot remains unresolved at 10 or 30 seconds, or the visitor leaves before a terminal outcome                       | Which real reveal gate is closed and whether the blocker changed while the visitor waited           |
-| `boot_complete`      | The world reveals, fails, or is declared ineligible                                                                | How long each gate took and how boot ended                                                          |
-| `runtime_checkpoint` | Five visible seconds after reveal, or when the document enters the back-forward cache                              | Preserves an early runtime sample without ending the full capture                                   |
-| `runtime`            | 15 visible seconds after reveal, on boot failure, on final page hide, or at the 45-visible-second capture deadline | Frame distribution, spikes, renderer edges, quality evidence, long-task totals, and resource totals |
+| `report_kind`        | When it is sent                                                                                                                   | What it answers                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `diagnostic_start`   | As soon as the opted-in boot generation is observed                                                                               | Whether the reporter armed at all, plus the initial browser and navigation context                  |
+| `boot_checkpoint`    | Boot remains unresolved at 10 or 30 seconds, or the visitor leaves before a terminal outcome                                      | Which real reveal gate is closed and whether the blocker changed while the visitor waited           |
+| `boot_complete`      | The world reveals, fails, or is declared ineligible                                                                               | How long each gate took and how boot ended                                                          |
+| `runtime_checkpoint` | Five visible-and-focused seconds after reveal, or when the document enters the back-forward cache                                 | Preserves an early runtime sample without ending the full capture                                   |
+| `runtime`            | 15 visible-and-focused seconds after reveal, on boot failure, on final page hide, or at the 45-foreground-second capture deadline | Frame distribution, spikes, renderer edges, quality evidence, long-task totals, and resource totals |
 
 Filter PostHog for `homepage_performance_diagnostic`. Events from one visit
 share `diagnostic_run_id`; each payload also has a deterministic
@@ -68,7 +84,7 @@ share `diagnostic_run_id`; each payload also has a deterministic
 the main verdict queryable without unpacking JSON: `diagnostic_hint`,
 `dominant_constraint`, `effective_fps`, `frame_p95_ms`,
 `dropped_frame_ratio`, `survival_active`, the boot milestone times, active
-test profile, visible post-reveal duration, page-hide cache status, payload
+test profile, foreground post-reveal duration, page-hide cache status, payload
 size, and truncation status are top-level properties.
 
 If PostHog access is unavailable, press backtick to open Scene Diagnostics and
@@ -86,10 +102,10 @@ Privacy and measurement constraints:
   type, which distinguishes one blocking fetch from many small requests without
   disclosing a path.
 - Query keys are retained so a report states which test switches were active.
-- Runtime capture counts visible post-reveal time. Hiding the tab pauses the
-  15-second clock. A persisted `pagehide` sends a checkpoint and resumes the
-  remaining window on `pageshow`; a final page exit sends the partial evidence
-  through the existing keepalive path.
+- Runtime capture counts visible-and-focused post-reveal time. Hiding the tab
+  or blurring its window pauses the 15-second clock. A persisted `pagehide`
+  sends a checkpoint and resumes the remaining window on `pageshow`; a final
+  page exit sends the partial evidence through the existing keepalive path.
 - The runtime report is compact and bounded. It uploads aggregates, at most 16
   spike summaries, and at most 24 recent quality samples and lifecycle events.
   The shared envelope removes verbose resolved-quality history and enforces a
@@ -288,13 +304,14 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
   latest-state page-exit checkpoint so a stuck gate can report before it
   resolves and show whether the blocker changed while the visitor waited.
 - Added a compact runtime report with no resource names or raw frames.
-- Added a five-second runtime checkpoint and a visible-time capture clock.
-  Hidden tabs pause the clock; back-forward-cache exits preserve a checkpoint
-  and resume after restoration. Final exits record the browser's `persisted`
-  verdict and the recent visibility lifecycle.
+- Added a five-second runtime checkpoint and a foreground-time capture clock.
+  Hidden or unfocused pages pause the clock; back-forward-cache exits preserve
+  a checkpoint and resume after restoration. Final exits record the browser's
+  `persisted` verdict and the recent visibility and focus lifecycle.
 - Changed the HUD to count down `KEEP OPEN 15s` after reveal and to show
-  `PAUSED` while the document is hidden. `Uploaded` now means the final runtime
-  report received relay acknowledgement, not that an earlier boot event did.
+  `PAUSED` while the document is hidden or unfocused. `Uploaded` now means the
+  final runtime report received relay acknowledgement, not that an earlier boot
+  event did.
 - Moved the capture and test-profile states into the HUD instead of placing
   them over the scene beneath it. The complete instrument keeps its translucent
   glass while adding a state tint: cyan while recording, amber while paused or
@@ -353,11 +370,9 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
   content; GPU pressure must exhaust resolution and effects. The severe run
   then has to continue for 10 seconds while settled before Auto acts.
 - Survival fades the meadow over 800 ms while the skyline's no-meadow blend
-  eases in, then unmounts the meadow, butterflies, petals, and wildlife. It is
-  one-way for the visit, avoiding a costly allocation cycle and visual
-  oscillation if frame pacing recovers. Resolution, effects, and content keep
-  adapting, so recovered headroom can improve the remaining scene without
-  remounting the meadow.
+  eases in, then unmounts the meadow, butterflies, petals, and wildlife. The
+  initial policy kept this one-way for the visit; the 2026-09-05 follow-up
+  below replaces that rule with one evidence-gated recovery attempt.
 - A validated survival result carries into ordinary Auto visits for 24 hours.
   Its original expiry never renews from a restored no-meadow visit, so a
   frequent visitor still gets a fresh meadow probe after the lease ends.
@@ -386,23 +401,43 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
 - Production compilation, route budgets, search-boundary checks, lint, type
   checking, and all 2,926 unit tests passed. A true background-tab pause was
   not browser-tested: Superset panes remain visible, and the external Chrome
-  extension was not connected. The visible-time clock and pause/resume
+  extension was not connected. The foreground-time clock and pause/resume
   scheduling remain covered by deterministic unit tests.
+
+### 2026-09-05
+
+- Tightened quality evidence from "visible" to "visible and focused." Window
+  blur, page hide, freeze, and per-frame focus checks now suspend and clear the
+  rolling sampler; foreground resume discards the two frames whose CPU timing
+  can straddle the boundary. Persistence uses the same focus gate.
+- Invalidated quality storage learned by the old policy. Axis entries advance
+  from version 10 to 11, and the renderer-independent survival lease advances
+  from version 1 to 2, so an old false survival result cannot suppress the
+  meadow after deployment.
+- Replaced visit-long survival with one guarded recovery probe. After 15
+  seconds of uninterrupted foreground headroom, Auto fades the meadow back in
+  over 1.2 seconds. If pressure returns and survival retires it again, no
+  second recovery is attempted during that mount. A successful recovery clears
+  only the survival lease and preserves useful learned resolution, effects,
+  and content axes.
+- Added the focus boundary, recovery attempt, and recovery state to the compact
+  diagnostic evidence so a future support report can distinguish a suspended
+  page from a failed meadow retry.
 
 ## Work queue
 
-| Priority | Idea                                               | Status                         | Evidence required before shipping                                                                                                                                |
-| -------- | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0       | Capture the reported M2 boot and runtime           | Boot captured; runtime partial | Repeat the affected production run and keep it visible through the full 15-second runtime countdown                                                              |
-| P0       | Name the 10-second boot blocker                    | First evidence captured        | Late asset work and main-thread stalls both appear; isolate the 3,141 ms stall and the asset batch that completes at 7,411 ms                                    |
-| P0       | Re-baseline the current scene                      | Proposed                       | Production build bundle report and physical-device traces after the recent scene growth                                                                          |
-| P1       | Start unknown devices at a cheaper profile         | Proposed, idea 3               | Compare time to reveal and first 15 seconds of cadence against the current balanced start; confirm no visible flash or oscillation                               |
-| P1       | Add a persisted survival rung                      | Implemented; validate          | On weak hardware, confirm that the one-way fade materially restores pacing and that the next visit skips the meadow until the non-renewing 24-hour lease expires |
-| P1       | Reduce boot residency and prewarm scope            | Proposed                       | Only if the report points to assets, first frame, meadow construction, shader compilation, or GPU upload                                                         |
-| P1       | Add real performance budgets                       | Proposed, idea 5               | Choose thresholds from current production distributions, then enforce lazy 3D bytes, asset bytes, boot p95, frame p95, dropped-frame ratio, and renderer counts  |
-| P2       | Stop rendering the fully settled room continuously | Proposed, idea 4               | Inventory every ambient system that needs time; prototype demand rendering or a capped idle cadence without freezing authored life                               |
-| P2       | Reduce full-frame effects or DPR sooner            | Evidence dependent             | A runtime report showing fill-rate pressure, healthy main-thread cost, and improvement under a controlled lower-resolution or lower-effects run                  |
-| P2       | Split units or defer nonlocal visuals              | Evidence dependent             | A boot or travel report showing parse, asset, compile, upload, or first-use stalls tied to all-unit residency                                                    |
+| Priority | Idea                                               | Status                         | Evidence required before shipping                                                                                                                               |
+| -------- | -------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0       | Capture the reported M2 boot and runtime           | Boot captured; runtime partial | Repeat the affected production run and keep it visible through the full 15-second runtime countdown                                                             |
+| P0       | Name the 10-second boot blocker                    | First evidence captured        | Late asset work and main-thread stalls both appear; isolate the 3,141 ms stall and the asset batch that completes at 7,411 ms                                   |
+| P0       | Re-baseline the current scene                      | Proposed                       | Production build bundle report and physical-device traces after the recent scene growth                                                                         |
+| P1       | Start unknown devices at a cheaper profile         | Proposed, idea 3               | Compare time to reveal and first 15 seconds of cadence against the current balanced start; confirm no visible flash or oscillation                              |
+| P1       | Add a persisted survival rung                      | Updated locally; revalidate    | On weak hardware, confirm that retirement restores pacing and that one foreground-headroom recovery either remains healthy or retires once without oscillating  |
+| P1       | Reduce boot residency and prewarm scope            | Proposed                       | Only if the report points to assets, first frame, meadow construction, shader compilation, or GPU upload                                                        |
+| P1       | Add real performance budgets                       | Proposed, idea 5               | Choose thresholds from current production distributions, then enforce lazy 3D bytes, asset bytes, boot p95, frame p95, dropped-frame ratio, and renderer counts |
+| P2       | Stop rendering the fully settled room continuously | Proposed, idea 4               | Inventory every ambient system that needs time; prototype demand rendering or a capped idle cadence without freezing authored life                              |
+| P2       | Reduce full-frame effects or DPR sooner            | Evidence dependent             | A runtime report showing fill-rate pressure, healthy main-thread cost, and improvement under a controlled lower-resolution or lower-effects run                 |
+| P2       | Split units or defer nonlocal visuals              | Evidence dependent             | A boot or travel report showing parse, asset, compile, upload, or first-use stalls tied to all-unit residency                                                   |
 
 ## How to run an experiment
 
@@ -473,15 +508,17 @@ responds successfully. This makes `Uploaded` stronger than the earlier SDK
 `Queued` state without rerouting ordinary analytics or enabling automatic
 capture. A 24-hour redacted local backup remains the final recovery path.
 
-### 2026-09-04: Runtime duration means visible evidence
+### 2026-09-04: Runtime duration means foreground evidence
 
 The first affected M2 report ended on `pagehide` after only 2,286 ms of
 post-reveal evidence. Schema 4 keeps that early report but distinguishes a
 final exit from a back-forward-cache transition. A cached page sends a
-checkpoint, pauses the visible-time clock, and resumes the remaining capture
-on restoration. The normal five-second checkpoint preserves a useful sample
-if the visitor leaves later. The HUD counts down the full 15-second target and
-does not say `Uploaded` when only a boot or checkpoint event was acknowledged.
+checkpoint, pauses the foreground-time clock, and resumes the remaining capture
+on restoration. Window blur now pauses the same clock even if mobile Safari
+leaves the document visible. The normal five-second checkpoint preserves a
+useful sample if the visitor leaves later. The HUD counts down the full
+15-second target and does not say `Uploaded` when only a boot or checkpoint
+event was acknowledged.
 
 ### 2026-09-04: Profiles compose switches and never touch learning
 
@@ -493,7 +530,7 @@ costs the affected-device run nothing (a support visit already never
 persists) and prevents a deliberately hobbled run from teaching the owner's
 next ordinary visit.
 
-### 2026-09-04: Prefer a one-way survival rung over a reversible meadow toggle
+### 2026-09-05: Permit one evidence-gated survival recovery
 
 The current automatic controller lowers resolution, effects, meadow mesh
 complexity, terrain tessellation, and offscreen wildlife. It intentionally
@@ -508,11 +545,15 @@ exhaust resolution and effects; content stays reserved for measured CPU work.
 Unattributed pressure gets the strictest rule and requires all three ordinary
 axes at their floors.
 
-The field fades out once, the skyline blend follows it, and the meadow-owned
-scene layer unmounts after 800 ms. Auto does not remount it during the same
-visit: rebuilding terrain, instance buffers, textures, and shader programs can
-recreate the hitch and cause oscillation. A validated result receives a
-non-renewing 24-hour lease for later visits, after which Auto probes the meadow
-again. A live diagnostics override can still mount or remove it for comparison.
-The remaining acceptance gate is physical-device evidence that this rung
-materially improves frame pacing on hardware that reaches it.
+The field fades out, the skyline blend follows it, and the meadow-owned scene
+layer unmounts after 800 ms. The iPhone trace showed that making this state
+visit-long is too conservative when the triggering evidence can straddle an
+app switch. Auto now requires 15 seconds of uninterrupted visible-and-focused
+headroom before one 1.2-second fade-in. If renewed pressure retires the field,
+the controller does not retry during that mount, which bounds allocation work
+and prevents oscillation. A successful recovery clears the survival lease. A
+validated retirement may still receive a non-renewing 24-hour lease for later
+visits, after which Auto probes the meadow again. A live diagnostics override
+can still mount or remove it for comparison. The remaining acceptance gate is
+physical-device evidence that retirement materially improves pacing and that
+the single recovery stays stable when conditions return.

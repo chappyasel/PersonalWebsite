@@ -18,6 +18,7 @@ export type SceneQualityPersistenceReason =
   | "stabilizing"
   | "manual"
   | "hidden"
+  | "unfocused"
   | "samples-unusable"
   | "composer-error"
   | "not-booted"
@@ -30,6 +31,7 @@ export type SceneQualityPersistenceReason =
 export type SceneQualityPersistenceGates = Readonly<{
   automatic: boolean;
   documentVisible: boolean;
+  documentFocused: boolean;
   samplesUsable: boolean;
   composerHealthy: boolean;
   sceneTravelling: boolean;
@@ -57,6 +59,7 @@ export function sceneQualityPersistenceStatus(
 
   if (!gates.automatic) return blocked("manual");
   if (!gates.documentVisible) return blocked("hidden");
+  if (!gates.documentFocused) return blocked("unfocused");
   if (!gates.samplesUsable) return blocked("samples-unusable");
   if (!gates.composerHealthy) return blocked("composer-error");
   if (!state.booted) return blocked("not-booted");

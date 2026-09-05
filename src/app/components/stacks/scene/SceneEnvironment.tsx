@@ -3856,8 +3856,16 @@ export default function SceneEnvironment({
   const daylightCinematicPlus = cinematicPlus && !dark;
   const meadowRequested = MEADOW_ENABLED && resolvedMeadowVisible;
   const [meadowMounted, setMeadowMounted] = useState(meadowRequested);
+  const [meadowRecovering, setMeadowRecovering] = useState(false);
+  const previousMeadowRequested = useRef(meadowRequested);
   useEffect(() => {
-    if (meadowRequested) setMeadowMounted(true);
+    if (meadowRequested && !previousMeadowRequested.current) {
+      setMeadowRecovering(true);
+      setMeadowMounted(true);
+    } else if (!meadowRequested) {
+      setMeadowRecovering(false);
+    }
+    previousMeadowRequested.current = meadowRequested;
   }, [meadowRequested]);
   const meadowRetiring = meadowMounted && !meadowRequested;
   const scope = useWorldBootScope();
@@ -3895,25 +3903,35 @@ export default function SceneEnvironment({
             contentTier={quality.environment.contentTier}
             environmentFlickerSignal={activeCoordinationFlickerSignal}
             retiring={meadowRetiring}
-            onRetired={() => setMeadowMounted(false)}
+            recovering={meadowRecovering}
+            onRetired={() => {
+              if (!meadowRequested) setMeadowMounted(false);
+            }}
+            onRecovered={() => setMeadowRecovering(false)}
           />
           {/* Inside the same gate as the field they fly over: ?nomeadow must
               not leave three butterflies over a bare floor. */}
-          <Butterflies
-            dark={dark}
-            wingBlurSamples={quality.butterflies.wingBlurSamples}
-            suspendOffscreen={quality.wildlife.suspendOffscreen}
-          />
+          {!meadowRecovering && (
+            <Butterflies
+              dark={dark}
+              wingBlurSamples={quality.butterflies.wingBlurSamples}
+              suspendOffscreen={quality.wildlife.suspendOffscreen}
+            />
+          )}
           {/* Same gate, same reason: petals off the meadow's own flowers have
               nothing to come from without the field. */}
-          <Petals dark={dark} visibleLimit={quality.environment.petals} />
+          {!meadowRecovering && (
+            <Petals dark={dark} visibleLimit={quality.environment.petals} />
+          )}
           {/* Habitat Residents share the field gate, while night moths bind
               to its registered Talks practical. No meadow means no animals
               left floating over a bare room. */}
-          <Wildlife
-            dark={dark}
-            suspendOffscreen={quality.wildlife.suspendOffscreen}
-          />
+          {!meadowRecovering && (
+            <Wildlife
+              dark={dark}
+              suspendOffscreen={quality.wildlife.suspendOffscreen}
+            />
+          )}
         </Suspense>
       )}
       <RoomEnvironment

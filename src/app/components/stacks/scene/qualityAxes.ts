@@ -73,6 +73,11 @@ export const QUALITY_CONTENT_RISE_MS = 60_000;
  * fresh severe run at the floor rather than inheriting time accumulated while
  * cheaper axes were still moving. */
 export const QUALITY_SURVIVAL_FALL_MS = 10_000;
+/** A retired meadow gets one foreground-only recovery attempt per visit. The
+ * delay is long enough to contain several clean rolling windows and matches
+ * the effects recovery dwell; a failed retry may retire again, but cannot
+ * oscillate for the rest of the mount. */
+export const QUALITY_SURVIVAL_RISE_MS = 15_000;
 
 /** Travel is bounded and known in advance, so the headroom can be taken
  * before a frame is missed rather than after. */
@@ -122,8 +127,8 @@ export type SceneQualityAxes = Readonly<{
   resolutionStep: number;
   effects: SceneEffectsTier;
   content: SceneContentTier;
-  /** One-way for this visit. True removes the meadow and its habitat after
-   * ordinary quality controls have failed to restore usable pacing. */
+  /** True removes the meadow and its habitat after ordinary quality controls
+   * have failed to restore usable pacing. One validated recovery is allowed. */
   survival: boolean;
 }>;
 
@@ -246,6 +251,9 @@ export type SceneQualityAxisState = Readonly<{
   /** Severe time observed only after the applicable ordinary axes reached
    * their floors. Reset as soon as pressure eases or another lever returns. */
   survivalSince: number | null;
+  /** Prevents a meadow that failed its single recovery probe from repeatedly
+   * mounting and retiring as conditions hover around the threshold. */
+  survivalRecoveryAttempted: boolean;
   /** The window that justified the last change, held until a later window
    * shows the change helped. Null means no axis is blocked. */
   pendingBaseline: SceneQualityMetrics | null;
@@ -356,7 +364,7 @@ export function initialSceneQualityAxisState(
   now: number,
   forced: SceneQualityProfile | null = null,
   resolutionStep = SCENE_RESOLUTION_MAX_STEP,
-  documentVisible = true,
+  foregroundActive = true,
 ): SceneQualityAxisState {
   return {
     axes: {
@@ -370,7 +378,7 @@ export function initialSceneQualityAxisState(
     travelFrames: { total: 0, late: 0 },
     consecutiveOverBudgetTravels: 0,
     settledAt: null,
-    foregroundReadyAt: documentVisible
+    foregroundReadyAt: foregroundActive
       ? now + QUALITY_TRAVEL_VALIDATION_MS
       : null,
     axisChangedAt: {
@@ -385,6 +393,7 @@ export function initialSceneQualityAxisState(
     cpuSince: null,
     headroomSince: null,
     survivalSince: null,
+    survivalRecoveryAttempted: false,
     pendingBaseline: null,
     pendingBaselineExpiresAt: null,
     lastChange: null,
@@ -1135,8 +1144,35 @@ function reduceSceneQualityAxesCore(
           ? AXES_BY_PROFILE[next.forced]
           : AXES_BY_PROFILE.showcase;
 
-        // Climb the visible axes back before the invisible one, so a device
-        // that recovered gets its geometry back rather than only its pixels.
+        if (
+          !next.forced &&
+          next.axes.survival &&
+          !next.survivalRecoveryAttempted &&
+          axisReady(
+            next,
+            "survival",
+            next.headroomSince,
+            now,
+            QUALITY_SURVIVAL_RISE_MS,
+          )
+        )
+          return {
+            ...next,
+            axes: { ...next.axes, survival: false },
+            axisChangedAt: moved(next, "survival", now),
+            survivalRecoveryAttempted: true,
+            pendingBaseline: metrics,
+            pendingBaselineExpiresAt: now + QUALITY_AXIS_BLOCK_MS,
+            validation: null,
+            lastChange: {
+              axis: "survival",
+              direction: "up",
+              reason: "headroom",
+            },
+          };
+
+        // Once the survival decision is settled, restore authored geometry
+        // before pixels or effects so recovered headroom buys visible detail.
         if (
           !next.forced &&
           axisReady(

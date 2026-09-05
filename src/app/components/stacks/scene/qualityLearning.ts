@@ -72,7 +72,7 @@ export function learningAvailable() {
 
 const survivalLeaseKey = (bucket: string) => {
   const pixelBucket = bucket.split(":").at(-1) ?? "unknown";
-  return `stacks-quality:survival:v1:${pixelBucket}`;
+  return `stacks-quality:survival:v2:${pixelBucket}`;
 };
 
 /** Read before WebGL capability evidence exists, so a recent survival result
@@ -201,5 +201,29 @@ export function clearLearnedQuality(bucket: string) {
     storage.removeItem(survivalLeaseKey(bucket));
   } catch {
     // Nothing to do; the entry is already unreachable.
+  }
+}
+
+/** Clear only the survival result after the live controller proves the meadow
+ * can run again. Keep the validated ordinary axes as the next visit's useful
+ * starting point. */
+export function clearLearnedSurvival(bucket: string) {
+  const storage = store();
+  if (!storage) return;
+  try {
+    storage.removeItem(survivalLeaseKey(bucket));
+    const raw = storage.getItem(bucket);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return;
+    storage.setItem(
+      bucket,
+      JSON.stringify({
+        ...(parsed as Record<string, unknown>),
+        survivalUntil: null,
+      }),
+    );
+  } catch {
+    // Storage is optional. Recovery must never depend on persisting it.
   }
 }

@@ -4,7 +4,7 @@ import { createSceneQualitySampler } from "./qualitySampler";
 
 describe("scene quality frame sampler", () => {
   it("summarises one rolling foreground window at the sample cadence", () => {
-    const sampler = createSceneQualitySampler({ now: 0, visible: true });
+    const sampler = createSceneQualitySampler({ now: 0, foreground: true });
 
     expect(
       sampler.push({
@@ -12,7 +12,7 @@ describe("scene quality frame sampler", () => {
         frameMs: 16,
         cpuMs: 3,
         instrumented: false,
-        visible: true,
+        foreground: true,
       }),
     ).toBeNull();
     const sample = sampler.push({
@@ -20,7 +20,7 @@ describe("scene quality frame sampler", () => {
       frameMs: 17,
       cpuMs: 4,
       instrumented: false,
-      visible: true,
+      foreground: true,
     });
 
     expect(sample?.metrics).toMatchObject({
@@ -32,24 +32,24 @@ describe("scene quality frame sampler", () => {
     expect(sample?.instrumented).toBe(false);
   });
 
-  it("clears hidden history and discards two lagging CPU samples after resume", () => {
-    const sampler = createSceneQualitySampler({ now: 0, visible: true });
+  it("clears background history and discards two lagging CPU samples after resume", () => {
+    const sampler = createSceneQualitySampler({ now: 0, foreground: true });
     sampler.push({
       now: 100,
       frameMs: 40,
       cpuMs: 90,
       instrumented: false,
-      visible: true,
+      foreground: true,
     });
-    sampler.setDocumentVisible(false, 200);
+    sampler.setForegroundActive(false, 200);
     sampler.push({
       now: 20_000,
       frameMs: 900,
       cpuMs: 90,
       instrumented: false,
-      visible: false,
+      foreground: false,
     });
-    sampler.setDocumentVisible(true, 60_000);
+    sampler.setForegroundActive(true, 60_000);
 
     for (const [now, cpuMs] of [
       [60_010, 90],
@@ -62,7 +62,7 @@ describe("scene quality frame sampler", () => {
           frameMs: 16,
           cpuMs,
           instrumented: false,
-          visible: true,
+          foreground: true,
         }),
       ).toBeNull();
 
@@ -71,7 +71,7 @@ describe("scene quality frame sampler", () => {
       frameMs: 17,
       cpuMs: 4,
       instrumented: false,
-      visible: true,
+      foreground: true,
     });
     expect(sample?.metrics).toMatchObject({
       sampleCount: 2,
@@ -80,21 +80,76 @@ describe("scene quality frame sampler", () => {
     });
   });
 
+  it("treats window blur like suspension even when the document stays visible", () => {
+    const sampler = createSceneQualitySampler({ now: 0, foreground: true });
+    sampler.push({
+      now: 100,
+      frameMs: 16,
+      cpuMs: 3,
+      instrumented: false,
+      foreground: true,
+    });
+    sampler.setForegroundActive(false, 200);
+
+    expect(
+      sampler.push({
+        now: 4_000,
+        frameMs: 900,
+        cpuMs: 500,
+        instrumented: false,
+        foreground: false,
+      }),
+    ).toBeNull();
+
+    sampler.setForegroundActive(true, 5_000);
+    for (const now of [5_100, 5_116])
+      expect(
+        sampler.push({
+          now,
+          frameMs: 900,
+          cpuMs: 500,
+          instrumented: false,
+          foreground: true,
+        }),
+      ).toBeNull();
+
+    sampler.push({
+      now: 5_132,
+      frameMs: 16,
+      cpuMs: 3,
+      instrumented: false,
+      foreground: true,
+    });
+    const sample = sampler.push({
+      now: 5_400,
+      frameMs: 17,
+      cpuMs: 4,
+      instrumented: false,
+      foreground: true,
+    });
+
+    expect(sample?.metrics).toMatchObject({
+      sampleCount: 2,
+      p95: 17,
+      cpuMs: 4,
+    });
+  });
+
   it("marks a window unusable when any retained frame was instrumented", () => {
-    const sampler = createSceneQualitySampler({ now: 0, visible: true });
+    const sampler = createSceneQualitySampler({ now: 0, foreground: true });
     sampler.push({
       now: 100,
       frameMs: 16,
       cpuMs: 3,
       instrumented: true,
-      visible: true,
+      foreground: true,
     });
     const sample = sampler.push({
       now: 300,
       frameMs: 17,
       cpuMs: 4,
       instrumented: false,
-      visible: true,
+      foreground: true,
     });
 
     expect(sample?.instrumented).toBe(true);

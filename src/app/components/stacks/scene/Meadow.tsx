@@ -110,6 +110,7 @@ import { StaticWorldRoot } from "./staticWorld";
 const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
 export const MEADOW_RETIRE_SECONDS = 0.8;
+export const MEADOW_RECOVER_SECONDS = 1.2;
 
 // Flower-only colors live here. Grass colors are part of PALETTES because the
 // boot vignette now uses the same meadow tone to bridge its sky and wood.
@@ -1080,7 +1081,9 @@ export default function Meadow({
   contentTier = "full",
   environmentFlickerSignal = null,
   retiring = false,
+  recovering = false,
   onRetired,
+  onRecovered,
 }: {
   dark: boolean;
   /** Quality rung (3 = full). Maps 1:1 onto MEADOW_RUNG_* counts; the
@@ -1100,7 +1103,10 @@ export default function Meadow({
   /** Fade the complete field before its parent releases every meadow-owned
    * allocation and per-frame subscription. */
   retiring?: boolean;
+  /** Fade a field back in after Auto's single survival recovery probe. */
+  recovering?: boolean;
   onRetired?: () => void;
+  onRecovered?: () => void;
 }) {
   const gl = useThree((state) => state.gl);
   const { cinematicPlus } = useSceneQualityControls();
@@ -1150,8 +1156,11 @@ export default function Meadow({
    * beats the rung while set. Never written in production. */
   const densityRef = useRef<number | null>(null);
   const retireComplete = useRef(false);
+  const recoveryComplete = useRef(false);
   const onRetiredRef = useRef(onRetired);
+  const onRecoveredRef = useRef(onRecovered);
   onRetiredRef.current = onRetired;
+  onRecoveredRef.current = onRecovered;
 
   const gltf = useGLTF(TUFT_URL, false);
   const alphaMap = useTexture(ALPHA_URL);
@@ -1212,7 +1221,7 @@ export default function Meadow({
     const shared = {
       uTime: { value: 0 },
       uDark: { value: dark ? 1 : 0 },
-      uOpacity: { value: 1 },
+      uOpacity: { value: recovering ? 0 : 1 },
       uDawn: { value: 0 },
       uSeat: { value: 0 },
       uWindAmp: { value: MEADOW_WIND.amplitude as number },
@@ -1336,7 +1345,7 @@ export default function Meadow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const materials = [
       built.terrainMaterial,
       built.grassMaterial,
@@ -1346,9 +1355,11 @@ export default function Meadow({
       built.flowerMaterial,
     ];
     retireComplete.current = false;
-    if (!retiring) built.shared.uOpacity.value = 1;
-    for (const material of materials) material.transparent = retiring;
-  }, [built, retiring]);
+    recoveryComplete.current = false;
+    if (!retiring && !recovering) built.shared.uOpacity.value = 1;
+    for (const material of materials)
+      material.transparent = retiring || recovering;
+  }, [built, recovering, retiring]);
 
   // ShaderMaterial does not opt into Three's light/shadow uniforms by
   // default. Switch that contract and its compile-time branch together so
@@ -1640,6 +1651,15 @@ export default function Meadow({
       if (shared.uOpacity.value === 0 && !retireComplete.current) {
         retireComplete.current = true;
         onRetiredRef.current?.();
+      }
+    } else if (recovering) {
+      shared.uOpacity.value = Math.min(
+        1,
+        shared.uOpacity.value + delta / MEADOW_RECOVER_SECONDS,
+      );
+      if (shared.uOpacity.value === 1 && !recoveryComplete.current) {
+        recoveryComplete.current = true;
+        onRecoveredRef.current?.();
       }
     }
     const nowSeconds = performance.now() / 1000;

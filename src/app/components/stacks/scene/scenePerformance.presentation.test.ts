@@ -209,7 +209,7 @@ describe("scene performance integration", () => {
       "frames.some((retained) => retained.instrumented)",
     );
     expect(canvas).toContain(
-      "!document.hidden && !qualityControls.frozen && !instrumented",
+      "visible && focused && !qualityControls.frozen && !instrumented",
     );
   });
 
@@ -326,7 +326,7 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("reduceSceneQualityAxes");
     expect(canvas).toContain("<AdaptiveQualityProbe");
     expect(canvas).toContain("onSample={onQualitySample}");
-    expect(canvas).toContain("onVisibility={onQualityVisibility}");
+    expect(canvas).toContain("onForeground={onQualityForeground}");
     expect(canvas).toContain('type: "travel-start"');
     expect(canvas).not.toContain("allowsDynamicSceneResolution");
     expect(canvas).not.toContain("allowResolutionChange:");
@@ -429,16 +429,13 @@ describe("scene performance integration", () => {
     expect(lift).toContain("settled.current");
   });
 
-  it("fades the automatic survival meadow before releasing its work", () => {
+  it("fades the automatic survival meadow out and its single recovery back in", () => {
     const flowerFragmentStart = meadow.indexOf("const FLOWER_FRAGMENT");
     const flowerFragmentEnd = meadow.indexOf(
       "// ---------------------------------------------------------------------------",
       flowerFragmentStart,
     );
-    const flowerFragment = meadow.slice(
-      flowerFragmentStart,
-      flowerFragmentEnd,
-    );
+    const flowerFragment = meadow.slice(flowerFragmentStart, flowerFragmentEnd);
 
     expect(flowerFragmentStart).toBeGreaterThanOrEqual(0);
     expect(flowerFragment).toContain("uniform float uOpacity;");
@@ -448,13 +445,31 @@ describe("scene performance integration", () => {
     );
     expect(environment).toContain("useResolvedMeadowVisibility");
     expect(environment).toContain("meadowRetiring");
+    expect(environment).toContain("meadowRecovering");
     expect(environment).toContain("onRetired");
+    expect(environment).toContain("onRecovered");
     expect(environment).toContain("THREE.MathUtils.damp(");
     expect(meadow).toContain("MEADOW_RETIRE_SECONDS");
+    expect(meadow).toContain("MEADOW_RECOVER_SECONDS");
     expect(meadow).toContain("gl_FragColor = vec4(col, uOpacity)");
     expect(meadow).toContain("onRetiredRef.current?.()");
+    expect(meadow).toContain("onRecoveredRef.current?.()");
     expect(canvas).toContain(
       "survival: stored.survival || axesRef.current.survival",
+    );
+  });
+
+  it("samples and persists quality only while the page is visible and focused", () => {
+    expect(canvas).toContain("!document.hidden && document.hasFocus()");
+    expect(canvas).toContain("sampler.current?.setForegroundActive");
+    expect(canvas).toContain("documentFocused: document.hasFocus()");
+    expect(canvas).toContain(
+      "visible && focused && !qualityControls.frozen && !instrumented",
+    );
+    expect(canvas).toContain('recordLifecycle("window-blur", now)');
+    expect(canvas).toContain('window.addEventListener("focus", onFocus)');
+    expect(canvas).toContain(
+      "scenePerformanceTrace.isActive() &&\n      !document.hidden &&\n      document.hasFocus()",
     );
   });
 });

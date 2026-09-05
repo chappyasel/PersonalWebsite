@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   NARROW_VIEWPORT_DPR_CAP_BY_PROFILE,
+  QUALITY_TRAVEL_VALIDATION_MS,
   SCENE_FRAME_BUDGET_MS,
   SCENE_QUALITY_PROFILES,
   type SceneQualityMetrics,
@@ -20,6 +21,7 @@ import {
   QUALITY_RESOLUTION_GIVE_UP_STEPS,
   QUALITY_RESOLUTION_RETRY_MS,
   QUALITY_SURVIVAL_FALL_MS,
+  QUALITY_SURVIVAL_RISE_MS,
   QUALITY_TRAVEL_OVER_BUDGET_LIMIT,
   QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
   SCENE_RESOLUTION_FLOOR,
@@ -835,12 +837,71 @@ describe("the survival rung", () => {
     expect(state.axes.effects).toBe("minimal");
   });
 
-  it("keeps survival one-way while restoring ordinary axes on headroom", () => {
+  it("tries one meadow recovery after sustained foreground headroom", () => {
     let state = hold(cpuFloor(), severeCpu, 2_000, QUALITY_SURVIVAL_FALL_MS);
-    state = hold(state, headroom, 20_000, QUALITY_CONTENT_RISE_MS * 2 + 500);
+    const waiting = hold(
+      state,
+      headroom,
+      20_000,
+      QUALITY_SURVIVAL_RISE_MS - 250,
+    );
+    expect(waiting.axes.survival).toBe(true);
+
+    state = reduceSceneQualityAxes(waiting, {
+      type: "sample",
+      now: 20_000 + QUALITY_SURVIVAL_RISE_MS,
+      metrics: headroom,
+      visible: true,
+    });
+    expect(state.axes.survival).toBe(false);
+    expect(state.survivalRecoveryAttempted).toBe(true);
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "survival",
+      direction: "up",
+      reason: "strict-headroom",
+      fromValue: true,
+      toValue: false,
+    });
+  });
+
+  it("does not count background time toward meadow recovery", () => {
+    let state = hold(cpuFloor(), severeCpu, 2_000, QUALITY_SURVIVAL_FALL_MS);
+    state = hold(state, headroom, 20_000, QUALITY_SURVIVAL_RISE_MS - 250);
+    state = reduceSceneQualityAxes(state, {
+      type: "visibility-hidden",
+      now: 40_000,
+    });
+    state = reduceSceneQualityAxes(state, {
+      type: "visibility-visible",
+      now: 100_000,
+    });
+    state = hold(
+      state,
+      headroom,
+      100_000 + QUALITY_TRAVEL_VALIDATION_MS,
+      QUALITY_SURVIVAL_RISE_MS - 250,
+    );
     expect(state.axes.survival).toBe(true);
-    expect(state.axes.content).toBe("full");
-    expect(state.validation).not.toBeNull();
+
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 100_000 + QUALITY_TRAVEL_VALIDATION_MS + QUALITY_SURVIVAL_RISE_MS,
+      metrics: headroom,
+      visible: true,
+    });
+    expect(state.axes.survival).toBe(false);
+  });
+
+  it("does not retry a meadow recovery after the first probe fails", () => {
+    let state = hold(cpuFloor(), severeCpu, 2_000, QUALITY_SURVIVAL_FALL_MS);
+    state = hold(state, headroom, 20_000, QUALITY_SURVIVAL_RISE_MS);
+    expect(state.axes.survival).toBe(false);
+
+    state = hold(state, severeCpu, 40_000, QUALITY_SURVIVAL_FALL_MS + 1_000);
+    expect(state.axes.survival).toBe(true);
+    state = hold(state, headroom, 60_000, QUALITY_CONTENT_RISE_MS * 2);
+    expect(state.axes.survival).toBe(true);
+    expect(state.survivalRecoveryAttempted).toBe(true);
   });
 
   it("preserves survival across a forced-profile comparison", () => {

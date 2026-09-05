@@ -110,6 +110,7 @@ import { sceneQualityEvidence } from "./scene/qualityEvidence";
 import {
   type LearnedQuality,
   clearLearnedQuality,
+  clearLearnedSurvival,
   readLearnedQuality,
   readLearnedSurvivalUntil,
   writeLearnedQuality,
@@ -750,7 +751,11 @@ function PerformanceProbe({ instrumentFrames }: { instrumentFrames: boolean }) {
     // teach Auto. The lightweight support report keeps Auto live so it records
     // the same recovery policy a visitor actually experiences.
     if (instrumentFrames) markSceneFrameInstrumented();
-    if (scenePerformanceTrace.isActive() && !document.hidden) {
+    if (
+      scenePerformanceTrace.isActive() &&
+      !document.hidden &&
+      document.hasFocus()
+    ) {
       const state = useStacks.getState();
       const quality = qualitySnapshot as {
         profile?: unknown;
@@ -880,18 +885,22 @@ function AutomaticPerformanceDiagnosticRun() {
           const deadlineWindow = new PerformanceDiagnosticVisibleClock(
             PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
           );
+          const foregroundActive = () =>
+            !document.hidden && document.hasFocus();
           const lifecycle: Array<{
             at_ms: number;
             type:
               | "visibility-visible"
               | "visibility-hidden"
+              | "window-focus"
+              | "window-blur"
               | "pageshow"
               | "pagehide";
             persisted: boolean | null;
           }> = [];
 
           performanceDiagnosticProgress.reset();
-          deadlineWindow.start(performance.now(), !document.hidden);
+          deadlineWindow.start(performance.now(), foregroundActive());
 
           const elapsedSinceBoot = (now: number) => {
             const startedAt = worldBoot.getState().startedAt;
@@ -1080,7 +1089,7 @@ function AutomaticPerformanceDiagnosticRun() {
               !runtimeWindow.snapshot(performance.now()).started &&
               (state.status === "revealing" || state.status === "live")
             ) {
-              runtimeWindow.start(performance.now(), !document.hidden);
+              runtimeWindow.start(performance.now(), foregroundActive());
               armRuntimeTimers();
             }
           };
@@ -1096,8 +1105,26 @@ function AutomaticPerformanceDiagnosticRun() {
               visible ? "visibility-visible" : "visibility-hidden",
               now,
             );
-            runtimeWindow.setVisible(visible, now);
-            deadlineWindow.setVisible(visible, now);
+            const active = visible && document.hasFocus();
+            runtimeWindow.setVisible(active, now);
+            deadlineWindow.setVisible(active, now);
+            armRuntimeTimers();
+          };
+          const onFocus = () => {
+            if (finished) return;
+            const now = performance.now();
+            recordLifecycle("window-focus", now);
+            const active = foregroundActive();
+            runtimeWindow.setVisible(active, now);
+            deadlineWindow.setVisible(active, now);
+            armRuntimeTimers();
+          };
+          const onBlur = () => {
+            if (finished) return;
+            const now = performance.now();
+            recordLifecycle("window-blur", now);
+            runtimeWindow.setVisible(false, now);
+            deadlineWindow.setVisible(false, now);
             armRuntimeTimers();
           };
           const onPageHide = (event: PageTransitionEvent) => {
@@ -1124,11 +1151,14 @@ function AutomaticPerformanceDiagnosticRun() {
             if (!event.persisted || finished) return;
             const now = performance.now();
             recordLifecycle("pageshow", now, true);
-            runtimeWindow.setVisible(!document.hidden, now);
-            deadlineWindow.setVisible(!document.hidden, now);
+            const active = foregroundActive();
+            runtimeWindow.setVisible(active, now);
+            deadlineWindow.setVisible(active, now);
             armRuntimeTimers();
           };
           document.addEventListener("visibilitychange", onVisibility);
+          window.addEventListener("focus", onFocus);
+          window.addEventListener("blur", onBlur);
           window.addEventListener("pagehide", onPageHide);
           window.addEventListener("pageshow", onPageShow);
           stop = () => {
@@ -1136,6 +1166,8 @@ function AutomaticPerformanceDiagnosticRun() {
             clearRuntimeTimers();
             window.clearTimeout(deadline);
             document.removeEventListener("visibilitychange", onVisibility);
+            window.removeEventListener("focus", onFocus);
+            window.removeEventListener("blur", onBlur);
             window.removeEventListener("pagehide", onPageHide);
             window.removeEventListener("pageshow", onPageShow);
             performanceDiagnosticProgress.reset();
@@ -1187,19 +1219,20 @@ function AutomaticPerformanceDiagnostic() {
  * frame's start; the renderer wrapper closes the measurement at submission. */
 function AdaptiveQualityProbe({
   onSample,
-  onVisibility,
+  onForeground,
   recordEvidence,
 }: {
   onSample: (metrics: SceneQualityMetrics, instrumented: boolean) => void;
-  onVisibility: (visible: boolean, now: number) => void;
+  onForeground: (active: boolean, now: number) => void;
   recordEvidence: boolean;
 }) {
+  const foregroundRef = useRef(!document.hidden && document.hasFocus());
   const sampler = useRef<ReturnType<typeof createSceneQualitySampler> | null>(
     null,
   );
   sampler.current ??= createSceneQualitySampler({
     now: performance.now(),
-    visible: !document.hidden,
+    foreground: foregroundRef.current,
   });
 
   useEffect(() => {
@@ -1213,6 +1246,12 @@ function AdaptiveQualityProbe({
         type,
         persisted,
       });
+    const setForeground = (active: boolean, now: number, force = false) => {
+      if (!force && foregroundRef.current === active) return;
+      foregroundRef.current = active;
+      sampler.current?.setForegroundActive(active, now);
+      onForeground(active, now);
+    };
     const visibility = () => {
       const now = performance.now();
       const visible = !document.hidden;
@@ -1222,30 +1261,41 @@ function AdaptiveQualityProbe({
           type: visible ? "visibility-visible" : "visibility-hidden",
           persisted: null,
         });
-      sampler.current?.setDocumentVisible(visible, now);
-      onVisibility(visible, now);
+      setForeground(visible && document.hasFocus(), now);
     };
     const pageShow = (event: PageTransitionEvent) => {
       if (recordEvidence) recordLifecycle("pageshow", event.persisted);
       if (!event.persisted) return;
       const now = performance.now();
-      sampler.current?.resume(now);
-      onVisibility(true, now);
+      const active = !document.hidden && document.hasFocus();
+      foregroundRef.current = active;
+      if (active) sampler.current?.resume(now);
+      else sampler.current?.setForegroundActive(false, now);
+      onForeground(active, now);
     };
     const pageHide = (event: PageTransitionEvent) => {
       if (recordEvidence) recordLifecycle("pagehide", event.persisted);
+      setForeground(false, performance.now(), true);
     };
     const focus = () => {
       if (recordEvidence) recordLifecycle("window-focus");
+      setForeground(!document.hidden, performance.now());
     };
     const blur = () => {
       if (recordEvidence) recordLifecycle("window-blur");
+      setForeground(false, performance.now());
     };
     const freeze = () => {
       if (recordEvidence) recordLifecycle("freeze");
+      setForeground(false, performance.now(), true);
     };
     const resume = () => {
       if (recordEvidence) recordLifecycle("resume");
+      setForeground(
+        !document.hidden && document.hasFocus(),
+        performance.now(),
+        true,
+      );
     };
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pageshow", pageShow);
@@ -1263,10 +1313,16 @@ function AdaptiveQualityProbe({
       document.removeEventListener("freeze", freeze);
       document.removeEventListener("resume", resume);
     };
-  }, [onVisibility, recordEvidence]);
+  }, [onForeground, recordEvidence]);
 
   useFrame((_, delta) => {
     const now = performance.now();
+    const foreground = !document.hidden && document.hasFocus();
+    if (foregroundRef.current !== foreground) {
+      foregroundRef.current = foreground;
+      sampler.current!.setForegroundActive(foreground, now);
+      onForeground(foreground, now);
+    }
     // The cost recorded by the renderer wrapper belongs to the frame that was
     // submitted before this callback ran, so it lags by one frame.
     const cpuMs = readSceneFrameCpuMs();
@@ -1280,7 +1336,7 @@ function AdaptiveQualityProbe({
       frameMs: delta * 1_000,
       cpuMs,
       instrumented,
-      visible: !document.hidden,
+      foreground,
     });
     if (sample) onSample(sample.metrics, sample.instrumented);
   }, -999);
@@ -1724,7 +1780,8 @@ export default function StacksCanvas({
         queryMode === "auto"
           ? initialAutoResolutionStep
           : SCENE_RESOLUTION_MAX_STEP,
-        typeof document === "undefined" || !document.hidden,
+        typeof document === "undefined" ||
+          (!document.hidden && document.hasFocus()),
       );
       if (!restoredLearning && openingSurvivalUntil == null) return base;
       const restored = reduceSceneQualityAxes(base, {
@@ -1870,8 +1927,12 @@ export default function StacksCanvas({
         metrics: liveMetricsRef.current,
       },
     });
+    if (previous.survival && !axisState.axes.survival) {
+      clearLearnedSurvival(storageBucket);
+      survivalLeaseUntilRef.current = null;
+    }
     previousAxes.current = axisState.axes;
-  }, [axisState.axes, axisState.lastChange]);
+  }, [axisState.axes, axisState.lastChange, storageBucket]);
 
   const onMovementChange = useCallback(
     (moving: boolean, frames?: TravelFrames) => {
@@ -2085,10 +2146,10 @@ export default function StacksCanvas({
   // that straddles either is not evidence about steady state.
   const bootReadySince = useRef<number | null>(null);
   const booted = useRef(false);
-  const onQualityVisibility = useCallback((visible: boolean, now: number) => {
+  const onQualityForeground = useCallback((active: boolean, now: number) => {
     bootReadySince.current = null;
     dispatchAxes({
-      type: visible ? "visibility-visible" : "visibility-hidden",
+      type: active ? "visibility-visible" : "visibility-hidden",
       now,
     });
   }, []);
@@ -2096,8 +2157,9 @@ export default function StacksCanvas({
     (metrics: SceneQualityMetrics, instrumented: boolean) => {
       const now = performance.now();
       const visible = !document.hidden;
+      const focused = document.hasFocus();
       const usable =
-        !document.hidden && !qualityControls.frozen && !instrumented;
+        visible && focused && !qualityControls.frozen && !instrumented;
       liveMetricsRef.current = metrics;
       const constraint = classifySceneFrameConstraint(metrics);
       if (qualityEvidenceRequested)
@@ -2105,7 +2167,7 @@ export default function StacksCanvas({
           at: now,
           instrumented,
           visible,
-          focused: document.hasFocus(),
+          focused,
           usable,
           moving: isSceneTraveling(),
           constraint,
@@ -2196,6 +2258,7 @@ export default function StacksCanvas({
     const gates = {
       automatic: mode === "auto",
       documentVisible: !document.hidden,
+      documentFocused: document.hasFocus(),
       samplesUsable:
         !qualityControls.frozen && !diagnosticsRequested && !learningSuspended,
       composerHealthy: !composerFailed,
@@ -2211,6 +2274,7 @@ export default function StacksCanvas({
         {
           ...gates,
           documentVisible: !document.hidden,
+          documentFocused: document.hasFocus(),
           sceneTravelling: isSceneTraveling(),
         },
         performance.now(),
@@ -2267,6 +2331,8 @@ export default function StacksCanvas({
       automatic: mode === "auto",
       documentVisible:
         typeof document === "undefined" ? true : !document.hidden,
+      documentFocused:
+        typeof document === "undefined" ? true : document.hasFocus(),
       samplesUsable:
         !qualityControls.frozen && !diagnosticsRequested && !learningSuspended,
       composerHealthy: !composerFailed,
@@ -2300,6 +2366,7 @@ export default function StacksCanvas({
     cpuSince: axisState.cpuSince,
     headroomSince: axisState.headroomSince,
     survivalSince: axisState.survivalSince,
+    survivalRecoveryAttempted: axisState.survivalRecoveryAttempted,
     foregroundReadyAt: axisState.foregroundReadyAt,
     validation: axisState.validation,
     unhelpfulResolutionSteps: axisState.unhelpfulResolutionSteps,
@@ -2536,7 +2603,7 @@ export default function StacksCanvas({
         ) : null}
         <AdaptiveQualityProbe
           onSample={onQualitySample}
-          onVisibility={onQualityVisibility}
+          onForeground={onQualityForeground}
           recordEvidence={qualityEvidenceRequested}
         />
         <SceneAudioBridge />
