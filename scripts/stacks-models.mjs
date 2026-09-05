@@ -155,9 +155,8 @@ const MANIFEST = [
   // noAo below: thin members / dark tints where baked AO never reads —
   // their bytes matter more than their crevices. /public/models is a soft
   // ~420 KB ceiling (398 KB as of round 4) — it is lazy-loaded after first
-  // paint, so it sits OUTSIDE the 180 KB initial-route budget that
-  // scripts/check-route-budgets.mjs asserts. Nothing fails the build on it;
-  // the per-prop and total KB this script prints are the only guard.
+  // paint, so it never touches the initial route. Nothing fails the build
+  // on it; the per-prop and total KB this script prints are the only guard.
   {
     name: "golf-club",
     id: "26nMm9C7Bw",

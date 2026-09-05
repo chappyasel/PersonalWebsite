@@ -19,11 +19,11 @@ import {
 import {
   AnimatePresence,
   type MotionValue,
+  animate,
   motion,
   useMotionTemplate,
   useMotionValue,
   useReducedMotion,
-  useSpring,
   useTransform,
 } from "framer-motion";
 import Link from "next/link";
@@ -36,6 +36,7 @@ import {
   isValidElement,
   useEffect,
   useId,
+  useRef,
   useState,
 } from "react";
 import ReactMarkdown, {
@@ -171,12 +172,62 @@ function BookBreadcrumb({
   );
 }
 
-// Animation configuration - overdamped to prevent oscillation
-const SPRING_CONFIG = {
-  type: "spring" as const,
-  stiffness: 200,
-  damping: 50,
-};
+// The header's shape follows the scroll through one underdamped spring, so a
+// hard stop at either end (hitting the top, or the fold completing under a
+// fast flick) carries a small overshoot before it settles: about 6% past the
+// target, settled in roughly 270ms.
+const HEADER_SPRING = { type: "spring" as const, stiffness: 500, damping: 30 };
+
+/**
+ * The header's two sizes in px, per layout, and the scroll distance between
+ * them. The header keeps its folded height in the document flow at all
+ * times; the rest of its resting silhouette overflows onto a spacer below.
+ * So the notes push the header closed at exactly scroll speed, and nothing on
+ * the page ever moves faster or slower than the finger, whatever the spring
+ * is doing to the header's own shape.
+ *
+ * Measured folded, wide layout: title + author is 56px, and the subdued crumb
+ * adds 22px on top of it (the crumb runs inside the title column, which is
+ * why 55px was right while it ran across the card and left the spine
+ * floating once it moved). The narrow layout never puts the crumb in the
+ * column, so 42px stands either way.
+ */
+function headerGeometry(
+  isLargeScreen: boolean,
+  isModal: boolean,
+  showBreadcrumb: boolean,
+) {
+  const cover: [number, number] = isLargeScreen
+    ? [300, showBreadcrumb ? 78 : 56]
+    : [isModal ? 220 : 200, 42];
+  const paddingTop: [number, number] = isLargeScreen
+    ? [56, isModal ? 16 : 12]
+    : [isModal ? 24 : 16, isModal ? 16 : 12];
+  const paddingBottom: [number, number] = isModal ? [16, 16] : [16, 10];
+  const expanded = paddingTop[0] + cover[0] + paddingBottom[0];
+  const collapsed = paddingTop[1] + cover[1] + paddingBottom[1];
+  return {
+    cover,
+    paddingTop,
+    paddingBottom,
+    collapsed,
+    /** How far the notes scroll while the header folds. */
+    shrink: expanded - collapsed,
+  };
+}
+
+const px = (values: [number, number]) =>
+  values.map((value) => `${value}px`) as [string, string];
+
+/**
+ * Visibility that follows a fading row to hidden once its opacity reaches
+ * zero, so the folded header's action buttons stop taking clicks and focus
+ * through the notes. The opacity transforms clamp at their segment ends, so
+ * zero is exact rather than asymptotic.
+ */
+function useHiddenWhenClear(opacity: MotionValue<number>) {
+  return useTransform(opacity, (value) => (value > 0 ? "visible" : "hidden"));
+}
 
 // One backdrop-filter cannot vary its radius across the element, so the
 // graduated edge comes from stacking these layers: each is masked to a band
@@ -668,6 +719,11 @@ type BookDetailContentProps = {
   onExpand?: (event: MouseEvent<HTMLAnchorElement>) => void;
   /** The modal has grown into the page — the expand control retires. */
   expanded?: boolean;
+  /** Where a tag leads: the shelf, narrowed to that one tag. Absent, the
+   * tags stay plain labels. */
+  tagHref?: (tag: string) => string;
+  /** In-place takeover for a tag press; the link stays the fallback. */
+  onTagSelect?: (tag: string, event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
 export function BookDetailContent({
@@ -686,6 +742,8 @@ export function BookDetailContent({
   modalBookCount,
   onExpand,
   expanded = false,
+  tagHref,
+  onTagSelect,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const notice = selectBookNotice(book);
@@ -716,6 +774,27 @@ export function BookDetailContent({
     });
   };
 
+  const handleTagClick = (
+    tag: string,
+    event: MouseEvent<HTMLAnchorElement>,
+  ) => {
+    capture("book_tag_opened", {
+      book_id: book.id,
+      book_title: book.title,
+      tag,
+    });
+    onTagSelect?.(tag, event);
+  };
+
+  const renderTag = (tag: string) => (
+    <TagBadge
+      key={tag}
+      tag={tag}
+      href={tagHref?.(tag)}
+      onClick={tagHref ? (event) => handleTagClick(tag, event) : undefined}
+    />
+  );
+
   const handleShare = () => {
     capture("book_link_copied", {
       book_id: book.id,
@@ -725,8 +804,10 @@ export function BookDetailContent({
   };
 
   // Scroll-driven animation setup
-  const scrollProgress = useMotionValue(0);
-  const smoothProgress = useSpring(scrollProgress, SPRING_CONFIG);
+  // The raw scroll depth is the target; the header follows it through one of
+  // the two springs above, chosen by which way the target just moved.
+  const smoothProgress = useMotionValue(0);
+  const progressTarget = useRef(0);
 
   // Responsive breakpoint detection
   const [isLargeScreen, setIsLargeScreen] = useState(false);
@@ -742,24 +823,26 @@ export function BookDetailContent({
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
-  // Cover sizing. The collapsed height matches the text stack beside it, and
-  // that stack is two lines or three depending on whether this view carries a
-  // breadcrumb — which is why 55px was right when the crumb ran across the top
-  // of the card and left the spine floating once it moved into the column.
-  // Measured collapsed, wide layout: title + author is 56px, and the subdued
-  // crumb adds 22px on top of it. The narrow layout never puts the crumb in the
-  // column, so 42px stands either way.
+  const geometry = headerGeometry(isLargeScreen, isModal, showBreadcrumb);
+
+  // The sizes that make up the header's silhouette are left unclamped so the
+  // spring's overshoot shows: the header breathes a little past either size
+  // before it settles. Everything else clamps at its ends.
+  const overshoot = { clamp: false };
   const coverHeight = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen
-      ? ["300px", showBreadcrumb ? "78px" : "56px"]
-      : [isModal ? "220px" : "200px", "42px"],
+    px(geometry.cover),
+    overshoot,
   );
   const coverBorderRadius = useTransform(
     smoothProgress,
     [0, 1],
     ["12px", "4px"],
+  );
+  // How far the header's silhouette currently extends past its box.
+  const headerOverflow = useTransform(smoothProgress, (progress) =>
+    Math.max(0, geometry.shrink * (1 - progress)),
   );
   const coverBoxShadow = useTransform(
     smoothProgress,
@@ -773,14 +856,14 @@ export function BookDetailContent({
   const headerPadding = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen
-      ? ["56px", isModal ? "16px" : "12px"]
-      : [isModal ? "24px" : "16px", isModal ? "16px" : "12px"],
+    px(geometry.paddingTop),
+    overshoot,
   );
   const headerBottomPadding = useTransform(
     smoothProgress,
     [0, 1],
-    isModal ? ["16px", "16px"] : ["16px", "10px"],
+    px(geometry.paddingBottom),
+    overshoot,
   );
   // The crumb is a caption over the title now, not a row of its own across the
   // top of the card, so it sits much closer than the 20px it used to.
@@ -795,16 +878,19 @@ export function BookDetailContent({
     smoothProgress,
     [0, 1],
     isLargeScreen ? ["36px", "28px"] : ["24px", "18px"],
+    overshoot,
   );
   const authorFontSize = useTransform(
     smoothProgress,
     [0, 1],
     isLargeScreen ? ["20px", "16px"] : ["16px", "14px"],
+    overshoot,
   );
   const headerGap = useTransform(
     smoothProgress,
     [0, 1],
     isLargeScreen ? ["28px", "12px"] : ["16px", "12px"],
+    overshoot,
   );
   const titleAuthorGap = useTransform(smoothProgress, [0, 1], ["2px", "0px"]);
   const titleLineClamp = useTransform(smoothProgress, [0.4, 0.7], [2, 1]);
@@ -819,26 +905,14 @@ export function BookDetailContent({
   // Mobile metadata exits as an overlapping bottom-up wave. The compact
   // sticky identity arrives while the resting identity is the final segment
   // to leave, so there is no frame with neither title visible.
-  const mobileActionsOpacity = useTransform(
-    smoothProgress,
-    [0, 0.28],
-    [1, 0],
-  );
-  const mobileTagsOpacity = useTransform(
-    smoothProgress,
-    [0.12, 0.4],
-    [1, 0],
-  );
+  const mobileActionsOpacity = useTransform(smoothProgress, [0, 0.28], [1, 0]);
+  const mobileTagsOpacity = useTransform(smoothProgress, [0.12, 0.4], [1, 0]);
   const mobileRatingOpacity = useTransform(
     smoothProgress,
     [0.26, 0.54],
     [1, 0],
   );
-  const mobileFactsOpacity = useTransform(
-    smoothProgress,
-    [0.4, 0.68],
-    [1, 0],
-  );
+  const mobileFactsOpacity = useTransform(smoothProgress, [0.4, 0.68], [1, 0]);
   const mobileIdentityOpacity = useTransform(
     smoothProgress,
     [0.12, 0.34],
@@ -870,25 +944,46 @@ export function BookDetailContent({
     isLargeScreen ? [1, 0] : [1, 1],
   );
 
+  const factsVisibility = useHiddenWhenClear(factsOpacity);
+  const ratingVisibility = useHiddenWhenClear(ratingOpacity);
+  const tagsVisibility = useHiddenWhenClear(tagsOpacity);
+  const actionsVisibility = useHiddenWhenClear(actionsOpacity);
+  const compactHeaderVisibility = useHiddenWhenClear(compactHeaderOpacity);
+  const mobileActionsVisibility = useHiddenWhenClear(mobileActionsOpacity);
+  const mobileTagsVisibility = useHiddenWhenClear(mobileTagsOpacity);
+  const mobileRatingVisibility = useHiddenWhenClear(mobileRatingOpacity);
+  const mobileFactsVisibility = useHiddenWhenClear(mobileFactsOpacity);
+  const mobileIdentityVisibility = useHiddenWhenClear(mobileIdentityOpacity);
+
   // Track scroll for sticky headers
   useEffect(() => {
-    if (!isModal) {
-      const handleWindowScroll = () => {
-        scrollProgress.set(Math.min(window.scrollY / 100, 1));
-      };
-      handleWindowScroll();
-      window.addEventListener("scroll", handleWindowScroll, { passive: true });
-      return () => window.removeEventListener("scroll", handleWindowScroll);
-    }
-
-    const contentEl = contentRef?.current;
-    if (!contentEl) return;
-    const handleContentScroll = () => {
-      scrollProgress.set(Math.min(contentEl.scrollTop / 100, 1));
+    const contentEl = isModal ? contentRef?.current : null;
+    if (isModal && !contentEl) return;
+    const scroller: EventTarget = contentEl ?? window;
+    // The fold runs over exactly the height the header gives up, so the
+    // notes' top edge and the header's bottom edge travel together.
+    const readProgress = () => {
+      const scrollTop = contentEl ? contentEl.scrollTop : window.scrollY;
+      return Math.min(Math.max(scrollTop / geometry.shrink, 0), 1);
     };
-    contentEl.addEventListener("scroll", handleContentScroll, { passive: true });
-    return () => contentEl.removeEventListener("scroll", handleContentScroll);
-  }, [contentRef, isModal, scrollProgress]);
+
+    const follow = () => {
+      const next = readProgress();
+      if (next === progressTarget.current) return;
+      progressTarget.current = next;
+      // Each call restarts from the current value and velocity, so a
+      // reversal mid-fold hands off without a jump.
+      animate(smoothProgress, next, HEADER_SPRING);
+    };
+    // A restored scroll position lands folded without playing the fold.
+    progressTarget.current = readProgress();
+    smoothProgress.jump(progressTarget.current);
+    scroller.addEventListener("scroll", follow, { passive: true });
+    return () => {
+      scroller.removeEventListener("scroll", follow);
+      smoothProgress.stop();
+    };
+  }, [contentRef, geometry.shrink, isModal, smoothProgress]);
 
   return (
     <div
@@ -898,20 +993,42 @@ export function BookDetailContent({
         isModal
           ? "h-full overflow-y-auto overflow-x-hidden"
           : "min-h-[100dvh] overflow-x-clip",
+        // The header is in flow above the notes, so every pixel it gives up
+        // moves them, and scroll anchoring answers by scrolling the container
+        // back to hold them still. With the spring still settling, that fight
+        // walked a 50px scroll back to 12px and jittered the header: the
+        // mid-collapse rubber band. Anchoring is off for this scroller.
+        "[overflow-anchor:none]",
       )}
     >
-      {/* Unified Sticky Header */}
+      {/* Unified Sticky Header. Its box is always the folded height; the
+          resting silhouette overflows it, onto the spacer below. */}
       <motion.div
         className="sticky top-0 z-20"
         style={{
           paddingTop: headerPadding,
           paddingBottom: headerBottomPadding,
+          height: geometry.collapsed,
         }}
       >
         <HeaderGlassBackdrop
           progress={smoothProgress}
           isModal={isModal}
           hasBreadcrumb={isLargeScreen && showBreadcrumb}
+        />
+        {/* Backing for the part of the header that overflows its box while
+            the spring lags the scroll: during a fast fling the resting cover
+            and title would otherwise draw over the notes' first lines. Sized
+            to the overflow alone, so the folded header's glass still samples
+            the notes beneath it. */}
+        <motion.div
+          aria-hidden
+          data-book-header-backing
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bg-background",
+            isModal && "dark:bg-muted",
+          )}
+          style={{ top: geometry.collapsed, height: headerOverflow }}
         />
         {/* Keep the side inset close to the header's vertical inset. */}
         <div className="relative mx-auto w-full max-w-4xl">
@@ -967,8 +1084,12 @@ export function BookDetailContent({
             {isLargeScreen ? (
               /* Desktop: Animated title/author with metadata */
               <motion.div
-                initial={{ opacity: 1 }}
-                animate={{ opacity: 1 }}
+                // Keyed apart from the compact column so the breakpoint flip
+                // after hydration mounts a fresh node. Both are motion.divs in
+                // the same slot, and a reused node keeps the styles Framer
+                // wrote to it imperatively (the compact column's visibility
+                // and opacity), which would leave this column invisible.
+                key="wide"
                 className="relative min-w-0 flex-1 overflow-visible pr-12"
               >
                 <div className="relative">
@@ -1020,7 +1141,10 @@ export function BookDetailContent({
                   <motion.div className="absolute left-0 top-full w-full pt-2">
                     <motion.div
                       className="mt-2"
-                      style={{ opacity: factsOpacity }}
+                      style={{
+                        opacity: factsOpacity,
+                        visibility: factsVisibility,
+                      }}
                     >
                       <BookFacts book={book} />
                     </motion.div>
@@ -1030,7 +1154,10 @@ export function BookDetailContent({
                         role="img"
                         aria-label={`${book.rating} out of 5 stars`}
                         className="mt-3 flex gap-1"
-                        style={{ opacity: ratingOpacity }}
+                        style={{
+                          opacity: ratingOpacity,
+                          visibility: ratingVisibility,
+                        }}
                       >
                         {Array.from({ length: 5 }).map((_, i) => (
                           <StarIcon
@@ -1050,17 +1177,21 @@ export function BookDetailContent({
                     {book.tags.length > 0 && (
                       <motion.div
                         className="mt-4 flex flex-wrap gap-2"
-                        style={{ opacity: tagsOpacity }}
+                        style={{
+                          opacity: tagsOpacity,
+                          visibility: tagsVisibility,
+                        }}
                       >
-                        {book.tags.map((tag) => (
-                          <TagBadge key={tag} tag={tag} />
-                        ))}
+                        {book.tags.map(renderTag)}
                       </motion.div>
                     )}
 
                     <motion.div
                       className="mt-3"
-                      style={{ opacity: actionsOpacity }}
+                      style={{
+                        opacity: actionsOpacity,
+                        visibility: actionsVisibility,
+                      }}
                     >
                       <div
                         role="group"
@@ -1112,8 +1243,12 @@ export function BookDetailContent({
             ) : (
               /* Mobile: Simple compact title/author that fades in */
               <motion.div
+                key="compact"
                 className="flex min-w-0 flex-1 flex-col gap-0 pr-24"
-                style={{ opacity: compactHeaderOpacity }}
+                style={{
+                  opacity: compactHeaderOpacity,
+                  visibility: compactHeaderVisibility,
+                }}
               >
                 <motion.h2
                   style={{ fontSize: titleFontSize }}
@@ -1132,6 +1267,13 @@ export function BookDetailContent({
           </motion.div>
         </div>
       </motion.div>
+      {/* The room the resting header overflows into. The notes start below it
+          and scroll 1:1; the header only ever changes its own shape. */}
+      <div
+        aria-hidden
+        data-book-header-spacer
+        style={{ height: geometry.shrink }}
+      />
 
       {/* Full Metadata Section - Mobile Only (fades out as user scrolls) */}
       {!isLargeScreen && (
@@ -1139,7 +1281,10 @@ export function BookDetailContent({
           <div className="flex flex-col gap-3 sm:gap-4">
             <motion.div
               data-mobile-book-segment="identity"
-              style={{ opacity: mobileIdentityOpacity }}
+              style={{
+                opacity: mobileIdentityOpacity,
+                visibility: mobileIdentityVisibility,
+              }}
               className="flex flex-col gap-0.5"
             >
               {/* The crumb sits over the title here too. On this layout the
@@ -1165,7 +1310,10 @@ export function BookDetailContent({
             </motion.div>
             <motion.div
               data-mobile-book-segment="facts"
-              style={{ opacity: mobileFactsOpacity }}
+              style={{
+                opacity: mobileFactsOpacity,
+                visibility: mobileFactsVisibility,
+              }}
               className="-mt-2"
             >
               <BookFacts book={book} />
@@ -1175,7 +1323,10 @@ export function BookDetailContent({
             {book.rating && (
               <motion.div
                 data-mobile-book-segment="rating"
-                style={{ opacity: mobileRatingOpacity }}
+                style={{
+                  opacity: mobileRatingOpacity,
+                  visibility: mobileRatingVisibility,
+                }}
                 role="img"
                 aria-label={`${book.rating} out of 5 stars`}
                 className="flex gap-1"
@@ -1199,19 +1350,23 @@ export function BookDetailContent({
             {book.tags.length > 0 && (
               <motion.div
                 data-mobile-book-segment="tags"
-                style={{ opacity: mobileTagsOpacity }}
+                style={{
+                  opacity: mobileTagsOpacity,
+                  visibility: mobileTagsVisibility,
+                }}
                 className="flex flex-wrap gap-1.5 sm:gap-2"
               >
-                {book.tags.map((tag) => (
-                  <TagBadge key={tag} tag={tag} />
-                ))}
+                {book.tags.map(renderTag)}
               </motion.div>
             )}
 
             {/* Actions */}
             <motion.div
               data-mobile-book-segment="actions"
-              style={{ opacity: mobileActionsOpacity }}
+              style={{
+                opacity: mobileActionsOpacity,
+                visibility: mobileActionsVisibility,
+              }}
             >
               <div
                 role="group"
@@ -1235,7 +1390,9 @@ export function BookDetailContent({
                     >
                       <HeadphonesIcon size={14} weight="bold" />
                       <span className="sm:hidden">Audible</span>
-                      <span className="hidden sm:inline">Listen on Audible</span>
+                      <span className="hidden sm:inline">
+                        Listen on Audible
+                      </span>
                     </a>
                   </Button>
                 )}

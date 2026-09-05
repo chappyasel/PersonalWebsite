@@ -19,19 +19,22 @@ export {
   PERFORMANCE_DIAGNOSTIC_PARAM,
   performanceDiagnosticRequested,
 } from "./performanceDiagnosticRequest";
+export {
+  PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS,
+  PERFORMANCE_DIAGNOSTIC_RUNTIME_CHECKPOINT_MS,
+  PERFORMANCE_DIAGNOSTIC_RUNTIME_MS,
+} from "./performanceDiagnosticRuntime";
 export const PERFORMANCE_DIAGNOSTIC_CHECKPOINTS_MS = [10_000, 30_000] as const;
-export const PERFORMANCE_DIAGNOSTIC_RUNTIME_MS = 15_000;
-export const PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_MS = 45_000;
-export const PERFORMANCE_DIAGNOSTIC_SCHEMA_VERSION = 3;
+export const PERFORMANCE_DIAGNOSTIC_SCHEMA_VERSION = 4;
 export const PERFORMANCE_DIAGNOSTIC_REPORT_MAX_BYTES = 36_000;
 
 const BOOT_TIMELINE_LIMIT = 32;
 const QUALITY_SAMPLE_LIMIT = 24;
 const QUALITY_LIFECYCLE_LIMIT = 24;
 const TRACE_SPIKE_LIMIT = 16;
-const LOCAL_DIAGNOSTIC_EVENT_LIMIT = 8;
+const LOCAL_DIAGNOSTIC_EVENT_LIMIT = 12;
 const LOCAL_DIAGNOSTIC_TTL_MS = 24 * 60 * 60 * 1_000;
-const LOCAL_DIAGNOSTIC_STORAGE_KEY = "stacks-performance-diagnostic:v3";
+const LOCAL_DIAGNOSTIC_STORAGE_KEY = "stacks-performance-diagnostic:v4";
 
 let documentDiagnosticId: string | null = null;
 
@@ -655,6 +658,7 @@ function fitDiagnosticReport(report: UnknownRecord): {
       : null,
     boot: report.boot ?? null,
     browser: report.browser ?? null,
+    runtime_capture: report.runtime_capture ?? null,
   };
   return { report: fitted, bytes: jsonBytes(fitted), truncated: true };
 }
@@ -723,7 +727,7 @@ function diagnosticHint({
   runtime: ReturnType<typeof runtimeScalars>;
 }): PerformanceDiagnosticEvent["diagnostic_hint"] {
   if (reportKind === "diagnostic_start") return "boot_start";
-  if (reportKind !== "runtime") {
+  if (reportKind !== "runtime" && reportKind !== "runtime_checkpoint") {
     if (bootStatus === "live" || bootStatus === "revealing")
       return "boot_complete";
     if (blockingGate === "assets") return "boot_assets";
@@ -754,6 +758,8 @@ export function createPerformanceDiagnosticEvent({
   bootStatus,
   bootPath,
   blockingGate,
+  postRevealObservedMs = null,
+  pagehidePersisted = null,
   report,
 }: {
   diagnosticRunId: string;
@@ -764,6 +770,8 @@ export function createPerformanceDiagnosticEvent({
   bootStatus: PerformanceDiagnosticEvent["boot_status"];
   bootPath: PerformanceDiagnosticEvent["boot_path"];
   blockingGate: PerformanceDiagnosticEvent["blocking_gate"];
+  postRevealObservedMs?: number | null;
+  pagehidePersisted?: boolean | null;
   report: UnknownRecord;
 }): PerformanceDiagnosticEvent {
   const runtime = runtimeScalars(report);
@@ -799,6 +807,12 @@ export function createPerformanceDiagnosticEvent({
     boot_status: bootStatus,
     boot_path: bootPath,
     blocking_gate: blockingGate,
+    post_reveal_observed_ms:
+      typeof postRevealObservedMs === "number" &&
+      Number.isFinite(postRevealObservedMs)
+        ? Math.max(0, Math.round(postRevealObservedMs))
+        : null,
+    pagehide_persisted: pagehidePersisted,
     diagnostic_hint: diagnosticHint({
       reportKind,
       bootStatus,

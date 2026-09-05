@@ -94,7 +94,7 @@ export type AnalyticsEventProperties = {
     duration_ms: number;
   };
   homepage_performance_diagnostic: {
-    schema_version: 3;
+    schema_version: 4;
     diagnostic_run_id: string;
     diagnostic_report_id: string;
     diagnostic_build_id: string;
@@ -102,11 +102,13 @@ export type AnalyticsEventProperties = {
       | "diagnostic_start"
       | "boot_checkpoint"
       | "boot_complete"
+      | "runtime_checkpoint"
       | "runtime";
     capture_reason:
       | "diagnostic_started"
       | "slow_boot_checkpoint"
       | "boot_terminal"
+      | "post_reveal_checkpoint"
       | "post_reveal_window"
       | "boot_failed"
       | "capture_deadline"
@@ -130,6 +132,8 @@ export type AnalyticsEventProperties = {
       | "meadow"
       | "opening"
       | null;
+    post_reveal_observed_ms: number | null;
+    pagehide_persisted: boolean | null;
     diagnostic_hint:
       | "boot_start"
       | "boot_assets"
@@ -198,6 +202,11 @@ export type AnalyticsEventProperties = {
   book_link_copied: {
     book_id: string;
     book_title: string;
+  };
+  book_tag_opened: {
+    book_id: string;
+    book_title: string;
+    tag: string;
   };
   universal_search_opened: {
     source: "keyboard";

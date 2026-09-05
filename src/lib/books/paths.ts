@@ -11,10 +11,28 @@ export function getBookPath(bookId: string, queryParams?: string): string {
 
 /**
  * Generate the path for the books grid page
+ * @param queryParams - Optional query string (without leading ?)
  * @returns A directory-relative path that works on both /books/:id and /:id
  */
-export function getBooksPath(): string {
-  return ".";
+export function getBooksPath(queryParams?: string): string {
+  return queryParams ? `./?${queryParams}` : ".";
+}
+
+/**
+ * Query string for the books grid filtered to a single tag.
+ *
+ * Any tag selection already in `search` is replaced by this one tag; every
+ * other parameter (size, sort, search text, the other facets) is kept, so a
+ * tag pressed inside a book leaves the shelf looking the way it did, only
+ * narrowed. The value is encoded the same way nuqs reads it back.
+ * @param tag - The tag to filter by
+ * @param search - The current query string, with or without a leading ?
+ * @returns The query string (without leading ?)
+ */
+export function getBooksTagQuery(tag: string, search = ""): string {
+  const query = new URLSearchParams(search);
+  query.set("tags", tag);
+  return query.toString();
 }
 
 /**

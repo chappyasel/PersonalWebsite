@@ -572,12 +572,31 @@ export function panelBusy(): boolean {
   return useStacks.getState().panelState !== "closed";
 }
 
+/** The key the panel stamps on its own history entry. Next folds its
+ * internals into the same object, so the stamp survives. */
+const PANEL_HISTORY_KEY = "stacksPanel";
+
+/** True for the entry the panel pushed when it opened. A popstate that
+ * LANDS on it (a sheet or the book modal closing from on top) is not the
+ * panel's own entry being popped, and must not close the panel. */
+export function isPanelHistoryEntry(state: unknown): boolean {
+  return (
+    typeof state === "object" &&
+    state !== null &&
+    (state as Record<string, unknown>)[PANEL_HISTORY_KEY] === true
+  );
+}
+
 /** Open the mobile panel — pushes a history entry so browser back closes it
  * (mirrors the book modal's pushState-then-open pattern). */
 export function openStacksPanel() {
   const s = useStacks.getState();
   if (s.panelState !== "closed" || s.modalOpen) return;
-  window.history.pushState({ stacksPanel: true }, "", window.location.href);
+  window.history.pushState(
+    { [PANEL_HISTORY_KEY]: true },
+    "",
+    window.location.href,
+  );
   s.setPanelState("opening");
 }
 

@@ -5,6 +5,7 @@ import {
   DAD_ACCESS_COOKIE_NAME,
   isValidDadAccessToken,
 } from "~/lib/dad/access";
+import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import { PageTransition } from "./components/PageTransition";
@@ -16,6 +17,7 @@ import { env } from "~/env";
 export const metadata: Metadata = {
   title: "Dad's Journal",
   robots: "noindex, nofollow",
+  icons: siteIconMetadata("/dad"),
 };
 
 export default async function DadLayout({

@@ -12,7 +12,7 @@ import {
 describe("analytics interface", () => {
   it("keeps bounded support diagnostics off the delayed analytics batch", () => {
     const diagnostic = {
-      schema_version: 3,
+      schema_version: 4,
       diagnostic_run_id: "run.0",
       diagnostic_report_id: "run.0:runtime:post_reveal_window:20000",
       diagnostic_build_id: "test-build",
@@ -24,6 +24,8 @@ describe("analytics interface", () => {
       boot_status: "live",
       boot_path: "cold",
       blocking_gate: null,
+      post_reveal_observed_ms: 15_000,
+      pagehide_persisted: null,
       diagnostic_hint: "runtime_healthy",
       test_profile: null,
       dominant_constraint: "headroom",
