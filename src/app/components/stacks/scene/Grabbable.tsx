@@ -1122,6 +1122,10 @@ export default function Grabbable({
       key: hoverKey,
       unitIndex,
       group: g,
+      // The hull is measured under the nod, not at the root: the first grab
+      // happens mid-hover, and a hull built around the lifted, tilted pose
+      // leaves the visual sunk into the plank once the nod relaxes.
+      hullRoot: nod.current ?? undefined,
       base: new THREE.Vector3(base[0], base[1], base[2]),
       spin,
       shape,

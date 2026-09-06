@@ -1,9 +1,9 @@
 "use client";
 
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import type * as CANNON from "cannon-es";
 import * as THREE from "three";
 
-import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import type {
   PhysicsSceneScope,
   PhysicsStaticRoot,
@@ -127,6 +127,14 @@ export type ShelfHandle = {
   key: string;
   unitIndex: number;
   group: THREE.Group;
+  /** Measure the hull from this descendant instead of `group`. The Grabbable
+   * hangs its visible model under a nod group that a hover lifts and tilts,
+   * and a body is adopted at the first grab, which is always mid-hover: the
+   * hull was being built around the lifted pose, and once the nod relaxed
+   * the visual sat that much lower than its collider (the phone half into
+   * the plank, the trophy 5 cm). The nod is identity at rest, so boxes
+   * measured in its frame are the rest-pose boxes in `group`'s frame. */
+  hullRoot?: THREE.Object3D;
   base: THREE.Vector3;
   spin: number;
   shape?: HullShape;
@@ -731,7 +739,7 @@ export class ScenePhysicsWorld {
     if (handle.physicsActivation === "detach" && !handle.physicsActivated)
       return;
     const extraction = extractDynamicColliderBoxes(
-      handle.group,
+      handle.hullRoot ?? handle.group,
       handle.colliderProfile,
     );
     const box = extraction.bounds;
