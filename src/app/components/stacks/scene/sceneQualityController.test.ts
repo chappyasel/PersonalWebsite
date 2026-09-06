@@ -65,19 +65,37 @@ describe("scene quality debug controller", () => {
     });
   });
 
-  it("clamps live DoF tuning and can hand both controls back to the plan", () => {
+  it("clamps live DoF tuning and restores the approved lens defaults", () => {
+    sceneQualityController.setDepthOfFieldModel("optical-prototype-16");
     sceneQualityController.setDepthOfFieldBokehMultiplier(99);
     sceneQualityController.setDepthOfFieldResolutionScale(0);
+    sceneQualityController.updateOpticalDepthOfField({
+      fStop: 0.1,
+      maxBlurRadius: 100,
+      focusDistanceOffset: Number.NaN,
+    });
 
     expect(sceneQualityController.getSnapshot()).toMatchObject({
-      depthOfFieldBokehMultiplier: 3,
-      depthOfFieldResolutionScale: 0.25,
+      depthOfFieldModel: "optical-prototype-16",
+      depthOfFieldBokehMultiplier: 8,
+      depthOfFieldResolutionScale: 0.1,
+      opticalDepthOfField: {
+        fStop: 0.7,
+        maxBlurRadius: 64,
+        focusDistanceOffset: 0,
+      },
     });
 
     sceneQualityController.resetDepthOfField();
     expect(sceneQualityController.getSnapshot()).toMatchObject({
+      depthOfFieldModel: "optical-prototype",
       depthOfFieldBokehMultiplier: null,
       depthOfFieldResolutionScale: null,
+      opticalDepthOfField: {
+        fStop: 1.8,
+        maxBlurRadius: 8,
+        focusDistanceOffset: 0,
+      },
     });
   });
 });

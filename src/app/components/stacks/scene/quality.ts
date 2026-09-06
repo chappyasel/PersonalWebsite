@@ -42,9 +42,10 @@ export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_BY_PRESENTATION: Readonly<
  * with the renderer capped at 2x. Scale from that reference so changing DPR
  * changes sampling density without changing the kernel's CSS-pixel footprint. */
 export const DEPTH_OF_FIELD_BOKEH_REFERENCE_DPR = 2;
-export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN = 0.25;
-export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX = 3;
-export const DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN = 0.25;
+export const DEPTH_OF_FIELD_STRENGTH_DEFAULT = 1;
+export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN = 0.05;
+export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX = 8;
+export const DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN = 0.1;
 export const DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX = 1;
 
 export function depthOfFieldBokehScaleForViewport(
@@ -638,7 +639,7 @@ export function resolveSceneQualityPlan({
             requestedBokehMultiplier,
           ),
         )
-      : 1;
+      : DEPTH_OF_FIELD_STRENGTH_DEFAULT;
   const requestedDepthOfFieldResolutionScale =
     overrides?.depthOfFieldResolutionScale;
   const depthOfFieldResolutionScale =

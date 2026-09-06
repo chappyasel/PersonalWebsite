@@ -40,14 +40,17 @@ const ABOUT_UNIT_INPUTS = new Set([
   "src/app/components/stacks/scene/units/unitShelfLayout.ts",
 ]);
 
+/** The card is screenshot mode's still (home-og-scene-config.mjs), which
+ * renders neither the couch nor the seam monstera, so `couch.glb` and
+ * `potted-plant.glb` are not inputs. The Projects Macintosh the mode would
+ * stand in the portrait's place is not in it either: the capture keeps the
+ * portrait, so UnitProjects.tsx stays a Unit-local source of another shelf. */
 const ABOUT_MODEL_INPUTS = new Set(
   [
     "cactus.glb",
-    "couch.glb",
     "desk-lamp.glb",
     "dumbbell.glb",
     "globe.glb",
-    "potted-plant.glb",
     "succulent-pot.glb",
   ].map((file) => `public/models/${file}`),
 );

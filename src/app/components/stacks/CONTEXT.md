@@ -552,8 +552,20 @@ The owner's still-frame setup for social headers (LinkedIn 1584×396, X
 1500×500). `?screenshot=1` seeds it at load; the Scene console's Render tab
 has the live switch, a dolly slider, a lens slider, and a "Copy setup URL"
 button. `?screenshot-dolly=` and `?screenshot-fov=` carry the two values in
-the URL. Everything it does is session-only and gone on a reload without the
+the URL. The mode opens on the owner's header setup (2026-09-06): the 45
+degree lens, the lawn lifted 0.06 and fully uneven at 0.6, so `?screenshot=1`
+alone is the header; `?screenshot-fov=composition` asks for the room's own
+lens instead. Everything it does is session-only and gone on a reload without the
 parameter; it changes no production quality policy and awards no Field Note.
+
+The homepage OG card is this still too, since 2026-09-06: the generator
+(`scripts/generate/home-og-scene.mjs`) captures `?screenshot=1` at night with
+`screenshot-portrait=1`, which keeps the large portrait where a header would
+stand the Macintosh, because a link preview has no profile picture beside
+it. The console's "Top shelf" control is the same switch. The capture keeps
+its own 30 degree lens, pitch and crop from before; only the room in front
+of the camera changed. The generator sets no `?quality=`, on purpose: the
+mode lands on Cinematic+ only when the URL leaves the quality open.
 
 On, it makes every unit except About cold through the residency controller
 (`sceneUnitActivityController.setSoloUnit`), so the shelf stands alone; the
@@ -611,3 +623,41 @@ the console shows the live ratio next to the two targets. The boot vignette
 still opens with the portrait silhouette, and the rail-shifted About glide
 lands a shelf-width left of the centred stop before the camera settles: both
 are over before a still is worth taking.
+
+## Grade profiles
+
+A named look the Scene console (Render tab, "Color grade") puts on the room,
+or `?grade=` names at load. The print grade in `sceneColorGrade.ts` and
+GRADE_FRAGMENT is untouched by any of them; a profile adds a **develop
+stage** after it, in display space, with Lightroom's controls: exposure, temp
+and tint, contrast, highlights, shadows, whites, blacks, vibrance,
+saturation, an eight-band colour mixer (hue, saturation, luminance per band)
+and a post vignette. `sceneGradeProfiles.ts` owns the profiles, the
+controller, and `developDisplay`, the CPU reference the shader transcribes
+and the shade probe runs. Two uniform branches keep the stage cheap: the
+whole of it is skipped when every value is at identity, and the mixer, the
+only block with a loop and a second HSV round trip, is skipped when no band
+is set.
+
+_Shipped_ is what visitors see since 2026-09-06: a constrained develop with
+no mixer (warmer key, real blacks under the fog lift, a touch of contrast and
+vibrance, a soft vignette; dark quieter still). The mixer is kept out of the
+live room on purpose: it only acts above a saturation gate, so an additive
+sky mote or a cloud edge fading into blue crosses the gate and wears a ring
+or a band, which is how the first candidate was rejected. _Bolder_ is one
+step from Shipped toward the Lightroom pass, still mixer-free. _Lightroom
+match_ was fitted by least squares to the owner's Lightroom pass on a
+Cinematic+ screenshot (light theme only; dark stays identity), and reaches
+the same error a 25^3 colour LUT does on that pair, so nothing a global
+colour map could keep was lost; it uses the mixer, so it is a still-frame
+look. _Flat_ is the stage at identity, the print as it shipped before.
+_Custom_ is the sliders: moving any slider forks the active profile into
+Custom seeded from it, like touching a slider under a Lightroom preset; a
+named profile restores its own values and Custom keeps its last state. The
+sliders edit the theme on screen.
+
+Session-only like every console switch. "Copy values" puts the moved sliders
+on the clipboard as JSON, which is what to paste when a look should become
+the shipped print; "Copy grade URL" carries the profile (and, for Custom,
+every slider under `?grade-values=`) so a screenshot setup or a headless
+capture reproduces it.

@@ -72,7 +72,7 @@ sign-off is recorded separately rather than invented by a headless test.
 
 | ID                         | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`           | Owner match                      | Lamp ID       | Clearance |
 | -------------------------- | ---------------------- | ----------------------------- | ---------------------------- | -------------------------------- | ------------- | --------: |
-| `about:aic-crown`          | AI Collective mark top | `[-0.4747, -0.6345, -0.0753]` | `[0, 1, 0]`                  | `id: grab:ai-collective-mark`    | —             |    `0.12` |
+| `about:aic-crown`          | AI Collective mark top | `[-0.8383, -0.4801, -0.1065]` | `[0, 1, 0]`                  | `id: grab:ai-collective-mark`    | —             |    `0.12` |
 | `about:portrait-frame-top` | Profile portrait crown | `[-0.4211, 1.0002, -0.1101]`  | `[0, 0.9982, -0.0600]`       | `id: grab:photo:portrait`        | —             |    `0.12` |
 | `about:behave-top`         | Rearmost reading book  | `[0.3300, -0.3470, 0.0350]`   | `[0, 1, 0]`                  | `id: grab:reading:behave`        | —             |    `0.12` |
 | `about:lamp-shade`         | Desk-lamp shade crown  | `[-0.6848, -0.2193, -0.0106]` | `[-0.2812, 0.9166, -0.2842]` | `id: egg:lamp:0`                 | `desk-lamp-0` |    `0.12` |

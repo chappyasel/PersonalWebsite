@@ -449,6 +449,29 @@ describe("Coordination globe presentation contract", () => {
     expect(globeSource).toContain("legibility.ditherBandCoverage");
   });
 
+  it("morphs independently timed grain clumps at the rendered frame rate", () => {
+    const fragmentStart = globeSource.indexOf("const HORIZON_FRAGMENT");
+    const fragmentEnd = globeSource.indexOf("type BurstSignal", fragmentStart);
+    const fragment = globeSource.slice(fragmentStart, fragmentEnd);
+
+    expect(fragment).toContain(
+      "float grainClock = uTime * (2.0 + uActivity * 6.5) * clumpRate",
+    );
+    expect(fragment).toContain("float grainState = floor(grainClock)");
+    expect(fragment).toContain("fract(grainClock)");
+    expect(fragment).toContain("float clumpRate = mix(");
+    expect(fragment).toContain("float transitionStart = mix(");
+    expect(fragment).toContain("clumpSeed * 23.0");
+    expect(fragment).toContain("mix(currentGrain, nextGrain, grainBlend)");
+    expect(fragment).toContain("broadCurrent");
+    expect(fragment).toContain("counterCurrent");
+    expect(fragment).toContain("uDitherCellSize * 3.5");
+    expect(fragment).toContain("currentClump");
+    expect(fragment).toContain("nextClump");
+    expect(fragment).not.toContain("uDitherFrame");
+    expect(globeSource).toContain("timeUniform.value = clock.elapsedTime");
+  });
+
   it("flickers the complete sky when the Coordination shockwave fires", () => {
     expect(environmentSource).toContain("uCoordinationFlicker");
     expect(environmentSource).toContain("sceneImpulseSkyScale(");

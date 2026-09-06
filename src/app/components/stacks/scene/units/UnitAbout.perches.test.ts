@@ -1,4 +1,9 @@
 import { articulateDeskLampHead } from "../ModelProp";
+import {
+  ABOUT_AIC_BASE_DEPTH,
+  ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_HEIGHT,
+} from "../aboutAwardGeometry";
 import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
 import {
   ABOUT_AIC_SCALE,
@@ -6,6 +11,11 @@ import {
   ABOUT_LAMP_HEAD_QUATERNION,
   ABOUT_LAMP_ROOT_YAW,
 } from "../aboutCoordinationLayout";
+import {
+  ABOUT_AIC_MARK_YAW,
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_LOWER_LANDMARK_Z,
+} from "../aboutScenePose";
 import {
   diagnoseInsectPerch,
   registerInsectCollisionRoot,
@@ -226,15 +236,17 @@ async function mountAboutPerchFixture() {
   aic.position.set(
     ABOUT_BOOT_LANDMARKS["ai-collective"].x,
     SHELF_SURFACE.lower,
-    SHELF_GEOMETRY.lower.centerZ,
+    ABOUT_LOWER_LANDMARK_Z["ai-collective"],
   );
   const aicPose = new THREE.Group();
-  aicPose.rotation.y = -0.16;
+  aicPose.rotation.y = ABOUT_AIC_ROOT_YAW;
   aicPose.scale.setScalar(ABOUT_AIC_SCALE);
-  aicPose.add(box([0.205, 0.024, 0.07], [0, 0.012, 0]));
+  aicPose.add(
+    box([ABOUT_AIC_BASE_WIDTH, 0.024, ABOUT_AIC_BASE_DEPTH], [0, 0.012, 0]),
+  );
   const mark = new THREE.Mesh(collectiveMarkGeometry(), visibleMaterial());
   mark.position.set(0, 0.118, 0.004);
-  mark.rotation.set(0, 0.04, 0);
+  mark.rotation.set(0, ABOUT_AIC_MARK_YAW, 0);
   aicPose.add(mark);
   const shimmerMaterial = new THREE.MeshBasicMaterial({
     transparent: true,
@@ -243,7 +255,7 @@ async function mountAboutPerchFixture() {
   disposables.push(shimmerMaterial);
   const shimmer = new THREE.Mesh(mark.geometry, shimmerMaterial);
   shimmer.position.set(0, 0.118, 0.005);
-  shimmer.rotation.set(0, 0.04, 0);
+  shimmer.rotation.set(0, ABOUT_AIC_MARK_YAW, 0);
   shimmer.scale.setScalar(1.003);
   aicPose.add(shimmer);
   aic.add(aicPose);
@@ -446,10 +458,32 @@ async function mountAboutPerchFixture() {
     releases.push(registerInsectPerch(perch));
   }
   unit.updateWorldMatrix(true, true);
-  return { globeSpin: globeParts.spin, releases };
+  return { aicMark: mark, globeSpin: globeParts.spin, releases };
 }
 
 describe("Unit About authored Perches", () => {
+  it("authors the AI Collective landing ray over the upright mark", async () => {
+    const { aicMark, releases } = await mountAboutPerchFixture();
+    try {
+      const diagnostic = diagnoseInsectPerch("about:aic-crown", "butterfly", 0);
+      expect(diagnostic.rejectionCode).toBe("none");
+      expect(diagnostic.resolvedContact).not.toBeNull();
+      expect(diagnostic.resolvedContact!.y).toBeCloseTo(
+        SHELF_SURFACE.lower +
+          (0.118 + ABOUT_AIC_MARK_HEIGHT / 2) * ABOUT_AIC_SCALE,
+        2,
+      );
+      const authored = diagnostic.authoredAnchor;
+      const hits = new THREE.Raycaster(
+        new THREE.Vector3(authored.x, authored.y + 1, authored.z),
+        new THREE.Vector3(0, -1, 0),
+      ).intersectObject(aicMark);
+      expect(hits[0]?.point.y).toBeCloseTo(diagnostic.resolvedContact!.y, 3);
+    } finally {
+      for (const release of releases.reverse()) release();
+    }
+  });
+
   it("keeps every real About support valid across animated collision refreshes", async () => {
     const { globeSpin, releases } = await mountAboutPerchFixture();
     const trace = new Map<string, string[]>();

@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   SCREENSHOT_DOLLY_MAX,
+  SCREENSHOT_DOLLY_MIN,
+  SCREENSHOT_FOV_DEFAULT,
+  SCREENSHOT_FOV_MAX,
+  SCREENSHOT_GRASS_LIFT_MAX,
   SCREENSHOT_GRASS_MAX,
   SCREENSHOT_MODE_DEFAULT,
   clampScreenshotDolly,
@@ -51,15 +55,42 @@ describe("screenshot mode", () => {
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-dolly=40").dolly,
     ).toBe(SCREENSHOT_DOLLY_MAX);
+    // A negative dolly steps in closer than the stop, down to the floor.
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-dolly=-2").dolly,
-    ).toBe(0);
+    ).toBe(-2);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-dolly=-9").dolly,
+    ).toBe(SCREENSHOT_DOLLY_MIN);
+    // A lens the URL cannot read is the default lens, not the room's: only
+    // the word asks for the composition's own.
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-fov=90").fov,
-    ).toBeNull();
+    ).toBe(SCREENSHOT_FOV_DEFAULT);
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-fov=wide").fov,
+    ).toBe(SCREENSHOT_FOV_DEFAULT);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-fov=composition")
+        .fov,
     ).toBeNull();
+  });
+
+  it("opens on the owner's header setup, with every default inside its range", () => {
+    expect(SCREENSHOT_MODE_DEFAULT).toMatchObject({
+      fov: 45,
+      grassLift: 0.06,
+      grassVariation: 0.6,
+    });
+    expect(SCREENSHOT_MODE_DEFAULT.dolly).toBeGreaterThan(SCREENSHOT_DOLLY_MIN);
+    expect(SCREENSHOT_MODE_DEFAULT.dolly).toBeLessThan(SCREENSHOT_DOLLY_MAX);
+    expect(SCREENSHOT_MODE_DEFAULT.fov).toBeLessThan(SCREENSHOT_FOV_MAX);
+    expect(SCREENSHOT_MODE_DEFAULT.grassLift).toBeLessThan(
+      SCREENSHOT_GRASS_LIFT_MAX,
+    );
+    expect(SCREENSHOT_MODE_DEFAULT.grassVariation).toBeLessThan(
+      SCREENSHOT_GRASS_MAX,
+    );
   });
 
   it("reads the lawn values with the switch and clamps them", () => {
@@ -77,6 +108,36 @@ describe("screenshot mode", () => {
     expect(screenshotModeController.getSnapshot().grassLift).toBe(0);
     screenshotModeController.setGrassVariation(0.25);
     expect(screenshotModeController.getSnapshot().grassVariation).toBe(0.25);
+  });
+
+  it("keeps the portrait only when asked, and says so in the URL", () => {
+    expect(screenshotModeFromSearch("?screenshot=1").portrait).toBe(false);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-portrait=1").portrait,
+    ).toBe(true);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-portrait=0").portrait,
+    ).toBe(false);
+    // Without the switch the flag means nothing: the room shows the portrait
+    // anyway.
+    expect(screenshotModeFromSearch("?screenshot-portrait=1")).toEqual(
+      SCREENSHOT_MODE_DEFAULT,
+    );
+    const url = screenshotModeUrl("https://chappyasel.com/", {
+      ...SCREENSHOT_MODE_DEFAULT,
+      enabled: true,
+      portrait: true,
+    });
+    expect(new URL(url).searchParams.get("screenshot-portrait")).toBe("1");
+    expect(
+      screenshotModeUrl("https://chappyasel.com/", {
+        ...SCREENSHOT_MODE_DEFAULT,
+        enabled: true,
+      }),
+    ).not.toContain("portrait");
+    screenshotModeController.seed(screenshotModeFromSearch("?screenshot=1"));
+    screenshotModeController.setPortrait(true);
+    expect(screenshotModeController.getSnapshot().portrait).toBe(true);
   });
 
   it("treats an unreadable dolly as the default rather than NaN", () => {
@@ -120,6 +181,14 @@ describe("screenshot mode", () => {
     expect(new URL(lawn).searchParams.get("screenshot-grass-variation")).toBe(
       "0.2",
     );
+    const roomLens = screenshotModeUrl("https://chappyasel.com/", {
+      ...SCREENSHOT_MODE_DEFAULT,
+      enabled: true,
+      fov: null,
+    });
+    expect(new URL(roomLens).searchParams.get("screenshot-fov")).toBe(
+      "composition",
+    );
     const off = screenshotModeUrl(on, SCREENSHOT_MODE_DEFAULT);
     expect(off).toBe("https://chappyasel.com/?debug=1");
   });
@@ -150,9 +219,13 @@ describe("screenshot mode", () => {
       SCREENSHOT_DOLLY_MAX,
     );
     screenshotModeController.nudgeDolly(-100);
-    expect(screenshotModeController.getSnapshot().dolly).toBe(0);
-    screenshotModeController.setFov(60);
+    expect(screenshotModeController.getSnapshot().dolly).toBe(
+      SCREENSHOT_DOLLY_MIN,
+    );
+    screenshotModeController.setFov(90);
     expect(screenshotModeController.getSnapshot().fov).toBeNull();
+    screenshotModeController.setFov(60);
+    expect(screenshotModeController.getSnapshot().fov).toBe(60);
     screenshotModeController.setFov(30);
     expect(screenshotModeController.getSnapshot().fov).toBe(30);
     screenshotModeController.reset();

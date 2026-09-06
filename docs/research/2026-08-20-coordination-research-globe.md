@@ -27,7 +27,13 @@ shelf into a science-fiction display.
       The stochastic band extends far enough into the silhouette to remain
       unmistakable on a phone-sized, low-DPR rendering. Discarded cells have
       no glass or transmission backing: they reveal the actual grass and scene
-      behind the silhouette.
+      behind the silhouette. Keep its authored grain rhythm between 2 and 8.5
+      states per second, but interpolate on every rendered frame so
+      60 Hz and 120 Hz displays show fluid motion rather than harder flicker.
+      Move its fine and broad fields through slow counter-flowing currents.
+      Group nearby cells into coarse patches. Give each patch its own
+      deterministic speed, phase, and hold interval so only a scattered subset
+      morphs at once and the complete silhouette has no shared pulse.
       Coordination green and blue belong only to the network.
 - [x] Enlarge only the black event horizon by 10% and contract the internal
       network by 10%, leaving more black space around the graph. Scale the

@@ -42,10 +42,19 @@ describe("live scene color grading", () => {
     expect(canvas).toContain("qualityControls.cinematicPlus");
   });
 
-  it("keeps color grading out of diagnostics without changing bloom", () => {
-    expect(diagnostics).not.toContain("Color grading");
+  // The print grade's own knobs (curve, toe tint, chroma rebuild) stay out
+  // of the console: they are the shipped treatment. What the console offers
+  // is a develop stage after them, as named profiles and Custom sliders.
+  it("offers grade profiles as a develop stage after the print grade", () => {
+    expect(diagnosticsRegistry).toContain('id: "render.grade"');
+    expect(diagnosticsRegistry).toContain('id: "grade.profile"');
+    expect(diagnostics).toContain('groupId="render.grade"');
+    expect(diagnostics).toContain("<GradeProfileNote />");
     expect(diagnostics).not.toContain("sceneColorGradeController");
     expect(diagnostics).not.toContain("useSceneColorGradeSettings");
+  });
+
+  it("adds no grain pass", () => {
     expect(diagnostics).not.toContain('label: "Grain"');
     expect(chrome).not.toContain("stacks-grain");
     expect(environment).not.toContain("uFrame");

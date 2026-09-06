@@ -167,23 +167,80 @@ const HORIZON_FRAGMENT = /* glsl */ `
       * (1.0 - smoothstep(0.14, 0.58, facing))
       * (0.10 + uActivity * 0.14);
     organicCoverage = clamp(organicCoverage, 0.0, 1.0);
-    vec2 grainDrift = vec2(
-      floor(uTime * (4.0 + uActivity * 13.0)),
-      floor(uTime * (2.7 + uActivity * 9.0))
-    );
     float ditherCellSize = mix(
       uDitherCellSize,
       uDitherCellSize * 0.75,
       uActivity
     );
-    float temporalGrain = mix(
-      edgeGrain(floor(gl_FragCoord.xy / ditherCellSize) + grainDrift),
+    vec2 screenPoint = gl_FragCoord.xy;
+    float flowTime = uTime * (0.24 + uActivity * 0.31);
+    vec2 broadCurrent = vec2(
+      sin(flowTime + screenPoint.y * 0.014),
+      cos(flowTime * 0.79 - screenPoint.x * 0.011)
+    ) * ditherCellSize * (1.6 + uActivity * 1.8);
+    vec2 counterCurrent = vec2(
+      cos(flowTime * 1.37 - screenPoint.y * 0.027),
+      sin(flowTime * 1.11 + screenPoint.x * 0.023)
+    ) * ditherCellSize * (0.75 + uActivity);
+
+    vec2 clumpCell = floor(
+      (screenPoint + broadCurrent * 0.38 - counterCurrent * 0.24)
+        / (uDitherCellSize * 3.5)
+    );
+    float clumpSeed = edgeGrain(clumpCell + vec2(19.1, -7.4));
+    float clumpRate = mix(
+      0.72,
+      1.0,
+      edgeGrain(clumpCell + vec2(-31.7, 12.6))
+    );
+
+    // Two to eight-and-a-half authored grain states per second retain the
+    // deliberate rhythm. Each coarse patch owns a different rate and starts at
+    // a distant phase, removing the master beat from the complete silhouette.
+    float grainClock = uTime * (2.0 + uActivity * 6.5) * clumpRate
+      + clumpSeed * 23.0;
+    float grainState = floor(grainClock);
+    float transitionStart = mix(
+      0.42,
+      0.78,
       edgeGrain(
-        floor(gl_FragCoord.xy / (uDitherCellSize * 2.0))
-          - grainDrift * 0.37
-      ),
+        clumpCell
+          + vec2(grainState * 0.17 + 5.3, -grainState * 0.23 - 11.8)
+      )
+    );
+    float grainBlend = smoothstep(
+      transitionStart,
+      1.0,
+      fract(grainClock)
+    );
+    float currentPhase = mod(grainState, 16384.0) * 2.39996323;
+    float nextPhase = mod(grainState + 1.0, 16384.0) * 2.39996323;
+    vec2 currentOffset = vec2(cos(currentPhase), sin(currentPhase))
+      * (5.0 + uActivity * 3.0);
+    vec2 nextOffset = vec2(cos(nextPhase), sin(nextPhase))
+      * (5.0 + uActivity * 3.0);
+    vec2 fineCell = floor(
+      (screenPoint + broadCurrent + counterCurrent) / ditherCellSize
+    );
+    vec2 broadCell = floor(
+      (screenPoint - broadCurrent * 0.63 + counterCurrent * 0.41)
+        / (uDitherCellSize * 2.0)
+    );
+    float currentDetail = mix(
+      edgeGrain(fineCell + currentOffset),
+      edgeGrain(broadCell - currentOffset * 0.37),
       0.34
     );
+    float nextDetail = mix(
+      edgeGrain(fineCell + nextOffset),
+      edgeGrain(broadCell - nextOffset * 0.37),
+      0.34
+    );
+    float currentClump = edgeGrain(clumpCell + currentOffset * 0.19);
+    float nextClump = edgeGrain(clumpCell + nextOffset * 0.19);
+    float currentGrain = mix(currentDetail, currentClump, 0.3);
+    float nextGrain = mix(nextDetail, nextClump, 0.3);
+    float temporalGrain = mix(currentGrain, nextGrain, grainBlend);
     if (temporalGrain > organicCoverage) discard;
 
     float edgeLift = (1.0 - smoothstep(0.06, 0.52, facing))

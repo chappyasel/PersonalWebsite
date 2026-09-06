@@ -24,11 +24,41 @@ export const BAT_FLIGHT = {
 export type BatFrame = {
   opacity: number;
   progress: number;
+  travelProgress: number;
   flap: number;
   offsetX: number;
   offsetY: number;
   offsetZ: number;
+  roll: number;
+  yaw: number;
 };
+
+export function createBatFrame(): BatFrame {
+  return {
+    opacity: 0,
+    progress: 0,
+    travelProgress: 0,
+    flap: 0,
+    offsetX: 0,
+    offsetY: 0,
+    offsetZ: 0,
+    roll: 0,
+    yaw: 0,
+  };
+}
+
+function hideBat(out: BatFrame) {
+  out.opacity = 0;
+  out.progress = 0;
+  out.travelProgress = 0;
+  out.flap = 0;
+  out.offsetX = 0;
+  out.offsetY = 0;
+  out.offsetZ = 0;
+  out.roll = 0;
+  out.yaw = 0;
+  return out;
+}
 
 /** One rare global-sky crossing. `progress` remains 0..1 only while visible. */
 export function batFlightFrame(
@@ -37,46 +67,66 @@ export function batFlightFrame(
   out: BatFrame,
 ): BatFrame {
   if (elapsedSeconds < BAT_FLIGHT.firstRevealSeconds) {
-    out.opacity = 0;
-    out.progress = 0;
-    out.flap = 0;
-    out.offsetX = 0;
-    out.offsetY = 0;
-    out.offsetZ = 0;
-    return out;
+    return hideBat(out);
   }
   const local = elapsedSeconds - BAT_FLIGHT.firstRevealSeconds;
   const u = modulo(local / BAT_FLIGHT.periodSeconds, 1);
   if (u >= BAT_FLIGHT.visibleFraction) {
-    out.opacity = 0;
-    out.progress = 0;
-    out.flap = 0;
-    out.offsetX = 0;
-    out.offsetY = 0;
-    out.offsetZ = 0;
-    return out;
+    return hideBat(out);
   }
   const progress = u / BAT_FLIGHT.visibleFraction;
+  const flightIndex = Math.floor(local / BAT_FLIGHT.periodSeconds);
+  const routePhase = flightIndex * 2.399963;
+  const routeAngle = progress * TAU;
+  const pacePhase = routePhase * 0.47 + 1.2;
+  const paceWave = Math.sin(routeAngle + routePhase) - Math.sin(routePhase);
+  const paceRipple = Math.sin(routeAngle * 2 + pacePhase) - Math.sin(pacePhase);
+  const travelProgress = progress + 0.026 * paceWave + 0.009 * paceRipple;
   const envelope =
     smoothstep(0, 0.08, progress) *
     (1 - smoothstep(0.84, 1, progress)) *
     clamp01(nightAmount);
   out.opacity = envelope;
   out.progress = progress;
+  out.travelProgress = travelProgress;
   const flapPhase =
-    elapsedSeconds * TAU * 3.65 + 0.42 * Math.sin(elapsedSeconds * 0.73);
-  const flapStrength = 0.82 + 0.18 * Math.sin(elapsedSeconds * 0.47 + 1.2);
+    elapsedSeconds * TAU * 3.65 +
+    0.42 * Math.sin(elapsedSeconds * 0.73) +
+    0.12 * Math.sin(elapsedSeconds * 1.81 + routePhase);
+  const flapStrength =
+    0.68 +
+    0.32 * smoothstep(-0.65, 0.75, Math.sin(routeAngle * 1.5 + routePhase));
   out.flap = flapStrength * Math.sin(flapPhase);
   out.offsetX =
-    0.32 * Math.sin(elapsedSeconds * 0.71 + 0.4) +
-    0.13 * Math.sin(elapsedSeconds * 1.63 + 2.1);
+    0.1 * Math.sin(routeAngle * 1.5 + routePhase + 0.4) +
+    0.04 * Math.sin(routeAngle * 3.5 + routePhase * 0.6 + 2.1);
   out.offsetY =
-    0.23 * Math.sin(elapsedSeconds * 0.83 + 1.1) +
-    0.09 * Math.sin(elapsedSeconds * 1.91 + 0.2) +
-    0.08 * Math.cos(flapPhase);
+    0.24 * Math.sin(routeAngle + routePhase + 1.1) +
+    0.085 * Math.sin(routeAngle * 2.5 + routePhase * 0.7 + 0.2) +
+    0.045 * Math.cos(flapPhase);
   out.offsetZ =
-    0.28 * Math.sin(elapsedSeconds * 0.59 + 2.4) +
-    0.11 * Math.sin(elapsedSeconds * 1.37 + 0.7);
+    0.32 * Math.sin(routeAngle * 0.75 + routePhase + 2.4) +
+    0.12 * Math.sin(routeAngle * 2 + routePhase * 0.8 + 0.7);
+
+  // The silhouette leans into the same path that moves it. These analytic
+  // slopes keep the pose deterministic and avoid storing prior-frame state.
+  const dx =
+    12.8 *
+      (1 +
+        0.026 * TAU * Math.cos(routeAngle + routePhase) +
+        0.018 * TAU * Math.cos(routeAngle * 2 + pacePhase)) +
+    0.15 * TAU * Math.cos(routeAngle * 1.5 + routePhase + 0.4) +
+    0.14 * TAU * Math.cos(routeAngle * 3.5 + routePhase * 0.6 + 2.1);
+  const dy =
+    0.68 * Math.PI * Math.cos(progress * Math.PI) +
+    0.24 * TAU * Math.cos(routeAngle + routePhase + 1.1) +
+    0.2125 * TAU * Math.cos(routeAngle * 2.5 + routePhase * 0.7 + 0.2);
+  const dz =
+    -0.7 * Math.PI * Math.cos(progress * Math.PI) +
+    0.24 * TAU * Math.cos(routeAngle * 0.75 + routePhase + 2.4) +
+    0.24 * TAU * Math.cos(routeAngle * 2 + routePhase * 0.8 + 0.7);
+  out.roll = Math.max(-0.2, Math.min(0.2, (dy / dx) * 0.65));
+  out.yaw = Math.max(-0.18, Math.min(0.18, (-dz / dx) * 0.7));
   return out;
 }
 

@@ -10,6 +10,8 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
+
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import {
   COORDINATION_AGENT_COLOR,
@@ -75,10 +77,12 @@ import { MEADOW_GROUND_BASE } from "./meadowField";
 import { type MeadowLamp, getMeadowLamps } from "./meadowLights";
 import { getSceneImpulse, sceneImpulseInsectDeparture } from "./sceneImpulse";
 import {
+  BAT_FLIGHT,
   type BatFrame,
   MOTH_COUNT,
   type MothFrame,
   batFlightFrame,
+  createBatFrame,
   createMothFrame,
   mothFrame,
   mothIllumination,
@@ -592,14 +596,11 @@ function LivingWildlife({
   }
   const pointerIsTouch = useRef(true);
   const pointerActiveUntil = useRef(0);
-  const batFrame = useRef<BatFrame>({
-    opacity: 0,
-    progress: 0,
-    flap: 0,
-    offsetX: 0,
-    offsetY: 0,
-    offsetZ: 0,
-  }).current;
+  const batFrame = useRef<BatFrame>(createBatFrame()).current;
+  const handledBatTrigger = useRef(
+    skyEventDiagnosticsController.getSnapshot().batRevision,
+  );
+  const batTriggerStartedAt = useRef(Number.NEGATIVE_INFINITY);
   const mothBasis = useRef<MothConeBasis>(createMothConeBasis()).current;
   // Review overlay only: one scratch cone and a reusable array, so publishing
   // the drawn Lamp Cones allocates nothing per frame.
@@ -1529,21 +1530,37 @@ function LivingWildlife({
     }
 
     const batRoot = bat.current;
-    batFlightFrame(t, darkAmount.current, batFrame);
+    const skyEventSnapshot = skyEventDiagnosticsController.getSnapshot();
+    if (handledBatTrigger.current !== skyEventSnapshot.batRevision) {
+      handledBatTrigger.current = skyEventSnapshot.batRevision;
+      batTriggerStartedAt.current = t;
+    }
+    const triggeredBatAge = t - batTriggerStartedAt.current;
+    const batFlightDuration =
+      BAT_FLIGHT.periodSeconds * BAT_FLIGHT.visibleFraction;
+    const batTime =
+      triggeredBatAge < batFlightDuration
+        ? BAT_FLIGHT.firstRevealSeconds + triggeredBatAge
+        : t;
+    batFlightFrame(batTime, darkAmount.current, batFrame);
     batMaterial.opacity = batFrame.opacity;
     if (batRoot) {
       batRoot.visible = batFrame.opacity > INVISIBLE_OPACITY;
       if (batRoot.visible) {
         const arc = Math.sin(batFrame.progress * Math.PI);
         batRoot.position.set(
-          camera.position.x - 6.4 + batFrame.progress * 12.8 + batFrame.offsetX,
+          camera.position.x -
+            6.4 +
+            batFrame.travelProgress * 12.8 +
+            batFrame.offsetX,
           WILDLIFE_PRESENTATION.bat.baseY + arc * 0.68 + batFrame.offsetY,
           WILDLIFE_PRESENTATION.bat.baseZ -
             arc * WILDLIFE_PRESENTATION.bat.depthArc +
             batFrame.offsetZ,
         );
         batRoot.scale.setScalar(WILDLIFE_PRESENTATION.bat.scale);
-        batRoot.rotation.z = -0.08 + Math.sin(t * 0.9) * 0.08;
+        batRoot.rotation.z = batFrame.roll;
+        batRoot.rotation.y = batFrame.yaw;
         const flap = batFrame.flap * 0.82;
         const left = batWings.current[0];
         const right = batWings.current[1];

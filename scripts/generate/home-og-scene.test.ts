@@ -14,6 +14,7 @@ import {
   HOME_OG_OUTPUT,
   HOME_OG_RESOLUTION_CEILING,
   HOME_OG_SCENE_CROP,
+  HOME_OG_SCREENSHOT_PARAMS,
 } from "./home-og-scene-config.mjs";
 
 const generator = readFileSync(
@@ -29,7 +30,36 @@ const cameraRig = readFileSync(
   ),
   "utf8",
 );
+const screenshotDriver = readFileSync(
+  fileURLToPath(
+    new URL(
+      "../../src/app/components/stacks/scene/ScreenshotModeDriver.tsx",
+      import.meta.url,
+    ),
+  ),
+  "utf8",
+);
 describe("home OG scene capture", () => {
+  it("captures screenshot mode's still with the portrait kept, and lets the mode pick Cinematic+", () => {
+    expect(HOME_OG_SCREENSHOT_PARAMS).toEqual({
+      screenshot: "1",
+      "screenshot-portrait": "1",
+    });
+    expect(generator).toContain(
+      "Object.entries(HOME_OG_SCREENSHOT_PARAMS)",
+    );
+    // The mode only lands on Cinematic+ when the URL does not pin a quality,
+    // so the generator must not, and it refuses to run if it ever does.
+    expect(generator).not.toContain('url.searchParams.set("quality"');
+    expect(generator).toContain('if (url.searchParams.has("quality"))');
+    expect(screenshotDriver).toContain(
+      'if (forcedCinematic) sceneQualityController.setMode("cinematic+");',
+    );
+    expect(screenshotDriver).toContain(
+      "searchPinsQuality(window.location.search)",
+    );
+  });
+
   it("renders the canvas crop above the final card's native dimensions", () => {
     expect(
       HOME_OG_SCENE_CROP.width * HOME_OG_RESOLUTION_CEILING,
@@ -69,7 +99,6 @@ describe("home OG scene capture", () => {
   });
 
   it("persists the full cinematic effect stack with crop-aware lens geometry", () => {
-    expect(generator).toContain('url.searchParams.set("quality", "cinematic")');
     expect(HOME_OG_RESOLUTION_CEILING).toBe(2);
     expect(generator).toContain(
       'url.searchParams.set("og-resolution", HOME_OG_RESOLUTION_CEILING.toString())',

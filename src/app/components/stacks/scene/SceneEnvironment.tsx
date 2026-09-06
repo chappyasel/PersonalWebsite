@@ -19,11 +19,17 @@ import {
 } from "react";
 import * as THREE from "three";
 
+import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
+
 import Butterflies from "./Butterflies";
 import Meadow from "./Meadow";
 import Petals from "./Petals";
 import Wildlife from "./Wildlife";
 import { registerCinematicSun } from "./cinematicSun";
+import {
+  CLOUD_REFRESH_TIME_STEP,
+  cloudDiagnosticsController,
+} from "./cloudDiagnostics";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import {
   COORDINATION_AGENT_COLOR,
@@ -104,7 +110,13 @@ const SKY_VERTEX = `
  * direction as the camera yaws and, at a wide aspect, lands a full second
  * sun to the left of the painted one. */
 export const CINEMATIC_SUN = Object.freeze({
-  azimuth: -1.92,
+  // Set against the Golden Gate at the About stop, where the header is
+  // taken: the dome's pan there is -PAN_BIAS (-0.25), so the bridge's centre
+  // (a = -2.04 in the sky shader) stands at a world azimuth of -1.79, and
+  // the sun sits 0.26 rad to its left. It used to sit 0.13 rad left; the
+  // owner asked for twice that (2026-09-06) so the disc clears the span
+  // instead of crowding it.
+  azimuth: -2.05,
   elevation: 0.115,
 });
 export function cinematicSunDirection(target: THREE.Vector3): THREE.Vector3 {
@@ -223,6 +235,8 @@ const SKY_FRAGMENT = `
   uniform float uPan;      // azimuth the traverse has swept (see SkyDome)
   uniform float uHover;    // azimuth the pointer is over, or 99 for none
   uniform float uTime;
+  uniform float uBirdTime; // diagnostics can restart flocks without other clocks
+  uniform float uCloudTime; // diagnostics can re-deal weather without other clocks
 #ifdef COORDINATION_SKY_FLICKER
   uniform float uCoordinationFlicker;
 #endif
@@ -288,12 +302,58 @@ const SKY_FRAGMENT = `
     float slow = 0.006 * sin(uTime * 0.05 + hash2(cell + 3.0) * 6.2832);
     return smoothstep(thr + 0.004, thr - 0.004, h + slow);
   }
-  // Distance from a point to a segment, in (azimuth, elevation). The bird is
-  // four of these and nothing else.
-  float segD(vec2 p, vec2 s0, vec2 s1) {
+  // A rounded segment whose width tapers from root to tip. The old birds were
+  // four equal-width line segments, so at their tiny screen size the joints
+  // resolved as four flapping blocks. Overlapping tapered segments make one
+  // continuous wing with a narrow leading edge and feathered tip instead.
+  float taperedSeg(vec2 p, vec2 s0, vec2 s1, float rootW, float tipW) {
     vec2 pa = p - s0, ba = s1 - s0;
     float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-9), 0.0, 1.0);
-    return length(pa - ba * h);
+    float d = length(pa - ba * h);
+    float width = mix(rootW, tipW, h);
+    return 1.0 - smoothstep(max(width - 0.00018, 0.0),
+                            width + 0.00036, d);
+  }
+  // A compact gull in side profile. The level body owns the travel direction;
+  // one visible wing hinges above and below it, with the far wing almost fully
+  // occluded at this distance. This reads as lateral flight in every flap pose
+  // instead of turning a front-facing M sideways into a vertical zigzag.
+  float birdSilhouette(vec2 q, float w, float lift, float tipLift) {
+    float wingHeight = 0.50;
+    vec2 shoulder = vec2(-w * 0.02, w * 0.02);
+    vec2 elbow = vec2(-w * 0.13, w * 0.56 * lift * wingHeight);
+    vec2 wrist = vec2(-w * 0.25,
+                      w * (0.62 * lift + 0.34 * tipLift) * wingHeight);
+    vec2 tip = vec2(-w * 0.40, w * 1.34 * tipLift * wingHeight);
+    float wing = max(
+      max(taperedSeg(q, shoulder, elbow, w * 0.12, w * 0.18),
+          taperedSeg(q, elbow, wrist, w * 0.18, w * 0.14)),
+      taperedSeg(q, wrist, tip, w * 0.14, w * 0.035)
+    );
+    // A separated primary keeps the moving tip from ending as one blunt club.
+    wing = max(wing, taperedSeg(
+      q, wrist, mix(wrist, tip, 0.84) + vec2(-w * 0.08, -w * 0.04),
+      w * 0.075, w * 0.018
+    ));
+
+    float body = 1.0 - smoothstep(
+      0.72, 1.10,
+      length((q - vec2(-w * 0.02, 0.0)) / vec2(w * 0.34, w * 0.10))
+    );
+    float head = 1.0 - smoothstep(
+      w * 0.055, w * 0.115, length(q - vec2(w * 0.28, w * 0.025))
+    );
+    float beak = taperedSeg(
+      q, vec2(w * 0.31, w * 0.025), vec2(w * 0.49, w * 0.015),
+      w * 0.055, w * 0.006
+    );
+    float tail = max(
+      taperedSeg(q, vec2(-w * 0.27, w * 0.025),
+                 vec2(-w * 0.52, w * 0.13), w * 0.070, w * 0.012),
+      taperedSeg(q, vec2(-w * 0.27, -w * 0.025),
+                 vec2(-w * 0.52, -w * 0.13), w * 0.070, w * 0.012)
+    );
+    return clamp(max(max(wing, body), max(max(head, beak), tail)), 0.0, 1.0);
   }
   // Bilinear value noise on the hash — two octaves are enough for the very
   // low-frequency air the bands need.
@@ -352,7 +412,7 @@ const SKY_FRAGMENT = `
   // strands instead of a row of cotton balls. The third channel is a higher,
   // thinner veil, so every cloud is not parked on the same horizontal deck.
   vec3 dcCloudField(float az, float el) {
-    vec2 drift = vec2(uTime * 0.0052, -uTime * 0.0007);
+    vec2 drift = vec2(uCloudTime * 0.0052, -uCloudTime * 0.0007);
     vec2 p = vec2(az * 5.6, el * 22.0) + drift;
     float macro = 0.68 * vnoise(p * vec2(0.84, 1.18))
                 + 0.32 * vnoise(vec2(p.x * 1.52 + p.y * 0.42,
@@ -367,11 +427,11 @@ const SKY_FRAGMENT = `
     // Break the deck into weather systems at a scale much wider than its
     // scalloped edge; this avoids a wallpaper of equal cotton balls.
     float systems = smoothstep(0.30, 0.69,
-      vnoise(vec2(az * 4.4 + uTime * 0.0024, 7.1)));
+      vnoise(vec2(az * 4.4 + uCloudTime * 0.0024, 7.1)));
     body *= systems;
 
-    vec2 wp = vec2(az * 11.5 - uTime * 0.0031,
-                   el * 27.0 + uTime * 0.0004);
+    vec2 wp = vec2(az * 11.5 - uCloudTime * 0.0031,
+                   el * 27.0 + uCloudTime * 0.0004);
     float wispNoise = 0.62 * vnoise(wp)
                     + 0.38 * vnoise(wp * vec2(2.7, 1.35) + 23.0);
     float wisps = smoothstep(0.61, 0.79, wispNoise)
@@ -384,31 +444,39 @@ const SKY_FRAGMENT = `
   // the water pass gives the birds the same ripple shear as the architecture
   // instead of inventing a disconnected second animation.
   float dcBirdField(float az, float el) {
-    if (el < 0.092 || el > 0.168) return 0.0;
-    float dcBirdT = mod(uTime, 30.0);
+    if (el < 0.078 || el > 0.196) return 0.0;
+    float dcBirdT = mod(uBirdTime, 44.0);
     float flock = 0.0;
     for (int df = 0; df < 2; df++) {
       float ff = float(df);
-      float bt = fract(dcBirdT / 30.0 + ff * 0.5);
-      float flockId = floor(uTime / 30.0) + ff * 19.0;
-      for (int db = 0; db < 3; db++) {
+      float bt = fract(dcBirdT / 44.0 + ff * 0.5);
+      float flockId = floor(uBirdTime / 44.0 + ff * 0.5) + ff * 19.0;
+      float birdCount = 2.0 + floor(hash1(flockId + 4.7) * 3.0);
+      for (int db = 0; db < 4; db++) {
         float bf = float(db);
-        vec2 org = vec2(-0.23 + 0.54 * bt + bf * 0.028,
-                        0.108 + bf * 0.015 + ff * 0.018
+        if (bf >= birdCount) continue;
+        float reverse = step(0.72, hash1(flockId + 31.4));
+        float flightT = mix(bt, 1.0 - bt, reverse);
+        float travelDir = mix(1.0, -1.0, reverse);
+        float trail = floor((bf + 1.0) * 0.5);
+        float side = mod(bf, 2.0) * 2.0 - 1.0;
+        vec2 org = vec2(-0.45 + 1.18 * flightT
+                        - travelDir * trail * 0.032,
+                        0.112 + side * trail * 0.014 + ff * 0.016
+                        + (hash1(flockId + bf * 11.7) - 0.5) * 0.018
                         + 0.008 * sin(bt * 4.0 + bf * 1.9));
         vec2 q = vec2(az, el) - org;
-        if (dot(q, q) > 0.00018) continue;
+        if (dot(q, q) > 0.00024) continue;
         float w = 0.0062 + 0.0008 * hash1(flockId + bf * 7.1);
-        float beat = sin(uTime * (6.3 + bf * 0.35) + bf * 1.7);
-        vec2 elbowL = vec2(-w * 0.52, w * 0.25 * beat);
-        vec2 elbowR = vec2( w * 0.52, w * 0.25 * beat);
-        vec2 tipL = vec2(-w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
-        vec2 tipR = vec2( w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
-        float d = min(min(segD(q, vec2(0.0), elbowL), segD(q, elbowL, tipL)),
-                      min(segD(q, vec2(0.0), elbowR), segD(q, elbowR, tipR)));
-        flock = max(flock, smoothstep(0.00155, 0.00038, d)
-                   * smoothstep(0.0, 0.10, bt)
-                   * (1.0 - smoothstep(0.88, 1.0, bt)));
+        float phase = uBirdTime * (6.0 + bf * 0.31) + bf * 1.7;
+        float lift = sin(phase);
+        float tipLift = sin(phase - 0.88);
+        // The side profile faces +x. Mirroring that axis is enough to keep
+        // the body level and point the beak along either travel direction.
+        vec2 birdQ = vec2(q.x * travelDir, q.y);
+        float edgeGate = smoothstep(0.0, 0.075, bt)
+                       * (1.0 - smoothstep(0.925, 1.0, bt));
+        flock = max(flock, birdSilhouette(birdQ, w, lift, tipLift) * edgeGate);
       }
     }
     return flock;
@@ -1075,23 +1143,23 @@ const SKY_FRAGMENT = `
       float cf = 0.0;
 #ifdef SKY_CLOUD_DETAIL
         vec2 cp = vec2(
-          a * 2.3 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
+          a * 2.3 + uCloudTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
           e * 12.8
         );
         float macro = 0.68 * vnoise(cp * vec2(0.72, 1.05))
                     + 0.32 * vnoise(
                         vec2(cp.x * 1.42 + cp.y * 0.48, cp.y * 1.85)
-                        + vec2(-uTime, uTime * 0.28)
+                        + vec2(-uCloudTime, uCloudTime * 0.28)
                         * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
                       );
         float erosion = 0.62 * vnoise(
                             cp * vec2(3.2, 5.0) + 19.0
-                            + vec2(-uTime, uTime * 0.35)
+                            + vec2(-uCloudTime, uCloudTime * 0.35)
                             * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
                           )
                       + 0.38 * vnoise(
                             cp * vec2(5.8, 8.4) + 7.0
-                            + vec2(uTime * 0.22, -uTime)
+                            + vec2(uCloudTime * 0.22, -uCloudTime)
                             * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
                           );
         float filament = smoothstep(0.54, 0.78, vnoise(
@@ -1110,7 +1178,7 @@ const SKY_FRAGMENT = `
       // density threshold into overcast territory at the final units.
       float localA = a - uPan;
       float coverageSeed = ${SKY_LIGHTING.atmosphere.cloudCoverageSeed.toFixed(1)};
-      float coverageDrift = uTime
+      float coverageDrift = uCloudTime
                           * ${SKY_LIGHTING.atmosphere.cloudCoverageDrift.toFixed(4)};
       float coverage = 0.62 * vnoise(vec2(
                          localA * ${SKY_LIGHTING.atmosphere.cloudCoverageAzimuth[0].toFixed(2)}
@@ -1269,10 +1337,10 @@ const SKY_FRAGMENT = `
 
     // A small flock crosses the seated vista occasionally. It shares the
     // dome's analytic azimuth space, so the silhouettes stay in Washington
-    // as the camera looks around rather than sliding with the screen. A
-    // staggered shallow-M wing profile is enough at this distance; slow
-    // fades at each edge keep the flock from popping into existence.
-    // Keep this tiny six-bird silhouette even on the simplified sky rung.
+    // as the camera looks around rather than sliding with the screen. The same
+    // tapered gull profile serves this more distant view; slow fades beyond
+    // each edge keep the flock from popping into existence.
+    // Keep these tiny variable flocks even on the simplified sky rung.
     // It is analytic/no-texture and costs less than one noise octave; gating
     // it made the requested life in the DC view disappear precisely on the
     // mobile/lower-power devices that benefit most from a readable cue.
@@ -2590,51 +2658,54 @@ const SKY_FRAGMENT = `
              * night * (1.0 - 0.5 * uDawn);
       }
 
-      // ---- The bird, light theme only, and the daytime answer to the
-      // satellite: something small and alive crossing an otherwise empty sky,
-      // every 74 seconds, gone in eleven. Two of them, out of phase, because
-      // one bird alone reads as a bug on the screen and two read as birds.
+      // ---- Birds, light theme only, and the daytime answer to the
+      // satellite: a loose flock crossing the entire authored panorama every
+      // 74 seconds. A pass lasts 28 seconds so the wider route keeps the old
+      // unhurried speed. Its deterministic seed varies the count from two to
+      // five, loosens the formation and occasionally reverses its direction.
       //
       // It has to be DARKER than the sky, not brighter — the morning sky sits
       // on the ACES shoulder, where an additive buys luminance and no shape at
       // all, which is the same lesson the cloud deck and the daylight fireworks
-      // both learned. So it is a multiply, and what it draws is a silhouette:
-      // four segments per bird, a shallow M, with the wingtips lagging the
-      // elbows by a sixth of a beat (a real wingbeat is a travelling wave down
-      // the wing, and drawing the wing rigid is what makes CG birds look like
-      // scissors). The beat comes in bursts with glides between, which is how
-      // a gull actually crosses a bay.
-      float birdT = mod(uTime + 26.0, 74.0);
-      if (day > 0.01 && birdT < 11.0) {
-        float flock = floor((uTime + 26.0) / 74.0);
-        float bt = birdT / 11.0;
-        for (int bi2 = 0; bi2 < 2; bi2++) {
+      // both learned. So it is a multiply, and what it draws is a tapered gull
+      // silhouette. The wing bends through shoulder, elbow, wrist and primary
+      // feathers, with the tip lagging the root. The beat comes in bursts with
+      // glides between, which is how a gull actually crosses a bay.
+      float birdT = mod(uBirdTime + 72.5, 74.0);
+      if (day > 0.01 && birdT < 28.0) {
+        float flock = floor((uBirdTime + 72.5) / 74.0);
+        float bt = birdT / 28.0;
+        float birdCount = 2.0 + floor(hash1(flock + 0.4) * 4.0);
+        float reverse = step(0.68, hash1(flock + 17.3));
+        float flightT = mix(bt, 1.0 - bt, reverse);
+        float travelDir = mix(1.0, -1.0, reverse);
+        for (int bi2 = 0; bi2 < 5; bi2++) {
           float bf = float(bi2);
-          vec2 org = vec2(-2.32 + hash1(flock + bf * 5.3) * 0.30 + 0.62 * bt,
-                          0.108 + hash1(flock + bf * 11.7) * 0.052
+          if (bf >= birdCount) continue;
+          float trail = floor((bf + 1.0) * 0.5);
+          float side = mod(bf, 2.0) * 2.0 - 1.0;
+          vec2 org = vec2(-2.72 + 1.72 * flightT
+                          - travelDir * trail * 0.050,
+                          0.123 + side * trail * 0.017
+                          + (hash1(flock + bf * 11.7) - 0.5) * 0.025
                           + 0.010 * sin(bt * 4.1 + bf * 2.2));
           vec2 q = vec2(a, e) - org;
-          if (dot(q, q) > 0.00016) continue;
+          if (dot(q, q) > 0.00024) continue;
           // 17-21 px of wingspan. Measured: at 13 px the silhouette was under
           // the sky's own dither by the time ACES had finished with it.
           float W = 0.0058 + 0.0012 * hash1(flock + bf * 2.9);
-          float ph = uTime * (8.6 + 1.1 * bf) + bf * 2.1;
+          float ph = uBirdTime * (8.6 + 1.1 * bf) + bf * 2.1;
           // Beat in bursts, glide between.
           float amp = 0.30 + 0.70 * smoothstep(0.35, 0.75,
-                        0.5 + 0.5 * sin(uTime * 0.55 + bf * 1.7 + flock));
-          float el = sin(ph) * amp;
-          float tp = sin(ph - 1.05) * amp;
-          vec2 body = vec2(0.0, 0.0);
-          vec2 elL = vec2(-W * 0.50, W * 0.34 * el);
-          vec2 elR = vec2(W * 0.50, W * 0.34 * el);
-          vec2 tpL = vec2(-W, W * 0.86 * tp - W * 0.06);
-          vec2 tpR = vec2(W, W * 0.86 * tp - W * 0.06);
-          float d = min(min(segD(q, body, elL), segD(q, elL, tpL)),
-                        min(segD(q, body, elR), segD(q, elR, tpR)));
-          float mask = smoothstep(0.0013, 0.0004, d)
-                     + 0.7 * smoothstep(0.0011, 0.0004, length(q * vec2(0.6, 1.0)));
-          // Fade in and out at the ends of the crossing so nothing pops.
-          mask *= smoothstep(0.0, 0.10, bt) * (1.0 - smoothstep(0.88, 1.0, bt));
+                        0.5 + 0.5 * sin(uBirdTime * 0.55 + bf * 1.7 + flock));
+          float lift = sin(ph) * amp;
+          float tipLift = sin(ph - 1.05) * amp;
+          vec2 birdQ = vec2(q.x * travelDir, q.y);
+          float mask = birdSilhouette(birdQ, W, lift, tipLift);
+          // Both fades finish beyond the panorama's usable frame, so a bird
+          // that becomes visible keeps flying until it has cleared the sky.
+          mask *= smoothstep(0.0, 0.055, bt)
+                * (1.0 - smoothstep(0.945, 1.0, bt));
           // 0.50 x 0.85 was not a bird, it was a smudge: a multiply that deep
           // in LINEAR light comes back off the ACES shoulder as barely a fifth
           // of a stop, and the measured silhouette sat at luma 163 against a
@@ -2864,6 +2935,10 @@ function SkyDome({
   const pendingSf = useRef(false);
   const jasperStart = useRef(-1);
   const pendingJasper = useRef(false);
+  const handledBirdTrigger = useRef(
+    skyEventDiagnosticsController.getSnapshot().birdRevision,
+  );
+  const birdTriggerStartedAt = useRef(Number.NEGATIVE_INFINITY);
   const coordinationFlickerEnabled = coordinationFlickerSignal !== null;
   const viewDirection = useRef(new THREE.Vector3());
   const setHovered = useStacks((s) => s.setHovered);
@@ -2880,6 +2955,8 @@ function SkyDome({
       // whole skyline on load.
       uHover: { value: -1.6 },
       uTime: { value: 0 },
+      uBirdTime: { value: 0 },
+      uCloudTime: { value: 0 },
       uCoordinationFlicker: { value: 1 },
       uSimplify: { value: 0 },
       uPost: { value: 0 },
@@ -3098,6 +3175,18 @@ function SkyDome({
       delta,
     );
     u.uTime!.value = clock.elapsedTime;
+    const skyEventSnapshot = skyEventDiagnosticsController.getSnapshot();
+    if (handledBirdTrigger.current !== skyEventSnapshot.birdRevision) {
+      handledBirdTrigger.current = skyEventSnapshot.birdRevision;
+      birdTriggerStartedAt.current = clock.elapsedTime;
+    }
+    const triggeredBirdAge = clock.elapsedTime - birdTriggerStartedAt.current;
+    u.uBirdTime!.value =
+      triggeredBirdAge < 28 ? triggeredBirdAge - 72.5 : clock.elapsedTime;
+    u.uCloudTime!.value =
+      clock.elapsedTime +
+      cloudDiagnosticsController.getSnapshot().refreshRevision *
+        CLOUD_REFRESH_TIME_STEP;
     if (coordinationFlickerSignal)
       u.uCoordinationFlicker!.value = coordinationFlickerSignal.current;
     u.uSimplify!.value = simplify ? 1 : 0;

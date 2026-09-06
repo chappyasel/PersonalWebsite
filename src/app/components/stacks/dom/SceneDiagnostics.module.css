@@ -525,6 +525,50 @@
   align-items: start;
   gap: 5px;
 }
+/* A folded section: the summary reads as the legend, with the block's state
+   at the right, and the disclosure mark stands in for the legend's gap. */
+:global(.stacks-diagnostics-collapsible) > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: -2px -2px 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+:global(.stacks-diagnostics-collapsible) > summary::-webkit-details-marker {
+  display: none;
+}
+:global(.stacks-diagnostics-collapsible) > summary::before {
+  content: "▸";
+  color: rgb(255 255 255 / 0.42);
+  font-size: 9px;
+}
+:global(.stacks-diagnostics-collapsible)[open] > summary::before {
+  content: "▾";
+}
+:global(.stacks-diagnostics-collapsible) > summary:hover {
+  background: rgb(255 255 255 / 0.04);
+}
+:global(.stacks-diagnostics-collapsible) > summary > span {
+  color: rgb(255 255 255 / 0.72);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+:global(.stacks-diagnostics-collapsible)[open] > summary > span {
+  color: rgb(255 255 255 / 0.9);
+}
+:global(.stacks-diagnostics-collapsible) > summary > small {
+  margin-left: auto;
+  color: rgb(255 255 255 / 0.5);
+  font-variant-numeric: tabular-nums;
+}
+:global(.stacks-diagnostics-collapsible)[data-active] > summary > small {
+  color: var(--diagnostics-accent);
+}
 :global(.stacks-diagnostics-control) {
   align-items: center !important;
   min-height: 25px;

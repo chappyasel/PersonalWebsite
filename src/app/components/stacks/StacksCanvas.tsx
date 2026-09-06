@@ -131,6 +131,11 @@ import {
 } from "./scene/sceneColorGrade";
 import "./scene/sceneDiagnosticsRuntime";
 import {
+  sceneGradeLookFor,
+  sceneGradeProfileController,
+  useSceneGradeProfile,
+} from "./scene/sceneGradeProfiles";
+import {
   instrumentRendererFrameCost,
   instrumentSceneMatrixCost,
   markSceneFrameInstrumented,
@@ -678,13 +683,18 @@ function LoadReporter() {
 function Exposure({ dark }: { dark: boolean }) {
   const gl = useThree((s) => s.gl);
   const baseColorGrade = useSceneColorGradeSettings();
+  const gradeProfile = useSceneGradeProfile();
   const { cinematicPlus } = useSceneQualityControls();
-  const colorGrade = sceneColorGradeFor(baseColorGrade, cinematicPlus);
+  const colorGrade = sceneGradeLookFor(
+    gradeProfile,
+    sceneColorGradeFor(baseColorGrade, cinematicPlus),
+  ).base;
+  const exposure = dark
+    ? colorGrade.dark.exposure
+    : colorGrade.light.exposure;
   useEffect(() => {
-    gl.toneMappingExposure = dark
-      ? colorGrade.dark.exposure
-      : colorGrade.light.exposure;
-  }, [colorGrade, gl, dark]);
+    gl.toneMappingExposure = exposure;
+  }, [exposure, gl]);
   return null;
 }
 
@@ -2529,10 +2539,13 @@ export default function StacksCanvas({
         // attributes have to stay compatible with.
         gl={SCENE_CANVAS_CONTEXT}
         onCreated={({ gl, scene, camera }) => {
-          const colorGrade = sceneColorGradeFor(
-            sceneColorGradeController.getSnapshot(),
-            qualityControls.cinematicPlus,
-          );
+          const colorGrade = sceneGradeLookFor(
+            sceneGradeProfileController.getSnapshot(),
+            sceneColorGradeFor(
+              sceneColorGradeController.getSnapshot(),
+              qualityControls.cinematicPlus,
+            ),
+          ).base;
           gl.toneMappingExposure = dark
             ? colorGrade.dark.exposure
             : colorGrade.light.exposure;

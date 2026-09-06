@@ -9,6 +9,7 @@ import {
   MOTH_FLIGHT,
   MOTH_FORWARD_CLEARANCE,
   batFlightFrame,
+  createBatFrame,
   createMothFrame,
   mothFrame,
 } from "./wildlifeBehavior";
@@ -181,27 +182,31 @@ describe("wildlife presentation contract", () => {
     let minY = Infinity;
     let maxY = -Infinity;
     let maxZ = 0;
+    let minRoll = Infinity;
+    let maxRoll = -Infinity;
+    let minYaw = Infinity;
+    let maxYaw = -Infinity;
+    const sample = createBatFrame();
     for (
       let t = BAT_FLIGHT.firstRevealSeconds;
       t < BAT_FLIGHT.firstRevealSeconds + 8;
       t += 1 / 120
     ) {
-      const frame = batFlightFrame(t, 1, {
-        opacity: 0,
-        progress: 0,
-        flap: 0,
-        offsetX: 0,
-        offsetY: 0,
-        offsetZ: 0,
-      });
+      const frame = batFlightFrame(t, 1, sample);
       minFlap = Math.min(minFlap, frame.flap);
       maxFlap = Math.max(maxFlap, frame.flap);
       minY = Math.min(minY, frame.offsetY);
       maxY = Math.max(maxY, frame.offsetY);
       maxZ = Math.max(maxZ, Math.abs(frame.offsetZ));
+      minRoll = Math.min(minRoll, frame.roll);
+      maxRoll = Math.max(maxRoll, frame.roll);
+      minYaw = Math.min(minYaw, frame.yaw);
+      maxYaw = Math.max(maxYaw, frame.yaw);
     }
     expect(maxFlap - minFlap).toBeGreaterThanOrEqual(1.6);
     expect(maxY - minY).toBeGreaterThanOrEqual(0.35);
     expect(maxZ).toBeGreaterThanOrEqual(0.2);
+    expect(maxRoll - minRoll).toBeGreaterThanOrEqual(0.2);
+    expect(maxYaw - minYaw).toBeGreaterThanOrEqual(0.15);
   });
 });

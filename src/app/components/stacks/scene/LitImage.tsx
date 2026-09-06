@@ -23,6 +23,10 @@ import {
 } from "./litImageDetail";
 import { registerPhotograph } from "./photoMaskLayer";
 import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
+import {
+  clonePhotographTexture,
+  usePhotographTreatment,
+} from "./photographTreatment";
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { scenePhotoDetailTextures } from "./scenePhotoDetails";
 
@@ -78,26 +82,48 @@ function roundedRectGeometry(w: number, h: number, r: number) {
   return geo;
 }
 
-/** Multiply the decoded image toward the room's lamp warmth on a canvas —
- * photographic content otherwise injects teal/magenta and reads as a backlit
- * monitor in a warm room (audit §2.4). Runs once per texture (useTexture
- * caches by URL); strength ~0.08 keeps identity.  */
-function warmGrade(tex: THREE.Texture, grade: number) {
-  const img = tex.image as HTMLImageElement | undefined;
-  if (!img?.width || tex.userData.graded) return;
-  const canvas = document.createElement("canvas");
+/** Rebuild a cloned texture from its untouched source. Keeping the source
+ * separate makes both controls reversible: dragging back to neutral cannot
+ * compound a previous tint or contrast pass. This runs only when a texture
+ * loads or a diagnostics slider changes, never per frame. */
+function applyPhotographTreatment(
+  source: THREE.Texture,
+  target: THREE.Texture,
+  warmth: number,
+  contrast: number,
+) {
+  const img = source.image as
+    | (CanvasImageSource & { width: number; height: number })
+    | undefined;
+  if (!img?.width || !img.height) return;
+  if (warmth <= 0 && contrast === 0) {
+    target.image = img;
+    target.needsUpdate = true;
+    return;
+  }
+  const canvas =
+    (target.userData.photographTreatmentCanvas as
+      | HTMLCanvasElement
+      | undefined) ?? document.createElement("canvas");
+  target.userData.photographTreatmentCanvas = canvas;
   canvas.width = img.width;
   canvas.height = img.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  ctx.filter =
+    contrast === 0 ? "none" : `contrast(${Math.max(0.2, 1 + contrast * 0.8)})`;
   ctx.drawImage(img, 0, 0);
-  ctx.globalCompositeOperation = "multiply";
-  ctx.globalAlpha = grade;
-  ctx.fillStyle = "#ffce96";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  tex.image = canvas;
-  tex.userData.graded = true;
-  tex.needsUpdate = true;
+  ctx.filter = "none";
+  if (warmth > 0) {
+    ctx.globalCompositeOperation = "multiply";
+    ctx.globalAlpha = warmth;
+    ctx.fillStyle = "#ffce96";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+  target.image = canvas;
+  target.needsUpdate = true;
 }
 
 type LitImageProps = {
@@ -146,6 +172,7 @@ function LitImageSource({
   onPointerOut,
   onClick,
 }: LitImageSourceProps) {
+  const photographTreatment = usePhotographTreatment();
   // Photographs register for the mask the grade reads; cover art never does.
   const mesh = useRef<THREE.Mesh>(null);
   useLayoutEffect(() => {
@@ -158,16 +185,37 @@ function LitImageSource({
   // retroactively recrop the first. Texture.clone shares the decoded image
   // bytes while isolating sampler state, so reuse remains cheap and safe.
   const sourceTexture = detailTexture ?? previewTexture;
-  const texture = useMemo(() => sourceTexture.clone(), [sourceTexture]);
+  const texture = useMemo(
+    () => clonePhotographTexture(sourceTexture),
+    [sourceTexture],
+  );
   const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
   const fx = focus?.[0] ?? 0.5;
   const fy = focus?.[1] ?? 0.5;
   useMemo(() => {
-    if (grade > 0) warmGrade(texture, grade);
+    applyPhotographTreatment(
+      sourceTexture,
+      texture,
+      grade * photographTreatment.warmthMultiplier,
+      gradeChroma ? 0 : photographTreatment.contrast,
+    );
     texture.anisotropy = maxAnisotropy;
     fitCover(texture, width, height, zoom, [fx, fy]);
     texture.needsUpdate = true;
-  }, [texture, maxAnisotropy, width, height, grade, zoom, fx, fy]);
+  }, [
+    sourceTexture,
+    texture,
+    maxAnisotropy,
+    width,
+    height,
+    grade,
+    gradeChroma,
+    photographTreatment.contrast,
+    photographTreatment.warmthMultiplier,
+    zoom,
+    fx,
+    fy,
+  ]);
   useEffect(() => () => texture.dispose(), [texture]);
   const geometry = useMemo(
     () =>

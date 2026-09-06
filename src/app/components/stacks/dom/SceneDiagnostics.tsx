@@ -16,6 +16,7 @@ import {
 } from "../performanceDiagnostic";
 import { performanceDiagnosticRequested } from "../performanceDiagnosticRequest";
 import { performanceDiagnosticProgress } from "../performanceDiagnosticRuntime";
+import { cloudDiagnosticsController } from "../scene/cloudDiagnostics";
 import { requestDevHooks } from "../scene/devHooks";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
@@ -37,8 +38,16 @@ import {
   downloadPerformanceTrace,
   scenePerformanceTrace,
 } from "../scene/performanceTrace";
+import {
+  DEFAULT_PHOTOGRAPH_TREATMENT,
+  photographTreatmentController,
+  usePhotographTreatment,
+} from "../scene/photographTreatment";
 import { physicsDiagnosticsController } from "../scene/physicsDiagnostics";
-import { QUALITY_SAMPLE_INTERVAL_MS } from "../scene/quality";
+import {
+  DEPTH_OF_FIELD_STRENGTH_DEFAULT,
+  QUALITY_SAMPLE_INTERVAL_MS,
+} from "../scene/quality";
 import {
   type DiagnosticControlDescriptor,
   type DiagnosticRegistrySnapshot,
@@ -49,22 +58,34 @@ import {
   sceneFirstVisitUrl,
 } from "../scene/sceneFirstVisitReset";
 import { readSceneMatrixMs } from "../scene/sceneFrameCost";
+import {
+  SCENE_GRADE_PROFILES,
+  activeGradeTheme,
+  gradeValuesJson,
+  sceneGradeProfileValues,
+  sceneGradeUrl,
+  useSceneGradeProfile,
+} from "../scene/sceneGradeProfiles";
 import { sceneLayoutEditorController } from "../scene/sceneLayoutEditor";
+import {
+  DEFAULT_DEPTH_OF_FIELD_MODEL,
+  OPTICAL_DEPTH_OF_FIELD_DEFAULTS,
+  sceneQualityController,
+  useSceneQualityControls,
+  useSceneQualityRuntime,
+} from "../scene/sceneQualityController";
 import {
   screenshotModeController,
   screenshotModeUrl,
   useScreenshotMode,
 } from "../scene/screenshotMode";
 import { CAMERA } from "../scene/worldLayout";
-import {
-  sceneQualityController,
-  useSceneQualityControls,
-  useSceneQualityRuntime,
-} from "../scene/sceneQualityController";
 import { useStacks } from "../store";
 import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+
+import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
 
 import { KeycapSequence } from "~/components/ui/keycap";
 
@@ -414,8 +435,11 @@ function LayoutEditorControls() {
   };
 
   return (
-    <fieldset className="stacks-diagnostics-section">
-      <legend>Layout editor</legend>
+    <CollapsibleSection
+      label="Layout editor"
+      active={snapshot.enabled}
+      summary={snapshot.enabled ? `on · ${changed} edited` : "off"}
+    >
       <label className="stacks-diagnostics-control">
         <input
           type="checkbox"
@@ -527,7 +551,7 @@ function LayoutEditorControls() {
             ? "Clipboard unavailable. Read window.__stacks.layout() instead."
             : `${changed} edited · Move, rotate, and scale with one gizmo · ⌘Z undo · ⌘⇧Z redo`}
       </p>
-    </fieldset>
+    </CollapsibleSection>
   );
 }
 
@@ -540,8 +564,11 @@ function FieldNotesDiagnosticsControls() {
   const allFound = foundCount === FIELD_NOTES.length;
 
   return (
-    <fieldset className="stacks-diagnostics-section">
-      <legend>Field Notes</legend>
+    <CollapsibleSection
+      label="Field Notes"
+      active={false}
+      summary={`${foundCount} / ${FIELD_NOTES.length} found`}
+    >
       <div className="stacks-diagnostics-current">
         <span>Progress</span>
         <strong>
@@ -592,7 +619,7 @@ function FieldNotesDiagnosticsControls() {
         Progress and stamp layout persist in this browser. Resetting the layout
         does not clear discoveries. Notification previews do not persist.
       </p>
-    </fieldset>
+    </CollapsibleSection>
   );
 }
 
@@ -726,18 +753,68 @@ function DiagnosticControl({
   );
 }
 
+/** A block that stays folded until something in it is off its default, or
+ * until the owner opens it. Folding is per mount like the rest of the
+ * console; a block that becomes active while the console is open unfolds
+ * itself, and one the owner folded by hand stays folded until it changes
+ * again. */
+function CollapsibleSection({
+  label,
+  active,
+  summary,
+  className,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  summary: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(active);
+  useEffect(() => {
+    if (active) setOpen(true);
+  }, [active]);
+  return (
+    <details
+      className={`stacks-diagnostics-section stacks-diagnostics-collapsible${
+        className ? ` ${className}` : ""
+      }`}
+      open={open}
+      data-active={active || undefined}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        <span>{label}</span>
+        <small>{summary}</small>
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 function DiagnosticRegistrySection({
   groupId,
   snapshot,
   fallbackValues = {},
   beforeControls,
   children,
+  collapsible = false,
+  active,
+  summary,
 }: {
   groupId: string;
   snapshot: DiagnosticRegistrySnapshot;
   fallbackValues?: Readonly<Record<string, number>>;
   beforeControls?: React.ReactNode;
   children?: React.ReactNode;
+  /** Fold the section unless it is active: by `active` when the caller
+   * knows better (a profile other than the shipped one, a mode switched
+   * on), otherwise whenever a movable control is off its default. */
+  collapsible?: boolean;
+  active?: boolean;
+  /** Folded-state text; defaults to how many controls have moved. */
+  summary?: string;
 }) {
   const section = [
     ...sceneDiagnosticsRegistry.sections("simulate"),
@@ -749,9 +826,8 @@ function DiagnosticRegistrySection({
   const subgroups = [
     ...new Set(section.controls.flatMap((control) => control.subgroup ?? [])),
   ];
-  return (
-    <fieldset className="stacks-diagnostics-section">
-      <legend>{section.label}</legend>
+  const body = (
+    <>
       {beforeControls}
       {direct.map((descriptor) => (
         <DiagnosticControl
@@ -767,7 +843,13 @@ function DiagnosticRegistrySection({
             <div
               className="stacks-diagnostics-option-group"
               key={subgroup}
-              data-span={subgroup === "overlay.perches" ? "full" : undefined}
+              data-span={
+                subgroup === "overlay.perches" ||
+                subgroup === "grade.mixer" ||
+                subgroup === "lens.optical"
+                  ? "full"
+                  : undefined
+              }
             >
               <strong>
                 {sceneDiagnosticsRegistry.subgroupLabel(subgroup)}
@@ -787,7 +869,30 @@ function DiagnosticRegistrySection({
         </div>
       ) : null}
       {children}
-    </fieldset>
+    </>
+  );
+  if (!collapsible)
+    return (
+      <fieldset className="stacks-diagnostics-section">
+        <legend>{section.label}</legend>
+        {body}
+      </fieldset>
+    );
+  // Readouts (the live gust, say) drift from their first value on their
+  // own; only a control the owner can move counts as a change.
+  const changed = section.controls.filter(
+    (control) =>
+      control.behavior.update !== "read-only" &&
+      !Object.is(snapshot[control.id]?.value, control.defaultValue),
+  ).length;
+  return (
+    <CollapsibleSection
+      label={section.label}
+      active={active ?? changed > 0}
+      summary={summary ?? (changed > 0 ? `${changed} changed` : "defaults")}
+    >
+      {body}
+    </CollapsibleSection>
   );
 }
 
@@ -979,9 +1084,9 @@ function ScreenshotSetupNote() {
   return (
     <>
       <p className="stacks-diagnostics-note">
-        Size the window to the header ratio, then press H to hide this
-        console with the rest of the interface and take the shot. Escape
-        brings it back. [ and ] dolly while the interface is hidden.
+        Size the window to the header ratio, then press H to hide this console
+        with the rest of the interface and take the shot. Escape brings it back.
+        [ and ] dolly while the interface is hidden.
       </p>
       <p className="text-[11px] text-white/50">
         {`Window ${viewport.width}×${viewport.height} · ${ratio}:1. `}
@@ -1008,6 +1113,60 @@ function ScreenshotSetupNote() {
           Composition lens
         </button>
       </div>
+    </>
+  );
+}
+
+/** The grade section's readout and the two ways a tuned look leaves the
+ * session: as JSON for a note or a commit, or as a URL for a second browser
+ * and headless captures. */
+function GradeProfileNote() {
+  const snapshot = useSceneGradeProfile();
+  const [copied, setCopied] = useState<"values" | "url" | null>(null);
+  const theme = activeGradeTheme();
+  const label =
+    snapshot.profile === "custom"
+      ? "Custom"
+      : SCENE_GRADE_PROFILES[snapshot.profile].label;
+  const copy = (kind: "values" | "url", text: string) => {
+    void navigator.clipboard?.writeText(text).then(
+      () => setCopied(kind),
+      () => setCopied(null),
+    );
+  };
+  return (
+    <>
+      <div className="stacks-diagnostics-current">
+        <span>Now</span>
+        <strong>{label}</strong>
+        <small>
+          {`Sliders show the ${theme} theme · moving one forks into Custom`}
+        </small>
+      </div>
+      <div className="stacks-diagnostics-actions">
+        <button
+          type="button"
+          onClick={() =>
+            copy("values", gradeValuesJson(sceneGradeProfileValues(snapshot)))
+          }
+        >
+          {copied === "values" ? "Values copied" : "Copy values"}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            copy("url", sceneGradeUrl(window.location.href, snapshot))
+          }
+        >
+          {copied === "url" ? "Grade URL copied" : "Copy grade URL"}
+        </button>
+      </div>
+      <small>
+        Session-only, like the rest of this console. The URL names the profile
+        (and carries every slider for Custom), so a screenshot setup can be
+        reproduced with it; the values are what to paste when a look should
+        become the shipped print.
+      </small>
     </>
   );
 }
@@ -1337,6 +1496,9 @@ export default function SceneDiagnostics({
     performanceProfileController.getSnapshot,
     performanceProfileController.getSnapshot,
   );
+  const gradeProfile = useSceneGradeProfile();
+  const photographTreatment = usePhotographTreatment();
+  const screenshotMode = useScreenshotMode();
   const [automaticReportQueued, setAutomaticReportQueued] = useState(false);
   const [automaticReportUploaded, setAutomaticReportUploaded] = useState(false);
   const [automaticReportFallback, setAutomaticReportFallback] = useState(false);
@@ -1380,11 +1542,28 @@ export default function SceneDiagnostics({
   const closeButton = useRef<HTMLButtonElement>(null);
   const overlayState = sceneDiagnosticsRegistry.groupState("inspect.overlays");
   const depthOfFieldBokehMultiplier =
-    qualityControls.depthOfFieldBokehMultiplier ?? 1;
+    qualityControls.depthOfFieldBokehMultiplier ??
+    DEPTH_OF_FIELD_STRENGTH_DEFAULT;
   const depthOfFieldResolutionScale =
     qualityControls.depthOfFieldResolutionScale ??
     qualityControls.runtime?.plan.effects.depthOfFieldResolutionScale ??
     0.6;
+  const depthOfFieldTuningChanged =
+    qualityControls.depthOfFieldModel !== DEFAULT_DEPTH_OF_FIELD_MODEL ||
+    qualityControls.depthOfFieldBokehMultiplier != null ||
+    qualityControls.depthOfFieldResolutionScale != null ||
+    Object.entries(OPTICAL_DEPTH_OF_FIELD_DEFAULTS).some(
+      ([key, value]) =>
+        qualityControls.opticalDepthOfField[
+          key as keyof typeof OPTICAL_DEPTH_OF_FIELD_DEFAULTS
+        ] !== value,
+    );
+  const photographTreatmentChanged =
+    photographTreatment.chromaProtection !==
+      DEFAULT_PHOTOGRAPH_TREATMENT.chromaProtection ||
+    photographTreatment.warmthMultiplier !==
+      DEFAULT_PHOTOGRAPH_TREATMENT.warmthMultiplier ||
+    photographTreatment.contrast !== DEFAULT_PHOTOGRAPH_TREATMENT.contrast;
 
   useEffect(() => {
     if (!automaticReport) return;
@@ -1557,10 +1736,58 @@ export default function SceneDiagnostics({
           <header className="stacks-diagnostics-panel-heading">
             <strong>Simulation controls</strong>
           </header>
-          <FieldNotesDiagnosticsControls />
+          <fieldset className="stacks-diagnostics-section">
+            <legend>Weather</legend>
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                onClick={() => cloudDiagnosticsController.refresh()}
+              >
+                Refresh clouds
+              </button>
+            </div>
+            <small>
+              Jumps the cloud field to a new formation without resetting birds,
+              lights, or the rest of the scene. Reload restores the original
+              weather.
+            </small>
+          </fieldset>
+          <fieldset className="stacks-diagnostics-section">
+            <legend>Sky events</legend>
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                onClick={() => skyEventDiagnosticsController.triggerBat()}
+              >
+                Trigger bat
+              </button>
+              <button
+                type="button"
+                onClick={() => skyEventDiagnosticsController.triggerBirds()}
+              >
+                Trigger birds
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  skyEventDiagnosticsController.triggerShootingStar()
+                }
+              >
+                Trigger shooting star
+              </button>
+            </div>
+            <small>
+              Bat and birds restart their WebGL crossing. The shooting star
+              restarts in an open Manual or Routine sky. Theme rules still
+              apply.
+            </small>
+          </fieldset>
           <DiagnosticRegistrySection
             groupId="simulate.camera"
             snapshot={diagnosticSnapshot}
+            collapsible
+            active={freeRoamSnapshot.enabled}
+            summary={freeRoamSnapshot.enabled ? "free roam" : "authored"}
           >
             <p className="stacks-diagnostics-note">
               Free roam never captures the mouse. Hold the right button and drag
@@ -1574,8 +1801,15 @@ export default function SceneDiagnostics({
           </DiagnosticRegistrySection>
 
           <DiagnosticRegistrySection
+            groupId="simulate.physics"
+            snapshot={diagnosticSnapshot}
+            collapsible
+          />
+
+          <DiagnosticRegistrySection
             groupId="simulate.meadow"
             snapshot={diagnosticSnapshot}
+            collapsible
           >
             <div className="stacks-diagnostics-actions">
               <button
@@ -1628,6 +1862,7 @@ export default function SceneDiagnostics({
           <DiagnosticRegistrySection
             groupId="simulate.insects"
             snapshot={diagnosticSnapshot}
+            collapsible
           >
             <div className="stacks-diagnostics-actions">
               <button
@@ -1646,10 +1881,15 @@ export default function SceneDiagnostics({
             </div>
           </DiagnosticRegistrySection>
 
+          {/* The headset's own toys, apart from the room's render switches:
+              a ride preview is a scene to step into, not a pass to bisect. */}
           <DiagnosticRegistrySection
-            groupId="simulate.physics"
+            groupId="simulate.vision"
             snapshot={diagnosticSnapshot}
+            collapsible
           />
+
+          <FieldNotesDiagnosticsControls />
         </div>
       ) : null}
       {panel === "render" ? (
@@ -1662,73 +1902,99 @@ export default function SceneDiagnostics({
           <header className="stacks-diagnostics-panel-heading">
             <strong>Scene quality</strong>
           </header>
-          <DiagnosticRegistrySection
-            groupId="render.profile"
-            snapshot={diagnosticSnapshot}
-          >
-            {activeProfile ? (
-              <div className="stacks-diagnostics-current">
-                <span>Now</span>
-                <strong>
-                  {PERFORMANCE_PROFILE_PRESENTATION[activeProfile].label}
-                </strong>
-                <small>
-                  {PERFORMANCE_PROFILE_PRESENTATION[activeProfile].question}
-                </small>
-                <small>
-                  {describePerformanceProfile(
-                    PERFORMANCE_PROFILES[activeProfile],
-                  )}
-                </small>
-              </div>
-            ) : null}
-            <div className="stacks-diagnostics-actions">
-              <button
-                type="button"
-                onClick={() =>
-                  window.location.assign(
-                    performanceProfileUrl(window.location.href, activeProfile),
-                  )
-                }
-              >
-                {activeProfile
-                  ? "Reload under this profile"
-                  : "Reload without a profile"}
-              </button>
-            </div>
-            <small>
-              Boot residency, photo residency, and the learned-quality
-              suspension only take effect on reload. The reload keeps every
-              other query switch, so a perf-report visit stays a report.
-            </small>
-          </DiagnosticRegistrySection>
+          {/* Stable production policy comes first. Session-only render
+              switches are grouped by what they own: lens, finishing passes,
+              authored scene effects, optimizations, and scheduling. */}
           <DiagnosticRegistrySection
             groupId="render.quality"
             snapshot={diagnosticSnapshot}
+            beforeControls={
+              <div className="stacks-diagnostics-current">
+                <span>Now</span>
+                <strong>
+                  {qualityControls.cinematicPlus
+                    ? "Cinematic+"
+                    : qualityControls.mode === "auto"
+                      ? "Auto"
+                      : qualityControls.mode}
+                </strong>
+                <small>
+                  {qualityControls.runtime
+                    ? `Effective ${qualityControls.runtime.plan.profile} · fx ${qualityControls.runtime.axes.effects} · geo ${qualityControls.runtime.axes.content}${qualityControls.runtime.axes.survival ? " · survival" : ""}`
+                    : "Waiting for the scene to publish its render plan"}
+                </small>
+              </div>
+            }
           >
-            <div className="stacks-diagnostics-current">
-              <span>Now</span>
-              <strong>
-                {qualityControls.cinematicPlus
-                  ? "Cinematic+"
-                  : qualityControls.mode === "auto"
-                    ? "Auto"
-                    : qualityControls.mode}
-              </strong>
-              <small>
-                {qualityControls.runtime
-                  ? `Effective ${qualityControls.runtime.plan.profile} · fx ${qualityControls.runtime.axes.effects} · geo ${qualityControls.runtime.axes.content}${qualityControls.runtime.axes.survival ? " · survival" : ""}`
-                  : "Waiting for the scene to publish its render plan"}
-              </small>
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                onClick={() => sceneQualityController.resetLearnedProfile()}
+              >
+                Reset learned profile
+              </button>
             </div>
-          </DiagnosticRegistrySection>
-
-          <DiagnosticRegistrySection
-            groupId="render.screenshot"
-            snapshot={diagnosticSnapshot}
-            fallbackValues={{ "screenshot.fov": CAMERA.fov }}
-          >
-            <ScreenshotSetupNote />
+            <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
+              <summary>Policy internals</summary>
+              {qualityControls.runtime ? (
+                <div className="stacks-perch-summary">
+                  <span>
+                    Effective {qualityControls.runtime.plan.profile} · DPR{" "}
+                    {qualityControls.runtime.plan.dpr.toFixed(2)} ·{" "}
+                    {qualityControls.runtime.plan.physicalPixels.toLocaleString()}{" "}
+                    px
+                  </span>
+                  <span>
+                    Target {qualityControls.runtime.metrics?.targetHz ?? "–"} Hz
+                    · p95{" "}
+                    {qualityControls.runtime.metrics?.p95.toFixed(1) ?? "–"} ms
+                    · drops{" "}
+                    {qualityControls.runtime.metrics
+                      ? `${(qualityControls.runtime.metrics.droppedFrameRatio * 100).toFixed(1)}%`
+                      : "–"}
+                  </span>
+                  <span>
+                    Cooldown{" "}
+                    {(
+                      qualityControls.runtime.cooldownRemainingMs / 1_000
+                    ).toFixed(1)}
+                    s{" · "}
+                    {qualityControls.runtime.transitionReason} ·{" "}
+                    {qualityControls.runtime.fallbackStatus}
+                  </span>
+                  <span>
+                    Bucket {qualityControls.runtime.storageBucket} · learned{" "}
+                    {qualityControls.runtime.learnedProfile ?? "none"}
+                  </span>
+                  <span>
+                    Bloom{" "}
+                    {qualityControls.runtime.plan.effects.bloomResolutionScale.toFixed(
+                      2,
+                    )}
+                    × · AO{" "}
+                    {
+                      qualityControls.runtime.plan.effects
+                        .ambientOcclusionQuality
+                    }{" "}
+                    · DoF q
+                    {qualityControls.runtime.plan.effects.depthOfFieldResolutionScale.toFixed(
+                      2,
+                    )}
+                    /b
+                    {qualityControls.runtime.plan.effects.depthOfFieldBokehScale.toFixed(
+                      2,
+                    )}{" "}
+                    · far grass{" "}
+                    {qualityControls.runtime.plan.environment.farGrassShader}
+                  </span>
+                </div>
+              ) : (
+                <small>
+                  Scene not mounted yet. The canvas publishes this on its first
+                  frame.
+                </small>
+              )}
+            </details>
           </DiagnosticRegistrySection>
 
           <DiagnosticRegistrySection
@@ -1756,90 +2022,83 @@ export default function SceneDiagnostics({
           </DiagnosticRegistrySection>
 
           <DiagnosticRegistrySection
-            groupId="render.automatic"
+            groupId="render.grade"
             snapshot={diagnosticSnapshot}
+            collapsible
+            active={gradeProfile.profile !== "shipped"}
+            summary={
+              gradeProfile.profile === "custom"
+                ? "Custom"
+                : SCENE_GRADE_PROFILES[gradeProfile.profile].label
+            }
+          >
+            <GradeProfileNote />
+          </DiagnosticRegistrySection>
+
+          <DiagnosticRegistrySection
+            groupId="render.photographs"
+            snapshot={diagnosticSnapshot}
+            collapsible
           >
             <div className="stacks-diagnostics-actions">
               <button
                 type="button"
-                onClick={() => sceneQualityController.resetLearnedProfile()}
+                disabled={!photographTreatmentChanged}
+                onClick={() => photographTreatmentController.reset()}
               >
-                Reset learned profile
-              </button>
-              <button type="button" onClick={resetSceneToFirstVisit}>
-                Reset scene to first visit
+                Reset photograph treatment
               </button>
             </div>
-            <small>
-              Clears saved scene quality, warm-load, sound, and session state,
-              then reloads without render or diagnostics URL overrides. Theme
-              and font preferences are preserved.
-            </small>
           </DiagnosticRegistrySection>
-          <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
-            <summary>Policy internals</summary>
-            {qualityControls.runtime ? (
-              <div className="stacks-perch-summary">
-                <span>
-                  Effective {qualityControls.runtime.plan.profile} · DPR{" "}
-                  {qualityControls.runtime.plan.dpr.toFixed(2)} ·{" "}
-                  {qualityControls.runtime.plan.physicalPixels.toLocaleString()}{" "}
-                  px
-                </span>
-                <span>
-                  Target {qualityControls.runtime.metrics?.targetHz ?? "–"} Hz ·
-                  p95 {qualityControls.runtime.metrics?.p95.toFixed(1) ?? "–"}{" "}
-                  ms · drops{" "}
-                  {qualityControls.runtime.metrics
-                    ? `${(qualityControls.runtime.metrics.droppedFrameRatio * 100).toFixed(1)}%`
-                    : "–"}
-                </span>
-                <span>
-                  Cooldown{" "}
-                  {(
-                    qualityControls.runtime.cooldownRemainingMs / 1_000
-                  ).toFixed(1)}
-                  s{" · "}
-                  {qualityControls.runtime.transitionReason} ·{" "}
-                  {qualityControls.runtime.fallbackStatus}
-                </span>
-                <span>
-                  Bucket {qualityControls.runtime.storageBucket} · learned{" "}
-                  {qualityControls.runtime.learnedProfile ?? "none"}
-                </span>
-                <span>
-                  Bloom{" "}
-                  {qualityControls.runtime.plan.effects.bloomResolutionScale.toFixed(
-                    2,
-                  )}
-                  × · AO{" "}
-                  {qualityControls.runtime.plan.effects.ambientOcclusionQuality}{" "}
-                  · DoF q
-                  {qualityControls.runtime.plan.effects.depthOfFieldResolutionScale.toFixed(
-                    2,
-                  )}
-                  /b
-                  {qualityControls.runtime.plan.effects.depthOfFieldBokehScale.toFixed(
-                    2,
-                  )}{" "}
-                  · far grass{" "}
-                  {qualityControls.runtime.plan.environment.farGrassShader}
-                </span>
-              </div>
-            ) : (
-              <small>
-                Scene not mounted yet. The canvas publishes this on its first
-                frame.
-              </small>
-            )}
-          </details>
-          <details className="stacks-diagnostics-details stacks-diagnostics-experiments">
-            <summary>
-              Rendering experiments ·{" "}
-              {qualityControls.runtime?.plan.customOverrides
-                ? "custom overrides active"
-                : "profile defaults"}
-            </summary>
+
+          <DiagnosticRegistrySection
+            groupId="render.screenshot"
+            snapshot={diagnosticSnapshot}
+            fallbackValues={{ "screenshot.fov": CAMERA.fov }}
+            collapsible
+            active={screenshotMode.enabled}
+            summary={screenshotMode.enabled ? "on" : "off"}
+          >
+            <ScreenshotSetupNote />
+          </DiagnosticRegistrySection>
+
+          <DiagnosticRegistrySection
+            groupId="render.lens"
+            snapshot={diagnosticSnapshot}
+            fallbackValues={{
+              "render.dof-strength": depthOfFieldBokehMultiplier,
+              "render.dof-buffer-quality": depthOfFieldResolutionScale,
+            }}
+            collapsible
+          >
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                disabled={!depthOfFieldTuningChanged}
+                onClick={() => sceneQualityController.resetDepthOfField()}
+              >
+                Reset DoF tuning
+              </button>
+            </div>
+          </DiagnosticRegistrySection>
+
+          <DiagnosticRegistrySection
+            groupId="render.passes"
+            snapshot={diagnosticSnapshot}
+            collapsible
+          />
+
+          <DiagnosticRegistrySection
+            groupId="render.scene-effects"
+            snapshot={diagnosticSnapshot}
+            collapsible
+          />
+
+          <DiagnosticRegistrySection
+            groupId="render.optimizations"
+            snapshot={diagnosticSnapshot}
+            collapsible
+          >
             <div className="stacks-diagnostics-actions">
               <button
                 type="button"
@@ -1866,40 +2125,82 @@ export default function SceneDiagnostics({
                 Disable all optimizations
               </button>
             </div>
+          </DiagnosticRegistrySection>
+
+          <DiagnosticRegistrySection
+            groupId="render.scheduling"
+            snapshot={diagnosticSnapshot}
+            collapsible
+          />
+
+          <CollapsibleSection
+            className="stacks-diagnostics-experiments"
+            label="Reproduce a performance report"
+            active={activeProfile !== null}
+            summary={
+              activeProfile
+                ? PERFORMANCE_PROFILE_PRESENTATION[activeProfile].label
+                : "no test profile"
+            }
+          >
             <DiagnosticRegistrySection
-              groupId="render.optional"
+              groupId="render.profile"
               snapshot={diagnosticSnapshot}
-            />
-            <DiagnosticRegistrySection
-              groupId="render.optimizations"
-              snapshot={diagnosticSnapshot}
-            />
-            <DiagnosticRegistrySection
-              groupId="render.compositing"
-              snapshot={diagnosticSnapshot}
-              fallbackValues={{
-                "render.dof-strength": depthOfFieldBokehMultiplier,
-                "render.dof-buffer-quality": depthOfFieldResolutionScale,
-              }}
             >
+              {activeProfile ? (
+                <div className="stacks-diagnostics-current">
+                  <span>Now</span>
+                  <strong>
+                    {PERFORMANCE_PROFILE_PRESENTATION[activeProfile].label}
+                  </strong>
+                  <small>
+                    {PERFORMANCE_PROFILE_PRESENTATION[activeProfile].question}
+                  </small>
+                  <small>
+                    {describePerformanceProfile(
+                      PERFORMANCE_PROFILES[activeProfile],
+                    )}
+                  </small>
+                </div>
+              ) : null}
               <div className="stacks-diagnostics-actions">
                 <button
                   type="button"
-                  disabled={
-                    qualityControls.depthOfFieldBokehMultiplier == null &&
-                    qualityControls.depthOfFieldResolutionScale == null
+                  onClick={() =>
+                    window.location.assign(
+                      performanceProfileUrl(
+                        window.location.href,
+                        activeProfile,
+                      ),
+                    )
                   }
-                  onClick={() => sceneQualityController.resetDepthOfField()}
                 >
-                  Reset DoF tuning
+                  {activeProfile
+                    ? "Reload under this profile"
+                    : "Reload without a profile"}
                 </button>
               </div>
+              <small>
+                Boot residency, photo residency, and the learned-quality
+                suspension only take effect on reload. The reload keeps every
+                other query switch, so a perf-report visit stays a report.
+              </small>
             </DiagnosticRegistrySection>
-            <DiagnosticRegistrySection
-              groupId="render.scheduling"
-              snapshot={diagnosticSnapshot}
-            />
-          </details>
+          </CollapsibleSection>
+
+          <fieldset className="stacks-diagnostics-section">
+            <legend>Session</legend>
+            <div className="stacks-diagnostics-actions">
+              <button type="button" onClick={resetSceneToFirstVisit}>
+                Reset scene to first visit
+              </button>
+            </div>
+            <small>
+              Clears saved scene quality, warm-load, sound, and session state,
+              then reloads without render or diagnostics URL overrides. Theme
+              and font preferences are preserved.
+            </small>
+          </fieldset>
         </div>
       ) : null}
       {panel === "inspect" ? (

@@ -173,6 +173,63 @@ describe("Scene Diagnostics registry", () => {
     expect(new Set(registered).size).toBe(registered.length);
   });
 
+  it("presents enabled render passes as checked instead of unchecked skip flags", () => {
+    scenePerformanceController.reset();
+    for (const id of [
+      "render.ambient-occlusion",
+      "render.bloom",
+      "render.depth-of-field",
+    ]) {
+      expect(sceneDiagnosticsRegistry.read(id)).toBe(true);
+      sceneDiagnosticsRegistry.update(id, false);
+      expect(sceneDiagnosticsRegistry.read(id)).toBe(false);
+    }
+    expect(scenePerformanceController.getSnapshot()).toMatchObject({
+      skipAmbientOcclusion: true,
+      skipBloom: true,
+      skipDepthOfField: true,
+    });
+    scenePerformanceController.reset();
+  });
+
+  it("offers both optical quality levels in the live DoF model selector", () => {
+    const model = sceneDiagnosticsRegistry.descriptors.find(
+      (descriptor) => descriptor.id === "render.dof-model",
+    );
+
+    expect(
+      model?.allowedValues.kind === "set"
+        ? model.allowedValues.values.map((option) => option.value)
+        : [],
+    ).toEqual([
+      "current",
+      "optical-prototype-16",
+      "optical-prototype",
+      "optical-prototype-64",
+    ]);
+
+    sceneDiagnosticsRegistry.update("render.dof-model", "optical-prototype-16");
+    expect(sceneDiagnosticsRegistry.read("render.dof-model")).toBe(
+      "optical-prototype-16",
+    );
+    sceneQualityController.resetControls();
+  });
+
+  it("keeps every approved Render feature checked at production defaults", () => {
+    const renderBooleans = sceneDiagnosticsRegistry
+      .sections("render")
+      .flatMap((section) => section.controls)
+      .filter(
+        (descriptor) =>
+          descriptor.valueKind === "boolean" && !descriptor.experimental,
+      );
+
+    expect(renderBooleans.length).toBeGreaterThan(0);
+    expect(
+      renderBooleans.filter((descriptor) => descriptor.defaultValue !== true),
+    ).toEqual([]);
+  });
+
   it("keeps the descriptor inventory behind the lazy diagnostics chunk", () => {
     expect(canvasSource).toContain('import "./scene/sceneDiagnosticsRuntime"');
     expect(canvasSource).not.toContain("sceneDiagnosticsRegistry");
@@ -181,7 +238,7 @@ describe("Scene Diagnostics registry", () => {
     );
   });
 
-  it("declares the exact optimization preset without optional rendering", () => {
+  it("declares the exact optimization preset inside categorized render controls", () => {
     expect(
       sceneDiagnosticsRegistry.descriptors
         .filter((descriptor) => descriptor.optimizationPreset)
@@ -197,20 +254,30 @@ describe("Scene Diagnostics registry", () => {
       "render.placard-material",
       "render.effective-dpr-rungs",
       "render.adaptive-sharpen",
-      "render.skip-ambient-occlusion",
-      "render.skip-bloom",
-      "render.skip-depth-of-field",
+      "render.ambient-occlusion",
+      "render.bloom",
+      "render.depth-of-field",
       "render.virtualize-units",
       "render.remember-travel-declines",
       "render.balance-meadow-tiles",
       "render.suspend-hover-work",
     ]);
-    const optional = sceneDiagnosticsRegistry
-      .sections("render")
-      .find((section) => section.id === "render.optional");
     expect(
-      optional?.controls.every((descriptor) => !descriptor.optimizationPreset),
-    ).toBe(true);
+      sceneDiagnosticsRegistry.sections("render").map((section) => section.id),
+    ).toEqual(
+      expect.arrayContaining([
+        "render.lens",
+        "render.passes",
+        "render.scene-effects",
+        "render.optimizations",
+        "render.scheduling",
+      ]),
+    );
+    expect(
+      sceneDiagnosticsRegistry.sections("render").map((section) => section.id),
+    ).not.toEqual(
+      expect.arrayContaining(["render.optional", "render.compositing"]),
+    );
   });
 
   it("keeps every expensive default-off path allocation and frame-work free", () => {

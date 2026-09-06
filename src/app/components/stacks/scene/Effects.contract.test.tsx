@@ -102,6 +102,9 @@ const { registerCinematicSun } = await import("./cinematicSun");
 const { resolveSceneQualityPlan } = await import("./quality");
 const { DEFAULT_SCENE_COLOR_GRADE, CINEMATIC_PLUS_SCENE_COLOR_GRADE } =
   await import("./sceneColorGrade");
+const { SCENE_GRADE_PROFILES, sceneGradeProfileController } = await import(
+  "./sceneGradeProfiles"
+);
 const { sceneQualityController } = await import("./sceneQualityController");
 const { scenePerformanceController } = await import("./scenePerformance");
 const { diagnosticReloadSeedFromSearch } = await import(
@@ -172,6 +175,7 @@ afterEach(() => {
   harness.scene = {};
   sceneQualityController.resetControls();
   scenePerformanceController.reset();
+  sceneGradeProfileController.reset();
 });
 
 describe("the scene's postprocessing chain", () => {
@@ -180,19 +184,18 @@ describe("the scene's postprocessing chain", () => {
 
     // Order is the contract, not decoration. The photo mask draws straight
     // after the render pass so the grade can read it; the grade is
-    // display-referred so it has to follow tone mapping; RCAS samples
-    // neighbours so it has to follow the grade; SMAA reads finished pixels so
-    // it closes the chain.
+    // display-referred so it has to follow tone mapping. The optical lens
+    // deliberately leaves RCAS out, and SMAA reads finished pixels to close
+    // the chain.
     expect(chain.order).toEqual([
       "PhotoMaskPass",
       "N8AO",
       "Bloom",
-      "DepthOfField",
+      "OpticalBokehPrototype32Effect",
       "TiltShift2",
       "Vignette",
       "ToneMapping",
       "GradeEffect",
-      "AdaptiveSharpenEffect",
       "SMAA",
     ]);
   });
@@ -298,11 +301,94 @@ describe("the scene's postprocessing chain", () => {
       DEFAULT_SCENE_COLOR_GRADE.dark.curve,
     );
   });
+
+  it("runs the shipped develop with the mixer skipped, and none of it under Flat", () => {
+    const shipped = SCENE_GRADE_PROFILES.shipped.values.develop.light;
+    const grade = render().props("GradeEffect") as
+      | { effect: { uniforms: Map<string, { value: unknown }> } }
+      | undefined;
+
+    expect(grade?.effect.uniforms.get("uDevelop")?.value).toBe(1);
+    expect(grade?.effect.uniforms.get("uDevMixerOn")?.value).toBe(0);
+    expect(grade?.effect.uniforms.get("uDevA")?.value).toMatchObject({
+      x: shipped.exposure,
+      y: shipped.temp,
+      z: shipped.tint,
+      w: shipped.contrast,
+    });
+
+    harness.mounted.length = 0;
+    sceneGradeProfileController.setProfile("flat");
+    const flat = render().props("GradeEffect") as
+      | { effect: { uniforms: Map<string, { value: unknown }> } }
+      | undefined;
+    expect(flat?.effect.uniforms.get("uDevelop")?.value).toBe(0);
+    expect(flat?.effect.uniforms.get("uDevA")?.value).toMatchObject({
+      x: 0,
+      y: 0,
+      z: 0,
+      w: 0,
+    });
+  });
+
+  it("turns the develop stage on with a grade profile and blends it by theme", () => {
+    sceneGradeProfileController.setProfile("lightroom");
+    const light = render({ dark: false }).props("GradeEffect") as
+      | { effect: { uniforms: Map<string, { value: unknown }> } }
+      | undefined;
+    harness.mounted.length = 0;
+    const dark = render({ dark: true }).props("GradeEffect") as
+      | { effect: { uniforms: Map<string, { value: unknown }> } }
+      | undefined;
+
+    const fitted = SCENE_GRADE_PROFILES.lightroom.values.develop.light;
+    expect(light?.effect.uniforms.get("uDevelop")?.value).toBe(1);
+    expect(light?.effect.uniforms.get("uDevMixerOn")?.value).toBe(1);
+    expect(light?.effect.uniforms.get("uDevA")?.value).toMatchObject({
+      x: fitted.exposure,
+      y: fitted.temp,
+      z: fitted.tint,
+      w: fitted.contrast,
+    });
+    expect(light?.effect.uniforms.get("uDevC")?.value).toMatchObject({
+      z: fitted.vignette,
+      w: fitted.vignetteMidpoint,
+    });
+    const mixer = light?.effect.uniforms.get("uDevMixer")?.value as Array<{
+      x: number;
+      y: number;
+      z: number;
+    }>;
+    expect(mixer[3]).toMatchObject({
+      x: fitted.mixer.green.hue,
+      y: fitted.mixer.green.sat,
+      z: fitted.mixer.green.lum,
+    });
+    // The Lightroom fit is light-only: a dark mount reads identity.
+    expect(dark?.effect.uniforms.get("uDevelop")?.value).toBe(1);
+    expect(dark?.effect.uniforms.get("uDevA")?.value).toMatchObject({
+      x: 0,
+      y: 0,
+      z: 0,
+      w: 0,
+    });
+  });
+
+  it("carries a profile's print-grade overrides into the vignette", () => {
+    sceneGradeProfileController.setProfile("custom");
+    sceneGradeProfileController.updateDevelop("light", { vignette: -0.3 });
+    const vignette = render({ dark: false }).props("Vignette");
+
+    // The develop stage owns the post vignette; the print grade's own
+    // vignette is untouched by Custom.
+    expect(vignette?.darkness).toBe(DEFAULT_SCENE_COLOR_GRADE.light.vignette);
+  });
 });
 
 describe("depth of field", () => {
   it("aims the mounted pass at the active shelf in world space", async () => {
     const { depthOfFieldTargetForUnit } = await import("./worldLayout");
+    sceneQualityController.setDepthOfFieldModel("current");
 
     const shelf = render({ activeUnit: 3 }).props("DepthOfField");
 
@@ -313,6 +399,8 @@ describe("depth of field", () => {
   });
 
   it("keeps the pass mounted while a golf shot is in focus", () => {
+    sceneQualityController.setDepthOfFieldModel("current");
+
     // What the widened range IS belongs to shelfDepthOfField.test.ts.
     expect(
       render({ activeUnit: 3, golfFocused: true }).has("DepthOfField"),
@@ -322,12 +410,34 @@ describe("depth of field", () => {
   it("leaves the pass out when the camera is seated", () => {
     // Sitting down puts the camera inside the blur volume, where the
     // treatment reads as a smeared foreground instead of depth.
-    expect(render({ seated: true }).has("DepthOfField")).toBe(false);
+    const chain = render({ seated: true });
+
+    expect(chain.has("DepthOfField")).toBe(false);
+    expect(chain.has("OpticalBokehPrototype32Effect")).toBe(false);
   });
 
   it("isolates the pass with ?nodof", () => {
-    expect(render({ search: "?nodof" }).has("DepthOfField")).toBe(false);
+    const chain = render({ search: "?nodof" });
+
+    expect(chain.has("DepthOfField")).toBe(false);
+    expect(chain.has("OpticalBokehPrototype32Effect")).toBe(false);
   });
+
+  it.each([
+    ["optical-prototype-16", "OpticalBokehPrototype16Effect"],
+    ["optical-prototype", "OpticalBokehPrototype32Effect"],
+    ["optical-prototype-64", "OpticalBokehPrototype64Effect"],
+  ] as const)(
+    "mounts the %s model instead of the shipped pass",
+    (model, effect) => {
+      sceneQualityController.setDepthOfFieldModel(model);
+
+      const chain = render({ profile: "balanced" });
+
+      expect(chain.has("DepthOfField")).toBe(false);
+      expect(chain.has(effect)).toBe(true);
+    },
+  );
 });
 
 describe("the reversible comparison switches", () => {
@@ -356,12 +466,16 @@ describe("the reversible comparison switches", () => {
 
 describe("adaptive sharpening", () => {
   it("stays out of the composer at zero strength", () => {
+    sceneQualityController.setDepthOfFieldModel("current");
+
     expect(render({ sharpenAmount: 0 }).has("AdaptiveSharpenEffect")).toBe(
       false,
     );
   });
 
   it("runs after tone mapping at the requested strength", () => {
+    sceneQualityController.setDepthOfFieldModel("current");
+
     const chain = render({ sharpenAmount: 0.35 });
     const sharpen = chain.props("AdaptiveSharpenEffect") as
       | { effect: { uniforms: Map<string, { value: number }> } }
@@ -375,6 +489,7 @@ describe("adaptive sharpening", () => {
 
   it("declares itself a convolution so its taps are isolated", async () => {
     const { EffectAttribute } = await import("postprocessing");
+    sceneQualityController.setDepthOfFieldModel("current");
     const sharpen = render({ sharpenAmount: 0.35 }).props(
       "AdaptiveSharpenEffect",
     ) as { effect: { getAttributes: () => number } } | undefined;

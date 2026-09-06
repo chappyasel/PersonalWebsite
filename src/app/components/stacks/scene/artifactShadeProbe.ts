@@ -42,6 +42,13 @@ import {
   sceneColorGradeController,
   sceneColorGradeFor,
 } from "./sceneColorGrade";
+import {
+  DEVELOP_IDENTITY,
+  type SceneDevelopSettings,
+  developDisplay,
+  sceneGradeLookFor,
+  sceneGradeProfileController,
+} from "./sceneGradeProfiles";
 import { sceneQualityController } from "./sceneQualityController";
 
 const PROBE_SIZE = 64;
@@ -175,6 +182,7 @@ function toDisplayed(
   exposure: number,
   settings: SceneColorGradeThemeSettings,
   dark: number,
+  develop: SceneDevelopSettings = DEVELOP_IDENTITY,
 ): [number, number, number] {
   const linear = srgb.map(srgbToLinear) as [number, number, number];
   const tonemapped = acesFilmic(linear, exposure);
@@ -186,8 +194,13 @@ function toDisplayed(
     number,
   ];
   // The probe frames a print, which the mask hands to the grade as a
-  // photograph.
-  const graded = gradeDisplay(display, settings, dark, true);
+  // photograph. The develop stage of the active grade profile follows the
+  // print grade, as in the shader; the probe reads the middle of a print,
+  // where the post vignette is zero, so no frame position is passed.
+  const graded = developDisplay(
+    gradeDisplay(display, settings, dark, true),
+    develop,
+  );
   return graded.map((c) => linearToSrgb(Math.pow(Math.max(0, c), 2.2))) as [
     number,
     number,
@@ -384,19 +397,23 @@ export function probeArtifactShade({
       probeBuffer,
     );
     const quality = sceneQualityController.getSnapshot();
-    const grade = sceneColorGradeFor(
-      sceneColorGradeController.getSnapshot(),
-      quality.cinematicPlus,
+    const look = sceneGradeLookFor(
+      sceneGradeProfileController.getSnapshot(),
+      sceneColorGradeFor(
+        sceneColorGradeController.getSnapshot(),
+        quality.cinematicPlus,
+      ),
     );
     const dark =
       typeof document !== "undefined" &&
       document.documentElement.classList.contains("dark")
         ? 1
         : 0;
-    const settings = dark ? grade.dark : grade.light;
+    const settings = dark ? look.base.dark : look.base.light;
+    const develop = dark ? look.develop.dark : look.develop.light;
     const exposure = gl.toneMappingExposure || settings.exposure;
     rendered = channelStats(probeBuffer, 4, (pixel) =>
-      toDisplayed(pixel, exposure, settings, dark),
+      toDisplayed(pixel, exposure, settings, dark, develop),
     );
   } catch {
     return null;

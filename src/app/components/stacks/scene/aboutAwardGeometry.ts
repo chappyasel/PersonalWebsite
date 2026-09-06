@@ -3,6 +3,7 @@ export const ABOUT_AIC_MARK_HEIGHT = 0.18;
 export const ABOUT_AIC_MARK_WIDTH = ABOUT_AIC_MARK_HEIGHT * (700 / 844.38);
 export const ABOUT_AIC_BASE_WIDTH = ABOUT_AIC_MARK_WIDTH;
 export const ABOUT_AIC_BASE_DEPTH = 0.07;
+/** Extrusion depth in the SVG's own units (844.38 high): 15 mm of billet. */
 export const ABOUT_AIC_MARK_SOURCE_DEPTH = 72;
 export const ABOUT_AIC_MARK_DEPTH =
   ABOUT_AIC_MARK_SOURCE_DEPTH * (ABOUT_AIC_MARK_HEIGHT / 844.38);

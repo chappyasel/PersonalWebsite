@@ -15,6 +15,10 @@
 //   Exposure parity with the composer-off path is automatic: three binds
 //   renderer.toneMappingExposure into any program that declares it.
 import { useStacks } from "../store";
+import {
+  useVisionRidePreviewOverrides,
+  useVisionRideRetroFxEnabled,
+} from "../visionRide/visionRideDiagnostics";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   Bloom,
@@ -39,16 +43,21 @@ import {
 import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MathUtils, Uniform, Vector2, Vector3, Vector4 } from "three";
 
-import { useCinematicSun } from "./cinematicSun";
 import {
-  useVisionRidePreviewOverrides,
-  useVisionRideRetroFxEnabled,
-} from "../visionRide/visionRideDiagnostics";
+  OPTICAL_BOKEH_MATCHED_TAPS,
+  OPTICAL_BOKEH_QUALITY_TAPS,
+  OPTICAL_BOKEH_ULTRA_TAPS,
+  OpticalBokehPrototype,
+} from "./OpticalBokehPrototype";
+import { PhotoMaskPass } from "./PhotoMaskPass";
+import { useCinematicSun } from "./cinematicSun";
+import { focusPull, focusPullTarget } from "./focusPull";
 import {
   captureLensCenterFromSearch,
   effectiveCaptureLensCenter,
   sideLensPlan,
 } from "./lensGeometry";
+import { usePhotographTreatment } from "./photographTreatment";
 import {
   DB32_PALETTE,
   PIXEL_WIPE_SECONDS,
@@ -59,17 +68,25 @@ import {
   pixelArtPlanFor,
   pixelWipeCoverRadius,
 } from "./pixelArt";
-import { PhotoMaskPass } from "./PhotoMaskPass";
 import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
-import { useScreenshotMode } from "./screenshotMode";
 import {
   type SceneColorGradeSettings,
   sceneColorGradeFor,
   useSceneColorGradeSettings,
 } from "./sceneColorGrade";
+import {
+  HUE_BANDS,
+  HUE_BAND_CENTERS,
+  type SceneDevelopByTheme,
+  type SceneDevelopSettings,
+  developIsIdentity,
+  mixerIsIdentity,
+  sceneGradeLookFor,
+  useSceneGradeProfile,
+} from "./sceneGradeProfiles";
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
-import { focusPull, focusPullTarget } from "./focusPull";
+import { useScreenshotMode } from "./screenshotMode";
 import {
   type ShelfDepthOfFieldTuning,
   applyShelfDepthOfFieldTuning,
@@ -101,6 +118,113 @@ import {
 // space) but the composer's buffers are linear until the final encode, so
 // the shader steps into an approximate display space and back out. It merges
 // into the existing Vignette/ToneMapping EffectPass — no extra pass.
+//
+// A fourth job follows: the develop stage, a Lightroom-shaped set of
+// adjustments (sceneGradeProfiles.ts). It is a transcription of
+// `developDisplay` there, which is the reference. Two uniform branches keep
+// it cheap: the whole stage is skipped when every value is at identity (the
+// Flat profile), and the eight-band mixer, the only part with a loop and a
+// second HSV round trip, is skipped when no band is set, which is the
+// shipped case.
+const BAND_CENTERS_TURNS = HUE_BANDS.map(
+  (band) => HUE_BAND_CENTERS[band] / 360,
+);
+const bandSpan = (i: number, step: 1 | -1) => {
+  const n = BAND_CENTERS_TURNS.length;
+  const from = BAND_CENTERS_TURNS[i]!;
+  const to = BAND_CENTERS_TURNS[(i + n + step) % n]!;
+  return ((((to - from) * step) % 1) + 1) % 1;
+};
+const glslFloats = (values: readonly number[]) =>
+  values.map((value) => value.toFixed(6)).join(", ");
+
+const DEVELOP_GLSL = `
+  uniform float uDevelop;    // 1 while either theme's develop stage is live
+  uniform float uDevMixerOn; // 1 while either theme sets a mixer band
+  uniform vec4 uDevA;        // exposure (stops), temp, tint, contrast
+  uniform vec4 uDevB;        // blacks, whites, shadows, highlights
+  uniform vec4 uDevC;        // saturation, vibrance, vignette, vignette midpoint
+  uniform vec3 uDevMixer[8]; // per band: hue, sat, lum
+
+  const float BAND_CENTER[8] = float[8](${glslFloats(BAND_CENTERS_TURNS)});
+  const float BAND_LEFT[8] = float[8](${glslFloats(
+    BAND_CENTERS_TURNS.map((_, i) => bandSpan(i, -1)),
+  )});
+  const float BAND_RIGHT[8] = float[8](${glslFloats(
+    BAND_CENTERS_TURNS.map((_, i) => bandSpan(i, 1)),
+  )});
+
+  vec3 rgb2hsv(const in vec3 c) {
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+  }
+
+  vec3 hsv2rgb(const in vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+  }
+
+  // Triangular partition of unity over the eight band centres.
+  float bandWeight(const in float h, const in int i) {
+    float d = fract(h - BAND_CENTER[i] + 0.5) - 0.5;
+    return d < 0.0
+      ? clamp(1.0 + d / BAND_LEFT[i], 0.0, 1.0)
+      : clamp(1.0 - d / BAND_RIGHT[i], 0.0, 1.0);
+  }
+
+  vec3 developStage(const in vec3 display, const in vec2 uv) {
+    // White balance and exposure in linear display light.
+    vec3 wb = vec3(
+      1.0 + 0.25 * uDevA.y + 0.10 * uDevA.z,
+      1.0 - 0.15 * uDevA.z,
+      1.0 - 0.25 * uDevA.y + 0.10 * uDevA.z
+    );
+    wb /= lumc(wb);
+    vec3 x = pow(pow(display, vec3(2.2)) * wb * exp2(uDevA.x), vec3(0.4545454545));
+
+    // Tone: end-weighted blacks and whites, band-limited shadows and
+    // highlights, then the contrast S about mid grey.
+    x += uDevB.x * 0.5 * (1.0 - x) * (1.0 - x);
+    x += uDevB.y * 0.75 * x * x;
+    x = clamp(x, 0.0, 1.0);
+    x += uDevB.z * 0.5 * smoothstep(0.0, 0.25, x) * (1.0 - smoothstep(0.25, 0.7, x));
+    x += uDevB.w * 0.5 * smoothstep(0.3, 0.75, x) * (1.0 - smoothstep(0.75, 1.0, x));
+    x = clamp(x, 0.0, 1.0);
+    // "flat" is a GLSL keyword, hence the name.
+    vec3 sCurve = x * x * (3.0 - 2.0 * x);
+    vec3 flattened = 0.5 + (x - 0.5) * 0.6;
+    x = uDevA.w >= 0.0 ? mix(x, sCurve, uDevA.w) : mix(x, flattened, -uDevA.w);
+
+    // Saturation and vibrance about luma.
+    vec3 hsv = rgb2hsv(x);
+    float l = lumc(x);
+    x = clamp(vec3(l) + (x - vec3(l)) * (1.0 + uDevC.x + uDevC.y * (1.0 - hsv.y)), 0.0, 1.0);
+
+    // The mixer, gated off near grey.
+    if (uDevMixerOn > 0.5) {
+      hsv = rgb2hsv(x);
+      float gate = clamp(hsv.y / 0.15, 0.0, 1.0);
+      vec3 adjust = vec3(0.0);
+      for (int i = 0; i < 8; i++) adjust += bandWeight(hsv.x, i) * uDevMixer[i];
+      adjust *= gate;
+      hsv.x += adjust.x * (60.0 / 360.0);
+      hsv.y = clamp(hsv.y * (1.0 + adjust.y * (adjust.y >= 0.0 ? 1.5 : 1.0)), 0.0, 1.0);
+      hsv.z = clamp(hsv.z * (1.0 + adjust.z * 0.5), 0.0, 1.0);
+      x = hsv2rgb(hsv);
+    }
+
+    // Post vignette, elliptical with the frame.
+    float r = length((uv - 0.5) * 2.0);
+    x *= 1.0 + uDevC.z * smoothstep(uDevC.w, 1.42, r);
+    return clamp(x, 0.0, 1.0);
+  }
+`;
+
 const GRADE_FRAGMENT = `
   uniform float uDark; // 0 light … 1 dark, damped in lockstep with the sky
   uniform float uLightCurve;
@@ -112,8 +236,10 @@ const GRADE_FRAGMENT = `
   uniform sampler2D uPhotoMask;      // PhotoMaskPass: 1 where a photograph was drawn
   uniform sampler2D uPhotoMaskDepth; // and how deep, so a prop in front still grades
   uniform sampler2D uSceneDepth;     // the composer's depth, handed over by the pass
+  uniform float uPhotoChromaProtection;
 
   float lumc(const in vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+  ${DEVELOP_GLSL}
 
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
     vec3 d = pow(max(inputColor.rgb, 0.0), vec3(0.4545454545));
@@ -141,17 +267,22 @@ const GRADE_FRAGMENT = `
     // sample. Both depths are read raw rather than through readDepth, because
     // asking for the depth attribute would re-sort this effect ahead of tone
     // mapping (see GradeEffect); the pass hands the composer's depth over.
-    float photo = texture2D(uPhotoMask, uv).r;
-    float photoDepth = texture2D(uPhotoMaskDepth, uv).r;
-    float sceneDepth = texture2D(uSceneDepth, uv).r;
-    #ifdef USE_REVERSED_DEPTH_BUFFER
-      photoDepth = 1.0 - photoDepth;
-      sceneDepth = 1.0 - sceneDepth;
-    #endif
-    photo *= step(getViewZ(sceneDepth) - 0.02, getViewZ(photoDepth));
-    photo = clamp(photo, 0.0, 1.0);
+    float photo = 0.0;
+    if (uPhotoChromaProtection > 0.5) {
+      photo = texture2D(uPhotoMask, uv).r;
+      float photoDepth = texture2D(uPhotoMaskDepth, uv).r;
+      float sceneDepth = texture2D(uSceneDepth, uv).r;
+      #ifdef USE_REVERSED_DEPTH_BUFFER
+        photoDepth = 1.0 - photoDepth;
+        sceneDepth = 1.0 - sceneDepth;
+      #endif
+      photo *= step(getViewZ(sceneDepth) - 0.02, getViewZ(photoDepth));
+      photo = clamp(photo, 0.0, 1.0);
+    }
     sat = mix(sat, 1.0, photo);
     d = max(vec3(0.0), vec3(l) + (d - vec3(l)) * sat);
+
+    if (uDevelop > 0.5) d = developStage(d, uv);
 
     outputColor = vec4(pow(d, vec3(2.2)), inputColor.a);
   }
@@ -188,19 +319,66 @@ class GradeEffect extends Effect {
         ["uPhotoMask", new Uniform(photoMask.mask)],
         ["uPhotoMaskDepth", new Uniform(photoMask.depth)],
         ["uSceneDepth", new Uniform(photoMask.sceneDepth)],
+        ["uPhotoChromaProtection", new Uniform(1)],
+        ["uDevelop", new Uniform(0)],
+        ["uDevMixerOn", new Uniform(0)],
+        ["uDevA", new Uniform(new Vector4())],
+        ["uDevB", new Uniform(new Vector4())],
+        ["uDevC", new Uniform(new Vector4(0, 0, 0, 0.5))],
+        ["uDevMixer", new Uniform(HUE_BANDS.map(() => new Vector3()))],
       ]),
     });
   }
 }
 
+/** The develop stage at one point of the theme crossfade, written straight
+ * into the uniforms (no allocation: this runs every frame). The two themes
+ * blend on the same damped `uDark` the rest of the grade uses. */
+function writeDevelopUniforms(
+  uniforms: Map<string, Uniform>,
+  light: SceneDevelopSettings,
+  dark: SceneDevelopSettings,
+  t: number,
+) {
+  const lerp = (a: number, b: number) => a + (b - a) * t;
+  (uniforms.get("uDevA")!.value as Vector4).set(
+    lerp(light.exposure, dark.exposure),
+    lerp(light.temp, dark.temp),
+    lerp(light.tint, dark.tint),
+    lerp(light.contrast, dark.contrast),
+  );
+  (uniforms.get("uDevB")!.value as Vector4).set(
+    lerp(light.blacks, dark.blacks),
+    lerp(light.whites, dark.whites),
+    lerp(light.shadows, dark.shadows),
+    lerp(light.highlights, dark.highlights),
+  );
+  (uniforms.get("uDevC")!.value as Vector4).set(
+    lerp(light.saturation, dark.saturation),
+    lerp(light.vibrance, dark.vibrance),
+    lerp(light.vignette, dark.vignette),
+    lerp(light.vignetteMidpoint, dark.vignetteMidpoint),
+  );
+  const mixer = uniforms.get("uDevMixer")!.value as Vector3[];
+  HUE_BANDS.forEach((band, i) => {
+    const a = light.mixer[band];
+    const b = dark.mixer[band];
+    mixer[i]!.set(lerp(a.hue, b.hue), lerp(a.sat, b.sat), lerp(a.lum, b.lum));
+  });
+}
+
 function Grade({
   dark,
   settings,
+  develop,
   photoMask,
+  chromaProtection,
 }: {
   dark: boolean;
   settings: SceneColorGradeSettings;
+  develop: SceneDevelopByTheme;
   photoMask: PhotoMaskPass;
+  chromaProtection: boolean;
 }) {
   // Seeded from the mounted theme so a dark first paint never ramps up from
   // the light grade; after that uDark damps at the sky dome's rate, so the
@@ -216,13 +394,37 @@ function Grade({
   effect.uniforms.get("uDarkToeTint")!.value = settings.dark.toeTint;
   effect.uniforms.get("uLightChromaBoost")!.value = settings.light.chromaBoost;
   effect.uniforms.get("uDarkChromaBoost")!.value = settings.dark.chromaBoost;
+  effect.uniforms.get("uPhotoChromaProtection")!.value = chromaProtection
+    ? 1
+    : 0;
+  effect.uniforms.get("uDevelop")!.value =
+    developIsIdentity(develop.light) && developIsIdentity(develop.dark) ? 0 : 1;
+  effect.uniforms.get("uDevMixerOn")!.value =
+    mixerIsIdentity(develop.light) && mixerIsIdentity(develop.dark) ? 0 : 1;
+  // Written at render as well as per frame, so a profile change lands on
+  // the next paint even while the frame loop is resting.
+  writeDevelopUniforms(
+    effect.uniforms,
+    develop.light,
+    develop.dark,
+    effect.uniforms.get("uDark")!.value as number,
+  );
+  const developRef = useRef(develop);
+  developRef.current = develop;
   useFrame((_, delta) => {
     const u = effect.uniforms.get("uDark")!;
     u.value = MathUtils.damp(u.value as number, dark ? 1 : 0, 3.5, delta);
     // The composer creates its depth texture when a pass first asks for it,
     // which may be after this effect was built; the pass holds the latest.
     const depth = effect.uniforms.get("uSceneDepth")!;
-    if (depth.value !== photoMask.sceneDepth) depth.value = photoMask.sceneDepth;
+    if (depth.value !== photoMask.sceneDepth)
+      depth.value = photoMask.sceneDepth;
+    writeDevelopUniforms(
+      effect.uniforms,
+      developRef.current.light,
+      developRef.current.dark,
+      u.value as number,
+    );
   });
   return <primitive object={effect} dispose={null} />;
 }
@@ -696,16 +898,27 @@ export default function Effects({
   sharpenAmount?: number;
 }) {
   const baseColorGrade = useSceneColorGradeSettings();
+  const gradeProfile = useSceneGradeProfile();
   const performanceSettings = useScenePerformanceSettings();
-  const { cinematicPlus } = useSceneQualityControls();
+  const photographTreatment = usePhotographTreatment();
+  const { cinematicPlus, depthOfFieldModel, opticalDepthOfField } =
+    useSceneQualityControls();
   const sun = useCinematicSun();
-  const colorGrade = sceneColorGradeFor(baseColorGrade, cinematicPlus);
   // The photo mask the grade reads (ADR 0023), drawn through the camera the
   // composer renders with. It mounts, and holds GPU memory, only with the
   // grade, because the grade is its only reader; the object itself is kept
   // here so the grade can bind its textures once.
   const camera = useThree((state) => state.camera);
   const photoMask = useMemo(() => new PhotoMaskPass(camera), [camera]);
+  const look = useMemo(
+    () =>
+      sceneGradeLookFor(
+        gradeProfile,
+        sceneColorGradeFor(baseColorGrade, cinematicPlus),
+      ),
+    [baseColorGrade, cinematicPlus, gradeProfile],
+  );
+  const colorGrade = look.base;
   // DoF is the expensive world-space blur and remains disabled in the
   // minimal effects tier. The
   // owner-approved side tilt shift is the cheaper compositional treatment;
@@ -717,9 +930,7 @@ export default function Effects({
   // occlusion, tilt shift and god rays through the visible half of the
   // donning flight, loses them only once the static curtain is opaque, and
   // has them back under the opaque return hold before the shelf shows.
-  const visionRideRoomHidden = useStacks(
-    (state) => state.visionRideRoomHidden,
-  );
+  const visionRideRoomHidden = useStacks((state) => state.visionRideRoomHidden);
   const visionRideRetroFxEnabled = useVisionRideRetroFxEnabled();
   const visionRidePreview = useVisionRidePreviewOverrides();
   const captureLensCenter = useMemo(
@@ -750,7 +961,9 @@ export default function Effects({
       tiltShiftEnabled(
         plan.composer === "direct" ? "off" : plan.composer,
         plan.depthOfField,
-        !performanceSettings.sideTiltShift || pixelBlurOff || visionRideRoomHidden,
+        !performanceSettings.sideTiltShift ||
+          pixelBlurOff ||
+          visionRideRoomHidden,
       ),
     [
       performanceSettings.sideTiltShift,
@@ -823,8 +1036,8 @@ export default function Effects({
                 ? 0.82
                 : 1.08
               : dark
-              ? plan.bloomLuminanceThreshold.dark
-              : plan.bloomLuminanceThreshold.light
+                ? plan.bloomLuminanceThreshold.dark
+                : plan.bloomLuminanceThreshold.light
           }
           luminanceSmoothing={
             visionRideRoomHidden
@@ -851,7 +1064,24 @@ export default function Effects({
           alternating unit depths and the About stop's lateral offset.
           Whether it mounts at all, and at what tuning, is decided in
           shelfDepthOfField.ts. */}
-      {depthOfFieldTuning && <LiveBokehDepthOfField {...depthOfFieldTuning} />}
+      {depthOfFieldTuning && depthOfFieldModel === "current" && (
+        <LiveBokehDepthOfField {...depthOfFieldTuning} />
+      )}
+      {depthOfFieldTuning && depthOfFieldModel !== "current" && (
+        <OpticalBokehPrototype
+          target={depthOfFieldTuning.target}
+          focusRange={depthOfFieldTuning.focusRange}
+          bokehScale={depthOfFieldTuning.bokehScale}
+          taps={
+            depthOfFieldModel === "optical-prototype-16"
+              ? OPTICAL_BOKEH_MATCHED_TAPS
+              : depthOfFieldModel === "optical-prototype-64"
+                ? OPTICAL_BOKEH_ULTRA_TAPS
+                : OPTICAL_BOKEH_QUALITY_TAPS
+          }
+          tuning={opticalDepthOfField}
+        />
+      )}
       {/* Vertical focus line with softness growing toward the screen edges.
           This is part of the approved look, so finish mode keeps it. */}
       {tiltShift && (
@@ -889,9 +1119,21 @@ export default function Effects({
       />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       {performanceSettings.colorGrade && (
-        <Grade dark={dark} settings={colorGrade} photoMask={photoMask} />
+        <Grade
+          dark={dark}
+          settings={colorGrade}
+          develop={look.develop}
+          photoMask={photoMask}
+          chromaProtection={photographTreatment.chromaProtection}
+        />
       )}
-      {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
+      {/* RCAS after an optical blur recreates the bright contour this
+          model is meant to remove. The previous model keeps its approved
+          finishing order; the optical comparison leaves lens-softened edges
+          alone. */}
+      {sharpenAmount > 0 && depthOfFieldModel === "current" && (
+        <AdaptiveSharpen amount={sharpenAmount} />
+      )}
       <SMAA />
       {/* Last on purpose: the art grid must be the final thing drawn. */}
       {pixelMounted && (

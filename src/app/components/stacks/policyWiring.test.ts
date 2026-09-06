@@ -59,8 +59,12 @@ describe("free-roam wiring", () => {
   it("looks only while the right button is held, and ignores its menu", () => {
     expect(cameraRig).toContain("event.button !== FREE_ROAM_LOOK_BUTTON");
     expect(cameraRig).toContain("lookPointerId = event.pointerId");
-    expect(cameraRig).toContain("if (event.pointerId !== lookPointerId) return;");
-    expect(cameraRig).toContain('addEventListener("contextmenu", onContextMenu)');
+    expect(cameraRig).toContain(
+      "if (event.pointerId !== lookPointerId) return;",
+    );
+    expect(cameraRig).toContain(
+      'addEventListener("contextmenu", onContextMenu)',
+    );
     // Releasing or losing the pointer ends the look; so does losing focus.
     expect(cameraRig).toContain('addEventListener("pointerup", onPointerUp)');
     expect(cameraRig).toContain(
@@ -81,12 +85,8 @@ describe("free-roam wiring", () => {
     expect(chromeLayer).toMatch(
       /onEnabled: \(\) => \{[\s\S]*?sceneLayoutEditorController\.setEnabled\(true\)/,
     );
-    expect(chromeLayer).toContain(
-      "freeRoamChromeVisibility.enter()",
-    );
-    expect(chromeLayer).toContain(
-      "freeRoamChromeVisibility.exit()",
-    );
+    expect(chromeLayer).toContain("freeRoamChromeVisibility.enter()");
+    expect(chromeLayer).toContain("freeRoamChromeVisibility.exit()");
     expect(chromeLayer).toContain("setPropReactionsSuppressed(true)");
     expect(chromeLayer).toContain("setPropReactionsSuppressed(false)");
     expect(chromeLayer).not.toContain("localStorage");
@@ -164,10 +164,13 @@ describe("depth-of-field wiring", () => {
     expect(wrapper).toContain("ref={effect}");
   });
 
-  it("mounts the pass from the resolved tuning, or not at all", () => {
+  it("mounts only the selected model from the resolved tuning", () => {
     expect(effects).toContain("resolveShelfDepthOfFieldTuning({");
-    expect(effects).toContain(
-      "{depthOfFieldTuning && <LiveBokehDepthOfField {...depthOfFieldTuning} />}",
+    expect(effects).toMatch(
+      /\{depthOfFieldTuning && depthOfFieldModel === "current" && \(\s*<LiveBokehDepthOfField \{\.\.\.depthOfFieldTuning\} \/>/,
+    );
+    expect(effects).toMatch(
+      /\{depthOfFieldTuning && depthOfFieldModel !== "current" && \(\s*<OpticalBokehPrototype/,
     );
   });
 });

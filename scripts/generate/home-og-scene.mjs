@@ -21,6 +21,7 @@ import {
   HOME_OG_OUTPUT,
   HOME_OG_RESOLUTION_CEILING,
   HOME_OG_SCENE_CROP,
+  HOME_OG_SCREENSHOT_PARAMS,
   HOME_OG_VIEWPORT,
 } from "./home-og-scene-config.mjs";
 
@@ -96,9 +97,12 @@ function captureUrl(rawUrl) {
     throw new Error("--url must use http or https");
   }
   url.searchParams.set("og-capture", "1");
-  // Capture with the scene's manual-only maximum-quality profile: full-resolution
-  // AO and depth of field, 10-level bloom, 8x MSAA, and maximum environment detail.
-  url.searchParams.set("quality", "cinematic");
+  // Screenshot mode's still with the portrait kept. The mode lands the render
+  // on Cinematic+ (full-resolution AO and depth of field, 10-level bloom, 8x
+  // MSAA, real shadows) by itself, and only because no `quality=` is set here.
+  for (const [key, value] of Object.entries(HOME_OG_SCREENSHOT_PARAMS)) {
+    url.searchParams.set(key, value);
+  }
   url.searchParams.set("og-resolution", HOME_OG_RESOLUTION_CEILING.toString());
   url.searchParams.set("og-head-on", "1");
   // A slightly narrower capture lens gives the shelf more of the finished
@@ -109,6 +113,11 @@ function captureUrl(rawUrl) {
   // Keep the full cinematic side lens, but center its clear band on the crop
   // instead of the hidden rail and reading dock.
   url.searchParams.set("og-lens-center", HOME_OG_LENS_CENTER.toString());
+  if (url.searchParams.has("quality")) {
+    throw new Error(
+      "The OG capture must not pin a quality: screenshot mode lands on Cinematic+ only when the URL leaves it open.",
+    );
+  }
   return url;
 }
 

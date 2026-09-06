@@ -13,7 +13,9 @@
 //    centred pointer, so the shelf sits in the middle of the viewport;
 //  - the camera can dolly back past the visitor's zoom floor, and the lens
 //    can be narrowed or widened, so the shelf can be made as small in the
-//    frame as the banner wants;
+//    frame as the banner wants; it opens at the 45 degree lens with the
+//    lawn lifted 0.06 and fully uneven, the setup the owner keeps returning
+//    to, so `?screenshot=1` alone is the header;
 //  - the render lands on Cinematic+ unless the URL asks for another
 //    quality, because a still frame has no frame budget to protect;
 //  - the About shelf is restaged (UnitAbout.tsx, Scene.tsx): the Projects
@@ -38,12 +40,14 @@ export const SCREENSHOT_DOLLY_PARAM = "screenshot-dolly";
 export const SCREENSHOT_FOV_PARAM = "screenshot-fov";
 export const SCREENSHOT_GRASS_LIFT_PARAM = "screenshot-grass-lift";
 export const SCREENSHOT_GRASS_VARIATION_PARAM = "screenshot-grass-variation";
+export const SCREENSHOT_PORTRAIT_PARAM = "screenshot-portrait";
 export const SCREENSHOT_QUERY_KEYS = [
   SCREENSHOT_PARAM,
   SCREENSHOT_DOLLY_PARAM,
   SCREENSHOT_FOV_PARAM,
   SCREENSHOT_GRASS_LIFT_PARAM,
   SCREENSHOT_GRASS_VARIATION_PARAM,
+  SCREENSHOT_PORTRAIT_PARAM,
 ] as const;
 
 /** The unit that stays on screen. Always About: the header is a portrait
@@ -54,25 +58,36 @@ export const SCREENSHOT_UNIT = 0;
  * zoom floor is 0.75; a 4:1 banner wants far more air than that. At the
  * default lens the frame is 0.59 units tall per unit of distance, so eight
  * units back puts the two-unit shelf at roughly a quarter of the frame's
- * height; smaller than that it stops reading as a shelf. */
-export const SCREENSHOT_DOLLY_MIN = 0;
-export const SCREENSHOT_DOLLY_MAX = 8;
+ * height. Negative dollies step in closer than the stop (which stands about
+ * 5.8 units off the shelf, so -3 is still outside it). Both ends were pushed
+ * out once the owner found the defaults sitting on the limits (2026-09-06):
+ * a range exists to be moved through, so every default sits inside it. */
+export const SCREENSHOT_DOLLY_MIN = -3;
+export const SCREENSHOT_DOLLY_MAX = 12;
 export const SCREENSHOT_DOLLY_STEP = 0.25;
 export const SCREENSHOT_DOLLY_DEFAULT = 0;
 
 /** Vertical field of view in degrees, or null for the composition's own lens
- * (33 on desktop). The same window the OG capture allows itself. */
+ * (33 on desktop). The same window the OG capture allows itself. The mode
+ * opens at the wide end: the owner settled on 45 for the headers
+ * (2026-09-06), and `?screenshot-fov=composition` asks for the room's lens. */
 export const SCREENSHOT_FOV_MIN = 24;
-export const SCREENSHOT_FOV_MAX = 45;
+export const SCREENSHOT_FOV_MAX = 65;
+export const SCREENSHOT_FOV_DEFAULT = 45;
+export const SCREENSHOT_FOV_COMPOSITION = "composition";
 
 /** The still's lawn: how much taller the grass stands away from the About
  * shelf's footprint, and how much more uneven it is everywhere, both as
- * fractions of the authored height. "Slightly" and "a little", so the
- * defaults are small; the sliders go to a coarse 0.6 for looking. */
-export const SCREENSHOT_GRASS_MAX = 0.6;
+ * fractions of the authored height. The defaults are the owner's header
+ * setup (2026-09-06). Variation stops at 1: the blade height is scaled by
+ * `1 + variation * (rand in -1..1)` in meadowField.ts, and past 1 the
+ * shortest blades would turn inside out. Lift has no such ceiling; 2 is
+ * three times the authored height at the edges of the frame. */
+export const SCREENSHOT_GRASS_MAX = 1;
+export const SCREENSHOT_GRASS_LIFT_MAX = 2;
 export const SCREENSHOT_GRASS_STEP = 0.02;
-export const SCREENSHOT_GRASS_LIFT_DEFAULT = 0.15;
-export const SCREENSHOT_GRASS_VARIATION_DEFAULT = 0.12;
+export const SCREENSHOT_GRASS_LIFT_DEFAULT = 0.06;
+export const SCREENSHOT_GRASS_VARIATION_DEFAULT = 0.6;
 
 export type ScreenshotModeSnapshot = Readonly<{
   enabled: boolean;
@@ -80,24 +95,38 @@ export type ScreenshotModeSnapshot = Readonly<{
   fov: number | null;
   grassLift: number;
   grassVariation: number;
+  /** Keep the large portrait on the top shelf instead of the header's
+   * Macintosh. Off for the social headers, where the profile picture already
+   * sits beside the image; on for a card that stands alone, like the OG
+   * image, where the portrait is the only face in the frame. */
+  portrait: boolean;
 }>;
 
 export const SCREENSHOT_MODE_DEFAULT: ScreenshotModeSnapshot = Object.freeze({
   enabled: false,
   dolly: SCREENSHOT_DOLLY_DEFAULT,
-  fov: null,
+  fov: SCREENSHOT_FOV_DEFAULT,
   grassLift: SCREENSHOT_GRASS_LIFT_DEFAULT,
   grassVariation: SCREENSHOT_GRASS_VARIATION_DEFAULT,
+  portrait: false,
 });
+
+function screenshotFlagFromValue(raw: string | null) {
+  return raw !== null && raw !== "0" && raw !== "false";
+}
 
 export function clampScreenshotDolly(dolly: number) {
   if (!Number.isFinite(dolly)) return SCREENSHOT_DOLLY_DEFAULT;
   return Math.min(SCREENSHOT_DOLLY_MAX, Math.max(SCREENSHOT_DOLLY_MIN, dolly));
 }
 
-export function clampScreenshotGrass(value: number, fallback: number) {
+export function clampScreenshotGrass(
+  value: number,
+  fallback: number,
+  max = SCREENSHOT_GRASS_MAX,
+) {
   if (!Number.isFinite(value)) return fallback;
-  return Math.min(SCREENSHOT_GRASS_MAX, Math.max(0, value));
+  return Math.min(max, Math.max(0, value));
 }
 
 /** Out-of-range and unreadable values mean "no override", never a clamp: a
@@ -118,31 +147,42 @@ export function screenshotModeFromSearch(
 ): ScreenshotModeSnapshot {
   const params =
     typeof search === "string" ? new URLSearchParams(search) : search;
-  const raw = params.get(SCREENSHOT_PARAM);
-  const enabled = raw !== null && raw !== "0" && raw !== "false";
+  const enabled = screenshotFlagFromValue(params.get(SCREENSHOT_PARAM));
   if (!enabled) return SCREENSHOT_MODE_DEFAULT;
   const dollyRaw = params.get(SCREENSHOT_DOLLY_PARAM);
-  const grass = (key: string, fallback: number) => {
+  const grass = (key: string, fallback: number, max: number) => {
     const raw = params.get(key);
     return raw === null
       ? fallback
-      : clampScreenshotGrass(Number(raw), fallback);
+      : clampScreenshotGrass(Number(raw), fallback, max);
   };
+  // A lens the URL leaves out, or mistypes, is the default one; only the
+  // word "composition" asks for the room's own lens.
+  const fovRaw = params.get(SCREENSHOT_FOV_PARAM);
+  const fov =
+    fovRaw === SCREENSHOT_FOV_COMPOSITION
+      ? null
+      : (screenshotFovFromValue(fovRaw) ?? SCREENSHOT_FOV_DEFAULT);
   return {
     enabled,
     dolly:
       dollyRaw === null
         ? SCREENSHOT_DOLLY_DEFAULT
         : clampScreenshotDolly(Number(dollyRaw)),
-    fov: screenshotFovFromValue(params.get(SCREENSHOT_FOV_PARAM)),
+    fov,
     grassLift: grass(
       SCREENSHOT_GRASS_LIFT_PARAM,
       SCREENSHOT_GRASS_LIFT_DEFAULT,
+      SCREENSHOT_GRASS_LIFT_MAX,
     ),
     grassVariation: grass(
       SCREENSHOT_GRASS_VARIATION_PARAM,
       SCREENSHOT_GRASS_VARIATION_DEFAULT,
+      SCREENSHOT_GRASS_MAX,
     ),
+    portrait:
+      params.has(SCREENSHOT_PORTRAIT_PARAM) &&
+      screenshotFlagFromValue(params.get(SCREENSHOT_PORTRAIT_PARAM)),
   };
 }
 
@@ -167,8 +207,13 @@ export function screenshotModeUrl(
     url.searchParams.set(SCREENSHOT_PARAM, "1");
     if (snapshot.dolly !== SCREENSHOT_DOLLY_DEFAULT)
       url.searchParams.set(SCREENSHOT_DOLLY_PARAM, String(snapshot.dolly));
-    if (snapshot.fov !== null)
-      url.searchParams.set(SCREENSHOT_FOV_PARAM, String(snapshot.fov));
+    if (snapshot.fov !== SCREENSHOT_FOV_DEFAULT)
+      url.searchParams.set(
+        SCREENSHOT_FOV_PARAM,
+        snapshot.fov === null
+          ? SCREENSHOT_FOV_COMPOSITION
+          : String(snapshot.fov),
+      );
     if (snapshot.grassLift !== SCREENSHOT_GRASS_LIFT_DEFAULT)
       url.searchParams.set(
         SCREENSHOT_GRASS_LIFT_PARAM,
@@ -179,6 +224,7 @@ export function screenshotModeUrl(
         SCREENSHOT_GRASS_VARIATION_PARAM,
         String(snapshot.grassVariation),
       );
+    if (snapshot.portrait) url.searchParams.set(SCREENSHOT_PORTRAIT_PARAM, "1");
   }
   return url.toString();
 }
@@ -238,7 +284,11 @@ class ScreenshotModeController {
   }
 
   setGrassLift(lift: number) {
-    const next = clampScreenshotGrass(lift, SCREENSHOT_GRASS_LIFT_DEFAULT);
+    const next = clampScreenshotGrass(
+      lift,
+      SCREENSHOT_GRASS_LIFT_DEFAULT,
+      SCREENSHOT_GRASS_LIFT_MAX,
+    );
     if (this.snapshot.grassLift === next) return;
     this.publish({ ...this.snapshot, grassLift: next });
   }
@@ -256,6 +306,11 @@ class ScreenshotModeController {
     const next = screenshotFovFromValue(fov);
     if (this.snapshot.fov === next) return;
     this.publish({ ...this.snapshot, fov: next });
+  }
+
+  setPortrait(portrait: boolean) {
+    if (this.snapshot.portrait === portrait) return;
+    this.publish({ ...this.snapshot, portrait });
   }
 
   /** Seed from the URL once, at canvas mount. Later reads come from the

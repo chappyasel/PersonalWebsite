@@ -8,6 +8,7 @@ import {
   ABOUT_AIC_SCALE,
   ABOUT_LAMP_SHADE_PERCH,
 } from "./aboutCoordinationLayout";
+import { ABOUT_LOWER_LANDMARK_Z } from "./aboutScenePose";
 import { createInsectLampCone, lampConeContainsPoint } from "./insectLampCone";
 import type { InsectPerchRejectionCode } from "./insectPerchDiagnostic";
 import {
@@ -631,7 +632,7 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       position: [
         ABOUT_BOOT_LANDMARKS["ai-collective"].x + 0.0053 * ABOUT_AIC_SCALE,
         SHELF_SURFACE.lower + 0.208 * ABOUT_AIC_SCALE,
-        SHELF_GEOMETRY.lower.centerZ + 0.0047 * ABOUT_AIC_SCALE,
+        ABOUT_LOWER_LANDMARK_Z["ai-collective"] + 0.0047 * ABOUT_AIC_SCALE,
       ],
       normal: [0, 1, 0],
       tangent: [0.9928, 0, 0.1197],

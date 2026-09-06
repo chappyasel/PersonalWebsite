@@ -64,6 +64,7 @@ import { useUnitLod } from "../useUnitLod";
 import { useLoader } from "@react-three/fiber";
 import React from "react";
 import * as THREE from "three";
+import { toCreasedNormals } from "three-stdlib";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 
 import {
@@ -105,13 +106,14 @@ function CollectiveLogo({
   const svg = useLoader(SVGLoader, "/images/stacks/v8/ai-collective-mark.svg");
   const mark = React.useMemo(() => {
     const shapes = svg.paths.flatMap((path) => SVGLoader.createShapes(path));
+    // Sixteen segments per curve: at four the open C's arcs read as a
+    // polygon, with a visible facet every few degrees along the rim. No
+    // bevel: the front and back are flat plates with a hard edge, which a
+    // bevel rounded into a pillow once the rim was smoothed (2026-09-06).
     const geometry = new THREE.ExtrudeGeometry(shapes, {
       depth: ABOUT_AIC_MARK_SOURCE_DEPTH,
-      bevelEnabled: true,
-      bevelSegments: 3,
-      bevelSize: 9,
-      bevelThickness: 9,
-      curveSegments: 4,
+      bevelEnabled: false,
+      curveSegments: 16,
     });
     // SVG coordinates are y-down. Normalize the original 844.38-high mark to
     // an 18 cm desk object and centre it without approximating its silhouette.
@@ -129,8 +131,17 @@ function CollectiveLogo({
       -(box.min.y + box.max.y) / 2,
       -(box.min.z + box.max.z) / 2,
     );
-    geometry.computeVertexNormals();
-    return geometry;
+    // ExtrudeGeometry is unindexed, so plain vertex normals are flat per
+    // triangle and every segment along the curved rim shades as its own
+    // facet. Creased normals smooth only across rim walls that meet under 30
+    // degrees, which is every step of an arc and none of the arrow tips, and
+    // the 90 degree edge between a face and the rim stays hard.
+    const creased = toCreasedNormals(
+      geometry,
+      THREE.MathUtils.degToRad(30),
+    );
+    geometry.dispose();
+    return creased;
   }, [svg]);
   React.useEffect(() => () => mark.dispose(), [mark]);
   const shimmerMark = React.useMemo(() => {
@@ -201,14 +212,17 @@ function CollectiveLogo({
           clearcoatRoughness={0.12}
           reflectivity={1}
         />
+        {/* The rim and the inner faces. Less metal than the front and a
+            stronger self-glow: as a mirror-metal these faces reflected the
+            dark side of the room and the inside of the C went near black. */}
         <meshPhysicalMaterial
           attach="material-1"
-          color="#c85b1c"
-          emissive="#351004"
-          emissiveIntensity={0.1}
-          metalness={0.78}
-          roughness={0.28}
-          envMapIntensity={3}
+          color="#d4652a"
+          emissive="#5a1c06"
+          emissiveIntensity={0.3}
+          metalness={0.5}
+          roughness={0.42}
+          envMapIntensity={2.2}
           clearcoat={0.35}
           clearcoatRoughness={0.18}
           reflectivity={1}
@@ -605,7 +619,8 @@ export default function UnitAbout({
   // running Life takes the large portrait's place (the profile picture
   // already sits beside a header on both networks), the reading stack shows
   // the first three featured books instead of the current reads, and the
-  // couch goes. See screenshotMode.ts.
+  // couch goes. See screenshotMode.ts. A card that stands alone, like the OG
+  // image, asks to keep the portrait (`screenshot-portrait=1`).
   const screenshot = useScreenshotMode();
   return (
     <group>
@@ -887,7 +902,7 @@ export default function UnitAbout({
           </group>
         </LoosePhoto>
 
-        {screenshot.enabled ? (
+        {screenshot.enabled && !screenshot.portrait ? (
           <StillMac
             unitIndex={index}
             palette={palette}

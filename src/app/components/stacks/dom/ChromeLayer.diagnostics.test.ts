@@ -54,7 +54,10 @@ describe("development diagnostics chrome", () => {
     expect(registrySource).toContain("Insect behavior");
     expect(registrySource).toContain("Physics runtime");
     expect(diagnosticsSource).toContain("Scene quality");
-    expect(diagnosticsSource).toContain("Rendering experiments");
+    expect(registrySource).toContain("Lens and depth of field");
+    expect(registrySource).toContain("Photograph treatment");
+    expect(registrySource).toContain("Post-processing passes");
+    expect(registrySource).toContain("Scene effects and materials");
     expect(registrySource).toContain("Lighthouse beacon");
     expect(diagnosticsSource).toContain("Policy internals");
     expect(diagnosticsSource).toContain('role="tabpanel"');
@@ -244,13 +247,13 @@ describe("development diagnostics chrome", () => {
       'value: "cinematic+", label: "Cinematic+"',
     );
     expect(registrySource).toContain('value: "cinematic", label: "Cinematic"');
-    expect(registrySource).toContain("Freeze Auto adaptation");
+    expect(registrySource).toContain("Adapt Auto quality");
     expect(diagnosticsSource).toContain("Reset learned profile");
     expect(diagnosticsSource).toContain("Effective");
     expect(diagnosticsSource).toContain("cooldownRemainingMs");
     expect(diagnosticsSource).toContain("storageBucket");
     expect(diagnosticsSource).toContain("fallbackStatus");
-    expect(diagnosticsSource).toContain("custom overrides");
+    expect(diagnosticsSource).toContain("depthOfFieldTuningChanged");
     // What the Rendering card says — who is driving, the step the frame was
     // rendered at, and whether it is pinned — is asserted against the module
     // that formats it in qualityReadout.test.ts.
@@ -358,9 +361,9 @@ describe("development diagnostics chrome", () => {
     expect(controlSources).toContain("Analytic halo");
     expect(controlSources).toContain("Legacy sprites");
     expect(controlSources).toContain("Use effective DPR rungs");
-    expect(controlSources).toContain("Skip ambient occlusion");
-    expect(controlSources).toContain("Skip bloom");
-    expect(controlSources).toContain("Skip depth of field");
+    expect(controlSources).toContain("Ambient occlusion");
+    expect(controlSources).toContain("Bloom");
+    expect(controlSources).toContain("Depth of field");
     expect(registrySource).toContain('inputId: "stacks-dof-strength"');
     expect(registrySource).toContain('inputId: "stacks-dof-quality"');
     expect(registrySource).toContain(
