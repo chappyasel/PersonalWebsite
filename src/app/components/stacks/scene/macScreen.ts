@@ -5,8 +5,9 @@
 // background of the previous version of this site (GameOfLife.tsx on the flat
 // homepage until January 2026): a one-dimensional elementary rule scrolls up
 // from the bottom row, and a band of Conway's Life along the top eats whatever
-// arrives. The rule is one of Wolfram's interesting seven, picked per load,
-// and the colours are the Cofactory landing page's, not the boot face's blue.
+// arrives. The rule is one of five of Wolfram's interesting rules, picked per
+// load, and the colours are the Cofactory landing page's, not the boot face's
+// blue.
 //
 // Everything here is pure so the simulation can be tested without a canvas.
 // The React side (MacScreen in units/UnitProjects.tsx) owns the texture, the
@@ -47,8 +48,20 @@ export const MAC_BOOT_COLLAPSE_END = 0.22;
 export const MAC_BOOT_DARK_END = 0.5;
 /** Under reduced motion the automaton is painted once, this far in. */
 export const MAC_STILL_GENERATIONS = 48;
-/** https://plato.stanford.edu/entries/cellular-automata/supplement.html */
-export const MAC_AUTOMATON_RULES = [22, 30, 45, 73, 86, 105, 150] as const;
+/** https://plato.stanford.edu/entries/cellular-automata/supplement.html
+ *
+ * The old page drew from seven: these five plus 22 and 150. Those two are
+ * out because they starve the Life band. From a single seed each builds a
+ * nested Sierpinski figure whose rows carry a three-cell run only at a
+ * triangle's tip, with an empty row behind it, so Life births a cell and
+ * loses it the next generation. Averaged over generations 100 to 600, rule
+ * 22 keeps 4 cells alive in the band's 2016 and rule 150 keeps 61; the five
+ * here keep 150 to 200. The old page hid this: its grid was bottom-anchored
+ * under cover-fit scaling, so on any landscape window the band sat above the
+ * top edge, and rule 22 there read as a triangle scrolling off the screen.
+ * Here the band is always on screen, and an empty one reads as a dead tube.
+ * 30 and 86 are mirror images, so this is four looks. */
+export const MAC_AUTOMATON_RULES = [30, 45, 73, 86, 105] as const;
 
 /** The Happy Mac's own two tones, for the boot face. */
 export const MAC_SCREEN_INK = {

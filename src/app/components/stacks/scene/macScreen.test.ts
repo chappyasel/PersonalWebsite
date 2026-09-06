@@ -107,6 +107,31 @@ describe("the Mac screen automaton", () => {
     expect(row(a, 4)).toEqual([0, 0, 1, 1, 0, 0, 1, 0, 0]);
   });
 
+  it("only lists rules that keep the Life band alive", () => {
+    // Mean live cells in the band, seam excluded, over generations 100..600
+    // from the single seed. The nested rules the old page also drew from,
+    // 22 and 150, starve Life: their rows never hand it enough to build on.
+    function bandOccupancy(rule: number): number {
+      const a = createMacAutomaton(rule);
+      const band = a.lifeRows * a.cols;
+      let sum = 0;
+      let samples = 0;
+      for (let g = 1; g <= 600; g++) {
+        stepMacAutomaton(a);
+        if (g < 100) continue;
+        let live = 0;
+        for (let i = 0; i < band; i++) live += a.cells[i]!;
+        sum += live;
+        samples++;
+      }
+      return sum / samples / band;
+    }
+    for (const rule of MAC_AUTOMATON_RULES)
+      expect(bandOccupancy(rule), `rule ${rule}`).toBeGreaterThan(0.05);
+    for (const rule of [22, 150])
+      expect(bandOccupancy(rule), `rule ${rule}`).toBeLessThan(0.05);
+  });
+
   it("picks one of Wolfram's interesting rules for any random draw", () => {
     expect(macAutomatonRule(0)).toBe(MAC_AUTOMATON_RULES[0]);
     expect(macAutomatonRule(0.999)).toBe(MAC_AUTOMATON_RULES.at(-1));
