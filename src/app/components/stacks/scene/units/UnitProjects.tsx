@@ -27,6 +27,7 @@ import {
   MAC_SCREEN_WIDTH,
   MAC_STILL_GENERATIONS,
   type MacScreenPhase,
+  createIconicRuleStill,
   createMacAutomaton,
   macAutomatonRule,
   macBootHoldSeconds,
@@ -181,23 +182,30 @@ const MAC_RASTER_CENTRE_Z = 0.0227;
 function MacScreen({
   unitIndex,
   hoverKey,
+  frozen = false,
 }: {
   unitIndex: number;
   hoverKey: string;
+  /** No face, no boot, no clock: the screen shows the iconic still (rule
+   * 22 from one seed, tip at the top, macScreen.ts) from its first frame and
+   * never repaints. For screenshot mode, where one recognisable picture
+   * beats a texture that happens to be the automaton. */
+  frozen?: boolean;
 }) {
   const screen = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = MAC_SCREEN_WIDTH;
     canvas.height = MAC_SCREEN_HEIGHT;
     const ctx = canvas.getContext("2d")!;
-    paintHappyMac(ctx, 0, 0, false);
+    if (frozen) paintMacAutomaton(ctx, createIconicRuleStill());
+    else paintHappyMac(ctx, 0, 0, false);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.generateMipmaps = true;
     return { ctx, texture };
-  }, []);
+  }, [frozen]);
   const automaton = useMemo(
     () => createMacAutomaton(macAutomatonRule(Math.random())),
     [],
@@ -215,6 +223,8 @@ function MacScreen({
   const blinkUntil = useRef(-1);
   const last = useRef({ x: 0, y: 0, blink: false });
   useUnitFrame((state, delta) => {
+    // The still was painted with the texture; nothing here may touch it.
+    if (frozen) return;
     const stacks = useStacks.getState();
     if (stacks.activeUnit !== unitIndex) {
       arrived.current = false;
@@ -890,32 +900,7 @@ function CompactMac({
         restRotation={[0, MAC_YAW, 0]}
         facePitch={MAC_SCREEN_TILT}
       >
-        <React.Suspense fallback={null}>
-          <ModelProp
-            url="/models/mac.glb"
-            dark={dark}
-            variant="tinted"
-            tints={{
-              M_plastic_bone: palette.paper,
-              // The same platinum, a step darker where the casing steps
-              // back (the base and the recessed band beside the drive). It
-              // used to take the palette's metal, which is a brown, and a
-              // Classic was never two colours.
-              M_plastic_bone_shad: macCaseShade(palette.paper),
-              // The GLB's screen is a six-vertex hexagon (a low-poly stand-in
-              // for the curved tube) and its own Happy Mac face is geometry
-              // standing half a millimetre in front of it. All three go to
-              // the bezel recess's own dark (M_lam_darkgrey, linear 0.046),
-              // so the glass disappears into the recess and MacScreen's
-              // rectangular raster is the only lit thing. Left blue, the
-              // hexagon read as a diamond behind the raster.
-              M_screen_blue: MAC_GLASS_TINT,
-              M_screen_whitetext: MAC_GLASS_TINT,
-              M_lam_black: MAC_GLASS_TINT,
-            }}
-            scale={MAC_SCALE}
-          />
-        </React.Suspense>
+        <MacBody palette={palette} dark={dark} />
         {/* The redrawn screen, in the model's own frame: same scale as the
             ModelProp beside it, so the quad sits on the screen at every size
             the machine is ever drawn at. Inside the approach group, so it
@@ -925,6 +910,92 @@ function CompactMac({
           <MacAppleMark />
         </group>
       </MacApproach>
+    </Grabbable>
+  );
+}
+
+/** The casing alone, tinted for the palette. Shared by the Projects machine
+ * and its screenshot-mode stand-in on the About shelf. */
+function MacBody({
+  palette,
+  dark,
+}: {
+  palette: UnitProps["palette"];
+  dark: UnitProps["dark"];
+}) {
+  return (
+    <React.Suspense fallback={null}>
+      <ModelProp
+        url="/models/mac.glb"
+        dark={dark}
+        variant="tinted"
+        tints={{
+          M_plastic_bone: palette.paper,
+          // The same platinum, a step darker where the casing steps
+          // back (the base and the recessed band beside the drive). It
+          // used to take the palette's metal, which is a brown, and a
+          // Classic was never two colours.
+          M_plastic_bone_shad: macCaseShade(palette.paper),
+          // The GLB's screen is a six-vertex hexagon (a low-poly stand-in
+          // for the curved tube) and its own Happy Mac face is geometry
+          // standing half a millimetre in front of it. All three go to
+          // the bezel recess's own dark (M_lam_darkgrey, linear 0.046),
+          // so the glass disappears into the recess and MacScreen's
+          // rectangular raster is the only lit thing. Left blue, the
+          // hexagon read as a diamond behind the raster.
+          M_screen_blue: MAC_GLASS_TINT,
+          M_screen_whitetext: MAC_GLASS_TINT,
+          M_lam_black: MAC_GLASS_TINT,
+        }}
+        scale={MAC_SCALE}
+      />
+    </React.Suspense>
+  );
+}
+
+/** The same machine for screenshot mode's About shelf, where it stands in
+ * for the large portrait. No approach: the flight to the camera is one
+ * singleton for the whole room, and a second flyer would lift the hidden
+ * Projects machine with it. So it is a plain weighted prop, and its screen
+ * holds the iconic still (rule 22, tip at the top) rather than running the
+ * live rule-and-band, because a header is one picture. */
+export function StillMac({
+  unitIndex,
+  palette,
+  dark,
+  hoverKey,
+  layoutLabel,
+  base,
+  rotation = [0, MAC_YAW, 0],
+}: {
+  unitIndex: number;
+  palette: UnitProps["palette"];
+  dark: UnitProps["dark"];
+  hoverKey: string;
+  layoutLabel?: string;
+  base: [number, number, number];
+  rotation?: [number, number, number];
+}) {
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={hoverKey}
+      layoutLabel={layoutLabel}
+      base={base}
+      shadeColor={palette.shadow}
+      shadeWidth={0.55}
+      shape="box"
+      massKg={7.5}
+      tiltWhileHeld={false}
+      tiltOnHover={false}
+    >
+      <group rotation={rotation}>
+        <MacBody palette={palette} dark={dark} />
+        <group scale={MAC_SCALE}>
+          <MacScreen unitIndex={unitIndex} hoverKey={hoverKey} frozen />
+          <MacAppleMark />
+        </group>
+      </group>
     </Grabbable>
   );
 }

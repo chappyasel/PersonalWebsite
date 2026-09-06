@@ -545,3 +545,48 @@ layout; "Reset all" in the diagnostics panel does the same without a reload,
 and works whether or not the editor is enabled. The undo stack survives the
 toggle along with the poses. The autosaved draft is still the only thing that
 outlives a reload, and still the handoff for later source edits.
+
+## Screenshot mode
+
+The owner's still-frame setup for social headers (LinkedIn 1584×396, X
+1500×500). `?screenshot=1` seeds it at load; the Scene console's Render tab
+has the live switch, a dolly slider, a lens slider, and a "Copy setup URL"
+button. `?screenshot-dolly=` and `?screenshot-fov=` carry the two values in
+the URL. Everything it does is session-only and gone on a reload without the
+parameter; it changes no production quality policy and awards no Field Note.
+
+On, it makes every unit except About cold through the residency controller
+(`sceneUnitActivityController.setSoloUnit`), so the shelf stands alone; the
+per-unit ground pools follow the same answer. It hides the interface with the
+H key's attribute, but silently, and owns only the hide it introduced, the
+same contract free roam uses. The About stop drops its rail shift and the
+pointer parallax reads a centred pointer, so the shelf rests on the middle of
+the viewport whatever the window's aspect. The dolly is added AFTER the
+visitor zoom clamp, because that clamp is a floor of 0.75 and a 4:1 banner
+needs several units of air. The render lands on Cinematic+ unless the URL
+pins a `?quality=`; leaving the mode hands the quality back only if it is
+still the one the mode set. `[` and `]` dolly out and in (Shift for four
+steps), handled in ChromeKeyboard so they work in production.
+
+The About shelf is restaged for the header. The Projects Macintosh stands where the large portrait does (`StillMac` in
+UnitProjects.tsx: the same casing and screen, no approach, because the flight
+to the camera is one singleton for the room and would lift the hidden
+Projects machine too). Its screen holds the iconic still: rule 22 from a
+single seed, the seed at the top row and every generation below it, the true
+infinite-line picture clipped by the bezel, never stepped
+(`createIconicRuleStill` in macScreen.ts). The reading stack shows the first three "Featured?" books
+instead of the current reads. The couch and its shadow, and the seam monstera
+behind the shelf's right end, are not rendered. The coordination globe keeps
+its fine neighbourhood mesh and draws no thick reveal arcs.
+
+The side tilt-shift takes the OG capture's path while the mode is on: its
+clear line sits at the viewport's middle with the capture's widened band
+(`effectiveCaptureLensCenter`), because the rail and dock it would otherwise
+centre between are hidden with `visibility` and still measure. An explicit
+`og-lens-center` still wins.
+
+The window itself is sized by hand or through the browser's device toolbar;
+the console shows the live ratio next to the two targets. The boot vignette
+still opens with the portrait silhouette, and the rail-shifted About glide
+lands a shelf-width left of the centred stop before the camera settles: both
+are over before a still is worth taking.

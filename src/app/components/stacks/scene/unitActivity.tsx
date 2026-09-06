@@ -3,7 +3,13 @@
 import { UNIT_COUNT } from "../data";
 import { progressRef, useStacks } from "../store";
 import { type RenderCallback, useFrame } from "@react-three/fiber";
-import { type ReactNode, createContext, useContext, useEffect } from "react";
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+} from "react";
 import * as THREE from "three";
 
 import { scenePerformanceController } from "./scenePerformance";
@@ -157,6 +163,28 @@ class SceneUnitActivityController {
   private direction: -1 | 0 | 1 = 0;
   private executed = 0;
   private skipped = 0;
+  /** Screenshot mode's "only this unit". Every other unit resolves cold no
+   * matter where the camera stands, which hides its root and parks its work
+   * lanes through the same path the camera-derived state uses. Null is the
+   * ordinary room. */
+  private soloUnit: number | null = null;
+  private soloListeners = new Set<() => void>();
+
+  setSoloUnit(index: number | null) {
+    const next =
+      index === null
+        ? null
+        : Math.min(UNIT_COUNT - 1, Math.max(0, Math.round(index)));
+    if (this.soloUnit === next) return;
+    this.soloUnit = next;
+    for (const listener of this.soloListeners) listener();
+  }
+
+  readonly getSoloUnit = () => this.soloUnit;
+  readonly subscribeSolo = (listener: () => void) => {
+    this.soloListeners.add(listener);
+    return () => this.soloListeners.delete(listener);
+  };
 
   registerRoot(index: number, root: THREE.Group) {
     this.roots.set(index, root);
@@ -260,7 +288,10 @@ class SceneUnitActivityController {
         outsideSince: this.outsideSince[index] ?? -1,
         now,
       });
-      const next = resolution.state;
+      const next: UnitActivityState =
+        this.soloUnit !== null && index !== this.soloUnit
+          ? "cold"
+          : resolution.state;
       this.outsideSince[index] = resolution.outsideSince;
       this.states[index] = next;
       const root = this.roots.get(index);
@@ -284,6 +315,17 @@ class SceneUnitActivityController {
 }
 
 export const sceneUnitActivityController = new SceneUnitActivityController();
+
+/** The unit screenshot mode has singled out, or null. Scene-level objects
+ * that are drawn per unit but live outside the unit roots (the ground pools)
+ * read this so they disappear with the shelf they belong to. */
+export function useSoloUnit() {
+  return useSyncExternalStore(
+    sceneUnitActivityController.subscribeSolo,
+    sceneUnitActivityController.getSoloUnit,
+    () => null,
+  );
+}
 
 const UnitActivityContext = createContext<number | null>(null);
 

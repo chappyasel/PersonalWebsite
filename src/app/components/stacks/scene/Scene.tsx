@@ -49,10 +49,12 @@ import {
   scenePrewarmDeferred,
   useScenePerformanceSettings,
 } from "./scenePerformance";
+import { useScreenshotMode } from "./screenshotMode";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   SceneUnitActivityDriver,
   UnitActivityProvider,
+  useSoloUnit,
   useUnitActivityRoot,
 } from "./unitActivity";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
@@ -185,6 +187,9 @@ const SceneContent = memo(function SceneContent({
     () => featuredBookPerchDefinitions(data.featuredBooks),
     [data.featuredBooks],
   );
+  // Screenshot mode drops the seam monstera behind About's right end: it is
+  // the tallest thing in the room and the header wants the shelf alone.
+  const screenshot = useScreenshotMode();
   // Prefetch the compact GLB set only when it cannot compete with travel. The
   // callback checks again when it fires because it may have been queued while
   // still and become eligible only after a traverse began.
@@ -323,54 +328,58 @@ const SceneContent = memo(function SceneContent({
       })}
       {/* A shared-room object rather than About furniture: the large plant
           marks the transition between the portrait desk and the library. */}
-      <SharedPhysicsRoot>
-        <group
-          name="stacks-monstera-anchor"
-          position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
-          rotation={[0, -0.25, 0]}
-        >
-          {/* Position outside Sway: its rotation now happens at the pot's local
+      {!screenshot.enabled && (
+        <>
+          <SharedPhysicsRoot>
+            <group
+              name="stacks-monstera-anchor"
+              position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
+              rotation={[0, -0.25, 0]}
+            >
+              {/* Position outside Sway: its rotation now happens at the pot's local
               floor contact instead of orbiting the whole plant around world 0.
               FootPool stays fixed under that same contact point. */}
-          <TouchFocusTarget
-            id="focus:monstera:about-books"
-            unitIndex={0}
-            activeUnitIndexes={MONSTERA_ACTIVE_UNITS}
-          >
-            <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
-              <group name="stacks-monstera-sway-body">
-                <Suspense fallback={null}>
-                  <ModelProp
-                    url="/models/monstera.glb"
-                    dark={dark}
-                    variant="recolor"
-                    atlasOverride={
-                      dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
-                    }
-                    scale={0.92}
-                    // Opted out of ADR 0020 entirely. This is the seam plant
-                    // between About and Books: it is scenery holding a corner
-                    // of the world together, it is the largest thing on screen
-                    // at 2.71 units, and it is the one prop whose atlasOverride
-                    // gives it a PRIVATE material — so it was the only piece of
-                    // furniture actually receiving the emissive half of glow
-                    // while the shared-atlas ones got only the swell. A tree
-                    // brightening because a pointer crossed it reads as a bug
-                    // rather than as an answer. Owner call, 2026-08-20.
-                    hover={false}
-                  />
-                </Suspense>
-              </group>
-            </Sway>
-          </TouchFocusTarget>
-        </group>
-      </SharedPhysicsRoot>
-      <FootPool
-        color={palette.shadow}
-        opacity={dark ? 0.45 : 0.28}
-        size={[1.25, 0.8]}
-        position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
-      />
+              <TouchFocusTarget
+                id="focus:monstera:about-books"
+                unitIndex={0}
+                activeUnitIndexes={MONSTERA_ACTIVE_UNITS}
+              >
+                <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
+                  <group name="stacks-monstera-sway-body">
+                    <Suspense fallback={null}>
+                      <ModelProp
+                        url="/models/monstera.glb"
+                        dark={dark}
+                        variant="recolor"
+                        atlasOverride={
+                          dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
+                        }
+                        scale={0.92}
+                        // Opted out of ADR 0020 entirely. This is the seam plant
+                        // between About and Books: it is scenery holding a corner
+                        // of the world together, it is the largest thing on screen
+                        // at 2.71 units, and it is the one prop whose atlasOverride
+                        // gives it a PRIVATE material — so it was the only piece of
+                        // furniture actually receiving the emissive half of glow
+                        // while the shared-atlas ones got only the swell. A tree
+                        // brightening because a pointer crossed it reads as a bug
+                        // rather than as an answer. Owner call, 2026-08-20.
+                        hover={false}
+                      />
+                    </Suspense>
+                  </group>
+                </Sway>
+              </TouchFocusTarget>
+            </group>
+          </SharedPhysicsRoot>
+          <FootPool
+            color={palette.shadow}
+            opacity={dark ? 0.45 : 0.28}
+            size={[1.25, 0.8]}
+            position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
+          />
+        </>
+      )}
     </>
   );
 });
@@ -386,20 +395,27 @@ function QualityLayer({
   quality: SceneQualityPlan;
   headOnCapture: boolean;
 }) {
+  // Screenshot mode's solo unit. The pools live outside the unit roots the
+  // residency controller hides, so a hidden shelf would otherwise leave its
+  // shadow on the lawn.
+  const soloUnit = useSoloUnit();
   return (
     <>
       <SceneEnvironment palette={palette} dark={dark} quality={quality} />
       {quality.environment.grounding &&
-        UNITS.map((unit, i) => (
-          <group
-            key={`pool-${unit.slug}`}
-            {...unitPoseForCapture(i, headOnCapture)}
-          >
-            {/* Soft analytic grounding, isolated from the content units so a
-                quality transition cannot rebuild their private materials. */}
-            <GroundPool color={palette.shadow} opacity={dark ? 0.55 : 0.4} />
-          </group>
-        ))}
+        UNITS.map((unit, i) =>
+          soloUnit !== null && i !== soloUnit ? null : (
+            <group
+              key={`pool-${unit.slug}`}
+              {...unitPoseForCapture(i, headOnCapture)}
+            >
+              {/* Soft analytic grounding, isolated from the content units so
+                  a quality transition cannot rebuild their private
+                  materials. */}
+              <GroundPool color={palette.shadow} opacity={dark ? 0.55 : 0.4} />
+            </group>
+          ),
+        )}
     </>
   );
 }

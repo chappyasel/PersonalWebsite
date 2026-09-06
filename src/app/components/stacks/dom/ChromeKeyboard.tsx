@@ -9,6 +9,11 @@ import {
   effectivePlacardGlassMode,
   useScenePerformanceSettings,
 } from "../scene/scenePerformance";
+import {
+  screenshotDollyKeyDelta,
+  screenshotModeController,
+  useScreenshotMode,
+} from "../scene/screenshotMode";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Fragment, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -41,12 +46,32 @@ export default function ChromeKeyboard({
   );
   const sheetOpenRef = useRef(open);
   sheetOpenRef.current = open;
+  const screenshotMode = useScreenshotMode();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (document.documentElement.hasAttribute("data-field-notes-open"))
         return;
       const editable = isEditableShortcutTarget(event.target);
+      // The screenshot dolly, only while the mode is on. Read from the
+      // controller rather than the render so a key pressed in the same
+      // frame the mode flips still lands on the right answer.
+      if (screenshotModeController.getSnapshot().enabled) {
+        const delta = screenshotDollyKeyDelta({
+          key: event.key,
+          shiftKey: event.shiftKey,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          altKey: event.altKey,
+          defaultPrevented: event.defaultPrevented,
+          editableTarget: editable,
+        });
+        if (delta !== null) {
+          event.preventDefault();
+          screenshotModeController.nudgeDolly(delta);
+          return;
+        }
+      }
       // An open sheet takes Escape first; with the sheet closed Escape is
       // only ours while the interface is hidden.
       if (
@@ -87,7 +112,10 @@ export default function ChromeKeyboard({
 
   if (typeof document === "undefined") return null;
 
-  const groups = shortcutGroups(process.env.NODE_ENV === "development");
+  const groups = shortcutGroups(
+    process.env.NODE_ENV === "development",
+    screenshotMode.enabled,
+  );
   return createPortal(
     // Render true overlays at the document root. Scene chrome may acquire a
     // filter, opacity, or transform during its own transitions; any one of

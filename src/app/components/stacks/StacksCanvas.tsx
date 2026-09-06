@@ -53,6 +53,7 @@ import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
 import SceneLayoutEditorGizmo from "./scene/SceneLayoutEditorGizmo";
+import ScreenshotModeDriver from "./scene/ScreenshotModeDriver";
 import {
   devHooksRequested,
   onDevHooksRequested,
@@ -162,6 +163,10 @@ import {
   sceneQualityController,
   useSceneQualityControls,
 } from "./scene/sceneQualityController";
+import {
+  screenshotModeController,
+  screenshotModeFromSearch,
+} from "./scene/screenshotMode";
 import {
   getSeatAmount,
   isSeated,
@@ -1642,6 +1647,22 @@ export default function StacksCanvas({
         : qualityModeFromSearch(window.location.search),
     [],
   );
+  // Read once, applied in an effect like the quality mode below. Publishing
+  // from a render initializer reached the diagnostics registry, which
+  // invalidates and re-renders the Scene console mid-render. CameraRig's
+  // first frames still see the seeded value: they run on the animation
+  // frame after this commit, and its About sync re-solves the stop every
+  // frame for its first dozen frames anyway.
+  const screenshotQuery = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : screenshotModeFromSearch(window.location.search),
+    [],
+  );
+  useEffect(() => {
+    if (screenshotQuery) screenshotModeController.seed(screenshotQuery);
+  }, [screenshotQuery]);
   // Read here as well as in the probe: the opening axis state needs it before
   // any frame has been sampled, and a coarse pointer on a narrow viewport is
   // the most reliable pre-frame signal that this is a phone.
@@ -2495,6 +2516,7 @@ export default function StacksCanvas({
       <LoadReporter />
       <TouchInteractionLayer />
       <AutomaticPerformanceDiagnostic />
+      <ScreenshotModeDriver />
       <Canvas
         events={pointerEvents}
         shadows="soft"

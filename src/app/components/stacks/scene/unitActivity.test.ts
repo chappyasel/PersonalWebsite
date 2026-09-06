@@ -182,3 +182,38 @@ describe("resident unit activity", () => {
     ).toBe("cold");
   });
 });
+
+describe("screenshot solo unit", () => {
+  it("hides every other unit's root regardless of the camera, and hands them back when lifted", async () => {
+    const { sceneUnitActivityController } = await import("./unitActivity");
+    // A 4:1 banner window at the About stop: Books' envelope is well inside
+    // the frame, so without the solo it would be hot.
+    const camera = new THREE.PerspectiveCamera(CAMERA.fov, 4, 0.1, 100);
+    camera.position.set(0, CAMERA.y, CAMERA.z);
+    camera.lookAt(0, CAMERA_LOOK_Y, CAMERA_LOOK_Z_OFFSET);
+    camera.updateMatrixWorld();
+    const about = new THREE.Group();
+    const books = new THREE.Group();
+    const releaseAbout = sceneUnitActivityController.registerRoot(0, about);
+    const releaseBooks = sceneUnitActivityController.registerRoot(1, books);
+    try {
+      sceneUnitActivityController.update(camera, 0.016, 1_000);
+      expect(books.visible).toBe(true);
+
+      sceneUnitActivityController.setSoloUnit(0);
+      sceneUnitActivityController.update(camera, 0.016, 1_016);
+      expect(about.visible).toBe(true);
+      expect(books.visible).toBe(false);
+      expect(sceneUnitActivityController.stateFor(1)).toBe("cold");
+      expect(sceneUnitActivityController.allows(1, "ambient")).toBe(false);
+
+      sceneUnitActivityController.setSoloUnit(null);
+      sceneUnitActivityController.update(camera, 0.016, 1_032);
+      expect(books.visible).toBe(true);
+    } finally {
+      sceneUnitActivityController.setSoloUnit(null);
+      releaseAbout();
+      releaseBooks();
+    }
+  });
+});

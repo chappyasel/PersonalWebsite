@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  SCREENSHOT_LENS_CENTER,
   captureLensCenterFromSearch,
   desktopLensCenter,
   desktopLensLine,
+  effectiveCaptureLensCenter,
   sideLensPlan,
 } from "./lensGeometry";
 
@@ -90,5 +92,22 @@ describe("desktop lens geometry", () => {
       blur: 0.105,
       taper: 0.6,
     });
+  });
+});
+
+describe("screenshot mode lens", () => {
+  it("centres the clear line on the viewport with the capture's wide band, unless the URL pins a centre", () => {
+    expect(effectiveCaptureLensCenter(null, false)).toBeNull();
+    expect(effectiveCaptureLensCenter(null, true)).toBe(SCREENSHOT_LENS_CENTER);
+    expect(effectiveCaptureLensCenter(0.43, true)).toBe(0.43);
+    const plan = sideLensPlan({
+      viewportWidth: 1584,
+      navRightPx: 180,
+      detailsLeftPx: 1100,
+      seated: false,
+      captureCenter: effectiveCaptureLensCenter(null, true),
+    });
+    expect(plan.line).toEqual({ start: [0.5, 0], end: [0.5, 1] });
+    expect(plan.taper).toBe(1);
   });
 });

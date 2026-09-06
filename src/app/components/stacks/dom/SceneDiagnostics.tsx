@@ -51,6 +51,12 @@ import {
 import { readSceneMatrixMs } from "../scene/sceneFrameCost";
 import { sceneLayoutEditorController } from "../scene/sceneLayoutEditor";
 import {
+  screenshotModeController,
+  screenshotModeUrl,
+  useScreenshotMode,
+} from "../scene/screenshotMode";
+import { CAMERA } from "../scene/worldLayout";
+import {
   sceneQualityController,
   useSceneQualityControls,
   useSceneQualityRuntime,
@@ -939,6 +945,73 @@ function PerformanceTraceControls({
   );
 }
 
+/** The header sizes the two networks want, against the window as it is.
+ * The owner sizes the window by hand (or through the device toolbar), so the
+ * live ratio is the one number worth reading off while doing it. */
+const HEADER_TARGETS = [
+  { network: "LinkedIn", width: 1584, height: 396 },
+  { network: "X", width: 1500, height: 500 },
+] as const;
+
+function ScreenshotSetupNote() {
+  const screenshot = useScreenshotMode();
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === "undefined" ? 0 : window.innerWidth,
+    height: typeof window === "undefined" ? 0 : window.innerHeight,
+  }));
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const measure = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    measure();
+    window.addEventListener("resize", measure, { passive: true });
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  const ratio =
+    viewport.height > 0 ? (viewport.width / viewport.height).toFixed(2) : "?";
+  const copySetup = () => {
+    const url = screenshotModeUrl(window.location.href, screenshot);
+    void navigator.clipboard?.writeText(url).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    );
+  };
+  return (
+    <>
+      <p className="stacks-diagnostics-note">
+        Size the window to the header ratio, then press H to hide this
+        console with the rest of the interface and take the shot. Escape
+        brings it back. [ and ] dolly while the interface is hidden.
+      </p>
+      <p className="text-[11px] text-white/50">
+        {`Window ${viewport.width}×${viewport.height} · ${ratio}:1. `}
+        {HEADER_TARGETS.map(
+          (target) =>
+            `${target.network} ${target.width}×${target.height} (${(
+              target.width / target.height
+            ).toFixed(2)}:1)`,
+        ).join(" · ")}
+      </p>
+      <div className="stacks-diagnostics-actions">
+        <button
+          type="button"
+          disabled={!screenshot.enabled}
+          onClick={copySetup}
+        >
+          {copied ? "Setup URL copied" : "Copy setup URL"}
+        </button>
+        <button
+          type="button"
+          disabled={screenshot.fov === null}
+          onClick={() => screenshotModeController.setFov(null)}
+        >
+          Composition lens
+        </button>
+      </div>
+    </>
+  );
+}
+
 function QualityDecisionLogControls() {
   const hooksAvailable =
     typeof window !== "undefined" && window.__stacks != null;
@@ -1648,6 +1721,14 @@ export default function SceneDiagnostics({
                   : "Waiting for the scene to publish its render plan"}
               </small>
             </div>
+          </DiagnosticRegistrySection>
+
+          <DiagnosticRegistrySection
+            groupId="render.screenshot"
+            snapshot={diagnosticSnapshot}
+            fallbackValues={{ "screenshot.fov": CAMERA.fov }}
+          >
+            <ScreenshotSetupNote />
           </DiagnosticRegistrySection>
 
           <DiagnosticRegistrySection

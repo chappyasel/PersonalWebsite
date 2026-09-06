@@ -1,7 +1,7 @@
 "use client";
 
-import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { GOLF_UNIT_INDEX } from "../../data";
+import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import VisionRideSource from "../../visionRide/VisionRideSource";
@@ -56,6 +56,7 @@ import { PortraitFrame, useMetalShimmer } from "../objects";
 import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit } from "../primitives";
 import { propReactionIsEngaged } from "../reactionEngagement";
+import { useScreenshotMode } from "../screenshotMode";
 import { ABOUT_COUCH } from "../seated";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
@@ -72,6 +73,7 @@ import {
 
 import { ProjectIcon } from "./ProjectArtifacts";
 import { ShelfSucculent } from "./ShelfSucculent";
+import { StillMac } from "./UnitProjects";
 import {
   ABOUT_READING_BOARD_THICKNESS,
   ABOUT_READING_BOOK,
@@ -88,6 +90,13 @@ import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
 const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3;
 const ABOUT_TOP_PHOTO_HOVER_LIFT = 0.025;
+/** Screenshot mode's Macintosh, standing where the large portrait does. The
+ * same depth the Projects shelf gives it: the front face lands inside the
+ * plank's lip and the back hangs past the rear edge, out of a front camera's
+ * sight. The yaw is between the portrait's slight turn and the Projects
+ * machine's, since this one sits near the centre line. */
+const SCREENSHOT_MAC_Z = -0.14;
+const SCREENSHOT_MAC_YAW = -0.2;
 
 function CollectiveLogo({
   palette,
@@ -589,6 +598,12 @@ export default function UnitAbout({
   onOpenBook,
 }: UnitProps) {
   const textured = useUnitLod(index);
+  // Screenshot mode restages the shelf for a social header: the Macintosh
+  // running Life takes the large portrait's place (the profile picture
+  // already sits beside a header on both networks), the reading stack shows
+  // the first three featured books instead of the current reads, and the
+  // couch goes. See screenshotMode.ts.
+  const screenshot = useScreenshotMode();
   return (
     <group>
       <ShelfUnit
@@ -716,8 +731,19 @@ export default function UnitAbout({
             />
             <group name={aboutLandmarkNodeName("reading-stack")}>
               <ReadingStack
-                books={data.readingBooks}
-                bookColors={data.readingBookColors}
+                // The header shows what he keeps, not what he is reading
+                // this month: the first three "Featured?" ticks, in the
+                // collection's own order.
+                books={
+                  screenshot.enabled
+                    ? data.featuredBooks.slice(0, 3)
+                    : data.readingBooks
+                }
+                bookColors={
+                  screenshot.enabled
+                    ? data.featuredBookColors
+                    : data.readingBookColors
+                }
                 palette={palette}
                 dark={dark}
                 coverWidth={coverWidth}
@@ -858,33 +884,45 @@ export default function UnitAbout({
           </group>
         </LoosePhoto>
 
-        <LoosePhoto
-          unitIndex={index}
-          palette={palette}
-          id="portrait"
-          layoutLabel="About · Large portrait"
-          base={[
-            ABOUT_BOOT_LANDMARKS.portrait.x,
-            0,
-            ABOUT_PHOTO_POSES.portrait.baseZ,
-          ]}
-          // Owner placement via the scene layout editor, 2026-08-22: a
-          // slight turn toward the lamp side.
-          rotation={[...ABOUT_PHOTO_POSES.portrait.rotation]}
-          width={ABOUT_BOOT_LANDMARKS.portrait.profile.width}
-        >
-          <group
-            name={aboutLandmarkNodeName("portrait")}
-            scale={ABOUT_BOOT_LANDMARKS.portrait.sceneScale}
+        {screenshot.enabled ? (
+          <StillMac
+            unitIndex={index}
+            palette={palette}
+            dark={dark}
+            hoverKey="grab:mac:about"
+            layoutLabel="About · Screenshot Macintosh"
+            base={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, SCREENSHOT_MAC_Z]}
+            rotation={[0, SCREENSHOT_MAC_YAW, 0]}
+          />
+        ) : (
+          <LoosePhoto
+            unitIndex={index}
+            palette={palette}
+            id="portrait"
+            layoutLabel="About · Large portrait"
+            base={[
+              ABOUT_BOOT_LANDMARKS.portrait.x,
+              0,
+              ABOUT_PHOTO_POSES.portrait.baseZ,
+            ]}
+            // Owner placement via the scene layout editor, 2026-08-22: a
+            // slight turn toward the lamp side.
+            rotation={[...ABOUT_PHOTO_POSES.portrait.rotation]}
+            width={ABOUT_BOOT_LANDMARKS.portrait.profile.width}
           >
-            <PortraitFrame
-              src={proxied(PORTRAIT_SRC, coverWidth)}
-              detailSrc={proxied(PORTRAIT_SRC, 1080)}
-              palette={palette}
-              textured={textured}
-            />
-          </group>
-        </LoosePhoto>
+            <group
+              name={aboutLandmarkNodeName("portrait")}
+              scale={ABOUT_BOOT_LANDMARKS.portrait.sceneScale}
+            >
+              <PortraitFrame
+                src={proxied(PORTRAIT_SRC, coverWidth)}
+                detailSrc={proxied(PORTRAIT_SRC, 1080)}
+                palette={palette}
+                textured={textured}
+              />
+            </group>
+          </LoosePhoto>
+        )}
 
         <LoosePhoto
           unitIndex={index}
@@ -1053,31 +1091,37 @@ export default function UnitAbout({
         </React.Suspense>
       </Grabbable>
 
-      <group
-        position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
-        rotation={[0, ABOUT_COUCH.yaw, 0]}
-      >
-        <SitChair unitIndex={index}>
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/couch.glb"
-              dark={dark}
-              variant="tinted"
-              tints={{
-                Couch_Blue: dark ? "#394b61" : "#667d96",
-                Black: dark ? "#253447" : "#344a61",
-              }}
-              roughness={0.84}
-              scale={ABOUT_COUCH.scale}
-            />
-          </React.Suspense>
-        </SitChair>
-      </group>
-      <FootPool
-        color={palette.shadow}
-        size={[2.1, 1.6]}
-        position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
-      />
+      {/* The couch and its shadow leave the frame in screenshot mode: the
+          header is the shelf, not the room around it. */}
+      {!screenshot.enabled && (
+        <>
+          <group
+            position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
+            rotation={[0, ABOUT_COUCH.yaw, 0]}
+          >
+            <SitChair unitIndex={index}>
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/couch.glb"
+                  dark={dark}
+                  variant="tinted"
+                  tints={{
+                    Couch_Blue: dark ? "#394b61" : "#667d96",
+                    Black: dark ? "#253447" : "#344a61",
+                  }}
+                  roughness={0.84}
+                  scale={ABOUT_COUCH.scale}
+                />
+              </React.Suspense>
+            </SitChair>
+          </group>
+          <FootPool
+            color={palette.shadow}
+            size={[2.1, 1.6]}
+            position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
+          />
+        </>
+      )}
     </group>
   );
 }

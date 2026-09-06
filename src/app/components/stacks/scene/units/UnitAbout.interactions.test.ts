@@ -57,6 +57,36 @@ describe("About shelf throwable props", () => {
     expect(portrait).toContain("proxied(PORTRAIT_SRC, 1080)");
   });
 
+  it("restages the shelf for a social header in screenshot mode", () => {
+    expect(source).toContain(
+      'import { useScreenshotMode } from "../screenshotMode"',
+    );
+    // The still-screen Macintosh takes the portrait's place, without the approach
+    // (the flight is a room-wide singleton) and under its own hover key.
+    const mac = source.indexOf("<StillMac");
+    const portrait = source.indexOf('id="portrait"');
+    expect(mac).toBeGreaterThanOrEqual(0);
+    expect(mac).toBeLessThan(portrait);
+    expect(source.slice(mac, portrait)).toContain('hoverKey="grab:mac:about"');
+    expect(source.slice(mac, portrait)).toContain(
+      "base={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, SCREENSHOT_MAC_Z]}",
+    );
+    // The first three "Featured?" ticks replace the current reads.
+    expect(source).toContain(
+      "screenshot.enabled\n                    ? data.featuredBooks.slice(0, 3)\n                    : data.readingBooks",
+    );
+    expect(source).toContain(
+      "screenshot.enabled\n                    ? data.featuredBookColors\n                    : data.readingBookColors",
+    );
+    // The couch and its shadow go together.
+    const couchGate = source.indexOf("{!screenshot.enabled && (");
+    const couch = source.indexOf("<SitChair");
+    const couchPool = source.indexOf("size={[2.1, 1.6]}");
+    expect(couchGate).toBeGreaterThanOrEqual(0);
+    expect(couchGate).toBeLessThan(couch);
+    expect(couch).toBeLessThan(couchPool);
+  });
+
   it("renders the relocated Collective photo as a face-up print", () => {
     const globe = source.indexOf('hoverKey="egg:globe"');
     const collective = source.indexOf('id="about-collective-group-v8"');

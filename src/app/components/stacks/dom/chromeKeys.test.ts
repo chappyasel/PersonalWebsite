@@ -86,3 +86,21 @@ describe("chrome keyboard", () => {
     expect(hidden).toBe(false);
   });
 });
+
+describe("screenshot keys on the sheet", () => {
+  it("lists the dolly keys only while screenshot mode is on, between visitor and owner", () => {
+    expect(shortcutGroups(false, false).map((group) => group.title)).toEqual([
+      "Keyboard",
+    ]);
+    const on = shortcutGroups(false, true);
+    expect(on.map((group) => group.title)).toEqual(["Keyboard", "Screenshot"]);
+    expect(on[1]!.rows.flatMap((row) => row.keys)).toEqual(
+      expect.arrayContaining(["[", "]", "Shift"]),
+    );
+    expect(shortcutGroups(true, true).map((group) => group.title)).toEqual([
+      "Keyboard",
+      "Screenshot",
+      "Owner",
+    ]);
+  });
+});

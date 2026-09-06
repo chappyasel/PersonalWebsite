@@ -87,7 +87,11 @@ describe("home OG scene capture", () => {
       'url.searchParams.set("og-look-y", HOME_OG_LOOK_Y.toString())',
     );
     expect(cameraRig).toContain("captureFovFromSearch(window.location.search)");
-    expect(cameraRig).toContain("captureFov ?? composition.fov");
+    // The capture lens stays first in the chain: screenshot mode's lens sits
+    // behind it, and the composition's own lens last.
+    expect(cameraRig).toContain(
+      "captureFov ??\n      (screenshot.enabled ? screenshot.fov : null) ??\n      composition.fov",
+    );
     expect(cameraRig).toContain(
       "captureLookYFromSearch(window.location.search)",
     );

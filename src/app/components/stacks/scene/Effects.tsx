@@ -44,7 +44,11 @@ import {
   useVisionRidePreviewOverrides,
   useVisionRideRetroFxEnabled,
 } from "../visionRide/visionRideDiagnostics";
-import { captureLensCenterFromSearch, sideLensPlan } from "./lensGeometry";
+import {
+  captureLensCenterFromSearch,
+  effectiveCaptureLensCenter,
+  sideLensPlan,
+} from "./lensGeometry";
 import {
   DB32_PALETTE,
   PIXEL_WIPE_SECONDS,
@@ -56,6 +60,7 @@ import {
   pixelWipeCoverRadius,
 } from "./pixelArt";
 import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
+import { useScreenshotMode } from "./screenshotMode";
 import {
   type SceneColorGradeSettings,
   sceneColorGradeFor,
@@ -511,6 +516,8 @@ function SideLens({
   const viewportWidth = useThree((state) => state.size.width);
   const navRightPx = useStacks((state) => state.desktopNavRightPx);
   const detailsLeftPx = useStacks((state) => state.desktopDetailsLeftPx);
+  const screenshot = useScreenshotMode();
+  const center = effectiveCaptureLensCenter(captureCenter, screenshot.enabled);
   const lens = useMemo(
     () =>
       sideLensPlan({
@@ -518,9 +525,9 @@ function SideLens({
         navRightPx,
         detailsLeftPx,
         seated,
-        captureCenter,
+        captureCenter: center,
       }),
-    [captureCenter, detailsLeftPx, navRightPx, seated, viewportWidth],
+    [center, detailsLeftPx, navRightPx, seated, viewportWidth],
   );
 
   return (

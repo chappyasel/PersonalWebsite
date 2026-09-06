@@ -7,6 +7,7 @@ import {
   SCENE_SOUND_STORAGE_KEY,
   SCENE_WEBGL_CAPABILITY_SESSION_KEY,
 } from "./sceneVisitStorage";
+import { SCREENSHOT_QUERY_KEYS } from "./screenshotMode";
 
 type MutableStorage = Pick<Storage, "key" | "length" | "removeItem">;
 
@@ -38,6 +39,7 @@ export const SCENE_QUERY_OVERRIDE_KEYS = [
   "og-look-y",
   "og-camera-y",
   "og-lens-center",
+  ...SCREENSHOT_QUERY_KEYS,
 ] as const;
 
 function clearMatchingKeys(

@@ -203,7 +203,9 @@ describe("scene layout editor presentation", () => {
   });
 
   it("registers every movable prop and keeps friendly About labels", () => {
-    expect(aboutSource.match(/layoutLabel="About ·/g)).toHaveLength(8);
+    // Eight authored props plus screenshot mode's Macintosh, which stands in
+    // for the portrait only while that mode is on but is a movable prop then.
+    expect(aboutSource.match(/layoutLabel="About ·/g)).toHaveLength(9);
     expect(grabbableSource).toContain(
       "layoutLabel ?? defaultLayoutEditorLabel(hoverKey, unitIndex)",
     );

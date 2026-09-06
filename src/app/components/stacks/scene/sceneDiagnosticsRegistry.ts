@@ -38,6 +38,15 @@ import {
   scenePerformanceController,
 } from "./scenePerformance";
 import { sceneQualityController } from "./sceneQualityController";
+import {
+  SCREENSHOT_DOLLY_MAX,
+  SCREENSHOT_DOLLY_MIN,
+  SCREENSHOT_DOLLY_STEP,
+  SCREENSHOT_FOV_MAX,
+  SCREENSHOT_FOV_MIN,
+  SCREENSHOT_MODE_DEFAULT,
+  screenshotModeController,
+} from "./screenshotMode";
 import { visionProDisplayDiagnosticsController } from "./visionProDisplayDiagnostics";
 
 export type SceneDiagnosticsPanel = "render" | "simulate" | "inspect";
@@ -149,6 +158,7 @@ const SECTION_DEFINITIONS = Object.freeze([
   { id: "simulate.physics", panel: "simulate", label: "Physics runtime" },
   { id: "render.profile", panel: "render", label: "Test profile" },
   { id: "render.quality", panel: "render", label: "Quality mode" },
+  { id: "render.screenshot", panel: "render", label: "Screenshot" },
   { id: "render.resolution", panel: "render", label: "Resolution" },
   {
     id: "render.automatic",
@@ -791,6 +801,69 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     read: () => sceneQualityController.getSnapshot().resolutionCeiling,
     update: (value) =>
       sceneQualityController.setResolutionCeiling(value as number | null),
+  }),
+  // Screenshot mode. Not a render path of its own, so it carries no
+  // production cost entry: off, it allocates nothing and runs no frame work,
+  // and on, its cost is whichever quality mode it lands on.
+  booleanDescriptor({
+    id: "screenshot.enabled",
+    panel: "render",
+    group: "render.screenshot",
+    label: "Screenshot mode",
+    help: "Show About alone and centred with the interface hidden, land on Cinematic+, and swap the large portrait. For social headers.",
+    defaultValue: SCREENSHOT_MODE_DEFAULT.enabled,
+    experimental: false,
+    store: screenshotModeController,
+    read: () => screenshotModeController.getSnapshot().enabled,
+    update: (value) => screenshotModeController.setEnabled(Boolean(value)),
+  }),
+  mutableDescriptor({
+    id: "screenshot.dolly",
+    panel: "render",
+    group: "render.screenshot",
+    label: "Dolly out",
+    help: "Stand the camera this far behind its authored stop, past the visitor zoom floor. [ and ] step it from the keyboard.",
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: SCREENSHOT_DOLLY_MIN,
+      max: SCREENSHOT_DOLLY_MAX,
+      step: SCREENSHOT_DOLLY_STEP,
+      unit: " u",
+      decimals: 2,
+    },
+    defaultValue: SCREENSHOT_MODE_DEFAULT.dolly,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: screenshotModeController,
+    read: () => screenshotModeController.getSnapshot().dolly,
+    update: (value) => screenshotModeController.setDolly(Number(value)),
+    disabled: () => !screenshotModeController.getSnapshot().enabled,
+  }),
+  mutableDescriptor({
+    id: "screenshot.fov",
+    panel: "render",
+    group: "render.screenshot",
+    label: "Lens",
+    help: "Vertical field of view for the still, or the composition's own lens when left on the resolved policy.",
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: SCREENSHOT_FOV_MIN,
+      max: SCREENSHOT_FOV_MAX,
+      step: 0.5,
+      unit: "°",
+      decimals: 1,
+      automatic: { value: null, label: "Resolved policy" },
+    },
+    defaultValue: SCREENSHOT_MODE_DEFAULT.fov,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: screenshotModeController,
+    read: () => screenshotModeController.getSnapshot().fov,
+    update: (value) =>
+      screenshotModeController.setFov(value === null ? null : Number(value)),
+    disabled: () => !screenshotModeController.getSnapshot().enabled,
   }),
   booleanDescriptor({
     id: "quality.freeze-auto",

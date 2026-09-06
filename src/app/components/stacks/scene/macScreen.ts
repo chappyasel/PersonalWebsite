@@ -180,6 +180,44 @@ export function stepMacAutomaton(a: MacAutomaton): void {
   a.generation++;
 }
 
+/** Screenshot mode's screen: one of the rules from a single seed, drawn as
+ * its whole history at once with the seed at the TOP row and every
+ * generation below it, the way the textbooks print it. Rule 22, the first of
+ * the seven: its nested hollow triangles are the picture most people mean
+ * by "cellular automaton". No Life band, no scroll, no clock. */
+export const MAC_STILL_RULE = 22;
+
+/** The rule evolved on a field wide enough that its light cone never meets
+ * an edge, then cropped to the raster around the seed column, so the screen
+ * shows the true infinite-line picture clipped by its own bezel rather than
+ * a wrapped or edge-damped one. Returned in the live screen's shape so
+ * `paintMacAutomaton` draws it. */
+export function createIconicRuleStill(
+  rule = MAC_STILL_RULE,
+  cols = MAC_SCREEN_COLS,
+  rows = MAC_SCREEN_ROWS,
+): MacAutomaton {
+  const still = createMacAutomaton(rule, cols, rows, rows - 1, false);
+  const { kernel, cells } = still;
+  const width = cols + 2 * rows + 2;
+  const seed = Math.floor(width / 2);
+  const cropStart = seed - Math.floor(cols / 2);
+  let current = new Uint8Array(width);
+  let next = new Uint8Array(width);
+  current[seed] = 1;
+  for (let r = 0; r < rows; r++) {
+    cells.set(current.subarray(cropStart, cropStart + cols), r * cols);
+    for (let c = 0; c < width; c++) {
+      const left = c > 0 ? current[c - 1]! : 0;
+      const right = c < width - 1 ? current[c + 1]! : 0;
+      next[c] = kernel[left * 4 + current[c]! * 2 + right]!;
+    }
+    [current, next] = [next, current];
+  }
+  still.generation = rows - 1;
+  return still;
+}
+
 export type MacScreenPhase = "face" | "booting" | "life";
 
 export function macBootHoldSeconds(random: number): number {

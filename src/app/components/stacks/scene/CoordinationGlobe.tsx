@@ -66,6 +66,7 @@ import {
 } from "./coordinationNetwork";
 import { publishMeadowPhysicalEvent } from "./meadowDisturbance";
 import { publishSceneImpulse } from "./sceneImpulse";
+import { screenshotModeController } from "./screenshotMode";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { useUnitFrame } from "./unitActivity";
 
@@ -649,7 +650,10 @@ function LiveCoordinationNetwork({
       motionTime.current,
       activity.current,
       burstStrength,
-      connectionFrames,
+      // Screenshot mode keeps the fine neighbourhood mesh and drops the
+      // thick reveal arcs: at 3.4px they are the one thing on the globe
+      // that reads as a line in a still, and a header wants the sphere.
+      screenshotModeController.getSnapshot().enabled ? [] : connectionFrames,
     );
   });
   return <NetworkMeshes scene={scene} />;

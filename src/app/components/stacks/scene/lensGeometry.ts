@@ -37,6 +37,21 @@ export function captureLensCenterFromSearch(search: string) {
   return Number.isFinite(center) && center >= 0 && center <= 1 ? center : null;
 }
 
+/** Screenshot mode's clear line: the viewport's middle. The rail and the
+ * dock are hidden with `visibility`, which keeps their measured geometry,
+ * so the live desktop centre would still sit in the gap between two things
+ * that are not on screen. The mode takes the capture path instead, whose
+ * widened band was designed for exactly this: a shelf with no dock beside
+ * it. An explicit capture centre in the URL still wins. */
+export const SCREENSHOT_LENS_CENTER = 0.5;
+
+export function effectiveCaptureLensCenter(
+  captureCenter: number | null,
+  screenshotMode: boolean,
+) {
+  return captureCenter ?? (screenshotMode ? SCREENSHOT_LENS_CENTER : null);
+}
+
 export function sideLensPlan({
   seated,
   captureCenter,

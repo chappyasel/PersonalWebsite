@@ -29,6 +29,10 @@
  *
  * Owner-only controls live with their features. Development builds add R for
  * free roam, backtick for the debug console, and the combined prop gizmo.
+ * Screenshot mode (`?screenshot=1`, scene/screenshotMode.ts) adds `[` and
+ * `]` to dolly the camera while it is on; they are handled in ChromeKeyboard
+ * because the mode has to work in production, where the owner takes the
+ * real header from the real site.
  */
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 
@@ -140,8 +144,13 @@ export type ShortcutGroup = Readonly<{
   rows: readonly ShortcutRow[];
 }>;
 
-/** What the sheet shows. Owner keys only in development, where they work. */
-export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
+/** What the sheet shows. Owner keys only in development, where they work;
+ * the screenshot keys only while that mode is on, which is the only time
+ * they do anything. */
+export function shortcutGroups(
+  development: boolean,
+  screenshotMode = false,
+): readonly ShortcutGroup[] {
   const visitor: ShortcutGroup = {
     title: "Keyboard",
     rows: [
@@ -156,10 +165,17 @@ export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
       { keys: ["Esc"], does: "Close" },
     ],
   };
-  if (!development) return [visitor];
-  return [
-    visitor,
-    {
+  const groups: ShortcutGroup[] = [visitor];
+  if (screenshotMode)
+    groups.push({
+      title: "Screenshot",
+      rows: [
+        { keys: ["[", "]"], does: "Dolly the camera out or in" },
+        { keys: ["Shift", "[", "]"], does: "Dolly four steps" },
+      ],
+    });
+  if (development)
+    groups.push({
       title: "Owner",
       rows: [
         { keys: ["R"], does: "Free roam (WASD, Q/E, right-drag)" },
@@ -171,6 +187,6 @@ export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
         },
         { keys: ["⌘", "Z"], does: "Undo a layout edit" },
       ],
-    },
-  ];
+    });
+  return groups;
 }

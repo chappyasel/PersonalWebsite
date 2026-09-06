@@ -16,8 +16,10 @@ import {
   MAC_SCREEN_HEIGHT,
   MAC_SCREEN_ROWS,
   MAC_SCREEN_WIDTH,
+  MAC_STILL_RULE,
   type MacAutomaton,
   type MacScreenPainter,
+  createIconicRuleStill,
   createMacAutomaton,
   macAutomatonRule,
   macBootHoldSeconds,
@@ -299,5 +301,71 @@ describe("the painters", () => {
     expect(cellAlpha).toBeGreaterThan(0);
     expect(cellAlpha).toBeLessThan(1);
     expect(rising.ctx.globalAlpha).toBe(1);
+  });
+});
+
+describe("the iconic still", () => {
+  it("is rule 22 from one seed, tip at the top, every generation below it", () => {
+    expect(MAC_STILL_RULE).toBe(22);
+    const still = createIconicRuleStill();
+    expect(still.cols).toBe(MAC_SCREEN_COLS);
+    expect(still.rows).toBe(MAC_SCREEN_ROWS);
+    const centre = Math.floor(still.cols / 2);
+    const top = row(still, 0);
+    expect(top.filter((cell) => cell === 1)).toHaveLength(1);
+    expect(top[centre]).toBe(1);
+    // Rule 22's first generations: 1, 111, 10001. The hollow triangle.
+    expect(row(still, 1).slice(centre - 1, centre + 2)).toEqual([1, 1, 1]);
+    expect(row(still, 2).slice(centre - 2, centre + 3)).toEqual([
+      1, 0, 0, 0, 1,
+    ]);
+    expect(row(still, 1).filter((cell) => cell === 1)).toHaveLength(3);
+    expect(row(still, 2).filter((cell) => cell === 1)).toHaveLength(2);
+  });
+
+  it("shows the infinite line clipped by the bezel, not a wrapped one", () => {
+    const still = createIconicRuleStill();
+    const centre = Math.floor(still.cols / 2);
+    for (let r = 0; r < still.rows; r++) {
+      const cells = row(still, r);
+      // The light cone's edges are always live under rule 22 (001 and 100
+      // both map to 1), and nothing lives outside the cone. Checked while
+      // each edge is still on the screen; past that the bezel clips it.
+      const left = centre - r;
+      const right = centre + r;
+      if (left >= 0) {
+        expect(cells[left], `row ${r} left edge`).toBe(1);
+        expect(cells.slice(0, left).every((cell) => cell === 0)).toBe(true);
+      }
+      if (right <= still.cols - 1) {
+        expect(cells[right], `row ${r} right edge`).toBe(1);
+        expect(cells.slice(right + 1).every((cell) => cell === 0)).toBe(true);
+      }
+    }
+    // The picture reaches the bottom of the screen with something on it.
+    expect(row(still, still.rows - 1).some((cell) => cell === 1)).toBe(true);
+    // Wrapping would put live cells at the far edges before the cone gets
+    // there; a 41-wide screen at row 10 has a 21-wide cone and dead margins.
+    const narrow = createIconicRuleStill(MAC_STILL_RULE, 41, 12);
+    expect(
+      row(narrow, 10)
+        .slice(0, 10)
+        .every((cell) => cell === 0),
+    ).toBe(true);
+    expect(
+      row(narrow, 10)
+        .slice(31)
+        .every((cell) => cell === 0),
+    ).toBe(true);
+  });
+
+  it("is symmetric about the seed and deterministic", () => {
+    const still = createIconicRuleStill(MAC_STILL_RULE, 41, 20);
+    for (let r = 0; r < still.rows; r++) {
+      const cells = row(still, r);
+      expect(cells, `row ${r}`).toEqual([...cells].reverse());
+    }
+    const again = createIconicRuleStill(MAC_STILL_RULE, 41, 20);
+    expect(Array.from(again.cells)).toEqual(Array.from(still.cells));
   });
 });

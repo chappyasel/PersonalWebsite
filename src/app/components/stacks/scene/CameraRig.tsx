@@ -60,6 +60,7 @@ import {
   sceneArtifactCameraLockFrame,
 } from "./sceneArtifactCameraLock";
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
+import { screenshotModeController } from "./screenshotMode";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   CAMERA_LOOK_X_MAX_LAG,
@@ -67,7 +68,6 @@ import {
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
   cameraCompositionForViewport,
-  parallaxLookOffset,
   cameraDepthOffsetsForViewport,
   cameraForAspect,
   cameraXForScrollOffset,
@@ -78,6 +78,7 @@ import {
   golfDollyForViewport,
   golfLookYOffsetForViewport,
   ogCaptureFromSearch,
+  parallaxLookOffset,
   scrollOffsetForUnit,
   unitProgressForScrollOffset,
 } from "./worldLayout";
@@ -162,6 +163,9 @@ export const cameraTravelDiagnostics = {
 function currentAboutShift(): number {
   if (typeof window === "undefined") return 0;
   if (captureHeadOnFromSearch(window.location.search)) return 0;
+  // Screenshot mode hides the rail, so there is nothing to clear: the
+  // shelf rests on its own centre line like the OG capture.
+  if (screenshotModeController.getSnapshot().enabled) return 0;
   if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return 0;
   return aboutStopShift(
     window.innerWidth,
@@ -176,6 +180,7 @@ function currentAboutShift(): number {
 function currentRailRightPx(): number | undefined {
   if (typeof window === "undefined") return undefined;
   if (captureHeadOnFromSearch(window.location.search)) return undefined;
+  if (screenshotModeController.getSnapshot().enabled) return undefined;
   if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return undefined;
   return railRightPxRef.current || RAIL_RIGHT_PX_FALLBACK;
 }
@@ -666,8 +671,13 @@ export default function CameraRig() {
     // owns the pointer, the parallax reads a centred pointer instead.
     const layoutGesture =
       sceneLayoutEditorController.getSnapshot().gestureActive;
-    const pointerX = layoutGesture ? 0 : pointer.x;
-    const pointerY = layoutGesture ? 0 : pointer.y;
+    // Screenshot mode reads a centred pointer too: a header framed by
+    // wherever the mouse came to rest is not reproducible, and the point of
+    // the mode is a shelf that sits in the middle.
+    const screenshot = screenshotModeController.getSnapshot();
+    const neutralPointer = layoutGesture || screenshot.enabled;
+    const pointerX = neutralPointer ? 0 : pointer.x;
+    const pointerY = neutralPointer ? 0 : pointer.y;
     const offset = scroll.offset;
     const progress = unitProgressForScrollOffset(offset);
     progressRef.current = progress;
@@ -837,7 +847,10 @@ export default function CameraRig() {
       0.6 * lean.current + interactionZoom.current + visitorZoom.current,
       cameraTargetDistance,
     );
-    const baseZ = composition.z - cameraZoom;
+    // The screenshot dolly is added after the clamp on purpose: the clamp
+    // is the visitor's zoom floor, and a banner needs to stand well past it.
+    const baseZ =
+      composition.z - cameraZoom + (screenshot.enabled ? screenshot.dolly : 0);
     look.current.x = THREE.MathUtils.damp(
       look.current.x,
       eyeX + focusX.current + parallaxLookOffset(pointerX, composition) * calm,
@@ -1052,7 +1065,10 @@ export default function CameraRig() {
     // not the whole blend: the frame widening while you are still crossing
     // the room reads as the room growing, and the widening is meant to be
     // the moment you settle and the horizon opens up.
-    const travelFov = captureFov ?? composition.fov;
+    const travelFov =
+      captureFov ??
+      (screenshot.enabled ? screenshot.fov : null) ??
+      composition.fov;
     const fov = travelFov + (SEAT_FOV - travelFov) * seatBlend;
     if (
       "fov" in camera &&
