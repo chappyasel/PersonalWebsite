@@ -169,7 +169,11 @@ export function shouldMirrorWorldHistory(
 export default function ScrollBridges() {
   const scrollEl = useStacks((s) => s.scrollEl);
   const jumpTo = useStacks((s) => s.jumpTo);
-  const didInitialJump = useRef(false);
+  // The scroll element the location was last applied to. Once per element,
+  // not once per page: a world rebuilt after a lost context arrives with a
+  // fresh element parked at About while the URL still names the shelf the
+  // visitor was reading.
+  const locationAppliedTo = useRef<HTMLDivElement | null>(null);
 
   // History wiring. Hash mirrors the active unit (replaceState while
   // traveling); deep-links jump instantly on mount; back/forward travels.
@@ -179,8 +183,8 @@ export default function ScrollBridges() {
     const previousRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
 
-    if (!didInitialJump.current) {
-      didInitialJump.current = true;
+    if (locationAppliedTo.current !== scrollEl) {
+      locationAppliedTo.current = scrollEl;
       const target = initialScenePositionFromLocation(
         window.location.pathname,
         window.location.hash,

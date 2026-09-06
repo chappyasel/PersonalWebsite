@@ -220,6 +220,10 @@ export type WorldBootState = {
    * are frozen for as long as this is set. */
   hiddenSince: number | null;
   deadline: { kind: WorldBootDeadline; at: number } | null;
+  /** Boots this document has started because a previous one lost its WebGL
+   * context. Carried across starts, never reset, so the policy's budget is a
+   * fact about the page rather than about one generation. */
+  contextLossRecoveries: number;
 };
 
 /** Everything an adapter needs to know, and nothing about how it renders. */
@@ -261,6 +265,9 @@ export type WorldBootView = {
   failure: WorldBootFailure | null;
   ineligibility: WorldBootIneligibility | null;
   startedAt: number | null;
+  /** The world gave up on a lost context and the policy's budget allows
+   * another boot. The adapter starts one once the document is visible. */
+  recoverable: boolean;
 };
 
 export function initialWorldBootState(): WorldBootState {
@@ -283,6 +290,7 @@ export function initialWorldBootState(): WorldBootState {
     waitStage: "starting",
     hiddenSince: null,
     deadline: null,
+    contextLossRecoveries: 0,
   };
 }
 
@@ -590,6 +598,12 @@ export function reduceWorldBoot(
         // Also a fact about the tab rather than the world. An SPA re-entry
         // made in a background tab must start its backstop already frozen.
         hiddenSince: state.hiddenSince,
+        // A start that follows a lost context spends one of the document's
+        // recoveries; a start after an exit (a route re-entry) spends none.
+        contextLossRecoveries:
+          state.status === "failed" && state.failure === "contextLost"
+            ? state.contextLossRecoveries + 1
+            : state.contextLossRecoveries,
       };
       const ineligibility = worldIneligibility({
         webglAvailable: event.webglAvailable,
@@ -680,7 +694,10 @@ export function reduceWorldBoot(
   }
 }
 
-export function worldBootView(state: WorldBootState): WorldBootView {
+export function worldBootView(
+  state: WorldBootState,
+  policy: WorldBootPolicy = WORLD_BOOT_POLICY,
+): WorldBootView {
   const revealed = state.status === "revealing" || state.status === "live";
   const worldMounted = state.status === "booting" || revealed;
   return {
@@ -716,6 +733,10 @@ export function worldBootView(state: WorldBootState): WorldBootView {
     failure: state.failure,
     ineligibility: state.ineligibility,
     startedAt: state.startedAt,
+    recoverable:
+      state.status === "failed" &&
+      state.failure === "contextLost" &&
+      state.contextLossRecoveries < policy.contextLossRecoveries,
   };
 }
 

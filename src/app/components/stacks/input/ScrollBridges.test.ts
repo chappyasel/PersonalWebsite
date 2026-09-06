@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,6 +13,19 @@ import {
   worldNavigationUnit,
   worldPanDirection,
 } from "./ScrollBridges";
+
+describe("ScrollBridges location application", () => {
+  it("re-applies the URL's unit to every new scroll element, not once per page", () => {
+    // A world rebuilt after a lost context mounts a fresh scroll element
+    // parked at About; the URL still names the shelf the visitor was on.
+    const source = fs.readFileSync(
+      new URL("./ScrollBridges.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).toContain("locationAppliedTo.current !== scrollEl");
+    expect(source).not.toContain("didInitialJump");
+  });
+});
 
 describe("ScrollBridges interaction ownership", () => {
   it("suppresses history during Unit Map preview", () => {

@@ -706,6 +706,42 @@ describe("stale signals from an older generation", () => {
   });
 });
 
+describe("context loss recovery", () => {
+  it("offers a fresh boot after a lost context, within the document's budget", () => {
+    const lost = run([g1.contextLost(2_000)], bootedTo("live"));
+    expect(lost.status).toBe("failed");
+    expect(view(lost).recoverable).toBe(true);
+    expect(view(lost).mode).toBe("flat");
+
+    const rebooted = run([start({ at: 2_600 })], lost);
+    expect(rebooted.status).toBe("booting");
+    expect(rebooted.epoch).toBe(lost.epoch + 1);
+    expect(rebooted.contextLossRecoveries).toBe(1);
+    expect(view(rebooted).recoverable).toBe(false);
+
+    const lostAgain = run([g2.contextLost(3_000)], rebooted);
+    expect(view(lostAgain).recoverable).toBe(P.contextLossRecoveries > 1);
+    let state = lostAgain;
+    for (let i = 1; i < P.contextLossRecoveries; i++) {
+      state = run([start({ at: 4_000 + i })], state);
+      state = run([gen(state.epoch).contextLost(5_000 + i)], state);
+    }
+    expect(state.contextLossRecoveries).toBe(P.contextLossRecoveries);
+    expect(view(state).recoverable).toBe(false);
+    expect(view(state).mode).toBe("flat");
+  });
+
+  it("spends no recovery on a route re-entry, and offers none for other failures", () => {
+    const exited = run([g1.exit(1_000)], bootedTo("live"));
+    const reentered = run([start({ at: 1_100 })], exited);
+    expect(reentered.contextLossRecoveries).toBe(0);
+
+    const threw = run([g1.runtimeError(2_000)], bootedTo("live"));
+    expect(threw.status).toBe("failed");
+    expect(view(threw).recoverable).toBe(false);
+  });
+});
+
 describe("reveal and cleanup timing", () => {
   it("flips the handshake to ready and holds the flat content for the cross-fade", () => {
     const v = view(bootedTo("revealing"));
@@ -1010,7 +1046,10 @@ describe("room ready ahead of the vignette", () => {
     const readyAt = ready.worldReadyAt!;
     const later = run([tick(readyAt + P.vignetteCeilingMs - 1)], ready);
     expect(later.status).toBe("booting");
-    const revealed = run([vignetteDone(readyAt + P.vignetteCeilingMs - 1)], later);
+    const revealed = run(
+      [vignetteDone(readyAt + P.vignetteCeilingMs - 1)],
+      later,
+    );
     expect(revealed.status).toBe("revealing");
     expect(view(revealed).awaitingVignette).toBe(false);
   });
@@ -1226,7 +1265,10 @@ describe("a tab nobody is looking at", () => {
       ready,
     );
     const readyAt = painted.worldReadyAt!;
-    const away = run([hidden(readyAt + 100), shown(readyAt + 600_000)], painted);
+    const away = run(
+      [hidden(readyAt + 100), shown(readyAt + 600_000)],
+      painted,
+    );
     expect(away.worldReadyAt).toBe(readyAt + 600_000 - 100);
     expect(away.status).toBe("booting");
     const glided = run([tick(away.worldReadyAt! + P.vignetteCeilingMs)], away);
@@ -1234,7 +1276,10 @@ describe("a tab nobody is looking at", () => {
   });
 
   it("is a fact about the tab, so it survives a new generation", () => {
-    const reentry = run([hidden(1_000), start({ at: 2_000 })], bootedTo("booting"));
+    const reentry = run(
+      [hidden(1_000), start({ at: 2_000 })],
+      bootedTo("booting"),
+    );
     expect(reentry.hiddenSince).toBe(1_000);
     expect(run([tick(2_000 + P.hangBackstopMs + 1)], reentry).status).toBe(
       "booting",

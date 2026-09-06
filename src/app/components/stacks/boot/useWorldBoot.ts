@@ -5,6 +5,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { type WorldBootView } from "./worldBootMachine";
+import { WORLD_BOOT_POLICY } from "./worldBootPolicy";
 import {
   SERVER_WORLD_BOOT_VIEW,
   type WorldBootScope,
@@ -53,6 +54,29 @@ export function useWorldBoot(): WorldBootView {
     document.addEventListener("visibilitychange", publish);
     return () => document.removeEventListener("visibilitychange", publish);
   }, []);
+
+  // A lost WebGL context is the one failure worth a second try. macOS drops
+  // a window's context while it is parked on another desktop, and the visitor
+  // came back to the flat page with no way up but a reload. Once the tab is
+  // visible again, boot afresh; how many times is the machine's policy.
+  const { recoverable } = view;
+  useEffect(() => {
+    if (!recoverable) return;
+    let timer: number | null = null;
+    const attempt = () => {
+      if (document.hidden || timer !== null) return;
+      timer = window.setTimeout(() => {
+        timer = null;
+        worldBoot.start("hydrate");
+      }, WORLD_BOOT_POLICY.contextLossRestartDelayMs);
+    };
+    attempt();
+    document.addEventListener("visibilitychange", attempt);
+    return () => {
+      document.removeEventListener("visibilitychange", attempt);
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [recoverable]);
 
   // One timer for whichever deadline is armed: the hang backstop before the
   // reveal, the cross-fade after it.

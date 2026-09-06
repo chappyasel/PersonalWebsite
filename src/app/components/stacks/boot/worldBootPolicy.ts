@@ -52,6 +52,14 @@ export type WorldBootPolicy = {
    * believed. Closes the gap between one batch finishing and a Suspense child
    * queueing the next. */
   assetSettleMs: number;
+  /** How many times a lost WebGL context may boot the world again in one
+   * document before the flat page is final. macOS drops a window's context
+   * when it sits on another desktop; that is a recoverable loss, and one or
+   * two retries cover it without letting a dying GPU loop. */
+  contextLossRecoveries: number;
+  /** Pause between the tab being visible again and the retry, so a context
+   * lost and restored in the same breath is not booted into twice. */
+  contextLossRestartDelayMs: number;
   /** Ceiling on how long a ready room may be held back by the boot vignette's
    * closing glide. The glide is a 600ms CSS transition
    * (`ABOUT_BOOT_STAGE_GLIDE`), so this is roughly twice the honest cost. It
@@ -89,6 +97,8 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   prepaintBackstopMs: 20000,
   hangBackstopMs: 40000,
   assetSettleMs: 250,
+  contextLossRecoveries: 2,
+  contextLossRestartDelayMs: 600,
   vignetteCeilingMs: 1200,
   flatRetireMs: 420,
   prepaintTimerGlobal: "__stacksWorldBootTimer",
