@@ -106,27 +106,27 @@ describe("About Coordination composition", () => {
 
   it("persists the owner's lower-shelf centers and AIC light angle", () => {
     expect(ABOUT_LANDMARK_X).toMatchObject({
-      "ai-collective": -0.8708,
-      "coordination-globe": -0.507,
-      "tj-medallion": -0.1962,
+      "ai-collective": -0.8475,
+      "coordination-globe": -0.5004,
+      "tj-medallion": -0.1828,
       "vision-pro": 0.1527,
       "role-icons": 0.5233,
       "reading-stack": 1.0005,
     });
     expect(ABOUT_LOWER_LANDMARK_Z).toMatchObject({
-      "ai-collective": -0.0268,
-      "coordination-globe": -0.036,
-      "tj-medallion": -0.0099,
-      "vision-pro": -0.0659,
+      "ai-collective": -0.1147,
+      "coordination-globe": -0.0795,
+      "tj-medallion": -0.045,
+      "vision-pro": -0.0938,
       "role-icons": -0.0283,
       "reading-stack": -0.0231,
     });
-    expect(ABOUT_AIC_ROOT_YAW).toBe(-0.1562);
+    expect(ABOUT_AIC_ROOT_YAW).toBe(-0.1814);
   });
 
   it("preserves clearance around the lower keepsakes", () => {
     expect(gap("lower", "ai-collective", "coordination-globe")).toBeGreaterThan(
-      0.03,
+      0.015,
     );
     expect(gap("lower", "coordination-globe", "tj-medallion")).toBeGreaterThan(
       0,

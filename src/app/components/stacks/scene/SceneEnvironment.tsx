@@ -50,6 +50,7 @@ import {
 } from "./sceneImpulse";
 import { useResolvedMeadowVisibility } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
+import { useScreenshotMode } from "./screenshotMode";
 import { getSeatAmount } from "./seated";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { SKY_LIGHTING } from "./skyLighting";
@@ -94,6 +95,26 @@ const SKY_VERTEX = `
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
+
+/** Where Cinematic+ paints its sun: world azimuth (the dome's own
+ * `atan(dir.z, dir.x)`, no pan) and elevation (`dir.y`). The god-rays source
+ * below stands on this same direction, so the disc the sky paints and the
+ * sphere the radial pass needs are one sun. They used to disagree: the
+ * sphere was pinned to a screen position, which drifts away from a fixed sky
+ * direction as the camera yaws and, at a wide aspect, lands a full second
+ * sun to the left of the painted one. */
+export const CINEMATIC_SUN = Object.freeze({
+  azimuth: -1.92,
+  elevation: 0.115,
+});
+export function cinematicSunDirection(target: THREE.Vector3): THREE.Vector3 {
+  const level = Math.sqrt(Math.max(0, 1 - CINEMATIC_SUN.elevation ** 2));
+  return target.set(
+    Math.cos(CINEMATIC_SUN.azimuth) * level,
+    CINEMATIC_SUN.elevation,
+    Math.sin(CINEMATIC_SUN.azimuth) * level,
+  );
+}
 
 const SKY_FRAGMENT = `
   // ---- Washington, seen from Columbia Island. -------------------------
@@ -208,6 +229,7 @@ const SKY_FRAGMENT = `
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
   uniform float uPost;     // 1 = composer owns the frame
   uniform float uMeadow;   // 1 when terrain hides the skyline below grade
+  uniform float uSutroVisible; // screenshot mode removes the tower and its lights
   uniform float uFires[${FIREWORK_LAYERS}]; // launch ages, < 0 idle
   uniform float uFireSeeds[${FIREWORK_LAYERS}]; // each launch deals its own shells
   uniform float uSeat;     // 0 at the shelf … 1 seated (scene/seated.ts)
@@ -1011,14 +1033,14 @@ const SKY_FRAGMENT = `
 
 #ifdef CINEMATIC_PLUS
     float localA = a - uPan;
-    const float sunA = -1.82;
-    const float sunE = 0.205;
+    const float sunA = ${CINEMATIC_SUN.azimuth.toFixed(3)};
+    const float sunE = ${CINEMATIC_SUN.elevation.toFixed(3)};
     vec2 sunQ = vec2((localA - sunA) / 0.018, (e - sunE) / 0.018);
     float sunD = length(sunQ);
     float sunDisc = smoothstep(1.08, 0.82, sunD) * day;
     float sunHalo = exp(-sunD * sunD * 0.055) * day;
 
-    col += vec3(1.0, 0.73, 0.40) * sunHalo * 0.16;
+    col += vec3(1.0, 0.73, 0.40) * sunHalo * 0.19;
     col = mix(col, vec3(1.34, 1.12, 0.82), sunDisc * 0.94);
 #endif
 
@@ -1576,6 +1598,7 @@ const SKY_FRAGMENT = `
       float waist = step(abs(eh - 0.052), 0.0016) * step(abs(dSut), 0.009);
       sutro = clamp(legs + prongs + waist, 0.0, 1.0);
     }
+    sutro *= uSutroVisible;
 
     // ---- Golden Gate Bridge, northwest at a = -2.04. Derived, not eyeballed.
     // This scene's own compass puts Sutro west (-2.20) and Telegraph Hill
@@ -2379,6 +2402,7 @@ const SKY_FRAGMENT = `
       // The lattice itself is never lit — the legs were floodlit in 1973 and
       // public outcry had the tubes removed within months.
       if (abs(dSut) < 0.035 && eh > -0.01 && eh < 0.10) {
+        float sutroNight = night * uSutroVisible;
         float sutFlash = step(fract(uTime * 0.3333), 0.16);
         for (int li = 0; li < 3; li++) {
           float f = float(li);
@@ -2387,12 +2411,12 @@ const SKY_FRAGMENT = `
           float dLa = length(vec2(dSut - spread, eh - lev));
           float dLb = length(vec2(dSut + spread, eh - lev));
           col += avRed * (smoothstep(0.0016, 0.0005, dLa)
-                        + smoothstep(0.0016, 0.0005, dLb)) * 0.34 * night;
+                        + smoothstep(0.0016, 0.0005, dLb)) * 0.34 * sutroNight;
         }
         for (int pi = 0; pi < 3; pi++) {
           float dP = length(vec2(dSut - (float(pi) - 1.0) * 0.0075, eh - 0.086));
           col += avRed * smoothstep(0.0016, 0.0005, dP)
-               * (0.20 + 0.42 * sutFlash) * night;
+               * (0.20 + 0.42 * sutFlash) * sutroNight;
         }
       }
 
@@ -2827,6 +2851,7 @@ function SkyDome({
   cinematicPlus: boolean;
   coordinationFlickerSignal: CoordinationFlickerSignal | null;
 }) {
+  const screenshot = useScreenshotMode();
   const domeRef = useRef<THREE.Mesh>(null);
   const hitRef = useRef<THREE.Mesh>(null);
   const sfHitRef = useRef<THREE.Mesh>(null);
@@ -2859,6 +2884,7 @@ function SkyDome({
       uSimplify: { value: 0 },
       uPost: { value: 0 },
       uMeadow: { value: meadow ? 1 : 0 },
+      uSutroVisible: { value: screenshot.enabled ? 0 : 1 },
       uFires: {
         value: fireAges.current,
       },
@@ -3076,6 +3102,7 @@ function SkyDome({
       u.uCoordinationFlicker!.value = coordinationFlickerSignal.current;
     u.uSimplify!.value = simplify ? 1 : 0;
     u.uPost!.value = useStacks.getState().postfx ? 1 : 0;
+    u.uSutroVisible!.value = screenshot.enabled ? 0 : 1;
     // Seated cross-fade. CameraRig writes this every frame while it eases;
     // reading it here rather than subscribing keeps React out of the loop.
     u.uSeat!.value = getSeatAmount();
@@ -3618,9 +3645,18 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
   return <points geometry={geometry} material={material} />;
 }
 
+/** The radial pass's source stands this far from the eye along the sun's
+ * direction, well behind the shelves so their depth carves the shafts, and
+ * is sized so its angular radius matches the disc the sky paints there. */
+const CINEMATIC_SUN_DISTANCE = 16;
+const CINEMATIC_SUN_RADIUS = 0.3;
+
 function CinematicSunSource() {
   const sunRef = useRef<THREE.Mesh>(null);
-  const screenPoint = useMemo(() => new THREE.Vector3(), []);
+  const direction = useMemo(
+    () => cinematicSunDirection(new THREE.Vector3()),
+    [],
+  );
 
   useEffect(() => {
     const sun = sunRef.current;
@@ -3631,17 +3667,16 @@ function CinematicSunSource() {
   useFrame(({ camera }) => {
     const sun = sunRef.current;
     if (!sun) return;
-    // Lock the source to a stable upper-left composition while the camera
-    // travels. It remains far behind the shelves, so their real depth can
-    // carve the radial light pass into visible shafts.
-    screenPoint.set(-0.7, 0.58, 0.2).unproject(camera);
-    screenPoint.sub(camera.position).normalize();
-    sun.position.copy(camera.position).addScaledVector(screenPoint, 16);
+    // The dome rides with the camera, so the painted sun is always this
+    // same world direction from the eye. Stand the source on it.
+    sun.position
+      .copy(camera.position)
+      .addScaledVector(direction, CINEMATIC_SUN_DISTANCE);
   });
 
   return (
     <mesh ref={sunRef} frustumCulled={false}>
-      <sphereGeometry args={[0.46, 32, 32]} />
+      <sphereGeometry args={[CINEMATIC_SUN_RADIUS, 32, 32]} />
       <meshBasicMaterial
         color="#ffd19a"
         transparent

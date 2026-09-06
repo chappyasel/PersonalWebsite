@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   SCREENSHOT_DOLLY_MAX,
+  SCREENSHOT_GRASS_MAX,
   SCREENSHOT_MODE_DEFAULT,
   clampScreenshotDolly,
   screenshotDollyKeyDelta,
@@ -34,15 +35,19 @@ describe("screenshot mode", () => {
 
   it("reads the dolly and lens with the switch, clamping the dolly and refusing an out-of-range lens", () => {
     expect(screenshotModeFromSearch("?screenshot=1")).toEqual({
+      ...SCREENSHOT_MODE_DEFAULT,
       enabled: true,
-      dolly: 0,
-      fov: null,
     });
     expect(
       screenshotModeFromSearch(
         "?screenshot=1&screenshot-dolly=2.5&screenshot-fov=28",
       ),
-    ).toEqual({ enabled: true, dolly: 2.5, fov: 28 });
+    ).toEqual({
+      ...SCREENSHOT_MODE_DEFAULT,
+      enabled: true,
+      dolly: 2.5,
+      fov: 28,
+    });
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-dolly=40").dolly,
     ).toBe(SCREENSHOT_DOLLY_MAX);
@@ -55,6 +60,23 @@ describe("screenshot mode", () => {
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-fov=wide").fov,
     ).toBeNull();
+  });
+
+  it("reads the lawn values with the switch and clamps them", () => {
+    const lawn = screenshotModeFromSearch(
+      "?screenshot=1&screenshot-grass-lift=0.3&screenshot-grass-variation=9",
+    );
+    expect(lawn.grassLift).toBe(0.3);
+    expect(lawn.grassVariation).toBe(SCREENSHOT_GRASS_MAX);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-grass-lift=tall")
+        .grassLift,
+    ).toBe(SCREENSHOT_MODE_DEFAULT.grassLift);
+    screenshotModeController.seed(screenshotModeFromSearch("?screenshot=1"));
+    screenshotModeController.setGrassLift(-1);
+    expect(screenshotModeController.getSnapshot().grassLift).toBe(0);
+    screenshotModeController.setGrassVariation(0.25);
+    expect(screenshotModeController.getSnapshot().grassVariation).toBe(0.25);
   });
 
   it("treats an unreadable dolly as the default rather than NaN", () => {
@@ -74,6 +96,7 @@ describe("screenshot mode", () => {
 
   it("writes a URL that reproduces the setup and strips it when off", () => {
     const on = screenshotModeUrl("https://chappyasel.com/?debug=1", {
+      ...SCREENSHOT_MODE_DEFAULT,
       enabled: true,
       dolly: 2.5,
       fov: 28,
@@ -83,11 +106,20 @@ describe("screenshot mode", () => {
     expect(new URL(on).searchParams.get("screenshot-dolly")).toBe("2.5");
     expect(new URL(on).searchParams.get("screenshot-fov")).toBe("28");
     const defaults = screenshotModeUrl("https://chappyasel.com/", {
+      ...SCREENSHOT_MODE_DEFAULT,
       enabled: true,
-      dolly: 0,
-      fov: null,
     });
     expect(defaults).toBe("https://chappyasel.com/?screenshot=1");
+    const lawn = screenshotModeUrl("https://chappyasel.com/", {
+      ...SCREENSHOT_MODE_DEFAULT,
+      enabled: true,
+      grassLift: 0.3,
+      grassVariation: 0.2,
+    });
+    expect(new URL(lawn).searchParams.get("screenshot-grass-lift")).toBe("0.3");
+    expect(new URL(lawn).searchParams.get("screenshot-grass-variation")).toBe(
+      "0.2",
+    );
     const off = screenshotModeUrl(on, SCREENSHOT_MODE_DEFAULT);
     expect(off).toBe("https://chappyasel.com/?debug=1");
   });

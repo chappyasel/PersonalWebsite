@@ -178,10 +178,13 @@ describe("the scene's postprocessing chain", () => {
   it("composites the approved passes in the approved order", () => {
     const chain = render({ profile: "cinematic", sharpenAmount: 0.4 });
 
-    // Order is the contract, not decoration. The grade is display-referred so
-    // it has to follow tone mapping; RCAS samples neighbours so it has to
-    // follow the grade; SMAA reads finished pixels so it closes the chain.
+    // Order is the contract, not decoration. The photo mask draws straight
+    // after the render pass so the grade can read it; the grade is
+    // display-referred so it has to follow tone mapping; RCAS samples
+    // neighbours so it has to follow the grade; SMAA reads finished pixels so
+    // it closes the chain.
     expect(chain.order).toEqual([
+      "PhotoMaskPass",
       "N8AO",
       "Bloom",
       "DepthOfField",
@@ -332,6 +335,8 @@ describe("the reversible comparison switches", () => {
     const chain = render({ search: "?nograde" });
 
     expect(chain.has("GradeEffect")).toBe(false);
+    // The grade is the mask's only reader, so the mask goes with it.
+    expect(chain.has("PhotoMaskPass")).toBe(false);
     expect(chain.has("ToneMapping")).toBe(true);
     expect(chain.order.at(-1)).toBe("SMAA");
   });

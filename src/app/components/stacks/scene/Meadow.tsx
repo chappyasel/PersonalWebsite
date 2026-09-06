@@ -67,9 +67,11 @@ import {
 } from "./meadowDisturbance";
 import {
   FLOWER_VARIATION,
+  type GrassBuildOptions,
   IDLE_TERRAIN_BUILD_GATE,
   MEADOW_BANK,
   MEADOW_FOG,
+  MEADOW_FURNITURE_ALL,
   MEADOW_GROUND_BASE,
   MEADOW_TERRAIN,
   type MeadowTile,
@@ -104,11 +106,19 @@ import {
   useScenePerformanceSettings,
 } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
+import { SCREENSHOT_UNIT, useScreenshotMode } from "./screenshotMode";
 import { getSeatAmount } from "./seated";
 import { StaticWorldRoot } from "./staticWorld";
 
 const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
+/** What the golf clearing returns where there is no golf: nothing cleared. */
+const NO_GOLF_CLEARING = Object.freeze({
+  grassScale: 1,
+  grassHeightScale: 1,
+  flowers: true,
+});
+
 export const MEADOW_RETIRE_SECONDS = 0.8;
 export const MEADOW_RECOVER_SECONDS = 1.2;
 
@@ -604,6 +614,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   void main() {
+  #ifdef MEADOW_GOLF_GREEN
     // The flag model supplies the recessed liner and bottom. Discarding the
     // shared terrain only inside its lip lets that geometry read as a real
     // opening instead of being buried beneath the meadow carpet.
@@ -612,6 +623,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
       vec2(${GOLF_CUP_WORLD_CENTER.x.toFixed(4)}, ${GOLF_CUP_WORLD_CENTER.z.toFixed(4)})
     );
     if (cupDistance < ${(GOLF_CUP.radius * 0.985).toFixed(4)}) discard;
+  #endif
     // The carpet: the ground must read as the grass mass's own depths, not
     // soil — mottled clumps in the SAME palette as the tufts, so coverage
     // gaps read as shadow between clumps. The finest octave fades with
@@ -624,9 +636,12 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 base = mix(uBaseL, uBaseD, uDark);
     vec3 tip = mix(mix(uTipAL, uTipBL, patchN), mix(uTipAD, uTipBD, patchN), uDark);
     vec3 col = mix(base, tip * 0.82, 0.18 + 0.55 * mott);
+  #ifdef MEADOW_GOLF_GREEN
     // The putting surface is painted into the shared meadow material. An
     // analytic ellipse keeps the crosshatch bounded and avoids another mesh
     // or texture fetch; the feathered fringe agrees with golfCourse.ts.
+    // Screenshot mode compiles it out (Meadow's define toggle), the way
+    // Cinematic+ compiles its shadows in: no uniform, no per-frame cost.
     vec2 golfCenter = vec2(${GOLF_COURSE_CENTER.x.toFixed(4)}, ${GOLF_COURSE_CENTER.z.toFixed(4)});
     float golfYaw = ${GOLF_COURSE_CENTER.yaw.toFixed(4)};
     vec2 gd = vWorld.xz - golfCenter;
@@ -651,6 +666,9 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 fringeCol = mix(${golfRgbGlsl(GOLF_GREEN_COLORS.lightFringe)}, ${golfRgbGlsl(GOLF_GREEN_COLORS.darkFringe)}, uDark);
     col = mix(col, fringeCol, fringeMask);
     col = mix(col, greenCol, greenMask);
+  #else
+    float greenMask = 0.0;
+  #endif
     // Low-frequency earthiness: warm mineral soil, cool moss, and dry grass
     // emerge as value/roughness-like modulation of the existing carpet. No
     // photo texture or extra detail octave enters the scene.
@@ -1165,8 +1183,36 @@ export default function Meadow({
   const gltf = useGLTF(TUFT_URL, false);
   const alphaMap = useTexture(ALPHA_URL);
 
-  const streams = useMemo(() => buildGrassInstances(), []);
-  const flowers = useMemo(() => buildFlowerPositions(), []);
+  // Screenshot mode's lawn: the other shelves and the couch leave (their
+  // baked shadows and unmown aprons with them), the grass stands a little
+  // taller away from About and a little more uneven everywhere, and the
+  // putting green is not painted. The instances rebuild for it, which the
+  // fill effect below already handles the way it handles a tier change;
+  // the ordinary room keeps the one build it started with.
+  const screenshot = useScreenshotMode();
+  const grassOptions = useMemo<GrassBuildOptions | undefined>(
+    () =>
+      screenshot.enabled
+        ? {
+            furniture: { units: [SCREENSHOT_UNIT], couch: false },
+            still: {
+              lift: screenshot.grassLift,
+              variation: screenshot.grassVariation,
+            },
+          }
+        : undefined,
+    [screenshot.enabled, screenshot.grassLift, screenshot.grassVariation],
+  );
+  const furniture = grassOptions?.furniture ?? MEADOW_FURNITURE_ALL;
+  const golfPresent = !screenshot.enabled;
+  const streams = useMemo(
+    () => buildGrassInstances(undefined, grassOptions),
+    [grassOptions],
+  );
+  const flowers = useMemo(
+    () => buildFlowerPositions(undefined, { still: grassOptions?.still }),
+    [grassOptions],
+  );
   const tiles = useMemo(
     () => ({
       near: buildMeadowTiles(
@@ -1213,6 +1259,22 @@ export default function Meadow({
       flowers: tiles.flowers.map(flower),
     };
   }, [streams, flowers, tiles]);
+
+  // The terrain's contact shadows are baked into its vertices for the full
+  // room, and its geometry is cached per tier, so the mask is rewritten in
+  // place for the furniture that is there. The grass tiles carry theirs in
+  // the streams, which rebuild with the furniture above.
+  useEffect(() => {
+    const shade = terrainGeometry.getAttribute("aShade");
+    const positions = terrainGeometry.getAttribute("position");
+    if (!shade || !positions) return;
+    for (let i = 0; i < positions.count; i++)
+      shade.setX(
+        i,
+        shadeScale(positions.getX(i), positions.getZ(i), furniture),
+      );
+    shade.needsUpdate = true;
+  }, [furniture, terrainGeometry]);
 
   const built = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
@@ -1288,6 +1350,7 @@ export default function Meadow({
       flowerOnly,
       flowerGeometry: makeFlowerGeometry(),
       terrainMaterial: new THREE.ShaderMaterial({
+        defines: { MEADOW_GOLF_GREEN: 1 },
         uniforms: {
           ...shadowUniforms(),
           ...shared,
@@ -1388,6 +1451,20 @@ export default function Meadow({
     }
   }, [built, daylightCinematicPlus]);
 
+  // The putting green is a compile-time branch of the terrain shader.
+  // Screenshot mode takes it out; the recompile is the same one Cinematic+
+  // already pays when its shadows switch, and the ordinary room never
+  // flips it.
+  useLayoutEffect(() => {
+    const material = built.terrainMaterial;
+    const defined = material.defines?.MEADOW_GOLF_GREEN === 1;
+    if (defined === golfPresent) return;
+    material.defines ??= {};
+    if (golfPresent) material.defines.MEADOW_GOLF_GREEN = 1;
+    else delete material.defines.MEADOW_GOLF_GREEN;
+    material.needsUpdate = true;
+  }, [built, golfPresent]);
+
   // The meadow is analytically lit, so Three's environment and room lights
   // cannot dim it. Compile this multiplication only while the approved
   // Coordination effect is live; the diagnostics-off shader has no branch or
@@ -1487,11 +1564,13 @@ export default function Meadow({
         position.set(stream.x[i]!, stream.y[i]!, stream.z[i]);
         euler.set(0, stream.yaw[i]!, 0);
         quaternion.setFromEuler(euler);
-        const golf = suppressGolfVegetation(
-          stream.x[i]!,
-          stream.z[i]!,
-          (Math.sin(i * 91.733) + 1) / 2,
-        );
+        const golf = golfPresent
+          ? suppressGolfVegetation(
+              stream.x[i]!,
+              stream.z[i]!,
+              (Math.sin(i * 91.733) + 1) / 2,
+            )
+          : NO_GOLF_CLEARING;
         scale.set(
           stream.width[i]! * golf.grassScale,
           stream.height[i]! * golf.grassHeightScale,
@@ -1516,11 +1595,13 @@ export default function Meadow({
       for (let local = 0; local < tile.indices.length; local++) {
         const i = tile.indices[local]!;
         position.set(flowers.x[i]!, flowers.y[i]!, flowers.z[i]);
-        const golf = suppressGolfVegetation(
-          flowers.x[i]!,
-          flowers.z[i]!,
-          flowers.variation[i]!,
-        );
+        const golf = golfPresent
+          ? suppressGolfVegetation(
+              flowers.x[i]!,
+              flowers.z[i]!,
+              flowers.variation[i]!,
+            )
+          : NO_GOLF_CLEARING;
         scale.setScalar(golf.flowers ? flowers.scale[i]! : 0);
         matrix.compose(position, quaternion, scale);
         mesh.setMatrixAt(local, matrix);
@@ -1531,7 +1612,7 @@ export default function Meadow({
     // The buffers are filled and the GLB/alpha suspended above us, so the
     // next painted frame contains grass — tell the boot reveal gate.
     scope.send({ type: "meadowReady" });
-  }, [scope, streams, flowers, tiles]);
+  }, [scope, streams, flowers, tiles, golfPresent]);
 
   // Instance bounds are derived from the matrices AND the bound geometry, so
   // a tuft LOD swap has to redo them. Refilling the matrices does not: the

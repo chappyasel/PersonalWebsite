@@ -36,10 +36,14 @@ import { useSyncExternalStore } from "react";
 export const SCREENSHOT_PARAM = "screenshot";
 export const SCREENSHOT_DOLLY_PARAM = "screenshot-dolly";
 export const SCREENSHOT_FOV_PARAM = "screenshot-fov";
+export const SCREENSHOT_GRASS_LIFT_PARAM = "screenshot-grass-lift";
+export const SCREENSHOT_GRASS_VARIATION_PARAM = "screenshot-grass-variation";
 export const SCREENSHOT_QUERY_KEYS = [
   SCREENSHOT_PARAM,
   SCREENSHOT_DOLLY_PARAM,
   SCREENSHOT_FOV_PARAM,
+  SCREENSHOT_GRASS_LIFT_PARAM,
+  SCREENSHOT_GRASS_VARIATION_PARAM,
 ] as const;
 
 /** The unit that stays on screen. Always About: the header is a portrait
@@ -61,21 +65,39 @@ export const SCREENSHOT_DOLLY_DEFAULT = 0;
 export const SCREENSHOT_FOV_MIN = 24;
 export const SCREENSHOT_FOV_MAX = 45;
 
+/** The still's lawn: how much taller the grass stands away from the About
+ * shelf's footprint, and how much more uneven it is everywhere, both as
+ * fractions of the authored height. "Slightly" and "a little", so the
+ * defaults are small; the sliders go to a coarse 0.6 for looking. */
+export const SCREENSHOT_GRASS_MAX = 0.6;
+export const SCREENSHOT_GRASS_STEP = 0.02;
+export const SCREENSHOT_GRASS_LIFT_DEFAULT = 0.15;
+export const SCREENSHOT_GRASS_VARIATION_DEFAULT = 0.12;
+
 export type ScreenshotModeSnapshot = Readonly<{
   enabled: boolean;
   dolly: number;
   fov: number | null;
+  grassLift: number;
+  grassVariation: number;
 }>;
 
 export const SCREENSHOT_MODE_DEFAULT: ScreenshotModeSnapshot = Object.freeze({
   enabled: false,
   dolly: SCREENSHOT_DOLLY_DEFAULT,
   fov: null,
+  grassLift: SCREENSHOT_GRASS_LIFT_DEFAULT,
+  grassVariation: SCREENSHOT_GRASS_VARIATION_DEFAULT,
 });
 
 export function clampScreenshotDolly(dolly: number) {
   if (!Number.isFinite(dolly)) return SCREENSHOT_DOLLY_DEFAULT;
   return Math.min(SCREENSHOT_DOLLY_MAX, Math.max(SCREENSHOT_DOLLY_MIN, dolly));
+}
+
+export function clampScreenshotGrass(value: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(SCREENSHOT_GRASS_MAX, Math.max(0, value));
 }
 
 /** Out-of-range and unreadable values mean "no override", never a clamp: a
@@ -100,6 +122,12 @@ export function screenshotModeFromSearch(
   const enabled = raw !== null && raw !== "0" && raw !== "false";
   if (!enabled) return SCREENSHOT_MODE_DEFAULT;
   const dollyRaw = params.get(SCREENSHOT_DOLLY_PARAM);
+  const grass = (key: string, fallback: number) => {
+    const raw = params.get(key);
+    return raw === null
+      ? fallback
+      : clampScreenshotGrass(Number(raw), fallback);
+  };
   return {
     enabled,
     dolly:
@@ -107,6 +135,14 @@ export function screenshotModeFromSearch(
         ? SCREENSHOT_DOLLY_DEFAULT
         : clampScreenshotDolly(Number(dollyRaw)),
     fov: screenshotFovFromValue(params.get(SCREENSHOT_FOV_PARAM)),
+    grassLift: grass(
+      SCREENSHOT_GRASS_LIFT_PARAM,
+      SCREENSHOT_GRASS_LIFT_DEFAULT,
+    ),
+    grassVariation: grass(
+      SCREENSHOT_GRASS_VARIATION_PARAM,
+      SCREENSHOT_GRASS_VARIATION_DEFAULT,
+    ),
   };
 }
 
@@ -133,6 +169,16 @@ export function screenshotModeUrl(
       url.searchParams.set(SCREENSHOT_DOLLY_PARAM, String(snapshot.dolly));
     if (snapshot.fov !== null)
       url.searchParams.set(SCREENSHOT_FOV_PARAM, String(snapshot.fov));
+    if (snapshot.grassLift !== SCREENSHOT_GRASS_LIFT_DEFAULT)
+      url.searchParams.set(
+        SCREENSHOT_GRASS_LIFT_PARAM,
+        String(snapshot.grassLift),
+      );
+    if (snapshot.grassVariation !== SCREENSHOT_GRASS_VARIATION_DEFAULT)
+      url.searchParams.set(
+        SCREENSHOT_GRASS_VARIATION_PARAM,
+        String(snapshot.grassVariation),
+      );
   }
   return url.toString();
 }
@@ -189,6 +235,21 @@ class ScreenshotModeController {
 
   nudgeDolly(delta: number) {
     this.setDolly(this.snapshot.dolly + delta);
+  }
+
+  setGrassLift(lift: number) {
+    const next = clampScreenshotGrass(lift, SCREENSHOT_GRASS_LIFT_DEFAULT);
+    if (this.snapshot.grassLift === next) return;
+    this.publish({ ...this.snapshot, grassLift: next });
+  }
+
+  setGrassVariation(variation: number) {
+    const next = clampScreenshotGrass(
+      variation,
+      SCREENSHOT_GRASS_VARIATION_DEFAULT,
+    );
+    if (this.snapshot.grassVariation === next) return;
+    this.publish({ ...this.snapshot, grassVariation: next });
   }
 
   setFov(fov: number | null) {

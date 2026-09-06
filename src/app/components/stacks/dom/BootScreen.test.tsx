@@ -672,23 +672,56 @@ describe("Homepage entrance", () => {
       "meadow",
       "opening",
     ]);
-    // All ten authored lines survive; each sits under the gate it is true of,
-    // and the lines within a gate take turns.
+    // Every gate has enough truthful lines to avoid ping-ponging between a
+    // pair while it waits.
     expect(BOOT_WAIT_NOTES).toEqual({
-      starting: ["Waiting for first light."],
-      assets: ["Setting out the books.", "Unfolding the map."],
+      starting: [
+        "Waiting for first light.",
+        "Waking up the room.",
+        "Turning the first key.",
+        "Finding the light switch.",
+        "Lifting the dust cover.",
+        "Getting the room on its feet.",
+      ],
+      assets: [
+        "Setting out the books.",
+        "Unfolding the map.",
+        "Hanging the photographs.",
+        "Putting the plants in place.",
+        "Setting up the desk.",
+        "Placing the artifacts.",
+      ],
       firstFrame: [
         "Warming the room.",
         "Lighting the little lamp.",
         "Turning on the lighthouse.",
+        "Drawing the first frame.",
+        "Finding the right shadows.",
+        "Bringing the walls into view.",
       ],
-      meadow: ["Growing the meadow.", "Letting the moths wander."],
-      opening: ["Giving the globe a turn.", "Opening the room."],
+      meadow: [
+        "Growing the meadow.",
+        "Letting the moths wander.",
+        "Planting the last few blades.",
+        "Stirring the tall grass.",
+        "Scattering the wildflowers.",
+        "Giving the grass some wind.",
+      ],
+      opening: [
+        "Giving the globe a turn.",
+        "Opening the room.",
+        "Straightening the shelves.",
+        "Taking one last look.",
+        "Clearing the doorway.",
+        "Handing you the key.",
+      ],
     });
-    expect(BOOT_WAIT_NOTE_LINES).toHaveLength(10);
-    expect(new Set(BOOT_WAIT_NOTE_LINES.map((l) => l.text)).size).toBe(10);
+    expect(BOOT_WAIT_NOTE_LINES).toHaveLength(30);
+    expect(new Set(BOOT_WAIT_NOTE_LINES.map((l) => l.text)).size).toBe(30);
+    for (const stage of BOOT_WAIT_STAGES)
+      expect(BOOT_WAIT_NOTES[stage]).toHaveLength(6);
     expect(BOOT_WAIT_NOTE_FADE_MS).toBe(420);
-    expect(BOOT_WAIT_NOTE_INTERVAL_MS).toBe(2_400);
+    expect(BOOT_WAIT_NOTE_INTERVAL_MS).toBe(1_200);
     // The rotation is per-gate state, not a CSS carousel: nothing in the strip
     // advances through the gates on a timer.
     expect(markup).not.toContain("--stacks-boot-wait-cycle");

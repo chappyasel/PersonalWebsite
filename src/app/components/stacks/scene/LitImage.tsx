@@ -6,9 +6,14 @@
 // instead of printing sRGB 255 like stickers. object-fit: cover is emulated
 // with repeat/offset; books get a real rounded-rect ShapeGeometry (opaque
 // queue — no transparent sorting), frames and portrait a plain plane.
+//
+// One exception to "with everything else": the print grade's chroma rebuild
+// (Effects.tsx) skips photographs, which are display-referred already and
+// which it overshoots. Every image here is a photograph unless the caller
+// says `gradeChroma`, which the two cover-art sites do; see photoMaskLayer.ts.
 import { useTexture } from "@react-three/drei";
 import { type ThreeEvent, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import {
@@ -16,6 +21,7 @@ import {
   clearReleasedLitImageDetail,
   liveLitImageDetailResource,
 } from "./litImageDetail";
+import { registerPhotograph } from "./photoMaskLayer";
 import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { scenePhotoDetailTextures } from "./scenePhotoDetails";
@@ -106,6 +112,10 @@ type LitImageProps = {
   roughness?: number;
   /** Warm-grade strength (0 disables). */
   grade?: number;
+  /** Let the print grade rebuild chroma on this image as it does on the
+   * room. Off for photographs (the default), which keep the file's own
+   * chroma through the mask the grade reads; cover art turns it on. */
+  gradeChroma?: boolean;
   /** Crop zoom (1 = cover fit) + focal point [x from left, y from top]. */
   zoom?: number;
   focus?: [number, number];
@@ -128,6 +138,7 @@ function LitImageSource({
   radius = 0,
   roughness = 0.6,
   grade = 0.08,
+  gradeChroma = false,
   zoom = 1,
   focus,
   position,
@@ -135,6 +146,12 @@ function LitImageSource({
   onPointerOut,
   onClick,
 }: LitImageSourceProps) {
+  // Photographs register for the mask the grade reads; cover art never does.
+  const mesh = useRef<THREE.Mesh>(null);
+  useLayoutEffect(() => {
+    if (!mesh.current || gradeChroma) return;
+    return registerPhotograph(mesh.current);
+  }, [gradeChroma]);
   // drei caches useTexture by URL. Every print needs an instance-local
   // transform because repeat/offset encode this mesh's aspect and focal
   // point; mutating the cached texture made a second use of the same cover
@@ -163,6 +180,7 @@ function LitImageSource({
 
   return (
     <mesh
+      ref={mesh}
       geometry={geometry}
       position={position}
       onPointerOver={onPointerOver}

@@ -32,7 +32,7 @@ export function bootCadence(itemCount: number) {
   };
 }
 
-/** The room's ten lines, grouped under the gate each one is true of.
+/** The room's supporting lines, grouped under the gate each one is true of.
  *
  * These used to run on a twenty-second CSS carousel, which meant the room
  * announced that it was growing the meadow at nine seconds whether or not a
@@ -48,15 +48,46 @@ export function bootCadence(itemCount: number) {
  * advanced through the *stages* on a timer; taking turns inside one stage
  * claims nothing the boot is not doing. */
 export const BOOT_WAIT_NOTES: Record<WorldBootWaitStage, readonly string[]> = {
-  starting: ["Waiting for first light."],
-  assets: ["Setting out the books.", "Unfolding the map."],
+  starting: [
+    "Waiting for first light.",
+    "Waking up the room.",
+    "Turning the first key.",
+    "Finding the light switch.",
+    "Lifting the dust cover.",
+    "Getting the room on its feet.",
+  ],
+  assets: [
+    "Setting out the books.",
+    "Unfolding the map.",
+    "Hanging the photographs.",
+    "Putting the plants in place.",
+    "Setting up the desk.",
+    "Placing the artifacts.",
+  ],
   firstFrame: [
     "Warming the room.",
     "Lighting the little lamp.",
     "Turning on the lighthouse.",
+    "Drawing the first frame.",
+    "Finding the right shadows.",
+    "Bringing the walls into view.",
   ],
-  meadow: ["Growing the meadow.", "Letting the moths wander."],
-  opening: ["Giving the globe a turn.", "Opening the room."],
+  meadow: [
+    "Growing the meadow.",
+    "Letting the moths wander.",
+    "Planting the last few blades.",
+    "Stirring the tall grass.",
+    "Scattering the wildflowers.",
+    "Giving the grass some wind.",
+  ],
+  opening: [
+    "Giving the globe a turn.",
+    "Opening the room.",
+    "Straightening the shelves.",
+    "Taking one last look.",
+    "Clearing the doorway.",
+    "Handing you the key.",
+  ],
 };
 
 export const BOOT_WAIT_STAGES: readonly WorldBootWaitStage[] = [
@@ -67,9 +98,8 @@ export const BOOT_WAIT_STAGES: readonly WorldBootWaitStage[] = [
   "opening",
 ];
 
-/** How long one line holds before the next in its gate takes over. Matches the
- * cadence the ten lines were written to. */
-export const BOOT_WAIT_NOTE_INTERVAL_MS = 2_400;
+/** How long one line holds before the next in its gate takes over. */
+export const BOOT_WAIT_NOTE_INTERVAL_MS = 1_200;
 
 /** Every line, in gate order, for the stacked spans the boot screen renders.
  * One is marked active and the rest cross-fade out behind it. */

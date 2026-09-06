@@ -395,6 +395,9 @@ function ReadingStack({
                         width={ABOUT_READING_COVER_IMAGE.width}
                         height={ABOUT_READING_COVER_IMAGE.height}
                         roughness={0.64}
+                        // Cover art, not a photograph: it keeps the grade's
+                        // chroma.
+                        gradeChroma
                       />
                     </group>
                   </React.Suspense>

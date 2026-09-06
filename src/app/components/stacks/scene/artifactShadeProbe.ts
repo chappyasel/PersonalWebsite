@@ -26,7 +26,9 @@
 // `Effects.tsx` — before anything is concluded from it. That port is the
 // fragile part of this module: if GRADE_FRAGMENT changes, `gradeDisplay`
 // below has to change with it, and `artifactShadeProbe.test.ts` pins the two
-// together.
+// together. The probe frames a photograph, and the grade leaves a
+// photograph's chroma at the file's own (ADR 0023), so the port replays it
+// that way.
 //
 // Still not covered: vignette, bloom, DoF, AO. Those depend on where the
 // print sits in frame or on its neighbours, not on the print, and they are
@@ -34,6 +36,7 @@
 import * as THREE from "three";
 
 import type { ArtifactShadeSample } from "./artifactShadeSamples";
+import { PHOTOGRAPH_SATURATION } from "./photoMaskLayer";
 import {
   type SceneColorGradeThemeSettings,
   sceneColorGradeController,
@@ -106,11 +109,13 @@ function luma(rgb: readonly [number, number, number]) {
 
 /** GRADE_FRAGMENT from `Effects.tsx`, in display space. Kept in the same
  * order as the shader — curve, toe tint, key hue, chroma rebuild — so the two
- * can be read side by side. */
+ * can be read side by side. `photograph` is the mask: where it is set the
+ * shader blends the chroma multiplier back to the file's own. */
 export function gradeDisplay(
   display: [number, number, number],
   settings: SceneColorGradeThemeSettings,
   dark: number,
+  photograph = false,
 ): [number, number, number] {
   let d: [number, number, number] = [...display];
 
@@ -148,7 +153,9 @@ export function gradeDisplay(
 
   l = luma(d);
   const band = smoothstep(0.3, 0.7, l) * (1 - smoothstep(0.84, 1.0, l));
-  const saturation = 1.05 + settings.chromaBoost * band;
+  const saturation = photograph
+    ? PHOTOGRAPH_SATURATION
+    : 1.05 + settings.chromaBoost * band;
   return d.map((c) => Math.max(0, l + (c - l) * saturation)) as [
     number,
     number,
@@ -178,7 +185,9 @@ function toDisplayed(
     number,
     number,
   ];
-  const graded = gradeDisplay(display, settings, dark);
+  // The probe frames a print, which the mask hands to the grade as a
+  // photograph.
+  const graded = gradeDisplay(display, settings, dark, true);
   return graded.map((c) => linearToSrgb(Math.pow(Math.max(0, c), 2.2))) as [
     number,
     number,

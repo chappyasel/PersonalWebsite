@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { artifactShadeSample, gradeDisplay } from "./artifactShadeProbe";
+import { PHOTOGRAPH_SATURATION } from "./photoMaskLayer";
 import { DEFAULT_SCENE_COLOR_GRADE } from "./sceneColorGrade";
 
 const EFFECTS = readFileSync(join(__dirname, "Effects.tsx"), "utf8");
@@ -105,6 +106,30 @@ describe("grade port", () => {
     expect(graded[0]).toBeGreaterThan(0);
     expect(Number.isFinite(graded[1])).toBe(true);
   });
+
+  it("leaves a photograph's chroma at the file's own, as the mask does", () => {
+    const flat = {
+      exposure: 1,
+      curve: 0,
+      toeTint: 0,
+      chromaBoost: 0,
+      vignette: 0,
+    };
+    const before: [number, number, number] = [0.42, 0.31, 0.55];
+    // With every other knob off, a photograph comes out untouched: not even
+    // the 1.05 floor applies to it.
+    const graded = gradeDisplay(before, flat, 0, true);
+    graded.forEach((c, i) => expect(c).toBeCloseTo(before[i]!, 6));
+
+    // And with the light theme's full boost, the same photograph keeps the
+    // spread it arrived with while the room's colour is stretched.
+    const settings = DEFAULT_SCENE_COLOR_GRADE.light;
+    const spread = (rgb: readonly number[]) =>
+      Math.max(...rgb) - Math.min(...rgb);
+    const room = gradeDisplay([0.6, 0.5, 0.4], settings, 0);
+    const photograph = gradeDisplay([0.6, 0.5, 0.4], settings, 0, true);
+    expect(spread(room)).toBeGreaterThan(spread(photograph));
+  });
 });
 
 // The port is only correct while it matches the shader. These pin the
@@ -126,6 +151,27 @@ describe("grade port stays pinned to GRADE_FRAGMENT", () => {
     expect(EFFECTS).toContain("smoothstep(0.30, 0.70, l)");
     expect(EFFECTS).toContain("smoothstep(0.84, 1.00, l)");
     expect(EFFECTS).toContain("float sat = 1.05 + chromaBoost * band;");
+  });
+
+  it("hands photographs the same saturation the port uses for them", () => {
+    expect(EFFECTS).toContain("uniform sampler2D uPhotoMask;");
+    expect(EFFECTS).toContain(
+      `sat = mix(sat, ${PHOTOGRAPH_SATURATION.toFixed(1)}, photo);`,
+    );
+  });
+
+  it("still runs after tone mapping: no depth attribute, depth by uniform", () => {
+    // postprocessing sorts a merged pass's effects by attribute bits, so a
+    // grade that declared EffectAttribute.DEPTH ran on raw HDR ahead of
+    // ToneMapping and inverted every hot practical. The occlusion test reads
+    // the composer's depth through a plain uniform instead.
+    const grade = EFFECTS.slice(
+      EFFECTS.indexOf("class GradeEffect"),
+      EFFECTS.indexOf("function Grade("),
+    );
+    expect(grade).not.toContain("attributes: EffectAttribute.DEPTH");
+    expect(EFFECTS).toContain("uniform sampler2D uSceneDepth;");
+    expect(EFFECTS).not.toMatch(/readDepth\(uv\)/);
   });
 
   it("still steps through display space with the same gamma", () => {

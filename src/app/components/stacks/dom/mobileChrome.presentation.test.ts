@@ -37,4 +37,12 @@ describe("mobile chrome presentation", () => {
     );
     expect(railSource).not.toContain("stacks-mobile-secondary-chrome");
   });
+
+  it("uses the same inactive ink strength for rail icons and labels", () => {
+    expect(railSource).toMatch(/\.stacks-rail-icon \{[^}]*opacity: 0\.78;/);
+    expect(railSource).toMatch(/\.stacks-rail-label \{[^}]*opacity: 0\.78;/);
+    expect(railSource).not.toMatch(
+      /className="stacks-rail-icon[^"]*text-foreground/,
+    );
+  });
 });

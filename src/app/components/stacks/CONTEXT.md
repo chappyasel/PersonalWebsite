@@ -577,7 +577,28 @@ infinite-line picture clipped by the bezel, never stepped
 (`createIconicRuleStill` in macScreen.ts). The reading stack shows the first three "Featured?" books
 instead of the current reads. The couch and its shadow, and the seam monstera
 behind the shelf's right end, are not rendered. The coordination globe keeps
-its fine neighbourhood mesh and draws no thick reveal arcs.
+its fine neighbourhood mesh and draws no thick reveal arcs. The meadow is
+rebuilt for the room that is left: every contact-shadow occluder and unmown
+apron in meadowField.ts names its owner (a unit index or the couch) and is
+skipped for furniture that is absent (`MeadowFurniture`); the grass instances
+rebuild with that and with the still's profile (`GrassStillProfile`: a lift
+outside About's footprint, feathered over 1.5 units, and extra height
+variation everywhere, both as the console's Grass lift and Grass variation
+sliders and the `screenshot-grass-*` parameters); the lawn itself reaches
+further (`GRASS_STILL_ENVELOPE`: the trapezoid's west edge and its feather
+pushed out 18 units, counts up 1.4x to hold the spacing, the camera-side
+apron carried back to z 12), because the room's envelope is sized for a 3:1
+window at the authored stop and a dollied 4:1 frame looks past it; the
+terrain's `aShade` is rewritten in place since its geometry is cached per
+tier; and the putting green is compiled out of the terrain shader (`MEADOW_GOLF_GREEN`), with its
+vegetation clearing lifted, since it is painted into the carpet rather than
+mounted in Training.
+
+Under Cinematic+ the sky paints a sun at a fixed world direction
+(`CINEMATIC_SUN` in SceneEnvironment.tsx) and the god-rays source sphere now
+stands on that same direction from the eye, sized to the painted disc. It
+used to be pinned to a screen position, which at a wide aspect put a second
+sun well to the left of the painted one.
 
 The side tilt-shift takes the OG capture's path while the mode is on: its
 clear line sits at the viewport's middle with the capture's widened band

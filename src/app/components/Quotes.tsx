@@ -1,7 +1,7 @@
 import { QuotesIcon } from "@phosphor-icons/react/dist/ssr";
 import quotes from "public/data/quotes.json";
 
-// The ten quotes from the Cues page, in its order, all visible at once. This
+// The quotes from the Cues page, in order, all visible at once. This
 // is the third card of Personal Systems and copies the Manual and Routine
 // card structure verbatim: an absolute surface marked data-placard-surface
 // behind relative content, so PlacardLayer dresses it with the same glass on

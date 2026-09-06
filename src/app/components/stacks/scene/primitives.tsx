@@ -1074,6 +1074,8 @@ function FeaturedCover({
                 height={0.5}
                 radius={0.012}
                 roughness={0.6}
+                // Cover art, not a photograph: it keeps the grade's chroma.
+                gradeChroma
                 position={[0, 0, 0.004]}
                 onPointerOver={
                   draggable

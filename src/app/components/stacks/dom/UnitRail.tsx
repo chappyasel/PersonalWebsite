@@ -18,7 +18,6 @@ import {
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
-import { MOBILE_RAIL_FONT_CLAMP } from "./mobileSheetGeometry";
 import {
   animate,
   motion,
@@ -35,6 +34,8 @@ import {
 } from "react";
 
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
+
+import { MOBILE_RAIL_FONT_CLAMP } from "./mobileSheetGeometry";
 
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
@@ -470,11 +471,11 @@ export default function UnitRail() {
           from { scale: 1 0; }
           to { scale: 1 1; }
         }
-        /* Inactive glyphs step back just enough to leave the full-opacity
-           icon plus moving thumb as the current-position signal. They stay
-           near foreground strength because the scene beneath is variable. */
+        /* Inactive glyphs and labels share one ink strength. The glyph still
+           steps back in scale, while the full-strength icon and moving thumb
+           mark the current position. */
         .stacks-rail-icon {
-          opacity: 0.85;
+          opacity: 0.78;
           transform: scale(0.94);
           transition: opacity 0.38s var(--stacks-ease, ease-out), transform 0.38s var(--stacks-ease, ease-out);
         }
@@ -641,7 +642,7 @@ export default function UnitRail() {
                   <Icon
                     aria-hidden
                     weight="bold"
-                    className="stacks-rail-icon size-[22px] shrink-0 text-foreground"
+                    className="stacks-rail-icon size-[22px] shrink-0"
                   />
                   <span className="stacks-rail-label">{railLabel}</span>
                 </span>
@@ -774,7 +775,7 @@ export default function UnitRail() {
                 <Icon
                   aria-hidden
                   weight="bold"
-                  className="stacks-rail-icon size-[1.375em] shrink-0 text-foreground"
+                  className="stacks-rail-icon size-[1.375em] shrink-0"
                 />
                 {!tapFirst && (
                   <span

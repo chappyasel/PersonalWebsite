@@ -13,9 +13,12 @@ import {
   FLOWER_VARIATION,
   GRASS_BANDS,
   GRASS_ROOT_SINK,
+  GRASS_STILL_ENVELOPE,
+  type GrassInstances,
   HORIZON_RIDGE,
   MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
+  MEADOW_FURNITURE_ALL,
   MEADOW_GRASS_TOTAL,
   MEADOW_RUNG_FLOWERS,
   MEADOW_RUNG_FRACTIONS,
@@ -40,6 +43,8 @@ import {
   flowerCanopyLift,
   flowerSurvivesBackgroundThinning,
   grassFocusHeightScale,
+  grassShade,
+  grassStillLiftWeight,
   grassTuftHorizontalReach,
   grassTuftNormalizationScale,
   horizonCrestY,
@@ -594,6 +599,175 @@ describe("placement", () => {
         expect(stream.shade[i]!).toBeLessThanOrEqual(1);
       }
     }
+  });
+
+  it("drops the shadows of furniture that is not in the room", () => {
+    // Screenshot mode keeps About's shelf and takes the other units and the
+    // couch out; their baked contact shadows have to go with them, or the
+    // lawn keeps a stain where a plank used to be.
+    const header = { units: [0], couch: false } as const;
+    expect(shadeScale(0, 0, header)).toBeLessThan(0.25); // About still casts
+    expect(shadeScale(-3.41, 0, header)).toBe(1); // no couch, no shadow
+    expect(shadeScale(unitPose(1).position[0], 0, header)).toBe(1); // Books
+    expect(shadeScale(unitPose(3).position[0] + 1.98, -0.15, header)).toBe(1);
+    expect(shadeScale(-3.41, 0, MEADOW_FURNITURE_ALL)).toBeLessThan(0.25);
+    expect(shadeScale(-3.41, 0)).toBe(
+      shadeScale(-3.41, 0, MEADOW_FURNITURE_ALL),
+    );
+    // The per-tuft recompute agrees with the baked channel for the full
+    // room, and only ever lightens when furniture leaves.
+    const grass = buildGrassInstances();
+    const full = grassShade(grass.near, MEADOW_FURNITURE_ALL);
+    const less = grassShade(grass.near, header);
+    expect(Array.from(full)).toEqual(Array.from(grass.near.shade));
+    let lightened = 0;
+    for (let i = 0; i < grass.near.count; i++) {
+      expect(less[i]!).toBeGreaterThanOrEqual(full[i]!);
+      if (less[i]! > full[i]!) lightened += 1;
+    }
+    expect(lightened).toBeGreaterThan(0);
+  });
+
+  it("mows the apron of furniture that is not in the room, and grows the still's lawn", () => {
+    const header = { units: [0], couch: false } as const;
+    // The couch's unmown patch goes with the couch; About's own stays.
+    expect(clearanceScale(-3.41, 0, header)).toBe(1);
+    expect(clearanceScale(-3.41, 0)).toBeCloseTo(1.2, 5);
+    expect(clearanceScale(0, 0, header)).toBeCloseTo(1.22, 5);
+    expect(clearanceScale(unitPose(1).position[0], 0, header)).toBe(1);
+    // The still's lift is zero on the About footprint and full clear of it;
+    // its variation moves heights both ways; both ride under the shelf cap.
+    expect(grassStillLiftWeight(0, 0)).toBe(0);
+    expect(grassStillLiftWeight(1.4, 0.6)).toBe(0);
+    expect(grassStillLiftWeight(3.2, 0)).toBe(1);
+    expect(grassStillLiftWeight(0, -3)).toBe(1);
+    // Both builds carry a still profile so they share the still's wider
+    // envelope and land every tuft in the same place; only heights differ.
+    const plain = buildGrassInstances(undefined, {
+      furniture: header,
+      still: { lift: 0, variation: 0 },
+    });
+    const still = buildGrassInstances(undefined, {
+      furniture: header,
+      still: { lift: 0.2, variation: 0 },
+    });
+    expect(still.near.count).toBe(plain.near.count);
+    let taller = 0;
+    let same = 0;
+    for (let i = 0; i < plain.near.count; i++) {
+      const x = plain.near.x[i]!;
+      const z = plain.near.z[i]!;
+      const ratio = still.near.height[i]! / plain.near.height[i]!;
+      if (grassStillLiftWeight(x, z) === 0) {
+        expect(ratio).toBeCloseTo(1, 5);
+        same += 1;
+      } else if (grassStillLiftWeight(x, z) === 1 && !underLowerShelf(x, z)) {
+        expect(ratio).toBeCloseTo(1.2, 5);
+        taller += 1;
+      }
+    }
+    expect(same).toBeGreaterThan(20);
+    expect(taller).toBeGreaterThan(500);
+    const uneven = buildGrassInstances(undefined, {
+      furniture: header,
+      still: { lift: 0, variation: 0.1 },
+    });
+    let up = 0;
+    let down = 0;
+    for (let i = 0; i < plain.near.count; i++) {
+      if (underLowerShelf(plain.near.x[i]!, plain.near.z[i]!)) continue;
+      const ratio = uneven.near.height[i]! / plain.near.height[i]!;
+      expect(ratio).toBeGreaterThanOrEqual(0.9 - 1e-6);
+      expect(ratio).toBeLessThanOrEqual(1.1 + 1e-6);
+      if (ratio > 1.001) up += 1;
+      if (ratio < 0.999) down += 1;
+    }
+    expect(up).toBeGreaterThan(100);
+    expect(down).toBeGreaterThan(100);
+  });
+
+  it("reaches the still's lawn west of the room's, back to the dollied frame bottom", () => {
+    const room = buildGrassInstances();
+    const still = buildGrassInstances(undefined, {
+      furniture: { units: [0], couch: false },
+      still: { lift: 0, variation: 0 },
+    });
+    // Near-band tufts west of `limit` on the shelf line (z within a unit of
+    // it), where the room's trapezoid ends at x −8.6 and the still's runs
+    // on past where a 4:1 frame dollied eight units back reaches (−16).
+    const westOf = (stream: GrassInstances, limit: number, band: number) => {
+      let count = 0;
+      for (let i = 0; i < stream.count; i++)
+        if (
+          stream.band[i] === band &&
+          stream.x[i]! < limit &&
+          Math.abs(stream.z[i]!) <= 1
+        )
+          count += 1;
+      return count;
+    };
+    expect(westOf(room.near, -9, 0)).toBe(0);
+    expect(westOf(still.near, -12, 0)).toBeGreaterThan(60);
+    expect(westOf(still.near, -18, 0)).toBeGreaterThan(5);
+    // And nothing lands west of the extended edge, feather included.
+    for (let i = 0; i < still.near.count; i++) {
+      if (still.near.band[i] !== 0) continue;
+      expect(still.near.x[i]!).toBeGreaterThanOrEqual(
+        unionWestX(still.near.z[i]!, GRASS_STILL_ENVELOPE.west) - 1e-3,
+      );
+    }
+    // The apron follows the camera back.
+    const behind = (stream: GrassInstances, z: number) => {
+      let count = 0;
+      for (let i = 0; i < stream.count; i++)
+        if (stream.band[i] === 4 && stream.z[i]! > z) count += 1;
+      return count;
+    };
+    expect(behind(room.near, FLING_GRASS_APRON.maxZ + 0.01)).toBe(0);
+    expect(behind(still.near, 9)).toBeGreaterThan(300);
+    expect(still.near.count + still.far.count).toBeGreaterThan(
+      (room.near.count + room.far.count) * 1.3,
+    );
+    // The feather sits at the new edge, not the old one.
+    expect(westFeatherScale(-12, 0, GRASS_STILL_ENVELOPE.west)).toBeCloseTo(
+      1,
+      5,
+    );
+    expect(westFeatherScale(-12, 0)).toBeCloseTo(0.12, 5);
+    // Flowers grow into the same field.
+    const roomFlowers = buildFlowerPositions();
+    const flatStillFlowers = buildFlowerPositions(undefined, {
+      still: { lift: 0, variation: 0 },
+    });
+    const stillFlowers = buildFlowerPositions(undefined, {
+      still: { lift: 0.2, variation: 0.1 },
+    });
+    expect(Array.from(stillFlowers.x)).toEqual(Array.from(flatStillFlowers.x));
+    expect(Array.from(stillFlowers.z)).toEqual(Array.from(flatStillFlowers.z));
+    let roomWest = 0;
+    let stillWest = 0;
+    let raisedFlowers = 0;
+    for (let i = 0; i < roomFlowers.count; i++)
+      if (roomFlowers.x[i]! < -12) roomWest += 1;
+    for (let i = 0; i < stillFlowers.count; i++) {
+      if (stillFlowers.x[i]! < -12) stillWest += 1;
+      expect(stillFlowers.y[i]!).toBeGreaterThanOrEqual(
+        flatStillFlowers.y[i]!,
+      );
+      if (stillFlowers.y[i]! > flatStillFlowers.y[i]! + 1e-4)
+        raisedFlowers += 1;
+    }
+    expect(stillWest).toBeGreaterThan(roomWest + 40);
+    expect(raisedFlowers).toBeGreaterThan(500);
+    expect(stillFlowers.count).toBeGreaterThan(roomFlowers.count * 2);
+    // The dollied still exposes the grass apron past the ordinary room's
+    // front edge. Flower clumps must follow it instead of leaving the newly
+    // visible foreground as a flowerless strip.
+    let stillForeground = 0;
+    for (let i = 0; i < stillFlowers.count; i++)
+      if (stillFlowers.apron[i] === 1 && stillFlowers.z[i]! > 9)
+        stillForeground += 1;
+    expect(stillForeground).toBeGreaterThan(300);
   });
 
   it("feathers the western flank instead of cutting it", () => {

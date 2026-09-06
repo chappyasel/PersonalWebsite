@@ -760,7 +760,30 @@ const SHADE_UNIT_COUNT = Math.round(TRAVEL_X / UNIT_SPACING) + 1;
  * rule, no per-prop art direction. Overlapping occluders combine
  * multiplicatively like real occlusion. Boxes stay world-axis-aligned: the
  * units' ±0.1 rad yaw skews a footprint ≈0.15 u, under its penumbra. */
+/** What casts a contact shadow: a unit's furniture (by index) or the About
+ * couch. Screenshot mode removes shelves and the couch from the room, and a
+ * shadow with nothing above it reads as a stain, so every occluder names
+ * its owner and the mask can be rebuilt for the furniture that is there. */
+export type MeadowFurnitureOwner = number | "couch";
+export type MeadowFurniture = Readonly<{
+  /** Unit indexes whose furniture is present, or every unit. */
+  units: readonly number[] | "all";
+  couch: boolean;
+}>;
+export const MEADOW_FURNITURE_ALL: MeadowFurniture = Object.freeze({
+  units: "all",
+  couch: true,
+});
+export function furniturePresent(
+  owner: MeadowFurnitureOwner,
+  furniture: MeadowFurniture,
+): boolean {
+  if (owner === "couch") return furniture.couch;
+  return furniture.units === "all" || furniture.units.includes(owner);
+}
+
 type ShadeOccluder = {
+  owner: MeadowFurnitureOwner;
   x: number;
   z: number;
   hx: number;
@@ -782,6 +805,7 @@ function pushUnitOccluder(
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
   SHADE_OCCLUDERS.push({
+    owner: i,
     x: pose.position[0] + lx * c + lz * s,
     z: pose.position[2] - lx * s + lz * c,
     hx,
@@ -810,7 +834,14 @@ for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
 }
 // The About couch — measured hull centre (seated.ts), frame underside ≈0.18
 // above the lawn on its legs.
-SHADE_OCCLUDERS.push({ x: -3.41, z: 0.0, hx: 1.0, hz: 0.72, lift: 0.18 });
+SHADE_OCCLUDERS.push({
+  owner: "couch",
+  x: -3.41,
+  z: 0.0,
+  hx: 1.0,
+  hz: 0.72,
+  lift: 0.18,
+});
 // Systems floor clock (UnitSystems, local 1.98/−0.15, FootPool 0.66×0.44).
 pushUnitOccluder(3, 1.98, -0.15, 0.34, 0.26, 0.02);
 // Talks floor lamp base (UnitTalks, local −2.12/0.06).
@@ -830,9 +861,14 @@ function occluderStrength(lift: number): number {
  * own instance/vertex attribute (aShade); the shaders apply it as a direct
  * body-color multiplier (depth of the darkening is a shader-side knob —
  * this function owns only the occlusion geometry). */
-export function shadeScale(x: number, z: number): number {
+export function shadeScale(
+  x: number,
+  z: number,
+  furniture: MeadowFurniture = MEADOW_FURNITURE_ALL,
+): number {
   let s = 1;
   for (const o of SHADE_OCCLUDERS) {
+    if (!furniturePresent(o.owner, furniture)) continue;
     const dx = Math.max(Math.abs(x - o.x) - o.hx, 0);
     const dz = Math.max(Math.abs(z - o.z) - o.hz, 0);
     const d = Math.hypot(dx, dz);
@@ -842,7 +878,23 @@ export function shadeScale(x: number, z: number): number {
   return s;
 }
 
+/** The contact-shadow mask for every tuft of a built stream, for the given
+ * furniture. `buildGrassInstances` bakes the full-room mask into
+ * `stream.shade`; this recomputes only that channel, so a room with less
+ * furniture in it (screenshot mode) never rebuilds the instances. */
+export function grassShade(
+  stream: Pick<GrassInstances, "count" | "x" | "z">,
+  furniture: MeadowFurniture,
+): Float32Array {
+  const shade = new Float32Array(stream.count);
+  for (let i = 0; i < stream.count; i++)
+    shade[i] = shadeScale(stream.x[i]!, stream.z[i]!, furniture);
+  return shade;
+}
+
 type UnmownArea = {
+  /** The furniture that blocks the mower here; same owners as the shade. */
+  owner: MeadowFurnitureOwner;
   x: number;
   z: number;
   hx: number;
@@ -853,6 +905,7 @@ const UNMOWN_AREAS: UnmownArea[] = [];
 for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
   const pose = unitPose(i);
   UNMOWN_AREAS.push({
+    owner: i,
     x: pose.position[0],
     z: pose.position[2],
     hx: SHELF_GEOMETRY.width / 2 + 0.08,
@@ -864,9 +917,10 @@ for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
 // Musings/Talks practical seam. These are intentionally explicit authored
 // unmown footprints, not a global grass multiplier.
 UNMOWN_AREAS.push(
-  { x: -3.41, z: 0, hx: 1.12, hz: 0.82, underGrowth: 1.2 },
-  { x: 1.05, z: 0.62, hx: 0.42, hz: 0.35, underGrowth: 1.16 },
+  { owner: "couch", x: -3.41, z: 0, hx: 1.12, hz: 0.82, underGrowth: 1.2 },
+  { owner: 0, x: 1.05, z: 0.62, hx: 0.42, hz: 0.35, underGrowth: 1.16 },
   {
+    owner: 2,
     x: unitPose(2).position[0] - 1.5,
     z: 0.45,
     hx: 1.0,
@@ -874,6 +928,7 @@ UNMOWN_AREAS.push(
     underGrowth: 1.2,
   },
   {
+    owner: 3,
     x: unitPose(3).position[0] + 1.98,
     z: -0.15,
     hx: 0.4,
@@ -881,6 +936,7 @@ UNMOWN_AREAS.push(
     underGrowth: 1.17,
   },
   {
+    owner: 6,
     x: unitPose(6).position[0] - 2.12,
     z: 0.06,
     hx: 0.3,
@@ -889,9 +945,14 @@ UNMOWN_AREAS.push(
   },
 );
 
-export function clearanceScale(x: number, z: number): number {
+export function clearanceScale(
+  x: number,
+  z: number,
+  furniture: MeadowFurniture = MEADOW_FURNITURE_ALL,
+): number {
   let scale = 1;
   for (const area of UNMOWN_AREAS) {
+    if (!furniturePresent(area.owner, furniture)) continue;
     const inside =
       Math.abs(x - area.x) <= area.hx && Math.abs(z - area.z) <= area.hz;
     const dx = Math.max(Math.abs(x - area.x) - area.hx, 0);
@@ -925,8 +986,11 @@ export function underLowerShelf(
   x: number,
   z: number,
   horizontalReach = 0,
+  furniture: MeadowFurniture = MEADOW_FURNITURE_ALL,
 ): boolean {
   for (let i = 0; i < SHADE_UNIT_COUNT; i += 1) {
+    // A plank that is not in the room caps nothing.
+    if (!furniturePresent(i, furniture)) continue;
     const pose = unitPose(i);
     const yaw = pose.rotation[1];
     const dx = x - pose.position[0];
@@ -986,12 +1050,15 @@ export function inFarFeather(z: number): boolean {
 
 /** Western boundary of the vegetation union at a z plane (−Infinity where
  * no band covers z). */
-export function unionWestX(z: number): number {
+export function unionWestX(z: number, westExtension = 0): number {
   let west = Infinity;
   if (z <= VEGETATION_FRONT_Z && z >= TRAVERSE_EYE.z - GRASS_BANDS.ridge.d1) {
     west = Math.min(
       west,
-      TRAVERSE_MIN_X - LATERAL_REACH * (TRAVERSE_EYE.z - z) - 0.6,
+      TRAVERSE_MIN_X -
+        westExtension -
+        LATERAL_REACH * (TRAVERSE_EYE.z - z) -
+        0.6,
     );
   }
   if (z >= SEAT_Z + GRASS_BANDS.seated.d0 && z <= MEADOW_BANK.skirtZ) {
@@ -1001,14 +1068,22 @@ export function unionWestX(z: number): number {
 }
 
 /** Scale multiplier implementing the feather: → 0.12 at the boundary. */
-export function westFeatherScale(x: number, z: number): number {
-  const west = unionWestX(z);
+export function westFeatherScale(
+  x: number,
+  z: number,
+  westExtension = 0,
+): number {
+  const west = unionWestX(z, westExtension);
   if (!Number.isFinite(west)) return 1;
   return 0.12 + 0.88 * smoothstep(0, WEST_FEATHER.span, x - west);
 }
 
-export function inWestFeather(x: number, z: number): boolean {
-  return x <= unionWestX(z) + WEST_FEATHER.span + 0.5;
+export function inWestFeather(
+  x: number,
+  z: number,
+  westExtension = 0,
+): boolean {
+  return x <= unionWestX(z, westExtension) + WEST_FEATHER.span + 0.5;
 }
 
 /** The seated band's EAST flank past the traverse front line gets the same
@@ -1091,9 +1166,11 @@ function bakedSun(x: number, z: number): number {
   return 0.5 + 0.5 * Math.max(-1, Math.min(1, ndl));
 }
 
-function traverseXRange(d: number): [number, number] {
+/** `westExtension` pushes the trapezoid's west edge out by that many units
+ * at every depth. The still uses it: see GRASS_STILL_ENVELOPE. */
+function traverseXRange(d: number, westExtension = 0): [number, number] {
   return [
-    TRAVERSE_MIN_X - LATERAL_REACH * d - 0.6,
+    TRAVERSE_MIN_X - westExtension - LATERAL_REACH * d - 0.6,
     TRAVERSE_MAX_X + LATERAL_REACH * d + 0.6,
   ];
 }
@@ -1102,8 +1179,8 @@ function traverseXRange(d: number): [number, number] {
  * ridge band and hill flowers, d > 24) out-reach the rectangle's east edge;
  * the frustum out-slopes the rectangle there anyway, and the fog cap's
  * border-recovery band fully fogs the last strip. */
-function clippedTraverseXRange(d: number): [number, number] {
-  const [x0, x1] = traverseXRange(d);
+function clippedTraverseXRange(d: number, westExtension = 0): [number, number] {
+  const [x0, x1] = traverseXRange(d, westExtension);
   return [
     Math.max(x0, MEADOW_TERRAIN.minX + 0.3),
     Math.min(x1, MEADOW_TERRAIN.maxX - 0.3),
@@ -1440,16 +1517,80 @@ export function buildMeadowTiles(
   return balanced.sort((a, b) => b.maxZ - a.maxZ || a.minX - b.minX);
 }
 
+/** A still's grass, outside the furniture that is in the room: a little
+ * taller away from the About shelf and a little more uneven everywhere.
+ * Both are multipliers on the authored height; zero is the ordinary lawn.
+ * The middle is the About footprint's own unmown box, feathered outward
+ * over `feather` units so the lift never draws a line on the lawn. */
+export type GrassStillProfile = Readonly<{
+  lift: number;
+  variation: number;
+}>;
+export const GRASS_STILL_MIDDLE = Object.freeze({
+  hx: SHELF_GEOMETRY.width / 2 + 0.08,
+  hz: 0.64,
+  feather: 1.5,
+});
+/** 0 inside the About footprint, 1 once `feather` units clear of it. */
+export function grassStillLiftWeight(x: number, z: number): number {
+  const dx = Math.max(Math.abs(x) - GRASS_STILL_MIDDLE.hx, 0);
+  const dz = Math.max(Math.abs(z) - GRASS_STILL_MIDDLE.hz, 0);
+  return smoothstep(0, GRASS_STILL_MIDDLE.feather, Math.hypot(dx, dz));
+}
+
+/** The still's lawn reaches further than the room's. The trapezoid's west
+ * edge is the lead-in minus LATERAL_REACH per unit of depth, sized for a
+ * 3:1 window at the authored stop, and the west feather thins its last
+ * eight units. A 4:1 header dollied eight units back looks straight into
+ * that: at the shelf its frame reaches x −16 where the envelope ends at
+ * −7.6, so the left of the frame was bare carpet ("unusually bald on this
+ * left side"). West is pushed out by `west`, which also carries the feather
+ * with it, clear of the frame at full dolly. Grass counts scale by `density`
+ * and `apronDensity`; flower counts use their own stronger pair. The
+ * camera-side apron runs back to `apronMaxZ` so the ground under a dollied
+ * camera's frame bottom (z ≈ 1.8 + dolly) remains planted. */
+export const GRASS_STILL_ENVELOPE = Object.freeze({
+  west: 18,
+  density: 1.4,
+  apronMaxZ: 12,
+  apronDensity: 2,
+  /** Screenshot-only flower density across the authored field. */
+  flowerDensity: 1.8,
+  /** Extra clumps in the near apron exposed by the screenshot dolly. */
+  flowerApronDensity: 4,
+});
+
+export type GrassBuildOptions = Readonly<{
+  furniture?: MeadowFurniture;
+  still?: GrassStillProfile;
+}>;
+
 export function buildGrassInstances(
   total: number = MEADOW_GRASS_TOTAL,
+  options: GrassBuildOptions = {},
 ): GrassStreams {
-  const scale = total / MEADOW_GRASS_TOTAL;
+  const furniture = options.furniture ?? MEADOW_FURNITURE_ALL;
+  const still = options.still;
+  const west = still ? GRASS_STILL_ENVELOPE.west : 0;
+  const apronMaxZ = still
+    ? GRASS_STILL_ENVELOPE.apronMaxZ
+    : FLING_GRASS_APRON.maxZ;
+  const scale =
+    (total * (still ? GRASS_STILL_ENVELOPE.density : 1)) / MEADOW_GRASS_TOTAL;
   const bands = [
     { ...GRASS_BANDS.near, id: 0 },
     { ...GRASS_BANDS.mid, id: 1 },
     { ...GRASS_BANDS.seated, id: 2 },
     { ...GRASS_BANDS.ridge, id: 3 },
-    { ...GRASS_BANDS.apron, d0: 0, d1: 0, id: 4 },
+    {
+      ...GRASS_BANDS.apron,
+      count:
+        GRASS_BANDS.apron.count *
+        (still ? GRASS_STILL_ENVELOPE.apronDensity : 1),
+      d0: 0,
+      d1: 0,
+      id: 4,
+    },
   ].map((b) => ({ ...b, count: Math.round(b.count * scale) }));
 
   const raw: RawInstance[] = [];
@@ -1484,7 +1625,7 @@ export function buildGrassInstances(
       if (band.id === 4) {
         z =
           FLING_GRASS_APRON.minZ +
-          rand(i, 46) * (FLING_GRASS_APRON.maxZ - FLING_GRASS_APRON.minZ);
+          rand(i, 46) * (apronMaxZ - FLING_GRASS_APRON.minZ);
         x =
           FLING_GRASS_APRON.minX +
           rand(i, 42) * (FLING_GRASS_APRON.maxX - FLING_GRASS_APRON.minX);
@@ -1495,7 +1636,9 @@ export function buildGrassInstances(
       } else {
         z = TRAVERSE_EYE.z - d;
         const [x0, x1] =
-          band.id === 3 ? clippedTraverseXRange(d) : traverseXRange(d);
+          band.id === 3
+            ? clippedTraverseXRange(d, west)
+            : traverseXRange(d, west);
         x = focusedTraverseX(i, z, x0, x1);
       }
       if (
@@ -1540,7 +1683,7 @@ export function buildGrassInstances(
       const f =
         band.id === 4
           ? 1
-          : westFeatherScale(x, z) *
+          : westFeatherScale(x, z, west) *
             eastFeatherScale(x, z) *
             farFeatherScale(z);
       // Exact 70/25/5 authored height tiers. Taller tiers gain a little more
@@ -1549,21 +1692,28 @@ export function buildGrassInstances(
       const tierRoll = rand(i, 144);
       const tier = tierRoll < 0.7 ? 1 : tierRoll < 0.95 ? 1.32 : 1.78;
       const concentration = tier === 1 ? 1 : 1 + tallGrowthBias(x, z) * 0.16;
-      const clearance = clearanceScale(x, z);
+      const clearance = clearanceScale(x, z, furniture);
       const rootY = meadowHeight(x, z) - GRASS_ROOT_SINK;
+      // The still's profile rides on the authored height before the shelf
+      // cap, so nothing it lifts can reach a plank.
+      const stillScale = still
+        ? (1 + still.lift * grassStillLiftWeight(x, z)) *
+          (1 + still.variation * (2 * rand(i, 173) - 1))
+        : 1;
       const authoredHeight =
         height *
         tier *
         concentration *
         f *
         clearance *
-        grassFocusHeightScale(x, z);
+        grassFocusHeightScale(x, z) *
+        stillScale;
       const renderedWidth = width * f * (0.82 + clearance * 0.18);
       const horizontalReach = grassTuftHorizontalReach(
         renderedWidth,
         authoredHeight,
       );
-      const cappedHeight = underLowerShelf(x, z, horizontalReach)
+      const cappedHeight = underLowerShelf(x, z, horizontalReach, furniture)
         ? Math.min(authoredHeight, Math.max(0, UNDER_SHELF_GRASS_TIP_Y - rootY))
         : authoredHeight;
       raw.push({
@@ -1628,7 +1778,9 @@ export function buildGrassInstances(
       out.height[k] = r.height;
       out.width[k] = r.width;
       out.sun[k] = bakedSun(r.x, r.z);
-      out.shade[k] = shadeScale(r.x, r.z);
+      // From the stored float32 coordinates, not the raw ones, so a later
+      // recompute over the stream (grassShade) lands on the same values.
+      out.shade[k] = shadeScale(out.x[k], out.z[k], furniture);
       out.band[k] = r.band;
     });
     return out;
@@ -1707,14 +1859,32 @@ type RawFlower = {
 
 export function buildFlowerPositions(
   total: number = MEADOW_FLOWER_TOTAL,
+  options: Readonly<{ still?: boolean | GrassStillProfile }> = {},
 ): FlowerInstances {
-  const apronCount = Math.round(
+  // The still's wider, denser field (GRASS_STILL_ENVELOPE) grows flowers
+  // to match, so the far left is a meadow rather than a lawn. Its foreground
+  // apron also follows the dollied camera and receives an extra density pass,
+  // matching the grass apron instead of revealing a flowerless near strip.
+  const stillMode = Boolean(options.still);
+  const stillProfile =
+    typeof options.still === "object" ? options.still : undefined;
+  const west = stillMode ? GRASS_STILL_ENVELOPE.west : 0;
+  const apronMaxZ = stillMode
+    ? GRASS_STILL_ENVELOPE.apronMaxZ
+    : FLING_APRON_FLOWERS.maxZ;
+  if (stillMode)
+    total = Math.round(total * GRASS_STILL_ENVELOPE.flowerDensity);
+  const baseApronCount = Math.round(
     total * (FLING_APRON_FLOWERS.count / MEADOW_FLOWER_TOTAL),
+  );
+  const apronCount = Math.round(
+    baseApronCount *
+      (stillMode ? GRASS_STILL_ENVELOPE.flowerApronDensity : 1),
   );
   const highHillCount = Math.round(
     total * (MEADOW_FLOWER_HIGH_HILL_BONUS / MEADOW_FLOWER_TOTAL),
   );
-  const fieldCount = total - apronCount - highHillCount;
+  const fieldCount = total - baseApronCount - highHillCount;
   const traverseCount = Math.round(
     fieldCount * (MEADOW_FLOWER_TRAVERSE_TOTAL / MEADOW_FLOWER_FIELD_TOTAL),
   );
@@ -1742,14 +1912,14 @@ export function buildFlowerPositions(
       const w = Math.max(gauss(d, 16, 5), 0.8 * gauss(d, 26.5, 3), 0.3);
       if (rand(s, 62 + t * 7) > w) continue;
       z = TRAVERSE_EYE.z - d;
-      const [x0, x1] = clippedTraverseXRange(d);
+      const [x0, x1] = clippedTraverseXRange(d, west);
       x = x0 + rand(s, 63 + t * 7) * (x1 - x0);
       if (driftMask(x, z)) break;
     }
     if (x === 0 && z === 0) {
       const d = 15;
       z = TRAVERSE_EYE.z - d;
-      const [x0, x1] = traverseXRange(d);
+      const [x0, x1] = traverseXRange(d, west);
       x = x0 + rand(s, 64) * (x1 - x0);
     }
     const tint = flowerTint(s, 69);
@@ -1783,7 +1953,7 @@ export function buildFlowerPositions(
               (FLOWER_VARIATION.fieldScale[1] -
                 FLOWER_VARIATION.fieldScale[0])) *
           (1 + 1.6 * smoothstep(18, 27, d)) *
-          westFeatherScale(hx, hz) *
+          westFeatherScale(hx, hz, west) *
           farFeatherScale(hz),
         q: rand(i, 98),
         tint,
@@ -1853,7 +2023,7 @@ export function buildFlowerPositions(
       z =
         FLING_APRON_FLOWERS.minZ +
         rand(sj, 122 + t * 5) *
-          (FLING_APRON_FLOWERS.maxZ - FLING_APRON_FLOWERS.minZ);
+          (apronMaxZ - FLING_APRON_FLOWERS.minZ);
       if (vnoise2(x * 0.11, z * 0.5, 173) > 0.5) break;
     }
     const tint = flowerTint(sj, 129);
@@ -1873,7 +2043,7 @@ export function buildFlowerPositions(
         z: clamp(
           z + clusterOffset(j, 136) * 0.65,
           FLING_APRON_FLOWERS.minZ,
-          FLING_APRON_FLOWERS.maxZ,
+          apronMaxZ,
         ),
         scale:
           FLOWER_VARIATION.apronScale[0] +
@@ -1939,7 +2109,7 @@ export function buildFlowerPositions(
               (FLOWER_VARIATION.fieldScale[1] -
                 FLOWER_VARIATION.fieldScale[0])) *
           (1 + 1.6 * smoothstep(18, 27, d)) *
-          westFeatherScale(hx, hz) *
+          westFeatherScale(hx, hz, west) *
           farFeatherScale(hz),
         q: rand(j, 198),
         tint,
@@ -1996,7 +2166,20 @@ export function buildFlowerPositions(
     );
     const golf = suppressGolfVegetation(f.x, f.z, variation);
     out.x[k] = f.x;
-    const lift = f.apron ? FLOWER_LIFT : flowerCanopyLift(f.x, f.z, variation);
+    const baseLift = f.apron
+      ? FLOWER_LIFT
+      : flowerCanopyLift(f.x, f.z, variation);
+    // Screenshot grass can be both lifted and varied upward. Keep every head
+    // at least as high relative to that taller canopy as it is in the room;
+    // using the variation ceiling avoids a nearby tall tuft swallowing it.
+    const stillScale = stillProfile
+      ? (1 + stillProfile.lift * grassStillLiftWeight(f.x, f.z)) *
+        (1 + stillProfile.variation)
+      : 1;
+    const lift = Math.min(
+      baseLift * stillScale,
+      FLOWER_BACKGROUND_LIFT.max,
+    );
     out.y[k] = meadowHeight(f.x, f.z) + lift;
     out.z[k] = f.z;
     out.scale[k] =

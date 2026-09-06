@@ -59,6 +59,7 @@ import {
   pixelArtPlanFor,
   pixelWipeCoverRadius,
 } from "./pixelArt";
+import { PhotoMaskPass } from "./PhotoMaskPass";
 import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
 import { useScreenshotMode } from "./screenshotMode";
 import {
@@ -92,6 +93,9 @@ import {
 //     light sky printed as neutral grey at every hex we tried. This puts
 //     that chroma back where it was taken and nowhere else: band-limited so
 //     near-whites stay white and cover art keeps its ACES ceiling.
+//     Photographs sit this step out (ADR 0023): they are display-referred
+//     already and the boost overshoots them, so where PhotoMaskPass says a
+//     photograph is the nearest surface the multiplier goes back to 1.0.
 //
 // It runs AFTER ToneMapping (a print grade belongs in display-referred
 // space) but the composer's buffers are linear until the final encode, so
@@ -105,6 +109,9 @@ const GRADE_FRAGMENT = `
   uniform float uDarkToeTint;
   uniform float uLightChromaBoost;
   uniform float uDarkChromaBoost;
+  uniform sampler2D uPhotoMask;      // PhotoMaskPass: 1 where a photograph was drawn
+  uniform sampler2D uPhotoMaskDepth; // and how deep, so a prop in front still grades
+  uniform sampler2D uSceneDepth;     // the composer's depth, handed over by the pass
 
   float lumc(const in vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
@@ -127,6 +134,23 @@ const GRADE_FRAGMENT = `
     float band = smoothstep(0.30, 0.70, l) * (1.0 - smoothstep(0.84, 1.00, l));
     float chromaBoost = mix(uLightChromaBoost, uDarkChromaBoost, uDark);
     float sat = 1.05 + chromaBoost * band;
+    // A photograph keeps the file's own chroma (photoMaskLayer.ts). The mask
+    // is half resolution and knows nothing about occluders, so its depth and
+    // the scene's are compared in view space: the mask counts only where the
+    // photograph is the nearest surface, with 2 cm of slack for the coarser
+    // sample. Both depths are read raw rather than through readDepth, because
+    // asking for the depth attribute would re-sort this effect ahead of tone
+    // mapping (see GradeEffect); the pass hands the composer's depth over.
+    float photo = texture2D(uPhotoMask, uv).r;
+    float photoDepth = texture2D(uPhotoMaskDepth, uv).r;
+    float sceneDepth = texture2D(uSceneDepth, uv).r;
+    #ifdef USE_REVERSED_DEPTH_BUFFER
+      photoDepth = 1.0 - photoDepth;
+      sceneDepth = 1.0 - sceneDepth;
+    #endif
+    photo *= step(getViewZ(sceneDepth) - 0.02, getViewZ(photoDepth));
+    photo = clamp(photo, 0.0, 1.0);
+    sat = mix(sat, 1.0, photo);
     d = max(vec3(0.0), vec3(l) + (d - vec3(l)) * sat);
 
     outputColor = vec4(pow(d, vec3(2.2)), inputColor.a);
@@ -134,12 +158,22 @@ const GRADE_FRAGMENT = `
 `;
 
 class GradeEffect extends Effect {
-  constructor(dark: number, settings: SceneColorGradeSettings) {
+  constructor(
+    dark: number,
+    settings: SceneColorGradeSettings,
+    photoMask: PhotoMaskPass,
+  ) {
     super("GradeEffect", GRADE_FRAGMENT, {
+      // No EffectAttribute.DEPTH here, although the mask's occlusion test
+      // reads depth. postprocessing sorts the effects of a merged pass by
+      // their attribute bits, so declaring DEPTH moved this grade AHEAD of
+      // Vignette and ToneMapping and ran it on raw HDR, where the S-curve
+      // goes negative above 1.5: the lamp mouth turned blue, the hot cores
+      // black. The composer's depth arrives through PhotoMaskPass instead.
       // SRC returns the shader's own output verbatim — a grade replaces the
       // frame, it does not composite over it.
       blendFunction: BlendFunction.SRC,
-      uniforms: new Map([
+      uniforms: new Map<string, Uniform>([
         ["uDark", new Uniform(dark)],
         ["uLightCurve", new Uniform(settings.light.curve)],
         ["uDarkCurve", new Uniform(settings.dark.curve)],
@@ -147,6 +181,13 @@ class GradeEffect extends Effect {
         ["uDarkToeTint", new Uniform(settings.dark.toeTint)],
         ["uLightChromaBoost", new Uniform(settings.light.chromaBoost)],
         ["uDarkChromaBoost", new Uniform(settings.dark.chromaBoost)],
+        // The pass hands back the same two texture objects for its whole
+        // life, resizes included, so these are bound once. The scene depth
+        // arrives later, when the composer creates it, and Grade keeps it
+        // current from the frame loop.
+        ["uPhotoMask", new Uniform(photoMask.mask)],
+        ["uPhotoMaskDepth", new Uniform(photoMask.depth)],
+        ["uSceneDepth", new Uniform(photoMask.sceneDepth)],
       ]),
     });
   }
@@ -155,15 +196,17 @@ class GradeEffect extends Effect {
 function Grade({
   dark,
   settings,
+  photoMask,
 }: {
   dark: boolean;
   settings: SceneColorGradeSettings;
+  photoMask: PhotoMaskPass;
 }) {
   // Seeded from the mounted theme so a dark first paint never ramps up from
   // the light grade; after that uDark damps at the sky dome's rate, so the
   // grade and the sky cross the theme flip together.
   const effect = useMemo(
-    () => new GradeEffect(dark ? 1 : 0, settings),
+    () => new GradeEffect(dark ? 1 : 0, settings, photoMask),
     [], // eslint-disable-line react-hooks/exhaustive-deps
   );
   useDispose(effect);
@@ -176,8 +219,20 @@ function Grade({
   useFrame((_, delta) => {
     const u = effect.uniforms.get("uDark")!;
     u.value = MathUtils.damp(u.value as number, dark ? 1 : 0, 3.5, delta);
+    // The composer creates its depth texture when a pass first asks for it,
+    // which may be after this effect was built; the pass holds the latest.
+    const depth = effect.uniforms.get("uSceneDepth")!;
+    if (depth.value !== photoMask.sceneDepth) depth.value = photoMask.sceneDepth;
   });
   return <primitive object={effect} dispose={null} />;
+}
+
+/** The photo mask as a composer child. Disposal rides on the mount, so the
+ * half-resolution target and its depth texture exist only while the grade
+ * that reads them is in the chain. */
+function PhotoMask({ pass }: { pass: PhotoMaskPass }) {
+  useDispose(pass);
+  return <primitive object={pass} dispose={null} />;
 }
 
 // AMD FidelityFX RCAS, ported from Three's SharpenNode to the current WebGL
@@ -645,6 +700,12 @@ export default function Effects({
   const { cinematicPlus } = useSceneQualityControls();
   const sun = useCinematicSun();
   const colorGrade = sceneColorGradeFor(baseColorGrade, cinematicPlus);
+  // The photo mask the grade reads (ADR 0023), drawn through the camera the
+  // composer renders with. It mounts, and holds GPU memory, only with the
+  // grade, because the grade is its only reader; the object itself is kept
+  // here so the grade can bind its textures once.
+  const camera = useThree((state) => state.camera);
+  const photoMask = useMemo(() => new PhotoMaskPass(camera), [camera]);
   // DoF is the expensive world-space blur and remains disabled in the
   // minimal effects tier. The
   // owner-approved side tilt shift is the cheaper compositional treatment;
@@ -734,6 +795,9 @@ export default function Effects({
   );
   return (
     <EffectComposer multisampling={plan.multisampling} stencilBuffer>
+      {/* First, right behind the render pass: the photographs alone, into
+          the mask the grade reads. It touches no composer buffer. */}
+      {performanceSettings.colorGrade && <PhotoMask pass={photoMask} />}
       {plan.ambientOcclusion && !visionRideRoomHidden && (
         <N8AO
           halfRes={plan.ambientOcclusionHalfRes}
@@ -804,8 +868,8 @@ export default function Effects({
           density={0.97}
           decay={0.945}
           weight={0.5}
-          exposure={0.68}
-          clampMax={0.92}
+          exposure={0.76}
+          clampMax={1}
           blur
           resolutionScale={0.5}
         />
@@ -825,7 +889,7 @@ export default function Effects({
       />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       {performanceSettings.colorGrade && (
-        <Grade dark={dark} settings={colorGrade} />
+        <Grade dark={dark} settings={colorGrade} photoMask={photoMask} />
       )}
       {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
       <SMAA />

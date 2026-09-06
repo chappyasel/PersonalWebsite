@@ -40,9 +40,9 @@ export const ABOUT_LANDMARK_X = {
   "profile-frame": 1.032,
   "large-plant": 1.18,
   "desk-lamp": -1.186,
-  "ai-collective": -0.8708,
-  "coordination-globe": -0.507,
-  "tj-medallion": -0.1962,
+  "ai-collective": -0.8475,
+  "coordination-globe": -0.5004,
+  "tj-medallion": -0.1828,
   "vision-pro": 0.1527,
   "role-icons": 0.5233,
   "reading-stack": 1.0005,
@@ -53,10 +53,10 @@ export const ABOUT_LANDMARK_X = {
  * share it. Depth only affects the live scene. */
 export const ABOUT_LOWER_LANDMARK_Z = {
   "desk-lamp": -0.06,
-  "ai-collective": -0.0268,
-  "coordination-globe": -0.036,
-  "tj-medallion": -0.0099,
-  "vision-pro": -0.0659,
+  "ai-collective": -0.1147,
+  "coordination-globe": -0.0795,
+  "tj-medallion": -0.045,
+  "vision-pro": -0.0938,
   "role-icons": -0.0283,
   "reading-stack": -0.0231,
 } as const;
@@ -136,9 +136,9 @@ export const ABOUT_TOP_LANDMARK_Z = {
   "large-plant": -0.23,
 } as const;
 
-// The editor's +0.0038 outer yaw is folded into the mark's existing root yaw.
+// The editor's outer yaw is folded into the mark's existing root yaw.
 // One rotation now drives its mesh, boot projection, collider, and highlight.
-export const ABOUT_AIC_ROOT_YAW = -0.1562;
+export const ABOUT_AIC_ROOT_YAW = -0.1814;
 export const ABOUT_AIC_MARK_YAW = 0.04;
 export const ABOUT_APPLE_ROOT_YAW = -0.34;
 export const ABOUT_APPLE_MARK_YAW = 0.04;
