@@ -952,9 +952,11 @@ NEEDS: when and where this was, and whether it is worth saying what you were bui
 Title: Phone
 Status: written
 
-Lying face up on the lower shelf. It slid left into the notebook's old place
+Lying face down on the lower shelf. It slid left into the notebook's old place
 when the notebook went to Systems, so the two circuit boards could stand between
-it and the Mac.
+it and the Mac. Pick it up and it turns to face you: the Weightlifting App's
+list view, an iPhone 15 screenshot with the Dynamic Island painted back in
+where the panel has it, since a screenshot never shows the hole.
 
 ## egg:pixel:arduino
 
@@ -982,17 +984,22 @@ Status: needs-owner
 
 NEEDS: what you were at Facebook for and when.
 
-## link:projects:mac
+## action:projects:mac
 
 Title: Macintosh
 Status: written
-Link: GitHub https://github.com/chappyasel
 
-A compact Macintosh with a live pixel Happy Mac face that tracks the pointer and
-blinks, and the way to my GitHub. It is a compact Mac and not a laptop for a
-plain reason: at the twenty-odd pixels this covers on screen a MacBook is a grey
-wedge, while the beige box with the recessed screen, the floppy slot and the
-chin is unmistakable from across the room.
+A compact Macintosh with a live pixel screen. It boots to the Happy Mac face,
+which tracks the pointer and blinks. After five seconds at this shelf, or the
+moment the pointer rests on the machine, the screen switches to a cellular
+automaton: a one-dimensional rule scrolling up from the bottom row into a band
+of Conway's Life along the top. It is the same program that ran as the
+background of the previous version of this site. Tap the Mac and it comes up to
+the camera so the cells are legible; tap again, press Escape, or move on to put
+it back. It is a compact Mac and not a laptop for a plain reason: at the
+twenty-odd pixels this covers on screen a MacBook is a grey wedge, while the
+beige box with the recessed screen, the floppy slot and the chin is
+unmistakable from across the room.
 
 ## egg:lamp:4
 

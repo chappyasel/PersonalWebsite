@@ -94,6 +94,10 @@ export type SceneInteractionSpec = {
   activeUnits: number[];
   touchPriority?: number;
   projectedLocalBounds?: ProjectedLocalBounds;
+  /** The visible subtree moves relative to the root (a prop that flies to the
+   * camera while its carrier stays on the shelf), so projection must measure
+   * it on every call instead of trusting the once-measured local box. */
+  liveBounds?: boolean;
   movable?: MovableSpec;
   movableController?: MovableController;
   activation?: PortalSpec | ActionSpec | EggSpec | ArtifactSpec;
@@ -233,6 +237,7 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
       movablePart?.projectedLocalBounds ??
       activationPart?.projectedLocalBounds ??
       all[0]?.projectedLocalBounds,
+    liveBounds: all.some((part) => part.liveBounds),
     movable: movablePart?.movable,
     movableController: movablePart?.movableController,
     activation: activationPart?.activation,

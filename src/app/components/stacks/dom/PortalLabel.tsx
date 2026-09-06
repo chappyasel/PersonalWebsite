@@ -5,6 +5,7 @@ import {
   portalLabelActivation,
   projectPortal,
   runSceneInteractionActivation,
+  subscribeSceneInteractions,
 } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
 import { ArrowSquareOutIcon, ArrowsOutIcon } from "@phosphor-icons/react";
@@ -25,6 +26,17 @@ const EXIT_MS = TRANSITION_MS + 100;
 
 function isFinePointer() {
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+/** What the label would show for an activation, flattened for comparison. */
+function activationLabelKey(
+  activation:
+    | { kind: string; label: string; title?: string }
+    | null
+    | undefined,
+) {
+  if (!activation) return "";
+  return `${activation.kind}:${activation.label}:${activation.title ?? ""}`;
 }
 
 export default function PortalLabel() {
@@ -58,6 +70,27 @@ export default function PortalLabel() {
   const eligibleRef = useRef(false);
   const desiredIdRef = useRef<string | null>(null);
   const exitTimer = useRef<number | null>(null);
+  // A registration can change under a resting pointer: an action whose verb
+  // flips when it runs (the Mac's "Closer look" / "Put it back", the pixel
+  // boards' modes) re-registers with the new label while the pointer never
+  // leaves. Re-resolve for that one case only; the rest of the room
+  // registering and unregistering as it travels is not this label's business.
+  const [registryVersion, setRegistryVersion] = useState(0);
+  const resolvedLabelRef = useRef("");
+  useEffect(() => {
+    const unsubscribe = subscribeSceneInteractions(() => {
+      const id = desiredIdRef.current;
+      if (!id) return;
+      const key = activationLabelKey(
+        portalLabelActivation(getSceneInteraction(id)),
+      );
+      if (key !== resolvedLabelRef.current)
+        setRegistryVersion((version) => version + 1);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
   const enterFrame = useRef<number | null>(null);
   const positionedId = useRef<string | null>(null);
 
@@ -96,6 +129,7 @@ export default function PortalLabel() {
     const interactionId = focused ?? hovered;
     const spec = getSceneInteraction(interactionId);
     const activation = portalLabelActivation(spec);
+    resolvedLabelRef.current = activationLabelKey(activation);
     const eligible =
       (Boolean(focused) || isFinePointer()) &&
       activation &&
@@ -161,7 +195,15 @@ export default function PortalLabel() {
       setShown(next);
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [dragging, focused, hovered, modalOpen, panelState, setLabelVisible]);
+  }, [
+    dragging,
+    focused,
+    hovered,
+    modalOpen,
+    panelState,
+    registryVersion,
+    setLabelVisible,
+  ]);
 
   useEffect(() => {
     if (!shown) return;

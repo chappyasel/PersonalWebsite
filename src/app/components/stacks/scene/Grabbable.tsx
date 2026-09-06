@@ -73,7 +73,6 @@ import * as THREE from "three";
 
 import { poolTexture } from "./GroundPool";
 import { LIFT_LAMBDA, hingeShift } from "./Lift";
-import { pointerOutLeavesInteraction } from "./hoverOwnership";
 import {
   type PhysicsSceneScope,
   usePhysicsScene,
@@ -92,6 +91,7 @@ import {
   localCameraFacingQuaternion,
   tiltedFaceClearance,
 } from "./heldFacingMath";
+import { pointerOutLeavesInteraction } from "./hoverOwnership";
 import { cameraSideHoverTilt, cameraSideSlide } from "./hoverTilt";
 import {
   type Hinge,
@@ -667,6 +667,7 @@ export default function Grabbable({
   onDragIntent,
   sceneImpulseReaction = "nudge",
   projectedLocalBounds,
+  liveBounds = false,
   egg,
   physics: physicsPreference,
   draggable = true,
@@ -804,6 +805,10 @@ export default function Grabbable({
   /** Stable bounds for touch and Portal projection when shader geometry does
    * not describe its visible extent (wide screen-space lines are canonical). */
   projectedLocalBounds?: ProjectedLocalBounds;
+  /** The visible children move relative to this carrier (a wrapper flies
+   * them to the camera), so Portal Label anchoring and touch hit-testing must
+   * re-measure the subtree each call instead of using the cached rest box. */
+  liveBounds?: boolean;
   /** Marks onTap as a quiet easter egg rather than a Portal. */
   egg?: { reducedMotion: "skip" | "state-only" };
   /** Keep pointer carrying and tap arbitration but bypass free shelf physics,
@@ -1664,6 +1669,7 @@ export default function Grabbable({
       activeUnits: [unitIndex],
       activateOnFirstTouch: Boolean(artifactEntry) || activateOnFirstTouch,
       projectedLocalBounds,
+      liveBounds,
       movable: draggable
         ? { massKg: massKg ?? 1, massClass, colliderProfile }
         : undefined,
@@ -1715,6 +1721,7 @@ export default function Grabbable({
     external,
     href,
     hoverKey,
+    liveBounds,
     massClass,
     massKg,
     moveDepthGesture,
@@ -2711,10 +2718,7 @@ export default function Grabbable({
         }}
         onPointerOut={(event) => {
           if (
-            !pointerOutLeavesInteraction(
-              event.eventObject,
-              event.intersections,
-            )
+            !pointerOutLeavesInteraction(event.eventObject, event.intersections)
           )
             return;
           if (useStacks.getState().hovered === hoverKey)

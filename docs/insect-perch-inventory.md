@@ -124,7 +124,7 @@ sign-off is recorded separately rather than invented by a headless test.
 | `projects:trophy`                  | Trophy cup crown        | `[-0.7427, -0.3896, 0.0547]` | `[0, 1, 0]`                  | `id: grab:trophy`                        | —       |    `0.12` |
 | `projects:notebook-page`           | Notebook page           | `[0.0231, -0.8245, -0.1475]` | `[0, 1, 0]`                  | `id: grab:notebook:projects`             | —       |    `0.12` |
 | `projects:phone-face`              | Phone face              | `[0.4118, -0.7928, -0.0724]` | `[0, 1, 0]`                  | `id: grab:phone:projects`                | —       |    `0.12` |
-| `projects:mac-top`                 | Mac casing crest        | `[0.9205, -0.1986, 0.0229]`  | `[0.0330, 0.9910, -0.1330]`  | `id: link:projects:mac`                  | —       |    `0.09` |
+| `projects:mac-top`                 | Mac casing crest        | `[0.9205, -0.1986, 0.0229]`  | `[0.0330, 0.9910, -0.1330]`  | `id: action:projects:mac`                  | —       |    `0.09` |
 | `projects:weightlifting-frame-top` | Weightlifting frame top | `[-0.8474, 0.5261, -0.1279]` | `[0.0268, 0.9945, -0.1009]`  | `id: grab:frame:Weightlifting App`       | —       |    `0.12` |
 | `projects:liars-dice-frame-top`    | Liar's Dice frame top   | `[0.0050, 0.5205, -0.0875]`  | `[0.0114, 0.9949, -0.0998]`  | `id: grab:frame:Liar's Dice`             | —       |    `0.12` |
 | `projects:homework-frame-top`      | Homework App frame top  | `[0.8491, 0.5299, -0.1152]`  | `[-0.0326, 0.9943, -0.1017]` | `id: grab:frame:Homework App (Acquired)` | —       |    `0.12` |

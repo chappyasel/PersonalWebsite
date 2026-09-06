@@ -312,6 +312,48 @@ describe("scene interaction projection", () => {
     release();
   });
 
+  it("follows children that travel away from their carrier when liveBounds is set", () => {
+    // The projection box is measured once in the carrier's frame and cached,
+    // which is right for every prop whose carrier is what moves. The Mac's
+    // approach moves the CHILDREN while the carrier stays on the shelf, so
+    // without the opt-out its label would anchor to the empty shelf spot.
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+
+    const build = (id: string, liveBounds: boolean) => {
+      const root = new Group();
+      const child = new Mesh(
+        new BoxGeometry(1, 1, 0.2),
+        new MeshBasicMaterial(),
+      );
+      root.add(child);
+      root.updateMatrixWorld(true);
+      const release = registerSceneInteraction({
+        id,
+        root,
+        activeUnits: [0],
+        liveBounds,
+        activation: { kind: "action", label: id, run: () => undefined },
+      });
+      const before = projectPortal(id)!.x;
+      child.position.x = 2;
+      child.updateMatrixWorld(true);
+      const after = projectPortal(id)!.x;
+      release();
+      return { before, after };
+    };
+
+    const cached = build("test:cached-children", false);
+    expect(cached.after).toBe(cached.before);
+    const live = build("test:live-children", true);
+    expect(live.after).toBeGreaterThan(live.before + 20);
+  });
+
   it("keeps a visible neighboring-unit prop touchable outside its owning unit", () => {
     const camera = new PerspectiveCamera(50, 1, 0.1, 100);
     camera.position.z = 5;

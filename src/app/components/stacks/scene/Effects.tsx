@@ -63,6 +63,7 @@ import {
 } from "./sceneColorGrade";
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
+import { focusPull, focusPullTarget } from "./focusPull";
 import {
   type ShelfDepthOfFieldTuning,
   applyShelfDepthOfFieldTuning,
@@ -552,6 +553,26 @@ function LiveBokehDepthOfField({
       resolutionScale,
     });
   }, [bokehScale, focusRange, resolutionScale]);
+
+  // Focus pull. A prop brought to the camera (the Projects Mac) sits four
+  // units in front of the shelf's focal plane and would arrive as bokeh; while
+  // its flight reports a weight, the target slides from the shelf toward it.
+  // The wrapper's `target` Vector3 is the one the effect measures every
+  // frame, so writing it here is enough, and the shelf value is restored the
+  // frame the pull lets go.
+  const pulled = useRef(false);
+  useFrame(() => {
+    const focus = effect.current?.target;
+    if (!focus) return;
+    if (focusPull.weight <= 0) {
+      if (!pulled.current) return;
+      pulled.current = false;
+      focus.set(target[0], target[1], target[2]);
+      return;
+    }
+    pulled.current = true;
+    focusPullTarget(target, focusPull, focus);
+  });
 
   return (
     <DepthOfField

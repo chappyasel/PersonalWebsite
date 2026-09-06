@@ -10,12 +10,32 @@ import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
+import MacApproach from "../MacApproach";
 import ModelProp from "../ModelProp";
 import {
   ABOUT_APPLE_LIGHT_YAW,
   ABOUT_LOWER_AWARD_SCALE,
 } from "../aboutCoordinationLayout";
+import { APPLE_OUTLINE } from "../appleOutline";
 import { EggLamp, Sway } from "../eggs";
+import { macApproach } from "../macApproachState";
+import {
+  MAC_BOOT_SECONDS,
+  MAC_RASTER_ASPECT,
+  MAC_SCREEN_HEIGHT,
+  MAC_SCREEN_STEP_SECONDS,
+  MAC_SCREEN_WIDTH,
+  MAC_STILL_GENERATIONS,
+  type MacScreenPhase,
+  createMacAutomaton,
+  macAutomatonRule,
+  macBootHoldSeconds,
+  nextMacScreenPhase,
+  paintHappyMac,
+  paintMacAutomaton,
+  paintMacBoot,
+  stepMacAutomaton,
+} from "../macScreen";
 import { DeskApple, reducedMotion } from "../objects";
 import { DeskFrame, deskFrameHeight } from "../photos";
 import { type PixelLook, nextPixelLook } from "../pixelArt";
@@ -27,6 +47,7 @@ import { useUnitLod } from "../useUnitLod";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import PhoneScreen from "./PhoneScreen";
 import { DicePyramid, ProjectIcon } from "./ProjectArtifacts";
 import {
   PROJECTS_LAMP_HEAD_QUATERNION,
@@ -129,110 +150,195 @@ function Glint({
   return <group ref={group}>{children}</group>;
 }
 
-/** Pixel Happy Mac boot mark. The GLB's tiny face geometry is hidden by the
- * blue screen tint below; this nearest-filtered texture replaces it with a
- * legible 64px glyph and reads as a live phosphor display rather than paint. */
-function drawHappyMac(
-  ctx: CanvasRenderingContext2D,
-  gazeX: number,
-  gazeY: number,
-  blink: boolean,
-) {
-  const S = ctx.canvas.width;
-  ctx.imageSmoothingEnabled = false;
+/** Pixel Happy Mac boot mark, then the automaton.
+ *
+ * The GLB's tiny face geometry is hidden by the blue screen tint below; this
+ * nearest-filtered texture replaces it with a legible glyph and reads as a
+ * live phosphor display rather than paint. The face is the boot screen: it
+ * tracks the pointer and blinks for five to ten seconds at Projects (drawn
+ * per arrival), or until the pointer rests on the machine, then the tube
+ * "switches off" and the screen boots into the cellular automaton the old
+ * flat homepage ran as its background (scene/macScreen.ts). Leaving the
+ * shelf and coming back replays the boot; the automaton itself never
+ * restarts, it only goes on behind the face.
+ *
+ * One 192 × 128 canvas serves both distances. Mipmapped minification averages
+ * it to a soft blue flicker from the shelf, which is what a CRT across a room
+ * looks like; the nearest magnifier keeps the cells square once the machine is
+ * brought to the camera. The emissive term eases down on the way in, since a
+ * screen filling a third of the viewport needs less help to read as lit. */
+const MAC_SCREEN_EMISSIVE_FAR = 0.5;
+const MAC_SCREEN_EMISSIVE_NEAR = 0.32;
+/** Backward lean of the screen face, atan(0.1365). The near pose pitches the
+ * machine forward by this so the raster meets the camera square. */
+const MAC_SCREEN_TILT = 0.1357;
+const MAC_RASTER_WIDTH = 0.0346;
+const MAC_RASTER_CENTRE_Y = 0.04755;
+/** Glass height at the centre line, 0.0226 − 0.1365 · (0.04755 − 0.0338),
+ * plus 2 mm of clearance over the model's face islands. */
+const MAC_RASTER_CENTRE_Z = 0.0227;
 
-  const SCREEN = "#79a6e8";
-  const LIGHT = "#e8f0e3";
-  const DARK = "#14213a";
-  ctx.fillStyle = SCREEN;
-  ctx.fillRect(0, 0, S, S);
-
-  // A tiny classic Macintosh silhouette, drawn in whole pixels.
-  ctx.fillStyle = DARK;
-  ctx.fillRect(14, 7, 36, 45);
-  ctx.fillRect(11, 50, 42, 5);
-  ctx.fillStyle = LIGHT;
-  ctx.fillRect(18, 11, 28, 35);
-  ctx.fillRect(18, 46, 24, 4);
-
-  // Recessed screen and the smiling boot face.
-  ctx.fillStyle = DARK;
-  ctx.fillRect(20, 14, 24, 22);
-  ctx.fillStyle = SCREEN;
-  ctx.fillRect(23, 17, 18, 16);
-  ctx.fillStyle = DARK;
-  if (blink) {
-    ctx.fillRect(26, 23, 3, 1);
-    ctx.fillRect(36, 23, 3, 1);
-  } else {
-    ctx.fillRect(26 + gazeX, 21 + gazeY, 3, 3);
-    ctx.fillRect(36 + gazeX, 21 + gazeY, 3, 3);
-  }
-  ctx.fillRect(32, 23, 3, 5);
-  ctx.fillRect(27, 28, 3, 3);
-  ctx.fillRect(30, 30, 9, 3);
-  ctx.fillRect(39, 27, 3, 3);
-
-  // Floppy slot and power light complete the silhouette at scene scale.
-  ctx.fillRect(31, 41, 12, 3);
-  ctx.fillRect(42, 46, 3, 2);
-
-  // Faint scan lines sell glass without softening the pixel art.
-  ctx.fillStyle = "rgba(16, 30, 54, 0.08)";
-  for (let y = 1; y < S; y += 4) ctx.fillRect(0, y, S, 1);
-}
-
-/** The screen's own measurements, off the GLB by material island:
- * `M_screen_blue` spans x −0.0156…0.0156, y 0.0338…0.0609, front face
- * z 0.0226, and the face islands it has to cover reach z 0.0241. */
-function FinderMark({ unitIndex }: { unitIndex: number }) {
+function MacScreen({
+  unitIndex,
+  hoverKey,
+}: {
+  unitIndex: number;
+  hoverKey: string;
+}) {
   const screen = useMemo(() => {
     const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
+    canvas.width = MAC_SCREEN_WIDTH;
+    canvas.height = MAC_SCREEN_HEIGHT;
     const ctx = canvas.getContext("2d")!;
-    drawHappyMac(ctx, 0, 0, false);
+    paintHappyMac(ctx, 0, 0, false);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
-    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.generateMipmaps = true;
     return { ctx, texture };
   }, []);
+  const automaton = useMemo(
+    () => createMacAutomaton(macAutomatonRule(Math.random())),
+    [],
+  );
+  const material = useRef<THREE.MeshStandardMaterial>(null);
   const still = useMemo(() => reducedMotion(), []);
+  const phase = useRef<MacScreenPhase>("face");
+  const painted = useRef<MacScreenPhase>("face");
+  const arrived = useRef(false);
+  const activeSeconds = useRef(0);
+  const holdSeconds = useRef(macBootHoldSeconds(Math.random()));
+  const bootSeconds = useRef(0);
+  const tick = useRef(0);
   const nextBlink = useRef(4.7);
   const blinkUntil = useRef(-1);
   const last = useRef({ x: 0, y: 0, blink: false });
-  useUnitFrame((state) => {
-    if (still || useStacks.getState().activeUnit !== unitIndex) return;
-    const now = state.clock.elapsedTime;
-    if (now >= nextBlink.current) {
-      blinkUntil.current = now + 0.13;
-      // Deterministic but not metronomic: 4.7s, 6.1s, 5.4s...
-      nextBlink.current = now + 4.7 + ((Math.floor(now) * 17) % 15) / 10;
-    }
-    const blink = now < blinkUntil.current;
-    const x = Math.round(THREE.MathUtils.clamp(state.pointer.x * 2, -1, 1));
-    const y = Math.round(THREE.MathUtils.clamp(-state.pointer.y * 2, -1, 1));
-    if (
-      last.current.x === x &&
-      last.current.y === y &&
-      last.current.blink === blink
-    )
+  useUnitFrame((state, delta) => {
+    const stacks = useStacks.getState();
+    if (stacks.activeUnit !== unitIndex) {
+      arrived.current = false;
       return;
-    last.current = { x, y, blink };
-    drawHappyMac(screen.ctx, x, y, blink);
+    }
+    if (!arrived.current) {
+      // Arriving at the shelf boots the machine again: the face is what
+      // reads from across the room, and its hold is drawn afresh each time.
+      arrived.current = true;
+      phase.current = "face";
+      activeSeconds.current = 0;
+      holdSeconds.current = macBootHoldSeconds(Math.random());
+      bootSeconds.current = 0;
+    }
+    activeSeconds.current += delta;
+    if (phase.current === "booting") bootSeconds.current += delta;
+    if (material.current)
+      material.current.emissiveIntensity = THREE.MathUtils.lerp(
+        MAC_SCREEN_EMISSIVE_FAR,
+        MAC_SCREEN_EMISSIVE_NEAR,
+        macApproach.progress.current,
+      );
+    phase.current = nextMacScreenPhase(phase.current, {
+      activeSeconds: activeSeconds.current,
+      holdSeconds: holdSeconds.current,
+      hovered: stacks.hovered === hoverKey,
+      near: macApproach.near,
+      // Reduced motion skips the boot: one frame of face, one of Life.
+      bootSeconds: still ? Number.POSITIVE_INFINITY : bootSeconds.current,
+    });
+    const switched = painted.current !== phase.current;
+    painted.current = phase.current;
+
+    if (phase.current === "face") {
+      if (still) {
+        if (!switched) return;
+        paintHappyMac(screen.ctx, 0, 0, false);
+        screen.texture.needsUpdate = true;
+        return;
+      }
+      const now = state.clock.elapsedTime;
+      if (now >= nextBlink.current) {
+        blinkUntil.current = now + 0.13;
+        // Deterministic but not metronomic: 4.7s, 6.1s, 5.4s...
+        nextBlink.current = now + 4.7 + ((Math.floor(now) * 17) % 15) / 10;
+      }
+      const blink = now < blinkUntil.current;
+      const x = Math.round(THREE.MathUtils.clamp(state.pointer.x * 2, -1, 1));
+      const y = Math.round(THREE.MathUtils.clamp(-state.pointer.y * 2, -1, 1));
+      if (
+        !switched &&
+        last.current.x === x &&
+        last.current.y === y &&
+        last.current.blink === blink
+      )
+        return;
+      last.current = { x, y, blink };
+      paintHappyMac(screen.ctx, x, y, blink);
+      screen.texture.needsUpdate = true;
+      return;
+    }
+
+    if (still) {
+      // Reduced motion: one frame, well into the run, and no clock.
+      if (phase.current !== "life" || !switched) return;
+      for (let i = 0; i < MAC_STILL_GENERATIONS; i++)
+        stepMacAutomaton(automaton);
+      paintMacAutomaton(screen.ctx, automaton);
+      screen.texture.needsUpdate = true;
+      return;
+    }
+    // Six generations a second whatever the frame rate, under the boot as
+    // much as after it, so Life fades up already moving. After a stall the
+    // run takes at most three steps and drops the rest rather than sprinting.
+    tick.current = switched ? MAC_SCREEN_STEP_SECONDS : tick.current + delta;
+    let generations = 0;
+    while (tick.current >= MAC_SCREEN_STEP_SECONDS && generations < 3) {
+      stepMacAutomaton(automaton);
+      tick.current -= MAC_SCREEN_STEP_SECONDS;
+      generations++;
+    }
+    if (tick.current >= MAC_SCREEN_STEP_SECONDS) tick.current = 0;
+    if (phase.current === "booting") {
+      // Every frame: the collapse and the fade are continuous.
+      paintMacBoot(
+        screen.ctx,
+        automaton,
+        bootSeconds.current / MAC_BOOT_SECONDS,
+        last.current.x,
+        last.current.y,
+      );
+      screen.texture.needsUpdate = true;
+      return;
+    }
+    if (generations === 0) return;
+    paintMacAutomaton(screen.ctx, automaton);
     screen.texture.needsUpdate = true;
   });
   React.useEffect(() => () => screen.texture.dispose(), [screen]);
+  // Placed against the model, decoded vertex by vertex (meshopt + int16):
+  // the bezel rim's inner edge is x ±0.0196, y 0.0318…0.0633, so the opening
+  // is 0.0392 × 0.0315 centred at y 0.04755, and the whole face leans back:
+  // the glass runs from z 0.0226 at its foot (y 0.0338) to 0.0189 at its top
+  // (y 0.0609), a slope of −0.1365, with the model's own Happy Mac geometry
+  // 1.5 mm in front of it. The raster lies 2 mm off the glass on that same
+  // incline, inset from the rim by an even 0.0024, and sized to the opening
+  // rather than to the hexagonal glass it used to centre on (that put it
+  // small and high, with more room above than below).
   return (
-    <mesh position={[0, 0.0474, 0.0245]}>
-      <planeGeometry args={[0.021, 0.024]} />
+    <mesh
+      position={[0, MAC_RASTER_CENTRE_Y, MAC_RASTER_CENTRE_Z]}
+      rotation={[-MAC_SCREEN_TILT, 0, 0]}
+    >
+      <planeGeometry
+        args={[MAC_RASTER_WIDTH, MAC_RASTER_WIDTH / MAC_RASTER_ASPECT]}
+      />
       <meshStandardMaterial
+        ref={material}
         map={screen.texture}
         roughness={0.42}
-        emissive="#719ce0"
-        emissiveIntensity={0.58}
+        // White, so the emissive map carries the automaton's own colours;
+        // the boot face used to sit under a blue tint, and looked it.
+        emissive="#ffffff"
+        emissiveIntensity={MAC_SCREEN_EMISSIVE_FAR}
         emissiveMap={screen.texture}
       />
     </mesh>
@@ -425,9 +531,16 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
               shape="box"
               massKg={0.19}
             >
-              <group
+              {/* Face down at rest (the model's screen is its −z side, and the
+                  rest rotation puts +z up), so the glass is nothing from the
+                  room. A carry turns it to the camera: HeldFacing squares the
+                  content's front, and the front here is −z, hence the half
+                  turn about y. What it shows is on PhoneScreen. */}
+              <HeldFacing
+                hoverKey="grab:phone:projects"
+                rest={[-Math.PI / 2, 0, 0.28]}
+                facingRotation={[0, Math.PI, 0]}
                 position={[0, REVIEWED_SHELF_LAYOUT.projects.phoneSeat, 0]}
-                rotation={[-Math.PI / 2, 0, 0.28]}
               >
                 <React.Suspense fallback={null}>
                   <ModelProp
@@ -437,7 +550,10 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
                     scale={0.28}
                   />
                 </React.Suspense>
-              </group>
+                <group scale={0.28}>
+                  <PhoneScreen hoverKey="grab:phone:projects" />
+                </group>
+              </HeldFacing>
             </Grabbable>
             {/* The pixel-art switches (scene/pixelArt.ts): two circuit
                 boards between the phone and the Mac. The Arduino lies flat at
@@ -508,87 +624,8 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
                 height={PROJECT_FACEBOOK_H}
               />
             </ProjectPhoto>
-            {/* The Mac, and the portal to his GitHub.
-              It is a compact Macintosh rather than a modern laptop, and that
-              is the whole reason it works: at the ~25px this subtends on
-              screen a MacBook is a grey wedge, while the beige box with the
-              recessed screen, the floppy slot and the chin is unmistakable
-              from across the room. The Happy Mac face reads as switched on.
-              Two things it needs. The face must point at the camera, and the
-              screen materials must stay OUT of the tint or it goes dark.
-              On the yaw: the model audit reported "front faces −Z, needs
-              rotation-y = π", which shipped an anonymous beige box. The
-              audit's rasterizer keeps the SMALLER depth (`d < zbuf[i]`) with
-              d = z at yaw 0, so its camera sits at −Z looking toward +Z —
-              the opposite side from this scene's camera. Every yaw it
-              reports is therefore π out. The front already faces the viewer
-              at 0; the 0.34 only turns it off-square.
-              Scale 7.0, not the 5.0 the model report suggested. That number
-              came off a shelf conversion averaged over props that are
-              THEMSELVES undersized (globe, desk lamp, sansevieria). The books
-              settle it, on eight axes across three primitives: packRow's
-              spines are w 0.055…0.13, h 0.4…0.6, depth 0.3; a BookPile book
-              is 0.46 × 0.06 × 0.32; a BookRowMesh cover is 0.36 × 0.52 ×
-              0.048. Against a real hardcover every one of those clusters at
-              ~2.0 units/metre, and that is the shelf scale. (The BOOKCASE is
-              a separate matter — ground to top plank is 1.115 units, about
-              0.96 u/m, so the furniture is at roughly half the scale of the
-              things standing on it. Two scales for two different things.) At
-              5.0 a compact Macintosh stood 0.6× the width of the hardcovers
-              beside it when the real machine is 1.5× wider than one. The
-              neighboring clutter moved away to open the window.
-              7.0 → 9.2. 7.0 put the machine 0.196 × 0.245 × 0.192 m against a
-              Macintosh 128K's real 0.246 × 0.345 × 0.277, i.e. 1.4 units per
-              metre on a shelf whose books are at 2.0 — it was in the
-              everything-else-slightly-small family, not the book family.
-              At 9.2 it stands 0.644 tall inside the expanded 0.8075 headroom.
-              It also, counter-intuitively, gains
-              screen: the placard eats world x past +0.427 on a 1280 window,
-              and growing about a fixed centre moves the machine's LEFT edge
-              from 0.391 to 0.313, so three times as much of it arrives.
-              z stays at −0.14. The yawed depth is 0.648 against a 0.6-deep
-              plank, so it cannot be centred: −0.14 puts the front face at
-              0.184, inside the front lip, and lets the back hang past the
-              rear edge where a camera in front of the shelf cannot see it. */}
-            <Grabbable
-              unitIndex={index}
-              hoverKey="link:projects:mac"
-              base={[REVIEWED_SHELF_LAYOUT.projects.macX, 0, -0.14]}
-              shadeColor={palette.shadow}
-              shadeWidth={0.55}
-              shape="box"
-              massKg={7.5}
-              tiltWhileHeld={false}
-              href="https://github.com/chappyasel"
-              portalLabel="GitHub"
-              portalDetail={["chappyasel"]}
-            >
-              <React.Suspense fallback={null}>
-                <ModelProp
-                  url="/models/mac.glb"
-                  dark={dark}
-                  variant="tinted"
-                  tints={{
-                    M_plastic_bone: palette.paper,
-                    M_plastic_bone_shad: palette.metal,
-                    // The GLB's own face, erased — see FinderMark. Both islands
-                    // go to the screen's own blue, which is what they are
-                    // standing half a millimetre in front of.
-                    M_screen_whitetext: "#1a5be7",
-                    M_lam_black: "#1a5be7",
-                  }}
-                  rotation={[0, -0.34, 0]}
-                  scale={9.2}
-                />
-              </React.Suspense>
-              {/* The redrawn mark, in the model's own frame: same yaw and same
-                scale as the ModelProp beside it, so the quad sits on the
-                screen at every size the machine is ever drawn at. Inside the
-                carrier, so it moves with the Mac under the pointer. */}
-              <group rotation={[0, -0.34, 0]} scale={9.2}>
-                <FinderMark unitIndex={index} />
-              </group>
-            </Grabbable>
+            {/* The Mac. Its long placement note lives with CompactMac below. */}
+            <CompactMac unitIndex={index} palette={palette} dark={dark} />
           </group>
         }
       >
@@ -743,5 +780,246 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
         </React.Suspense>
       </Grabbable>
     </group>
+  );
+}
+
+/** The Mac, and the way to bring it up close.
+ *
+ * It used to be the portal to GitHub. That link lives in the placard below
+ * now, and a tap does what a tap on a small screen should: the machine lifts
+ * off the shelf and comes up to the camera (MacApproach) so the automaton on
+ * its screen is legible. A second tap, Escape, a drag, or moving on puts it
+ * back. The tap fires on the first touch, in place of the Focus Lean, so a
+ * phone does not dolly onto the shelf and then approach.
+ *
+ * It is a compact Macintosh rather than a modern laptop, and that is the
+ * whole reason it works: at the ~25px this subtends on screen a MacBook is a
+ * grey wedge, while the beige box with the recessed screen, the floppy slot
+ * and the chin is unmistakable from across the room. The screen reads as
+ * switched on. Two things it needs. The face must point at the camera, and
+ * the screen materials must stay OUT of the tint or it goes dark.
+ * On the yaw: the model audit reported "front faces −Z, needs rotation-y =
+ * π", which shipped an anonymous beige box. The audit's rasterizer keeps the
+ * SMALLER depth (`d < zbuf[i]`) with d = z at yaw 0, so its camera sits at
+ * −Z looking toward +Z — the opposite side from this scene's camera. Every
+ * yaw it reports is therefore π out. The front already faces the viewer at
+ * 0; the 0.34 only turns it off-square, and it now sits on the approach
+ * group rather than the model so the near pose can square the screen.
+ * Scale 7.0, not the 5.0 the model report suggested. That number came off a
+ * shelf conversion averaged over props that are THEMSELVES undersized
+ * (globe, desk lamp, sansevieria). The books settle it, on eight axes across
+ * three primitives: packRow's spines are w 0.055…0.13, h 0.4…0.6, depth 0.3;
+ * a BookPile book is 0.46 × 0.06 × 0.32; a BookRowMesh cover is 0.36 × 0.52
+ * × 0.048. Against a real hardcover every one of those clusters at ~2.0
+ * units/metre, and that is the shelf scale. (The BOOKCASE is a separate
+ * matter — ground to top plank is 1.115 units, about 0.96 u/m, so the
+ * furniture is at roughly half the scale of the things standing on it. Two
+ * scales for two different things.) At 5.0 a compact Macintosh stood 0.6×
+ * the width of the hardcovers beside it when the real machine is 1.5× wider
+ * than one. The neighboring clutter moved away to open the window.
+ * 7.0 → 9.2. 7.0 put the machine 0.196 × 0.245 × 0.192 m against a
+ * Macintosh 128K's real 0.246 × 0.345 × 0.277, i.e. 1.4 units per metre on a
+ * shelf whose books are at 2.0 — it was in the everything-else-slightly-small
+ * family, not the book family. At 9.2 it stands 0.644 tall inside the
+ * expanded 0.8075 headroom. It also, counter-intuitively, gains screen: the
+ * placard eats world x past +0.427 on a 1280 window, and growing about a
+ * fixed centre moves the machine's LEFT edge from 0.391 to 0.313, so three
+ * times as much of it arrives. z stays at −0.14. The yawed depth is 0.648
+ * against a 0.6-deep plank, so it cannot be centred: −0.14 puts the front
+ * face at 0.184, inside the front lip, and lets the back hang past the rear
+ * edge where a camera in front of the shelf cannot see it. */
+const MAC_SCALE = 9.2;
+const MAC_YAW = -0.34;
+/** World extents at MAC_SCALE, off the 7.0 measurements above scaled up:
+ * the approach frames the machine by these. */
+const MAC_HEIGHT = 0.644;
+const MAC_WIDTH = 0.515;
+/** sRGB of the bezel recess material's linear (0.046, 0.040, 0.038). */
+const MAC_GLASS_TINT = "#3d3937";
+/** The recessed casing is the case colour scaled down in linear light, so
+ * light and dark palettes both keep one hue across the whole machine. */
+const MAC_CASE_SHADE = 0.72;
+const macCaseShadeCache = new Map<string, string>();
+function macCaseShade(paper: string): string {
+  const cached = macCaseShadeCache.get(paper);
+  if (cached) return cached;
+  const shaded = `#${new THREE.Color(paper).multiplyScalar(MAC_CASE_SHADE).getHexString()}`;
+  macCaseShadeCache.set(paper, shaded);
+  return shaded;
+}
+
+function CompactMac({
+  unitIndex,
+  palette,
+  dark,
+}: {
+  unitIndex: number;
+  palette: UnitProps["palette"];
+  dark: UnitProps["dark"];
+}) {
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey="action:projects:mac"
+      base={[REVIEWED_SHELF_LAYOUT.projects.macX, 0, -0.14]}
+      shadeColor={palette.shadow}
+      shadeWidth={0.55}
+      shape="box"
+      massKg={7.5}
+      tiltWhileHeld={false}
+      // No shared nod: a 7.5 kg box rocking toward the pointer read as a
+      // jump. The Portal Label and the cursor carry the hover; the screen
+      // booting on hover is its own answer.
+      tiltOnHover={false}
+      portalLabel="Macintosh"
+      // Only the way up needs a label: once the machine is near, the whole
+      // interface has stepped aside and any press puts it back, so the
+      // label goes with the rest (StacksHome's data-prop-focus rules).
+      actionLabel="Closer look"
+      onTap={() => macApproach.approach()}
+      activateOnFirstTouch
+      onDragIntent={() => macApproach.dismiss()}
+      // The machine leaves its carrier when it approaches; the label and
+      // touch hit-test must follow the machine, not the empty shelf spot.
+      liveBounds
+    >
+      <MacApproach
+        unitIndex={unitIndex}
+        height={MAC_HEIGHT}
+        width={MAC_WIDTH}
+        restRotation={[0, MAC_YAW, 0]}
+        facePitch={MAC_SCREEN_TILT}
+      >
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url="/models/mac.glb"
+            dark={dark}
+            variant="tinted"
+            tints={{
+              M_plastic_bone: palette.paper,
+              // The same platinum, a step darker where the casing steps
+              // back (the base and the recessed band beside the drive). It
+              // used to take the palette's metal, which is a brown, and a
+              // Classic was never two colours.
+              M_plastic_bone_shad: macCaseShade(palette.paper),
+              // The GLB's screen is a six-vertex hexagon (a low-poly stand-in
+              // for the curved tube) and its own Happy Mac face is geometry
+              // standing half a millimetre in front of it. All three go to
+              // the bezel recess's own dark (M_lam_darkgrey, linear 0.046),
+              // so the glass disappears into the recess and MacScreen's
+              // rectangular raster is the only lit thing. Left blue, the
+              // hexagon read as a diamond behind the raster.
+              M_screen_blue: MAC_GLASS_TINT,
+              M_screen_whitetext: MAC_GLASS_TINT,
+              M_lam_black: MAC_GLASS_TINT,
+            }}
+            scale={MAC_SCALE}
+          />
+        </React.Suspense>
+        {/* The redrawn screen, in the model's own frame: same scale as the
+            ModelProp beside it, so the quad sits on the screen at every size
+            the machine is ever drawn at. Inside the approach group, so it
+            comes to the camera with the box. */}
+        <group scale={MAC_SCALE}>
+          <MacScreen unitIndex={unitIndex} hoverKey="action:projects:mac" />
+          <MacAppleMark />
+        </group>
+      </MacApproach>
+    </Grabbable>
+  );
+}
+
+/** The small Apple on the bezel below the screen: the six-stripe badge the
+ * real machine wore (lower left on the 128K; the owner asked for bottom
+ * centre), drawn at half strength so it reads as a moulded mark under the
+ * bone rather than a sticker on it. Placed on the front face between the
+ * recess rim (y 0.0306, z 0.0247) and the floppy band (y 0.0224, z 0.0263),
+ * which leans back by atan(0.195), and lifted 0.3 mm off it. The stripes
+ * are a 1 × 6 texture mapped by the shape's own y, so the leaf sits in the
+ * green as it should. */
+const MAC_APPLE_HEIGHT = 0.0054;
+const MAC_APPLE_Y = 0.0265;
+const MAC_APPLE_Z = 0.0258;
+const MAC_APPLE_TILT = 0.193;
+const MAC_APPLE_OPACITY = 0.6;
+/** 1977 rainbow, top to bottom. */
+const MAC_APPLE_STRIPES = [
+  "#61bb46",
+  "#fdb827",
+  "#f5821f",
+  "#e03a3e",
+  "#963d97",
+  "#009ddc",
+] as const;
+
+function MacAppleMark() {
+  const { geometry, texture } = useMemo(() => {
+    const h = MAC_APPLE_HEIGHT;
+    const shapes = APPLE_OUTLINE.map(({ start, curves }) => {
+      const shape = new THREE.Shape();
+      shape.moveTo(start[0] * h, start[1] * h);
+      for (const c of curves)
+        shape.bezierCurveTo(
+          c[0] * h,
+          c[1] * h,
+          c[2] * h,
+          c[3] * h,
+          c[4] * h,
+          c[5] * h,
+        );
+      return shape;
+    });
+    // ShapeGeometry writes the shape's own x, y as uv, so a 1 / h repeat on
+    // v lands the six stripes on the unit-height outline before the mesh is
+    // re-centred on its measured box.
+    const geometry = new THREE.ShapeGeometry(shapes, 8);
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox!;
+    geometry.translate(
+      -(box.min.x + box.max.x) / 2,
+      -(box.min.y + box.max.y) / 2,
+      0,
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = MAC_APPLE_STRIPES.length;
+    const ctx = canvas.getContext("2d")!;
+    MAC_APPLE_STRIPES.forEach((stripe, i) => {
+      ctx.fillStyle = stripe;
+      // CanvasTexture flips Y on upload, so the canvas's top row is v = 1:
+      // the first stripe, green, goes in row 0 to land under the leaf.
+      ctx.fillRect(0, i, 1, 1);
+    });
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1 / h);
+    return { geometry, texture };
+  }, []);
+  React.useEffect(
+    () => () => {
+      geometry.dispose();
+      texture.dispose();
+    },
+    [geometry, texture],
+  );
+  return (
+    <mesh
+      geometry={geometry}
+      position={[0, MAC_APPLE_Y, MAC_APPLE_Z]}
+      rotation={[-MAC_APPLE_TILT, 0, 0]}
+    >
+      <meshStandardMaterial
+        map={texture}
+        transparent
+        opacity={MAC_APPLE_OPACITY}
+        roughness={0.62}
+        depthWrite={false}
+      />
+    </mesh>
   );
 }

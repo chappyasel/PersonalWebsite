@@ -43,7 +43,7 @@ describe("Projects shelf movable props", () => {
     const phone = source.indexOf('hoverKey="grab:phone:projects"');
     const arduino = source.indexOf('hoverKey="egg:pixel:arduino"');
     const card = source.indexOf('hoverKey="egg:pixel:card"');
-    const mac = source.indexOf('hoverKey="link:projects:mac"');
+    const mac = source.indexOf('hoverKey="action:projects:mac"');
 
     expect(phone).toBeGreaterThanOrEqual(0);
     expect(arduino).toBeGreaterThan(phone);
@@ -58,6 +58,17 @@ describe("Projects shelf movable props", () => {
     expect(source).toContain('"8-bit mode"');
     expect(source).toContain('"16-bit mode"');
     expect(source).toContain('"Photo mode"');
+  });
+
+  it("keeps the phone's screen for whoever picks it up", () => {
+    // Face down at rest; a carry turns the glass (the model's −z) to the
+    // camera, and the glass carries the Weightlifting App.
+    const start = source.indexOf('hoverKey="grab:phone:projects"');
+    const mount = source.slice(start, start + 1600);
+    expect(mount).toContain("<HeldFacing");
+    expect(mount).toContain("rest={[-Math.PI / 2, 0, 0.28]}");
+    expect(mount).toContain("facingRotation={[0, Math.PI, 0]}");
+    expect(mount).toContain('<PhoneScreen hoverKey="grab:phone:projects" />');
   });
 
   it("moves Apple upstairs and puts Facebook in its lower-shelf place", () => {
@@ -82,11 +93,36 @@ describe("Projects shelf movable props", () => {
   });
 
   it("mounts the compact Mac through a weighted draggable carrier", () => {
-    const start = source.indexOf('hoverKey="link:projects:mac"');
+    const start = source.indexOf('hoverKey="action:projects:mac"');
     const carrier = source.slice(Math.max(0, start - 250), start + 250);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(carrier).toContain("<Grabbable");
     expect(carrier).toContain("massKg={7.5}");
+  });
+
+  it("brings the Mac to the camera on a tap instead of leaving the room", () => {
+    // The GitHub portal moved to the placard; the Mac's tap is the approach,
+    // and it fires on the first touch so a phone does not dolly first.
+    expect(source).not.toContain('href="https://github.com/chappyasel"');
+    const start = source.indexOf('hoverKey="action:projects:mac"');
+    const carrier = source.slice(start, start + 1800);
+    expect(carrier).toContain("onTap={() => macApproach.approach()}");
+    // A press anywhere puts it back, so only the way up is labelled.
+    expect(carrier).toContain('actionLabel="Closer look"');
+    expect(carrier).toContain("activateOnFirstTouch");
+    expect(carrier).toContain("onDragIntent={() => macApproach.dismiss()}");
+    // Projection caches a prop's box in its carrier's frame; this prop's
+    // children fly away from the carrier, so it must opt out.
+    expect(carrier).toContain("liveBounds");
+    // A heavy box does not nod at the pointer.
+    expect(carrier).toContain("tiltOnHover={false}");
+    expect(carrier).toContain("<MacApproach");
+    // The screen is one canvas for both distances: nearest up close,
+    // mipmapped from the shelf.
+    expect(source).toContain(
+      "texture.minFilter = THREE.LinearMipmapLinearFilter",
+    );
+    expect(source).toContain("texture.magFilter = THREE.NearestFilter");
   });
 });

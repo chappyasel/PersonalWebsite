@@ -1042,7 +1042,7 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       position: [0.9205, -0.1986, 0.0229],
       normal: [0.033, 0.991, -0.133],
       tangent: [0.9428, 0, 0.3335],
-      ownerId: "link:projects:mac",
+      ownerId: "action:projects:mac",
       clearance: 0.09,
     },
     {

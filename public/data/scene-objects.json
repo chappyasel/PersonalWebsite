@@ -955,7 +955,7 @@
     "title": "Phone",
     "status": "written",
     "links": [],
-    "body": "Lying face up on the lower shelf. It slid left into the notebook's old place\nwhen the notebook went to Systems, so the two circuit boards could stand between\nit and the Mac."
+    "body": "Lying face down on the lower shelf. It slid left into the notebook's old place\nwhen the notebook went to Systems, so the two circuit boards could stand between\nit and the Mac. Pick it up and it turns to face you: the Weightlifting App's\nlist view, an iPhone 15 screenshot with the Dynamic Island painted back in\nwhere the panel has it, since a screenshot never shows the hole."
   },
   {
     "id": "egg:pixel:arduino",
@@ -980,16 +980,11 @@
     "needs": "what you were at Facebook for and when."
   },
   {
-    "id": "link:projects:mac",
+    "id": "action:projects:mac",
     "title": "Macintosh",
     "status": "written",
-    "links": [
-      {
-        "label": "GitHub",
-        "href": "https://github.com/chappyasel"
-      }
-    ],
-    "body": "A compact Macintosh with a live pixel Happy Mac face that tracks the pointer and\nblinks, and the way to my GitHub. It is a compact Mac and not a laptop for a\nplain reason: at the twenty-odd pixels this covers on screen a MacBook is a grey\nwedge, while the beige box with the recessed screen, the floppy slot and the\nchin is unmistakable from across the room."
+    "links": [],
+    "body": "A compact Macintosh with a live pixel screen. It boots to the Happy Mac face,\nwhich tracks the pointer and blinks. After five seconds at this shelf, or the\nmoment the pointer rests on the machine, the screen switches to a cellular\nautomaton: a one-dimensional rule scrolling up from the bottom row into a band\nof Conway's Life along the top. It is the same program that ran as the\nbackground of the previous version of this site. Tap the Mac and it comes up to\nthe camera so the cells are legible; tap again, press Escape, or move on to put\nit back. It is a compact Mac and not a laptop for a plain reason: at the\ntwenty-odd pixels this covers on screen a MacBook is a grey wedge, while the\nbeige box with the recessed screen, the floppy slot and the chin is\nunmistakable from across the room."
   },
   {
     "id": "egg:lamp:4",

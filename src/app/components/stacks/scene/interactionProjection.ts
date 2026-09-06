@@ -54,7 +54,10 @@ function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
     );
   spec.root.updateWorldMatrix(true, true);
   const descendants = descendantCount(spec.root);
-  const cached = localBoundsCache.get(spec.root);
+  // A prop whose children travel (the Mac's approach) invalidates the box
+  // every frame without changing its descendant count, so it opts out of
+  // the cache and pays for the traversal instead.
+  const cached = spec.liveBounds ? undefined : localBoundsCache.get(spec.root);
   if (cached?.descendants === descendants) return cached.bounds;
   rootInverse.copy(spec.root.matrixWorld).invert();
   const bounds = new Box3().makeEmpty();
@@ -72,7 +75,8 @@ function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
   });
   if (bounds.isEmpty())
     bounds.setFromCenterAndSize(new Vector3(), new Vector3(0.01, 0.01, 0.01));
-  localBoundsCache.set(spec.root, { descendants, bounds });
+  if (!spec.liveBounds)
+    localBoundsCache.set(spec.root, { descendants, bounds });
   return bounds;
 }
 
