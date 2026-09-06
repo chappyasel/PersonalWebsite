@@ -2426,10 +2426,11 @@ export default function PlacardLayer({
       projects: <div className="placard-sections">{slots.projects}</div>,
       blog: <div className="placard-sections">{slots.blog}</div>,
       systems: (
-        <div className="placard-sections flex flex-col gap-8">
+        <div className="placard-sections flex flex-col gap-4">
           {slots.systems}
-          {/* Desktop quotes use white ink with a restrained contact shadow.
-            Mobile keeps dark-on-sheet type, and the flat page stays plain. */}
+          {/* The quotes are the third Systems card, built from the Manual and
+            Routine surface, so the shared card rules dress it on every
+            layout and the 16px card rhythm continues below Routine. */}
           <div className="stacks-quotes">{slots.quotes}</div>
         </div>
       ),
@@ -2569,8 +2570,7 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel] [data-placard-surface],
           [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
           [data-stacks-desktop-panel] .placard-section-heading,
-          [data-stacks-desktop-panel] .placard-sections h1,
-          [data-stacks-desktop-panel] .stacks-quotes > section {
+          [data-stacks-desktop-panel] .placard-sections h1 {
             transition: none !important;
           }
           [data-stacks-swap-part] {
@@ -2587,8 +2587,6 @@ export default function PlacardLayer({
             .placard-section-heading,
           [data-stacks-desktop-panel][data-stacks-initial-panel]
             .placard-sections h1,
-          [data-stacks-desktop-panel][data-stacks-initial-panel]
-            .stacks-quotes > section,
           [data-stacks-desktop-panel][data-stacks-initial-panel]
             [data-placard-surface],
           [data-stacks-desktop-panel][data-stacks-initial-panel]
@@ -2619,18 +2617,6 @@ export default function PlacardLayer({
             inset 0 -1px 0 rgb(255 255 255 / 0.08),
             0 3px 7px rgb(0 0 0 / 0.34),
             0 14px 32px -18px rgb(0 0 0 / 0.78) !important;
-        }
-        /* Desktop quotes float directly over the meadow. A single restrained
-           contact shadow separates the letters without recreating the broad
-           glow removed from mobile and flat layouts. */
-        @media (min-width: 1200px) {
-          [data-stacks-desktop-panel] .stacks-quotes section {
-            color: rgb(255 255 255 / 0.94);
-            text-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
-          }
-          [data-stacks-desktop-panel] .stacks-quotes section footer {
-            color: rgb(255 255 255 / 0.72);
-          }
         }
         /* ── Type ─────────────────────────────────────────────────────
            One number scales the whole reading column. The panel's width is
@@ -2935,11 +2921,6 @@ export default function PlacardLayer({
             height: 1.125rem !important;
             filter: none !important;
           }
-          /* Mobile titles and quotes sit on a readable sheet surface; neither
-             inherits the desktop contact shadow or any authored glow. */
-          [data-stacks-mobile-panel] .stacks-quotes > section {
-            text-shadow: none !important;
-          }
         }
         /* AIC's best glass detail is its inset highlight: the top edge catches
            light while a small, diffuse shadow separates the surface from the
@@ -3033,8 +3014,7 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel] [data-placard-surface],
           [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
           [data-stacks-desktop-panel] .placard-section-heading,
-          [data-stacks-desktop-panel] .placard-sections h1,
-          [data-stacks-desktop-panel] .stacks-quotes > section {
+          [data-stacks-desktop-panel] .placard-sections h1 {
             opacity: var(--stacks-panel-opacity);
             transition-property: opacity;
             transition-duration: var(--stacks-panel-fade-duration);
@@ -3058,10 +3038,7 @@ export default function PlacardLayer({
             .placard-section-heading,
           .stacks-world-shell[data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
-            .placard-sections h1,
-          .stacks-world-shell[data-revealed]
-            [data-stacks-desktop-panel][data-stacks-initial-panel]
-            .stacks-quotes > section {
+            .placard-sections h1 {
             animation: stacks-desktop-placard-heading-in 400ms
               var(--stacks-ease, ease-out) 640ms backwards;
           }
@@ -3079,10 +3056,7 @@ export default function PlacardLayer({
             .placard-section-heading,
           .stacks-world-shell[data-load-path="warm"][data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
-            .placard-sections h1,
-          .stacks-world-shell[data-load-path="warm"][data-revealed]
-            [data-stacks-desktop-panel][data-stacks-initial-panel]
-            .stacks-quotes > section {
+            .placard-sections h1 {
             animation-duration: 280ms;
             animation-delay: 280ms;
           }
