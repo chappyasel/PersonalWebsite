@@ -1,7 +1,7 @@
 {
   "version": 2,
   "algorithm": "sha256",
-  "digest": "4cce952528448bd586fc2822de4746cff2217d3c90a2393f453186840d48dbf6",
+  "digest": "18b0b134901aec72fb2d12fa0c8bee5c2b22021e36652a8df4065b39e74fd1d3",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -343,7 +343,7 @@
     "src/styles/globals.css"
   ],
   "fileDigests": {
-    "public/images/about/profile.jpg": "62710748f37c3e40",
+    "public/images/about/profile.jpg": "3c0983c9b91323f3",
     "public/images/stacks/grass-tuft-alpha.webp": "4df7bd616992add2",
     "public/images/stacks/tj-medallion.jpg": "d81b64f08166b93c",
     "public/images/stacks/v8/about-collective-group.webp": "f06a75f050be6180",
@@ -684,7 +684,7 @@
   },
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "ab90ba535d8f7d20d2ab0b8de997660cb4bd8abcccca7b6e3e79e0f5eee48c21",
-    "inputDigest": "4cce952528448bd586fc2822de4746cff2217d3c90a2393f453186840d48dbf6"
+    "digest": "f1b3a34a5e5a676d42de6757172e60c8be827a8e1a720dfca4634159b9d79c2a",
+    "inputDigest": "18b0b134901aec72fb2d12fa0c8bee5c2b22021e36652a8df4065b39e74fd1d3"
   }
 }
