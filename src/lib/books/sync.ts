@@ -5,6 +5,7 @@ import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
 import { fetchBookCover } from "./coverFetcher";
+import { stripCoverCurl } from "./coverUtils";
 import { isCoverImageUrl, shouldRepairCover } from "./coverValidation";
 import {
   estimatePagesFromAudio,
@@ -399,6 +400,11 @@ async function upsertBooksToDatabase(
         console.error(`  ✗ Failed to fetch cover for ${book.title}:`, error);
       }
     }
+
+    // Notion's Cover property holds Google Books URLs as pasted, page curl
+    // and all. Store the flat art so every consumer starts clean and the
+    // one-off cleanup of the column survives the next sync.
+    book.coverUrl = stripCoverCurl(book.coverUrl);
 
     // Enrich length data for ANY book passing through (new or updated) whose
     // Notion values are blank — this is what makes "clear the cell in Notion

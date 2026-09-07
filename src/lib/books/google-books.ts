@@ -1,3 +1,4 @@
+import { stripCoverCurl } from "./coverUtils";
 import { env } from "~/env";
 
 const GOOGLE_BOOKS_API = "https://www.googleapis.com/books/v1/volumes";
@@ -64,9 +65,7 @@ export async function fetchBookCover(
 
     // Upgrade to HTTPS if needed, and drop Google's rendered page-curl edge
     // so the stored art is flat.
-    return coverUrl
-      .replace(/^http:/, "https:")
-      .replace(/&edge=curl\b/, "");
+    return stripCoverCurl(coverUrl.replace(/^http:/, "https:"));
   } catch (error) {
     console.error("Error fetching book cover from Google Books:", error);
     return null;

@@ -1,4 +1,24 @@
 /**
+ * The stored form of a Google Books cover: the URL as pasted or fetched,
+ * minus the `edge=curl` parameter that renders a fake page curl into the
+ * image. The sync and both fetchers pass every cover through this so the
+ * column starts flat; enhanceCoverUrl below still guards render time.
+ */
+export function stripCoverCurl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "books.google.com" || !parsed.searchParams.has("edge")) {
+      return url;
+    }
+    parsed.searchParams.delete("edge");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Enhance book cover URLs for higher quality images
  */
 export function enhanceCoverUrl(url: string | null): string | null {

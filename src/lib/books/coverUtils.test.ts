@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { enhanceCoverUrl } from "./coverUtils";
+import { enhanceCoverUrl, stripCoverCurl } from "./coverUtils";
+
+describe("stripCoverCurl", () => {
+  it("drops only the page-curl parameter from a Google Books cover", () => {
+    const stored = stripCoverCurl(
+      "https://books.google.com/books/content?id=example&printsec=frontcover&img=1&zoom=5&edge=curl&source=gbs_api",
+    );
+    const parsed = new URL(stored!);
+
+    expect(parsed.searchParams.has("edge")).toBe(false);
+    // Everything else, zoom included, stays as the fetcher chose it.
+    expect(parsed.searchParams.get("zoom")).toBe("5");
+    expect(parsed.searchParams.get("source")).toBe("gbs_api");
+  });
+
+  it("leaves other hosts, clean Google URLs, malformed values, and null alone", () => {
+    const amazon = "https://m.media-amazon.com/images/I/61KBgtIGGML.jpg";
+    const clean =
+      "https://books.google.com/books/content?id=example&zoom=1&source=gbs_api";
+    expect(stripCoverCurl(amazon)).toBe(amazon);
+    expect(stripCoverCurl(clean)).toBe(clean);
+    expect(stripCoverCurl("books.google.com/no-scheme")).toBe(
+      "books.google.com/no-scheme",
+    );
+    expect(stripCoverCurl(null)).toBeNull();
+  });
+});
 
 describe("enhanceCoverUrl", () => {
   it("removes Google Books' page-curl treatment", () => {

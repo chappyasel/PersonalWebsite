@@ -1,3 +1,4 @@
+import { stripCoverCurl } from "./coverUtils";
 /**
  * Book cover fetcher using Amazon print editions, Google Books, and Open
  * Library. Callers only invoke this for new books whose Notion cover is blank.
@@ -62,7 +63,7 @@ async function fetchFromGoogleBooks(
 
         // Google's thumbnails opt into a rendered page-curl edge; store the
         // flat art so every consumer starts clean.
-        coverUrl = coverUrl.replace(/&edge=curl\b/, "");
+        coverUrl = stripCoverCurl(coverUrl) ?? coverUrl;
 
         return coverUrl;
       }
