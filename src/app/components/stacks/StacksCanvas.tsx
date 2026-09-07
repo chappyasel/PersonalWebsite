@@ -2075,6 +2075,12 @@ export default function StacksCanvas({
           )
             ? performanceSettings.skipDepthOfField
             : undefined,
+          ambientOcclusionTransparency:
+            scenePerformanceController.isOverridden(
+              "ambientOcclusionTransparency",
+            )
+              ? performanceSettings.ambientOcclusionTransparency
+              : undefined,
           depthOfFieldBokehMultiplier:
             qualityControls.depthOfFieldBokehMultiplier ?? undefined,
           depthOfFieldResolutionScale:

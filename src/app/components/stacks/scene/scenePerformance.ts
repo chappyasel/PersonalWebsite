@@ -61,8 +61,16 @@ export type ScenePerformanceSettings = Readonly<{
    * Off, occlusion is composited from the opaque depth alone, so a shade or
    * a leaf over a corner also carries the corner's darkening. Either value
    * is set explicitly on the pass, which also stops N8AO's own per-frame
-   * scene walk that auto-detects transparency. */
+   * scene walk that auto-detects transparency. The profile decides (on for
+   * Cinematic and Showcase, off below); this setting only overrides it
+   * once Scene Diagnostics or `?noaotransparency` has touched it. */
   ambientOcclusionTransparency: boolean;
+  /** Let three clear every composer target before its pass draws. Every
+   * pass in the chain either overwrites its whole target with a fullscreen
+   * triangle or clears explicitly (the room render, SMAA edges, the photo
+   * mask), so the automatic clear is redundant work on 39 targets a frame.
+   * Off keeps the room pass clearing colour, depth and stencil itself. */
+  composerAutoClear: boolean;
   /** Preserve a slow-frame signal observed during travel and apply it once
    * the camera settles, where the durable ladder can react safely. */
   rememberTravelDeclines: boolean;
@@ -104,6 +112,7 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
     skipBloom: false,
     skipDepthOfField: false,
     ambientOcclusionTransparency: true,
+    composerAutoClear: true,
     rememberTravelDeclines: true,
     populationBalancedMeadowTiles: true,
     suspendSettledHoverWork: true,

@@ -52,6 +52,7 @@ export function diagnosticReloadSeedFromSearch(
     ...(params.has("noaotransparency")
       ? { ambientOcclusionTransparency: false }
       : {}),
+    ...(params.has("nocomposerclear") ? { composerAutoClear: false } : {}),
     ...(params.get("grassDeformation") === "off"
       ? { grassDeformation: false }
       : {}),

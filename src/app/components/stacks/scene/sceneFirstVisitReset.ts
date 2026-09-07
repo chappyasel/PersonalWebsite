@@ -28,6 +28,7 @@ export const SCENE_QUERY_OVERRIDE_KEYS = [
   "nopostfx",
   "nodof",
   "noaotransparency",
+  "nocomposerclear",
   "notiltshift",
   "nograde",
   "nomeadow",

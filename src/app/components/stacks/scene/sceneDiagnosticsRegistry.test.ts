@@ -301,6 +301,7 @@ describe("Scene Diagnostics registry", () => {
       "render.adaptive-sharpen",
       "render.ambient-occlusion",
       "render.ambient-occlusion-transparency",
+      "render.composer-auto-clear",
       "render.bloom",
       "render.depth-of-field",
       "render.virtualize-units",

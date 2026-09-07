@@ -234,6 +234,9 @@ export type SceneQualityPlan = Readonly<{
       | "medium"
       | "high"
       | "ultra";
+    /** Whether occlusion stops at transparent surfaces. Costs two extra
+     * full-resolution renders of every transparent object per frame. */
+    ambientOcclusionTransparency: boolean;
     depthOfField: boolean;
     depthOfFieldResolutionScale: number;
     depthOfFieldBokehScale: number;
@@ -299,6 +302,7 @@ type ProfileDefinition = Readonly<{
   ambientOcclusion: boolean;
   ambientOcclusionHalfRes: boolean;
   ambientOcclusionQuality: "performance" | "low" | "medium" | "high" | "ultra";
+  ambientOcclusionTransparency: boolean;
   depthOfField: boolean;
   depthOfFieldResolutionScale: number;
   depthOfFieldBokehScale: number;
@@ -335,6 +339,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     ambientOcclusion: true,
     ambientOcclusionHalfRes: false,
     ambientOcclusionQuality: "ultra",
+    ambientOcclusionTransparency: true,
     depthOfField: true,
     depthOfFieldResolutionScale: 1,
     depthOfFieldBokehScale: 2,
@@ -363,6 +368,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     ambientOcclusion: true,
     ambientOcclusionHalfRes: true,
     ambientOcclusionQuality: "medium",
+    ambientOcclusionTransparency: true,
     depthOfField: true,
     depthOfFieldResolutionScale: 0.5,
     depthOfFieldBokehScale: 2.4,
@@ -391,6 +397,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     ambientOcclusion: true,
     ambientOcclusionHalfRes: true,
     ambientOcclusionQuality: "low",
+    ambientOcclusionTransparency: false,
     depthOfField: true,
     depthOfFieldResolutionScale: 0.5,
     depthOfFieldBokehScale: 1.6,
@@ -419,6 +426,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     ambientOcclusion: false,
     ambientOcclusionHalfRes: true,
     ambientOcclusionQuality: "low",
+    ambientOcclusionTransparency: false,
     depthOfField: true,
     depthOfFieldResolutionScale: 0.45,
     depthOfFieldBokehScale: 1.6,
@@ -447,6 +455,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     ambientOcclusion: false,
     ambientOcclusionHalfRes: true,
     ambientOcclusionQuality: "low",
+    ambientOcclusionTransparency: false,
     depthOfField: false,
     depthOfFieldResolutionScale: 0.6,
     depthOfFieldBokehScale: 1.6,
@@ -491,6 +500,9 @@ export type SceneQualityAdvancedOverrides = Readonly<{
   skipAmbientOcclusion?: boolean;
   skipBloom?: boolean;
   skipDepthOfField?: boolean;
+  /** Force occlusion's transparency handling on or off regardless of the
+   * profile default (on for Cinematic and Showcase, off below). */
+  ambientOcclusionTransparency?: boolean;
   /** Diagnostics-only tuning applied after presentation and DPR correction. */
   depthOfFieldBokehMultiplier?: number;
   depthOfFieldResolutionScale?: number;
@@ -628,6 +640,9 @@ export function resolveSceneQualityPlan({
     overrides?.skipDepthOfField == null
       ? effects.depthOfField
       : !overrides.skipDepthOfField;
+  const ambientOcclusionTransparency =
+    overrides?.ambientOcclusionTransparency ??
+    effects.ambientOcclusionTransparency;
   const requestedBokehMultiplier = overrides?.depthOfFieldBokehMultiplier;
   const depthOfFieldBokehMultiplier =
     typeof requestedBokehMultiplier === "number" &&
@@ -674,6 +689,7 @@ export function resolveSceneQualityPlan({
           overrides.skipAmbientOcclusion === false ||
           overrides.skipBloom === true ||
           overrides.skipDepthOfField === false ||
+          overrides.ambientOcclusionTransparency != null ||
           overrides.depthOfFieldBokehMultiplier != null ||
           overrides.depthOfFieldResolutionScale != null ||
           overrides.simplifiedFarMeadow != null ||
@@ -707,6 +723,8 @@ export function resolveSceneQualityPlan({
       ambientOcclusion: !directRender && ambientOcclusion,
       ambientOcclusionHalfRes: effects.ambientOcclusionHalfRes,
       ambientOcclusionQuality: effects.ambientOcclusionQuality,
+      ambientOcclusionTransparency:
+        !directRender && ambientOcclusion && ambientOcclusionTransparency,
       depthOfField: !directRender && depthOfField,
       depthOfFieldResolutionScale,
       depthOfFieldBokehScale:

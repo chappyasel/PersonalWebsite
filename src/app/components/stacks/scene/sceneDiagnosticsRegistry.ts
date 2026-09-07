@@ -1768,7 +1768,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "render",
     group: "render.passes",
     label: "AO under transparent surfaces",
-    help: "Re-render every transparent object into two full-resolution targets each frame so occlusion stops at contact shades, pools, petals and glass instead of darkening them. Off composites occlusion from the opaque depth alone.",
+    help: "Re-render every transparent object into two full-resolution targets each frame so occlusion stops at contact shades, pools, petals and glass instead of darkening them. Off composites occlusion from the opaque depth alone. The profile decides until this is touched: on for Cinematic and Showcase, off below.",
     key: "ambientOcclusionTransparency",
     optimizationPreset: { optimized: false, unoptimized: true },
     experimental: false,
@@ -1779,6 +1779,27 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       activeValues: [true],
       enabled:
         "Two extra full-resolution scene renders of transparent objects, two render targets with depth, and three scene-graph walks per frame.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  performanceBoolean({
+    id: "render.composer-auto-clear",
+    panel: "render",
+    group: "render.passes",
+    label: "Clear targets before each pass",
+    help: "Let three clear every composer render target before its pass draws. Each pass overwrites its whole target or clears explicitly, so this is redundant work on about 39 targets a frame; off keeps the room pass clearing colour, depth and stencil itself.",
+    key: "composerAutoClear",
+    optimizationPreset: { optimized: false, unoptimized: true },
+    experimental: false,
+    reloadInput: "nocomposerclear",
+    disabled: () => !scenePerformanceController.getSnapshot().postprocessing,
+    productionCost: {
+      activeValues: [true],
+      enabled: "One clear per composer render target per frame.",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,

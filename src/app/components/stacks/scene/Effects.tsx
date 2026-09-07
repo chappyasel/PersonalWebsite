@@ -872,8 +872,9 @@ type AmbientOcclusionPass = {
  *
  * Both halves are pinned here. The auto-detect walk is switched off
  * outright, because the answer never changes for this scene, and the mode
- * itself follows the `ambientOcclusionTransparency` performance setting so
- * Scene Diagnostics can A/B it live and `?noaotransparency` can pin it for a
+ * itself follows the resolved plan: on for Cinematic and Showcase, off from
+ * Balanced down, and the `ambientOcclusionTransparency` performance setting
+ * overrides that live from Scene Diagnostics or by `?noaotransparency` for a
  * capture. Writing the configuration property allocates or disposes the two
  * transparency targets on its own, but the compositor's uniform is only ever
  * written true (N8AO.js, the composition step), so a live on-to-off toggle
@@ -911,6 +912,35 @@ function AmbientOcclusion({
       intensity={2.4}
     />
   );
+}
+
+/**
+ * Keep the room pass clearing what three's automatic clear used to.
+ *
+ * With `autoClear` on, three clears colour, depth AND stencil of the
+ * composer's input buffer inside the render pass. The render pass's own
+ * ClearPass defaults to colour and depth only, so switching the automatic
+ * clear off would leave last frame's stencil bit behind, and the Coordination
+ * event horizon writes that bit to decide where its graph shows. The wrapper's
+ * `gl.clearStencil()` does not cover it either: it runs before the composer
+ * binds any target. So the render pass clears the stencil itself whenever
+ * the automatic clear is off, and every other pass overwrites its whole
+ * target with a fullscreen triangle or clears explicitly.
+ */
+function ComposerClearPolicy({ autoClear }: { autoClear: boolean }) {
+  const { composer } = useContext(EffectComposerContext);
+  useLayoutEffect(() => {
+    const renderPass = composer?.passes[0] as
+      | { name?: string; clearPass?: { stencil: boolean } }
+      | undefined;
+    if (renderPass?.name !== "RenderPass" || !renderPass.clearPass) return;
+    const previous = renderPass.clearPass.stencil;
+    renderPass.clearPass.stencil = !autoClear;
+    return () => {
+      renderPass.clearPass!.stencil = previous;
+    };
+  }, [autoClear, composer]);
+  return null;
 }
 
 /**
@@ -1071,14 +1101,19 @@ export default function Effects({
     ],
   );
   return (
-    <EffectComposer multisampling={plan.multisampling} stencilBuffer>
+    <EffectComposer
+      multisampling={plan.multisampling}
+      stencilBuffer
+      autoClear={performanceSettings.composerAutoClear}
+    >
+      <ComposerClearPolicy autoClear={performanceSettings.composerAutoClear} />
       {/* First, right behind the render pass: the photographs alone, into
           the mask the grade reads. It touches no composer buffer. */}
       {performanceSettings.colorGrade && <PhotoMask pass={photoMask} />}
       {plan.ambientOcclusion && !visionRideRoomHidden && (
         <AmbientOcclusion
           plan={plan}
-          transparency={performanceSettings.ambientOcclusionTransparency}
+          transparency={plan.ambientOcclusionTransparency}
         />
       )}
       {/* Keep bloom on HDR practicals, not on the moon and white sky detail.
