@@ -2,6 +2,7 @@
 
 import { WlBackLink } from "../components/WlBackLink";
 import { ordinalDate } from "../lib/wlaFormat";
+
 import { VariationPicker } from "./VariationPicker";
 
 /** The exercise page's nav-bar parity header: the title itself is the

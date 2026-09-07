@@ -1,10 +1,9 @@
 "use client";
 
+import { useWlPath } from "../lib/paths";
 import { type ReactNode } from "react";
 
 import ModalSheet from "~/components/modal-sheet/ModalSheet";
-
-import { useWlPath } from "../lib/paths";
 
 /** The shared sheet chrome with a host-aware expand target: the interceptor
  * layouts are server components and cannot know which host they are on, so
@@ -23,7 +22,11 @@ export function WeightliftingSheet({
 }) {
   const wlPath = useWlPath();
   return (
-    <ModalSheet label={label} variant={variant} expandHref={wlPath(expandSubpath)}>
+    <ModalSheet
+      label={label}
+      variant={variant}
+      expandHref={wlPath(expandSubpath)}
+    >
       {children}
     </ModalSheet>
   );

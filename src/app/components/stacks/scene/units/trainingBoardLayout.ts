@@ -1,7 +1,4 @@
-import {
-  SCENE_PHOTOS,
-  type TrainingBoardPhotoId,
-} from "../../sceneArtifacts";
+import { SCENE_PHOTOS, type TrainingBoardPhotoId } from "../../sceneArtifacts";
 
 export const TRAINING_BOARD_SIZE = {
   width: 1.128,

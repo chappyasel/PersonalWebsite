@@ -1,11 +1,11 @@
 "use client";
 
+import { useStacks } from "../store";
+import type { VisionRidePhase } from "../visionRide/visionRideState";
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-import { useStacks } from "../store";
-import type { VisionRidePhase } from "../visionRide/visionRideState";
 import {
   type ActiveVisionProDisplayVariant,
   type VisionProDisplayVariant,

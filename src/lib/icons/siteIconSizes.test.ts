@@ -12,7 +12,11 @@ describe("site icon sizes", () => {
   it("list both PNG variants for generateImageMetadata", () => {
     expect(siteIconImageMetadata()).toEqual([
       { id: "tab", size: { width: 64, height: 64 }, contentType: "image/png" },
-      { id: "app", size: { width: 180, height: 180 }, contentType: "image/png" },
+      {
+        id: "app",
+        size: { width: 180, height: 180 },
+        contentType: "image/png",
+      },
     ]);
   });
 });

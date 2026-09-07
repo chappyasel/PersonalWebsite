@@ -32,6 +32,8 @@ export const DAYLIGHT = {
   skyEmber: "#f5c78d",
   silhouette: "#5b7288",
   ggb: "hsl(8, 36%, 42%)",
+  sutroRed: "hsl(333, 5%, 44%)",
+  sutroWhite: "hsl(206, 6%, 48%)",
   arc0: "hsl(26, 24%, 93%)",
   arc0Clear: "hsla(26, 24%, 93%, 0)",
   arc1: "hsl(46, 30%, 95.5%)",
@@ -55,7 +57,14 @@ export function skyline(width: number) {
       style: { position: "absolute" as const, bottom: -1, left: 0 },
     },
     ...SKYLINE_SHAPES.map((shape, i) => {
-      const fill = shape.tone === "ggb" ? DAYLIGHT.ggb : DAYLIGHT.silhouette;
+      const fill =
+        shape.tone === "ggb"
+          ? DAYLIGHT.ggb
+          : shape.tone === "sutro-red"
+            ? DAYLIGHT.sutroRed
+            : shape.tone === "sutro-white"
+              ? DAYLIGHT.sutroWhite
+              : DAYLIGHT.silhouette;
       if (shape.kind === "rect") {
         return React.createElement("rect", {
           key: i,

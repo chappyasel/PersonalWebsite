@@ -29,8 +29,6 @@ import {
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   capture,
 } from "../../../../lib/analytics";
-import { recordModalOriginAtPointer } from "~/lib/originFlight";
-
 import { UNITS } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
@@ -38,6 +36,8 @@ import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useRef } from "react";
 import type * as THREE from "three";
+
+import { recordModalOriginAtPointer } from "~/lib/originFlight";
 
 import Lift from "./Lift";
 import {
@@ -75,7 +75,7 @@ export function propHref(to: PropDestination): string {
   return destinationFor(to).href;
 }
 
-type PortalAnalyticsContext = {
+export type PortalAnalyticsContext = {
   portalId: string;
   unitIndex: number;
 };

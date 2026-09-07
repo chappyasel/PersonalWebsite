@@ -448,9 +448,7 @@ describe("production diagnostics activation", () => {
   });
 
   it("shows the compact HUD for an automatic performance report", () => {
-    const hudStart = diagnosticsSource.indexOf(
-      'className="stacks-dev-hud"',
-    );
+    const hudStart = diagnosticsSource.indexOf('className="stacks-dev-hud"');
     const hudEnd = diagnosticsSource.indexOf("</button>", hudStart);
     const hud = diagnosticsSource.slice(hudStart, hudEnd);
 
@@ -462,13 +460,9 @@ describe("production diagnostics activation", () => {
     expect(hudStart).toBeGreaterThanOrEqual(0);
     expect(hud).toContain("stacks-dev-hud-capture-status");
     expect(hud).toContain("data-capture-state={captureStatus?.state}");
-    expect(diagnosticsStyles).toContain(
-      '[data-capture-state="recording"]',
-    );
+    expect(diagnosticsStyles).toContain('[data-capture-state="recording"]');
     expect(diagnosticsStyles).toContain('[data-capture-state="paused"]');
-    expect(diagnosticsStyles).toContain(
-      '[data-capture-state="uploaded"]',
-    );
+    expect(diagnosticsStyles).toContain('[data-capture-state="uploaded"]');
     expect(diagnosticsSource).toContain("chappy:analytics-captured");
   });
 

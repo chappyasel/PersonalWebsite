@@ -85,7 +85,6 @@ import {
   PlacardLinkCard,
   PlacardNestedLinkCard,
 } from "./PlacardStatsCard";
-import { BookStatsCard } from "./statsCards";
 import {
   chromeHidden,
   chromeKeyEventFrom,
@@ -94,12 +93,12 @@ import {
 import { readFocusMode, writeFocusMode } from "./focusMode";
 import {
   MOBILE_SHEET_HORIZONTAL_DOMINANCE,
+  MOBILE_SHEET_TITLE_CLAMP,
   MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   type MobileSheetHeightMeasurement,
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
   mobileSheetChipActive,
-  MOBILE_SHEET_TITLE_CLAMP,
   mobileSheetGeometry,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
@@ -114,6 +113,7 @@ import {
 import { nextPlacardToPrepare } from "./placardResidency";
 import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
 import { pressLandsInRoom } from "./roomPress";
+import { BookStatsCard } from "./statsCards";
 import {
   formatLength,
   formatReadDates,

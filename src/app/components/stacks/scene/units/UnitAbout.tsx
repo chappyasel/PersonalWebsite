@@ -11,6 +11,7 @@ import {
 } from "../../visionRide/visionRideEntry";
 import { TJMedallionProp } from "../AuthoredProps";
 import { CoordinationGlobe } from "../CoordinationGlobe";
+import GlobeCloseUp from "../GlobeCloseUp";
 import Grabbable from "../Grabbable";
 import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
@@ -49,12 +50,28 @@ import {
   ABOUT_PHOTO_POSES,
   ABOUT_TOP_LANDMARK_Z,
 } from "../aboutScenePose";
+import {
+  ABOUT_GLOBE_MAP,
+  ABOUT_GLOBE_SCREENSHOT_SPIN_Y,
+  ABOUT_GLOBE_STAND_ATLAS,
+} from "../aboutTravel";
 import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
+import {
+  beginGlobeDrag,
+  globeApproach,
+  globeChapterHover,
+  globeSpin,
+  openGlobeChapter,
+} from "../globeCloseUpState";
+import { GolfBallProp } from "../golf/GolfBallProp";
+import { ABOUT_GOLF_BALLS } from "../golf/aboutGolfBalls";
 import { getSceneInteraction } from "../interactionRegistry";
+import { useOpenTarget } from "../links";
 import { PortraitFrame, useMetalShimmer } from "../objects";
 import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit } from "../primitives";
+import { usePropApproachNear } from "../propApproachState";
 import { propReactionIsEngaged } from "../reactionEngagement";
 import { useScreenshotMode } from "../screenshotMode";
 import { ABOUT_COUCH } from "../seated";
@@ -136,10 +153,7 @@ function CollectiveLogo({
     // facet. Creased normals smooth only across rim walls that meet under 30
     // degrees, which is every step of an arc and none of the arrow tips, and
     // the 90 degree edge between a face and the rim stays hard.
-    const creased = toCreasedNormals(
-      geometry,
-      THREE.MathUtils.degToRad(30),
-    );
+    const creased = toCreasedNormals(geometry, THREE.MathUtils.degToRad(30));
     geometry.dispose();
     return creased;
   }, [svg]);
@@ -622,6 +636,10 @@ export default function UnitAbout({
   // couch goes. See screenshotMode.ts. A card that stands alone, like the OG
   // image, asks to keep the portrait (`screenshot-portrait=1`).
   const screenshot = useScreenshotMode();
+  // The globe's close-up: the carrier goes tap-only while it is up, and a
+  // tap on a chapter mark opens the chapter on aicollective.com.
+  const globeNear = usePropApproachNear(globeApproach);
+  const open = useOpenTarget();
   return (
     <group>
       <ShelfUnit
@@ -832,19 +850,61 @@ export default function UnitAbout({
           // The carrier and the SpinProp share this key, so the globe was
           // being handed the shared nod as well. A globe turns.
           signature="spin"
+          portalLabel="Globe"
+          // Only the way up needs a label: once the globe is near, the
+          // interface has stepped aside and a press anywhere puts it back.
+          actionLabel="Closer look"
+          activateOnFirstTouch
+          // Up close, a press on the globe is a turn, not a carry: the
+          // carrier goes tap-only and the drag threshold hands the pointer
+          // to beginGlobeDrag instead.
+          draggable={!globeNear}
+          onTap={() => {
+            if (!globeApproach.near) {
+              globeApproach.approach();
+              return;
+            }
+            const hovered = globeChapterHover.current;
+            if (hovered?.kind === "chapter")
+              openGlobeChapter(hovered.chapters, open, index);
+            else if (!hovered) globeApproach.dismiss();
+          }}
+          onDragIntent={() => {
+            if (globeApproach.near) beginGlobeDrag();
+          }}
+          // The globe leaves its carrier when it approaches; the label and
+          // touch hit-test must follow the ball, not the empty shelf spot.
+          liveBounds
         >
           <group name={aboutLandmarkNodeName("globe")}>
-            <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.11}>
-              <React.Suspense fallback={null}>
-                <ModelProp
-                  url="/models/globe.glb"
-                  dark={dark}
-                  rotation={[...ABOUT_MODEL_POSES.globe.rotation]}
-                  scale={ABOUT_BOOT_LANDMARKS.globe.sceneScale}
-                  spinPart="sphere"
-                />
-              </React.Suspense>
-            </SpinProp>
+            <GlobeCloseUp unitIndex={index}>
+              <SpinProp
+                unitIndex={index}
+                hoverKey="egg:globe"
+                idleRate={0.11}
+                handle={globeSpin}
+                fixedAngle={
+                  screenshot.enabled ? ABOUT_GLOBE_SCREENSHOT_SPIN_Y : undefined
+                }
+                trigger={false}
+              >
+                <React.Suspense fallback={null}>
+                  <ModelProp
+                    url="/models/globe.glb"
+                    dark={dark}
+                    rotation={[...ABOUT_MODEL_POSES.globe.rotation]}
+                    scale={ABOUT_BOOT_LANDMARKS.globe.sceneScale}
+                    spinPart="sphere"
+                    spinPartMap={ABOUT_GLOBE_MAP}
+                    atlasOverride={
+                      dark
+                        ? ABOUT_GLOBE_STAND_ATLAS.dark
+                        : ABOUT_GLOBE_STAND_ATLAS.light
+                    }
+                  />
+                </React.Suspense>
+              </SpinProp>
+            </GlobeCloseUp>
           </group>
         </Grabbable>
 
@@ -886,7 +946,8 @@ export default function UnitAbout({
             0,
             ABOUT_TOP_LANDMARK_Z["collective-frame"],
           ]}
-          rotation={[0, 0, 0]}
+          // Owner placement via the scene layout editor, 2026-09-06.
+          rotation={[0, 0.1765, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
           width={0.3072}
@@ -975,7 +1036,8 @@ export default function UnitAbout({
           id="about-speaking-candid-v8"
           layoutLabel="About · Speaking print"
           base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.239]}
-          rotation={[0, 0, 0]}
+          // Owner placement via the scene layout editor, 2026-09-06.
+          rotation={[0, -0.2654, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
           width={0.306}
@@ -1014,8 +1076,9 @@ export default function UnitAbout({
           palette={palette}
           id="about-delicate-arch-v8"
           layoutLabel="About · Arch print"
-          base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.231]}
-          rotation={[0, 0, 0]}
+          base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.2345]}
+          // Owner placement via the scene layout editor, 2026-09-06.
+          rotation={[0, 0.2202, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
           width={0.24}
@@ -1086,6 +1149,20 @@ export default function UnitAbout({
           </group>
         </Grabbable>
       </ShelfUnit>
+
+      {ABOUT_GOLF_BALLS.map((ball) => (
+        <GolfBallProp
+          key={ball.id}
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          id={ball.id}
+          base={[...ball.base]}
+          standsOn="floor"
+          bayUnitIndex={GOLF_UNIT_INDEX}
+          yaw={ball.yaw}
+        />
+      ))}
 
       <Grabbable
         unitIndex={index}

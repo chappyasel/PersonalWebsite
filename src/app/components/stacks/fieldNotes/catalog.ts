@@ -33,6 +33,7 @@ export type FieldNoteArtwork =
   | "building"
   | "butterfly"
   | "golf"
+  | "golf-journey"
   | "wrong-sport"
   | "door"
   | "path"
@@ -41,7 +42,10 @@ export type FieldNoteArtwork =
   | "stamp"
   | "vision"
   | "retro-vision"
-  | "journal";
+  | "journal"
+  | "atlas"
+  | "chapter"
+  | "console";
 
 export type FieldNoteDefinition = Readonly<{
   id: string;
@@ -127,8 +131,8 @@ export const FIELD_NOTES = [
     rarity: "Common",
     artwork: "globe",
     hidden: false,
-    hint: "Give the About globe a proper spin.",
-    foundCopy: "Put the About globe into a full spin.",
+    hint: "With the About globe up close, turn it a full lap by hand.",
+    foundCopy: "Turned the About globe a full lap by hand.",
   },
   {
     id: "a-capital-view",
@@ -284,6 +288,15 @@ export const FIELD_NOTES = [
     foundCopy: "Holed a golf ball with its first shot.",
   },
   {
+    id: "the-long-game",
+    title: "The Long Game",
+    rarity: "Rare",
+    artwork: "golf-journey",
+    hidden: false,
+    hint: "A golf ball on About belongs somewhere farther down the room.",
+    foundCopy: "Carried an About golf ball to the hitting bay and struck it.",
+  },
+  {
     id: "wrong-sport",
     title: "Wrong Sport",
     rarity: "Uncommon",
@@ -393,6 +406,33 @@ export const FIELD_NOTES = [
     hint: null,
     foundCopy:
       "Combined 3:45, Redline, the fairway, and a pixel finish in one Vision Pro ride.",
+  },
+  {
+    id: "whole-world",
+    title: "The Whole World",
+    rarity: "Common",
+    artwork: "atlas",
+    hidden: false,
+    hint: "Bring the About globe up for a closer look.",
+    foundCopy: "Brought the About globe up to the camera.",
+  },
+  {
+    id: "local-chapter",
+    title: "Local Chapter",
+    rarity: "Uncommon",
+    artwork: "chapter",
+    hidden: false,
+    hint: "Find an AI Collective chapter on the globe and open it.",
+    foundCopy: "Opened an AI Collective chapter from the globe.",
+  },
+  {
+    id: "under-the-hood",
+    title: "Under the Hood",
+    rarity: "Rare",
+    artwork: "console",
+    hidden: false,
+    hint: "The room ships with its console. Find the key.",
+    foundCopy: "Opened the scene console.",
   },
   {
     id: "full-journal",

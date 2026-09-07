@@ -4,8 +4,8 @@ import { Suspense } from "react";
 
 import {
   getBookForOG,
-  getBookshelfBookCount,
   getBookWithNotes,
+  getBookshelfBookCount,
   getSlugByNotionId,
 } from "~/lib/books/ogDataAccess";
 import { getBooksOrigin } from "~/lib/books/origin";

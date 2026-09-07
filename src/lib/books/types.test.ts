@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  abandonedPercent,
-  isCurrentlyReading,
-  readingStatus,
-} from "./types";
+import { abandonedPercent, isCurrentlyReading, readingStatus } from "./types";
 
 describe("readingStatus", () => {
   it("reads started-only as reading", () => {

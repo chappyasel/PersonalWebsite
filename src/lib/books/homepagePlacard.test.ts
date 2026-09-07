@@ -100,7 +100,10 @@ describe("buildHomepageBookPlacard", () => {
   // production: no finished dates to take a min over, and no elapsed-year
   // fraction to divide the projection by.
   it("builds a zeroed placard from an empty library", () => {
-    const result = buildHomepageBookPlacard([], new Date("2026-08-15T12:00:00Z"));
+    const result = buildHomepageBookPlacard(
+      [],
+      new Date("2026-08-15T12:00:00Z"),
+    );
 
     expect(result.stats.total).toBe(0);
     expect(result.stats.perYear).toBeNull();

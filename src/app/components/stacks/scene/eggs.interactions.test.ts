@@ -21,6 +21,19 @@ describe("edge-visible egg interactions", () => {
     expect(trigger).not.toContain("active === unitIndex");
   });
 
+  it("pins a SpinProp before idle, hover, or hand rotation can advance it", () => {
+    const start = eggsSource.indexOf("export function SpinProp");
+    const end = eggsSource.indexOf("export function RollProp", start);
+    const spin = eggsSource.slice(start, end);
+    const pin = spin.indexOf("if (fixedAngle !== undefined)");
+    const hand = spin.indexOf("const hand = handle?.state");
+
+    expect(pin).toBeGreaterThanOrEqual(0);
+    expect(hand).toBeGreaterThan(pin);
+    expect(spin).toContain("target.current = fixedAngle");
+    expect(spin).toContain("g.rotation.y = fixedAngle");
+  });
+
   it("does not reject a nearest-hit touch egg by rounded active unit", () => {
     const start = environmentSource.indexOf(
       "runSceneInteractionActivation(tappedEgg)",

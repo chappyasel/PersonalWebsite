@@ -197,7 +197,9 @@ const rawYearsSchema = z.object({
     user: z.record(
       z.string(),
       z.object({
-        contributionCalendar: z.object({ totalContributions: z.number().int() }),
+        contributionCalendar: z.object({
+          totalContributions: z.number().int(),
+        }),
       }),
     ),
   }),
@@ -307,7 +309,8 @@ export async function fetchGitHubActivity({
     activeRepos.push({ ...repo, commits: entry.contributions.totalCount });
   }
   activeRepos.sort(
-    (a, b) => b.commits - a.commits || a.nameWithOwner.localeCompare(b.nameWithOwner),
+    (a, b) =>
+      b.commits - a.commits || a.nameWithOwner.localeCompare(b.nameWithOwner),
   );
 
   return gitHubActivitySchema.parse({

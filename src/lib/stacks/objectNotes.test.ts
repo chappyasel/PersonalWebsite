@@ -1,17 +1,15 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
-import { SCENE_ARTIFACTS } from "~/app/components/stacks/sceneArtifacts";
-
 import {
+  type ObjectNote,
   indexObjectNotes,
   objectNoteFor,
   parseObjectNotes,
-  type ObjectNote,
 } from "./objectNotes";
+import { SCENE_ARTIFACTS } from "~/app/components/stacks/sceneArtifacts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SOURCE = join(root, "content/stacks/objects.md");
@@ -101,9 +99,13 @@ describe("parseObjectNotes", () => {
 
   it("still drops a comment that opens and closes on one line", () => {
     const notes = parseObjectNotes(
-      ["## a:thing", "Title: A Thing", "", "<!-- unit break -->", "Prose."].join(
-        "\n",
-      ),
+      [
+        "## a:thing",
+        "Title: A Thing",
+        "",
+        "<!-- unit break -->",
+        "Prose.",
+      ].join("\n"),
     );
     expect(notes[0]!.body).toBe("Prose.");
   });
@@ -127,7 +129,13 @@ describe("parseObjectNotes", () => {
         body: "b",
       },
       // The unit, not the index, is what varies for the shelf planks.
-      { id: "shelf:*:top", title: "Plank", status: "written", links: [], body: "b" },
+      {
+        id: "shelf:*:top",
+        title: "Plank",
+        status: "written",
+        links: [],
+        body: "b",
+      },
       // A whole tail varies: salt, item index and volume index.
       {
         id: "link:row:1:*:*:*",

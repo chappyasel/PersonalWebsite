@@ -3,6 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import { bookSlugFromUrl, humanizeSlug } from "~/lib/books/inlineFacts";
+import { SITE_PAGES, isBareUrl, sitePageForHref } from "~/lib/site/pages";
+
 import BookLink from "~/components/books/BookLink";
 import SectionLink from "~/components/daylight/SectionLink";
 import {
@@ -11,8 +14,6 @@ import {
 } from "~/components/daylight/sectionIcons";
 import type { BookLookup, RichText } from "~/components/notion/types";
 import SiteLink from "~/components/site/SiteLink";
-import { bookSlugFromUrl, humanizeSlug } from "~/lib/books/inlineFacts";
-import { isBareUrl, SITE_PAGES, sitePageForHref } from "~/lib/site/pages";
 import {
   Tooltip,
   TooltipContent,

@@ -1,12 +1,11 @@
 "use client";
 
+import { useWlPath } from "../lib/paths";
 import { wlSearchParams } from "../lib/searchParams";
 import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
-
-import { useWlPath } from "../lib/paths";
 
 import { recordModalOrigin } from "~/lib/originFlight";
 import { api } from "~/trpc/react";
@@ -101,8 +100,7 @@ function DayCell({
       } ${hasWorkout ? "cursor-pointer rounded-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:hover:bg-neutral-700 dark:focus-visible:ring-neutral-500" : ""}`}
       onClick={
         hasWorkout
-          ? (e) =>
-              onDayClick(dateStr, e.currentTarget.getBoundingClientRect())
+          ? (e) => onDayClick(dateStr, e.currentTarget.getBoundingClientRect())
           : undefined
       }
       onKeyDown={
@@ -306,7 +304,6 @@ export function YearCalendar() {
           </div>
         </TooltipProvider>
       )}
-
     </div>
   );
 }

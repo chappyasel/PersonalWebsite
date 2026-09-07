@@ -127,7 +127,9 @@ describe("UniversalSearchController", () => {
     const user = userEvent.setup();
     render(
       <UniversalSearchController
-        loadPalette={async () => ({ UniversalSearchPalette: IntegratedPalette })}
+        loadPalette={async () => ({
+          UniversalSearchPalette: IntegratedPalette,
+        })}
         schedulePreload={() => () => undefined}
       />,
     );

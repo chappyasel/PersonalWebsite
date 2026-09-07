@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   DEFAULT_PHOTOGRAPH_TREATMENT,

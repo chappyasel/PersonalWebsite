@@ -1,14 +1,14 @@
-import fs from "node:fs";
-import path from "node:path";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "meshoptimizer";
-import { describe, expect, it } from "vitest";
-import type * as THREE from "three";
-
 import {
   filterTrianglesToHalfSpace,
   modelDetailHalfSpace,
 } from "../oneSidedDetailGeometry";
+import { MeshoptDecoder } from "meshoptimizer";
+import fs from "node:fs";
+import path from "node:path";
+import type * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { describe, expect, it } from "vitest";
+
 import { GOLF_CLUB_FACE_CENTER_MODEL } from "./golfLayout";
 
 function triangleCentroidXs(geometry: THREE.BufferGeometry) {

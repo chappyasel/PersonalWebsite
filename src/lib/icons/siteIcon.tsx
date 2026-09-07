@@ -5,7 +5,7 @@ import { phosphorSvg } from "~/lib/og/phosphor";
 
 import { loadPublicImage } from "./publicImage";
 import { type SiteIconSpec } from "./sectionIcons";
-import { SITE_ICON_SIZES, siteIconFrame, TILE_RADIUS } from "./siteIconSizes";
+import { SITE_ICON_SIZES, TILE_RADIUS, siteIconFrame } from "./siteIconSizes";
 import { SKY_CARD, skylinePlacement } from "./skyCard";
 
 /**

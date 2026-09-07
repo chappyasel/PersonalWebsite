@@ -399,15 +399,14 @@ describe("scene audio policy", () => {
     await vi.advanceTimersByTimeAsync(1);
     runtime.beginVisionRideSwitchOn();
 
-    expect(FakeAudioContext.latest!.filters.map((filter) => filter.type)).toEqual([
-      "highpass",
-      "lowpass",
-    ]);
-    const staticEnvelope = FakeAudioContext.latest!.gains
-      .map((node) => node.gain.schedule)
-      .find((schedule) =>
-        schedule.some((event) => event.value === VISION_RIDE_STATIC_PEAK),
-      );
+    expect(
+      FakeAudioContext.latest!.filters.map((filter) => filter.type),
+    ).toEqual(["highpass", "lowpass"]);
+    const staticEnvelope = FakeAudioContext.latest!.gains.map(
+      (node) => node.gain.schedule,
+    ).find((schedule) =>
+      schedule.some((event) => event.value === VISION_RIDE_STATIC_PEAK),
+    );
     expect(staticEnvelope).toBeDefined();
     expect(staticEnvelope![1]!.time).toBeLessThanOrEqual(0.02);
     expect(staticEnvelope).toHaveLength(4);

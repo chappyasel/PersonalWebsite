@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  type ComponentType,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ComponentType, useEffect, useRef, useState } from "react";
 
 import type { HomepageBookCover } from "~/lib/books/types";
 

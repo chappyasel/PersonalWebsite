@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
 import { TRPCReactProvider } from "~/trpc/react";
 

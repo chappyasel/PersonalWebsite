@@ -67,9 +67,7 @@ describe("dice tower detection", () => {
       { x: 0, y: 2 * DIE },
     ];
     expect(
-      isDiceTower(
-        IDS.map((_, index) => die(index, positions[index])),
-      ),
+      isDiceTower(IDS.map((_, index) => die(index, positions[index]))),
     ).toBe(false);
   });
 

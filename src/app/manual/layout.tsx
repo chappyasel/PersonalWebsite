@@ -1,9 +1,10 @@
 import { type Metadata } from "next";
+
 import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
+import { SITE_PAGES } from "~/lib/site/pages";
 import { devSubdomainUrl } from "~/lib/util";
 
 import "~/styles/daylight.css";
-import { SITE_PAGES } from "~/lib/site/pages";
 
 const origin =
   process.env.NODE_ENV === "production"
@@ -14,12 +15,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(origin),
   icons: siteIconMetadata(origin),
   title: "Personal Operating Manual ~ Chappy Asel",
-  description:
-    SITE_PAGES.manual.description,
+  description: SITE_PAGES.manual.description,
   openGraph: {
     title: "Personal Operating Manual ~ Chappy Asel",
-    description:
-      SITE_PAGES.manual.description,
+    description: SITE_PAGES.manual.description,
     url: "/",
     siteName: "Chappy's Personal Operating Manual",
     locale: "en_US",
@@ -38,8 +37,7 @@ export const metadata: Metadata = {
     site: "@chappyasel",
     creator: "@chappyasel",
     title: "Personal Operating Manual ~ Chappy Asel",
-    description:
-      SITE_PAGES.manual.description,
+    description: SITE_PAGES.manual.description,
     images: ["/images/manual-og.png"],
   },
   alternates: {

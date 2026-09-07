@@ -2,8 +2,13 @@
 
 import { useId, useState } from "react";
 
-import type { BookLookup, NotionBlock, RichText } from "~/components/notion/types";
+import type {
+  BookLookup,
+  NotionBlock,
+  RichText,
+} from "~/components/notion/types";
 import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
+
 import NotionBlockRenderer from "./NotionBlockRenderer";
 import RichTextRenderer from "./RichTextRenderer";
 
@@ -39,7 +44,11 @@ export default function NotionToggle({
       <DisclosurePanel id={contentId} open={open}>
         <div className="space-y-2 pb-2 pl-4 pt-1">
           {blocks.map((block, i) => (
-            <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+            <NotionBlockRenderer
+              key={i}
+              block={block}
+              bookLookup={bookLookup}
+            />
           ))}
         </div>
       </DisclosurePanel>

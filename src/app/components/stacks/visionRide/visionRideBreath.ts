@@ -52,8 +52,7 @@ export function breathPhase(
   elapsed: number,
   config: VisionRideBreathConfig = VISION_RIDE_BREATH,
 ) {
-  const angle =
-    (Math.PI * Math.max(0, elapsed)) / config.halfCycleSeconds;
+  const angle = (Math.PI * Math.max(0, elapsed)) / config.halfCycleSeconds;
   return 0.5 - 0.5 * Math.cos(angle);
 }
 

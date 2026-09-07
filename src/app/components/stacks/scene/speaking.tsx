@@ -13,10 +13,9 @@
 // the last imported prop this unit was given — a stand microphone — was
 // killed at browse for reading "stupid and out of place". A mic is stage
 // equipment. A tent card and a badge are what you take home.
+import { type Palette } from "../theme";
 import { useMemo } from "react";
 import * as THREE from "three";
-
-import { type Palette } from "../theme";
 
 /** Shared canvas → texture helper. Both props print type, and both want the
  * same treatment: the site's serif, generous tracking, and small enough that
@@ -67,7 +66,7 @@ export function TentCard({
           ctx.fillStyle = "#4a4036";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-                    // Letter-spaced by hand: canvas has no tracking, and a name set
+          // Letter-spaced by hand: canvas has no tracking, and a name set
           // solid at this size reads as a smudge.
           const spaced = name.split("").join(" ");
           // Fitted, because a spaced name at a fixed size overran the
@@ -83,8 +82,8 @@ export function TentCard({
           ctx.strokeStyle = "#9a8d7c";
           ctx.lineWidth = Math.max(1, h * 0.018);
           ctx.beginPath();
-          ctx.moveTo(w * 0.30, h * 0.76);
-          ctx.lineTo(w * 0.70, h * 0.76);
+          ctx.moveTo(w * 0.3, h * 0.76);
+          ctx.lineTo(w * 0.7, h * 0.76);
           ctx.stroke();
         },
         512,
@@ -145,7 +144,7 @@ export function ConferenceBadge({
           ctx.fillStyle = "#f2ede2";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.font = `${Math.round(h * 0.10)}px Georgia, serif`;
+          ctx.font = `${Math.round(h * 0.1)}px Georgia, serif`;
           ctx.fillText(venue.split("").join(" "), w / 2, h * 0.115);
           ctx.fillStyle = "#3b3229";
           ctx.font = `${Math.round(h * 0.115)}px Georgia, serif`;

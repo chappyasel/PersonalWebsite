@@ -1,9 +1,10 @@
-import BooksPageClient from "./BooksPageClient";
 import {
   getCachedBookStats,
   getCachedBookTags,
   getDefaultBooks,
 } from "~/server/queries/books";
+
+import BooksPageClient from "./BooksPageClient";
 
 export const revalidate = 86400;
 

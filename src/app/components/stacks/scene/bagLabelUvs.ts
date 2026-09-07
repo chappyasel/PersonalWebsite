@@ -44,9 +44,7 @@ export function projectStandingBagUvs(source: THREE.BufferGeometry): {
     const z = pos.getZ(i);
     const y = pos.getY(i);
     const back = normal ? normal.getX(i) < -0.5 : false;
-    uv[i * 2] = back
-      ? (z - box.min.z) / width
-      : (box.max.z - z) / width;
+    uv[i * 2] = back ? (z - box.min.z) / width : (box.max.z - z) / width;
     uv[i * 2 + 1] = (y - box.min.y) / height;
   }
   geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));

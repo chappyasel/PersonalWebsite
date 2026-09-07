@@ -44,9 +44,7 @@ export const repoSchema = z.object({
   isFork: z.boolean(),
   isArchived: z.boolean(),
   /** Newest commit on the default branch; null for an empty repository. */
-  lastCommit: z
-    .object({ headline: z.string(), date: z.string() })
-    .nullable(),
+  lastCommit: z.object({ headline: z.string(), date: z.string() }).nullable(),
 });
 
 export const activeRepoSchema = repoSchema.extend({

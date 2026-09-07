@@ -3,12 +3,13 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
+import { cn } from "~/lib/utils";
+
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "~/components/ui/popover";
-import { cn } from "~/lib/utils";
 
 type StatsPopoverProps = {
   /** Trigger contents */

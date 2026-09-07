@@ -1,14 +1,17 @@
 "use client";
 
 import {
-  BookmarkSimpleIcon,
   BookOpenIcon,
+  BookmarkSimpleIcon,
   ClockIcon,
   HeadphonesIcon,
   StarIcon,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
+
+import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { humanizeSlug, inlineBookFacts } from "~/lib/books/inlineFacts";
 
 import type { BookLookupEntry } from "~/components/notion/types";
 import {
@@ -17,8 +20,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { enhanceCoverUrl } from "~/lib/books/coverUtils";
-import { humanizeSlug, inlineBookFacts } from "~/lib/books/inlineFacts";
 
 /**
  * The one way to link a book from running text.

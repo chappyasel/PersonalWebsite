@@ -29,6 +29,7 @@ import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ChromeKeyboard from "./ChromeKeyboard";
 import ChromeKeyboardHelp from "./ChromeKeyboardHelp";
+import GlobeChapterLabel from "./GlobeChapterLabel";
 import PortalLabel from "./PortalLabel";
 import { createFreeRoamChromeVisibility } from "./chromeKeys";
 
@@ -251,6 +252,7 @@ export default function ChromeLayer() {
   return (
     <>
       <PortalLabel />
+      <GlobeChapterLabel />
       {!tapFirst && (
         <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
       )}

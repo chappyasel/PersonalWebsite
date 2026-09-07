@@ -26,6 +26,10 @@
      (International Orange in linear light), mixed toward the skyline hex at
      the shader's own goldenGateDayPaintMix and converted to sRGB. */
   --dl-ggb: 8 36% 42%;
+  /* Sutro's red and off-white paint, muted into the same aerial haze as the
+     surrounding ridge. */
+  --dl-sutro-red: 333 5% 44%;
+  --dl-sutro-white: 206 6% 48%;
   /* Window glints — theme.ts L50 skyWindow #ffca8a at the shader's light
      mix strength (a city at 3:45 has a few lights on even before dark). */
   --dl-window: 34 100% 77%;
@@ -95,6 +99,9 @@
      the beacon/lamp wash through ACES reads as a vivid rose-red — measured
      #b33b4a at the towers, ~#94383f across the blurred structure. */
   --dl-ggb: 352 48% 44%;
+  /* Before dawn the lattice returns to the common skyline silhouette. */
+  --dl-sutro-red: var(--dl-sil);
+  --dl-sutro-white: var(--dl-sil);
   /* theme.ts L98 skyWindow #ffbe73 at the shader's dark mix strength. */
   --dl-window: 33 100% 73%;
   --dl-window-op: 0.8;
@@ -143,8 +150,7 @@
    (scripts/generate/ground-grain.ts) over their gradient — the grainient's
    tooth, held still. */
 .dl-ground-arc {
-  background-image:
-    var(--dl-grain),
+  background-image: var(--dl-grain),
     linear-gradient(
       180deg,
       hsl(var(--dl-arc0)) 0%,
@@ -155,11 +161,12 @@
       hsl(var(--dl-arc4)) 100%
     );
   background-repeat: repeat, no-repeat;
-  background-size: 256px 256px, auto;
+  background-size:
+    256px 256px,
+    auto;
 }
 .dl-ground-wash {
-  background-image:
-    var(--dl-grain),
+  background-image: var(--dl-grain),
     linear-gradient(
       180deg,
       hsl(var(--dl-arc0)) 0%,
@@ -167,7 +174,9 @@
       hsl(var(--dl-arc2)) 50%
     );
   background-repeat: repeat, no-repeat;
-  background-size: 256px 256px, auto;
+  background-size:
+    256px 256px,
+    auto;
 }
 
 /* ============ Sky-band hero ============ */
@@ -182,7 +191,7 @@
   /* Stacking context: the fireworks canvas rides at z -1 inside. */
   z-index: 0;
   /* Ember at 91%: the dome anchors its glow at azimuth -1.15, 91% across
-     the strip's [-2.24, -1.025] window. Sized in PERCENTAGES of the sky
+     the strip's [-2.28, -1.025] window. Sized in PERCENTAGES of the sky
      box, never rems — a fixed-rem ellipse spanned the whole viewport on a
      phone and flooded the Golden Gate's end of the sky with orange. The
      per-theme size/alpha mirror the shader: the light glow is broad and
@@ -191,8 +200,7 @@
      energy (sigma 0.28 rad ≈ 23%, emberW 0.020, amp 0.30·uDawn — drawn
      here at the mid-traverse moment, the same authored-instant choice as
      the cloud slice and the moon). */
-  background:
-    radial-gradient(
+  background: radial-gradient(
       var(--dl-ember-size) at 91% 100%,
       hsl(var(--dl-sky-glow) / var(--dl-ember-a)),
       transparent 70%
@@ -213,31 +221,77 @@
   opacity: var(--dl-star-op);
 }
 .dl-stars {
-  background-image:
-    radial-gradient(3px 3px at 12% 22%, hsl(0 0% 100%), transparent 60%),
+  background-image: radial-gradient(
+      3px 3px at 12% 22%,
+      hsl(0 0% 100%),
+      transparent 60%
+    ),
     radial-gradient(3.5px 3.5px at 47% 30%, hsl(0 0% 100%), transparent 60%),
     radial-gradient(3px 3px at 76% 26%, hsl(0 0% 100% / 0.95), transparent 60%),
-    radial-gradient(2.5px 2.5px at 94% 34%, hsl(0 0% 100% / 0.8), transparent 60%),
-    radial-gradient(2.5px 2.5px at 7% 8%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(
+      2.5px 2.5px at 94% 34%,
+      hsl(0 0% 100% / 0.8),
+      transparent 60%
+    ),
+    radial-gradient(
+      2.5px 2.5px at 7% 8%,
+      hsl(0 0% 100% / 0.85),
+      transparent 60%
+    ),
     radial-gradient(2px 2px at 55% 42%, hsl(0 0% 100% / 0.75), transparent 60%),
     radial-gradient(3px 3px at 70% 6%, hsl(0 0% 100% / 0.95), transparent 60%),
-    radial-gradient(3.5px 3.5px at 97% 18%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(
+      3.5px 3.5px at 97% 18%,
+      hsl(0 0% 100% / 0.85),
+      transparent 60%
+    ),
     radial-gradient(2px 2px at 18% 47%, hsl(0 0% 100% / 0.7), transparent 60%),
-    radial-gradient(2.5px 2.5px at 36% 19%, hsl(0 0% 100% / 0.8), transparent 60%),
+    radial-gradient(
+      2.5px 2.5px at 36% 19%,
+      hsl(0 0% 100% / 0.8),
+      transparent 60%
+    ),
     radial-gradient(2px 2px at 59% 9%, hsl(0 0% 100% / 0.75), transparent 60%),
     radial-gradient(3px 3px at 86% 38%, hsl(0 0% 100% / 0.85), transparent 60%);
 }
 .dl-stars-b {
-  background-image:
-    radial-gradient(3px 3px at 31% 12%, hsl(0 0% 100% / 0.95), transparent 60%),
-    radial-gradient(2.5px 2.5px at 63% 15%, hsl(0 0% 100% / 0.85), transparent 60%),
-    radial-gradient(3.5px 3.5px at 88% 10%, hsl(0 0% 100% / 0.95), transparent 60%),
-    radial-gradient(2.5px 2.5px at 22% 40%, hsl(0 0% 100% / 0.75), transparent 60%),
-    radial-gradient(3.5px 3.5px at 40% 7%, hsl(0 0% 100% / 0.9), transparent 60%),
-    radial-gradient(2.5px 2.5px at 83% 44%, hsl(0 0% 100% / 0.7), transparent 60%),
+  background-image: radial-gradient(
+      3px 3px at 31% 12%,
+      hsl(0 0% 100% / 0.95),
+      transparent 60%
+    ),
+    radial-gradient(
+      2.5px 2.5px at 63% 15%,
+      hsl(0 0% 100% / 0.85),
+      transparent 60%
+    ),
+    radial-gradient(
+      3.5px 3.5px at 88% 10%,
+      hsl(0 0% 100% / 0.95),
+      transparent 60%
+    ),
+    radial-gradient(
+      2.5px 2.5px at 22% 40%,
+      hsl(0 0% 100% / 0.75),
+      transparent 60%
+    ),
+    radial-gradient(
+      3.5px 3.5px at 40% 7%,
+      hsl(0 0% 100% / 0.9),
+      transparent 60%
+    ),
+    radial-gradient(
+      2.5px 2.5px at 83% 44%,
+      hsl(0 0% 100% / 0.7),
+      transparent 60%
+    ),
     radial-gradient(2px 2px at 4% 30%, hsl(0 0% 100% / 0.7), transparent 60%),
     radial-gradient(3px 3px at 27% 27%, hsl(0 0% 100% / 0.85), transparent 60%),
-    radial-gradient(2.5px 2.5px at 51% 24%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(
+      2.5px 2.5px at 51% 24%,
+      hsl(0 0% 100% / 0.75),
+      transparent 60%
+    ),
     radial-gradient(2px 2px at 67% 36%, hsl(0 0% 100% / 0.7), transparent 60%);
 }
 /* One shooting star every ~26s, dark theme only. Three steep trajectories
@@ -324,10 +378,10 @@
   .dl-shooting-star-triggered {
     animation-delay: 0s;
   }
-  /* One tile per 234s is the dome's own drift: its clouds advance at 0.0052
-     rad/s across the 1.215 rad window. */
+  /* One tile per 241s is the dome's own drift: its clouds advance at 0.0052
+     rad/s across the 1.255 rad window. */
   .dl-clouds::before {
-    animation: dl-cloud-drift 234s linear infinite;
+    animation: dl-cloud-drift 241s linear infinite;
   }
   /* The hero gets a pass every 52s, starting just after load. The flock takes
      28s to clear the full viewport plus an off-screen margin, matching the
@@ -844,8 +898,8 @@
      left behind by it. Its keyframe is its own: the strip's translation is
      element-relative, and the two elements differ in width. */
   .dl-ggb-tap {
-    left: calc(max(150vw, 900px) * 0.075);
-    width: calc(max(150vw, 900px) * 0.175);
+    left: calc(max(150vw, 900px) * 0.105);
+    width: calc(max(150vw, 900px) * 0.17);
     height: calc(max(150vw, 900px) * 0.06);
   }
 }
@@ -936,13 +990,13 @@
 /* ============ Golden Gate fireworks (the scene's easter egg) ============ */
 
 /* Invisible tap target over the bridge span (azimuth -2.04 lands its towers
-   at 8-24% of the strip). Clicking the bridge in the 3D scene fires
+   at 15-24% of the strip). Clicking the bridge in the 3D scene fires
    fireworks; the strip answers the same way. */
 .dl-ggb-tap {
   position: absolute;
-  left: 7.5%;
+  left: 10.5%;
   bottom: 0;
-  width: 17.5%;
+  width: 17%;
   height: 9vw;
   cursor: pointer;
 }
@@ -1180,7 +1234,6 @@
 .dl-toc-link:hover {
   color: hsl(var(--foreground));
 }
-
 
 /* ============ Hero depth (scroll parallax) ============ */
 

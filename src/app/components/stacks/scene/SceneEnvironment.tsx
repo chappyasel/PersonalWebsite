@@ -208,6 +208,25 @@ const SKY_FRAGMENT = `
   #define TR_HW     0.0102
   #define TR_WING_B 0.0372
   #define TR_WING_T 0.0617
+  // Sutro sits west of the Golden Gate silhouette, with enough open ridge
+  // between them that the two landmarks do not read as one cluster.
+  #define SUTRO_AZ -2.260
+  // The hill's crest sits just east of the tower, so the tower is planted
+  // near the summit without making the silhouette perfectly symmetrical.
+  #define SUTRO_HILL_AZ -2.250
+  // Scale Sutro around the local crest. It remains the western skyline's
+  // high point without reading like a foreground structure.
+  #define SUTRO_SCALE 0.800
+  #define SUTRO_GROUND_E 0.050
+  // Mount Sutro has a tighter west face and a long east shoulder. The latter
+  // gives the Golden Gate a landfall without introducing a separate bump.
+  #define SUTRO_HILL_WEST_W 0.200
+  #define SUTRO_HILL_EAST_W 0.390
+  // Profile landmarks from the reference: splayed frame, three cross levels,
+  // a broad upper platform, matched side masts, and a taller center mast.
+  #define SUTRO_FRAME_TOP_E 0.094
+  #define SUTRO_SIDE_TIP_E 0.116
+  #define SUTRO_CENTER_TIP_E 0.121
   // Salesforce Tower: 1,070 ft to the top of the crown, 970 ft to the roof.
   // Its lower shaft stays broad before the upper floors pull inward more
   // decisively; the crown is about 70% of the base width and ends flat.
@@ -224,6 +243,15 @@ const SKY_FRAGMENT = `
   #define JASPER_AZ  -1.190
   #define JASPER_TOP  0.0515
   #define JASPER_HW   0.0068
+
+  // The generic residential roofline belongs only to the authored SF view.
+  // Camera travel can yaw roughly 45 degrees before its damped target catches
+  // up, so an unbounded hash reveals fresh building columns at the viewport
+  // edge. Fade the carpet outside the landmarks instead of wrapping it around
+  // the whole dome. Named structures keep their own exact silhouettes.
+  #define SF_CITY_WEST    -2.500
+  #define SF_CITY_EAST    -0.550
+  #define SF_CITY_FEATHER  0.120
 
   // Longest a fireworks launch runs: seven shells, the last let go at 3.10 s,
   // up to 1.08 s of rise and a 3.4 s willow on top. Mirrored by FIRE_DURATION
@@ -1618,7 +1646,12 @@ const SKY_FRAGMENT = `
     // whole of it ends up submerged: a carpet left showing through the water
     // is what made the old version look like a city standing in its own bay.
     roof = mix(roof, -0.004, seatWin);
-    float city = 1.0 - smoothstep(roof - 0.0015, roof + 0.0015, e);
+    float cityEnvelope =
+        smoothstep(SF_CITY_WEST - SF_CITY_FEATHER, SF_CITY_WEST, a)
+      * (1.0 - smoothstep(SF_CITY_EAST,
+                          SF_CITY_EAST + SF_CITY_FEATHER, a));
+    float city = (1.0 - smoothstep(roof - 0.0015, roof + 0.0015, e))
+               * cityEnvelope;
 
     // Jasper is one restrained addition to the old skyline composition. A
     // shallow recessed crown is enough to keep its 39-storey slab distinct;
@@ -1628,7 +1661,7 @@ const SKY_FRAGMENT = `
     float jasperCrown = sfBlock(a, e, JASPER_AZ, JASPER_HW * 0.82, JASPER_TOP);
     float jasper = max(jasperBody, jasperCrown);
 
-    // Twin Peaks / Mt Davidson + Telegraph Hill — hazier and flatter than
+    // Mount Sutro / Twin Peaks + Telegraph Hill — hazier than
     // the buildings, their east flanks catch the first light.
     //
     // These used to top out at 0.032 rad, which cleared the residential
@@ -1644,7 +1677,10 @@ const SKY_FRAGMENT = `
     // So the ridge now stands tall enough to show its own curve, and hazes
     // toward skyBase (below) so it reads as a mass BEHIND the air rather
     // than a shape painted on top of it.
-    float hillA = 0.050 * hump(a, -2.16, 0.30);
+    float sutroHillW = mix(SUTRO_HILL_WEST_W, SUTRO_HILL_EAST_W,
+                           smoothstep(SUTRO_HILL_AZ - 0.012,
+                                      SUTRO_HILL_AZ + 0.012, a));
+    float hillA = 0.050 * hump(a, SUTRO_HILL_AZ, sutroHillW);
     float hillB = 0.038 * hump(a, -1.98, 0.24);
     float telegraph = 0.022 * hump(a, -1.90, 0.070);
     float hillH = max(hillA, max(hillB, telegraph));
@@ -1654,22 +1690,45 @@ const SKY_FRAGMENT = `
     float hillMask = (1.0 - smoothstep(hillH - 0.005, hillH + 0.005, e))
                    * smoothstep(0.0004, 0.006, hillH);
 
-    // Sutro Tower ON its hill (tip 0.118 — the true tallest, 1,811 ft ASL):
-    // two legs to a waist, then three prongs, lifted by the hill base.
+    // Sutro Tower on its hill. Inverse coordinates preserve the authored
+    // proportions while SUTRO_SCALE reduces the complete profile around the
+    // crest, and the hill mask hides the lower lattice.
     float sutro = 0.0;
-    float dSut = a + 2.20;
-    float eh = e - 0.030;
-    if (abs(dSut) < 0.05 && eh < 0.095 && eh > -0.02) {
-      float legSpread = mix(0.011, 0.0035, clamp(eh / 0.05, 0.0, 1.0));
-      float legs = step(abs(abs(dSut) - legSpread), 0.0016) * step(eh, 0.055);
-      float prongs = (step(abs(dSut), 0.0014) + step(abs(abs(dSut) - 0.0075), 0.0013)) * step(0.03, eh) * step(eh, 0.088);
-      float waist = step(abs(eh - 0.052), 0.0016) * step(abs(dSut), 0.009);
-      sutro = clamp(legs + prongs + waist, 0.0, 1.0);
+    float dSut = a - SUTRO_AZ;
+    float sutroA = dSut / SUTRO_SCALE;
+    float sutroE = SUTRO_GROUND_E + (e - SUTRO_GROUND_E) / SUTRO_SCALE;
+    if (abs(sutroA) < 0.055 && sutroE < 0.124 && sutroE > 0.045) {
+      float frameT = clamp(
+        (sutroE - SUTRO_GROUND_E) / (SUTRO_FRAME_TOP_E - SUTRO_GROUND_E),
+        0.0,
+        1.0
+      );
+      float legSpread = mix(0.0125, 0.0052, frameT);
+      float outerLegs = step(abs(abs(sutroA) - legSpread), 0.00145)
+                      * step(SUTRO_GROUND_E, sutroE)
+                      * step(sutroE, SUTRO_FRAME_TOP_E);
+      float centerMast = step(abs(sutroA), 0.00125)
+                       * step(SUTRO_GROUND_E, sutroE)
+                       * step(sutroE, SUTRO_CENTER_TIP_E);
+      float lowerBeam = step(abs(sutroE - 0.067), 0.0016)
+                      * step(abs(sutroA), 0.0105);
+      float midBeam = step(abs(sutroE - 0.080), 0.0016)
+                    * step(abs(sutroA), 0.0086);
+      float upperPlatform = step(abs(sutroE - 0.093), 0.0020)
+                          * step(abs(sutroA), 0.0160);
+      float sideMasts = step(abs(abs(sutroA) - 0.0090), 0.00125)
+                      * step(0.091, sutroE)
+                      * step(sutroE, SUTRO_SIDE_TIP_E);
+      sutro = clamp(
+        outerLegs + centerMast + lowerBeam + midBeam + upperPlatform + sideMasts,
+        0.0,
+        1.0
+      );
     }
-    sutro *= uSutroVisible;
+    sutro *= (1.0 - hillMask) * uSutroVisible;
 
     // ---- Golden Gate Bridge, northwest at a = -2.04. Derived, not eyeballed.
-    // This scene's own compass puts Sutro west (-2.20) and Telegraph Hill
+    // This scene's own compass puts Sutro west (-2.26) and Telegraph Hill
     // north (-1.90), and the Golden Gate is northwest of every vantage the
     // rest of the skyline implies. The drawn elevations say what that vantage
     // is: Transamerica at 0.082 for 260 m solves to 3.2 km, Sutro at 0.125 for
@@ -1677,10 +1736,10 @@ const SKY_FRAGMENT = `
     // From the Mission, Potrero Hill and Bernal Heights the bridge's true
     // bearing falls 55%, 56% and 46% of the way along the Sutro-to-Telegraph
     // arc, i.e. a = -2.033, -2.033 and -2.061. The mean is -2.04, and -2.04 is
-    // also the saddle between hillA (-2.16) and hillB (-1.98), where the drawn
-    // ridge dips to 0.034 — so the span shows through the notch rather than
-    // climbing a flank. Nearest neighbour is Sutro, 0.055 rad off the near
-    // tower: nothing collides.
+    // also the saddle between Sutro hill (-2.25) and hillB (-1.98), where
+    // the drawn ridge dips to 0.034. The span shows through the notch instead
+    // of climbing a flank. Sutro sits 0.165 rad west of the near tower, leaving
+    // enough open ridge that the landmarks stay visually separate.
     //
     // The WIDTH is honest; the HEIGHT and the waterline are not, and that is
     // the whole of the cheat. Seen obliquely — the only way San Francisco ever
@@ -2008,6 +2067,20 @@ const SKY_FRAGMENT = `
     hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, a);
     vec3 cityCol = mix(cityC, sfHazeBase, hazeAmt);
     cityCol += emberC * ember * 0.25;
+    // Sutro's paint is present but distant: red and warm off-white bands,
+    // pulled toward the same haze as the hill instead of rendered as a vivid
+    // foreground flag. At 3:45 it returns to the common skyline silhouette.
+    vec3 sutroRed = mix(cityC, vec3(0.24, 0.13, 0.12), 0.18);
+    vec3 sutroWhite = mix(cityC, vec3(0.50, 0.52, 0.49), 0.13);
+    float sutroBandId = floor((sutroE - SUTRO_GROUND_E) / 0.0115);
+    float sutroWhiteBand = step(0.5, mod(sutroBandId, 2.0));
+    vec3 sutroPaint = mix(sutroRed, sutroWhite, sutroWhiteBand);
+    sutroPaint = mix(sutroPaint, sfHazeBase, min(hazeAmt + 0.08, 0.68));
+    cityCol = mix(
+      cityCol,
+      sutroPaint,
+      sutro * (1.0 - uDark) * 0.48
+    );
     // Salesforce's daylight crown stays in this same blue-grey glass/haze
     // grade. Its separate emissive installation is interaction-only below;
     // adding the horizon ember here made the top a beige block.
@@ -2469,20 +2542,22 @@ const SKY_FRAGMENT = `
       // §5.2) at Sutro's ~20/min, and 3 paler beacons on the prong tips.
       // The lattice itself is never lit — the legs were floodlit in 1973 and
       // public outcry had the tubes removed within months.
-      if (abs(dSut) < 0.035 && eh > -0.01 && eh < 0.10) {
-        float sutroNight = night * uSutroVisible;
+      if (abs(sutroA) < 0.040 && sutroE > 0.045 && sutroE < 0.124) {
+        float sutroNight = night * uSutroVisible * (1.0 - hillMask);
         float sutFlash = step(fract(uTime * 0.3333), 0.16);
         for (int li = 0; li < 3; li++) {
           float f = float(li);
-          float lev = 0.016 + f * 0.019;
-          float spread = mix(0.0105, 0.0045, f / 2.0);
-          float dLa = length(vec2(dSut - spread, eh - lev));
-          float dLb = length(vec2(dSut + spread, eh - lev));
+          float lev = 0.064 + f * 0.0145;
+          float spread = mix(0.0105, 0.0055, f / 2.0);
+          float dLa = length(vec2(sutroA - spread, sutroE - lev));
+          float dLb = length(vec2(sutroA + spread, sutroE - lev));
           col += avRed * (smoothstep(0.0016, 0.0005, dLa)
                         + smoothstep(0.0016, 0.0005, dLb)) * 0.34 * sutroNight;
         }
         for (int pi = 0; pi < 3; pi++) {
-          float dP = length(vec2(dSut - (float(pi) - 1.0) * 0.0075, eh - 0.086));
+          float mastX = (float(pi) - 1.0) * 0.0090;
+          float mastTip = pi == 1 ? SUTRO_CENTER_TIP_E : SUTRO_SIDE_TIP_E;
+          float dP = length(vec2(sutroA - mastX, sutroE - mastTip));
           col += avRed * smoothstep(0.0016, 0.0005, dP)
                * (0.20 + 0.42 * sutFlash) * sutroNight;
         }

@@ -380,7 +380,16 @@ the completed state until the visitor finds the new entry.
     - First hint: None before discovery.
     - Notes: The four semantic modifiers compose independently.
 
-38. [ ] **Full Journal** `◇`
+38. [x] **The Long Game** `◇`
+
+    - Rarity: Rare.
+    - Earned by: Carry either golf ball from the About shelf into the Training
+      hitting bay, leave it still, and strike it with the club.
+    - First hint: A golf ball on About belongs somewhere farther down the room.
+    - Notes: The stable About ball ID proves its origin; no carry history is
+      stored. The successful impact frame, not entering the bay, awards it.
+
+39. [ ] **Full Journal** `◇`
     - Rarity: Legendary.
     - Earned by: Earn every other Field Note. Awarded in the same moment as
       the final other discovery.

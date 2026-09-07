@@ -30,11 +30,11 @@ const OUT = join(
 // ---- Azimuth window and projection. The SF traverse opens just west of
 // Sutro Tower (owner call: nothing to its left but the ridge running off the
 // edge) and closes at the Bay Bridge's east end.
-const A0 = -2.24;
+const A0 = -2.28;
 const A1 = -1.025;
 const WIDTH = 1440;
 const PPR = WIDTH / (A1 - A0); // one scale for both axes: aspect-true
-const E_TOP = 0.13; // clears Sutro's 0.118 tip
+const E_TOP = 0.13; // clears Sutro's scaled 0.104 tip
 const HEIGHT = +(E_TOP * PPR).toFixed(1);
 
 const X = (a: number) => +((a - A0) * PPR).toFixed(2);
@@ -82,12 +82,26 @@ const SF_TAPER = 0.44;
 const JASPER_AZ = -1.19;
 const JASPER_TOP = 0.0515;
 const JASPER_HW = 0.0068;
+const SUTRO_AZ = -2.26;
+const SUTRO_HILL_AZ = -2.25;
+const SUTRO_SCALE = 0.8;
+const SUTRO_GROUND_E = 0.05;
+const SUTRO_HILL_WEST_W = 0.2;
+const SUTRO_HILL_EAST_W = 0.39;
+const SUTRO_FRAME_TOP_E = 0.094;
+const SUTRO_SIDE_TIP_E = 0.116;
+const SUTRO_CENTER_TIP_E = 0.121;
 
 // ---- Profiles, ported exactly.
-// Twin Peaks / Mt Davidson + Telegraph Hill
+// Mount Sutro / Twin Peaks + Telegraph Hill
 function hillH(a: number): number {
+  const sutroHillW = mix(
+    SUTRO_HILL_WEST_W,
+    SUTRO_HILL_EAST_W,
+    smoothstep(SUTRO_HILL_AZ - 0.012, SUTRO_HILL_AZ + 0.012, a),
+  );
   return Math.max(
-    0.05 * hump(a, -2.16, 0.3),
+    0.05 * hump(a, SUTRO_HILL_AZ, sutroHillW),
     0.038 * hump(a, -1.98, 0.24),
     0.022 * hump(a, -1.9, 0.07),
   );
@@ -107,7 +121,8 @@ function occlusion(a: number): number {
   return Math.max(h >= 0.002 ? h : 0, roof(a));
 }
 
-type Shape = { tone?: "ggb" } & (
+type ShapeTone = "ggb" | "sutro-red" | "sutro-white";
+type Shape = { tone?: ShapeTone } & (
   | { kind: "fill"; d: string; opacity?: number }
   | { kind: "rect"; x: number; y: number; w: number; h: number; opacity?: number }
   | { kind: "stroke"; d: string; width: number; opacity?: number }
@@ -249,7 +264,7 @@ const ggbFrom = shapes.length;
 }
 for (let i = ggbFrom; i < shapes.length; i++) shapes[i]!.tone = "ggb";
 
-// ============ Twin Peaks / Mt Davidson / Telegraph Hill ridge ============
+// ============ Mount Sutro / Twin Peaks / Telegraph Hill ridge ============
 {
   const pts: [number, number][] = [];
   for (let a = A0; a <= -1.7; a += 0.0015) {
@@ -278,37 +293,122 @@ for (let i = ggbFrom; i < shapes.length; i++) shapes[i]!.tone = "ggb";
   shapes.push(polyToBaseline(pts, OP_CARPET));
 }
 
-// ============ Sutro Tower on its hill (tip e = 0.118) ============
-// The shader runs the legs down to e = 0.010 and hides the cut inside its
-// opaque hill; our hill is a translucent haze, so the legs instead PLANT at
-// the ridge line — same silhouette the dome shows, without the floating cut.
-// The whole tower carries the ridge's own haze (it stands at that distance).
+// ============ Sutro Tower on its hill (scaled tip e = 0.1068) ============
+// The profile follows the reference at skyline resolution: a broad splayed
+// frame, three cross levels, a wide upper platform, and three masts with the
+// center slightly taller. Muted paint bands retain the identity through haze.
 {
-  const AZ = -2.2;
+  const AZ = SUTRO_AZ;
   const OP_SUTRO = 0.8;
-  const spread = (eh: number) => mix(0.011, 0.0035, clamp01(eh / 0.05));
+  const actualA = (localA: number) => AZ + localA * SUTRO_SCALE;
+  const actualE = (localE: number) =>
+    SUTRO_GROUND_E + (localE - SUTRO_GROUND_E) * SUTRO_SCALE;
+  const legSpread = (localE: number) =>
+    mix(
+      0.0125,
+      0.0052,
+      clamp01(
+        (localE - SUTRO_GROUND_E) /
+          (SUTRO_FRAME_TOP_E - SUTRO_GROUND_E),
+      ),
+    );
+  const toneForBand = (index: number): ShapeTone =>
+    index % 2 === 0 ? "sutro-red" : "sutro-white";
+  const legBands = [SUTRO_GROUND_E, 0.061, 0.072, 0.083, SUTRO_FRAME_TOP_E];
   for (const s of [-1, 1]) {
-    // Leg band |{|dSut|} - spread| <= 0.0016, clipped at the local ridge
-    const ehRidge = hillH(AZ + s * 0.009) - 0.03;
-    const ehs = [ehRidge, 0.05, 0.055];
-    const outer = ehs.map((eh) => [AZ + s * (spread(eh) + 0.0016), eh + 0.03]);
-    const inner = ehs
-      .slice()
-      .reverse()
-      .map((eh) => [AZ + s * (spread(eh) - 0.0016), eh + 0.03]);
-    const d =
-      `M${X(outer[0]![0]!)} ${Y(outer[0]![1]!)} ` +
-      [...outer.slice(1), ...inner]
-        .map(([a, e]) => `L${X(a!)} ${Y(e!)}`)
-        .join(" ") +
-      " Z";
-    shapes.push({ kind: "fill", d, opacity: OP_SUTRO });
+    for (let i = 0; i < legBands.length - 1; i++) {
+      const lo = legBands[i]!;
+      const hi = legBands[i + 1]!;
+      const thickness = 0.00145;
+      const points: [number, number][] = [
+        [actualA(s * (legSpread(lo) + thickness)), actualE(lo)],
+        [actualA(s * (legSpread(hi) + thickness)), actualE(hi)],
+        [actualA(s * (legSpread(hi) - thickness)), actualE(hi)],
+        [actualA(s * (legSpread(lo) - thickness)), actualE(lo)],
+      ];
+      const d =
+        `M${X(points[0]![0])} ${Y(points[0]![1])} ` +
+        points
+          .slice(1)
+          .map(([a, e]) => `L${X(a)} ${Y(e)}`)
+          .join(" ") +
+        " Z";
+      shapes.push({
+        kind: "fill",
+        d,
+        opacity: OP_SUTRO,
+        tone: toneForBand(i),
+      });
+    }
   }
-  // Waist bar, then the three prongs (all to the 0.118 tip, as authored)
-  shapes.push(rectAE(AZ - 0.009, AZ + 0.009, 0.0804, 0.0836, OP_SUTRO));
-  shapes.push(rectAE(AZ - 0.0014, AZ + 0.0014, 0.06, 0.118, OP_SUTRO));
-  shapes.push(rectAE(AZ - 0.0088, AZ - 0.0062, 0.06, 0.118, OP_SUTRO));
-  shapes.push(rectAE(AZ + 0.0062, AZ + 0.0088, 0.06, 0.118, OP_SUTRO));
+
+  // Center mast, segmented into the same muted red and off-white bands.
+  const centerBands = [
+    SUTRO_GROUND_E,
+    0.061,
+    0.072,
+    0.083,
+    0.094,
+    0.105,
+    SUTRO_CENTER_TIP_E,
+  ];
+  for (let i = 0; i < centerBands.length - 1; i++) {
+    const shape = rectAE(
+      actualA(-0.00125),
+      actualA(0.00125),
+      actualE(centerBands[i]!),
+      actualE(centerBands[i + 1]!),
+      OP_SUTRO,
+    );
+    shape.tone = toneForBand(i);
+    shapes.push(shape);
+  }
+
+  // Side masts begin at the broad upper platform and stop below the center.
+  const sideBands = [0.091, 0.102, SUTRO_SIDE_TIP_E];
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < sideBands.length - 1; i++) {
+      const mastCenter = s * 0.009;
+      const shape = rectAE(
+        actualA(mastCenter - 0.00125),
+        actualA(mastCenter + 0.00125),
+        actualE(sideBands[i]!),
+        actualE(sideBands[i + 1]!),
+        OP_SUTRO,
+      );
+      shape.tone = toneForBand(i + 1);
+      shapes.push(shape);
+    }
+  }
+
+  // Three cross levels, with the real tower's upper platform much wider.
+  const lower = rectAE(
+    actualA(-0.0105),
+    actualA(0.0105),
+    actualE(0.0654),
+    actualE(0.0686),
+    OP_SUTRO,
+  );
+  lower.tone = "sutro-red";
+  shapes.push(lower);
+  const mid = rectAE(
+    actualA(-0.0086),
+    actualA(0.0086),
+    actualE(0.0784),
+    actualE(0.0816),
+    OP_SUTRO,
+  );
+  mid.tone = "sutro-white";
+  shapes.push(mid);
+  const upper = rectAE(
+    actualA(-0.016),
+    actualA(0.016),
+    actualE(0.091),
+    actualE(0.095),
+    OP_SUTRO,
+  );
+  upper.tone = "sutro-red";
+  shapes.push(upper);
 }
 
 // ============ Transamerica Pyramid with wings (a = -1.62) ============
@@ -606,6 +706,8 @@ function horizonSvg(theme: "light" | "dark"): string {
   // Dark = the bridge as the scene renders it at night (measured #b33b4a
   // at the beacon-lit towers; see daylight.css --dl-ggb notes).
   const ggbHex = theme === "light" ? "#924f45" : "#a63a46";
+  const sutroRed = theme === "light" ? "#716b76" : sil;
+  const sutroWhite = theme === "light" ? "#747c83" : sil;
   const win = theme === "light" ? "#ffca8a" : "#ffbe73";
   const winOp = theme === "light" ? 0.45 : 0.8;
   const silOp = theme === "light" ? 0.55 : 1;
@@ -617,7 +719,14 @@ function horizonSvg(theme: "light" | "dark"): string {
     );
   }
   for (const s of shapes) {
-    const fill = s.tone === "ggb" ? ggbHex : sil;
+    const fill =
+      s.tone === "ggb"
+        ? ggbHex
+        : s.tone === "sutro-red"
+          ? sutroRed
+          : s.tone === "sutro-white"
+            ? sutroWhite
+            : sil;
     const op = +((s.opacity ?? 1) * (s.tone === "ggb" ? 1 : silOp)).toFixed(2);
     if (s.kind === "rect")
       parts.push(
@@ -694,8 +803,8 @@ export const SKYLINE_VIEWBOX = "0 0 ${WIDTH} ${HEIGHT}";
 export const SKYLINE_WIDTH = ${WIDTH};
 export const SKYLINE_HEIGHT = ${HEIGHT};
 
-/** tone "ggb" marks the Golden Gate, which carries its own paint color. */
-export type SkylineShape = { tone?: "ggb" } & (
+/** Landmark tones carry the bridge and Sutro's daylight paint. */
+export type SkylineShape = { tone?: "ggb" | "sutro-red" | "sutro-white" } & (
   | { kind: "fill"; d: string; opacity?: number }
   | { kind: "rect"; x: number; y: number; w: number; h: number; opacity?: number }
   | { kind: "stroke"; d: string; width: number; opacity?: number }

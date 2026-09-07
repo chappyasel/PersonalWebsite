@@ -1,6 +1,7 @@
+import { useStacks } from "../store";
+
 import { visionRideDiagnosticsController } from "./visionRideDiagnostics";
 import { visionRideRuntime } from "./visionRideRuntime";
-import { useStacks } from "../store";
 
 export const APPLE_VISION_PRO_URL =
   "https://www.apple.com/apple-vision-pro/" as const;

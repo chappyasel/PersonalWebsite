@@ -216,9 +216,18 @@ export function wallFootprint(
     const t = n === 1 ? (from + to) / 2 : from + ((to - from) * k) / (n - 1);
     planes.push(yMin + h * t);
   }
-  const edge = (mesh: THREE.Mesh, pos: THREE.BufferAttribute, i: number, j: number) => {
-    a.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld).multiplyScalar(scale);
-    b.fromBufferAttribute(pos, j).applyMatrix4(mesh.matrixWorld).multiplyScalar(scale);
+  const edge = (
+    mesh: THREE.Mesh,
+    pos: THREE.BufferAttribute,
+    i: number,
+    j: number,
+  ) => {
+    a.fromBufferAttribute(pos, i)
+      .applyMatrix4(mesh.matrixWorld)
+      .multiplyScalar(scale);
+    b.fromBufferAttribute(pos, j)
+      .applyMatrix4(mesh.matrixWorld)
+      .multiplyScalar(scale);
     for (const y of planes) {
       if ((a.y - y) * (b.y - y) > 0) continue; // both on one side
       if (a.y === b.y) continue; // lies in the plane; its endpoints are caught by neighbours

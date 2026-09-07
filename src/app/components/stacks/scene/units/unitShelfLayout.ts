@@ -224,10 +224,11 @@ export const REVIEWED_SHELF_LAYOUT = {
     shakerRadius: 0.077,
   },
   about: {
-    // Owner placement via the scene layout editor, 2026-08-22.
+    // Owner placement via the scene layout editor, 2026-08-22; the arch
+    // print moved in toward the portrait on 2026-09-06.
     speakingPrintX: 0.274,
     speakingPrintHalfX: 0.167,
-    archPrintX: -0.81,
+    archPrintX: -0.6993,
     archPrintHalfX: 0.134,
     profileSeat: 0.133,
   },

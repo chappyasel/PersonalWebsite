@@ -29,8 +29,5 @@ export function separateAdjacentQuoteBlocks(
  * an unmarked transition between quote lines came from separate Notion blocks.
  */
 export function separateCachedQuoteBlocks(markdown: string): string {
-  return markdown.replace(
-    /^([ \t]*)(> .*)(?<! {2})\n(?=\1> )/gm,
-    "$1$2\n$1\n",
-  );
+  return markdown.replace(/^([ \t]*)(> .*)(?<! {2})\n(?=\1> )/gm, "$1$2\n$1\n");
 }

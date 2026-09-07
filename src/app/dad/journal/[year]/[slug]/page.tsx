@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EntryHeader } from "~/app/dad/components/EntryHeader";
+import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
 import {
   getAdjacentEntries,
   readMarkdownFileSafe,
 } from "~/app/dad/lib/content";
-import { EntryHeader } from "~/app/dad/components/EntryHeader";
-import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9_-]+$/;
 

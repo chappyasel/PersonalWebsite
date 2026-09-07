@@ -3,25 +3,22 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   createContext,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
 } from "react";
 
-import {
-  closeOverlayChrome,
-  openOverlayChrome,
-} from "~/lib/overlayChrome";
 import {
   originEntrance,
   originExit,
   takeModalOrigin,
 } from "~/lib/originFlight";
+import { closeOverlayChrome, openOverlayChrome } from "~/lib/overlayChrome";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { cn } from "~/lib/utils";
 

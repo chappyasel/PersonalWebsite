@@ -1,14 +1,15 @@
 import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { getBooksOrigin } from "~/lib/books/origin";
+import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
+import { SITE_PAGES } from "~/lib/site/pages";
+import { BooksTRPCProvider } from "~/trpc/books-provider";
+
 import { BooksLayoutWrapper } from "./components/BooksLayoutWrapper";
 import { ModalHost } from "./components/ModalHost";
 
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
-import { getBooksOrigin } from "~/lib/books/origin";
-import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
-import { BooksTRPCProvider } from "~/trpc/books-provider";
-import { SITE_PAGES } from "~/lib/site/pages";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getBooksOrigin()),

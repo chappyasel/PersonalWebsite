@@ -49,9 +49,13 @@ describe("humanizeSlug", () => {
 
 describe("inlineBookFacts", () => {
   it("reports a finished read by its date span", () => {
-    expect(inlineBookFacts(entry({ started: MAR_12, finished: MAR_18 }))).toEqual(
-      { reading: "Read March 12th - 18th '25", kind: "finished", length: null },
-    );
+    expect(
+      inlineBookFacts(entry({ started: MAR_12, finished: MAR_18 })),
+    ).toEqual({
+      reading: "Read March 12th - 18th '25",
+      kind: "finished",
+      length: null,
+    });
     expect(
       inlineBookFacts(entry({ started: MAR_12, finished: APR_03 })).reading,
     ).toBe("Read Mar 12th - Apr 3rd '25");
@@ -100,7 +104,9 @@ describe("inlineBookFacts", () => {
     expect(
       inlineBookFacts(entry({ audioLengthMin: 492, pageCount: 304 })).length,
     ).toBe("8h 12m · ~304 pages");
-    expect(inlineBookFacts(entry({ pageCount: 304 })).length).toBe("~304 pages");
+    expect(inlineBookFacts(entry({ pageCount: 304 })).length).toBe(
+      "~304 pages",
+    );
     expect(inlineBookFacts(entry()).length).toBeNull();
   });
 });

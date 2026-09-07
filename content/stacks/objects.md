@@ -139,6 +139,23 @@ nodes turning inside it. Green nodes are people, blue nodes are agents. Hover it
 and one improbably long chord grows across the sphere; drag it and the shockwave
 runs out through the rest of the room.
 
+## golf-ball:about-a
+
+Title: Golf Ball
+Status: written
+
+One of two golf balls tucked into the grass under the left side of About, in
+front of the desk lamp. Carry it to the Training hitting bay, leave it still,
+and the club will play it.
+
+## golf-ball:about-b
+
+Title: Golf Ball
+Status: written
+
+The second About golf ball. It stays in the grass in ordinary and screenshot
+mode, and it can make the same trip to the hitting bay.
+
 ## grab:reading:\*
 
 Title: Currently Reading
@@ -175,10 +192,18 @@ not move, because fixed task lighting is architecture and not a prop to throw.
 Title: Globe
 Status: written
 
-Click it and it adds a lap. At rest it drifts at 0.11 rad/s, slow enough that
-you notice it the second time you look. On hover it runs about nine times that,
-a lap every six and a half seconds, which is a globe someone has just spun. Only
-the ball turns; the stand stays put.
+A real map on a low-poly ball. The countries in the darker green are the ones
+I have been to, 25 so far, Bali standing in for Indonesia. The orange marks are
+AI Collective chapters, one per city, a heavier mark where several sit close
+together, from the same list the chapters page reads.
+
+Click it and it comes up to the camera. Up close, drag to turn it, point at a
+mark to see which chapter it is, and click the mark to open that chapter on
+aicollective.com. Click anywhere else, or press Escape, to put it back. At
+rest it drifts at 0.11 rad/s, slow enough that you notice it the second time
+you look. On hover it runs about nine times that, a lap every six and a half
+seconds, which is a globe someone has just spun. Only the ball turns; the
+stand stays put.
 
 ## grab:plant:about-cactus
 

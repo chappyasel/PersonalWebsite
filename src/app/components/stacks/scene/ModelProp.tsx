@@ -32,6 +32,13 @@ import {
   DESK_LAMP_SHADE_VENT,
   type QuaternionTuple,
 } from "./deskLampHead";
+import {
+  type SpinPartMap,
+  dressGlobeBall,
+  slimGlobeStand,
+  splitGlobeBall,
+  trimGlobeAxlePins,
+} from "./globeBall";
 import { cameraSideHoverTilt, cameraSideSlide } from "./hoverTilt";
 import {
   HOVER_MAX_SIZE,
@@ -41,13 +48,7 @@ import {
   litByOwnRig,
   useInteractionClaimed,
 } from "./interaction";
-import {
-  extractTriangles,
-  findIslands,
-  findSphereIsland,
-  findSpinAxis,
-  partitionTrianglesByOctant,
-} from "./islands";
+import { extractTriangles, findIslands } from "./islands";
 import { LEAN_CLEARANCE_MARGIN, leanBudget } from "./leanClearance";
 import {
   filterTrianglesToHalfSpace,
@@ -147,6 +148,9 @@ export const RECOLOR_URLS = [
   "/models/tiny-treats-light.png",
   "/models/tiny-treats-dark.png",
 ];
+
+/** One stable empty list for props that load no extra textures. */
+const NO_TEXTURES: string[] = [];
 
 // One shared material per themed atlas texture (drei caches the texture by
 // URL, so the uuid is stable across every ModelProp instance).
@@ -315,92 +319,30 @@ function atlasMaterial(tex: THREE.Texture): THREE.MeshStandardMaterial {
  * entire globe, which is the old behaviour and merely less good — the outcome
  * worth preventing is silently spinning the stand.
  */
-function splitSpinPart(root: THREE.Object3D): void {
-  type PropMesh = THREE.Mesh<
-    THREE.BufferGeometry,
-    THREE.Material | THREE.Material[]
-  >;
-  const meshes: PropMesh[] = [];
-  root.traverse((o) => {
-    if (o instanceof THREE.Mesh) meshes.push(o as PropMesh);
-  });
-  const mesh = meshes[0];
-  if (meshes.length !== 1 || !mesh) {
+function splitSpinPart(
+  root: THREE.Object3D,
+): { spin: THREE.Group; mount: THREE.Group; stand: THREE.Mesh } | undefined {
+  // The split itself lives in globeBall.ts so the boot silhouette generator
+  // can run the same one offline; this keeps the logging the room wants.
+  const split = splitGlobeBall(root, SPIN_NODE);
+  if (typeof split === "string") {
     console.error(
-      `[stacks] spinPart: expected one mesh, found ${meshes.length}. Prop left whole.`,
+      `[stacks] spinPart: ${split}. Prop left whole — run ` +
+        "`node scripts/stacks-render.mjs <name> --report` to see the islands.",
     );
     return;
   }
-
-  const geometry = mesh.geometry;
-  const islands = findIslands(geometry);
-  const total = islands.reduce((n, i) => n + i.triangles.length, 0);
-  const ball = findSphereIsland(islands, total);
-  if (!ball) {
-    console.error(
-      `[stacks] spinPart: no spherical island among ${islands.length} ` +
-        `(best sphericity ${Math.max(...islands.map((i) => i.sphericity)).toFixed(2)}). ` +
-        "Prop left whole — run `node scripts/stacks-render.mjs <name> --report` to see the islands.",
-    );
-    return;
-  }
-
-  const { axis, tiltDegrees, derived } = findSpinAxis(islands, ball);
-  if (!derived) {
+  if (!split.derived)
     console.warn(
       "[stacks] spinPart: no axle pins found; spinning the ball about vertical.",
     );
-  }
-
-  const rest = islands
-    .filter((i) => i !== ball)
-    .flatMap((i) => i.triangles)
-    .sort((a, b) => a - b);
-  // +Y of the spin frame onto the axle; the inverse bakes the ball into it.
-  const align = new THREE.Quaternion().setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    axis,
-  );
-  const inverseAlign = align.clone().invert();
-  // Keep the visual ball exact, but split it into local octants so the live
-  // collision index sees eight tight curved-surface bounds instead of one
-  // rotating cube that sweeps through the stationary meridian ring.
-  const ballGeometries = partitionTrianglesByOctant(
-    geometry,
-    ball.triangles,
-    ball.center,
-    inverseAlign,
-  ).map((triangles) =>
-    extractTriangles(geometry, triangles, ball.center, inverseAlign),
-  );
-  const restGeometry = extractTriangles(geometry, rest);
-
-  const spin = new THREE.Group();
-  spin.name = SPIN_NODE;
-  for (const ballGeometry of ballGeometries) {
-    const ballMesh = new THREE.Mesh(ballGeometry, mesh.material);
-    ballMesh.castShadow = mesh.castShadow;
-    ballMesh.receiveShadow = mesh.receiveShadow;
-    spin.add(ballMesh);
-  }
-
-  const mount = new THREE.Group();
-  mount.position.copy(ball.center);
-  mount.quaternion.copy(align);
-  mount.add(spin);
-
-  mesh.geometry = restGeometry;
-  mesh.add(mount);
-  // Keep the mount in the mesh's own frame — it is a child of the mesh, and
-  // the mesh may carry a transform from the GLB's node graph.
-  mount.updateMatrixWorld(true);
-
   if (process.env.NODE_ENV === "development") {
     console.info(
-      `[stacks] spinPart: ball ${ball.triangles.length}/${total} tris, ` +
-        `sphericity ${ball.sphericity.toFixed(3)}, axle tilt ${tiltDegrees.toFixed(1)}°`,
+      `[stacks] spinPart: ball ${split.ballTriangles}/${split.totalTriangles} tris, ` +
+        `sphericity ${split.sphericity.toFixed(3)}, axle tilt ${split.tiltDegrees.toFixed(1)}°`,
     );
   }
+  return { spin: split.spin, mount: split.mount, stand: split.stand };
 }
 
 const DESK_LAMP_SHADE_GLOW_STOPS = [
@@ -995,6 +937,7 @@ export default function ModelProp({
   atlasOverride,
   smoothNormals,
   spinPart,
+  spinPartMap,
   deskLampHeadQuaternion,
   deskLampShadeGlowColor,
   deskLampShadeGlowOpacity,
@@ -1044,6 +987,10 @@ export default function ModelProp({
    * the memo deps below, and an object here would rebuild the model on every
    * parent render. */
   spinPart?: "sphere";
+  /** With `spinPart`, redraw the isolated ball as a UV sphere carrying these
+   * equirectangular textures and stand the markers on it (globeBall.ts).
+   * Pass a module-level object: it is a memo dep like everything else here. */
+  spinPartMap?: SpinPartMap;
   /** Isolate the desk-lamp shade and bulb at their measured arm/shade hinge,
    * then apply this fixed local articulation without moving its base or arms. */
   deskLampHeadQuaternion?: QuaternionTuple;
@@ -1070,6 +1017,13 @@ export default function ModelProp({
   // Two atlas sets, one code path: recolor props sample the tiny-treats
   // pair, everything else the CreativeTrio pair. Same hook, same cache.
   const atlases = useTexture(variant === "recolor" ? RECOLOR_URLS : ATLAS_URLS);
+  // The globe's map, when the ball carries one. An empty list suspends on
+  // nothing, so every other prop makes no request for this.
+  const spinMapUrls = useMemo(
+    () => (spinPartMap ? [spinPartMap.light, spinPartMap.dark] : NO_TEXTURES),
+    [spinPartMap],
+  );
+  const spinMaps = useTexture(spinMapUrls);
   // Read here, used only by the wrapper below — the hover floor deliberately
   // owns no state that could reach the memo's deps.
   const claimed = useInteractionClaimed();
@@ -1180,7 +1134,30 @@ export default function ModelProp({
       });
     }
     if (url === BARBELL_URL) splitDisconnectedMeshIslands(clone);
-    if (spinPart === "sphere") splitSpinPart(clone);
+    if (spinPart === "sphere") {
+      const split = splitSpinPart(clone);
+      const map = spinMaps[dark ? 1 : 0];
+      if (split && spinPartMap && map) {
+        // drei's loader leaves colour space alone; the map is authored in
+        // sRGB like the atlases. Anisotropy keeps the coastlines from
+        // smearing where the ball curves away.
+        if (map.colorSpace !== THREE.SRGBColorSpace) {
+          map.colorSpace = THREE.SRGBColorSpace;
+          map.anisotropy = 8;
+          map.needsUpdate = true;
+        }
+        dressGlobeBall(split.spin, {
+          map,
+          markerLayers: spinPartMap.markerLayers,
+          dark,
+        });
+        // A mapped ball gets the slimmer stand too: the CC0 base was sized
+        // for a plain ornament, and under a bigger, busier ball it read as
+        // a plinth, and its axle pins ran well past the ring.
+        trimGlobeAxlePins(split.stand, split.mount);
+        slimGlobeStand(split.stand, split.mount);
+      }
+    }
     const deskLampHead =
       deskLampHeadQuaternion ??
       (url === "/models/desk-lamp.glb" ? ([0, 0, 0, 1] as const) : undefined);
@@ -1240,6 +1217,8 @@ export default function ModelProp({
     atlasOverride,
     smoothNormals,
     spinPart,
+    spinPartMap,
+    spinMaps,
     deskLampHeadQuaternion,
     deskLampShadeGlowColor,
     deskLampShadeGlowOpacity,
@@ -1297,6 +1276,9 @@ export default function ModelProp({
         }
         const owned = (mesh.geometry.userData as { owned?: boolean }).owned;
         if (owned === true) mesh.geometry.dispose();
+        // The globe's marks: instance buffers live on the mesh, not the
+        // geometry, and go with the mesh's own dispose.
+        if (mesh instanceof THREE.InstancedMesh) mesh.dispose();
       });
     };
   }, [object]);

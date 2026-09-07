@@ -25,7 +25,8 @@ export async function profileIconImage(
           width: "100%",
           height: "100%",
           overflow: "hidden",
-          borderRadius: shape === "rounded" ? Math.round(frame * TILE_RADIUS) : 0,
+          borderRadius:
+            shape === "rounded" ? Math.round(frame * TILE_RADIUS) : 0,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

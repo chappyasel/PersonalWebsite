@@ -1872,14 +1872,12 @@ export function buildFlowerPositions(
   const apronMaxZ = stillMode
     ? GRASS_STILL_ENVELOPE.apronMaxZ
     : FLING_APRON_FLOWERS.maxZ;
-  if (stillMode)
-    total = Math.round(total * GRASS_STILL_ENVELOPE.flowerDensity);
+  if (stillMode) total = Math.round(total * GRASS_STILL_ENVELOPE.flowerDensity);
   const baseApronCount = Math.round(
     total * (FLING_APRON_FLOWERS.count / MEADOW_FLOWER_TOTAL),
   );
   const apronCount = Math.round(
-    baseApronCount *
-      (stillMode ? GRASS_STILL_ENVELOPE.flowerApronDensity : 1),
+    baseApronCount * (stillMode ? GRASS_STILL_ENVELOPE.flowerApronDensity : 1),
   );
   const highHillCount = Math.round(
     total * (MEADOW_FLOWER_HIGH_HILL_BONUS / MEADOW_FLOWER_TOTAL),
@@ -2022,8 +2020,7 @@ export function buildFlowerPositions(
           (FLING_APRON_FLOWERS.maxX - FLING_APRON_FLOWERS.minX);
       z =
         FLING_APRON_FLOWERS.minZ +
-        rand(sj, 122 + t * 5) *
-          (apronMaxZ - FLING_APRON_FLOWERS.minZ);
+        rand(sj, 122 + t * 5) * (apronMaxZ - FLING_APRON_FLOWERS.minZ);
       if (vnoise2(x * 0.11, z * 0.5, 173) > 0.5) break;
     }
     const tint = flowerTint(sj, 129);
@@ -2176,10 +2173,7 @@ export function buildFlowerPositions(
       ? (1 + stillProfile.lift * grassStillLiftWeight(f.x, f.z)) *
         (1 + stillProfile.variation)
       : 1;
-    const lift = Math.min(
-      baseLift * stillScale,
-      FLOWER_BACKGROUND_LIFT.max,
-    );
+    const lift = Math.min(baseLift * stillScale, FLOWER_BACKGROUND_LIFT.max);
     out.y[k] = meadowHeight(f.x, f.z) + lift;
     out.z[k] = f.z;
     out.scale[k] =

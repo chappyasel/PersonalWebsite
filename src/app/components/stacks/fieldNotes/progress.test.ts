@@ -48,13 +48,24 @@ describe("Field Notes progress", () => {
       },
     ],
     [
-      "global-perspective",
+      "whole-world",
       {
         type: "interaction-activated",
         interactionId: "egg:globe",
         unitIndex: 0,
       },
     ],
+    ["global-perspective", { type: "globe-turned-by-hand" }],
+    [
+      "local-chapter",
+      {
+        type: "portal-activated",
+        portalId: "globe:chapter",
+        unitIndex: 0,
+        destination: "https://aicollective.com/chapters/san-francisco",
+      },
+    ],
+    ["under-the-hood", { type: "console-opened" }],
     ["a-capital-view", { type: "seat-entered" }],
     ["ripple-effect", { type: "coordination-shockwave" }],
     [
@@ -132,6 +143,7 @@ describe("Field Notes progress", () => {
     ],
     ["butterfly-effect", { type: "butterfly-landed-on-held-prop" }],
     ["hole-in-one", { type: "golf-ball-holed", firstShot: true }],
+    ["the-long-game", { type: "about-golf-ball-struck" }],
     ["wrong-sport", { type: "golf-prop-struck" }],
     ["long-haul", { type: "prop-carried-far", propId: "grab:mug" }],
     ["full-stack", { type: "dice-stacked" }],

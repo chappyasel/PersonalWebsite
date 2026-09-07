@@ -260,7 +260,10 @@ export default function SceneLayoutEditorGizmo() {
   useEffect(() => {
     setEvents({
       filter: (items) =>
-        promoteGizmoIntersections(items, propParentFrame.current) as typeof items,
+        promoteGizmoIntersections(
+          items,
+          propParentFrame.current,
+        ) as typeof items,
     });
     return () => setEvents({ filter: undefined });
   }, [setEvents]);

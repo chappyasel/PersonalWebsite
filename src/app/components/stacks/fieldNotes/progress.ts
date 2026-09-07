@@ -1,13 +1,13 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-import { FIELD_NOTES, FIELD_NOTE_BY_ID, type FieldNoteId } from "./catalog";
-import { resetFieldNotePlacements } from "./placement";
 import {
   type VisionRideSessionProfile,
   visionRideFullStack,
 } from "../visionRide/visionRideProfiles";
+import { useSyncExternalStore } from "react";
+
+import { FIELD_NOTES, FIELD_NOTE_BY_ID, type FieldNoteId } from "./catalog";
+import { resetFieldNotePlacements } from "./placement";
 
 export const FIELD_NOTES_STORAGE_KEY = "stacks:field-notes:v1";
 export const FIELD_NOTES_VERSION = 1;
@@ -59,6 +59,7 @@ export type FieldNoteEvent =
     }>
   | Readonly<{ type: "butterfly-landed-on-held-prop" }>
   | Readonly<{ type: "golf-ball-holed"; firstShot: boolean }>
+  | Readonly<{ type: "about-golf-ball-struck" }>
   | Readonly<{ type: "golf-prop-struck"; propId?: string }>
   | Readonly<{ type: "session-started"; day: string }>
   | Readonly<{ type: "prop-carried-far"; propId: string }>
@@ -67,7 +68,11 @@ export type FieldNoteEvent =
       type: "vision-ride-entered";
       profile: VisionRideSessionProfile;
     }>
-  | Readonly<{ type: "stamp-placed"; noteId: string }>;
+  | Readonly<{ type: "stamp-placed"; noteId: string }>
+  /** The About globe, up close, turned a full lap by hand. */
+  | Readonly<{ type: "globe-turned-by-hand" }>
+  /** The scene console opened, by the backtick or `?debug=1`. */
+  | Readonly<{ type: "console-opened" }>;
 
 /** Distinct portal destinations behind Open House. The room holds roughly
  * eighteen; eight keeps the stamp about breadth without demanding a census. */
@@ -185,6 +190,8 @@ export function reduceFieldNotesProgress(
       award(earned, awarded, "first-portal", now);
       if (portalDestinations.length >= OPEN_HOUSE_DESTINATIONS)
         award(earned, awarded, "open-house", now);
+      if (event.portalId === "globe:chapter")
+        award(earned, awarded, "local-chapter", now);
       break;
     case "photo-mode-entered":
       award(earned, awarded, "photo-finish", now);
@@ -213,7 +220,9 @@ export function reduceFieldNotesProgress(
     case "interaction-activated": {
       const id = event.interactionId;
       activatedInteractions = unique(activatedInteractions, id);
-      if (id === "egg:globe") award(earned, awarded, "global-perspective", now);
+      // The globe's tap brings it up to the camera; the full turn by hand
+      // that Global Perspective now asks for arrives as its own event.
+      if (id === "egg:globe") award(earned, awarded, "whole-world", now);
       if (id === "egg:chair") award(earned, awarded, "a-capital-view", now);
       if (/^egg:lamp:\d+$/.test(id)) award(earned, awarded, "task-light", now);
       if (id.startsWith("egg:lamp:floor:"))
@@ -270,6 +279,9 @@ export function reduceFieldNotesProgress(
     case "golf-ball-holed":
       if (event.firstShot) award(earned, awarded, "hole-in-one", now);
       break;
+    case "about-golf-ball-struck":
+      award(earned, awarded, "the-long-game", now);
+      break;
     case "golf-prop-struck":
       award(earned, awarded, "wrong-sport", now);
       break;
@@ -293,6 +305,12 @@ export function reduceFieldNotesProgress(
       if (event.profile.golf) award(earned, awarded, "fore-sight", now);
       if (visionRideFullStack(event.profile))
         award(earned, awarded, "reality-stack", now);
+      break;
+    case "globe-turned-by-hand":
+      award(earned, awarded, "global-perspective", now);
+      break;
+    case "console-opened":
+      award(earned, awarded, "under-the-hood", now);
       break;
     case "stamp-placed":
       if (FIELD_NOTE_BY_ID.has(event.noteId as FieldNoteId))
@@ -381,8 +399,7 @@ export function parseFieldNotesProgress(raw: string | null) {
     }
     if (
       !FIELD_NOTES.every(
-        (note) =>
-          note.id === "full-journal" || earned[note.id] !== undefined,
+        (note) => note.id === "full-journal" || earned[note.id] !== undefined,
       )
     )
       delete earned["full-journal"];

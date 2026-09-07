@@ -25,8 +25,7 @@ describe("rounded box geometry cache", () => {
     // of dimensions, each previously paying a full extrude plus a
     // creased-normals pass that allocates a string per vertex.
     const first = roundedBoxGeometry(box);
-    for (let i = 0; i < 20; i += 1)
-      expect(roundedBoxGeometry(box)).toBe(first);
+    for (let i = 0; i < 20; i += 1) expect(roundedBoxGeometry(box)).toBe(first);
     expect(roundedBoxCacheSize()).toBe(1);
   });
 

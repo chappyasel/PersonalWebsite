@@ -699,9 +699,7 @@ export function TrainingOverYears() {
                 keys={activeKeys}
                 colorFor={colorFor}
                 sublabelFor={
-                  metric === "workouts"
-                    ? (key) => TOD_RANGES[key]
-                    : undefined
+                  metric === "workouts" ? (key) => TOD_RANGES[key] : undefined
                 }
               />
             }

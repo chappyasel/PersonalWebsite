@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  touchSwipeDestination,
-  touchSwipeScrollBounds,
-} from "./swipeTravel";
+import { touchSwipeDestination, touchSwipeScrollBounds } from "./swipeTravel";
 
 const stops = [
   { position: 0, scrollLeft: 0 },
@@ -61,11 +58,13 @@ describe("phone shelf swipes", () => {
   });
 
   it("exposes the same limit for clamping live native momentum", () => {
-    expect(
-      touchSwipeScrollBounds({ startScrollLeft: 780, stops }),
-    ).toEqual({ min: 0, max: 1950 });
-    expect(
-      touchSwipeScrollBounds({ startScrollLeft: 1560, stops }),
-    ).toEqual({ min: 585, max: 1950 });
+    expect(touchSwipeScrollBounds({ startScrollLeft: 780, stops })).toEqual({
+      min: 0,
+      max: 1950,
+    });
+    expect(touchSwipeScrollBounds({ startScrollLeft: 1560, stops })).toEqual({
+      min: 585,
+      max: 1950,
+    });
   });
 });

@@ -1,10 +1,11 @@
 import { ImageResponse } from "next/og";
 
-import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 import {
   getCachedExerciseDetail,
   getCachedExerciseIndex,
 } from "~/server/queries/weightliftingExercise";
+
+import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 
 export const runtime = "nodejs";
 
@@ -103,7 +104,9 @@ export default async function Image({
               >
                 {`${Math.round(detail.best.oneRM)} lbs`}
               </div>
-              <div style={{ display: "flex", fontSize: "24px", color: "#666666" }}>
+              <div
+                style={{ display: "flex", fontSize: "24px", color: "#666666" }}
+              >
                 {`${detail.best.reps} x ${Math.round(detail.best.weight)} est. 1RM`}
               </div>
             </div>
@@ -129,7 +132,11 @@ export default async function Image({
                 }}
               >
                 <div
-                  style={{ fontSize: "40px", fontWeight: 700, color: "#ffffff" }}
+                  style={{
+                    fontSize: "40px",
+                    fontWeight: 700,
+                    color: "#ffffff",
+                  }}
                 >
                   {stat.value}
                 </div>

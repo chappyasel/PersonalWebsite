@@ -28,6 +28,8 @@ import {
   LampIcon,
   LighthouseIcon,
   MagicWandIcon,
+  MapPinIcon,
+  MapTrifoldIcon,
   NotebookIcon,
   PathIcon,
   QuestionIcon,
@@ -35,7 +37,9 @@ import {
   SquaresFourIcon,
   StackIcon,
   StampIcon,
+  TerminalWindowIcon,
   WaveSineIcon,
+  WrenchIcon,
 } from "@phosphor-icons/react";
 
 import { type FieldNoteArtwork, type FieldNoteDefinition } from "./catalog";
@@ -52,6 +56,9 @@ const ARTWORK: Record<LibraryArtwork, Icon> = {
   rearrange: SquaresFourIcon,
   barbell: BarbellIcon,
   globe: GlobeHemisphereWestIcon,
+  atlas: MapTrifoldIcon,
+  chapter: MapPinIcon,
+  console: TerminalWindowIcon,
   chair: ArmchairIcon,
   ripple: WaveSineIcon,
   lamp: LampIcon,
@@ -69,6 +76,7 @@ const ARTWORK: Record<LibraryArtwork, Icon> = {
   building: BuildingsIcon,
   butterfly: ButterflyIcon,
   golf: GolfIcon,
+  "golf-journey": GolfIcon,
   "wrong-sport": FlagIcon,
   door: DoorOpenIcon,
   path: PathIcon,
@@ -87,6 +95,9 @@ const ACCENT_ARTWORK: Record<LibraryArtwork, Icon> = {
   rearrange: MagicWandIcon,
   barbell: CrownIcon,
   globe: CompassIcon,
+  atlas: GlobeHemisphereWestIcon,
+  chapter: BuildingsIcon,
+  console: WrenchIcon,
   chair: CoffeeIcon,
   ripple: LighthouseIcon,
   lamp: SparkleIcon,
@@ -104,6 +115,7 @@ const ACCENT_ARTWORK: Record<LibraryArtwork, Icon> = {
   building: CrownIcon,
   butterfly: SparkleIcon,
   golf: FlagIcon,
+  "golf-journey": PathIcon,
   "wrong-sport": GolfIcon,
   door: CompassIcon,
   path: FootprintsIcon,
@@ -157,7 +169,12 @@ function SpatialLensArtwork({ size = 28 }: { size?: IconProps["size"] }) {
         strokeDasharray="9 8"
         opacity=".7"
       />
-      <circle cx="205" cy="61" r="10" fill="var(--stamp-accent, currentColor)" />
+      <circle
+        cx="205"
+        cy="61"
+        r="10"
+        fill="var(--stamp-accent, currentColor)"
+      />
       <circle cx="48" cy="131" r="5" fill="var(--stamp-second, currentColor)" />
     </svg>
   );
@@ -193,12 +210,49 @@ function DistortionFieldArtwork({ size = 28 }: { size?: IconProps["size"] }) {
         fill="var(--stamp-ink, currentColor)"
         opacity=".92"
       />
-      <rect x="116" y="66" width="48" height="12" fill="var(--stamp-paper, currentColor)" opacity=".7" />
-      <rect x="92" y="102" width="48" height="12" fill="var(--stamp-accent, currentColor)" />
-      <rect x="30" y="44" width="24" height="24" fill="var(--stamp-accent, currentColor)" />
-      <rect x="196" y="123" width="30" height="30" fill="var(--stamp-ink, currentColor)" />
-      <rect x="190" y="34" width="14" height="14" fill="var(--stamp-label, currentColor)" />
-      <rect x="57" y="132" width="16" height="16" fill="var(--stamp-paper, currentColor)" />
+      <rect
+        x="116"
+        y="66"
+        width="48"
+        height="12"
+        fill="var(--stamp-paper, currentColor)"
+        opacity=".7"
+      />
+      <rect
+        x="92"
+        y="102"
+        width="48"
+        height="12"
+        fill="var(--stamp-accent, currentColor)"
+      />
+      <rect
+        x="30"
+        y="44"
+        width="24"
+        height="24"
+        fill="var(--stamp-accent, currentColor)"
+      />
+      <rect
+        x="196"
+        y="123"
+        width="30"
+        height="30"
+        fill="var(--stamp-ink, currentColor)"
+      />
+      <rect
+        x="190"
+        y="34"
+        width="14"
+        height="14"
+        fill="var(--stamp-label, currentColor)"
+      />
+      <rect
+        x="57"
+        y="132"
+        width="16"
+        height="16"
+        fill="var(--stamp-paper, currentColor)"
+      />
     </svg>
   );
 }
@@ -215,7 +269,9 @@ export default function FieldNoteArtworkIcon({
   weight?: IconProps["weight"];
 }) {
   if (!earned && note.hidden)
-    return <QuestionIcon aria-hidden size={size} weight={weight ?? "regular"} />;
+    return (
+      <QuestionIcon aria-hidden size={size} weight={weight ?? "regular"} />
+    );
   if (note.artwork === "vision") return <SpatialLensArtwork size={size} />;
   if (note.artwork === "retro-vision")
     return <DistortionFieldArtwork size={size} />;

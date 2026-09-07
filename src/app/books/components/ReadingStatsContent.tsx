@@ -13,10 +13,10 @@ import {
 import { api } from "~/trpc/react";
 
 import {
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "~/components/ui/chart";
 import { Skeleton } from "~/components/ui/skeleton";
 import { YearHeatmap } from "~/components/ui/year-heatmap";
@@ -362,7 +362,11 @@ export function ReadingStatsContent({ initialScope }: { initialScope: Scope }) {
       <div className="flex justify-around gap-2">
         {(["books", "pages", "hours"] as const).map((m) => {
           const divisor =
-            mode === "total" ? 1 : mode === "week" ? stats.days / 7 : stats.days;
+            mode === "total"
+              ? 1
+              : mode === "week"
+                ? stats.days / 7
+                : stats.days;
           return (
             <div key={m} className="flex flex-col items-center gap-0.5">
               <span className="text-xl font-semibold text-foreground">

@@ -45,6 +45,33 @@ describe("About shelf throwable props", () => {
     expect(globe).toContain("<SpinProp");
   });
 
+  it("opens chapter marks but keeps personal markers on the globe", () => {
+    const start = source.indexOf('hoverKey="egg:globe"');
+    const end = source.indexOf('id="portrait"', start);
+    const globe = source.slice(start, end);
+
+    expect(globe).toContain('hovered?.kind === "chapter"');
+    expect(globe).toContain("openGlobeChapter(hovered.chapters, open, index)");
+    expect(globe).toContain("else if (!hovered) globeApproach.dismiss()");
+  });
+
+  it("keeps two movable golf balls on About in every rendering mode", () => {
+    expect(source).toContain(
+      'import { ABOUT_GOLF_BALLS } from "../golf/aboutGolfBalls"',
+    );
+    expect(source).toContain("ABOUT_GOLF_BALLS.map");
+    expect(source).toContain("<GolfBallProp");
+    expect(source).toContain("bayUnitIndex={GOLF_UNIT_INDEX}");
+
+    const shelfEnd = source.indexOf("</ShelfUnit>");
+    const dumbbell = source.indexOf('hoverKey="grab:dumbbell:about"');
+    const ground = source.slice(shelfEnd, dumbbell);
+    expect(ground).toContain("ABOUT_GOLF_BALLS.map");
+    expect(ground).toContain("base={[...ball.base]}");
+    expect(ground).toContain('standsOn="floor"');
+    expect(ground).not.toContain("screenshot.enabled && ABOUT_GOLF_BALLS");
+  });
+
   it("mounts the linked portrait through the throwable photo carrier", () => {
     const start = source.indexOf('id="portrait"');
     const end = source.indexOf('id="about-family-v8"', start);
@@ -61,6 +88,11 @@ describe("About shelf throwable props", () => {
     expect(source).toContain(
       'import { useScreenshotMode } from "../screenshotMode"',
     );
+    const globeStart = source.indexOf('hoverKey="egg:globe"');
+    const globeEnd = source.indexOf('id="portrait"', globeStart);
+    const globe = source.slice(globeStart, globeEnd);
+    expect(globe).toContain("fixedAngle={");
+    expect(globe).toContain("ABOUT_GLOBE_SCREENSHOT_SPIN_Y");
     // The still-screen Macintosh takes the portrait's place, without the approach
     // (the flight is a room-wide singleton) and under its own hover key.
     const mac = source.indexOf("<StillMac");
@@ -100,7 +132,7 @@ describe("About shelf throwable props", () => {
     expect(photo).toContain("<FlatPrint");
     expect(photo).not.toContain("<DeskFrame");
     expect(photo).toContain('ABOUT_TOP_LANDMARK_Z["collective-frame"]');
-    expect(ABOUT_TOP_LANDMARK_Z["collective-frame"]).toBe(0.255);
+    expect(ABOUT_TOP_LANDMARK_Z["collective-frame"]).toBe(0.2381);
     expect(photo).toContain('name={aboutLandmarkNodeName("collective-frame")}');
   });
 
@@ -125,11 +157,14 @@ describe("About shelf throwable props", () => {
   it("keeps the three standing frames in their authored poses", () => {
     expect(source).toContain("seat={deskFrameHeight(0.264) / 2}");
     // Family frame: the 2026-08-22 layout-editor placement, the editor's
-    // carrier rotation composed onto the earlier authored tilt.
+    // carrier rotation composed onto the earlier authored tilt, then the
+    // 2026-09-06 carrier roll composed on again.
     expect(source).toContain(
       "rotation={[...ABOUT_PHOTO_POSES.family.rotation]}",
     );
-    expect(ABOUT_PHOTO_POSES.family.rotation).toEqual([-0.172, -0.251, -0.102]);
+    expect(ABOUT_PHOTO_POSES.family.rotation).toEqual([
+      -0.1531, -0.2628, -0.0277,
+    ]);
     expect(source).toContain("seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}");
     expect(source).toContain(
       "rotation={[...ABOUT_PHOTO_POSES.profile.rotation]}",
@@ -150,8 +185,9 @@ describe("About shelf throwable props", () => {
   });
 
   it("swaps the Arch and Collective frame positions", () => {
-    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.785);
-    expect(REVIEWED_SHELF_LAYOUT.about.archPrintX).toBe(-0.81);
+    // 2026-09-06 layout-editor pass: both prints nudged toward the portrait.
+    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.7978);
+    expect(REVIEWED_SHELF_LAYOUT.about.archPrintX).toBe(-0.6993);
   });
 
   it("limits reading-book hover presentation to the authored shelf pose", () => {
@@ -241,7 +277,8 @@ describe("About shelf throwable props", () => {
     expect(ABOUT_BOOT_LANDMARKS.cactus.shelf).toBe("top");
     // 0.686 / -0.122: the owner's 2026-08-22 layout-editor placement.
     expect(ABOUT_BOOT_LANDMARKS.cactus.x).toBe(0.686);
-    expect(ABOUT_BOOT_LANDMARKS.succulent.x).toBe(-0.81);
+    // -0.7489: moved in beside the bigger globe, 2026-09-06.
+    expect(ABOUT_BOOT_LANDMARKS.succulent.x).toBe(-0.7489);
     expect(source).toContain("ABOUT_TOP_LANDMARK_Z.cactus");
     expect(source).toContain("ABOUT_TOP_LANDMARK_Z.succulent");
     expect(ABOUT_TOP_LANDMARK_Z.cactus).toBe(-0.122);
@@ -253,12 +290,12 @@ describe("About shelf throwable props", () => {
     // front edge by a different amount; the x's live in the landmark table
     // and REVIEWED_SHELF_LAYOUT.about.
     expect(source).toContain('ABOUT_TOP_LANDMARK_Z["collective-frame"]');
-    expect(ABOUT_TOP_LANDMARK_Z["collective-frame"]).toBe(0.255);
+    expect(ABOUT_TOP_LANDMARK_Z["collective-frame"]).toBe(0.2381);
     expect(source).toContain(
       "base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.239]}",
     );
     expect(source).toContain(
-      "base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.231]}",
+      "base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.2345]}",
     );
     expect(REVIEWED_SHELF_LAYOUT.about.speakingPrintX).toBe(0.274);
   });

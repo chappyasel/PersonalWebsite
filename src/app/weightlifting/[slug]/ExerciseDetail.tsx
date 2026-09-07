@@ -1,3 +1,4 @@
+import { categoryColor } from "../lib/utils";
 import { notFound } from "next/navigation";
 
 import {
@@ -5,7 +6,7 @@ import {
   getCachedExerciseIndex,
   getFreshExerciseIndex,
 } from "~/server/queries/weightliftingExercise";
-import { categoryColor } from "../lib/utils";
+
 import { ExerciseExplorer } from "./ExerciseExplorer";
 import { ExerciseHeader } from "./ExerciseHeader";
 

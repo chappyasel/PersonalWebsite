@@ -8,12 +8,17 @@ import {
   SCREENSHOT_GRASS_LIFT_MAX,
   SCREENSHOT_GRASS_MAX,
   SCREENSHOT_MODE_DEFAULT,
+  SCREENSHOT_TILT_DEFAULT,
+  SCREENSHOT_TILT_MAX,
+  SCREENSHOT_TILT_MIN,
   clampScreenshotDolly,
+  clampScreenshotTilt,
   screenshotDollyKeyDelta,
   screenshotFovFromValue,
   screenshotModeController,
   screenshotModeFromSearch,
   screenshotModeUrl,
+  screenshotTiltRadians,
   searchPinsQuality,
 } from "./screenshotMode";
 
@@ -37,20 +42,21 @@ describe("screenshot mode", () => {
     expect(screenshotModeFromSearch("?screenshot-dolly=3").enabled).toBe(false);
   });
 
-  it("reads the dolly and lens with the switch, clamping the dolly and refusing an out-of-range lens", () => {
+  it("reads the camera setup with the switch and clamps its ranges", () => {
     expect(screenshotModeFromSearch("?screenshot=1")).toEqual({
       ...SCREENSHOT_MODE_DEFAULT,
       enabled: true,
     });
     expect(
       screenshotModeFromSearch(
-        "?screenshot=1&screenshot-dolly=2.5&screenshot-fov=28",
+        "?screenshot=1&screenshot-dolly=2.5&screenshot-fov=28&screenshot-tilt=3.25",
       ),
     ).toEqual({
       ...SCREENSHOT_MODE_DEFAULT,
       enabled: true,
       dolly: 2.5,
       fov: 28,
+      tilt: 3.25,
     });
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-dolly=40").dolly,
@@ -62,6 +68,12 @@ describe("screenshot mode", () => {
     expect(
       screenshotModeFromSearch("?screenshot=1&screenshot-dolly=-9").dolly,
     ).toBe(SCREENSHOT_DOLLY_MIN);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-tilt=20").tilt,
+    ).toBe(SCREENSHOT_TILT_MAX);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-tilt=-20").tilt,
+    ).toBe(SCREENSHOT_TILT_MIN);
     // A lens the URL cannot read is the default lens, not the room's: only
     // the word asks for the composition's own.
     expect(
@@ -71,8 +83,7 @@ describe("screenshot mode", () => {
       screenshotModeFromSearch("?screenshot=1&screenshot-fov=wide").fov,
     ).toBe(SCREENSHOT_FOV_DEFAULT);
     expect(
-      screenshotModeFromSearch("?screenshot=1&screenshot-fov=composition")
-        .fov,
+      screenshotModeFromSearch("?screenshot=1&screenshot-fov=composition").fov,
     ).toBeNull();
   });
 
@@ -81,10 +92,13 @@ describe("screenshot mode", () => {
       fov: 45,
       grassLift: 0.06,
       grassVariation: 0.6,
+      tilt: 2,
     });
     expect(SCREENSHOT_MODE_DEFAULT.dolly).toBeGreaterThan(SCREENSHOT_DOLLY_MIN);
     expect(SCREENSHOT_MODE_DEFAULT.dolly).toBeLessThan(SCREENSHOT_DOLLY_MAX);
     expect(SCREENSHOT_MODE_DEFAULT.fov).toBeLessThan(SCREENSHOT_FOV_MAX);
+    expect(SCREENSHOT_MODE_DEFAULT.tilt).toBeGreaterThan(SCREENSHOT_TILT_MIN);
+    expect(SCREENSHOT_MODE_DEFAULT.tilt).toBeLessThan(SCREENSHOT_TILT_MAX);
     expect(SCREENSHOT_MODE_DEFAULT.grassLift).toBeLessThan(
       SCREENSHOT_GRASS_LIFT_MAX,
     );
@@ -147,6 +161,8 @@ describe("screenshot mode", () => {
     ).toBe(0);
     expect(screenshotFovFromValue("")).toBeNull();
     expect(screenshotFovFromValue(33)).toBe(33);
+    expect(clampScreenshotTilt(Number.NaN)).toBe(SCREENSHOT_TILT_DEFAULT);
+    expect(screenshotTiltRadians(2)).toBeCloseTo(Math.PI / 90);
   });
 
   it("lets an explicit quality parameter win over the Cinematic+ default", () => {
@@ -161,11 +177,13 @@ describe("screenshot mode", () => {
       enabled: true,
       dolly: 2.5,
       fov: 28,
+      tilt: 3.25,
     });
     expect(new URL(on).searchParams.get("debug")).toBe("1");
     expect(new URL(on).searchParams.get("screenshot")).toBe("1");
     expect(new URL(on).searchParams.get("screenshot-dolly")).toBe("2.5");
     expect(new URL(on).searchParams.get("screenshot-fov")).toBe("28");
+    expect(new URL(on).searchParams.get("screenshot-tilt")).toBe("3.25");
     const defaults = screenshotModeUrl("https://chappyasel.com/", {
       ...SCREENSHOT_MODE_DEFAULT,
       enabled: true,
@@ -228,6 +246,12 @@ describe("screenshot mode", () => {
     expect(screenshotModeController.getSnapshot().fov).toBe(60);
     screenshotModeController.setFov(30);
     expect(screenshotModeController.getSnapshot().fov).toBe(30);
+    screenshotModeController.setTilt(100);
+    expect(screenshotModeController.getSnapshot().tilt).toBe(
+      SCREENSHOT_TILT_MAX,
+    );
+    screenshotModeController.setTilt(-2.5);
+    expect(screenshotModeController.getSnapshot().tilt).toBe(-2.5);
     screenshotModeController.reset();
     expect(screenshotModeController.getSnapshot()).toEqual(
       SCREENSHOT_MODE_DEFAULT,

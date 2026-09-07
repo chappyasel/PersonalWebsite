@@ -153,7 +153,9 @@ function PlacardYearBars({
       )}
       style={
         size === "card"
-          ? ({ "--placard-year-bar-max": "32px" } as unknown as React.CSSProperties)
+          ? ({
+              "--placard-year-bar-max": "32px",
+            } as unknown as React.CSSProperties)
           : undefined
       }
       role="img"
@@ -307,7 +309,7 @@ export function PlacardStatsCard({
         // silently rendered at 1.5 line-height.
         card
           ? "grid-cols-[minmax(0,1.25fr)_minmax(6rem,.75fr)] [--placard-headline:2.75rem] [--placard-label:10px] [--placard-stat:1.25rem]"
-          : "grid-cols-[minmax(0,1fr)_auto] [container-type:inline-size] [--placard-headline:clamp(3.25rem,21cqw,7rem)] [--placard-label:clamp(11px,2.75cqw,16px)] [--placard-stat:clamp(1.65rem,6cqw,2.25rem)]",
+          : "grid-cols-[minmax(0,1fr)_auto] [--placard-headline:clamp(3.25rem,21cqw,7rem)] [--placard-label:clamp(11px,2.75cqw,16px)] [--placard-stat:clamp(1.65rem,6cqw,2.25rem)] [container-type:inline-size]",
       )}
     >
       <div
@@ -321,13 +323,13 @@ export function PlacardStatsCard({
         )}
       >
         <div>
-          <strong className="block whitespace-nowrap font-serif font-normal tracking-[-0.055em] text-foreground text-[length:var(--placard-headline)] leading-[.78]">
+          <strong className="block whitespace-nowrap font-serif text-[length:var(--placard-headline)] font-normal leading-[.78] tracking-[-0.055em] text-foreground">
             {headline}
           </strong>
           {/* 0.22 of the headline, not less: leading-[.78] crops the line
               box to 0.04em below the baseline and Georgia's comma descends
               0.2em, so anything under ~0.18em puts "2,315" into the label. */}
-          <span className="mt-[calc(var(--placard-headline)*0.22)] flex items-center gap-1.5 whitespace-nowrap text-muted-foreground text-[length:var(--placard-label)] leading-none">
+          <span className="mt-[calc(var(--placard-headline)*0.22)] flex items-center gap-1.5 whitespace-nowrap text-[length:var(--placard-label)] leading-none text-muted-foreground">
             <HeadlineIcon className="size-[1.15em] shrink-0" weight="bold" />
             {headlineLabel}
           </span>
@@ -353,10 +355,10 @@ export function PlacardStatsCard({
       >
         {stats.map(({ icon: StatIcon, label, value }) => (
           <div key={label}>
-            <strong className="block font-semibold tabular-nums text-foreground text-[length:var(--placard-stat)] leading-none">
+            <strong className="block text-[length:var(--placard-stat)] font-semibold tabular-nums leading-none text-foreground">
               {value}
             </strong>
-            <span className="mt-[calc(var(--placard-stat)*0.15)] flex items-center justify-end gap-1 whitespace-nowrap font-medium text-muted-foreground text-[length:var(--placard-label)] leading-none">
+            <span className="mt-[calc(var(--placard-stat)*0.15)] flex items-center justify-end gap-1 whitespace-nowrap text-[length:var(--placard-label)] font-medium leading-none text-muted-foreground">
               <StatIcon className="size-[1.15em] shrink-0" weight="bold" />
               {label}
             </span>

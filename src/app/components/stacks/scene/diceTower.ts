@@ -44,8 +44,7 @@ export function isDiceTower(
   const dice = [...byKey.values()];
   if (!dice.every((die) => die.resting && die.size > 0)) return false;
 
-  const size =
-    dice.reduce((sum, die) => sum + die.size, 0) / DICE_TOWER_COUNT;
+  const size = dice.reduce((sum, die) => sum + die.size, 0) / DICE_TOWER_COUNT;
   const sorted = [...dice].sort((a, b) => a.y - b.y);
   for (let level = 1; level < sorted.length; level += 1) {
     const below = sorted[level - 1]!;

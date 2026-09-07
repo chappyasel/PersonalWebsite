@@ -79,7 +79,9 @@ export function DisclosurePanel({
       inert={!open}
       initial={false}
       animate={{ height: open ? "auto" : 0, opacity: open ? 1 : 0 }}
-      transition={prefersReducedMotion ? { duration: 0 } : DISCLOSURE_TRANSITION}
+      transition={
+        prefersReducedMotion ? { duration: 0 } : DISCLOSURE_TRANSITION
+      }
       className={cn("overflow-hidden", className)}
     >
       {children}

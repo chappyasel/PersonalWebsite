@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+import { Mesh, Program, Renderer, Triangle } from "ogl";
 import { useEffect, useRef } from "react";
-import { Renderer, Program, Mesh, Triangle } from "ogl";
+
 import "./grainient.css";
 
 const hexToRgb = (/** @type {string} */ hex) => {

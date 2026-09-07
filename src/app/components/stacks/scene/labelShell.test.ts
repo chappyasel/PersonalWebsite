@@ -112,7 +112,9 @@ describe("labelShellGeometry", () => {
     }
     cx /= hull.length;
     cz /= hull.length;
-    const wallMax = Math.max(...hull.map(([x, z]) => Math.hypot(x - cx, z - cz)));
+    const wallMax = Math.max(
+      ...hull.map(([x, z]) => Math.hypot(x - cx, z - cz)),
+    );
     let shellMax = 0;
     for (let i = 0; i < pos.count; i += 2) {
       shellMax = Math.max(

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   CAMERA,
   CAMERA_DEPTH_MAX_EYE_HEIGHT,
@@ -12,10 +13,6 @@ import {
   STOP_LATERAL_MAX,
   TRAVEL_LEAD_IN,
   aboutStopShift,
-  desktopDockLeftPx,
-  desktopStopFraming,
-  parallaxLookOffset,
-  stopLateralOffset,
   apparentHeightScale,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
@@ -27,15 +24,18 @@ import {
   captureHeadOnFromSearch,
   captureLookYFromSearch,
   depthOfFieldTargetForUnit,
+  desktopDockLeftPx,
+  desktopStopFraming,
   golfDollyForViewport,
   golfLookYOffsetForViewport,
   ogCaptureFromSearch,
+  parallaxLookOffset,
   portraitShelfOverviewDistance,
   scrollOffsetForUnit,
+  stopLateralOffset,
   unitPose,
   unitPoseForCapture,
 } from "./worldLayout";
-import { SHELF_GEOMETRY } from "./shelfGeometry";
 
 const toDegrees = (radians: number) => (radians * 180) / Math.PI;
 

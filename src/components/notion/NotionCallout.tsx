@@ -8,6 +8,7 @@ import {
 import React from "react";
 
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
+
 import NotionBlockRenderer from "./NotionBlockRenderer";
 
 /**
@@ -51,7 +52,7 @@ const calloutIconMap: Record<string, { glyph: Icon; className: string }> = {
   "⚠️": { glyph: WarningIcon, className: "text-[hsl(var(--dl-ic-coral))]" },
   "📌": { glyph: PushPinIcon, className: "text-[hsl(var(--dl-ic-coral))]" },
   "💡": { glyph: LightbulbIcon, className: "text-[hsl(var(--dl-am))]" },
-  "ℹ️": { glyph: InfoIcon, className: "text-[hsl(var(--dl-pm))]" },
+  ℹ️: { glyph: InfoIcon, className: "text-[hsl(var(--dl-pm))]" },
 };
 
 export default function NotionCallout({

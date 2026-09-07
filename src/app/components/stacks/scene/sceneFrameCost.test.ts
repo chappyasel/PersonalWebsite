@@ -2,14 +2,14 @@
  * These tests assert method IDENTITY: that instrumenting twice leaves the same
  * function in place, and that teardown puts the original back. Reading
  * `renderer.render` without calling it is the assertion, not a mistake. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Camera, Scene, WebGLRenderer } from "three";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   instrumentRendererFrameCost,
+  markSceneFrameInstrumented,
   markSceneFrameStart,
   readSceneFrameCpuMs,
-  markSceneFrameInstrumented,
   resetSceneFrameCost,
   takeSceneFrameInstrumented,
 } from "./sceneFrameCost";

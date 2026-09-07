@@ -6,6 +6,12 @@ import { describe, expect, it } from "vitest";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
 import { ABOUT_LAMP_HEAD_QUATERNION } from "./aboutLampPose";
 import { ABOUT_MODEL_POSES, type AboutModelPoseId } from "./aboutScenePose";
+import {
+  GLOBE_PIN_REACH,
+  GLOBE_SPHERE_SEGMENTS,
+  GLOBE_STAND_FOOTPRINT,
+  GLOBE_STAND_HEIGHT,
+} from "./globeBall";
 import { tjMedallionSpecSignature } from "./tjMedallionGeometry";
 
 const sha256 = (input: crypto.BinaryLike) =>
@@ -54,6 +60,18 @@ describe("generated About boot silhouettes", () => {
             pose,
             headQuaternion:
               id === "desk-lamp" ? ABOUT_LAMP_HEAD_QUATERNION : undefined,
+            // The globe is redrawn at load (a mapped ball, trimmed pins, a
+            // slimmer base); the generator traces that prop, so its shape
+            // constants are part of the outline's signature.
+            globeShape:
+              id === "globe"
+                ? {
+                    footprint: GLOBE_STAND_FOOTPRINT,
+                    height: GLOBE_STAND_HEIGHT,
+                    pinReach: GLOBE_PIN_REACH,
+                    segments: GLOBE_SPHERE_SEGMENTS,
+                  }
+                : undefined,
           }),
         ),
         `${id} needs silhouette regeneration after its pose changed`,

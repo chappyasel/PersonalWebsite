@@ -1,4 +1,5 @@
 import type { PixelLook } from "../scene/pixelArt";
+
 import {
   VISION_RIDE_PALETTE,
   type VisionRidePalette,
@@ -7,9 +8,7 @@ import {
 export const VISION_RIDE_MODIFIERS = ["night", "redline", "golf"] as const;
 export type VisionRideModifier = (typeof VISION_RIDE_MODIFIERS)[number];
 
-export type VisionRideModifiers = Readonly<
-  Record<VisionRideModifier, boolean>
->;
+export type VisionRideModifiers = Readonly<Record<VisionRideModifier, boolean>>;
 
 export type VisionRideSessionProfile = VisionRideModifiers &
   Readonly<{ pixelLook: PixelLook }>;

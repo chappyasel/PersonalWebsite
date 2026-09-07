@@ -1,14 +1,9 @@
-import "server-only";
-
 import { and, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import "server-only";
 import { z } from "zod";
 
-import type {
-  Book,
-  BookReading,
-  BookStats,
-} from "~/lib/books/types";
+import type { Book, BookReading, BookStats } from "~/lib/books/types";
 import { db } from "~/server/db";
 import { bookTags, books } from "~/server/db/schema";
 
@@ -202,20 +197,12 @@ export const getDefaultBooks = unstable_cache(
   },
 );
 
-export const getCachedBookTags = unstable_cache(
-  getBookTags,
-  ["book-tags"],
-  {
-    revalidate: BOOKS_REVALIDATE_SECONDS,
-    tags: [BOOKS_DATA_TAG],
-  },
-);
+export const getCachedBookTags = unstable_cache(getBookTags, ["book-tags"], {
+  revalidate: BOOKS_REVALIDATE_SECONDS,
+  tags: [BOOKS_DATA_TAG],
+});
 
-export const getCachedBookStats = unstable_cache(
-  getBookStats,
-  ["book-stats"],
-  {
-    revalidate: BOOKS_REVALIDATE_SECONDS,
-    tags: [BOOKS_DATA_TAG],
-  },
-);
+export const getCachedBookStats = unstable_cache(getBookStats, ["book-stats"], {
+  revalidate: BOOKS_REVALIDATE_SECONDS,
+  tags: [BOOKS_DATA_TAG],
+});

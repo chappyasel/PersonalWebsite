@@ -141,7 +141,10 @@ function ContributionCalendar({
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <div key={`${column}:${row}`} className="aspect-square w-full" />
+                <div
+                  key={`${column}:${row}`}
+                  className="aspect-square w-full"
+                />
               ),
             ),
           )}

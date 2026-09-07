@@ -1,9 +1,8 @@
-import { type Metadata } from "next";
-
-import { ordinalDate } from "../../lib/wlaFormat";
-import { workoutPreviewTarget } from "../../lib/workoutKey";
 import { WlBackLink } from "../../components/WlBackLink";
 import { WorkoutPreview } from "../../components/WorkoutPreview";
+import { ordinalDate } from "../../lib/wlaFormat";
+import { workoutPreviewTarget } from "../../lib/workoutKey";
+import { type Metadata } from "next";
 
 export async function generateMetadata({
   params,

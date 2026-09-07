@@ -5,6 +5,7 @@ import {
   getCachedExerciseDetail,
   getCachedExerciseIndex,
 } from "~/server/queries/weightliftingExercise";
+
 import { ExerciseDetail, resolveExercise } from "./ExerciseDetail";
 
 export const revalidate = 21600;

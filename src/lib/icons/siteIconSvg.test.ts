@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SECTION_ICONS, type GlyphIconSpec } from "./sectionIcons";
+import { type GlyphIconSpec, SECTION_ICONS } from "./sectionIcons";
 import { siteIconSvg, siteImageIconSvg } from "./siteIconSvg";
 
 const glyph = (key: keyof typeof SECTION_ICONS): GlyphIconSpec => {
@@ -58,7 +58,9 @@ describe("siteIconSvg", () => {
 
   it("draws the glyph from Phosphor path data over the card", () => {
     const svg = siteIconSvg(glyph("liarsdice"), "ld");
-    expect(svg).toMatch(/<g class="g" transform="translate\(12\.8 12\.8\) scale\([\d.]+\)"><path d="M[^"]+"\/>/);
+    expect(svg).toMatch(
+      /<g class="g" transform="translate\(12\.8 12\.8\) scale\([\d.]+\)"><path d="M[^"]+"\/>/,
+    );
   });
 
   it("scopes every id and selector so two can share a document", () => {
@@ -79,7 +81,9 @@ describe("siteImageIconSvg", () => {
       light: "data:image/jpeg;base64,LIGHT",
       dark: "data:image/png;base64,DARK",
     });
-    expect(svg).toContain('<image class="l" href="data:image/jpeg;base64,LIGHT"');
+    expect(svg).toContain(
+      '<image class="l" href="data:image/jpeg;base64,LIGHT"',
+    );
     expect(svg).toContain('<image href="data:image/png;base64,DARK"');
     expect(svg).toContain(`stop-color="${spec.darkTile.top}"`);
     const [day, night] = svg.split("@media (prefers-color-scheme: dark)");

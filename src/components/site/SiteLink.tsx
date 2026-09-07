@@ -10,10 +10,8 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import {
-  BookStatsCard,
-  WorkoutStatsCard,
-} from "~/app/components/stacks/dom/statsCards";
+import { SITE_PAGES, type SitePageKey } from "~/lib/site/pages";
+
 import {
   type Accent,
   daylightAccentClass,
@@ -24,9 +22,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { SITE_PAGES, type SitePageKey } from "~/lib/site/pages";
 
 import { useSitePageCards } from "./SitePageCards";
+import {
+  BookStatsCard,
+  WorkoutStatsCard,
+} from "~/app/components/stacks/dom/statsCards";
 
 // The same glyph each page uses for itself, with an accent from the closed
 // daylight palette.
@@ -91,12 +92,22 @@ export default function SiteLink({
               : "max-w-72 rounded-xl p-3"
           }
         >
-          <div className={statsCard ? "flex flex-col gap-3" : "flex flex-col gap-1"}>
+          <div
+            className={
+              statsCard ? "flex flex-col gap-3" : "flex flex-col gap-1"
+            }
+          >
             <p className="flex items-center gap-1.5 font-semibold leading-snug text-foreground">
-              <Icon size={15} weight="duotone" className={`shrink-0 ${accentClass}`} />
+              <Icon
+                size={15}
+                weight="duotone"
+                className={`shrink-0 ${accentClass}`}
+              />
               {title}
             </p>
-            {statsCard ?? <p className="text-muted-foreground">{description}</p>}
+            {statsCard ?? (
+              <p className="text-muted-foreground">{description}</p>
+            )}
           </div>
         </TooltipContent>
       </Tooltip>

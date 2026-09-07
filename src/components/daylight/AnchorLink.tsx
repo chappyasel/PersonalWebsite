@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
-
 import { CheckIcon, LinkIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useState } from "react";
 
 import {
   Tooltip,

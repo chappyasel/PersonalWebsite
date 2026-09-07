@@ -40,7 +40,12 @@ async function strike(
     physicsEnabled: true,
   };
   const scope = new PhysicsSceneScope();
-  scope.registerRoot({ id: "test:bay", kind: "unit", unitIndex: 2, root: unit });
+  scope.registerRoot({
+    id: "test:bay",
+    kind: "unit",
+    unitIndex: 2,
+    root: unit,
+  });
   scope.registerHandle(entry);
   const prepared = prepareScenePhysics(scope, entry);
   expect(prepared.status).toBe("ready");
@@ -51,7 +56,11 @@ async function strike(
   const start = prop.position.clone();
   expect(prepared.world.strike(entry, launch)).toBe(true);
   const body = entry.body!;
-  const v0 = new THREE.Vector3(body.velocity.x, body.velocity.y, body.velocity.z);
+  const v0 = new THREE.Vector3(
+    body.velocity.x,
+    body.velocity.y,
+    body.velocity.z,
+  );
   const samples: THREE.Vector3[] = [];
   for (let frame = 0; frame < 36; frame += 1) {
     prepared.world.tick(1 / 120, 1000 + frame);
@@ -73,7 +82,13 @@ describe("golf bay strike on a loose prop", () => {
     // 0.3 s in: horizontal ≈ v·t (damping 0.05/s is negligible), vertical
     // ≈ v·t − g t²/2 = 1.8 − 0.44.
     const at = samples[2]!;
-    expect(at.z, `z after 0.3 s: ${at.toArray().map((n) => n.toFixed(3)).join(",")}`).toBeLessThan(-5.9 * 0.3 * 0.8);
+    expect(
+      at.z,
+      `z after 0.3 s: ${at
+        .toArray()
+        .map((n) => n.toFixed(3))
+        .join(",")}`,
+    ).toBeLessThan(-5.9 * 0.3 * 0.8);
     expect(at.y).toBeGreaterThan(1.0);
   });
 
@@ -88,7 +103,13 @@ describe("golf bay strike on a loose prop", () => {
     expect(v0.distanceTo(launch)).toBeLessThan(0.05);
     const at = samples[2]!;
     // A box carries linearDamping 0.5/s: e^-0.15 ≈ 0.86 of the way.
-    expect(at.z, `z after 0.3 s: ${at.toArray().map((n) => n.toFixed(3)).join(",")}`).toBeLessThan(-3.56 * 0.3 * 0.7);
+    expect(
+      at.z,
+      `z after 0.3 s: ${at
+        .toArray()
+        .map((n) => n.toFixed(3))
+        .join(",")}`,
+    ).toBeLessThan(-3.56 * 0.3 * 0.7);
     expect(at.y).toBeGreaterThan(0.55);
   });
 });

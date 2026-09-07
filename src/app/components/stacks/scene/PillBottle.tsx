@@ -11,7 +11,6 @@
 // stash built from one cylinder reads as a vending machine, and the mixed
 // diameters are also what lets that many bottles pack into one bay without
 // intersecting.
-
 import {
   PILL_BOTTLE_SIZES,
   type PillBottleCap,
@@ -86,7 +85,11 @@ export default function PillBottle({
             true,
           ]}
         />
-        <meshStandardMaterial color={body.label} roughness={0.86} metalness={0} />
+        <meshStandardMaterial
+          color={body.label}
+          roughness={0.86}
+          metalness={0}
+        />
       </mesh>
       {/* Nearly flush with the barrel, which is what an HDPE supplement cap
           is. Stepped in to 0.9 it became a neck, and a neck on a squat

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   PILL_BOTTLES,
-  PILL_CASE_LID_H,
   PILL_BOTTLE_SIZES,
+  PILL_CASE_LID_H,
   PILL_ORGANIZER,
   PILL_ORGANIZER_ROW,
   pillBottleHeight,
@@ -140,7 +140,8 @@ describe("Systems pill layout", () => {
     for (const bottle of PILL_BOTTLES) {
       const radius = radiusOf(bottle.size);
       const overlapsPrint =
-        bottle.x + radius > PRINT_SPAN.min && bottle.x - radius < PRINT_SPAN.max;
+        bottle.x + radius > PRINT_SPAN.min &&
+        bottle.x - radius < PRINT_SPAN.max;
       if (!overlapsPrint) continue;
       expect(bottle.y + pillBottleHeight(bottle.size)).toBeLessThan(
         SHORT_ENOUGH_FOR_THE_PRINT,

@@ -1573,6 +1573,40 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   fill: #60686e;
 }
 
+/* The About globe's boot glyph. The map colours come from the shared palette
+   in aboutTravel.ts; the stand matches that file's atlas swap. */
+.stacks-boot-globe-stand {
+  fill: #4b4d52;
+}
+
+.dark .stacks-boot-globe-stand {
+  fill: #2a2c31;
+}
+
+.stacks-boot-globe-sea {
+  fill: var(--stacks-boot-globe-sea-light);
+}
+
+.dark .stacks-boot-globe-sea {
+  fill: var(--stacks-boot-globe-sea-dark);
+}
+
+.stacks-boot-globe-land {
+  fill: var(--stacks-boot-globe-land-light);
+}
+
+.dark .stacks-boot-globe-land {
+  fill: var(--stacks-boot-globe-land-dark);
+}
+
+.stacks-boot-globe-visited {
+  fill: var(--stacks-boot-globe-visited-light);
+}
+
+.dark .stacks-boot-globe-visited {
+  fill: var(--stacks-boot-globe-visited-dark);
+}
+
 .stacks-boot-vision-glass {
   fill: #000;
   stroke: color-mix(in srgb, var(--stacks-boot-object) 68%, #d8ecff);

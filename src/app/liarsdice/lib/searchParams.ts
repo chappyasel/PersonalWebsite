@@ -1,4 +1,9 @@
-import { createSerializer, parseAsBoolean, parseAsInteger, parseAsString } from "nuqs";
+import {
+  createSerializer,
+  parseAsBoolean,
+  parseAsInteger,
+  parseAsString,
+} from "nuqs";
 
 export const searchParamsParsers = {
   dice: parseAsString.withDefault(""),

@@ -219,22 +219,14 @@
 }
 :global(.stacks-dev-hud)[data-capture-state="recording"] {
   border-color: rgb(125 220 255 / 0.66);
-  background: linear-gradient(
-    135deg,
-    rgb(8 48 68 / 0.58),
-    rgb(4 16 27 / 0.52)
-  );
+  background: linear-gradient(135deg, rgb(8 48 68 / 0.58), rgb(4 16 27 / 0.52));
   box-shadow:
     inset 0 0 0 1px rgb(125 220 255 / 0.13),
     0 0 16px rgb(58 190 235 / 0.2);
 }
 :global(.stacks-dev-hud)[data-capture-state="paused"] {
   border-color: rgb(240 189 79 / 0.7);
-  background: linear-gradient(
-    135deg,
-    rgb(66 44 9 / 0.62),
-    rgb(27 20 8 / 0.56)
-  );
+  background: linear-gradient(135deg, rgb(66 44 9 / 0.62), rgb(27 20 8 / 0.56));
   box-shadow:
     inset 0 0 0 1px rgb(240 189 79 / 0.12),
     0 0 16px rgb(240 189 79 / 0.17);
@@ -243,11 +235,7 @@
 :global(.stacks-dev-hud)[data-capture-state="queued"],
 :global(.stacks-dev-hud)[data-capture-state="uploaded"] {
   border-color: rgb(102 227 161 / 0.66);
-  background: linear-gradient(
-    135deg,
-    rgb(10 55 40 / 0.6),
-    rgb(4 24 20 / 0.54)
-  );
+  background: linear-gradient(135deg, rgb(10 55 40 / 0.6), rgb(4 24 20 / 0.54));
   box-shadow:
     inset 0 0 0 1px rgb(102 227 161 / 0.12),
     0 0 16px rgb(102 227 161 / 0.17);

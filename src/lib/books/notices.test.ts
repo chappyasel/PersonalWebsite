@@ -36,7 +36,11 @@ describe("selectBookNotice", () => {
 
   it("shows the reading notice while a book is started but not finished", () => {
     expect(
-      selectBookNotice({ ...IN_PROGRESS, isAutomated: false, hasSummary: false }),
+      selectBookNotice({
+        ...IN_PROGRESS,
+        isAutomated: false,
+        hasSummary: false,
+      }),
     ).toBe("reading");
   });
 

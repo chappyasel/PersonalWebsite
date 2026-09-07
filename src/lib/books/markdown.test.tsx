@@ -1,7 +1,7 @@
 import type { Client } from "@notionhq/client";
+import { NotionToMarkdown } from "notion-to-md";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
-import { NotionToMarkdown } from "notion-to-md";
 import { describe, expect, it } from "vitest";
 
 import {

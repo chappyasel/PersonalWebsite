@@ -1,14 +1,13 @@
 "use client";
 
+import { useWlPath } from "../lib/paths";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useContext, type MouseEvent as ReactMouseEvent } from "react";
+import { type MouseEvent as ReactMouseEvent, useContext } from "react";
 
 import { cn } from "~/lib/utils";
 
 import { InModalSheetContext } from "~/components/modal-sheet/ModalSheet";
-
-import { useWlPath } from "../lib/paths";
 
 /** The "← Chappy's Weightlifting" crumb, host-aware so it soft-navigates on
  * both the root domain and the subdomain. Inside a sheet (visible only in

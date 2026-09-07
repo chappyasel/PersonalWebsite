@@ -54,9 +54,10 @@ describe("frame budget contract", () => {
         expect(body, `${name} uses cadenceMs off the refreshHz path`).toMatch(
           /refreshHz:\s*Math\.round\(1000\s*\/\s*cadenceMs\)/,
         );
-        expect(body, `${name} grades drops against observed cadence`).not.toMatch(
-          /ms\s*>\s*cadenceMs\s*\*/,
-        );
+        expect(
+          body,
+          `${name} grades drops against observed cadence`,
+        ).not.toMatch(/ms\s*>\s*cadenceMs\s*\*/);
       }
     }
   });

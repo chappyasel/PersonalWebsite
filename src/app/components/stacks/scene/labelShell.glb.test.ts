@@ -77,7 +77,8 @@ describe("protein tub label shell (real GLB)", () => {
     const radial = (x: number, z: number) => Math.hypot(x - cx, z - cz);
     const wallR = band.points.map(([x, z]) => radial(x, z));
     const shellR: number[] = [];
-    for (let i = 0; i < pos.count; i += 2) shellR.push(radial(pos.getX(i), pos.getZ(i)));
+    for (let i = 0; i < pos.count; i += 2)
+      shellR.push(radial(pos.getX(i), pos.getZ(i)));
 
     const stats = {
       sliceVertices: slice.points.length,
@@ -98,7 +99,9 @@ describe("protein tub label shell (real GLB)", () => {
     const out = process.env.LABEL_SHELL_STATS;
     if (out) writeFileSync(out, JSON.stringify(stats, null, 2));
 
-    expect(stats.sliceVertices, JSON.stringify(stats)).toBeGreaterThanOrEqual(8);
+    expect(stats.sliceVertices, JSON.stringify(stats)).toBeGreaterThanOrEqual(
+      8,
+    );
     expect(stats.hullVertices, JSON.stringify(stats)).toBeGreaterThanOrEqual(6);
     expect(pos.count, JSON.stringify(stats)).toBeGreaterThan(12);
     // The strip must clear the wall in its band: compare each band vertex
@@ -108,7 +111,9 @@ describe("protein tub label shell (real GLB)", () => {
       let r = 0;
       for (let i = 0; i < pos.count; i += 2) {
         const a = Math.atan2(pos.getZ(i) - cz, pos.getX(i) - cx);
-        const d = Math.abs(Math.atan2(Math.sin(a - angle), Math.cos(a - angle)));
+        const d = Math.abs(
+          Math.atan2(Math.sin(a - angle), Math.cos(a - angle)),
+        );
         if (d < best) {
           best = d;
           r = radial(pos.getX(i), pos.getZ(i));
@@ -121,6 +126,9 @@ describe("protein tub label shell (real GLB)", () => {
       const r = radial(x, z);
       if (r > shellAt(Math.atan2(z - cz, x - cx)) + 1e-4) inside++;
     }
-    expect(inside, `wall vertices proud of the strip: ${inside} ${JSON.stringify(stats)}`).toBe(0);
+    expect(
+      inside,
+      `wall vertices proud of the strip: ${inside} ${JSON.stringify(stats)}`,
+    ).toBe(0);
   });
 });

@@ -5,11 +5,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { useState } from "react";
 import SuperJSON from "superjson";
 
-import {
-  api,
-  createTRPCClient,
-  getQueryClient,
-} from "~/trpc/react";
+import { api, createTRPCClient, getQueryClient } from "~/trpc/react";
 
 const booksPersister =
   typeof window === "undefined"
@@ -21,11 +17,7 @@ const booksPersister =
         deserialize: SuperJSON.parse,
       });
 
-export function BooksTRPCProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function BooksTRPCProvider({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
   const [trpcClient] = useState(createTRPCClient);
 

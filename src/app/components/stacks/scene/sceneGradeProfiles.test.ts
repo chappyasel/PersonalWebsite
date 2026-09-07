@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  CINEMATIC_PLUS_SCENE_COLOR_GRADE,
+  DEFAULT_SCENE_COLOR_GRADE,
+} from "./sceneColorGrade";
+import {
   DEVELOP_IDENTITY,
   HUE_BANDS,
   SCENE_GRADE_PROFILES,
@@ -16,10 +20,6 @@ import {
   sceneGradeProfileValues,
   sceneGradeUrl,
 } from "./sceneGradeProfiles";
-import {
-  CINEMATIC_PLUS_SCENE_COLOR_GRADE,
-  DEFAULT_SCENE_COLOR_GRADE,
-} from "./sceneColorGrade";
 
 // The Lightroom match was fitted in NumPy against the owner's graded frame.
 // These are that model's outputs for sixteen probe colours under the fitted
@@ -34,22 +34,86 @@ const LIGHTROOM_MODEL_SAMPLES: ReadonlyArray<
     readonly [number, number, number],
   ]
 > = [
-  [[0.05, 0.05, 0.05], [0.0, 0.0], [0.01588, 0.0141, 0.01191]],
-  [[0.5, 0.5, 0.5], [0.8, 0.6], [0.47999, 0.43913, 0.38751]],
-  [[0.95, 0.95, 0.95], [-0.95, 0.9], [0.78863, 0.77921, 0.74073]],
-  [[0.9, 0.2, 0.1], [0.3, -0.2], [1.0, 0.16505, 0.0]],
-  [[0.2, 0.8, 0.2], [0.0, 0.0], [0.0, 0.75494, 0.1691]],
-  [[0.2, 0.3, 0.9], [0.8, 0.6], [0.0, 0.25191, 0.81604]],
-  [[0.9, 0.8, 0.1], [-0.95, 0.9], [0.78863, 0.71708, 0.0]],
-  [[0.1, 0.8, 0.9], [0.3, -0.2], [0.0, 0.92743, 0.75043]],
-  [[0.7, 0.2, 0.8], [0.0, 0.0], [0.79661, 0.0, 0.85035]],
-  [[0.42, 0.51, 0.31], [0.8, 0.6], [0.31997, 0.43599, 0.10189]],
-  [[0.59, 0.69, 0.82], [-0.95, 0.9], [0.43546, 0.56787, 0.64698]],
-  [[0.57, 0.66, 0.69], [0.3, -0.2], [0.60878, 0.66362, 0.63432]],
-  [[0.8, 0.6, 0.4], [0.0, 0.0], [0.93412, 0.59797, 0.20291]],
-  [[0.3, 0.4, 0.2], [0.8, 0.6], [0.17032, 0.31731, 0.0]],
-  [[0.95, 0.9, 0.7], [-0.95, 0.9], [0.78863, 0.75381, 0.4248]],
-  [[0.15, 0.2, 0.35], [0.3, -0.2], [0.0, 0.1116, 0.2798]],
+  [
+    [0.05, 0.05, 0.05],
+    [0.0, 0.0],
+    [0.01588, 0.0141, 0.01191],
+  ],
+  [
+    [0.5, 0.5, 0.5],
+    [0.8, 0.6],
+    [0.47999, 0.43913, 0.38751],
+  ],
+  [
+    [0.95, 0.95, 0.95],
+    [-0.95, 0.9],
+    [0.78863, 0.77921, 0.74073],
+  ],
+  [
+    [0.9, 0.2, 0.1],
+    [0.3, -0.2],
+    [1.0, 0.16505, 0.0],
+  ],
+  [
+    [0.2, 0.8, 0.2],
+    [0.0, 0.0],
+    [0.0, 0.75494, 0.1691],
+  ],
+  [
+    [0.2, 0.3, 0.9],
+    [0.8, 0.6],
+    [0.0, 0.25191, 0.81604],
+  ],
+  [
+    [0.9, 0.8, 0.1],
+    [-0.95, 0.9],
+    [0.78863, 0.71708, 0.0],
+  ],
+  [
+    [0.1, 0.8, 0.9],
+    [0.3, -0.2],
+    [0.0, 0.92743, 0.75043],
+  ],
+  [
+    [0.7, 0.2, 0.8],
+    [0.0, 0.0],
+    [0.79661, 0.0, 0.85035],
+  ],
+  [
+    [0.42, 0.51, 0.31],
+    [0.8, 0.6],
+    [0.31997, 0.43599, 0.10189],
+  ],
+  [
+    [0.59, 0.69, 0.82],
+    [-0.95, 0.9],
+    [0.43546, 0.56787, 0.64698],
+  ],
+  [
+    [0.57, 0.66, 0.69],
+    [0.3, -0.2],
+    [0.60878, 0.66362, 0.63432],
+  ],
+  [
+    [0.8, 0.6, 0.4],
+    [0.0, 0.0],
+    [0.93412, 0.59797, 0.20291],
+  ],
+  [
+    [0.3, 0.4, 0.2],
+    [0.8, 0.6],
+    [0.17032, 0.31731, 0.0],
+  ],
+  [
+    [0.95, 0.9, 0.7],
+    [-0.95, 0.9],
+    [0.78863, 0.75381, 0.4248],
+  ],
+  [
+    [0.15, 0.2, 0.35],
+    [0.3, -0.2],
+    [0.0, 0.1116, 0.2798],
+  ],
 ];
 
 describe("the develop stage on the CPU", () => {
@@ -81,10 +145,7 @@ describe("the develop stage on the CPU", () => {
       expect(weights.filter((w) => w > 0).length).toBeLessThanOrEqual(2);
     }
     // Pure green sits on its own centre.
-    expect(hueBandWeights(1 / 3)[HUE_BANDS.indexOf("green")]).toBeCloseTo(
-      1,
-      6,
-    );
+    expect(hueBandWeights(1 / 3)[HUE_BANDS.indexOf("green")]).toBeCloseTo(1, 6);
   });
 
   it("leaves neutrals alone in the mixer", () => {
@@ -111,8 +172,12 @@ describe("grade profiles", () => {
     for (const theme of ["light", "dark"] as const) {
       expect(developIsIdentity(plain.develop[theme])).toBe(false);
       expect(mixerIsIdentity(plain.develop[theme])).toBe(true);
-      expect(mixerIsIdentity(SCENE_GRADE_PROFILES.bolder.values.develop[theme])).toBe(true);
-      expect(SCENE_GRADE_PROFILES.flat.values.develop[theme]).toBe(DEVELOP_IDENTITY);
+      expect(
+        mixerIsIdentity(SCENE_GRADE_PROFILES.bolder.values.develop[theme]),
+      ).toBe(true);
+      expect(SCENE_GRADE_PROFILES.flat.values.develop[theme]).toBe(
+        DEVELOP_IDENTITY,
+      );
     }
   });
 
@@ -195,7 +260,11 @@ describe("grade profiles", () => {
       `?grade=custom&grade-values=${encodeURIComponent(
         JSON.stringify({
           develop: {
-            light: { exposure: "loud", contrast: 0.3, mixer: { green: { sat: 1 } } },
+            light: {
+              exposure: "loud",
+              contrast: 0.3,
+              mixer: { green: { sat: 1 } },
+            },
           },
         }),
       )}`,

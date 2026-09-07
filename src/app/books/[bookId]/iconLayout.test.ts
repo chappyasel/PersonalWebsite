@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   FALLBACK_COVER_RATIO,
-  fitCoverInFrame,
   ICON_FRAME,
   ICON_INSET,
+  fitCoverInFrame,
 } from "./iconLayout";
 
 describe("fitCoverInFrame", () => {

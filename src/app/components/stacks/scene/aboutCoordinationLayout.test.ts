@@ -67,7 +67,14 @@ describe("About Coordination composition", () => {
     // The succulent took the globe-to-portrait span when it and the cactus
     // swapped planks; the cactus now stands behind the family frame's plane
     // at the owner's layout-editor position, so it is not gap-checked here.
-    expectGap("top", "globe", "succulent");
+    //
+    // The globe and the succulent are not gap-checked as flat silhouettes
+    // either, since the 2026-09-06 placement: the mapped globe grew to 2.52
+    // and the owner set the succulent under the ball's right shoulder, so
+    // their front projections overlap by about 3 mm while the objects clear
+    // each other in depth (0.12) and height (the ball rides 0.4 up). The
+    // boot SVG paints the globe in front, which is what the room shows.
+    expect(gap("top", "globe", "succulent")).toBeGreaterThan(-0.01);
     expectGap("top", "succulent", "portrait");
     expectGap("lower", "desk-lamp", "ai-collective");
     expectGap("lower", "ai-collective", "coordination-globe");
@@ -77,7 +84,7 @@ describe("About Coordination composition", () => {
     expectGap("lower", "role-icons", "reading-stack");
 
     expect(ABOUT_BOOT_LANDMARKS["collective-frame"].shelf).toBe("top");
-    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.785);
+    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.7978);
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].x).toBeGreaterThan(
       ABOUT_BOOT_LANDMARKS["vision-pro"].x,
     );
@@ -89,7 +96,8 @@ describe("About Coordination composition", () => {
   it("fills the only empty top-plank span with the succulent", () => {
     expect(ABOUT_BOOT_LANDMARKS.cactus.shelf).toBe("top");
     expect(ABOUT_BOOT_LANDMARKS.succulent.shelf).toBe("top");
-    expect(gap("top", "globe", "succulent")).toBeGreaterThan(0.04);
+    // The globe side is covered above: the ball overhangs the succulent by
+    // the owner's choice, so only the portrait side keeps a clear span.
     expect(gap("top", "succulent", "portrait")).toBeGreaterThan(0.04);
   });
 

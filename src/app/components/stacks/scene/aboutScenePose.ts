@@ -31,12 +31,14 @@ export const ABOUT_AIC_ORB_SIZE_INCREASE = 1.2;
 export const ABOUT_CACTUS_SIZE_REDUCTION = 0.7;
 
 export const ABOUT_LANDMARK_X = {
-  globe: -1.16,
-  succulent: -0.81,
-  portrait: -0.22,
+  // Owner placement via the scene layout editor, 2026-09-06: the mapped
+  // globe grew and moved in, and its neighbours shuffled after it.
+  globe: -1.0875,
+  succulent: -0.7489,
+  portrait: -0.1643,
   "family-frame": 0.48,
   cactus: 0.686,
-  "collective-frame": 0.785,
+  "collective-frame": 0.7978,
   "profile-frame": 1.032,
   "large-plant": 1.18,
   "desk-lamp": -1.186,
@@ -65,12 +67,15 @@ export const ABOUT_MODEL_POSES = {
   globe: {
     source: "/models/globe.glb",
     rotation: [0, -0.7, 0],
-    scale: 1.75,
+    // 1.75 x the editor's 1.4388, owner's call 2026-09-06 once the ball
+    // carried the map.
+    scale: 2.5179,
   },
   succulent: {
     source: "/models/succulent-pot.glb",
     rotation: [0, -0.4, 0],
-    scale: 0.18,
+    // 0.18 x the editor's 0.9289 (2026-09-06).
+    scale: 0.1672,
   },
   cactus: {
     source: "/models/cactus.glb",
@@ -112,8 +117,10 @@ export const ABOUT_PHOTO_POSES = {
   },
   family: {
     baseZ: 0,
-    // The seat is derived from the frame height at the call site.
-    rotation: [-0.172, -0.251, -0.102],
+    // The seat is derived from the frame height at the call site. The
+    // editor's carrier roll of 0.0728 (2026-09-06) composed onto the
+    // previous tilt as outer x inner, then read back as XYZ Euler.
+    rotation: [-0.1531, -0.2628, -0.0277],
     scale: 1,
   },
   profile: {
@@ -131,7 +138,7 @@ export const ABOUT_TOP_LANDMARK_Z = {
   portrait: ABOUT_PHOTO_POSES.portrait.baseZ,
   "family-frame": ABOUT_PHOTO_POSES.family.baseZ,
   cactus: -0.122,
-  "collective-frame": 0.255,
+  "collective-frame": 0.2381,
   "profile-frame": ABOUT_PHOTO_POSES.profile.baseZ,
   "large-plant": -0.23,
 } as const;

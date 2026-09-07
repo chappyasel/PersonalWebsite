@@ -11,10 +11,11 @@ describe("Field Notes catalog", () => {
       ]),
     );
 
+    // 2026-09-07: The Long Game adds one Rare cross-room golf discovery.
     expect(counts).toEqual({
-      Common: 13,
-      Uncommon: 10,
-      Rare: 10,
+      Common: 14,
+      Uncommon: 11,
+      Rare: 12,
       Legendary: 5,
     });
   });
@@ -90,6 +91,18 @@ describe("Field Notes catalog", () => {
       "grand-tour": "Rare",
       "butterfly-effect": "Uncommon",
       "wrong-sport": "Uncommon",
+    });
+  });
+
+  it("describes the About-to-golf handoff as a visible cross-room discovery", () => {
+    expect(FIELD_NOTES.find((note) => note.id === "the-long-game")).toEqual({
+      id: "the-long-game",
+      title: "The Long Game",
+      rarity: "Rare",
+      artwork: "golf-journey",
+      hidden: false,
+      hint: "A golf ball on About belongs somewhere farther down the room.",
+      foundCopy: "Carried an About golf ball to the hitting bay and struck it.",
     });
   });
 

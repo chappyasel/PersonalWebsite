@@ -6,7 +6,10 @@ export type TouchTravelStop = {
   scrollLeft: number;
 };
 
-function nearestStopIndex(scrollLeft: number, stops: readonly TouchTravelStop[]) {
+function nearestStopIndex(
+  scrollLeft: number,
+  stops: readonly TouchTravelStop[],
+) {
   let nearest = 0;
   let distance = Infinity;
   for (let index = 0; index < stops.length; index += 1) {

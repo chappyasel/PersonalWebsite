@@ -8,12 +8,13 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
-import { IntersectionMotion } from "~/components/ui/intersection-motion";
 import { devSubdomainUrl } from "~/lib/util";
 import type {
   ActivityMosaicData,
   WeightliftingPlacardData,
 } from "~/server/queries/weightlifting";
+
+import { IntersectionMotion } from "~/components/ui/intersection-motion";
 
 import {
   MOSAIC_DAYS,

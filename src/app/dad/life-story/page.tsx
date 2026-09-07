@@ -1,10 +1,12 @@
 import Link from "next/link";
 
-import { readMarkdownFile } from "~/app/dad/lib/content";
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
+import { readMarkdownFile } from "~/app/dad/lib/content";
 
 export default function LifeStoryPage() {
-  const { frontmatter, content } = readMarkdownFile("Insights/00-life-story.md");
+  const { frontmatter, content } = readMarkdownFile(
+    "Insights/00-life-story.md",
+  );
   const title = (frontmatter.title as string) ?? "Life Story";
 
   return (

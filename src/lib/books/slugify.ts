@@ -53,9 +53,7 @@ function getAuthorLastName(author: string): string {
  * Books are sorted by notionId before processing to ensure deterministic
  * conflict resolution order.
  */
-export function generateAllBookIds(
-  books: BookForSlug[],
-): Map<string, string> {
+export function generateAllBookIds(books: BookForSlug[]): Map<string, string> {
   // Sort by end date (finished, or abandoned for drops) descending so the
   // most recent completed read claims the clean slug — a completed read's
   // finish date beats an earlier abandoned attempt's drop date.
@@ -107,7 +105,8 @@ export function isNotionId(id: string): boolean {
   // Notion IDs are UUIDs with or without dashes
   // With dashes: 8-4-4-4-12 format
   // Without: 32 hex chars
-  const uuidWithDashes = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidWithDashes =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const uuidWithoutDashes = /^[0-9a-f]{32}$/i;
   return uuidWithDashes.test(id) || uuidWithoutDashes.test(id);
 }

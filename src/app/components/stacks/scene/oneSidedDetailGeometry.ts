@@ -26,8 +26,7 @@ export function filterTrianglesToHalfSpace(
   const positions = geometry.getAttribute("position");
   const sourceIndex = geometry.getIndex();
   const count = sourceIndex?.count ?? positions.count;
-  const component =
-    halfSpace.axis === "x" ? 0 : halfSpace.axis === "y" ? 1 : 2;
+  const component = halfSpace.axis === "x" ? 0 : halfSpace.axis === "y" ? 1 : 2;
   const coordinate = (vertex: number) =>
     positions.getComponent(vertex, component);
   const kept: number[] = [];

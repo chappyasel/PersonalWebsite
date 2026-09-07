@@ -93,8 +93,7 @@ describe("sway spring", () => {
 
   it("never crosses behind the authored plane while returning to rest", () => {
     const spring = createSwaySpring();
-    for (let frame = 0; frame < 45; frame += 1)
-      stepSway(spring, 1, 1 / 60);
+    for (let frame = 0; frame < 45; frame += 1) stepSway(spring, 1, 1 / 60);
 
     let minimum = spring.angle;
     for (let frame = 0; frame < 90; frame += 1) {

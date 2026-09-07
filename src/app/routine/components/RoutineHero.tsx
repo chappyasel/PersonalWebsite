@@ -1,10 +1,9 @@
+import type { BookLookup, NotionBlock } from "../types";
 import { SunHorizonIcon } from "@phosphor-icons/react/dist/ssr";
 
 import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyHero from "~/components/daylight/SkyHero";
 import { NotionBlockRenderer } from "~/components/notion";
-
-import type { BookLookup, NotionBlock } from "../types";
 
 export default function RoutineHero({
   intro,
@@ -38,7 +37,11 @@ export default function RoutineHero({
         {/* Notion's own opening paragraphs, links intact */}
         <div className="max-w-[34rem] space-y-2 text-[0.9375rem]">
           {intro.map((block, i) => (
-            <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+            <NotionBlockRenderer
+              key={i}
+              block={block}
+              bookLookup={bookLookup}
+            />
           ))}
         </div>
 

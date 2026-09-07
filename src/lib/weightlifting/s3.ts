@@ -4,9 +4,8 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
-import { env } from "~/env";
-
 import type { WldFile } from "./types";
+import { env } from "~/env";
 
 /**
  * When the phone last uploaded its backup — the S3 object's LastModified.

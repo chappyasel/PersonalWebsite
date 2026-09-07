@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
 
 /**
@@ -17,7 +16,10 @@ import { describe, expect, it } from "vitest";
  * router, framer's WAAPI entrance and a live tRPC query, and the invariant
  * being protected is one line in each file.
  */
-const SHEET = readFileSync(new URL("./ModalSheet.tsx", import.meta.url), "utf8");
+const SHEET = readFileSync(
+  new URL("./ModalSheet.tsx", import.meta.url),
+  "utf8",
+);
 const BOOK_MODAL = readFileSync(
   new URL("../../app/books/components/Modal.tsx", import.meta.url),
   "utf8",

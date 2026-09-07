@@ -19,14 +19,10 @@ import {
   reduceModelArtifactHandoff,
 } from "./modal/modelArtifactHandoff";
 import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
+import { propApproachAllowsHover } from "./scene/propApproachState";
 import { propReactionsSuppressed } from "./scene/reactionEngagement";
 import { visionProDisplayDiagnosticsController } from "./scene/visionProDisplayDiagnostics";
 import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
-import type {
-  VisionRideAssetStatus,
-  VisionRideExitMethod,
-  VisionRidePhase,
-} from "./visionRide/visionRideState";
 import {
   DEFAULT_VISION_RIDE_SESSION_PROFILE,
   EMPTY_VISION_RIDE_MODIFIERS,
@@ -34,6 +30,11 @@ import {
   type VisionRideModifiers,
   type VisionRideSessionProfile,
 } from "./visionRide/visionRideProfiles";
+import type {
+  VisionRideAssetStatus,
+  VisionRideExitMethod,
+  VisionRidePhase,
+} from "./visionRide/visionRideState";
 
 function recordArtifactFieldNote(id: SceneArtifactId) {
   const artifact = sceneArtifactById(id);
@@ -48,14 +49,13 @@ function recordArtifactFieldNote(id: SceneArtifactId) {
 export const progressRef = { current: 0 };
 
 function selectVisionRidePreview(modifiers: VisionRideModifiers) {
-  const variant =
-    modifiers.golf
-      ? "golf"
-      : modifiers.redline
-        ? "redline"
-        : modifiers.night
-          ? "3:45"
-          : "retrowave";
+  const variant = modifiers.golf
+    ? "golf"
+    : modifiers.redline
+      ? "redline"
+      : modifiers.night
+        ? "3:45"
+        : "retrowave";
   visionProDisplayDiagnosticsController.setVariant(variant);
 }
 
@@ -414,8 +414,15 @@ export const useStacks = create<StacksState>((set) => ({
         ? state
         : { desktopDetailsLeftPx },
     ),
+  // While a prop is up at the camera only that prop may take the hover; the
+  // blurred shelf behind it (the coordination orb in particular) stays still.
   setHovered: (hovered) =>
-    set({ hovered: propReactionsSuppressed() ? null : hovered }),
+    set({
+      hovered:
+        propReactionsSuppressed() || !propApproachAllowsHover(hovered)
+          ? null
+          : hovered,
+    }),
   setDragging: (dragging) => set({ dragging }),
   setFocusedInteraction: (focusedInteraction) => set({ focusedInteraction }),
   setPressedInteraction: (pressedInteraction) => set({ pressedInteraction }),
@@ -438,10 +445,7 @@ export const useStacks = create<StacksState>((set) => ({
         visionRideShakers.length >= 3
           ? { ...state.visionRideModifiers, redline: true }
           : state.visionRideModifiers;
-      if (
-        visionRideModifiers.redline &&
-        !state.visionRideModifiers.redline
-      )
+      if (visionRideModifiers.redline && !state.visionRideModifiers.redline)
         selectVisionRidePreview(visionRideModifiers);
       return {
         visionRideShakers,
@@ -450,10 +454,7 @@ export const useStacks = create<StacksState>((set) => ({
     }),
   beginVisionRide: () =>
     set((state) => {
-      if (
-        state.visionRidePhase !== "idle" ||
-        state.visionRideSessionFailed
-      )
+      if (state.visionRidePhase !== "idle" || state.visionRideSessionFailed)
         return state;
       selectVisionRidePreview(state.visionRideModifiers);
       return {

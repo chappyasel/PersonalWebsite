@@ -20,7 +20,9 @@ export default async function BookLayout({ children, params }: LayoutProps) {
         "@type": "Person",
         name: book.author,
       },
-      ...(book.publicationYear && { datePublished: String(book.publicationYear) }),
+      ...(book.publicationYear && {
+        datePublished: String(book.publicationYear),
+      }),
       ...(book.coverUrl && { image: book.coverUrl }),
       ...(book.rating && {
         aggregateRating: {

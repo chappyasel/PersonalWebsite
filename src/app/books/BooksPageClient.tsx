@@ -16,9 +16,9 @@ import { BookFilters } from "./components/BookFilters";
 import { BookSize } from "./components/BookSize";
 import { BooksControls } from "./components/BooksControls";
 import { BooksGrid } from "./components/BooksGrid";
-import { BOOKS_SIDEBAR_WIDTH_CLASS } from "./components/booksShell";
 import { ReadingStatsPopover } from "./components/ReadingStatsPopover";
 import { ZoomOutButton } from "./components/ZoomOutButton";
+import { BOOKS_SIDEBAR_WIDTH_CLASS } from "./components/booksShell";
 import { FontToggle } from "~/components/ui/font-toggle";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
@@ -132,8 +132,7 @@ export default function BooksPageClient({
               </AnimatePresence>
             </span>
             <span className="line-clamp-1">
-              Chappy&apos;s<span className="hidden sm:inline"> Book</span>{" "}
-              Notes
+              Chappy&apos;s<span className="hidden sm:inline"> Book</span> Notes
             </span>
           </Link>
           <div className="flex translate-x-3 items-center gap-0">
@@ -168,7 +167,10 @@ export default function BooksPageClient({
             )}
             style={{ top: stickyTop }}
           >
-            <BookFilters initialTags={initialTags} initialStats={initialStats} />
+            <BookFilters
+              initialTags={initialTags}
+              initialStats={initialStats}
+            />
           </aside>
         )}
 

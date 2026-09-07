@@ -34,7 +34,7 @@ const __filename = fileURLToPath(import.meta.url);
 const OUT = join(dirname(__filename), "../../public/images/daylight-clouds.png");
 
 // Traverse window, matching the skyline strip; aspect-true projection.
-const A0 = -2.24;
+const A0 = -2.28;
 const A1 = -1.025;
 const WIDTH = 1600;
 const PPR = WIDTH / (A1 - A0);
@@ -131,7 +131,7 @@ function cloudField(a: number, e: number): number {
     0.78,
     vnoise(cpx * 2.15 + cpy * 1.7 + 31, cpy * 4.6 + 31),
   );
-  let cf = macro + (erosion - 0.54) * 0.17 + filament * 0.055;
+  const cf = macro + (erosion - 0.54) * 0.17 + filament * 0.055;
 
   const seed = AT.cloudCoverageSeed;
   const drift = T * AT.cloudCoverageDrift;

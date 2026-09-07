@@ -1,3 +1,4 @@
+import { splitDisconnectedMeshIslands } from "../ModelProp";
 import {
   createInsectFlightVolume,
   createInsectFlightVolumeContainment,
@@ -23,7 +24,6 @@ import {
 } from "../insectPilot";
 import { BUTTERFLY_STEERING_PROFILE } from "../insectSteering";
 import { registerSceneInteraction } from "../interactionRegistry";
-import { splitDisconnectedMeshIslands } from "../ModelProp";
 import { unitPose } from "../worldLayout";
 import { MeshoptDecoder } from "meshoptimizer";
 import fs from "node:fs";

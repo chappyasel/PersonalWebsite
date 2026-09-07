@@ -1,5 +1,5 @@
-import { type NextRequest, NextResponse } from "next/server";
 import fs from "fs";
+import { type NextRequest, NextResponse } from "next/server";
 import path from "path";
 
 export async function GET(

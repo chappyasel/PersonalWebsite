@@ -37,6 +37,7 @@ import {
 } from "../scene/aboutBootFrameProjection";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
 import { aboutBootShelfSupportProjection } from "../scene/aboutBootSupportProjection";
+import { ABOUT_GLOBE_THEME_COLORS } from "../scene/aboutGlobePalette";
 import {
   ABOUT_ROLES,
   ABOUT_ROLE_ICON_SIZE,
@@ -1139,6 +1140,65 @@ function RoleIconStackGlyph() {
   });
 }
 
+/** The globe in its own colours, like the Vision Pro: a grey stand, a blue
+ * sea, and the land and visited countries as the map faces the camera at
+ * boot. The generator traces all four from the reshaped prop and the map
+ * texture; no chapter marks, the live ball brings those. */
+function GlobeGlyph({ width, height }: { width: number; height: number }) {
+  const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES.globe;
+  const transform = modelSilhouetteTransform("globe", width, height);
+  // The land is projected onto the true sphere and the ball is a 12-sided
+  // outline inscribed in it, so at the limb a coast can run a pixel past the
+  // blue. Clipping the map to the ball keeps the sea's edge the edge.
+  return (
+    <g
+      data-boot-globe=""
+      style={
+        {
+          "--stacks-boot-globe-sea-light": ABOUT_GLOBE_THEME_COLORS.light.ocean,
+          "--stacks-boot-globe-sea-dark": ABOUT_GLOBE_THEME_COLORS.dark.ocean,
+          "--stacks-boot-globe-land-light": ABOUT_GLOBE_THEME_COLORS.light.land,
+          "--stacks-boot-globe-land-dark": ABOUT_GLOBE_THEME_COLORS.dark.land,
+          "--stacks-boot-globe-visited-light":
+            ABOUT_GLOBE_THEME_COLORS.light.visited,
+          "--stacks-boot-globe-visited-dark":
+            ABOUT_GLOBE_THEME_COLORS.dark.visited,
+        } as BootStyle
+      }
+    >
+      <clipPath id="stacks-boot-globe-ball">
+        <path d={silhouette.parts.ball} fillRule="evenodd" />
+      </clipPath>
+      <path
+        className="stacks-boot-globe-stand"
+        d={silhouette.parts.stand}
+        fillRule="evenodd"
+        transform={transform}
+      />
+      <path
+        className="stacks-boot-globe-sea"
+        d={silhouette.parts.ball}
+        fillRule="evenodd"
+        transform={transform}
+      />
+      <path
+        className="stacks-boot-globe-land"
+        d={silhouette.parts.land}
+        fillRule="evenodd"
+        transform={transform}
+        clipPath="url(#stacks-boot-globe-ball)"
+      />
+      <path
+        className="stacks-boot-globe-visited"
+        d={silhouette.parts.visited}
+        fillRule="evenodd"
+        transform={transform}
+        clipPath="url(#stacks-boot-globe-ball)"
+      />
+    </g>
+  );
+}
+
 function VisionProGlyph({ width, height }: { width: number; height: number }) {
   const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"];
   const transform = modelSilhouetteTransform("vision-pro", width, height);
@@ -1189,7 +1249,7 @@ function LandmarkGlyph({
     case "landscape-frame":
       return <FrameGlyph landmark={landmark} />;
     case "globe":
-      return <ModelSilhouetteGlyph id="globe" width={width} height={height} />;
+      return <GlobeGlyph width={width} height={height} />;
     case "succulent":
       return (
         <ModelSilhouetteGlyph id="succulent" width={width} height={height} />

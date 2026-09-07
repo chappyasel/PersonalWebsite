@@ -16,12 +16,11 @@
 // is that the display costs nothing until somebody fires it, and keeping
 // this module out of the static graph also keeps it out of the homepage's
 // budgeted chunks (a shared-chunk merge once dragged it in).
-
 import { SKYLINE_SHAPES, SKYLINE_VIEWBOX } from "./skylineGeometry";
 
 const FIRE_WINDOW = 7.8;
-const AZ_LEFT = -2.24;
-const AZ_SPAN = 1.215;
+const AZ_LEFT = -2.28;
+const AZ_SPAN = 1.255;
 
 const VB = SKYLINE_VIEWBOX.split(" ").map(Number);
 const VB_W = VB[2]!;

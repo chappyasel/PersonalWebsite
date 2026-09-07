@@ -101,7 +101,10 @@ export function findFrozenStaticWorldMutation(): StaticWorldMutation | null {
 export function updateManualWorldMatrix(object: THREE.Object3D) {
   object.updateMatrix();
   if (object.parent)
-    object.matrixWorld.multiplyMatrices(object.parent.matrixWorld, object.matrix);
+    object.matrixWorld.multiplyMatrices(
+      object.parent.matrixWorld,
+      object.matrix,
+    );
   else object.matrixWorld.copy(object.matrix);
   object.matrixWorldNeedsUpdate = false;
 }

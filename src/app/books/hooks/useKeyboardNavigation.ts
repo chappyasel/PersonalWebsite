@@ -1,13 +1,12 @@
 "use client";
 
+import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
 import type { Book } from "~/lib/books/types";
-
-import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
 
 interface UseKeyboardNavigationOptions {
   books: Book[];

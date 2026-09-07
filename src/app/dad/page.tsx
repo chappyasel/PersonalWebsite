@@ -5,7 +5,9 @@ import { getInsightSlugs, readMarkdownFile } from "./lib/content";
 export default async function DadPage() {
   // Access is enforced server-side in the dad layout.
   // Build the insight list with titles from frontmatter
-  const slugs = getInsightSlugs().filter((s) => s !== "00-life-story" && s !== "bio-updates-draft");
+  const slugs = getInsightSlugs().filter(
+    (s) => s !== "00-life-story" && s !== "bio-updates-draft",
+  );
   const insights = slugs.map((slug) => {
     const { frontmatter } = readMarkdownFile(`Insights/${slug}.md`);
     return {

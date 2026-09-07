@@ -78,9 +78,7 @@
       "indexes": {
         "account_user_id_idx": {
           "name": "account_user_id_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -89,12 +87,8 @@
           "name": "accounts_user_id_users_id_fk",
           "tableFrom": "accounts",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -102,10 +96,7 @@
       "compositePrimaryKeys": {
         "accounts_provider_provider_account_id_pk": {
           "name": "accounts_provider_provider_account_id_pk",
-          "columns": [
-            "provider",
-            "provider_account_id"
-          ]
+          "columns": ["provider", "provider_account_id"]
         }
       },
       "uniqueConstraints": {}
@@ -136,24 +127,17 @@
       "indexes": {
         "unique_book_tag_idx": {
           "name": "unique_book_tag_idx",
-          "columns": [
-            "book_id",
-            "tag_name"
-          ],
+          "columns": ["book_id", "tag_name"],
           "isUnique": true
         },
         "tag_name_idx": {
           "name": "tag_name_idx",
-          "columns": [
-            "tag_name"
-          ],
+          "columns": ["tag_name"],
           "isUnique": false
         },
         "book_tag_book_id_idx": {
           "name": "book_tag_book_id_idx",
-          "columns": [
-            "book_id"
-          ],
+          "columns": ["book_id"],
           "isUnique": false
         }
       },
@@ -162,12 +146,8 @@
           "name": "book_tags_book_id_books_id_fk",
           "tableFrom": "book_tags",
           "tableTo": "books",
-          "columnsFrom": [
-            "book_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -333,37 +313,27 @@
       "indexes": {
         "book_notion_id_idx": {
           "name": "book_notion_id_idx",
-          "columns": [
-            "notion_id"
-          ],
+          "columns": ["notion_id"],
           "isUnique": true
         },
         "book_finished_idx": {
           "name": "book_finished_idx",
-          "columns": [
-            "finished"
-          ],
+          "columns": ["finished"],
           "isUnique": false
         },
         "book_rating_idx": {
           "name": "book_rating_idx",
-          "columns": [
-            "rating"
-          ],
+          "columns": ["rating"],
           "isUnique": false
         },
         "book_last_edited_idx": {
           "name": "book_last_edited_idx",
-          "columns": [
-            "last_edited_time"
-          ],
+          "columns": ["last_edited_time"],
           "isUnique": false
         },
         "book_title_idx": {
           "name": "book_title_idx",
-          "columns": [
-            "title"
-          ],
+          "columns": ["title"],
           "isUnique": false
         }
       },
@@ -410,16 +380,12 @@
       "indexes": {
         "created_by_idx": {
           "name": "created_by_idx",
-          "columns": [
-            "created_by"
-          ],
+          "columns": ["created_by"],
           "isUnique": false
         },
         "name_idx": {
           "name": "name_idx",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": false
         }
       },
@@ -428,12 +394,8 @@
           "name": "posts_created_by_users_id_fk",
           "tableFrom": "posts",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -467,9 +429,7 @@
       "indexes": {
         "session_user_id_idx": {
           "name": "session_user_id_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -478,12 +438,8 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -662,10 +618,7 @@
       "compositePrimaryKeys": {
         "verification_tokens_identifier_token_pk": {
           "name": "verification_tokens_identifier_token_pk",
-          "columns": [
-            "identifier",
-            "token"
-          ]
+          "columns": ["identifier", "token"]
         }
       },
       "uniqueConstraints": {}
@@ -723,16 +676,12 @@
       "indexes": {
         "wl_exercise_type_name_idx": {
           "name": "wl_exercise_type_name_idx",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         },
         "wl_exercise_type_category_idx": {
           "name": "wl_exercise_type_category_idx",
-          "columns": [
-            "category"
-          ],
+          "columns": ["category"],
           "isUnique": false
         }
       },
@@ -790,24 +739,17 @@
       "indexes": {
         "wl_exercise_workout_order_idx": {
           "name": "wl_exercise_workout_order_idx",
-          "columns": [
-            "workout_id",
-            "exercise_order"
-          ],
+          "columns": ["workout_id", "exercise_order"],
           "isUnique": true
         },
         "wl_exercise_workout_id_idx": {
           "name": "wl_exercise_workout_id_idx",
-          "columns": [
-            "workout_id"
-          ],
+          "columns": ["workout_id"],
           "isUnique": false
         },
         "wl_exercise_name_idx": {
           "name": "wl_exercise_name_idx",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": false
         }
       },
@@ -816,12 +758,8 @@
           "name": "wl_exercises_workout_id_wl_workouts_id_fk",
           "tableFrom": "wl_exercises",
           "tableTo": "wl_workouts",
-          "columnsFrom": [
-            "workout_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workout_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -903,9 +841,7 @@
       "indexes": {
         "wl_set_exercise_id_idx": {
           "name": "wl_set_exercise_id_idx",
-          "columns": [
-            "exercise_id"
-          ],
+          "columns": ["exercise_id"],
           "isUnique": false
         }
       },
@@ -914,12 +850,8 @@
           "name": "wl_sets_exercise_id_wl_exercises_id_fk",
           "tableFrom": "wl_sets",
           "tableTo": "wl_exercises",
-          "columnsFrom": [
-            "exercise_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["exercise_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1056,16 +988,12 @@
       "indexes": {
         "wl_workout_uuid_idx": {
           "name": "wl_workout_uuid_idx",
-          "columns": [
-            "uuid"
-          ],
+          "columns": ["uuid"],
           "isUnique": true
         },
         "wl_workout_date_idx": {
           "name": "wl_workout_date_idx",
-          "columns": [
-            "date"
-          ],
+          "columns": ["date"],
           "isUnique": false
         }
       },
@@ -1106,9 +1034,7 @@
       "indexes": {
         "yt_calibration_members_position_uq": {
           "name": "yt_calibration_members_position_uq",
-          "columns": [
-            "position"
-          ],
+          "columns": ["position"],
           "isUnique": true
         }
       },
@@ -1117,12 +1043,8 @@
           "name": "yt_calibration_members_video_id_yt_videos_video_id_fk",
           "tableFrom": "yt_calibration_members",
           "tableTo": "yt_videos",
-          "columnsFrom": [
-            "video_id"
-          ],
-          "columnsTo": [
-            "video_id"
-          ],
+          "columnsFrom": ["video_id"],
+          "columnsTo": ["video_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1188,16 +1110,12 @@
       "indexes": {
         "yt_channels_youtube_id_uq": {
           "name": "yt_channels_youtube_id_uq",
-          "columns": [
-            "youtube_channel_id"
-          ],
+          "columns": ["youtube_channel_id"],
           "isUnique": true
         },
         "yt_channels_name_idx": {
           "name": "yt_channels_name_idx",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": false
         }
       },
@@ -1274,17 +1192,12 @@
       "indexes": {
         "yt_classifications_run_video_uq": {
           "name": "yt_classifications_run_video_uq",
-          "columns": [
-            "run_id",
-            "video_id"
-          ],
+          "columns": ["run_id", "video_id"],
           "isUnique": true
         },
         "yt_classifications_video_idx": {
           "name": "yt_classifications_video_idx",
-          "columns": [
-            "video_id"
-          ],
+          "columns": ["video_id"],
           "isUnique": false
         }
       },
@@ -1293,12 +1206,8 @@
           "name": "yt_classifications_run_id_yt_classifier_runs_id_fk",
           "tableFrom": "yt_classifications",
           "tableTo": "yt_classifier_runs",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1306,12 +1215,8 @@
           "name": "yt_classifications_video_id_yt_videos_video_id_fk",
           "tableFrom": "yt_classifications",
           "tableTo": "yt_videos",
-          "columnsFrom": [
-            "video_id"
-          ],
-          "columnsTo": [
-            "video_id"
-          ],
+          "columnsFrom": ["video_id"],
+          "columnsTo": ["video_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1410,10 +1315,7 @@
       "indexes": {
         "yt_classifier_runs_dimension_status_idx": {
           "name": "yt_classifier_runs_dimension_status_idx",
-          "columns": [
-            "dimension",
-            "status"
-          ],
+          "columns": ["dimension", "status"],
           "isUnique": false
         }
       },
@@ -1467,10 +1369,7 @@
       "indexes": {
         "yt_manual_overrides_video_dimension_uq": {
           "name": "yt_manual_overrides_video_dimension_uq",
-          "columns": [
-            "video_id",
-            "dimension"
-          ],
+          "columns": ["video_id", "dimension"],
           "isUnique": true
         }
       },
@@ -1479,12 +1378,8 @@
           "name": "yt_manual_overrides_video_id_yt_videos_video_id_fk",
           "tableFrom": "yt_manual_overrides",
           "tableTo": "yt_videos",
-          "columnsFrom": [
-            "video_id"
-          ],
-          "columnsTo": [
-            "video_id"
-          ],
+          "columnsFrom": ["video_id"],
+          "columnsTo": ["video_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1663,9 +1558,7 @@
       "indexes": {
         "yt_videos_channel_idx": {
           "name": "yt_videos_channel_idx",
-          "columns": [
-            "channel_id"
-          ],
+          "columns": ["channel_id"],
           "isUnique": false
         }
       },
@@ -1674,12 +1567,8 @@
           "name": "yt_videos_channel_id_yt_channels_id_fk",
           "tableFrom": "yt_videos",
           "tableTo": "yt_channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["channel_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1713,24 +1602,17 @@
       "indexes": {
         "yt_watch_events_video_idx": {
           "name": "yt_watch_events_video_idx",
-          "columns": [
-            "video_id"
-          ],
+          "columns": ["video_id"],
           "isUnique": false
         },
         "yt_watch_events_watched_at_idx": {
           "name": "yt_watch_events_watched_at_idx",
-          "columns": [
-            "watched_at"
-          ],
+          "columns": ["watched_at"],
           "isUnique": false
         },
         "yt_watch_events_event_uq": {
           "name": "yt_watch_events_event_uq",
-          "columns": [
-            "video_id",
-            "watched_at"
-          ],
+          "columns": ["video_id", "watched_at"],
           "isUnique": true
         }
       },
@@ -1739,12 +1621,8 @@
           "name": "yt_watch_events_video_id_yt_videos_video_id_fk",
           "tableFrom": "yt_watch_events",
           "tableTo": "yt_videos",
-          "columnsFrom": [
-            "video_id"
-          ],
-          "columnsTo": [
-            "video_id"
-          ],
+          "columnsFrom": ["video_id"],
+          "columnsTo": ["video_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1880,38 +1758,27 @@
       "indexes": {
         "yt_video_id_idx": {
           "name": "yt_video_id_idx",
-          "columns": [
-            "video_id"
-          ],
+          "columns": ["video_id"],
           "isUnique": false
         },
         "yt_watched_at_idx": {
           "name": "yt_watched_at_idx",
-          "columns": [
-            "watched_at"
-          ],
+          "columns": ["watched_at"],
           "isUnique": false
         },
         "yt_channel_name_idx": {
           "name": "yt_channel_name_idx",
-          "columns": [
-            "channel_name"
-          ],
+          "columns": ["channel_name"],
           "isUnique": false
         },
         "yt_category_id_idx": {
           "name": "yt_category_id_idx",
-          "columns": [
-            "category_id"
-          ],
+          "columns": ["category_id"],
           "isUnique": false
         },
         "yt_watch_event_uq": {
           "name": "yt_watch_event_uq",
-          "columns": [
-            "video_id",
-            "watched_at"
-          ],
+          "columns": ["video_id", "watched_at"],
           "isUnique": true
         }
       },

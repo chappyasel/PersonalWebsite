@@ -1,12 +1,12 @@
+import { visionProDisplayDiagnosticsController } from "../scene/visionProDisplayDiagnostics";
 import { useStacks } from "../store";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { visionRideRoomMounted } from "./visionRideState";
 import {
   DEFAULT_VISION_RIDE_SESSION_PROFILE,
   EMPTY_VISION_RIDE_MODIFIERS,
 } from "./visionRideProfiles";
-import { visionProDisplayDiagnosticsController } from "../scene/visionProDisplayDiagnostics";
+import { visionRideRoomMounted } from "./visionRideState";
 
 describe("Vision ride state machine", () => {
   beforeEach(() => {
@@ -41,28 +41,28 @@ describe("Vision ride state machine", () => {
   it("latches the front display only after the headset has been put on", () => {
     const state = useStacks.getState();
 
-    expect(
-      visionProDisplayDiagnosticsController.getSnapshot().enabled,
-    ).toBe(false);
+    expect(visionProDisplayDiagnosticsController.getSnapshot().enabled).toBe(
+      false,
+    );
     state.beginVisionRide();
     expect(useStacks.getState().visionRidePhase).toBe("donning");
-    expect(
-      visionProDisplayDiagnosticsController.getSnapshot().enabled,
-    ).toBe(false);
+    expect(visionProDisplayDiagnosticsController.getSnapshot().enabled).toBe(
+      false,
+    );
 
     state.markVisionRideReady();
     state.startVisionRide();
     expect(useStacks.getState().visionRidePhase).toBe("cruising");
-    expect(
-      visionProDisplayDiagnosticsController.getSnapshot().enabled,
-    ).toBe(true);
+    expect(visionProDisplayDiagnosticsController.getSnapshot().enabled).toBe(
+      true,
+    );
 
     state.requestVisionRideExit("button");
     state.showVisionRideReturn();
     state.finishVisionRide();
-    expect(
-      visionProDisplayDiagnosticsController.getSnapshot().enabled,
-    ).toBe(true);
+    expect(visionProDisplayDiagnosticsController.getSnapshot().enabled).toBe(
+      true,
+    );
   });
 
   it("handles early Escape and idempotent exit", () => {

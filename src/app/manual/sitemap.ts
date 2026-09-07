@@ -1,6 +1,5 @@
-import { type MetadataRoute } from "next";
-
 import rawData from "../../../public/data/manual.json";
+import { type MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date(

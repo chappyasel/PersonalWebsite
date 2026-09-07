@@ -1,9 +1,10 @@
+import { DAYLIGHT, NIGHT } from "~/lib/og/daylight";
+import { phosphorPaths } from "~/lib/og/phosphor";
+
 import {
   SKYLINE_NIGHT,
   SKYLINE_SHAPES,
 } from "~/components/daylight/skylineGeometry";
-import { DAYLIGHT, NIGHT } from "~/lib/og/daylight";
-import { phosphorPaths } from "~/lib/og/phosphor";
 
 import type { GlyphIconSpec, ImageIconSpec } from "./sectionIcons";
 import { TILE_RADIUS } from "./siteIconSizes";
@@ -86,7 +87,7 @@ function inWindow(shape: { kind: string } & Record<string, unknown>): boolean {
 function skylineMarkup(): string {
   const { scale, left, top } = skylinePlacement(F);
   const shapes = SKYLINE_SHAPES.filter(inWindow).map((shape) => {
-    const tone = shape.tone === "ggb" ? "ggb" : "sil";
+    const tone = shape.tone ?? "sil";
     if (shape.kind === "rect") {
       return `<rect class="f-${tone}" x="${shape.x}" y="${shape.y}" width="${shape.w}" height="${shape.h}"${shape.opacity != null ? ` fill-opacity="${shape.opacity}"` : ""}/>`;
     }
@@ -127,15 +128,15 @@ export function siteIconSvg(spec: GlyphIconSpec, scope: string): string {
     `#${scope} .g{fill:${spec.color.light}}` +
     `#${scope} .s0{stop-color:${SKY_STOPS.light[0]}}#${scope} .s1{stop-color:${SKY_STOPS.light[1]}}#${scope} .s2{stop-color:${SKY_STOPS.light[2]}}` +
     `#${scope} .e0{stop-color:${SKY_GLOW.light[0]};stop-opacity:${SKY_GLOW.light[1]}}#${scope} .e1{stop-color:${SKY_GLOW.light[0]};stop-opacity:0}` +
-    `#${scope} .f-sil{fill:${DAYLIGHT.silhouette}}#${scope} .f-ggb{fill:${DAYLIGHT.ggb}}` +
-    `#${scope} .s-sil{stroke:${DAYLIGHT.silhouette}}#${scope} .s-ggb{stroke:${DAYLIGHT.ggb}}` +
+    `#${scope} .f-sil{fill:${DAYLIGHT.silhouette}}#${scope} .f-ggb{fill:${DAYLIGHT.ggb}}#${scope} .f-sutro-red{fill:${DAYLIGHT.sutroRed}}#${scope} .f-sutro-white{fill:${DAYLIGHT.sutroWhite}}` +
+    `#${scope} .s-sil{stroke:${DAYLIGHT.silhouette}}#${scope} .s-ggb{stroke:${DAYLIGHT.ggb}}#${scope} .s-sutro-red{stroke:${DAYLIGHT.sutroRed}}#${scope} .s-sutro-white{stroke:${DAYLIGHT.sutroWhite}}` +
     `#${scope} .night{display:none}`;
   const dark =
     `#${scope} .g{fill:${spec.color.dark}}` +
     `#${scope} .s0{stop-color:${SKY_STOPS.dark[0]}}#${scope} .s1{stop-color:${SKY_STOPS.dark[1]}}#${scope} .s2{stop-color:${SKY_STOPS.dark[2]}}` +
     `#${scope} .e0{stop-color:${SKY_GLOW.dark[0]};stop-opacity:${SKY_GLOW.dark[1]}}#${scope} .e1{stop-color:${SKY_GLOW.dark[0]};stop-opacity:0}` +
-    `#${scope} .f-sil{fill:${NIGHT.silhouette}}#${scope} .f-ggb{fill:${NIGHT.ggb}}` +
-    `#${scope} .s-sil{stroke:${NIGHT.silhouette}}#${scope} .s-ggb{stroke:${NIGHT.ggb}}` +
+    `#${scope} .f-sil{fill:${NIGHT.silhouette}}#${scope} .f-ggb{fill:${NIGHT.ggb}}#${scope} .f-sutro-red,#${scope} .f-sutro-white{fill:${NIGHT.silhouette}}` +
+    `#${scope} .s-sil{stroke:${NIGHT.silhouette}}#${scope} .s-ggb{stroke:${NIGHT.ggb}}#${scope} .s-sutro-red,#${scope} .s-sutro-white{stroke:${NIGHT.silhouette}}` +
     `#${scope} .night{display:inline}#${scope} .day{display:none}`;
 
   const defs =

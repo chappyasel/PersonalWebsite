@@ -27,10 +27,7 @@ describe("projects data", () => {
     const repos = projectsData.projects.flatMap((project) =>
       "repo" in project ? [project.repo] : [],
     );
-    expect(repos).toEqual([
-      "chappyasel/meta-kb",
-      "chappyasel/PersonalWebsite",
-    ]);
+    expect(repos).toEqual(["chappyasel/meta-kb", "chappyasel/PersonalWebsite"]);
     for (const repo of repos) expect(repo).toMatch(/^[\w.-]+\/[\w.-]+$/);
   });
 });

@@ -3,6 +3,7 @@ import Link from "next/link";
 import React from "react";
 
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
+
 import NotionCallout from "./NotionCallout";
 import NotionToggle from "./NotionToggle";
 import RichTextRenderer from "./RichTextRenderer";
@@ -116,7 +117,7 @@ export default function NotionBlockRenderer({
               alt={block.alt}
               width={400}
               height={300}
-              className={`max-h-72 w-auto${block.invert ? " dark:invert dark:hue-rotate-180" : ""}`}
+              className={`max-h-72 w-auto${block.invert ? "dark:hue-rotate-180 dark:invert" : ""}`}
             />
           </span>
         </figure>
@@ -150,7 +151,10 @@ export default function NotionBlockRenderer({
             </thead>
             <tbody>
               {block.rows.map((row, i) => (
-                <tr key={i} className="border-b border-muted-foreground/5 last:border-0">
+                <tr
+                  key={i}
+                  className="border-b border-muted-foreground/5 last:border-0"
+                >
                   {block.headers.map((header, j) => {
                     const cell = row[header];
                     return (
@@ -165,7 +169,7 @@ export default function NotionBlockRenderer({
                             {cell.text}
                           </Link>
                         ) : (
-                          cell?.text ?? ""
+                          (cell?.text ?? "")
                         )}
                       </td>
                     );

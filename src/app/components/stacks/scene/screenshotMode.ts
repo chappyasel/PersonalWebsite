@@ -38,6 +38,7 @@ import { useSyncExternalStore } from "react";
 export const SCREENSHOT_PARAM = "screenshot";
 export const SCREENSHOT_DOLLY_PARAM = "screenshot-dolly";
 export const SCREENSHOT_FOV_PARAM = "screenshot-fov";
+export const SCREENSHOT_TILT_PARAM = "screenshot-tilt";
 export const SCREENSHOT_GRASS_LIFT_PARAM = "screenshot-grass-lift";
 export const SCREENSHOT_GRASS_VARIATION_PARAM = "screenshot-grass-variation";
 export const SCREENSHOT_PORTRAIT_PARAM = "screenshot-portrait";
@@ -45,6 +46,7 @@ export const SCREENSHOT_QUERY_KEYS = [
   SCREENSHOT_PARAM,
   SCREENSHOT_DOLLY_PARAM,
   SCREENSHOT_FOV_PARAM,
+  SCREENSHOT_TILT_PARAM,
   SCREENSHOT_GRASS_LIFT_PARAM,
   SCREENSHOT_GRASS_VARIATION_PARAM,
   SCREENSHOT_PORTRAIT_PARAM,
@@ -76,6 +78,15 @@ export const SCREENSHOT_FOV_MAX = 65;
 export const SCREENSHOT_FOV_DEFAULT = 45;
 export const SCREENSHOT_FOV_COMPOSITION = "composition";
 
+/** Extra downward camera pitch for a still. The camera gains elevation while
+ * its look target stays on the shelf, so positive values reveal more of the
+ * prop tops without moving the shelf out of the frame's centre. Negative
+ * values lower the camera. */
+export const SCREENSHOT_TILT_MIN = -6;
+export const SCREENSHOT_TILT_MAX = 8;
+export const SCREENSHOT_TILT_STEP = 0.25;
+export const SCREENSHOT_TILT_DEFAULT = 2;
+
 /** The still's lawn: how much taller the grass stands away from the About
  * shelf's footprint, and how much more uneven it is everywhere, both as
  * fractions of the authored height. The defaults are the owner's header
@@ -93,6 +104,8 @@ export type ScreenshotModeSnapshot = Readonly<{
   enabled: boolean;
   dolly: number;
   fov: number | null;
+  /** Extra downward pitch, in degrees. */
+  tilt: number;
   grassLift: number;
   grassVariation: number;
   /** Keep the large portrait on the top shelf instead of the header's
@@ -106,6 +119,7 @@ export const SCREENSHOT_MODE_DEFAULT: ScreenshotModeSnapshot = Object.freeze({
   enabled: false,
   dolly: SCREENSHOT_DOLLY_DEFAULT,
   fov: SCREENSHOT_FOV_DEFAULT,
+  tilt: SCREENSHOT_TILT_DEFAULT,
   grassLift: SCREENSHOT_GRASS_LIFT_DEFAULT,
   grassVariation: SCREENSHOT_GRASS_VARIATION_DEFAULT,
   portrait: false,
@@ -118,6 +132,15 @@ function screenshotFlagFromValue(raw: string | null) {
 export function clampScreenshotDolly(dolly: number) {
   if (!Number.isFinite(dolly)) return SCREENSHOT_DOLLY_DEFAULT;
   return Math.min(SCREENSHOT_DOLLY_MAX, Math.max(SCREENSHOT_DOLLY_MIN, dolly));
+}
+
+export function clampScreenshotTilt(tilt: number) {
+  if (!Number.isFinite(tilt)) return SCREENSHOT_TILT_DEFAULT;
+  return Math.min(SCREENSHOT_TILT_MAX, Math.max(SCREENSHOT_TILT_MIN, tilt));
+}
+
+export function screenshotTiltRadians(tilt: number) {
+  return (clampScreenshotTilt(tilt) * Math.PI) / 180;
 }
 
 export function clampScreenshotGrass(
@@ -150,6 +173,7 @@ export function screenshotModeFromSearch(
   const enabled = screenshotFlagFromValue(params.get(SCREENSHOT_PARAM));
   if (!enabled) return SCREENSHOT_MODE_DEFAULT;
   const dollyRaw = params.get(SCREENSHOT_DOLLY_PARAM);
+  const tiltRaw = params.get(SCREENSHOT_TILT_PARAM);
   const grass = (key: string, fallback: number, max: number) => {
     const raw = params.get(key);
     return raw === null
@@ -170,6 +194,10 @@ export function screenshotModeFromSearch(
         ? SCREENSHOT_DOLLY_DEFAULT
         : clampScreenshotDolly(Number(dollyRaw)),
     fov,
+    tilt:
+      tiltRaw === null
+        ? SCREENSHOT_TILT_DEFAULT
+        : clampScreenshotTilt(Number(tiltRaw)),
     grassLift: grass(
       SCREENSHOT_GRASS_LIFT_PARAM,
       SCREENSHOT_GRASS_LIFT_DEFAULT,
@@ -214,6 +242,8 @@ export function screenshotModeUrl(
           ? SCREENSHOT_FOV_COMPOSITION
           : String(snapshot.fov),
       );
+    if (snapshot.tilt !== SCREENSHOT_TILT_DEFAULT)
+      url.searchParams.set(SCREENSHOT_TILT_PARAM, String(snapshot.tilt));
     if (snapshot.grassLift !== SCREENSHOT_GRASS_LIFT_DEFAULT)
       url.searchParams.set(
         SCREENSHOT_GRASS_LIFT_PARAM,
@@ -306,6 +336,12 @@ class ScreenshotModeController {
     const next = screenshotFovFromValue(fov);
     if (this.snapshot.fov === next) return;
     this.publish({ ...this.snapshot, fov: next });
+  }
+
+  setTilt(tilt: number) {
+    const next = clampScreenshotTilt(tilt);
+    if (this.snapshot.tilt === next) return;
+    this.publish({ ...this.snapshot, tilt: next });
   }
 
   setPortrait(portrait: boolean) {

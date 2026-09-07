@@ -91,4 +91,3 @@ export function DaylightTOCSpacer() {
     <div aria-hidden className="hidden w-56 shrink-0 min-[1160px]:block" />
   );
 }
-

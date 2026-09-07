@@ -1,7 +1,10 @@
 "use client";
 
+import {
+  useModalActions,
+  useModalState,
+} from "../../contexts/BookPreviewContext";
 import { use, useEffect } from "react";
-import { useModalActions, useModalState } from "../../contexts/BookPreviewContext";
 
 type PageProps = {
   params: Promise<{ bookId: string }>;

@@ -25,7 +25,7 @@ export default function BooksError({
       <div className="mt-4 flex gap-4">
         <Link
           href="/"
-          className="rounded-lg border border-title px-4 py-2 text-foreground transition-colors hover:bg-muted"
+          className="border-title rounded-lg border px-4 py-2 text-foreground transition-colors hover:bg-muted"
         >
           Back to main site
         </Link>

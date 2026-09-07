@@ -1,4 +1,4 @@
-import type { NotionBlock, BookLookup } from "~/components/notion/types";
+import type { BookLookup, NotionBlock } from "~/components/notion/types";
 
 export type { NotionBlock, BookLookup };
 

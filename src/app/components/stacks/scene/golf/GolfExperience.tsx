@@ -33,6 +33,7 @@ import {
   GOLF_BALL_GEOMETRY,
   GolfBallProp,
 } from "./GolfBallProp";
+import { isAboutGolfBallKey } from "./aboutGolfBalls";
 import {
   golfClubHintRotation,
   golfClubIdleBlend,
@@ -635,6 +636,8 @@ export default function GolfExperience({
         loose.slot = ghost.id;
         loose.phase = "struck";
         loose.struckFor = 0;
+        if (isAboutGolfBallKey(loose.id))
+          recordFieldNoteEvent({ type: "about-golf-ball-struck" });
         return;
       }
       recordFieldNoteEvent({ type: "golf-prop-struck", propId: loose.id });

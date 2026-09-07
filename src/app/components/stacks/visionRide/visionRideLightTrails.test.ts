@@ -148,9 +148,7 @@ describe("Vision ride light ribbons", () => {
       });
       expect(result.opacity).toBe(1);
       expect(result.y).toBeLessThanOrEqual(
-        -1 -
-          VISION_RIDE_LIGHT_TRAIL.offscreenOverscanNdc -
-          offscreenMarginNdc,
+        -1 - VISION_RIDE_LIGHT_TRAIL.offscreenOverscanNdc - offscreenMarginNdc,
       );
     }
   });

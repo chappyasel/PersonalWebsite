@@ -3,14 +3,16 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { Skeleton } from "~/components/ui/skeleton";
+import { api } from "~/trpc/react";
+
 import {
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  type ChartConfig,
 } from "~/components/ui/chart";
-import { api } from "~/trpc/react";
-import { TimeRangeToggle, type TimeRange } from "./TimeRangeToggle";
+import { Skeleton } from "~/components/ui/skeleton";
+
+import { type TimeRange, TimeRangeToggle } from "./TimeRangeToggle";
 
 const SUB_TIERS = [
   { key: "deepLearning", label: "Deep Learning", color: "hsl(152 82% 28%)" },
@@ -76,10 +78,7 @@ function CustomTooltip({
       {payload
         .filter((p) => p.value > 0.001)
         .map((p) => (
-          <div
-            key={p.name}
-            className="flex items-center justify-between gap-4"
-          >
+          <div key={p.name} className="flex items-center justify-between gap-4">
             <span className="flex items-center gap-1.5 text-neutral-600 dark:text-neutral-300">
               <span
                 className="inline-block h-2 w-2 rounded-full"
@@ -176,9 +175,7 @@ export function CategoryBreakdown() {
               dataKey={t.key}
               stackId="a"
               fill={t.color}
-              radius={
-                i === SUB_TIERS.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]
-              }
+              radius={i === SUB_TIERS.length - 1 ? [2, 2, 0, 0] : [0, 0, 0, 0]}
             />
           ))}
         </BarChart>

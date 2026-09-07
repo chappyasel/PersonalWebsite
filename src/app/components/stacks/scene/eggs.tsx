@@ -36,6 +36,7 @@ import {
   sceneImpulseStrengthAt,
 } from "./sceneImpulse";
 import { useUnitRealLights } from "./scenePerformance";
+import type { SpinHandle } from "./spinHandle";
 import { type SteamSample, writeSteamSample } from "./steamMotion";
 import { createSwaySpring, stepSway } from "./swayMotion";
 import { useUnitFrame } from "./unitActivity";
@@ -461,17 +462,31 @@ export function EggLamp({
  * globe does. The damp in and out is what keeps it from being a jump cut.
  */
 const HOVER_SPIN_GAIN = 8;
+/** How fast a released hand's speed bleeds off, per second: a flick coasts
+ * for about a second and settles rather than spinning on. */
+const SPIN_FLING_DECAY = 3;
 
 export function SpinProp({
   unitIndex,
   hoverKey,
   idleRate = 0,
+  handle,
+  fixedAngle,
+  trigger = true,
   children,
 }: {
   unitIndex: number;
   hoverKey: string;
   /** Radians per second of unprompted rotation. */
   idleRate?: number;
+  /** A hand on the prop (spinHandle.ts): while held the prop follows it
+   * 1:1, after release it coasts, and while calm it does not drift. */
+  handle?: SpinHandle;
+  /** Pin the spun node to this yaw and suppress every spin path. */
+  fixedAngle?: number;
+  /** Register the click-adds-a-lap egg. Off when the carrier owns the tap
+   * for something else (the globe's tap brings it to the camera). */
+  trigger?: boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<THREE.Group>(null);
@@ -497,13 +512,32 @@ export function SpinProp({
     // No isolated part — turn the whole prop, which is what every other
     // SpinProp caller wants.
     const g = node ?? root;
-    // Hand the angle over cleanly when the isolated part appears. The prop
-    // loads behind Suspense, so the first frames turn the WRAPPER; without
-    // this the wrapper keeps that residual rotation forever and the stand
-    // sits permanently askew while the ball turns inside it.
+    // Hand the angle over cleanly when the node being written changes. Two
+    // cases. The prop loads behind Suspense, so the first frames turn the
+    // WRAPPER; without the reset the wrapper keeps that residual rotation
+    // forever and the stand sits permanently askew while the ball turns
+    // inside it. And a theme flip rebuilds the model, so a FRESH spin node
+    // appears at angle zero while `target` has been accumulating drift for
+    // as long as the page has been open: damping from zero to that target
+    // whipped the globe through every lap it had ever drifted, in a second.
+    // The new node inherits the old one's angle instead, so a rebuild is
+    // invisible and the damp only ever closes the gap the drift opened.
     const previous = written.current;
-    if (previous && previous !== g) previous.rotation.y = 0;
+    if (previous && previous !== g) {
+      g.rotation.y = previous.rotation.y;
+      previous.rotation.y = 0;
+    }
     written.current = g;
+    if (fixedAngle !== undefined) {
+      target.current = fixedAngle;
+      hoverSpin.current = 0;
+      if (handle) {
+        handle.state.pending = 0;
+        handle.state.velocity = 0;
+      }
+      g.rotation.y = fixedAngle;
+      return;
+    }
     // SIGNATURE REACTION (ADR 0020): a globe answers by turning faster.
     //
     // A HELD RATE rather than a held pose. The glossary asks every archetype
@@ -511,8 +545,35 @@ export function SpinProp({
     // for a prop whose whole character is that it revolves, the state that
     // reads is the rate. Parking it at some angle instead would stop the one
     // thing it does. Eased in and out so it does not snap to a new speed.
+    // The hand, when there is one. Queued radians land on the target at
+    // once; a release's speed bleeds off over about a second; while held or
+    // calm the prop neither drifts nor answers hover, because the person is
+    // turning it themselves or reading it.
+    const hand = handle?.state;
+    const held = hand?.held ?? false;
+    const calm = hand?.calm ?? false;
+    const step = Math.min(delta, 1 / 30);
+    if (hand) {
+      if (hand.pending !== 0) {
+        target.current += hand.pending;
+        hand.pending = 0;
+      }
+      if (!held && hand.velocity !== 0) {
+        target.current += hand.velocity * step;
+        hand.velocity = THREE.MathUtils.damp(
+          hand.velocity,
+          0,
+          SPIN_FLING_DECAY,
+          delta,
+        );
+        if (Math.abs(hand.velocity) < 1e-3) hand.velocity = 0;
+      }
+    }
     const wantsHover =
-      !still && propReactionIsEngaged(useStacks.getState(), hoverKey);
+      !still &&
+      !held &&
+      !calm &&
+      propReactionIsEngaged(useStacks.getState(), hoverKey);
     hoverSpin.current =
       Math.abs(hoverSpin.current - (wantsHover ? 1 : 0)) < 1e-3
         ? wantsHover
@@ -523,16 +584,21 @@ export function SpinProp({
     // rides on top of the drift instead of fighting it — and don't advance
     // it at all off-screen, or coming back would spin up the difference in
     // one lurch.
-    if (idleRate && !still && nearActive(unitIndex)) {
+    if (idleRate && !still && !held && !calm && nearActive(unitIndex)) {
       target.current +=
-        idleRate *
-        (1 + hoverSpin.current * HOVER_SPIN_GAIN) *
-        Math.min(delta, 1 / 30);
+        idleRate * (1 + hoverSpin.current * HOVER_SPIN_GAIN) * step;
     } else if (g.rotation.y === target.current) return;
+    if (held) {
+      // A hand is exact: no damping between the finger and the ball.
+      g.rotation.y = target.current;
+      return;
+    }
     const next = THREE.MathUtils.damp(g.rotation.y, target.current, 1.4, delta);
     g.rotation.y =
       Math.abs(next - target.current) < 1e-3 ? target.current : next;
   });
+  const wrapped = <group ref={ref}>{children}</group>;
+  if (!trigger) return wrapped;
   return (
     <EggTrigger
       unitIndex={unitIndex}
@@ -543,7 +609,7 @@ export function SpinProp({
         if (!reducedMotion()) target.current += Math.PI * 2;
       }}
     >
-      <group ref={ref}>{children}</group>
+      {wrapped}
     </EggTrigger>
   );
 }

@@ -60,7 +60,15 @@ import {
   sceneArtifactCameraLockFrame,
 } from "./sceneArtifactCameraLock";
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
-import { screenshotModeController } from "./screenshotMode";
+import {
+  eyeYForTiltAroundTarget,
+  pointerCameraTiltController,
+  pointerCameraTiltDegrees,
+} from "./pointerCameraTilt";
+import {
+  screenshotModeController,
+  screenshotTiltRadians,
+} from "./screenshotMode";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   CAMERA_LOOK_X_MAX_LAG,
@@ -199,6 +207,7 @@ export default function CameraRig() {
   const focusY = useRef(0);
   const interactionZoom = useRef(0);
   const visitorZoom = useRef(0);
+  const pointerTilt = useRef(0);
   const focusBounds = useRef(new THREE.Box3());
   const focusCenter = useRef(new THREE.Vector3());
   const previousScenePosition = useRef(0);
@@ -291,6 +300,12 @@ export default function CameraRig() {
       typeof window === "undefined"
         ? null
         : window.matchMedia("(prefers-reduced-motion: reduce)"),
+    [],
+  );
+  const finePointer = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches,
     [],
   );
 
@@ -914,10 +929,10 @@ export default function CameraRig() {
     }
 
     // Horizontal framing, focus, Golf, pointer, idle, panel, and carrying
-    // corrections establish the baseline first. The authored pose then raises
-    // the eye and changes pitch around that finished composition. Keep the
-    // baseline look vector separate so toggling the experiment cannot feed its
-    // own offset back into the next damped frame.
+    // corrections establish the baseline first. Camera depth can author both
+    // the eye and the aim. The pointer and screenshot tilts then move the eye
+    // around that finished aim, so the shelf stays centred while the viewpoint
+    // changes the foreground-to-skyline perspective.
     const cameraDepth = cameraDepthOffsetsForViewport(
       size.width,
       size.height,
@@ -939,6 +954,36 @@ export default function CameraRig() {
       const authoredPitch = baselinePitch - cameraDepth.pitchRadians;
       authoredLookY =
         authoredEyeY + Math.tan(authoredPitch) * horizontalDistance;
+    }
+    const pointerTiltEnabled =
+      !screenshot.enabled &&
+      !ogCapture &&
+      finePointer &&
+      !(reducedMotionQuery?.matches ?? false) &&
+      pointerCameraTiltController.getSnapshot().enabled;
+    if (pointerTiltEnabled) {
+      pointerTilt.current = THREE.MathUtils.damp(
+        pointerTilt.current,
+        pointerCameraTiltDegrees(pointerY) * calm,
+        LOOK_Y_LAMBDA,
+        dt,
+      );
+    } else if (pointerTilt.current !== 0) {
+      pointerTilt.current = 0;
+    }
+    const tiltRadians = screenshot.enabled
+      ? screenshotTiltRadians(screenshot.tilt)
+      : (pointerTilt.current * Math.PI) / 180;
+    if (tiltRadians !== 0) {
+      authoredEyeY = eyeYForTiltAroundTarget({
+        eyeY: authoredEyeY,
+        lookY: authoredLookY,
+        horizontalDistance: Math.hypot(
+          look.current.x - eyeX,
+          look.current.z - baseZ,
+        ),
+        tiltRadians,
+      });
     }
     travelLook.current.set(look.current.x, authoredLookY, look.current.z);
 

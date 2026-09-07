@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import { ImageResponse } from "next/og";
 
-import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 import { NIGHT, nightSky } from "~/lib/og/daylight";
 import { db } from "~/server/db";
 import { wlSets, wlWorkouts } from "~/server/db/schema";
+
+import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 
 export const runtime = "nodejs";
 
@@ -252,7 +253,13 @@ export default async function Image() {
                   >
                     {`${pr.oneRM} lbs`}
                   </div>
-                  <div style={{ display: "flex", fontSize: "20px", color: NIGHT.inkMuted }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      fontSize: "20px",
+                      color: NIGHT.inkMuted,
+                    }}
+                  >
                     {`${pr.weight} x ${pr.reps} est. 1RM`}
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useWlPath } from "../lib/paths";
 import {
   formatValueUnit,
   ordinalDate,
@@ -24,8 +25,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
-import { useWlPath } from "../lib/paths";
 
 import { recordModalOrigin } from "~/lib/originFlight";
 import type { ExerciseInstance } from "~/server/queries/weightliftingExercise";
@@ -930,7 +929,6 @@ export function ExerciseExplorer({
             </ul>
           )}
         </section>
-
       </div>
     </MotionConfig>
   );

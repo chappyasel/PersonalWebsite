@@ -1,6 +1,7 @@
+import { cn } from "~/lib/util";
+
 import { BooksGridSkeleton } from "./components/BooksGridSkeleton";
 import { BOOKS_SIDEBAR_WIDTH_CLASS } from "./components/booksShell";
-import { cn } from "~/lib/util";
 
 export default function BooksLoading() {
   return (
@@ -29,10 +30,7 @@ export default function BooksLoading() {
       <div className="flex gap-8 2xl:gap-16">
         {/* Desktop Filters Sidebar */}
         <aside
-          className={cn(
-            "hidden shrink-0 sm:block",
-            BOOKS_SIDEBAR_WIDTH_CLASS,
-          )}
+          className={cn("hidden shrink-0 sm:block", BOOKS_SIDEBAR_WIDTH_CLASS)}
         >
           <div className="flex flex-col gap-5 rounded-3xl py-2">
             {/* Filters Header */}

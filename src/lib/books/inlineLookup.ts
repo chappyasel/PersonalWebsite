@@ -1,9 +1,10 @@
 import { inArray } from "drizzle-orm";
 
-import type { BookLookup } from "~/components/notion/types";
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
 import { orEmpty } from "~/server/queries/degrade";
+
+import type { BookLookup } from "~/components/notion/types";
 
 /** Every books.chappyasel.com/<slug> mentioned anywhere in a synced snapshot. */
 export function extractBookSlugs(data: unknown): string[] {

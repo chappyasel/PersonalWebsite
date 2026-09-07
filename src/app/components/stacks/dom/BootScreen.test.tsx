@@ -14,6 +14,7 @@ import {
 } from "../scene/aboutBootComposition";
 import { aboutBootFrameProjection } from "../scene/aboutBootFrameProjection";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
+import { ABOUT_GLOBE_THEME_COLORS } from "../scene/aboutGlobePalette";
 import { ABOUT_ROLES } from "../scene/aboutRoleIcons";
 import {
   ABOUT_AIC_MARK_YAW,
@@ -127,13 +128,14 @@ describe("Homepage entrance", () => {
       })),
     );
     expect(new Set(landmarks.map(({ id }) => id)).size).toBe(landmarks.length);
+    // The globe left this list on 2026-09-07: like the Vision Pro it paints
+    // its own parts (stand, sea, land, visited) instead of one silhouette.
     expect(
       [...renderBoot().matchAll(/data-model-silhouette="([^"]+)"/g)]
         .map((match) => match[1])
         .sort(),
     ).toEqual(
       [
-        "globe",
         "succulent",
         "cactus",
         "large-plant",
@@ -143,6 +145,15 @@ describe("Homepage entrance", () => {
         "tj-medallion",
       ].sort(),
     );
+    const globe = renderBoot();
+    expect(globe).toContain('data-boot-globe=""');
+    for (const part of ["stand", "sea", "land", "visited"])
+      expect(globe).toContain(`class="stacks-boot-globe-${part}"`);
+    for (const theme of Object.values(ABOUT_GLOBE_THEME_COLORS)) {
+      expect(globe).toContain(theme.ocean);
+      expect(globe).toContain(theme.land);
+      expect(globe).toContain(theme.visited);
+    }
   });
 
   it("fills the three upright frames from small loading-screen sources", () => {

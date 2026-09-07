@@ -9,9 +9,9 @@
 import { useEffect, useState } from "react";
 
 import {
+  type ObjectNote,
   indexObjectNotes,
   objectNoteFor,
-  type ObjectNote,
 } from "~/lib/stacks/objectNotes";
 
 const SOURCE = "/data/scene-objects.json";

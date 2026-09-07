@@ -4,7 +4,6 @@
  * Pure functions — no DB access — so the logic is unit-testable and
  * reusable by future UI.
  */
-
 import type {
   DailyReadingDay,
   ReadingAnalytics,
@@ -89,11 +88,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Truncate a date to its UTC day start (Notion dates are date-only) */
 function utcDay(date: Date): number {
-  return Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
 /** ISO week bucket key: the Monday of the day's week, as YYYY-MM-DD */
@@ -190,9 +185,30 @@ export function computeReadingAnalytics(
 
     for (let day = startDay; day <= endDay; day += MS_PER_DAY) {
       const finishes = isFinish && day === endDay ? 1 : 0;
-      accumulate(weekly, weekKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
-      accumulate(monthly, monthKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
-      accumulate(yearly, yearKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
+      accumulate(
+        weekly,
+        weekKey(day),
+        wallClockPerDay,
+        contentPerDay,
+        pagesPerDay,
+        finishes,
+      );
+      accumulate(
+        monthly,
+        monthKey(day),
+        wallClockPerDay,
+        contentPerDay,
+        pagesPerDay,
+        finishes,
+      );
+      accumulate(
+        yearly,
+        yearKey(day),
+        wallClockPerDay,
+        contentPerDay,
+        pagesPerDay,
+        finishes,
+      );
     }
 
     if (isFinish) totals.books++;

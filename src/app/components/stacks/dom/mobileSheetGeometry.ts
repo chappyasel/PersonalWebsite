@@ -21,7 +21,8 @@ const MOBILE_SHEET_TITLE_SLOPE =
   (MOBILE_SHEET_TITLE_MAX_PX - MOBILE_SHEET_TITLE_MIN_PX) /
   (MOBILE_SHEET_TITLE_TO_VW - MOBILE_SHEET_TITLE_FROM_VW);
 const MOBILE_SHEET_TITLE_INTERCEPT =
-  MOBILE_SHEET_TITLE_MIN_PX - MOBILE_SHEET_TITLE_SLOPE * MOBILE_SHEET_TITLE_FROM_VW;
+  MOBILE_SHEET_TITLE_MIN_PX -
+  MOBILE_SHEET_TITLE_SLOPE * MOBILE_SHEET_TITLE_FROM_VW;
 /** In rem so a root type-size preference still scales the chrome; the px
  * functions assume the 16px default, as the sheet's height budget does. */
 const ROOT_PX = 16;

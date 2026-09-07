@@ -10,14 +10,13 @@ const libraryIcon = readFileSync(
   new URL("../icon.tsx", import.meta.url),
   "utf8",
 );
-const pageSource = readFileSync(
-  new URL("./page.tsx", import.meta.url),
-  "utf8",
-);
+const pageSource = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
 describe("book favicon composition", () => {
   it("shows the whole cover instead of a square crop", () => {
-    expect(composition).toContain("fitCoverInFrame(coverDimensions, frame, inset)");
+    expect(composition).toContain(
+      "fitCoverInFrame(coverDimensions, frame, inset)",
+    );
     expect(composition).toMatch(
       /width: `\$\{cover\.width\}px`,\s*height: `\$\{cover\.height\}px`/,
     );

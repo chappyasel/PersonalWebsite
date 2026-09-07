@@ -4,6 +4,7 @@ import { FIELD_NOTES, type FieldNoteId } from "../fieldNotes/catalog";
 import { resetFieldNotePlacements } from "../fieldNotes/placement";
 import {
   previewFieldNoteAward,
+  recordFieldNoteEvent,
   resetFieldNotes,
   setAllFieldNotesFound,
   useFieldNotesProgress,
@@ -1457,6 +1458,11 @@ export default function SceneDiagnostics({
 }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [hudVisible, setHudVisible] = useState(true);
+  // The console ships to everyone behind the backtick, and finding it is
+  // worth a stamp (Under the Hood).
+  useEffect(() => {
+    if (open) recordFieldNoteEvent({ type: "console-opened" });
+  }, [open]);
   const snapshot = useSyncExternalStore(
     insectDiagnosticsController.subscribe,
     insectDiagnosticsController.getSnapshot,

@@ -751,9 +751,7 @@ describe("placement", () => {
       if (roomFlowers.x[i]! < -12) roomWest += 1;
     for (let i = 0; i < stillFlowers.count; i++) {
       if (stillFlowers.x[i]! < -12) stillWest += 1;
-      expect(stillFlowers.y[i]!).toBeGreaterThanOrEqual(
-        flatStillFlowers.y[i]!,
-      );
+      expect(stillFlowers.y[i]!).toBeGreaterThanOrEqual(flatStillFlowers.y[i]!);
       if (stillFlowers.y[i]! > flatStillFlowers.y[i]! + 1e-4)
         raisedFlowers += 1;
     }

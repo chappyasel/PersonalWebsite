@@ -16,16 +16,24 @@ describe("orEmpty", () => {
   it("returns the neutral value when the loader rejects", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await expect(
-      orEmpty("test", () => Promise.reject(new Error("connection refused")), []),
+      orEmpty(
+        "test",
+        () => Promise.reject(new Error("connection refused")),
+        [],
+      ),
     ).resolves.toEqual([]);
   });
 
   it("catches a loader that throws synchronously", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await expect(
-      orEmpty("test", () => {
-        throw new Error("boom");
-      }, null),
+      orEmpty(
+        "test",
+        () => {
+          throw new Error("boom");
+        },
+        null,
+      ),
     ).resolves.toBeNull();
   });
 

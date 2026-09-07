@@ -25,7 +25,11 @@ export function loadPublicImage(publicPath: string): Promise<string> {
     pending = (async () => {
       try {
         const buffer = await readFile(
-          join(process.cwd(), "public", ...publicPath.split("/").filter(Boolean)),
+          join(
+            process.cwd(),
+            "public",
+            ...publicPath.split("/").filter(Boolean),
+          ),
         );
         const ext = publicPath.slice(publicPath.lastIndexOf(".")).toLowerCase();
         return `data:${MIME[ext] ?? "application/octet-stream"};base64,${buffer.toString("base64")}`;

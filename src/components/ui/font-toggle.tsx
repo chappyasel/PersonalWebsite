@@ -2,6 +2,8 @@
 
 import { TextAaIcon } from "@phosphor-icons/react";
 
+import { type FontOption, useFont } from "~/lib/font-provider";
+
 import {
   Select,
   SelectContent,
@@ -14,7 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { type FontOption, useFont } from "~/lib/font-provider";
 
 const fontOptions: { value: FontOption; label: string; className: string }[] = [
   { value: "georgia", label: "Georgia", className: "font-georgia" },

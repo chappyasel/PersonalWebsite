@@ -13,10 +13,9 @@
 // joinery — see the Talks floor lamp note). Inches → metres → units is the
 // only conversion here, so the camera stands correctly beside books and
 // frames that are themselves at house scale.
+import { RoundedBox } from "../RoundedBox";
 import React, { useMemo } from "react";
 import * as THREE from "three";
-
-import { RoundedBox } from "../RoundedBox";
 
 const INCH = 0.0254;
 const UNITS_PER_METRE = 2;
@@ -81,7 +80,11 @@ export default function StickerCamera({ tone = 1 }: { tone?: number }) {
       {/* Body. */}
       <RoundedBox
         castShadow
-        args={[STICKER_CAMERA.width, STICKER_CAMERA.height, STICKER_CAMERA.depth]}
+        args={[
+          STICKER_CAMERA.width,
+          STICKER_CAMERA.height,
+          STICKER_CAMERA.depth,
+        ]}
         radius={0.005}
         smoothness={3}
       >
@@ -158,7 +161,9 @@ export default function StickerCamera({ tone = 1 }: { tone?: number }) {
         position={[HALF_W + inches(0.16), -inches(0.1), -inches(0.12)]}
         rotation={[0, 0, Math.PI / 2]}
       >
-        <cylinderGeometry args={[inches(0.62), inches(0.62), inches(0.34), 22]} />
+        <cylinderGeometry
+          args={[inches(0.62), inches(0.62), inches(0.34), 22]}
+        />
         <meshStandardMaterial
           color={shell}
           roughness={0.34}
@@ -180,9 +185,7 @@ export default function StickerCamera({ tone = 1 }: { tone?: number }) {
       </mesh>
 
       {/* Red shutter slider on the top deck. */}
-      <mesh
-        position={[-HALF_W + inches(0.72), HALF_H + 0.0015, -inches(0.28)]}
-      >
+      <mesh position={[-HALF_W + inches(0.72), HALF_H + 0.0015, -inches(0.28)]}>
         <boxGeometry args={[inches(0.6), 0.004, inches(0.2)]} />
         <meshStandardMaterial
           color={SHUTTER_RED}

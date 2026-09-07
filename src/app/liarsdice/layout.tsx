@@ -8,7 +8,12 @@ export const metadata: Metadata = {
   title: "Liar's Dice Calculator ~ Chappy Asel",
   description:
     "Probability calculator for Liar's Dice. Compute optimal bids and call probabilities.",
-  keywords: ["liar's dice", "probability calculator", "dice game", "Chappy Asel"],
+  keywords: [
+    "liar's dice",
+    "probability calculator",
+    "dice game",
+    "Chappy Asel",
+  ],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
     title: "Liar's Dice Calculator ~ Chappy Asel",

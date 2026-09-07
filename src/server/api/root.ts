@@ -1,7 +1,7 @@
-import { postRouter } from "~/server/api/routers/post";
 import { booksRouter } from "~/server/api/routers/books";
 import { dadRouter } from "~/server/api/routers/dad";
 import { liarsdiceRouter } from "~/server/api/routers/liarsdice";
+import { postRouter } from "~/server/api/routers/post";
 import { weightliftingRouter } from "~/server/api/routers/weightlifting";
 import { youtubeRouter } from "~/server/api/routers/youtube";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";

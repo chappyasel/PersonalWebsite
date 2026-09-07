@@ -2,9 +2,9 @@ import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
+import { SITE_PAGES } from "~/lib/site/pages";
 import { devSubdomainUrl } from "~/lib/util";
 import { TRPCReactProvider } from "~/trpc/react";
-import { SITE_PAGES } from "~/lib/site/pages";
 
 const origin =
   process.env.NODE_ENV === "production"
@@ -16,7 +16,12 @@ export const metadata: Metadata = {
   icons: siteIconMetadata(origin),
   title: "Weightlifting ~ Chappy Asel",
   description: SITE_PAGES.weightlifting.description,
-  keywords: ["weightlifting", "workout tracker", "personal records", "Chappy Asel"],
+  keywords: [
+    "weightlifting",
+    "workout tracker",
+    "personal records",
+    "Chappy Asel",
+  ],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
     title: "Weightlifting ~ Chappy Asel",

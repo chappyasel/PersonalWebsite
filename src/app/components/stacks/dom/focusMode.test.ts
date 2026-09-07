@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  FOCUS_SESSION_KEY,
-  readFocusMode,
-  writeFocusMode,
-} from "./focusMode";
+import { FOCUS_SESSION_KEY, readFocusMode, writeFocusMode } from "./focusMode";
 
 describe("desktop focus mode", () => {
   it("round-trips through session-shaped storage", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useWlPath } from "../lib/paths";
 import { categoryColor } from "../lib/utils";
 import {
   splitShortened,
@@ -13,8 +14,6 @@ import {
   SquaresFourIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-
-import { useWlPath } from "../lib/paths";
 
 import { recordModalOrigin } from "~/lib/originFlight";
 import { type RouterOutputs, api } from "~/trpc/react";

@@ -2,10 +2,11 @@
  * Edge-compatible database access for OG image generation
  * Cannot use tRPC in edge runtime, so we use direct database queries
  */
-
 import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
+
 import type { BaseBook } from "./types";
 
 /**

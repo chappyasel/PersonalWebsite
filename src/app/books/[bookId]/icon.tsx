@@ -1,6 +1,7 @@
+import { blankBookIconImage, bookCoverIconImage } from "../bookCoverIcon";
+
 import { getBookForOG } from "~/lib/books/ogDataAccess";
 
-import { blankBookIconImage, bookCoverIconImage } from "../bookCoverIcon";
 import { ICON_FRAME } from "./iconLayout";
 
 export const runtime = "nodejs";

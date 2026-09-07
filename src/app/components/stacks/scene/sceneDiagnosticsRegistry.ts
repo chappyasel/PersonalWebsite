@@ -28,6 +28,7 @@ import {
   photographTreatmentController,
 } from "./photographTreatment";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import { pointerCameraTiltController } from "./pointerCameraTilt";
 import {
   DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
   DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN,
@@ -72,6 +73,9 @@ import {
   SCREENSHOT_GRASS_MAX,
   SCREENSHOT_GRASS_STEP,
   SCREENSHOT_MODE_DEFAULT,
+  SCREENSHOT_TILT_MAX,
+  SCREENSHOT_TILT_MIN,
+  SCREENSHOT_TILT_STEP,
   screenshotModeController,
 } from "./screenshotMode";
 import { visionProDisplayDiagnosticsController } from "./visionProDisplayDiagnostics";
@@ -236,6 +240,7 @@ const SUBGROUP_LABELS: Readonly<Record<string, string>> = Object.freeze({
 });
 
 const DEFAULT_CAMERA = cameraDepthDiagnosticsController.getSnapshot();
+const DEFAULT_POINTER_CAMERA_TILT = pointerCameraTiltController.getSnapshot();
 const DEFAULT_COORDINATION =
   coordinationGlobeDiagnosticsController.getSnapshot();
 const DEFAULT_FREE_ROAM = freeRoamDiagnosticsController.getSnapshot();
@@ -747,6 +752,19 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       cameraDepthDiagnosticsController.setEnabled(Boolean(value)),
   }),
   booleanDescriptor({
+    id: "camera.pointer-tilt",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Pointer camera tilt",
+    help: "Pitch by up to one degree as the pointer moves between the top and bottom shelves.",
+    defaultValue: DEFAULT_POINTER_CAMERA_TILT.enabled,
+    experimental: false,
+    store: pointerCameraTiltController,
+    read: () => pointerCameraTiltController.getSnapshot().enabled,
+    update: (value) =>
+      pointerCameraTiltController.setEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
     id: "camera.free-roam",
     panel: "simulate",
     group: "simulate.camera",
@@ -1091,6 +1109,29 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     read: () => screenshotModeController.getSnapshot().fov,
     update: (value) =>
       screenshotModeController.setFov(value === null ? null : Number(value)),
+    disabled: () => !screenshotModeController.getSnapshot().enabled,
+  }),
+  mutableDescriptor({
+    id: "screenshot.tilt",
+    panel: "render",
+    group: "render.screenshot",
+    label: "Screenshot tilt",
+    help: "Raise the camera and keep it aimed at the shelf for a steeper top-down view. Negative values lower the camera.",
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: SCREENSHOT_TILT_MIN,
+      max: SCREENSHOT_TILT_MAX,
+      step: SCREENSHOT_TILT_STEP,
+      unit: "°",
+      decimals: 2,
+    },
+    defaultValue: SCREENSHOT_MODE_DEFAULT.tilt,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: screenshotModeController,
+    read: () => screenshotModeController.getSnapshot().tilt,
+    update: (value) => screenshotModeController.setTilt(Number(value)),
     disabled: () => !screenshotModeController.getSnapshot().enabled,
   }),
   mutableDescriptor({

@@ -116,11 +116,9 @@ export function lightRibbonPresentation(input: {
     0,
     input.travelDistanceMetres - input.sample.travelDistanceMetres,
   );
-  const verticalDrop =
-    trail.verticalDropNdc * smoothstep(progress / 0.32);
+  const verticalDrop = trail.verticalDropNdc * smoothstep(progress / 0.32);
   const offscreenMargin = Math.max(0, input.offscreenMarginNdc ?? 0);
-  const offscreenY =
-    -1 - trail.offscreenOverscanNdc - offscreenMargin;
+  const offscreenY = -1 - trail.offscreenOverscanNdc - offscreenMargin;
   const sampleDeltaY = Math.min(
     -0.02,
     input.sample.y - trail.vanishingPointNdcY,
@@ -138,8 +136,7 @@ export function lightRibbonPresentation(input: {
     exitFlowScale * 0.06,
     (travelled / trail.flowMetresForFullScale) * 0.04,
   );
-  const flowScale =
-    exitFlowScale * (exitCurve + overrun * 0.1) + physicalNudge;
+  const flowScale = exitFlowScale * (exitCurve + overrun * 0.1) + physicalNudge;
   const scale = 1 + flowScale;
   const projectedY =
     trail.vanishingPointNdcY +

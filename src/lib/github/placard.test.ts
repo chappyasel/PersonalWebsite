@@ -50,11 +50,7 @@ function activity(overrides: Partial<GitHubActivity> = {}): GitHubActivity {
       to: "2026-07-02T00:00:00Z",
       total: 10,
       restricted: 4,
-      days: [
-        day("2026-06-30", 0),
-        day("2026-07-01", 3),
-        day("2026-07-02", 1),
-      ],
+      days: [day("2026-06-30", 0), day("2026-07-01", 3), day("2026-07-02", 1)],
     },
     years: [
       { year: 2024, total: 100 },
@@ -96,8 +92,9 @@ describe("contributionWeeks", () => {
   });
 
   it("starts a new column at each Sunday", () => {
-    const days = Array.from({ length: 10 }, (_, index) =>
-      day(`2026-09-${String(5 + index).padStart(2, "0")}`, index), // Sat 5 Sep
+    const days = Array.from(
+      { length: 10 },
+      (_, index) => day(`2026-09-${String(5 + index).padStart(2, "0")}`, index), // Sat 5 Sep
     );
     const weeks = contributionWeeks(days);
     expect(weeks).toHaveLength(3);
@@ -244,7 +241,10 @@ describe("buildGitHubPlacard", () => {
             commits: 90,
           },
           // Already in `repos`; must not appear twice.
-          { ...repo({ name: "newest", pushedAt: "2026-06-01T00:00:00Z" }), commits: 5 },
+          {
+            ...repo({ name: "newest", pushedAt: "2026-06-01T00:00:00Z" }),
+            commits: 5,
+          },
         ],
       }),
       { now: NOW },

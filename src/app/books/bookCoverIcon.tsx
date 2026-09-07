@@ -9,14 +9,13 @@ import {
   getImageDimensions,
   getTextColorAndOverlay,
 } from "~/lib/books/ogImageUtils";
-
 import { TILE_RADIUS } from "~/lib/icons/siteIconSizes";
 
 import {
-  fitCoverInFrame,
   ICON_FRAME,
   ICON_INSET,
   type ImageDimensions,
+  fitCoverInFrame,
 } from "./[bookId]/iconLayout";
 
 export type BookForIcon = { title: string; coverUrl: string | null };

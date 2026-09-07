@@ -1,13 +1,13 @@
 "use client";
 
 import Grabbable from "../Grabbable";
+import type { ShelfPlane } from "../physics";
 import {
   GOLF_BALL_RADIUS,
   createDimpledGolfBallGeometry,
   createGolfBallBumpTexture,
 } from "../units/trainingGolfBall";
 import type { UnitProps } from "../units/types";
-import type { ShelfPlane } from "../physics";
 import React from "react";
 
 import { GOLF_BALL_FINISH } from "./golfPresentation";
@@ -31,6 +31,7 @@ export function GolfBallProp({
   id,
   base,
   standsOn,
+  bayUnitIndex,
   yaw = 0,
 }: Pick<UnitProps, "palette" | "dark"> & {
   unitIndex: number;
@@ -38,6 +39,8 @@ export function GolfBallProp({
   /** The ball's bottom. */
   base: [number, number, number];
   standsOn?: ShelfPlane;
+  /** Golf bay that may claim the ball when it leaves its home unit. */
+  bayUnitIndex?: number;
   yaw?: number;
 }) {
   return (
@@ -53,7 +56,11 @@ export function GolfBallProp({
       maxThrowSpeed={9}
       standsOn={standsOn}
       activateOnFirstTouch
-      hittable={{ radius: GOLF_BALL_RADIUS, golf: true }}
+      hittable={{
+        radius: GOLF_BALL_RADIUS,
+        golf: true,
+        ...(bayUnitIndex === undefined ? {} : { bayUnitIndex }),
+      }}
     >
       <group position={[0, GOLF_BALL_RADIUS, 0]} rotation={[0, yaw, 0]}>
         <mesh castShadow dispose={null} geometry={GOLF_BALL_GEOMETRY}>

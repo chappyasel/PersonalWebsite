@@ -41,7 +41,11 @@ export default function TimelineEntry({
       <DisclosurePanel id={contentId} open={open}>
         <div className="dl-entry-body space-y-2 text-muted-foreground">
           {blocks.map((block, i) => (
-            <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+            <NotionBlockRenderer
+              key={i}
+              block={block}
+              bookLookup={bookLookup}
+            />
           ))}
         </div>
       </DisclosurePanel>

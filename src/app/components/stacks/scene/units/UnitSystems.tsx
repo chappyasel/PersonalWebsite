@@ -371,7 +371,13 @@ const SYSTEMS_CAN_PYRAMID = [
   { id: "mtn-dew-zero", x: -1.0287, y: 0, yaw: -0.22, shade: 0.18 },
   // The shade is a sprite at the base; keep it narrower than the can so it
   // stays hidden inside the body rather than smudging the cans below.
-  { id: "sunkist-zero", x: -1.1007, y: SODA_CAN_HEIGHT, yaw: 0.06, shade: 0.12 },
+  {
+    id: "sunkist-zero",
+    x: -1.1007,
+    y: SODA_CAN_HEIGHT,
+    yaw: 0.06,
+    shade: 0.12,
+  },
 ] as const;
 const SYSTEMS_CAN_Z = 0.1033;
 

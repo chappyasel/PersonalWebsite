@@ -1,7 +1,4 @@
-import type {
-  Book,
-  HomepageBookStats,
-} from "~/lib/books/types";
+import type { Book, HomepageBookStats } from "~/lib/books/types";
 
 export function computeHomepageBookStats(allBooks: Book[]): HomepageBookStats {
   // "N books" means books read or in progress — abandoned ones don't count

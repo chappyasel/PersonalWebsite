@@ -1,4 +1,8 @@
-import type { BookLookup, NotionBlock, RichText } from "~/components/notion/types";
+import type {
+  BookLookup,
+  NotionBlock,
+  RichText,
+} from "~/components/notion/types";
 
 // Re-export for convenience
 export type { NotionBlock as ManualBlock, RichText, BookLookup };

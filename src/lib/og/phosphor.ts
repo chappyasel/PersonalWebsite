@@ -80,7 +80,9 @@ export function phosphorPaths(
     if (!React.isValidElement(child) || child.type !== "path") continue;
     const attrs = Object.entries(child.props as Record<string, unknown>)
       .filter(([key, value]) => key !== "children" && value !== undefined)
-      .map(([key, value]) => `${key}="${String(value).replace(/"/g, "&quot;")}"`)
+      .map(
+        ([key, value]) => `${key}="${String(value).replace(/"/g, "&quot;")}"`,
+      )
       .join(" ");
     markup.push(`<path ${attrs}/>`);
   }

@@ -36,8 +36,7 @@ function mix(from: number, to: number, amount: number) {
 export function visionProDisplayCoverage(u: number, v: number) {
   const lobe = (centerX: number) =>
     Math.exp(
-      -Math.pow((u - centerX) / 0.24, 2) -
-        Math.pow((v - 0.56) / 0.3, 2),
+      -Math.pow((u - centerX) / 0.24, 2) - Math.pow((v - 0.56) / 0.3, 2),
     );
   const leftLobe = lobe(0.31);
   const rightLobe = lobe(0.69);
@@ -46,27 +45,20 @@ export function visionProDisplayCoverage(u: number, v: number) {
 
   const horizontal = Math.abs((u - 0.5) / 0.51);
   const templeRoll = horizontal ** 8;
-  const topBoundary =
-    0.95 - 0.03 * horizontal * horizontal - 0.13 * templeRoll;
+  const topBoundary = 0.95 - 0.03 * horizontal * horizontal - 0.13 * templeRoll;
   const noseRelief = 0.38 * Math.exp(-Math.pow((u - 0.5) / 0.115, 2));
   const bottomBoundary =
     0.04 + 0.02 * horizontal * horizontal + 0.22 * templeRoll + noseRelief;
 
   const edgeFeather = 0.16;
   const templeCoverage = 1 - smoothstep(0.78, 1, horizontal);
-  const topCoverage = 1 - smoothstep(
-    topBoundary - edgeFeather,
-    topBoundary,
-    v,
-  );
+  const topCoverage = 1 - smoothstep(topBoundary - edgeFeather, topBoundary, v);
   const bottomCoverage = smoothstep(
     bottomBoundary,
     bottomBoundary + edgeFeather,
     v,
   );
-  return clamp01(
-    lightField * templeCoverage * topCoverage * bottomCoverage,
-  );
+  return clamp01(lightField * templeCoverage * topCoverage * bottomCoverage);
 }
 
 function hash2(x: number, y: number) {

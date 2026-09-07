@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   type HittableBall,
-  hittableContactPoint,
   hittableBallsFor,
+  hittableContactPoint,
   isHittableBall,
   registerHittableBall,
   resetHittableBalls,
@@ -31,12 +31,12 @@ afterEach(() => resetHittableBalls());
 
 describe("the hittable ball registry", () => {
   it("aims the club at the centre of tennis balls and cans", () => {
-    expect(
-      hittableContactPoint({ x: -2.2, y: -1.115, z: 0.2 }, 0.067),
-    ).toEqual({ x: -2.2, y: -1.048, z: 0.2 });
-    expect(
-      hittableContactPoint({ x: -2.2, y: -1.115, z: 0.2 }, 0.115),
-    ).toEqual({ x: -2.2, y: -1, z: 0.2 });
+    expect(hittableContactPoint({ x: -2.2, y: -1.115, z: 0.2 }, 0.067)).toEqual(
+      { x: -2.2, y: -1.048, z: 0.2 },
+    );
+    expect(hittableContactPoint({ x: -2.2, y: -1.115, z: 0.2 }, 0.115)).toEqual(
+      { x: -2.2, y: -1, z: 0.2 },
+    );
   });
 
   it("lists balls by unit and forgets them on unregister", () => {

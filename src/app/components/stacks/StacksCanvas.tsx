@@ -131,11 +131,6 @@ import {
 } from "./scene/sceneColorGrade";
 import "./scene/sceneDiagnosticsRuntime";
 import {
-  sceneGradeLookFor,
-  sceneGradeProfileController,
-  useSceneGradeProfile,
-} from "./scene/sceneGradeProfiles";
-import {
   instrumentRendererFrameCost,
   instrumentSceneMatrixCost,
   markSceneFrameInstrumented,
@@ -148,6 +143,11 @@ import {
   prewarmSceneGpuResources,
   shouldWarmSceneGpuResources,
 } from "./scene/sceneGpuPrewarm";
+import {
+  sceneGradeLookFor,
+  sceneGradeProfileController,
+  useSceneGradeProfile,
+} from "./scene/sceneGradeProfiles";
 import {
   type SceneLayoutExportRecord,
   sceneLayoutEditorController,
@@ -689,9 +689,7 @@ function Exposure({ dark }: { dark: boolean }) {
     gradeProfile,
     sceneColorGradeFor(baseColorGrade, cinematicPlus),
   ).base;
-  const exposure = dark
-    ? colorGrade.dark.exposure
-    : colorGrade.light.exposure;
+  const exposure = dark ? colorGrade.dark.exposure : colorGrade.light.exposure;
   useEffect(() => {
     gl.toneMappingExposure = exposure;
   }, [exposure, gl]);

@@ -1,10 +1,10 @@
 "use client";
 
 import {
+  type MotionStyle,
   motion,
   useMotionValue,
   useSpring,
-  type MotionStyle,
 } from "framer-motion";
 import Image from "next/image";
 import React, { useRef } from "react";
@@ -54,10 +54,7 @@ export default function BookCarousel({
   }
 
   // Distribute books across two rows
-  const distributeBooks = (
-    allBooks: HomepageBookCover[],
-    booksPerRow = 20,
-  ) => {
+  const distributeBooks = (allBooks: HomepageBookCover[], booksPerRow = 20) => {
     const rows: HomepageBookCover[][] = [[], []];
 
     if (allBooks.length >= booksPerRow * 2) {
@@ -187,7 +184,7 @@ function BookCover({ book }: { book: HomepageBookCover }) {
           style={{ transformStyle: "preserve-3d" }}
         >
           <motion.div
-            className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] [transform-style:preserve-3d]"
+            className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 [transform-style:preserve-3d] hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
             style={motionStyle}
           >
             <div className="relative aspect-[2/3] h-full w-full">

@@ -1,5 +1,6 @@
 "use client";
 
+import type { RoutineSection as RoutineSectionType } from "../types";
 import { useState } from "react";
 
 import AnchorLink from "~/components/daylight/AnchorLink";
@@ -8,7 +9,6 @@ import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup } from "~/components/notion/types";
 import { DisclosureCaret } from "~/components/ui/disclosure";
 
-import type { RoutineSection as RoutineSectionType } from "../types";
 import { releaseHash, useHashTarget } from "./sectionLink";
 
 export default function RoutineSection({
@@ -60,7 +60,7 @@ export default function RoutineSection({
       <div
         data-routine-collapse
         data-open={open}
-        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:grid-rows-[1fr]"
+        className="duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] grid grid-rows-[0fr] transition-[grid-template-rows] data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">
           <div className="space-y-3 pb-4 pt-3.5 text-[0.9375rem] text-muted-foreground">

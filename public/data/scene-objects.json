@@ -126,6 +126,20 @@
     "body": "A small black hole on a black hexagonal plinth with a live network of sixty\nnodes turning inside it. Green nodes are people, blue nodes are agents. Hover it\nand one improbably long chord grows across the sphere; drag it and the shockwave\nruns out through the rest of the room."
   },
   {
+    "id": "golf-ball:about-a",
+    "title": "Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "One of two golf balls tucked into the grass under the left side of About, in\nfront of the desk lamp. Carry it to the Training hitting bay, leave it still,\nand the club will play it."
+  },
+  {
+    "id": "golf-ball:about-b",
+    "title": "Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "The second About golf ball. It stays in the grass in ordinary and screenshot\nmode, and it can make the same trip to the hitting bay."
+  },
+  {
     "id": "grab:reading:\\*",
     "title": "Currently Reading",
     "status": "written",
@@ -161,7 +175,7 @@
     "title": "Globe",
     "status": "written",
     "links": [],
-    "body": "Click it and it adds a lap. At rest it drifts at 0.11 rad/s, slow enough that\nyou notice it the second time you look. On hover it runs about nine times that,\na lap every six and a half seconds, which is a globe someone has just spun. Only\nthe ball turns; the stand stays put."
+    "body": "A real map on a low-poly ball. The countries in the darker green are the ones\nI have been to, 25 so far, Bali standing in for Indonesia. The orange marks are\nAI Collective chapters, one per city, a heavier mark where several sit close\ntogether, from the same list the chapters page reads.\n\nClick it and it comes up to the camera. Up close, drag to turn it, point at a\nmark to see which chapter it is, and click the mark to open that chapter on\naicollective.com. Click anywhere else, or press Escape, to put it back. At\nrest it drifts at 0.11 rad/s, slow enough that you notice it the second time\nyou look. On hover it runs about nine times that, a lap every six and a half\nseconds, which is a globe someone has just spun. Only the ball turns; the\nstand stays put."
   },
   {
     "id": "grab:plant:about-cactus",

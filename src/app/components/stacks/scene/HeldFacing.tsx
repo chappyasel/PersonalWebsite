@@ -42,9 +42,7 @@ export default function HeldFacing({
   );
   const restQuaternion = useMemo(
     () =>
-      new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(restX, restY, restZ),
-      ),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(restX, restY, restZ)),
     [restX, restY, restZ],
   );
   const facingQuaternion = useMemo(

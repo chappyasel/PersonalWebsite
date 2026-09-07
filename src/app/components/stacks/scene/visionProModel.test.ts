@@ -10,9 +10,9 @@ import {
   createVisionProDisplayGeometry,
   createVisionProDisplayTexture,
   tuneVisionProMaterial,
-  visionProDisplayWakeBrightness,
-  visionProDisplayPreviewRequested,
   visionProDisplayPixel,
+  visionProDisplayPreviewRequested,
+  visionProDisplayWakeBrightness,
 } from "./VisionProProp";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
 import {

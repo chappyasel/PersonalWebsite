@@ -55,9 +55,10 @@ describe("computeReadingAnalytics", () => {
     expect(feb?.pages).toBe(180); // 3 days
     // Page-only books are already wall-clock (buckets round to 2 decimals)
     const totalHours = 300 / PAGES_PER_HOUR;
-    expect(
-      (jan?.wallClockHours ?? 0) + (feb?.wallClockHours ?? 0),
-    ).toBeCloseTo(totalHours, 2);
+    expect((jan?.wallClockHours ?? 0) + (feb?.wallClockHours ?? 0)).toBeCloseTo(
+      totalHours,
+      2,
+    );
     // Finish counted once, in February
     expect(jan?.books).toBe(0);
     expect(feb?.books).toBe(1);

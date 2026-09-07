@@ -1,22 +1,24 @@
 "use client";
 
 import {
-  BarbellIcon,
-  ClockIcon,
-  HashIcon,
-  SquaresFourIcon,
-} from "@phosphor-icons/react/dist/ssr";
-import type { Icon } from "@phosphor-icons/react";
-
-import { Skeleton } from "~/components/ui/skeleton";
-import { api } from "~/trpc/react";
-import {
   daysInGymLine,
   eiffelTowersLine,
   setsPerWorkoutLine,
   workoutsPerWeekLine,
 } from "../lib/statTranslations";
-import { formatVolume, QUERY_STALE_TIME } from "../lib/utils";
+import { QUERY_STALE_TIME, formatVolume } from "../lib/utils";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  BarbellIcon,
+  ClockIcon,
+  HashIcon,
+  SquaresFourIcon,
+} from "@phosphor-icons/react/dist/ssr";
+
+import { api } from "~/trpc/react";
+
+import { Skeleton } from "~/components/ui/skeleton";
+
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
 export function StatsCards() {
@@ -47,7 +49,12 @@ export function StatsCards() {
 
   const totalHours = Math.round(stats.totalDurationSeconds / 3600);
 
-  const cards: { label: string; value: string; sub: string | null; icon: Icon }[] = [
+  const cards: {
+    label: string;
+    value: string;
+    sub: string | null;
+    icon: Icon;
+  }[] = [
     {
       label: "Workouts",
       value: stats.totalWorkouts.toLocaleString(),

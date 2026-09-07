@@ -3,6 +3,7 @@ import type * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { MeadowDeformationController } from "./meadowDeformation";
+import { pointerCameraTiltController } from "./pointerCameraTilt";
 import {
   type DiagnosticRegistryEntry,
   type DiagnosticRegistryStore,
@@ -14,6 +15,10 @@ import {
   scenePerformanceController,
 } from "./scenePerformance";
 import { sceneQualityController } from "./sceneQualityController";
+import {
+  SCREENSHOT_TILT_DEFAULT,
+  screenshotModeController,
+} from "./screenshotMode";
 
 const diagnosticsSource = fs.readFileSync(
   new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
@@ -131,6 +136,46 @@ describe("Scene Diagnostics registry", () => {
         expect(diagnosticsSource).toContain('id="inspect.scope"');
       else expect(diagnosticsSource).toContain(`groupId="${section.id}"`);
     }
+  });
+
+  it("surfaces screenshot tilt as a live control in the debug panel", () => {
+    const descriptor = sceneDiagnosticsRegistry.descriptors.find(
+      (entry) => entry.id === "screenshot.tilt",
+    );
+    const screenshotSection = sceneDiagnosticsRegistry
+      .sections("render")
+      .find((section) => section.id === "render.screenshot");
+
+    expect(descriptor).toMatchObject({
+      group: "render.screenshot",
+      label: "Screenshot tilt",
+      valueKind: "range",
+      defaultValue: SCREENSHOT_TILT_DEFAULT,
+      behavior: { read: "live", update: "session-only", reset: "reload" },
+    });
+    expect(screenshotSection?.controls.map((control) => control.id)).toContain(
+      "screenshot.tilt",
+    );
+
+    sceneDiagnosticsRegistry.update("screenshot.tilt", 3.25);
+    expect(screenshotModeController.getSnapshot().tilt).toBe(3.25);
+    screenshotModeController.reset();
+  });
+
+  it("can disable the production pointer tilt for the current mount", () => {
+    const descriptor = sceneDiagnosticsRegistry.descriptors.find(
+      (entry) => entry.id === "camera.pointer-tilt",
+    );
+
+    expect(descriptor).toMatchObject({
+      group: "simulate.camera",
+      label: "Pointer camera tilt",
+      defaultValue: true,
+      behavior: { read: "live", update: "session-only", reset: "reload" },
+    });
+    sceneDiagnosticsRegistry.update("camera.pointer-tilt", false);
+    expect(pointerCameraTiltController.getSnapshot().enabled).toBe(false);
+    pointerCameraTiltController.reset();
   });
 
   it("offers the named test profiles as one reload-aware control", () => {

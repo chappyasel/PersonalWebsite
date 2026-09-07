@@ -1,9 +1,9 @@
 "use client";
 
+import type { Supplement } from "../types";
+import { MoonStarsIcon, SunIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
-
-import { MoonStarsIcon, SunIcon } from "@phosphor-icons/react";
 
 import AnchorLink from "~/components/daylight/AnchorLink";
 import { SectionIcon } from "~/components/daylight/sectionIcons";
@@ -11,7 +11,6 @@ import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
 import { DisclosureCaret } from "~/components/ui/disclosure";
 
-import type { Supplement } from "../types";
 import { releaseHash, useHashTarget } from "./sectionLink";
 
 function SupplementCard({
@@ -154,7 +153,7 @@ export default function SupplementCardsSection({
       <div
         data-routine-collapse
         data-open={open}
-        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] data-[open=true]:grid-rows-[1fr]"
+        className="duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] grid grid-rows-[0fr] transition-[grid-template-rows] data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">
           <div className="space-y-6 pb-4 pt-3.5">

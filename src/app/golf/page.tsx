@@ -1,6 +1,5 @@
-import { type Metadata, type Viewport } from "next";
-
 import HomePage from "../page";
+import { type Metadata, type Viewport } from "next";
 
 export const revalidate = 86400;
 

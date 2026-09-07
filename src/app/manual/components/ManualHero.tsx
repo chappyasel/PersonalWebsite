@@ -1,3 +1,4 @@
+import type { BookLookup, ManualData } from "../types";
 import { BookOpenTextIcon } from "@phosphor-icons/react/dist/ssr";
 import React from "react";
 
@@ -5,9 +6,13 @@ import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyHero from "~/components/daylight/SkyHero";
 import { NotionBlockRenderer } from "~/components/notion";
 
-import type { BookLookup, ManualData } from "../types";
-
-function HeroPanel({ label, children }: { label: string; children: React.ReactNode }) {
+function HeroPanel({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-[hsl(var(--dl-border-strong))] bg-foreground/[0.03] p-6">
       <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">

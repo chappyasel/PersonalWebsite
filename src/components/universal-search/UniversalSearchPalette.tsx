@@ -7,9 +7,9 @@ import {
   BooksIcon,
   ClockIcon,
   CodeIcon,
-  GearIcon,
   DesktopIcon,
   DiceFiveIcon,
+  GearIcon,
   HouseIcon,
   MagnifyingGlassIcon,
   MoonIcon,
@@ -34,7 +34,6 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { Keycap, KeycapSequence } from "~/components/ui/keycap";
 import {
   type AnalyticsCapture,
   capture,
@@ -77,6 +76,8 @@ import {
 } from "~/lib/universal-search/useProgressiveSearch";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 import { cn } from "~/lib/util";
+
+import { Keycap, KeycapSequence } from "~/components/ui/keycap";
 
 import type { UniversalSearchPaletteProps } from "./UniversalSearchController";
 
@@ -632,8 +633,10 @@ export function UniversalSearchPaletteContent({
           data-universal-search-overlay=""
           className={cn(
             "fixed inset-0 z-[1000] bg-stone-950/20 dark:bg-black/35",
-            "motion-safe:duration-150 motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0",
-            visualEffects.backdropBlur && onWorldScene && "backdrop-blur-[10px]",
+            "motion-safe:duration-150 motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0",
+            visualEffects.backdropBlur &&
+              onWorldScene &&
+              "backdrop-blur-[10px]",
           )}
         />
         <Dialog.Content
@@ -674,7 +677,7 @@ export function UniversalSearchPaletteContent({
               : onWorldScene
                 ? "border-stone-600/20 bg-[rgb(242_239_233_/_0.5)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.78),inset_0_-1px_0_rgb(255_255_255_/_0.14),0_24px_80px_-24px_rgb(28_25_23_/_0.55)] [backdrop-filter:blur(80px)_saturate(0.42)_brightness(1.5)] dark:border-white/20 dark:bg-[rgb(0_0_0_/_0.32)] dark:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.28),inset_0_-1px_0_rgb(255_255_255_/_0.08),0_24px_80px_-20px_rgb(0_0_0_/_0.88)] dark:[backdrop-filter:blur(80px)_saturate(0.34)_brightness(0.52)]"
                 : "border-border/70 bg-background/85 shadow-2xl [backdrop-filter:blur(24px)_saturate(1.05)] dark:bg-background/80",
-            "motion-safe:duration-150 motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:zoom-out-95",
+            "motion-safe:duration-150 motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:zoom-in-95",
           )}
         >
           <Dialog.Title className="sr-only">Universal Search</Dialog.Title>
@@ -865,5 +868,7 @@ export function UniversalSearchPalette(props: UniversalSearchPaletteProps) {
     [router, setFont, setTheme],
   );
 
-  return <UniversalSearchPaletteContent {...props} dependencies={dependencies} />;
+  return (
+    <UniversalSearchPaletteContent {...props} dependencies={dependencies} />
+  );
 }

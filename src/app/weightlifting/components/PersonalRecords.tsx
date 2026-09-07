@@ -1,14 +1,14 @@
 "use client";
 
+import { useWlPath } from "../lib/paths";
+import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
 import Link from "next/link";
 
 import { recordModalOrigin } from "~/lib/originFlight";
-
-import { useWlPath } from "../lib/paths";
+import { api } from "~/trpc/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
-import { api } from "~/trpc/react";
-import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
+
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
 interface PersonalRecordsProps {
@@ -82,7 +82,9 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
                   >
                     <span
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: categoryColor(record.category) }}
+                      style={{
+                        backgroundColor: categoryColor(record.category),
+                      }}
                     />
                     <span className="underline decoration-transparent underline-offset-2 transition-colors group-hover:decoration-neutral-300 dark:group-hover:decoration-neutral-500">
                       {record.exerciseName}
@@ -92,13 +94,16 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
                   <span className="flex items-center gap-2 text-neutral-800 dark:text-neutral-100">
                     <span
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: categoryColor(record.category) }}
+                      style={{
+                        backgroundColor: categoryColor(record.category),
+                      }}
                     />
                     {record.exerciseName}
                   </span>
                 )}
                 <span className="ml-[18px] text-xs text-neutral-400 dark:text-neutral-500">
-                  {record.instanceCount} instance{record.instanceCount !== 1 ? "s" : ""}
+                  {record.instanceCount} instance
+                  {record.instanceCount !== 1 ? "s" : ""}
                 </span>
               </td>
               <td className="py-2 pr-4 text-right tabular-nums">

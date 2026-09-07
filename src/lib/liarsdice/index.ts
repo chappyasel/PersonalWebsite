@@ -33,7 +33,13 @@ export interface DiceScenario {
 }
 
 export function play(input: Input): Output {
-  const { myDice, totalDice, countOnes, currentBid, minProbability = 0.01 } = input;
+  const {
+    myDice,
+    totalDice,
+    countOnes,
+    currentBid,
+    minProbability = 0.01,
+  } = input;
 
   const myDiceCount = myDice.reduce((acc, val) => acc + val, 0);
   const numUnknownDice = totalDice - myDiceCount;

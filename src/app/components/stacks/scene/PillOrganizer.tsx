@@ -29,8 +29,8 @@ import {
   PILL_CASE_FILL_H as COLLAR_H,
   PILL_CASE_LID_H as LID_H,
   PILL_ORGANIZER,
-  PILL_CASE_TRAY_H as TRAY_H,
   type PillOrganizerVariant,
+  PILL_CASE_TRAY_H as TRAY_H,
 } from "./systemsPillLayout";
 
 const LID_INSET = 0.005;

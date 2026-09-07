@@ -95,9 +95,9 @@ describe("coarse-pointer ownership", () => {
       /id: "golf-club:strike",[\s\S]*?activateOnFirstTouch: true,[\s\S]*?activation:/,
     );
     // The balls are Grabbables now; the prop opts into the first-touch
-    // arbiter and the bay claims the tap through `hittable`.
+    // arbiter and the selected bay claims the tap through `hittable`.
     expect(golfBall).toMatch(
-      /hoverKey=\{`golf-ball:\$\{id\}`\}[\s\S]*?activateOnFirstTouch[\s\S]*?hittable=\{\{ radius: GOLF_BALL_RADIUS, golf: true \}\}/,
+      /hoverKey=\{`golf-ball:\$\{id\}`\}[\s\S]*?activateOnFirstTouch[\s\S]*?hittable=\{\{[\s\S]*?radius: GOLF_BALL_RADIUS,[\s\S]*?golf: true,[\s\S]*?bayUnitIndex/,
     );
     // A hittable ball registers no activation, so both halves of the claim
     // are load-bearing: the arbiter must treat it as activatable, and the

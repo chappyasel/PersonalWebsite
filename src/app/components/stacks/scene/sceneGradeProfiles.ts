@@ -94,7 +94,10 @@ export type SceneDevelopSettings = Readonly<{
   mixer: Readonly<Record<HueBand, HueBandAdjust>>;
 }>;
 
-export type SceneDevelopSliderKey = Exclude<keyof SceneDevelopSettings, "mixer">;
+export type SceneDevelopSliderKey = Exclude<
+  keyof SceneDevelopSettings,
+  "mixer"
+>;
 export const DEVELOP_SLIDER_KEYS: readonly SceneDevelopSliderKey[] = [
   "exposure",
   "temp",
@@ -530,7 +533,10 @@ function round3(value: number) {
 
 /** The URL that reproduces the current grade, alongside whatever else the
  * page already carries (screenshot mode, quality). */
-export function sceneGradeUrl(href: string, snapshot: SceneGradeProfileSnapshot) {
+export function sceneGradeUrl(
+  href: string,
+  snapshot: SceneGradeProfileSnapshot,
+) {
   const url = new URL(href);
   url.searchParams.delete(GRADE_PARAM);
   url.searchParams.delete(GRADE_VALUES_PARAM);
@@ -672,7 +678,8 @@ const LUMA: readonly [number, number, number] = [0.2126, 0.7152, 0.0722];
 type Rgb = [number, number, number];
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
-const luma = (rgb: Rgb) => rgb[0] * LUMA[0] + rgb[1] * LUMA[1] + rgb[2] * LUMA[2];
+const luma = (rgb: Rgb) =>
+  rgb[0] * LUMA[0] + rgb[1] * LUMA[1] + rgb[2] * LUMA[2];
 const smoothstep = (edge0: number, edge1: number, x: number) => {
   const t = clamp01((x - edge0) / (edge1 - edge0));
   return t * t * (3 - 2 * t);
@@ -687,7 +694,7 @@ function rgbToHsv(rgb: Rgb): [number, number, number] {
   const s = max > 1e-6 ? delta / max : 0;
   if (delta <= 1e-6) return [0, s, v];
   let h: number;
-  if (max === r) h = (((g - b) / delta) % 6 + 6) % 6;
+  if (max === r) h = ((((g - b) / delta) % 6) + 6) % 6;
   else if (max === g) h = (b - r) / delta + 2;
   else h = (r - g) / delta + 4;
   return [h / 6, s, v];
@@ -753,9 +760,8 @@ export function developDisplay(
   ];
   const wbLuma = luma(wb);
   const gain = Math.pow(2, settings.exposure);
-  let x = display.map(
-    (c, i) =>
-      Math.pow(Math.pow(clamp01(c), 2.2) * (wb[i]! / wbLuma) * gain, 1 / 2.2),
+  let x = display.map((c, i) =>
+    Math.pow(Math.pow(clamp01(c), 2.2) * (wb[i]! / wbLuma) * gain, 1 / 2.2),
   ) as Rgb;
 
   // Tone. Blacks and whites are quadratic end-weighted lifts, shadows and
@@ -815,7 +821,8 @@ export function developDisplay(
   // Post vignette, elliptical with the frame.
   if (frame) {
     const r = Math.hypot(frame[0], frame[1]);
-    const fall = 1 + settings.vignette * smoothstep(settings.vignetteMidpoint, 1.42, r);
+    const fall =
+      1 + settings.vignette * smoothstep(settings.vignetteMidpoint, 1.42, r);
     x = x.map((c) => c * fall) as Rgb;
   }
   return x.map(clamp01) as Rgb;

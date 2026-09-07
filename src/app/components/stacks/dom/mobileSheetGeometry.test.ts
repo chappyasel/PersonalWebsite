@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MOBILE_RAIL_FONT_CLAMP,
   MOBILE_SHEET_SEAM_TOLERANCE_PX,
+  MOBILE_SHEET_TITLE_CLAMP,
   MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   accumulateMobileSheetWheelIntent,
+  mobileRailScale,
   mobileSheetCameraCoverage,
   mobileSheetChipActive,
-  MOBILE_RAIL_FONT_CLAMP,
-  MOBILE_SHEET_TITLE_CLAMP,
   mobileSheetGeometry,
-  mobileRailScale,
-  mobileSheetTitlePx,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
@@ -21,6 +20,7 @@ import {
   mobileSheetRestY,
   mobileSheetRubberBandY,
   mobileSheetScrollIntent,
+  mobileSheetTitlePx,
 } from "./mobileSheetGeometry";
 
 describe("mobile sheet transition geometry", () => {
@@ -174,7 +174,9 @@ describe("mobile sheet transition geometry", () => {
     expect(mobileRailScale(390)).toBe(1);
     expect(mobileRailScale(570)).toBeCloseTo(1.1, 10);
     expect(mobileRailScale(820)).toBe(1.2);
-    expect(MOBILE_RAIL_FONT_CLAMP).toBe("clamp(1rem, 0.765rem + 0.941vw, 1.2rem)");
+    expect(MOBILE_RAIL_FONT_CLAMP).toBe(
+      "clamp(1rem, 0.765rem + 0.941vw, 1.2rem)",
+    );
     expect(mobileSheetGeometry("closed", 820).headerPx).toBe(
       mobileSheetGeometry("open", 820).headerPx,
     );

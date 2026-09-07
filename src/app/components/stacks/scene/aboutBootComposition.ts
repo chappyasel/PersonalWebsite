@@ -5,6 +5,7 @@ import {
   ABOUT_AIC_MARK_WIDTH,
 } from "./aboutAwardGeometry";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
+import { ABOUT_GLOBE_THEME_COLORS } from "./aboutGlobePalette";
 import {
   ABOUT_ROLE_STACK_HEIGHT,
   ABOUT_ROLE_STACK_PROFILE_WIDTH,
@@ -93,7 +94,11 @@ export const ABOUT_BOOT_COMPOSITION = [
       width: ABOUT_BOOT_MODEL_SILHOUETTES.globe.profile[0],
       height: ABOUT_BOOT_MODEL_SILHOUETTES.globe.profile[1],
     },
-    colorProfile: { light: "#5c7f9c", dark: "#3c5a72" },
+    // The map's sea (globe-map.ts); the glyph itself paints its parts.
+    colorProfile: {
+      light: ABOUT_GLOBE_THEME_COLORS.light.ocean,
+      dark: ABOUT_GLOBE_THEME_COLORS.dark.ocean,
+    },
     sceneScale: ABOUT_MODEL_POSES.globe.scale,
   },
   {

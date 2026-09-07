@@ -1,10 +1,12 @@
+import { abandonedPercent } from "~/lib/books/types";
+
+import type { BookLookupEntry } from "~/components/notion/types";
+
 import {
   formatLength,
   formatReadDates,
   formatSingleReadDate,
 } from "~/app/books/lib/format";
-import type { BookLookupEntry } from "~/components/notion/types";
-import { abandonedPercent } from "~/lib/books/types";
 
 /** The slug in a bare books.chappyasel.com URL, or null for any other text. */
 export function bookSlugFromUrl(text: string): string | null {

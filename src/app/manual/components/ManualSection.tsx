@@ -1,9 +1,9 @@
+import type { BookLookup, ManualSection as ManualSectionType } from "../types";
+
 import AnchorLink from "~/components/daylight/AnchorLink";
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { sectionShortTitle } from "~/components/daylight/sectionTitles";
 import { NotionBlockRenderer } from "~/components/notion";
-
-import type { BookLookup, ManualSection as ManualSectionType } from "../types";
 
 export default function ManualSection({
   section,

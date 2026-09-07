@@ -29,9 +29,7 @@ export default function DaylightSheet({
       label={label}
       expandHref={expandHref}
       className="dl-sheet"
-      onPresenceChange={(present) =>
-        useStacks.getState().setModalOpen(present)
-      }
+      onPresenceChange={(present) => useStacks.getState().setModalOpen(present)}
     >
       {children}
     </ModalSheet>

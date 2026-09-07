@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import * as LiarsDice from "~/lib/liarsdice";
+import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 
 export const liarsdiceRouter = createTRPCRouter({
   calculateOdds: publicProcedure

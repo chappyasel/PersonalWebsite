@@ -24,8 +24,7 @@ export function canSoftNavigate(currentHref: string, nextHref: string) {
   const next = new URL(nextHref, current);
   if (current.origin !== next.origin) return false;
   return (
-    current.hostname.startsWith("books.") ||
-    current.hostname.startsWith("dad.")
+    current.hostname.startsWith("books.") || current.hostname.startsWith("dad.")
   );
 }
 

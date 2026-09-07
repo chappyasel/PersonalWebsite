@@ -1,14 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  sceneLayoutEditorController as editor,
-  sceneLayoutNudgeForKeyboard,
-} from "./sceneLayoutEditor";
 import {
   connectFreeRoamEntryObserver,
   createFreeRoamDiagnosticsController,
 } from "./freeRoamDiagnostics";
+import {
+  sceneLayoutEditorController as editor,
+  sceneLayoutNudgeForKeyboard,
+} from "./sceneLayoutEditor";
 
 afterEach(() => editor.resetForTests());
 
@@ -157,7 +157,10 @@ describe("scene layout editor", () => {
     editor.update("photo", [0.2, 0, 0.3]);
     editor.updateRotation("photo", [0, Math.PI / 4, 0]);
 
-    expect(editor.getSnapshot()).toMatchObject({ canUndo: true, canRedo: false });
+    expect(editor.getSnapshot()).toMatchObject({
+      canUndo: true,
+      canRedo: false,
+    });
     expect(editor.undo()).toBe(true);
     expect(target.root.rotation.y).toBe(0);
     expect(target.root.position.toArray()).toEqual([0.2, 0, 0.3]);
@@ -235,5 +238,4 @@ describe("scene layout editor", () => {
     expect(target.root.position.toArray()).toEqual([0, 0, 0]);
     expect(editor.undo()).toBe(false);
   });
-
 });

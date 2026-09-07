@@ -1,6 +1,6 @@
 import fs from "fs";
-import path from "path";
 import matter from "gray-matter";
+import path from "path";
 
 // Build path dynamically to prevent Turbopack from statically analyzing symlinks
 const CONTENT_ROOT = path.join(process.cwd(), ...["content", "dad"]);

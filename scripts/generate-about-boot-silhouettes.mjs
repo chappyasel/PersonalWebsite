@@ -7,18 +7,39 @@ import { articulateDeskLampHead } from "../src/app/components/stacks/scene/Model
 import { ABOUT_LAMP_HEAD_QUATERNION } from "../src/app/components/stacks/scene/aboutLampPose.ts";
 import { ABOUT_MODEL_POSES } from "../src/app/components/stacks/scene/aboutScenePose.ts";
 import {
+  GLOBE_PIN_REACH,
+  GLOBE_SPHERE_SEGMENTS,
+  GLOBE_STAND_FOOTPRINT,
+  GLOBE_STAND_HEIGHT,
+  dressGlobeBall,
+  globeBallRadius,
+  globeSurfacePoint,
+  slimGlobeStand,
+  splitGlobeBall,
+  trimGlobeAxlePins,
+} from "../src/app/components/stacks/scene/globeBall.ts";
+import {
   tjMedallionFrontElevation,
   tjMedallionSolidGroup,
   tjMedallionSpecSignature,
 } from "../src/app/components/stacks/scene/tjMedallionGeometry.js";
+import { geoArea, geoOrthographic, geoPath } from "d3-geo";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import polygonClipping from "polygon-clipping";
 import prettier from "prettier";
 import sharp from "sharp";
 import * as THREE from "three";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+
+import {
+  loadCountries,
+  polygonsOf,
+  ringsOf,
+  visitedGeometry,
+} from "./generate/globeCountries.ts";
 
 globalThis.self = globalThis;
 await MeshoptDecoder.ready;
@@ -408,6 +429,165 @@ function trace({ width, height, mask }, { smooth = false } = {}) {
     .join("");
 }
 
+/**
+ * The land and the visited countries drawn on the globe's ball as the ball
+ * faces the camera at boot (spin angle zero), as vector paths in the
+ * silhouette's raster frame.
+ *
+ * d3-geo's orthographic projection does the spherical work: the horizon
+ * clip, holes, the poles and the antimeridian. What this function supplies
+ * is the ball's orientation as d3's three rotation angles, recovered from
+ * the same transform the texture uses (globeSurfacePoint through the ball's
+ * mount and the shelf pose), and checked against it before anything is
+ * drawn. Countries are unioned first so no border survives to open a seam,
+ * and simplified in degrees so the paths stay a few kilobytes.
+ */
+function globeMapPaths(split, pose, raster) {
+  const posed = new THREE.Matrix4().compose(
+    new THREE.Vector3(...(pose.localPosition ?? [0, 0, 0])),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(...pose.rotation)),
+    new THREE.Vector3(1, 1, 1),
+  );
+  split.mount.updateWorldMatrix(true, false);
+  // Spin frame to the front elevation's frame, node scale included.
+  const world = posed.clone().multiply(split.mount.matrixWorld);
+  const centre = new THREE.Vector3().setFromMatrixPosition(world);
+  const radius = globeBallRadius(split.spin) * world.getMaxScaleOnAxis();
+  const rotation = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().extractRotation(world),
+  );
+  // dressGlobeBall turns the sphere over when the axle points down its
+  // parent; the texture is authored on the unturned sphere.
+  const axleUp =
+    new THREE.Vector3(0, 1, 0).applyQuaternion(split.mount.quaternion).y >= 0;
+  const turn = axleUp
+    ? new THREE.Quaternion()
+    : new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(1, 0, 0),
+        Math.PI,
+      );
+  /** A latitude/longitude as a unit vector in the front elevation's frame:
+   * x right, y up, z toward the camera. */
+  const facing = (lon, lat) =>
+    globeSurfacePoint(lat, lon, 1)
+      .applyQuaternion(turn)
+      .applyQuaternion(rotation);
+  const toPixel = (point) => [
+    1 + (centre.x + point.x * radius - raster.minX) * raster.rasterScale,
+    1 + (raster.maxY - (centre.y + point.y * radius)) * raster.rasterScale,
+  ];
+
+  // d3 rotates the geographic unit vector g = (cos lat cos lon, cos lat sin
+  // lon, sin lat) by Rx(γ)·Ry(−φ)·Rz(λ) and looks down its x axis, with y to
+  // the right and z up. Our frame has the camera on z, x right, y up, so a
+  // d3 vector (X, Y, Z) is our (Y, Z, X). Build our rotation of g from its
+  // three basis vectors, permute it into d3's frame, and read the angles
+  // off as an XYZ Euler.
+  const geographicBasis = [facing(0, 0), facing(90, 0), facing(0, 90)];
+  const ours = new THREE.Matrix4().makeBasis(...geographicBasis);
+  const permute = new THREE.Matrix4().set(
+    0,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+  );
+  const d3Rotation = permute.clone().multiply(ours);
+  const euler = new THREE.Euler().setFromRotationMatrix(d3Rotation, "XYZ");
+  const degrees = (radians) => (radians * 180) / Math.PI;
+  const rotate = [degrees(euler.z), -degrees(euler.y), degrees(euler.x)];
+  const [centreX, centreY] = toPixel(new THREE.Vector3(0, 0, 0));
+  const projection = geoOrthographic()
+    .rotate(rotate)
+    .translate([centreX, centreY])
+    .scale(radius * raster.rasterScale)
+    .clipAngle(90)
+    // No adaptive resampling: straight segments are all this scale needs,
+    // and resampled great circles ran the paths to a hundred kilobytes.
+    .precision(0);
+  // The angles must reproduce the texture's own mapping, or the coasts
+  // would drift off the ball the room draws.
+  for (const [lon, lat] of [
+    [-122.4, 37.8],
+    [-58.4, -34.6],
+    [2.35, 48.9],
+    [18.4, -33.9],
+  ]) {
+    const direction = facing(lon, lat);
+    if (direction.z <= 0.05) continue;
+    const [x, y] = toPixel(direction);
+    const [px, py] = projection([lon, lat]);
+    if (Math.hypot(px - x, py - y) > 0.5)
+      throw new Error(
+        `Globe boot glyph: d3 rotation disagrees with the ball's mapping at ${lon},${lat} by ${Math.hypot(px - x, py - y).toFixed(2)}px`,
+      );
+  }
+  const path = geoPath(projection).digits(1);
+
+  // Antarctica's ring runs down the antimeridian to the pole and back: two
+  // edges that coincide on the sphere and draw as a slit. Without those
+  // vertices the coast closes on itself across a zero-length edge.
+  const seamless = (ring) =>
+    ring.filter(([lon, lat]) => !(lat < -60 && Math.abs(lon) > 179.99));
+  const simplified = (ring) => {
+    const closed = simplifyOpen(ring.concat([ring[0]]), MAP_TOLERANCE_DEGREES);
+    closed.pop();
+    if (closed.length < 3) return null;
+    const lons = closed.map(([lon]) => lon);
+    const lats = closed.map(([, lat]) => lat);
+    if (
+      Math.max(...lons) - Math.min(...lons) < MAP_MIN_DEGREES &&
+      Math.max(...lats) - Math.min(...lats) < MAP_MIN_DEGREES
+    )
+      return null;
+    return closed;
+  };
+  const drawn = (polygons) => {
+    const multipolygon = polygonClipping
+      .union(polygons)
+      .map((rings) =>
+        rings
+          .map((ring) => simplified(seamless(ring)))
+          .filter(Boolean)
+          // d3-geo reads winding on the sphere: an outer ring must enclose
+          // less than a hemisphere, a hole's ring more (the hole is what the
+          // rest of the sphere leaves). Rewind by spherical area, the way
+          // d3's own rewind helper does; a plain reversal drew every
+          // landmass inside out.
+          .map((ring, index) => {
+            const large =
+              geoArea({ type: "Polygon", coordinates: [ring] }) > Math.PI * 2;
+            return large === index > 0 ? ring : ring.slice().reverse();
+          }),
+      )
+      .filter((rings) => rings.length > 0);
+    return path({ type: "MultiPolygon", coordinates: multipolygon }) ?? "";
+  };
+  const { countries, byName } = loadCountries();
+  const land = drawn(countries.features.flatMap((country) => ringsOf(country)));
+  const visited = drawn(
+    visitedGeometry(byName).flatMap((geometry) => polygonsOf(geometry)),
+  );
+  return { land, visited };
+}
+/** Simplification tolerance and the smallest feature kept, in degrees:
+ * at this scale a degree is about a pixel and a third at the centre of the
+ * ball, so half a degree of wobble reads as detail rather than noise, and
+ * an island under a degree across would be a speck. */
+const MAP_TOLERANCE_DEGREES = 0.5;
+const MAP_MIN_DEGREES = 1;
+
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const generated = {};
 const VISION_PRO_PARTS = {
@@ -451,6 +631,30 @@ for (const [id, model] of Object.entries(MODELS)) {
   if (headQuaternion && !articulateDeskLampHead(gltf.scene, headQuaternion)) {
     throw new Error("Could not articulate the About desk-lamp head");
   }
+  // The room redraws the globe at load: a mapped ball on the same radius,
+  // pins trimmed past the ring, a slimmer base with a floor. The outline must
+  // be of that prop, not of the file, or the handoff shows the wide plinth
+  // and the long pins for a moment. The shape constants join the signature
+  // so a tweak to any of them marks this file stale.
+  const globeShape =
+    id === "globe"
+      ? {
+          footprint: GLOBE_STAND_FOOTPRINT,
+          height: GLOBE_STAND_HEIGHT,
+          pinReach: GLOBE_PIN_REACH,
+          segments: GLOBE_SPHERE_SEGMENTS,
+        }
+      : undefined;
+  let globeSplit = null;
+  if (globeShape) {
+    const split = splitGlobeBall(gltf.scene, "stacks-spin");
+    if (typeof split === "string")
+      throw new Error(`Could not split the About globe: ${split}`);
+    dressGlobeBall(split.spin, { map: new THREE.Texture() });
+    trimGlobeAxlePins(split.stand, split.mount);
+    slimGlobeStand(split.stand, split.mount);
+    globeSplit = split;
+  }
   const modelTriangles = triangles(
     gltf.scene,
     model.pose.rotation,
@@ -461,24 +665,50 @@ for (const [id, model] of Object.entries(MODELS)) {
     version: 1,
     pose: model.pose,
     headQuaternion,
+    globeShape,
   });
   const sceneUnitsPerPixel = model.pose.scale / raster.rasterScale;
   const isVisionPro = id === "vision-pro";
-  const parts = isVisionPro
-    ? Object.fromEntries(
-        Object.entries(VISION_PRO_PARTS).map(([part, include]) => {
-          const partTriangles = triangles(
-            gltf.scene,
-            model.pose.rotation,
-            model.pose.localPosition,
-            include,
-          );
-          let partRaster = rasterize(partTriangles, raster);
-          if (part === "glass") partRaster = expandRaster(partRaster, 6, 3);
-          return [part, trace(partRaster, { smooth: true })];
-        }),
-      )
-    : undefined;
+  let parts;
+  if (isVisionPro) {
+    parts = Object.fromEntries(
+      Object.entries(VISION_PRO_PARTS).map(([part, include]) => {
+        const partTriangles = triangles(
+          gltf.scene,
+          model.pose.rotation,
+          model.pose.localPosition,
+          include,
+        );
+        let partRaster = rasterize(partTriangles, raster);
+        if (part === "glass") partRaster = expandRaster(partRaster, 6, 3);
+        return [part, trace(partRaster, { smooth: true })];
+      }),
+    );
+  } else if (globeSplit) {
+    // The globe in its own colours: the stand and the ball are the split's
+    // two mesh sets; the land and the visited countries come off the map
+    // texture as the ball faces the camera at boot. No chapter marks: at
+    // this size they would be noise, and the live ball brings them.
+    const standTriangles = triangles(
+      gltf.scene,
+      model.pose.rotation,
+      model.pose.localPosition,
+      (object) => object === globeSplit.stand,
+    );
+    const ballTriangles = triangles(
+      gltf.scene,
+      model.pose.rotation,
+      model.pose.localPosition,
+      (object) => object !== globeSplit.stand,
+    );
+    const map = globeMapPaths(globeSplit, model.pose, raster);
+    parts = {
+      stand: trace(rasterize(standTriangles, raster)),
+      ball: trace(rasterize(ballTriangles, raster)),
+      land: map.land,
+      visited: map.visited,
+    };
+  }
   generated[id] = {
     source: `/models/${model.file}`,
     sourceKind: "file",

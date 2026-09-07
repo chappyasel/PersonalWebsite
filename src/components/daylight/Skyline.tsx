@@ -9,8 +9,8 @@ import {
  * The dome shader's own SF traverse, generated into skylineGeometry.ts by
  * scripts/generate/skyline-silhouette.ts. The viewBox keeps the dome's
  * angular aspect, so the drawing scales uniformly with the hero width; color
- * comes from the parent via currentColor — except the Golden Gate, which
- * wears its International Orange (--dl-ggb) the way the dome paints it.
+ * comes from the parent via currentColor, except the Golden Gate and Sutro's
+ * muted daylight paint bands.
  *
  * The night layer is generated too: the moon rides behind the buildings
  * (dark theme), the shader's fixed-hash windows glint in both themes (a city
@@ -66,11 +66,22 @@ export default function Skyline() {
           fill="url(#dl-moon-halo-g)"
           mask="url(#dl-moon-halo-m)"
         />
-        <circle cx={MOON.x} cy={MOON.y} r={MOON.r} fill="url(#dl-moon-disc-g)" />
+        <circle
+          cx={MOON.x}
+          cy={MOON.y}
+          r={MOON.r}
+          fill="url(#dl-moon-disc-g)"
+        />
       </g>
       {SKYLINE_SHAPES.map((shape, i) => {
         const paint =
-          shape.tone === "ggb" ? "hsl(var(--dl-ggb))" : "currentColor";
+          shape.tone === "ggb"
+            ? "hsl(var(--dl-ggb))"
+            : shape.tone === "sutro-red"
+              ? "hsl(var(--dl-sutro-red))"
+              : shape.tone === "sutro-white"
+                ? "hsl(var(--dl-sutro-white))"
+                : "currentColor";
         if (shape.kind === "rect") {
           return (
             <rect
@@ -123,7 +134,9 @@ export default function Skyline() {
                 r={shape.r}
                 style={
                   shape.phase !== undefined
-                    ? { animationDelay: `${(-shape.phase * 12.57).toFixed(2)}s` }
+                    ? {
+                        animationDelay: `${(-shape.phase * 12.57).toFixed(2)}s`,
+                      }
                     : undefined
                 }
               />

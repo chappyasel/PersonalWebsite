@@ -537,8 +537,7 @@ export class MeadowDeformationController {
     this.lastStampAt = now;
     this.lastRecoveryAt = now + MEADOW_DEFORMATION.holdSeconds;
     this.nextRecoveryAt =
-      this.lastRecoveryAt +
-      1 / MEADOW_DEFORMATION[this.quality].recoveryHz;
+      this.lastRecoveryAt + 1 / MEADOW_DEFORMATION[this.quality].recoveryHz;
     this.publish({
       acceptedStamps: this.diagnostics.acceptedStamps + 1,
       active: true,
@@ -580,8 +579,7 @@ export class MeadowDeformationController {
         if (now <= recoveryStartsAt) {
           this.lastRecoveryAt = recoveryStartsAt;
           this.nextRecoveryAt =
-            recoveryStartsAt +
-            1 / MEADOW_DEFORMATION[this.quality].recoveryHz;
+            recoveryStartsAt + 1 / MEADOW_DEFORMATION[this.quality].recoveryHz;
           return;
         }
         this.recover(now - Math.max(this.lastRecoveryAt, recoveryStartsAt));

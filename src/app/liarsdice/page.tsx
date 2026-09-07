@@ -1,12 +1,27 @@
 "use client";
 
-import { CalculatorIcon, DiceOneIcon, HouseLineIcon } from "@phosphor-icons/react";
-import { devBaseUrl } from "~/lib/util";
+import {
+  CalculatorIcon,
+  DiceOneIcon,
+  HouseLineIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useQueryStates } from "nuqs";
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
+import { searchParamsParsers } from "./lib/searchParams";
+import { type Input, type Output, play } from "~/lib/liarsdice";
+import { devBaseUrl } from "~/lib/util";
+
+import InputForm from "./components/InputForm";
+import OutputTable from "./components/OutputTable";
 import { Separator } from "~/components/ui/separator";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 import {
@@ -15,11 +30,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { type Input, type Output, play } from "~/lib/liarsdice";
-
-import InputForm from "./components/InputForm";
-import OutputTable from "./components/OutputTable";
-import { searchParamsParsers } from "./lib/searchParams";
 
 function parseDiceString(str: string): number[] {
   const counts = [0, 0, 0, 0, 0, 0];

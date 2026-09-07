@@ -1,6 +1,11 @@
 "use client";
 
-import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useMemo, useState } from "react";
 
@@ -72,7 +77,9 @@ export default function OutputTable({ output, currentBid }: Props) {
             <button
               onClick={() => setShowAll((v) => !v)}
               className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
-              aria-label={showAll ? "Hide bids at or below current bid" : "Show all bids"}
+              aria-label={
+                showAll ? "Hide bids at or below current bid" : "Show all bids"
+              }
             >
               {showAll ? (
                 <EyeIcon className="h-4 w-4" weight="bold" />
@@ -159,8 +166,7 @@ export default function OutputTable({ output, currentBid }: Props) {
                           const spotOn = (
                             scenario.spotOnProbability * 100
                           ).toFixed(1);
-                          const isLast =
-                            index === filteredScenarios.length - 1;
+                          const isLast = index === filteredScenarios.length - 1;
                           const isBestBid =
                             bestBid !== null &&
                             target.diceNumber === bestBid.faceValue &&

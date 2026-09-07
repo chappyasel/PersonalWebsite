@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isBareUrl, SITE_PAGES, sitePageForHref } from "./pages";
+import { SITE_PAGES, isBareUrl, sitePageForHref } from "./pages";
 
 describe("sitePageForHref", () => {
   it("recognises each page by its production host", () => {

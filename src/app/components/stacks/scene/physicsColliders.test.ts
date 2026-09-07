@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { describe, expect, it } from "vitest";
 
+import { MUSINGS_PAPER_STACK } from "./musingsShelfGeometry";
 import {
   DYNAMIC_COLLIDER_HORIZONTAL_INSET,
   FOLIAGE_BASE_HORIZONTAL_INSET,
@@ -13,7 +14,6 @@ import {
   extractColliderBoxes,
   extractDynamicColliderBoxes,
 } from "./physicsColliders";
-import { MUSINGS_PAPER_STACK } from "./musingsShelfGeometry";
 
 function mesh(
   size: [number, number, number] = [0.2, 0.2, 0.2],

@@ -104,7 +104,9 @@ export async function fetchBooksFromNotion(): Promise<BaseBook[]> {
 /**
  * Fetch a single book with full notes content
  */
-export async function fetchBookDetails(bookId: string): Promise<BaseBook & { notes: string }> {
+export async function fetchBookDetails(
+  bookId: string,
+): Promise<BaseBook & { notes: string }> {
   try {
     // Fetch the page
     const page = await notion.pages.retrieve({ page_id: bookId });

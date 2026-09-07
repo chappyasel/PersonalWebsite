@@ -1,3 +1,4 @@
+import { useStacks } from "../store";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -5,7 +6,6 @@ import {
   propReactionIsEngaged,
   setPropReactionsSuppressed,
 } from "./reactionEngagement";
-import { useStacks } from "../store";
 
 const idle: PropReactionInteractionState = {
   hovered: null,
@@ -28,10 +28,7 @@ describe("prop reaction engagement", () => {
 
   it("uses persistent Touch Focus", () => {
     expect(
-      propReactionIsEngaged(
-        { ...idle, focusedInteraction: "prop" },
-        "prop",
-      ),
+      propReactionIsEngaged({ ...idle, focusedInteraction: "prop" }, "prop"),
     ).toBe(true);
   });
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { readMarkdownFile } from "~/app/dad/lib/content";
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
+import { readMarkdownFile } from "~/app/dad/lib/content";
 
 export default function EpiloguePage() {
   const { content } = readMarkdownFile("Journal/epilogue.md");

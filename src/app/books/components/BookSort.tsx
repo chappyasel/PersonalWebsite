@@ -1,11 +1,7 @@
 "use client";
 
 import { searchParamsParsers } from "../lib/searchParams";
-import {
-  DEFAULT_SORT_ORDER,
-  type SortField,
-  resolveSort,
-} from "../lib/sort";
+import { DEFAULT_SORT_ORDER, type SortField, resolveSort } from "../lib/sort";
 import {
   BookOpenTextIcon,
   CalendarBlankIcon,
