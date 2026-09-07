@@ -300,6 +300,7 @@ describe("Scene Diagnostics registry", () => {
       "render.effective-dpr-rungs",
       "render.adaptive-sharpen",
       "render.ambient-occlusion",
+      "render.ambient-occlusion-transparency",
       "render.bloom",
       "render.depth-of-field",
       "render.virtualize-units",

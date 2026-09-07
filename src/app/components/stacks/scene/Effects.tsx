@@ -849,6 +849,70 @@ function LiveBokehDepthOfField({
   );
 }
 
+/** What the N8AO wrapper hands back through `ref`: the pass itself. Typed
+ * structurally because `n8ao` is postprocessing's dependency, not ours. */
+type AmbientOcclusionPass = {
+  autoDetectTransparency: boolean;
+  configuration: { transparencyAware: boolean };
+  effectCompositerQuad: {
+    material: { uniforms: Record<string, { value: unknown }> };
+  };
+};
+
+/**
+ * The ambient occlusion pass with its transparency handling pinned.
+ *
+ * N8AO ships with `autoDetectTransparency` on: every frame it walks the whole
+ * scene graph looking for a transparent material, and the first one it finds
+ * (this room has hundreds: contact shades, pools, petals, wings, glass) turns
+ * `transparencyAware` on for good. That mode re-renders every transparent
+ * object into two full-resolution targets each frame, behind three more
+ * scene walks, so occlusion can stop at those surfaces instead of darkening
+ * them. Measured at rest on Showcase: 118 extra draws at About, 148 at Books.
+ *
+ * Both halves are pinned here. The auto-detect walk is switched off
+ * outright, because the answer never changes for this scene, and the mode
+ * itself follows the `ambientOcclusionTransparency` performance setting so
+ * Scene Diagnostics can A/B it live and `?noaotransparency` can pin it for a
+ * capture. Writing the configuration property allocates or disposes the two
+ * transparency targets on its own, but the compositor's uniform is only ever
+ * written true (N8AO.js, the composition step), so a live on-to-off toggle
+ * would leave the shader sampling disposed textures. Reset it here.
+ */
+function AmbientOcclusion({
+  plan,
+  transparency,
+}: {
+  plan: SceneQualityPlan["effects"];
+  transparency: boolean;
+}) {
+  const pass = useRef<AmbientOcclusionPass | null>(null);
+  useLayoutEffect(() => {
+    const current = pass.current;
+    if (!current) return;
+    current.autoDetectTransparency = false;
+    if (current.configuration.transparencyAware !== transparency)
+      current.configuration.transparencyAware = transparency;
+    if (!transparency) {
+      const uniforms = current.effectCompositerQuad.material.uniforms;
+      uniforms.transparencyAware!.value = false;
+      uniforms.transparencyDWFalse!.value = null;
+      uniforms.transparencyDWTrue!.value = null;
+      uniforms.transparencyDWTrueDepth!.value = null;
+    }
+  }, [transparency]);
+  return (
+    <N8AO
+      ref={pass}
+      halfRes={plan.ambientOcclusionHalfRes}
+      quality={plan.ambientOcclusionQuality}
+      aoRadius={0.32}
+      distanceFalloff={0.8}
+      intensity={2.4}
+    />
+  );
+}
+
 /**
  * Resize the composer's render targets when the DEVICE PIXEL RATIO changes.
  *
@@ -1012,12 +1076,9 @@ export default function Effects({
           the mask the grade reads. It touches no composer buffer. */}
       {performanceSettings.colorGrade && <PhotoMask pass={photoMask} />}
       {plan.ambientOcclusion && !visionRideRoomHidden && (
-        <N8AO
-          halfRes={plan.ambientOcclusionHalfRes}
-          quality={plan.ambientOcclusionQuality}
-          aoRadius={0.32}
-          distanceFalloff={0.8}
-          intensity={2.4}
+        <AmbientOcclusion
+          plan={plan}
+          transparency={performanceSettings.ambientOcclusionTransparency}
         />
       )}
       {/* Keep bloom on HDR practicals, not on the moon and white sky detail.

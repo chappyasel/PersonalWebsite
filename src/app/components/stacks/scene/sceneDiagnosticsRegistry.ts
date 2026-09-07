@@ -1764,6 +1764,29 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     },
   }),
   performanceBoolean({
+    id: "render.ambient-occlusion-transparency",
+    panel: "render",
+    group: "render.passes",
+    label: "AO under transparent surfaces",
+    help: "Re-render every transparent object into two full-resolution targets each frame so occlusion stops at contact shades, pools, petals and glass instead of darkening them. Off composites occlusion from the opaque depth alone.",
+    key: "ambientOcclusionTransparency",
+    optimizationPreset: { optimized: false, unoptimized: true },
+    experimental: false,
+    reloadInput: "noaotransparency",
+    disabled: () =>
+      scenePerformanceController.getSnapshot().skipAmbientOcclusion,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Two extra full-resolution scene renders of transparent objects, two render targets with depth, and three scene-graph walks per frame.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  performanceBoolean({
     id: "render.bloom",
     panel: "render",
     group: "render.passes",

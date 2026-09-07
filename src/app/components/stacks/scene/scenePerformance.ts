@@ -54,6 +54,15 @@ export type ScenePerformanceSettings = Readonly<{
   skipAmbientOcclusion: boolean;
   skipBloom: boolean;
   skipDepthOfField: boolean;
+  /** Let ambient occlusion account for transparent surfaces. N8AO does this
+   * by re-rendering every transparent object into two full-resolution
+   * targets each frame (contact shades, pools, petals, wings, glass: 70 to
+   * 150 draws at rest) and walking the whole scene graph three more times.
+   * Off, occlusion is composited from the opaque depth alone, so a shade or
+   * a leaf over a corner also carries the corner's darkening. Either value
+   * is set explicitly on the pass, which also stops N8AO's own per-frame
+   * scene walk that auto-detects transparency. */
+  ambientOcclusionTransparency: boolean;
   /** Preserve a slow-frame signal observed during travel and apply it once
    * the camera settles, where the durable ladder can react safely. */
   rememberTravelDeclines: boolean;
@@ -94,6 +103,7 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
     skipAmbientOcclusion: false,
     skipBloom: false,
     skipDepthOfField: false,
+    ambientOcclusionTransparency: true,
     rememberTravelDeclines: true,
     populationBalancedMeadowTiles: true,
     suspendSettledHoverWork: true,

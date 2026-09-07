@@ -38,6 +38,7 @@ describe("reversible scene performance settings", () => {
       skipAmbientOcclusion: false,
       skipBloom: false,
       skipDepthOfField: false,
+      ambientOcclusionTransparency: true,
       rememberTravelDeclines: true,
       populationBalancedMeadowTiles: true,
       suspendSettledHoverWork: true,

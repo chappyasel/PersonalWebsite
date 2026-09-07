@@ -49,6 +49,9 @@ export function diagnosticReloadSeedFromSearch(
       ? { prewarmAllUnitVisuals: false }
       : {}),
     ...(params.has("nodof") ? { skipDepthOfField: true } : {}),
+    ...(params.has("noaotransparency")
+      ? { ambientOcclusionTransparency: false }
+      : {}),
     ...(params.get("grassDeformation") === "off"
       ? { grassDeformation: false }
       : {}),
