@@ -1,3 +1,10 @@
+import type { SitePageKey } from "~/lib/site/pages";
+
+/** Rows a result group shows before offering the rest behind a "Show more"
+ * row. The public index keeps this many of every source when it cuts to its
+ * limit, so no section's preview is starved by another. */
+export const RESULT_GROUP_PREVIEW = 6;
+
 export const SEARCH_RESULT_GROUPS = [
   "destinations",
   "books",
@@ -85,9 +92,16 @@ type CommandEntryBase = {
   promoted: boolean;
 };
 
+/** A destination that is one of the site's own pages (a document such as the
+ * Manual, or an app such as Book Notes). The palette gives its row the same
+ * tile the page's browser tab wears, from the page's own icon route, and the
+ * one-line description the page publishes in its metadata. */
+export type CommandPage = SitePageKey;
+
 export type CommandDestinationEntry = CommandEntryBase & {
   kind: "destination";
   target: CommandDestinationTarget;
+  page?: CommandPage;
 };
 
 export type CommandActionEntry = CommandEntryBase & {

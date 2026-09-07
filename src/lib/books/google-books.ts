@@ -60,12 +60,13 @@ export async function fetchBookCover(
       links.thumbnail ??
       null;
 
-    // Upgrade to HTTPS if needed
-    if (coverUrl?.startsWith("http:")) {
-      return coverUrl.replace("http:", "https:");
-    }
+    if (!coverUrl) return null;
 
-    return coverUrl ?? null;
+    // Upgrade to HTTPS if needed, and drop Google's rendered page-curl edge
+    // so the stored art is flat.
+    return coverUrl
+      .replace(/^http:/, "https:")
+      .replace(/&edge=curl\b/, "");
   } catch (error) {
     console.error("Error fetching book cover from Google Books:", error);
     return null;

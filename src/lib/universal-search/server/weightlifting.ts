@@ -4,6 +4,8 @@ import { resolveDestinationTarget } from "../urls";
 
 import { categoryColor } from "~/app/weightlifting/lib/utils";
 
+import { MAX_PROVIDER_RESULTS } from "./search";
+
 export type WeightliftingExerciseRow = {
   slug: string;
   displayName: string;
@@ -52,7 +54,7 @@ export async function searchWeightliftingExercises(
     })),
   );
 
-  return ranked.slice(0, 6).map((row) => ({
+  return ranked.slice(0, MAX_PROVIDER_RESULTS).map((row) => ({
     id: `weightlifting:${row.displayName}`,
     kind: "content",
     group: "weightlifting",

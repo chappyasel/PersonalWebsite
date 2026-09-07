@@ -3,7 +3,10 @@ import type { SearchResult } from "../types";
 import { resolveDestinationTarget } from "../urls";
 import { sql } from "drizzle-orm";
 
+import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+
 import { createServerExcerpt } from "./excerpt";
+import { MAX_PROVIDER_RESULTS } from "./search";
 
 // Notes embed base64 data: URIs (synced images), which push some books past
 // Postgres's 1MB tsvector cap — the-changing-world-order is 6.4MB raw and
@@ -181,13 +184,17 @@ export async function searchBooks(
       .map((row) => ({ ...row, matchKind: "body" as const, score: 400 })),
   ];
 
-  return ranked.slice(0, 6).map((row) => ({
+  return ranked.slice(0, MAX_PROVIDER_RESULTS).map((row) => ({
     id: `book:${row.id}`,
     kind: "content",
     group: "books",
     label: row.title,
     description: row.author,
-    ...(row.cover_url ? { imageUrl: row.cover_url } : {}),
+    // The same clean art the library draws: Google Books thumbnails carry a
+    // rendered page-curl edge unless asked not to.
+    ...(row.cover_url
+      ? { imageUrl: enhanceCoverUrl(row.cover_url) ?? row.cover_url }
+      : {}),
     href: resolveDestinationTarget(
       {
         kind: "site",

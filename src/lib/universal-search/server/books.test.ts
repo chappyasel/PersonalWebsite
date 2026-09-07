@@ -52,6 +52,39 @@ describe("searchBooks", () => {
     expect(results[2]?.excerpt).toContain("decision");
   });
 
+  it("serves the flat cover art, never Google's rendered page curl", async () => {
+    const results = await searchBooks("burn", {
+      load: async () => [
+        {
+          id: "burn-book",
+          title: "Burn Book",
+          author: "Kara Swisher",
+          tags: [],
+          notes: null,
+          cover_url:
+            "https://books.google.com/books/content?id=MYTPEAAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
+        },
+        {
+          id: "amazon-book",
+          title: "Burn Rate",
+          author: "Andy Dunn",
+          tags: [],
+          notes: null,
+          cover_url: "https://m.media-amazon.com/images/I/61KBgtIGGML.jpg",
+        },
+      ],
+      location: new URL("https://www.chappyasel.com"),
+    });
+
+    const google = new URL(results[0]!.imageUrl!);
+    expect(google.searchParams.has("edge")).toBe(false);
+    expect(google.searchParams.get("fife")).toBe("w800");
+    // Other hosts pass through untouched.
+    expect(results[1]?.imageUrl).toBe(
+      "https://m.media-amazon.com/images/I/61KBgtIGGML.jpg",
+    );
+  });
+
   it("passes a normalized two-character query to the database loader", async () => {
     const load = vi.fn(async () => []);
     await searchBooks(" AI ", {

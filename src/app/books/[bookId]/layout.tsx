@@ -1,3 +1,4 @@
+import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookForOG } from "~/lib/books/ogDataAccess";
 
 type LayoutProps = {
@@ -23,7 +24,9 @@ export default async function BookLayout({ children, params }: LayoutProps) {
       ...(book.publicationYear && {
         datePublished: String(book.publicationYear),
       }),
-      ...(book.coverUrl && { image: book.coverUrl }),
+      ...(book.coverUrl && {
+        image: enhanceCoverUrl(book.coverUrl) ?? book.coverUrl,
+      }),
       ...(book.rating && {
         aggregateRating: {
           "@type": "AggregateRating",

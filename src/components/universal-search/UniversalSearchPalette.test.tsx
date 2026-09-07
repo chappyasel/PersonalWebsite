@@ -339,7 +339,9 @@ describe("UniversalSearchPalette", () => {
     );
     const input = screen.getByRole("combobox", { name: "Universal Search" });
     await user.type(input, "manual");
-    await user.click(screen.getByText("Manual"));
+    await user.click(
+      screen.getByRole("option", { name: /Personal Operating Manual/ }),
+    );
 
     expect(navigate).toHaveBeenCalledWith("https://manual.chappyasel.com/");
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -363,6 +365,174 @@ describe("UniversalSearchPalette", () => {
         screen.getByRole("combobox", { name: "Universal Search" }),
       ).toHaveProperty("value", ""),
     );
+  });
+
+  it("shows a page with its tab tile and description, ahead of the section naming it", () => {
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={vi.fn()}
+        dependencies={dependencies()}
+      />,
+    );
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Universal Search" }),
+      { target: { value: "personal systems" } },
+    );
+
+    const [first, second] = screen.getAllByRole("option");
+    // The page itself: the tile its tab wears, its name, and the one-line
+    // description it publishes.
+    expect(first?.textContent).toContain("Personal Systems");
+    expect(first?.textContent).toContain(
+      "The seven layers of personal systems I use to run my life",
+    );
+    expect(
+      first
+        ?.querySelector("img[data-search-page-tile]")
+        ?.getAttribute("src"),
+    ).toBe("https://www.chappyasel.com/systems/tab-icon");
+    // The homepage section that only mentions it comes after, undressed.
+    expect(second?.textContent).toBe("Personal Systems section");
+    expect(second?.querySelector("img")).toBeNull();
+  });
+
+  it("serves a subdomain page's tile from that page's own host", () => {
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={vi.fn()}
+        dependencies={dependencies()}
+      />,
+    );
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Universal Search" }),
+      { target: { value: "weightlifting" } },
+    );
+
+    const tiles = screen
+      .getAllByRole("option")
+      .map((option) =>
+        option.querySelector("img[data-search-page-tile]"),
+      )
+      .filter((tile) => tile !== null);
+    // The route lives on the section's own host: the subdomain proxy only
+    // knows the bare path there.
+    expect(tiles.map((tile) => tile.getAttribute("src"))).toEqual([
+      "https://weightlifting.chappyasel.com/tab-icon",
+    ]);
+  });
+
+  it("previews six rows per group and reveals the rest in place, keeping the highlight", async () => {
+    vi.useFakeTimers();
+    const analytics = vi.fn();
+    const books = Array.from({ length: 10 }, (_, index) => ({
+      id: `book:${index}`,
+      kind: "content" as const,
+      group: "books" as const,
+      label: `Book ${index}`,
+      href: `https://books.chappyasel.com/${index}`,
+      matchKind: "prefix" as const,
+      score: 900 - index,
+    }));
+    try {
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={vi.fn()}
+          dependencies={dependencies({
+            capture: analytics,
+            searchServer: vi.fn(async () => ({
+              groups: {
+                books: { status: "success" as const, results: books },
+                weightlifting: { status: "success" as const, results: [] },
+                dad: { status: "skipped" as const, results: [] },
+              },
+            })),
+          })}
+        />,
+      );
+      const input = screen.getByRole("combobox", { name: "Universal Search" });
+      const selected = () =>
+        document.querySelector('[cmdk-item][data-selected="true"]')
+          ?.textContent;
+      fireEvent.change(input, { target: { value: "zzbook" } });
+      await act(async () => {
+        vi.advanceTimersByTime(140);
+        await Promise.resolve();
+      });
+
+      expect(screen.getAllByRole("option", { name: /^Book \d$/ })).toHaveLength(
+        6,
+      );
+      // Six arrow presses walk from the first book onto the "Show more" row.
+      for (let step = 0; step < 6; step++) {
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+      }
+      expect(selected()).toBe("Show 4 more");
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(screen.getAllByRole("option", { name: /^Book \d$/ })).toHaveLength(
+        10,
+      );
+      expect(screen.queryByRole("option", { name: /^Show \d+ more$/ })).toBeNull();
+      // The highlight lands on the first revealed row, not back at the top,
+      // and the arrows carry on through the revealed rows.
+      expect(selected()).toBe("Book 6");
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      expect(selected()).toBe("Book 7");
+      expect(screen.getByRole("status").textContent).toBe(
+        "4 more Book Notes results shown",
+      );
+      expect(analytics).toHaveBeenCalledWith(
+        "universal_search_group_expanded",
+        { group: "books", hidden_count: 4 },
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forgets the keyboard selection when the palette closes", async () => {
+    window.localStorage.clear();
+    const onOpenChange = vi.fn();
+    const deps = dependencies();
+    const selected = () =>
+      document.querySelector('[cmdk-item][data-selected="true"]')?.textContent;
+    const view = render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={onOpenChange}
+        dependencies={deps}
+      />,
+    );
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Universal Search" }),
+      { target: { value: "manual" } },
+    );
+    await waitFor(() =>
+      expect(selected()).toContain("Personal Operating Manual"),
+    );
+
+    view.rerender(
+      <UniversalSearchPaletteContent
+        open={false}
+        onOpenChange={onOpenChange}
+        dependencies={deps}
+      />,
+    );
+    view.rerender(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={onOpenChange}
+        dependencies={deps}
+      />,
+    );
+
+    // cmdk's selection is held by the palette now, so it must reset with the
+    // query: reopened empty, the highlight starts at the top again instead
+    // of on last time's row, and Enter cannot open a row nobody saw selected.
+    await waitFor(() => expect(selected()).toBe("Home"));
   });
 
   it("paints static matches before progressively adding provider results", async () => {
@@ -396,7 +566,11 @@ describe("UniversalSearchPalette", () => {
       const input = screen.getByRole("combobox", { name: "Universal Search" });
       fireEvent.change(input, { target: { value: "book" } });
 
-      expect(screen.getByText("Book Notes")).toBeTruthy();
+      // The label renders through the match highlighter, so its text is
+      // split across elements; match on the option's accessible name.
+      expect(
+        screen.getAllByRole("option", { name: /^Book Notes/ }).length,
+      ).toBeGreaterThan(0);
       expect(screen.queryByText("Async Book")).toBeNull();
       expect(searchServer).not.toHaveBeenCalled();
       expect(document.querySelector("[data-search-skeleton]")).toBeNull();

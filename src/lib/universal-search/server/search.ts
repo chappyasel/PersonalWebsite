@@ -3,7 +3,12 @@ import type { SearchResult } from "../types";
 
 import { createServerExcerpt } from "./excerpt";
 
-export const MAX_PROVIDER_RESULTS = 6;
+// A group's ceiling in one response. The palette previews six rows and
+// offers the rest behind a "Show more" row, so this is what "all" means to
+// it. The books query already ranks and joins 24 rows per request and threw
+// eighteen away; a sanitized row is a few hundred bytes, so the whole
+// response stays small.
+export const MAX_PROVIDER_RESULTS = 24;
 export const MAX_SEARCH_QUERY_LENGTH = 80;
 // Wide enough that a cold Neon connection plus the ranked note query fits;
 // common-token queries ("12") were brushing the old 1.5s ceiling in dev.

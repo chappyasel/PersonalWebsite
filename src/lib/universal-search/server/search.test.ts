@@ -77,8 +77,8 @@ describe("runServerSearch", () => {
     expect(response.groups.dad.results[0]?.group).toBe("dad");
   });
 
-  it("caps every group at six results", async () => {
-    const many = Array.from({ length: 20 }, (_, index) =>
+  it("caps every group at the provider maximum", async () => {
+    const many = Array.from({ length: MAX_PROVIDER_RESULTS + 6 }, (_, index) =>
       result("books", index),
     );
     const response = await runServerSearch(

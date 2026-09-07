@@ -227,6 +227,10 @@ export type AnalyticsEventProperties = {
     rank: number;
     match_kind: UniversalSearchMatchKind;
   };
+  universal_search_group_expanded: {
+    group: UniversalSearchGroup;
+    hidden_count: number;
+  };
 };
 
 export function universalSearchOpenedProperties(): AnalyticsEventProperties["universal_search_opened"] {
@@ -266,6 +270,16 @@ export function universalSearchResultSelectedProperties(input: {
     kind: input.kind,
     rank: Math.max(0, Math.floor(input.rank)),
     match_kind: input.matchKind,
+  };
+}
+
+export function universalSearchGroupExpandedProperties(input: {
+  group: UniversalSearchGroup;
+  hiddenCount: number;
+}): AnalyticsEventProperties["universal_search_group_expanded"] {
+  return {
+    group: input.group,
+    hidden_count: Math.max(0, Math.floor(input.hiddenCount)),
   };
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  universalSearchGroupExpandedProperties,
   universalSearchOpenedProperties,
   universalSearchProviderSettledProperties,
   universalSearchResultSelectedProperties,
@@ -39,6 +40,12 @@ describe("Universal Search analytics payloads", () => {
       rank: 1,
       match_kind: "body",
     });
+    expect(
+      universalSearchGroupExpandedProperties({
+        group: "books",
+        hiddenCount: 4.7,
+      }),
+    ).toEqual({ group: "books", hidden_count: 4 });
   });
 
   it("cannot carry query, title, URL, excerpt, or result ID fields", () => {
@@ -57,6 +64,7 @@ describe("Universal Search analytics payloads", () => {
         rank: 0,
         matchKind: "exact",
       }),
+      universalSearchGroupExpandedProperties({ group: "dad", hiddenCount: 2 }),
     ];
 
     const serialized = JSON.stringify(payloads).toLowerCase();

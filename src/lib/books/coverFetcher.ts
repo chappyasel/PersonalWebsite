@@ -60,6 +60,10 @@ async function fetchFromGoogleBooks(
         // Increase zoom level for better quality (zoom=1 is default, zoom=5 gives much higher res)
         coverUrl = coverUrl.replace(/zoom=\d+/, "zoom=5");
 
+        // Google's thumbnails opt into a rendered page-curl edge; store the
+        // flat art so every consumer starts clean.
+        coverUrl = coverUrl.replace(/&edge=curl\b/, "");
+
         return coverUrl;
       }
     }

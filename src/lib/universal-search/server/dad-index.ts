@@ -6,6 +6,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { createServerExcerpt } from "./excerpt";
+import { MAX_PROVIDER_RESULTS } from "./search";
 
 export const DAD_SEARCH_INDEX_FILENAME = "dad-search-index.json" as const;
 
@@ -180,7 +181,7 @@ export async function searchDadIndex(
   const normalizedQuery = normalizeSearchText(query);
 
   return rankSearchCandidates(normalizedQuery, documents)
-    .slice(0, 6)
+    .slice(0, MAX_PROVIDER_RESULTS)
     .map((document) => ({
       id: document.id,
       kind: "content",

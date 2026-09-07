@@ -1,3 +1,5 @@
+import { SITE_PAGES } from "~/lib/site/pages";
+
 import type { CommandEntry } from "./types";
 
 export const COMMAND_ENTRIES = [
@@ -20,36 +22,45 @@ export const COMMAND_ENTRIES = [
     icon: "books",
     promoted: true,
     target: { kind: "site", site: "books" },
+    // A page of its own: its row wears the tile its browser tab does and
+    // carries the page's description.
+    page: "books",
   },
+  // The three Notion documents go by their own names, the ones their heroes
+  // and homepage cards use, so a query for a document's name lands on the
+  // document itself and not on the homepage section that only mentions it.
   {
     id: "destination-manual",
     kind: "destination",
-    label: "Manual",
-    aliases: ["personal manual", "user guide"],
+    label: SITE_PAGES.manual.label,
+    aliases: ["manual", "personal manual", "user guide"],
     keywords: ["personality", "values", "working with me"],
     icon: "manual",
     promoted: true,
     target: { kind: "site", site: "manual" },
+    page: "manual",
   },
   {
     id: "destination-routine",
     kind: "destination",
-    label: "Routine",
-    aliases: ["daily routine", "schedule"],
+    label: SITE_PAGES.routine.label,
+    aliases: ["routine", "daily routine", "schedule"],
     keywords: ["morning", "evening", "supplements", "habits"],
     icon: "routine",
     promoted: true,
     target: { kind: "site", site: "routine" },
+    page: "routine",
   },
   {
     id: "destination-systems",
     kind: "destination",
-    label: "Systems",
-    aliases: ["personal systems", "seven layers", "life systems"],
+    label: SITE_PAGES.systems.label,
+    aliases: ["systems", "seven layers", "life systems"],
     keywords: ["foundations", "planning", "execution", "feedback", "tools"],
     icon: "systems",
     promoted: true,
     target: { kind: "site", site: "home", path: "/systems" },
+    page: "systems",
   },
   {
     id: "destination-weightlifting",
@@ -60,6 +71,7 @@ export const COMMAND_ENTRIES = [
     icon: "weightlifting",
     promoted: true,
     target: { kind: "site", site: "weightlifting" },
+    page: "weightlifting",
   },
   {
     id: "section-about",

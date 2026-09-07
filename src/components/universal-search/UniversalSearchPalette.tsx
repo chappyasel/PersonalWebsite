@@ -5,6 +5,7 @@ import {
   BarbellIcon,
   BookOpenTextIcon,
   BooksIcon,
+  CaretDownIcon,
   ClockIcon,
   CodeIcon,
   DesktopIcon,
@@ -33,10 +34,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { flushSync } from "react-dom";
 
 import {
   type AnalyticsCapture,
   capture,
+  universalSearchGroupExpandedProperties,
   universalSearchOpenedProperties,
   universalSearchProviderSettledProperties,
   universalSearchResultSelectedProperties,
@@ -44,6 +47,7 @@ import {
 } from "~/lib/analytics";
 import { type FontOption, useFont } from "~/lib/font-provider";
 import { type ThemeChoice } from "~/lib/theme";
+import { SITE_PAGES } from "~/lib/site/pages";
 import { runCommandAction } from "~/lib/universal-search/actions";
 import { queryServerSearch } from "~/lib/universal-search/client-providers";
 import { navigateUniversalSearchResult } from "~/lib/universal-search/navigation";
@@ -59,13 +63,17 @@ import {
   recordRecentResult,
 } from "~/lib/universal-search/recents";
 import { COMMAND_ENTRIES } from "~/lib/universal-search/registry";
+import { RESULT_GROUP_PREVIEW } from "~/lib/universal-search/types";
 import type {
+  CommandDestinationEntry,
   CommandEntry,
   CommandIconKey,
+  CommandPage,
   SearchResult,
 } from "~/lib/universal-search/types";
 import {
   type SearchLocation,
+  resolveDestinationTarget,
   resolveRegistryDestination,
 } from "~/lib/universal-search/urls";
 import {
@@ -125,6 +133,23 @@ type RankedCommandEntry = CommandEntry & {
 const ROW_SELECTED =
   "data-[selected=true]:bg-primary/10 data-[selected=true]:ring-1 data-[selected=true]:ring-inset data-[selected=true]:ring-primary/15";
 
+/** Every row's picture column: one 28px slot. A page's tile fills it, a
+ * glyph sits centred in it, a book cover matches its width. One slot, one
+ * text column, however the rows are mixed. */
+const ICON_SLOT = "flex size-7 shrink-0 items-center justify-center";
+
+/** A glyph centred in the slot, coloured like the row's text state. */
+function SlotGlyph({ icon: IconComponent }: { icon: Icon }) {
+  return (
+    <span aria-hidden className={ICON_SLOT}>
+      <IconComponent
+        className="size-[18px] text-muted-foreground group-data-[selected=true]:text-foreground"
+        weight="regular"
+      />
+    </span>
+  );
+}
+
 const ESCAPE_REGEX = /[.*+?^${}()|[\]\\]/g;
 
 /** Marks occurrences of the query (or, failing that, its words) in result
@@ -174,14 +199,90 @@ function commandMatches(query: string): RankedCommandEntry[] {
   );
 }
 
+/** The tile a page's browser tab wears, from the page's own icon route: a
+ * bare /tab-icon on a subdomain site (the proxy only knows the bare path
+ * there), or under the page's path on the main host (/systems/tab-icon). */
+function pageTileUrl(
+  entry: CommandDestinationEntry,
+  location: SearchLocation,
+) {
+  const prefix = (entry.target.path ?? "").replace(/\/+$/, "");
+  return resolveDestinationTarget(
+    { kind: "site", site: entry.target.site, path: `${prefix}/tab-icon` },
+    location,
+  );
+}
+
+/** One of the site's own pages as a result: the tile its tab wears in the
+ * icon slot, its name, and the one-line description it publishes. The same
+ * anatomy as every other row, one line taller. */
+function PageRow({
+  entry,
+  query,
+  location,
+  onSelect,
+}: {
+  entry: CommandDestinationEntry & { page: CommandPage };
+  query: string;
+  location: SearchLocation;
+  onSelect: () => void;
+}) {
+  const { description } = SITE_PAGES[entry.page];
+  return (
+    <Command.Item
+      value={entry.id}
+      onSelect={onSelect}
+      className={cn(
+        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none",
+        ROW_SELECTED,
+      )}
+    >
+      {/* The icon route is an SVG that recolours itself for the colour
+          scheme, which next/image cannot optimise; its corners are already
+          rounded and transparent. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={pageTileUrl(entry, location)}
+        alt=""
+        width={28}
+        height={28}
+        data-search-page-tile=""
+        className="size-7 shrink-0"
+        draggable={false}
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-foreground">
+          <HighlightedText text={entry.label} query={query} />
+        </span>
+        <span className="block truncate text-xs leading-snug text-muted-foreground">
+          <HighlightedText text={description} query={query} />
+        </span>
+      </span>
+    </Command.Item>
+  );
+}
+
 function CommandRow({
   entry,
+  query,
+  location,
   onSelect,
 }: {
   entry: CommandEntry;
+  query: string;
+  location: SearchLocation;
   onSelect: () => void;
 }) {
-  const IconComponent = ICONS[entry.icon];
+  if (entry.kind === "destination" && entry.page) {
+    return (
+      <PageRow
+        entry={{ ...entry, page: entry.page }}
+        query={query}
+        location={location}
+        onSelect={onSelect}
+      />
+    );
+  }
   return (
     <Command.Item
       value={entry.id}
@@ -192,11 +293,7 @@ function CommandRow({
         ROW_SELECTED,
       )}
     >
-      <IconComponent
-        aria-hidden
-        className="size-[18px] shrink-0 text-muted-foreground group-data-[selected=true]:text-foreground"
-        weight="regular"
-      />
+      <SlotGlyph icon={ICONS[entry.icon]} />
       <span className="min-w-0 flex-1 truncate">{entry.label}</span>
     </Command.Item>
   );
@@ -218,10 +315,7 @@ function RecentRow({
         ROW_SELECTED,
       )}
     >
-      <ClockIcon
-        aria-hidden
-        className="size-[18px] shrink-0 text-muted-foreground"
-      />
+      <SlotGlyph icon={ClockIcon} />
       <span className="min-w-0 flex-1 truncate">{recent.label}</span>
     </Command.Item>
   );
@@ -278,6 +372,50 @@ function publicWritingSubgroups(results: SearchResult[]) {
   return [...subgroups, other].filter((group) => group.entries.length > 0);
 }
 
+/** A result's picture: a book's portrait cover at the slot's width, an
+ * article or project's landscape capture at the slot's height, or the
+ * group's glyph when there is no picture or the picture never arrives (a
+ * cover host that 404s would otherwise leave a blank in the column). */
+function ResultPicture({
+  result,
+  icon: IconComponent,
+}: {
+  result: SearchResult;
+  icon: Icon;
+}) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const imageUrl =
+    result.imageUrl && failed !== result.imageUrl ? result.imageUrl : null;
+  if (!imageUrl) {
+    return (
+      <span aria-hidden className={cn(ICON_SLOT, "h-5")}>
+        <IconComponent className="size-[18px] text-muted-foreground group-data-[selected=true]:text-foreground" />
+      </span>
+    );
+  }
+  return result.group === "books" ? (
+    <Image
+      src={imageUrl}
+      alt=""
+      width={28}
+      height={42}
+      className="mt-0.5 h-[42px] w-7 shrink-0 rounded-[3px] object-cover shadow-sm"
+      draggable={false}
+      onError={() => setFailed(imageUrl)}
+    />
+  ) : (
+    <Image
+      src={imageUrl}
+      alt=""
+      width={42}
+      height={28}
+      className="mt-0.5 h-7 w-[42px] shrink-0 rounded-[3px] object-cover shadow-sm"
+      draggable={false}
+      onError={() => setFailed(imageUrl)}
+    />
+  );
+}
+
 function SearchResultRow({
   result,
   query,
@@ -287,7 +425,6 @@ function SearchResultRow({
   query: string;
   onSelect: () => void;
 }) {
-  const IconComponent = resultIcon(result);
   const isNoteMatch = result.group === "books" && result.matchKind === "body";
   return (
     <Command.Item
@@ -298,34 +435,7 @@ function SearchResultRow({
         ROW_SELECTED,
       )}
     >
-      {result.imageUrl ? (
-        // Books read as portrait spines; article and project thumbnails
-        // are landscape captures.
-        result.group === "books" ? (
-          <Image
-            src={result.imageUrl}
-            alt=""
-            width={26}
-            height={39}
-            className="mt-0.5 h-[39px] w-[26px] shrink-0 rounded-[3px] object-cover shadow-sm"
-            draggable={false}
-          />
-        ) : (
-          <Image
-            src={result.imageUrl}
-            alt=""
-            width={40}
-            height={26}
-            className="mt-0.5 h-[26px] w-[40px] shrink-0 rounded-[3px] object-cover shadow-sm"
-            draggable={false}
-          />
-        )
-      ) : (
-        <IconComponent
-          aria-hidden
-          className="mt-0.5 size-[18px] shrink-0 text-muted-foreground group-data-[selected=true]:text-foreground"
-        />
-      )}
+      <ResultPicture result={result} icon={resultIcon(result)} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-foreground">
           <HighlightedText text={result.label} query={query} />
@@ -355,6 +465,35 @@ function SearchResultRow({
           </span>
         )}
       </span>
+    </Command.Item>
+  );
+}
+
+/** The last row of a previewed group: choosing it reveals the group's
+ * remaining results in place. */
+function ShowMoreRow({
+  groupKey,
+  count,
+  onSelect,
+}: {
+  groupKey: string;
+  count: number;
+  onSelect: () => void;
+}) {
+  return (
+    <Command.Item
+      value={`expand:${groupKey}`}
+      onSelect={onSelect}
+      className={cn(
+        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1.5 text-xs text-muted-foreground outline-none",
+        "data-[selected=true]:text-foreground",
+        ROW_SELECTED,
+      )}
+    >
+      <span aria-hidden className={ICON_SLOT}>
+        <CaretDownIcon className="size-[18px]" />
+      </span>
+      <span>{`Show ${count} more`}</span>
     </Command.Item>
   );
 }
@@ -435,6 +574,20 @@ export function UniversalSearchPaletteContent({
   const [recents, setRecents] = useState<RecentResult[]>(() =>
     readRecentResults(dependencies.storage),
   );
+  // cmdk's selection, held here so revealing a group's remaining rows can
+  // hand the highlight to the first of them.
+  const [selectedValue, setSelectedValue] = useState("");
+  // Groups the visitor asked to see in full, remembered per query: a new
+  // query folds every group back to its preview.
+  const [expanded, setExpanded] = useState<{
+    query: string;
+    groups: readonly string[];
+  }>({ query: "", groups: [] });
+  // What the live region says after a group is revealed, kept per query.
+  const [expansionNotice, setExpansionNotice] = useState<{
+    query: string;
+    text: string;
+  } | null>(null);
   const zeroReportedQueryRef = useRef<string | null>(null);
   const captureAnalytics = dependencies.capture;
   const visualEffects = useSyncExternalStore(
@@ -446,6 +599,12 @@ export function UniversalSearchPaletteContent({
   useEffect(() => {
     if (!open) {
       setQuery("");
+      // cmdk's selection lives out here now, so it is forgotten with the
+      // query: a reopened palette starts at the top, not on the row chosen
+      // last time, and Enter cannot open a row the visitor never saw.
+      setSelectedValue("");
+      setExpanded({ query: "", groups: [] });
+      setExpansionNotice(null);
       return;
     }
     captureAnalytics(
@@ -619,6 +778,81 @@ export function UniversalSearchPaletteContent({
     dependencies.navigate(result.href);
   };
 
+  const expandedGroups =
+    expanded.query === normalizedQuery ? expanded.groups : [];
+
+  const expandGroup = (
+    groupKey: string,
+    group: SearchResult["group"],
+    heading: string,
+    hidden: readonly SearchResult[],
+  ) => {
+    // Hand the highlight to the first revealed row before the "Show more"
+    // row leaves. cmdk sends a vanished selection back to the top of the
+    // list, and it decides that from the DOM as the row unmounts, so the
+    // selection must already have moved by then.
+    const first = hidden[0];
+    if (first) flushSync(() => setSelectedValue(first.id));
+    setExpanded((current) => ({
+      query: normalizedQuery,
+      groups: [
+        ...(current.query === normalizedQuery ? current.groups : []),
+        groupKey,
+      ],
+    }));
+    setExpansionNotice({
+      query: normalizedQuery,
+      text: `${hidden.length} more ${heading} ${hidden.length === 1 ? "result" : "results"} shown`,
+    });
+    captureAnalytics(
+      "universal_search_group_expanded",
+      universalSearchGroupExpandedProperties({
+        group,
+        hiddenCount: hidden.length,
+      }),
+    );
+  };
+
+  /** A group's rows: the preview and a row offering the rest, or every row
+   * once the visitor has asked. `rank` stays the provider-wide position
+   * for selection analytics. */
+  const groupRows = (
+    groupKey: string,
+    group: AsyncSearchGroup,
+    heading: string,
+    entries: readonly { result: SearchResult; rank: number }[],
+  ) => {
+    const open = expandedGroups.includes(groupKey);
+    const shown = open ? entries : entries.slice(0, RESULT_GROUP_PREVIEW);
+    const hidden = open ? [] : entries.slice(RESULT_GROUP_PREVIEW);
+    return (
+      <>
+        {shown.map(({ result, rank }) => (
+          <SearchResultRow
+            key={result.id}
+            result={result}
+            query={normalizedQuery}
+            onSelect={() => selectSearchResult(result, rank)}
+          />
+        ))}
+        {hidden.length > 0 && (
+          <ShowMoreRow
+            groupKey={groupKey}
+            count={hidden.length}
+            onSelect={() =>
+              expandGroup(
+                groupKey,
+                group,
+                heading,
+                hidden.map((entry) => entry.result),
+              )
+            }
+          />
+        )}
+      </>
+    );
+  };
+
   // The homepage's 3D world stamps `data-world` on the root element. Over
   // the scene the palette keeps its heavy placard-glass material; on flat
   // pages (Books, Weightlifting, Manual, Routine) it reads as a plain
@@ -688,9 +922,16 @@ export function UniversalSearchPaletteContent({
             aria-atomic="true"
             className="sr-only"
           >
-            {providerAnnouncement}
+            {expansionNotice?.query === normalizedQuery
+              ? expansionNotice.text
+              : providerAnnouncement}
           </div>
-          <Command shouldFilter={false} label="Universal Search">
+          <Command
+            shouldFilter={false}
+            label="Universal Search"
+            value={selectedValue}
+            onValueChange={setSelectedValue}
+          >
             <div className="flex items-center gap-3 border-b border-border/70 px-4">
               <MagnifyingGlassIcon
                 aria-hidden
@@ -734,6 +975,8 @@ export function UniversalSearchPaletteContent({
                     <CommandRow
                       key={entry.id}
                       entry={entry}
+                      query={normalizedQuery}
+                      location={dependencies.location}
                       onSelect={() => selectCommand(entry, index)}
                     />
                   ))}
@@ -764,14 +1007,12 @@ export function UniversalSearchPaletteContent({
                         key={`${group}:${subgroup.heading}`}
                         heading={subgroup.heading}
                       >
-                        {subgroup.entries.map(({ result, rank }) => (
-                          <SearchResultRow
-                            key={result.id}
-                            result={result}
-                            query={normalizedQuery}
-                            onSelect={() => selectSearchResult(result, rank)}
-                          />
-                        ))}
+                        {groupRows(
+                          `${group}:${subgroup.heading}`,
+                          group,
+                          subgroup.heading,
+                          subgroup.entries,
+                        )}
                       </ResultGroup>
                     ),
                   );
@@ -781,14 +1022,12 @@ export function UniversalSearchPaletteContent({
                     key={group}
                     heading={ASYNC_GROUP_PRESENTATION[group].heading}
                   >
-                    {state.results.map((result, index) => (
-                      <SearchResultRow
-                        key={result.id}
-                        result={result}
-                        query={normalizedQuery}
-                        onSelect={() => selectSearchResult(result, index)}
-                      />
-                    ))}
+                    {groupRows(
+                      group,
+                      group,
+                      ASYNC_GROUP_PRESENTATION[group].heading,
+                      state.results.map((result, rank) => ({ result, rank })),
+                    )}
                     {state.status === "error" && state.results.length === 0 && (
                       <ProviderErrorRow group={group} />
                     )}
@@ -804,6 +1043,8 @@ export function UniversalSearchPaletteContent({
                     <CommandRow
                       key={entry.id}
                       entry={entry}
+                      query={normalizedQuery}
+                      location={dependencies.location}
                       onSelect={() => selectCommand(entry, index)}
                     />
                   ))}

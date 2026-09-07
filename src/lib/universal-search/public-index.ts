@@ -8,7 +8,7 @@ import {
   isYouTubeUrl,
 } from "./public-index-format";
 import { rankSearchCandidates } from "./ranking";
-import type { SearchResult } from "./types";
+import { RESULT_GROUP_PREVIEW, type SearchResult } from "./types";
 import type { SearchLocation } from "./urls";
 import { resolveDestinationTarget } from "./urls";
 
@@ -195,22 +195,56 @@ function resolveTarget(target: PublicSearchTarget, location: SearchLocation) {
   );
 }
 
+/** The index is searched in the browser, so the only cost of a match is a
+ * row; this ceiling guards the list against a two-letter query, not the
+ * wire. The palette previews RESULT_GROUP_PREVIEW rows per section and
+ * offers the rest. */
+export const PUBLIC_INDEX_RESULT_LIMIT = 60;
+
+/**
+ * Cut a ranked list to `limit` while keeping the first `reserve` rows of
+ * every source. Equal scores keep index order, and the index lists Manual,
+ * Routine, and Systems before Musings and Projects, so a plain top-N cut of
+ * a broad query would hand every row to the early sources and a later
+ * section would vanish from the palette. Order is preserved.
+ */
+export function capWithSourceReserve<Document extends { source: string }>(
+  ranked: readonly Document[],
+  limit: number,
+  reserve: number,
+): Document[] {
+  if (ranked.length <= limit) return [...ranked];
+  const reservedPerSource = new Map<string, number>();
+  const kept = new Set<number>();
+  ranked.forEach((document, index) => {
+    const count = reservedPerSource.get(document.source) ?? 0;
+    if (count < reserve && kept.size < limit) {
+      reservedPerSource.set(document.source, count + 1);
+      kept.add(index);
+    }
+  });
+  for (let index = 0; index < ranked.length && kept.size < limit; index++) {
+    kept.add(index);
+  }
+  return ranked.filter((_, index) => kept.has(index));
+}
+
 export function searchLoadedPublicIndex(
   index: PublicSearchIndex,
   rawQuery: string,
   location: SearchLocation,
-  limit = 6,
+  limit = PUBLIC_INDEX_RESULT_LIMIT,
 ): SearchResult[] {
-  return rankSearchCandidates(
+  const ranked = rankSearchCandidates(
     rawQuery,
     index.documents.map((document) => ({
       ...document,
       metadata: document.metadata,
       body: document.body,
     })),
-  )
-    .slice(0, limit)
-    .map((document) => ({
+  );
+  return capWithSourceReserve(ranked, limit, RESULT_GROUP_PREVIEW).map(
+    (document) => ({
       id: document.id,
       kind: "content",
       group: "public-writing",
@@ -227,7 +261,8 @@ export function searchLoadedPublicIndex(
         : {}),
       matchKind: document.matchKind,
       score: document.score,
-    }));
+    }),
+  );
 }
 
 export type QueryPublicSearchIndexOptions = {
