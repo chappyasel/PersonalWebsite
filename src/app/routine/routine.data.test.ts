@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import PersonalSystems from "~/app/components/PersonalSystems";
 import rawData from "~~/data/routine.json";
 
 import type { RoutineData } from "./types";
@@ -13,6 +18,11 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const entries = [...data.timeline.am, ...data.timeline.pm];
 const entry = (title: string) => entries.find((e) => e.title === title);
+
+vi.mock("~/app/components/TiltCard", () => ({
+  default: ({ children }: { children: unknown }) =>
+    createElement("div", null, children as never),
+}));
 
 /**
  * The snapshot is generated, so nobody reads it before it ships. These pin
@@ -54,23 +64,29 @@ describe("routine.json snapshot", () => {
 });
 
 /**
- * Two places restate schedule times instead of reading the snapshot: the
- * homepage card and the static OG image. Both drifted for a whole edit cycle
- * (6:00am lift on the site, 6:15am in Notion) before this test existed.
+ * The homepage card used to restate the schedule times by hand and drifted
+ * for a whole edit cycle (6:00am lift on the site, 6:15am in Notion); it
+ * now reads the snapshot, and this proves the four beats reach it. The
+ * static OG image still repeats them.
  */
-describe("routine facts the site repeats by hand", () => {
-  it("homepage card markers match the synced timeline", () => {
-    const card = read("src/app/components/DailyRoutine.tsx");
-    const markers = [
+describe("routine facts the site repeats", () => {
+  it("homepage card markers come from the synced timeline", () => {
+    const markup = renderToStaticMarkup(createElement(PersonalSystems));
+    const timeline = markup.slice(
+      markup.indexOf("data-routine-timeline"),
+      markup.indexOf('data-routine-section-index=""'),
+    );
+    const beats = [
       ["Wake", "Wake Up"],
       ["Lift", "Lift"],
       ["Work", "Work"],
       ["Sleep", "Sleep"],
     ] as const;
-    for (const [label, title] of markers) {
+    for (const [label, title] of beats) {
       const time = entry(title)?.time;
       expect(time, title).toBeDefined();
-      expect(card, label).toContain(`{ time: "${time}", label: "${label}"`);
+      expect(timeline, label).toContain(`>${time}</span>`);
+      expect(timeline, label).toContain(`>${label}</span>`);
     }
   });
 

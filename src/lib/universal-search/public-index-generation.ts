@@ -13,6 +13,7 @@ import {
 export const PUBLIC_INDEX_SOURCE_NAMES = [
   "manual",
   "routine",
+  "systems",
   "blog",
   "projects",
 ] as const;
@@ -226,6 +227,80 @@ function routineDocuments(root: JsonObject): PublicSearchDocument[] {
   return documents;
 }
 
+/** The words of a toggle's title before its "→" tail, with a leading emoji
+ * or workspace-emoji shortcode dropped: "🧪 Weekly Tweaks → behavior
+ * experiments" becomes "Weekly Tweaks". */
+function toggleLabel(title: RichText[]) {
+  const text = richTextText(title.filter((part) => !part.customEmoji));
+  const head = text.split("→")[0] ?? text;
+  return cleanPlainText(head.replace(/^\p{Extended_Pictographic}️?\s*/u, ""));
+}
+
+/**
+ * The systems page: one document per plain section, one per layer, and one
+ * per toggle inside a layer so "Weekly Tweaks" or "Sunsama" is found by
+ * name. Everything lands on the page's own route on the main host; toggles
+ * have no anchor of their own, so they land on their layer.
+ */
+function systemsDocuments(root: JsonObject): PublicSearchDocument[] {
+  const documents: PublicSearchDocument[] = [];
+  const target = (hash: string) => siteTarget("home", { path: "/systems", hash });
+
+  for (const section of objectArray(root.sections)) {
+    const id = stringValue(section.id);
+    const label = cleanPlainText(stringValue(section.title));
+    if (!id || !label) continue;
+
+    const layers = objectArray(section.layers);
+    if (layers.length === 0) {
+      documents.push({
+        id: `public:systems:${id}`,
+        source: "systems",
+        label,
+        target: target(id),
+        metadata: [],
+        body: extractNotionBlockText(section.blocks),
+      });
+      continue;
+    }
+
+    for (const layer of layers) {
+      const layerId = stringValue(layer.id);
+      const layerLabel = cleanPlainText(stringValue(layer.title));
+      if (!layerId || !layerLabel) continue;
+      const blocks = Array.isArray(layer.blocks) ? layer.blocks : [];
+      documents.push({
+        id: `public:systems:${layerId}`,
+        source: "systems",
+        label: layerLabel,
+        target: target(layerId),
+        metadata: [label],
+        body: extractNotionBlockText(blocks),
+      });
+      for (const block of blocks.filter(isObject)) {
+        if (block.type !== "toggle") continue;
+        const toggle = block as unknown as Extract<NotionBlock, { type: "toggle" }>;
+        const toggleName = toggleLabel(toggle.title);
+        if (!toggleName) continue;
+        documents.push({
+          id: `public:systems:${layerId}:${slug(toggleName)}`,
+          source: "systems",
+          label: toggleName,
+          target: target(layerId),
+          metadata: [layerLabel],
+          body: cleanPlainText(
+            [
+              richTextText(toggle.title).split("→").slice(1).join("→"),
+              extractNotionBlockText(toggle.children),
+            ].join(" "),
+          ),
+        });
+      }
+    }
+  }
+  return documents;
+}
+
 function blogDocuments(root: JsonObject): PublicSearchDocument[] {
   return objectArray(root.items).flatMap((post) => {
     const label = cleanPlainText(stringValue(post.title));
@@ -305,6 +380,7 @@ export function createPublicSearchIndex(
   const documents = [
     ...manualDocuments(parsed.manual),
     ...routineDocuments(parsed.routine),
+    ...systemsDocuments(parsed.systems),
     ...blogDocuments(parsed.blog),
     ...projectDocuments(parsed.projects),
   ];

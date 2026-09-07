@@ -1,0 +1,4779 @@
+{
+  "lastUpdated": "2026-09-07T06:55:00.000Z",
+  "intro": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "text": "I've spent years building and tuning my personal systems to help me be happier, healthier, more productive, more intentional, and more giving! It all started back in college when I read "
+        },
+        {
+          "text": "https://books.chappyasel.com/7-habits-of-highly-effective-people",
+          "link": "https://books.chappyasel.com/7-habits-of-highly-effective-people"
+        },
+        {
+          "text": " and wrote my first personal mission statement. Since then, I’ve gone through 20+ iterations – honing in on a system molded to how my brain works! "
+        },
+        {
+          "text": "Some parts are second nature, some are experimental, and some more are future expansions!"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "text": "I’ve included some "
+        },
+        {
+          "text": "tips for getting started",
+          "link": "#tips-for-getting-started"
+        },
+        {
+          "text": " and "
+        },
+        {
+          "text": "further reading",
+          "link": "#further-reading"
+        },
+        {
+          "text": " below as well. I hope you find some of this useful and definitely hit me up if you have any thoughts, feedback, or suggestions!"
+        }
+      ]
+    },
+    {
+      "type": "quote",
+      "content": [
+        {
+          "text": "“Systems engineering is the attempt to keep at all times the larger goals in mind and to translate local actions into global results.”",
+          "italic": true
+        },
+        {
+          "text": "\n~ Richard W. Hamming"
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "at-a-glance",
+      "title": "At a Glance",
+      "icon": "🗺️",
+      "blocks": [
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🧱 Foundations:",
+                    "bold": true,
+                    "link": "#foundations"
+                  },
+                  {
+                    "text": " who I am, what I believe, and the cues to make it automatic."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🧭 Direction & Strategy:",
+                    "bold": true,
+                    "link": "#direction-strategy"
+                  },
+                  {
+                    "text": " Where I want life and career to go and the current bets to move towards it."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "📆 Planning & Review Cycles:",
+                    "bold": true,
+                    "link": "#planning-review-cycles"
+                  },
+                  {
+                    "text": " Reviews at different timescales that keep daily action and long-term direction aligned."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🚀 Execution Systems:",
+                    "bold": true,
+                    "link": "#execution-systems"
+                  },
+                  {
+                    "text": " The routines that translate direction into allocations, projects, tasks, and calendar time."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "💬 Feedback & Counsel:",
+                    "bold": true,
+                    "link": "#feedback-counsel"
+                  },
+                  {
+                    "text": " Ways to catch blind spots, seek outside judgment, and turn useful feedback into changed behavior."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🗂️ Domain Systems:",
+                    "bold": true,
+                    "link": "#domain-systems"
+                  },
+                  {
+                    "text": " Systems for parts of a full life so productivity does not crowd out relationships, health, money, home, inner life, or fun."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🛠️ Tools & Infrastructure:",
+                    "bold": true,
+                    "link": "#tools-infrastructure"
+                  },
+                  {
+                    "text": " The software and agents that implement the system."
+                  }
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the-seven-layers",
+      "title": "The Seven Layers",
+      "icon": "🥞",
+      "layers": [
+        {
+          "id": "foundations",
+          "number": 1,
+          "title": "Foundations",
+          "icon": "🧱",
+          "blocks": [
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧬 Personal Identity",
+                  "bold": true
+                },
+                {
+                  "text": " → personality / values / principles / identity / mission / purpose"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Personality",
+                            "bold": true
+                          },
+                          {
+                            "text": ": How I naturally tend to think + behave"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Values",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What I value intrinsically / ends worth pursuing for their own sake"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Principles",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Reusable rules for choosing when values or tradeoffs collide"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Identity",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Who I choose to be / the roles + traits I practice"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Mission",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What I intend to contribute"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Purpose",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Who I intend to be and how I want to live now"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "📜 Personal Narrative",
+                  "bold": true
+                },
+                {
+                  "text": " → consciously frame my life and present chapter"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Full chronological version",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The complete internal story across major chapters + transitions"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "3-min version",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A spoken version with the context + turns that matter"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "30-second version",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The durable public spine"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Website + LinkedIn bios",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Surface-specific versions of the same current story"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🌎 World Model",
+                  "bold": true
+                },
+                {
+                  "text": " → beliefs about reality + operating mindsets"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "My beliefs about how the world works and the beliefs that help me move through it well. Some are objectively true, many others are interpretations I deliberately choose to shape perception, emotion, action, and ultimately outcomes.",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Core beliefs",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The 10–15 beliefs that most shape my life"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Worldview",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Descriptive + predictive claims about reality"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Chosen beliefs",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Useful wagers I deliberately choose under uncertainty"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Mindsets",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Default rules for interpreting events + choosing the next response"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Open questions",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Important beliefs I have not resolved"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "⛳ Cues",
+                  "bold": true
+                },
+                {
+                  "text": " → shorthand to remember how to think + act"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Short reminders that help retrieve beliefs / responses I want available instinctively. Like a golf-shot cue, each should be brief enough to remember and concrete enough to change my next thought or move.",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Core cues",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The smallest active set I want available instinctively"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Core quotes",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Borrowed language that retrieves a belief or response exceptionally well"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "More cues",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Secondary reminders for specific situations"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "More quotes",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The wider bank to revisit + promote"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "direction-strategy",
+          "number": 2,
+          "title": "Direction & Strategy",
+          "icon": "🧭",
+          "blocks": [
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "💫 Life Vision",
+                  "bold": true
+                },
+                {
+                  "text": " → integrated long-term picture: who I become / what I build / how I live"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Integrated Life Vision",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A vivid 10 to 20-year picture across all life domains"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "#1 Measure",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Was I there for the people I chose, and did what I built meaningfully improve other people's lives?"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Six Life Domains",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Self / health + vitality / relationships + belonging / work + contribution / lifestyle + experiences / resources + environment"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Tensions",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Important goods I cannot fully maximize at the same time"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Standards",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Whole-life floors the current strategy cannot violate"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🪣 Bucket List",
+                  "bold": true
+                },
+                {
+                  "text": " → portfolio of long-horizon experiences / life events / objectives"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Key life events and objectives commensurate to leading a successful, balanced, diverse, and fulfilling life.",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Principles",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Ongoing / categorical / amendable / objective / graduated / comprehensive / worthwhile / gratifying / aspirational / feasible"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Schema",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Category / description / target / priority / life stage / odds / caveats / completed"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Bucket List Items",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The actual experiences, achievements, and life events"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "♟️ Direction & Strategies",
+                  "bold": true
+                },
+                {
+                  "text": " → annual direction / bets / outcomes / non-prios / quarter map"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "The few choices I want to shape the next 12 months.",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Annual Direction",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What this year or chapter is principally about"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Annual Outcomes",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Specific observable results where 12 months is a useful horizon"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Priorities + Allocation",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What receives time / energy / money / attention"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "5/25 Non-Priorities",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Attractive options I am choosing to avoid"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Standards + Guardrails",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Conditions the strategy must protect"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Assumptions + Reconsideration Triggers",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What must remain true / what evidence should reopen the choice"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Quarterly Roadmap",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A rough sequence, not a promise"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Current Quarter Strategy",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The concrete bet / outcomes / active-work changes for the next 12 weeks"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Decision History",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What changed / when / why"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "planning-review-cycles",
+          "number": 3,
+          "title": "Planning & Review Cycles",
+          "icon": "📆",
+          "blocks": [
+            {
+              "type": "callout",
+              "icon": "💡",
+              "color": "gray_background",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Note: if you add up all the planning here you get ~6% of total time spent doing deliberate planning / strategy. I expect emergent planning through unanticipated opportunities to bring the real total closer to 10%. This is in line with what studies show is optimal for the explore exploit tradeoff!",
+                      "italic": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "♾️ Deep Think Weeks (72h)",
+                  "bold": true
+                },
+                {
+                  "text": " → annual foundations / direction / systems review + reset"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Planning + Setup",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Questions / sources / schedule / desired outputs"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Reflection",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Compress the year / decisions / energy / beliefs / failures / lessons"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Feedback",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Outside perspective across work / friendship / family"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Foundations + Narrative",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Identity / World Model / Cues / the story of the current chapter"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Systems Audit",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Keep / repair / simplify / create / delete"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Life + Career",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Vision / domains / direction / tradeoffs"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Year + Quarter",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Annual posture / first concrete strategy"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Writing + Meta-Reflection",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Durable outputs / critique the process itself"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🏔️ Quarterly Strategies (2-4h)",
+                  "bold": true
+                },
+                {
+                  "text": " → bets / outcomes / allocation / active work"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Compress",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Evidence / outcomes / trajectory / actual allocation / moments"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Alignment + Strategic Learning",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Direction / emergence / antifragility / assumptions"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Strategy + Outcomes",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Central bet / #1 outcome / supporting outcomes / tradeoffs"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Active Work",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Start / stop / merge / pause / redefine / assign next moves"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Systems + Counsel",
+                            "bold": true
+                          },
+                          {
+                            "text": ": One repair / one question that needs outside perspective"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Launch",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Update Focus / set the first Weekly / name revisit triggers"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🗓️ Monthly Trajectories (1h)",
+                  "bold": true
+                },
+                {
+                  "text": " → trajectory / active-work cleanup / correction"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Compress",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Past four or five Weeklys / trajectory / moments"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Active Work",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Finish / delete / merge / promote / define next moves"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Diagnose",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Alignment / allocation / emergence / repeated friction"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Implement",
+                            "bold": true
+                          },
+                          {
+                            "text": ": One correction / one tradeoff / larger questions escalated to Quarterly"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "📆 Weeklys (2h)",
+                  "bold": true
+                },
+                {
+                  "text": " → choose work / adapt / synthesize"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Plan (60m)",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Review last week / orient to Focus + Work Map / choose #1 + supporting outcomes / time-block"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Midweek Reset (15m)",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Check the #1 outcome / commitments / calendar / re-scope"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Review (45m)",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Compress / score outcomes / review Dailys / synthesize what to repeat or change"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "#️⃣ Dailys (10m)",
+                  "bold": true
+                },
+                {
+                  "text": " → plan / execute / review"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Plan",
+                            "bold": true
+                          },
+                          {
+                            "text": ": State / calendar capacity / #1 outcome / supporting commitments / first step / time-blocking"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Review",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Outcome / day quality / Weekly Tweak / creation time / one good moment / tomorrow's adjustment"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "execution-systems",
+          "number": 4,
+          "title": "Execution Systems",
+          "icon": "🚀",
+          "blocks": [
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "Chappy’s Core Daily Routine",
+                  "link": "https://chappyasel.com/routine"
+                },
+                {
+                  "text": " → default daily operating rhythm"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "This is basically how my broader Personal Systems translate into what I actually do every day.",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Why So Early?",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The logic behind the 3:45am wake-up"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "AM",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Wake / plan / deep work / lift / shower / breakfast / PM prep"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "PM",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Sunset / wind down / review / sleep"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Related Rants",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Alertness / caffeine / supplements / sleep / getting back on track"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "✅ Focus",
+                  "bold": true
+                },
+                {
+                  "text": " → current outcomes + target allocations across quarter → week → day"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Life Mission",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The contribution everything else should ultimately serve"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "This Quarter",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The current objective / outcomes / allocation"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "This Week",
+                            "bold": true
+                          },
+                          {
+                            "text": ": #1 outcome + supporting commitments"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Today",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The single result that would make the day a win"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Work Map",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The portfolio underneath the current choices"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🗺️ Work Map",
+                  "bold": true
+                },
+                {
+                  "text": " → areas / workstreams / projects / backlog across professional + personal"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Portfolio",
+                            "bold": true
+                          },
+                          {
+                            "text": ": All work under consideration or management"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Area",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A durable allocation bucket, e.g. Startup / Personal / Other Work"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Workstream",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Ongoing work within an Area, e.g. Product + Engineering / Customers + GTM"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Project",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A bounded body of work with a recognizable finish line"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Backlog",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Possible work outside the active plan"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Statuses",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Primary / Supporting / Maintenance / Explore / Watch / Paused / Stop"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧪 Weekly Tweaks",
+                  "bold": true
+                },
+                {
+                  "text": " → behavior experiments + results over time"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "A bounded behavioral experiment intended to remove recurring friction, test a better way of operating, or develop a useful behavior.",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Problem",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The recurring friction or behavior to change"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Hypothesis",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Why this adjustment might help"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Behavior",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The exact rule for the week"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Trigger",
+                            "bold": true
+                          },
+                          {
+                            "text": ": When or under what conditions"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Measure",
+                            "bold": true
+                          },
+                          {
+                            "text": ": How I will track adherence or effect"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Duration",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Usually one or two weeks"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Verdict",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Adopt / Iterate / Repeat / Drop"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": ":sunsama:",
+                  "customEmoji": {
+                    "name": "sunsama",
+                    "src": "/images/notion-emoji/sunsama.png"
+                  }
+                },
+                {
+                  "text": " Sunsama",
+                  "bold": true
+                },
+                {
+                  "text": " → tasks / calendar / time blocking by context / channel"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Tasks",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Concrete actions that normally fit in one working session"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Channels",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Areas / contexts for where the work belongs"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Calendar",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Estimate / prioritize / time-block against real capacity"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "feedback-counsel",
+          "number": 5,
+          "title": "Feedback & Counsel",
+          "icon": "💬",
+          "blocks": [
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "📓 Feedback Ledger",
+                  "bold": true
+                },
+                {
+                  "text": " → capture input / synthesize themes / decide / act / follow up"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Input",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Source / vantage point / raw observation / example"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Theme",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Repeated evidence across people or contexts"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Decision",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Accept / test / watch / reject"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Action",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Behavior / conversation / system change"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Follow-Up",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Close the loop with the person when useful"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧭 Personal Advisory Board",
+                  "bold": true
+                },
+                {
+                  "text": " → route right question to right person; mostly 1:1 / ad hoc"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Counsel",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Outside judgment on a consequential question"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Lenses",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Mentors / peers / coaches / critics / close observers"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Match",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Question → person with the right context + judgment"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Close the Loop",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What I heard / decided / learned"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🪞 360° Feedback",
+                  "bold": true
+                },
+                {
+                  "text": " → yearly narrow behavior-based diagnostic + targeted pulses"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Question",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A small set of observable behaviors"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Sample",
+                            "bold": true
+                          },
+                          {
+                            "text": ": People across work / friendship / family / other contexts"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Evidence",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Examples + repeated patterns"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Pulse",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Short follow-ups to see whether the change is visible"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🔁 Feedback Playbook",
+                  "bold": true
+                },
+                {
+                  "text": " → how to ask for / receive / act on appreciation / coaching / evaluation"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Appreciation",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What is valued and should continue"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Coaching",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Advice intended to improve future behavior"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Evaluation",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Where I stand against a standard"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Receive",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Understand first / separate triggers / find the usable part"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Act",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Choose the smallest meaningful change / follow up"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "domain-systems",
+          "number": 6,
+          "title": "Domain Systems",
+          "icon": "🗂️",
+          "blocks": [
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "🧠 Knowledge",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "📚 Book Notes",
+                  "bold": true
+                },
+                {
+                  "text": " → high-signal source material for ideas / wisdom / creative work"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Summary",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The book's argument in my own words"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Key Takeaways",
+                            "bold": true
+                          },
+                          {
+                            "text": ": The few ideas worth retrieving later"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Notes",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Chapter-level source material"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Library",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Search / tags / ratings / related books"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧠 Second Brain",
+                  "bold": true
+                },
+                {
+                  "text": " → synthesize material into original thinking + creative output"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Inputs",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Books / notes / conversations / experience"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Synthesis",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Connect ideas around an active question"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Outputs",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Decisions / frameworks / writing / finished work"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🎓 Ultralearning",
+                  "bold": true
+                },
+                {
+                  "text": " → acquire hard skills faster thru projects / direct practice / feedback"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Map",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Why / what / how"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Practice",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Focus / directness / drills / retrieval"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Improve",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Feedback / retention / intuition / experimentation"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Project",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A real use case with a finish line"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "🫶 Relationships",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": ":openlattice:",
+                  "customEmoji": {
+                    "name": "openlattice",
+                    "src": "/images/notion-emoji/openlattice.png"
+                  }
+                },
+                {
+                  "text": " Personal CRM",
+                  "bold": true
+                },
+                {
+                  "text": " → remember / prioritize / follow thru with people I care about"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "People",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Who someone is + why we matter to each other"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Context",
+                            "bold": true
+                          },
+                          {
+                            "text": ": History / interests / important details"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Relationship",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Closeness / strength / current rhythm"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Follow-Through",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Promises / introductions / next move"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🫂"
+                },
+                {
+                  "text": " Relationships Playbook",
+                  "bold": true
+                },
+                {
+                  "text": " → philosophy + practices to saturate Dunbar’s number"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Philosophy",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What a full relational life means to me"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Circles",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Inner ring / core / strong ties / warm periphery / long tail"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Rhythms",
+                            "bold": true
+                          },
+                          {
+                            "text": ": How often each circle deserves real attention"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Rituals",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Recurring traditions that deepen bonds + create shared history"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🗣️ Communication Playbook",
+                  "bold": true
+                },
+                {
+                  "text": " → models + tactics for clear / candid / high-stakes convos"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Understand",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Listen / ask / separate facts from story"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Say It",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Observation / impact / ask"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Channel",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Write / meet / call / text based on stakes"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Repair",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Own impact / clarify / change behavior"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "Chappy’s Personal Operating Manual",
+                  "link": "https://chappyasel.com/manual"
+                },
+                {
+                  "text": " → how to work with me"
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I wrote this for anyone who works, builds, or spends a lot of time with me!",
+                      "italic": true
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Personality + Blind Spots",
+                            "bold": true
+                          },
+                          {
+                            "text": ": How my strongest traits can go wrong"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Collaboration",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Time / meetings / ownership / delegation"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Communication",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Async-first / context / urgency / channel"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Feedback",
+                            "bold": true
+                          },
+                          {
+                            "text": ": How to give it / how I try to give it"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Hobbies",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Natural bodybuilding + obsessive reading"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "❤️ Health",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "⌚ Apple Watch",
+                  "bold": true
+                },
+                {
+                  "text": " → continuous health / fitness / recovery data"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Signals",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Sleep / activity / heart rate / recovery / workouts"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Use",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Trends / baselines / experiments / questions"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "📊 Weight Log (spreadsheet)",
+                  "bold": true
+                },
+                {
+                  "text": " → plan + track body composition (+ DEXA)"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Plan",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Cut / maintain / gain / target rate"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Track",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Daily weight / rolling trend / phase progress"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Measure",
+                            "bold": true
+                          },
+                          {
+                            "text": ": DEXA + other body-composition references"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🩸 ",
+                  "bold": true
+                },
+                {
+                  "text": "Function Health",
+                  "bold": true,
+                  "link": "https://www.functionhealth.com/"
+                },
+                {
+                  "text": " → lab / blood test baselines"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Baseline",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Longitudinal labs / biomarkers"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Context",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Symptoms / family history / training / nutrition"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Review",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Clinician interpretation + follow-up"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": ":weightlifting-app:",
+                  "customEmoji": {
+                    "name": "weightlifting-app",
+                    "src": "/images/notion-emoji/weightlifting-app.png"
+                  }
+                },
+                {
+                  "text": " ",
+                  "bold": true
+                },
+                {
+                  "text": "Weightlifting App",
+                  "bold": true,
+                  "link": "https://apps.apple.com/us/app/weightlifting-app/id1266077653"
+                },
+                {
+                  "text": " → log workouts + retain training history"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Log",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Exercise / set / reps / load / notes"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Analyze",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Progress / PRs / volume / plateaus"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "History",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Long-run workout history"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "💪 Strength Log (spreadsheet)",
+                  "bold": true
+                },
+                {
+                  "text": " → set annual strength targets + track progress"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Targets",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A small set of important lifts / annual goals"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Progress",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Current level / trend / remaining gap"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "💸 Finances",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "⚖️ Time-Money Rules",
+                  "bold": true
+                },
+                {
+                  "text": " → when to spend money to save time / attention"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Frequency",
+                            "bold": true
+                          },
+                          {
+                            "text": ": How often the friction repeats"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Time + Attention",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What the purchase actually returns"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Rule",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A standing threshold for repeated decisions"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧾 Budget System",
+                  "bold": true
+                },
+                {
+                  "text": " → spending visibility + guardrails"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Visibility",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Where money is going"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Guardrails",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Categories / limits / meaningful exceptions"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Review",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Catch drift / adjust"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "📈 Investment Strategy",
+                  "bold": true
+                },
+                {
+                  "text": " → wealth allocation + what merits active attention"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Allocation",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Assets / risk / liquidity"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Attention Threshold",
+                            "bold": true
+                          },
+                          {
+                            "text": ": What deserves research or active management"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Review",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Rebalance / update assumptions"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "🌿 Whole-Life Coverage",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧍 Embodied & Everyday Life",
+                  "bold": true
+                },
+                {
+                  "text": " → appearance / preventive health / home / place"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "💇‍♂️ Physical Appearance + Style",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Clothing / grooming / personal presentation"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "🏥 Preventive Health, PT, + Aging",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Care / mobility / rehab / long-term function"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "🏡 Home, Place + Everyday Life",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Maintenance / aesthetics / hospitality / location"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🤝 Relational & Civic Life",
+                  "bold": true
+                },
+                {
+                  "text": " → partnership / family / caregiving / service"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "💞 Romance, Intimacy + Partnership",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Time / fit / vulnerability / shared decisions"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "👨‍👩‍👧‍👦 Family, Caregiving + Life Stages",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Presence / aging / care / irreversible choices"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "🤲 Service, Citizenship + Volunteering",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Direct service / local participation / giving"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🪞 Inner Life",
+                  "bold": true
+                },
+                {
+                  "text": " → emotional / mental / spiritual"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "🧘‍♂️ Emotional Life + Mental Health",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Awareness / regulation / support / recurring patterns"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "✝️ Spirituality",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Faith / meaning / morality / suffering / mortality / humility"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "✨ Aliveness & Expression",
+                  "bold": true
+                },
+                {
+                  "text": " → experiences / art / taste / personal presence"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "🗺️ Experiences + Identity Capital",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Travel / adventure / hobbies / play / shared memories"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "🎨 Art, Beauty + Taste",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Experience / notice / make / support"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "📸 Non-Work Personal Brand",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Expression / memory / privacy / sustainable sharing"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tools-infrastructure",
+          "number": 7,
+          "title": "Tools & Infrastructure",
+          "icon": "🛠️",
+          "blocks": [
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧱 Core Stack",
+                  "bold": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":arc:",
+                            "customEmoji": {
+                              "name": "arc",
+                              "src": "/images/notion-emoji/arc.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Arc",
+                            "bold": true
+                          },
+                          {
+                            "text": " → browser"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":notion:",
+                            "customEmoji": {
+                              "name": "notion",
+                              "src": "/images/notion-emoji/notion.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Notion",
+                            "bold": true
+                          },
+                          {
+                            "text": " → plans + knowledge"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":notion-calendar:",
+                            "customEmoji": {
+                              "name": "notion-calendar",
+                              "src": "/images/notion-emoji/notion-calendar.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Notion Calendar",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":sunsama:",
+                            "bold": true,
+                            "customEmoji": {
+                              "name": "sunsama",
+                              "src": "/images/notion-emoji/sunsama.png"
+                            }
+                          },
+                          {
+                            "text": " Sunsama",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":roam:",
+                            "customEmoji": {
+                              "name": "roam",
+                              "src": "/images/notion-emoji/roam.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Roam",
+                            "bold": true
+                          },
+                          {
+                            "text": " → meeting transcripts"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":linear:",
+                            "customEmoji": {
+                              "name": "linear",
+                              "src": "/images/notion-emoji/linear.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Linear",
+                            "bold": true
+                          },
+                          {
+                            "text": " → "
+                          },
+                          {
+                            "text": "team",
+                            "italic": true
+                          },
+                          {
+                            "text": " projects + tasks"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":1password:",
+                            "customEmoji": {
+                              "name": "1password",
+                              "src": "/images/notion-emoji/1password.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "1Password",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🤖 Agents",
+                  "bold": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":hermes:",
+                            "customEmoji": {
+                              "name": "hermes",
+                              "src": "/images/notion-emoji/hermes.png"
+                            }
+                          },
+                          {
+                            "text": " Hermes → local agent setup"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":claude-code:",
+                            "customEmoji": {
+                              "name": "claude-code",
+                              "src": "/images/notion-emoji/claude-code.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Claude Code",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":codex:",
+                            "customEmoji": {
+                              "name": "codex",
+                              "src": "/images/notion-emoji/codex.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Codex",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":superset:",
+                            "customEmoji": {
+                              "name": "superset",
+                              "src": "/images/notion-emoji/superset.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Superset",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":cursor:",
+                            "customEmoji": {
+                              "name": "cursor",
+                              "src": "/images/notion-emoji/cursor.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Cursor",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧰 Agent Utils",
+                  "bold": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "CodexBar",
+                            "bold": true,
+                            "link": "https://github.com/steipete/CodexBar/tree/main"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "FluidVoice",
+                            "bold": true,
+                            "link": "https://github.com/altic-dev/FluidVoice"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":coast:",
+                            "customEmoji": {
+                              "name": "coast",
+                              "src": "/images/notion-emoji/coast.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Coast",
+                            "bold": true,
+                            "link": "https://coast.app/"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "💬 Comms",
+                  "bold": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":beeper:",
+                            "customEmoji": {
+                              "name": "beeper",
+                              "src": "/images/notion-emoji/beeper.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Beeper",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":superhuman:",
+                            "customEmoji": {
+                              "name": "superhuman",
+                              "src": "/images/notion-emoji/superhuman.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Superhuman",
+                            "bold": true
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "⚙️ Mac Utils",
+                  "bold": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Rectangle",
+                            "bold": true,
+                            "link": "https://github.com/rxhanson/rectangle"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Maccy",
+                            "bold": true,
+                            "link": "https://github.com/p0deje/Maccy"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Hammerspoon",
+                            "bold": true,
+                            "link": "https://www.hammerspoon.org/"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "BetterDisplay",
+                            "bold": true,
+                            "link": "https://betterdisplay.pro/"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "noTunes",
+                            "bold": true,
+                            "link": "https://github.com/tombonez/noTunes"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":raycast:",
+                            "customEmoji": {
+                              "name": "raycast",
+                              "src": "/images/notion-emoji/raycast.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Raycast",
+                            "bold": true,
+                            "link": "https://www.raycast.com/"
+                          },
+                          {
+                            "text": " (specifically "
+                          },
+                          {
+                            "text": "emoji picker",
+                            "link": "https://manual.raycast.com/emoji-symbols"
+                          },
+                          {
+                            "text": " mapped to "
+                          },
+                          {
+                            "text": "⌘;",
+                            "code": true
+                          },
+                          {
+                            "text": ")"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "🧪 Tool Experiments",
+                  "italic": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "A running list of tools I’m testing as possible replacements or additions to the core stack.",
+                      "italic": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tips-for-getting-started",
+      "title": "Tips for Getting Started",
+      "icon": "💡",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "What I've seen work with my friends is starting as small as possible. A 10-second Daily Scorecard gives you a streak + real evidence and the one-sentence note gets you in the habit of reflecting. "
+            },
+            {
+              "text": "7 Habits of Highly Effective People",
+              "link": "https://books.chappyasel.com/7-habits-of-highly-effective-people"
+            },
+            {
+              "text": " is where I'd go next for Weekly planning + a personal mission. "
+            },
+            {
+              "text": "The 12 Levers",
+              "link": "https://books.chappyasel.com/the-12-levers"
+            },
+            {
+              "text": " is my favorite map for choosing small, controllable techniques that change behavior."
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "#️⃣ Log a Daily Scorecard.",
+                    "bold": true
+                  },
+                  {
+                    "text": " Take 10 seconds at the end of every day; after a few weeks, you have real data to ask why some days go better than others."
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Day Quality",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Subjective overall quality from -2 to +2"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Note",
+                          "bold": true
+                        },
+                        {
+                          "text": ": ≤10 words on what most shaped the day"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "📆 Add a Weekly.",
+                    "bold": true
+                  },
+                  {
+                    "text": " Once you have seven daily rows, spend 20 minutes reviewing the pattern + choosing the next week."
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Review",
+                          "bold": true
+                        },
+                        {
+                          "text": ": What explains the highs + lows?"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Choose",
+                          "bold": true
+                        },
+                        {
+                          "text": ": One #1 outcome for next week"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Schedule",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Put the first steps on the calendar"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🧪 Pick one lever.",
+                    "bold": true
+                  },
+                  {
+                    "text": " Use a recurring pattern from the Daily + Weekly to choose one Weekly Tweak."
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Technique",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Specific / repeatable / controllable"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Experiment",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Test for one or two weeks / measure / adopt, iterate, repeat, or drop"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🧭 Write one page of direction.",
+                    "bold": true
+                  },
+                  {
+                    "text": " Once the loops are real, give them something to serve."
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Mission",
+                          "bold": true
+                        },
+                        {
+                          "text": ": What you intend to contribute"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Current Chapter",
+                          "bold": true
+                        },
+                        {
+                          "text": ": What this season is principally about"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Outcome",
+                          "bold": true
+                        },
+                        {
+                          "text": ": One observable result that would make the next month worthwhile"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Non-Priority",
+                          "bold": true
+                        },
+                        {
+                          "text": ": One attractive thing you are deliberately not funding"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🥞 Earn the next layer.",
+                    "bold": true
+                  },
+                  {
+                    "text": " Add structure when the simpler loops expose a recurring gap."
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Monthly",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Catch drift + make one correction"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Quarterly",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Reset strategy + outcomes + allocation + active work"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Yearly / DTW",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Reopen foundations + direction + the system itself"
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Domain Systems",
+                          "bold": true
+                        },
+                        {
+                          "text": ": Build where the same problem keeps returning"
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "further-reading",
+      "title": "Further Reading",
+      "icon": "📚",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Most of this system is a synthesis of ideas I stole from people much smarter than me! The books below shaped the systems above most directly. (more here: "
+            },
+            {
+              "text": "https://books.chappyasel.com/",
+              "link": "https://books.chappyasel.com/"
+            },
+            {
+              "text": ")"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "content": [
+            {
+              "text": "Foundations + the good life"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/7-habits-of-highly-effective-people",
+                    "link": "https://books.chappyasel.com/7-habits-of-highly-effective-people"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The bible and original inspiration for my personal mission statement, principles, roles, and Weekly planning!"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/how-will-you-measure-your-life",
+                    "link": "https://books.chappyasel.com/how-will-you-measure-your-life"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " My favorite bridge between personal strategy and the actual allocation of time across work, relationships, and purpose."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/the-happiness-hypothesis",
+                    "link": "https://books.chappyasel.com/the-happiness-hypothesis"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " A wide-ranging look at the conditions behind a good life, especially relationships, purpose, virtue, and the gap between conscious plans and the rest of the mind."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/barking-up-the-wrong-tree",
+                    "link": "https://books.chappyasel.com/barking-up-the-wrong-tree"
+                  },
+                  {
+                    "text": ": Helped me reconcile grit with strategic quitting, exploration, relationships, and designing around my own intensifiers."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "content": [
+            {
+              "text": "Habits + learning"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/atomic-habits",
+                    "link": "https://books.chappyasel.com/atomic-habits"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " Gave me the cues-and-environment mechanics behind my smallest repeatable behaviors."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/the-12-levers",
+                    "link": "https://books.chappyasel.com/the-12-levers"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " A broad, evidence-based menu of ways to change beliefs, emotions, habits, relationships, and decisions."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/ultralearning",
+                    "link": "https://books.chappyasel.com/ultralearning"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The playbook behind my project-based approach to learning through direct practice, focused drills, and fast feedback."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/deep-work",
+                    "link": "https://books.chappyasel.com/deep-work"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The reason I protect long blocks of focused time and treat the calendar as part of the system."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "content": [
+            {
+              "text": "Systems + judgment"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/thinking-in-systems",
+                    "link": "https://books.chappyasel.com/thinking-in-systems"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " My starting point for feedback loops, delays, leverage points, and the ways a local fix can hurt the full system."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/thinking-in-bets",
+                    "link": "https://books.chappyasel.com/thinking-in-bets"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " A practical framework for making decisions under uncertainty and separating decision quality from outcome luck."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/antifragile",
+                    "link": "https://books.chappyasel.com/antifragile"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The source of my obsession with optionality, bounded downside, and systems that get stronger through stress and experimentation."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/thinking-fast-and-slow",
+                    "link": "https://books.chappyasel.com/thinking-fast-and-slow"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " Made the case for explicit decision rules and outside feedback by showing how predictable our biases are."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "content": [
+            {
+              "text": "Time + direction"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/80-000-hours",
+                    "link": "https://books.chappyasel.com/80-000-hours"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " My favorite structured framework for comparing career paths by impact, fit, career capital, and option value."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/essentialism",
+                    "link": "https://books.chappyasel.com/essentialism"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " A practical argument for protecting the vital few by giving the rest a real no."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/range",
+                    "link": "https://books.chappyasel.com/range"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " Made me take broad exploration and cross-disciplinary experience seriously as long-term advantages."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/four-thousand-weeks",
+                    "link": "https://books.chappyasel.com/four-thousand-weeks"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The best counterweight to over-optimization: choose deliberately, accept tradeoffs, and experience your life while it is happening."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "content": [
+            {
+              "text": "Relationships + feedback"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/plays-well-with-others",
+                    "link": "https://books.chappyasel.com/plays-well-with-others"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The book that pushed me to think about saturating Dunbar's number through repeated time, vulnerability, trust, and dependable support."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/never-eat-alone",
+                    "link": "https://books.chappyasel.com/never-eat-alone"
+                  },
+                  {
+                    "text": ": The practical source for building relationships through generosity, consistent follow-up, vulnerability, and connecting people before I need anything."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/crucial-conversations",
+                    "link": "https://books.chappyasel.com/crucial-conversations"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " The framework I use for high-stakes conversations where emotion and disagreement can shut down dialogue."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "https://books.chappyasel.com/thanks-for-the-feedback",
+                    "link": "https://books.chappyasel.com/thanks-for-the-feedback"
+                  },
+                  {
+                    "text": ":",
+                    "bold": true
+                  },
+                  {
+                    "text": " Taught me to separate appreciation, coaching, and evaluation so I can use feedback even when it arrives badly."
+                  }
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

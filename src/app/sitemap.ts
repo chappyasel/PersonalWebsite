@@ -1,5 +1,7 @@
 import { type MetadataRoute } from "next";
 
+import systemsData from "../../public/data/systems.json";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
@@ -23,6 +25,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: "https://routine.chappyasel.com",
       lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: "https://www.chappyasel.com/systems",
+      lastModified: new Date(systemsData.lastUpdated),
       changeFrequency: "monthly",
       priority: 0.8,
     },

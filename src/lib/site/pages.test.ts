@@ -20,6 +20,10 @@ describe("sitePageForHref", () => {
     expect(sitePageForHref("https://www.chappyasel.com/routine/")).toBe(
       "routine",
     );
+    expect(sitePageForHref("https://chappyasel.com/systems")).toBe("systems");
+    expect(sitePageForHref("https://www.chappyasel.com/systems#foundations")).toBe(
+      "systems",
+    );
   });
 
   it("leaves a book's own page to BookLink", () => {
@@ -28,6 +32,7 @@ describe("sitePageForHref", () => {
 
   it("ignores everything else", () => {
     expect(sitePageForHref("https://www.chappyasel.com/")).toBeNull();
+    expect(sitePageForHref("https://chappyasel.com/liarsdice")).toBeNull();
     expect(sitePageForHref("https://example.com/manual")).toBeNull();
     expect(sitePageForHref("#caffeine")).toBeNull();
   });

@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
+import { Fragment, useId, useState } from "react";
 
 import type {
   BookLookup,
@@ -11,6 +12,44 @@ import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
 
 import NotionBlockRenderer from "./NotionBlockRenderer";
 import RichTextRenderer from "./RichTextRenderer";
+
+const LEADING_ARROW = /^\s*→\s*/u;
+
+function ToggleTitle({
+  title,
+  bookLookup,
+}: {
+  title: RichText[];
+  bookLookup?: BookLookup;
+}) {
+  return title.map((run, index) => {
+    const match = LEADING_ARROW.exec(run.text);
+    if (!match) {
+      return (
+        <RichTextRenderer key={index} content={[run]} bookLookup={bookLookup} />
+      );
+    }
+
+    const remaining = run.text.slice(match[0].length);
+    return (
+      <Fragment key={index}>
+        <ArrowRightIcon
+          aria-hidden="true"
+          data-notion-toggle-arrow=""
+          size={15}
+          weight="bold"
+          className="mx-1 inline-block -translate-y-px text-muted-foreground/55"
+        />
+        {remaining && (
+          <RichTextRenderer
+            content={[{ ...run, text: remaining }]}
+            bookLookup={bookLookup}
+          />
+        )}
+      </Fragment>
+    );
+  });
+}
 
 export default function NotionToggle({
   title,
@@ -27,6 +66,7 @@ export default function NotionToggle({
   return (
     <div>
       <button
+        data-notion-toggle-trigger=""
         type="button"
         aria-controls={contentId}
         aria-expanded={open}
@@ -34,15 +74,18 @@ export default function NotionToggle({
         // The caret sits in the gutter where a sibling list's bullets are (the
         // renderer's lists are ml-4), so the title and the body start on the
         // list text's column.
-        className="-ml-1 flex w-full items-start gap-2 rounded-sm py-1 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="group/notion-toggle flex w-full items-start gap-2 rounded-sm py-1 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <DisclosureCaret open={open} />
+        <DisclosureCaret
+          open={open}
+          className="group-hover/notion-toggle:text-foreground"
+        />
         <span className="font-medium">
-          <RichTextRenderer content={title} bookLookup={bookLookup} />
+          <ToggleTitle title={title} bookLookup={bookLookup} />
         </span>
       </button>
       <DisclosurePanel id={contentId} open={open}>
-        <div className="space-y-2 pb-2 pl-4 pt-1">
+        <div className="space-y-2 pb-2 pl-6 pt-1">
           {blocks.map((block, i) => (
             <NotionBlockRenderer
               key={i}

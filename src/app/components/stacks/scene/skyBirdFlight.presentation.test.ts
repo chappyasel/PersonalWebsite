@@ -27,10 +27,21 @@ describe("daytime sky birds", () => {
     expect(environment).toContain("vec2(q.x * travelDir, q.y)");
     expect(environment).toContain("birdSilhouette(birdQ");
     expect(environment).not.toContain("float segD(");
+  });
 
-    expect(daylightSky).toContain('className="dl-bird-body"');
-    expect(daylightSky).not.toContain("dl-wing-r");
-    expect(daylightSky).not.toContain('stroke="currentColor"');
+  it("keeps the shallow-M wing pair on the daylight hero", () => {
+    // The dome shader draws a tapered side-profile gull; the CSS hero once
+    // copied it as a filled body with one wing, and at 21px on a flat sky it
+    // read as a fish flapping its tail (owner, 2026-09-07). The hero keeps
+    // the body blob with two stroked wings, each articulated at shoulder and
+    // elbow, and the flock's V and presence cycles from the same rework.
+    expect(daylightSky).not.toContain('className="dl-bird-body"');
+    expect(daylightSky).toContain("dl-wing-l");
+    expect(daylightSky).toContain("dl-wing-r");
+    expect(daylightSky).toContain("dl-tip-r");
+    expect(daylightSky).toContain('stroke="currentColor"');
+    expect(daylightCss).toContain("@keyframes dl-flap-r");
+    expect(daylightCss).toContain("@keyframes dl-tip-flap-r");
   });
 
   it("keeps each pass alive until it clears both sides of the sky", () => {

@@ -1,17 +1,16 @@
 "use client";
 
-import { PlayIcon } from "@phosphor-icons/react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { type Transition, motion, useReducedMotion } from "framer-motion";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { cn } from "~/lib/util";
 
 /**
- * The site's one disclosure vocabulary, lifted from the book notes: a small
- * filled triangle that turns to point down, and a height-plus-opacity reveal
- * on an eased 240 ms curve. Notion toggles, the routine timeline, and the
- * collapsible routine sections all draw from here, so a dropdown reads the
- * same on every page.
+ * The site's one disclosure vocabulary, lifted from the book notes: a bold
+ * caret that turns down, and a height-plus-opacity reveal on an eased 240
+ * ms curve. Notion toggles, the routine timeline, and the collapsible routine
+ * sections all draw from here, so a dropdown reads the same on every page.
  */
 
 export const DISCLOSURE_TRANSITION: Transition = {
@@ -20,7 +19,7 @@ export const DISCLOSURE_TRANSITION: Transition = {
 };
 
 type DisclosureCaretProps = Omit<
-  ComponentPropsWithoutRef<typeof PlayIcon>,
+  ComponentPropsWithoutRef<typeof CaretRightIcon>,
   "size" | "weight"
 > & {
   open: boolean;
@@ -29,12 +28,12 @@ type DisclosureCaretProps = Omit<
 
 /**
  * `className` places the wrapper (ml-auto, justify-self-center, a colour);
- * every other prop lands on the glyph itself, which is the element that
- * rotates, so a data attribute a stylesheet turns can still reach it.
+ * every other prop lands on the glyph itself, so caller data attributes still
+ * reach the visible caret.
  */
 export function DisclosureCaret({
   open,
-  size = 12,
+  size = 14,
   className,
   ...iconProps
 }: DisclosureCaretProps) {
@@ -43,13 +42,19 @@ export function DisclosureCaret({
     // title in an items-start row and on the row itself in an items-center one.
     <span
       aria-hidden="true"
-      className={cn("flex h-[1lh] shrink-0 items-center", className)}
+      className={cn(
+        "flex h-[1lh] shrink-0 items-center text-muted-foreground/80 transition-colors hover:text-foreground",
+        className,
+      )}
     >
-      <PlayIcon
+      <CaretRightIcon
         size={size}
-        weight="fill"
+        weight="bold"
         {...iconProps}
-        className={cn("transition-transform duration-200", open && "rotate-90")}
+        className={cn(
+          "overflow-visible transition-transform duration-200",
+          open && "rotate-90",
+        )}
       />
     </span>
   );

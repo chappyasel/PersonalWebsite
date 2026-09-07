@@ -2,25 +2,51 @@ import GgbFireworks from "./GgbFireworks";
 import ShootingStar from "./ShootingStar";
 import Skyline from "./Skyline";
 
-/** A small side-profile gull matching the dome shader. The body always points
- * along the route while one visible wing articulates at shoulder and wrist. */
+/**
+ * One bird, built the way the dome shader draws it (SceneEnvironment.tsx
+ * dcBirdField's SF cousin): a small body blob and four segments in a shallow
+ * M — shoulder→elbow and elbow→tip per wing, so CSS can rotate the wing at
+ * the shoulder and the tip at the elbow with a lag, the shader's travelling
+ * wave down the wing. Rendered as a silhouette darker than the sky, never
+ * brighter, which is the shader's own lesson about the ACES shoulder.
+ */
 function Bird() {
   return (
     <svg viewBox="0 0 24 18" width="21" height="16" className="dl-bird-glyph">
-      <path
-        className="dl-bird-body"
-        d="M5.6 8.75 2.2 7.05l1.65 1.9-1.45 1.9 3.45-1.3c2.7 1 6.55 1.2 9.7.35 1.2-.3 2.15-.4 2.8-.85l3.45-.25-3.15-.95c-.7-.8-1.8-.95-2.9-.3-3.45-.65-7.15-.45-10.15.75z"
-        fill="currentColor"
-      />
+      <ellipse cx="12" cy="9" rx="1.6" ry="0.95" fill="currentColor" />
       <g className="dl-wing dl-wing-l">
         <path
-          d="M11.4 8.45C9.7 7.45 7.9 7.15 6.55 7.75c.85 1.45 2.75 2.35 4.85 1.65z"
-          fill="currentColor"
+          d="M12 9 L7.1 8.2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
         />
         <g className="dl-tip dl-tip-l">
           <path
-            d="M6.7 7.55C4.55 6.35 2.3 6.2.5 7.05c1.55 1.55 3.75 2.45 6.3 1.75-.42-.42-.45-.84-.1-1.25z"
-            fill="currentColor"
+            d="M7.1 8.2 L2.4 7.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </g>
+      </g>
+      <g className="dl-wing dl-wing-r">
+        <path
+          d="M12 9 L16.9 8.2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <g className="dl-tip dl-tip-r">
+          <path
+            d="M16.9 8.2 L21.6 7.2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
           />
         </g>
       </g>

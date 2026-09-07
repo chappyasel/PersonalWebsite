@@ -32,17 +32,22 @@ import {
  *
  * Without a library row (an unknown slug, or the database being away) the
  * link still renders from the slug alone, with no cover and no card.
+ *
+ * `label` is the words the owner wrote when the link sits on running text
+ * rather than a pasted URL; the hover card still names the book properly.
  */
 export default function BookLink({
   href,
   slug,
   book,
+  label,
 }: {
   href: string;
   slug: string;
   book?: BookLookupEntry;
+  label?: string;
 }) {
-  const title = book?.title ?? humanizeSlug(slug);
+  const title = label ?? book?.title ?? humanizeSlug(slug);
   const cover = enhanceCoverUrl(book?.coverUrl ?? null);
 
   const anchor = (

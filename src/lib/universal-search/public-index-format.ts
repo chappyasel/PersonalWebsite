@@ -5,6 +5,7 @@ export const PUBLIC_SEARCH_INDEX_PATH =
 export const PUBLIC_SEARCH_SOURCES = [
   "manual",
   "routine",
+  "systems",
   "musing",
   "project",
 ] as const;

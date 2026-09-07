@@ -102,6 +102,10 @@ import {
   mobileSheetGeometry,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
+  mobileSheetSpentPullCommits,
+  mobileSheetTopPullAfterScroll,
+  mobileSheetTopPullY,
+  type MobileSheetTopPull,
   mobileSheetMaterialOverscan,
   mobileSheetPeekHeight,
   mobileSheetPublishedCoverage,
@@ -1643,6 +1647,15 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     // it began hands an expanded-sheet gesture down the wrong branch.
     let startInScroller = false;
     let startScrollerAtTop = false;
+    // The scroller the gesture began over, and whether reading has spent
+    // its top pull (see mobileSheetGeometry's MOBILE_SHEET_TOP_PULL_REARM_PX).
+    // The state lives on the scroller element itself so the touch, mouse and
+    // wheel paths all read and write one flag.
+    let startScroller: HTMLElement | null = null;
+    let startTopPull: MobileSheetTopPull = "armed";
+    let topPull = false;
+    const topPullOf = (scroller: HTMLElement | null): MobileSheetTopPull =>
+      scroller?.dataset.stacksTopPull === "spent" ? "spent" : "armed";
 
     /** Set the frame the gesture is measured against. */
     const begin = (
@@ -1672,6 +1685,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       // top at the tail of an upward flick never transfers ownership mid-drag.
       startScrollerAtTop =
         scroller instanceof HTMLElement && scroller.scrollTop <= 1;
+      startScroller = scroller instanceof HTMLElement ? scroller : null;
+      startTopPull = topPullOf(startScroller);
+      topPull = false;
     };
     /** Track the pointer 1:1. Returns whether the sheet took the gesture, so
      * the caller can suppress whatever the platform would otherwise do with
@@ -1694,8 +1710,8 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           // native except for a downward pull that began at its top boundary;
           // that familiar overscroll gesture collapses the sheet instead of
           // stretching a document that has nowhere left to go.
-          owned =
-            !expanded || !startInScroller || (startScrollerAtTop && dy > 0);
+          topPull = expanded && startInScroller && startScrollerAtTop && dy > 0;
+          owned = !expanded || !startInScroller || topPull;
         }
       }
       if (!owned) return false;
@@ -1712,7 +1728,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       lastY = clientY;
       lastX = clientX;
       if (axis === "horizontal") return true;
-      const next = base + dy;
+      // A spent top pull follows the finger with the overdrag resistance
+      // instead of 1:1, so the sheet visibly holds rather than leaving.
+      const next = base + (topPull ? mobileSheetTopPullY(dy, startTopPull) : dy);
       // Above full height there is nothing left to reveal, so resist and
       // clamp to the exact range covered by the material overscan.
       y.set(mobileSheetRubberBandY(next, metrics.vh));
@@ -1738,6 +1756,16 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         if (direction) swipeToAdjacentUnit(direction);
         else settle();
         axis = null;
+        return true;
+      }
+      // After reading, a top pull collapses only as a deliberate flick;
+      // released slower it springs back, however far it was dragged.
+      if (
+        topPull &&
+        startTopPull === "spent" &&
+        !mobileSheetSpentPullCommits(lastY - startY, velocity)
+      ) {
+        settle();
         return true;
       }
       const dy = lastY - startY;
@@ -1830,7 +1858,27 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       if (!accumulated.committed) return;
       wheelDetentLockRef.current = at + MOBILE_SHEET_WHEEL_COOLDOWN_MS;
       if (accumulated.committed === "expand") expand();
-      else collapse();
+      else if (topPullOf(scroller) === "spent") {
+        // A wheel has no release velocity to judge, so after reading the
+        // first boundary scroll only re-arms and the next one collapses.
+        scroller.dataset.stacksTopPull = "armed";
+      } else collapse();
+    };
+
+    // Reading spends the top pull. Scroll does not bubble, so listen in the
+    // capture phase on the panel and mark whichever scroller reported.
+    const onScroll = (event: Event) => {
+      const scroller = event.target;
+      if (
+        !(scroller instanceof HTMLElement) ||
+        !scroller.matches("[data-stacks-scrollable]")
+      )
+        return;
+      const next = mobileSheetTopPullAfterScroll(
+        topPullOf(scroller),
+        scroller.scrollTop,
+      );
+      if (next === "spent") scroller.dataset.stacksTopPull = "spent";
     };
 
     // ── The mouse half ────────────────────────────────────────────────
@@ -1901,6 +1949,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     panel.addEventListener("touchend", onTouchEnd, { passive: true });
     panel.addEventListener("touchcancel", onTouchCancel, { passive: true });
     panel.addEventListener("wheel", onWheel, { passive: false });
+    panel.addEventListener("scroll", onScroll, { capture: true, passive: true });
     panel.addEventListener("mousedown", onMouseDown);
     panel.addEventListener("click", onClickCapture, { capture: true });
     panel.addEventListener("selectstart", onSelectStart);
@@ -1913,6 +1962,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       panel.removeEventListener("touchend", onTouchEnd);
       panel.removeEventListener("touchcancel", onTouchCancel);
       panel.removeEventListener("wheel", onWheel);
+      panel.removeEventListener("scroll", onScroll, { capture: true });
       panel.removeEventListener("mousedown", onMouseDown);
       panel.removeEventListener("click", onClickCapture, { capture: true });
       panel.removeEventListener("selectstart", onSelectStart);

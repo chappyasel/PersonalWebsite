@@ -1,15 +1,21 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import PersonalSystems from "~/app/components/PersonalSystems";
 import rawData from "~~/data/manual.json";
 
 import type { ManualData } from "./types";
 
 const data = rawData as unknown as ManualData;
 const text = JSON.stringify(data);
-const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const read = (path: string) => readFileSync(join(root, path), "utf8");
+
+// The homepage card reads the same snapshot, so a render is the check that
+// the wiring holds; TiltCard's framer springs have no place in a node test.
+vi.mock("~/app/components/TiltCard", () => ({
+  default: ({ children }: { children: unknown }) =>
+    createElement("div", null, children as never),
+}));
 
 /**
  * The snapshot is generated, so nobody reads it before it ships. These pin
@@ -64,10 +70,14 @@ describe("manual.json snapshot", () => {
     }
   });
 
-  it("matches the section list the homepage card repeats by hand", () => {
-    const card = read("src/app/components/PersonalManual.tsx");
+  it("feeds the homepage card its section list", () => {
+    const markup = renderToStaticMarkup(createElement(PersonalSystems));
+    const card = markup.slice(
+      markup.indexOf('data-manual-section-index=""'),
+      markup.indexOf('data-systems-layer-index=""'),
+    );
     for (const section of data.sections) {
-      expect(card, section.title).toContain(`"${section.title}"`);
+      expect(card, section.title).toContain(section.title.replace(/&/g, "&amp;"));
     }
   });
 });

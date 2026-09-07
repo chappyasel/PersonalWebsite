@@ -54,7 +54,7 @@ export default function RoutineSection({
         <DisclosureCaret
           data-routine-caret
           open={open}
-          className="ml-auto text-muted-foreground/40"
+          className="ml-auto group-hover/sec:text-foreground"
         />
       </div>
       <div

@@ -13,6 +13,7 @@ const DEEP_PAGE_ROUTES: ReadonlyArray<{
   { route: "/weightlifting", page: "weightlifting", includeChildren: true },
   { route: "/manual", page: "manual" },
   { route: "/routine", page: "routine" },
+  { route: "/systems", page: "systems" },
   { route: "/liarsdice", page: "liars_dice" },
   { route: "/golf", page: "golf" },
 ];

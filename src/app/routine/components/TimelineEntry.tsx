@@ -27,14 +27,14 @@ export default function TimelineEntry({
         aria-controls={contentId}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="dl-entry-head"
+        className="group/timeline-entry dl-entry-head"
       >
         <span className="dl-entry-time font-mono">{time}</span>
         <span className="dl-entry-dot" />
         {/* Nudged off the title: the glyph's ink is right-heavy in its box. */}
         <DisclosureCaret
           open={open}
-          className="-translate-x-0.5 justify-self-center text-muted-foreground/50"
+          className="-translate-x-0.5 justify-self-center group-hover/timeline-entry:text-foreground"
         />
         <span className="dl-entry-title">{title}</span>
       </button>

@@ -37,22 +37,15 @@
   --dl-star-op: 0;
 
   /* Day accents: ochre for the morning arm, dusk slate for the evening arm,
-     warm plum for callouts. */
-  --dl-am: 35 48% 38%;
+     warm plum for callouts, and the four glyph families (moss, coral,
+     coffee, indigo). The colours themselves (--dl-am, --dl-pm, --dl-plum,
+     --dl-ic-*) are declared site-wide in globals.css so the homepage cards
+     share them; the line and chip variants are only used here. All accents
+     on these pages come from that fixed set — never per-element inventions. */
   --dl-am-line: 36 40% 62%;
   --dl-am-chip: 38 50% 55%;
-  --dl-pm: 228 20% 44%;
   --dl-pm-line: 228 20% 64%;
   --dl-pm-chip: 228 35% 58%;
-  --dl-plum: 288 16% 46%;
-
-  /* Section glyph palette: the two day arms plus four more families in the
-     same muted band, one per topic. All accents on these pages come from
-     this fixed set — never per-element inventions. */
-  --dl-ic-moss: 150 26% 34%;
-  --dl-ic-coral: 10 46% 46%;
-  --dl-ic-coffee: 24 44% 32%;
-  --dl-ic-indigo: 256 24% 50%;
 
   /* Ground grain (scripts/generate/ground-grain.ts); the dark ground takes
      a much quieter variant. */
@@ -107,18 +100,10 @@
   --dl-window-op: 0.8;
   --dl-star-op: 0.9;
 
-  --dl-am: 38 48% 66%;
   --dl-am-line: 36 35% 45%;
   --dl-am-chip: 38 45% 55%;
-  --dl-pm: 228 30% 74%;
   --dl-pm-line: 228 22% 48%;
   --dl-pm-chip: 228 35% 60%;
-  --dl-plum: 288 20% 68%;
-
-  --dl-ic-moss: 150 22% 62%;
-  --dl-ic-coral: 10 52% 70%;
-  --dl-ic-coffee: 26 36% 64%;
-  --dl-ic-indigo: 256 30% 74%;
 
   --dl-grain: url("/images/daylight-grain-dark.png");
 
@@ -311,9 +296,12 @@
 .dark .dl-shooting-star {
   display: block;
 }
-/* The dome's birds, light theme only. Filled, tapered gull silhouettes cross
-   beyond both viewport edges. Two birds anchor the flock while two slower
-   presence cycles vary later passes between two, three and four birds. */
+/* The dome's birds, light theme only: the shader's shallow-M silhouette, a
+   body blob with two wings that beat at the shoulder while the tips lag at
+   the elbow. The flock crosses beyond both viewport edges in a loose V; two
+   birds anchor it while two slower presence cycles vary later passes between
+   two, three and four birds. (A filled side-profile gull was tried and read
+   as a fish flapping its tail.) */
 .dl-birds {
   position: absolute;
   top: 22%;
@@ -357,11 +345,15 @@
 .dl-bird-glyph .dl-tip {
   transform-box: view-box;
 }
-.dl-wing-l {
-  transform-origin: 11.4px 9px;
+.dl-wing-l,
+.dl-wing-r {
+  transform-origin: 12px 9px;
 }
 .dl-tip-l {
-  transform-origin: 6.65px 8.2px;
+  transform-origin: 7.1px 8.2px;
+}
+.dl-tip-r {
+  transform-origin: 16.9px 8.2px;
 }
 @media (prefers-reduced-motion: no-preference) {
   .dl-stars {
@@ -416,25 +408,38 @@
   .dl-wing-l {
     animation: dl-flap-l 2.94s ease-in-out infinite;
   }
+  .dl-wing-r {
+    animation: dl-flap-r 2.94s ease-in-out infinite;
+  }
   /* Tips run the same cycle a sixth of a beat late (negative delay = pure
      phase shift, no startup hold). */
   .dl-tip-l {
     animation: dl-tip-flap-l 2.94s ease-in-out infinite;
     animation-delay: -2.82s;
   }
+  .dl-tip-r {
+    animation: dl-tip-flap-r 2.94s ease-in-out infinite;
+    animation-delay: -2.82s;
+  }
   /* Each follower beats on its own clock. */
-  .dl-bird-b .dl-wing-l {
+  .dl-bird-b .dl-wing-l,
+  .dl-bird-b .dl-wing-r {
     animation-delay: -1.1s;
   }
-  .dl-bird-b .dl-tip-l {
+  .dl-bird-b .dl-tip-l,
+  .dl-bird-b .dl-tip-r {
     animation-delay: -0.98s;
   }
   .dl-bird-c .dl-wing-l,
-  .dl-bird-c .dl-tip-l {
+  .dl-bird-c .dl-wing-r,
+  .dl-bird-c .dl-tip-l,
+  .dl-bird-c .dl-tip-r {
     animation-duration: 3.26s;
   }
   .dl-bird-d .dl-wing-l,
-  .dl-bird-d .dl-tip-l {
+  .dl-bird-d .dl-wing-r,
+  .dl-bird-d .dl-tip-l,
+  .dl-bird-d .dl-tip-r {
     animation-duration: 2.62s;
   }
   .dl-screen .dl-skyline {
@@ -576,60 +581,118 @@
    recovering, looping without a hold. */
 @keyframes dl-flap-l {
   0% {
-    transform: rotate(14deg);
+    transform: rotate(28deg);
   }
   12.5% {
-    transform: rotate(-13deg);
+    transform: rotate(-26deg);
   }
   25% {
-    transform: rotate(15deg);
+    transform: rotate(30deg);
   }
   37.5% {
-    transform: rotate(-13deg);
+    transform: rotate(-26deg);
   }
   50% {
-    transform: rotate(13deg);
+    transform: rotate(26deg);
   }
   62.5% {
-    transform: rotate(-6.5deg);
+    transform: rotate(-13deg);
   }
   75% {
-    transform: rotate(8deg);
+    transform: rotate(16deg);
   }
   87.5% {
-    transform: rotate(-10.5deg);
+    transform: rotate(-21deg);
   }
   100% {
-    transform: rotate(14deg);
+    transform: rotate(28deg);
+  }
+}
+@keyframes dl-flap-r {
+  0% {
+    transform: rotate(-28deg);
+  }
+  12.5% {
+    transform: rotate(26deg);
+  }
+  25% {
+    transform: rotate(-30deg);
+  }
+  37.5% {
+    transform: rotate(26deg);
+  }
+  50% {
+    transform: rotate(-26deg);
+  }
+  62.5% {
+    transform: rotate(13deg);
+  }
+  75% {
+    transform: rotate(-16deg);
+  }
+  87.5% {
+    transform: rotate(21deg);
+  }
+  100% {
+    transform: rotate(-28deg);
   }
 }
 @keyframes dl-tip-flap-l {
   0% {
-    transform: rotate(10deg);
+    transform: rotate(20deg);
   }
   12.5% {
-    transform: rotate(-9.5deg);
+    transform: rotate(-19deg);
   }
   25% {
-    transform: rotate(10.5deg);
+    transform: rotate(21deg);
   }
   37.5% {
-    transform: rotate(-9.5deg);
+    transform: rotate(-19deg);
   }
   50% {
-    transform: rotate(9.5deg);
+    transform: rotate(19deg);
   }
   62.5% {
-    transform: rotate(-4.5deg);
+    transform: rotate(-9deg);
   }
   75% {
-    transform: rotate(5.5deg);
+    transform: rotate(11deg);
   }
   87.5% {
-    transform: rotate(-7.5deg);
+    transform: rotate(-15deg);
   }
   100% {
-    transform: rotate(10deg);
+    transform: rotate(20deg);
+  }
+}
+@keyframes dl-tip-flap-r {
+  0% {
+    transform: rotate(-20deg);
+  }
+  12.5% {
+    transform: rotate(19deg);
+  }
+  25% {
+    transform: rotate(-21deg);
+  }
+  37.5% {
+    transform: rotate(19deg);
+  }
+  50% {
+    transform: rotate(-19deg);
+  }
+  62.5% {
+    transform: rotate(9deg);
+  }
+  75% {
+    transform: rotate(-11deg);
+  }
+  87.5% {
+    transform: rotate(15deg);
+  }
+  100% {
+    transform: rotate(-20deg);
   }
 }
 /* The 404's oversized skyline pans its overhang back and forth. */
@@ -928,6 +991,25 @@
 
 /* The shared ThemeToggle sits on the sky here; retint it without forking the
    component. */
+/* The hero's copy is sky ink, but a Notion quote arrives with the page
+   ground's muted grey, and a section or site link's glyph arrives in its
+   daylight accent, both tuned for the white page below. Over the sky the
+   grey quote reads as disabled and a moss or coffee glyph all but vanishes,
+   so inside the band they take the ink like the words around them. */
+.dl-hero-inner blockquote {
+  color: inherit;
+  border-color: hsl(var(--dl-sky-ink) / 0.4);
+}
+.dl-hero-inner a {
+  text-decoration-color: hsl(var(--dl-sky-ink) / 0.45);
+}
+.dl-hero-inner a:hover {
+  text-decoration-color: hsl(var(--dl-sky-ink) / 0.8);
+}
+.dl-hero-inner a > svg {
+  color: hsl(var(--dl-sky-ink));
+  opacity: 0.92;
+}
 .dl-hero-inner [data-theme-toggle] {
   color: hsl(var(--dl-sky-ink) / 0.85);
 }

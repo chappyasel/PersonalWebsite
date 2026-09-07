@@ -21,6 +21,7 @@ async function fixtureRoot() {
       supplements: { am: [], pm: [] },
       rants: [],
     },
+    "systems.json": { intro: [], sections: [] },
     "blog-posts.json": { items: [] },
     "projects.json": { projects: [] },
   };

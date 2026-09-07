@@ -4,8 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { BaseBook } from "~/lib/books/types";
 
-import { DisclosureCaret } from "~/components/ui/disclosure";
-
 import { BookDetailContent, underHeader } from "./BookDetailContent";
 
 const detailSource = readFileSync(
@@ -359,9 +357,9 @@ describe("BookDetailContent note availability", () => {
 
     expect(markup).toContain("Spoilers");
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain(
-      renderToStaticMarkup(<DisclosureCaret open={false} />),
-    );
+    expect(markup).toContain("group/book-note-summary");
+    expect(markup).toContain("group-hover/book-note-summary:text-foreground");
+    expect(markup).toContain('width="14"');
     expect(markup).toMatch(/inert=""[^>]*>[^<]*<p>Hidden line<\/p>/);
   });
 

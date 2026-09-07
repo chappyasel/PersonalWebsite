@@ -11,9 +11,11 @@ import RichTextRenderer from "./RichTextRenderer";
 function ListItem({
   item,
   bookLookup,
+  relaxedLists,
 }: {
   item: NotionBlock[];
   bookLookup?: BookLookup;
+  relaxedLists: boolean;
 }) {
   const first = item[0];
   const rest = item.slice(1);
@@ -25,12 +27,21 @@ function ListItem({
           <RichTextRenderer content={first.content} bookLookup={bookLookup} />
         </span>
       ) : first ? (
-        <NotionBlockRenderer block={first} bookLookup={bookLookup} />
+        <NotionBlockRenderer
+          block={first}
+          bookLookup={bookLookup}
+          relaxedLists={relaxedLists}
+        />
       ) : null}
       {rest.length > 0 && (
         <div className="mt-1 space-y-1">
           {rest.map((b, j) => (
-            <NotionBlockRenderer key={j} block={b} bookLookup={bookLookup} />
+            <NotionBlockRenderer
+              key={j}
+              block={b}
+              bookLookup={bookLookup}
+              relaxedLists={relaxedLists}
+            />
           ))}
         </div>
       )}
@@ -41,9 +52,12 @@ function ListItem({
 export default function NotionBlockRenderer({
   block,
   bookLookup,
+  relaxedLists = false,
 }: {
   block: NotionBlock;
   bookLookup?: BookLookup;
+  /** Give long-form lists a little more air without loosening every document. */
+  relaxedLists?: boolean;
 }) {
   switch (block.type) {
     case "paragraph":
@@ -88,18 +102,32 @@ export default function NotionBlockRenderer({
 
     case "bulleted_list":
       return (
-        <ul className="ml-4 list-disc space-y-1 marker:text-muted-foreground/40">
+        <ul
+          className={`ml-4 list-disc ${relaxedLists ? "space-y-2" : "space-y-1"} marker:text-muted-foreground/40`}
+        >
           {block.items.map((item, i) => (
-            <ListItem key={i} item={item} bookLookup={bookLookup} />
+            <ListItem
+              key={i}
+              item={item}
+              bookLookup={bookLookup}
+              relaxedLists={relaxedLists}
+            />
           ))}
         </ul>
       );
 
     case "numbered_list":
       return (
-        <ol className="ml-4 list-decimal space-y-1 marker:text-muted-foreground/40">
+        <ol
+          className={`ml-4 list-decimal ${relaxedLists ? "space-y-2" : "space-y-1"} marker:text-muted-foreground/40`}
+        >
           {block.items.map((item, i) => (
-            <ListItem key={i} item={item} bookLookup={bookLookup} />
+            <ListItem
+              key={i}
+              item={item}
+              bookLookup={bookLookup}
+              relaxedLists={relaxedLists}
+            />
           ))}
         </ol>
       );
@@ -128,7 +156,7 @@ export default function NotionBlockRenderer({
 
     case "quote":
       return (
-        <blockquote className="border-l-2 border-muted-foreground/20 pl-4 italic text-muted-foreground">
+        <blockquote className="whitespace-pre-line border-l-2 border-muted-foreground/20 pl-4 italic text-muted-foreground">
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
         </blockquote>
       );

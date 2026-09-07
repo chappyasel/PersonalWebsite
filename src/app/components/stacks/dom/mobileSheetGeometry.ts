@@ -76,10 +76,59 @@ export const MOBILE_SHEET_WHEEL_COMMIT_PX = 36;
 export const MOBILE_SHEET_WHEEL_RESET_MS = 140;
 export const MOBILE_SHEET_WHEEL_COOLDOWN_MS = 280;
 export const MOBILE_SHEET_SWIPE_COMMIT_PX = 36;
+/**
+ * A pull down from the top of an expanded scroller collapses the sheet, and
+ * that is the right thing when the sheet was just opened. It was the wrong
+ * thing after reading: a flick back up to the top arrives with momentum,
+ * the next touch is already a pull, and the sheet fell away under a reader
+ * who only meant to stop the scroll. So a scroller that has travelled past
+ * `REARM_PX` marks the sheet "spent": from then on a top pull only follows
+ * the finger with the overdrag resistance and springs back, unless it is
+ * released as a real flick, and only a flick collapses it. Distance alone,
+ * however far, never does; the grabber and header still drag 1:1. A sheet
+ * that was never scrolled keeps the plain rule.
+ */
+export const MOBILE_SHEET_TOP_PULL_REARM_PX = 40;
+/** How far a spent pull may drag the sheet down before it stops following. */
+export const MOBILE_SHEET_TOP_PULL_SPENT_MAX_PX = 56;
+/** What a spent pull must be at release to collapse: the drag's usual
+ * commit distance AND a release velocity well above the plain fling. */
+export const MOBILE_SHEET_TOP_PULL_COMMIT_PX = 72;
+export const MOBILE_SHEET_TOP_PULL_FLING_PX_MS = 1;
+export type MobileSheetTopPull = "armed" | "spent";
 export const MOBILE_SHEET_SWIPE_FLING_PX_MS = 0.45;
 export const MOBILE_SHEET_HORIZONTAL_DOMINANCE = 1;
 
 export type MobileSheetScrollIntent = "expand" | "collapse" | null;
+
+/** The arming state after the scroller reports a position. Only travel
+ * past the rearm distance spends it; arriving back at the top does not
+ * re-arm, the absorbed pull does. */
+export function mobileSheetTopPullAfterScroll(
+  state: MobileSheetTopPull,
+  scrollTop: number,
+): MobileSheetTopPull {
+  return scrollTop > MOBILE_SHEET_TOP_PULL_REARM_PX ? "spent" : state;
+}
+
+/** Whether a spent top pull, released at `dy` px with `velocity` px/ms
+ * (positive downward), is the deliberate flick that still collapses. */
+export function mobileSheetSpentPullCommits(dy: number, velocity: number) {
+  return (
+    dy >= MOBILE_SHEET_TOP_PULL_COMMIT_PX &&
+    velocity >= MOBILE_SHEET_TOP_PULL_FLING_PX_MS
+  );
+}
+
+/** Sheet travel for a downward top-boundary pull of `dy` px: 1:1 when the
+ * sheet is armed, resisted and capped when spent. */
+export function mobileSheetTopPullY(dy: number, state: MobileSheetTopPull) {
+  if (dy <= 0 || state === "armed") return dy;
+  return Math.min(
+    MOBILE_SHEET_TOP_PULL_SPENT_MAX_PX,
+    dy * MOBILE_SHEET_OVERDRAG_RESISTANCE,
+  );
+}
 
 export type MobileSheetHeightMeasurement = {
   requestedHeight: number;

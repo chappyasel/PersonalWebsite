@@ -77,6 +77,19 @@ html[data-world] .field-notes-glass-tooltip {
     0 8px 24px rgb(0 0 0 / 0.2);
 }
 
+/* A presented surface (a routine/manual/systems sheet, a book note modal)
+   is paper laid over the world, and a tooltip raised from it sits on that
+   paper, not on the room: the glass went mid-grey over the white sheet with
+   the page's dark ink still on it. While the overlay owns the screen the
+   flat card comes back; the world's own tooltips are under it and closed. */
+html[data-world][data-overlay-open] .field-notes-glass-tooltip {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  backdrop-filter: none;
+  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.18);
+}
+
 @font-face {
   font-family: "Georgia Pro";
   src: url("/fonts/v1/GeorgiaPro-Light.woff2") format("woff2");
@@ -253,6 +266,18 @@ html[data-world].dark .sheet-control:hover {
 
 @layer base {
   :root {
+    /* The daylight section accents (see daylight.css): ochre and dusk slate
+       for the routine's two arms, plum, and four more families in the same
+       muted band. Site-wide so the homepage document cards can wear the
+       same glyph and title colours as the pages; the `-line`/`-chip`
+       variants stay with daylight.css, which is the only user. */
+    --dl-am: 35 48% 38%;
+    --dl-pm: 228 20% 44%;
+    --dl-plum: 288 16% 46%;
+    --dl-ic-moss: 150 26% 34%;
+    --dl-ic-coral: 10 46% 46%;
+    --dl-ic-coffee: 24 44% 32%;
+    --dl-ic-indigo: 256 24% 50%;
     --font-selected: "Georgia Pro";
     --background: 60 9% 98%;
     /* 7.5:1 on --background (WCAG AAA). This is a long-form reading site, so
@@ -293,6 +318,13 @@ html[data-world].dark .sheet-control:hover {
     --grainient-color-3: #a68b6b;
   }
   .dark {
+    --dl-am: 38 48% 66%;
+    --dl-pm: 228 30% 74%;
+    --dl-plum: 288 20% 68%;
+    --dl-ic-moss: 150 22% 62%;
+    --dl-ic-coral: 10 52% 70%;
+    --dl-ic-coffee: 26 36% 64%;
+    --dl-ic-indigo: 256 30% 74%;
     --background: 24 10% 6%;
     --foreground: 24 6% 83%;
     --card: 24 10% 6%;

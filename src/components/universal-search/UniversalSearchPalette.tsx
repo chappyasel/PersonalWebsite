@@ -243,6 +243,7 @@ const ASYNC_GROUP_PRESENTATION: Record<
 const PUBLIC_SOURCE_PRESENTATION = [
   { prefix: "public:manual:", heading: "Manual", icon: BookOpenTextIcon },
   { prefix: "public:routine:", heading: "Routine", icon: ClockIcon },
+  { prefix: "public:systems:", heading: "Systems", icon: GearIcon },
   { prefix: "public:musing:", heading: "Musings", icon: PenNibIcon },
   { prefix: "public:project:", heading: "Projects", icon: CodeIcon },
 ] as const;

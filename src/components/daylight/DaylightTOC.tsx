@@ -9,6 +9,9 @@ export interface TOCItem {
   label: string;
   /** Fallback for icon resolution when the id has no dedicated glyph. */
   emoji?: string;
+  /** Nested under the item before it (the systems page lists its seven
+   * layers under their section). Indents the row; the rail dot stays put. */
+  depth?: 1;
 }
 
 function useActiveSection(items: TOCItem[]) {
@@ -67,6 +70,7 @@ export function DaylightTOCSidebar({ items }: { items: TOCItem[] }) {
           onClick={() => scrollTo(item.id)}
           data-active={activeId === item.id}
           className="dl-toc-link transition-colors"
+          style={item.depth ? { paddingLeft: "0.875rem" } : undefined}
         >
           <SectionIcon
             id={item.id}

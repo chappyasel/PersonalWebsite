@@ -3,16 +3,27 @@ import {
   AlarmIcon,
   ArrowsClockwiseIcon,
   BarbellIcon,
+  BooksIcon,
+  CalendarCheckIcon,
   ChatCircleTextIcon,
+  ChatsCircleIcon,
   CoffeeIcon,
+  CompassIcon,
   DnaIcon,
+  FolderOpenIcon,
   HandshakeIcon,
+  LightbulbIcon,
+  MapTrifoldIcon,
   MegaphoneIcon,
   MoonIcon,
   MoonStarsIcon,
   PillIcon,
   PulseIcon,
+  RocketLaunchIcon,
+  StackIcon,
   SunIcon,
+  WallIcon,
+  WrenchIcon,
 } from "@phosphor-icons/react/dist/ssr";
 
 /**
@@ -37,6 +48,18 @@ const iconById: Record<string, Icon> = {
   communication: MegaphoneIcon,
   feedback: ChatCircleTextIcon,
   hobbies: BarbellIcon,
+  // systems: the four sections, then the seven layers
+  "at-a-glance": MapTrifoldIcon,
+  "the-seven-layers": StackIcon,
+  "tips-for-getting-started": LightbulbIcon,
+  "further-reading": BooksIcon,
+  foundations: WallIcon,
+  "direction-strategy": CompassIcon,
+  "planning-review-cycles": CalendarCheckIcon,
+  "execution-systems": RocketLaunchIcon,
+  "feedback-counsel": ChatsCircleIcon,
+  "domain-systems": FolderOpenIcon,
+  "tools-infrastructure": WrenchIcon,
 };
 
 const iconByEmoji: Record<string, Icon> = {
@@ -53,6 +76,16 @@ const iconByEmoji: Record<string, Icon> = {
   "📣": MegaphoneIcon,
   "💬": ChatCircleTextIcon,
   "💪": BarbellIcon,
+  "🗺️": MapTrifoldIcon,
+  "🥞": StackIcon,
+  "💡": LightbulbIcon,
+  "📚": BooksIcon,
+  "🧱": WallIcon,
+  "🧭": CompassIcon,
+  "📆": CalendarCheckIcon,
+  "🚀": RocketLaunchIcon,
+  "🗂️": FolderOpenIcon,
+  "🛠️": WrenchIcon,
 };
 
 /**
@@ -87,6 +120,18 @@ const accentById: Record<string, Accent> = {
   communication: "pm",
   feedback: "moss",
   hobbies: "coral",
+  // systems
+  "at-a-glance": "indigo",
+  "the-seven-layers": "am",
+  "tips-for-getting-started": "moss",
+  "further-reading": "coffee",
+  foundations: "plum",
+  "direction-strategy": "indigo",
+  "planning-review-cycles": "am",
+  "execution-systems": "coral",
+  "feedback-counsel": "moss",
+  "domain-systems": "coffee",
+  "tools-infrastructure": "pm",
 };
 
 const accentClass: Record<Accent, string> = {

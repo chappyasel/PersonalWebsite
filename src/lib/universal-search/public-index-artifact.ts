@@ -12,6 +12,7 @@ export const PUBLIC_SEARCH_INDEX_FILENAME =
 const SOURCE_FILES = {
   manual: "manual.json",
   routine: "routine.json",
+  systems: "systems.json",
   blog: "blog-posts.json",
   projects: "projects.json",
 } as const;

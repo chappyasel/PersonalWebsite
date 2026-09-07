@@ -3,6 +3,7 @@ import {
   AlarmIcon,
   BooksIcon,
   DiceFiveIcon,
+  GearIcon,
   HandshakeIcon,
   MonitorPlayIcon,
   NotebookIcon,
@@ -52,6 +53,7 @@ export type SectionIconKey =
   | "weightlifting"
   | "routine"
   | "manual"
+  | "systems"
   | "liarsdice"
   | "dad"
   | "youtube";
@@ -83,6 +85,8 @@ export const SECTION_ICONS: Record<SectionIconKey, SiteIconSpec> = {
   },
   // How We Collaborate's handshake.
   manual: { kind: "glyph", glyph: HandshakeIcon, color: SKY_INK },
+  // The gear the homepage section already wears.
+  systems: { kind: "glyph", glyph: GearIcon, color: SKY_INK },
   // A die.
   liarsdice: { kind: "glyph", glyph: DiceFiveIcon, color: SKY_INK },
   // A journal, so the private pages carry no face.

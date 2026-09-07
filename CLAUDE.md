@@ -111,6 +111,10 @@ pnpm db:migrate:prod  # Run migrations on production database
 - **Path Aliases**: Use `~/*` for src imports (e.g., `~/server/db`), `~~/*` for public assets (configured in tsconfig.json)
 - **Type Safety**: End-to-end types from database through tRPC to frontend using SuperJSON transformer
 - **Static Data**: Projects and blog posts stored in `/public/data/` JSON files.
+  The three Notion documents (`manual.json`, `routine.json`, `systems.json`)
+  are synced by `pnpm generate:manual`, `generate:routine`, and
+  `generate:systems`; each has a `*.data.test.ts` that pins the shape the
+  page, OG card, search index, and homepage card depend on.
   `github.json` is the committed snapshot of GitHub activity behind the Projects
   placard; `pnpm generate:github` refreshes it, and with `GITHUB_TOKEN` set the
   page fetches live data instead (`src/server/queries/github.ts`)

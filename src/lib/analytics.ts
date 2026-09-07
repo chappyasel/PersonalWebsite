@@ -42,6 +42,7 @@ export type DeepPage =
   | "weightlifting"
   | "manual"
   | "routine"
+  | "systems"
   | "liars_dice"
   | "golf";
 export type UniversalSearchProvider =

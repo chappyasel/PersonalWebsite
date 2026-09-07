@@ -382,11 +382,14 @@ function BookNoteSummary({
     <span
       {...props}
       className={cn(
-        "-ml-5 flex cursor-pointer items-start gap-2.5 text-foreground",
+        "group/book-note-summary -ml-5 flex cursor-pointer items-start gap-2.5 text-foreground",
         className,
       )}
     >
-      <DisclosureCaret open={open} />
+      <DisclosureCaret
+        open={open}
+        className="group-hover/book-note-summary:text-foreground"
+      />
       <span className="min-w-0 flex-1">
         {Children.map(children, (child) =>
           typeof child === "string" ? <InlineMarkdown source={child} /> : child,

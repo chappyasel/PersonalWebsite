@@ -147,10 +147,13 @@ export default function RichTextRenderer({
           return <React.Fragment key={i}>{mbtiRendered}</React.Fragment>;
         }
 
-        // A bare library URL becomes the shared book link: cover, title,
-        // hover card. Annotations on the run are ignored; the link owns its
-        // own styling.
-        const slug = bookSlugFromUrl(rt.text);
+        // Any run that points at a library book becomes the shared book
+        // link: cover, title, hover card. A bare URL shows the library's
+        // title; words the owner wrote ("7 Habits of Highly Effective
+        // People") stay as written. Annotations on the run are ignored; the
+        // link owns its own styling.
+        const slug =
+          bookSlugFromUrl(rt.text) ?? (rt.link ? bookSlugFromUrl(rt.link) : null);
         if (slug) {
           return (
             <BookLink
@@ -158,6 +161,7 @@ export default function RichTextRenderer({
               href={rt.link ?? rt.text}
               slug={slug}
               book={bookLookup?.[slug]}
+              label={isBareUrl(rt.text) ? undefined : rt.text}
             />
           );
         }

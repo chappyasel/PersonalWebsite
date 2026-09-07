@@ -4,6 +4,10 @@ import {
   MOBILE_RAIL_FONT_CLAMP,
   MOBILE_SHEET_SEAM_TOLERANCE_PX,
   MOBILE_SHEET_TITLE_CLAMP,
+  MOBILE_SHEET_TOP_PULL_COMMIT_PX,
+  MOBILE_SHEET_TOP_PULL_FLING_PX_MS,
+  MOBILE_SHEET_TOP_PULL_REARM_PX,
+  MOBILE_SHEET_TOP_PULL_SPENT_MAX_PX,
   MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   accumulateMobileSheetWheelIntent,
   mobileRailScale,
@@ -20,7 +24,10 @@ import {
   mobileSheetRestY,
   mobileSheetRubberBandY,
   mobileSheetScrollIntent,
+  mobileSheetSpentPullCommits,
   mobileSheetTitlePx,
+  mobileSheetTopPullAfterScroll,
+  mobileSheetTopPullY,
 } from "./mobileSheetGeometry";
 
 describe("mobile sheet transition geometry", () => {
@@ -350,5 +357,43 @@ describe("mobile sheet transition geometry", () => {
       lockedUntil: 0,
     });
     expect(native).toEqual({ state: null, committed: null, consume: false });
+  });
+});
+
+describe("mobileSheetTopPull", () => {
+  it("spends the pull only once reading has scrolled past the rearm distance", () => {
+    expect(mobileSheetTopPullAfterScroll("armed", 0)).toBe("armed");
+    expect(
+      mobileSheetTopPullAfterScroll("armed", MOBILE_SHEET_TOP_PULL_REARM_PX),
+    ).toBe("armed");
+    expect(
+      mobileSheetTopPullAfterScroll(
+        "armed",
+        MOBILE_SHEET_TOP_PULL_REARM_PX + 1,
+      ),
+    ).toBe("spent");
+    // Coming back to the top does not re-arm.
+    expect(mobileSheetTopPullAfterScroll("spent", 0)).toBe("spent");
+  });
+
+  it("collapses a spent sheet only on a deliberate flick, never on distance alone", () => {
+    const px = MOBILE_SHEET_TOP_PULL_COMMIT_PX;
+    const v = MOBILE_SHEET_TOP_PULL_FLING_PX_MS;
+    expect(mobileSheetSpentPullCommits(px, v)).toBe(true);
+    // A long slow drag springs back.
+    expect(mobileSheetSpentPullCommits(px * 4, v * 0.6)).toBe(false);
+    // A short fast twitch springs back.
+    expect(mobileSheetSpentPullCommits(px * 0.5, v * 3)).toBe(false);
+    // The plain fling threshold is not enough after reading.
+    expect(mobileSheetSpentPullCommits(px, 0.6)).toBe(false);
+  });
+
+  it("lets an armed pull move the sheet 1:1 and holds a spent one back", () => {
+    expect(mobileSheetTopPullY(120, "armed")).toBe(120);
+    expect(mobileSheetTopPullY(120, "spent")).toBe(30);
+    expect(mobileSheetTopPullY(400, "spent")).toBe(
+      MOBILE_SHEET_TOP_PULL_SPENT_MAX_PX,
+    );
+    expect(mobileSheetTopPullY(-40, "spent")).toBe(-40);
   });
 });

@@ -5,6 +5,7 @@ import {
   BarbellIcon,
   BookOpenTextIcon,
   BooksIcon,
+  GearIcon,
   SunHorizonIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -34,6 +35,7 @@ import {
 const GLYPH: Record<SitePageKey, { Icon: Icon; accent: Accent }> = {
   manual: { Icon: BookOpenTextIcon, accent: "plum" },
   routine: { Icon: SunHorizonIcon, accent: "am" },
+  systems: { Icon: GearIcon, accent: "indigo" },
   weightlifting: { Icon: BarbellIcon, accent: "coral" },
   books: { Icon: BooksIcon, accent: "moss" },
 };

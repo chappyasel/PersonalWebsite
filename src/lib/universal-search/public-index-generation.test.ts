@@ -52,6 +52,38 @@ const sources: PublicIndexSourceTexts = {
       },
     ],
   }),
+  systems: JSON.stringify({
+    intro: [],
+    sections: [
+      {
+        id: "at-a-glance",
+        title: "At a Glance",
+        blocks: [{ type: "paragraph", content: [{ text: "Seven layers." }] }],
+      },
+      {
+        id: "the-seven-layers",
+        title: "The Seven Layers",
+        layers: [
+          {
+            id: "execution-systems",
+            title: "Execution Systems",
+            blocks: [
+              {
+                type: "toggle",
+                title: [
+                  { text: ":sunsama:", customEmoji: { name: "sunsama", src: "/e.png" } },
+                  { text: " Sunsama → tasks / calendar" },
+                ],
+                children: [
+                  { type: "paragraph", content: [{ text: "Time blocking." }] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }),
   blog: JSON.stringify({
     items: [
       {
@@ -184,6 +216,31 @@ describe("createPublicSearchIndex", () => {
           target: { kind: "site", site: "routine", hash: "morning" },
           metadata: ["5:00am", "Morning"],
           body: "Notebook",
+        }),
+        expect.objectContaining({
+          id: "public:systems:at-a-glance",
+          source: "systems",
+          label: "At a Glance",
+          target: { kind: "site", site: "home", path: "/systems", hash: "at-a-glance" },
+          body: "Seven layers.",
+        }),
+        expect.objectContaining({
+          id: "public:systems:execution-systems",
+          label: "Execution Systems",
+          metadata: ["The Seven Layers"],
+        }),
+        expect.objectContaining({
+          id: "public:systems:execution-systems:sunsama",
+          source: "systems",
+          label: "Sunsama",
+          target: {
+            kind: "site",
+            site: "home",
+            path: "/systems",
+            hash: "execution-systems",
+          },
+          metadata: ["Execution Systems"],
+          body: "tasks / calendar Time blocking.",
         }),
         expect.objectContaining({
           id: "public:project:linked-project",

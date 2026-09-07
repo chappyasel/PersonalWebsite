@@ -8,7 +8,12 @@
  * own <meta> cannot disagree. `host` and `path` are how a link to the page
  * is recognised after the Notion export's URL rewriting.
  */
-export type SitePageKey = "manual" | "routine" | "weightlifting" | "books";
+export type SitePageKey =
+  | "manual"
+  | "routine"
+  | "systems"
+  | "weightlifting"
+  | "books";
 
 export type SitePage = {
   label: string;
@@ -17,6 +22,8 @@ export type SitePage = {
   host: string;
   path: string;
 };
+
+const MAIN_HOST = "chappyasel.com";
 
 export const SITE_PAGES: Record<SitePageKey, SitePage> = {
   manual: {
@@ -34,6 +41,16 @@ export const SITE_PAGES: Record<SitePageKey, SitePage> = {
       "My infamously early morning routine, workout schedule, supplement stacks, and sleep optimization.",
     host: "routine.chappyasel.com",
     path: "/routine",
+  },
+  // Served from the main host, not a subdomain: `host` is the apex so the
+  // matcher below falls through to the path check.
+  systems: {
+    label: "Personal Systems",
+    title: "Chappy's Personal Systems",
+    description:
+      "The seven layers of personal systems I use to run my life, with tips for getting started and further reading.",
+    host: MAIN_HOST,
+    path: "/systems",
   },
   weightlifting: {
     label: "Weightlifting",
@@ -71,11 +88,11 @@ export function sitePageForHref(href: string): SitePageKey | null {
 
   for (const key of SITE_PAGE_KEYS) {
     const page = SITE_PAGES[key];
-    if (host === page.host) {
+    if (host === page.host && page.host !== MAIN_HOST) {
       if (key === "books" && path !== "") return null;
       return key;
     }
-    if (host === "chappyasel.com" && path === page.path) return key;
+    if (host === MAIN_HOST && path === page.path) return key;
   }
   return null;
 }

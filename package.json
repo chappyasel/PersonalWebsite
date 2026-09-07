@@ -50,6 +50,7 @@
     "generate:stacks-labels": "node ./scripts/stacks-labels.mjs",
     "generate:manual": "tsx ./scripts/generate/manual.ts",
     "generate:routine": "tsx ./scripts/generate/routine.ts",
+    "generate:systems": "tsx ./scripts/generate/systems.ts",
     "generate:scene-objects": "tsx ./scripts/generate/scene-object-notes.ts",
     "generate:github": "tsx ./scripts/generate/github-activity.ts",
     "generate:globe-map": "tsx ./scripts/generate/globe-map.ts",

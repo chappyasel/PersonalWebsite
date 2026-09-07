@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { createWriteStream, existsSync, mkdirSync } from "fs";
+import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "fs";
 import http from "http";
 import https from "https";
 import { join } from "path";
@@ -108,6 +108,7 @@ export async function downloadCustomEmoji(
     if (!existsSync(dest)) {
       try {
         await downloadFile(url, dest);
+        await shrinkEmoji(dest);
         console.log(`  Downloaded custom emoji: ${filename}`);
       } catch (err) {
         console.warn(`  Failed to download custom emoji :${name}:`, err.message);
@@ -117,6 +118,22 @@ export async function downloadCustomEmoji(
     resolved[name] = `${emojiPathPrefix}${filename}`;
   }
   return resolved;
+}
+
+/**
+ * Notion stores workspace emoji at whatever size they were uploaded (a
+ * 640 px app icon is typical). The page shows them at 20 px through
+ * next/image, so anything past 128 px is repository weight for nothing.
+ */
+async function shrinkEmoji(path: string): Promise<void> {
+  if (!/\.(png|jpe?g|webp)$/i.test(path)) return;
+  const image = sharp(path);
+  const { width = 0, height = 0 } = await image.metadata();
+  if (Math.max(width, height) <= 128) return;
+  const buffer = await image
+    .resize(128, 128, { fit: "inside", withoutEnlargement: true })
+    .toBuffer();
+  writeFileSync(path, buffer);
 }
 
 /**
@@ -487,6 +504,7 @@ export function slugify(text: string): string {
 const notionPageToUrl: Record<string, string> = {
   "151c5ab0d88d80f3a0efcf2e04f18a56": "https://chappyasel.com/routine",
   "253c5ab0d88d80888643c64e7dbe5d0c": "https://chappyasel.com/manual",
+  "3ccc5ab0d88d80ea91aef3dc2a823280": "https://chappyasel.com/systems",
   // The Book Notes root page and the Why We Sleep notes both live on the
   // public library.
   "340ec22372464d89a44e8005075bb7c4": "https://books.chappyasel.com/",
@@ -494,18 +512,26 @@ const notionPageToUrl: Record<string, string> = {
 };
 
 // Notion Site slugs (chappyasel.notion.site/<slug>) that the site serves
-// itself. A slug with no entry (eg. /systems) stays as authored.
+// itself. A slug with no entry stays as authored.
 const notionSiteToUrl: Record<string, string> = {
   manual: "https://chappyasel.com/manual",
   routine: "https://chappyasel.com/routine",
+  systems: "https://chappyasel.com/systems",
 };
 
-function rewritePublicNotionUrl(value: string): string {
+/**
+ * A public URL for a Notion link, or null for a workspace page the site does
+ * not serve. Every workspace link (www.notion.so, app.notion.com) is behind
+ * the owner's login, so an unmapped one is private by definition and must
+ * not reach a visitor; the caller keeps the words and drops the link.
+ */
+function rewritePublicNotionUrl(value: string): string | null {
   // Notion links arrive as www.notion.so/<slug>-<id> or app.notion.com/p/<id>
   const isNotionLink =
     /https:\/\/(www\.notion\.so|app\.notion\.com)\//.test(value);
   const page = isNotionLink ? /([a-f0-9]{32})/.exec(value) : null;
   if (page?.[1] && notionPageToUrl[page[1]]) return notionPageToUrl[page[1]];
+  if (isNotionLink) return null;
 
   const site =
     /^https:\/\/chappyasel\.notion\.site\/([a-z0-9-]+)\/?(?:[?#].*)?$/i.exec(
@@ -542,13 +568,22 @@ export function rewriteNotionSelfLinks(
   obj: any,
   pageId: string,
   anchorMap: Record<string, string>,
+  /**
+   * Last resort for a fragment no block owns: the block was deleted and
+   * re-created upstream, but the link's words still name a section ("tips
+   * for getting started"). Returns the anchor for those words, or null to
+   * drop the link.
+   */
+  resolveByText?: (text: string) => string | null,
 ): any {
-  // Self-links arrive in three shapes: www.notion.so/<id>#<block>,
-  // app.notion.com/p/<id>#<block>, and, for links typed into the page rather
-  // than @-mentions, app.notion.com/p/<workspace>/<slug>-<id>#<block>. Any
-  // Notion URL whose path ends in this page's id is one.
+  // Self-links arrive in four shapes: www.notion.so/<id>#<block>,
+  // app.notion.com/p/<id>#<block>, for links typed into the page rather
+  // than @-mentions app.notion.com/p/<workspace>/<slug>-<id>#<block>, and
+  // for a page published to the web chappyasel.notion.site/<slug>-<id>#<block>.
+  // Any Notion URL whose path ends in this page's id is one, and so is the
+  // bare "/p/<id>#<block>" the API returns for a link copied inside the app.
   const selfPagePattern = new RegExp(
-    `^https://(?:www\\.notion\\.so|app\\.notion\\.com)/(?:[^#?]*[-/])?${pageId}(?:\\?[^#]*)?#([a-f0-9]+)$`,
+    `^(?:https://(?:www\\.notion\\.so|[a-z0-9-]+\\.notion\\.site|app\\.notion\\.com))?/(?:[^#?]*[-/])?${pageId}(?:\\?[^#]*)?#([a-f0-9]+)$`,
   );
   const rewrite = (value: any): any => {
     if (Array.isArray(value)) return value.map(rewrite);
@@ -562,12 +597,22 @@ export function rewriteNotionSelfLinks(
           } else if (match[1] && anchorMap[match[1]]) {
             result[key] = anchorMap[match[1]];
           } else {
-            // A fragment with no local home (a block that was deleted, or
-            // one outside every section) must not send a visitor off to
-            // Notion: keep the words, drop the link.
-            console.warn(
-              `  Dropped self-link to block ${match[1]}: no section owns it`,
-            );
+            const text =
+              typeof value.text === "string" ? value.text.trim() : "";
+            const byText = text ? (resolveByText?.(text) ?? null) : null;
+            if (byText) {
+              console.warn(
+                `  Self-link to block ${match[1]} has no owner; matched "${text}" to ${byText}`,
+              );
+              result[key] = byText;
+            } else {
+              // A fragment with no local home (a block that was deleted, or
+              // one outside every section) must not send a visitor off to
+              // Notion: keep the words, drop the link.
+              console.warn(
+                `  Dropped self-link to block ${match[1]}: no section owns it`,
+              );
+            }
           }
         } else {
           result[key] = rewrite(v);
@@ -587,7 +632,15 @@ export function rewriteNotionPageLinks(obj: any): any {
     const result: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (key === "link" && typeof value === "string") {
-        result[key] = rewritePublicNotionUrl(value);
+        const publicUrl = rewritePublicNotionUrl(value);
+        if (publicUrl) {
+          result[key] = publicUrl;
+        } else {
+          const text = typeof obj.text === "string" ? obj.text : "";
+          console.warn(
+            `  Dropped private Notion link on "${text}" (${value})`,
+          );
+        }
       } else {
         result[key] = rewriteNotionPageLinks(value);
       }

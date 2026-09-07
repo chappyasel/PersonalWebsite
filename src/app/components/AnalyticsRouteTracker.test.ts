@@ -9,6 +9,7 @@ describe("deep-page journey classification", () => {
     expect(deepPageForLocation("/weightlifting/")).toBe("weightlifting");
     expect(deepPageForLocation("/manual")).toBe("manual");
     expect(deepPageForLocation("/routine")).toBe("routine");
+    expect(deepPageForLocation("/systems")).toBe("systems");
     expect(deepPageForLocation("/liarsdice")).toBe("liars_dice");
     expect(deepPageForLocation("/golf")).toBe("golf");
   });
