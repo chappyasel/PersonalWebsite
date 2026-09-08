@@ -14,12 +14,12 @@ import { BookPreviewProvider } from "./contexts/BookPreviewContext";
 export const metadata: Metadata = {
   metadataBase: new URL(getBooksOrigin()),
   icons: siteIconMetadata(getBooksOrigin()),
-  title: "Book Notes ~ Chappy Asel",
+  title: "Chappy's Book Notes",
   description: SITE_PAGES.books.description,
   keywords: ["book notes", "book reviews", "reading list", "Chappy Asel"],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
-    title: "Book Notes ~ Chappy Asel",
+    title: "Chappy's Book Notes",
     description: SITE_PAGES.books.description,
     url: "/",
     siteName: "Chappy's Book Notes",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@chappyasel",
     creator: "@chappyasel",
-    title: "Book Notes ~ Chappy Asel",
+    title: "Chappy's Book Notes",
     description: SITE_PAGES.books.description,
   },
   alternates: {

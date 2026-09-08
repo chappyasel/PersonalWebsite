@@ -45,7 +45,7 @@ const THEMES = ["light", "dark"];
 const book = option("book", "");
 const SITES = [
   { key: "home", title: "Chappy Asel", tab: "/icon", app: "/apple-icon/180" },
-  { key: "books", title: "Book Notes ~ Chappy Asel", svg: "/books" },
+  { key: "books", title: "Chappy's Book Notes", svg: "/books" },
   ...(book
     ? [{ key: "book", title: `${book} ~ Book Notes`, tab: `/books/${book}/icon`, app: `/books/${book}/icon` }]
     : []),

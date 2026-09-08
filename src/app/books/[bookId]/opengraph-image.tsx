@@ -472,7 +472,7 @@ export default async function Image({
                 margin: 0,
               }}
             >
-              Book Notes ~ Chappy Asel
+              Chappy&apos;s Book Notes
             </p>
           </div>
         </div>
