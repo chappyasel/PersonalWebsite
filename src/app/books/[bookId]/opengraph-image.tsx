@@ -188,7 +188,9 @@ export default async function Image({
               width: "100%",
               height: "100%",
               display: "flex",
-              backgroundColor: fallback?.backdrop,
+              // Only when set: satori throws on an undefined style value,
+              // and it throws while the body streams, past the try/catch
+              ...(fallback && { backgroundColor: fallback.backdrop }),
             }}
           >
             {coverImageSrc && (
@@ -241,7 +243,7 @@ export default async function Image({
                 overflow: "hidden",
                 boxShadow: "0px 12px 48px rgba(0, 0, 0, 0.3)",
                 flexShrink: 0,
-                backgroundColor: fallback?.board,
+                ...(fallback && { backgroundColor: fallback.board }),
               }}
             >
               {coverImageSrc ? (

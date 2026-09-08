@@ -103,7 +103,9 @@ export async function bookCoverIconImage(
             width: "100%",
             height: "100%",
             display: "flex",
-            backgroundColor: backdropColor ?? undefined,
+            // Only when set: satori throws on an undefined style value,
+            // and it throws while the body streams, past the try/catch
+            ...(backdropColor !== null && { backgroundColor: backdropColor }),
           }}
         >
           {backdropColor === null && (
