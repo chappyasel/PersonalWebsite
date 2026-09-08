@@ -8,6 +8,7 @@ import {
   type NotionMarkdownBlock,
   separateAdjacentQuoteBlocks,
   separateCachedQuoteBlocks,
+  toggleHeadings,
 } from "./markdown";
 
 const n2m = new NotionToMarkdown({ notionClient: {} as Client });
@@ -86,5 +87,61 @@ describe("separateCachedQuoteBlocks", () => {
     expect(
       separateCachedQuoteBlocks("    > First quote\n    > Second quote"),
     ).toBe("    > First quote\n    \n    > Second quote");
+  });
+});
+
+const block = (
+  type: string,
+  parent: string,
+  children: ReturnType<typeof toggleHeadings> = [],
+) => ({ type, blockId: parent, parent, children });
+
+describe("toggleHeadings", () => {
+  it("re-types a heading with children as a bold-summary toggle", () => {
+    const out = toggleHeadings([
+      block("heading_3", "### Related Podcasts", [
+        block("bulleted_list_item", "- https://overcast.fm/+1LeelN3PU"),
+      ]),
+    ]);
+    expect(out[0]?.type).toBe("toggle");
+    expect(out[0]?.parent).toBe("<strong>Related Podcasts</strong>");
+    expect(out[0]?.children).toHaveLength(1);
+  });
+
+  it("drops bold markers from a heading typed bold in Notion", () => {
+    const out = toggleHeadings([
+      block("heading_2", "## **26 Tools For Combatting Chatter**", [
+        block("paragraph", "On your own"),
+      ]),
+    ]);
+    expect(out[0]?.parent).toBe(
+      "<strong>26 Tools For Combatting Chatter</strong>",
+    );
+  });
+
+  it("leaves a childless heading and other blocks alone", () => {
+    const input = [
+      block("heading_1", "# Key Takeaways"),
+      block("toggle", "Already a toggle", [block("paragraph", "body")]),
+      block("paragraph", "plain"),
+    ];
+    const out = toggleHeadings(input);
+    expect(out.map((b) => b.type)).toEqual([
+      "heading_1",
+      "toggle",
+      "paragraph",
+    ]);
+    expect(out[0]?.parent).toBe("# Key Takeaways");
+    expect(out[1]?.parent).toBe("Already a toggle");
+  });
+
+  it("reaches headings nested inside other blocks", () => {
+    const out = toggleHeadings([
+      block("toggle", "outer", [
+        block("heading_2", "## Inner", [block("paragraph", "deep")]),
+      ]),
+    ]);
+    expect(out[0]?.children[0]?.type).toBe("toggle");
+    expect(out[0]?.children[0]?.parent).toBe("<strong>Inner</strong>");
   });
 });

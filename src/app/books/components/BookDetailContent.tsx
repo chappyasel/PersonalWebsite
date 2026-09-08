@@ -675,7 +675,7 @@ function CopyLinkButton({
         "gap-1.5 px-2 transition-colors duration-200 sm:gap-2 sm:px-3",
         copied
           ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
-          : "text-muted-foreground hover:text-foreground",
+          : "text-muted-foreground/70 hover:text-foreground",
       )}
       aria-label={copied ? "Link copied" : "Copy link"}
       onClick={onClick}
@@ -1307,7 +1307,7 @@ export function BookDetailContent({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-muted-foreground hover:text-foreground"
+                            className="text-muted-foreground/70 hover:text-foreground"
                             asChild
                           >
                             <a
@@ -1325,7 +1325,7 @@ export function BookDetailContent({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-muted-foreground hover:text-foreground"
+                          className="text-muted-foreground/70 hover:text-foreground"
                           asChild
                         >
                           <a
@@ -1487,7 +1487,7 @@ export function BookDetailContent({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 px-2 text-muted-foreground hover:text-foreground sm:gap-2 sm:px-3"
+                    className="gap-1.5 px-2 text-muted-foreground/70 hover:text-foreground sm:gap-2 sm:px-3"
                     asChild
                   >
                     <a
@@ -1508,7 +1508,7 @@ export function BookDetailContent({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1.5 px-2 text-muted-foreground hover:text-foreground sm:gap-2 sm:px-3"
+                  className="gap-1.5 px-2 text-muted-foreground/70 hover:text-foreground sm:gap-2 sm:px-3"
                   asChild
                 >
                   <a

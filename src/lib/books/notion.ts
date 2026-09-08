@@ -2,7 +2,7 @@ import { Client, type PageObjectResponse } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
 
 import { hourDotMinutesToMinutes } from "./lengthFetcher";
-import { separateAdjacentQuoteBlocks } from "./markdown";
+import { separateAdjacentQuoteBlocks, toggleHeadings } from "./markdown";
 import type { BaseBook } from "./types";
 import { env } from "~/env";
 
@@ -122,7 +122,7 @@ export async function fetchBookDetails(
     // Fetch all blocks including nested children and convert to markdown
     const mdBlocks = await n2m.pageToMarkdown(bookId);
     const mdString = n2m.toMarkdownString(
-      separateAdjacentQuoteBlocks(mdBlocks),
+      toggleHeadings(separateAdjacentQuoteBlocks(mdBlocks)),
     );
     const notes = mdString.parent ?? "";
 
