@@ -6,7 +6,8 @@
 // card inside 12px margins, its bottom under Safari's toolbar (the page
 // beneath cannot scroll, so the toolbar never collapses), the 3D world still
 // live underneath. So every launcher decides here, once, which navigation to
-// make. Tune the query, not the launchers.
+// make — the book modal too, which opens from state rather than a route but
+// is the same card on the same phone. Tune the query, not the launchers.
 
 /**
  * Where the sheet is skipped for the full page: phone portrait (under
@@ -28,6 +29,24 @@ export function prefersFullPage(): boolean {
 }
 
 /**
+ * The decision for an opener that would otherwise present an overlay in
+ * place (the book modal opens from state, not a route): on a small viewport
+ * load `href` as its own page and return true, so the caller skips the
+ * overlay and every state or history change that came with it. `replace`
+ * when the address bar already reads the destination — a route interceptor
+ * that has just soft-navigated there, a deep link being upgraded.
+ */
+export function loadFullPageOnSmallViewport(
+  href: string,
+  { replace = false }: { replace?: boolean } = {},
+): boolean {
+  if (!prefersFullPage()) return false;
+  if (replace) window.location.replace(href);
+  else window.location.assign(href);
+  return true;
+}
+
+/**
  * Open a sheet route from code (a 3D prop, a calendar cell, an instance
  * row): the soft push the interceptor claims on a roomy viewport, a full
  * document load on a small one. Links use `SheetLink`, which makes the same
@@ -37,9 +56,6 @@ export function openSheetRoute(
   href: string,
   router: { push: (href: string) => void },
 ) {
-  if (prefersFullPage()) {
-    window.location.assign(href);
-    return;
-  }
+  if (loadFullPageOnSmallViewport(href)) return;
   router.push(href);
 }

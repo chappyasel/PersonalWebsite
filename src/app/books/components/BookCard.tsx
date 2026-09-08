@@ -39,6 +39,8 @@ import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
+
+import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { cn } from "@/src/lib/util";
 
 type BookCardProps = {
@@ -259,6 +261,9 @@ export const BookCard = memo(function BookCard({
 
     // Remove focus to prevent Safari focus ring
     cardRef.current?.blur();
+    // On a phone the book is its own page, not a modal over the shelf
+    // (components/modal-sheet/sheetRoute).
+    if (loadFullPageOnSmallViewport(bookUrl)) return;
     // Open modal instantly via state (XS maps to S for modal)
     openModal(book, size === "XS" ? "S" : size);
     // Update URL without triggering Next.js navigation

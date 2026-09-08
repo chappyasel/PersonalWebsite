@@ -1,6 +1,8 @@
 "use client";
 
 import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
+
+import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -254,14 +256,13 @@ export function useKeyboardNavigation({
         setShowFocusIndicator(true); // Show indicator on keyboard action
         lastFocusedBookIdRef.current = book.id;
       }
+      const href = getBookPath(book.id, searchParams.toString());
+      // On a phone the book is its own page, not a modal over the shelf.
+      if (loadFullPageOnSmallViewport(href)) return;
       // Open the modal
       openModal(book, "M");
       // Update URL without navigation (preserve query params)
-      window.history.pushState(
-        BOOK_MODAL_HISTORY_STATE,
-        "",
-        getBookPath(book.id, searchParams.toString()),
-      );
+      window.history.pushState(BOOK_MODAL_HISTORY_STATE, "", href);
     }
   }, [books, keyboardFocusedIndex, setKeyboardFocus, openModal, searchParams]);
 

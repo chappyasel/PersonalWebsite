@@ -13,7 +13,6 @@ import {
 } from "react";
 
 import {
-  getBookPath,
   getBookShareUrl,
   getBooksPath,
   getBooksTagQuery,
@@ -37,7 +36,7 @@ import {
 
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
-import type { ModalPresentation } from "./ModalHost";
+import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
 import { bookIdFromPathname, isBookModalHistoryState } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
 
@@ -224,10 +223,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     closeModal();
   }, [pathname, isModalOpen, bookId, fromStacks, closeModal, onCloseStart]);
 
-  const expandHref =
-    fromStacks && presentation
-      ? `${presentation.booksHref}/${bookId}`
-      : getBookPath(bookId);
+  const expandHref = fullBookPageHref(bookId, presentation);
 
   // A tag leads to the shelf narrowed to that tag. Over the 3D homepage that
   // is a real cross-host link; on Books it is the grid already sitting under

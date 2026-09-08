@@ -24,6 +24,8 @@ import { useCallback, useEffect } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
+
+import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { api } from "~/trpc/react";
 
 import { jumpToUnitWhenReady, ownDirectBookHistory } from "./bookModalSync";
@@ -35,6 +37,13 @@ function booksBaseUrl(): string {
   return process.env.NODE_ENV === "production"
     ? "https://books.chappyasel.com"
     : devSubdomainUrl("books");
+}
+
+/** The book's own page on the books host — the modal's expand target, and
+ * where a phone lands instead of the modal (components/modal-sheet/
+ * sheetRoute), with nothing here changing before the document does. */
+function bookPageUrl(id: string): string {
+  return `${booksBaseUrl()}/${id}`;
 }
 
 function ModalBridge() {
@@ -58,6 +67,10 @@ function ModalBridge() {
   // 3D cover click → pushState + instant open (the books-app pattern).
   useEffect(() => {
     if (!pendingBook) return;
+    if (loadFullPageOnSmallViewport(bookPageUrl(pendingBook.id))) {
+      setPendingBook(null);
+      return;
+    }
     window.history.pushState(
       BOOK_MODAL_HISTORY_STATE,
       "",
@@ -72,6 +85,10 @@ function ModalBridge() {
   // warm, no full Book on the payload), so the books app fetches this one.
   useEffect(() => {
     if (!pendingBookId) return;
+    if (loadFullPageOnSmallViewport(bookPageUrl(pendingBookId))) {
+      setPendingBookId(null);
+      return;
+    }
     window.history.pushState(
       BOOK_MODAL_HISTORY_STATE,
       "",
@@ -92,6 +109,10 @@ function ModalBridge() {
     const match = BOOK_HASH.exec(window.location.hash);
     if (!match?.[1]) return;
     const id = decodeURIComponent(match[1]);
+    // On a phone the deep link lands on the book's own page; a replace, so
+    // back leaves the way the visitor came.
+    if (loadFullPageOnSmallViewport(bookPageUrl(id), { replace: true }))
+      return;
     ownDirectBookHistory(
       window.history,
       window.location,
