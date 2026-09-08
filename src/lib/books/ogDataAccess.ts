@@ -17,7 +17,9 @@ import type { BaseBook } from "./types";
  * @returns The book with tags
  * @throws Error if book not found
  */
-export async function getBookForOG(bookId: string): Promise<BaseBook> {
+export async function getBookForOG(
+  bookId: string,
+): Promise<BaseBook & { coverColor: string | null }> {
   const book = await db.query.books.findFirst({
     where: eq(books.id, bookId),
     with: {
@@ -49,6 +51,7 @@ export async function getBookForOG(bookId: string): Promise<BaseBook> {
     isAutomated: book.isAutomated,
     isFeatured: book.isFeatured,
     coverUrl: book.coverUrl,
+    coverColor: book.coverColor ?? null,
     audibleUrl: book.audibleUrl,
     notionUrl: book.notionUrl,
   };
@@ -139,38 +142,57 @@ export async function getSlugByNotionId(
   return book?.id ?? null;
 }
 
+/** One shelf book as the /books OG card needs it: a cover to draw, the
+ * sampled jacket color to order it by (and to stand in for a cover the host
+ * will not serve), and the dates and runtime behind the card's numbers. */
+export type BookshelfOGBook = {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  coverColor: string | null;
+  started: string | null;
+  finished: string | null;
+  /** Always null here (the query hides abandoned books); present so the row
+   * satisfies the homepage stats helper's input shape. */
+  abandoned: null;
+  pageCount: number | null;
+  audioLengthMin: number | null;
+};
+
 /**
- * Fetch all books for main page OG image generation
- * Returns top books by rating and recency, prioritizing those with covers
- *
- * @returns Array of books with id, title, and coverUrl
+ * The default shelf for the /books OG card: finished or in-progress books,
+ * abandoned ones hidden, mirroring the page's own default view.
  */
-export async function getAllBooksForOG(): Promise<
-  Array<{
-    id: string;
-    title: string;
-    coverUrl: string | null;
-  }>
-> {
-  const allBooks = await db.query.books.findMany({
+export async function getBookshelfForOG(): Promise<BookshelfOGBook[]> {
+  const rows = await db.query.books.findMany({
     columns: {
       id: true,
       title: true,
       coverUrl: true,
-      rating: true,
+      coverColor: true,
+      started: true,
       finished: true,
+      pageCount: true,
+      audioLengthMin: true,
     },
-    orderBy: (books, { desc }) => [desc(books.rating), desc(books.finished)],
-    limit: 50,
+    where: and(
+      isNull(books.abandoned),
+      or(
+        isNotNull(books.finished),
+        and(isNotNull(books.started), isNull(books.finished)),
+      ),
+    ),
+    orderBy: (books, { desc }) => [desc(books.finished)],
   });
-
-  // Prioritize books with covers by moving them to the front
-  const withCovers = allBooks.filter((book) => book.coverUrl !== null);
-  const withoutCovers = allBooks.filter((book) => book.coverUrl === null);
-
-  return [...withCovers, ...withoutCovers].map((book) => ({
+  return rows.map((book) => ({
     id: book.id,
     title: book.title,
     coverUrl: book.coverUrl,
+    coverColor: book.coverColor ?? null,
+    started: book.started?.toISOString() ?? null,
+    finished: book.finished?.toISOString() ?? null,
+    abandoned: null,
+    pageCount: book.pageCount ?? null,
+    audioLengthMin: book.audioLengthMin ?? null,
   }));
 }

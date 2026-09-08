@@ -9,6 +9,7 @@ import {
 import {
   createCoverEdgeColorResolver,
   extractCoverEdgeColor,
+  readingBookEdgeColors,
 } from "./coverEdgeColor.server";
 
 async function borderedCover(edge: string, center: string) {
@@ -110,5 +111,18 @@ describe("cover perimeter colors", () => {
     expect(readingBookMaterialColors("#100020", "#b3a68f", true).cover).toBe(
       "#4d3762",
     );
+  });
+});
+
+describe("readingBookEdgeColors", () => {
+  it("uses the library's stored jacket color before sampling anything", async () => {
+    const colors = await readingBookEdgeColors([
+      { id: "stored", coverUrl: "https://example.invalid/never-fetched.jpg", coverColor: "#2980B9" },
+      { id: "no-cover", coverUrl: null, coverColor: null },
+      { id: "bad-hex", coverUrl: null, coverColor: "blue" },
+    ]);
+    expect(colors.stored).toEqual({ edge: "#2980b9", source: "cover" });
+    expect(colors["no-cover"]?.source).toBe("fallback");
+    expect(colors["bad-hex"]?.source).toBe("fallback");
   });
 });

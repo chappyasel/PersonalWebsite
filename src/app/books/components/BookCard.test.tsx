@@ -47,6 +47,7 @@ const CURRENT_BOOK_WITHOUT_NOTES: Book = {
   readNumber: 1,
   totalReads: 1,
   otherReadings: [],
+  coverColor: null,
 };
 
 describe("BookCard badges", () => {

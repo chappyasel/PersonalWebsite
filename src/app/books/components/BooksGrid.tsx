@@ -16,6 +16,11 @@ import { useQueryStates } from "nuqs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
+import {
+  compareColorLabels,
+  coverColorLabel,
+  orderByCoverColor,
+} from "~/lib/books/coverColor";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
@@ -35,12 +40,16 @@ const sizeWidths = {
 type BooksGridProps = {
   initialBooks: Book[];
   zoomOutWidth?: number | null;
+  /** Drop the section headers and lay every book out in one grid, in sort
+   * order. Sections otherwise break the grid at each header. */
+  hideHeaders?: boolean;
   onBookCountChange?: (count: number) => void;
 };
 
 export function BooksGrid({
   initialBooks,
   zoomOutWidth,
+  hideHeaders = false,
   onBookCountChange,
 }: BooksGridProps) {
   const [params, setParams] = useQueryStates(searchParamsParsers);
@@ -171,7 +180,12 @@ export function BooksGrid({
       }
     }
 
-    // Client-side sorting (still applies in zoom-out mode)
+    // Client-side sorting (still applies in zoom-out mode). Color is not a
+    // key sort: it walks a smooth path through each color family.
+    if (sortField === "color") {
+      return orderByCoverColor(filteredBooks, sortOrder);
+    }
+
     return [...filteredBooks].sort((a, b) => {
       let aValue: string | number | null;
       let bValue: string | number | null;
@@ -336,6 +350,8 @@ export function BooksGrid({
         } else {
           groupKey = "#";
         }
+      } else if (sortField === "color") {
+        groupKey = coverColorLabel(book.coverColor);
       } else {
         groupKey = "Other";
       }
@@ -372,6 +388,8 @@ export function BooksGrid({
       return compareBucketLabels(RUNTIME_BUCKET_LABELS, a, b, sortOrder);
     } else if (sortField === "pageCount") {
       return compareBucketLabels(PAGE_BUCKET_LABELS, a, b, sortOrder);
+    } else if (sortField === "color") {
+      return compareColorLabels(a, b, sortOrder);
     } else {
       // Sort alphabetically, "#" always first
       if (a === "#") return -1;
@@ -380,28 +398,33 @@ export function BooksGrid({
     }
   });
 
-  // Create sections array for virtualization
-  const sections = groupKeys.map((key) => ({
-    key,
-    books: groupedBooks[key]!,
-  }));
+  // Create sections array for virtualization. Without headers there is one
+  // section holding the whole sorted list, so the grid never breaks a row.
+  const sections = hideHeaders
+    ? [{ key: "all", books }]
+    : groupKeys.map((key) => ({
+        key,
+        books: groupedBooks[key]!,
+      }));
 
   // Shared section renderer
   const renderSection = (section: (typeof sections)[number]) => (
     <div key={section.key} className="flex flex-col gap-4 pb-8">
       {/* Section Header — year headers get a stats popover */}
-      <h2 className="text-2xl font-semibold text-foreground">
-        {sortField === "finished" ? (
-          <ReadingStatsPopover scope={section.key}>
-            {section.key}
-          </ReadingStatsPopover>
-        ) : (
-          section.key
-        )}
-        <span className="ml-1 inline-block -translate-y-0.5 text-sm text-muted-foreground">
-          ({section.books.length})
-        </span>
-      </h2>
+      {!hideHeaders && (
+        <h2 className="text-2xl font-semibold text-foreground">
+          {sortField === "finished" ? (
+            <ReadingStatsPopover scope={section.key}>
+              {section.key}
+            </ReadingStatsPopover>
+          ) : (
+            section.key
+          )}
+          <span className="ml-1 inline-block -translate-y-0.5 text-sm text-muted-foreground">
+            ({section.books.length})
+          </span>
+        </h2>
+      )}
 
       {/* Books Grid with AnimatePresence preserved */}
       <motion.div

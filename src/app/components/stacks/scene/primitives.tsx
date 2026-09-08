@@ -247,10 +247,14 @@ const DETAIL_MIN_W = 0.068;
  * keeps regrowing. */
 const LEAN = 0.17;
 
-/** A real book's slot in the theme's spine palette. Hashed from the id rather
- * than rolled from the row position, so a book keeps its board color when the
- * row recomposes around it, and keeps the same slot in both themes. */
-function spineBookColor(id: string, palette: Palette): string {
+/** A real book's board color: the one its caller resolved from the library's
+ * stored jacket color when there is one, otherwise a slot in the theme's spine
+ * palette. The slot is hashed from the id rather than rolled from the row
+ * position, so a book keeps its board color when the row recomposes around
+ * it, and keeps the same slot in both themes. */
+function spineBookColor(book: SpineBookLength, palette: Palette): string {
+  if (book.color) return book.color;
+  const id = book.id;
   let hash = 2166136261;
   for (let i = 0; i < id.length; i++) {
     hash ^= id.charCodeAt(i);
@@ -302,6 +306,9 @@ function bookDealer(books: readonly SpineBookLength[]) {
 export type SpineBookLength = SpineBookRef & {
   pageCount: number | null;
   audioLengthMin: number | null;
+  /** Board color already tuned for the scene (see readingBookMaterialColors);
+   * absent for books the library has not colored. */
+  color?: string;
 };
 
 export function packRow(
@@ -358,7 +365,7 @@ export function packRow(
       colors: Array.from({ length: n }, (_, j) => {
         const book = stacked[j];
         return book
-          ? spineBookColor(book.id, palette)
+          ? spineBookColor(book, palette)
           : palette.spines[
               Math.floor(rand(i + j, salt + 7) * palette.spines.length)
             ]!;
@@ -427,7 +434,7 @@ export function packRow(
               )
             : 0.4 + rand(i, salt + 3) * 0.18,
           color: book
-            ? spineBookColor(book.id, palette)
+            ? spineBookColor(book, palette)
             : palette.spines[
                 Math.floor(rand(i, salt + 4) * palette.spines.length)
               ]!,
@@ -469,7 +476,7 @@ export function packRow(
           )
         : (w > 0.09 ? 0.5 : 0.4) + rand(i, salt + 3) * 0.16;
       const color = book
-        ? spineBookColor(book.id, palette)
+        ? spineBookColor(book, palette)
         : palette.spines[
             Math.floor(rand(i, salt + 4) * palette.spines.length)
           ]!;
@@ -492,7 +499,7 @@ export function packRow(
       )
     : 0.4 + rand(i, salt + 3) * 0.1;
   const endColor = endBook
-    ? spineBookColor(endBook.id, palette)
+    ? spineBookColor(endBook, palette)
     : palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!;
   // The end book may lean only when its upper-left edge has a tall neighbor
   // to bear against. A flat stack or a preceding gap supports nothing at that
@@ -624,6 +631,7 @@ function ShelfBook({
   rest,
   settle,
   grabbable = false,
+  hoverSlide = false,
   shadeColor,
   book,
   onOpenBookId,
@@ -640,6 +648,9 @@ function ShelfBook({
   settle?: number;
   /** Carry this individual volume while retaining its tap destination. */
   grabbable?: boolean;
+  /** A volume lying in a stack slides toward the viewer on hover instead of
+   * tipping; see Grabbable's `hoverSlide`. */
+  hoverSlide?: boolean;
   shadeColor?: string;
   /** The library book this volume is, when it is one. */
   book?: SpineBookRef;
@@ -691,6 +702,7 @@ function ShelfBook({
         shadeWidth={0}
         shape="box"
         massKg={0.65}
+        hoverSlide={hoverSlide}
         onHoverIntent={prefetchOwnNotes}
         {...(opensOwnNotes
           ? {
@@ -1149,6 +1161,7 @@ function FeaturedCover({
             lift={FLAT_LIFT}
             rest={riserPose}
             grabbable={grabbableRiser}
+            hoverSlide
             shadeColor={palette.shadow}
           >
             {riserBook}
@@ -1233,6 +1246,9 @@ function FlatStack({
           base={[item.x + j * (item.staggerX ?? 0.012), seats[j]!, 0]}
           lift={FLAT_LIFT}
           grabbable={grabbableVolumes}
+          // A stacked volume is pulled out, never tipped: the top one would
+          // otherwise nod up into the headphones or phone resting on it.
+          hoverSlide
           shadeColor={palette.shadow}
           book={item.books?.[j]}
           onOpenBookId={onOpenBookId}

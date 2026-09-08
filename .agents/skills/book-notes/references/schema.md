@@ -64,6 +64,26 @@ WHERE is_featured
 ORDER BY finished DESC;
 ```
 
+## Cover color
+
+`cover_color` is derived, not synced: the website sync samples the dominant
+jacket hue from `cover_url` (`src/lib/books/coverColor.server.ts`), sets it at
+the lightness the whole jacket reads at, and stores it as `#rrggbb`. It backs
+the shelf's "Color" sort, which groups by family and then walks a smooth
+OKLab path inside each family. There is no Notion property behind it, so
+never try to fix it in Notion; a wrong family means the thresholds in
+`src/lib/books/coverColor.ts` need tuning (no resample needed), a wrong hex
+means the sampler does, and `pnpm backfill:book-colors --force` resamples
+every cover. NULL means the book has no cover or the cover host could not be
+read.
+
+```sql
+-- Books still missing a shelf color
+SELECT id, title, cover_url
+FROM books
+WHERE cover_url IS NOT NULL AND cover_color IS NULL;
+```
+
 ## Tags / topics
 
 ```sql

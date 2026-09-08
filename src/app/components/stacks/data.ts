@@ -210,6 +210,9 @@ export type StacksSpineBook = {
   author: string;
   pageCount: number | null;
   audioLengthMin: number | null;
+  /** Stored jacket color ("#rrggbb"); null falls back to the theme's cloth
+   * palette so an uncolored book still reads as a book. */
+  coverColor: string | null;
 };
 
 export type StacksData = {

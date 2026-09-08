@@ -18,6 +18,7 @@ import { Client } from "@notionhq/client";
 import { eq, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { resolveCoverColor } from "../src/lib/books/coverColor.server";
 import { fetchBookCover } from "../src/lib/books/coverFetcher";
 import * as schema from "../src/server/db/schema";
 
@@ -71,7 +72,13 @@ async function updateCoverInDatabase(
   bookId: string,
   coverUrl: string,
 ): Promise<void> {
-  await db.update(books).set({ coverUrl }).where(eq(books.id, bookId));
+  // A new cover means a new shelf color; sample it here so the row never
+  // waits for the next Notion edit to pick one up.
+  const coverColor = await resolveCoverColor(coverUrl);
+  await db
+    .update(books)
+    .set({ coverUrl, coverColor })
+    .where(eq(books.id, bookId));
 }
 
 /**

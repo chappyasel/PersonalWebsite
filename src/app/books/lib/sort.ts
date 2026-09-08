@@ -5,6 +5,7 @@ export const SORT_FIELDS = [
   "publicationYear",
   "runtime",
   "pageCount",
+  "color",
 ] as const;
 
 export type SortField = (typeof SORT_FIELDS)[number];
@@ -18,6 +19,8 @@ export const DEFAULT_SORT_ORDER: Record<SortField, SortOrder> = {
   publicationYear: "desc",
   runtime: "desc",
   pageCount: "desc",
+  // Red through violet, then the earth tones and neutrals
+  color: "asc",
 };
 
 function isSortField(value: string): value is SortField {

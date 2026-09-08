@@ -127,6 +127,13 @@
       "when": 1788263726454,
       "tag": "0017_silly_beyonder",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1788825086292,
+      "tag": "0018_book_cover_color",
+      "breakpoints": true
     }
   ]
 }

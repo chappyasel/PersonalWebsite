@@ -188,6 +188,7 @@ async function HomePageContent({
       author: book.author,
       pageCount: book.pageCount,
       audioLengthMin: book.audioLengthMin,
+      coverColor: book.coverColor,
     }));
 
   const data: StacksData = {

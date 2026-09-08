@@ -359,7 +359,16 @@ export const BookCard = memo(function BookCard({
           {/* Cover Image (aspect ratio 2:3) */}
           <motion.div
             layoutId={`book-cover-${book.id}`}
-            className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-500/20 to-stone-700/20"
+            className={cn(
+              "relative aspect-[2/3] w-full overflow-hidden",
+              // The jacket's own color holds the slot until the image lands;
+              // books without a sampled color keep the neutral gradient.
+              !book.coverColor &&
+                "bg-gradient-to-b from-stone-500/20 to-stone-700/20",
+            )}
+            style={
+              book.coverColor ? { backgroundColor: book.coverColor } : undefined
+            }
             transition={{
               layout: { type: "spring", stiffness: 300, damping: 30 },
             }}

@@ -90,6 +90,8 @@ Reference detail: `references/tag-taxonomy-cleanup.md` captures the proven audit
 
 The Drizzle definitions in `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/server/db/schema.ts` are the source of truth. Inspect the `books` and `bookTags` definitions before using a field not shown in the bundled examples; TypeScript camelCase names map to snake_case SQL columns. One book has many tags through `book_tags.book_id = books.id`.
 
+One column is derived rather than mirrored from Notion: `cover_color` is the dominant jacket color the sync samples from `cover_url` for the website's color sort. See `references/schema.md` before reasoning about it; it has no Notion counterpart.
+
 ### Abandoned books
 
 A book Chappy dropped has `abandoned` (timestamp) set and `finished` NULL; `abandoned_at_min` holds the Audible position in raw minutes (percent = `abandoned_at_min / audio_length_min`). In Notion these are the `Abandoned` date and `Abandoned At` (H.MM, like Audio Length) properties. Consequences for queries:

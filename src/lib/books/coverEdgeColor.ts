@@ -1,6 +1,8 @@
 export type ReadingBookEdgeColor = {
   edge: string;
-  source: "edge" | "fallback";
+  /** "cover" is the library's stored jacket color (books.cover_color);
+   * "edge" a live perimeter sample; "fallback" a hash into the cloth set. */
+  source: "cover" | "edge" | "fallback";
 };
 
 type Rgb = { r: number; g: number; b: number };

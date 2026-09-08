@@ -29,6 +29,7 @@ function book(overrides: Partial<Book> & Pick<Book, "id">): Book {
     readNumber: 1,
     totalReads: 1,
     otherReadings: [],
+    coverColor: null,
     ...rest,
   };
 }

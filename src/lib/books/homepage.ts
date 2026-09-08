@@ -1,6 +1,15 @@
 import type { Book, HomepageBookStats } from "~/lib/books/types";
 
-export function computeHomepageBookStats(allBooks: Book[]): HomepageBookStats {
+/** The columns the stats need; the /books OG card feeds a slimmer row shape
+ * than the full Book. */
+export type HomepageBookStatsInput = Pick<
+  Book,
+  "abandoned" | "started" | "finished" | "pageCount"
+>;
+
+export function computeHomepageBookStats(
+  allBooks: readonly HomepageBookStatsInput[],
+): HomepageBookStats {
   // "N books" means books read or in progress — abandoned ones don't count
   const books = allBooks.filter((book) => !book.abandoned);
   const finishedDates = books

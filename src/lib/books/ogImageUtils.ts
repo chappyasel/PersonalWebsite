@@ -18,25 +18,57 @@ export function truncateTitle(title: string, maxLength = 80): string {
   return title.substring(0, maxLength - 1).trim() + "…";
 }
 
+/** Relative luminance of a "#rrggbb" string, or null when it is not one. */
+function hexLuminance(hex: string): number | null {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match?.[1]) return null;
+  const value = Number.parseInt(match[1], 16);
+  return calculateLuminance((value >> 16) & 255, (value >> 8) & 255, value & 255);
+}
+
 /**
- * Generate a styled SVG placeholder for books without covers
+ * Generate a styled SVG placeholder for a book whose cover is missing or
+ * would not load. With the library's sampled jacket color it is a board in
+ * that color carrying the title and author, so the card still reads as this
+ * book rather than as a gray hole; without one it is the neutral gray board.
  * @param title - The book title to display
+ * @param options.color - The sampled jacket color ("#rrggbb"), if any
+ * @param options.author - Shown under the title when there is room
  * @returns SVG data URI
  */
-export function generateFallbackCoverSvg(title: string): string {
+export function generateFallbackCoverSvg(
+  title: string,
+  { color, author }: { color?: string | null; author?: string } = {},
+): string {
   const truncatedTitle = truncateTitle(title, 50);
   const lines = wrapText(truncatedTitle, 18); // Adjusted for 280px width
+  const luminance = color ? hexLuminance(color) : null;
+  const board = luminance === null ? "rgb(229, 229, 229)" : color!;
+  // Ink by contrast against the board: light boards take a dark ink, dark
+  // boards a paper one. The gray default keeps its mid-gray ink.
+  const ink =
+    luminance === null
+      ? "rgb(115, 115, 115)"
+      : luminance > 0.35
+        ? "rgba(20, 16, 12, 0.82)"
+        : "rgba(255, 252, 245, 0.92)";
+  const authorLines = author ? wrapText(truncateTitle(author, 40), 24) : [];
+  // Centre the title block, leaving the author's rows below it
+  const titleBlock = lines.length * 26;
+  const authorBlock = authorLines.length * 20;
+  const titleY = 210 - (authorBlock > 0 ? authorBlock / 2 + 8 : 0);
+  const authorY = titleY + titleBlock / 2 + 22;
 
   const svgContent = `
     <svg width="280" height="420" xmlns="http://www.w3.org/2000/svg">
-      <rect width="280" height="420" fill="rgb(229, 229, 229)"/>
+      <rect width="280" height="420" fill="${board}"/>
       <text
         x="50%"
-        y="50%"
-        font-family="system-ui, -apple-system, sans-serif"
+        y="${titleY}"
+        font-family="Georgia, 'Georgia Pro', serif"
         font-size="20"
-        font-weight="600"
-        fill="rgb(115, 115, 115)"
+        font-weight="700"
+        fill="${ink}"
         text-anchor="middle"
         dominant-baseline="middle"
       >
@@ -47,6 +79,27 @@ export function generateFallbackCoverSvg(title: string): string {
           )
           .join("")}
       </text>
+      ${
+        authorLines.length > 0
+          ? `<text
+        x="50%"
+        y="${authorY}"
+        font-family="Georgia, 'Georgia Pro', serif"
+        font-size="15"
+        fill="${ink}"
+        fill-opacity="0.78"
+        text-anchor="middle"
+        dominant-baseline="middle"
+      >
+        ${authorLines
+          .map(
+            (line, i) =>
+              `<tspan x="50%" dy="${i === 0 ? 0 : 20}">${escapeXml(line)}</tspan>`,
+          )
+          .join("")}
+      </text>`
+          : ""
+      }
     </svg>
   `.trim();
 

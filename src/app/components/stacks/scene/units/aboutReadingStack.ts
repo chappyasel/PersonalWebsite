@@ -1,4 +1,5 @@
 import { ABOUT_LANDMARK_X, ABOUT_LOWER_LANDMARK_Z } from "../aboutScenePose";
+import type { ReadingBookEdgeColor } from "~/lib/books/coverEdgeColor";
 
 export const ABOUT_READING_BOOK = {
   width: 0.3135,
@@ -424,7 +425,7 @@ export const READING_HELD_COVER_TILT = Math.PI / 2;
 export type AboutReadingMaterialEvidence = {
   id: string;
   edge: string;
-  source: "edge" | "fallback";
+  source: ReadingBookEdgeColor["source"];
   cover: string;
   pages: string;
 };
