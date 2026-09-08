@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
+import { resolveCoverColor } from "./coverColor.server";
 import { fetchBookCover } from "./coverFetcher";
 import { stripCoverCurl } from "./coverUtils";
 import { isCoverImageUrl, shouldRepairCover } from "./coverValidation";
@@ -366,6 +367,17 @@ async function upsertBooksToDatabase(
   // an unchanged book's current slug, silently overwriting it.
   await migrateChangedSlugs(contentResults, unchangedBooks);
 
+  // Sampling a cover color downloads the jacket, which is slow next to the
+  // rest of the upsert. Keep the stored color while the cover URL is unchanged
+  // and sample only when a cover is new, repaired, or was never sampled.
+  const storedCovers = new Map(
+    (
+      await db.query.books.findMany({
+        columns: { notionId: true, coverUrl: true, coverColor: true },
+      })
+    ).map((row) => [row.notionId, row]),
+  );
+
   // Process successful content fetches
   for (const result of contentResults) {
     if (!result.success) continue;
@@ -405,6 +417,20 @@ async function upsertBooksToDatabase(
     // and all. Store the flat art so every consumer starts clean and the
     // one-off cleanup of the column survives the next sync.
     book.coverUrl = stripCoverCurl(book.coverUrl);
+
+    const storedCover = storedCovers.get(book.notionId);
+    let coverColor =
+      storedCover?.coverUrl === book.coverUrl
+        ? storedCover.coverColor
+        : null;
+    if (coverColor === null && book.coverUrl) {
+      coverColor = await resolveCoverColor(book.coverUrl);
+      console.log(
+        coverColor
+          ? `  🎨 Cover color for "${book.title}": ${coverColor}`
+          : `  ✗ Could not sample a cover color for ${book.title}`,
+      );
+    }
 
     // Enrich length data for ANY book passing through (new or updated) whose
     // Notion values are blank — this is what makes "clear the cell in Notion
@@ -491,6 +517,7 @@ async function upsertBooksToDatabase(
         isAutomated: book.isAutomated,
         isFeatured: book.isFeatured,
         coverUrl: book.coverUrl,
+        coverColor,
         audibleUrl: book.audibleUrl,
         notionUrl: book.notionUrl,
         notes: book.notes ?? null,
@@ -516,6 +543,7 @@ async function upsertBooksToDatabase(
           isAutomated: book.isAutomated,
           isFeatured: book.isFeatured,
           coverUrl: book.coverUrl,
+          coverColor,
           audibleUrl: book.audibleUrl,
           notionUrl: book.notionUrl,
           notes: book.notes ?? null,
@@ -618,6 +646,7 @@ async function migrateChangedSlugs(
       isAutomated: boolean;
       isFeatured: boolean;
       coverUrl: string | null;
+      coverColor: string | null;
       audibleUrl: string | null;
       notionUrl: string;
       notes: string | null;

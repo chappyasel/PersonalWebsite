@@ -9,12 +9,12 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { ImageResponse } from "next/og";
 
+import { coverBackdropColor, parseHex } from "~/lib/books/coverColor";
 import { getBookForOG } from "~/lib/books/ogDataAccess";
 import {
   arrayBufferToDataUri,
   calculateLuminance,
   fetchExternalImage,
-  generateFallbackCoverSvg,
   getAverageImageColor,
   getTextColorAndOverlay,
   getTitleStyle,
@@ -59,10 +59,17 @@ export default async function Image({
     const book = await getBookForOG(bookId);
 
     // Fetch cover image if available and analyze color
-    let coverImageSrc: string;
+    let coverImageSrc: string | null = null;
     let textColor = "rgba(255, 255, 255, 0.9)"; // Default: 90% white text
     let overlayColor = "rgba(0, 0, 0, 0.6)"; // Default: dark overlay
     let usesDarkText = false;
+
+    const applyLuminance = (luminance: number) => {
+      const colors = getTextColorAndOverlay(luminance);
+      textColor = colors.textColor;
+      overlayColor = colors.overlayColor;
+      usesDarkText = colors.usesDarkText;
+    };
 
     if (book.coverUrl) {
       const coverBuffer = await fetchExternalImage(book.coverUrl);
@@ -72,23 +79,38 @@ export default async function Image({
         // Analyze image color for dynamic text/overlay
         const avgColor = await getAverageImageColor(coverBuffer);
         if (avgColor) {
-          const luminance = calculateLuminance(
-            avgColor.r,
-            avgColor.g,
-            avgColor.b,
+          applyLuminance(
+            calculateLuminance(avgColor.r, avgColor.g, avgColor.b),
           );
-          const colors = getTextColorAndOverlay(luminance);
-          textColor = colors.textColor;
-          overlayColor = colors.overlayColor;
-          usesDarkText = colors.usesDarkText;
         }
-      } else {
-        // Fallback to SVG if fetch failed
-        coverImageSrc = generateFallbackCoverSvg(book.title);
       }
-    } else {
-      // No cover URL, use fallback
-      coverImageSrc = generateFallbackCoverSvg(book.title);
+    }
+
+    // No cover, or the host would not serve it. The library's sampled jacket
+    // color stands in: a board in that color carrying the title and author
+    // where the cover would be, on a dark wash of the same hue, with paper
+    // type. Drawn as satori boxes rather than an <svg> because the renderer
+    // has no fonts for SVG text, which is why the old gray board came out
+    // blank. A book the sync has not colored yet gets the neutral gray board.
+    const fallback = coverImageSrc
+      ? null
+      : (() => {
+          const board = book.coverColor ?? "#e5e5e5";
+          const rgb = parseHex(board)!;
+          const boardLuminance = calculateLuminance(rgb.r, rgb.g, rgb.b);
+          return {
+            board,
+            backdrop: coverBackdropColor(board) ?? "#3a3633",
+            ink:
+              boardLuminance > 0.35
+                ? "rgba(20, 16, 12, 0.86)"
+                : "rgba(255, 252, 245, 0.94)",
+          };
+        })();
+    if (fallback) {
+      textColor = "rgba(255, 255, 255, 0.92)";
+      overlayColor = "rgba(0, 0, 0, 0)";
+      usesDarkText = false;
     }
 
     // Determine title styling
@@ -157,7 +179,7 @@ export default async function Image({
             fontFamily: '"Georgia Pro"',
           }}
         >
-          {/* Blurred Background */}
+          {/* Blurred Background, or the dark wash of the jacket color */}
           <div
             style={{
               position: "absolute",
@@ -166,20 +188,23 @@ export default async function Image({
               width: "100%",
               height: "100%",
               display: "flex",
+              backgroundColor: fallback?.backdrop,
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={coverImageSrc}
-              alt=""
-              width="1200"
-              height="630"
-              style={{
-                objectFit: "cover",
-                filter: "blur(60px)",
-                transform: "scale(1.1)",
-              }}
-            />
+            {coverImageSrc && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverImageSrc}
+                alt=""
+                width="1200"
+                height="630"
+                style={{
+                  objectFit: "cover",
+                  filter: "blur(60px)",
+                  transform: "scale(1.1)",
+                }}
+              />
+            )}
           </div>
 
           {/* Dynamic Overlay */}
@@ -206,7 +231,7 @@ export default async function Image({
               position: "relative",
             }}
           >
-            {/* Cover Image */}
+            {/* Cover Image, or the jacket-colored board */}
             <div
               style={{
                 display: "flex",
@@ -216,18 +241,59 @@ export default async function Image({
                 overflow: "hidden",
                 boxShadow: "0px 12px 48px rgba(0, 0, 0, 0.3)",
                 flexShrink: 0,
+                backgroundColor: fallback?.board,
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={coverImageSrc}
-                alt={book.title}
-                width="307"
-                height="460"
-                style={{
-                  objectFit: "cover",
-                }}
-              />
+              {coverImageSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImageSrc}
+                  alt={book.title}
+                  width="307"
+                  height="460"
+                  style={{
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "100%",
+                    height: "100%",
+                    padding: "30px",
+                    textAlign: "center",
+                    color: fallback!.ink,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      fontSize: "30px",
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                      justifyContent: "center",
+                    }}
+                  >
+                    {truncateTitle(book.title, 60)}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      fontSize: "20px",
+                      fontWeight: 400,
+                      marginTop: "14px",
+                      opacity: 0.8,
+                      justifyContent: "center",
+                    }}
+                  >
+                    {book.author}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Content: the page's header column at card scale. Same

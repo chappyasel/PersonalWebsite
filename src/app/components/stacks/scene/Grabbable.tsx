@@ -643,6 +643,7 @@ export default function Grabbable({
   signature,
   hoverTiltAngle,
   hoverLift = 0,
+  hoverSlide = false,
   tiltWhileHeld = true,
   heldFacingRotation,
   heldMinRaise,
@@ -717,6 +718,11 @@ export default function Grabbable({
    * objects that need to clear the surface around them instead of trading a
    * blocked tilt for the shared forward slide. */
   hoverLift?: number;
+  /** Always answer a hover with the forward slide, never a tilt. For a volume
+   * lying in a stack: the clearance measure sees only the row's own boards,
+   * so the top book tipped up into the headphones and the phone resting on
+   * it. A stacked book is pulled toward you, whatever sits on top. */
+  hoverSlide?: boolean;
   /** Whether pointer velocity banks the prop during a carry. Broad books that
    * begin in contact with a supporting riser keep their facing stable until
    * release; the solver can still tumble them normally after a throw. */
@@ -2579,6 +2585,7 @@ export default function Grabbable({
             ? { lean: aimed, slide: 0 }
             : leanBudget(hinge.current, aimed, {
                 authoredAngle: hoverTiltAngle !== undefined,
+                slideOnly: hoverSlide,
               });
         swayLean.current = budget.lean;
         swaySlide.current = cameraSideSlide(nodCameraDirection, budget.slide);

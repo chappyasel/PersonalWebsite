@@ -148,6 +148,10 @@ export const books = pgTable(
     isAutomated: boolean("is_automated").default(false).notNull(),
     isFeatured: boolean("is_featured").default(false).notNull(),
     coverUrl: text("cover_url"),
+    // Dominant jacket color as "#rrggbb", sampled from cover_url by the sync
+    // (src/lib/books/coverColor.server.ts). Backs the shelf's color sort.
+    // NULL until sampled, or when the cover host could not be read.
+    coverColor: varchar("cover_color", { length: 7 }),
     audibleUrl: text("audible_url"), // https://www.audible.com/pd/{asin}
     notionUrl: text("notion_url").notNull(),
     notes: text("notes"), // Full markdown content

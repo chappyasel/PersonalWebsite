@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { coverBackdropColor } from "~/lib/books/coverColor";
 import {
   arrayBufferToDataUri,
   calculateLuminance,
@@ -18,7 +19,13 @@ import {
   fitCoverInFrame,
 } from "./[bookId]/iconLayout";
 
-export type BookForIcon = { title: string; coverUrl: string | null };
+export type BookForIcon = {
+  title: string;
+  coverUrl: string | null;
+  /** The library's sampled jacket color; paints the fallback board when the
+   * cover itself cannot be fetched. */
+  coverColor?: string | null;
+};
 
 /**
  * A whole cover, centred on a blurred and tinted copy of itself: the OG
@@ -41,6 +48,9 @@ export async function bookCoverIconImage(
   let coverSrc: string;
   let coverDimensions: ImageDimensions | null = null;
   let overlayColor = "rgba(41, 37, 36, 0.6)";
+  /** Set only for the fallback board: a flat dark wash replaces the blurred
+   * copy of the cover behind it. */
+  let backdropColor: string | null = null;
 
   const coverBuffer = book.coverUrl
     ? await fetchExternalImage(book.coverUrl)
@@ -59,7 +69,12 @@ export async function bookCoverIconImage(
       ).overlayColor;
     }
   } else {
-    coverSrc = generateFallbackCoverSvg(book.title);
+    // A board in the jacket's own color, tinted the way a real cover of that
+    // luminance would be, so a dead cover host still yields this book's tab
+    // icon rather than a gray one.
+    coverSrc = generateFallbackCoverSvg(book.title, { color: book.coverColor });
+    backdropColor = coverBackdropColor(book.coverColor ?? null) ?? "#3a3633";
+    overlayColor = "rgba(0, 0, 0, 0)";
   }
 
   const cover = fitCoverInFrame(coverDimensions, frame, inset);
@@ -78,7 +93,8 @@ export async function bookCoverIconImage(
         }}
       >
         {/* Blurred backdrop: the cover itself, scaled past the frame so
-            the blur's faded edge never shows */}
+            the blur's faded edge never shows; a flat dark wash of the jacket
+            color when there is no cover to blur */}
         <div
           style={{
             position: "absolute",
@@ -87,20 +103,23 @@ export async function bookCoverIconImage(
             width: "100%",
             height: "100%",
             display: "flex",
+            backgroundColor: backdropColor ?? undefined,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverSrc}
-            alt=""
-            width={frame}
-            height={frame}
-            style={{
-              objectFit: "cover",
-              filter: `blur(${backdropBlur}px)`,
-              transform: `scale(${backdropScale})`,
-            }}
-          />
+          {backdropColor === null && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverSrc}
+              alt=""
+              width={frame}
+              height={frame}
+              style={{
+                objectFit: "cover",
+                filter: `blur(${backdropBlur}px)`,
+                transform: `scale(${backdropScale})`,
+              }}
+            />
+          )}
         </div>
 
         {/* Same tint the OG card lays over its backdrop, so the sharp

@@ -1,0 +1,1 @@
+ALTER TABLE "books" ADD COLUMN "cover_color" varchar(7);

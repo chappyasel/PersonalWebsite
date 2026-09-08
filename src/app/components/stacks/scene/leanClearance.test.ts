@@ -198,6 +198,21 @@ describe("lean budget", () => {
     expect(leanBudget(held, TIP)).toEqual({ lean: TIP, slide: 0 });
   });
 
+  it("slides a stacked volume even when the hinge measures open air above it", () => {
+    // The top book of a flat stack: the row's boards leave it unlimited
+    // headroom, but the headphones resting on it are not part of the measure.
+    const top = hinge({ ...FLAT_BOOK, headroom: Number.POSITIVE_INFINITY });
+    const wanted = TIP;
+    const budget = leanBudget(top, wanted, { slideOnly: true });
+    expect(budget.lean).toBe(0);
+    expect(budget.slide).toBeGreaterThan(0);
+    // Same travel as a blocked lean would have earned, not a new gesture
+    const blocked = leanBudget(hinge({ ...FLAT_BOOK, headroom: 0 }), wanted);
+    expect(budget.slide).toBeCloseTo(blocked.slide, 6);
+    // And a zero lean still passes straight through
+    expect(leanBudget(top, 0, { slideOnly: true })).toEqual({ lean: 0, slide: 0 });
+  });
+
   it("passes a zero lean straight through, so glow stays still", () => {
     expect(bandMotionFor("glow").lean).toBe(0);
     expect(leanBudget(hinge({ ...FLAT_BOOK, headroom: 0 }), 0)).toEqual({

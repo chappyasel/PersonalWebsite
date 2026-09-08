@@ -8,17 +8,23 @@ import { cn } from "~/lib/util";
 import { BookSearch } from "./BookSearch";
 import { BookSort } from "./BookSort";
 import { FilterDrawer } from "./FilterDrawer";
+import { SectionHeadersToggle } from "./SectionHeadersToggle";
 
 type BooksControlsProps = {
   isZoomOut?: boolean;
   initialTags: string[];
   initialStats: BookStats;
+  /** Zoom-out only: whether the shelf is showing one seamless grid. */
+  hideHeaders?: boolean;
+  onHideHeadersChange?: (hide: boolean) => void;
 };
 
 export function BooksControls({
   isZoomOut = false,
   initialTags,
   initialStats,
+  hideHeaders = false,
+  onHideHeadersChange,
 }: BooksControlsProps) {
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -31,10 +37,17 @@ export function BooksControls({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // In zoom-out mode, only show sorting (no search or filters)
+  // In zoom-out mode, only show sorting (no search or filters) plus the
+  // seamless-grid toggle, which only makes sense once every book is on screen
   if (isZoomOut) {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {onHideHeadersChange && (
+          <SectionHeadersToggle
+            hidden={hideHeaders}
+            onChange={onHideHeadersChange}
+          />
+        )}
         <BookSort />
       </div>
     );

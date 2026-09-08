@@ -148,7 +148,10 @@ export type LeanBudget = {
 export function leanBudget(
   hinge: Hinge,
   wanted: number,
-  { authoredAngle = false }: { authoredAngle?: boolean } = {},
+  {
+    authoredAngle = false,
+    slideOnly = false,
+  }: { authoredAngle?: boolean; slideOnly?: boolean } = {},
 ): LeanBudget {
   // An exact authored angle is the choreography for an overlap composition,
   // currently the loose shelf photographs. Their staggered corners are
@@ -156,14 +159,22 @@ export function leanBudget(
   // adjacent sheet as a stacked solid cancels the hinge the call site chose.
   // Ordinary derived reactions still use the clearance policy below.
   if (authoredAngle) return { lean: wanted, slide: 0 };
-  if (wanted === 0 || !Number.isFinite(hinge.headroom))
-    return { lean: wanted, slide: 0 };
+  if (wanted === 0) return { lean: wanted, slide: 0 };
   const magnitude = Math.abs(wanted);
-  const room = hinge.headroom - LEAN_CLEARANCE_MARGIN;
-  const allowed = room <= 0 ? 0 : maxLeanForRise(hinge, room);
-  if (allowed >= magnitude) return { lean: wanted, slide: 0 };
-  if (allowed >= LEGIBLE_LEAN)
-    return { lean: Math.sign(wanted) * allowed, slide: 0 };
+  // A volume in a horizontal stack is told to slide outright, before the
+  // headroom is even consulted. That measure only sees the row's own boards,
+  // so the TOP book of a stack read as open air above and was free to tip,
+  // while the headphones or the phone resting on it did not move with it. A
+  // person pulls a stacked book toward themselves regardless of what is on
+  // top; the call site knows it is a stack, the hinge does not.
+  if (!slideOnly) {
+    if (!Number.isFinite(hinge.headroom)) return { lean: wanted, slide: 0 };
+    const room = hinge.headroom - LEAN_CLEARANCE_MARGIN;
+    const allowed = room <= 0 ? 0 : maxLeanForRise(hinge, room);
+    if (allowed >= magnitude) return { lean: wanted, slide: 0 };
+    if (allowed >= LEGIBLE_LEAN)
+      return { lean: Math.sign(wanted) * allowed, slide: 0 };
+  }
   // The gesture keeps its size and changes its direction: the prop moves by
   // as much as the blocked lean would have moved it, along the one axis a
   // prop on a shelf can be sure of.

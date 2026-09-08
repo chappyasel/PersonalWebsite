@@ -60,6 +60,8 @@
     "add-book-covers:dry-run": "tsx ./scripts/add-book-covers.ts --dry-run",
     "backfill:book-flags": "dotenv -e .env -- tsx ./scripts/backfill-book-flags.ts",
     "backfill:book-flags:dry-run": "dotenv -e .env -- tsx ./scripts/backfill-book-flags.ts --dry-run",
+    "backfill:book-colors": "dotenv -e .env -- tsx ./scripts/backfill-book-colors.ts",
+    "backfill:book-colors:dry-run": "dotenv -e .env -- tsx ./scripts/backfill-book-colors.ts --dry-run",
     "add-book-lengths": "tsx ./scripts/add-book-lengths.ts",
     "add-book-lengths:dry-run": "tsx ./scripts/add-book-lengths.ts --dry-run",
     "takeout:login": "tsx ./scripts/takeout/login.ts",

@@ -712,12 +712,21 @@ export default function UnitBooks({
    * invisible in the first capture.
    */
   const [topRow, lowerRow] = useMemo(() => {
+    // Every spine wears its own jacket color, tuned to the scene's cloth the
+    // same way the featured boards are. Books the library has not colored
+    // yet fall back to the theme palette inside packRow.
+    const spineBooks = data.spineBooks.map((book) => ({
+      ...book,
+      color: book.coverColor
+        ? readingBookMaterialColors(book.coverColor, palette.pages, dark).cover
+        : undefined,
+    }));
     const top = packRow(
       2.42,
       [],
       palette,
       15,
-      data.spineBooks,
+      spineBooks,
       featuredGapInRowFrame(topFeatured, TOP_PACKED_ROW_OFFSET_X),
     );
     const placed = new Set(
@@ -738,11 +747,11 @@ export default function UnitBooks({
         [],
         palette,
         40,
-        data.spineBooks.filter((book) => !placed.has(book.id)),
+        spineBooks.filter((book) => !placed.has(book.id)),
         featuredGapInRowFrame(lowerFeatured, 0),
       ),
     ];
-  }, [palette, data.spineBooks, topFeatured, lowerFeatured]);
+  }, [palette, dark, data.spineBooks, topFeatured, lowerFeatured]);
 
   // The two flat stacks these props rest on, read back out of the packed rows
   // so the props follow the books rather than a typed-in mark.

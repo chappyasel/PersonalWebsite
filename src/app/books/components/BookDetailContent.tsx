@@ -709,7 +709,9 @@ function CopyLinkButton({
 }
 
 type BookDetailBook = BaseBook &
-  Partial<Pick<Book, "readNumber" | "totalReads" | "otherReadings">> & {
+  Partial<
+    Pick<Book, "readNumber" | "totalReads" | "otherReadings" | "coverColor">
+  > & {
     notes?: string;
   };
 
@@ -1160,6 +1162,8 @@ export function BookDetailContent({
                   style={{
                     borderRadius: coverBorderRadius,
                     boxShadow: coverBoxShadow,
+                    // Sampled jacket color behind the image while it loads
+                    backgroundColor: book.coverColor ?? undefined,
                   }}
                   className="h-full w-full overflow-hidden"
                 >

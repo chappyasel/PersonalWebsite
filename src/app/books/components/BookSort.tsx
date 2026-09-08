@@ -7,6 +7,7 @@ import {
   CalendarBlankIcon,
   ClockIcon,
   HeadphonesIcon,
+  PaletteIcon,
   SortAscendingIcon,
   SortDescendingIcon,
   StarIcon,
@@ -38,6 +39,7 @@ const SORT_OPTIONS: {
   { field: "publicationYear", label: "Published", icon: CalendarBlankIcon },
   { field: "runtime", label: "Runtime", icon: HeadphonesIcon },
   { field: "pageCount", label: "Pages", icon: BookOpenTextIcon },
+  { field: "color", label: "Color", icon: PaletteIcon },
 ];
 
 export function BookSort() {

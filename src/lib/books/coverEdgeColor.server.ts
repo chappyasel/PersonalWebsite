@@ -167,22 +167,39 @@ async function loadRemoteCover(url: string): Promise<CoverBytes | null> {
 
 const resolveCoverEdgeColor = createCoverEdgeColorResolver(loadRemoteCover);
 
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Board colors for physical books in the scene. The library's stored jacket
+ * color (sampled once at sync, see coverColor.server.ts) wins whenever a book
+ * has one: it costs no fetch at render time and cannot time out. The live
+ * perimeter sample remains for books the sync has not colored yet.
+ */
 export async function readingBookEdgeColors(
-  books: Array<{ id: string; coverUrl: string | null }>,
+  books: Array<{
+    id: string;
+    coverUrl: string | null;
+    coverColor?: string | null;
+  }>,
 ): Promise<Record<string, ReadingBookEdgeColor>> {
   const entries = await Promise.all(
-    books.map(
-      async (book) =>
-        [
+    books.map(async (book) => {
+      if (book.coverColor && HEX_COLOR.test(book.coverColor)) {
+        return [
           book.id,
-          book.coverUrl
-            ? await resolveCoverEdgeColor(book.coverUrl, book.id)
-            : {
-                edge: fallbackCoverEdgeColor(book.id),
-                source: "fallback" as const,
-              },
-        ] as const,
-    ),
+          { edge: book.coverColor.toLowerCase(), source: "cover" as const },
+        ] as const;
+      }
+      return [
+        book.id,
+        book.coverUrl
+          ? await resolveCoverEdgeColor(book.coverUrl, book.id)
+          : {
+              edge: fallbackCoverEdgeColor(book.id),
+              source: "fallback" as const,
+            },
+      ] as const;
+    }),
   );
   return Object.fromEntries(entries);
 }

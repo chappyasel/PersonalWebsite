@@ -36,6 +36,9 @@ export type BaseBook = {
 
 /** Book with computed re-read data (returned from API) */
 export type Book = BaseBook & {
+  /** Dominant jacket color ("#rrggbb") sampled from the cover at sync time;
+   * null until sampled. Drives the shelf's color sort. */
+  coverColor: string | null;
   readNumber: number; // Which read this is (1 = first, 2 = re-read, etc.)
   totalReads: number; // Total times this book has been read
   otherReadings: BookReading[]; // All readings of this book (for detail page)
@@ -59,7 +62,8 @@ export type BookSort = {
     | "rating"
     | "publicationYear"
     | "runtime"
-    | "pageCount";
+    | "pageCount"
+    | "color";
   order: "asc" | "desc";
 };
 

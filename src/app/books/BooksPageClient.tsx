@@ -38,6 +38,9 @@ export default function BooksPageClient({
   const [stickyTop, setStickyTop] = useState(32);
   const [zoomOutWidth, setZoomOutWidth] = useState<number | null>(null);
   const [bookCount, setBookCount] = useState(0);
+  // Seamless-grid preference for zoom-out mode. It survives leaving and
+  // re-entering zoom-out but never applies to the normal shelf.
+  const [hideHeaders, setHideHeaders] = useState(false);
 
   const handleZoomToggle = useCallback((width: number | null) => {
     setZoomOutWidth(width);
@@ -180,10 +183,13 @@ export default function BooksPageClient({
             isZoomOut={isZoomOut}
             initialTags={initialTags}
             initialStats={initialStats}
+            hideHeaders={hideHeaders}
+            onHideHeadersChange={setHideHeaders}
           />
           <BooksGrid
             initialBooks={initialBooks}
             zoomOutWidth={zoomOutWidth}
+            hideHeaders={isZoomOut && hideHeaders}
             onBookCountChange={handleBookCountChange}
           />
         </main>
