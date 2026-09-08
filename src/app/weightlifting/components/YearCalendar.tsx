@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
 import { recordModalOrigin } from "~/lib/originFlight";
+
+import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
 import { api } from "~/trpc/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
@@ -229,10 +231,11 @@ export function YearCalendar() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useQueryState("year", wlSearchParams.year);
   // A day opens the workout preview route — intercepted into a card sheet
-  // over the calendar, popping from the clicked cell.
+  // over the calendar, popping from the clicked cell, or loaded as its own
+  // page on a phone-sized viewport.
   const openDay = (dateStr: string, rect: DOMRect) => {
     recordModalOrigin(rect);
-    router.push(wlPath(`/workout/${dateStr}`));
+    openSheetRoute(wlPath(`/workout/${dateStr}`), router);
   };
 
   const {

@@ -28,6 +28,8 @@ import {
 import type * as THREE from "three";
 
 import { recordModalOriginAtPointer } from "~/lib/originFlight";
+
+import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
@@ -2482,10 +2484,11 @@ export default function StacksCanvas({
       // world (src/app/@sheet) — the scene stays booted underneath and the
       // back gesture lands right back in it. Everything else keeps the
       // new-tab behavior. The sheet pops from a small rect at the pointer
-      // (a door is shader geometry with no DOM box).
+      // (a door is shader geometry with no DOM box); on a phone-sized
+      // viewport openSheetRoute loads the full page instead.
       if (url === "/routine" || url === "/manual") {
         recordModalOriginAtPointer();
-        router.push(url);
+        openSheetRoute(url, router);
         return;
       }
       window.open(url, "_blank", "noopener,noreferrer");

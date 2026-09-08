@@ -39,6 +39,8 @@ import type * as THREE from "three";
 
 import { recordModalOriginAtPointer } from "~/lib/originFlight";
 
+import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
+
 import Lift from "./Lift";
 import {
   type PortalSpec,
@@ -57,6 +59,11 @@ export type { PropDestination } from "./interactionRegistry";
  * talk frames and blog notebooks use); everything else is this site and
  * navigates in place. */
 const NEW_TAB: PropDestination[] = ["blog"];
+
+/** The two documents with an intercepted sheet (src/app/@sheet): they pop
+ * from the pointer over the live world, or load as their own page when the
+ * viewport is too small for a sheet. */
+const SHEET: PropDestination[] = ["manual", "routine"];
 
 /** Where a prop leads: one of the site's own portals, or an arbitrary URL for
  * the photographs whose source post is known. Exactly one of the two — a prop
@@ -138,15 +145,19 @@ export function useOpenTarget(): (
       const href = propHref(target.to);
       if (NEW_TAB.includes(target.to)) {
         window.open(href, "_blank", "noopener,noreferrer");
+      } else if (SHEET.includes(target.to)) {
+        // The intercepted sheet pops from its source: a prop is shader
+        // geometry with no DOM box, so the last pointer-down stands in —
+        // tracked by the origin module itself, because this open() is
+        // reached from several gesture systems (the shared window listeners,
+        // Grabbable's private gesture, the tap router) with no one pointer
+        // state. openSheetRoute makes the soft push the interceptor claims,
+        // or the full-page load on a phone.
+        recordModalOriginAtPointer();
+        openSheetRoute(href, router);
       } else {
         // Same-tab navigation, exactly what the placard's <Link> does (the app
-        // router hands a cross-origin href to the browser itself). The
-        // intercepted sheet pops from its source: a prop is shader geometry
-        // with no DOM box, so the last pointer-down stands in — tracked by
-        // the origin module itself, because this open() is reached from
-        // several gesture systems (the shared window listeners, Grabbable's
-        // private gesture, the tap router) with no one pointer state.
-        recordModalOriginAtPointer();
+        // router hands a cross-origin href to the browser itself).
         router.push(href);
       }
     },

@@ -27,6 +27,8 @@ import {
 } from "recharts";
 
 import { recordModalOrigin } from "~/lib/originFlight";
+
+import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
 import type { ExerciseInstance } from "~/server/queries/weightliftingExercise";
 
 import {
@@ -888,11 +890,15 @@ export function ExerciseExplorer({
                   <button
                     onClick={(e) => {
                       // The workout preview route, intercepted into a card
-                      // sheet popping from this row.
+                      // sheet popping from this row (its own page on a
+                      // phone-sized viewport).
                       recordModalOrigin(
                         e.currentTarget.getBoundingClientRect(),
                       );
-                      router.push(wlPath(`/workout/${instance.workoutUuid}`));
+                      openSheetRoute(
+                        wlPath(`/workout/${instance.workoutUuid}`),
+                        router,
+                      );
                     }}
                     className="w-full px-3.5 py-2 text-left transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-400 dark:hover:bg-neutral-700/40 dark:focus-visible:ring-neutral-500"
                   >

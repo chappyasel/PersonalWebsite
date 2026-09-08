@@ -2,10 +2,11 @@
 
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowRightIcon } from "@phosphor-icons/react";
-import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
 import { recordModalOrigin } from "~/lib/originFlight";
+
+import SheetLink from "~/components/modal-sheet/SheetLink";
 
 import TiltCard from "./TiltCard";
 
@@ -157,7 +158,7 @@ export default function DocCard({
       interactive
       className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
     >
-      <Link
+      <SheetLink
         href={href}
         data-placard-link=""
         data-doc-card={sky}
@@ -225,7 +226,7 @@ export default function DocCard({
             />
           </p>
         </div>
-      </Link>
+      </SheetLink>
     </TiltCard>
   );
 }

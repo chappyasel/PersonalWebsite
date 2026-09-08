@@ -2,9 +2,10 @@
 
 import { useWlPath } from "../lib/paths";
 import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
-import Link from "next/link";
 
 import { recordModalOrigin } from "~/lib/originFlight";
+
+import SheetLink from "~/components/modal-sheet/SheetLink";
 import { api } from "~/trpc/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
@@ -71,7 +72,7 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
             >
               <td className="py-2 pr-4">
                 {record.slug ? (
-                  <Link
+                  <SheetLink
                     href={wlPath(`/${record.slug}`)}
                     onClick={(event) =>
                       recordModalOrigin(
@@ -89,7 +90,7 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
                     <span className="underline decoration-transparent underline-offset-2 transition-colors group-hover:decoration-neutral-300 dark:group-hover:decoration-neutral-500">
                       {record.exerciseName}
                     </span>
-                  </Link>
+                  </SheetLink>
                 ) : (
                   <span className="flex items-center gap-2 text-neutral-800 dark:text-neutral-100">
                     <span

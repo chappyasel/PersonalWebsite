@@ -13,9 +13,10 @@ import {
   ClockIcon,
   SquaresFourIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 
 import { recordModalOrigin } from "~/lib/originFlight";
+
+import SheetLink from "~/components/modal-sheet/SheetLink";
 import { type RouterOutputs, api } from "~/trpc/react";
 
 import { Spinner } from "~/components/ui/spinner";
@@ -65,7 +66,7 @@ function ExerciseRow({ exercise }: { exercise: Exercise }) {
     <div className="flex items-stretch">
       <div className="min-w-0 flex-1 py-2 pl-3 pr-2.5">
         {exercise.slug ? (
-          <Link
+          <SheetLink
             href={wlPath(`/${exercise.slug}`)}
             onClick={(event) =>
               recordModalOrigin(event.currentTarget.getBoundingClientRect())
@@ -73,7 +74,7 @@ function ExerciseRow({ exercise }: { exercise: Exercise }) {
             className="text-[17px] font-medium text-neutral-600 underline decoration-transparent underline-offset-2 transition-colors hover:decoration-neutral-400 dark:text-neutral-200 dark:hover:decoration-neutral-400"
           >
             {exercise.displayName}
-          </Link>
+          </SheetLink>
         ) : (
           <p className="text-[17px] font-medium text-neutral-600 dark:text-neutral-200">
             {exercise.displayName}

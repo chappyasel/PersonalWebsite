@@ -27,6 +27,7 @@ import {
   SheetControlCluster,
   SheetExpandControl,
 } from "./SheetControls";
+import { prefersFullPage } from "./sheetRoute";
 
 /** True inside a mounted sheet. Content shared between a full page and its
  * intercepted presentation reads this to pick navigation style — e.g. the
@@ -59,6 +60,19 @@ function focusableChildren(root: HTMLElement): HTMLElement[] {
   });
 }
 
+type ModalSheetProps = {
+  label: string;
+  expandHref: string;
+  variant?: "document" | "card";
+  className?: string;
+  /** Fires true once the entrance has settled, false the moment a close
+   * begins (and on unmount). The homepage wires this to the 3D world's
+   * stand-down flag — a prop, so pages without the world never import its
+   * store. */
+  onPresenceChange?: (present: boolean) => void;
+  children: ReactNode;
+};
+
 /**
  * The chrome for an intercepted route presented over the page that launched
  * it, in the book-notes modal's dress: centered card, the same shadow and
@@ -70,26 +84,33 @@ function focusableChildren(root: HTMLElement): HTMLElement[] {
  *
  * `variant="document"` is a full-height reading surface (routine, manual, an
  * exercise page); `variant="card"` hugs its content (the workout preview).
+ *
+ * On a phone-sized viewport there is no sheet at all. Launchers already make
+ * a full-page load there (sheetRoute.ts), and this is the net under them:
+ * interception is implicit — any soft navigation to the route mounts this —
+ * so a launcher that skipped the check, or a back/forward restore after a
+ * resize, would otherwise present the cramped card. The soft navigation has
+ * already put the destination URL in history, so a replace lands on the full
+ * page with back still on the launcher. Nothing renders meanwhile; the
+ * launching page stays up until the document changes.
  */
-export default function ModalSheet({
+export default function ModalSheet(props: ModalSheetProps) {
+  const [bypassed] = useState(prefersFullPage);
+  useEffect(() => {
+    if (bypassed) window.location.replace(props.expandHref);
+  }, [bypassed, props.expandHref]);
+  if (bypassed) return null;
+  return <PresentedSheet {...props} />;
+}
+
+function PresentedSheet({
   label,
   expandHref,
   variant = "document",
   className,
   onPresenceChange,
   children,
-}: {
-  label: string;
-  expandHref: string;
-  variant?: "document" | "card";
-  className?: string;
-  /** Fires true once the entrance has settled, false the moment a close
-   * begins (and on unmount). The homepage wires this to the 3D world's
-   * stand-down flag — a prop, so pages without the world never import its
-   * store. */
-  onPresenceChange?: (present: boolean) => void;
-  children: ReactNode;
-}) {
+}: ModalSheetProps) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(true);
