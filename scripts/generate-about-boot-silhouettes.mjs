@@ -1,10 +1,17 @@
 // Generate inline, dependency-free front silhouettes for the About boot SVG.
 // The source GLBs are loaded offline, turned to their exact UnitAbout yaw,
-// projected orthographically, raster-unioned, boundary-traced, and simplified.
+// projected through the About rest camera from where each model stands (the
+// globe orthographically, for its map), raster-unioned, boundary-traced, and
+// simplified.
 // Run from the repository root:
 //   node scripts/generate-about-boot-silhouettes.mjs
 import { articulateDeskLampHead } from "../src/app/components/stacks/scene/ModelProp.tsx";
 import { ABOUT_LAMP_HEAD_QUATERNION } from "../src/app/components/stacks/scene/aboutLampPose.ts";
+import {
+  aboutBootModelAnchor,
+  aboutBootSilhouetteCameraSignature,
+  aboutBootSilhouettePoint,
+} from "../src/app/components/stacks/scene/aboutBootPerspective.ts";
 import { ABOUT_MODEL_POSES } from "../src/app/components/stacks/scene/aboutScenePose.ts";
 import {
   GLOBE_PIN_REACH,
@@ -70,6 +77,7 @@ function triangles(
   rotation,
   localPosition = [0, 0, 0],
   include = () => true,
+  project = ([x, y]) => [x, y],
 ) {
   scene.updateWorldMatrix(true, true);
   const pose = new THREE.Matrix4().compose(
@@ -91,7 +99,7 @@ function triangles(
           const point = new THREE.Vector3()
             .fromBufferAttribute(position, vertex)
             .applyMatrix4(matrix);
-          return [point.x, point.y];
+          return project([point.x, point.y, point.z]);
         }),
       );
     }
@@ -655,17 +663,26 @@ for (const [id, model] of Object.entries(MODELS)) {
     slimGlobeStand(split.stand, split.mount);
     globeSplit = split;
   }
+  // Through the rest camera from where the model stands, except the globe.
+  const cameraSignature = aboutBootSilhouetteCameraSignature(id);
+  const anchor = cameraSignature.perspective ? aboutBootModelAnchor(id) : null;
+  const project = anchor
+    ? (posed) => aboutBootSilhouettePoint(anchor, model.pose.scale, posed)
+    : undefined;
   const modelTriangles = triangles(
     gltf.scene,
     model.pose.rotation,
     model.pose.localPosition,
+    undefined,
+    project,
   );
   const raster = rasterize(modelTriangles);
   const poseSignature = JSON.stringify({
-    version: 1,
+    version: 2,
     pose: model.pose,
     headQuaternion,
     globeShape,
+    ...cameraSignature,
   });
   const sceneUnitsPerPixel = model.pose.scale / raster.rasterScale;
   const isVisionPro = id === "vision-pro";
@@ -678,9 +695,12 @@ for (const [id, model] of Object.entries(MODELS)) {
           model.pose.rotation,
           model.pose.localPosition,
           include,
+          project,
         );
         let partRaster = rasterize(partTriangles, raster);
-        if (part === "glass") partRaster = expandRaster(partRaster, 6, 3);
+        // A pixel of dilation closes the seam between the glass and its
+        // frame; the six it used to get swallowed most of the enclosure.
+        if (part === "glass") partRaster = expandRaster(partRaster, 2, 1);
         return [part, trace(partRaster, { smooth: true })];
       }),
     );

@@ -13,12 +13,13 @@ export const VISION_PRO_DISPLAY_WIDTH =
 export const VISION_PRO_MODEL_SCALE =
   VISION_PRO_DISPLAY_WIDTH / VISION_PRO_MODEL_WIDTH;
 
-/** Exact front elevation after the authored rotation below. The generated boot
- * silhouette is tested against this pair, so a model or pose change cannot
- * leave the loading screen on the old footprint. */
+/** Exact elevation through the About rest camera after the authored rotation
+ * below (the eye stands 1.1 units above this shelf, so the top shows). The
+ * generated boot silhouette is tested against this pair, so a model, pose or
+ * camera change cannot leave the loading screen on the old footprint. */
 export const VISION_PRO_PROFILE = {
-  width: 0.41327983542760155,
-  height: 0.1779363572037091,
+  width: 0.4176681675059897,
+  height: 0.2453053002133383,
 } as const;
 
 /** The draft's yaw and small roll are retained. Its 8.2° forward pitch and

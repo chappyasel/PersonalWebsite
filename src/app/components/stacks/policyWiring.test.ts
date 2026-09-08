@@ -27,6 +27,9 @@ const source = (path: string) =>
 const cameraRig = source("./scene/CameraRig.tsx");
 const chromeLayer = source("./dom/ChromeLayer.tsx");
 const effects = source("./scene/Effects.tsx");
+const golfExperience = source("./scene/golf/GolfExperience.tsx");
+const scrollBridges = source("./input/ScrollBridges.tsx");
+const opticalPrototype = source("./scene/OpticalBokehPrototype.tsx");
 const environment = source("./scene/SceneEnvironment.tsx");
 const meadow = source("./scene/Meadow.tsx");
 
@@ -164,6 +167,42 @@ describe("depth-of-field wiring", () => {
     expect(wrapper).toContain("ref={effect}");
   });
 
+  it("runs the one shared rack from both lenses' frame loops", () => {
+    const wrapper = effects.slice(
+      effects.indexOf("function LiveBokehDepthOfField"),
+      effects.indexOf("function ComposerPixelRatio"),
+    );
+
+    // The rack is a per-frame concern: real seconds in, both ramps and the
+    // blended target out, before the composer draws. Never per-frame steps.
+    // The production lens is the optical one, so it must run the very same
+    // object, from the same golf window.
+    expect(wrapper).toMatch(/useFrame\(\(_, frameSeconds\)/);
+    expect(wrapper).toMatch(
+      /advanceShelfDepthOfFieldPull\(\s*pull\.current,\s*tuning\.current,\s*frameSeconds,\s*golfMode\.weight,?\s*\)/,
+    );
+    expect(wrapper).toContain("applyShelfDepthOfFieldFocusRanges(live, focus)");
+    expect(wrapper).toContain(
+      "focusPullTarget(focus.target, focusPull, measured)",
+    );
+    expect(effects).toMatch(
+      /<OpticalBokehPrototype\s+shelf=\{depthOfFieldTuning\}/,
+    );
+    expect(opticalPrototype).toMatch(
+      /advanceShelfDepthOfFieldPull\(\s*pull\.current,\s*shelf,\s*frameSeconds,\s*golfMode\.weight,?\s*\)/,
+    );
+    expect(opticalPrototype).toContain(
+      'effect.uniforms.get("uNearStrength")!.value = focus.nearStrength;',
+    );
+    expect(opticalPrototype).toContain(
+      'effect.uniforms.get("uFarStrength")!.value = focus.farStrength;',
+    );
+    // The camera's pivot rides the same window and the same clock.
+    expect(cameraRig).toMatch(
+      /advanceGolfFocusPull\(\s*golfPivot\.current,\s*golfModeTarget\.current,\s*dt,?\s*\)/,
+    );
+  });
+
   it("mounts only the selected model from the resolved tuning", () => {
     expect(effects).toContain("resolveShelfDepthOfFieldTuning({");
     expect(effects).toMatch(
@@ -172,5 +211,131 @@ describe("depth-of-field wiring", () => {
     expect(effects).toMatch(
       /\{depthOfFieldTuning && depthOfFieldModel !== "current" && \(\s*<OpticalBokehPrototype/,
     );
+  });
+});
+
+describe("golf suspense wiring", () => {
+  it("advances the push-in from the physics loop and aims the camera through the transient", () => {
+    // Gate, reduced motion and the golf window all pass through `allowed`;
+    // the state still advances so an open push eases out on its own.
+    expect(golfExperience).toMatch(
+      /advanceGolfSuspense\(\s*suspense\.current,\s*balls\.current,\s*cup,\s*delta,\s*active && motion\.suspenseZoom && golfSuspenseEnabled\(\),?\s*\)/,
+    );
+    expect(golfExperience).toContain("golfSuspense.weight = 0;");
+    // The rig reads the weight for the aim and the lens, nothing else.
+    expect(cameraRig).toContain("if (golfSuspense.weight > 0) {");
+    expect(cameraRig).toContain("golfSuspenseFovScale(golfSuspense.weight)");
+  });
+
+  it("decides golf mode from the green's coverage on the pre-golf pose", () => {
+    // The rule (golfVisibility.ts) is measured on the pose the rig has
+    // built before the cup pivot and the push-in, with the pointer's full
+    // pan restored, and its switch is what the store's golfFocused mirrors.
+    const measuredAt = cameraRig.indexOf("golfCoverage = golfModeCoverage(");
+    const pivotAt = cameraRig.indexOf("golfYawRig({");
+    const headAt = cameraRig.indexOf("aimForHeadTurn({");
+    expect(measuredAt).toBeGreaterThan(headAt);
+    expect(measuredAt).toBeLessThan(pivotAt);
+    expect(cameraRig).toContain(
+      "authoredLookX + (pointerSwingFull.current - pointerSwing.current)",
+    );
+    // The in-golf pose is the pivot's own base for the pivot's own run.
+    expect(cameraRig).toContain("inGolf.look[0] = look.current.x - pointerSwing.current;");
+    expect(cameraRig).toMatch(/run: golfRun\.current,\s*\},\s*golfTuning,\s*\);/);
+    expect(cameraRig).toContain(
+      "golfModeTarget.current = golfModeWeight(golfCoverage, golfTuning);",
+    );
+    expect(cameraRig).toContain("useStacks.getState().setGolfFocused(golfMode.engaged);");
+    // The punch-in and the mobile look offset ride the mode's eased weight
+    // with the rack and the pivot (the owner's call); the measurement adds
+    // back the share of the dolly not yet in so it never reads itself. The
+    // stop window keeps only the URL.
+    expect(cameraRig).toContain("const golfDolly = golfDollyForViewport(size.width, true);");
+    expect(cameraRig).toContain("const golfZoom = golfDolly * golfPivotWeight;");
+    expect(cameraRig).toContain("golfLookYOffsetForViewport(size.width, true) * golfPivotWeight");
+    expect(cameraRig).toContain("const dollyNotYetIn = golfDolly * (1 - golfPivotWeight);");
+    expect(cameraRig).toContain("pose.eye[2] = authoredEyeZ - dollyNotYetIn;");
+    expect(cameraRig).toContain("inGolf.eye[2] = baseZ - dollyNotYetIn;");
+    expect(cameraRig).toContain("useStacks.getState().setGolfStop(golfStop);");
+    expect(cameraRig).not.toContain("state.golfFocused");
+    expect(scrollBridges).toContain("golfFocused: useStacks.getState().golfStop,");
+    expect(scrollBridges).toContain("state.golfStop === mirrored.golfFocused");
+    // A jump seeds the mode from the window so a deep link shows the tee.
+    expect(cameraRig).toMatch(
+      /golfModeState\.current = createGolfModeState\(golfStop\);\s*golfModeTarget\.current = golfStop \? 1 : 0;/,
+    );
+  });
+
+  it("hands the pointer yaw and the pan over to the cup pivot at the tee", () => {
+    // The pan fades by the pivot's weight and the rig rotation blends in by
+    // the same weight, which is the depth of field's own rack clock.
+    expect(cameraRig).toMatch(
+      /parallaxLookOffset\(pointerX, composition\) \*\s*calm \*\s*\(1 - golfPivotWeight\)/,
+    );
+    expect(cameraRig).toContain("golfFocusPullWeight(golfPivot.current)");
+    expect(cameraRig).toMatch(
+      /golfYawRig\(\{[\s\S]*?pivotX: GOLF_CUP_WORLD_CENTER\.x,[\s\S]*?run: golfRun\.current,/,
+    );
+    // The pivot's run is the pointer's own (unit max), not the orbit dial's,
+    // so the presets without an orbit still pin the green.
+    expect(cameraRig).toContain(
+      "pointerCameraYawDegrees(pointerX, composition.parallaxCentre, 1)",
+    );
+    // Ordering: orbit, then head turn, then the pivot, then the committed aim
+    // and the push-in on top. The pivot must outrank the head turn or the
+    // head preset swings the green off the pin.
+    const orbitAt = cameraRig.indexOf("eyeXZForYawAroundTarget({");
+    const headAt = cameraRig.indexOf("aimForHeadTurn({");
+    const pivotAt = cameraRig.indexOf("golfYawRig({");
+    const aimAt = cameraRig.indexOf(
+      "travelLook.current.set(authoredLookX, authoredLookY, authoredLookZ)",
+    );
+    const pushAt = cameraRig.indexOf("if (golfSuspense.weight > 0) {");
+    expect(orbitAt).toBeGreaterThan(0);
+    expect(headAt).toBeGreaterThan(orbitAt);
+    expect(pivotAt).toBeGreaterThan(headAt);
+    expect(aimAt).toBeGreaterThan(pivotAt);
+    expect(pushAt).toBeGreaterThan(aimAt);
+  });
+});
+
+describe("pointer arrival wiring", () => {
+  it("lets the pointer in over the boot handoff by easing the input from its rest", () => {
+    // The ramp reads the boot session for the handoff and r3f's own seeded
+    // (0, 0) for "has the mouse been heard from". It steps on the real
+    // frame, never the hidden settle step.
+    expect(cameraRig).toMatch(
+      /advancePointerArrival\(pointerArrival\.current, \{\s*revealed: bootView\.revealed,\s*pointerSeen: pointer\.x !== 0 \|\| pointer\.y !== 0,\s*frameSeconds: frame,\s*\}\)/,
+    );
+    // The rest is the composition's parallax centre for the run and the
+    // screen centre for the rise, and it is applied where the pointer is
+    // read, once, so every reader of pointerX/pointerY (parallax, truck,
+    // orbit, head turn, cup pivot, seated sway) rides the same weight.
+    expect(cameraRig).toContain(
+      "pointerFromRest(pointer.x, composition.parallaxCentre, pointerWeight)",
+    );
+    expect(cameraRig).toContain("pointerFromRest(pointer.y, 0, pointerWeight)");
+    // No other code line reads the raw pointer: the seen check and the two
+    // eased reads are the whole contract (comments may mention it).
+    const rawPointerReads = cameraRig
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("//"))
+      .filter((line) => /\bpointer\.[xy]\b/.test(line));
+    expect(rawPointerReads).toHaveLength(3);
+    // Screenshot mode, the layout gizmo and an OG capture still read the
+    // centred pointer they always did.
+    expect(cameraRig).toContain(
+      "const neutralPointer = layoutGesture || screenshot.enabled || ogCapture;",
+    );
+  });
+
+  it("settles the rig instantly while the boot screen hides it", () => {
+    expect(cameraRig).toContain(
+      "const dt = bootView.revealed ? frame : HIDDEN_SETTLE_SECONDS;",
+    );
+    // The settle timer stays on the real frame so a boot cannot stamp a
+    // unit as settled in one step.
+    expect(cameraRig).toContain("settledFor.current += frame;");
+    expect(cameraRig).not.toContain("settledFor.current += dt;");
   });
 });

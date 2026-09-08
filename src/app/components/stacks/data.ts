@@ -92,10 +92,17 @@ export const GOLF_UNIT_INDEX = UNITS.findIndex(
  * slightly toward Books so the foreground club and balls land around the
  * centre instead of bunching against the left edge. */
 export const GOLF_STOP_POSITION = 1.52;
-/** Golf enters after Books has clearly released and remains available until
- * just before Weightlifting reaches its authored centre. */
+/** The Golf stop's window along the aisle. It keys the camera-depth
+ * keyframes and the URL's #golf. It no longer decides golf mode itself,
+ * nor the golf dolly: the mode is how much of the green the visitor can
+ * see (scene/golfVisibility.ts, scene/golfMode.ts), which the pointer can
+ * move, and the dolly rides the mode's weight with the focus and the pivot.
+ * The window used to run 0.26 past the stop toward Weightlifting against
+ * 0.16 toward Books; once the focus rack and the cup pivot made its edges
+ * visible, that read as golf reaching into the Weightlifting section, and
+ * 0.16 still held on a beat too long. */
 export const GOLF_FOCUS_START = 1.36;
-export const GOLF_FOCUS_END = 1.78;
+export const GOLF_FOCUS_END = 1.62;
 
 export function unitIndexFromHash(hash: string): number | null {
   const slug = hash.replace(/^#/, "");

@@ -87,9 +87,13 @@ import {
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import { useScreenshotMode } from "./screenshotMode";
+import { golfMode } from "./golfMode";
 import {
   type ShelfDepthOfFieldTuning,
+  advanceShelfDepthOfFieldPull,
+  applyShelfDepthOfFieldFocusRanges,
   applyShelfDepthOfFieldTuning,
+  createShelfDepthOfFieldPull,
   resolveShelfDepthOfFieldTuning,
 } from "./shelfDepthOfField";
 
@@ -806,6 +810,7 @@ function LiveBokehDepthOfField({
   focusRange,
   bokehScale,
   resolutionScale,
+  golf,
 }: ShelfDepthOfFieldTuning) {
   const effect = useRef<DepthOfFieldEffect | null>(null);
 
@@ -818,24 +823,36 @@ function LiveBokehDepthOfField({
     });
   }, [bokehScale, focusRange, resolutionScale]);
 
+  // The golf rack (shelfDepthOfField.ts). The golf window opening starts a
+  // half-second pull of the focal plane from the shelf onto the cup, with
+  // both ramps opening as it goes; the window closing runs the same pull
+  // backwards from wherever it got to. Progress is integrated from real
+  // frame time, never per frame, so a 120 Hz screen racks at the same speed
+  // as a 60 Hz one. A boot that lands on /golf starts settled on the cup
+  // rather than pulling in front of the visitor.
+  const tuning = useRef({ target, focusRange, golf });
+  tuning.current = { target, focusRange, golf };
+  const pull = useRef(createShelfDepthOfFieldPull(tuning.current));
+
   // Focus pull. A prop brought to the camera (the Projects Mac) sits four
   // units in front of the shelf's focal plane and would arrive as bokeh; while
-  // its flight reports a weight, the target slides from the shelf toward it.
-  // The wrapper's `target` Vector3 is the one the effect measures every
-  // frame, so writing it here is enough, and the shelf value is restored the
-  // frame the pull lets go.
-  const pulled = useRef(false);
-  useFrame(() => {
-    const focus = effect.current?.target;
-    if (!focus) return;
-    if (focusPull.weight <= 0) {
-      if (!pulled.current) return;
-      pulled.current = false;
-      focus.set(target[0], target[1], target[2]);
-      return;
-    }
-    pulled.current = true;
-    focusPullTarget(target, focusPull, focus);
+  // its flight reports a weight, the target slides from the blended base
+  // toward it. The wrapper's `target` Vector3 is the one the effect measures
+  // every frame, so writing it here is enough. Both writes land every frame:
+  // the ramps the layout effect just applied are the shelf's, and the loop
+  // owns the live pair from the first frame on.
+  useFrame((_, frameSeconds) => {
+    const live = effect.current;
+    const measured = live?.target;
+    if (!live || !measured) return;
+    const { focus } = advanceShelfDepthOfFieldPull(
+      pull.current,
+      tuning.current,
+      frameSeconds,
+      golfMode.weight,
+    );
+    applyShelfDepthOfFieldFocusRanges(live, focus);
+    focusPullTarget(focus.target, focusPull, measured);
   });
 
   return (
@@ -1159,14 +1176,14 @@ export default function Effects({
           grass. The effect measures camera→target every frame, including the
           alternating unit depths and the About stop's lateral offset.
           Whether it mounts at all, and at what tuning, is decided in
-          shelfDepthOfField.ts. */}
+          shelfDepthOfField.ts; the golf window racks the plane onto the cup
+          over a timed pull inside the wrapper. */}
       {depthOfFieldTuning && depthOfFieldModel === "current" && (
         <LiveBokehDepthOfField {...depthOfFieldTuning} />
       )}
       {depthOfFieldTuning && depthOfFieldModel !== "current" && (
         <OpticalBokehPrototype
-          target={depthOfFieldTuning.target}
-          focusRange={depthOfFieldTuning.focusRange}
+          shelf={depthOfFieldTuning}
           bokehScale={depthOfFieldTuning.bokehScale}
           taps={
             depthOfFieldModel === "optical-prototype-16"

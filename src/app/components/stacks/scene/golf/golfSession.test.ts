@@ -21,6 +21,7 @@ describe("golf session presentation and departure", () => {
       glint: false,
       turfPuff: false,
       confetti: false,
+      suspenseZoom: false,
       staticCupGlow: true,
     });
     expect(golfMotionPolicy(false).confetti).toBe(true);

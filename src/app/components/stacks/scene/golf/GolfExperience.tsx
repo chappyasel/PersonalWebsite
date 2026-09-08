@@ -14,6 +14,8 @@ import {
   meadowTrailReady,
 } from "../meadowMotion";
 import { useResolvedMeadowVisibility } from "../scenePerformance";
+import { golfMode } from "../golfMode";
+import { golfFocusPullDiagnostics } from "../shelfDepthOfField";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import type { UnitProps } from "../units/types";
 import { unitPose } from "../worldLayout";
@@ -83,6 +85,14 @@ import {
   nextReadyClubTarget,
   shouldAdvanceGolfStrike,
 } from "./golfStrikeQueue";
+import {
+  advanceGolfSuspense,
+  createGolfSuspenseState,
+  golfSuspense,
+  golfSuspenseEnabled,
+  golfSuspenseRequestedBySearch,
+  setGolfSuspenseEnabled,
+} from "./golfSuspense";
 import { planGolfTrajectory } from "./golfTrajectory";
 import type {
   GolfBallId,
@@ -367,6 +377,7 @@ export default function GolfExperience({
   const clubPointer = useRef(new THREE.Vector2());
   const clubPointerTarget = useRef(new THREE.Vector2());
   const stepper = useRef(new GolfFixedStepper());
+  const suspense = useRef(createGolfSuspenseState());
   const queue = useRef(new GolfStrikeQueue());
   const looseBalls = useRef(new Map<string, LooseBall>());
   const golfAttempts = useRef(new Map<string, number>());
@@ -758,6 +769,17 @@ export default function GolfExperience({
     };
   }, [restoreAuthoredState]);
 
+  // The cup-edge push-in is gated: the URL can ask for it, the dev hook
+  // below can flip it live. Whatever is up when this unmounts is dropped so
+  // the camera is never left holding a push toward a cup that is gone.
+  useEffect(() => {
+    if (golfSuspenseRequestedBySearch(window.location.search))
+      setGolfSuspenseEnabled(true);
+    return () => {
+      golfSuspense.weight = 0;
+    };
+  }, []);
+
   useEffect(() => {
     const hooks = window.__stacks;
     if (!hooks) return;
@@ -773,8 +795,14 @@ export default function GolfExperience({
         })),
         shotBag: bag.current.snapshot(),
         reducedMotion: !motion.clubSwing,
+        rack: { ...golfFocusPullDiagnostics },
+        mode: { ...golfMode },
       }),
       forceNext: (outcome) => bag.current.force(outcome),
+      suspense: (enabled) => {
+        if (enabled !== undefined) setGolfSuspenseEnabled(enabled);
+        return golfSuspenseEnabled();
+      },
       // The loose props the bay is watching, and a way to tap one without a
       // pointer, so a headless run can prove the handoff end to end.
       loose: () =>
@@ -897,6 +925,23 @@ export default function GolfExperience({
     stepper.current.advance(delta, (dt) =>
       stepGolfWorld(balls.current, world, dt),
     );
+
+    // The cup-edge push-in (golfSuspense.ts). Advanced every frame whether
+    // or not it is allowed, so a push that is up when the gate closes or the
+    // visitor scrolls off the tee eases back out rather than snapping.
+    golfSuspense.weight = advanceGolfSuspense(
+      suspense.current,
+      balls.current,
+      cup,
+      delta,
+      active && motion.suspenseZoom && golfSuspenseEnabled(),
+    );
+    if (golfSuspense.weight > 0) {
+      const aim = toWorld(suspense.current.aim);
+      golfSuspense.x = aim.x;
+      golfSuspense.y = aim.y;
+      golfSuspense.z = aim.z;
+    }
 
     for (const ball of balls.current) {
       const trail = ballTrails.current[ball.id];

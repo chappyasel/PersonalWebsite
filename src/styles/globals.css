@@ -1359,6 +1359,18 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   fill: var(--stacks-boot-wood);
   stroke: var(--stacks-boot-wood-edge);
   stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+/* The camera looks down at the shelf, so each plank's upper surface shows
+   above its front edge as a thin lit strip. */
+.stacks-boot-planks [data-boot-plank-top] {
+  fill: color-mix(in srgb, var(--stacks-boot-wood) 84%, #fff);
+}
+
+.stacks-boot-golf-ball {
+  fill: var(--stacks-boot-object);
+  opacity: 0.95;
 }
 
 .stacks-boot-item {
@@ -1378,6 +1390,12 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 .stacks-boot-model-silhouette {
   fill: var(--stacks-boot-object);
   opacity: 0.9;
+}
+
+/* A floor prop overlaps the plank's front and a support foot, so at the
+   silhouettes' 0.9 it reads as a second layer; solid, it reads as in front. */
+.stacks-boot-floor-prop .stacks-boot-model-silhouette {
+  opacity: 1;
 }
 
 .stacks-boot-model-silhouette[data-model-silhouette="ai-collective"] {
@@ -1576,33 +1594,44 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   fill: #4d9eff;
 }
 
+/* Vision Pro as the room lights it: a near-white knit band and light seal,
+   an aluminium frame a shade greyer, and the one black thing on the shelf,
+   the glass. The base silhouette is the fabric between the traced parts, so
+   nothing uncovered reads as a black hole. */
 .stacks-boot-vision-band {
-  fill: #8c9499;
-  stroke: #626a70;
+  fill: #e4e0d8;
+  stroke: #b9b4aa;
   stroke-width: 0.4;
   stroke-linejoin: round;
 }
 
 .dark .stacks-boot-vision-band {
-  fill: #434a50;
+  fill: #9d9990;
+  stroke: #6f6b63;
 }
 
 .stacks-boot-vision-silhouette {
-  fill: #25272a;
-  stroke: color-mix(in srgb, var(--stacks-boot-object) 58%, #22282d);
+  fill: #cfcbc3;
+  stroke: #a9a49b;
   stroke-width: 0.55;
   stroke-linejoin: round;
 }
 
+.dark .stacks-boot-vision-silhouette {
+  fill: #83807a;
+  stroke: #5d5a54;
+}
+
 .stacks-boot-vision-enclosure {
-  fill: #929ba1;
-  stroke: color-mix(in srgb, var(--stacks-boot-object) 74%, white);
+  fill: #d9d6cf;
+  stroke: #b3afa6;
   stroke-width: 0.45;
   stroke-linejoin: round;
 }
 
 .dark .stacks-boot-vision-enclosure {
-  fill: #60686e;
+  fill: #8f8c85;
+  stroke: #66635c;
 }
 
 /* The About globe's boot glyph. The map colours come from the shared palette

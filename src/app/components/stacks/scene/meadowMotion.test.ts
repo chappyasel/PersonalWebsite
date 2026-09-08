@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MEADOW_FLOWER_WIND,
   MEADOW_IMPACT,
   MEADOW_POKE,
   MEADOW_TRAIL,
@@ -11,18 +12,22 @@ import {
   meadowPulseState,
   meadowTrailReady,
   meadowWindAudioLevel,
+  sampleMeadowGust,
   sampleMeadowWind,
 } from "./meadowMotion";
 
 describe("meadow pointer motion", () => {
   it("keeps ambient wind clearly visible without allowing runaway gusts", () => {
-    expect(MEADOW_WIND.amplitude).toBeGreaterThanOrEqual(0.13);
+    expect(MEADOW_WIND.amplitude).toBe(0.21);
+    expect(MEADOW_WIND.authoredMaxLean).toBe(0.36);
     expect(MEADOW_WIND.gustKnee).toBeLessThan(MEADOW_WIND.gustCeiling);
     expect(MEADOW_WIND.gustCeiling).toBeLessThan(MEADOW_WIND.maxLean);
     expect(limitMeadowWind(0.15)).toBe(0.15);
     expect(limitMeadowWind(10)).toBeLessThanOrEqual(MEADOW_WIND.gustCeiling);
+    const peakEnvelope =
+      1 + MEADOW_WIND.mainGustAmplitude * 2 + MEADOW_WIND.residualGustAmplitude;
     const revealPeak =
-      MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost) * 1.45;
+      MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost) * peakEnvelope;
     expect(limitMeadowWind(revealPeak)).toBeLessThan(MEADOW_WIND.gustCeiling);
   });
 
@@ -31,31 +36,131 @@ describe("meadow pointer motion", () => {
     const reveal = meadowWindAudioLevel(
       MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost),
     );
-    expect(baseline).toBeCloseTo(0.56, 4);
+    expect(baseline).toBeCloseTo(0.7, 4);
     expect(reveal).toBeGreaterThan(baseline);
+    expect(meadowWindAudioLevel(MEADOW_WIND.audioReference)).toBe(1);
     expect(meadowWindAudioLevel(MEADOW_WIND.gustCeiling)).toBe(1);
   });
 
-  it("samples the shader's naturally changing wind for live diagnostics", () => {
-    const now = sampleMeadowWind(2, -4, 3);
-    const later = sampleMeadowWind(2, -4, 8);
-    const paused = sampleMeadowWind(2, -4, 8, MEADOW_WIND.amplitude, 0);
-    const pausedLater = sampleMeadowWind(2, -4, 80, MEADOW_WIND.amplitude, 0);
-    expect(now.magnitude).toBeGreaterThan(0);
-    expect(now.magnitude).toBeLessThanOrEqual(MEADOW_WIND.gustCeiling);
-    expect(later).not.toEqual(now);
-    expect(pausedLater).toEqual(paused);
+  it("gives diagnostics a visibly exaggerated tuning extreme", () => {
+    const authored = sampleMeadowGust(10);
+    const extreme = sampleMeadowGust(10, MEADOW_WIND.amplitude * 10);
+    expect(extreme).toBeGreaterThan(authored * 5);
+    expect(extreme).toBeGreaterThan(0.6);
+    expect(extreme).toBeLessThan(MEADOW_WIND.maxLean);
+  });
+
+  it("builds the live gust from two smooth sine waves", () => {
+    const mainPeriod =
+      (Math.PI * 2) / (MEADOW_WIND.speed * MEADOW_WIND.mainGustRate);
+    const residualPeriod =
+      (Math.PI * 2) / (MEADOW_WIND.speed * MEADOW_WIND.residualGustRate);
+    expect(mainPeriod).toBeGreaterThan(9);
+    expect(residualPeriod).toBeGreaterThan(22);
+
+    const now = sampleMeadowGust(3);
+    const later = sampleMeadowGust(8);
+    const paused = sampleMeadowGust(8, MEADOW_WIND.amplitude, 0);
+    const pausedLater = sampleMeadowGust(80, MEADOW_WIND.amplitude, 0);
+    expect(now).toBeGreaterThan(0);
+    expect(now).toBeLessThanOrEqual(MEADOW_WIND.gustCeiling);
+    expect(later).not.toBe(now);
+    expect(pausedLater).toBe(paused);
+
+    for (const start of [0, 3_600]) {
+      let previous = sampleMeadowGust(start);
+      for (let time = start + 0.1; time <= start + 120; time += 0.1) {
+        const next = sampleMeadowGust(time);
+        expect(Math.abs(next - previous)).toBeLessThan(0.009);
+        previous = next;
+      }
+    }
+  });
+
+  it("doubles one positive main gust about once every five cycles", () => {
+    const mainPeakAt = (cycle: number) =>
+      (Math.PI / 2 + Math.PI * 2 * cycle - MEADOW_WIND.mainGustPhase) /
+      (MEADOW_WIND.speed * MEADOW_WIND.mainGustRate);
+    const rareTime = mainPeakAt(MEADOW_WIND.rareGustOffset);
+    const rare = sampleMeadowGust(rareTime);
+    const residual = Math.sin(
+      rareTime * MEADOW_WIND.speed * MEADOW_WIND.residualGustRate +
+        MEADOW_WIND.residualGustPhase,
+    );
+    const ordinaryAtSameTime =
+      MEADOW_WIND.amplitude *
+      (1 +
+        MEADOW_WIND.mainGustAmplitude +
+        MEADOW_WIND.residualGustAmplitude * residual);
+    const expectedRare = limitMeadowWind(
+      MEADOW_WIND.amplitude *
+        (1 +
+          MEADOW_WIND.mainGustAmplitude * 2 +
+          MEADOW_WIND.residualGustAmplitude * residual),
+    );
+    expect(rare - ordinaryAtSameTime).toBeCloseTo(
+      expectedRare - ordinaryAtSameTime,
+      8,
+    );
+    expect(
+      mainPeakAt(MEADOW_WIND.rareGustOffset + MEADOW_WIND.rareGustEvery) -
+        mainPeakAt(MEADOW_WIND.rareGustOffset),
+    ).toBeGreaterThan(45);
+  });
+
+  it("preserves the original spatial wind envelope around the shared gust", () => {
+    for (let time = 0; time <= 40; time += 2) {
+      const gust = sampleMeadowGust(time);
+      for (const x of [0, 2, 8]) {
+        const local = sampleMeadowWind(x, -4, time);
+        expect(local.magnitude).toBeGreaterThan(gust * 0.34);
+        expect(local.magnitude).toBeLessThan(gust * 1.46);
+      }
+    }
+  });
+
+  it("gives rigid flower heads visible travel with a bounded stem throw", () => {
+    const authoredWind = sampleMeadowWind(2, -4, 3).magnitude;
+    const authoredThrow =
+      authoredWind *
+      MEADOW_FLOWER_WIND.response *
+      MEADOW_FLOWER_WIND.stemLength;
+    const maximumThrow =
+      MEADOW_FLOWER_WIND.maxLean * MEADOW_FLOWER_WIND.stemLength;
+
+    expect(authoredThrow).toBeGreaterThan(0.01);
+    expect(maximumThrow).toBeGreaterThan(0.05);
+    expect(maximumThrow).toBeLessThan(0.1);
+  });
+
+  it("does not accelerate the spatial flow as elapsed time grows", () => {
+    const frame = 1 / 60;
+    const earlyStep = Math.abs(
+      sampleMeadowWind(22, 0, 23 + frame).magnitude -
+        sampleMeadowWind(22, 0, 23).magnitude,
+    );
+    const lateStep = Math.abs(
+      sampleMeadowWind(22, 0, 3_923.516_666_666_666_4 + frame).magnitude -
+        sampleMeadowWind(22, 0, 3_923.516_666_666_666_4).magnitude,
+    );
+
+    expect(lateStep).toBeLessThan(0.01);
+    expect(lateStep).toBeLessThan(earlyStep * 8 + 0.002);
   });
 
   it("keeps each interaction below the shader's hard lean clamp at peak wind", () => {
-    // windAt's gust/breeze envelope tops out at 0.35 + 0.85 + 0.25.
-    const peakWind = MEADOW_WIND.amplitude * 1.45;
+    const peakWind =
+      MEADOW_WIND.amplitude *
+      (1 +
+        MEADOW_WIND.mainGustAmplitude * 2 +
+        MEADOW_WIND.residualGustAmplitude) *
+      1.45;
     const quietedWind = peakWind * (1 - MEADOW_POKE.windSuppression);
     expect(quietedWind + MEADOW_POKE.hoverStrength).toBeLessThanOrEqual(
-      MEADOW_WIND.maxLean,
+      MEADOW_WIND.authoredMaxLean,
     );
     expect(quietedWind + meadowPulseState(0, 1).strength).toBeLessThanOrEqual(
-      MEADOW_WIND.maxLean,
+      MEADOW_WIND.authoredMaxLean,
     );
   });
 

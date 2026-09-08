@@ -36,7 +36,14 @@ import {
   aboutBootFrameProjection,
 } from "../scene/aboutBootFrameProjection";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
+import {
+  ABOUT_BOOT_CAMERA,
+  aboutBootPlankProjection,
+  projectAboutBootPoint,
+} from "../scene/aboutBootPerspective";
 import { aboutBootShelfSupportProjection } from "../scene/aboutBootSupportProjection";
+import { ABOUT_GOLF_BALLS } from "../scene/golf/aboutGolfBalls";
+import { GOLF_BALL_RADIUS } from "../scene/golf/golfBallGeometry";
 import { ABOUT_GLOBE_THEME_COLORS } from "../scene/aboutGlobePalette";
 import {
   ABOUT_ROLES,
@@ -120,9 +127,13 @@ import {
   SCENE_TO_BOOT_SVG,
   bootCadence,
   bootCssKeyframes,
+  bootFixed,
+  bootParallaxStyle,
+  bootPlacementStyle,
+  bootPoints,
+  bootReadingProjector,
   bootRevealComplete,
   createBootDustDrift,
-  projectSceneY,
 } from "./bootVignette";
 
 const BOOT_AIC_SEAT_PX = 0.8;
@@ -644,11 +655,9 @@ function FrameGlyph({ landmark }: { landmark: AboutBootLandmark }) {
 function ReadingStackGlyph({
   books,
   colors,
-  landmarkX,
 }: {
   books: BootReadingBook[];
   colors: Record<string, ReadingBookEdgeColor>;
-  landmarkX: number;
 }) {
   const visible = books.slice(0, 3);
   const thicknesses = visible.map(
@@ -676,12 +685,16 @@ function ReadingStackGlyph({
             true,
           );
           const thickness = book.thickness ?? ABOUT_READING_BOOK.thickness;
+          // Every corner through the About rest camera, relative to the
+          // stack's anchor (the group this draws in sits there, at the
+          // anchor's depth scale), so the fan opens the way the live books do.
+          const project = bootReadingProjector();
           const toBootPoints = (
             points: ReturnType<typeof readingBookCoverPerspectiveElevation>,
           ) =>
             points.map(([x, y]): [number, number] => [
-              (x - landmarkX) * SCENE_TO_BOOT_SVG,
-              -y * SCENE_TO_BOOT_SVG,
+              bootFixed(x * SCENE_TO_BOOT_SVG),
+              bootFixed(-y * SCENE_TO_BOOT_SVG),
             ]) as [
               [number, number],
               [number, number],
@@ -693,6 +706,7 @@ function ReadingStackGlyph({
               poses[index]!,
               CAMERA.z,
               thickness,
+              project,
             ),
           );
           const edgePoints = toBootPoints(
@@ -700,6 +714,7 @@ function ReadingStackGlyph({
               poses[index]!,
               CAMERA.z,
               thickness,
+              project,
             ),
           );
           const pageCorePoints = toBootPoints(
@@ -707,6 +722,7 @@ function ReadingStackGlyph({
               poses[index]!,
               CAMERA.z,
               thickness,
+              project,
             ),
           );
           const imagePoints = toBootPoints(
@@ -714,6 +730,7 @@ function ReadingStackGlyph({
               poses[index]!,
               CAMERA.z,
               thickness,
+              project,
             ),
           );
           const cover = coverPoints.map((point) => point.join(",")).join(" ");
@@ -1281,9 +1298,7 @@ function LandmarkGlyph({
       return (
         <ReadingStackGlyph
           books={readingBooks}
-          colors={readingBookColors}
-          landmarkX={landmark.x}
-        />
+          colors={readingBookColors}        />
       );
     default:
       return assertNever(glyph);
@@ -1313,12 +1328,6 @@ export default function BootScreen({
   useBootMotion(sceneRef, cadence, readingBooks);
   useBootMotes(motesRef);
   useBootStage();
-  const support = SHELF_GEOMETRY.support;
-  const groundY = projectSceneY(SHELF_GEOMETRY.groundY);
-  const strapTopY = projectSceneY(
-    SHELF_GEOMETRY.top.centerY - SHELF_GEOMETRY.top.thickness / 2,
-  );
-  const strapHeight = groundY - strapTopY;
   return (
     <>
       {/* Lays the bookcase over the spot the camera will put the real shelf,
@@ -1357,22 +1366,80 @@ export default function BootScreen({
                   {([-1, 1] as const).map((side) => {
                     const projection = aboutBootShelfSupportProjection(side);
                     return (
-                      <g data-boot-support={side} key={side}>
+                      <g
+                        data-boot-support={side}
+                        key={side}
+                        style={bootParallaxStyle([
+                          side *
+                            (SHELF_GEOMETRY.width / 2 -
+                              SHELF_GEOMETRY.strapInsetX),
+                          (SHELF_GEOMETRY.groundY + SHELF_GEOMETRY.top.centerY) /
+                            2,
+                          SHELF_GEOMETRY.strapZ,
+                        ])}
+                      >
                         <rect
                           data-boot-support-upright={side}
-                          x={projection.upright.x * SCENE_TO_BOOT_SVG}
-                          y={strapTopY}
-                          width={projection.upright.width * SCENE_TO_BOOT_SVG}
-                          height={strapHeight}
+                          x={bootFixed(projection.upright.x * SCENE_TO_BOOT_SVG)}
+                          y={bootFixed(
+                            -projection.upright.top * SCENE_TO_BOOT_SVG,
+                          )}
+                          width={bootFixed(
+                            projection.upright.width * SCENE_TO_BOOT_SVG,
+                          )}
+                          height={bootFixed(
+                            (projection.upright.top -
+                              projection.upright.bottom) *
+                              SCENE_TO_BOOT_SVG,
+                          )}
                           rx="2"
                         />
                         <rect
                           data-boot-support-foot={side}
-                          x={projection.foot.x * SCENE_TO_BOOT_SVG}
-                          y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
-                          width={projection.foot.width * SCENE_TO_BOOT_SVG}
-                          height={support.footHeight * SCENE_TO_BOOT_SVG}
+                          x={bootFixed(projection.foot.x * SCENE_TO_BOOT_SVG)}
+                          y={bootFixed(-projection.foot.top * SCENE_TO_BOOT_SVG)}
+                          width={bootFixed(
+                            projection.foot.width * SCENE_TO_BOOT_SVG,
+                          )}
+                          height={bootFixed(
+                            (projection.foot.top - projection.foot.bottom) *
+                              SCENE_TO_BOOT_SVG,
+                          )}
                           rx="1.5"
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+                {/* Before the landmarks: the camera sees each plank's upper
+                    surface, and a thing standing mid-plank hides the part of
+                    it behind its feet, not the other way round. */}
+                <g className="stacks-boot-planks">
+                  {SHELF_PLANKS.map((plank) => {
+                    const projection = aboutBootPlankProjection(
+                      plank,
+                      ABOUT_BOOT_CAMERA,
+                    );
+                    return (
+                      <g
+                        data-boot-plank-faces={plank.id}
+                        key={plank.id}
+                        style={bootParallaxStyle([
+                          0,
+                          plank.centerY,
+                          plank.centerZ + plank.depth / 2,
+                        ])}
+                      >
+                        <polygon
+                          data-boot-plank-top=""
+                          data-shelf-id={plank.id}
+                          points={bootPoints(projection.top)}
+                        />
+                        <polygon
+                          data-boot-plank=""
+                          data-shelf-id={plank.id}
+                          data-depth={plank.depth}
+                          points={bootPoints(projection.front)}
                         />
                       </g>
                     );
@@ -1388,16 +1455,22 @@ export default function BootScreen({
                         data-cadence-slot={cadenceSlot}
                         key={landmark.id}
                         style={
-                          "colorProfile" in landmark
-                            ? ({
-                                "--stacks-boot-object-light":
-                                  landmark.colorProfile.light,
-                                "--stacks-boot-object-dark":
-                                  landmark.colorProfile.dark,
-                              } as BootStyle)
-                            : undefined
+                          {
+                            ...("colorProfile" in landmark
+                              ? {
+                                  "--stacks-boot-object-light":
+                                    landmark.colorProfile.light,
+                                  "--stacks-boot-object-dark":
+                                    landmark.colorProfile.dark,
+                                }
+                              : {}),
+                            ...bootPlacementStyle([
+                              landmark.x,
+                              SHELF_SURFACE[landmark.shelf],
+                              landmark.z,
+                            ]),
+                          } as BootStyle
                         }
-                        transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
                       >
                         <g
                           className="stacks-boot-item-motion"
@@ -1422,9 +1495,9 @@ export default function BootScreen({
                     {
                       "--stacks-boot-object-light": "#76716d",
                       "--stacks-boot-object-dark": "#595653",
+                      ...bootPlacementStyle(ABOUT_MODEL_POSES.dumbbell.base),
                     } as BootStyle
                   }
-                  transform={`translate(${ABOUT_MODEL_POSES.dumbbell.base[0] * SCENE_TO_BOOT_SVG} ${projectSceneY(ABOUT_MODEL_POSES.dumbbell.base[1])})`}
                 >
                   <ModelSilhouetteGlyph
                     id="dumbbell"
@@ -1438,21 +1511,38 @@ export default function BootScreen({
                     }
                   />
                 </g>
-                <g className="stacks-boot-planks">
-                  {SHELF_PLANKS.map((plank) => (
-                    <rect
-                      data-boot-plank=""
-                      data-shelf-id={plank.id}
-                      data-depth={plank.depth}
-                      key={plank.id}
-                      x={(-plank.width / 2) * SCENE_TO_BOOT_SVG}
-                      y={projectSceneY(plank.centerY + plank.thickness / 2)}
-                      width={plank.width * SCENE_TO_BOOT_SVG}
-                      height={plank.thickness * SCENE_TO_BOOT_SVG}
-                      rx="2"
+                {/* The two golf balls resting on the grass in front of the
+                    shelf, at the live poses UnitAbout seats them at. */}
+                {ABOUT_GOLF_BALLS.map((ball) => {
+                  const placed = projectAboutBootPoint(
+                    [ball.base[0], ball.base[1] + GOLF_BALL_RADIUS, ball.base[2]],
+                    ABOUT_BOOT_CAMERA,
+                  );
+                  return (
+                    <circle
+                      className="stacks-boot-item stacks-boot-floor-prop stacks-boot-golf-ball"
+                      data-boot-ground-prop="golf-ball"
+                      data-golf-ball={ball.id}
+                      key={ball.id}
+                      style={
+                        {
+                          "--stacks-boot-object-light": "#f3efe6",
+                          "--stacks-boot-object-dark": "#cfcac0",
+                          ...bootParallaxStyle([
+                            ball.base[0],
+                            ball.base[1] + GOLF_BALL_RADIUS,
+                            ball.base[2],
+                          ]),
+                        } as BootStyle
+                      }
+                      cx={bootFixed(placed.x * SCENE_TO_BOOT_SVG)}
+                      cy={bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}
+                      r={bootFixed(
+                        GOLF_BALL_RADIUS * placed.scale * SCENE_TO_BOOT_SVG,
+                      )}
                     />
-                  ))}
-                </g>
+                  );
+                })}
               </svg>
               <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
                 {Array.from(

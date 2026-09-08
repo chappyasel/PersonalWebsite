@@ -13,7 +13,13 @@ import {
   aboutProjectedBoxWidth,
 } from "../scene/aboutBootComposition";
 import { aboutBootFrameProjection } from "../scene/aboutBootFrameProjection";
+import {
+  ABOUT_BOOT_CAMERA,
+  aboutBootPlankProjection,
+  projectAboutBootPoint,
+} from "../scene/aboutBootPerspective";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
+import { aboutBootShelfSupportProjection } from "../scene/aboutBootSupportProjection";
 import { ABOUT_GLOBE_THEME_COLORS } from "../scene/aboutGlobePalette";
 import { ABOUT_ROLES } from "../scene/aboutRoleIcons";
 import {
@@ -25,7 +31,13 @@ import {
   COORDINATION_NODE_COUNT,
   createCoordinationNetwork,
 } from "../scene/coordinationNetwork";
-import { SHELF_GEOMETRY, SHELF_PLANKS } from "../scene/shelfGeometry";
+import { ABOUT_GOLF_BALLS } from "../scene/golf/aboutGolfBalls";
+import { GOLF_BALL_RADIUS } from "../scene/golf/golfBallGeometry";
+import {
+  SHELF_GEOMETRY,
+  SHELF_PLANKS,
+  SHELF_SURFACE,
+} from "../scene/shelfGeometry";
 import {
   ABOUT_READING_BOOK,
   ABOUT_READING_COVER_IMAGE,
@@ -56,8 +68,12 @@ import {
   BOOT_WAIT_STAGES,
   bootCadence,
   bootCssKeyframes,
+  bootFixed,
   bootItemKeyframes,
   bootItemPose,
+  bootPlacementStyle,
+  bootPoints,
+  bootReadingProjector,
   bootRevealComplete,
   createBootDustDrift,
   projectSceneY,
@@ -239,49 +255,74 @@ describe("Homepage entrance", () => {
     }
   });
 
-  it("projects the reading fan from the live shelf poses with mild perspective", () => {
+  it("projects the reading fan from the live shelf poses through the rest camera", () => {
     const markup = renderBoot(3);
-    const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
+    const project = bootReadingProjector();
 
     readingStackPoses().forEach((pose, index) => {
       const elevation = readingBookCoverPerspectiveElevation(
         pose,
         CAMERA.z,
         ABOUT_READING_BOOK.thickness,
+        project,
       );
       const points = elevation
-        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
+        .map(([x, y]) => `${bootFixed(x * 100)},${bootFixed(-y * 100)}`)
         .join(" ");
       expect(markup).toContain(
         `data-boot-reading-cover="${index}" points="${points}"`,
       );
+      // A real perspective trapezoid: the two vertical edges differ, and the
+      // top edge is not level, because the eye is above and to the left.
       const leftHeight = Math.abs(elevation[3][1] - elevation[0][1]);
       const rightHeight = Math.abs(elevation[2][1] - elevation[1][1]);
       expect(Math.abs(leftHeight - rightHeight)).toBeGreaterThan(0);
-      expect(Math.abs(leftHeight - rightHeight)).toBeLessThan(0.02);
+      expect(Math.abs(leftHeight - rightHeight)).toBeLessThan(0.06);
       expect(elevation[2][1]).not.toBeCloseTo(elevation[3][1], 10);
+      // And it is not the old level-eye scaling about the unit's origin.
+      const level = readingBookCoverPerspectiveElevation(
+        pose,
+        CAMERA.z,
+        ABOUT_READING_BOOK.thickness,
+      );
+      expect(markup).not.toContain(
+        level
+          .map(
+            ([x, y]) =>
+              `${(x - ABOUT_BOOT_LANDMARKS["reading-stack"].x) * 100},${-y * 100}`,
+          )
+          .join(" "),
+      );
     });
   });
 
   it("projects a cream page block inside each colored book edge", () => {
     const markup = renderBoot(3);
-    const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
+    const project = bootReadingProjector();
+    const toPoints = (
+      quad: ReturnType<typeof readingBookForeEdgePerspectiveElevation>,
+    ) =>
+      quad
+        .map(([x, y]) => `${bootFixed(x * 100)},${bootFixed(-y * 100)}`)
+        .join(" ");
 
     readingStackPoses().forEach((pose, index) => {
-      const edge = readingBookForeEdgePerspectiveElevation(
-        pose,
-        CAMERA.z,
-        ABOUT_READING_BOOK.thickness,
-      )
-        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
-        .join(" ");
-      const pageCore = readingBookPageCorePerspectiveElevation(
-        pose,
-        CAMERA.z,
-        ABOUT_READING_BOOK.thickness,
-      )
-        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
-        .join(" ");
+      const edge = toPoints(
+        readingBookForeEdgePerspectiveElevation(
+          pose,
+          CAMERA.z,
+          ABOUT_READING_BOOK.thickness,
+          project,
+        ),
+      );
+      const pageCore = toPoints(
+        readingBookPageCorePerspectiveElevation(
+          pose,
+          CAMERA.z,
+          ABOUT_READING_BOOK.thickness,
+          project,
+        ),
+      );
       const group = new RegExp(
         `<g class="stacks-boot-reading-book"[^>]*data-reading-book="${BOOKS[index]!.id}"[\\s\\S]*?</g>`,
       ).exec(markup)?.[0];
@@ -295,23 +336,25 @@ describe("Homepage entrance", () => {
 
   it("projects each cover image at the live inset instead of filling its board", () => {
     const markup = renderBoot(3);
-    const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
+    const project = bootReadingProjector();
 
     readingStackPoses().forEach((pose, index) => {
       const image = readingBookImagePerspectiveElevation(
         pose,
         CAMERA.z,
         ABOUT_READING_BOOK.thickness,
+        project,
       );
       const board = readingBookCoverPerspectiveElevation(
         pose,
         CAMERA.z,
         ABOUT_READING_BOOK.thickness,
+        project,
       );
       const centerX = (quad: typeof image) =>
         quad.reduce((sum, [x]) => sum + x, 0) / quad.length;
       const points = image
-        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
+        .map(([x, y]) => `${bootFixed(x * 100)},${bootFixed(-y * 100)}`)
         .join(" ");
       const projectionTag = new RegExp(
         `<polygon data-boot-reading-image="${index}"[^>]*>`,
@@ -353,58 +396,157 @@ describe("Homepage entrance", () => {
     );
   });
 
-  it("includes the ground dumbbell from the exact live pose", () => {
+  it("includes the ground dumbbell from the exact live pose, projected and scaled", () => {
     const markup = renderBoot();
     const pose = ABOUT_MODEL_POSES.dumbbell;
 
     expect(markup).toContain('data-boot-ground-prop="dumbbell"');
     expect(markup).toContain('data-model-silhouette="dumbbell"');
-    expect(markup).toContain(
+    // The floor is 0.62 nearer than the shelf plane, so the silhouette is
+    // placed where the camera sees the base and grown by its depth ratio.
+    const placement = bootPlacementStyle(pose.base).transform;
+    expect(markup).toContain(`transform:${placement}`);
+    const scale = Number(/scale\(([^)]+)\)/.exec(placement)?.[1]);
+    expect(scale).toBeGreaterThan(1.08);
+    expect(scale).toBeLessThan(1.13);
+    // The live eye's parallax rides a root custom property the boot stage
+    // writes before first paint; nearer than the plane, the share is negative.
+    expect(placement).toContain("var(--stacks-boot-eye-shift, 0) * -0.0");
+    expect(markup).not.toContain(
       `translate(${pose.base[0] * 100} ${projectSceneY(pose.base[1])})`,
+    );
+  });
+
+  it("places every landmark by projecting its anchor at its live depth", () => {
+    const markup = renderBoot();
+    for (const { landmark } of ABOUT_BOOT_PAINT_COMPOSITION) {
+      const placement = bootPlacementStyle([
+        landmark.x,
+        SHELF_SURFACE[landmark.shelf],
+        landmark.z,
+      ]).transform;
+      expect(markup).toContain(
+        `data-landmark-id="${landmark.id}" data-shelf-id="${landmark.shelf}"`,
+      );
+      expect(markup).toContain(`transform:${placement}`);
+    }
+    // The unit is yawed, so the globe at the left end stands nearer than the
+    // reading stack at the right and renders a little larger.
+    const globe = ABOUT_BOOT_LANDMARKS.globe;
+    const stack = ABOUT_BOOT_LANDMARKS["reading-stack"];
+    const scaleOf = (anchor: readonly [number, number, number]) =>
+      Number(
+        /scale\(([^)]+)\)/.exec(bootPlacementStyle(anchor).transform)?.[1],
+      );
+    expect(scaleOf([globe.x, SHELF_SURFACE.top, globe.z])).toBeGreaterThan(1);
+    expect(scaleOf([stack.x, SHELF_SURFACE.lower, stack.z])).toBeLessThan(1);
+  });
+
+  it("rests both About golf balls on the grass at their live poses", () => {
+    const markup = renderBoot();
+    expect(markup.match(/data-boot-ground-prop="golf-ball"/g)).toHaveLength(
+      ABOUT_GOLF_BALLS.length,
+    );
+    for (const ball of ABOUT_GOLF_BALLS) {
+      const placed = projectAboutBootPoint(
+        [ball.base[0], ball.base[1] + GOLF_BALL_RADIUS, ball.base[2]],
+        ABOUT_BOOT_CAMERA,
+      );
+      const circle = new RegExp(
+        `<circle[^>]*data-golf-ball="${ball.id}"[^>]*>`,
+      ).exec(markup)?.[0];
+      expect(circle).toBeDefined();
+      const attribute = (name: string) =>
+        Number(new RegExp(`${name}="([^"]+)"`).exec(circle ?? "")?.[1]);
+      expect(attribute("cx")).toBeCloseTo(placed.x * 100, 2);
+      expect(attribute("cy")).toBeCloseTo(-placed.y * 100, 2);
+      expect(attribute("r")).toBeCloseTo(
+        GOLF_BALL_RADIUS * placed.scale * 100,
+        2,
+      );
+      // On the grass, which is below the lower plank's underside.
+      expect(attribute("cy")).toBeGreaterThan(
+        -(SHELF_GEOMETRY.lower.centerY - SHELF_GEOMETRY.lower.thickness / 2) *
+          100,
+      );
+    }
+  });
+
+  it("draws each plank as its projected front face with its lit top surface", () => {
+    const markup = renderBoot();
+    for (const plank of SHELF_PLANKS) {
+      const projection = aboutBootPlankProjection(plank, ABOUT_BOOT_CAMERA);
+      expect(markup).toContain(
+        `data-boot-plank="" data-shelf-id="${plank.id}" data-depth="${plank.depth}" points="${bootPoints(projection.front)}"`,
+      );
+      expect(markup).toContain(
+        `data-boot-plank-top="" data-shelf-id="${plank.id}" points="${bootPoints(projection.top)}"`,
+      );
+      // The yawed unit puts the left end nearer: lower on screen and taller.
+      const [topLeft, topRight, bottomRight, bottomLeft] = projection.front;
+      expect(topLeft[1]).toBeLessThan(topRight[1]);
+      expect(topLeft[1] - bottomLeft[1]).toBeGreaterThan(
+        topRight[1] - bottomRight[1],
+      );
+    }
+    expect(markup).not.toContain(
+      'data-boot-plank="" data-shelf-id="top" data-depth="0.85" x=',
     );
   });
 
   it("derives both shelf uprights and feet without exposed lower cleats", () => {
     const markup = renderBoot();
-    const support = SHELF_GEOMETRY.support;
-    const groundY = -SHELF_GEOMETRY.groundY * 100;
-    const topY =
-      -(SHELF_GEOMETRY.top.centerY - SHELF_GEOMETRY.top.thickness / 2) * 100;
-    const supportX = SHELF_GEOMETRY.width / 2 - SHELF_GEOMETRY.strapInsetX;
-    const projectedX = (side: number, width: number, depth: number) => {
-      const xs = [-width / 2, width / 2].flatMap((dx) =>
-        [-depth / 2, depth / 2].map((dz) => {
-          const z = SHELF_GEOMETRY.strapZ + dz;
-          return (side * supportX + dx) * (CAMERA.z / (CAMERA.z - z)) * 100;
-        }),
-      );
-      const left = Math.min(...xs);
-      return { left, width: Math.max(...xs) - left };
-    };
     const attribute = (tag: string | undefined, name: string) =>
       Number(new RegExp(`${name}="([^"]+)"`).exec(tag ?? "")?.[1]);
 
-    for (const side of [-1, 1]) {
+    for (const side of [-1, 1] as const) {
       const upright = new RegExp(
         `<rect data-boot-support-upright="${side}"[^>]*>`,
       ).exec(markup)?.[0];
       const foot = new RegExp(
         `<rect data-boot-support-foot="${side}"[^>]*>`,
       ).exec(markup)?.[0];
-      const uprightX = projectedX(side, support.width, support.width);
-      const footX = projectedX(side, support.footWidth, support.footDepth);
+      // Every corner of each box through the shared projector, then the
+      // plane-space extremes (aboutBootSupportProjection.ts).
+      const projection = aboutBootShelfSupportProjection(side);
 
-      expect(attribute(upright, "x")).toBeCloseTo(uprightX.left, 10);
-      expect(attribute(upright, "y")).toBeCloseTo(topY, 10);
-      expect(attribute(upright, "width")).toBeCloseTo(uprightX.width, 10);
-      expect(attribute(upright, "height")).toBeCloseTo(groundY - topY, 10);
-      expect(attribute(foot, "x")).toBeCloseTo(footX.left, 10);
-      expect(attribute(foot, "width")).toBeCloseTo(footX.width, 10);
+      expect(attribute(upright, "x")).toBeCloseTo(
+        projection.upright.x * 100,
+        2,
+      );
+      expect(attribute(upright, "y")).toBeCloseTo(
+        -projection.upright.top * 100,
+        2,
+      );
+      expect(attribute(upright, "width")).toBeCloseTo(
+        projection.upright.width * 100,
+        2,
+      );
+      expect(attribute(upright, "height")).toBeCloseTo(
+        (projection.upright.top - projection.upright.bottom) * 100,
+        2,
+      );
+      expect(attribute(foot, "x")).toBeCloseTo(projection.foot.x * 100, 2);
+      expect(attribute(foot, "width")).toBeCloseTo(
+        projection.foot.width * 100,
+        2,
+      );
       expect(attribute(foot, "height")).toBeCloseTo(
-        support.footHeight * 100,
-        10,
+        (projection.foot.top - projection.foot.bottom) * 100,
+        2,
+      );
+      // The upright reaches from the top plank's underside to the ground,
+      // seen from 0.25 above the plank, so it stands a little taller than
+      // its flat elevation and the foot sits a little below the plane's
+      // ground line: the same camera the planks and floor props use.
+      expect(projection.upright.top).toBeGreaterThan(
+        SHELF_GEOMETRY.top.centerY - SHELF_GEOMETRY.top.thickness / 2 - 0.02,
       );
     }
+    // The left upright is nearer than the right, so it renders wider.
+    expect(aboutBootShelfSupportProjection(-1).upright.width).toBeGreaterThan(
+      aboutBootShelfSupportProjection(1).upright.width,
+    );
     expect(markup).not.toContain("data-boot-support-cleat");
   });
 

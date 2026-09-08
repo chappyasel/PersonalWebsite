@@ -207,19 +207,22 @@ export default function ScrollBridges() {
     }
 
     // Mirror travel into the URL — at most one replaceState per unit change.
+    // The golf half of it is the scroll's stop window, not golf mode: the
+    // mouse can put the visitor in golf from the Books stop, and that must
+    // not rewrite the URL under them.
     let mirrored = {
       activeUnit: useStacks.getState().activeUnit,
-      golfFocused: useStacks.getState().golfFocused,
+      golfFocused: useStacks.getState().golfStop,
     };
     const unsubscribe = useStacks.subscribe((state) => {
       if (
         state.activeUnit === mirrored.activeUnit &&
-        state.golfFocused === mirrored.golfFocused
+        state.golfStop === mirrored.golfFocused
       )
         return;
       mirrored = {
         activeUnit: state.activeUnit,
-        golfFocused: state.golfFocused,
+        golfFocused: state.golfStop,
       };
       if (!shouldMirrorWorldHistory(state)) return;
       window.history.replaceState(

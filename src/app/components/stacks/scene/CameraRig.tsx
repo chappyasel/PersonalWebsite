@@ -3,6 +3,7 @@
 // Drives the camera from the drei scroll offset, publishes per-frame progress
 // to the transient ref, flips activeUnit only on unit-boundary crosses, and
 // registers the scroll element with the store for the DOM bridges.
+import { worldBoot } from "../boot/worldBootSession";
 import {
   GOLF_STOP_POSITION,
   UNIT_COUNT,
@@ -51,25 +52,51 @@ import {
   freeRoamTranslation,
   shouldWriteFreeRoamPose,
 } from "./freeRoamMotion";
+import { GOLF_CUP_WORLD_CENTER } from "./golf/golfCourse";
+import { golfSuspense, golfSuspenseFovScale } from "./golf/golfSuspense";
+import {
+  advanceGolfMode,
+  createGolfModeState,
+  golfMode,
+  golfModeWeight,
+} from "./golfMode";
+import { golfModeConsoleController } from "./golfModeConsole";
+import {
+  golfGreenCoverage,
+  golfModeCoverage,
+  golfStopViewPose,
+} from "./golfVisibility";
+import { golfYawRig } from "./golfYawPivot";
 import {
   cursorForInteraction,
   getSceneInteraction,
 } from "./interactionRegistry";
+import {
+  advancePointerArrival,
+  pointerArrivalWeight,
+  pointerFromRest,
+} from "./pointerArrival";
+import { pointerCameraModeController } from "./pointerCameraMode";
+import {
+  aimForHeadTurn,
+  eyeXZForYawAroundTarget,
+  eyeYForTiltAroundTarget,
+  pointerCameraTiltController,
+  pointerCameraTiltDegrees,
+  pointerCameraYawDegrees,
+} from "./pointerCameraTilt";
 import {
   type SceneArtifactCameraLockState,
   sceneArtifactCameraLockFrame,
 } from "./sceneArtifactCameraLock";
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import {
-  eyeYForTiltAroundTarget,
-  pointerCameraTiltController,
-  pointerCameraTiltDegrees,
-} from "./pointerCameraTilt";
-import {
   screenshotModeController,
   screenshotTiltRadians,
 } from "./screenshotMode";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
+import { advanceGolfFocusPull, golfFocusPullWeight } from "./shelfDepthOfField";
+import { skyPointerTurn } from "./skyDepthLayers";
 import {
   CAMERA_LOOK_X_MAX_LAG,
   RAIL_RIGHT_PX_FALLBACK,
@@ -87,6 +114,7 @@ import {
   golfLookYOffsetForViewport,
   ogCaptureFromSearch,
   parallaxLookOffset,
+  pointerOrbitEnabledForAspect,
   scrollOffsetForUnit,
   unitProgressForScrollOffset,
 } from "./worldLayout";
@@ -139,6 +167,16 @@ const LOOK_X_LAMBDA = lambdaAt60Hz(0.045);
 const LOOK_Y_LAMBDA = lambdaAt60Hz(0.05);
 const FRAMING_LAMBDA = lambdaAt60Hz(0.12);
 const SEAT_POINTER_LAMBDA = 5.5;
+/** The damping step the rig takes while the boot screen still covers it.
+ *
+ * Nobody can see the room settle behind the vignette, so it does not: at
+ * eight seconds against the slowest rate here (2.76/s) every damp lands on
+ * its target within the frame. The alternative was measured: on a warm boot
+ * the reveal came about 1.5 s after the canvas took its size, with the look
+ * target still 1.5° behind the About-stop truck and drifting for another
+ * second in full view, right after the boot stage had lined the bookcase up
+ * exactly. The first visible frame is now the rest pose. */
+const HIDDEN_SETTLE_SECONDS = 8;
 
 const smoothstep = (x: number) => {
   const t = x < 0 ? 0 : x > 1 ? 1 : x;
@@ -208,6 +246,46 @@ export default function CameraRig() {
   const interactionZoom = useRef(0);
   const visitorZoom = useRef(0);
   const pointerTilt = useRef(0);
+  const pointerYaw = useRef(0);
+  // The pointer's 0→1 say over the camera after the boot hands off
+  // (pointerArrival.ts). It scales the pointer input below, so every reader
+  // of pointerX/pointerY eases in together.
+  const pointerArrival = useRef(0);
+  // Golf's yaw pivot (golfYawPivot.ts), eased on the depth of field's clock
+  // so the aim and the focus rack onto the cup together.
+  const golfPivot = useRef(0);
+  const golfRun = useRef(0);
+  // Golf mode itself (golfMode.ts): decided in the frame loop from how much
+  // of the green the pre-golf pose can see (golfVisibility.ts), published
+  // to the store when its switch flips. The target is what the pivot above
+  // and the lenses ease toward; it is read one frame behind the pose.
+  const golfModeState = useRef(createGolfModeState());
+  const golfModeTarget = useRef(0);
+  const golfStopReference = useRef({
+    width: 0,
+    height: 0,
+    rail: undefined as number | undefined,
+    occluders: true,
+    pose: golfStopViewPose(1440, 900),
+    coverage: 1,
+  });
+  const golfPose = useRef({
+    eye: [0, 0, 0] as [number, number, number],
+    look: [0, 0, 0] as [number, number, number],
+    fovDegrees: 33,
+    aspect: 1,
+  });
+  const golfInGolfBase = useRef({
+    eye: [0, 0, 0] as [number, number, number],
+    look: [0, 0, 0] as [number, number, number],
+    fovDegrees: 33,
+    aspect: 1,
+  });
+  const prevGolfStop = useRef(false);
+  const pointerSwingFull = useRef(0);
+  const pointerSwing = useRef(0);
+  const headPitch = useRef(0);
+  const headYaw = useRef(0);
   const focusBounds = useRef(new THREE.Box3());
   const focusCenter = useRef(new THREE.Vector3());
   const previousScenePosition = useRef(0);
@@ -410,12 +488,20 @@ export default function CameraRig() {
       const targetX = cameraXForScrollOffset(offset);
       look.current.set(targetX, -0.08, -0.2);
       const active = Math.min(UNIT_COUNT - 1, Math.max(0, Math.round(unit)));
-      const golfFocused = golfFocusedForScenePosition(unit);
+      // A jump lands inside or outside the golf stop's window; seed golf
+      // mode from that so a deep link shows the tee at once, and let the
+      // green's coverage take over from the next frame.
+      const golfStop = golfFocusedForScenePosition(unit);
       prevActive.current = active;
-      prevGolfFocused.current = golfFocused;
+      prevGolfStop.current = golfStop;
+      prevGolfFocused.current = golfStop;
+      golfModeState.current = createGolfModeState(golfStop);
+      golfModeTarget.current = golfStop ? 1 : 0;
+      golfPivot.current = golfStop ? 1 : 0;
       const current = useStacks.getState();
       current.setActiveUnit(active);
-      current.setGolfFocused(golfFocused);
+      current.setGolfStop(golfStop);
+      current.setGolfFocused(golfStop);
       current.setSettledUnit(null);
     });
     // Damped travel: write the damp target directly (plus scrollLeft so the
@@ -681,7 +767,11 @@ export default function CameraRig() {
     }
     // A backgrounded tab hands back one enormous delta on return. All camera
     // damping uses the same cap so resuming cannot snap any one subsystem.
-    const dt = delta > 0.05 ? 0.05 : delta;
+    const frame = delta > 0.05 ? 0.05 : delta;
+    // Behind the boot screen the damps take the hidden step instead, so the
+    // room is already at rest when the vignette lifts (HIDDEN_SETTLE_SECONDS).
+    const bootView = worldBoot.getView();
+    const dt = bootView.revealed ? frame : HIDDEN_SETTLE_SECONDS;
     // A gizmo drag must not also steer the camera: while the layout editor
     // owns the pointer, the parallax reads a centred pointer instead.
     const layoutGesture =
@@ -690,9 +780,11 @@ export default function CameraRig() {
     // wherever the mouse came to rest is not reproducible, and the point of
     // the mode is a shelf that sits in the middle.
     const screenshot = screenshotModeController.getSnapshot();
-    const neutralPointer = layoutGesture || screenshot.enabled;
-    const pointerX = neutralPointer ? 0 : pointer.x;
-    const pointerY = neutralPointer ? 0 : pointer.y;
+    // An OG capture reads the centred pointer too, as it always has.
+    const neutralPointer = layoutGesture || screenshot.enabled || ogCapture;
+    // How the pointer is allowed to move the camera this session: the
+    // shipped orbit, the older parallax, a head-only turn, or a custom mix.
+    const pointerMode = pointerCameraModeController.getSnapshot();
     const offset = scroll.offset;
     const progress = unitProgressForScrollOffset(offset);
     progressRef.current = progress;
@@ -704,6 +796,25 @@ export default function CameraRig() {
       scenePosition,
       currentRailRightPx(),
     );
+    // The boot screen hands off with the bookcase on the exact live shelf,
+    // projected with no pointer in it. Rest the pointer at the parallax
+    // centre, where it moves nothing, and start easing the real mouse in on
+    // the first frame after the vignette lifts (pointerArrival.ts). Easing
+    // the INPUT rather than any one output means the parallax, the truck, the
+    // orbit, the head turn, the cup pivot and the seated sway all arrive
+    // together.
+    pointerArrival.current = advancePointerArrival(pointerArrival.current, {
+      revealed: bootView.revealed,
+      pointerSeen: pointer.x !== 0 || pointer.y !== 0,
+      frameSeconds: frame,
+    });
+    const pointerWeight = pointerArrivalWeight(pointerArrival.current);
+    const pointerX = neutralPointer
+      ? 0
+      : pointerFromRest(pointer.x, composition.parallaxCentre, pointerWeight);
+    const pointerY = neutralPointer
+      ? 0
+      : pointerFromRest(pointer.y, 0, pointerWeight);
     // The eye stands this far right of the scroll position at desktop stops
     // so the shelf clears the dock; the look target rides the same offset
     // below, so this is a truck, not a yaw.
@@ -720,6 +831,13 @@ export default function CameraRig() {
     );
     const calm = 1 - lean.current;
     const state = useStacks.getState();
+    const golfStop = golfFocusedForScenePosition(scenePosition);
+    golfPivot.current = advanceGolfFocusPull(
+      golfPivot.current,
+      golfModeTarget.current,
+      dt,
+    );
+    const golfPivotWeight = golfFocusPullWeight(golfPivot.current);
     const travel = cameraTravelState({
       scenePosition,
       previousScenePosition: previousScenePosition.current,
@@ -791,7 +909,11 @@ export default function CameraRig() {
     focusY.current = THREE.MathUtils.damp(focusY.current, desiredFocusY, 8, dt);
     const pillZoom =
       size.width < STACKS_DESKTOP_MIN_WIDTH && state.sheetDismissed ? 0.16 : 0;
-    const golfZoom = golfDollyForViewport(size.width, state.golfFocused);
+    // The punch-in rides golf mode's own clock with the focus rack and the
+    // cup pivot (golfMode.ts), not the stop window: it eases in as the green
+    // comes into view, wherever the scroll is and whatever brought it in.
+    const golfDolly = golfDollyForViewport(size.width, true);
+    const golfZoom = golfDolly * golfPivotWeight;
     visitorZoom.current = THREE.MathUtils.damp(
       visitorZoom.current,
       touchWorldRef.zoomOffset + pillZoom + golfZoom,
@@ -839,13 +961,15 @@ export default function CameraRig() {
     // standing up has to land on a live camera, not one frozen where it sat.
     const baselineEyeY =
       captureCameraY === null
-        ? cameraY + (pointerY * 0.08 + Math.sin(t * 0.4) * 0.03) * calm
+        ? cameraY +
+          (pointerY * 0.08 * pointerMode.truck + Math.sin(t * 0.4) * 0.03) *
+            calm
         : cameraY;
     const baselineLookY =
       lookY +
-      golfLookYOffsetForViewport(size.width, state.golfFocused) +
+      golfLookYOffsetForViewport(size.width, true) * golfPivotWeight +
       focusY.current +
-      pointerY * 0.12 * calm;
+      pointerY * 0.12 * pointerMode.truck * calm;
     const cameraDepthEnabled = cameraDepthEffectEnabled(
       cameraDepthDiagnosticsController.getSnapshot().enabled,
       reducedMotionQuery?.matches ?? false,
@@ -866,9 +990,30 @@ export default function CameraRig() {
     // is the visitor's zoom floor, and a banner needs to stand well past it.
     const baseZ =
       composition.z - cameraZoom + (screenshot.enabled ? screenshot.dolly : 0);
+    // At the tee the pan hands over to the cup pivot below: the aim must not
+    // wander off the green with the pointer while the rig is turning about it.
+    const pointerSwingTarget =
+      parallaxLookOffset(pointerX, composition) * calm * (1 - golfPivotWeight);
+    const restingAimX = eyeX + focusX.current + pointerSwingTarget;
+    // The pointer's share of the aim swing, damped like the aim itself, so
+    // the sky's depth layers can read the head turn without the fling lag.
+    pointerSwing.current = THREE.MathUtils.damp(
+      pointerSwing.current,
+      pointerSwingTarget,
+      LOOK_X_LAMBDA,
+      dt,
+    );
+    // The same swing with nothing faded out of it: what the pointer would
+    // be doing to the aim if golf were off. Golf mode is measured on that.
+    pointerSwingFull.current = THREE.MathUtils.damp(
+      pointerSwingFull.current,
+      parallaxLookOffset(pointerX, composition) * calm,
+      LOOK_X_LAMBDA,
+      dt,
+    );
     look.current.x = THREE.MathUtils.damp(
       look.current.x,
-      eyeX + focusX.current + parallaxLookOffset(pointerX, composition) * calm,
+      restingAimX,
       LOOK_X_LAMBDA,
       dt,
     );
@@ -932,7 +1077,10 @@ export default function CameraRig() {
     // corrections establish the baseline first. Camera depth can author both
     // the eye and the aim. The pointer and screenshot tilts then move the eye
     // around that finished aim, so the shelf stays centred while the viewpoint
-    // changes the foreground-to-skyline perspective.
+    // changes the foreground-to-skyline perspective. The pointer yaw does the
+    // same in the ground plane: the parallax above already turns the view
+    // toward the pointer, and the orbit adds the step sideways that makes
+    // near props slide against the far ones.
     const cameraDepth = cameraDepthOffsetsForViewport(
       size.width,
       size.height,
@@ -959,18 +1107,74 @@ export default function CameraRig() {
       !screenshot.enabled &&
       !ogCapture &&
       finePointer &&
+      pointerOrbitEnabledForAspect(size.width / Math.max(1, size.height)) &&
       !(reducedMotionQuery?.matches ?? false) &&
       pointerCameraTiltController.getSnapshot().enabled;
     if (pointerTiltEnabled) {
       pointerTilt.current = THREE.MathUtils.damp(
         pointerTilt.current,
-        pointerCameraTiltDegrees(pointerY) * calm,
+        pointerCameraTiltDegrees(pointerY, pointerMode.orbitPitch) * calm,
         LOOK_Y_LAMBDA,
         dt,
       );
     } else if (pointerTilt.current !== 0) {
       pointerTilt.current = 0;
     }
+    // A fast fling already yaws the view by up to the look-lag cap; the
+    // pointer's own turn fades out in proportion so the two never stack. At
+    // a 3:1 window the capped lag reaches exactly 90° off axis, which is
+    // what the fling grass apron behind the eye was sized for, and the
+    // meadow check poses this same product.
+    const flingFraction = Math.min(
+      1,
+      Math.abs(look.current.x - restingAimX) / CAMERA_LOOK_X_MAX_LAG,
+    );
+    if (pointerTiltEnabled) {
+      pointerYaw.current = THREE.MathUtils.damp(
+        pointerYaw.current,
+        pointerCameraYawDegrees(
+          pointerX,
+          composition.parallaxCentre,
+          pointerMode.orbitYaw,
+        ) *
+          calm *
+          (1 - flingFraction),
+        LOOK_Y_LAMBDA,
+        dt,
+      );
+    } else if (pointerYaw.current !== 0) {
+      pointerYaw.current = 0;
+    }
+    // The head-only share of the same pointer: the aim swings about the eye
+    // instead of the eye orbiting the aim. Zero in the shipped preset.
+    if (pointerTiltEnabled) {
+      headPitch.current = THREE.MathUtils.damp(
+        headPitch.current,
+        pointerCameraTiltDegrees(pointerY, pointerMode.headPitch) * calm,
+        LOOK_Y_LAMBDA,
+        dt,
+      );
+      headYaw.current = THREE.MathUtils.damp(
+        headYaw.current,
+        pointerCameraYawDegrees(
+          pointerX,
+          composition.parallaxCentre,
+          pointerMode.headYaw,
+        ) *
+          calm *
+          (1 - flingFraction),
+        LOOK_Y_LAMBDA,
+        dt,
+      );
+    } else {
+      headPitch.current = 0;
+      headYaw.current = 0;
+    }
+    // The head turn the pointer owns: its aim swing plus its orbit, in
+    // radians, positive to the right. The sky dome's depth layers slide on it.
+    skyPointerTurn.current =
+      ((pointerYaw.current + headYaw.current) * Math.PI) / 180 +
+      Math.atan2(pointerSwing.current, Math.abs(look.current.z - baseZ));
     const tiltRadians = screenshot.enabled
       ? screenshotTiltRadians(screenshot.tilt)
       : (pointerTilt.current * Math.PI) / 180;
@@ -985,11 +1189,178 @@ export default function CameraRig() {
         tiltRadians,
       });
     }
-    travelLook.current.set(look.current.x, authoredLookY, look.current.z);
+    let authoredEyeX = eyeX;
+    let authoredEyeZ = baseZ;
+    let authoredLookX = look.current.x;
+    let authoredLookZ = look.current.z;
+    const yawRadians = screenshot.enabled
+      ? 0
+      : (pointerYaw.current * Math.PI) / 180;
+    if (yawRadians !== 0) {
+      const orbited = eyeXZForYawAroundTarget({
+        eyeX,
+        eyeZ: baseZ,
+        lookX: look.current.x,
+        lookZ: look.current.z,
+        yawRadians,
+      });
+      authoredEyeX = orbited.x;
+      authoredEyeZ = orbited.z;
+    }
+    // Head-only turn, after the orbit above: the aim swings about the
+    // finished eye, so the shelf slides with the world instead of holding
+    // the frame's centre. The golf pivot below has the last word at the tee.
+    const headPitchRadians = screenshot.enabled
+      ? 0
+      : (headPitch.current * Math.PI) / 180;
+    const headYawRadians = screenshot.enabled
+      ? 0
+      : (headYaw.current * Math.PI) / 180;
+    if (headPitchRadians !== 0 || headYawRadians !== 0) {
+      const turned = aimForHeadTurn({
+        eyeX: authoredEyeX,
+        eyeY: authoredEyeY,
+        eyeZ: authoredEyeZ,
+        lookX: authoredLookX,
+        lookY: authoredLookY,
+        lookZ: authoredLookZ,
+        pitchRadians: headPitchRadians,
+        yawRadians: headYawRadians,
+      });
+      authoredLookX = turned.x;
+      authoredLookY = turned.y;
+      authoredLookZ = turned.z;
+    }
+    // The cup pivot at the tee (golfYawPivot.ts): the last word on the
+    // horizontal aim before the push-in. Whatever the preset's orbit or head
+    // turn did above, the green goes back where it was and the bay slides
+    // left for a rightward pointer, the way the pan slides a shelf.
+    // Its run is the pointer's own, not the orbit dial's, so it behaves the
+    // same in every preset, including the ones with no orbit at all, and it
+    // fades with the fling like the other pointer turns.
+    golfRun.current = THREE.MathUtils.damp(
+      golfRun.current,
+      pointerTiltEnabled
+        ? pointerCameraYawDegrees(pointerX, composition.parallaxCentre, 1) *
+            calm *
+            (1 - flingFraction)
+        : 0,
+      LOOK_Y_LAMBDA,
+      dt,
+    );
+    // Golf mode (golfMode.ts) is decided here, from two poses the rig can
+    // name without knowing the mode (golfVisibility.ts): the pose above with
+    // the pointer's full pan restored, which is the view with golf off, and
+    // the cup pivot at full weight for the same pointer, which is the view
+    // golf would hold. The green must be in both. Measured on the blended
+    // pose the camera actually holds, the mode would feed itself. Coverage
+    // is relative to the same pose built at this viewport's golf stop.
+    const golfTuning = golfModeConsoleController.getSnapshot();
+    const reference = golfStopReference.current;
+    const railRightPx = currentRailRightPx();
+    if (
+      reference.width !== size.width ||
+      reference.height !== size.height ||
+      reference.rail !== railRightPx ||
+      reference.occluders !== golfTuning.occluders
+    ) {
+      reference.width = size.width;
+      reference.height = size.height;
+      reference.rail = railRightPx;
+      reference.occluders = golfTuning.occluders;
+      reference.pose = golfStopViewPose(size.width, size.height, railRightPx);
+      reference.coverage = golfGreenCoverage(reference.pose, golfTuning);
+    }
+    let golfCoverage = golfStop ? 1 : 0;
+    if (golfTuning.source === "visibility") {
+      // Both poses are measured at golf's own framing, the dollied one the
+      // stop reference is built with; the dolly above follows the mode, so
+      // whatever share of it is not in the camera yet is added back here.
+      // Otherwise the punch-in would grow the near shelf over the green and
+      // the mode would read its own dolly.
+      const dollyNotYetIn = golfDolly * (1 - golfPivotWeight);
+      const pose = golfPose.current;
+      pose.eye[0] = authoredEyeX;
+      pose.eye[1] = authoredEyeY;
+      pose.eye[2] = authoredEyeZ - dollyNotYetIn;
+      pose.look[0] =
+        authoredLookX + (pointerSwingFull.current - pointerSwing.current);
+      pose.look[1] = authoredLookY;
+      pose.look[2] = authoredLookZ;
+      pose.fovDegrees = composition.fov;
+      pose.aspect = size.width / Math.max(1, size.height);
+      // What the pivot below starts from, with the pan gone as it is at
+      // full weight.
+      const inGolf = golfInGolfBase.current;
+      inGolf.eye[0] = eyeX;
+      inGolf.eye[1] = authoredEyeY;
+      inGolf.eye[2] = baseZ - dollyNotYetIn;
+      inGolf.look[0] = look.current.x - pointerSwing.current;
+      inGolf.look[1] = authoredLookY;
+      inGolf.look[2] = look.current.z;
+      inGolf.fovDegrees = pose.fovDegrees;
+      inGolf.aspect = pose.aspect;
+      golfCoverage = golfModeCoverage(
+        {
+          preGolf: pose,
+          inGolfBase: inGolf,
+          stop: reference.pose,
+          stopCoverage: reference.coverage,
+          run: golfRun.current,
+        },
+        golfTuning,
+      );
+    }
+    golfModeTarget.current = golfModeWeight(golfCoverage, golfTuning);
+    golfMode.coverage = golfCoverage;
+    golfMode.weight = golfModeTarget.current;
+    golfMode.source = golfTuning.source;
+    golfMode.engaged = advanceGolfMode(
+      golfModeState.current,
+      golfCoverage,
+      frame,
+      golfTuning,
+    );
+    if (golfPivotWeight > 0 && golfRun.current !== 0) {
+      const rig = golfYawRig({
+        eyeX,
+        eyeZ: baseZ,
+        lookX: look.current.x,
+        lookZ: look.current.z,
+        pivotX: GOLF_CUP_WORLD_CENTER.x,
+        pivotZ: GOLF_CUP_WORLD_CENTER.z,
+        run: golfRun.current,
+      });
+      authoredEyeX += (rig.eyeX - authoredEyeX) * golfPivotWeight;
+      authoredEyeZ += (rig.eyeZ - authoredEyeZ) * golfPivotWeight;
+      authoredLookX += (rig.lookX - authoredLookX) * golfPivotWeight;
+      authoredLookZ += (rig.lookZ - authoredLookZ) * golfPivotWeight;
+      // The sky's depth layers ride the pointer's turn, and the aim swing
+      // they otherwise read fades by this same weight at the tee while the
+      // pivot really does turn the camera about the cup. Hand them the
+      // pivot's rotation so the skyline keeps swinging here.
+      skyPointerTurn.current +=
+        (Math.atan2(rig.lookX - rig.eyeX, -(rig.lookZ - rig.eyeZ)) -
+          Math.atan2(look.current.x - eyeX, -(look.current.z - baseZ))) *
+        golfPivotWeight;
+    }
+    travelLook.current.set(authoredLookX, authoredLookY, authoredLookZ);
+    // The golf push-in (golf/golfSuspense.ts). While a rolling ball might
+    // drop, the finished aim eases onto the cup and the lens tightens below.
+    // It comes after the pitch and yaw so the pointer still plays on top,
+    // and the weight alone carries it: at zero this is exactly the pose above.
+    if (golfSuspense.weight > 0) {
+      travelLook.current.x +=
+        (golfSuspense.x - travelLook.current.x) * golfSuspense.weight;
+      travelLook.current.y +=
+        (golfSuspense.y - travelLook.current.y) * golfSuspense.weight;
+      travelLook.current.z +=
+        (golfSuspense.z - travelLook.current.z) * golfSuspense.weight;
+    }
 
     let seatBlend = 0;
     if (s === 0) {
-      camera.position.set(eyeX, authoredEyeY, baseZ);
+      camera.position.set(authoredEyeX, authoredEyeY, authoredEyeZ);
       camera.lookAt(travelLook.current);
     } else {
       // Seated pose keeps a breath and the pointer parallax: a camera that
@@ -1041,7 +1412,7 @@ export default function CameraRig() {
         ty + seatPointer.current.y * 0.45,
         tz,
       );
-      travelEye.current.set(eyeX, authoredEyeY, baseZ);
+      travelEye.current.set(authoredEyeX, authoredEyeY, authoredEyeZ);
 
       // The walk, as a quadratic Bezier rather than a straight line. The
       // chair stands between the camera and the shelf, so a diagonal glide
@@ -1051,9 +1422,9 @@ export default function CameraRig() {
       // path a person actually takes.
       const standZ = ez + STAND_BACK;
       ctrl.current.set(
-        eyeX + (ex - eyeX) * 0.15,
+        authoredEyeX + (ex - authoredEyeX) * 0.15,
         authoredEyeY + APPROACH_LIFT * 0.5,
-        baseZ + (standZ - baseZ) * 0.55,
+        authoredEyeZ + (standZ - authoredEyeZ) * 0.55,
       );
       const iw = 1 - walk;
       const b0 = iw * iw;
@@ -1063,12 +1434,12 @@ export default function CameraRig() {
       // standing at the shelf or while settled in the chair.
       const gait = walk * (1 - walk) * 4;
       walkPos.current.set(
-        b0 * eyeX + b1 * ctrl.current.x + b2 * ex,
+        b0 * authoredEyeX + b1 * ctrl.current.x + b2 * ex,
         b0 * authoredEyeY +
           b1 * ctrl.current.y +
           b2 * (authoredEyeY + APPROACH_LIFT) +
           Math.sin(t * GAIT_RATE) * 0.018 * gait,
-        b0 * baseZ + b1 * ctrl.current.z + b2 * standZ,
+        b0 * authoredEyeZ + b1 * ctrl.current.z + b2 * standZ,
       );
       walkPos.current.x += Math.sin(t * GAIT_RATE * 0.5) * 0.012 * gait;
 
@@ -1114,7 +1485,9 @@ export default function CameraRig() {
       captureFov ??
       (screenshot.enabled ? screenshot.fov : null) ??
       composition.fov;
-    const fov = travelFov + (SEAT_FOV - travelFov) * seatBlend;
+    const fov =
+      (travelFov + (SEAT_FOV - travelFov) * seatBlend) *
+      golfSuspenseFovScale(golfSuspense.weight);
     if (
       "fov" in camera &&
       Math.abs((camera as THREE.PerspectiveCamera).fov - fov) > 0.001
@@ -1132,7 +1505,9 @@ export default function CameraRig() {
       movement < 0.000_02 &&
       Math.abs(scenePosition - Math.round(scenePosition)) < 0.01
     ) {
-      settledFor.current += dt;
+      // The real frame, not the hidden step: a boot must not stamp a unit
+      // as settled the instant the rig lands on it.
+      settledFor.current += frame;
       if (settledFor.current >= 0.12) {
         const settled = Math.round(scenePosition);
         if (useStacks.getState().settledUnit !== settled)
@@ -1151,10 +1526,13 @@ export default function CameraRig() {
       prevActive.current = active;
       useStacks.getState().setActiveUnit(active);
     }
-    const golfFocused = golfFocusedForScenePosition(scenePosition);
-    if (golfFocused !== prevGolfFocused.current) {
-      prevGolfFocused.current = golfFocused;
-      useStacks.getState().setGolfFocused(golfFocused);
+    if (golfStop !== prevGolfStop.current) {
+      prevGolfStop.current = golfStop;
+      useStacks.getState().setGolfStop(golfStop);
+    }
+    if (golfMode.engaged !== prevGolfFocused.current) {
+      prevGolfFocused.current = golfMode.engaged;
+      useStacks.getState().setGolfFocused(golfMode.engaged);
     }
   });
   return null;

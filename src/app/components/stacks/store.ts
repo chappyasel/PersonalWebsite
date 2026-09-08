@@ -102,10 +102,16 @@ export type PanelState = "closed" | "opening" | "open" | "closing";
 
 type StacksState = {
   activeUnit: number;
-  /** True only while the camera occupies the hidden Golf stop between Books
-   * and Weightlifting. It is separate from activeUnit because the Golf stop
-   * is fractional and must not replace either public section. */
+  /** Golf mode: the green is in frame and clear of the neighbouring
+   * shelves, with hysteresis (scene/golfMode.ts, decided by CameraRig each
+   * frame). The placard, the club, the balls and the rail follow it. It is
+   * separate from activeUnit because the Golf stop is fractional and must
+   * not replace either public section. */
   golfFocused: boolean;
+  /** True only while the scroll rests inside the Golf stop's window
+   * (data.ts). The URL's #golf keys off this, not the mode, so the mouse
+   * can move the visitor in and out of golf without rewriting history. */
+  golfStop: boolean;
   scrollEl: HTMLDivElement | null;
   modalOpen: boolean;
   /** The book modal is still covering the screen, but its exit flight has
@@ -195,6 +201,7 @@ type StacksState = {
   travelTo: ((unit: number) => void) | null;
   setActiveUnit: (activeUnit: number) => void;
   setGolfFocused: (golfFocused: boolean) => void;
+  setGolfStop: (golfStop: boolean) => void;
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
   setBookModalReturning: (bookModalReturning: boolean) => void;
@@ -234,6 +241,7 @@ type StacksState = {
 export const useStacks = create<StacksState>((set) => ({
   activeUnit: 0,
   golfFocused: false,
+  golfStop: false,
   scrollEl: null,
   modalOpen: false,
   bookModalReturning: false,
@@ -283,6 +291,7 @@ export const useStacks = create<StacksState>((set) => ({
   travelTo: null,
   setActiveUnit: (activeUnit) => set({ activeUnit }),
   setGolfFocused: (golfFocused) => set({ golfFocused }),
+  setGolfStop: (golfStop) => set({ golfStop }),
   setScrollEl: (scrollEl) => set({ scrollEl }),
   setModalOpen: (modalOpen) =>
     set(

@@ -53,7 +53,9 @@ describe("scene artifact camera lock", () => {
       cameraRig.indexOf("const coverage = panelCoverageRef.current"),
     );
     expect(lockReturn).toBeLessThan(
-      cameraRig.indexOf("camera.position.set(eyeX, authoredEyeY, baseZ)"),
+      cameraRig.indexOf(
+        "camera.position.set(authoredEyeX, authoredEyeY, authoredEyeZ)",
+      ),
     );
     expect(cameraRig).toContain(
       "if (useStacks.getState().modelArtifactHandoff) return;",

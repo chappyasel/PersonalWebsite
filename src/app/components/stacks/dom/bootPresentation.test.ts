@@ -89,12 +89,17 @@ describe("boot presentation", () => {
   });
 
   it("uses theme-specific tones for the Vision Pro strap and enclosure", () => {
-    expect(rule(".stacks-boot-vision-band {")).toContain("fill: #8c9499");
-    expect(rule(".dark .stacks-boot-vision-band {")).toContain("fill: #434a50");
-    expect(rule(".stacks-boot-vision-enclosure {")).toContain("fill: #929ba1");
+    // As the room lights it: a near-white knit band and seal, the frame a
+    // shade greyer, the glass the only black. The base silhouette is the
+    // fabric between the traced parts, not a dark hole behind them.
+    expect(rule(".stacks-boot-vision-band {")).toContain("fill: #e4e0d8");
+    expect(rule(".dark .stacks-boot-vision-band {")).toContain("fill: #9d9990");
+    expect(rule(".stacks-boot-vision-enclosure {")).toContain("fill: #d9d6cf");
     expect(rule(".dark .stacks-boot-vision-enclosure {")).toContain(
-      "fill: #60686e",
+      "fill: #8f8c85",
     );
+    expect(rule(".stacks-boot-vision-silhouette {")).toContain("fill: #cfcbc3");
+    expect(rule(".stacks-boot-vision-glass {")).toContain("fill: #000");
   });
 
   it("paints a directional highlight across the AIC mark", () => {

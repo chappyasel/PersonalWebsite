@@ -17,6 +17,7 @@ export function golfMotionPolicy(reducedMotion: boolean) {
     glint: !reducedMotion,
     turfPuff: !reducedMotion,
     confetti: !reducedMotion,
+    suspenseZoom: !reducedMotion,
     staticCupGlow: reducedMotion,
   } as const;
 }

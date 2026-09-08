@@ -60,8 +60,13 @@ describe("homepage 3D traverse order", () => {
     expect(GOLF_FOCUS_START).toBeGreaterThan(1.35);
     expect(GOLF_FOCUS_START).toBeLessThan(GOLF_STOP_POSITION);
     expect(GOLF_FOCUS_END).toBeGreaterThan(GOLF_STOP_POSITION);
-    expect(GOLF_FOCUS_END).toBeGreaterThan(1.75);
     expect(GOLF_FOCUS_END).toBeLessThan(2);
+    // Golf lets go sooner on the Weightlifting side than it arrives on the
+    // Books side: it must not reach into the Weightlifting section.
+    expect(GOLF_FOCUS_END - GOLF_STOP_POSITION).toBeLessThan(
+      GOLF_STOP_POSITION - GOLF_FOCUS_START,
+    );
+    expect(GOLF_FOCUS_END - GOLF_STOP_POSITION).toBeGreaterThan(0.05);
     expect(initialScenePositionFromLocation("/golf", "")).toBe(
       GOLF_STOP_POSITION,
     );

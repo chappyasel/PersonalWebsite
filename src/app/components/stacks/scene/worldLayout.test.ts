@@ -1,5 +1,11 @@
+import { GOLF_FOCUS_END, GOLF_FOCUS_START, GOLF_STOP_POSITION } from "../data";
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
+import {
+  POINTER_CAMERA_YAW_MAX_DEGREES,
+  eyeXZForYawAroundTarget,
+} from "./pointerCameraTilt";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   CAMERA,
@@ -154,7 +160,7 @@ describe("authored camera depth", () => {
     const peaks = [
       [0.5, 0.1, 0.65],
       [1.18, -0.05, 0.35],
-      [1.89, 0.08, 0.55],
+      [(GOLF_FOCUS_END + 2) / 2, 0.08, 0.55],
       [3.5, 0.09, -0.55],
       [5.5, 0.07, 0.45],
     ] as const;
@@ -179,7 +185,11 @@ describe("authored camera depth", () => {
   });
 
   it("holds all three Golf knots at exact zero", () => {
-    for (const position of [1.36, 1.52, 1.78]) {
+    for (const position of [
+      GOLF_FOCUS_START,
+      GOLF_STOP_POSITION,
+      GOLF_FOCUS_END,
+    ]) {
       expect(cameraDepthOffsetsForViewport(1440, 900, position)).toEqual({
         eyeHeight: 0,
         pitchRadians: 0,
@@ -189,7 +199,13 @@ describe("authored camera depth", () => {
       eyeHeight: 0,
       pitchRadians: 0,
     });
-    expect(cameraDepthOffsetsForViewport(1440, 900, 1.65)).toEqual({
+    expect(
+      cameraDepthOffsetsForViewport(
+        1440,
+        900,
+        (GOLF_STOP_POSITION + GOLF_FOCUS_END) / 2,
+      ),
+    ).toEqual({
       eyeHeight: 0,
       pitchRadians: 0,
     });
@@ -311,22 +327,49 @@ describe("desktop stop centring", () => {
     expect(parallaxLookOffset(composition.parallaxCentre, composition)).toBe(0);
     // Toward the nav: the full swing, as before.
     expect(parallaxLookOffset(1, composition)).toBeCloseTo(PARALLAX_SWING, 10);
-    // Toward the dock: the shelf may touch the glass but not pass it. The
-    // look target sits 0.2 behind the shelf plane, so the shelf moves
-    // CAMERA.z / (CAMERA.z + 0.2) of the look offset.
+    // Toward the dock: the shelf may touch the glass but not pass it, on
+    // the camera as CameraRig actually poses it at the viewport's edge: aimed
+    // at the swung target and orbited around it by the full pointer yaw.
     const swing = parallaxLookOffset(-1, composition);
     expect(swing).toBeLessThan(0);
     expect(swing).toBeGreaterThan(-PARALLAX_SWING);
-    const half = (SHELF_GEOMETRY.width / 2) * pxPerWorld(vw, vh);
-    const landedRight = shelfCentrePx(vw, vh, framing.lateralOffset) + half;
-    const shelfShiftPx =
-      -swing * (CAMERA.z / (CAMERA.z + 0.2)) * pxPerWorld(vw, vh);
-    expect(landedRight + shelfShiftPx).toBeLessThanOrEqual(
-      desktopDockLeftPx(vw),
-    );
-    expect(landedRight + shelfShiftPx).toBeGreaterThan(
-      desktopDockLeftPx(vw) - 8,
-    );
+    const rightmostPlankPx = (unit: number) => {
+      const [ux, , uz] = unitPose(unit).position;
+      const yaw = unitPose(unit).rotation[1];
+      const eyeX = ux + framing.lateralOffset;
+      const aimX = eyeX + swing;
+      const orbited = eyeXZForYawAroundTarget({
+        eyeX,
+        eyeZ: composition.z,
+        lookX: aimX,
+        lookZ: composition.lookZ,
+        yawRadians: -(POINTER_CAMERA_YAW_MAX_DEGREES * Math.PI) / 180,
+      });
+      const cam = new THREE.PerspectiveCamera(composition.fov, vw / vh);
+      cam.position.set(orbited.x, composition.y, orbited.z);
+      cam.lookAt(aimX, composition.lookY, composition.lookZ);
+      cam.updateMatrixWorld();
+      const hw = SHELF_GEOMETRY.width / 2;
+      const { centerZ, depth } = SHELF_GEOMETRY.top;
+      let max = -Infinity;
+      for (const x of [-hw, hw]) {
+        for (const z of [centerZ - depth / 2, centerZ + depth / 2]) {
+          const p = new THREE.Vector3(
+            ux + x * Math.cos(yaw) + z * Math.sin(yaw),
+            SHELF_GEOMETRY.top.thickness / 2,
+            uz - x * Math.sin(yaw) + z * Math.cos(yaw),
+          ).project(cam);
+          max = Math.max(max, ((p.x + 1) / 2) * vw);
+        }
+      }
+      return max;
+    };
+    // Both authored yaws share the one swing; the wider one kisses the
+    // glass and the other stays inside it.
+    const glass = desktopDockLeftPx(vw);
+    const widest = Math.max(rightmostPlankPx(1), rightmostPlankPx(2));
+    expect(widest).toBeLessThanOrEqual(glass + 0.5);
+    expect(widest).toBeGreaterThan(glass - 2);
     // No dead zone: halfway to the edge is half the swing on each side.
     const c = composition.parallaxCentre;
     expect(parallaxLookOffset(c - (1 + c) / 2, composition)).toBeCloseTo(

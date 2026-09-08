@@ -16,6 +16,7 @@ import {
   ABOUT_AIC_ROOT_YAW,
   ABOUT_AWARD_SIZE_INCREASE,
   ABOUT_LANDMARK_X,
+  ABOUT_LOWER_LANDMARK_Z,
   ABOUT_MODEL_POSES,
   ABOUT_PHOTO_POSES,
   ABOUT_TOP_LANDMARK_Z,
@@ -68,6 +69,10 @@ export type AboutBootLandmark = {
   shelf: ShelfPlankId;
   /** Unit-local scene X, shared verbatim with UnitAbout. */
   x: number;
+  /** Unit-local depth of the same anchor: the value the live prop stands at,
+   * so the boot projector (aboutBootPerspective.ts) can place and scale it
+   * as the camera would. Positive is toward the camera. */
+  z: number;
   glyph: AboutLandmarkGlyph;
   /** Simplified front elevation, in scene units. */
   profile: { width: number; height: number };
@@ -89,6 +94,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "globe",
     shelf: "top",
     x: ABOUT_LANDMARK_X.globe,
+    z: ABOUT_TOP_LANDMARK_Z.globe,
     glyph: "globe",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES.globe.profile[0],
@@ -108,6 +114,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "succulent",
     shelf: "top",
     x: ABOUT_LANDMARK_X.succulent,
+    z: ABOUT_TOP_LANDMARK_Z.succulent,
     glyph: "succulent",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES.succulent.profile[0],
@@ -120,6 +127,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "portrait",
     shelf: "top",
     x: ABOUT_LANDMARK_X.portrait,
+    z: ABOUT_TOP_LANDMARK_Z.portrait,
     glyph: "portrait-frame",
     // The live PortraitFrame's own geometry at its scene scale.
     profile: {
@@ -136,6 +144,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "family-frame",
     shelf: "top",
     x: ABOUT_LANDMARK_X["family-frame"],
+    z: ABOUT_TOP_LANDMARK_Z["family-frame"],
     glyph: "portrait-frame",
     profile: { width: 0.264 * (769 / 1024) + 0.048, height: 0.312 },
     imageProfile: { width: 0.264 * (769 / 1024), height: 0.264 },
@@ -147,6 +156,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     // behind the family frame's plane, so their front elevations overlap a
     // little without the objects meeting in 3D.
     x: ABOUT_LANDMARK_X.cactus,
+    z: ABOUT_TOP_LANDMARK_Z.cactus,
     glyph: "cactus",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES.cactus.profile[0],
@@ -161,6 +171,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     // Owner placement via the scene layout editor, 2026-08-22: lying flat at
     // the plank's front edge, right of the cactus.
     x: ABOUT_LANDMARK_X["collective-frame"],
+    z: ABOUT_TOP_LANDMARK_Z["collective-frame"],
     glyph: "landscape-frame",
     // The live frame lies almost face-up. This is its shallow front
     // projection, not the standing height it used on the lower shelf.
@@ -173,6 +184,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "top",
     // Owner placement via the scene layout editor, 2026-08-22.
     x: ABOUT_LANDMARK_X["profile-frame"],
+    z: ABOUT_TOP_LANDMARK_Z["profile-frame"],
     glyph: "portrait-frame",
     profile: { width: 0.228, height: 0.288 },
     imageProfile: { width: 0.18, height: 0.24 },
@@ -181,6 +193,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "large-plant",
     shelf: "top",
     x: ABOUT_LANDMARK_X["large-plant"],
+    z: ABOUT_TOP_LANDMARK_Z["large-plant"],
     glyph: "plant",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES["large-plant"].profile[0],
@@ -195,6 +208,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "desk-lamp",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["desk-lamp"],
+    z: ABOUT_LOWER_LANDMARK_Z["desk-lamp"],
     glyph: "desk-lamp",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES["desk-lamp"].profile[0],
@@ -207,6 +221,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "ai-collective",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["ai-collective"],
+    z: ABOUT_LOWER_LANDMARK_Z["ai-collective"],
     glyph: "collective-mark",
     profile: {
       width:
@@ -234,6 +249,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "coordination-globe",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["coordination-globe"],
+    z: ABOUT_LOWER_LANDMARK_Z["coordination-globe"],
     glyph: "coordination-globe",
     profile: {
       width:
@@ -253,6 +269,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "tj-medallion",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["tj-medallion"],
+    z: ABOUT_LOWER_LANDMARK_Z["tj-medallion"],
     glyph: "medallion",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].profile[0],
@@ -267,6 +284,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "vision-pro",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["vision-pro"],
+    z: ABOUT_LOWER_LANDMARK_Z["vision-pro"],
     glyph: "vision-pro",
     profile: {
       width: ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"].profile[0],
@@ -281,6 +299,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "role-icons",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["role-icons"],
+    z: ABOUT_LOWER_LANDMARK_Z["role-icons"],
     glyph: "role-icons",
     profile: {
       width: ABOUT_ROLE_STACK_PROFILE_WIDTH,
@@ -292,6 +311,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "reading-stack",
     shelf: "lower",
     x: ABOUT_LANDMARK_X["reading-stack"],
+    z: ABOUT_LOWER_LANDMARK_Z["reading-stack"],
     glyph: "reading-stack",
     profile: {
       width: ABOUT_READING_STACK_PROFILE_WIDTH,

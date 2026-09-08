@@ -25,6 +25,7 @@ export const SCENE_AUDIO_MIX = {
   windAudibleThreshold: 0.4,
   windMotionRange: 0.034,
   windCrossfadeFloor: 0.44,
+  windResponseSeconds: 0.85,
   meadow: 0.07,
 } as const;
 
@@ -122,6 +123,7 @@ export class SceneAudioRuntime {
   private master: GainNode | null = null;
   private limiter: DynamicsCompressorNode | null = null;
   private ambienceBus: GainNode | null = null;
+  private windBus: GainNode | null = null;
   private rideBus: GainNode | null = null;
   private rideSoundtrack: AudioBuffer | null = null;
   private rideSoundtrackSource: AudioBufferSourceNode | null = null;
@@ -216,10 +218,17 @@ export class SceneAudioRuntime {
 
   setWindLevel = (level: number) => {
     const next = Math.min(1, Math.max(0, level));
-    if (Math.abs(next - this.state.windLevel) < 0.015) return;
+    if (Math.abs(next - this.state.windLevel) < 0.003) return;
     this.state.windLevel = next;
-    const [a, b] = this.ambienceGains;
-    if (a && b) this.rampWindBeds(a.gain.value >= b.gain.value, 0.45);
+    if (!this.context || !this.windBus) return;
+    const now = this.context.currentTime;
+    const gain = this.windBus.gain;
+    gain.cancelScheduledValues(now);
+    gain.setTargetAtTime(
+      windGainForMotion(next),
+      now,
+      SCENE_AUDIO_MIX.windResponseSeconds,
+    );
   };
 
   stopAmbience = () => {
@@ -456,6 +465,7 @@ export class SceneAudioRuntime {
     this.master = null;
     this.limiter = null;
     this.ambienceBus = null;
+    this.windBus = null;
     this.rideBus = null;
     this.rideSoundtrack = null;
     this.rideLoad = null;
@@ -731,9 +741,13 @@ export class SceneAudioRuntime {
     const now = this.context.currentTime;
     ambienceBus.gain.exponentialRampToValueAtTime(1, now + 2);
     const windGain = windGainForMotion(this.state.windLevel);
+    const windBus = this.context.createGain();
+    windBus.gain.value = windGain;
+    windBus.connect(ambienceBus);
+    this.windBus = windBus;
     const beds: Array<[SoundName, number, number]> = [
-      ["windA", windGain, -4],
-      ["windB", windGain * SCENE_AUDIO_MIX.windCrossfadeFloor, 4],
+      ["windA", 1, -4],
+      ["windB", SCENE_AUDIO_MIX.windCrossfadeFloor, 4],
       ["meadow", SCENE_AUDIO_MIX.meadow, 0],
     ];
     for (const [name, gain, x] of beds) {
@@ -759,7 +773,7 @@ export class SceneAudioRuntime {
         panner.positionX.value = x;
         panner.positionY.value = 0;
         panner.positionZ.value = -8;
-        source.connect(panner).connect(bedGain).connect(ambienceBus);
+        source.connect(panner).connect(bedGain).connect(windBus);
       }
       source.start(0, Math.random() * Math.max(0.01, buffer.duration - 0.1));
       this.ambience.push(source);
@@ -780,17 +794,16 @@ export class SceneAudioRuntime {
   private rampWindBeds(aHigh: boolean, seconds: number) {
     if (!this.context || this.ambienceGains.length < 2) return;
     const now = this.context.currentTime;
-    const windGain = windGainForMotion(this.state.windLevel);
     const a = this.ambienceGains[0]!.gain;
     const b = this.ambienceGains[1]!.gain;
     a.cancelScheduledValues(now);
     b.cancelScheduledValues(now);
     a.linearRampToValueAtTime(
-      windGain * (aHigh ? 1 : SCENE_AUDIO_MIX.windCrossfadeFloor),
+      aHigh ? 1 : SCENE_AUDIO_MIX.windCrossfadeFloor,
       now + seconds,
     );
     b.linearRampToValueAtTime(
-      windGain * (aHigh ? SCENE_AUDIO_MIX.windCrossfadeFloor : 1),
+      aHigh ? SCENE_AUDIO_MIX.windCrossfadeFloor : 1,
       now + seconds,
     );
   }
@@ -805,6 +818,7 @@ export class SceneAudioRuntime {
     this.ambience = [];
     this.ambienceGains = [];
     this.ambienceBus = null;
+    this.windBus = null;
   }
 
   private fadeMaster(target: number, seconds: number) {

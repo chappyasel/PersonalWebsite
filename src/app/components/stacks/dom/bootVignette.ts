@@ -9,6 +9,17 @@
 // and replays the entire boot behind the very screen you were tuning.
 import { type WorldBootWaitStage } from "../boot/worldBootMachine";
 import { type AboutLandmarkId } from "../scene/aboutBootComposition";
+import {
+  ABOUT_BOOT_CAMERA,
+  type AboutBootQuad,
+  projectAboutBootPoint,
+} from "../scene/aboutBootPerspective";
+import {
+  ABOUT_LANDMARK_X,
+  ABOUT_LOWER_LANDMARK_Z,
+} from "../scene/aboutScenePose";
+import { SHELF_SURFACE } from "../scene/shelfGeometry";
+import { type ReadingBookProjector } from "../scene/units/aboutReadingStack";
 import { proxied } from "../theme";
 
 export const SCENE_TO_BOOT_SVG = 100;
@@ -17,6 +28,86 @@ export const BOOT_CADENCE_SETTLE_SECONDS = 0.32;
 
 export function projectSceneY(sceneY: number) {
   return -sceneY * SCENE_TO_BOOT_SVG;
+}
+
+/** The one placement every boot drawable uses: its unit-local anchor
+ * projected through the About rest camera (scene/aboutBootPerspective.ts),
+ * at the anchor's depth scale, plus the live eye's parallax. Glyphs draw
+ * bottom-centred about the group origin, so the scale grows them in place.
+ *
+ * A CSS transform rather than the attribute because the parallax term reads
+ * a custom property: the drawables are projected for the canonical desktop
+ * eye, and on the live viewport the eye stands `--stacks-boot-eye-shift`
+ * SVG units to one side (the boot stage writes it before first paint, from
+ * the same maths). A point off the shelf plane slides by that times
+ * (1 - its depth ratio), which is the projector's
+ * `x = eyeX + (worldX - eyeX) * scale` with only eyeX changed, so the
+ * placement is exact at every width rather than only at 1440. */
+/** Every projected number is rounded before it reaches markup. The projector
+ * runs through sin, cos, hypot and atan2, and Node and the browser disagree
+ * in the last bit of those often enough that the server's SVG and the
+ * client's differed in a dozen attributes and React refused to hydrate them.
+ * A thousandth of an SVG unit is a hundredth of a pixel at any width. */
+export function bootFixed(value: number, decimals = 3) {
+  const factor = 10 ** decimals;
+  const rounded = Math.round(value * factor) / factor;
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+export function bootPlacementStyle(anchor: readonly [number, number, number]) {
+  const placed = projectAboutBootPoint(anchor, ABOUT_BOOT_CAMERA);
+  const share = bootFixed(1 - placed.scale, 5);
+  return {
+    transform: `translate(calc(${bootFixed(placed.x * SCENE_TO_BOOT_SVG)}px + var(--stacks-boot-eye-shift, 0) * ${share}px), ${bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}px) scale(${bootFixed(placed.scale, 5)})`,
+  };
+}
+
+/** A projected quad as an SVG points list, y down. */
+export function bootPoints(quad: AboutBootQuad) {
+  return quad
+    .map(
+      ([x, y]) =>
+        `${bootFixed(x * SCENE_TO_BOOT_SVG)},${bootFixed(-y * SCENE_TO_BOOT_SVG)}`,
+    )
+    .join(" ");
+}
+
+/** The reading fan's corners through the projector, relative to the stack's
+ * anchor in the anchor's own scale. The fan's 3D corners are unit-local in
+ * x and z with y above the plank, and the group they draw in is placed at
+ * the anchor and scaled by its depth ratio, so this is what lands them where
+ * the camera draws the books: seen from 1.1 units above the lower plank and
+ * a little to their left, not from a level eye at the unit's origin. */
+export function bootReadingProjector(): ReadingBookProjector {
+  const anchor = projectAboutBootPoint(
+    [
+      ABOUT_LANDMARK_X["reading-stack"],
+      SHELF_SURFACE.lower,
+      ABOUT_LOWER_LANDMARK_Z["reading-stack"],
+    ],
+    ABOUT_BOOT_CAMERA,
+  );
+  return ([x, y, z]) => {
+    const placed = projectAboutBootPoint(
+      [x, SHELF_SURFACE.lower + y, z],
+      ABOUT_BOOT_CAMERA,
+    );
+    return [
+      bootFixed((placed.x - anchor.x) / anchor.scale, 6),
+      bootFixed((placed.y - anchor.y) / anchor.scale, 6),
+    ];
+  };
+}
+
+/** The parallax term alone, for drawables that carry their own geometry
+ * (a projected polygon, a circle at its canonical centre): they keep their
+ * canonical shape and slide by their anchor's share of the eye shift. */
+export function bootParallaxStyle(anchor: readonly [number, number, number]) {
+  const placed = projectAboutBootPoint(anchor, ABOUT_BOOT_CAMERA);
+  const share = bootFixed(1 - placed.scale, 5);
+  return {
+    transform: `translate(calc(var(--stacks-boot-eye-shift, 0) * ${share}px))`,
+  };
 }
 
 export function bootCadence(itemCount: number) {

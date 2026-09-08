@@ -3,6 +3,8 @@ import type * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { MeadowDeformationController } from "./meadowDeformation";
+import { meadowDiagnosticsController } from "./meadowDiagnostics";
+import { MEADOW_WIND } from "./meadowMotion";
 import { pointerCameraTiltController } from "./pointerCameraTilt";
 import {
   type DiagnosticRegistryEntry,
@@ -42,6 +44,37 @@ class NoWorkRenderer {
 }
 
 describe("Scene Diagnostics registry", () => {
+  it("presents meadow strength and speed as authored multipliers", () => {
+    const strength = sceneDiagnosticsRegistry.descriptors.find(
+      (descriptor) => descriptor.id === "meadow.wind-strength",
+    );
+    const speed = sceneDiagnosticsRegistry.descriptors.find(
+      (descriptor) => descriptor.id === "meadow.animation-speed",
+    );
+
+    expect(strength).toMatchObject({
+      defaultValue: 1,
+      allowedValues: { min: 0.2, max: 10, unit: "×" },
+    });
+    expect(speed).toMatchObject({
+      defaultValue: 1,
+      allowedValues: { min: 0.2, max: 4, unit: "×" },
+    });
+    expect(sceneDiagnosticsRegistry.read("meadow.wind-strength")).toBe(1);
+    expect(sceneDiagnosticsRegistry.read("meadow.animation-speed")).toBe(1);
+
+    const update = vi
+      .spyOn(meadowDiagnosticsController, "update")
+      .mockReturnValue(meadowDiagnosticsController.getSnapshot());
+    sceneDiagnosticsRegistry.update("meadow.wind-strength", 2);
+    expect(update).toHaveBeenLastCalledWith({
+      wind: MEADOW_WIND.amplitude * 2,
+    });
+    sceneDiagnosticsRegistry.update("meadow.animation-speed", 3);
+    expect(update).toHaveBeenLastCalledWith({ speed: MEADOW_WIND.speed * 3 });
+    update.mockRestore();
+  });
+
   it("reads and overrides the resolved automatic meadow state", () => {
     scenePerformanceController.reset();
     sceneQualityController.resetControls();

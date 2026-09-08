@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { aboutBootSilhouetteCameraSignature } from "./aboutBootPerspective";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
 import { ABOUT_LAMP_HEAD_QUATERNION } from "./aboutLampPose";
 import { ABOUT_MODEL_POSES, type AboutModelPoseId } from "./aboutScenePose";
@@ -56,7 +57,7 @@ describe("generated About boot silhouettes", () => {
       expect(
         sha256(
           JSON.stringify({
-            version: 1,
+            version: 2,
             pose,
             headQuaternion:
               id === "desk-lamp" ? ABOUT_LAMP_HEAD_QUATERNION : undefined,
@@ -72,6 +73,9 @@ describe("generated About boot silhouettes", () => {
                     segments: GLOBE_SPHERE_SEGMENTS,
                   }
                 : undefined,
+            // Every model but the globe is traced through the rest camera
+            // from its own anchor, so the camera and the anchor sign it.
+            ...aboutBootSilhouetteCameraSignature(id as AboutModelPoseId),
           }),
         ),
         `${id} needs silhouette regeneration after its pose changed`,

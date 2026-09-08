@@ -59,6 +59,11 @@ import { useSceneQualityControls } from "./sceneQualityController";
 import { useScreenshotMode } from "./screenshotMode";
 import { getSeatAmount } from "./seated";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
+import {
+  skyDepthController,
+  skyLayerPanOffsets,
+  skyPointerTurn,
+} from "./skyDepthLayers";
 import { SKY_LIGHTING } from "./skyLighting";
 import { updateManualWorldMatrix } from "./staticWorld";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
@@ -261,6 +266,9 @@ const SKY_FRAGMENT = `
   uniform float uDark;     // 0 light theme … 1 dark theme (damped crossfade)
   uniform float uDawn;     // scroll offset 0…1 — the traverse advances the morning
   uniform float uPan;      // azimuth the traverse has swept (see SkyDome)
+  uniform float uSkyPanCity;   // depth-layer offsets over uPan, radians
+  uniform float uSkyPanHills;
+  uniform float uSkyPanBridge;
   uniform float uHover;    // azimuth the pointer is over, or 99 for none
   uniform float uTime;
   uniform float uBirdTime; // diagnostics can restart flocks without other clocks
@@ -1024,6 +1032,14 @@ const SKY_FRAGMENT = `
     // fog under Sutro" the owner reported. A rigid pan has uniform angular
     // scale everywhere, so the skyline reads the same at both ends.
     float a = atan(dir.z, dir.x) + uPan;
+    // The painted masses in their own depth layers. Each offset is zero
+    // until the Scene console's skyline-depth switches are on, so the
+    // painting stays one rigid sheet by default; with them on the city
+    // (nearest) pans ahead of the base, the Golden Gate (farthest) behind
+    // it, and the SF hills ride the base. See skyDepthLayers.ts.
+    float aCity = a + uSkyPanCity;
+    float aHills = a + uSkyPanHills;
+    float aBridge = a + uSkyPanBridge;
 
     vec3 zenithC  = mix(zenithL, zenithD, uDark);
     vec3 horizonC = mix(horizonL, horizonD, uDark);
@@ -1495,7 +1511,7 @@ const SKY_FRAGMENT = `
       float fireAge = uFires[fi];
       float fireSeed = uFireSeeds[fi];
       if (fireAge > 0.0 && fireAge < FIRE_WINDOW
-          && abs(a + 2.04) < 0.32 && e > -0.05 && e < 0.28) {
+          && abs(aBridge + 2.04) < 0.32 && e > -0.05 && e < 0.28) {
       vec3 sparkAdd = vec3(0.0);
       vec3 glowAdd = vec3(0.0);
       float smoke = 0.0;
@@ -1537,7 +1553,7 @@ const SKY_FRAGMENT = `
           // smoke — at 8 km that is a grey pixel.
           float u = t / rise;
           float sy = mix(0.026, burstE, u * (2.0 - u));
-          float dAz = a - az - 0.007 * u * u * (h4 - 0.5) * 2.0;
+          float dAz = aBridge - az - 0.007 * u * u * (h4 - 0.5) * 2.0;
           float trail = smoothstep(0.014, 0.0, sy - e)
                       * step(0.022, e) * step(e, sy)
                       * smoothstep(0.0012, 0.0003, abs(dAz))
@@ -1551,7 +1567,7 @@ const SKY_FRAGMENT = `
         float dur = typ == 1.0 ? 3.4 : 2.6;
         if (age > dur) continue;
         float u = age / dur;
-        vec2 p = vec2(a - az, e - burstE);
+        vec2 p = vec2(aBridge - az, e - burstE);
         // Undo gravity to get back into the ballistic frame: every spark
         // shares the same drop, so one add restores the expanding circle
         // and the whole burst can be tested as a radius. A willow's stars are
@@ -1637,8 +1653,8 @@ const SKY_FRAGMENT = `
     // ---- The city. Bimodal roofline — a flat residential carpet with one
     // tight downtown cluster punching out — is SF's actual silhouette
     // signature; a uniform hashed roofline is the generic-city shape.
-    float colId = floor(a * 64.0);
-    float dtown = smoothstep(0.42, 0.10, abs(a + 1.35));
+    float colId = floor(aCity * 64.0);
+    float dtown = smoothstep(0.42, 0.10, abs(aCity + 1.35));
     float roof = 0.012 + hash1(colId) * (0.016 + 0.042 * dtown);
     // Seated, this window is open water and parkland — the Potomac, its far
     // shore and the Mall behind it — so San Francisco's carpet goes to
@@ -1647,18 +1663,18 @@ const SKY_FRAGMENT = `
     // is what made the old version look like a city standing in its own bay.
     roof = mix(roof, -0.004, seatWin);
     float cityEnvelope =
-        smoothstep(SF_CITY_WEST - SF_CITY_FEATHER, SF_CITY_WEST, a)
+        smoothstep(SF_CITY_WEST - SF_CITY_FEATHER, SF_CITY_WEST, aCity)
       * (1.0 - smoothstep(SF_CITY_EAST,
-                          SF_CITY_EAST + SF_CITY_FEATHER, a));
+                          SF_CITY_EAST + SF_CITY_FEATHER, aCity));
     float city = (1.0 - smoothstep(roof - 0.0015, roof + 0.0015, e))
                * cityEnvelope;
 
     // Jasper is one restrained addition to the old skyline composition. A
     // shallow recessed crown is enough to keep its 39-storey slab distinct;
     // the facade deliberately inherits the city material below.
-    float dJasper = a - JASPER_AZ;
-    float jasperBody = sfBlock(a, e, JASPER_AZ, JASPER_HW, JASPER_TOP - 0.0025);
-    float jasperCrown = sfBlock(a, e, JASPER_AZ, JASPER_HW * 0.82, JASPER_TOP);
+    float dJasper = aCity - JASPER_AZ;
+    float jasperBody = sfBlock(aCity, e, JASPER_AZ, JASPER_HW, JASPER_TOP - 0.0025);
+    float jasperCrown = sfBlock(aCity, e, JASPER_AZ, JASPER_HW * 0.82, JASPER_TOP);
     float jasper = max(jasperBody, jasperCrown);
 
     // Mount Sutro / Twin Peaks + Telegraph Hill — hazier than
@@ -1679,10 +1695,10 @@ const SKY_FRAGMENT = `
     // than a shape painted on top of it.
     float sutroHillW = mix(SUTRO_HILL_WEST_W, SUTRO_HILL_EAST_W,
                            smoothstep(SUTRO_HILL_AZ - 0.012,
-                                      SUTRO_HILL_AZ + 0.012, a));
-    float hillA = 0.050 * hump(a, SUTRO_HILL_AZ, sutroHillW);
-    float hillB = 0.038 * hump(a, -1.98, 0.24);
-    float telegraph = 0.022 * hump(a, -1.90, 0.070);
+                                      SUTRO_HILL_AZ + 0.012, aHills));
+    float hillA = 0.050 * hump(aHills, SUTRO_HILL_AZ, sutroHillW);
+    float hillB = 0.038 * hump(aHills, -1.98, 0.24);
+    float telegraph = 0.022 * hump(aHills, -1.90, 0.070);
     float hillH = max(hillA, max(hillB, telegraph));
     // A ridge eight kilometres off has no crisp silhouette; the edge is wide
     // on purpose, and the mask fades in rather than switching on, so the
@@ -1694,7 +1710,7 @@ const SKY_FRAGMENT = `
     // proportions while SUTRO_SCALE reduces the complete profile around the
     // crest, and the hill mask hides the lower lattice.
     float sutro = 0.0;
-    float dSut = a - SUTRO_AZ;
+    float dSut = aHills - SUTRO_AZ;
     float sutroA = dSut / SUTRO_SCALE;
     float sutroE = SUTRO_GROUND_E + (e - SUTRO_GROUND_E) / SUTRO_SCALE;
     if (abs(sutroA) < 0.055 && sutroE < 0.124 && sutroE > 0.045) {
@@ -1763,7 +1779,7 @@ const SKY_FRAGMENT = `
     float ggbDeck = 0.0;
     float ggbCable = 0.0;
     float ggbDeckY = 0.0;
-    float gx = (a + 2.04) / 0.055;
+    float gx = (aBridge + 2.04) / 0.055;
     if (abs(gx) < 1.58 && e > 0.024 && e < 0.078) {
       // The roadway crests at midspan, and the main cable is a PARABOLA
       // between the tower tops that comes down to touch the deck at the
@@ -1875,7 +1891,7 @@ const SKY_FRAGMENT = `
     float trans = 0.0;
     float transFace = 0.0;
     float transWing = 0.0;
-    float dTr = a + 1.62;
+    float dTr = aCity + 1.62;
     if (abs(dTr) < 0.016 && e < TR_TOP + 0.002) {
       float hwT = TR_HW * (1.0 - e / TR_TOP);
       float pyr = step(abs(dTr), max(hwT, 0.0008)) * step(e, TR_TOP);
@@ -1905,7 +1921,7 @@ const SKY_FRAGMENT = `
     float crownT = 0.0;
     float crownM = 0.0;
     float sfHalfWidth = 0.0;
-    float dSf = a + 1.28;
+    float dSf = aCity + 1.28;
     float sTop = SF_TOP;
     if (abs(dSf) < 0.015 && e < SF_TOP + 0.002) {
       float st = clamp(e / SF_TOP, 0.0, 1.0);
@@ -1924,7 +1940,7 @@ const SKY_FRAGMENT = `
     // front of the ember glow.
     float bridge = 0.0;
     float bayLight = 0.0;
-    float bx = (a + 1.09) / 0.055;
+    float bx = (aCity + 1.09) / 0.055;
     if (abs(bx) < 1.15 && e < 0.036) {
       float towers = step(abs(abs(bx) - 1.0), 0.05) * step(0.002, e) * step(e, 0.030);
       float deck = step(abs(e - 0.0075), 0.0018) * step(abs(bx), 1.06);
@@ -1958,7 +1974,7 @@ const SKY_FRAGMENT = `
     // Sparse warm window glints — the city is mostly asleep. Scrolling
     // re-deals which windows are lit (uDawn folds into the hash); light
     // theme winks them out as the morning advances, dark wakes a few more.
-    vec2 wc = vec2(a * 420.0, e * 300.0);
+    vec2 wc = vec2(aCity * 420.0, e * 300.0);
     vec2 wf = fract(wc);
     float inBox = step(abs(wf.x - 0.5), 0.22) * step(abs(wf.y - 0.45), 0.28);
     // Windows must never re-deal as a block. The old rig offset the hash by
@@ -1971,7 +1987,7 @@ const SKY_FRAGMENT = `
     vec2 wcell = floor(wc);
     // Pointer response: the stretch of skyline under the cursor wakes a
     // little — a few more windows come on, and fade back out behind you.
-    float hq = (a - uHover) / 0.06;
+    float hq = (aCity - uHover) / 0.06;
     float hoverNear = exp(-(hq * hq));
     float thresh = 0.05 * mix(1.0 - 0.7 * uDawn, 1.0 + 0.6 * uDawn, uDark)
                  * (1.0 + 2.4 * hoverNear);
@@ -2064,7 +2080,7 @@ const SKY_FRAGMENT = `
     // buildings standing in front of it.
     vec3 hillCol = mix(sfHazeBase * mix(0.86, 0.74, uDark), cityC * 0.60, 0.22);
     hillCol = mix(hillCol, sfHazeBase, hazeAmt * 0.8);
-    hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, a);
+    hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, aHills);
     vec3 cityCol = mix(cityC, sfHazeBase, hazeAmt);
     cityCol += emberC * ember * 0.25;
     // Sutro's paint is present but distant: red and warm off-white bands,
@@ -2531,8 +2547,8 @@ const SKY_FRAGMENT = `
       float night = smoothstep(0.35, 0.75, uDark);
       float dApex = length(vec2(dTr, e - TR_TOP));
       col += avRed * smoothstep(0.0032, 0.0010, dApex) * 0.8 * night;
-      float dT1 = length(vec2(a + 1.145, e - 0.030));
-      float dT2 = length(vec2(a + 1.035, e - 0.030));
+      float dT1 = length(vec2(aCity + 1.145, e - 0.030));
+      float dT2 = length(vec2(aCity + 1.035, e - 0.030));
       col += avRed * (smoothstep(0.0030, 0.0010, dT1) * step(fract(uTime * 0.5 + 0.37), 0.14)
                     + smoothstep(0.0030, 0.0010, dT2) * step(fract(uTime * 0.5 + 0.71), 0.14)) * night;
 
@@ -3025,6 +3041,9 @@ function SkyDome({
       uDark: { value: dark ? 1 : 0 },
       uDawn: { value: 0 },
       uPan: { value: -PAN_BIAS },
+      uSkyPanCity: { value: 0 },
+      uSkyPanHills: { value: 0 },
+      uSkyPanBridge: { value: 0 },
       // Seeded near the centre of the opening frame rather than "nowhere":
       // damping in from a sentinel would sweep the highlight across the
       // whole skyline on load.
@@ -3235,6 +3254,15 @@ function SkyDome({
     u.uDawn!.value = progressRef.current;
     const pan = progressRef.current * PAN_SPAN - PAN_BIAS;
     u.uPan!.value = pan;
+    // Depth layers over the base pan: zero unless the console asks for them.
+    const layers = skyLayerPanOffsets({
+      panDelta: pan + PAN_BIAS,
+      turn: skyPointerTurn.current,
+      state: skyDepthController.getSnapshot(),
+    });
+    u.uSkyPanCity!.value = layers.city;
+    u.uSkyPanHills!.value = layers.hills;
+    u.uSkyPanBridge!.value = layers.bridge;
     // Which stretch of skyline the pointer is over. The dome rides with the
     // camera now, so the pointer ray's own direction IS the dome-local
     // direction — no raycast against geometry needed, and it agrees with
@@ -3242,7 +3270,9 @@ function SkyDome({
     // rather than snap as the cursor sweeps.
     raycaster.setFromCamera(pointer, camera);
     const dir = raycaster.ray.direction;
-    const az = Math.atan2(dir.z, dir.x) + pan;
+    // In the city layer's own azimuth: the windows and towers it wakes
+    // live there.
+    const az = Math.atan2(dir.z, dir.x) + pan + layers.city;
     u.uHover!.value = THREE.MathUtils.damp(
       u.uHover!.value as number,
       az,
@@ -3380,7 +3410,7 @@ function SkyDome({
     parkSkyTarget(
       hitRef.current,
       camera,
-      pan,
+      pan + layers.bridge,
       GGB_AZ,
       GGB_HALF_A,
       GGB_E0,
@@ -3390,7 +3420,7 @@ function SkyDome({
     parkSkyTarget(
       sfHitRef.current,
       camera,
-      pan,
+      pan + layers.city,
       SF_AZ,
       SF_HALF_A,
       SF_E0,
@@ -3400,7 +3430,7 @@ function SkyDome({
     parkSkyTarget(
       jasperHitRef.current,
       camera,
-      pan,
+      pan + layers.city,
       JASPER_AZ,
       JASPER_HALF_A,
       JASPER_E0,

@@ -1,3 +1,4 @@
+import { GOLF_BALL_RADIUS } from "./golfBallGeometry";
 import { GOLF_CUP } from "./golfCourse";
 import {
   type GolfBallState,
@@ -15,7 +16,7 @@ export const GOLF_MAX_CATCH_UP = 0.12;
  * gives a compact wedge arc instead of the slow, low-gravity float used by
  * generic shelf props. */
 export const GOLF_GRAVITY = 9.81;
-export const GOLF_BALL_RADIUS = 0.05;
+export { GOLF_BALL_RADIUS };
 export const GOLF_RESET: GolfResetState = {
   fadeOutSeconds: 0.4,
   hiddenSeconds: GOLF_FIXED_STEP,

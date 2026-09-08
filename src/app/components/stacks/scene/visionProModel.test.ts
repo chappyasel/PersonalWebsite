@@ -381,16 +381,25 @@ describe("Vision Pro web model", () => {
     expect(silhouette.parts.glass).toContain("C");
   });
 
-  it("expands the boot glass across nearly the whole front enclosure", () => {
+  it("traces the boot glass as the front face the camera sees, not the whole enclosure", () => {
+    // Through the rest camera the headset is seen from above and a little
+    // to its left: the glass fills the front and lower left of the outline,
+    // and the band, seal and the top of the enclosure show above and to the
+    // right of it. The six-pixel dilation it used to get swallowed most of
+    // that; one pixel now just closes the seam with the frame.
     const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES["vision-pro"];
+    const [, , width, height] = silhouette.viewBox;
     const glass = silhouette.parts.glass;
     const points = [
       ...glass.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g),
     ].map((match) => [Number(match[1]), Number(match[2])] as const);
+    const xs = points.map(([x]) => x);
+    const ys = points.map(([, y]) => y);
 
-    expect(Math.min(...points.map(([x]) => x))).toBeLessThanOrEqual(1.5);
-    expect(Math.max(...points.map(([x]) => x))).toBeGreaterThanOrEqual(165);
-    expect(Math.min(...points.map(([, y]) => y))).toBeLessThanOrEqual(0.5);
-    expect(Math.max(...points.map(([, y]) => y))).toBeGreaterThanOrEqual(95.5);
+    expect(Math.min(...xs)).toBeLessThanOrEqual(width * 0.05);
+    expect(Math.max(...xs)).toBeGreaterThanOrEqual(width * 0.6);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(width * 0.9);
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(height * 0.15);
+    expect(Math.max(...ys)).toBeGreaterThanOrEqual(height * 0.85);
   });
 });

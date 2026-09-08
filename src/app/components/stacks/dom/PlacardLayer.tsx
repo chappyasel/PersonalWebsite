@@ -2510,11 +2510,20 @@ export default function PlacardLayer({
         @media (min-width: 1200px) {
           /* Restore the material strength of the former desktop plates on the
              native surfaces. The explicit marker excludes nested language
-             pills, so only the card-sized glass receives the wide scene blur. */
+             pills, so only the card-sized glass receives the wide scene blur.
+
+             The light plate needs a luminance floor. brightness() multiplies,
+             so trees behind the lower Book Notes rows came out a mid grey
+             within a couple of stops of the ink while sky behind the stats
+             card went blank white. contrast(0.55) pulls both ends toward mid
+             grey before brightness lifts the band, and the fill finishes the
+             lift: dark scene ~0.27 -> ~0.50, sky ~0.98 -> ~0.86. Frosted
+             glass scatters and compresses, so this also reads more like
+             glass. Dark mode is left as authored; it looked fine. */
           [data-stacks-desktop-panel] [data-placard-surface] {
-            background-color: rgb(255 255 255 / 0.18) !important;
-            backdrop-filter: blur(80px) saturate(0.28) brightness(1.4) !important;
-            -webkit-backdrop-filter: blur(80px) saturate(0.28) brightness(1.4) !important;
+            background-color: rgb(255 255 255 / 0.22) !important;
+            backdrop-filter: blur(80px) saturate(0.35) contrast(0.55) brightness(1.35) !important;
+            -webkit-backdrop-filter: blur(80px) saturate(0.35) contrast(0.55) brightness(1.35) !important;
           }
           .dark [data-stacks-desktop-panel] [data-placard-surface] {
             background-color: rgb(0 0 0 / 0.05) !important;
@@ -3029,7 +3038,8 @@ export default function PlacardLayer({
           html:not(.dark) [data-stacks-desktop-panel] a[data-placard-surface]:hover,
           html:not(.dark) [data-stacks-desktop-panel] a:focus-visible [data-placard-surface],
           html:not(.dark) [data-stacks-desktop-panel] a[data-placard-surface]:focus-visible {
-            background-color: rgb(255 255 255 / 0.25) !important;
+            /* Sits above the 0.22 resting fill so hover still lightens. */
+            background-color: rgb(255 255 255 / 0.30) !important;
           }
           .dark [data-stacks-desktop-panel] [data-placard-link]:hover [data-placard-surface],
           .dark [data-stacks-desktop-panel] [data-placard-link]:focus-visible [data-placard-surface],
