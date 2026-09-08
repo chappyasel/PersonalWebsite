@@ -212,7 +212,7 @@ export default function RichTextRenderer({
           // pages add the target's glyph in front of the words; that, not a
           // different underline, is what marks them as wayfinding.
           const linkClass =
-            "underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60";
+            "underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30";
           if (XrefIcon) {
             const sectionId = rt.link.slice(1);
             const accent = sectionAccentClass(sectionId) ?? "";
@@ -223,12 +223,12 @@ export default function RichTextRenderer({
                 className="ml-0.5 inline-flex items-center gap-0.5 align-baseline opacity-80 transition-opacity hover:opacity-100"
               >
                 <XrefIcon
-                  size={13}
+                  size={16}
                   weight="duotone"
                   className={`inline-block -translate-y-px ${accent}`}
                 />
                 <ArrowBendRightDownIcon
-                  size={12}
+                  size={13}
                   weight="bold"
                   className="inline-block -translate-y-px text-muted-foreground/70"
                 />
@@ -239,9 +239,11 @@ export default function RichTextRenderer({
                 className={`whitespace-nowrap ${linkClass}`}
               >
                 <XrefIcon
-                  size={13}
+                  size={16}
                   weight="duotone"
-                  className={`mr-1 inline-block -translate-y-px opacity-80 ${accent}`}
+                  // 1em glyph seated 0.125em below the baseline: the visible
+                  // glyph then centres on the capitals (the icon-font rule).
+                  className={`mr-1 inline-block align-[-0.125em] opacity-80 ${accent}`}
                 />
                 {el}
               </SectionLink>

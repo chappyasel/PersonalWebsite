@@ -75,12 +75,12 @@ export default function SiteLink({
         <TooltipTrigger asChild>
           <Link
             href={href}
-            className="whitespace-nowrap underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60"
+            className="whitespace-nowrap underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
           >
             <Icon
-              size={13}
+              size={16}
               weight="duotone"
-              className={`mr-1 inline-block -translate-y-px opacity-80 ${accentClass}`}
+              className={`mr-1 inline-block align-[-0.125em] opacity-80 ${accentClass}`}
             />
             {children}
           </Link>

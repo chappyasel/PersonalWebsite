@@ -55,16 +55,19 @@ export default function NotionToggle({
   title,
   blocks,
   bookLookup,
+  variant,
 }: {
   title: RichText[];
   blocks: NotionBlock[];
   bookLookup?: BookLookup;
+  /** "note": an aside, styled apart from content dropdowns (daylight.css). */
+  variant?: "note";
 }) {
   const [open, setOpen] = useState(false);
   const contentId = useId();
 
   return (
-    <div>
+    <div data-notion-toggle={variant ?? ""}>
       <button
         data-notion-toggle-trigger=""
         type="button"
@@ -73,8 +76,9 @@ export default function NotionToggle({
         onClick={() => setOpen((current) => !current)}
         // The caret sits in the gutter where a sibling list's bullets are (the
         // renderer's lists are ml-4), so the title and the body start on the
-        // list text's column.
-        className="group/notion-toggle flex w-full items-start gap-2 rounded-sm py-1 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        // list text's column. No vertical padding: the row is one line tall,
+        // like a list item, and .dl-prose spaces it like one.
+        className="group/notion-toggle flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <DisclosureCaret
           open={open}
@@ -85,7 +89,7 @@ export default function NotionToggle({
         </span>
       </button>
       <DisclosurePanel id={contentId} open={open}>
-        <div className="space-y-2 pb-2 pl-6 pt-1">
+        <div className="dl-prose pb-1 pl-6 pt-1.5">
           {blocks.map((block, i) => (
             <NotionBlockRenderer
               key={i}

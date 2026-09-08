@@ -96,7 +96,7 @@ describe("LayerSections", () => {
   it("uses compact toggle rows and an icon for the summary separator", () => {
     const markup = renderToStaticMarkup(<LayerSections layers={layers} />);
 
-    expect(markup).toContain("space-y-1.5");
+    expect(markup).toContain("dl-prose");
     expect(markup).toContain("data-notion-toggle-arrow");
     expect(markup).toContain("pl-6");
     expect(markup).not.toContain("→ summary");
@@ -132,7 +132,7 @@ describe("LayerSections", () => {
     expect(body?.className).not.toContain(
       "[&_[data-notion-toggle-trigger]]:text-base",
     );
-    expect(title?.className).toContain("text-lg");
+    expect(title?.className).toContain("text-[1.375rem]");
   });
 
   it("uses the nested dropdown caret size and color for layer headers", () => {

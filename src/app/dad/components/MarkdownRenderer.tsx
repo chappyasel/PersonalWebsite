@@ -128,7 +128,7 @@ const components: Components = {
 
 export function MarkdownRenderer({ content }: { content: string }) {
   return (
-    <div className="prose prose-lg prose-neutral max-w-none leading-[1.9] text-foreground prose-headings:font-light prose-headings:italic prose-headings:tracking-wide prose-headings:text-foreground prose-a:text-foreground prose-a:underline prose-a:decoration-muted-foreground/30 hover:prose-a:decoration-muted-foreground/60 prose-blockquote:border-l-0 prose-blockquote:pl-0 prose-blockquote:text-center prose-blockquote:italic prose-blockquote:text-muted-foreground prose-strong:text-foreground prose-li:text-foreground">
+    <div className="prose prose-lg prose-neutral max-w-none leading-[1.9] text-foreground prose-headings:font-light prose-headings:italic prose-headings:tracking-wide prose-headings:text-foreground prose-a:text-foreground prose-a:underline prose-a:decoration-muted-foreground/15 hover:prose-a:decoration-muted-foreground/30 prose-blockquote:border-l-0 prose-blockquote:pl-0 prose-blockquote:text-center prose-blockquote:italic prose-blockquote:text-muted-foreground prose-strong:text-foreground prose-li:text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}

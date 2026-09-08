@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { SectionIcon } from "./sectionIcons";
+import { jumpToSection } from "./sectionJump";
 
 export interface TOCItem {
   id: string;
@@ -37,28 +38,27 @@ function useActiveSection(items: TOCItem[]) {
     return () => observer.disconnect();
   }, [items]);
 
+  // A section jump, not a bare scroll: it replaces the hash and fires the
+  // jump event, so a folded section (or layer) opens as the rail lands on it.
   const scrollTo = useCallback((id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    jumpToSection(id);
   }, []);
 
   return { activeId, scrollTo };
 }
 
 /**
- * In-flow sidebar column from lg up — an overlay hung off a zero-width nav
- * clips off the left edge of 1024–1150px viewports, so the rail takes real
- * width and the page adds a right-hand spacer (DaylightTOCSpacer) once there
- * is room to re-center the content column.
+ * In-flow rail from lg up. It is the first grid item of a .dl-columns row
+ * (daylight.css), which gives it its width and gap and keeps the content
+ * column centred on the viewport whenever the rail fits beside it; below lg
+ * the rail is hidden and the column stands alone.
  */
 export function DaylightTOCSidebar({ items }: { items: TOCItem[] }) {
   const { activeId, scrollTo } = useActiveSection(items);
 
   return (
     <nav
-      className="dl-toc sticky top-12 mr-10 hidden h-fit w-[11.5rem] shrink-0 self-start font-sans lg:block"
+      className="dl-toc sticky top-12 hidden h-fit self-start font-sans lg:block"
       aria-label="Sections"
     >
       <p className="mb-3 py-[0.3rem] text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">
@@ -82,16 +82,5 @@ export function DaylightTOCSidebar({ items }: { items: TOCItem[] }) {
         </button>
       ))}
     </nav>
-  );
-}
-
-/**
- * Restores exact centering of the content column on wide screens by
- * mirroring the sidebar's footprint (11.5rem + 2.5rem gap); below 1160px it
- * disappears so the sidebar never pushes content off the right edge.
- */
-export function DaylightTOCSpacer() {
-  return (
-    <div aria-hidden className="hidden w-56 shrink-0 min-[1160px]:block" />
   );
 }

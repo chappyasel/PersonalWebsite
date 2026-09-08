@@ -108,7 +108,7 @@ export function StatsPopover({
           aria-label={triggerAriaLabel}
           className={
             triggerClassName ??
-            "cursor-pointer decoration-foreground/30 decoration-dotted underline-offset-8 outline-none hover:underline focus-visible:underline"
+            "cursor-pointer decoration-foreground/15 decoration-dotted underline-offset-8 outline-none hover:underline focus-visible:underline"
           }
           onPointerEnter={(e) => {
             if (e.pointerType === "mouse") openNow(true);

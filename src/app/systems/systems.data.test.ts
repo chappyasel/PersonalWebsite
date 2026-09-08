@@ -154,13 +154,14 @@ describe("systems.json snapshot", () => {
     const markup = renderToStaticMarkup(
       createElement(SystemsSection, { section: tips }),
     );
-    expect(markup).toContain("list-decimal space-y-2");
-    expect(markup).toContain("list-disc space-y-2");
+    // The rhythm lives in daylight.css; the markup only flags the lists.
+    expect(markup).toMatch(/<ol[^>]*data-relaxed=""/);
+    expect(markup).toMatch(/<ul[^>]*data-relaxed=""/);
   });
 
-  it("preserves the 46 dropdowns with their nested bodies", () => {
+  it("preserves the 47 dropdowns with their nested bodies", () => {
     const toggles = [...walk(everyBlock)].filter((b) => b.type === "toggle");
-    expect(toggles).toHaveLength(46);
+    expect(toggles).toHaveLength(47);
     for (const toggle of toggles) {
       if (toggle.type !== "toggle") continue;
       expect(toggle.children.length, plain(toggle.title)).toBeGreaterThan(0);

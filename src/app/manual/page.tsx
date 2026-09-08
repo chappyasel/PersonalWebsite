@@ -6,11 +6,9 @@ import { loadSitePageCards } from "~/lib/site/pageCards";
 
 import ManualHero from "./components/ManualHero";
 import ManualSection from "./components/ManualSection";
-import {
-  DaylightTOCSidebar,
-  DaylightTOCSpacer,
-} from "~/components/daylight/DaylightTOC";
+import { DaylightTOCSidebar } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
+import { sectionShortTitle } from "~/components/daylight/sectionTitles";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import type { ManualData } from "./types";
@@ -26,15 +24,17 @@ export default async function ManualPage() {
     loadSitePageCards("manual"),
   ]);
 
+  // The rail is 13rem; a title that wraps on a phone also truncates there,
+  // so the rail takes the same short form the phone heading uses.
   const tocItems = data.sections.map((section) => ({
     id: section.id,
-    label: section.title,
+    label: sectionShortTitle(section.id) ?? section.title,
     emoji: section.icon,
   }));
 
   return (
     <SitePageCardsProvider cards={cards}>
-      <div className="daylight-root dl-ground-wash min-h-screen bg-background text-muted-foreground">
+      <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
         <main className="relative">
           <ManualHero
             hero={data.hero}
@@ -43,19 +43,16 @@ export default async function ManualPage() {
           />
 
           {/* Content with TOC */}
-          <div className="mx-auto max-w-5xl px-4 pb-12">
-            <div className="mt-11 flex justify-center">
-              <DaylightTOCSidebar items={tocItems} />
-              <div className="w-full max-w-[45rem] space-y-12">
-                {data.sections.map((section) => (
-                  <ManualSection
-                    key={section.id}
-                    section={section}
-                    bookLookup={bookLookup}
-                  />
-                ))}
-              </div>
-              <DaylightTOCSpacer />
+          <div className="dl-columns mt-11 px-4 pb-12">
+            <DaylightTOCSidebar items={tocItems} />
+            <div className="dl-column space-y-14">
+              {data.sections.map((section) => (
+                <ManualSection
+                  key={section.id}
+                  section={section}
+                  bookLookup={bookLookup}
+                />
+              ))}
             </div>
           </div>
           <SkyFooter />

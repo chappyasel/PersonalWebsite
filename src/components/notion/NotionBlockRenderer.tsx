@@ -21,7 +21,7 @@ function ListItem({
   const rest = item.slice(1);
 
   return (
-    <li className="leading-relaxed">
+    <li>
       {first?.type === "paragraph" ? (
         <span>
           <RichTextRenderer content={first.content} bookLookup={bookLookup} />
@@ -34,7 +34,7 @@ function ListItem({
         />
       ) : null}
       {rest.length > 0 && (
-        <div className="mt-1 space-y-1">
+        <div className="dl-prose">
           {rest.map((b, j) => (
             <NotionBlockRenderer
               key={j}
@@ -49,6 +49,12 @@ function ListItem({
   );
 }
 
+/**
+ * One Notion block as markup. Type sizes, heading margins, and the gaps
+ * between blocks are not set here: every container of blocks carries
+ * `dl-prose`, and daylight.css owns that rhythm in one place, so a heading
+ * inside a dropdown is sized and spaced like one in a section body.
+ */
 export default function NotionBlockRenderer({
   block,
   bookLookup,
@@ -62,7 +68,7 @@ export default function NotionBlockRenderer({
   switch (block.type) {
     case "paragraph":
       return (
-        <p className="leading-relaxed">
+        <p>
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
         </p>
       );
@@ -70,13 +76,13 @@ export default function NotionBlockRenderer({
     case "heading":
       if (block.level === 2) {
         return (
-          <h2 className="mt-6 text-lg font-semibold text-foreground first:mt-0">
+          <h2>
             <RichTextRenderer content={block.content} bookLookup={bookLookup} />
           </h2>
         );
       }
       return (
-        <h3 className="mt-4 text-base font-semibold text-foreground first:mt-0">
+        <h3>
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
         </h3>
       );
@@ -97,13 +103,15 @@ export default function NotionBlockRenderer({
           title={block.title}
           blocks={block.children}
           bookLookup={bookLookup}
+          variant={block.variant}
         />
       );
 
     case "bulleted_list":
       return (
         <ul
-          className={`ml-4 list-disc ${relaxedLists ? "space-y-2" : "space-y-1"} marker:text-muted-foreground/40`}
+          className="ml-4 list-disc marker:text-muted-foreground/40"
+          data-relaxed={relaxedLists ? "" : undefined}
         >
           {block.items.map((item, i) => (
             <ListItem
@@ -119,7 +127,8 @@ export default function NotionBlockRenderer({
     case "numbered_list":
       return (
         <ol
-          className={`ml-4 list-decimal ${relaxedLists ? "space-y-2" : "space-y-1"} marker:text-muted-foreground/40`}
+          className="ml-4 list-decimal marker:text-muted-foreground/40"
+          data-relaxed={relaxedLists ? "" : undefined}
         >
           {block.items.map((item, i) => (
             <ListItem
@@ -138,7 +147,7 @@ export default function NotionBlockRenderer({
       // the sync flagged as invertible flips to light-on-dark in dark mode,
       // hue rotated back so coloured lines keep their colours.
       return (
-        <figure className="my-5 flex justify-center">
+        <figure className="flex justify-center">
           <span className="dl-print">
             <Image
               src={block.src}
@@ -152,7 +161,7 @@ export default function NotionBlockRenderer({
       );
 
     case "divider":
-      return <hr className="my-6 border-muted-foreground/10" />;
+      return <hr className="border-muted-foreground/10" />;
 
     case "quote":
       return (
@@ -192,7 +201,7 @@ export default function NotionBlockRenderer({
                             href={cell.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60"
+                            className="underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
                           >
                             {cell.text}
                           </Link>

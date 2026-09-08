@@ -2,11 +2,9 @@
 
 import type { BookLookup, TimelineEntry as TimelineEntryType } from "../types";
 
-import AnchorLink from "~/components/daylight/AnchorLink";
-import { SectionIcon } from "~/components/daylight/sectionIcons";
+import DaylightSection from "~/components/daylight/DaylightSection";
 
 import TimelineEntry from "./TimelineEntry";
-import { useHashTarget } from "./sectionLink";
 
 function TimelineSection({
   id,
@@ -21,18 +19,10 @@ function TimelineSection({
   bookLookup?: BookLookup;
   arc: "am" | "pm";
 }) {
-  useHashTarget(id);
-
+  // Same folding header as every other section; the arm's tint lives on
+  // the icon and the axis is the entries' spine below.
   return (
-    <section id={id} data-arc={arc} className="dl-tl scroll-mt-24">
-      {/* Same flush header as every other section; the arm's tint lives on
-          the icon and the axis is the entries' spine below. */}
-      <div className="group/sec flex items-center gap-2.5 border-b border-border/80 pb-2">
-        <SectionIcon id={id} size={18} className="shrink-0" />
-        <h2 className="dl-h2">{label}</h2>
-        <AnchorLink id={id} />
-      </div>
-
+    <DaylightSection id={id} title={label} data-arc={arc} className="dl-tl">
       <div className="dl-tl-body mt-2">
         {entries.map((entry, i) => (
           <TimelineEntry
@@ -44,7 +34,7 @@ function TimelineSection({
           />
         ))}
       </div>
-    </section>
+    </DaylightSection>
   );
 }
 
@@ -58,7 +48,7 @@ export default function RoutineTimeline({
   bookLookup?: BookLookup;
 }) {
   return (
-    <div className="space-y-12">
+    <div className="space-y-14">
       <TimelineSection
         id="morning"
         label="Morning"

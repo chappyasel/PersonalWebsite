@@ -1,21 +1,20 @@
+import rawData from "../../../public/data/systems.json";
 import React from "react";
 
-import {
-  DaylightTOCSidebar,
-  type TOCItem,
-} from "~/components/daylight/DaylightTOC";
-import { DaylightTOCSpacer } from "~/components/daylight/DaylightTOC";
-import { HashScrollSpacer } from "~/components/daylight/hashTarget";
-import SkyFooter from "~/components/daylight/SkyFooter";
-import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { loadSitePageCards } from "~/lib/site/pageCards";
 
 import SystemsHero from "./components/SystemsHero";
 import SystemsSection from "./components/SystemsSection";
-import type { SystemsData } from "./types";
+import {
+  DaylightTOCSidebar,
+  type TOCItem,
+} from "~/components/daylight/DaylightTOC";
+import SkyFooter from "~/components/daylight/SkyFooter";
+import { HashScrollSpacer } from "~/components/daylight/hashTarget";
+import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
-import rawData from "../../../public/data/systems.json";
+import type { SystemsData } from "./types";
 
 const data = rawData as unknown as SystemsData;
 
@@ -42,7 +41,7 @@ export default async function SystemsPage() {
 
   return (
     <SitePageCardsProvider cards={cards}>
-      <div className="daylight-root dl-ground-wash min-h-screen bg-background text-muted-foreground">
+      <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
         <main className="relative">
           <SystemsHero
             intro={data.intro}
@@ -51,23 +50,17 @@ export default async function SystemsPage() {
           />
 
           {/* Content with TOC */}
-          <div className="mx-auto max-w-5xl px-4 pb-12">
-            <div className="mt-11 flex justify-center">
-              <DaylightTOCSidebar items={tocItems} />
-              <div
-                className="w-full max-w-[45rem] space-y-12"
-                data-systems-content
-              >
-                {data.sections.map((section) => (
-                  <SystemsSection
-                    key={section.id}
-                    section={section}
-                    bookLookup={bookLookup}
-                  />
-                ))}
-                <HashScrollSpacer />
-              </div>
-              <DaylightTOCSpacer />
+          <div className="dl-columns mt-11 px-4 pb-12">
+            <DaylightTOCSidebar items={tocItems} />
+            <div className="dl-column space-y-14" data-systems-content>
+              {data.sections.map((section) => (
+                <SystemsSection
+                  key={section.id}
+                  section={section}
+                  bookLookup={bookLookup}
+                />
+              ))}
+              <HashScrollSpacer />
             </div>
           </div>
           <SkyFooter />

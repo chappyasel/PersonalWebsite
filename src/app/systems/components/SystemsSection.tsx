@@ -1,7 +1,6 @@
 import type { SystemsSection as SystemsSectionType } from "../types";
 
-import AnchorLink from "~/components/daylight/AnchorLink";
-import { SectionIcon } from "~/components/daylight/sectionIcons";
+import DaylightSection from "~/components/daylight/DaylightSection";
 import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup } from "~/components/notion/types";
 
@@ -19,21 +18,11 @@ export default function SystemsSection({
   bookLookup?: BookLookup;
 }) {
   return (
-    <section id={section.id} className="scroll-mt-24">
-      <div className="group/sec flex items-center gap-2.5 border-b border-border/80 pb-2">
-        <SectionIcon
-          id={section.id}
-          emoji={section.icon}
-          size={18}
-          className="shrink-0"
-        />
-        <h2 className="dl-h2">{section.title}</h2>
-        <AnchorLink id={section.id} />
-      </div>
+    <DaylightSection id={section.id} emoji={section.icon} title={section.title}>
       {section.layers ? (
         <LayerSections layers={section.layers} bookLookup={bookLookup} />
       ) : (
-        <div className="space-y-3 pt-3.5 text-[0.9375rem] text-muted-foreground">
+        <div className="dl-prose pt-5">
           {section.blocks.map((block, i) => (
             <NotionBlockRenderer
               key={i}
@@ -44,6 +33,6 @@ export default function SystemsSection({
           ))}
         </div>
       )}
-    </section>
+    </DaylightSection>
   );
 }

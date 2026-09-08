@@ -2153,7 +2153,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 // this is the sheet's grabber row, not a visible control, and
                 // the ring showed on the programmatic focus after a tap.
                 // Keyboard focus underlines instead.
-                className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-4 text-left text-[color:color-mix(in_srgb,hsl(var(--foreground)),black_35%)] decoration-foreground/40 decoration-2 underline-offset-[0.2em] outline-none focus-visible:underline dark:text-[color:color-mix(in_srgb,hsl(var(--foreground)),white_35%)]"
+                className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-4 text-left text-[color:color-mix(in_srgb,hsl(var(--foreground)),black_35%)] decoration-foreground/20 decoration-2 underline-offset-[0.2em] outline-none focus-visible:underline dark:text-[color:color-mix(in_srgb,hsl(var(--foreground)),white_35%)]"
               >
                 <ShownIcon
                   aria-hidden

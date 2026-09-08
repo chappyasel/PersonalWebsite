@@ -14,6 +14,10 @@ import { DisclosureCaret } from "~/components/ui/disclosure";
 /** Tailwind's `sm` breakpoint, the width at which the layers stop folding. */
 const WIDE = "(min-width: 640px)";
 
+/** Layers that stay folded at every width until opened (owner's call: the
+ * Domain Systems layer is 19 dropdowns long). A deep link still opens them. */
+const FOLDED_BY_DEFAULT = new Set(["domain-systems"]);
+
 /**
  * A layer with no explicit choice is "auto": open from `sm` up, folded on a
  * phone. The stylesheet decides that (`sm:data-[open=auto]:grid-rows-[1fr]`),
@@ -83,7 +87,7 @@ export default function LayerSections({
   const toggle = (id: string) => {
     releaseHash(); // drop the deep-link target so it stops forcing the fold
     setChoice((current) => {
-      const isOpen = current[id] ?? wide;
+      const isOpen = current[id] ?? (wide && !FOLDED_BY_DEFAULT.has(id));
       if (wide) return { ...current, [id]: !isOpen };
       // Accordion: an explicit choice for this layer alone, every other
       // layer back to auto (folded at this width).
@@ -92,10 +96,11 @@ export default function LayerSections({
   };
 
   return (
-    <div className="divide-y divide-border/60">
+    <div className="space-y-4">
       {layers.map((layer) => {
         const state = choice[layer.id];
-        const expanded = state ?? wide;
+        const folded = FOLDED_BY_DEFAULT.has(layer.id);
+        const expanded = state ?? (wide && !folded);
         return (
           <section
             key={layer.id}
@@ -114,7 +119,7 @@ export default function LayerSections({
                   toggle(layer.id);
                 }
               }}
-              className="group/sec flex w-full cursor-pointer items-center gap-2.5 py-3 text-left"
+              className="group/sec flex w-full cursor-pointer items-center gap-2.5 py-3.5 text-left"
             >
               <div className="flex shrink-0 items-center gap-1.5">
                 {layer.number !== null && (
@@ -128,13 +133,13 @@ export default function LayerSections({
                 <SectionIcon
                   id={layer.id}
                   emoji={layer.icon}
-                  size={17}
+                  size={20}
                   className="shrink-0"
                 />
               </div>
               <h3
                 data-systems-layer-title=""
-                className="text-lg font-semibold text-foreground"
+                className="text-[1.375rem] font-semibold leading-tight text-foreground"
               >
                 {layer.title}
               </h3>
@@ -147,13 +152,19 @@ export default function LayerSections({
             </div>
             <div
               data-systems-fold
-              data-open={state === undefined ? "auto" : String(state)}
+              data-open={
+                state === undefined
+                  ? folded
+                    ? "folded"
+                    : "auto"
+                  : String(state)
+              }
               className="duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] grid grid-rows-[0fr] transition-[grid-template-rows] data-[open=true]:grid-rows-[1fr] sm:data-[open=auto]:grid-rows-[1fr]"
             >
               <div className="overflow-hidden">
                 <div
                   data-systems-layer-body=""
-                  className="space-y-1.5 pb-5 pl-1 pt-1 text-[0.9375rem] text-muted-foreground [&_[data-notion-toggle-trigger]]:py-0.5"
+                  className="dl-prose pb-5 pl-1 pt-1"
                 >
                   {layer.blocks.map((block, i) => (
                     <NotionBlockRenderer

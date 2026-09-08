@@ -7,12 +7,9 @@ import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
 import RoutineTimeline from "./components/RoutineTimeline";
 import SupplementCardsSection from "./components/SupplementCards";
-import { HashScrollSpacer } from "./components/sectionLink";
-import {
-  DaylightTOCSidebar,
-  DaylightTOCSpacer,
-} from "~/components/daylight/DaylightTOC";
+import { DaylightTOCSidebar } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
+import { HashScrollSpacer } from "~/components/daylight/hashTarget";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import type { RoutineData } from "./types";
@@ -55,7 +52,7 @@ export default async function RoutinePage() {
 
   return (
     <SitePageCardsProvider cards={cards}>
-      <div className="daylight-root dl-ground-arc min-h-screen bg-background text-muted-foreground">
+      <div className="daylight-root dl-ground-arc min-h-screen bg-background text-foreground">
         <main className="relative">
           <RoutineHero
             intro={data.intro}
@@ -64,56 +61,53 @@ export default async function RoutinePage() {
           />
 
           {/* Content with TOC */}
-          <div className="mx-auto max-w-5xl px-4 pb-12">
-            <div className="mt-11 flex justify-center">
-              <DaylightTOCSidebar items={tocItems} />
-              <div
-                className="w-full max-w-[45rem] space-y-12"
-                data-routine-content
-              >
-                {/* Why So Early - collapsible preface */}
-                {data.whyEarly.length > 0 && (
-                  <RoutineSection
-                    section={{
-                      id: "why-early",
-                      title: "Why So Early?",
-                      icon: "⏰",
-                      blocks: data.whyEarly,
-                    }}
-                    bookLookup={bookLookup}
-                  />
-                )}
-
-                {/* The Timeline */}
-                <RoutineTimeline
-                  am={data.timeline.am}
-                  pm={data.timeline.pm}
+          <div className="dl-columns mt-11 px-4 pb-12">
+            <DaylightTOCSidebar items={tocItems} />
+            <div className="dl-column space-y-14" data-routine-content>
+              {/* Why So Early - collapsible preface */}
+              {data.whyEarly.length > 0 && (
+                <RoutineSection
+                  section={{
+                    id: "why-early",
+                    title: "Why So Early?",
+                    icon: "⏰",
+                    blocks: data.whyEarly,
+                  }}
                   bookLookup={bookLookup}
                 />
+              )}
 
-                {/* Supp Stacks (merged rant + cards) */}
-                {(data.supplements.am.length > 0 ||
-                  data.supplements.pm.length > 0) && (
-                  <SupplementCardsSection
-                    am={data.supplements.am}
-                    pm={data.supplements.pm}
-                    contextBlocks={suppStacksRant?.blocks}
-                    bookLookup={bookLookup}
-                  />
-                )}
+              {/* The Timeline */}
+              <RoutineTimeline
+                am={data.timeline.am}
+                pm={data.timeline.pm}
+                bookLookup={bookLookup}
+              />
 
-                {/* Related Rants (excluding supp-stacks) */}
-                {otherRants.map((section) => (
-                  <RoutineSection
-                    key={section.id}
-                    section={section}
-                    bookLookup={bookLookup}
-                  />
-                ))}
+              {/* Supp Stacks (merged rant + cards) */}
+              {(data.supplements.am.length > 0 ||
+                data.supplements.pm.length > 0) && (
+                <SupplementCardsSection
+                  am={data.supplements.am}
+                  pm={data.supplements.pm}
+                  contextBlocks={suppStacksRant?.blocks}
+                  bookLookup={bookLookup}
+                />
+              )}
 
-                <HashScrollSpacer />
-              </div>
-              <DaylightTOCSpacer />
+              {/* Related Rants (excluding supp-stacks): long essays, so they
+                  start folded (owner's call); a deep link or a rail click
+                  opens one. */}
+              {otherRants.map((section) => (
+                <RoutineSection
+                  key={section.id}
+                  section={section}
+                  bookLookup={bookLookup}
+                  defaultOpen={false}
+                />
+              ))}
+
+              <HashScrollSpacer />
             </div>
           </div>
           <SkyFooter />

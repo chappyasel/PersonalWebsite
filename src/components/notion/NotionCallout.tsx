@@ -82,7 +82,7 @@ export default function NotionCallout({
       ) : (
         <span className="mt-0.5 shrink-0 text-base leading-none">{icon}</span>
       )}
-      <div className="min-w-0 flex-1 space-y-2">
+      <div className="dl-prose min-w-0 flex-1">
         {content.map((block, i) => (
           <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
         ))}

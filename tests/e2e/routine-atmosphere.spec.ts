@@ -94,7 +94,10 @@ test("preserves section navigation, keyboard expansion, and deep links", async (
   await page.goto("/routine");
 
   const whyEarly = page.getByRole("button", { name: /Why So Early/ }).last();
+  await expect(whyEarly).toHaveAttribute("aria-expanded", "true");
   await whyEarly.focus();
+  await whyEarly.press("Enter");
+  await expect(whyEarly).toHaveAttribute("aria-expanded", "false");
   await whyEarly.press("Enter");
   await expect(whyEarly).toHaveAttribute("aria-expanded", "true");
 

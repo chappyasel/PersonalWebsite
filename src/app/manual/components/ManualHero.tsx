@@ -42,10 +42,7 @@ export default function ManualHero({
   return (
     <>
       <SkyHero>
-        <div className="space-y-3 pt-10">
-          {/* The theme toggle sits on the wayfinding line under the
-              description (DaylightHeroMeta); the top padding keeps the title
-              where the toggle's row used to hold it. */}
+        <div className="space-y-3">
           <div className="flex items-center gap-3">
             <BookOpenTextIcon
               size={28}
@@ -61,7 +58,7 @@ export default function ManualHero({
           </div>
 
           {hero.lead.length > 0 && (
-            <div className="max-w-[34rem] space-y-2 text-[0.9375rem]">
+            <div className="dl-prose">
               {hero.lead.map((block, i) => (
                 <NotionBlockRenderer
                   key={i}
@@ -77,20 +74,22 @@ export default function ManualHero({
       </SkyHero>
 
       {hero.panels.length > 0 && (
-        <div className="mx-auto mt-10 max-w-[45rem] space-y-6 px-4">
-          {hero.panels.map((panel) => (
-            <HeroPanel key={panel.id} label={panel.title}>
-              <div className="space-y-2">
-                {panel.blocks.map((block, i) => (
-                  <NotionBlockRenderer
-                    key={i}
-                    block={block}
-                    bookLookup={bookLookup}
-                  />
-                ))}
-              </div>
-            </HeroPanel>
-          ))}
+        <div className="dl-columns mt-10 px-4">
+          <div className="dl-column space-y-6">
+            {hero.panels.map((panel) => (
+              <HeroPanel key={panel.id} label={panel.title}>
+                <div className="dl-prose">
+                  {panel.blocks.map((block, i) => (
+                    <NotionBlockRenderer
+                      key={i}
+                      block={block}
+                      bookLookup={bookLookup}
+                    />
+                  ))}
+                </div>
+              </HeroPanel>
+            ))}
+          </div>
         </div>
       )}
     </>

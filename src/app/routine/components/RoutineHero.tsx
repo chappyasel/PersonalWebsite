@@ -16,10 +16,7 @@ export default function RoutineHero({
 }) {
   return (
     <SkyHero>
-      <div className="space-y-3 pt-10">
-        {/* The theme toggle sits on the wayfinding line under the description
-            (DaylightHeroMeta); the top padding keeps the title where the
-            toggle's row used to hold it. */}
+      <div className="space-y-3">
         <div className="flex items-center gap-3">
           <SunHorizonIcon
             size={28}
@@ -35,7 +32,7 @@ export default function RoutineHero({
         </div>
 
         {/* Notion's own opening paragraphs, links intact */}
-        <div className="max-w-[34rem] space-y-2 text-[0.9375rem]">
+        <div className="dl-prose">
           {intro.map((block, i) => (
             <NotionBlockRenderer
               key={i}

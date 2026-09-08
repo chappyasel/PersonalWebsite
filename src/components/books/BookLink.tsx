@@ -53,7 +53,7 @@ export default function BookLink({
   const anchor = (
     <Link
       href={href}
-      className="inline-flex items-baseline gap-1.5 underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60"
+      className="inline-flex items-baseline gap-1.5 underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
     >
       {cover && (
         <Image

@@ -2,7 +2,13 @@ export type NotionBlock =
   | { type: "paragraph"; content: RichText[] }
   | { type: "heading"; level: 2 | 3; content: RichText[] }
   | { type: "callout"; icon: string; color: string; content: NotionBlock[] }
-  | { type: "toggle"; title: RichText[]; children: NotionBlock[] }
+  | {
+      type: "toggle";
+      title: RichText[];
+      children: NotionBlock[];
+      /** An aside ("Note on …"): the page sets it apart from content dropdowns. */
+      variant?: "note";
+    }
   | { type: "bulleted_list"; items: NotionBlock[][] }
   | { type: "numbered_list"; items: NotionBlock[][] }
   | {

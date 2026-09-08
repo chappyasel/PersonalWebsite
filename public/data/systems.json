@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-07T06:55:00.000Z",
+  "lastUpdated": "2026-09-08T13:26:00.000Z",
   "intro": [
     {
       "type": "paragraph",
@@ -873,26 +873,10 @@
           "icon": "📆",
           "blocks": [
             {
-              "type": "callout",
-              "icon": "💡",
-              "color": "gray_background",
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "Note: if you add up all the planning here you get ~6% of total time spent doing deliberate planning / strategy. I expect emergent planning through unanticipated opportunities to bring the real total closer to 10%. This is in line with what studies show is optimal for the explore exploit tradeoff!",
-                      "italic": true
-                    }
-                  ]
-                }
-              ]
-            },
-            {
               "type": "toggle",
               "title": [
                 {
-                  "text": "♾️ Deep Think Weeks (72h)",
+                  "text": "♾️ Deep Think Weeks (72h)",
                   "bold": true
                 },
                 {
@@ -1304,6 +1288,27 @@
                   ]
                 }
               ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "Note on methodology",
+                  "italic": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "If you add up all the planning here you get ~6% of total time spent doing deliberate planning / strategy. I expect emergent planning through unanticipated opportunities to bring the real total closer to 10%. This is in line with what studies show is optimal for the explore exploit tradeoff!",
+                      "italic": true
+                    }
+                  ]
+                }
+              ],
+              "variant": "note"
             }
           ]
         },

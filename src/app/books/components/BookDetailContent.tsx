@@ -1556,7 +1556,7 @@ export function BookDetailContent({
                   className={cn(
                     "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
                     "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
-                    "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-semibold prose-strong:text-foreground",
+                    "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline prose-a:decoration-foreground/15 hover:prose-a:text-foreground hover:prose-a:decoration-foreground/30 prose-strong:font-semibold prose-strong:text-foreground",
                     "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
                     "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",
                   )}

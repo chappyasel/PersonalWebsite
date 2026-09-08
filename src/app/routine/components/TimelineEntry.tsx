@@ -39,7 +39,7 @@ export default function TimelineEntry({
         <span className="dl-entry-title">{title}</span>
       </button>
       <DisclosurePanel id={contentId} open={open}>
-        <div className="dl-entry-body space-y-2 text-muted-foreground">
+        <div className="dl-entry-body dl-prose">
           {blocks.map((block, i) => (
             <NotionBlockRenderer
               key={i}

@@ -54,6 +54,13 @@
   /* One step firmer than the site --border, for the TOC rail. */
   --dl-border-strong: 20 6% 76%;
 
+  /* Column geometry shared by the hero copy, the hero panels, and the body
+     (see "Columns" below): the reading column is Notion's own 45rem, and
+     the TOC rail sits in the track to its left. */
+  --dl-column: 45rem;
+  --dl-rail: 13rem;
+  --dl-rail-gap: 3.5rem;
+
   /* Framed prints: the scene hangs its images in weathered frames with
      mats; the pages hang theirs the same way. Frame is the wood, lip is the
      lit inner edge where frame meets mat. */
@@ -902,10 +909,13 @@
 }
 .dl-hero-inner {
   position: relative;
-  max-width: 45rem;
-  margin: 0 auto;
-  /* Bottom padding tracks the aspect-true skyline (~11vw tall) plus the fade. */
-  padding: 3.5rem 1rem clamp(6rem, 15vw, 14rem);
+  /* Width and centring come from .dl-columns (SkyHero adds the class), so
+     the title and lead share the body column's exact edges at every width.
+     The top inset is the whole distance from the page edge to the title (the
+     heroes add none of their own; a 2.5rem spacer that once held the title
+     under the theme toggle's old corner row is gone). Bottom padding tracks
+     the aspect-true skyline (~11vw tall) plus the fade. */
+  padding: 4rem 1rem clamp(6rem, 15vw, 14rem);
   color: hsl(var(--dl-sky-ink) / 0.95);
   text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
   /* Let clicks fall through the column's empty padding to the sky beneath
@@ -953,7 +963,9 @@
     height: 2.25rem;
   }
   .dl-hero-inner {
-    padding-top: 1.75rem;
+    /* Clears the sheet's corner controls (top-4 plus a 2.25rem button) when
+       a phone-width title runs under them. */
+    padding-top: 3rem;
     padding-bottom: 10rem;
   }
   /* The strip pans on phones, so the tap target wears the SAME pan and
@@ -997,14 +1009,16 @@
    grey quote reads as disabled and a moss or coffee glyph all but vanishes,
    so inside the band they take the ink like the words around them. */
 .dl-hero-inner blockquote {
-  color: inherit;
-  border-color: hsl(var(--dl-sky-ink) / 0.4);
+  /* A quote in the lead (the systems page's Hamming line) steps back from
+     the copy around it: seven tenths of the ink, a fainter rule. */
+  color: hsl(var(--dl-sky-ink) / 0.7);
+  border-color: hsl(var(--dl-sky-ink) / 0.3);
 }
 .dl-hero-inner a {
-  text-decoration-color: hsl(var(--dl-sky-ink) / 0.45);
+  text-decoration-color: hsl(var(--dl-sky-ink) / 0.25);
 }
 .dl-hero-inner a:hover {
-  text-decoration-color: hsl(var(--dl-sky-ink) / 0.8);
+  text-decoration-color: hsl(var(--dl-sky-ink) / 0.45);
 }
 .dl-hero-inner a > svg {
   color: hsl(var(--dl-sky-ink));
@@ -1139,10 +1153,109 @@
 /* ============ Section headers ============ */
 
 .dl-h2 {
-  font-size: 1.3125rem;
+  /* Notion's H1 is 0.75 of its page title; 1.625rem is that ratio against
+     the 2.125rem hero title. */
+  font-size: 1.625rem;
   font-weight: 700;
-  letter-spacing: -0.005em;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: hsl(var(--foreground));
+}
+@media (max-width: 639.98px) {
+  .dl-h2 {
+    font-size: 1.4375rem;
+  }
+}
+
+/* Deep-link expand, zero JS: when a folded section is the URL fragment
+   target (/routine#supp-stacks, /systems#domain-systems), the browser opens
+   it at first paint, before hydration. */
+.dl-collapsible:target [data-dl-collapse] {
+  grid-template-rows: 1fr;
+}
+.dl-collapsible:target [data-dl-caret] {
+  transform: rotate(90deg);
+}
+
+/* ============ Reading column ============ */
+
+/*
+ * The vertical rhythm of Notion content, owned here instead of by utility
+ * classes on the renderer. Tailwind v3's space-y-* rule outranks a child's
+ * own mt-*, so a heading's top margin written on the heading never won, and
+ * every heading sat as close to the block above as one paragraph sits to
+ * the next. Every block container (a section body, a dropdown body, a
+ * callout, the tail of a list item, the hero lead) carries .dl-prose, so a
+ * paragraph inside a dropdown is spaced like one outside it.
+ *
+ * Sizes follow Notion's scale against the 2.125rem hero title: body 1rem,
+ * H3 1.1875rem, H2 1.375rem, section title 1.625rem (.dl-h2 above).
+ */
+.dl-prose {
+  --dl-gap: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.dl-prose > * + * {
+  margin-top: var(--dl-gap);
+}
+.dl-prose > h2,
+.dl-prose > h3 {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+.dl-prose > h2 {
+  font-size: 1.375rem;
+  margin-top: 2.25rem;
+}
+.dl-prose > h3 {
+  font-size: 1.1875rem;
+  margin-top: 1.75rem;
+}
+.dl-prose > :is(h2, h3):first-child {
+  margin-top: 0;
+}
+.dl-prose > :is(h2, h3) + * {
+  margin-top: 0.5rem;
+}
+/* Rows: list items and dropdown rows sit close, the way Notion keeps a list
+   reading as one list even when a dropdown is one of its rows. */
+.dl-prose li + li,
+.dl-prose
+  > :is(ul, ol, [data-notion-toggle])
+  + :is(ul, ol, [data-notion-toggle]) {
+  margin-top: 0.375rem;
+}
+.dl-prose [data-relaxed] > li + li {
+  margin-top: 0.625rem;
+}
+/* The tail of a list item (a nested list, a paragraph under a bullet) keeps
+   the row gap. */
+.dl-prose li > .dl-prose {
+  --dl-gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+/* A "Note on …" dropdown is an aside: italic, the secondary ink, one size
+   down, so it reads as the author's remark on the rows above it rather than
+   as another row. The sync flags it (variant "note") from its title. */
+.dl-prose [data-notion-toggle="note"] {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  font-size: 0.9375rem;
+}
+.dl-prose [data-notion-toggle="note"] .dl-prose {
+  font-size: 0.9375rem;
+}
+.dl-prose [data-notion-toggle="note"] > [data-notion-toggle-trigger] > span {
+  font-weight: 400;
+}
+.dl-prose > hr {
+  margin-block: 1.5rem;
+}
+.dl-prose > figure {
+  margin-block: 1.25rem;
 }
 
 /* ============ Continuous time axis ============ */
@@ -1218,13 +1331,13 @@
   box-shadow: 0 0 0 3px hsl(var(--dl-pm-chip) / 0.25);
 }
 .dl-entry-title {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 700;
   color: hsl(var(--foreground));
 }
+/* Type size and rhythm come from .dl-prose, the same as every section body. */
 .dl-entry-body {
   padding: 0.25rem 0 1rem 6.45rem;
-  font-size: 0.9063rem;
 }
 @media (max-width: 559.98px) {
   .dl-entry-head {
@@ -1257,6 +1370,47 @@
   }
   .dl-entry-body {
     padding-left: 1.25rem;
+  }
+}
+
+/* ============ Columns ============ */
+
+/*
+ * One column geometry for the hero copy, the hero panels, and the body.
+ * Below lg the column is a centred block of --dl-column plus its 1rem side
+ * padding. From lg up it is the middle track of a three-track grid: the TOC
+ * rail sits at the end of the first track and the third mirrors it, so the
+ * column stays centred on the viewport whenever the rail fits beside it. The
+ * rail track never shrinks below the rail plus its gap, so on a narrow
+ * desktop (1024-1250px) the column slides right instead of squeezing.
+ *
+ * The flex row this replaces held the column to 34rem on every screen wide
+ * enough to show its centring spacer: a 64rem container could not hold the
+ * rail, a 45rem column, and a 14rem spacer at once, and the column was the
+ * only one of the three allowed to shrink.
+ */
+.dl-columns {
+  max-width: calc(var(--dl-column) + 2rem);
+  margin-inline: auto;
+}
+@media (min-width: 1024px) {
+  .dl-columns {
+    display: grid;
+    grid-template-columns:
+      minmax(calc(var(--dl-rail) + var(--dl-rail-gap)), 1fr)
+      minmax(0, var(--dl-column))
+      minmax(0, 1fr);
+    max-width: none;
+  }
+  .dl-columns > .dl-column {
+    grid-column: 2;
+    min-width: 0;
+  }
+  .dl-columns > .dl-toc {
+    grid-column: 1;
+    width: var(--dl-rail);
+    justify-self: end;
+    margin-right: var(--dl-rail-gap);
   }
 }
 

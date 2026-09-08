@@ -330,10 +330,15 @@ export async function transformBlock(
       const children = block._children
         ? await transformBlocks(block._children, imagesDir, imagePathPrefix)
         : [];
+      // A dropdown titled "Note …" is an aside on the content around it, not
+      // a component of it; the page sets it apart (italic, lighter, one size
+      // down). Keyed on the title so an author can add one anywhere.
+      const note = /^note\b/i.test(richTextToPlain(block.toggle.rich_text));
       return {
         type: "toggle",
         title: transformRichText(block.toggle.rich_text),
         children,
+        ...(note ? { variant: "note" } : {}),
       };
     }
 
