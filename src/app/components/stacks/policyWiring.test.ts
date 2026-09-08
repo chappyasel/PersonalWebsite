@@ -231,10 +231,18 @@ describe("golf suspense wiring", () => {
     // The rule (golfVisibility.ts) is measured on the pose the rig has
     // built before the cup pivot and the push-in, with the pointer's full
     // pan restored, and its switch is what the store's golfFocused mirrors.
+    const proximityAt = cameraRig.indexOf(
+      "if (golfVisibilityRelevantForScenePosition(scenePosition))",
+    );
+    const referenceAt = cameraRig.indexOf(
+      "reference.width !== size.width",
+    );
     const measuredAt = cameraRig.indexOf("golfCoverage = golfModeCoverage(");
     const pivotAt = cameraRig.indexOf("golfYawRig({");
     const headAt = cameraRig.indexOf("aimForHeadTurn({");
-    expect(measuredAt).toBeGreaterThan(headAt);
+    expect(proximityAt).toBeGreaterThan(headAt);
+    expect(referenceAt).toBeGreaterThan(proximityAt);
+    expect(measuredAt).toBeGreaterThan(referenceAt);
     expect(measuredAt).toBeLessThan(pivotAt);
     expect(cameraRig).toContain(
       "authoredLookX + (pointerSwingFull.current - pointerSwing.current)",

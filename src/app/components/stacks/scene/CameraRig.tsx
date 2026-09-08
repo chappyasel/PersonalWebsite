@@ -65,6 +65,7 @@ import {
   golfGreenCoverage,
   golfModeCoverage,
   golfStopViewPose,
+  golfVisibilityRelevantForScenePosition,
 } from "./golfVisibility";
 import { golfYawRig } from "./golfYawPivot";
 import {
@@ -1254,62 +1255,72 @@ export default function CameraRig() {
     // the cup pivot at full weight for the same pointer, which is the view
     // golf would hold. The green must be in both. Measured on the blended
     // pose the camera actually holds, the mode would feed itself. Coverage
-    // is relative to the same pose built at this viewport's golf stop.
+    // is relative to the same pose built at this viewport's golf stop. The
+    // projection work only runs in the bay between the neighbouring Units;
+    // a distant green cannot claim focus from elsewhere in the room.
     const golfTuning = golfModeConsoleController.getSnapshot();
     const reference = golfStopReference.current;
     const railRightPx = currentRailRightPx();
-    if (
-      reference.width !== size.width ||
-      reference.height !== size.height ||
-      reference.rail !== railRightPx ||
-      reference.occluders !== golfTuning.occluders
-    ) {
-      reference.width = size.width;
-      reference.height = size.height;
-      reference.rail = railRightPx;
-      reference.occluders = golfTuning.occluders;
-      reference.pose = golfStopViewPose(size.width, size.height, railRightPx);
-      reference.coverage = golfGreenCoverage(reference.pose, golfTuning);
-    }
     let golfCoverage = golfStop ? 1 : 0;
     if (golfTuning.source === "visibility") {
-      // Both poses are measured at golf's own framing, the dollied one the
-      // stop reference is built with; the dolly above follows the mode, so
-      // whatever share of it is not in the camera yet is added back here.
-      // Otherwise the punch-in would grow the near shelf over the green and
-      // the mode would read its own dolly.
-      const dollyNotYetIn = golfDolly * (1 - golfPivotWeight);
-      const pose = golfPose.current;
-      pose.eye[0] = authoredEyeX;
-      pose.eye[1] = authoredEyeY;
-      pose.eye[2] = authoredEyeZ - dollyNotYetIn;
-      pose.look[0] =
-        authoredLookX + (pointerSwingFull.current - pointerSwing.current);
-      pose.look[1] = authoredLookY;
-      pose.look[2] = authoredLookZ;
-      pose.fovDegrees = composition.fov;
-      pose.aspect = size.width / Math.max(1, size.height);
-      // What the pivot below starts from, with the pan gone as it is at
-      // full weight.
-      const inGolf = golfInGolfBase.current;
-      inGolf.eye[0] = eyeX;
-      inGolf.eye[1] = authoredEyeY;
-      inGolf.eye[2] = baseZ - dollyNotYetIn;
-      inGolf.look[0] = look.current.x - pointerSwing.current;
-      inGolf.look[1] = authoredLookY;
-      inGolf.look[2] = look.current.z;
-      inGolf.fovDegrees = pose.fovDegrees;
-      inGolf.aspect = pose.aspect;
-      golfCoverage = golfModeCoverage(
-        {
-          preGolf: pose,
-          inGolfBase: inGolf,
-          stop: reference.pose,
-          stopCoverage: reference.coverage,
-          run: golfRun.current,
-        },
-        golfTuning,
-      );
+      golfCoverage = 0;
+      if (golfVisibilityRelevantForScenePosition(scenePosition)) {
+        if (
+          reference.width !== size.width ||
+          reference.height !== size.height ||
+          reference.rail !== railRightPx ||
+          reference.occluders !== golfTuning.occluders
+        ) {
+          reference.width = size.width;
+          reference.height = size.height;
+          reference.rail = railRightPx;
+          reference.occluders = golfTuning.occluders;
+          reference.pose = golfStopViewPose(
+            size.width,
+            size.height,
+            railRightPx,
+          );
+          reference.coverage = golfGreenCoverage(reference.pose, golfTuning);
+        }
+        // Both poses are measured at golf's own framing, the dollied one the
+        // stop reference is built with; the dolly above follows the mode, so
+        // whatever share of it is not in the camera yet is added back here.
+        // Otherwise the punch-in would grow the near shelf over the green and
+        // the mode would read its own dolly.
+        const dollyNotYetIn = golfDolly * (1 - golfPivotWeight);
+        const pose = golfPose.current;
+        pose.eye[0] = authoredEyeX;
+        pose.eye[1] = authoredEyeY;
+        pose.eye[2] = authoredEyeZ - dollyNotYetIn;
+        pose.look[0] =
+          authoredLookX + (pointerSwingFull.current - pointerSwing.current);
+        pose.look[1] = authoredLookY;
+        pose.look[2] = authoredLookZ;
+        pose.fovDegrees = composition.fov;
+        pose.aspect = size.width / Math.max(1, size.height);
+        // What the pivot below starts from, with the pan gone as it is at
+        // full weight.
+        const inGolf = golfInGolfBase.current;
+        inGolf.eye[0] = eyeX;
+        inGolf.eye[1] = authoredEyeY;
+        inGolf.eye[2] = baseZ - dollyNotYetIn;
+        inGolf.look[0] = look.current.x - pointerSwing.current;
+        inGolf.look[1] = authoredLookY;
+        inGolf.look[2] = look.current.z;
+        inGolf.fovDegrees = pose.fovDegrees;
+        inGolf.aspect = pose.aspect;
+        golfCoverage = golfModeCoverage(
+          {
+            scenePosition,
+            preGolf: pose,
+            inGolfBase: inGolf,
+            stop: reference.pose,
+            stopCoverage: reference.coverage,
+            run: golfRun.current,
+          },
+          golfTuning,
+        );
+      }
     }
     golfModeTarget.current = golfModeWeight(golfCoverage, golfTuning);
     golfMode.coverage = golfCoverage;

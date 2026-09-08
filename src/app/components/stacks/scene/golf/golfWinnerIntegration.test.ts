@@ -244,6 +244,11 @@ describe("protected hole-bound shot on the authored Training course", () => {
     expect(flag.ball.holed).toBe(false);
     expect(close.trajectory.variant).toBe("close-roll");
     expect(close.closest).toBeLessThan(0.38);
-    expect(close.ball.holed).toBe(false);
+    expect(
+      close.ball.holed,
+      `close-roll landing=${JSON.stringify(close.trajectory.landing)} ` +
+        `closest=${close.closest.toFixed(3)}@${close.closestSpeed.toFixed(3)} ` +
+        `rolling=${close.rollingClosest.toFixed(3)}@${close.rollingClosestSpeed.toFixed(3)}`,
+    ).toBe(false);
   });
 });

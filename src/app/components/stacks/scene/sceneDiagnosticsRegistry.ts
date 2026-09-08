@@ -960,7 +960,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "simulate",
     group: "simulate.golf",
     label: "Golf mode decided by",
-    help: "What puts the visitor in golf. Green in view measures how much of the green the pre-golf camera pose can see, in frame and clear of the Books and Weightlifting shelves, with the pointer's pan, orbit and head turn included, so the mouse can move you in and out. Scroll window is the old rule: the scroll position between 1.36 and 1.62, regardless of the view. The focus rack, the cup pivot and the punch-in all ride the mode's weight; the URL's #golf always follows the scroll window.",
+    help: "What puts the visitor in golf. Between the Books and Weightlifting stops, Green in view measures how much of the green the pre-golf camera pose can see, in frame and clear of those shelves, with the pointer's pan, orbit and head turn included. Outside that bay, golf stays off. Scroll window is the old rule: the scroll position between 1.36 and 1.62, regardless of the view. The focus rack, the cup pivot and the punch-in all ride the mode's weight; the URL's #golf always follows the scroll window.",
     valueKind: "enum",
     allowedValues: GOLF_MODE_SOURCE_VALUES,
     defaultValue: GOLF_MODE_DEFAULT.source,

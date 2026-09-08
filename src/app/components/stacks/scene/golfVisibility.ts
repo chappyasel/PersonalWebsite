@@ -34,8 +34,8 @@ import {
  * vegetation is cleared to (golfCourse.ts). That opening, across the
  * green's centre, projects to a span of normalised device x; the frame
  * clips it to [-1, 1]; each neighbouring shelf, nearer than the green from
- * anywhere in the aisle, subtracts the span its props cover. Coverage is
- * what is left over the opening's width, 0..1.
+ * anywhere in the bay, subtracts the span its props cover. Coverage is what
+ * is left over the opening's width, 0..1.
  *
  * It is measured twice, on two poses the rig can name without knowing the
  * mode (CameraRig.tsx). The pre-golf pose is the scroll composition plus
@@ -148,6 +148,21 @@ function shelfEndCorners(
 }
 
 const BOOKS_UNIT_INDEX = TRAINING_UNIT_INDEX - 1;
+export const GOLF_VISIBILITY_PROXIMITY = Object.freeze({
+  start: BOOKS_UNIT_INDEX,
+  end: TRAINING_UNIT_INDEX,
+});
+
+/** Golf can only be played in the bay between Books and Weightlifting. The
+ * view-based coverage rule refines focus inside that interval; it does not
+ * make a distant projected green eligible from another Unit. */
+export function golfVisibilityRelevantForScenePosition(position: number) {
+  return (
+    position >= GOLF_VISIBILITY_PROXIMITY.start &&
+    position <= GOLF_VISIBILITY_PROXIMITY.end
+  );
+}
+
 // The green lies between the two: Books faces it with its right end,
 // Weightlifting with its left.
 const occluders = [
@@ -310,6 +325,7 @@ const stopInGolfScratch = scratchPose();
  */
 export function golfModeCoverage(
   poses: Readonly<{
+    scenePosition: number;
     preGolf: GolfViewPose;
     inGolfBase: GolfViewPose;
     stop: GolfViewPose;
@@ -318,6 +334,7 @@ export function golfModeCoverage(
   }>,
   options: GolfVisibilityOptions = { occluders: true },
 ): number {
+  if (!golfVisibilityRelevantForScenePosition(poses.scenePosition)) return 0;
   const preGolf = normalisedGolfCoverage(
     golfGreenCoverage(poses.preGolf, options),
     poses.stopCoverage,

@@ -10,6 +10,7 @@ import {
   golfInGolfPose,
   golfModeCoverage,
   golfStopViewPose,
+  golfVisibilityRelevantForScenePosition,
   normalisedGolfCoverage,
   projectedNdcX,
 } from "./golfVisibility";
@@ -68,6 +69,7 @@ const desktopCoverage = (position: number, eyeStep = 0) =>
 const modeCoverage = (position: number, run: number) => {
   const pose = poseAt(position);
   return golfModeCoverage({
+    scenePosition: position,
     preGolf: pose,
     inGolfBase: pose,
     stop: desktopStop,
@@ -232,6 +234,35 @@ describe("golf green coverage", () => {
 });
 
 describe("golf mode coverage: the green in both worlds", () => {
+  it("does not evaluate the projected green outside the Golf bay", () => {
+    const width = 4112;
+    const height = 2580;
+    const about = poseAt(0, { width, height });
+    const stop = golfStopViewPose(width, height, RAIL_RIGHT_PX_FALLBACK);
+    const stopCoverage = golfGreenCoverage(stop);
+
+    for (const run of [-1, -0.5, 0, 0.5, 1]) {
+      expect(
+        golfModeCoverage({
+          scenePosition: 0,
+          preGolf: about,
+          inGolfBase: about,
+          stop,
+          stopCoverage,
+          run,
+        }),
+      ).toBe(0);
+    }
+
+    expect(golfVisibilityRelevantForScenePosition(0)).toBe(false);
+    expect(golfVisibilityRelevantForScenePosition(1)).toBe(true);
+    expect(golfVisibilityRelevantForScenePosition(GOLF_STOP_POSITION)).toBe(
+      true,
+    );
+    expect(golfVisibilityRelevantForScenePosition(2)).toBe(true);
+    expect(golfVisibilityRelevantForScenePosition(3)).toBe(false);
+  });
+
   it("keeps the cup's bearing and steps the eye with the run", () => {
     const base = poseAt(GOLF_STOP_POSITION);
     const bearing = (pose: GolfViewPose) =>
