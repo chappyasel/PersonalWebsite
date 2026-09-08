@@ -1639,12 +1639,20 @@ const barGeometry = new THREE.BoxGeometry(1, 1, 1);
  *
  * `y` is the unit-local height of the surface it mounts to. In the default
  * `under` form that is the UNDERSIDE of the plank overhead and the bar hangs
- * 13mm below it — measured, not guessed: the camera sits 2.24° above the
- * shelf line, so the sight line grazing the top plank's front lip drops to
- * y −0.0554 by the time it reaches z −0.20, and a bar whose lowest point is
- * y −0.0475 stays 8mm inside that shadow. The camera therefore never catches
- * the fixture edge-on, which is the failure that turns an under-shelf light
- * into a black bar. What you see instead is the spill below the plank edge.
+ * 26mm below it with its lit line on the FRONT face, the same build and the
+ * same 0.9 span as the back bar, so the two lines end together. At the
+ * resting camera the body stays inside the plank's shadow — measured, not
+ * guessed: the shallowest resting sight line (2.24° above the shelf line,
+ * the portrait camera or a desktop stop at the bottom of its bob) grazes the
+ * top plank's front lip and has dropped to y −0.060 by the time it reaches
+ * the body's front face at z −0.215, so a body whose lowest point is y −0.061
+ * shows at most a millimetre of charcoal against the plank's own dark edge,
+ * and the lit line, centred 13mm higher, keeps 6mm of margin. What you see at
+ * rest is the spill below the plank edge. The pointer tilt is what exposes the body: at the bottom of the
+ * viewport the eye drops to the top plank's own level and looks straight at
+ * the fixture, and a 13mm bar with only a 2mm lit edge read there as a black
+ * bar with an aliased hairline under it. A taller body with a lit face reads
+ * as a fixture instead, which is what the back bar already was.
  *
  * The TOP shelf has no plank above it, so `form="back"` stands the same bar
  * on the plank's back lip (z −0.402, clear of the deepest prop in the world
@@ -1684,16 +1692,21 @@ export function ShelfLight({
   factorRef?: { current: number };
 }) {
   const back = form === "back";
+  // The spill and the cast light keep their tuned depth; only the under
+  // body sits 40mm deeper, buying the extra shadow its taller face needs
+  // while its back face still clears the support straps (front face z
+  // −0.285) by 20mm, which matters now that the 0.9 span crosses them.
   const zz = z ?? (back ? -0.402 : -0.2);
+  const bodyZ = back ? zz : zz - 0.04;
   // The back bar has to earn its own contrast. The whole top-plank surface
   // subtends only ~8.5px at this camera (0.827 of depth at 2.24°), so a 3px
   // fixture there is a rounding error in light theme however hot its face is;
   // 0.042 gives it 11px of charcoal body with the lit line inside it, which
   // is a fixture in daylight and a strip of light after dark.
-  const h = back ? 0.042 : 0.013;
+  const h = back ? 0.042 : 0.026;
   const depth = back ? 0.036 : 0.05;
   const cy = back ? y + h / 2 : y - h / 2;
-  const barW = width * (back ? 0.9 : 0.84);
+  const barW = width * 0.9;
   const k = on ? intensity : 0;
   // A light is what it does to the room, and the room is twice as bright in
   // one theme as the other. Dark theme reads the additive halo and almost
@@ -1708,7 +1721,7 @@ export function ShelfLight({
     <group>
       <mesh
         geometry={barGeometry}
-        position={[0, cy, zz]}
+        position={[0, cy, bodyZ]}
         scale={[barW, h, depth]}
       >
         <meshStandardMaterial
@@ -1717,19 +1730,15 @@ export function ShelfLight({
           metalness={0.2}
         />
       </mesh>
-      {/* The lit face: down out of the housing in the under form, forward off
-          its front in the back form. toneMapped false keeps it over Bloom's
-          0.95 threshold, so on desktop the composer grows the falloff. */}
+      {/* The lit face, forward off the housing's front in both forms. It used
+          to hang off the bottom of the under body as a 2mm slab, and the
+          front edge of that slab was the hairline the pointer tilt exposed.
+          toneMapped false keeps it over Bloom's 0.95 threshold, so on desktop
+          the composer grows the falloff. */}
       <mesh
         geometry={barGeometry}
-        position={
-          back ? [0, cy, zz + depth / 2 + 0.001] : [0, cy - h / 2 - 0.001, zz]
-        }
-        scale={
-          back
-            ? [barW * 0.96, h * 0.42, 0.002]
-            : [barW * 0.96, 0.002, depth * 0.6]
-        }
+        position={[0, cy, bodyZ + depth / 2 + 0.001]}
+        scale={[barW * 0.96, h * 0.42, 0.002]}
       >
         <meshStandardMaterial
           color="#fff1d6"

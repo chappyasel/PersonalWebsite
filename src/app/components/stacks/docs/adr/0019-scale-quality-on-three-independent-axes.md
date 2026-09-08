@@ -147,6 +147,21 @@ the resolved bokeh strength from 0.25x to 3x or replace the effect-buffer scale
 from 0.25x to 1x. These controls reset on reload and never change the authored
 profile table.
 
+Ambient occlusion's transparency handling is part of the effects budget, not
+of the look. N8AO can stop occlusion at transparent surfaces, but only by
+re-rendering every transparent object into two full-resolution targets each
+frame behind three more scene-graph walks: 118 extra draws at About and 148 at
+Books on Showcase, and about 2.5 ms of main-thread cost per frame at rest. The
+Cinematic and Showcase blocks keep it. Balanced and below composite occlusion
+from the opaque depth alone, so a contact shade or a pool over a shelf corner
+also carries the corner's darkening; a masked comparison changes about half a
+percent of static pixels at About. Scene Diagnostics exposes the switch live
+and `?noaotransparency` pins it for a capture. The pass's own per-frame
+transparency detection is switched off in every case, because the answer for
+this room never changes. The automatic clear of composer targets is likewise a
+live switch (`?nocomposerclear`), defaulting on until a pixel comparison and a
+frame-time measurement have justified turning it off.
+
 The composer retains a stencil attachment for scene-local visibility rules.
 The Coordination event horizon writes one bit only where it passes ordinary
 scene depth; its internal graph tests that bit while ignoring the horizon's own

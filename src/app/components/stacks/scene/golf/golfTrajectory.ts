@@ -41,10 +41,14 @@ export function planGolfTrajectory(
     // the centre line lets the outer cup lip intercept the ball first, making
     // a physical pole tap impossible.
     along = variant === "flagstick" ? -0.1 : 0.92 + random() * 0.24;
-    across =
-      variant === "flagstick"
-        ? 0
-        : (random() < 0.5 ? -1 : 1) * (variant === "close-roll" ? 0.16 : 0.075);
+    if (variant !== "flagstick") {
+      const missSide = random() < 0.5 ? -1 : 1;
+      // The close roll uses the opposite break from the lip-out so the
+      // terrain guides it past the cup instead of turning it into a winner.
+      across =
+        (variant === "close-roll" ? -missSide : missSide) *
+        (variant === "close-roll" ? 0.16 : 0.075);
+    }
   } else if (outcome === "ordinary-green") {
     along = 0.35 + random() * 1.45;
     across = (random() - 0.5) * 2.6;

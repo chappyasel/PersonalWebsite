@@ -314,9 +314,16 @@ const SceneContent = memo(function SceneContent({
             />
             {/* Invisible raycast plane BEHIND the interactive props (covers
                 sit at z 0.06+ and stopPropagation first) — a lateral travel
-                target only. The active unit deliberately does nothing. */}
+                target only. The active unit deliberately does nothing.
+                `visible={false}` keeps it out of the draw lists: neither
+                three's raycaster nor r3f's event system checks visibility, so
+                the click still lands, while the renderer no longer fills a
+                3.4 by 2.6 unit quad of zero-alpha fragments per resident
+                unit, once in the room pass and again in the ambient
+                occlusion transparency pass. */}
             <mesh
               position={[0, 0.1, -0.3]}
+              visible={false}
               userData={{ physicsIgnore: true }}
               onClick={(e) => onUnitTap(i, e)}
             >

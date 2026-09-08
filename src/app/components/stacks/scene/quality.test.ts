@@ -1480,3 +1480,59 @@ describe("the Safety budget contract", () => {
     });
   });
 });
+
+describe("ambient occlusion transparency", () => {
+  const viewport = {
+    cssWidth: 1440,
+    cssHeight: 900,
+    deviceDpr: 2,
+    touch: false,
+  } as const;
+
+  it("keeps the transparency-aware pass on Showcase and drops it from Balanced down", () => {
+    const showcase = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      ...viewport,
+    });
+    const balanced = resolveSceneQualityPlan({
+      mode: "balanced",
+      profile: "balanced",
+      ...viewport,
+    });
+    expect(showcase.effects).toMatchObject({
+      ambientOcclusion: true,
+      ambientOcclusionTransparency: true,
+    });
+    expect(balanced.effects).toMatchObject({
+      ambientOcclusion: true,
+      ambientOcclusionTransparency: false,
+    });
+  });
+
+  it("follows an explicit override in either direction and never outlives the pass", () => {
+    const forcedOff = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      ...viewport,
+      overrides: { ambientOcclusionTransparency: false },
+    });
+    const forcedOn = resolveSceneQualityPlan({
+      mode: "balanced",
+      profile: "balanced",
+      ...viewport,
+      overrides: { ambientOcclusionTransparency: true },
+    });
+    const noOcclusion = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      ...viewport,
+      overrides: { skipAmbientOcclusion: true, ambientOcclusionTransparency: true },
+    });
+    expect(forcedOff.effects.ambientOcclusionTransparency).toBe(false);
+    expect(forcedOff.customOverrides).toBe(true);
+    expect(forcedOn.effects.ambientOcclusionTransparency).toBe(true);
+    expect(noOcclusion.effects.ambientOcclusion).toBe(false);
+    expect(noOcclusion.effects.ambientOcclusionTransparency).toBe(false);
+  });
+});

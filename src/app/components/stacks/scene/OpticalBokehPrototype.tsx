@@ -12,7 +12,13 @@ import { PerspectiveCamera, Uniform, Vector3 } from "three";
 
 import { focusPull, focusPullTarget } from "./focusPull";
 import type { OpticalDepthOfFieldTuning } from "./sceneQualityController";
-import { SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS } from "./shelfDepthOfField";
+import { golfMode } from "./golfMode";
+import {
+  SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS,
+  type ShelfDepthOfFieldTuning,
+  advanceShelfDepthOfFieldPull,
+  createShelfDepthOfFieldPull,
+} from "./shelfDepthOfField";
 
 export const OPTICAL_BOKEH_MATCHED_TAPS = 16;
 export const OPTICAL_BOKEH_QUALITY_TAPS = 32;
@@ -37,6 +43,8 @@ export const opticalBokehFragmentFor = (tapCount: OpticalBokehTapCount) => `
   uniform float uFocusDistance;
   uniform float uFocusFalloff;
   uniform float uClearRadius;
+  uniform float uNearStrength;
+  uniform float uFarStrength;
   uniform float uFocalLengthMm;
   uniform float uFStop;
   uniform float uFilmHeightMm;
@@ -68,7 +76,14 @@ export const opticalBokehFragmentFor = (tapCount: OpticalBokehTapCount) => `
     float objectMm = max(distance * 1000.0, uFocalLengthMm + 0.001);
     float radiusPixels = thinLensScalePixels *
       abs(objectMm - focusMm) / objectMm;
-    return min(uMaxRadiusPixels, radiusPixels * authoredGate * uStrength);
+    // Each side of the plane has its own strength (shelfDepthOfField.ts):
+    // at the tee the far side is boosted well past what a thin lens at that
+    // focus gives, so the fairway's long ramp is what the eye sees.
+    float sideStrength = distance < uFocusDistance ? uNearStrength : uFarStrength;
+    return min(
+      uMaxRadiusPixels,
+      radiusPixels * authoredGate * uStrength * sideStrength
+    );
   }
 
   float opticalSide(const in float distance) {
@@ -181,6 +196,8 @@ class OpticalBokehPrototypeEffect extends Effect {
           ["uFocusDistance", new Uniform(5.8)],
           ["uFocusFalloff", new Uniform(1.15)],
           ["uClearRadius", new Uniform(SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS)],
+          ["uNearStrength", new Uniform(1)],
+          ["uFarStrength", new Uniform(1)],
           ["uFocalLengthMm", new Uniform(40)],
           ["uFStop", new Uniform(1.8)],
           ["uFilmHeightMm", new Uniform(24)],
@@ -196,14 +213,14 @@ class OpticalBokehPrototypeEffect extends Effect {
 }
 
 export function OpticalBokehPrototype({
-  target,
-  focusRange,
+  shelf,
   bokehScale,
   taps,
   tuning,
 }: {
-  target: readonly [number, number, number];
-  focusRange: number;
+  /** The shelf-or-cup focus resolution; this lens runs the golf rack on it
+   * exactly as the other lens does, from its own frame loop. */
+  shelf: ShelfDepthOfFieldTuning;
   bokehScale: number;
   taps: OpticalBokehTapCount;
   tuning: OpticalDepthOfFieldTuning;
@@ -212,12 +229,19 @@ export function OpticalBokehPrototype({
   const gl = useThree((state) => state.gl);
   const effect = useMemo(() => new OpticalBokehPrototypeEffect(taps), [taps]);
   const localTarget = useRef(new Vector3());
+  const pull = useRef(createShelfDepthOfFieldPull(shelf));
   useDispose(effect);
 
-  useFrame(() => {
+  useFrame((_, frameSeconds) => {
     if (!(camera instanceof PerspectiveCamera)) return;
 
-    focusPullTarget(target, focusPull, localTarget.current).applyMatrix4(
+    const { focus } = advanceShelfDepthOfFieldPull(
+      pull.current,
+      shelf,
+      frameSeconds,
+      golfMode.weight,
+    );
+    focusPullTarget(focus.target, focusPull, localTarget.current).applyMatrix4(
       camera.matrixWorldInverse,
     );
     effect.uniforms.get("uFocusDistance")!.value = Math.max(
@@ -225,8 +249,10 @@ export function OpticalBokehPrototype({
       -localTarget.current.z + tuning.focusDistanceOffset,
     );
     effect.uniforms.get("uFocusFalloff")!.value =
-      focusRange * tuning.focusFalloffMultiplier;
+      focus.farFocusRange * tuning.focusFalloffMultiplier;
     effect.uniforms.get("uClearRadius")!.value = tuning.focusClearRadius;
+    effect.uniforms.get("uNearStrength")!.value = focus.nearStrength;
+    effect.uniforms.get("uFarStrength")!.value = focus.farStrength;
     effect.uniforms.get("uFocalLengthMm")!.value = camera.getFocalLength();
     effect.uniforms.get("uFilmHeightMm")!.value = camera.getFilmHeight();
     const dpr = Math.max(0.5, gl.getPixelRatio());

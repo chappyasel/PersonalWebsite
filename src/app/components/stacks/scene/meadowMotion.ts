@@ -2,12 +2,31 @@
  * so the combined wind/pointer response can be regression-tested without
  * mounting WebGL. */
 export const MEADOW_WIND = {
-  amplitude: 0.14,
-  speed: 0.68,
-  gustKnee: 0.2,
-  gustCeiling: 0.25,
-  maxLean: 0.28,
-  bootBoost: 0.25,
+  amplitude: 0.21,
+  speed: 1.608,
+  gustKnee: 0.25,
+  gustCeiling: 1,
+  audioReference: 0.3,
+  authoredMaxLean: 0.36,
+  maxLean: 1.05,
+  bootBoost: 0.2,
+  mainGustRate: 0.42,
+  mainGustPhase: -0.7,
+  mainGustAmplitude: 0.34,
+  rareGustEvery: 5,
+  rareGustOffset: 3,
+  rareGustSharpness: 12,
+  residualGustRate: 0.17,
+  residualGustPhase: 1.8,
+  residualGustAmplitude: 0.1,
+  flowDirectionX: -0.702,
+  flowDirectionZ: -0.712,
+} as const;
+
+export const MEADOW_FLOWER_WIND = {
+  response: 0.85,
+  stemLength: 0.1,
+  maxLean: 0.65,
 } as const;
 
 export const MEADOW_POKE = {
@@ -106,14 +125,42 @@ export function limitMeadowWind(magnitude: number): number {
 }
 
 export function meadowWindAudioLevel(amplitude: number): number {
-  return Math.min(1, Math.max(0, amplitude / MEADOW_WIND.gustCeiling));
+  return Math.min(1, Math.max(0, amplitude / MEADOW_WIND.audioReference));
+}
+
+/** The meadow-wide gust envelope. Both waves are slow enough to complete over
+ * tens of seconds, and this runs once per frame rather than once per vertex. */
+export function sampleMeadowGust(
+  time: number,
+  amplitude: number = MEADOW_WIND.amplitude,
+  speed: number = MEADOW_WIND.speed,
+) {
+  const windTime = time * speed;
+  const mainPhase =
+    windTime * MEADOW_WIND.mainGustRate + MEADOW_WIND.mainGustPhase;
+  const main = Math.sin(mainPhase);
+  const rareWindow =
+    ((1 +
+      Math.cos(
+        (mainPhase - Math.PI / 2 - Math.PI * 2 * MEADOW_WIND.rareGustOffset) /
+          MEADOW_WIND.rareGustEvery,
+      )) /
+      2) **
+    MEADOW_WIND.rareGustSharpness;
+  const boostedMain = main + rareWindow * Math.max(0, main) ** 2;
+  const residual = Math.sin(
+    windTime * MEADOW_WIND.residualGustRate + MEADOW_WIND.residualGustPhase,
+  );
+  return limitMeadowWind(
+    amplitude *
+      (1 +
+        MEADOW_WIND.mainGustAmplitude * boostedMain +
+        MEADOW_WIND.residualGustAmplitude * residual),
+  );
 }
 
 const fract = (value: number) => value - Math.floor(value);
 
-/** CPU port of Meadow's GLSL hash and value noise. Diagnostics and audio use
- * one camera-near sample; grass blades still evaluate the field spatially on
- * the GPU. */
 function meadowWindHash(x: number, z: number) {
   let px = fract(x * 0.1031);
   let py = fract(z * 0.1031);
@@ -139,7 +186,7 @@ function meadowWindNoise(x: number, z: number) {
   return near * (1 - sz) + far * sz;
 }
 
-/** One exact scalar sample of the near-grass shader's traveling wind field. */
+/** CPU companion to the near-grass shader for petals and regression tests. */
 export function sampleMeadowWind(
   x: number,
   z: number,
@@ -153,17 +200,18 @@ export function sampleMeadowWind(
     2.35;
   const directionX = Math.cos(angle);
   const directionZ = Math.sin(angle);
-  let gust = meadowWindNoise(
-    x * 0.22 - directionX * windTime * 0.55,
-    z * 0.22 - directionZ * windTime * 0.55,
+  let localGust = meadowWindNoise(
+    x * 0.22 - MEADOW_WIND.flowDirectionX * windTime * 0.55,
+    z * 0.22 - MEADOW_WIND.flowDirectionZ * windTime * 0.55,
   );
-  gust *= gust;
+  localGust *= localGust;
   const breeze = meadowWindNoise(
-    x * 0.85 - directionX * windTime * 1.1,
-    z * 0.85 - directionZ * windTime * 1.1,
+    x * 0.85 - MEADOW_WIND.flowDirectionX * windTime * 1.1,
+    z * 0.85 - MEADOW_WIND.flowDirectionZ * windTime * 1.1,
   );
   const magnitude = limitMeadowWind(
-    amplitude * (0.35 + 0.85 * gust + 0.25 * breeze),
+    sampleMeadowGust(time, amplitude, speed) *
+      (0.35 + 0.85 * localGust + 0.25 * breeze),
   );
   return {
     x: directionX * magnitude,

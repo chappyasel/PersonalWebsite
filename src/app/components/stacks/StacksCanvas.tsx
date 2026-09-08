@@ -310,6 +310,8 @@ declare global {
       golf?: {
         state: () => Record<string, unknown>;
         forceNext: (outcome: GolfShotOutcome) => void;
+        /** The cup-edge push-in's gate. Reads without an argument. */
+        suspense: (enabled?: boolean) => boolean;
         loose: () => Record<string, unknown>[];
         tapLoose: (key: string) => boolean;
       };
@@ -2075,6 +2077,12 @@ export default function StacksCanvas({
           )
             ? performanceSettings.skipDepthOfField
             : undefined,
+          ambientOcclusionTransparency:
+            scenePerformanceController.isOverridden(
+              "ambientOcclusionTransparency",
+            )
+              ? performanceSettings.ambientOcclusionTransparency
+              : undefined,
           depthOfFieldBokehMultiplier:
             qualityControls.depthOfFieldBokehMultiplier ?? undefined,
           depthOfFieldResolutionScale:

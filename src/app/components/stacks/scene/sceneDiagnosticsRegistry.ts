@@ -10,6 +10,20 @@ import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
+import { golfFocusPullConsoleController } from "./golfFocusPullConsole";
+import {
+  GOLF_SUSPENSE_CONSOLE_DEFAULT,
+  golfSuspenseConsoleController,
+} from "./golfSuspenseConsole";
+import {
+  GOLF_MODE_DEFAULT,
+  GOLF_MODE_LIMITS,
+  type GolfModeSource,
+} from "./golfMode";
+import {
+  type GolfModeNumberKey,
+  golfModeConsoleController,
+} from "./golfModeConsole";
 import { insectDiagnosticsController } from "./insectPerchDiagnostic";
 import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnostics";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
@@ -28,6 +42,13 @@ import {
   photographTreatmentController,
 } from "./photographTreatment";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import {
+  POINTER_CAMERA_MODE_DEFAULT,
+  POINTER_CAMERA_VALUE_LIMITS,
+  type PointerCameraPreset,
+  type PointerCameraValueKey,
+  pointerCameraModeController,
+} from "./pointerCameraMode";
 import { pointerCameraTiltController } from "./pointerCameraTilt";
 import {
   DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
@@ -78,6 +99,13 @@ import {
   SCREENSHOT_TILT_STEP,
   screenshotModeController,
 } from "./screenshotMode";
+import type { GolfFocusPullVariant } from "./shelfDepthOfField";
+import {
+  SKY_DEPTH_DEFAULT,
+  SKY_DEPTH_GAIN_RANGE,
+  SKY_DEPTH_SPREAD_RANGE,
+  skyDepthController,
+} from "./skyDepthLayers";
 import { visionProDisplayDiagnosticsController } from "./visionProDisplayDiagnostics";
 
 export type SceneDiagnosticsPanel = "render" | "simulate" | "inspect";
@@ -186,6 +214,7 @@ const BOOLEAN_VALUES = Object.freeze({
 // reaches for first come first.
 const SECTION_DEFINITIONS = Object.freeze([
   { id: "simulate.camera", panel: "simulate", label: "Camera" },
+  { id: "simulate.golf", panel: "simulate", label: "Golf" },
   { id: "simulate.physics", panel: "simulate", label: "Physics runtime" },
   { id: "simulate.meadow", panel: "simulate", label: "Meadow wind" },
   { id: "simulate.insects", panel: "simulate", label: "Insect behavior" },
@@ -520,6 +549,98 @@ function opticalDepthOfFieldSlider(
   });
 }
 
+const GOLF_FOCUS_PULL_VALUES = Object.freeze({
+  kind: "set" as const,
+  values: Object.freeze([
+    { value: "current", label: "Log ramp blend (current)" },
+    { value: "legacy", label: "Linear ramp blend (legacy)" },
+  ]),
+});
+
+const POINTER_CAMERA_MODE_VALUES = Object.freeze({
+  kind: "set" as const,
+  values: Object.freeze([
+    { value: "parallax", label: "Parallax only (as shipped)" },
+    { value: "orbit", label: "Orbit (current)" },
+    { value: "head", label: "Head only" },
+    { value: "custom", label: "Custom" },
+  ]),
+});
+
+function pointerCameraDial(
+  key: PointerCameraValueKey,
+  id: string,
+  label: string,
+  help: string,
+  options: Readonly<{ step: number; decimals: number; unit?: string }>,
+): MutableDescriptor {
+  const limits = POINTER_CAMERA_VALUE_LIMITS[key];
+  return mutableDescriptor({
+    id,
+    panel: "simulate",
+    group: "simulate.camera",
+    label,
+    help,
+    inputId: `stacks-${id}`,
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: limits.min,
+      max: limits.max,
+      step: options.step,
+      decimals: options.decimals,
+      ...(options.unit ? { unit: options.unit } : {}),
+    },
+    defaultValue: POINTER_CAMERA_MODE_DEFAULT[key],
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: pointerCameraModeController,
+    read: () => pointerCameraModeController.getSnapshot()[key],
+    update: (value) => pointerCameraModeController.setValue(key, Number(value)),
+  });
+}
+
+const GOLF_MODE_SOURCE_VALUES = Object.freeze({
+  kind: "set" as const,
+  values: Object.freeze([
+    Object.freeze({ value: "visibility", label: "Green in view (current)" }),
+    Object.freeze({ value: "window", label: "Scroll window (legacy)" }),
+  ]),
+});
+
+function golfModeDial(
+  key: GolfModeNumberKey,
+  id: string,
+  label: string,
+  help: string,
+  options: Readonly<{ step: number; decimals: number; unit?: string }>,
+): MutableDescriptor {
+  const limits = GOLF_MODE_LIMITS[key];
+  return mutableDescriptor({
+    id,
+    panel: "simulate",
+    group: "simulate.golf",
+    label,
+    help,
+    inputId: `stacks-${id}`,
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: limits.min,
+      max: limits.max,
+      step: options.step,
+      decimals: options.decimals,
+      ...(options.unit ? { unit: options.unit } : {}),
+    },
+    defaultValue: GOLF_MODE_DEFAULT[key],
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: golfModeConsoleController,
+    read: () => golfModeConsoleController.getSnapshot()[key],
+    update: (value) => golfModeConsoleController.setValue(key, Number(value)),
+  });
+}
+
 const descriptors: readonly MutableDescriptor[] = Object.freeze([
   mutableDescriptor({
     id: "quality.test-profile",
@@ -751,18 +872,228 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     update: (value) =>
       cameraDepthDiagnosticsController.setEnabled(Boolean(value)),
   }),
+  mutableDescriptor({
+    id: "camera.pointer-mode",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Pointer camera mode",
+    help: "How the pointer moves the standing camera: the parallax the site shipped with (eye lift, aim swing, no turn), the orbit it has now (eye orbits the shelf, shelf holds centre), a head-only turn (eye still, aim swings, shelf slides), or the dials below.",
+    valueKind: "enum",
+    allowedValues: POINTER_CAMERA_MODE_VALUES,
+    defaultValue: POINTER_CAMERA_MODE_DEFAULT.preset,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: pointerCameraModeController,
+    read: () => pointerCameraModeController.getSnapshot().preset,
+    update: (value) =>
+      pointerCameraModeController.setPreset(
+        String(value) as PointerCameraPreset,
+      ),
+  }),
+  pointerCameraDial(
+    "truck",
+    "camera.pointer-truck",
+    "Pointer eye lift",
+    "Share of the original pointer parallax's eye lift (0.08 per unit of pointer height, the aim lifting 0.12). Moving any dial forks the mode into Custom.",
+    { step: 0.05, decimals: 2 },
+  ),
+  pointerCameraDial(
+    "orbitPitch",
+    "camera.pointer-orbit-pitch",
+    "Pointer orbit pitch",
+    "Degrees the eye orbits the shelf vertically at the top and bottom of the viewport.",
+    { step: 0.5, decimals: 1, unit: "°" },
+  ),
+  pointerCameraDial(
+    "orbitYaw",
+    "camera.pointer-orbit-yaw",
+    "Pointer orbit yaw",
+    "Degrees the view turns with the eye orbiting the shelf at the sides of the viewport.",
+    { step: 0.5, decimals: 1, unit: "°" },
+  ),
+  pointerCameraDial(
+    "headPitch",
+    "camera.pointer-head-pitch",
+    "Pointer head pitch",
+    "Degrees the aim tilts about a stationary eye at the top and bottom of the viewport.",
+    { step: 0.5, decimals: 1, unit: "°" },
+  ),
+  pointerCameraDial(
+    "headYaw",
+    "camera.pointer-head-yaw",
+    "Pointer head yaw",
+    "Degrees the aim turns about a stationary eye at the sides of the viewport.",
+    { step: 0.5, decimals: 1, unit: "°" },
+  ),
+  mutableDescriptor({
+    id: "camera.golf-focus-rack",
+    panel: "simulate",
+    group: "simulate.golf",
+    label: "Golf focus rack",
+    help: "How the depth of field racks onto the green. Both follow golf mode's weight and take half a second for the full rack. Current blends the two blur ramps in log space so the sharp band travels down the fairway. Legacy blends them linearly, which sharpens the whole room a tenth of the way in.",
+    valueKind: "enum",
+    allowedValues: GOLF_FOCUS_PULL_VALUES,
+    defaultValue: "current",
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: golfFocusPullConsoleController,
+    read: () => golfFocusPullConsoleController.getSnapshot().variant,
+    update: (value) =>
+      golfFocusPullConsoleController.setVariant(
+        String(value) as GolfFocusPullVariant,
+      ),
+  }),
+  booleanDescriptor({
+    id: "camera.golf-suspense",
+    panel: "simulate",
+    group: "simulate.golf",
+    label: "Golf cup-edge push-in",
+    help: "While a rolling ball might drop, the aim eases onto the cup and the lens tightens by a third over about a second, holds through the drop, and lets go over the next two. Off for visitors; ?suspense=1 or __stacks.golf.suspense(true) turn it on as well.",
+    defaultValue: GOLF_SUSPENSE_CONSOLE_DEFAULT,
+    experimental: false,
+    store: golfSuspenseConsoleController,
+    read: () => golfSuspenseConsoleController.getSnapshot(),
+    update: (value) => golfSuspenseConsoleController.setEnabled(Boolean(value)),
+  }),
+  mutableDescriptor({
+    id: "golf.mode-source",
+    panel: "simulate",
+    group: "simulate.golf",
+    label: "Golf mode decided by",
+    help: "What puts the visitor in golf. Between the Books and Weightlifting stops, Green in view measures how much of the green the pre-golf camera pose can see, in frame and clear of those shelves, with the pointer's pan, orbit and head turn included. Outside that bay, golf stays off. Scroll window is the old rule: the scroll position between 1.36 and 1.62, regardless of the view. The focus rack, the cup pivot and the punch-in all ride the mode's weight; the URL's #golf always follows the scroll window.",
+    valueKind: "enum",
+    allowedValues: GOLF_MODE_SOURCE_VALUES,
+    defaultValue: GOLF_MODE_DEFAULT.source,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: golfModeConsoleController,
+    read: () => golfModeConsoleController.getSnapshot().source,
+    update: (value) =>
+      golfModeConsoleController.setSource(String(value) as GolfModeSource),
+  }),
+  golfModeDial(
+    "enterAbove",
+    "golf.mode-enter",
+    "Golf on at",
+    "Fraction of the green in view at which golf mode switches on, and at which the focus rack and the cup pivot are fully in. Coverage is relative to what this viewport's own golf stop can show.",
+    { step: 0.01, decimals: 2 },
+  ),
+  golfModeDial(
+    "leaveBelow",
+    "golf.mode-leave",
+    "Golf off below",
+    "Fraction of the green in view below which golf mode switches off. Between this and the on threshold the switch keeps its state, so a cursor resting on the line cannot strobe the placard and the club.",
+    { step: 0.01, decimals: 2 },
+  ),
+  golfModeDial(
+    "blendFrom",
+    "golf.mode-blend-from",
+    "Focus and pivot blend from",
+    "Fraction of the green in view at which the depth of field and the cup pivot begin to blend in; they are fully in at the on threshold.",
+    { step: 0.01, decimals: 2 },
+  ),
+  golfModeDial(
+    "holdSeconds",
+    "golf.mode-hold",
+    "Golf switch hold",
+    "The least time the switch stays put after flipping.",
+    { step: 0.05, decimals: 2, unit: "s" },
+  ),
+  booleanDescriptor({
+    id: "golf.mode-occluders",
+    panel: "simulate",
+    group: "simulate.golf",
+    label: "Shelves hide the green",
+    help: "Count the Books and Weightlifting shelves as covering the green. Off measures the frame edges alone, to see what each rule contributes.",
+    defaultValue: GOLF_MODE_DEFAULT.occluders,
+    experimental: false,
+    store: golfModeConsoleController,
+    read: () => golfModeConsoleController.getSnapshot().occluders,
+    update: (value) =>
+      golfModeConsoleController.setOccluders(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "sky.depth-traverse",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Skyline depth: traverse",
+    help: "Pan the city ahead of the base sky and the Golden Gate behind it as you travel the row, anchored at About.",
+    defaultValue: SKY_DEPTH_DEFAULT.traverse,
+    experimental: false,
+    store: skyDepthController,
+    read: () => skyDepthController.getSnapshot().traverse,
+    update: (value) => skyDepthController.setTraverse(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "sky.depth-pointer",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Skyline depth: pointer",
+    help: "Slide the skyline's layers against each other with the pointer's head turn.",
+    defaultValue: SKY_DEPTH_DEFAULT.pointer,
+    experimental: false,
+    store: skyDepthController,
+    read: () => skyDepthController.getSnapshot().pointer,
+    update: (value) => skyDepthController.setPointer(Boolean(value)),
+  }),
+  mutableDescriptor({
+    id: "sky.depth-spread",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Skyline depth spread",
+    help: "Pan-rate spread between the layers: the city pans at 1 + spread, the Golden Gate at 1 − spread.",
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: SKY_DEPTH_SPREAD_RANGE.min,
+      max: SKY_DEPTH_SPREAD_RANGE.max,
+      step: 0.01,
+      decimals: 2,
+    },
+    defaultValue: SKY_DEPTH_DEFAULT.spread,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: skyDepthController,
+    read: () => skyDepthController.getSnapshot().spread,
+    update: (value) => skyDepthController.setSpread(Number(value)),
+    disabled: () => {
+      const state = skyDepthController.getSnapshot();
+      return !state.traverse && !state.pointer;
+    },
+  }),
+  mutableDescriptor({
+    id: "sky.depth-gain",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Skyline pointer gain",
+    help: "Multiplier on the pointer's head turn before the spread is applied.",
+    valueKind: "range",
+    allowedValues: {
+      kind: "range",
+      min: SKY_DEPTH_GAIN_RANGE.min,
+      max: SKY_DEPTH_GAIN_RANGE.max,
+      step: 0.1,
+      decimals: 1,
+    },
+    defaultValue: SKY_DEPTH_DEFAULT.gain,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: skyDepthController,
+    read: () => skyDepthController.getSnapshot().gain,
+    update: (value) => skyDepthController.setGain(Number(value)),
+    disabled: () => !skyDepthController.getSnapshot().pointer,
+  }),
   booleanDescriptor({
     id: "camera.pointer-tilt",
     panel: "simulate",
     group: "simulate.camera",
     label: "Pointer camera tilt",
-    help: "Pitch by up to one degree as the pointer moves between the top and bottom shelves.",
+    help: "Orbit the eye by up to two degrees of pitch and three of yaw as the pointer crosses the viewport.",
     defaultValue: DEFAULT_POINTER_CAMERA_TILT.enabled,
     experimental: false,
     store: pointerCameraTiltController,
     read: () => pointerCameraTiltController.getSnapshot().enabled,
-    update: (value) =>
-      pointerCameraTiltController.setEnabled(Boolean(value)),
+    update: (value) => pointerCameraTiltController.setEnabled(Boolean(value)),
   }),
   booleanDescriptor({
     id: "camera.free-roam",
@@ -796,23 +1127,27 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "simulate",
     group: "simulate.meadow",
     label: "Base strength",
-    help: "Set the shared meadow wind amplitude.",
+    help: "Multiply the authored meadow wind strength. The upper range is intentionally extreme for visual tuning.",
     inputId: "stacks-wind-strength",
     valueKind: "range",
     allowedValues: {
       kind: "range",
-      min: 0,
-      max: 0.3,
-      step: 0.01,
+      min: 0.2,
+      max: 10,
+      step: 0.05,
+      unit: "×",
       decimals: 2,
     },
-    defaultValue: DEFAULT_MEADOW.wind,
+    defaultValue: 1,
     experimental: false,
     behavior: { read: "live", update: "session-only", reset: "reload" },
     store: meadowDiagnosticsController,
-    read: () => meadowDiagnosticsController.getSnapshot().wind,
+    read: () =>
+      meadowDiagnosticsController.getSnapshot().wind / MEADOW_WIND.amplitude,
     update: (value) =>
-      meadowDiagnosticsController.update({ wind: Number(value) }),
+      meadowDiagnosticsController.update({
+        wind: Number(value) * MEADOW_WIND.amplitude,
+      }),
     disabled: () => !meadowDiagnosticsController.getSnapshot().available,
   }),
   mutableDescriptor({
@@ -820,21 +1155,24 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "simulate",
     group: "simulate.meadow",
     label: "Live gust",
-    help: "Read the wind value currently reaching the meadow shader.",
+    help: "Read the wind currently reaching the meadow shader as a multiple of the authored base strength.",
     inputId: "stacks-wind-live",
     valueKind: "range",
     allowedValues: {
       kind: "range",
       min: 0,
-      max: MEADOW_WIND.gustCeiling,
-      step: 0.001,
-      decimals: 3,
+      max: MEADOW_WIND.gustCeiling / MEADOW_WIND.amplitude,
+      step: 0.01,
+      unit: "×",
+      decimals: 2,
     },
     defaultValue: DEFAULT_MEADOW.liveWind,
     experimental: false,
     behavior: { read: "effective", update: "read-only", reset: "reload" },
     store: meadowDiagnosticsController,
-    read: () => meadowDiagnosticsController.getSnapshot().liveWind,
+    read: () =>
+      meadowDiagnosticsController.getSnapshot().liveWind /
+      MEADOW_WIND.amplitude,
     disabled: () => true,
   }),
   mutableDescriptor({
@@ -842,24 +1180,27 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "simulate",
     group: "simulate.meadow",
     label: "Animation speed",
-    help: "Scale the meadow wind clock without changing its amplitude.",
+    help: "Multiply the authored meadow wind clock without changing its amplitude.",
     inputId: "stacks-wind-speed",
     valueKind: "range",
     allowedValues: {
       kind: "range",
-      min: 0,
-      max: 2,
+      min: 0.2,
+      max: 4,
       step: 0.01,
       unit: "×",
       decimals: 2,
     },
-    defaultValue: DEFAULT_MEADOW.speed,
+    defaultValue: 1,
     experimental: false,
     behavior: { read: "live", update: "session-only", reset: "reload" },
     store: meadowDiagnosticsController,
-    read: () => meadowDiagnosticsController.getSnapshot().speed,
+    read: () =>
+      meadowDiagnosticsController.getSnapshot().speed / MEADOW_WIND.speed,
     update: (value) =>
-      meadowDiagnosticsController.update({ speed: Number(value) }),
+      meadowDiagnosticsController.update({
+        speed: Number(value) * MEADOW_WIND.speed,
+      }),
     disabled: () => !meadowDiagnosticsController.getSnapshot().available,
   }),
   booleanDescriptor({
@@ -1756,6 +2097,50 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       activeValues: [true],
       enabled:
         "Ambient-occlusion render targets, samples, and composition work.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  performanceBoolean({
+    id: "render.ambient-occlusion-transparency",
+    panel: "render",
+    group: "render.passes",
+    label: "AO under transparent surfaces",
+    help: "Re-render every transparent object into two full-resolution targets each frame so occlusion stops at contact shades, pools, petals and glass instead of darkening them. Off composites occlusion from the opaque depth alone. The profile decides until this is touched: on for Cinematic and Showcase, off below.",
+    key: "ambientOcclusionTransparency",
+    optimizationPreset: { optimized: false, unoptimized: true },
+    experimental: false,
+    reloadInput: "noaotransparency",
+    disabled: () =>
+      scenePerformanceController.getSnapshot().skipAmbientOcclusion,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Two extra full-resolution scene renders of transparent objects, two render targets with depth, and three scene-graph walks per frame.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  performanceBoolean({
+    id: "render.composer-auto-clear",
+    panel: "render",
+    group: "render.passes",
+    label: "Clear targets before each pass",
+    help: "Let three clear every composer render target before its pass draws. Each pass overwrites its whole target or clears explicitly, so this is redundant work on about 39 targets a frame; off keeps the room pass clearing colour, depth and stencil itself.",
+    key: "composerAutoClear",
+    optimizationPreset: { optimized: false, unoptimized: true },
+    experimental: false,
+    reloadInput: "nocomposerclear",
+    disabled: () => !scenePerformanceController.getSnapshot().postprocessing,
+    productionCost: {
+      activeValues: [true],
+      enabled: "One clear per composer render target per frame.",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,

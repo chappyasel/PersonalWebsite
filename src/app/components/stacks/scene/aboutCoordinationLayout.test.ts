@@ -80,7 +80,11 @@ describe("About Coordination composition", () => {
     expectGap("lower", "ai-collective", "coordination-globe");
     expectGap("lower", "coordination-globe", "tj-medallion");
     expectGap("lower", "tj-medallion", "vision-pro");
-    expectGap("lower", "vision-pro", "role-icons");
+    // The silhouettes are traced through the rest camera since 2026-09-07,
+    // and from above and to the left the headset's band reaches under a
+    // millimetre past the role icons' left edge while the two clear each
+    // other in depth. The boot paints the icons in front, as the room does.
+    expect(gap("lower", "vision-pro", "role-icons")).toBeGreaterThan(-0.002);
     expectGap("lower", "role-icons", "reading-stack");
 
     expect(ABOUT_BOOT_LANDMARKS["collective-frame"].shelf).toBe("top");
@@ -140,7 +144,7 @@ describe("About Coordination composition", () => {
       0,
     );
     expect(gap("lower", "tj-medallion", "vision-pro")).toBeGreaterThan(0.008);
-    expect(gap("lower", "vision-pro", "role-icons")).toBeGreaterThan(0);
+    expect(gap("lower", "vision-pro", "role-icons")).toBeGreaterThan(-0.002);
     expect(gap("lower", "role-icons", "reading-stack")).toBeGreaterThan(0.04);
   });
 

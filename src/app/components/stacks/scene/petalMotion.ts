@@ -1,4 +1,4 @@
-import { MEADOW_WIND, limitMeadowWind } from "./meadowMotion";
+import { MEADOW_WIND, sampleMeadowWind } from "./meadowMotion";
 
 const TAU = Math.PI * 2;
 
@@ -97,29 +97,9 @@ export function petalNoise(id: number, salt: number) {
   return value - Math.floor(value);
 }
 
-function hash2(x: number, z: number, salt: number) {
-  const value = Math.sin(x * 127.1 + z * 311.7 + salt * 74.7) * 43758.5453;
-  return value - Math.floor(value);
-}
-
-function valueNoise2(x: number, z: number, salt: number) {
-  const ix = Math.floor(x);
-  const iz = Math.floor(z);
-  const fx = x - ix;
-  const fz = z - iz;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sz = fz * fz * (3 - 2 * fz);
-  const a = hash2(ix, iz, salt) * (1 - sx) + hash2(ix + 1, iz, salt) * sx;
-  const b =
-    hash2(ix, iz + 1, salt) * (1 - sx) + hash2(ix + 1, iz + 1, salt) * sx;
-  return a * (1 - sz) + b * sz;
-}
-
 /**
- * CPU companion to the meadow shader's traveling wind field. It intentionally
- * shares the shader's spatial scales, direction range, gust cadence, and hard
- * limiter; matching individual noise texels is unnecessary because a loose
- * petal responds to the local air mass rather than copying a stem tip.
+ * Loose petals ride the same air mass as the grass beneath them. Their flight
+ * profiles add the smaller flutter and side-slip variation.
  */
 export function samplePetalWind(
   x: number,
@@ -127,31 +107,7 @@ export function samplePetalWind(
   time: number,
   amplitude: number = MEADOW_WIND.amplitude,
 ): PetalWind {
-  const windTime = time * MEADOW_WIND.speed;
-  const angle =
-    (valueNoise2(x * 0.035 + windTime * 0.025, z * 0.035, 17) - 0.5) * 1.2 -
-    2.35;
-  const directionX = Math.cos(angle);
-  const directionZ = Math.sin(angle);
-  let gust = valueNoise2(
-    x * 0.22 - directionX * windTime * 0.55,
-    z * 0.22 - directionZ * windTime * 0.55,
-    31,
-  );
-  gust *= gust;
-  const breeze = valueNoise2(
-    x * 0.85 - directionX * windTime * 1.1,
-    z * 0.85 - directionZ * windTime * 1.1,
-    47,
-  );
-  const magnitude = limitMeadowWind(
-    amplitude * (0.35 + 0.85 * gust + 0.25 * breeze),
-  );
-  return {
-    x: directionX * magnitude,
-    z: directionZ * magnitude,
-    magnitude,
-  };
+  return sampleMeadowWind(x, z, time, amplitude);
 }
 
 function waitingDelay(motion: PetalMotion, cycle: number) {

@@ -22,6 +22,7 @@ import {
   meadowTileDrawCount,
   nextTerrainBuildGate,
 } from "./meadowField";
+import { MEADOW_FLOWER_WIND } from "./meadowMotion";
 import {
   SCENE_CONTENT_DEFINITIONS,
   SCENE_CONTENT_TIERS,
@@ -479,9 +480,50 @@ describe("Meadow.tsx wiring", () => {
     expect(flowerVertex).toContain("float tilt = (rotationVariation - 0.5)");
   });
 
+  it("moves each flower head rigidly around its implied stem", () => {
+    const flowerVertex = meadowSource.slice(
+      meadowSource.indexOf("const FLOWER_VERTEX"),
+      meadowSource.indexOf("const FLOWER_FRAGMENT"),
+    );
+
+    expect(flowerVertex).toContain("vec3 headOffset = vec3(");
+    expect(flowerVertex).toContain("p += headOffset;");
+    expect(flowerVertex).toContain("+ headOffset;");
+    expect(flowerVertex).toContain(
+      "windAt(origin.xz, uTime * uWindSpeed) * ${MEADOW_FLOWER_WIND.response.toFixed(2)}",
+    );
+    expect(flowerVertex).toContain(
+      "min(flowerLeanLength, ${MEADOW_FLOWER_WIND.maxLean.toFixed(2)})",
+    );
+    expect(flowerVertex).toContain(
+      "float stemLength = ${MEADOW_FLOWER_WIND.stemLength.toFixed(3)}",
+    );
+    expect(MEADOW_FLOWER_WIND.response).toBeGreaterThan(0.35);
+    expect(MEADOW_FLOWER_WIND.stemLength).toBeGreaterThan(0.06);
+    expect(flowerVertex).not.toContain("p.xz += w * position.y");
+  });
+
   it("keeps golf-edge grass tall while tapering its footprint", () => {
     expect(meadowSource).toContain("stream.height[i]! * golf.grassHeightScale");
     expect(meadowSource).not.toContain("stream.height[i]! * golf.grassScale");
+  });
+
+  it("clips grass at the golf fringe without resizing the surrounding tufts", () => {
+    const grassVertex = meadowSource.slice(
+      meadowSource.indexOf("export const meadowGrassVertexShader"),
+      meadowSource.indexOf("const GRASS_FRAGMENT"),
+    );
+    const grassFragment = meadowSource.slice(
+      meadowSource.indexOf("const GRASS_FRAGMENT"),
+      meadowSource.indexOf("const TERRAIN_VERTEX"),
+    );
+
+    expect(grassVertex).toContain("varying vec2 vWorldXZ;");
+    expect(grassVertex).toContain("vWorldXZ = world.xz;");
+    expect(grassFragment).toContain("#ifdef MEADOW_GOLF_GREEN");
+    expect(grassFragment).toContain("if (fringeD <= 1.0) discard;");
+    expect(meadowSource).toContain("? suppressGolfVegetation(");
+    expect(meadowSource).not.toContain("golfGrassScales");
   });
 
   it("leans the tuft linearly from a planted footprint instead of curving it", () => {

@@ -1807,6 +1807,12 @@ export default function SceneDiagnostics({
           </DiagnosticRegistrySection>
 
           <DiagnosticRegistrySection
+            groupId="simulate.golf"
+            snapshot={diagnosticSnapshot}
+            collapsible
+          />
+
+          <DiagnosticRegistrySection
             groupId="simulate.physics"
             snapshot={diagnosticSnapshot}
             collapsible

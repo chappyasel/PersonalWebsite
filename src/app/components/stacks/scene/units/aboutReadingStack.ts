@@ -38,6 +38,14 @@ export type ReadingBookFrontCorners = [
   [number, number, number],
 ];
 
+/** Maps one unit-local corner (x and z in the unit, y above the plank) to
+ * the elevation's 2D point. The boot passes the About rest camera's
+ * projector (dom/bootVignette.ts); without one the distance scaling below
+ * stands in, which is the same maths for a level eye at the origin. */
+export type ReadingBookProjector = (
+  corner: readonly [number, number, number],
+) => [number, number];
+
 export type ReadingBookElevation = [
   [number, number],
   [number, number],
@@ -262,18 +270,19 @@ export function readingBookFrontCorners(
 export function readingBookPerspectiveElevation(
   pose: ReadingBookPose,
   cameraZ: number,
+  project?: ReadingBookProjector,
 ): ReadingBookElevation {
-  return readingBookFrontCorners(pose).map(([x, y, z]) => {
-    const perspective = cameraZ / (cameraZ - z);
-    return [x * perspective, y * perspective] as [number, number];
-  }) as ReadingBookElevation;
+  return perspectiveElevation(readingBookFrontCorners(pose), cameraZ, project);
 }
 
 function perspectiveElevation(
   corners: readonly [number, number, number][],
   cameraZ: number,
+  project?: ReadingBookProjector,
 ): ReadingBookElevation {
-  return corners.map(([x, y, z]) => {
+  return corners.map((corner) => {
+    if (project) return project(corner);
+    const [x, y, z] = corner;
     const perspective = cameraZ / (cameraZ - z);
     return [x * perspective, y * perspective] as [number, number];
   }) as ReadingBookElevation;
@@ -285,6 +294,7 @@ export function readingBookCoverPerspectiveElevation(
   pose: ReadingBookPose,
   cameraZ: number,
   thickness: number,
+  project?: ReadingBookProjector,
 ): ReadingBookElevation {
   const halfWidth = ABOUT_READING_BOOK.width / 2;
   const halfHeight = ABOUT_READING_BOOK.depth / 2;
@@ -297,6 +307,7 @@ export function readingBookCoverPerspectiveElevation(
       point3(pose, -halfWidth, coverY, -halfHeight),
     ],
     cameraZ,
+    project,
   );
 }
 
@@ -305,6 +316,7 @@ export function readingBookForeEdgePerspectiveElevation(
   pose: ReadingBookPose,
   cameraZ: number,
   thickness: number,
+  project?: ReadingBookProjector,
 ): ReadingBookElevation {
   const x = ABOUT_READING_BOOK.width / 2;
   const halfHeight = ABOUT_READING_BOOK.depth / 2;
@@ -317,6 +329,7 @@ export function readingBookForeEdgePerspectiveElevation(
       point3(pose, x, halfThickness, -halfHeight),
     ],
     cameraZ,
+    project,
   );
 }
 
@@ -325,6 +338,7 @@ export function readingBookPageCorePerspectiveElevation(
   pose: ReadingBookPose,
   cameraZ: number,
   thickness: number,
+  project?: ReadingBookProjector,
 ): ReadingBookElevation {
   const x = ABOUT_READING_PAGE_BLOCK.width / 2;
   const halfHeight = ABOUT_READING_PAGE_BLOCK.depth / 2;
@@ -340,6 +354,7 @@ export function readingBookPageCorePerspectiveElevation(
       point3(pose, x, halfThickness, -halfHeight),
     ],
     cameraZ,
+    project,
   );
 }
 
@@ -349,6 +364,7 @@ export function readingBookImagePerspectiveElevation(
   pose: ReadingBookPose,
   cameraZ: number,
   thickness: number,
+  project?: ReadingBookProjector,
 ): ReadingBookElevation {
   const halfWidth = ABOUT_READING_COVER_IMAGE.width / 2;
   const halfHeight = ABOUT_READING_COVER_IMAGE.height / 2;
@@ -359,7 +375,7 @@ export function readingBookImagePerspectiveElevation(
     point3(pose, halfWidth, coverY, -halfHeight),
     point3(pose, -halfWidth, coverY, -halfHeight),
   ] as const;
-  return perspectiveElevation(corners, cameraZ);
+  return perspectiveElevation(corners, cameraZ, project);
 }
 
 /** Orthographic front elevation of the printed cover. The loading vignette

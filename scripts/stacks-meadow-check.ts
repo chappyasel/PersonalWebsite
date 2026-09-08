@@ -47,18 +47,27 @@ import {
   MEADOW_FOG,
   MEADOW_TERRAIN,
   NEAR_FEATHER_ZONE,
+  TRAVERSE_BAND_SLACK,
   VEGETATION_FRONT_Z,
   inEastFeather,
   inFarFeather,
   inWestFeather,
   meadowHeight,
 } from "../src/app/components/stacks/scene/meadowField";
+import {
+  POINTER_CAMERA_TILT_MAX_DEGREES,
+  POINTER_CAMERA_YAW_MAX_DEGREES,
+  eyeXZForYawAroundTarget,
+  eyeYForTiltAroundTarget,
+} from "../src/app/components/stacks/scene/pointerCameraTilt";
 import { SEAT_POSE } from "../src/app/components/stacks/scene/seated";
 import {
   CAMERA_LOOK_X_MAX_LAG,
+  PARALLAX_SWING,
   TRAVEL_X,
   cameraForAspect,
   cameraXForScrollOffset,
+  pointerOrbitEnabledForAspect,
 } from "../src/app/components/stacks/scene/worldLayout";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -95,7 +104,54 @@ const PAN_BIAS = extract("PAN_BIAS", /const PAN_BIAS = ([\d.]+);/);
 // ---------------------------------------------------------------------------
 // Poses.
 const H_MARGIN = 0.06; // camera lean / yaw parallax
-const V_MARGIN = 0.0183; // pointer + idle pitch swing
+const V_MARGIN = 0.0183; // idle pitch swing (the pointer's is posed below)
+/** CameraRig's pointer envelope, posed rather than folded into the angular
+ * margins because the pointer now MOVES the eye: it trucks 0.08 and carries
+ * the aim 0.12 per unit of pointer Y, swings the aim ±PARALLAX_SWING per
+ * unit of pointer X, then orbits the eye around that finished aim by the
+ * tilt and yaw maxima (±2° pitch, ±3° yaw — a third of a metre sideways at
+ * the traverse distance). The four corners are the extreme frames; the centre is
+ * the resting one every earlier round of this check was written against. */
+const POINTER_CORNERS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0],
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1],
+];
+function pointerEye(
+  eyeX: number,
+  eyeY: number,
+  eyeZ: number,
+  lookX: number,
+  [px, py]: readonly [number, number],
+  orbit: boolean,
+): { eye: Vec3; forward: Vec3 } {
+  const lookY = -0.08 + py * 0.12;
+  const lookZ = -0.2;
+  const aimX = lookX + px * PARALLAX_SWING;
+  const y = eyeYForTiltAroundTarget({
+    eyeY: eyeY + py * 0.08,
+    lookY,
+    horizontalDistance: Math.hypot(aimX - eyeX, lookZ - eyeZ),
+    tiltRadians: orbit
+      ? (py * POINTER_CAMERA_TILT_MAX_DEGREES * Math.PI) / 180
+      : 0,
+  });
+  const { x, z } = eyeXZForYawAroundTarget({
+    eyeX,
+    eyeZ,
+    lookX: aimX,
+    lookZ,
+    yawRadians: orbit
+      ? (px * POINTER_CAMERA_YAW_MAX_DEGREES * Math.PI) / 180
+      : 0,
+  });
+  return {
+    eye: [x, y, z],
+    forward: norm([aimX - x, lookY - y, lookZ - z]),
+  };
+}
 const OFFSETS = [0, 0.25, 0.5, 0.75, 1];
 const ASPECTS = [
   0.462, 0.5, 0.6, 0.7, 0.74, 0.75, 0.751, 1.0, 1.33, 1.78, 2.39, 3.0,
@@ -147,6 +203,13 @@ type Pose = {
    * seat → edge + bank checks; swing → edge checks only (transient frames
    * have no skyline handoff to hold to the fade band). */
   mode: "traverse" | "fling" | "seat" | "swing";
+  /** A traverse pose with the pointer parked in a viewport corner. Boundary
+   * checks (a, a2) run on these; the skyline composition rules (b, c) do
+   * not: they pin the RESTING eye's ridge-to-horizon and ridge-to-deck
+   * relationships, and a pointer that moves the eye ±0.29 of height makes
+   * every far silhouette column drift a few thousandths of a radian, which
+   * is the composition breathing rather than a gap or a wall. */
+  pointer?: boolean;
 };
 
 function norm(v: Vec3): Vec3 {
@@ -165,17 +228,33 @@ for (const offset of OFFSETS) {
     const progress = Math.min(1, Math.max(0, eyeX / TRAVEL_X));
     for (const bob of Y_BOB) {
       const y = cam.y + bob;
-      poses.push({
-        name: `traverse o${offset} a${aspect} y${y.toFixed(2)}`,
-        eye: [eyeX, y, cam.z],
-        // CameraRig's look target: (x, −0.08, −0.2).
-        forward: norm([0, -0.08 - y, -0.2 - cam.z]),
-        hHalf,
-        vHalf,
-        pan: progress * PAN_SPAN - PAN_BIAS,
-        hMargin: H_MARGIN,
-        mode: "traverse",
-      });
+      // CameraRig's look target: (x, −0.08, −0.2), then the pointer's
+      // truck, sway and orbit around it at each corner of the viewport.
+      // The narrow lens keeps the pointer's truck and sway but no orbit.
+      const orbit = pointerOrbitEnabledForAspect(aspect);
+      for (const corner of POINTER_CORNERS) {
+        const { eye, forward } = pointerEye(
+          eyeX,
+          y,
+          cam.z,
+          eyeX,
+          corner,
+          orbit,
+        );
+        poses.push({
+          name:
+            `traverse o${offset} a${aspect} y${y.toFixed(2)} ` +
+            `p${corner[0]},${corner[1]}`,
+          eye,
+          forward,
+          hHalf,
+          vHalf,
+          pan: progress * PAN_SPAN - PAN_BIAS,
+          hMargin: H_MARGIN,
+          mode: "traverse",
+          pointer: corner[0] !== 0 || corner[1] !== 0,
+        });
+      }
       // CameraRig damps the look target behind the camera during a fast
       // fling. Both signs are checked because either scroll direction can
       // occur at an arbitrary offset. This transient participates in the
@@ -187,20 +266,44 @@ for (const offset of OFFSETS) {
       // at the two terminal stops.
       const minLookX = cameraXForScrollOffset(0) - 0.45;
       const maxLookX = cameraXForScrollOffset(1) + 0.45;
-      for (const lag of [
+      // The pointer sway is inside the lag cap (look.x is clamped after
+      // the sway is added), but the yaw orbit moves the EYE, so a fling is
+      // posed from each side of that orbit as well as from rest. CameraRig
+      // fades the orbit out in proportion to the lag, so the capped lag
+      // carries no orbit and half the lag carries half of it; both products
+      // are posed.
+      for (const lagCap of [
         Math.max(-CAMERA_LOOK_X_MAX_LAG, minLookX - eyeX),
         Math.min(CAMERA_LOOK_X_MAX_LAG, maxLookX - eyeX),
       ]) {
-        flingPoses.push({
-          name: `fling o${offset} a${aspect} y${y.toFixed(2)} lag${lag}`,
-          eye: [eyeX, y, cam.z],
-          forward: norm([lag, -0.08 - y, -0.2 - cam.z]),
-          hHalf,
-          vHalf,
-          pan: progress * PAN_SPAN - PAN_BIAS,
-          hMargin: H_MARGIN,
-          mode: "fling",
-        });
+        for (const fraction of [1, 0.5]) {
+          const lag = lagCap * fraction;
+          const orbit = pointerOrbitEnabledForAspect(aspect)
+            ? POINTER_CAMERA_YAW_MAX_DEGREES *
+              (1 - Math.abs(lag) / CAMERA_LOOK_X_MAX_LAG)
+            : 0;
+          for (const px of orbit > 0 ? [-1, 1] : [0]) {
+            const { x, z } = eyeXZForYawAroundTarget({
+              eyeX,
+              eyeZ: cam.z,
+              lookX: eyeX + lag,
+              lookZ: -0.2,
+              yawRadians: (px * orbit * Math.PI) / 180,
+            });
+            flingPoses.push({
+              name:
+                `fling o${offset} a${aspect} y${y.toFixed(2)} ` +
+                `lag${lag.toFixed(2)} p${px}`,
+              eye: [x, y, z],
+              forward: norm([eyeX + lag - x, -0.08 - y, -0.2 - z]),
+              hHalf,
+              vHalf,
+              pan: progress * PAN_SPAN - PAN_BIAS,
+              hMargin: H_MARGIN,
+              mode: "fling",
+            });
+          }
+        }
       }
     }
   }
@@ -376,26 +479,34 @@ function inTraverseBand(x: number, z: number): boolean {
     return false;
   const d = NEAR_EYE_Z - z;
   return (
-    x > -1.2 - LATERAL_REACH * d - 0.6 + 0.05 &&
-    x < TRAVEL_X + LATERAL_REACH * d + 0.6 - 0.05
+    x > -1.2 - LATERAL_REACH * d - TRAVERSE_BAND_SLACK + 0.05 &&
+    x < TRAVEL_X + LATERAL_REACH * d + TRAVERSE_BAND_SLACK - 0.05
   );
 }
 function inSeatedBand(x: number, z: number): boolean {
   if (z < SEATED_Z0 || z > MEADOW_BANK.skirtZ) return false;
   return Math.abs(x - SEAT_POSE.eye[0]) < seatedHw(z) - 0.05;
 }
-// Boundary samples inside the exported west feather are exempt: the flank
+// Boundary samples inside the exported feathers are exempt: the west flank
 // fades by density over WEST_FEATHER.span units precisely because the walk
-// phase can face it from arbitrary yaw at close range — there is no line
-// there to discover (vitest pins the feather's shape).
+// phase can face it from arbitrary yaw at close range, and the east flank
+// over EAST_FEATHER.span because the pointer's head turn at the last stop
+// brings it inside wide frames — there is no line there to discover (vitest
+// pins the feathers' shapes).
 for (let d = GRASS_BANDS.near.d0; d <= GRASS_BANDS.ridge.d1; d += 0.2) {
   const z = NEAR_EYE_Z - d;
   for (const side of [-1, 1]) {
     const x =
       side < 0
-        ? -1.2 - LATERAL_REACH * d - 0.6
-        : TRAVEL_X + LATERAL_REACH * d + 0.6;
-    if (inSeatedBand(x, z) || inWestFeather(x, z) || inFarFeather(z)) continue;
+        ? -1.2 - LATERAL_REACH * d - TRAVERSE_BAND_SLACK
+        : TRAVEL_X + LATERAL_REACH * d + TRAVERSE_BAND_SLACK;
+    if (
+      inSeatedBand(x, z) ||
+      inWestFeather(x, z) ||
+      inEastFeather(x, z) ||
+      inFarFeather(z)
+    )
+      continue;
     edgeSamples.push({ p: [x, meadowHeight(x, z), z], kind: "grass" });
   }
 }
@@ -524,7 +635,7 @@ function silhouetteAt(pose: Pose, phi: number): Silhouette | null {
 
 let horizonColumns = 0;
 let belowColumns = 0;
-for (const pose of poses.filter((p) => p.mode === "traverse")) {
+for (const pose of poses.filter((p) => p.mode === "traverse" && !p.pointer)) {
   const a0 = Math.atan2(pose.forward[2], pose.forward[0]);
   const span = pose.hHalf + pose.hMargin;
   for (let phi = -span; phi <= span; phi += AZ_STEP) {
@@ -620,7 +731,9 @@ if (horizonColumns === 0 || belowColumns === 0) {
   );
 }
 if (failures.length) {
-  const shown = failures.slice(0, 40);
+  const shown = process.env.MEADOW_CHECK_SHOW_ALL
+    ? failures
+    : failures.slice(0, 40);
   for (const f of shown) console.error("  FAIL " + f);
   if (failures.length > shown.length) {
     console.error(`  … and ${failures.length - shown.length} more`);

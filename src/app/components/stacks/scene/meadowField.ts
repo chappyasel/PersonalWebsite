@@ -48,11 +48,17 @@ export const TRAVERSE_MAX_X = TRAVEL_X;
 /** Lateral reach per unit of view depth from the widest checked frustum:
  * aspect 3.0 (a 1200×400 desktop window is reachable) at fov 33 gives
  * h-half atan(tan(16.5°)·3) = 0.7265 rad; +0.06 lean/yaw margin → tan
- * 0.994, rounded up so the samplers' extra 0.6-unit slack keeps every
- * vegetation side edge strictly outside every frustum (1.0 + 0.6/d > 0.994
- * at all depths). The earlier 21:9-derived 0.802 left the side trapezoid
- * ~20% inside a 3.0-aspect frame — the check script is the arbiter here. */
+ * 0.994, rounded up so the samplers' extra slack keeps every vegetation
+ * side edge strictly outside every frustum. The earlier 21:9-derived 0.802
+ * left the side trapezoid ~20% inside a 3.0-aspect frame — the check script
+ * is the arbiter here. */
 export const LATERAL_REACH = 1.0;
+/** Constant slack past the reach on both flanks of the traverse trapezoid,
+ * covering the samplers' rounding. Named so the check script and the
+ * feathers read the same flank; the pointer's head turn is answered by the
+ * east feather rather than by more slack, because widening the trapezoid
+ * reseeds every flower head and the petal donors with it. */
+export const TRAVERSE_BAND_SLACK = 0.6;
 const SEAT_X = SEAT_POSE.eye[0];
 const SEAT_Z = SEAT_POSE.eye[2];
 
@@ -67,21 +73,40 @@ const SEAT_Z = SEAT_POSE.eye[2];
 //   Tablet portrait (fov 40.5) at the LOW eye bob (y 0.3 − 0.11 = 0.19,
 //             which also shallows the pitch to −atan(0.27/7.8) = −0.0346):
 //             −0.0346 − 0.3534 − 0.0183 = −0.4063 → ground (Δy 1.325 at the
-//             undulation's +0.035 crest) enters at depth 3.08 → z ≤ 4.52 —
-//             TABLET AT LOW BOB, not desktop, drives the front line.
-//             Vegetation starts just behind it, so no camera ever sees the
-//             front density edge, and the strip desktop never reaches
-//             (2.3 → 4.6) is overdraw headroom, not a visible boundary.
+//             undulation's +0.035 crest) enters at depth 3.08 → z ≤ 4.52.
+//             With the pointer parked at the viewport's bottom the same
+//             lens trucks its eye down 0.08 and its aim 0.12 (CameraRig's
+//             pointer parallax, which a mouse on a portrait monitor or a
+//             finger mid-swipe both drive): eye 0.11, pitch −0.0397 →
+//             −tan(0.3931) − 0.0183 = −0.433 → Δy 1.245 enters at depth
+//             2.875 → z ≤ 4.73, and the check script's exact frustum (its
+//             lean margin widens the side planes) lands one crest sample
+//             at 4.75. THE POINTED NARROW LENS AT LOW BOB, not desktop,
+//             drives the front line. Vegetation starts just behind it, so
+//             no camera ever sees the front density edge, and the strip
+//             desktop never reaches (2.3 → 4.85) is overdraw headroom, not
+//             a visible boundary.
+//   Pointer:  the desktop lens with the pointer at the viewport's bottom
+//             trucks the eye down 0.08 and orbits it 2° around the aim
+//             (pointerCameraTilt): eye y −0.03, pitch −0.028 → frame bottom
+//             −0.345 → depth 3.16 → z ≤ 2.64, still far short of the front
+//             line. The narrow lens gets NO orbit (worldLayout's
+//             pointerOrbitEnabledForAspect): from z 7.6 even its plain
+//             pointer truck already grazes the front line (entry z ≤ 4.62),
+//             and a 2° orbit would push that to 5.16, which only a quarter
+//             thinner lawn or a fifth more tufts could cover. The check
+//             script poses both lenses' pointer corners.
 //   Seated:   0.02 − 0.3665 − 0.02 = −0.3665 → ground (Δy ≥ 1.155) enters
 //             3.0 out → z ≥ 4.0; the seated band starts at 3.8, below frame.
-export const VEGETATION_FRONT_Z = 4.6;
+export const VEGETATION_FRONT_Z = 4.85;
 /** Farthest frame-bottom ground entry of any supported camera (tablet
- * portrait at low eye bob). Vegetation may only START between this and the
- * front line — a front edge inside this zone is below every frame bottom.
- * The old meadow's z = 3.25 edge sat well INSIDE the tablet frame, which is
- * the bug class the check script's self-test proves it still catches. */
+ * portrait at low eye bob with the pointer at the viewport's bottom).
+ * Vegetation may only START between this and the front line — a front edge
+ * inside this zone is below every frame bottom. The old meadow's z = 3.25
+ * edge sat well INSIDE the tablet frame, which is the bug class the check
+ * script's self-test proves it still catches. */
 export const NEAR_FEATHER_ZONE = {
-  minZ: 4.52,
+  minZ: 4.75,
   maxZ: VEGETATION_FRONT_Z,
 } as const;
 export const inNearFeatherZone = (z: number) =>
@@ -119,6 +144,13 @@ export const FLING_GRASS_APRON = {
   minX: MEADOW_TERRAIN.minX + 0.3,
   maxX: MEADOW_TERRAIN.maxX - 0.3,
   minZ: VEGETATION_FRONT_Z,
+  /** Behind the traverse eye (z 5.8), and no deeper than the seated bank's
+   * skirt (z 7): tufts past it would stand on the bank's far face and fuzz
+   * the crest the seated silhouette check proves. A 3:1 window's fast-fling
+   * frustum at the full lag cap reaches exactly 90° off axis, and CameraRig
+   * suppresses the pointer's 3° orbit in proportion to that lag (the check
+   * script poses the same product), so 0.8 behind the eye still keeps this
+   * back edge out of every transient frame. */
   maxZ: 6.6,
 } as const;
 
@@ -398,8 +430,10 @@ export function meadowHeight(x: number, z: number): number {
 // footprint, so a few thousand overlapping tufts give the reference's
 // full-pile coverage where tens of thousands of blades read as debris.
 export const GRASS_BANDS = {
-  /** Quiet short lawn, z +4.6 → −9.2 (depth 1.2 → 15 from the rail). */
-  near: { count: 7200, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 15 },
+  /** Quiet short lawn, z +4.85 → −9.2 (depth 0.95 → 15 from the rail).
+   * The band samples depth log-uniformly, so starting 0.25 nearer would
+   * have thinned the whole lawn by 9%; the count carries that share. */
+  near: { count: 7800, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 15 },
   /** Camera-side safety grass, normally below/behind the frame. */
   apron: FLING_GRASS_APRON,
   /** The meadow moment, z −6.8 → −18.2. Its first 2.4 depth units overlap
@@ -448,9 +482,9 @@ export const MEADOW_RUNG_FRACTIONS = [0.65, 0.78, 0.9, 1] as const;
  * mid + seated + ridge bands share the light LOD in a second one. Each mesh
  * has its own rung-ordered buffer and count table; the combined table is
  * the reporting total. */
-export const MEADOW_RUNG_GRASS_NEAR = [6760, 8112, 9360, 10400] as const;
+export const MEADOW_RUNG_GRASS_NEAR = [7150, 8580, 9900, 11000] as const;
 export const MEADOW_RUNG_GRASS_FAR = [3900, 4680, 5400, 6000] as const;
-export const MEADOW_RUNG_GRASS = [10660, 12792, 14760, 16400] as const;
+export const MEADOW_RUNG_GRASS = [11050, 13260, 15300, 17000] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
 // Flower heads are only two triangles each (~6k total) and carry far more
 // visual identity than that cost warrants removing. Durable rungs thin the
@@ -1058,7 +1092,7 @@ export function unionWestX(z: number, westExtension = 0): number {
       TRAVERSE_MIN_X -
         westExtension -
         LATERAL_REACH * (TRAVERSE_EYE.z - z) -
-        0.6,
+        TRAVERSE_BAND_SLACK,
     );
   }
   if (z >= SEAT_Z + GRASS_BANDS.seated.d0 && z <= MEADOW_BANK.skirtZ) {
@@ -1086,20 +1120,29 @@ export function inWestFeather(
   return x <= unionWestX(z, westExtension) + WEST_FEATHER.span + 0.5;
 }
 
-/** The seated band's EAST flank past the traverse front line gets the same
- * treatment: settled-seat pointer sway (±0.18 rad of yaw) grazes it at
- * ultrawide aspects, so it fades instead of cutting. */
+/** The EAST flanks get the same treatment. The seated band's, past the
+ * traverse front line: settled-seat pointer sway (±0.18 rad of yaw) grazes
+ * it at ultrawide aspects. The traverse trapezoid's own east flank: the
+ * pointer's head turn (0.45 of aim parallax plus the 3° orbit, ~7°) at the
+ * last stop brings the flank inside a 21:9 or 3:1 frame from depth 5 to the
+ * fog bar, and widening LATERAL_REACH to cover a 7° turn at 3:1 (tan of
+ * 52° ≈ 1.3) would grow the whole trapezoid by a third. So it fades instead of
+ * cutting, which is the treatment the west flank already has. */
 export const EAST_FEATHER = { span: 4 } as const;
 
+/** The east flank's x at a z-plane: the seated band's beyond the front
+ * line, the traverse trapezoid's inside it. */
+function eastFlankX(z: number): number {
+  if (z <= VEGETATION_FRONT_Z) return traverseXRange(TRAVERSE_EYE.z - z)[1];
+  return SEAT_X + seatedHalfWidth(z);
+}
+
 export function eastFeatherScale(x: number, z: number): number {
-  if (z <= VEGETATION_FRONT_Z) return 1; // traverse band owns the east there
-  const east = SEAT_X + seatedHalfWidth(z);
-  return 0.12 + 0.88 * smoothstep(0, EAST_FEATHER.span, east - x);
+  return 0.12 + 0.88 * smoothstep(0, EAST_FEATHER.span, eastFlankX(z) - x);
 }
 
 export function inEastFeather(x: number, z: number): boolean {
-  if (z <= VEGETATION_FRONT_Z) return false;
-  return x >= SEAT_X + seatedHalfWidth(z) - EAST_FEATHER.span - 0.5;
+  return x >= eastFlankX(z) - EAST_FEATHER.span - 0.5;
 }
 
 /** Broad, low-frequency mowing/growth drifts for the camera-side apron.
@@ -1170,8 +1213,8 @@ function bakedSun(x: number, z: number): number {
  * at every depth. The still uses it: see GRASS_STILL_ENVELOPE. */
 function traverseXRange(d: number, westExtension = 0): [number, number] {
   return [
-    TRAVERSE_MIN_X - westExtension - LATERAL_REACH * d - 0.6,
-    TRAVERSE_MAX_X + LATERAL_REACH * d + 0.6,
+    TRAVERSE_MIN_X - westExtension - LATERAL_REACH * d - TRAVERSE_BAND_SLACK,
+    TRAVERSE_MAX_X + LATERAL_REACH * d + TRAVERSE_BAND_SLACK,
   ];
 }
 

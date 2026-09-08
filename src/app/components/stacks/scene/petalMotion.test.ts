@@ -7,6 +7,7 @@ import {
   petalColorForTheme,
 } from "./Petals";
 import { shelfBackEdgeAt } from "./meadowInteraction";
+import { MEADOW_WIND } from "./meadowMotion";
 import {
   PETALS_PER_UNIT,
   PETAL_FIXED_STEP,
@@ -115,7 +116,7 @@ describe("petal motion", () => {
     const later = samplePetalWind(2, -1, 9);
     expect(same).toEqual(a);
     expect(a.magnitude).toBeGreaterThan(0);
-    expect(a.magnitude).toBeLessThanOrEqual(0.25);
+    expect(a.magnitude).toBeLessThanOrEqual(MEADOW_WIND.gustCeiling);
     expect(later).not.toEqual(a);
   });
 

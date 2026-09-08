@@ -16,6 +16,7 @@ import {
   GRASS_STILL_ENVELOPE,
   type GrassInstances,
   HORIZON_RIDGE,
+  LATERAL_REACH,
   MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
   MEADOW_FURNITURE_ALL,
@@ -29,6 +30,7 @@ import {
   MEADOW_TERRAIN,
   MEADOW_TILE_SIZE,
   NEAR_FEATHER_ZONE,
+  TRAVERSE_BAND_SLACK,
   TRAVERSE_EYE,
   UNDER_SHELF_GRASS_TIP_Y,
   VEGETATION_FRONT_Z,
@@ -415,9 +417,9 @@ describe("placement", () => {
     }
     expect(front).toBeLessThanOrEqual(NEAR_FEATHER_ZONE.maxZ);
     // The zone itself must sit behind the deepest frame-bottom ground entry
-    // (tablet portrait at low eye bob, z 4.52) — the old z = 3.25 front
-    // line violated this.
-    expect(NEAR_FEATHER_ZONE.minZ).toBeGreaterThanOrEqual(4.52);
+    // (tablet portrait at low eye bob with the pointer at the viewport's
+    // bottom, z 4.75) — the old z = 3.25 front line violated this.
+    expect(NEAR_FEATHER_ZONE.minZ).toBeGreaterThanOrEqual(4.75);
     expect(3.25).toBeLessThan(NEAR_FEATHER_ZONE.minZ);
   });
 
@@ -786,6 +788,16 @@ describe("placement", () => {
       expect(eastFeatherScale(east, z)).toBeLessThanOrEqual(0.13);
       expect(eastFeatherScale(east - EAST_FEATHER.span, z)).toBeCloseTo(1, 5);
       expect(inEastFeather(east, z)).toBe(true);
+    }
+    // And the traverse trapezoid's own east flank, which the pointer's head
+    // turn brings inside wide frames from the last stop.
+    for (let z = 4; z >= -20; z -= 3) {
+      const d = 5.8 - z;
+      const east = TRAVEL_X + LATERAL_REACH * d + TRAVERSE_BAND_SLACK;
+      expect(eastFeatherScale(east, z)).toBeLessThanOrEqual(0.13);
+      expect(eastFeatherScale(east - EAST_FEATHER.span, z)).toBeCloseTo(1, 5);
+      expect(inEastFeather(east, z)).toBe(true);
+      expect(inEastFeather(east - EAST_FEATHER.span - 1, z)).toBe(false);
     }
     // The far line (the ridge band's tail since round 3) thins the same way.
     expect(farFeatherScale(5.8 - GRASS_BANDS.ridge.d1)).toBeLessThanOrEqual(

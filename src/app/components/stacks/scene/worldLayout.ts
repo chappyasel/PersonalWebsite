@@ -8,6 +8,10 @@ import {
 } from "../data";
 import { presentationProfileForViewport } from "../mobile/presentation";
 
+import {
+  POINTER_CAMERA_YAW_MAX_DEGREES,
+  eyeXZForYawAroundTarget,
+} from "./pointerCameraTilt";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 
 export const UNIT_SPACING = 4.4;
@@ -101,6 +105,17 @@ export function cameraForAspect(aspect: number) {
     fov:
       CAMERA_PHONE.fov + (CAMERA_NARROW.fov - CAMERA_PHONE.fov) * tabletBlend,
   };
+}
+
+/** Whether the pointer may orbit the eye (pointerCameraTilt) on this
+ * viewport. Only the desktop lens: the narrow lens stands at z 7.6 with a
+ * wider fov, and from there even the plain pointer truck already grazes the
+ * meadow's vegetation front line at the frame bottom (meadowField's extents
+ * derivation), so a 2° orbit would need a nearer front line that costs the
+ * lawn a quarter of its density. Narrow desktop windows take the portrait
+ * composition anyway: no rail, no dock. The meadow check poses both. */
+export function pointerOrbitEnabledForAspect(aspect: number): boolean {
+  return aspect > TABLET_PORTRAIT_ASPECT;
 }
 
 export type CameraDepthOffsets = Readonly<{
@@ -491,12 +506,28 @@ export function aboutStopShift(
  * PlacardLayer gives the dock (`--pw` and its gutter), at the 16px root
  * size. A formula rather than a measurement because the dock is a pure
  * function of the viewport, unlike the rail, whose width is a font's. */
+export const DESKTOP_DOCK_GEOMETRY = {
+  rem: 16,
+  widthMinRem: 27,
+  widthMaxRem: 40,
+  widthBaseRem: 13,
+  widthFraction: 0.225,
+  gutterMinRem: 1.25,
+  gutterMaxRem: 2,
+  gutterBaseRem: 0.6,
+  gutterFraction: 0.011,
+} as const;
+
 export function desktopDockLeftPx(vw: number): number {
-  const rem = 16;
-  const width = Math.min(40 * rem, Math.max(27 * rem, 0.225 * vw + 13 * rem));
+  const d = DESKTOP_DOCK_GEOMETRY;
+  const rem = d.rem;
+  const width = Math.min(
+    d.widthMaxRem * rem,
+    Math.max(d.widthMinRem * rem, d.widthFraction * vw + d.widthBaseRem * rem),
+  );
   const gutter = Math.min(
-    2 * rem,
-    Math.max(1.25 * rem, 0.6 * rem + 0.011 * vw),
+    d.gutterMaxRem * rem,
+    Math.max(d.gutterMinRem * rem, d.gutterBaseRem * rem + d.gutterFraction * vw),
   );
   return vw - width - gutter;
 }
@@ -529,6 +560,99 @@ export type DesktopStopFraming = Readonly<{
   aboutDockSwing: number;
 }>;
 
+/** The top plank's four corners relative to a unit's centre, through that
+ * unit's authored yaw (stops alternate +0.10 and −0.12). */
+function shelfCornersForYaw(
+  yaw: number,
+): ReadonlyArray<readonly [number, number]> {
+  const hw = SHELF_GEOMETRY.width / 2;
+  const { centerZ, depth } = SHELF_GEOMETRY.top;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  const corners: Array<readonly [number, number]> = [];
+  for (const x of [-hw, hw]) {
+    for (const z of [centerZ - depth / 2, centerZ + depth / 2]) {
+      corners.push([x * cos + z * sin, -x * sin + z * cos]);
+    }
+  }
+  return corners;
+}
+const STOP_SHELF_CORNERS = [
+  shelfCornersForYaw(unitPose(1).rotation[1]),
+  shelfCornersForYaw(unitPose(2).rotation[1]),
+];
+const ABOUT_SHELF_CORNERS = [shelfCornersForYaw(unitPose(0).rotation[1])];
+
+/** NDC x of the right-most plank corner seen from an eye that aims `swing`
+ * left of itself and, with the pointer on the viewport's edge, has orbited
+ * that aim by the full pointer yaw (view left, eye right). Solved in the
+ * ground plane: the plank sits within 0.12 of the aim's height, so the pitch
+ * moves this by well under a pixel. */
+function rightmostShelfNdc(
+  eyeX: number,
+  eyeZ: number,
+  swing: number,
+  cornerSets: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  tanH: number,
+): number {
+  const aimX = eyeX - swing;
+  const aimZ = CAMERA_LOOK_Z_OFFSET;
+  const eye = eyeXZForYawAroundTarget({
+    eyeX,
+    eyeZ,
+    lookX: aimX,
+    lookZ: aimZ,
+    yawRadians: -(POINTER_CAMERA_YAW_MAX_DEGREES * Math.PI) / 180,
+  });
+  const fx = aimX - eye.x;
+  const fz = aimZ - eye.z;
+  const fl = Math.hypot(fx, fz);
+  const f = [fx / fl, fz / fl] as const;
+  const right = [-f[1], f[0]] as const;
+  let max = -Infinity;
+  for (const corners of cornerSets) {
+    for (const [cx, cz] of corners) {
+      const dx = cx - eye.x;
+      const dz = cz - eye.z;
+      const depth = dx * f[0] + dz * f[1];
+      const lateral = dx * right[0] + dz * right[1];
+      max = Math.max(max, lateral / depth / tanH);
+    }
+  }
+  return max;
+}
+
+/** The leftward aim swing at which the shelf's right edge lands on
+ * `edgeNdc`, capped at `maxSwing`; zero when it already touches at rest.
+ * The edge moves monotonically with the swing, so a bisection is exact to
+ * far below a pixel in 28 steps. */
+function swingToRightEdge(
+  eyeX: number,
+  eyeZ: number,
+  cornerSets: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  edgeNdc: number,
+  tanH: number,
+  maxSwing: number,
+): number {
+  const at = (swing: number) =>
+    rightmostShelfNdc(eyeX, eyeZ, swing, cornerSets, tanH);
+  if (at(0) >= edgeNdc) return 0;
+  if (at(maxSwing) <= edgeNdc) return maxSwing;
+  let lo = 0;
+  let hi = maxSwing;
+  for (let i = 0; i < 28; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(mid) < edgeNdc) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+let framingCache: {
+  key: string;
+  value: DesktopStopFraming;
+} | null = null;
+
 /** The desktop framing at stops 1..6: how far right of a shelf's centre line
  * the camera stands so the shelf's projected centre lands at the midpoint of
  * the clear gap between the rail's widest label and the dock, plus what the
@@ -537,14 +661,35 @@ export type DesktopStopFraming = Readonly<{
  * behind the dock at any width under ~2560px: at 2000 the dock owns the
  * frame from 1328px and the shelf ran to 1482 (owner screenshot, 2026-09-04).
  *
- * Solved at the shelf plane, distance `cam.z` from the eye, with a parallel
- * optical axis: px per world unit = vw / (2·tanH·cam.z). Where the gap is
- * narrower than the shelf (below ~1400px) the RIGHT edge holds
- * DOCK_SHELF_MARGIN_PX off the dock and the left end runs under the nav:
- * the nav is transparent text and the dock is opaque cards, so the nav is
- * the side that can be seen through (owner, 2026-09-04). Portrait and
- * mobile shells have no dock and no rail; callers pass no rail there. */
+ * The rest pose is solved at the shelf plane, distance `cam.z` from the
+ * eye, with a parallel optical axis: px per world unit = vw / (2·tanH·cam.z).
+ * Where the gap is narrower than the shelf (below ~1400px) the RIGHT edge
+ * holds DOCK_SHELF_MARGIN_PX off the dock and the left end runs under the
+ * nav: the nav is transparent text and the dock is opaque cards, so the nav
+ * is the side that can be seen through (owner, 2026-09-04).
+ *
+ * The dock-side pointer swing is solved on the REAL projection instead: the
+ * camera turns toward the swung aim and, at the viewport's edge, has also
+ * orbited that aim by the pointer yaw. The parallel-axis estimate that used
+ * to stand in for this left the plank's corner 14–30px past the dock's
+ * glass at 1440–1728 wide; the turned camera puts it exactly on the glass,
+ * and the orbit (eye right, view left) foreshortens the near end so it
+ * needs a little less swing than a pure turn would. Cached per viewport
+ * because CameraRig asks every frame. Portrait and mobile shells have no
+ * dock and no rail; callers pass no rail there. */
 export function desktopStopFraming(
+  vw: number,
+  vh: number,
+  railRightPx: number,
+): DesktopStopFraming {
+  const key = `${vw}|${vh}|${railRightPx}`;
+  if (framingCache?.key === key) return framingCache.value;
+  const value = solveDesktopStopFraming(vw, vh, railRightPx);
+  framingCache = { key, value };
+  return value;
+}
+
+function solveDesktopStopFraming(
   vw: number,
   vh: number,
   railRightPx: number,
@@ -581,21 +726,36 @@ export function desktopStopFraming(
   // The look target sits CAMERA_LOOK_Z_OFFSET behind the shelf plane, so a
   // look offset moves the shelf by cam.z / (cam.z - offset) of itself.
   const lookPerShelfWorld = (cam.z - CAMERA_LOOK_Z_OFFSET) / cam.z;
-  const dockSwingFor = (leftPx: number, rightPx: number) => {
-    const clearance = Math.max(0, dockEdge - rightPx) / pxPerWorld;
+  const glassNdc = (2 * dockEdge) / vw - 1;
+  const dockSwingFor = (
+    leftPx: number,
+    eyeX: number,
+    cornerSets: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  ) => {
     const underNav = Math.max(0, railEdge - leftPx) / pxPerWorld;
-    // Fits: swing to the glass, kept as a plain clearance so the shelf lands
-    // ~3% short of it. Overflows: swing until the left end reaches the rail
-    // margin, exact, and let the right end go under the opaque dock.
-    const touch = Math.min(PARALLAX_SWING, clearance);
+    // Fits: swing until the plank's corner touches the glass, on the turned
+    // and orbited camera. Overflows: swing until the left end reaches the
+    // rail margin, exact, and let the right end go under the opaque dock.
+    const touch = swingToRightEdge(
+      eyeX,
+      cam.z,
+      cornerSets,
+      glassNdc,
+      tanH,
+      PARALLAX_SWING,
+    );
     const reveal = underNav * lookPerShelfWorld;
     return Math.min(PARALLAX_DOCK_SWING_MAX, Math.max(touch, reveal));
   };
   return {
     lateralOffset,
     gapCentreNdc: (2 * mid) / vw - 1,
-    dockSwing: dockSwingFor(landedRight - 2 * halfShelfPx, landedRight),
-    aboutDockSwing: dockSwingFor(aboutLeft, aboutLeft + 2 * halfShelfPx),
+    dockSwing: dockSwingFor(
+      landedRight - 2 * halfShelfPx,
+      lateralOffset,
+      STOP_SHELF_CORNERS,
+    ),
+    aboutDockSwing: dockSwingFor(aboutLeft, aboutShift, ABOUT_SHELF_CORNERS),
   };
 }
 

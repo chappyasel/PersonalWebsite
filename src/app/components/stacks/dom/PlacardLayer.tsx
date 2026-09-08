@@ -2006,7 +2006,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           <motion.div
             key="dim"
             data-stacks-mobile-panel-dim=""
-            className="pointer-events-none fixed inset-0 z-30 bg-background/10"
+            className="pointer-events-none fixed inset-0 z-30 bg-black/30 dark:bg-black/10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -2025,6 +2025,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         aria-hidden
         data-stacks-sheet-material=""
         data-stacks-mobile-intro="sheet"
+        data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
         data-stacks-panel-unit={shownSlug}
         style={{
           y,
@@ -2510,11 +2511,20 @@ export default function PlacardLayer({
         @media (min-width: 1200px) {
           /* Restore the material strength of the former desktop plates on the
              native surfaces. The explicit marker excludes nested language
-             pills, so only the card-sized glass receives the wide scene blur. */
+             pills, so only the card-sized glass receives the wide scene blur.
+
+             The light plate needs a luminance floor. brightness() multiplies,
+             so trees behind the lower Book Notes rows came out a mid grey
+             within a couple of stops of the ink while sky behind the stats
+             card went blank white. contrast(0.55) pulls both ends toward mid
+             grey before brightness lifts the band, and the fill finishes the
+             lift: dark scene ~0.27 -> ~0.50, sky ~0.98 -> ~0.86. Frosted
+             glass scatters and compresses, so this also reads more like
+             glass. Dark mode is left as authored; it looked fine. */
           [data-stacks-desktop-panel] [data-placard-surface] {
-            background-color: rgb(255 255 255 / 0.18) !important;
-            backdrop-filter: blur(80px) saturate(0.28) brightness(1.4) !important;
-            -webkit-backdrop-filter: blur(80px) saturate(0.28) brightness(1.4) !important;
+            background-color: rgb(255 255 255 / 0.22) !important;
+            backdrop-filter: blur(80px) saturate(0.35) contrast(0.55) brightness(1.35) !important;
+            -webkit-backdrop-filter: blur(80px) saturate(0.35) contrast(0.55) brightness(1.35) !important;
           }
           .dark [data-stacks-desktop-panel] [data-placard-surface] {
             background-color: rgb(0 0 0 / 0.05) !important;
@@ -2536,12 +2546,18 @@ export default function PlacardLayer({
           -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.18);
         }
         .stacks-sheet {
+          --sheet-fill: rgb(255 255 255 / 0.28);
           box-shadow:
             inset 0 1px 0 rgb(255 255 255 / 0.72),
             inset 1px 0 0 rgb(255 255 255 / 0.12),
             inset -1px 0 0 rgb(255 255 255 / 0.12),
             0 -2px 6px rgb(28 25 23 / 0.08),
             0 -18px 40px -24px rgb(28 25 23 / 0.42) !important;
+        }
+        html:not(.dark) .stacks-sheet[data-sheet="expanded"] {
+          --sheet-fill: rgb(255 255 255 / 0.36);
+          backdrop-filter: blur(42px) saturate(0.28) brightness(1.24);
+          -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.24);
         }
         /* Mobile's first resident sheet settles after the navigation begins.
            The material and interaction layers move together, while the
@@ -2678,9 +2694,12 @@ export default function PlacardLayer({
            while resizing.
 
            14.0px at 1280 (the width the scene is composed against), 13.1px
-           at the narrowest dock and 16.0px at the widest. Mobile keeps a
-           flat 0.875rem, which is exactly what the sheet renders today. */
-        .placard-scroll { --ps: 0.875rem; }
+           at the narrowest dock and 16.0px at the widest. Mobile starts at
+           14px on a phone and reaches 16px as the sheet approaches its 700px
+           cap, instead of leaving tablet-sized sheets at phone scale. */
+        .placard-scroll {
+          --ps: clamp(0.875rem, calc(0.718rem + 0.645vw), 1rem);
+        }
         @media (min-width: 1200px) {
           .placard-scroll { --ps: calc(0.4375rem + var(--pw, 31rem) * 0.0141); }
         }
@@ -2691,7 +2710,7 @@ export default function PlacardLayer({
            reason they have to: a fixed rem leading under a scaled font
            closes up as the column widens. */
         .placard-scroll .text-xs { font-size: calc(var(--ps) * 0.857); line-height: 1.333; }
-        .placard-scroll .text-sm { font-size: var(--ps); line-height: 1.429; }
+        .placard-scroll .text-sm { font-size: var(--ps); line-height: 1.5; }
         .placard-scroll .text-base { font-size: calc(var(--ps) * 1.143); line-height: 1.5; }
         .placard-scroll .text-lg { font-size: calc(var(--ps) * 1.286); line-height: 1.556; }
         .placard-scroll .text-xl { font-size: calc(var(--ps) * 1.429); line-height: 1.4; }
@@ -2912,10 +2931,11 @@ export default function PlacardLayer({
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
           }
-          /* Cards retain a quieter secondary layer above either paper or the
-             native-glass comparison, preserving the reading hierarchy. */
+          /* The expanded-state scrim darkens the room in both themes. Give
+             the light sheet more white resistance, then temper the cards so
+             they do not wash out as their new base gets lighter. */
           html:not(.dark) .placard-scroll [class*="backdrop-blur"] {
-            background-color: rgb(255 255 255 / 0.40) !important;
+            background-color: rgb(244 241 234 / 0.34) !important;
           }
           /* Mirror that separation in dark mode. */
           .dark .placard-scroll [class*="backdrop-blur"] {
@@ -3029,7 +3049,8 @@ export default function PlacardLayer({
           html:not(.dark) [data-stacks-desktop-panel] a[data-placard-surface]:hover,
           html:not(.dark) [data-stacks-desktop-panel] a:focus-visible [data-placard-surface],
           html:not(.dark) [data-stacks-desktop-panel] a[data-placard-surface]:focus-visible {
-            background-color: rgb(255 255 255 / 0.25) !important;
+            /* Sits above the 0.22 resting fill so hover still lightens. */
+            background-color: rgb(255 255 255 / 0.30) !important;
           }
           .dark [data-stacks-desktop-panel] [data-placard-link]:hover [data-placard-surface],
           .dark [data-stacks-desktop-panel] [data-placard-link]:focus-visible [data-placard-surface],

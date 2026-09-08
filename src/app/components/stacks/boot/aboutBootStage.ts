@@ -17,7 +17,12 @@
 // proves the projection against the live camera helpers over a viewport
 // matrix and the layout against the boot CSS.
 import { GOLF_PATHNAME, GOLF_STOP_POSITION, UNITS, UNIT_COUNT } from "../data";
+import { SCENE_TO_BOOT_SVG } from "../dom/bootVignette";
 import { MOBILE_SHEET_PEEK } from "../dom/mobileSheetGeometry";
+import {
+  cameraDepthDiagnosticsController,
+  cameraDepthEffectEnabled,
+} from "../scene/cameraDepthDiagnostics";
 import { SHELF_GEOMETRY } from "../scene/shelfGeometry";
 import {
   ABOUT_SHELF_LEFT,
@@ -30,6 +35,8 @@ import {
   CAMERA_LOOK_Z_OFFSET,
   CAMERA_NARROW,
   CAMERA_PHONE,
+  DESKTOP_DOCK_GEOMETRY,
+  DOCK_SHELF_MARGIN_PX,
   PHONE_ASPECT,
   PORTRAIT_FOV,
   RAIL_RIGHT_PX_FALLBACK,
@@ -38,6 +45,7 @@ import {
   SHELF_OVERVIEW_MAX_DISTANCE,
   SHELF_OVERVIEW_MIN_DISTANCE,
   STACKS_DESKTOP_MIN_WIDTH,
+  STOP_LATERAL_MAX,
   TABLET_PORTRAIT_ASPECT,
   TRAVEL_LEAD_IN,
   UNIT_SPACING,
@@ -51,6 +59,10 @@ export type AboutBootStage = {
   originY: number;
   /** CSS px spanned by one scene unit on the shelf's centre plane. */
   unitPx: number;
+  /** Where the eye stands, world x: the About shift plus its share of the
+   * dock truck. The drawables are projected for the canonical desktop eye,
+   * and `eyeShift` in the layout carries the difference to them. */
+  eyeX: number;
 };
 
 /** CSS custom properties the stage is published through. The boot CSS reads
@@ -69,6 +81,7 @@ export const ABOUT_BOOT_STAGE_VARS = {
   wordmarkGap: "--stacks-boot-stage-wordmark-gap",
   wordmarkShiftX: "--stacks-boot-stage-wordmark-shift-x",
   wordmarkShiftY: "--stacks-boot-stage-wordmark-shift-y",
+  eyeShift: "--stacks-boot-eye-shift",
 } as const;
 
 export type AboutBootStageLocationRouting = {
@@ -145,6 +158,24 @@ export type AboutBootStageGeometry = {
   shelfLeft: { x: number; z: number };
   railShelfMarginPx: number;
   maxShift: number;
+  /** The desktop reading dock's two clamps, for the lateral truck the
+   * stops make to sit in the gap beside it (`desktopStopFraming`). */
+  dock: {
+    rem: number;
+    widthMinRem: number;
+    widthMaxRem: number;
+    widthBaseRem: number;
+    widthFraction: number;
+    gutterMinRem: number;
+    gutterMaxRem: number;
+    gutterBaseRem: number;
+    gutterFraction: number;
+  };
+  dockShelfMarginPx: number;
+  stopLateralMax: number;
+  /** Whether the camera depth offsets (raised eye, authored pitch) are on
+   * for a visitor who has touched nothing. They are a console toggle. */
+  depthEnabled: boolean;
   portraitFov: number;
   shelfWidth: number;
   overviewMargin: number;
@@ -190,6 +221,17 @@ export const ABOUT_BOOT_STAGE_GEOMETRY: AboutBootStageGeometry = {
   shelfLeft: { ...ABOUT_SHELF_LEFT },
   railShelfMarginPx: RAIL_SHELF_MARGIN_PX,
   maxShift: ABOUT_STOP_MAX_SHIFT,
+  dock: { ...DESKTOP_DOCK_GEOMETRY },
+  dockShelfMarginPx: DOCK_SHELF_MARGIN_PX,
+  stopLateralMax: STOP_LATERAL_MAX,
+  // Read once at module load, which is before any console toggle: the
+  // server's copy ships in the pre-paint script and the client's copy is
+  // what hydration recomputes with, and both see the untouched default.
+  depthEnabled: cameraDepthEffectEnabled(
+    cameraDepthDiagnosticsController.getSnapshot().enabled,
+    false,
+    false,
+  ),
   portraitFov: PORTRAIT_FOV,
   shelfWidth: SHELF_GEOMETRY.width,
   overviewMargin: SHELF_OVERVIEW_MARGIN,
@@ -205,11 +247,19 @@ export const ABOUT_BOOT_STAGE_GEOMETRY: AboutBootStageGeometry = {
  *
  * Mirrors, in order: `cameraForAspect`, `aboutStopShift`, the scroll offset
  * the About stop rests at, `cameraCompositionForViewport` between units 0 and
- * 1, `cameraDepthOffsetsForViewport` on the first knot span, CameraRig's
- * authored-pitch look target, the resident Peek Sheet's frustum offset, and a
- * `lookAt` projection of unit 0's origin. The reference plane is the shelf's
- * centre (unit-local z = 0): the planks' front edges sit nearer the camera and
- * the wall frames farther, so this is where a flat elevation fits best.
+ * 1 WITH the rail (so the desktop stops' lateral truck, lerped by the shift's
+ * blend), `cameraDepthOffsetsForViewport` on the first knot span at the
+ * shipped default, CameraRig's authored-pitch look target, the resident Peek
+ * Sheet's frustum offset, and a `lookAt` projection of unit 0's origin. The
+ * reference plane is the shelf's centre (unit-local z = 0): the planks' front
+ * edges sit nearer the camera and the wall frames farther, so this is where
+ * a flat elevation fits best.
+ *
+ * Two of those went missing once and cost 46 px and 7 px at 2056×1290: the
+ * truck arrived after this function was written, and the depth offsets were
+ * later put behind a console toggle that ships off. The reference test now
+ * builds the composition with the rail and the depth at the default, so the
+ * next such drift fails there rather than on the first live frame.
  *
  * SELF-CONTAINED BY CONTRACT: parameters and `Math` only. Its source text is
  * shipped as the pre-paint script, where no module scope exists. */
@@ -270,6 +320,39 @@ export function aboutBootStageForViewport(
   const scenePosition = travelled * (g.unitCount - 1);
   const blend = clamp(scenePosition, 0, 1);
 
+  // desktopStopFraming's lateral truck: stops 1..6 slide the eye and the aim
+  // together so the shelf sits in the gap between the rail and the dock.
+  // About itself does not truck, but the composition is lerped toward unit
+  // 1 by the shift's own blend, so the About rest carries that share of it.
+  let lateral = 0;
+  if (!narrow) {
+    const tanH = Math.tan(radians(cam.fov / 2)) * aspect;
+    const pxPerWorld = vw / (2 * tanH * cam.z);
+    const halfShelfPx = (g.shelfWidth / 2) * pxPerWorld;
+    const railEdge = railRightPx + g.railShelfMarginPx;
+    const d = g.dock;
+    const dockWidth = Math.min(
+      d.widthMaxRem * d.rem,
+      Math.max(d.widthMinRem * d.rem, d.widthFraction * vw + d.widthBaseRem * d.rem),
+    );
+    const dockGutter = Math.min(
+      d.gutterMaxRem * d.rem,
+      Math.max(
+        d.gutterMinRem * d.rem,
+        d.gutterBaseRem * d.rem + d.gutterFraction * vw,
+      ),
+    );
+    const dockEdge = vw - dockWidth - dockGutter;
+    const mid = (railEdge + dockEdge) / 2;
+    const centrePx = Math.min(mid, dockEdge - g.dockShelfMarginPx - halfShelfPx);
+    const lateralOffset = clamp(
+      (vw / 2 - centrePx) / pxPerWorld,
+      0,
+      g.stopLateralMax,
+    );
+    lateral = lateralOffset * blend;
+  }
+
   // cameraCompositionForViewport, lerped between stop 0 and stop 1.
   let overview = cam.z;
   if (portrait) {
@@ -316,6 +399,12 @@ export function aboutBootStageForViewport(
     -g.depthMaxPitchDegrees,
     g.depthMaxPitchDegrees,
   );
+  // cameraDepthEffectEnabled: a visitor who has not opened the console
+  // gets the flat rest pose, so the stage lands there too.
+  if (!g.depthEnabled) {
+    eyeHeight = 0;
+    pitchDegrees = 0;
+  }
 
   // CameraRig's rest pose: the baseline look vector, then the authored pitch
   // applied around the raised eye.
@@ -348,7 +437,8 @@ export function aboutBootStageForViewport(
   const focal = safeHeight / 2 / Math.tan(radians(fov / 2));
   const unitPx = focal / depth;
   return {
-    originX: vw / 2 - shift * unitPx,
+    originX: vw / 2 - (shift + lateral) * unitPx,
+    eyeX: shift + lateral,
     originY: safeHeight / 2 - up * unitPx - imageShiftUp,
     unitPx,
   };
@@ -370,6 +460,11 @@ export type AboutBootStageLayout = {
   wordmarkGap: number;
   wordmarkShiftX: number;
   wordmarkShiftY: number;
+  /** How far the live eye stands from the canonical desktop eye the SVG's
+   * drawables were projected for, in SVG units. Each drawable slides by
+   * this times (1 - its depth ratio), which is exactly the parallax the
+   * canonical projection left out (scene/aboutBootPerspective.ts). */
+  eyeShift: number;
 };
 
 export type AboutBootStageLayoutGeometry = {
@@ -385,6 +480,10 @@ export type AboutBootStageLayoutGeometry = {
   wordmarkFont: { min: number; perViewportWidth: number; max: number };
   /** The loading strip at the bottom plus breathing room. */
   waitStrip: number;
+  /** The eye x every drawable in the SVG was projected for, and the SVG
+   * units in one scene unit, so `eyeShift` can be handed to the drawables. */
+  canonicalEyeX: number;
+  sceneToSvg: number;
 };
 
 export const ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY: AboutBootStageLayoutGeometry = {
@@ -395,6 +494,16 @@ export const ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY: AboutBootStageLayoutGeometry = {
   wordmarkGapMin: 8,
   wordmarkFont: { min: 28.56, perViewportWidth: 0.03162, max: 44.88 },
   waitStrip: 72,
+  // The same canonical desktop pose ABOUT_BOOT_CAMERA stands at
+  // (scene/aboutBootPerspective.ts), read off this module's own maths so
+  // the pre-paint script and the drawables can never disagree about it.
+  canonicalEyeX: aboutBootStageForViewport(
+    1440,
+    900,
+    RAIL_RIGHT_PX_FALLBACK,
+    ABOUT_BOOT_STAGE_GEOMETRY,
+  ).eyeX,
+  sceneToSvg: SCENE_TO_BOOT_SVG,
 };
 
 /** Lay the placed box over the projected shelf and measure the centred start
@@ -439,6 +548,7 @@ export function aboutBootStageLayout(
     wordmarkShiftX: vw / 2 - stage.originX,
     wordmarkShiftY:
       startTop + startHeight + l.wordmarkGap - (top + height + wordmarkGap),
+    eyeShift: (stage.eyeX - l.canonicalEyeX) * l.sceneToSvg,
   };
 }
 
@@ -464,6 +574,7 @@ function stageDeclarations(layout: AboutBootStageLayout) {
     [ABOUT_BOOT_STAGE_VARS.wordmarkGap, px(layout.wordmarkGap)],
     [ABOUT_BOOT_STAGE_VARS.wordmarkShiftX, px(layout.wordmarkShiftX)],
     [ABOUT_BOOT_STAGE_VARS.wordmarkShiftY, px(layout.wordmarkShiftY)],
+    [ABOUT_BOOT_STAGE_VARS.eyeShift, layout.eyeShift.toFixed(3)],
   ] as const;
 }
 
@@ -559,6 +670,7 @@ export function aboutBootStageScript(
       ABOUT_BOOT_STAGE_VARS.wordmarkShiftY,
       'layout.wordmarkShiftY.toFixed(2) + "px"',
     ],
+    [ABOUT_BOOT_STAGE_VARS.eyeShift, "layout.eyeShift.toFixed(3)"],
   ];
   const writeSource = writes
     .map(([name, value]) => `  root.style.setProperty(${q(name)}, ${value});`)

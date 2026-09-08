@@ -48,9 +48,9 @@ describe("Sutro Tower visibility", () => {
   it("plants the tower near its hill crest and west of the Golden Gate", () => {
     expect(sceneEnvironment).toContain("#define SUTRO_AZ -2.260");
     expect(sceneEnvironment).toContain("#define SUTRO_HILL_AZ -2.250");
-    expect(sceneEnvironment).toContain("float dSut = a - SUTRO_AZ");
+    expect(sceneEnvironment).toContain("float dSut = aHills - SUTRO_AZ");
     expect(sceneEnvironment).toContain(
-      "float hillA = 0.050 * hump(a, SUTRO_HILL_AZ, sutroHillW)",
+      "float hillA = 0.050 * hump(aHills, SUTRO_HILL_AZ, sutroHillW)",
     );
   });
 
@@ -87,7 +87,9 @@ describe("Sutro Tower visibility", () => {
     expect(sceneEnvironment).toContain("vec3 sutroRed");
     expect(sceneEnvironment).toContain("vec3 sutroWhite");
     expect(sceneEnvironment).toContain("float sutroWhiteBand");
-    expect(sceneEnvironment).toContain("mix(sutroRed, sutroWhite, sutroWhiteBand)");
+    expect(sceneEnvironment).toContain(
+      "mix(sutroRed, sutroWhite, sutroWhiteBand)",
+    );
   });
 
   it("keeps bespoke hillside buildings out of the landmark composition", () => {

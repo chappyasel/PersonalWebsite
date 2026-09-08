@@ -9,7 +9,8 @@ export const GOLF_GREEN_CENTER_LOCAL = [-1.55, -17.2] as const;
  * the foreground bank without moving the entire putting surface. */
 export const GOLF_FLAG_LOCAL = [-1.55, -18.1] as const;
 export const GOLF_GREEN = {
-  width: 5.2,
+  /** 75% of the former 5.2-unit span, close to circular against the 3.5 depth. */
+  width: 3.9,
   depth: 3.5,
   fringe: 0.2,
   slope: 0.02,

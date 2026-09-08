@@ -57,7 +57,9 @@ describe("golf course field", () => {
     );
     expect(golfSurfaceAt(fringe.x, fringe.z)).toBe("fringe");
     expect(golfSurfaceAt(rough.x, rough.z)).toBe("rough");
-    expect(golfCourseLocalPoint(fringe.x, fringe.z).x).toBeCloseTo(2.8, 5);
+    expect(GOLF_GREEN.width).toBe(3.9);
+    expect(GOLF_GREEN.width / GOLF_GREEN.depth).toBeLessThan(1.15);
+    expect(golfCourseLocalPoint(fringe.x, fringe.z).x).toBeCloseTo(2.15, 5);
   });
 
   it("aligns the visible recessed cup with the authored flag and physics", () => {

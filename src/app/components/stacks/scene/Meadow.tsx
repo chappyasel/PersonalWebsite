@@ -91,13 +91,14 @@ import {
 import { meadowPokeStrength } from "./meadowInteraction";
 import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
 import {
+  MEADOW_FLOWER_WIND,
   MEADOW_IMPACT,
   MEADOW_POKE,
   MEADOW_WIND,
   meadowDragSample,
   meadowPulseState,
   meadowWindAudioLevel,
-  sampleMeadowWind,
+  sampleMeadowGust,
 } from "./meadowMotion";
 import { type SceneContentTier } from "./quality";
 import {
@@ -176,19 +177,26 @@ const NOISE_GLSL = /* glsl */ `
   }
 `;
 
-// SimonDev-style two-scale traveling wind: a low-frequency direction field,
-// then gust strength and fine breeze that march ALONG the wind so energy
-// visibly travels downwind instead of shimmering in place. Gust is squared
-// for a calm bias. Returns the lean in radians (XZ plane). uTime-based real
-// seconds, never per-frame deltas — immune to the 120 Hz double-speed trap.
+// The original two-scale wind shape, now driven by the shared slow gust
+// envelope. A fixed prevailing transport keeps that shape moving at a stable
+// speed while the low-frequency direction field still turns the blades.
 const WIND_GLSL = /* glsl */ `
   vec2 windAt(vec2 pos, float t) {
     float ang = (vnoise(pos * 0.035 + vec2(t * 0.025, 0.0)) - 0.5) * 1.2 - 2.35;
     vec2 dir = vec2(cos(ang), sin(ang));
-    float gust = vnoise(pos * 0.22 - dir * (t * 0.55));
+    // Advect both noise layers along one prevailing flow. Multiplying elapsed
+    // time by the slowly turning direction makes their apparent velocity grow
+    // with runtime, eventually producing rapid field-wide snaps.
+    vec2 flow = vec2(
+      ${MEADOW_WIND.flowDirectionX.toFixed(3)},
+      ${MEADOW_WIND.flowDirectionZ.toFixed(3)}
+    );
+    float gust = vnoise(pos * 0.22 - flow * (t * 0.55));
     gust *= gust;
-    float breeze = vnoise(pos * 0.85 - dir * (t * 1.10));
-    vec2 wind = dir * (uWindAmp * (0.35 + 0.85 * gust + 0.25 * breeze));
+    float breeze = vnoise(pos * 0.85 - flow * (t * 1.10));
+    vec2 wind = dir * (
+      uWindStrength * (0.35 + 0.85 * gust + 0.25 * breeze)
+    );
     float magnitude = length(wind);
     if (magnitude > ${MEADOW_WIND.gustKnee.toFixed(2)}) {
       float span = ${(MEADOW_WIND.gustCeiling - MEADOW_WIND.gustKnee).toFixed(2)};
@@ -198,13 +206,15 @@ const WIND_GLSL = /* glsl */ `
     }
     return wind;
   }
-  // Far tufts occupy a few pixels and cannot reveal the detailed direction
-  // field or nonlinear gust limiter. One traveling noise sample preserves a
-  // coherent breeze without paying the near lawn's three samples + trig/exp.
+  // Preserve the original simplified far field too, changing only its input
+  // from the fixed base amplitude to the shared live gust.
   vec2 farWindAt(vec2 pos, float t) {
-    vec2 dir = vec2(-0.702, -0.712);
+    vec2 dir = vec2(
+      ${MEADOW_WIND.flowDirectionX.toFixed(3)},
+      ${MEADOW_WIND.flowDirectionZ.toFixed(3)}
+    );
     float gust = vnoise(pos * 0.18 - dir * (t * 0.48));
-    return dir * (uWindAmp * (0.42 + 0.72 * gust * gust));
+    return dir * (uWindStrength * (0.42 + 0.72 * gust * gust));
   }
 `;
 
@@ -273,6 +283,7 @@ const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uDawn;
   uniform float uSeat;
   uniform float uWindAmp;
+  uniform float uWindStrength;
   uniform float uWindSpeed;
   uniform float uFogEnabled;
   #ifdef COORDINATION_ENVIRONMENT_FLICKER
@@ -347,6 +358,9 @@ export const meadowGrassVertexShader = (deformation: boolean) => /* glsl */ `
   varying float vCloud;
   varying float vFog;
   varying vec2 vUv;
+  #ifdef MEADOW_GOLF_GREEN
+    varying vec2 vWorldXZ;
+  #endif
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   ${WIND_GLSL}
@@ -441,7 +455,13 @@ export const meadowGrassVertexShader = (deformation: boolean) => /* glsl */ `
     lean = lean * (1.0 - ${MEADOW_DEFORMATION.motionSuppression.toFixed(2)} * deformationMagnitude)
       + deformationDirection * (${MEADOW_DEFORMATION.maxLean.toFixed(2)} * deformationMagnitude);
     float ll = max(length(lean), 1e-4);
-    lean *= min(ll, ${MEADOW_DEFORMATION.maxLean.toFixed(2)}) / ll;
+    // Ordinary wind retains the original 0.36 combined limit. The live
+    // diagnostics strength can still raise it farther for visual tuning.
+    float leanLimit = max(
+      ${MEADOW_WIND.authoredMaxLean.toFixed(2)},
+      min(${MEADOW_WIND.maxLean.toFixed(2)}, uWindAmp)
+    );
+    lean *= min(ll, leanLimit) / ll;
     // Apply one affine lean to the authored tuft. The former t² gate changed
     // its curvature every frame, which read as growth and shrinkage. A linear
     // height term keeps the complete footprint planted and approximates a
@@ -476,6 +496,9 @@ export const meadowGrassVertexShader = (deformation: boolean) => /* glsl */ `
     #endif
     vCloud = cloudAt(origin.xz);
     vUv = uv;
+    #ifdef MEADOW_GOLF_GREEN
+      vWorldXZ = world.xz;
+    #endif
     vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z) * uFogEnabled;
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
@@ -501,6 +524,9 @@ const GRASS_FRAGMENT = /* glsl */ `
   varying float vCloud;
   varying float vFog;
   varying vec2 vUv;
+  #ifdef MEADOW_GOLF_GREEN
+    varying vec2 vWorldXZ;
+  #endif
   varying vec3 vFogColor;
   void main() {
     // The camera-side apron only belongs to the horizontal traverse. It sits
@@ -508,6 +534,20 @@ const GRASS_FRAGMENT = /* glsl */ `
     // discard it once the chair transition begins so the seated riverbank
     // keeps its separately authored density.
     if (vApron > 0.5 && uSeat > 0.001) discard;
+    #ifdef MEADOW_GOLF_GREEN
+      // Clip the displaced card itself at the painted fringe. The surrounding
+      // tuft keeps its authored root, width and height; only fragments that
+      // cross onto the putting surface disappear.
+      vec2 golfCenter = vec2(${GOLF_COURSE_CENTER.x.toFixed(4)}, ${GOLF_COURSE_CENTER.z.toFixed(4)});
+      float golfYaw = ${GOLF_COURSE_CENTER.yaw.toFixed(4)};
+      vec2 gd = vWorldXZ - golfCenter;
+      vec2 glocal = vec2(
+        gd.x * cos(golfYaw) - gd.y * sin(golfYaw),
+        gd.x * sin(golfYaw) + gd.y * cos(golfYaw)
+      );
+      float fringeD = length(glocal / vec2(${(GOLF_GREEN.width / 2 + GOLF_GREEN.fringe).toFixed(2)}, ${(GOLF_GREEN.depth / 2 + GOLF_GREEN.fringe).toFixed(2)}));
+      if (fringeD <= 1.0) discard;
+    #endif
     // The tuft texture's red channel is the blade-cluster mask. Boost by
     // fog so mip-averaging can never thin the far field into stubble.
     float a = texture2D(uAlpha, vec2(vUv.x, 1.0 - vUv.y)).r;
@@ -772,15 +812,11 @@ const FLOWER_VERTEX = /* glsl */ `
       tilted.y + ${(FLOWER_H / 2).toFixed(3)},
       -tilted.x * f.x
     ) * s;
-    // Shares the grass wind at reduced amplitude; position.y / quad height
-    // normalizes to the same radians·height product the tufts use. The
-    // pointer poke rides the flowers' SLOW copy of the signal (uPokeF) at
-    // a small factor — the first cut used the fast grass signal at 0.5,
-    // which threw heads several head-heights sideways ("react way too
-    // much / stretch too much"); 0.12 lands the same world-throw as the
-    // clamped grass lean, and the lazy easing makes stems bend and
-    // recover slowly instead of snapping.
-    vec2 w = windAt(origin.xz, uTime * uWindSpeed) * 0.35;
+    // The head is rigid. Wind moves its center as though it sat on an unseen
+    // stem; it must never shear the quad's vertices apart. The pointer poke
+    // rides the flowers' slow copy of the signal so the implied stem bends
+    // and recovers more lazily than a grass blade.
+    vec2 w = windAt(origin.xz, uTime * uWindSpeed) * ${MEADOW_FLOWER_WIND.response.toFixed(2)};
     vec2 pk = origin.xz - uPokeF.xy;
     float pkd = max(length(pk), 1e-4);
     vec2 pulseLean = vec2(0.0);
@@ -804,11 +840,20 @@ const FLOWER_VERTEX = /* glsl */ `
       * (1.0 - 0.70 * pulseActivity)
       * 0.12;
     w += pulseLean;
-    p.xz += w * position.y * ${(1 / FLOWER_H).toFixed(2)};
+    float flowerLeanLength = max(length(w), 1e-4);
+    w *= min(flowerLeanLength, ${MEADOW_FLOWER_WIND.maxLean.toFixed(2)})
+      / flowerLeanLength;
+    float stemLength = ${MEADOW_FLOWER_WIND.stemLength.toFixed(3)};
+    vec3 headOffset = vec3(
+      w.x * stemLength,
+      -0.5 * dot(w, w) * stemLength,
+      w.y * stemLength
+    );
+    p += headOffset;
     // Pixel floor: a far head that would project under uPxFloor pixels is
     // scaled up about its own centre to hold that size, and the fragment
     // dissolves it toward the fog color by the clamped amount instead.
-    vec3 c = vec3(0.0, ${(FLOWER_H / 2).toFixed(3)} * s, 0.0);
+    vec3 c = vec3(0.0, ${(FLOWER_H / 2).toFixed(3)} * s, 0.0) + headOffset;
     float depth = -(viewMatrix * vec4(origin + c, 1.0)).z;
     float px = uPixelScale * ${FLOWER_H.toFixed(3)} * s / max(depth, 1e-3);
     float pxFloor = uPxFloor * mix(
@@ -1287,6 +1332,9 @@ export default function Meadow({
       uDawn: { value: 0 },
       uSeat: { value: 0 },
       uWindAmp: { value: MEADOW_WIND.amplitude as number },
+      uWindStrength: {
+        value: sampleMeadowGust(0),
+      },
       uWindSpeed: { value: MEADOW_WIND.speed as number },
       uFogEnabled: { value: 1 },
       uEnvironmentFlicker: { value: 1 },
@@ -1451,18 +1499,28 @@ export default function Meadow({
     }
   }, [built, daylightCinematicPlus]);
 
-  // The putting green is a compile-time branch of the terrain shader.
+  // The putting green is a compile-time branch of the terrain and grass
+  // shaders. Grass fragments clip at the fringe without changing any tuft's
+  // authored transform or density.
   // Screenshot mode takes it out; the recompile is the same one Cinematic+
   // already pays when its shadows switch, and the ordinary room never
   // flips it.
   useLayoutEffect(() => {
-    const material = built.terrainMaterial;
-    const defined = material.defines?.MEADOW_GOLF_GREEN === 1;
-    if (defined === golfPresent) return;
-    material.defines ??= {};
-    if (golfPresent) material.defines.MEADOW_GOLF_GREEN = 1;
-    else delete material.defines.MEADOW_GOLF_GREEN;
-    material.needsUpdate = true;
+    const materials = [
+      built.terrainMaterial,
+      built.grassMaterial,
+      built.farGrassMaterial,
+      built.deformedGrassMaterial,
+      built.deformedFarGrassMaterial,
+    ];
+    for (const material of materials) {
+      const defined = material.defines?.MEADOW_GOLF_GREEN === 1;
+      if (defined === golfPresent) continue;
+      material.defines ??= {};
+      if (golfPresent) material.defines.MEADOW_GOLF_GREEN = 1;
+      else delete material.defines.MEADOW_GOLF_GREEN;
+      material.needsUpdate = true;
+    }
   }, [built, golfPresent]);
 
   // The meadow is analytically lit, so Three's environment and room lights
@@ -1983,7 +2041,7 @@ export default function Meadow({
     shared.uTime.value = clock.elapsedTime;
     if (environmentFlickerSignal)
       shared.uEnvironmentFlicker.value = environmentFlickerSignal.current;
-    // Boot gust: one wind swell sweeps the lawn as the reveal lands (the
+    // Boot gust: one wind swell lifts the lawn as the reveal lands (the
     // meadow's first frames sit just ahead of it), then the amplitude
     // settles to the authored baseline and stops being written — the dev wind
     // knob owns it from there.
@@ -2001,16 +2059,15 @@ export default function Meadow({
       pulses: shared.uPulses.value,
       pulseStarts: pokeClickAt.current,
     });
-    // The amplitude uniform is only the field's ceiling. Sample the exact
-    // traveling shader field near the camera so the audio and diagnostics
-    // rise and fall with the gust the visitor is actually looking through.
-    const liveWind = sampleMeadowWind(
-      camera.position.x,
-      camera.position.z - 4,
+    // Two long sine waves drive one meadow-wide strength. Computing them here
+    // keeps both the debug readout and audio smooth without paying for them at
+    // every grass vertex.
+    const liveWind = sampleMeadowGust(
       clock.elapsedTime,
       shared.uWindAmp.value,
       shared.uWindSpeed.value,
-    ).magnitude;
+    );
+    shared.uWindStrength.value = liveWind;
     sceneAudio.setWindLevel(meadowWindAudioLevel(liveWind));
     if (clock.elapsedTime >= nextWindDiagnosticAt.current) {
       meadowDiagnosticsController.publishLiveWind(liveWind);

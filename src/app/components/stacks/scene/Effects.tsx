@@ -87,9 +87,13 @@ import {
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import { useScreenshotMode } from "./screenshotMode";
+import { golfMode } from "./golfMode";
 import {
   type ShelfDepthOfFieldTuning,
+  advanceShelfDepthOfFieldPull,
+  applyShelfDepthOfFieldFocusRanges,
   applyShelfDepthOfFieldTuning,
+  createShelfDepthOfFieldPull,
   resolveShelfDepthOfFieldTuning,
 } from "./shelfDepthOfField";
 
@@ -806,6 +810,7 @@ function LiveBokehDepthOfField({
   focusRange,
   bokehScale,
   resolutionScale,
+  golf,
 }: ShelfDepthOfFieldTuning) {
   const effect = useRef<DepthOfFieldEffect | null>(null);
 
@@ -818,24 +823,36 @@ function LiveBokehDepthOfField({
     });
   }, [bokehScale, focusRange, resolutionScale]);
 
+  // The golf rack (shelfDepthOfField.ts). The golf window opening starts a
+  // half-second pull of the focal plane from the shelf onto the cup, with
+  // both ramps opening as it goes; the window closing runs the same pull
+  // backwards from wherever it got to. Progress is integrated from real
+  // frame time, never per frame, so a 120 Hz screen racks at the same speed
+  // as a 60 Hz one. A boot that lands on /golf starts settled on the cup
+  // rather than pulling in front of the visitor.
+  const tuning = useRef({ target, focusRange, golf });
+  tuning.current = { target, focusRange, golf };
+  const pull = useRef(createShelfDepthOfFieldPull(tuning.current));
+
   // Focus pull. A prop brought to the camera (the Projects Mac) sits four
   // units in front of the shelf's focal plane and would arrive as bokeh; while
-  // its flight reports a weight, the target slides from the shelf toward it.
-  // The wrapper's `target` Vector3 is the one the effect measures every
-  // frame, so writing it here is enough, and the shelf value is restored the
-  // frame the pull lets go.
-  const pulled = useRef(false);
-  useFrame(() => {
-    const focus = effect.current?.target;
-    if (!focus) return;
-    if (focusPull.weight <= 0) {
-      if (!pulled.current) return;
-      pulled.current = false;
-      focus.set(target[0], target[1], target[2]);
-      return;
-    }
-    pulled.current = true;
-    focusPullTarget(target, focusPull, focus);
+  // its flight reports a weight, the target slides from the blended base
+  // toward it. The wrapper's `target` Vector3 is the one the effect measures
+  // every frame, so writing it here is enough. Both writes land every frame:
+  // the ramps the layout effect just applied are the shelf's, and the loop
+  // owns the live pair from the first frame on.
+  useFrame((_, frameSeconds) => {
+    const live = effect.current;
+    const measured = live?.target;
+    if (!live || !measured) return;
+    const { focus } = advanceShelfDepthOfFieldPull(
+      pull.current,
+      tuning.current,
+      frameSeconds,
+      golfMode.weight,
+    );
+    applyShelfDepthOfFieldFocusRanges(live, focus);
+    focusPullTarget(focus.target, focusPull, measured);
   });
 
   return (
@@ -847,6 +864,100 @@ function LiveBokehDepthOfField({
       resolutionScale={0.5}
     />
   );
+}
+
+/** What the N8AO wrapper hands back through `ref`: the pass itself. Typed
+ * structurally because `n8ao` is postprocessing's dependency, not ours. */
+type AmbientOcclusionPass = {
+  autoDetectTransparency: boolean;
+  configuration: { transparencyAware: boolean };
+  effectCompositerQuad: {
+    material: { uniforms: Record<string, { value: unknown }> };
+  };
+};
+
+/**
+ * The ambient occlusion pass with its transparency handling pinned.
+ *
+ * N8AO ships with `autoDetectTransparency` on: every frame it walks the whole
+ * scene graph looking for a transparent material, and the first one it finds
+ * (this room has hundreds: contact shades, pools, petals, wings, glass) turns
+ * `transparencyAware` on for good. That mode re-renders every transparent
+ * object into two full-resolution targets each frame, behind three more
+ * scene walks, so occlusion can stop at those surfaces instead of darkening
+ * them. Measured at rest on Showcase: 118 extra draws at About, 148 at Books.
+ *
+ * Both halves are pinned here. The auto-detect walk is switched off
+ * outright, because the answer never changes for this scene, and the mode
+ * itself follows the resolved plan: on for Cinematic and Showcase, off from
+ * Balanced down, and the `ambientOcclusionTransparency` performance setting
+ * overrides that live from Scene Diagnostics or by `?noaotransparency` for a
+ * capture. Writing the configuration property allocates or disposes the two
+ * transparency targets on its own, but the compositor's uniform is only ever
+ * written true (N8AO.js, the composition step), so a live on-to-off toggle
+ * would leave the shader sampling disposed textures. Reset it here.
+ */
+function AmbientOcclusion({
+  plan,
+  transparency,
+}: {
+  plan: SceneQualityPlan["effects"];
+  transparency: boolean;
+}) {
+  const pass = useRef<AmbientOcclusionPass | null>(null);
+  useLayoutEffect(() => {
+    const current = pass.current;
+    if (!current) return;
+    current.autoDetectTransparency = false;
+    if (current.configuration.transparencyAware !== transparency)
+      current.configuration.transparencyAware = transparency;
+    if (!transparency) {
+      const uniforms = current.effectCompositerQuad.material.uniforms;
+      uniforms.transparencyAware!.value = false;
+      uniforms.transparencyDWFalse!.value = null;
+      uniforms.transparencyDWTrue!.value = null;
+      uniforms.transparencyDWTrueDepth!.value = null;
+    }
+  }, [transparency]);
+  return (
+    <N8AO
+      ref={pass}
+      halfRes={plan.ambientOcclusionHalfRes}
+      quality={plan.ambientOcclusionQuality}
+      aoRadius={0.32}
+      distanceFalloff={0.8}
+      intensity={2.4}
+    />
+  );
+}
+
+/**
+ * Keep the room pass clearing what three's automatic clear used to.
+ *
+ * With `autoClear` on, three clears colour, depth AND stencil of the
+ * composer's input buffer inside the render pass. The render pass's own
+ * ClearPass defaults to colour and depth only, so switching the automatic
+ * clear off would leave last frame's stencil bit behind, and the Coordination
+ * event horizon writes that bit to decide where its graph shows. The wrapper's
+ * `gl.clearStencil()` does not cover it either: it runs before the composer
+ * binds any target. So the render pass clears the stencil itself whenever
+ * the automatic clear is off, and every other pass overwrites its whole
+ * target with a fullscreen triangle or clears explicitly.
+ */
+function ComposerClearPolicy({ autoClear }: { autoClear: boolean }) {
+  const { composer } = useContext(EffectComposerContext);
+  useLayoutEffect(() => {
+    const renderPass = composer?.passes[0] as
+      | { name?: string; clearPass?: { stencil: boolean } }
+      | undefined;
+    if (renderPass?.name !== "RenderPass" || !renderPass.clearPass) return;
+    const previous = renderPass.clearPass.stencil;
+    renderPass.clearPass.stencil = !autoClear;
+    return () => {
+      renderPass.clearPass!.stencil = previous;
+    };
+  }, [autoClear, composer]);
+  return null;
 }
 
 /**
@@ -1007,17 +1118,19 @@ export default function Effects({
     ],
   );
   return (
-    <EffectComposer multisampling={plan.multisampling} stencilBuffer>
+    <EffectComposer
+      multisampling={plan.multisampling}
+      stencilBuffer
+      autoClear={performanceSettings.composerAutoClear}
+    >
+      <ComposerClearPolicy autoClear={performanceSettings.composerAutoClear} />
       {/* First, right behind the render pass: the photographs alone, into
           the mask the grade reads. It touches no composer buffer. */}
       {performanceSettings.colorGrade && <PhotoMask pass={photoMask} />}
       {plan.ambientOcclusion && !visionRideRoomHidden && (
-        <N8AO
-          halfRes={plan.ambientOcclusionHalfRes}
-          quality={plan.ambientOcclusionQuality}
-          aoRadius={0.32}
-          distanceFalloff={0.8}
-          intensity={2.4}
+        <AmbientOcclusion
+          plan={plan}
+          transparency={plan.ambientOcclusionTransparency}
         />
       )}
       {/* Keep bloom on HDR practicals, not on the moon and white sky detail.
@@ -1063,14 +1176,14 @@ export default function Effects({
           grass. The effect measures camera→target every frame, including the
           alternating unit depths and the About stop's lateral offset.
           Whether it mounts at all, and at what tuning, is decided in
-          shelfDepthOfField.ts. */}
+          shelfDepthOfField.ts; the golf window racks the plane onto the cup
+          over a timed pull inside the wrapper. */}
       {depthOfFieldTuning && depthOfFieldModel === "current" && (
         <LiveBokehDepthOfField {...depthOfFieldTuning} />
       )}
       {depthOfFieldTuning && depthOfFieldModel !== "current" && (
         <OpticalBokehPrototype
-          target={depthOfFieldTuning.target}
-          focusRange={depthOfFieldTuning.focusRange}
+          shelf={depthOfFieldTuning}
           bokehScale={depthOfFieldTuning.bokehScale}
           taps={
             depthOfFieldModel === "optical-prototype-16"

@@ -14,8 +14,12 @@ import {
 
 class FakeParam {
   value = 1;
-  schedule: Array<{ method: "set" | "ramp"; value: number; time?: number }> =
-    [];
+  schedule: Array<{
+    method: "set" | "ramp" | "target";
+    value: number;
+    time?: number;
+    timeConstant?: number;
+  }> = [];
   setValueAtTime(value: number, time?: number) {
     this.value = value;
     this.schedule.push({ method: "set", value, time });
@@ -32,6 +36,11 @@ class FakeParam {
   linearRampToValueAtTime(value: number, time?: number) {
     this.value = value;
     this.schedule.push({ method: "ramp", value, time });
+    return this;
+  }
+  setTargetAtTime(value: number, time?: number, timeConstant?: number) {
+    this.value = value;
+    this.schedule.push({ method: "target", value, time, timeConstant });
     return this;
   }
 }
@@ -196,6 +205,36 @@ describe("scene audio policy", () => {
     expect(baseline).toBeGreaterThan(0);
     expect(revealGust).toBeGreaterThan(baseline * 2);
     expect(windGainForMotion(1)).toBeLessThanOrEqual(0.034);
+  });
+
+  it("eases the shared wind gain instead of stepping both loops every frame", async () => {
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    runtime.startAmbience();
+    await vi.waitFor(() =>
+      expect(FakeAudioContext.latest!.sources).toHaveLength(3),
+    );
+
+    const context = FakeAudioContext.latest!;
+    const schedulesBefore = context.gains.map(
+      (node) => node.gain.schedule.length,
+    );
+    runtime.setWindLevel(0.9);
+    const windEnvelope = context.gains
+      .map((node) => node.gain.schedule)
+      .find(
+        (schedule, index) =>
+          schedule.length > schedulesBefore[index]! &&
+          schedule.at(-1)?.method === "target",
+      );
+
+    expect(windEnvelope?.at(-1)).toMatchObject({
+      method: "target",
+      value: windGainForMotion(0.9),
+      timeConstant: SCENE_AUDIO_MIX.windResponseSeconds,
+    });
+    runtime.teardown();
   });
 
   it("uses a bounded spatial falloff", () => {
