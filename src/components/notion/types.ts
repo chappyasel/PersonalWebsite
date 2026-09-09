@@ -2,7 +2,13 @@ import type { SystemStatus } from "./systemStatus";
 
 export type NotionBlock =
   | { type: "paragraph"; content: RichText[] }
-  | { type: "heading"; level: 2 | 3; content: RichText[] }
+  | {
+      type: "heading";
+      level: 2 | 3;
+      content: RichText[];
+      /** Page-unique anchor from the sync (assignAnchors). */
+      id?: string;
+    }
   | { type: "callout"; icon: string; color: string; content: NotionBlock[] }
   | {
       type: "toggle";

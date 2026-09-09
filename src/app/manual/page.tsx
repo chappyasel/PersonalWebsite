@@ -5,6 +5,7 @@ import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { loadSitePageCards } from "~/lib/site/pageCards";
 
 import ManualHero from "./components/ManualHero";
+import ManualOverview from "./components/ManualOverview";
 import ManualSection from "./components/ManualSection";
 import { DaylightTOCSidebar } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
@@ -24,20 +25,26 @@ export default async function ManualPage() {
     loadSitePageCards("manual"),
   ]);
 
-  // The rail is 13rem; a title that wraps on a phone also truncates there,
-  // so the rail takes the same short form the phone heading uses.
-  const tocItems = data.sections.map((section) => ({
-    id: section.id,
-    label: sectionShortTitle(section.id) ?? section.title,
-    emoji: section.icon,
-  }));
+  // The first hero panel (TL;DR) opens the body as its own section, so the
+  // rail lists it ahead of the Notion sections. The rail is 13rem; a title
+  // that wraps on a phone also truncates there, so the rail takes the same
+  // short form the phone heading uses.
+  const [opener] = data.hero.panels;
+  const tocItems = [
+    ...(opener ? [{ id: opener.id, label: opener.title }] : []),
+    ...data.sections.map((section) => ({
+      id: section.id,
+      label: sectionShortTitle(section.id) ?? section.title,
+      emoji: section.icon,
+    })),
+  ];
 
   return (
     <SitePageCardsProvider cards={cards}>
       <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
         <main className="relative">
           <ManualHero
-            hero={data.hero}
+            lead={data.hero.lead}
             lastUpdated={data.lastUpdated}
             bookLookup={bookLookup}
           />
@@ -46,6 +53,10 @@ export default async function ManualPage() {
           <div className="dl-columns mt-11 px-4 pb-12">
             <DaylightTOCSidebar items={tocItems} />
             <div className="dl-column space-y-14">
+              <ManualOverview
+                panels={data.hero.panels}
+                bookLookup={bookLookup}
+              />
               {data.sections.map((section) => (
                 <ManualSection
                   key={section.id}

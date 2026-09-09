@@ -353,11 +353,26 @@ describe("systems.json snapshot", () => {
     expect(ids).toContain("book-notes");
     expect(ids).toContain("log-a-daily-scorecard");
 
+    // Content headings (the Domain Systems group labels) are anchored too,
+    // unique against the dropdowns.
+    const headings = [...walk(everyBlock)].filter((b) => b.type === "heading");
+    const headingIds = headings.map((h) =>
+      h.type === "heading" ? h.id : undefined,
+    );
+    expect(
+      headingIds.every((id) => typeof id === "string" && id.length > 0),
+    ).toBe(true);
+    expect(headingIds).toContain("knowledge");
+    expect(new Set([...ids, ...headingIds]).size).toBe(
+      ids.length + headingIds.length,
+    );
+
     const seven = section("the-seven-layers");
     const markup = renderToStaticMarkup(
       createElement(SystemsSection, { section: seven! }),
     );
     expect(markup).toContain('id="deep-think-weeks"');
+    expect(markup).toMatch(/<h3[^>]*id="knowledge"/);
   });
 
   it("stores every picture at a sane size with its dimensions recorded", () => {

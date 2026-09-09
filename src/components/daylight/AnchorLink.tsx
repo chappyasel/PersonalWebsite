@@ -22,9 +22,14 @@ import {
 export default function AnchorLink({
   id,
   className = "",
+  url,
 }: {
   id: string;
   className?: string;
+  /** The page's canonical URL when the address bar is not it (a book open
+   * in a modal over the shelf or the homepage). The copied link is this
+   * plus the fragment, and the address bar is left alone. */
+  url?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -32,19 +37,21 @@ export default function AnchorLink({
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const url = `${window.location.origin}${window.location.pathname}#${id}`;
-      window.history.replaceState(null, "", `#${id}`);
+      const base =
+        url ?? `${window.location.origin}${window.location.pathname}`;
+      const link = `${base}#${id}`;
+      if (!url) window.history.replaceState(null, "", `#${id}`);
       const flash = () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       };
       if (navigator.clipboard) {
-        void navigator.clipboard.writeText(url).then(flash, () => undefined);
+        void navigator.clipboard.writeText(link).then(flash, () => undefined);
       } else {
         flash();
       }
     },
-    [id],
+    [id, url],
   );
 
   return (

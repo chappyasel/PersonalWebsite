@@ -2,8 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import { anchorSlug } from "~/lib/anchors";
+
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
 
+import AnchorHeading from "./AnchorHeading";
 import NotionCallout from "./NotionCallout";
 import NotionToggle from "./NotionToggle";
 import RichTextRenderer from "./RichTextRenderer";
@@ -91,19 +94,19 @@ export default function NotionBlockRenderer({
         </p>
       );
 
-    case "heading":
-      if (block.level === 2) {
-        return (
-          <h2>
-            <RichTextRenderer content={block.content} bookLookup={bookLookup} />
-          </h2>
-        );
-      }
+    case "heading": {
+      // The sync stamps a page-unique id; a snapshot from before it gets
+      // one from the words (the manual and routine until their next sync).
+      const id =
+        block.id ??
+        (anchorSlug(block.content.map((run) => run.text).join("")) ||
+          "section");
       return (
-        <h3>
+        <AnchorHeading as={block.level === 2 ? "h2" : "h3"} id={id}>
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
-        </h3>
+        </AnchorHeading>
       );
+    }
 
     case "callout":
       return (

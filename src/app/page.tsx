@@ -32,6 +32,7 @@ import BootScreen, {
 } from "./components/stacks/dom/BootScreen";
 import { proxiedBookCover } from "./components/stacks/scene/bookCoverTexture";
 import { featuredBookThickness } from "./components/stacks/scene/units/featuredBookGeometry";
+import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import { homepageMetadata } from "./homeMetadata";
 
@@ -242,7 +243,16 @@ async function HomePageContent({
         readingBooks={toBootReadingBooks(readingBooks)}
         readingBookColors={readingBookColors}
       />
-      <StacksHome data={data} slots={slots} />
+      {/* The book modal's breadcrumb hovers the library's stats card, the
+          same figures the Book Notes placard shows; no second query. */}
+      <SitePageCardsProvider
+        cards={{
+          books: { stats: bookPlacard.stats, yearly: bookPlacard.yearly },
+          weightlifting: null,
+        }}
+      >
+        <StacksHome data={data} slots={slots} />
+      </SitePageCardsProvider>
     </>
   );
 }

@@ -14,8 +14,9 @@ export type ManualData = {
     lead: NotionBlock[];
     /**
      * One panel per heading above the first section, in page order: TL;DR,
-     * the 30-second intro, the mission statement, and whatever Notion adds
-     * next. The site does not know their names.
+     * the 30-second intro, the life purpose, and whatever Notion adds next.
+     * The site does not know their names: the first becomes the body's
+     * opening section and the rest its subheadings (ManualOverview).
      */
     panels: ManualHeroPanel[];
   };

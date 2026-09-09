@@ -49,19 +49,22 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { capture, captureOnce } from "~/lib/analytics";
+import { anchorSlug, textOfChildren, uniqueAnchor } from "~/lib/anchors";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
-import { getBookPath, getBooksPath } from "~/lib/books/paths";
+import { getBookPath, getBookShareUrl, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book, BookReading } from "~/lib/books/types";
 import { abandonedPercent } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
+import AnchorLink from "~/components/daylight/AnchorLink";
 import {
   SheetCloseControl,
   SheetControlCluster,
   SheetExpandControl,
 } from "~/components/modal-sheet/SheetControls";
+import SitePageHoverCard from "~/components/site/SitePageHoverCard";
 import { Button } from "~/components/ui/button";
 import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
 import {
@@ -113,54 +116,63 @@ function BookBreadcrumb({
       style={{ marginBottom }}
     >
       {modalBreadcrumbHref ? (
-        <a
-          href={modalBreadcrumbHref}
-          className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
-        >
-          <BooksIcon aria-hidden size={16} weight="bold" className="shrink-0" />
-          <span className="xs:hidden">Book Notes</span>
-          <span className="hidden xs:inline">Chappy&apos;s Book Notes</span>
-          <span aria-hidden="true" className="text-muted-foreground/40">
-            ·
-          </span>
-          <span className="shrink-0 tabular-nums">
-            {modalBookCount?.toLocaleString() ?? "All"}
-            <span className="hidden xs:inline"> books</span>
-          </span>
-          <ArrowUpRightIcon
-            aria-hidden
-            size={14}
-            weight="bold"
-            className="shrink-0"
-          />
-        </a>
+        <SitePageHoverCard page="books" triggerText="Chappy's Book Notes">
+          <a
+            href={modalBreadcrumbHref}
+            className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
+          >
+            <BooksIcon
+              aria-hidden
+              size={16}
+              weight="bold"
+              className="shrink-0"
+            />
+            <span className="xs:hidden">Book Notes</span>
+            <span className="hidden xs:inline">Chappy&apos;s Book Notes</span>
+            <span aria-hidden="true" className="text-muted-foreground/40">
+              ·
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {modalBookCount?.toLocaleString() ?? "All"}
+              <span className="hidden xs:inline"> books</span>
+            </span>
+            <ArrowUpRightIcon
+              aria-hidden
+              size={14}
+              weight="bold"
+              className="shrink-0"
+            />
+          </a>
+        </SitePageHoverCard>
       ) : (
         <ol className="flex min-w-0 items-center">
           <li className="min-w-0">
-            <Link
-              href={getBooksPath()}
-              className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
-            >
-              <BooksIcon
-                aria-hidden
-                size={16}
-                weight="bold"
-                className="shrink-0"
-              />
-              <span>Chappy&apos;s Book Notes</span>
-              <span aria-hidden="true" className="text-muted-foreground/40">
-                ·
-              </span>
-              <span className="shrink-0 tabular-nums">
-                {bookshelfBookCount?.toLocaleString() ?? "All"} books
-              </span>
-              <ArrowUpRightIcon
-                aria-hidden
-                size={14}
-                weight="bold"
-                className="shrink-0"
-              />
-            </Link>
+            <SitePageHoverCard page="books" triggerText="Chappy's Book Notes">
+              <Link
+                href={getBooksPath()}
+                className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
+              >
+                <BooksIcon
+                  aria-hidden
+                  size={16}
+                  weight="bold"
+                  className="shrink-0"
+                />
+                <span>Chappy&apos;s Book Notes</span>
+                <span aria-hidden="true" className="text-muted-foreground/40">
+                  ·
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {bookshelfBookCount?.toLocaleString() ?? "All"} books
+                </span>
+                <ArrowUpRightIcon
+                  aria-hidden
+                  size={14}
+                  weight="bold"
+                  className="shrink-0"
+                />
+              </Link>
+            </SitePageHoverCard>
           </li>
         </ol>
       )}
@@ -404,6 +416,21 @@ function AnimatedDetails({
 }: AnimatedDetailsProps) {
   const [isOpen, setIsOpen] = useState(open);
   const contentId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  // A chapter link into a folded block: open it. The notes mount after the
+  // page, so the hash is already there when this runs.
+  useEffect(() => {
+    function handle() {
+      const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      const self = ref.current;
+      if (!hash || !self) return;
+      const target = document.getElementById(hash);
+      if (target && self.contains(target)) setIsOpen(true);
+    }
+    handle();
+    window.addEventListener("hashchange", handle);
+    return () => window.removeEventListener("hashchange", handle);
+  }, []);
   const childArray = Children.toArray(children);
   const summary = childArray.find(
     (child): child is ReactElement<MarkdownSummaryProps> =>
@@ -424,6 +451,7 @@ function AnimatedDetails({
   return (
     <div
       {...divProps}
+      ref={ref}
       className={cn("my-1.5 pl-[26px]", className)}
       data-expanded={isOpen}
     >
@@ -826,6 +854,50 @@ export function BookDetailContent({
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
   const showBreadcrumb = !isModal || Boolean(modalBreadcrumbHref);
+
+  // Chapter anchors: each heading in the notes gets an id from its words,
+  // unique within this render, and a copy-link button on hover that copies
+  // the book's own URL plus the fragment (the address bar may be a modal's).
+  const chapterIds = new Set<string>();
+  const chapterUrl = getBookShareUrl(bookId);
+  const chapterHeading = (Tag: "h1" | "h2" | "h3" | "h4") => {
+    const ChapterHeading = ({
+      node: _node,
+      children,
+      ...props
+    }: ComponentPropsWithoutRef<typeof Tag> & { node?: unknown }) => {
+      const id = uniqueAnchor(anchorSlug(textOfChildren(children)), chapterIds);
+      return (
+        <Tag {...props} id={id} className="group/sec scroll-mt-24">
+          {children}
+          <AnchorLink
+            id={id}
+            url={chapterUrl}
+            className="ml-1 inline-flex align-middle"
+          />
+        </Tag>
+      );
+    };
+    ChapterHeading.displayName = `Chapter${Tag.toUpperCase()}`;
+    return ChapterHeading;
+  };
+
+  // Arriving on a chapter link: the notes load after the page, so scroll
+  // once they are in the tree and any folded block around the target has
+  // opened (AnimatedDetails).
+  const notesRef = useRef<HTMLDivElement>(null);
+  const notesLoaded = Boolean(fullBook?.notes);
+  useEffect(() => {
+    if (!notesLoaded) return;
+    const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    const target = hash ? document.getElementById(hash) : null;
+    if (!target || !notesRef.current?.contains(target)) return;
+    const scroll = () =>
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(scroll);
+    window.setTimeout(scroll, 380);
+    window.setTimeout(scroll, 720);
+  }, [notesLoaded]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -1548,6 +1620,7 @@ export function BookDetailContent({
               <>
                 {notice === "automated" && <AutomatedNotice />}
                 <div
+                  ref={notesRef}
                   className={cn(
                     "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
                     "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
@@ -1574,6 +1647,10 @@ export function BookDetailContent({
                       }}
                       components={
                         {
+                          h1: chapterHeading("h1"),
+                          h2: chapterHeading("h2"),
+                          h3: chapterHeading("h3"),
+                          h4: chapterHeading("h4"),
                           img: ({ src, alt, ...props }) => {
                             if (!src) return null;
                             return (

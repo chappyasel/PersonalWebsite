@@ -11,24 +11,33 @@ import { getCachedWeightliftingPlacard } from "~/server/queries/weightlifting";
  * away degrades that one card to the page's description; `scope` names the
  * caller in the degrade log.
  */
-export async function loadSitePageCards(scope: string): Promise<SitePageCards> {
+export async function loadSitePageCards(
+  scope: string,
+  /** Which cards the caller can show; the rest are not queried. A book
+   * page only ever points at the library, so it skips the workout query. */
+  only: ReadonlyArray<keyof SitePageCards> = ["books", "weightlifting"],
+): Promise<SitePageCards> {
   const [books, weightlifting] = await Promise.all([
-    orEmpty(
-      `${scope}:book-card`,
-      async () => {
-        const placard = buildHomepageBookPlacard(await getDefaultBooks());
-        return { stats: placard.stats, yearly: placard.yearly };
-      },
-      null,
-    ),
-    orEmpty(
-      `${scope}:workout-card`,
-      async () => {
-        const placard = await getCachedWeightliftingPlacard();
-        return { stats: placard.stats, yearly: placard.yearly };
-      },
-      null,
-    ),
+    only.includes("books")
+      ? orEmpty(
+          `${scope}:book-card`,
+          async () => {
+            const placard = buildHomepageBookPlacard(await getDefaultBooks());
+            return { stats: placard.stats, yearly: placard.yearly };
+          },
+          null,
+        )
+      : null,
+    only.includes("weightlifting")
+      ? orEmpty(
+          `${scope}:workout-card`,
+          async () => {
+            const placard = await getCachedWeightliftingPlacard();
+            return { stats: placard.stats, yearly: placard.yearly };
+          },
+          null,
+        )
+      : null,
   ]);
   return { books, weightlifting };
 }

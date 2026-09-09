@@ -2342,7 +2342,8 @@
                   "text": "🧠 Knowledge",
                   "bold": true
                 }
-              ]
+              ],
+              "id": "knowledge"
             },
             {
               "type": "toggle",
@@ -2568,7 +2569,8 @@
                   "text": "🫶 Relationships",
                   "bold": true
                 }
-              ]
+              ],
+              "id": "relationships"
             },
             {
               "type": "toggle",
@@ -2918,7 +2920,8 @@
                   "text": "❤️ Health",
                   "bold": true
                 }
-              ]
+              ],
+              "id": "health"
             },
             {
               "type": "toggle",
@@ -3235,7 +3238,8 @@
                   "text": "💸 Finances",
                   "bold": true
                 }
-              ]
+              ],
+              "id": "finances"
             },
             {
               "type": "toggle",
@@ -3434,7 +3438,8 @@
                   "text": "🌿 Whole-Life Coverage",
                   "bold": true
                 }
-              ]
+              ],
+              "id": "whole-life-coverage"
             },
             {
               "type": "toggle",
@@ -4805,7 +4810,8 @@
             {
               "text": "Foundations + the good life"
             }
-          ]
+          ],
+          "id": "foundations-the-good-life"
         },
         {
           "type": "numbered_list",
@@ -4887,7 +4893,8 @@
             {
               "text": "Habits + learning"
             }
-          ]
+          ],
+          "id": "habits-learning"
         },
         {
           "type": "numbered_list",
@@ -4973,7 +4980,8 @@
             {
               "text": "Systems + judgment"
             }
-          ]
+          ],
+          "id": "systems-judgment"
         },
         {
           "type": "numbered_list",
@@ -5059,7 +5067,8 @@
             {
               "text": "Time + direction"
             }
-          ]
+          ],
+          "id": "time-direction"
         },
         {
           "type": "numbered_list",
@@ -5145,7 +5154,8 @@
             {
               "text": "Relationships + feedback"
             }
-          ]
+          ],
+          "id": "relationships-feedback"
         },
         {
           "type": "numbered_list",

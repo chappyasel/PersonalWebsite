@@ -1,5 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
+import { anchorSlug, uniqueAnchor } from "../../src/lib/anchors.js";
 import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "fs";
 import http from "http";
 import https from "https";
@@ -547,14 +548,15 @@ export function slugify(text: string): string {
 }
 
 /**
- * A dropdown's anchor, from its name: the words before the "→", without the
- * leading icon, a trailing "(72h)" or ":" or ".", and apostrophes. A title
- * with no arrow (a numbered step) is cut at its first sentence. A bare URL
- * (a Notion link mention) names the site page it points at. Ids are unique
- * across the page, including the section and layer ids passed in, so a
- * deep link opens exactly one thing.
+ * Every dropdown and every content heading gets an anchor a link can land
+ * on, unique across the page (the section and layer ids come in `taken`).
+ * A dropdown's anchor is its name: the words before the "→"; a title with
+ * no arrow (a numbered step) is cut at its first sentence; a bare URL (a
+ * Notion link mention) names the site page it points at. A heading's is
+ * its words. Both go through anchorSlug (src/lib/anchors.ts), the one rule
+ * the renderer also uses when a snapshot predates the stamp.
  */
-export function assignToggleIds(
+export function assignAnchors(
   blocks: any[],
   taken: Set<string>,
   pageLabelFor: (href: string) => string | null = () => null,
@@ -569,28 +571,22 @@ export function assignToggleIds(
       if (label) return label;
     }
     let head = text.split("→")[0] ?? "";
-    head = head.replace(
-      /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?|\p{Extended_Pictographic})[\uFE0F\u20E3]*\s*/u,
-      "",
-    );
-    head = head.replace(/^:[a-z0-9_-]+:\s*/i, "");
     if (!text.includes("→")) head = head.split(/(?<=\S)[.:]\s/)[0] ?? head;
-    return head
-      .replace(/\s*\([^)]*\)\s*$/, "")
-      .replace(/[:.]\s*$/, "")
-      .replace(/[’'"]/g, "")
-      .trim();
+    return head;
   };
   const visit = (list: any[]) => {
     for (const block of list ?? []) {
       if (block.type === "toggle") {
-        const base = slugify(name(block.title)) || "dropdown";
-        let id = base;
-        for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
-        taken.add(id);
-        block.id = id;
+        block.id = uniqueAnchor(
+          anchorSlug(name(block.title)) || "dropdown",
+          taken,
+        );
         assigned++;
         visit(block.children);
+      } else if (block.type === "heading") {
+        const text = (block.content ?? []).map((r: any) => r.text).join("");
+        block.id = uniqueAnchor(anchorSlug(text), taken);
+        assigned++;
       } else if (block.type === "callout") {
         visit(block.content);
       } else if (

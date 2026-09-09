@@ -9,7 +9,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 import {
-  assignToggleIds,
+  assignAnchors,
   collectBlockIds,
   downloadCustomEmoji,
   extractEmojiAndTitle,
@@ -384,10 +384,11 @@ function numberToggleRuns(data: SystemsData): SystemsData {
 }
 
 /**
- * Every dropdown gets an anchor so a link can land on it (/systems#deep-
- * think-weeks), unique against the section and layer anchors.
+ * Every dropdown and content heading gets an anchor so a link can land on
+ * it (/systems#deep-think-weeks, /systems#knowledge), unique against the
+ * section and layer anchors.
  */
-function anchorToggles(data: SystemsData): SystemsData {
+function anchorBlocks(data: SystemsData): SystemsData {
   const taken = new Set<string>();
   for (const section of data.sections) {
     taken.add(section.id);
@@ -397,16 +398,16 @@ function anchorToggles(data: SystemsData): SystemsData {
     const page = sitePageForHref(href);
     return page ? SITE_PAGES[page].label : null;
   };
-  let count = assignToggleIds(data.intro, taken, label);
+  let count = assignAnchors(data.intro, taken, label);
   for (const section of data.sections) {
     if (section.layers) {
       for (const layer of section.layers)
-        count += assignToggleIds(layer.blocks, taken, label);
+        count += assignAnchors(layer.blocks, taken, label);
     } else {
-      count += assignToggleIds(section.blocks, taken, label);
+      count += assignAnchors(section.blocks, taken, label);
     }
   }
-  console.log(`Anchors: ${count} dropdown(s)`);
+  console.log(`Anchors: ${count} dropdown(s) and heading(s)`);
   return data;
 }
 
@@ -460,7 +461,7 @@ async function main() {
   // 5. Self-links → local anchors, cross-page links → public URLs, custom
   //    emoji → downloaded files. The intro takes the same passes as the
   //    sections so its section links stay on the page.
-  const output = anchorToggles(
+  const output = anchorBlocks(
     numberToggleRuns(
       liftStatusColors(
         linkAtAGlanceTitles(

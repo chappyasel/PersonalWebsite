@@ -19,6 +19,7 @@ import {
   MoonStarsIcon,
   PillIcon,
   PulseIcon,
+  PushPinIcon,
   RocketLaunchIcon,
   ScalesIcon,
   StackIcon,
@@ -43,7 +44,8 @@ const iconById: Record<string, Icon> = {
   caffeine: CoffeeIcon,
   "sleep-duration": MoonIcon,
   "getting-back-on-track": ArrowsClockwiseIcon,
-  // manual
+  // manual: the TL;DR opener keeps the pin Notion gives it
+  "tl-dr": PushPinIcon,
   "personality-strengths-blind-spots": DnaIcon,
   "how-we-collaborate": HandshakeIcon,
   communication: MegaphoneIcon,
@@ -117,6 +119,7 @@ const accentById: Record<string, Accent> = {
   "sleep-duration": "indigo",
   "getting-back-on-track": "plum",
   // manual
+  "tl-dr": "indigo", // the overview, like at-a-glance on systems
   "personality-strengths-blind-spots": "plum",
   "how-we-collaborate": "am",
   communication: "pm",
