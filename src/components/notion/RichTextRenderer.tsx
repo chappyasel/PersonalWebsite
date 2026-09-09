@@ -23,20 +23,22 @@ import {
 
 /**
  * Notion's background colors render as a low-opacity wash of the actual hue
- * rather than a solid pastel fill. A 100-level pastel at 60% reads as a
+ * rather than a solid pastel fill. The opacity is bracketed: Tailwind v3
+ * only emits a bare step (/10, /20) that is on its theme scale, and 14 is
+ * not, so `/14` produced no rule at all and every highlight was invisible. A 100-level pastel at 60% reads as a
  * highlighter block sitting on top of the page; a 500-level hue at ~14% tints
  * the same words without breaking the column of text.
  */
 const notionColorMap: Record<string, string> = {
-  yellow_background: "bg-amber-500/14 dark:bg-amber-400/14",
-  blue_background: "bg-blue-500/14 dark:bg-blue-400/14",
-  green_background: "bg-emerald-500/14 dark:bg-emerald-400/14",
-  pink_background: "bg-pink-500/14 dark:bg-pink-400/14",
-  purple_background: "bg-purple-500/14 dark:bg-purple-400/14",
-  red_background: "bg-red-500/14 dark:bg-red-400/14",
-  orange_background: "bg-orange-500/14 dark:bg-orange-400/14",
+  yellow_background: "bg-amber-500/[0.14] dark:bg-amber-400/[0.14]",
+  blue_background: "bg-blue-500/[0.14] dark:bg-blue-400/[0.14]",
+  green_background: "bg-emerald-500/[0.14] dark:bg-emerald-400/[0.14]",
+  pink_background: "bg-pink-500/[0.14] dark:bg-pink-400/[0.14]",
+  purple_background: "bg-purple-500/[0.14] dark:bg-purple-400/[0.14]",
+  red_background: "bg-red-500/[0.14] dark:bg-red-400/[0.14]",
+  orange_background: "bg-orange-500/[0.14] dark:bg-orange-400/[0.14]",
   gray_background: "bg-muted",
-  brown_background: "bg-amber-700/14 dark:bg-amber-600/14",
+  brown_background: "bg-amber-700/[0.14] dark:bg-amber-600/[0.14]",
   yellow: "text-amber-600 dark:text-amber-400",
   blue: "text-blue-600 dark:text-blue-400",
   green: "text-emerald-600 dark:text-emerald-400",

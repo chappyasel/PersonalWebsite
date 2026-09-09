@@ -74,14 +74,14 @@ export function BookSort() {
       <Select value={field} onValueChange={handleFieldChange}>
         <SelectTrigger className="w-auto rounded-md bg-background/90">
           <div className="flex items-center pr-2">
-            <FieldIcon className="h-4 w-4" />
+            <FieldIcon className="h-4 w-4" weight="bold" />
           </div>
         </SelectTrigger>
         <SelectContent>
           {SORT_OPTIONS.map(({ field: optionField, label, icon: Icon }) => (
             <SelectItem key={optionField} value={optionField}>
               <div className="flex items-center gap-2">
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4" weight="bold" />
                 <span>{label}</span>
               </div>
             </SelectItem>
@@ -100,9 +100,9 @@ export function BookSort() {
               className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {order === "desc" ? (
-                <SortDescendingIcon className="h-4 w-4" />
+                <SortDescendingIcon className="h-4 w-4" weight="bold" />
               ) : (
-                <SortAscendingIcon className="h-4 w-4" />
+                <SortAscendingIcon className="h-4 w-4" weight="bold" />
               )}
             </button>
           </TooltipTrigger>

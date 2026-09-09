@@ -74,6 +74,7 @@ import type {
   HomepageBookPlacard,
   HomepageBookPreview,
 } from "~/lib/books/types";
+import { useBookNotesActionLabel } from "~/lib/books/useBookNotesActionLabel";
 import { recordModalOrigin } from "~/lib/originFlight";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { devSubdomainUrl } from "~/lib/util";
@@ -96,6 +97,7 @@ import {
   MOBILE_SHEET_TITLE_CLAMP,
   MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   type MobileSheetHeightMeasurement,
+  type MobileSheetTopPull,
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
   mobileSheetChipActive,
@@ -103,10 +105,6 @@ import {
   mobileSheetGeometry,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
-  mobileSheetSpentPullCommits,
-  mobileSheetTopPullAfterScroll,
-  mobileSheetTopPullY,
-  type MobileSheetTopPull,
   mobileSheetMaterialOverscan,
   mobileSheetPeekHeight,
   mobileSheetPublishedCoverage,
@@ -114,6 +112,9 @@ import {
   mobileSheetRestY,
   mobileSheetRubberBandY,
   mobileSheetScrollIntent,
+  mobileSheetSpentPullCommits,
+  mobileSheetTopPullAfterScroll,
+  mobileSheetTopPullY,
 } from "./mobileSheetGeometry";
 import { nextPlacardToPrepare } from "./placardResidency";
 import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
@@ -615,7 +616,7 @@ function BookSubjectLandscape({
               <div className="flex min-w-0 items-start gap-2">
                 <Icon
                   className="size-4 shrink-0"
-                  weight="duotone"
+                  weight="bold"
                   style={{ color: colors.fg }}
                 />
                 <div className="min-w-0">
@@ -647,6 +648,7 @@ function BookStars({ rating }: { rating: number }) {
 }
 
 function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
+  const bookNotesActionLabel = useBookNotesActionLabel();
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const dates = book.finished
     ? (formatReadDates(book.started, book.finished) ??
@@ -659,7 +661,7 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
     <div className="book-preview-row grid grid-cols-[76px_1fr] gap-4 rounded-lg">
       <button
         type="button"
-        aria-label={`Preview notes for ${book.title} by ${book.author}`}
+        aria-label={`${bookNotesActionLabel} for ${book.title} by ${book.author}`}
         onMouseEnter={() => requestBookPrefetch(book.id)}
         onFocus={() => requestBookPrefetch(book.id)}
         onPointerDown={() => requestBookPrefetch(book.id)}
@@ -690,7 +692,7 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
         href={bookNotesHref(book.id)}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`Read notes for ${book.title} by ${book.author}`}
+        aria-label={`View book notes for ${book.title} by ${book.author}`}
         className="min-w-0 self-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
       >
         <p className="book-preview-title line-clamp-1 font-serif text-[17px] font-medium leading-[1.2] text-foreground">
@@ -1746,7 +1748,8 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       if (axis === "horizontal") return true;
       // A spent top pull follows the finger with the overdrag resistance
       // instead of 1:1, so the sheet visibly holds rather than leaving.
-      const next = base + (topPull ? mobileSheetTopPullY(dy, startTopPull) : dy);
+      const next =
+        base + (topPull ? mobileSheetTopPullY(dy, startTopPull) : dy);
       // Above full height there is nothing left to reveal, so resist and
       // clamp to the exact range covered by the material overscan.
       y.set(mobileSheetRubberBandY(next, metrics.vh));
@@ -1965,7 +1968,10 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     panel.addEventListener("touchend", onTouchEnd, { passive: true });
     panel.addEventListener("touchcancel", onTouchCancel, { passive: true });
     panel.addEventListener("wheel", onWheel, { passive: false });
-    panel.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    panel.addEventListener("scroll", onScroll, {
+      capture: true,
+      passive: true,
+    });
     panel.addEventListener("mousedown", onMouseDown);
     panel.addEventListener("click", onClickCapture, { capture: true });
     panel.addEventListener("selectstart", onSelectStart);
@@ -2485,7 +2491,7 @@ export default function PlacardLayer({
               aria-label="Browse the whole library at books.chappyasel.com"
               className="flex items-center gap-2 rounded-lg focus-visible:ring-2 focus-visible:ring-foreground/45"
             >
-              <BooksIcon weight="duotone" className="size-6 shrink-0" />
+              <BooksIcon weight="bold" className="size-6 shrink-0" />
               Book Notes
             </Link>
           </h2>

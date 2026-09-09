@@ -128,7 +128,7 @@ export default function BooksPageClient({
                   >
                     <BooksIcon
                       className="h-6 w-6 md:h-8 md:w-9"
-                      weight="duotone"
+                      weight="bold"
                     />
                   </motion.div>
                 )}

@@ -151,31 +151,31 @@ export function BookFilters({
               className="hover: h-7 w-fit border-0 px-2 text-foreground/70 shadow-none transition-colors duration-200 hover:bg-accent hover:text-accent-foreground focus:ring-0"
             >
               {tagSortMode === "default" && (
-                <ListIcon className="mr-0.5 h-4 w-4" />
+                <ListIcon className="mr-0.5 h-4 w-4" weight="bold" />
               )}
               {tagSortMode === "count" && (
-                <HashIcon className="mr-0.5 h-4 w-4" />
+                <HashIcon className="mr-0.5 h-4 w-4" weight="bold" />
               )}
               {tagSortMode === "alphabetical" && (
-                <SortAscendingIcon className="mr-0.5 h-4 w-4" />
+                <SortAscendingIcon className="mr-0.5 h-4 w-4" weight="bold" />
               )}
             </SelectTrigger>
             <SelectContent className="w-auto">
               <SelectItem value="default" className="text-xs">
                 <div className="flex items-center gap-1.5">
-                  <ListIcon className="h-4 w-4" />
+                  <ListIcon className="h-4 w-4" weight="bold" />
                   <span>Natural</span>
                 </div>
               </SelectItem>
               <SelectItem value="count" className="text-xs">
                 <div className="flex items-center gap-1.5">
-                  <HashIcon className="h-4 w-4" />
+                  <HashIcon className="h-4 w-4" weight="bold" />
                   <span>By Count</span>
                 </div>
               </SelectItem>
               <SelectItem value="alphabetical" className="text-xs">
                 <div className="flex items-center gap-1.5">
-                  <SortAscendingIcon className="h-4 w-4" />
+                  <SortAscendingIcon className="h-4 w-4" weight="bold" />
                   <span>A-Z</span>
                 </div>
               </SelectItem>

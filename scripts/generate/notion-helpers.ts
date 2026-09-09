@@ -4,7 +4,6 @@ import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "fs";
 import http from "http";
 import https from "https";
 import { join } from "path";
-
 import sharp from "sharp";
 
 // ─── Rich Text Helpers ───
@@ -42,6 +41,47 @@ export function richTextToPlain(rt: any[]): string {
 
 // ─── URL & Image Helpers ───
 
+/**
+ * A phone photo dropped into Notion arrives at 4000+ pixels and 1.5 MB+;
+ * the page never shows more than the column at 2x (about 1440px). Rasters
+ * wider than this are shrunk in place, once, so the repo carries a sensible
+ * file and the optimizer starts from one. Line art is small and untouched.
+ */
+const MAX_RASTER_WIDTH = 2400;
+
+/**
+ * Shrink an oversized raster in place and report the stored pixel size, so
+ * the renderer can size the picture from its real dimensions instead of
+ * whatever the optimizer happened to serve. Null when the file is not a
+ * raster sharp can read (an SVG keeps its own size).
+ */
+export async function fitRaster(
+  path: string,
+): Promise<{ width: number; height: number } | null> {
+  if (!/\.(png|jpe?g|webp)$/i.test(path)) return null;
+  try {
+    const meta = await sharp(path).metadata();
+    let { width, height } = meta;
+    if (!width || !height) return null;
+    // EXIF orientation swaps the axes the page will see.
+    if ((meta.orientation ?? 1) >= 5) [width, height] = [height, width];
+    if (width > MAX_RASTER_WIDTH) {
+      const shrunk = await sharp(path)
+        .rotate()
+        .resize({ width: MAX_RASTER_WIDTH, withoutEnlargement: true })
+        .toBuffer({ resolveWithObject: true });
+      writeFileSync(path, shrunk.data);
+      console.log(
+        `  Shrunk ${path.split("/").pop()} from ${width}px to ${shrunk.info.width}px wide`,
+      );
+      return { width: shrunk.info.width, height: shrunk.info.height };
+    }
+    return { width, height };
+  } catch {
+    return null;
+  }
+}
+
 export function cleanUrl(url: string): string {
   if (url.includes("google.com/url")) {
     try {
@@ -69,9 +109,7 @@ export function downloadFile(url: string, dest: string): Promise<void> {
     mod
       .get(url, { headers: { "User-Agent": "NotionExport/1.0" } }, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
-          downloadFile(res.headers.location!, dest)
-            .then(resolve)
-            .catch(reject);
+          downloadFile(res.headers.location!, dest).then(resolve).catch(reject);
           return;
         }
         if (res.statusCode !== 200) {
@@ -111,7 +149,10 @@ export async function downloadCustomEmoji(
         await shrinkEmoji(dest);
         console.log(`  Downloaded custom emoji: ${filename}`);
       } catch (err) {
-        console.warn(`  Failed to download custom emoji :${name}:`, err.message);
+        console.warn(
+          `  Failed to download custom emoji :${name}:`,
+          err.message,
+        );
         continue;
       }
     }
@@ -145,7 +186,8 @@ export function resolveCustomEmoji(
   obj: any,
   resolved: Record<string, string>,
 ): any {
-  if (Array.isArray(obj)) return obj.map((v) => resolveCustomEmoji(v, resolved));
+  if (Array.isArray(obj))
+    return obj.map((v) => resolveCustomEmoji(v, resolved));
   if (obj && typeof obj === "object") {
     const result: any = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -218,7 +260,9 @@ async function looksLikeLineArt(path: string): Promise<boolean> {
         transparent++;
         continue;
       }
-      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const r = data[i],
+        g = data[i + 1],
+        b = data[i + 2];
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
       if (min >= 200) light++;
@@ -256,10 +300,7 @@ export async function fetchChildren(
   return blocks;
 }
 
-export async function walkBlocks(
-  blockId: string,
-  notion: any,
-): Promise<any[]> {
+export async function walkBlocks(blockId: string, notion: any): Promise<any[]> {
   const blocks = await fetchChildren(blockId, notion);
   for (const block of blocks) {
     if (block.has_children) {
@@ -373,20 +414,22 @@ export async function transformBlock(
           await downloadFile(url, destPath);
           console.log(`  Downloaded image: ${filename}`);
         } catch (err) {
-          console.warn(
-            `  Failed to download image ${block.id}:`,
-            err.message,
-          );
+          console.warn(`  Failed to download image ${block.id}:`, err.message);
           return null;
         }
       }
 
+      const size = await fitRaster(destPath);
       const caption = richTextToPlain(imgData.caption ?? []);
       const invert = await imageInvertible(destPath, caption);
       const alt = caption.replace(INVERT_TOKEN, "").trim() || "Image";
-      return invert
-        ? { type: "image", src: localPath, alt, invert: true }
-        : { type: "image", src: localPath, alt };
+      return {
+        type: "image",
+        src: localPath,
+        alt,
+        ...(invert ? { invert: true } : {}),
+        ...(size ?? {}),
+      };
     }
 
     case "table": {
@@ -462,8 +505,8 @@ function handleTableBlock(block: any): any | null {
 
   const headers: string[] = headerRow
     ? headerRow.table_row.cells.map((cell: any) => richTextToPlain(cell).trim())
-    : rows[0]?.table_row.cells.map((_: any, i: number) => `Column ${i + 1}`) ??
-      [];
+    : (rows[0]?.table_row.cells.map((_: any, i: number) => `Column ${i + 1}`) ??
+      []);
 
   const parsedRows: Array<Record<string, { text: string; link?: string }>> = [];
 
@@ -503,6 +546,65 @@ export function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/**
+ * A dropdown's anchor, from its name: the words before the "→", without the
+ * leading icon, a trailing "(72h)" or ":" or ".", and apostrophes. A title
+ * with no arrow (a numbered step) is cut at its first sentence. A bare URL
+ * (a Notion link mention) names the site page it points at. Ids are unique
+ * across the page, including the section and layer ids passed in, so a
+ * deep link opens exactly one thing.
+ */
+export function assignToggleIds(
+  blocks: any[],
+  taken: Set<string>,
+  pageLabelFor: (href: string) => string | null = () => null,
+): number {
+  let assigned = 0;
+  const name = (title: any[]): string => {
+    const runs = title ?? [];
+    const text = runs.map((r) => r.text).join("");
+    const first = runs[0];
+    if (first?.link && /^https?:\/\/\S+$/i.test(first.text.trim())) {
+      const label = pageLabelFor(first.link);
+      if (label) return label;
+    }
+    let head = text.split("→")[0] ?? "";
+    head = head.replace(
+      /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?|\p{Extended_Pictographic})[\uFE0F\u20E3]*\s*/u,
+      "",
+    );
+    head = head.replace(/^:[a-z0-9_-]+:\s*/i, "");
+    if (!text.includes("→")) head = head.split(/(?<=\S)[.:]\s/)[0] ?? head;
+    return head
+      .replace(/\s*\([^)]*\)\s*$/, "")
+      .replace(/[:.]\s*$/, "")
+      .replace(/[’'"]/g, "")
+      .trim();
+  };
+  const visit = (list: any[]) => {
+    for (const block of list ?? []) {
+      if (block.type === "toggle") {
+        const base = slugify(name(block.title)) || "dropdown";
+        let id = base;
+        for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+        taken.add(id);
+        block.id = id;
+        assigned++;
+        visit(block.children);
+      } else if (block.type === "callout") {
+        visit(block.content);
+      } else if (
+        block.type === "bulleted_list" ||
+        block.type === "numbered_list"
+      ) {
+        for (const item of block.items) visit(item);
+      }
+    }
+  };
+  visit(blocks);
+  return assigned;
+}
+
 // ─── Notion Link Rewriting ───
 
 // Map known Notion page IDs to their public URLs
@@ -513,7 +615,8 @@ const notionPageToUrl: Record<string, string> = {
   // The Book Notes root page and the Why We Sleep notes both live on the
   // public library.
   "340ec22372464d89a44e8005075bb7c4": "https://books.chappyasel.com/",
-  "1a8f4bfb2323462c82aa9c9fffb12186": "https://books.chappyasel.com/why-we-sleep",
+  "1a8f4bfb2323462c82aa9c9fffb12186":
+    "https://books.chappyasel.com/why-we-sleep",
 };
 
 // Notion Site slugs (chappyasel.notion.site/<slug>) that the site serves
@@ -532,8 +635,9 @@ const notionSiteToUrl: Record<string, string> = {
  */
 function rewritePublicNotionUrl(value: string): string | null {
   // Notion links arrive as www.notion.so/<slug>-<id> or app.notion.com/p/<id>
-  const isNotionLink =
-    /https:\/\/(www\.notion\.so|app\.notion\.com)\//.test(value);
+  const isNotionLink = /https:\/\/(www\.notion\.so|app\.notion\.com)\//.test(
+    value,
+  );
   const page = isNotionLink ? /([a-f0-9]{32})/.exec(value) : null;
   if (page?.[1] && notionPageToUrl[page[1]]) return notionPageToUrl[page[1]];
   if (isNotionLink) return null;
@@ -642,9 +746,7 @@ export function rewriteNotionPageLinks(obj: any): any {
           result[key] = publicUrl;
         } else {
           const text = typeof obj.text === "string" ? obj.text : "";
-          console.warn(
-            `  Dropped private Notion link on "${text}" (${value})`,
-          );
+          console.warn(`  Dropped private Notion link on "${text}" (${value})`);
         }
       } else {
         result[key] = rewriteNotionPageLinks(value);

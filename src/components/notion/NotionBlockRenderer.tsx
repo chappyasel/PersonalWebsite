@@ -12,20 +12,38 @@ function ListItem({
   item,
   bookLookup,
   relaxedLists,
+  marker,
 }: {
   item: NotionBlock[];
   bookLookup?: BookLookup;
   relaxedLists: boolean;
+  /** The number for an item that opens with a dropdown ("3."). A native
+   * outside marker aligns to the first line box inside the item, which for
+   * a dropdown is the caret's, a couple of pixels below the title's
+   * baseline; the dropdown draws its own number on the title's line. */
+  marker?: string;
 }) {
   const first = item[0];
   const rest = item.slice(1);
+  const ownMarker = first?.type === "toggle" ? marker : undefined;
 
   return (
-    <li>
+    <li className={ownMarker ? "list-none" : undefined}>
       {first?.type === "paragraph" ? (
         <span>
           <RichTextRenderer content={first.content} bookLookup={bookLookup} />
         </span>
+      ) : first?.type === "toggle" && ownMarker ? (
+        <NotionToggle
+          title={first.title}
+          blocks={first.children}
+          bookLookup={bookLookup}
+          variant={first.variant}
+          status={first.status}
+          relaxedLists={relaxedLists}
+          marker={ownMarker}
+          id={first.id}
+        />
       ) : first ? (
         <NotionBlockRenderer
           block={first}
@@ -105,6 +123,8 @@ export default function NotionBlockRenderer({
           bookLookup={bookLookup}
           variant={block.variant}
           status={block.status}
+          relaxedLists={relaxedLists}
+          id={block.id}
         />
       );
 
@@ -137,29 +157,59 @@ export default function NotionBlockRenderer({
               item={item}
               bookLookup={bookLookup}
               relaxedLists={relaxedLists}
+              marker={`${i + 1}.`}
             />
           ))}
         </ol>
       );
 
-    case "image":
+    case "image": {
       // The scene hangs its images as framed prints; the pages do the same —
       // mat, hairline frame, soft shadow (styles in daylight.css). Line art
       // the sync flagged as invertible flips to light-on-dark in dark mode,
       // hue rotated back so coloured lines keep their colours.
+      const invert = block.invert ? " dark:hue-rotate-180 dark:invert" : "";
+      const { width, height } = block;
+      if (!width || !height) {
+        // Older snapshots carry no size: the picture takes whatever size the
+        // optimizer served, capped at 18rem tall.
+        return (
+          <figure className="flex justify-center">
+            <span className="dl-print">
+              <Image
+                src={block.src}
+                alt={block.alt}
+                width={400}
+                height={300}
+                className={`max-h-72 w-auto${invert}`}
+              />
+            </span>
+          </figure>
+        );
+      }
+      // Shown at half its pixel width (sources are 2x), never taller than
+      // 26rem, never wider than the column. The width is fixed and the height
+      // follows, so a cap never squashes the picture; `sizes` tells the
+      // optimizer the column is the most it will ever need.
+      const MAX_HEIGHT = 26 * 16;
+      const aspect = width / height;
+      const cssWidth = Math.round(Math.min(width / 2, MAX_HEIGHT * aspect));
       return (
         <figure className="flex justify-center">
-          <span className="dl-print">
+          <span className="dl-print max-w-full">
             <Image
               src={block.src}
               alt={block.alt}
-              width={400}
-              height={300}
-              className={`max-h-72 w-auto${block.invert ? "dark:hue-rotate-180 dark:invert" : ""}`}
+              width={width}
+              height={height}
+              sizes="(min-width: 640px) 45rem, 100vw"
+              className={`h-auto max-w-full${invert}`}
+              style={{ width: `min(${cssWidth}px, 100%)` }}
             />
           </span>
         </figure>
       );
+    }
 
     case "divider":
       return <hr className="border-muted-foreground/10" />;

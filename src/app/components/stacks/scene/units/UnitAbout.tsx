@@ -88,6 +88,7 @@ import {
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "~/lib/books/coverEdgeColor";
+import { useBookNotesActionLabel } from "~/lib/books/useBookNotesActionLabel";
 
 import { ProjectIcon } from "./ProjectArtifacts";
 import { ShelfSucculent } from "./ShelfSucculent";
@@ -335,6 +336,7 @@ function ReadingStack({
   unitIndex: number;
   onOpenBook?: (id: string) => void;
 }) {
+  const bookNotesActionLabel = useBookNotesActionLabel();
   const thicknesses = React.useMemo(
     () =>
       books
@@ -384,12 +386,10 @@ function ReadingStack({
             massKg={0.62}
             tiltOnHover={false}
             onTap={() => onOpenBook?.(book.id)}
-            // Title, author, then the verb: the label describes the book
-            // before it says what a tap does. "Preview", because the tap
-            // opens the in-room book modal, not the full notes page.
+            // Name the book before describing how its notes will open.
             portalLabel={book.title}
             portalDetail={book.author ? [book.author] : undefined}
-            actionLabel="Preview book notes"
+            actionLabel={bookNotesActionLabel}
           >
             <ReadingBookHover
               hoverKey={`grab:reading:${book.id}`}

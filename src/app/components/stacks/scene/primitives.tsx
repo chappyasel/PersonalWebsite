@@ -10,6 +10,8 @@ import { PALETTES, type Palette, rand } from "../theme";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { useBookNotesActionLabel } from "~/lib/books/useBookNotesActionLabel";
+
 import Grabbable from "./Grabbable";
 import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
@@ -671,6 +673,7 @@ function ShelfBook({
    * Declared ABOVE the scenery early-return on purpose: hooks cannot sit
    * behind a conditional, and the plain-group branch below is a real one.
    */
+  const bookNotesActionLabel = useBookNotesActionLabel();
   const bookId = book?.id;
   const bookAuthor = book?.author;
   const openOwnNotes = React.useCallback(() => {
@@ -709,7 +712,7 @@ function ShelfBook({
               onTap: openOwnNotes,
               portalLabel: book.title,
               portalDetail,
-              actionLabel: "Preview book notes",
+              actionLabel: bookNotesActionLabel,
             }
           : { to })}
       >
@@ -1035,6 +1038,7 @@ function FeaturedCover({
   grabbable?: boolean;
   grabbableRiser?: boolean;
 }) {
+  const bookNotesActionLabel = useBookNotesActionLabel();
   const setHovered = useStacks((s) => s.setHovered);
   const s = item.s ?? 1;
   const thickness = item.thickness ?? 0.048;
@@ -1179,12 +1183,10 @@ function FeaturedCover({
           tiltWhileHeld={false}
           onHoverIntent={prefetchOwnNotes}
           onTap={onCoverClick ? () => onCoverClick(item.key) : undefined}
-          // Title, author, then the verb. "Preview", because the tap opens
-          // the in-room book modal, not the full notes page; a cover with no
-          // known title keeps the verb as its whole label.
+          // A cover without a known title uses the action as its whole label.
           portalLabel={onCoverClick ? item.label : undefined}
           portalDetail={onCoverClick && item.author ? [item.author] : undefined}
-          actionLabel={onCoverClick ? "Preview book notes" : undefined}
+          actionLabel={onCoverClick ? bookNotesActionLabel : undefined}
         >
           {cover(true)}
         </Grabbable>

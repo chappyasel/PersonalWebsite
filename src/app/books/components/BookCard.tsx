@@ -35,12 +35,11 @@ import {
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
+import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
-
-import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { cn } from "@/src/lib/util";
 
 type BookCardProps = {
@@ -436,7 +435,7 @@ export const BookCard = memo(function BookCard({
                     sizeRadius[size],
                   )}
                 >
-                  <BookOpenIcon className={styles.badgeIcon} />
+                  <BookOpenIcon className={styles.badgeIcon} weight="bold" />
                   <span className={styles.badgeText}>Reading</span>
                 </Badge>
               )}
@@ -448,7 +447,10 @@ export const BookCard = memo(function BookCard({
                     sizeRadius[size],
                   )}
                 >
-                  <BookmarkSimpleIcon className={styles.badgeIcon} />
+                  <BookmarkSimpleIcon
+                    className={styles.badgeIcon}
+                    weight="bold"
+                  />
                   <span className={styles.badgeText}>
                     {abandonedPercent(book) != null
                       ? `Abandoned ${abandonedPercent(book)}%`
@@ -464,7 +466,10 @@ export const BookCard = memo(function BookCard({
                     sizeRadius[size],
                   )}
                 >
-                  <ArrowsClockwiseIcon className={styles.badgeIcon} />
+                  <ArrowsClockwiseIcon
+                    className={styles.badgeIcon}
+                    weight="bold"
+                  />
                   <span className={styles.badgeText}>
                     {book.readNumber === 2
                       ? "2nd Read"
@@ -483,7 +488,7 @@ export const BookCard = memo(function BookCard({
                     sizeRadius[size],
                   )}
                 >
-                  <FileTextIcon className={styles.badgeIcon} />
+                  <FileTextIcon className={styles.badgeIcon} weight="bold" />
                   <span className={styles.badgeText}>No Notes</span>
                 </Badge>
               )}

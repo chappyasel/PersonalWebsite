@@ -1,8 +1,10 @@
 "use client";
 
 import { ArrowRightIcon } from "@phosphor-icons/react";
-import { Fragment, useId, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 
+import { releaseHash } from "~/components/daylight/hashTarget";
+import { SECTION_JUMP_EVENT } from "~/components/daylight/sectionJump";
 import type {
   BookLookup,
   NotionBlock,
@@ -125,6 +127,9 @@ export default function NotionToggle({
   bookLookup,
   variant,
   status,
+  relaxedLists = false,
+  marker,
+  id,
 }: {
   title: RichText[];
   blocks: NotionBlock[];
@@ -133,24 +138,88 @@ export default function NotionToggle({
   variant?: "note";
   /** Implementation state (systems page); absent means live. */
   status?: SystemStatus;
+  /** Passed down so a dropdown in a relaxed list keeps that rhythm inside. */
+  relaxedLists?: boolean;
+  /** A list number to draw on the title's own line, in the gutter where the
+   * list's native marker would sit (see ListItem). */
+  marker?: string;
+  /** Page-unique anchor. Opening the dropdown puts it in the address bar
+   * (replaced, never pushed) so the URL can be copied and sent; a URL that
+   * carries it opens the dropdown on arrival, along with every dropdown
+   * around it, and scrolls it under the sticky rail. */
+  id?: string;
 }) {
   const [open, setOpen] = useState(false);
   const contentId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    function handle() {
+      const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      const self = ref.current;
+      if (!hash || !self) return;
+      if (hash === id) {
+        setOpen(true);
+        const scroll = () =>
+          self.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Once now, then after the layer's and the panel's own folds have
+        // added their height; scroll-margin-top clears the rail.
+        requestAnimationFrame(scroll);
+        window.setTimeout(scroll, 380);
+        window.setTimeout(scroll, 720);
+        return;
+      }
+      // A dropdown nested inside this one is the target: open, and let it
+      // scroll itself.
+      const target = document.getElementById(hash);
+      if (target && self.contains(target)) setOpen(true);
+    }
+    handle();
+    window.addEventListener("hashchange", handle);
+    window.addEventListener(SECTION_JUMP_EVENT, handle);
+    return () => {
+      window.removeEventListener("hashchange", handle);
+      window.removeEventListener(SECTION_JUMP_EVENT, handle);
+    };
+  }, [id]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (!id) return;
+    if (next) window.history.replaceState(null, "", `#${id}`);
+    else if (window.location.hash === `#${id}`) releaseHash();
+  };
 
   return (
-    <div data-notion-toggle={variant ?? ""}>
+    <div
+      ref={ref}
+      id={id}
+      data-notion-toggle={variant ?? ""}
+      className={id ? "scroll-mt-24" : undefined}
+    >
       <button
         data-notion-toggle-trigger=""
         type="button"
         aria-controls={contentId}
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
         // The caret sits in the gutter where a sibling list's bullets are (the
         // renderer's lists are ml-4), so the title and the body start on the
         // list text's column. No vertical padding: the row is one line tall,
         // like a list item, and .dl-prose spaces it like one.
-        className="group/notion-toggle flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="group/notion-toggle relative flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
+        {marker && (
+          <span
+            aria-hidden="true"
+            data-notion-toggle-marker=""
+            className="absolute right-full top-0 mr-[0.3em] select-none tabular-nums text-muted-foreground/40"
+          >
+            {marker}
+          </span>
+        )}
         <DisclosureCaret
           open={open}
           className="group-hover/notion-toggle:text-foreground"
@@ -166,6 +235,7 @@ export default function NotionToggle({
               key={i}
               block={block}
               bookLookup={bookLookup}
+              relaxedLists={relaxedLists}
             />
           ))}
         </div>

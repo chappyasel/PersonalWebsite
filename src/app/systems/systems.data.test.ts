@@ -1,3 +1,5 @@
+import { existsSync } from "fs";
+import { join } from "path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -178,11 +180,38 @@ describe("systems.json snapshot", () => {
     expect(markup).toMatch(/<ul[^>]*data-relaxed=""/);
   });
 
-  it("preserves the 48 dropdowns with their nested bodies", () => {
-    // 47 across the seven layers plus At a Glance's origin story. The
-    // Considerations are a numbered list of twelve, not dropdowns.
+  it("turns the hand-numbered getting-started dropdowns into a numbered list of dropdowns", () => {
+    const tips = section("tips-for-getting-started");
+    const list = tips?.blocks?.find((b) => b.type === "numbered_list");
+    expect(list?.type).toBe("numbered_list");
+    if (list?.type !== "numbered_list") return;
+    expect(list.items).toHaveLength(5);
+    for (const item of list.items) {
+      const first = item[0];
+      expect(first?.type).toBe("toggle");
+      if (first?.type !== "toggle") continue;
+      // The owner's "1. " prefix is the signal, not part of the title.
+      expect(plain(first.title)).not.toMatch(/^\s*\d+[.)]\s/);
+      expect(first.children.length).toBeGreaterThan(0);
+    }
+    const markup = renderToStaticMarkup(
+      createElement(SystemsSection, { section: tips! }),
+    );
+    // Five list items, each opening with a dropdown that draws its own
+    // number on the title's line (the native marker would sit low).
+    expect(
+      markup.match(/<li class="list-none"><div id="[^"]+" data-notion-toggle/g),
+    ).toHaveLength(5);
+    expect(markup.match(/data-notion-toggle-marker=""/g)).toHaveLength(5);
+    expect(markup).toContain(">3.</span>");
+  });
+
+  it("preserves the 53 dropdowns with their nested bodies", () => {
+    // 47 across the seven layers, At a Glance's origin story, and the five
+    // numbered getting-started steps. The Considerations are a numbered
+    // list of twelve, not dropdowns.
     const toggles = [...walk(everyBlock)].filter((b) => b.type === "toggle");
-    expect(toggles).toHaveLength(48);
+    expect(toggles).toHaveLength(53);
     const considerations = section("considerations");
     const list = considerations?.blocks?.find(
       (b) => b.type === "numbered_list",
@@ -303,6 +332,45 @@ describe("systems.json snapshot", () => {
     const named = markup.match(/Chappy’s Book Notes/g)?.length ?? 0;
     expect(named).toBeGreaterThan(0);
     expect(every).toBe(named);
+  });
+
+  it("gives every dropdown a page-unique anchor a link can land on", () => {
+    const toggles = [...walk(everyBlock)].filter((b) => b.type === "toggle");
+    const ids = toggles.map((t) => (t.type === "toggle" ? t.id : undefined));
+    expect(ids.every((id) => typeof id === "string" && id.length > 0)).toBe(
+      true,
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+    const reserved = new Set(
+      data.sections.flatMap((s) => [
+        s.id,
+        ...(s.layers ?? []).map((l) => l.id),
+      ]),
+    );
+    for (const id of ids) expect(reserved.has(id!), id).toBe(false);
+    expect(ids).toContain("deep-think-weeks");
+    expect(ids).toContain("world-model");
+    expect(ids).toContain("book-notes");
+    expect(ids).toContain("log-a-daily-scorecard");
+
+    const seven = section("the-seven-layers");
+    const markup = renderToStaticMarkup(
+      createElement(SystemsSection, { section: seven! }),
+    );
+    expect(markup).toContain('id="deep-think-weeks"');
+  });
+
+  it("stores every picture at a sane size with its dimensions recorded", () => {
+    const images = [...walk(everyBlock)].filter((b) => b.type === "image");
+    expect(images.length).toBeGreaterThanOrEqual(1);
+    for (const image of images) {
+      if (image.type !== "image") continue;
+      expect(image.src).toMatch(/^\/images\/systems\/[^/]+$/);
+      expect(existsSync(join(process.cwd(), "public", image.src))).toBe(true);
+      expect(image.width, image.src).toBeGreaterThan(0);
+      expect(image.width, image.src).toBeLessThanOrEqual(2400);
+      expect(image.height, image.src).toBeGreaterThan(0);
+    }
   });
 
   it("links the manual and the routine as the site's own pages", () => {

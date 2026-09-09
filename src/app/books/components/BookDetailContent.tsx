@@ -117,12 +117,7 @@ function BookBreadcrumb({
           href={modalBreadcrumbHref}
           className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
         >
-          <BooksIcon
-            aria-hidden
-            size={16}
-            weight="duotone"
-            className="shrink-0"
-          />
+          <BooksIcon aria-hidden size={16} weight="bold" className="shrink-0" />
           <span className="xs:hidden">Book Notes</span>
           <span className="hidden xs:inline">Chappy&apos;s Book Notes</span>
           <span aria-hidden="true" className="text-muted-foreground/40">
@@ -149,7 +144,7 @@ function BookBreadcrumb({
               <BooksIcon
                 aria-hidden
                 size={16}
-                weight="duotone"
+                weight="bold"
                 className="shrink-0"
               />
               <span>Chappy&apos;s Book Notes</span>
@@ -1317,7 +1312,7 @@ export function BookDetailContent({
                               onClick={handleAudibleClick}
                             >
                               <HeadphonesIcon size={14} weight="bold" />
-                              Listen on Audible
+                              <span>Listen on Audible</span>
                             </a>
                           </Button>
                         )}
@@ -1335,7 +1330,7 @@ export function BookDetailContent({
                             onClick={handleNotionClick}
                           >
                             <ArrowSquareOutIcon size={14} weight="bold" />
-                            View in Notion
+                            <span>View in Notion</span>
                           </a>
                         </Button>
                       </div>
@@ -1479,7 +1474,7 @@ export function BookDetailContent({
               <div
                 role="group"
                 aria-label="Book actions"
-                className="-ml-2 flex flex-nowrap gap-0"
+                className="-ml-2 flex flex-nowrap items-center gap-0"
               >
                 <CopyLinkButton copied={copied} onClick={handleShare} />
 
@@ -1518,7 +1513,7 @@ export function BookDetailContent({
                     onClick={handleNotionClick}
                   >
                     <ArrowSquareOutIcon size={14} weight="bold" />
-                    View in Notion
+                    <span>View in Notion</span>
                   </a>
                 </Button>
               </div>

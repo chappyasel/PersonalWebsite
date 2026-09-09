@@ -20,7 +20,7 @@ export function EmptyState({ type, onClearFilters }: EmptyStateProps) {
     >
       <BookOpenIcon
         className="size-20 text-muted-foreground opacity-30"
-        weight="duotone"
+        weight="bold"
       />
       <h3 className="text-xl font-semibold text-foreground">
         {type === "no-books" ? "No books yet" : "No books match your filters"}

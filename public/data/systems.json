@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-09T11:50:00.000Z",
+  "lastUpdated": "2026-09-09T15:06:00.000Z",
   "intro": [
     {
       "type": "paragraph",
@@ -88,7 +88,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "id": "origin-story"
         },
         {
           "type": "numbered_list",
@@ -314,7 +315,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "personal-identity"
             },
             {
               "type": "toggle",
@@ -389,7 +391,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "personal-narrative"
             },
             {
               "type": "toggle",
@@ -488,7 +491,8 @@
                   ]
                 }
               ],
-              "status": "implementing"
+              "status": "implementing",
+              "id": "world-model"
             },
             {
               "type": "toggle",
@@ -573,7 +577,8 @@
                   ]
                 }
               ],
-              "status": "implementing"
+              "status": "implementing",
+              "id": "cues"
             }
           ]
         },
@@ -671,7 +676,8 @@
                   ]
                 }
               ],
-              "status": "implementing"
+              "status": "implementing",
+              "id": "life-vision"
             },
             {
               "type": "toggle",
@@ -742,7 +748,8 @@
                   ]
                 }
               ],
-              "status": "partial"
+              "status": "partial",
+              "id": "bucket-list"
             },
             {
               "type": "toggle",
@@ -897,7 +904,8 @@
                   ]
                 }
               ],
-              "status": "partial"
+              "status": "partial",
+              "id": "direction-strategies"
             }
           ]
         },
@@ -930,7 +938,7 @@
                       "link": "https://www.any.do/blog/bill-gates-think-week-how-to-block-time-for-deep-strategic-thinking/"
                     },
                     {
-                      "text": " (and my own inability to sit on my hands during vacation 😅), I started doing Deep Think Weeks (DTWs) in 2024!"
+                      "text": " (and my own inability to sit on my hands during “vacation” 😅), I started doing Deep Think Weeks (DTWs) in 2024!"
                     }
                   ]
                 },
@@ -942,10 +950,11 @@
                     },
                     {
                       "text": "completely",
+                      "bold": true,
                       "italic": true
                     },
                     {
-                      "text": " divorced from normal work and routines. I use the distance to look at the whole system, think about the future, gather feedback, make a few important decisions, and return with new ideas + experiments to run. It’s also a great time to reset, recharge, and practice gratitude!"
+                      "text": " divorced from normal work and routines. I use this distance to audit the whole system, think big picture, gather feedback, make a few very important decisions, and return with new ideas + experiments to run. It’s also a great time to reset, recharge, and practice gratitude!"
                     }
                   ]
                 },
@@ -961,10 +970,16 @@
                             "bold": true
                           },
                           {
-                            "text": " 7+ days away from normal routines / movement. No comms, meetings, social media, or traditional work. "
+                            "text": " 7+ days away from everything… no comms, meetings, social media (or really any media at all beyond books), or day-to-day work. "
                           },
                           {
-                            "text": "Enter an entirely different mindset.",
+                            "text": "Inhabit an entirely different headspace achievable only through this commitment to prolonged separation",
+                            "bold": true,
+                            "italic": true,
+                            "color": "yellow_background"
+                          },
+                          {
+                            "text": ".",
                             "italic": true
                           }
                         ]
@@ -1031,7 +1046,7 @@
                             "bold": true
                           },
                           {
-                            "text": ": Let my mind wander in random directions. Relaxed attention. Note what comes up."
+                            "text": ": Let my mind wander in random directions. Relaxed attention. Note what repeatedly comes up."
                           }
                         ]
                       }
@@ -1163,8 +1178,16 @@
                       }
                     ]
                   ]
+                },
+                {
+                  "type": "image",
+                  "src": "/images/systems/3d6c5ab0-d88d-804f-b556-fbef00098b4c.jpg",
+                  "alt": "Image",
+                  "width": 2400,
+                  "height": 1200
                 }
-              ]
+              ],
+              "id": "deep-think-weeks"
             },
             {
               "type": "toggle",
@@ -1268,7 +1291,8 @@
                   ]
                 }
               ],
-              "status": "implementing"
+              "status": "implementing",
+              "id": "quarterly-strategies"
             },
             {
               "type": "toggle",
@@ -1343,7 +1367,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "monthly-trajectories"
             },
             {
               "type": "toggle",
@@ -1404,7 +1429,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "weeklys"
             },
             {
               "type": "toggle",
@@ -1451,7 +1477,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "dailys"
             },
             {
               "type": "toggle",
@@ -1472,7 +1499,8 @@
                   ]
                 }
               ],
-              "variant": "note"
+              "variant": "note",
+              "id": "note-on-methodology"
             }
           ]
         },
@@ -1564,7 +1592,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "chappys-core-daily-routine"
             },
             {
               "type": "toggle",
@@ -1653,7 +1682,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "focus"
             },
             {
               "type": "toggle",
@@ -1757,7 +1787,8 @@
                   ]
                 }
               ],
-              "status": "implementing"
+              "status": "implementing",
+              "id": "work-map"
             },
             {
               "type": "toggle",
@@ -1883,7 +1914,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "weekly-tweaks"
             },
             {
               "type": "toggle",
@@ -1951,7 +1983,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "sunsama"
             }
           ]
         },
@@ -2048,7 +2081,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "feedback-ledger"
             },
             {
               "type": "toggle",
@@ -2123,7 +2157,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "personal-advisory-board"
             },
             {
               "type": "toggle",
@@ -2198,7 +2233,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "360-feedback"
             },
             {
               "type": "toggle",
@@ -2287,7 +2323,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "feedback-playbook"
             }
           ]
         },
@@ -2380,7 +2417,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "book-notes"
             },
             {
               "type": "toggle",
@@ -2442,7 +2480,8 @@
                   ]
                 }
               ],
-              "status": "next"
+              "status": "next",
+              "id": "second-brain"
             },
             {
               "type": "toggle",
@@ -2518,7 +2557,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "ultralearning"
             },
             {
               "type": "heading",
@@ -2611,7 +2651,8 @@
                   ]
                 }
               ],
-              "status": "partial"
+              "status": "partial",
+              "id": "personal-crm"
             },
             {
               "type": "toggle",
@@ -2690,7 +2731,8 @@
                   ]
                 }
               ],
-              "status": "partial"
+              "status": "partial",
+              "id": "relationships-playbook"
             },
             {
               "type": "toggle",
@@ -2766,7 +2808,8 @@
                   ]
                 }
               ],
-              "status": "next"
+              "status": "next",
+              "id": "communication-playbook"
             },
             {
               "type": "toggle",
@@ -2864,7 +2907,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "chappys-personal-operating-manual"
             },
             {
               "type": "heading",
@@ -2921,7 +2965,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "apple-watch"
             },
             {
               "type": "toggle",
@@ -3001,7 +3046,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "weightlifting-app"
             },
             {
               "type": "toggle",
@@ -3062,7 +3108,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "weight-log"
             },
             {
               "type": "toggle",
@@ -3109,7 +3156,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "strength-log"
             },
             {
               "type": "toggle",
@@ -3176,7 +3224,8 @@
                   ]
                 }
               ],
-              "status": "implementing"
+              "status": "implementing",
+              "id": "function-health"
             },
             {
               "type": "heading",
@@ -3248,7 +3297,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "time-money-rules"
             },
             {
               "type": "toggle",
@@ -3310,7 +3360,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "budget-system"
             },
             {
               "type": "toggle",
@@ -3372,7 +3423,8 @@
                   ]
                 }
               ],
-              "status": "next"
+              "status": "next",
+              "id": "investment-strategy"
             },
             {
               "type": "heading",
@@ -3444,7 +3496,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "embodied-everyday-life"
             },
             {
               "type": "toggle",
@@ -3506,7 +3559,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "relational-civic-life"
             },
             {
               "type": "toggle",
@@ -3554,7 +3608,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "inner-life"
             },
             {
               "type": "toggle",
@@ -3616,7 +3671,8 @@
                   ]
                 }
               ],
-              "status": "not-yet"
+              "status": "not-yet",
+              "id": "aliveness-expression"
             }
           ]
         },
@@ -3804,7 +3860,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "core-stack"
             },
             {
               "type": "toggle",
@@ -3921,7 +3978,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "agents"
             },
             {
               "type": "toggle",
@@ -3983,7 +4041,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "agent-utils"
             },
             {
               "type": "toggle",
@@ -4041,7 +4100,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "comms"
             },
             {
               "type": "toggle",
@@ -4156,7 +4216,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "id": "mac-utils"
             },
             {
               "type": "toggle",
@@ -4176,7 +4237,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "id": "tool-experiments"
             }
           ]
         }
@@ -4379,8 +4441,11 @@
           "items": [
             [
               {
-                "type": "paragraph",
-                "content": [
+                "type": "toggle",
+                "title": [
+                  {
+                    "text": ""
+                  },
                   {
                     "text": "#️⃣ Log a Daily Scorecard.",
                     "bold": true
@@ -4388,46 +4453,52 @@
                   {
                     "text": " Take 10 seconds at the end of every day; after a few weeks, you have real data to ask why some days go better than others."
                   }
-                ]
-              },
-              {
-                "type": "bulleted_list",
-                "items": [
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
+                ],
+                "children": [
+                  {
+                    "type": "bulleted_list",
+                    "items": [
+                      [
                         {
-                          "text": "Day Quality",
-                          "bold": true
-                        },
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Day Quality",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Subjective overall quality from -2 to +2"
+                            }
+                          ]
+                        }
+                      ],
+                      [
                         {
-                          "text": ": Subjective overall quality from -2 to +2"
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Note",
+                              "bold": true
+                            },
+                            {
+                              "text": ": ≤10 words on what most shaped the day"
+                            }
+                          ]
                         }
                       ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Note",
-                          "bold": true
-                        },
-                        {
-                          "text": ": ≤10 words on what most shaped the day"
-                        }
-                      ]
-                    }
-                  ]
-                ]
+                    ]
+                  }
+                ],
+                "id": "log-a-daily-scorecard"
               }
             ],
             [
               {
-                "type": "paragraph",
-                "content": [
+                "type": "toggle",
+                "title": [
+                  {
+                    "text": ""
+                  },
                   {
                     "text": "📆 Add a Weekly.",
                     "bold": true
@@ -4435,60 +4506,66 @@
                   {
                     "text": " Once you have seven daily rows, spend 20 minutes reviewing the pattern + choosing the next week."
                   }
-                ]
-              },
-              {
-                "type": "bulleted_list",
-                "items": [
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
+                ],
+                "children": [
+                  {
+                    "type": "bulleted_list",
+                    "items": [
+                      [
                         {
-                          "text": "Review",
-                          "bold": true
-                        },
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Review",
+                              "bold": true
+                            },
+                            {
+                              "text": ": What explains the highs + lows?"
+                            }
+                          ]
+                        }
+                      ],
+                      [
                         {
-                          "text": ": What explains the highs + lows?"
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Choose",
+                              "bold": true
+                            },
+                            {
+                              "text": ": One #1 outcome for next week"
+                            }
+                          ]
+                        }
+                      ],
+                      [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Schedule",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Put the first steps on the calendar"
+                            }
+                          ]
                         }
                       ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Choose",
-                          "bold": true
-                        },
-                        {
-                          "text": ": One #1 outcome for next week"
-                        }
-                      ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Schedule",
-                          "bold": true
-                        },
-                        {
-                          "text": ": Put the first steps on the calendar"
-                        }
-                      ]
-                    }
-                  ]
-                ]
+                    ]
+                  }
+                ],
+                "id": "add-a-weekly"
               }
             ],
             [
               {
-                "type": "paragraph",
-                "content": [
+                "type": "toggle",
+                "title": [
+                  {
+                    "text": ""
+                  },
                   {
                     "text": "🧪 Pick one lever.",
                     "bold": true
@@ -4496,46 +4573,52 @@
                   {
                     "text": " Use a recurring pattern from the Daily + Weekly to choose one Weekly Tweak."
                   }
-                ]
-              },
-              {
-                "type": "bulleted_list",
-                "items": [
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
+                ],
+                "children": [
+                  {
+                    "type": "bulleted_list",
+                    "items": [
+                      [
                         {
-                          "text": "Technique",
-                          "bold": true
-                        },
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Technique",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Specific / repeatable / controllable"
+                            }
+                          ]
+                        }
+                      ],
+                      [
                         {
-                          "text": ": Specific / repeatable / controllable"
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Experiment",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Test for one or two weeks / measure / adopt, iterate, repeat, or drop"
+                            }
+                          ]
                         }
                       ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Experiment",
-                          "bold": true
-                        },
-                        {
-                          "text": ": Test for one or two weeks / measure / adopt, iterate, repeat, or drop"
-                        }
-                      ]
-                    }
-                  ]
-                ]
+                    ]
+                  }
+                ],
+                "id": "pick-one-lever"
               }
             ],
             [
               {
-                "type": "paragraph",
-                "content": [
+                "type": "toggle",
+                "title": [
+                  {
+                    "text": ""
+                  },
                   {
                     "text": "🧭 Write one page of direction.",
                     "bold": true
@@ -4543,74 +4626,80 @@
                   {
                     "text": " Once the loops are real, give them something to serve."
                   }
-                ]
-              },
-              {
-                "type": "bulleted_list",
-                "items": [
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
+                ],
+                "children": [
+                  {
+                    "type": "bulleted_list",
+                    "items": [
+                      [
                         {
-                          "text": "Mission",
-                          "bold": true
-                        },
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Mission",
+                              "bold": true
+                            },
+                            {
+                              "text": ": What you intend to contribute"
+                            }
+                          ]
+                        }
+                      ],
+                      [
                         {
-                          "text": ": What you intend to contribute"
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Current Chapter",
+                              "bold": true
+                            },
+                            {
+                              "text": ": What this season is principally about"
+                            }
+                          ]
+                        }
+                      ],
+                      [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Outcome",
+                              "bold": true
+                            },
+                            {
+                              "text": ": One observable result that would make the next month worthwhile"
+                            }
+                          ]
+                        }
+                      ],
+                      [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Non-Priority",
+                              "bold": true
+                            },
+                            {
+                              "text": ": One attractive thing you are deliberately not funding"
+                            }
+                          ]
                         }
                       ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Current Chapter",
-                          "bold": true
-                        },
-                        {
-                          "text": ": What this season is principally about"
-                        }
-                      ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Outcome",
-                          "bold": true
-                        },
-                        {
-                          "text": ": One observable result that would make the next month worthwhile"
-                        }
-                      ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Non-Priority",
-                          "bold": true
-                        },
-                        {
-                          "text": ": One attractive thing you are deliberately not funding"
-                        }
-                      ]
-                    }
-                  ]
-                ]
+                    ]
+                  }
+                ],
+                "id": "write-one-page-of-direction"
               }
             ],
             [
               {
-                "type": "paragraph",
-                "content": [
+                "type": "toggle",
+                "title": [
+                  {
+                    "text": ""
+                  },
                   {
                     "text": "🥞 Earn the next layer.",
                     "bold": true
@@ -4618,68 +4707,71 @@
                   {
                     "text": " Add structure when the simpler loops expose a recurring gap."
                   }
-                ]
-              },
-              {
-                "type": "bulleted_list",
-                "items": [
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
+                ],
+                "children": [
+                  {
+                    "type": "bulleted_list",
+                    "items": [
+                      [
                         {
-                          "text": "Monthly",
-                          "bold": true
-                        },
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Monthly",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Catch drift + make one correction"
+                            }
+                          ]
+                        }
+                      ],
+                      [
                         {
-                          "text": ": Catch drift + make one correction"
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Quarterly",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Reset strategy + outcomes + allocation + active work"
+                            }
+                          ]
+                        }
+                      ],
+                      [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Yearly / DTW",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Reopen foundations + direction + the system itself"
+                            }
+                          ]
+                        }
+                      ],
+                      [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "Domain Systems",
+                              "bold": true
+                            },
+                            {
+                              "text": ": Build where the same problem keeps returning"
+                            }
+                          ]
                         }
                       ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Quarterly",
-                          "bold": true
-                        },
-                        {
-                          "text": ": Reset strategy + outcomes + allocation + active work"
-                        }
-                      ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Yearly / DTW",
-                          "bold": true
-                        },
-                        {
-                          "text": ": Reopen foundations + direction + the system itself"
-                        }
-                      ]
-                    }
-                  ],
-                  [
-                    {
-                      "type": "paragraph",
-                      "content": [
-                        {
-                          "text": "Domain Systems",
-                          "bold": true
-                        },
-                        {
-                          "text": ": Build where the same problem keeps returning"
-                        }
-                      ]
-                    }
-                  ]
-                ]
+                    ]
+                  }
+                ],
+                "id": "earn-the-next-layer"
               }
             ]
           ]

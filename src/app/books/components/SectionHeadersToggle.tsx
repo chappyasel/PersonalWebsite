@@ -37,9 +37,9 @@ export function SectionHeadersToggle({
             className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {hidden ? (
-              <RowsIcon className="h-4 w-4" />
+              <RowsIcon className="h-4 w-4" weight="bold" />
             ) : (
-              <SquaresFourIcon className="h-4 w-4" />
+              <SquaresFourIcon className="h-4 w-4" weight="bold" />
             )}
           </button>
         </TooltipTrigger>

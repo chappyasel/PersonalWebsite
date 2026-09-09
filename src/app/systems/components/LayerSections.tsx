@@ -67,13 +67,24 @@ export default function LayerSections({
   useEffect(() => {
     function handle() {
       const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
-      if (!ids.includes(hash)) return;
-      setChoice((current) =>
-        window.matchMedia(WIDE).matches
-          ? { ...current, [hash]: true }
-          : { [hash]: true },
-      );
-      scrollToLayer(hash);
+      if (!hash) return;
+      const open = (layerId: string) =>
+        setChoice((current) =>
+          window.matchMedia(WIDE).matches
+            ? { ...current, [layerId]: true }
+            : { [layerId]: true },
+        );
+      if (ids.includes(hash)) {
+        open(hash);
+        scrollToLayer(hash);
+        return;
+      }
+      // A dropdown inside a layer (#deep-think-weeks): open the layer and
+      // let the dropdown scroll itself.
+      const layer = document
+        .getElementById(hash)
+        ?.closest<HTMLElement>("[data-systems-layer]");
+      if (layer && ids.includes(layer.id)) open(layer.id);
     }
     handle();
     window.addEventListener("hashchange", handle);

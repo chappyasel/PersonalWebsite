@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 
 import { SECTION_JUMP_EVENT } from "./sectionJump";
@@ -13,7 +14,15 @@ export function useHashTarget(id: string, setOpen?: (open: boolean) => void) {
   useEffect(() => {
     function handle() {
       const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
-      if (hash !== id) return;
+      if (!hash) return;
+      if (hash !== id) {
+        // A dropdown inside this section is the target: open the section
+        // and let the dropdown scroll itself.
+        const self = document.getElementById(id);
+        const target = document.getElementById(hash);
+        if (self && target && self.contains(target)) setOpen?.(true);
+        return;
+      }
       setOpen?.(true);
       const scrollToEl = () =>
         document

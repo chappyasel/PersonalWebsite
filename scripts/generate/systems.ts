@@ -2,12 +2,14 @@
 // @ts-nocheck
 import type { SystemsData } from "../../src/app/systems/types";
 import { STATUS_BY_NOTION_COLOR } from "../../src/components/notion/systemStatus.js";
+import { SITE_PAGES, sitePageForHref } from "../../src/lib/site/pages.js";
 import { Client } from "@notionhq/client";
 import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 import {
+  assignToggleIds,
   collectBlockIds,
   downloadCustomEmoji,
   extractEmojiAndTitle,
@@ -308,6 +310,106 @@ function liftStatusColors(data: SystemsData): SystemsData {
   return data;
 }
 
+/**
+ * Notion has no numbered dropdown, so the owner numbers dropdown titles by
+ * hand ("1. #️⃣ Log a Daily Scorecard. …"). A run of two or more consecutive
+ * dropdowns whose titles all start with a number becomes a numbered list
+ * with one dropdown per item, the hand-typed prefix stripped, so the page
+ * draws the numbers as list markers and the dropdown after each. Applies at
+ * any depth. A run that is not 1..n in order is left alone, loudly.
+ */
+const NUMBERED_TITLE = /^\s*(\d+)[.)]\s+/u;
+
+function numberToggleRuns(data: SystemsData): SystemsData {
+  let runs = 0;
+  const visit = (blocks: any[]): any[] => {
+    const out: any[] = [];
+    let i = 0;
+    while (i < blocks.length) {
+      const block = blocks[i];
+      if (
+        block.type === "toggle" &&
+        NUMBERED_TITLE.test(block.title[0]?.text ?? "")
+      ) {
+        const run: any[] = [];
+        while (
+          i < blocks.length &&
+          blocks[i].type === "toggle" &&
+          NUMBERED_TITLE.test(blocks[i].title[0]?.text ?? "")
+        ) {
+          run.push(blocks[i]);
+          i++;
+        }
+        const numbers = run.map((t) =>
+          Number(NUMBERED_TITLE.exec(t.title[0].text)![1]),
+        );
+        const sequential = numbers.every((n, k) => n === k + 1);
+        if (run.length >= 2 && sequential) {
+          for (const toggle of run) {
+            toggle.title[0].text = toggle.title[0].text.replace(
+              NUMBERED_TITLE,
+              "",
+            );
+            toggle.children = visit(toggle.children);
+          }
+          out.push({ type: "numbered_list", items: run.map((t) => [t]) });
+          runs++;
+        } else {
+          if (run.length >= 2) {
+            console.warn(
+              `  Numbered dropdowns out of order (${numbers.join(", ")}), left as plain dropdowns`,
+            );
+          }
+          out.push(...run.map((t) => ({ ...t, children: visit(t.children) })));
+        }
+        continue;
+      }
+      if (block.type === "toggle") block.children = visit(block.children);
+      else if (block.type === "callout") block.content = visit(block.content);
+      else if (block.type === "bulleted_list" || block.type === "numbered_list")
+        block.items = block.items.map((item: any[]) => visit(item));
+      out.push(block);
+      i++;
+    }
+    return out;
+  };
+  data.intro = visit(data.intro);
+  for (const section of data.sections) {
+    if (section.layers)
+      for (const layer of section.layers) layer.blocks = visit(layer.blocks);
+    else section.blocks = visit(section.blocks);
+  }
+  console.log(`Numbered dropdown runs: ${runs}`);
+  return data;
+}
+
+/**
+ * Every dropdown gets an anchor so a link can land on it (/systems#deep-
+ * think-weeks), unique against the section and layer anchors.
+ */
+function anchorToggles(data: SystemsData): SystemsData {
+  const taken = new Set<string>();
+  for (const section of data.sections) {
+    taken.add(section.id);
+    for (const layer of section.layers ?? []) taken.add(layer.id);
+  }
+  const label = (href: string) => {
+    const page = sitePageForHref(href);
+    return page ? SITE_PAGES[page].label : null;
+  };
+  let count = assignToggleIds(data.intro, taken, label);
+  for (const section of data.sections) {
+    if (section.layers) {
+      for (const layer of section.layers)
+        count += assignToggleIds(layer.blocks, taken, label);
+    } else {
+      count += assignToggleIds(section.blocks, taken, label);
+    }
+  }
+  console.log(`Anchors: ${count} dropdown(s)`);
+  return data;
+}
+
 // ─── Main ───
 
 async function main() {
@@ -358,19 +460,23 @@ async function main() {
   // 5. Self-links → local anchors, cross-page links → public URLs, custom
   //    emoji → downloaded files. The intro takes the same passes as the
   //    sections so its section links stay on the page.
-  const output = liftStatusColors(
-    linkAtAGlanceTitles(
-      resolveCustomEmoji(
-        rewriteNotionPageLinks(
-          rewriteNotionSelfLinks(
-            { lastUpdated, intro, sections },
-            PAGE_ID,
-            anchorMap,
-            anchorByTitle(sections),
-          ),
+  const output = anchorToggles(
+    numberToggleRuns(
+      liftStatusColors(
+        linkAtAGlanceTitles(
+          resolveCustomEmoji(
+            rewriteNotionPageLinks(
+              rewriteNotionSelfLinks(
+                { lastUpdated, intro, sections },
+                PAGE_ID,
+                anchorMap,
+                anchorByTitle(sections),
+              ),
+            ),
+            emoji,
+          ) as SystemsData,
         ),
-        emoji,
-      ) as SystemsData,
+      ),
     ),
   );
 

@@ -13,6 +13,9 @@ export type NotionBlock =
       /** Implementation state, lifted from the title's Notion colour by the
        * systems sync (systemStatus.ts). Absent means live. */
       status?: SystemStatus;
+      /** Page-unique anchor from the sync (assignToggleIds), so a link can
+       * open this dropdown: /systems#deep-think-weeks. */
+      id?: string;
     }
   | { type: "bulleted_list"; items: NotionBlock[][] }
   | { type: "numbered_list"; items: NotionBlock[][] }
@@ -24,6 +27,11 @@ export type NotionBlock =
        * sync from the pixels, or forced with [invert] / [no-invert] in the
        * Notion caption. */
       invert?: boolean;
+      /** Stored pixel size, recorded by the sync (fitRaster). A block that
+       * carries it is sized from it; one that does not (older snapshots)
+       * keeps the served-size rendering. */
+      width?: number;
+      height?: number;
     }
   | { type: "divider" }
   | { type: "quote"; content: RichText[] }

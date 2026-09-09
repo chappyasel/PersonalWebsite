@@ -63,7 +63,7 @@ export function AutomatedNotice() {
       <p className="flex items-start gap-2.5 text-foreground">
         <SparkleIcon
           size={18}
-          weight="thin"
+          weight="bold"
           className="mt-[0.15em] shrink-0 text-muted-foreground"
         />
         <span>
@@ -84,7 +84,7 @@ export function AutomatedNotice() {
       >
         <CaretRightIcon
           size={12}
-          weight="regular"
+          weight="bold"
           className={`shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
         />
         <span>How I read and take notes</span>
@@ -130,7 +130,7 @@ export function AutomatedNotice() {
  */
 export function ReadingNowNotice() {
   return (
-    <BookNotice icon={<BookOpenIcon size={18} weight="thin" />}>
+    <BookNotice icon={<BookOpenIcon size={18} weight="bold" />}>
       <strong className="font-semibold">Still reading this one!</strong>{" "}
       Whatever notes are here are partial. The key points and summary come after
       I finish!
@@ -144,7 +144,7 @@ export function ReadingNowNotice() {
  */
 export function AbandonedNotice({ percent }: { percent: number | null }) {
   return (
-    <BookNotice icon={<BookmarkSimpleIcon size={18} weight="thin" />}>
+    <BookNotice icon={<BookmarkSimpleIcon size={18} weight="bold" />}>
       <strong className="font-semibold">
         {percent != null
           ? `I abandoned this one ${percent}% in.`
@@ -175,7 +175,7 @@ export function NoNotesState({
       className="my-6 flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/25 px-6 py-12 text-center"
     >
       <div className="mb-4 flex size-12 items-center justify-center rounded-full border border-border/70 bg-background text-muted-foreground shadow-sm">
-        <Icon size={24} weight="duotone" />
+        <Icon size={24} weight="bold" />
       </div>
       <h2 className="text-xl font-semibold tracking-tight text-foreground">
         No notes for this one
