@@ -58,7 +58,7 @@ export function DaylightTOCSidebar({ items }: { items: TOCItem[] }) {
 
   return (
     <nav
-      className="dl-toc sticky top-12 hidden h-fit self-start font-sans lg:block"
+      className="dl-toc sticky top-12 hidden h-fit self-start lg:block"
       aria-label="Sections"
     >
       <p className="mb-3 py-[0.3rem] text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">

@@ -20,7 +20,7 @@ function SupplementCard({
 
   const content = (
     <div className="flex h-full flex-col gap-1 rounded-[0.625rem] border border-border px-3.5 py-3 transition-colors group-hover:bg-secondary/70">
-      <h4 className="font-sans text-sm font-semibold text-foreground">
+      <h4 className="text-sm font-semibold text-foreground">
         {supplement.name}
       </h4>
       <div className="flex flex-wrap gap-x-2.5 font-mono text-[0.6875rem] tabular-nums">
@@ -36,7 +36,7 @@ function SupplementCard({
         )}
       </div>
       {supplement.benefits && (
-        <span className="font-sans text-xs text-muted-foreground/85">
+        <span className="text-xs text-muted-foreground/85">
           {supplement.benefits}
         </span>
       )}
@@ -81,7 +81,7 @@ function SupplementSubSection({
     <div>
       <div className="mb-2.5 flex items-center gap-2">
         {icon}
-        <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {label}
         </h3>
         <span className="ml-auto font-mono text-[0.6875rem] tabular-nums text-muted-foreground/80">

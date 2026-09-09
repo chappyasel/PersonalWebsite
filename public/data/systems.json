@@ -1,21 +1,18 @@
 {
-  "lastUpdated": "2026-09-08T13:26:00.000Z",
+  "lastUpdated": "2026-09-09T11:50:00.000Z",
   "intro": [
     {
       "type": "paragraph",
       "content": [
         {
-          "text": "I've spent years building and tuning my personal systems to help me be happier, healthier, more productive, more intentional, and more giving! It all started back in college when I read "
+          "text": "I've spent years closing the gap between "
         },
         {
-          "text": "https://books.chappyasel.com/7-habits-of-highly-effective-people",
-          "link": "https://books.chappyasel.com/7-habits-of-highly-effective-people"
+          "text": "my life purpose",
+          "link": "https://www.chappyasel.com/manual"
         },
         {
-          "text": " and wrote my first personal mission statement. Since then, I’ve gone through 20+ iterations – honing in on a system molded to how my brain works! "
-        },
-        {
-          "text": "Some parts are second nature, some are experimental, and some more are future expansions!"
+          "text": " and my daily actions + resource allocation + revealed preferences. These systems help me live happier and healthier, work more effectively, act more intentionally, and give more to others."
         }
       ]
     },
@@ -49,7 +46,11 @@
           "italic": true
         },
         {
-          "text": "\n~ Richard W. Hamming"
+          "text": "\n~ "
+        },
+        {
+          "text": "Richard W. Hamming",
+          "link": "https://books.chappyasel.com/the-art-of-doing-science-and-engineering"
         }
       ]
     }
@@ -60,6 +61,35 @@
       "title": "At a Glance",
       "icon": "🗺️",
       "blocks": [
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Origin story:",
+              "italic": true
+            }
+          ],
+          "children": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "text": "It all started back in college when I read "
+                },
+                {
+                  "text": "https://books.chappyasel.com/7-habits-of-highly-effective-people",
+                  "link": "https://books.chappyasel.com/7-habits-of-highly-effective-people"
+                },
+                {
+                  "text": " and wrote my first personal mission statement. Since then, I’ve gone through 20+ iterations – honing in on a system molded to how my brain works! "
+                },
+                {
+                  "text": "Some parts are second nature, some are experimental, and some more are future expansions!"
+                }
+              ]
+            }
+          ]
+        },
         {
           "type": "numbered_list",
           "items": [
@@ -457,7 +487,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "implementing"
             },
             {
               "type": "toggle",
@@ -541,7 +572,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "implementing"
             }
           ]
         },
@@ -638,7 +670,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "implementing"
             },
             {
               "type": "toggle",
@@ -708,7 +741,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "partial"
             },
             {
               "type": "toggle",
@@ -862,7 +896,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "partial"
             }
           ]
         },
@@ -885,8 +920,122 @@
               ],
               "children": [
                 {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Inspired in part by "
+                    },
+                    {
+                      "text": "Bill Gates’ Think Weeks",
+                      "link": "https://www.any.do/blog/bill-gates-think-week-how-to-block-time-for-deep-strategic-thinking/"
+                    },
+                    {
+                      "text": " (and my own inability to sit on my hands during vacation 😅), I started doing Deep Think Weeks (DTWs) in 2024!"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "My own version is an annual retreat "
+                    },
+                    {
+                      "text": "completely",
+                      "italic": true
+                    },
+                    {
+                      "text": " divorced from normal work and routines. I use the distance to look at the whole system, think about the future, gather feedback, make a few important decisions, and return with new ideas + experiments to run. It’s also a great time to reset, recharge, and practice gratitude!"
+                    }
+                  ]
+                },
+                {
                   "type": "bulleted_list",
                   "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Format:",
+                            "bold": true
+                          },
+                          {
+                            "text": " 7+ days away from normal routines / movement. No comms, meetings, social media, or traditional work. "
+                          },
+                          {
+                            "text": "Enter an entirely different mindset.",
+                            "italic": true
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Sequence:",
+                            "bold": true
+                          },
+                          {
+                            "text": " Unstructured discovery → reflection → outside feedback → articulation + challenge → decisions → implementation"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Sources:",
+                            "bold": true
+                          },
+                          {
+                            "text": " Weeklys + Dailys / decisions / health + work data / notes + books / feedback from family + friends + peers"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "bulleted_list",
+                        "items": [
+                          [
+                            {
+                              "type": "paragraph",
+                              "content": [
+                                {
+                                  "text": "AI:",
+                                  "bold": true
+                                },
+                                {
+                                  "text": " Retrieve / compare / inventory / challenge / compress; values + commitments + final language stay mine"
+                                }
+                              ]
+                            }
+                          ]
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "type": "numbered_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Divergent thinking",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Let my mind wander in random directions. Relaxed attention. Note what comes up."
+                          }
+                        ]
+                      }
+                    ],
                     [
                       {
                         "type": "paragraph",
@@ -990,11 +1139,25 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Writing + Meta-Reflection",
+                            "text": "Tactical",
                             "bold": true
                           },
                           {
-                            "text": ": Durable outputs / critique the process itself"
+                            "text": ": Zoom into specific questions / problems / opportunities"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Meta-Reflection + Writing",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Critique the process itself / durable outputs"
                           }
                         ]
                       }
@@ -1104,7 +1267,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "implementing"
             },
             {
               "type": "toggle",
@@ -1592,7 +1756,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "implementing"
             },
             {
               "type": "toggle",
@@ -2146,8 +2311,8 @@
               "type": "toggle",
               "title": [
                 {
-                  "text": "📚 Book Notes",
-                  "bold": true
+                  "text": "https://books.chappyasel.com/",
+                  "link": "https://books.chappyasel.com/"
                 },
                 {
                   "text": " → high-signal source material for ideas / wisdom / creative work"
@@ -2276,7 +2441,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "next"
             },
             {
               "type": "toggle",
@@ -2351,7 +2517,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             },
             {
               "type": "heading",
@@ -2443,7 +2610,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "partial"
             },
             {
               "type": "toggle",
@@ -2521,7 +2689,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "partial"
             },
             {
               "type": "toggle",
@@ -2596,7 +2765,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "next"
             },
             {
               "type": "toggle",
@@ -2757,6 +2927,86 @@
               "type": "toggle",
               "title": [
                 {
+                  "text": ":weightlifting-app:",
+                  "customEmoji": {
+                    "name": "weightlifting-app",
+                    "src": "/images/notion-emoji/weightlifting-app.png"
+                  }
+                },
+                {
+                  "text": " ",
+                  "bold": true
+                },
+                {
+                  "text": "Weightlifting App",
+                  "bold": true,
+                  "link": "https://apps.apple.com/us/app/weightlifting-app/id1266077653"
+                },
+                {
+                  "text": " → log workouts + analysis (see "
+                },
+                {
+                  "text": "Chappy’s Weightlifting",
+                  "link": "https://weightlifting.chappyasel.com/"
+                },
+                {
+                  "text": "!)"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Log",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Exercise / set / reps / load / notes"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Analyze",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Progress / PRs / volume / plateaus"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "History",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Long-run workout history"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
                   "text": "📊 Weight Log (spreadsheet)",
                   "bold": true
                 },
@@ -2806,6 +3056,53 @@
                           },
                           {
                             "text": ": DEXA + other body-composition references"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "💪 Strength Log (spreadsheet)",
+                  "bold": true
+                },
+                {
+                  "text": " → set annual strength targets + track progress"
+                }
+              ],
+              "children": [
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Targets",
+                            "bold": true
+                          },
+                          {
+                            "text": ": A small set of important lifts / annual goals"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Progress",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Current level / trend / remaining gap"
                           }
                         ]
                       }
@@ -2878,127 +3175,8 @@
                     ]
                   ]
                 }
-              ]
-            },
-            {
-              "type": "toggle",
-              "title": [
-                {
-                  "text": ":weightlifting-app:",
-                  "customEmoji": {
-                    "name": "weightlifting-app",
-                    "src": "/images/notion-emoji/weightlifting-app.png"
-                  }
-                },
-                {
-                  "text": " ",
-                  "bold": true
-                },
-                {
-                  "text": "Weightlifting App",
-                  "bold": true,
-                  "link": "https://apps.apple.com/us/app/weightlifting-app/id1266077653"
-                },
-                {
-                  "text": " → log workouts + retain training history"
-                }
               ],
-              "children": [
-                {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Log",
-                            "bold": true
-                          },
-                          {
-                            "text": ": Exercise / set / reps / load / notes"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Analyze",
-                            "bold": true
-                          },
-                          {
-                            "text": ": Progress / PRs / volume / plateaus"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "History",
-                            "bold": true
-                          },
-                          {
-                            "text": ": Long-run workout history"
-                          }
-                        ]
-                      }
-                    ]
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "toggle",
-              "title": [
-                {
-                  "text": "💪 Strength Log (spreadsheet)",
-                  "bold": true
-                },
-                {
-                  "text": " → set annual strength targets + track progress"
-                }
-              ],
-              "children": [
-                {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Targets",
-                            "bold": true
-                          },
-                          {
-                            "text": ": A small set of important lifts / annual goals"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Progress",
-                            "bold": true
-                          },
-                          {
-                            "text": ": Current level / trend / remaining gap"
-                          }
-                        ]
-                      }
-                    ]
-                  ]
-                }
-              ]
+              "status": "implementing"
             },
             {
               "type": "heading",
@@ -3069,7 +3247,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             },
             {
               "type": "toggle",
@@ -3130,7 +3309,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             },
             {
               "type": "toggle",
@@ -3191,7 +3371,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "next"
             },
             {
               "type": "heading",
@@ -3262,7 +3443,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             },
             {
               "type": "toggle",
@@ -3323,7 +3505,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             },
             {
               "type": "toggle",
@@ -3370,7 +3553,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             },
             {
               "type": "toggle",
@@ -3431,7 +3615,8 @@
                     ]
                   ]
                 }
-              ]
+              ],
+              "status": "not-yet"
             }
           ]
         },
@@ -3993,6 +4178,171 @@
                 }
               ]
             }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "considerations",
+      "title": "Considerations",
+      "icon": "⚖️",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "How much systemization should you apply to life? As with all things, the answer is certainly somewhere in the middle! No life vision leads to a directionless random walk. Holding onto a vision too tightly leads to stubbornness in the face of overwhelming contrary evidence. Too little routine prevents compound returns; too much creates rigidity. Too little perspective traps you in the urgency of the present; too much becomes paralyzing."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Your own unique answer to ↑ defines your "
+            },
+            {
+              "text": "“style of thinking”",
+              "link": "https://books.chappyasel.com/the-art-of-doing-science-and-engineering"
+            },
+            {
+              "text": " / "
+            },
+            {
+              "text": "taste",
+              "italic": true
+            },
+            {
+              "text": "! Honing this is a lifelong pursuit. Above is "
+            },
+            {
+              "text": "a personal experiment built for my brain, my current responsibilities, and an unusually high appetite for structure. Here are the failure modes I’ve identified and am trying to watch out for:"
+            }
+          ]
+        },
+        {
+          "type": "numbered_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "⚙️ The system itself becomes the work"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🪢 Decision latency cost of complexity"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "📐 Metrics distort what matters"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🌀 Reflection becomes rumination"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "❓ Not every question needs an answer"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🪤 Structure substitutes for self-trust"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🧘 Systematic thinking crowds out intuition and relaxed attention"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🌊 Consistency becomes resistance to change"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🌱 Not every failure should be engineered away"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🍀 Optimization crowds out serendipity"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🤝 People don’t fit neatly into systems"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "🤖 A perfectly managed life stops feeling human"
+                  }
+                ]
+              }
+            ]
           ]
         }
       ]

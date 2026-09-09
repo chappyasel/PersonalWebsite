@@ -8,6 +8,10 @@ import { sitePageForHref } from "~/lib/site/pages";
 
 import SystemsSection from "./components/SystemsSection";
 import RichTextRenderer from "~/components/notion/RichTextRenderer";
+import {
+  STATUS_BY_NOTION_COLOR,
+  SYSTEM_STATUS_LABEL,
+} from "~/components/notion/systemStatus";
 import type { NotionBlock, RichText } from "~/components/notion/types";
 
 import type { SystemsData } from "./types";
@@ -71,20 +75,35 @@ describe("systems.json snapshot", () => {
     expect(plain(quote.content)).toContain("Systems engineering");
     expect(plain(quote.content)).toContain("Hamming");
 
+    // 2026-09-09 rewrite: the opening paragraph links the manual and the
+    // Hamming quote's book; the 7 Habits origin moved into At a Glance's
+    // "Origin story" dropdown.
     const links = [...runs(data.intro)].map((r) => r.link).filter(Boolean);
+    expect(links).toContain("https://www.chappyasel.com/manual");
     expect(links).toContain(
-      "https://books.chappyasel.com/7-habits-of-highly-effective-people",
+      "https://books.chappyasel.com/the-art-of-doing-science-and-engineering",
     );
     expect(links).toContain("#tips-for-getting-started");
     expect(links).toContain("#further-reading");
+
+    const glance = section("at-a-glance");
+    const origin = glance?.blocks?.find(
+      (b) => b.type === "toggle" && /^origin story/i.test(plain(b.title)),
+    );
+    expect(origin?.type).toBe("toggle");
+    if (origin?.type !== "toggle") return;
+    expect([...runs(origin.children)].map((r) => r.link)).toContain(
+      "https://books.chappyasel.com/7-habits-of-highly-effective-people",
+    );
   });
 
   it("keeps the four sections the site styles by id", () => {
-    // sectionIcons.tsx and systems-og-image.tsx key on these ids. A new or
-    // renamed section is a deliberate change to both, not a sync.
+    // sectionIcons.tsx keys on these ids (the OG card draws only the layers).
+    // A new or renamed section is a deliberate change there, not a sync.
     expect(data.sections.map((s) => s.id)).toEqual([
       "at-a-glance",
       "the-seven-layers",
+      "considerations",
       "tips-for-getting-started",
       "further-reading",
     ]);
@@ -159,9 +178,16 @@ describe("systems.json snapshot", () => {
     expect(markup).toMatch(/<ul[^>]*data-relaxed=""/);
   });
 
-  it("preserves the 47 dropdowns with their nested bodies", () => {
+  it("preserves the 48 dropdowns with their nested bodies", () => {
+    // 47 across the seven layers plus At a Glance's origin story. The
+    // Considerations are a numbered list of twelve, not dropdowns.
     const toggles = [...walk(everyBlock)].filter((b) => b.type === "toggle");
-    expect(toggles).toHaveLength(47);
+    expect(toggles).toHaveLength(48);
+    const considerations = section("considerations");
+    const list = considerations?.blocks?.find(
+      (b) => b.type === "numbered_list",
+    );
+    expect(list?.type === "numbered_list" ? list.items.length : 0).toBe(12);
     for (const toggle of toggles) {
       if (toggle.type !== "toggle") continue;
       expect(toggle.children.length, plain(toggle.title)).toBeGreaterThan(0);
@@ -172,6 +198,71 @@ describe("systems.json snapshot", () => {
         t.children.some((c) => c.type === "bulleted_list"),
     );
     expect(nested.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it("lifts a dropdown's status colour into a status and off its words", () => {
+    const toggles = [...walk(layers.flatMap((l) => l.blocks))].filter(
+      (b) => b.type === "toggle",
+    );
+    const statusColors = new Set(Object.keys(STATUS_BY_NOTION_COLOR));
+    for (const toggle of toggles) {
+      if (toggle.type !== "toggle") continue;
+      for (const run of toggle.title) {
+        expect(
+          run.color !== undefined && statusColors.has(run.color),
+          plain(toggle.title),
+        ).toBe(false);
+      }
+    }
+    // The owner's colours on the public doc (2026-09-09): 20 of the 47
+    // dropdowns carry a state; the other 27 are live and carry none.
+    const counts: Record<string, number> = {};
+    for (const toggle of toggles) {
+      if (toggle.type !== "toggle" || !toggle.status) continue;
+      counts[toggle.status] = (counts[toggle.status] ?? 0) + 1;
+    }
+    expect(counts).toEqual({
+      implementing: 6,
+      partial: 4,
+      next: 3,
+      "not-yet": 7,
+    });
+    const worldModel = toggles.find(
+      (t) => t.type === "toggle" && plain(t.title).includes("World Model"),
+    );
+    expect(worldModel?.type === "toggle" ? worldModel.status : null).toBe(
+      "implementing",
+    );
+  });
+
+  it("draws a status as a named dot after the system's name", () => {
+    const seven = section("the-seven-layers");
+    expect(seven).toBeDefined();
+    if (!seven) return;
+    const markup = renderToStaticMarkup(
+      createElement(SystemsSection, { section: seven }),
+    );
+    expect(markup).toContain('data-system-status="implementing"');
+    expect(markup).toContain(SYSTEM_STATUS_LABEL.implementing);
+    // The dot sits after the system's name, before the arrow.
+    const worldModel = markup.slice(markup.indexOf("World Model"));
+    const dotAt = worldModel.indexOf("data-system-status=");
+    const arrowAt = worldModel.indexOf("data-notion-toggle-arrow=");
+    expect(dotAt).toBeGreaterThan(0);
+    expect(arrowAt).toBeGreaterThan(dotAt);
+    // No legend: the dot's tooltip is the only place a state is named.
+    expect(markup).not.toContain("data-systems-status-legend");
+  });
+
+  it("starts Further Reading folded and every other section open", () => {
+    for (const s of data.sections) {
+      const markup = renderToStaticMarkup(
+        createElement(SystemsSection, { section: s }),
+      );
+      const open = s.id !== "further-reading";
+      expect(markup, s.id).toContain(`aria-expanded="${open}"`);
+      expect(markup, s.id).toContain(`data-open="${open}"`);
+    }
   });
 
   it("lists 20 books in Further Reading, each through a library link with an annotation", () => {
@@ -196,6 +287,22 @@ describe("systems.json snapshot", () => {
       expect(annotation.length, slug!).toBeGreaterThan(20);
     }
     expect(slugs.size).toBe(20);
+  });
+
+  it("names a bare library link the way the other site pages are named", () => {
+    // Notion stores the Book Notes row as a link mention whose text is the
+    // URL; the manual and routine rows carry their full page titles. The
+    // bare link takes the page's title so the three read alike.
+    const seven = section("the-seven-layers");
+    expect(seven).toBeDefined();
+    if (!seven) return;
+    const markup = renderToStaticMarkup(
+      createElement(SystemsSection, { section: seven }),
+    );
+    const every = markup.match(/Book Notes/g)?.length ?? 0;
+    const named = markup.match(/Chappy’s Book Notes/g)?.length ?? 0;
+    expect(named).toBeGreaterThan(0);
+    expect(every).toBe(named);
   });
 
   it("links the manual and the routine as the site's own pages", () => {

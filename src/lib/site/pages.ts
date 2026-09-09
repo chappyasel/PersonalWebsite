@@ -1,9 +1,11 @@
 /**
  * The site's own pages as running text refers to them.
  *
- * `label` is the short name used inline when Notion stored a bare URL as the
- * link text. `title` is the owner's title, the way each page names itself in
- * its hero. `description` is the one line the page publishes in its
+ * `label` is the short name without the possessive. `title` is the owner's
+ * title, the way each page names itself in its hero, and what running text
+ * shows when Notion stored a bare URL as the link text (RichTextRenderer),
+ * so a pasted library link reads like the manual and routine page mentions
+ * beside it. `description` is the one line the page publishes in its
  * metadata; the layouts read it from here so a hover card and the page's
  * own <meta> cannot disagree. `host` and `path` are how a link to the page
  * is recognised after the Notion export's URL rewriting.

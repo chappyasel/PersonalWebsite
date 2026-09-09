@@ -1231,6 +1231,13 @@
 .dl-prose [data-relaxed] > li + li {
   margin-top: 0.625rem;
 }
+/* Outside markers hang in the list's left margin, and a section's collapse
+   wrapper clips at the column's edge, so a two-digit marker ("10.") in the
+   renderer's 1rem margin lost its first digit (the twelve Considerations).
+   Lists that reach ten get the room; shorter lists keep their alignment. */
+.dl-prose ol:has(> li:nth-child(10)) {
+  margin-left: 1.75rem;
+}
 /* The tail of a list item (a nested list, a paragraph under a bullet) keeps
    the row gap. */
 .dl-prose li > .dl-prose {

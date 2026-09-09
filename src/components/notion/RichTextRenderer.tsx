@@ -153,7 +153,8 @@ export default function RichTextRenderer({
         // People") stay as written. Annotations on the run are ignored; the
         // link owns its own styling.
         const slug =
-          bookSlugFromUrl(rt.text) ?? (rt.link ? bookSlugFromUrl(rt.link) : null);
+          bookSlugFromUrl(rt.text) ??
+          (rt.link ? bookSlugFromUrl(rt.link) : null);
         if (slug) {
           return (
             <BookLink
@@ -169,7 +170,11 @@ export default function RichTextRenderer({
         // Same-page section references ("See ☕ Caffeine") swap their leading
         // emoji for the section's Phosphor glyph at render time; links to
         // the site's own pages get that page's glyph, and a pasted URL gets
-        // the page's name instead of the address.
+        // the page's title instead of the address. The title, not the short
+        // label: the manual and routine arrive from Notion as page mentions
+        // carrying their full titles ("Chappy's …"), so a bare link to the
+        // library reads the same way, with the possessive typeset the way
+        // Notion's own titles are.
         const XrefIcon = rt.link?.startsWith("#")
           ? sectionIcon(rt.link.slice(1))
           : null;
@@ -178,7 +183,7 @@ export default function RichTextRenderer({
         if (XrefIcon) {
           displayText = rt.text.replace(/^\p{Extended_Pictographic}️?\s*/u, "");
         } else if (page && isBareUrl(rt.text)) {
-          displayText = SITE_PAGES[page].label;
+          displayText = SITE_PAGES[page].title.replace(/'/g, "\u2019");
         }
 
         let el: React.ReactNode = displayText;

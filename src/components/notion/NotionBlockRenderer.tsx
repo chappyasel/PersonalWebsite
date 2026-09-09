@@ -104,6 +104,7 @@ export default function NotionBlockRenderer({
           blocks={block.children}
           bookLookup={bookLookup}
           variant={block.variant}
+          status={block.status}
         />
       );
 

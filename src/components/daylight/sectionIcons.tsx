@@ -20,6 +20,7 @@ import {
   PillIcon,
   PulseIcon,
   RocketLaunchIcon,
+  ScalesIcon,
   StackIcon,
   SunIcon,
   WallIcon,
@@ -51,6 +52,7 @@ const iconById: Record<string, Icon> = {
   // systems: the four sections, then the seven layers
   "at-a-glance": MapTrifoldIcon,
   "the-seven-layers": StackIcon,
+  considerations: ScalesIcon,
   "tips-for-getting-started": LightbulbIcon,
   "further-reading": BooksIcon,
   foundations: WallIcon,
@@ -123,6 +125,7 @@ const accentById: Record<string, Accent> = {
   // systems
   "at-a-glance": "indigo",
   "the-seven-layers": "am",
+  considerations: "pm",
   "tips-for-getting-started": "moss",
   "further-reading": "coffee",
   foundations: "plum",

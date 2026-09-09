@@ -9,20 +9,37 @@ import type {
   RichText,
 } from "~/components/notion/types";
 import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 import NotionBlockRenderer from "./NotionBlockRenderer";
 import RichTextRenderer from "./RichTextRenderer";
+import { STATUS_DOT_GLUE, statusDotClassName } from "./StatusDot";
+import { SYSTEM_STATUS_LABEL, type SystemStatus } from "./systemStatus";
 
 const LEADING_ARROW = /^\s*→\s*/u;
 
+/**
+ * The title's runs, with the arrow run's "→" drawn as an icon. A status dot
+ * sits right after the system's name: before the arrow when the title has
+ * one, else after the last run.
+ */
 function ToggleTitle({
   title,
   bookLookup,
+  status,
 }: {
   title: RichText[];
   bookLookup?: BookLookup;
+  status?: SystemStatus;
 }) {
-  return title.map((run, index) => {
+  const arrowAt = title.findIndex((run) => LEADING_ARROW.test(run.text));
+  const dot = status ? <StatusDot status={status} /> : null;
+  const runs = title.map((run, index) => {
     const match = LEADING_ARROW.exec(run.text);
     if (!match) {
       return (
@@ -33,6 +50,7 @@ function ToggleTitle({
     const remaining = run.text.slice(match[0].length);
     return (
       <Fragment key={index}>
+        {index === arrowAt && dot}
         <ArrowRightIcon
           aria-hidden="true"
           data-notion-toggle-arrow=""
@@ -49,6 +67,56 @@ function ToggleTitle({
       </Fragment>
     );
   });
+  return (
+    <>
+      {runs}
+      {arrowAt === -1 && dot}
+    </>
+  );
+}
+
+/**
+ * The system's implementation state as a small dot after its name, named
+ * on hover, or on a tap where there is no hover. There is no legend: the
+ * tooltip is the only place a state is named. A live (unmarked) system
+ * draws nothing.
+ *
+ * The dot lives inside the dropdown's button, so its click is stopped
+ * there: a tap on the dot names the state and leaves the dropdown alone. An
+ * invisible halo (the ::after box) makes the 9px dot a finger-sized target
+ * without moving anything on the line.
+ */
+function StatusDot({ status }: { status: SystemStatus }) {
+  const label = SYSTEM_STATUS_LABEL[status];
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip allowTapFirst>
+        <TooltipTrigger asChild>
+          <span
+            data-system-status={status}
+            onClick={(event) => {
+              // Stop: the dropdown button behind the dot. Prevent: Radix
+              // closes a tooltip on its trigger's click unless the click was
+              // default-prevented, which would shut the one a tap just
+              // opened on pointer-up.
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            className={statusDotClassName(
+              status,
+              "relative ml-1 cursor-help after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']",
+            )}
+          >
+            {STATUS_DOT_GLUE}
+            <span className="sr-only">{label}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 export default function NotionToggle({
@@ -56,12 +124,15 @@ export default function NotionToggle({
   blocks,
   bookLookup,
   variant,
+  status,
 }: {
   title: RichText[];
   blocks: NotionBlock[];
   bookLookup?: BookLookup;
   /** "note": an aside, styled apart from content dropdowns (daylight.css). */
   variant?: "note";
+  /** Implementation state (systems page); absent means live. */
+  status?: SystemStatus;
 }) {
   const [open, setOpen] = useState(false);
   const contentId = useId();
@@ -85,7 +156,7 @@ export default function NotionToggle({
           className="group-hover/notion-toggle:text-foreground"
         />
         <span className="font-medium">
-          <ToggleTitle title={title} bookLookup={bookLookup} />
+          <ToggleTitle title={title} bookLookup={bookLookup} status={status} />
         </span>
       </button>
       <DisclosurePanel id={contentId} open={open}>

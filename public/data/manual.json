@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-04T03:56:00.000Z",
+  "lastUpdated": "2026-09-09T10:57:00.000Z",
   "hero": {
     "lead": [
       {
@@ -200,8 +200,8 @@
         ]
       },
       {
-        "id": "my-personal-mission-statement",
-        "title": "My Personal Mission Statement",
+        "id": "my-life-purpose",
+        "title": "My Life Purpose",
         "blocks": [
           {
             "type": "paragraph",
@@ -211,7 +211,7 @@
                 "italic": true
               },
               {
-                "text": "To build the tools and institutions that turn AGI into broadly shared human flourishing. To make a dent in the universe.",
+                "text": "To help us self-actualize by building the tools and institutions that turn AGI into broadly shared human flourishing.",
                 "bold": true,
                 "italic": true
               }

@@ -6,6 +6,11 @@ import type { BookLookup } from "~/components/notion/types";
 
 import LayerSections from "./LayerSections";
 
+/** Sections that start folded (owner's call, 2026-09-09: Considerations
+ * pushed Further Reading a screen further down). A deep link, a rail click,
+ * or a search result still opens them. */
+const FOLDED_BY_DEFAULT = new Set(["further-reading"]);
+
 /**
  * One top-level section. A flat section renders its blocks; the layered
  * section hands its seven layers to the accordion, which owns their anchors.
@@ -18,7 +23,12 @@ export default function SystemsSection({
   bookLookup?: BookLookup;
 }) {
   return (
-    <DaylightSection id={section.id} emoji={section.icon} title={section.title}>
+    <DaylightSection
+      id={section.id}
+      emoji={section.icon}
+      title={section.title}
+      defaultOpen={!FOLDED_BY_DEFAULT.has(section.id)}
+    >
       {section.layers ? (
         <LayerSections layers={section.layers} bookLookup={bookLookup} />
       ) : (

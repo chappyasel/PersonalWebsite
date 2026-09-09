@@ -32,7 +32,7 @@ export default function DaylightHeroMeta({
   return (
     <div
       data-daylight-hero-meta
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 font-sans text-xs text-[hsl(var(--dl-sky-ink)/0.8)]"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-[hsl(var(--dl-sky-ink)/0.8)]"
     >
       <Link
         href="https://www.chappyasel.com"

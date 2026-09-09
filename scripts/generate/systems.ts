@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import type { SystemsData } from "../../src/app/systems/types";
+import { STATUS_BY_NOTION_COLOR } from "../../src/components/notion/systemStatus.js";
 import { Client } from "@notionhq/client";
 import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
@@ -258,6 +259,55 @@ function linkAtAGlanceTitles(data: SystemsData): SystemsData {
   return data;
 }
 
+/**
+ * A system's implementation state is a background colour on its dropdown
+ * title in Notion (the legend is in systemStatus.ts). The colour becomes
+ * `status` on the dropdown and comes off its runs, so the page draws a dot
+ * where RichTextRenderer would wash the words. Only the Seven Layers carry
+ * statuses; a coloured run anywhere else on the page stays plain formatting.
+ */
+function liftStatusColors(data: SystemsData): SystemsData {
+  const layered = data.sections.find((section) => section.layers);
+  if (!layered?.layers) return data;
+  let lifted = 0;
+  const visit = (blocks: any[]) => {
+    for (const block of blocks) {
+      if (block.type === "toggle") {
+        const statuses = new Set(
+          block.title
+            .map((run: any) => run.color && STATUS_BY_NOTION_COLOR[run.color])
+            .filter(Boolean),
+        );
+        if (statuses.size > 1) {
+          console.warn(
+            `  Two status colours on one dropdown, keeping the first: ${richTextToPlain(block.title.map((r: any) => ({ plain_text: r.text })))}`,
+          );
+        }
+        const [status] = statuses;
+        if (status) {
+          block.status = status;
+          for (const run of block.title) {
+            if (run.color && STATUS_BY_NOTION_COLOR[run.color])
+              delete run.color;
+          }
+          lifted++;
+        }
+        visit(block.children);
+      } else if (block.type === "callout") {
+        visit(block.content);
+      } else if (
+        block.type === "bulleted_list" ||
+        block.type === "numbered_list"
+      ) {
+        for (const item of block.items) visit(item);
+      }
+    }
+  };
+  for (const layer of layered.layers) visit(layer.blocks);
+  console.log(`Statuses: ${lifted} dropdown(s) carry an implementation state`);
+  return data;
+}
+
 // ─── Main ───
 
 async function main() {
@@ -308,18 +358,20 @@ async function main() {
   // 5. Self-links → local anchors, cross-page links → public URLs, custom
   //    emoji → downloaded files. The intro takes the same passes as the
   //    sections so its section links stay on the page.
-  const output = linkAtAGlanceTitles(
-    resolveCustomEmoji(
-      rewriteNotionPageLinks(
-        rewriteNotionSelfLinks(
-          { lastUpdated, intro, sections },
-          PAGE_ID,
-          anchorMap,
-          anchorByTitle(sections),
+  const output = liftStatusColors(
+    linkAtAGlanceTitles(
+      resolveCustomEmoji(
+        rewriteNotionPageLinks(
+          rewriteNotionSelfLinks(
+            { lastUpdated, intro, sections },
+            PAGE_ID,
+            anchorMap,
+            anchorByTitle(sections),
+          ),
         ),
-      ),
-      emoji,
-    ) as SystemsData,
+        emoji,
+      ) as SystemsData,
+    ),
   );
 
   // 6. Write

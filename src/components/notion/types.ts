@@ -1,3 +1,5 @@
+import type { SystemStatus } from "./systemStatus";
+
 export type NotionBlock =
   | { type: "paragraph"; content: RichText[] }
   | { type: "heading"; level: 2 | 3; content: RichText[] }
@@ -8,6 +10,9 @@ export type NotionBlock =
       children: NotionBlock[];
       /** An aside ("Note on …"): the page sets it apart from content dropdowns. */
       variant?: "note";
+      /** Implementation state, lifted from the title's Notion colour by the
+       * systems sync (systemStatus.ts). Absent means live. */
+      status?: SystemStatus;
     }
   | { type: "bulleted_list"; items: NotionBlock[][] }
   | { type: "numbered_list"; items: NotionBlock[][] }
