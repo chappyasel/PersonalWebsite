@@ -99,7 +99,7 @@ describe("systems.json snapshot", () => {
     );
   });
 
-  it("keeps the four sections the site styles by id", () => {
+  it("keeps the five sections the site styles by id", () => {
     // sectionIcons.tsx keys on these ids (the OG card draws only the layers).
     // A new or renamed section is a deliberate change there, not a sync.
     expect(data.sections.map((s) => s.id)).toEqual([
@@ -206,12 +206,12 @@ describe("systems.json snapshot", () => {
     expect(markup).toContain(">3.</span>");
   });
 
-  it("preserves the 53 dropdowns with their nested bodies", () => {
-    // 47 across the seven layers, At a Glance's origin story, and the five
+  it("preserves the 52 dropdowns with their nested bodies", () => {
+    // 46 across the seven layers, At a Glance's origin story, and the five
     // numbered getting-started steps. The Considerations are a numbered
     // list of twelve, not dropdowns.
     const toggles = [...walk(everyBlock)].filter((b) => b.type === "toggle");
-    expect(toggles).toHaveLength(53);
+    expect(toggles).toHaveLength(52);
     const considerations = section("considerations");
     const list = considerations?.blocks?.find(
       (b) => b.type === "numbered_list",
@@ -243,8 +243,8 @@ describe("systems.json snapshot", () => {
         ).toBe(false);
       }
     }
-    // The owner's colours on the public doc (2026-09-09): 20 of the 47
-    // dropdowns carry a state; the other 27 are live and carry none.
+    // The owner's colours on the public doc (2026-09-09): 20 of the 46
+    // dropdowns carry a state; the other 26 are live and carry none.
     const counts: Record<string, number> = {};
     for (const toggle of toggles) {
       if (toggle.type !== "toggle" || !toggle.status) continue;

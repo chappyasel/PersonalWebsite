@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-09T15:06:00.000Z",
+  "lastUpdated": "2026-09-09T21:43:00.000Z",
   "intro": [
     {
       "type": "paragraph",
@@ -919,6 +919,43 @@
               "type": "toggle",
               "title": [
                 {
+                  "text": "Note on methodology:",
+                  "italic": true
+                }
+              ],
+              "children": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Plans are worthless, but planning is everything! The plan itself is only a temporary snapshot. The value comes from surfacing assumptions, confronting tradeoffs, exploring possibilities, and deciding what evidence would change my mind."
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I don’t want planning to reinforce my existing narrative or narrow my perspective. I use it to challenge that narrative, seek outside perspectives, and think divergently + critically enough to generate / uncover radically different options. Done well, planning actually increases my range and openness to change! Having already considered more possibilities also lets me recognize and move decisively when life presents a better one."
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "If you add up all the planning cycles below you get ~5.9% of total time spent doing deliberate planning / strategy. I expect emergent planning through unanticipated opportunities to bring the real total closer to 10%. This is in line with best practice / what studies show is optimal for the explore exploit tradeoff!"
+                    }
+                  ]
+                }
+              ],
+              "variant": "note",
+              "id": "note-on-methodology"
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
                   "text": "♾️ Deep Think Weeks (72h)",
                   "bold": true
                 },
@@ -1479,28 +1516,6 @@
                 }
               ],
               "id": "dailys"
-            },
-            {
-              "type": "toggle",
-              "title": [
-                {
-                  "text": "Note on methodology",
-                  "italic": true
-                }
-              ],
-              "children": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "If you add up all the planning here you get ~6% of total time spent doing deliberate planning / strategy. I expect emergent planning through unanticipated opportunities to bring the real total closer to 10%. This is in line with what studies show is optimal for the explore exploit tradeoff!",
-                      "italic": true
-                    }
-                  ]
-                }
-              ],
-              "variant": "note",
-              "id": "note-on-methodology"
             }
           ]
         },
@@ -3742,7 +3757,7 @@
                             "bold": true
                           },
                           {
-                            "text": " → plans + knowledge"
+                            "text": " → docs"
                           }
                         ]
                       }
@@ -3781,8 +3796,20 @@
                             }
                           },
                           {
-                            "text": " Sunsama",
+                            "text": " ",
                             "bold": true
+                          },
+                          {
+                            "text": "Sunsama",
+                            "bold": true,
+                            "link": "https://www.sunsama.com/"
+                          },
+                          {
+                            "text": " ",
+                            "bold": true
+                          },
+                          {
+                            "text": "→ task management + time blocking"
                           }
                         ]
                       }
@@ -3803,10 +3830,11 @@
                           },
                           {
                             "text": "Roam",
-                            "bold": true
+                            "bold": true,
+                            "link": "https://www.google.com/search?q=ro.am&sourceid=chrome&ie=UTF-8"
                           },
                           {
-                            "text": " → meeting transcripts"
+                            "text": " → team collab + meeting transcripts"
                           }
                         ]
                       }
@@ -3827,7 +3855,8 @@
                           },
                           {
                             "text": "Linear",
-                            "bold": true
+                            "bold": true,
+                            "link": "https://linear.app/"
                           },
                           {
                             "text": " → "
@@ -3838,27 +3867,6 @@
                           },
                           {
                             "text": " projects + tasks"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": ":1password:",
-                            "customEmoji": {
-                              "name": "1password",
-                              "src": "/images/notion-emoji/1password.png"
-                            }
-                          },
-                          {
-                            "text": " "
-                          },
-                          {
-                            "text": "1Password",
-                            "bold": true
                           }
                         ]
                       }
@@ -3892,7 +3900,15 @@
                             }
                           },
                           {
-                            "text": " Hermes → local agent setup"
+                            "text": " "
+                          },
+                          {
+                            "text": "Hermes",
+                            "bold": true,
+                            "link": "https://hermes-agent.nousresearch.com/"
+                          },
+                          {
+                            "text": " → local agent. can orchestrate ↓"
                           }
                         ]
                       }
@@ -3955,7 +3971,11 @@
                           },
                           {
                             "text": "Superset",
-                            "bold": true
+                            "bold": true,
+                            "link": "https://superset.sh/"
+                          },
+                          {
+                            "text": " → agentic IDE"
                           }
                         ]
                       }
@@ -3976,7 +3996,11 @@
                           },
                           {
                             "text": "Cursor",
-                            "bold": true
+                            "bold": true,
+                            "link": "https://cursor.com/"
+                          },
+                          {
+                            "text": " (still use VS Code on occasion)"
                           }
                         ]
                       }
@@ -3985,69 +4009,6 @@
                 }
               ],
               "id": "agents"
-            },
-            {
-              "type": "toggle",
-              "title": [
-                {
-                  "text": "🧰 Agent Utils",
-                  "bold": true
-                }
-              ],
-              "children": [
-                {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "CodexBar",
-                            "bold": true,
-                            "link": "https://github.com/steipete/CodexBar/tree/main"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "FluidVoice",
-                            "bold": true,
-                            "link": "https://github.com/altic-dev/FluidVoice"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": ":coast:",
-                            "customEmoji": {
-                              "name": "coast",
-                              "src": "/images/notion-emoji/coast.png"
-                            }
-                          },
-                          {
-                            "text": " "
-                          },
-                          {
-                            "text": "Coast",
-                            "bold": true,
-                            "link": "https://coast.app/"
-                          }
-                        ]
-                      }
-                    ]
-                  ]
-                }
-              ],
-              "id": "agent-utils"
             },
             {
               "type": "toggle",
@@ -4078,6 +4039,9 @@
                           {
                             "text": "Beeper",
                             "bold": true
+                          },
+                          {
+                            "text": " → unified messenger + MCP/CLI"
                           }
                         ]
                       }
@@ -4099,6 +4063,9 @@
                           {
                             "text": "Superhuman",
                             "bold": true
+                          },
+                          {
+                            "text": " → better email + MCP"
                           }
                         ]
                       }
@@ -4125,9 +4092,22 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Rectangle",
+                            "text": ":fluidvoice:",
+                            "customEmoji": {
+                              "name": "fluidvoice",
+                              "src": "/images/notion-emoji/fluidvoice.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "FluidVoice",
                             "bold": true,
-                            "link": "https://github.com/rxhanson/rectangle"
+                            "link": "https://github.com/altic-dev/FluidVoice"
+                          },
+                          {
+                            "text": " → OSS on-device Wispr Flow"
                           }
                         ]
                       }
@@ -4136,10 +4116,73 @@
                       {
                         "type": "paragraph",
                         "content": [
+                          {
+                            "text": ":codexbar:",
+                            "customEmoji": {
+                              "name": "codexbar",
+                              "src": "/images/notion-emoji/codexbar.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "CodexBar",
+                            "bold": true,
+                            "link": "https://github.com/steipete/CodexBar/tree/main"
+                          },
+                          {
+                            "text": " → track agent max plan weekly usage "
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":rectangle:",
+                            "customEmoji": {
+                              "name": "rectangle",
+                              "src": "/images/notion-emoji/rectangle.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Rectangle",
+                            "bold": true,
+                            "link": "https://github.com/rxhanson/rectangle"
+                          },
+                          {
+                            "text": " → window tiler"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":maccy:",
+                            "customEmoji": {
+                              "name": "maccy",
+                              "src": "/images/notion-emoji/maccy.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
                           {
                             "text": "Maccy",
                             "bold": true,
                             "link": "https://github.com/p0deje/Maccy"
+                          },
+                          {
+                            "text": " → better clipboard manager"
                           }
                         ]
                       }
@@ -4148,10 +4191,23 @@
                       {
                         "type": "paragraph",
                         "content": [
+                          {
+                            "text": ":hammerspoon:",
+                            "customEmoji": {
+                              "name": "hammerspoon",
+                              "src": "/images/notion-emoji/hammerspoon.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
                           {
                             "text": "Hammerspoon",
                             "bold": true,
                             "link": "https://www.hammerspoon.org/"
+                          },
+                          {
+                            "text": " → custom Mac shortcuts using Lua"
                           }
                         ]
                       }
@@ -4160,22 +4216,27 @@
                       {
                         "type": "paragraph",
                         "content": [
+                          {
+                            "text": ":betterdisplay:",
+                            "customEmoji": {
+                              "name": "betterdisplay",
+                              "src": "/images/notion-emoji/betterdisplay.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
                           {
                             "text": "BetterDisplay",
                             "bold": true,
                             "link": "https://betterdisplay.pro/"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
+                          },
                           {
-                            "text": "noTunes",
-                            "bold": true,
-                            "link": "https://github.com/tombonez/noTunes"
+                            "text": " → tweak display resolution for "
+                          },
+                          {
+                            "text": "LG Ultrawide",
+                            "link": "https://www.amazon.com/LG-40U990A-W-Ultrafine-Thunderbolt-DisplayHDR/dp/B0FHWYXFSF?channelId=500&clpRedir=Y&plpRedirect=mhFallback&sr=8-22"
                           }
                         ]
                       }
@@ -4200,7 +4261,7 @@
                             "link": "https://www.raycast.com/"
                           },
                           {
-                            "text": " (specifically "
+                            "text": " → specifically "
                           },
                           {
                             "text": "emoji picker",
@@ -4214,7 +4275,71 @@
                             "code": true
                           },
                           {
-                            "text": ")"
+                            "text": " (faster + more reliable)"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":coast:",
+                            "customEmoji": {
+                              "name": "coast",
+                              "src": "/images/notion-emoji/coast.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "Coast",
+                            "bold": true,
+                            "link": "https://coast.app/"
+                          },
+                          {
+                            "text": " → insurance policy mostly"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "noTunes",
+                            "bold": true,
+                            "link": "https://github.com/tombonez/noTunes"
+                          },
+                          {
+                            "text": " → No iTunes pls"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": ":1password:",
+                            "customEmoji": {
+                              "name": "1password",
+                              "src": "/images/notion-emoji/1password.png"
+                            }
+                          },
+                          {
+                            "text": " "
+                          },
+                          {
+                            "text": "1Password",
+                            "bold": true
+                          },
+                          {
+                            "text": " → password manager"
                           }
                         ]
                       }

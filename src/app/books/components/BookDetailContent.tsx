@@ -49,8 +49,8 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { capture, captureOnce } from "~/lib/analytics";
-import { anchorSlug, textOfChildren, uniqueAnchor } from "~/lib/anchors";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookPath, getBookShareUrl, getBooksPath } from "~/lib/books/paths";
@@ -408,6 +408,14 @@ function BookNoteSummary({
 
 type AnimatedDetailsProps = ComponentPropsWithoutRef<"details">;
 
+function bookNoteHash() {
+  try {
+    return decodeURIComponent(window.location.hash.slice(1));
+  } catch {
+    return "";
+  }
+}
+
 function AnimatedDetails({
   children,
   className,
@@ -421,11 +429,13 @@ function AnimatedDetails({
   // page, so the hash is already there when this runs.
   useEffect(() => {
     function handle() {
-      const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      const hash = bookNoteHash();
       const self = ref.current;
       if (!hash || !self) return;
-      const target = document.getElementById(hash);
-      if (target && self.contains(target)) setIsOpen(true);
+      const target = Array.from(self.querySelectorAll("[id]")).find(
+        (element) => element.id === hash,
+      );
+      if (target) setIsOpen(true);
     }
     handle();
     window.addEventListener("hashchange", handle);
@@ -858,23 +868,24 @@ export function BookDetailContent({
   // Chapter anchors: each heading in the notes gets an id from its words,
   // unique within this render, and a copy-link button on hover that copies
   // the book's own URL plus the fragment (the address bar may be a modal's).
-  const chapterIds = new Set<string>();
   const chapterUrl = getBookShareUrl(bookId);
   const chapterHeading = (Tag: "h1" | "h2" | "h3" | "h4") => {
     const ChapterHeading = ({
       node: _node,
       children,
+      id,
       ...props
     }: ComponentPropsWithoutRef<typeof Tag> & { node?: unknown }) => {
-      const id = uniqueAnchor(anchorSlug(textOfChildren(children)), chapterIds);
       return (
         <Tag {...props} id={id} className="group/sec scroll-mt-24">
           {children}
-          <AnchorLink
-            id={id}
-            url={chapterUrl}
-            className="ml-1 inline-flex align-middle"
-          />
+          {id && (
+            <AnchorLink
+              id={id}
+              url={chapterUrl}
+              className="ml-1 inline-flex align-middle"
+            />
+          )}
         </Tag>
       );
     };
@@ -889,15 +900,34 @@ export function BookDetailContent({
   const notesLoaded = Boolean(fullBook?.notes);
   useEffect(() => {
     if (!notesLoaded) return;
-    const hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
-    const target = hash ? document.getElementById(hash) : null;
-    if (!target || !notesRef.current?.contains(target)) return;
-    const scroll = () =>
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    requestAnimationFrame(scroll);
-    window.setTimeout(scroll, 380);
-    window.setTimeout(scroll, 720);
-  }, [notesLoaded]);
+    let frame: number;
+    let timers: number[] = [];
+    const cancel = () => {
+      cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+    const scroll = () => {
+      // Responsive renders can replace headings between scheduling and
+      // scrolling. Resolve the current node inside this book each time.
+      const hash = bookNoteHash();
+      if (!hash) return;
+      const target = Array.from(
+        notesRef.current?.querySelectorAll<HTMLElement>("[id]") ?? [],
+      ).find((element) => element.id === hash);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const handle = () => {
+      cancel();
+      frame = requestAnimationFrame(scroll);
+      timers = [window.setTimeout(scroll, 380), window.setTimeout(scroll, 720)];
+    };
+    handle();
+    window.addEventListener("hashchange", handle);
+    return () => {
+      cancel();
+      window.removeEventListener("hashchange", handle);
+    };
+  }, [notesLoaded, bookId, isLoadingNotes]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -1632,7 +1662,7 @@ export function BookDetailContent({
                   <PhotoProvider>
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeRaw]}
+                      rehypePlugins={[rehypeRaw, rehypeBookHeadingAnchors]}
                       urlTransform={(url) => {
                         // Allow data URLs (base64 images from Notion)
                         if (url.startsWith("data:")) {
