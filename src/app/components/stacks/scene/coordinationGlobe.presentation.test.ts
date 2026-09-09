@@ -130,8 +130,8 @@ describe("Coordination globe presentation contract", () => {
     );
     expect(globeSource).toContain("triggerCoordinationBurst(");
     expect(globeSource).toContain("stepCoordinationBurst(");
-    expect(move).toContain("onDragIntentRef.current({");
-    expect(move.indexOf("onDragIntentRef.current({")).toBeLessThan(
+    expect(move).toContain("fireDragIntent();");
+    expect(move.indexOf("fireDragIntent();")).toBeLessThan(
       move.indexOf("beginCarry(event)"),
     );
   });

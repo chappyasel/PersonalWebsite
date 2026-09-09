@@ -100,6 +100,11 @@ export type SceneInteractionSpec = {
   liveBounds?: boolean;
   movable?: MovableSpec;
   movableController?: MovableController;
+  /** What a press that moves past the tap threshold means on a prop that
+   * cannot be carried (the near globe turns under the finger). The coarse
+   * touch arbiter hands such a contact here instead of starting World travel
+   * or cancelling it; the prop then owns the pointer stream until release. */
+  dragIntent?: () => void;
   activation?: PortalSpec | ActionSpec | EggSpec | ArtifactSpec;
   hover?: HoverResponseSpec;
 };
@@ -240,6 +245,7 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
     liveBounds: all.some((part) => part.liveBounds),
     movable: movablePart?.movable,
     movableController: movablePart?.movableController,
+    dragIntent: all.find((part) => part.dragIntent)?.dragIntent,
     activation: activationPart?.activation,
     hover: hoverPart?.hover,
   };

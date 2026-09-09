@@ -13,6 +13,7 @@ import {
   mobileRailScale,
   mobileSheetCameraCoverage,
   mobileSheetChipActive,
+  mobileSheetDimOpacity,
   mobileSheetGeometry,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
@@ -395,5 +396,22 @@ describe("mobileSheetTopPull", () => {
       MOBILE_SHEET_TOP_PULL_SPENT_MAX_PX,
     );
     expect(mobileSheetTopPullY(-40, "spent")).toBe(-40);
+  });
+
+  it("dims the room in step with the sheet's travel between peek and full height", () => {
+    // About on a 390x844 phone: peek rests 571px below full height.
+    const peekRestY = mobileSheetRestY("peek", 824, 253);
+    expect(peekRestY).toBe(571);
+    expect(mobileSheetDimOpacity(peekRestY, peekRestY, false)).toBe(0);
+    expect(mobileSheetDimOpacity(peekRestY / 2, peekRestY, false)).toBeCloseTo(
+      0.5,
+    );
+    expect(mobileSheetDimOpacity(0, peekRestY, true)).toBe(1);
+    // Overdrag above full height and the dismissed pose below peek clamp.
+    expect(mobileSheetDimOpacity(-60, peekRestY, true)).toBe(1);
+    expect(mobileSheetDimOpacity(824, peekRestY, false)).toBe(0);
+    // A placard that fits inside peek has no travel to map: the state stands.
+    expect(mobileSheetDimOpacity(0, 0, false)).toBe(0);
+    expect(mobileSheetDimOpacity(0, 0, true)).toBe(1);
   });
 });

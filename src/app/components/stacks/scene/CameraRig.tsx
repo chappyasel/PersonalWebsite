@@ -86,6 +86,7 @@ import {
   pointerCameraTiltDegrees,
   pointerCameraYawDegrees,
 } from "./pointerCameraTilt";
+import { nearPropApproach } from "./propApproachState";
 import {
   type SceneArtifactCameraLockState,
   sceneArtifactCameraLockFrame,
@@ -927,9 +928,13 @@ export default function CameraRig() {
       interactionZoomTarget({
         distance: cameraTargetDistance,
         focused: focusEnabled,
+        // A prop up close already owns the framing (PropApproach flew it to
+        // the camera); a press on it must not dolly in as well, or the view
+        // lurches back out the moment a drag takes the press over.
         pressed:
           Boolean(state.pressedInteraction) &&
-          !isGolfControlInteraction(state.pressedInteraction),
+          !isGolfControlInteraction(state.pressedInteraction) &&
+          !nearPropApproach(),
         hovered:
           Boolean(state.hovered) && !isGolfControlInteraction(state.hovered),
         dragging: Boolean(state.dragging),

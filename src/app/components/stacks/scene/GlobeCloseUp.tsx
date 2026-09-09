@@ -8,9 +8,10 @@
 // their chapter; the green visited-country and red lived-place marks are
 // labels only.
 import { useFrame, useThree } from "@react-three/fiber";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { touchWorldRef, useStacks } from "../store";
 import PropApproach from "./PropApproach";
 import {
   GLOBE_LIVED_MARKS_NAME,
@@ -25,6 +26,7 @@ import {
   globeChapterClusters,
   globeChapterHover,
   globeLivedPlaceClusters,
+  globeMarkProbe,
   globeSpin,
   globeTilt,
   globeVisitedPlaceClusters,
@@ -34,9 +36,12 @@ import { usePropApproachNear } from "./propApproachState";
 
 export default function GlobeCloseUp({
   unitIndex,
+  hoverKey,
   children,
 }: {
   unitIndex: number;
+  /** The carrier's interaction id: the press the touch arbiter marks. */
+  hoverKey: string;
   children: React.ReactNode;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -61,7 +66,25 @@ export default function GlobeCloseUp({
     };
   }, [near]);
 
-  useFrame(() => {
+  // Where to cast from. r3f's pointer only follows a fine pointer: the touch
+  // arbiter claims every touch at the window before the canvas sees it, so on
+  // a phone that pointer sits wherever the last mouse left it, or at the
+  // screen centre, which is where the near globe is. The arbiter publishes
+  // the finger's own position; cast from that instead while touch is the
+  // active pointer type.
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const pointerNdc = useCallback(() => {
+    const { pointer, gl } = get();
+    if (touchWorldRef.interactionPointerType !== "touch") return pointer;
+    const rect = gl.domElement.getBoundingClientRect();
+    ndc.set(
+      ((touchWorldRef.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1,
+      -((touchWorldRef.clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1,
+    );
+    return ndc;
+  }, [get, ndc]);
+
+  const sampleMarks = useCallback(() => {
     const node = group.current;
     if (!near || !node) return;
     // The ball is rebuilt on a theme flip, so the cached mesh can go stale.
@@ -93,8 +116,8 @@ export default function GlobeCloseUp({
       globeChapterHover.set(null);
       return;
     }
-    const { camera, pointer, gl } = get();
-    raycaster.setFromCamera(pointer, camera);
+    const { camera, gl } = get();
+    raycaster.setFromCamera(pointerNdc(), camera);
     // The whole subtree, nearest first: a mark on the far side is behind
     // the ball and must not light up through it.
     const hit = raycaster.intersectObject(node, true)[0];
@@ -143,7 +166,40 @@ export default function GlobeCloseUp({
       chapters: cluster.chapters,
       ...position,
     });
+  }, [get, near, pointerNdc, projected, raycaster]);
+
+  // A fine pointer is sampled every frame, so the hover follows the cursor.
+  // A finger is sampled once, the moment its press lands (below). The
+  // camera's touch parallax starts moving the instant a finger is down, so
+  // by the time it lifts the mark it touched is no longer under it; a
+  // per-frame sample read that miss and the tap dismissed the globe. The
+  // press-time mark stays the hover until the next press, a drag, or the
+  // globe going back, which is also the right label model for a screen
+  // with no hover: the mark you touched stays named.
+  useFrame(() => {
+    if (touchWorldRef.interactionPointerType === "touch") return;
+    sampleMarks();
   });
+
+  useEffect(() => {
+    if (!near) return;
+    globeMarkProbe.current = sampleMarks;
+    // The touch arbiter marks the press before any frame runs, and the
+    // finger's pixels are already published, so this cast sees the scene
+    // exactly as the finger did.
+    const unsubscribe = useStacks.subscribe((state, previous) => {
+      if (
+        state.pressedInteraction === hoverKey &&
+        previous.pressedInteraction !== hoverKey &&
+        touchWorldRef.interactionPointerType === "touch"
+      )
+        sampleMarks();
+    });
+    return () => {
+      unsubscribe();
+      if (globeMarkProbe.current === sampleMarks) globeMarkProbe.current = null;
+    };
+  }, [hoverKey, near, sampleMarks]);
 
   return (
     <PropApproach

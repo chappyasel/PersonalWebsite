@@ -124,6 +124,7 @@ import type {
 } from "./physics";
 import type { DynamicColliderProfile } from "./physicsColliders";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import { nearPropApproach } from "./propApproachState";
 import {
   archetypeFor,
   bandMotionFor,
@@ -1046,6 +1047,16 @@ export default function Grabbable({
   useEffect(() => {
     onDragIntentRef.current = onDragIntent;
   }, [onDragIntent]);
+  /** The one-shot drag response, shared by both pointer paths: the fine
+   * pointer's move handler below, and the coarse touch arbiter through the
+   * registry entry (a touch never reaches these r3f handlers). */
+  const fireDragIntent = useCallback(() => {
+    const g = group.current;
+    if (!g || !onDragIntentRef.current) return;
+    g.getWorldPosition(world);
+    onDragIntentRef.current({ x: world.x, y: world.y, z: world.z });
+  }, [world]);
+  const hasDragIntent = Boolean(onDragIntent);
   const open = useOpenTarget();
   /** The shared record this prop's rigid body hangs off. Null until mount,
    * and bodyless until a world has been built around it. */
@@ -1487,16 +1498,12 @@ export default function Grabbable({
           TAP_PX
       ) {
         current.moved = true;
-        const g = group.current;
-        if (g && onDragIntentRef.current) {
-          g.getWorldPosition(world);
-          onDragIntentRef.current({ x: world.x, y: world.y, z: world.z });
-        }
+        fireDragIntent();
         if (!tapOnly.current) beginCarry(event);
       }
       if (!tapOnly.current && phase.current === "held") track(event);
     },
-    [beginCarry, track, world],
+    [beginCarry, fireDragIntent, track],
   );
 
   const runStationaryActivation = useCallback(() => {
@@ -1710,6 +1717,10 @@ export default function Grabbable({
             },
           }
         : undefined,
+      // A carried prop's touch drag is the carry itself. Only an anchored
+      // prop offers its drag intent to the coarse arbiter, which is what
+      // lets the near globe turn under a finger instead of the World.
+      dragIntent: hasDragIntent && !draggable ? fireDragIntent : undefined,
       activation,
       hover: { kind: tiltOnHover ? "tilt" : "none" },
     });
@@ -1725,6 +1736,8 @@ export default function Grabbable({
     draggable,
     egg,
     external,
+    fireDragIntent,
+    hasDragIntent,
     href,
     hoverKey,
     liveBounds,
@@ -2504,7 +2517,12 @@ export default function Grabbable({
     const n = nod.current;
     if (n) {
       const interactionState = useStacks.getState();
-      const pressed = interactionState.pressedInteraction === hoverKey;
+      // A prop up close gives no Pickup Cue: it is already in hand, and on a
+      // phone the compression landed on every press of the near globe, then
+      // sprang back the instant a drag took over, which read as a flinch.
+      const pressed =
+        interactionState.pressedInteraction === hoverKey &&
+        nearPropApproach()?.id !== hoverKey;
       const focused = interactionState.focusedInteraction === hoverKey;
       const wants =
         phase.current === "rest" &&

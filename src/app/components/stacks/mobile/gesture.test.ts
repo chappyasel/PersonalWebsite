@@ -7,6 +7,7 @@ const press = (
   movable = true,
   activatable = true,
   activateOnFirstTouch = false,
+  dragIntent = false,
 ) =>
   reduceTouchGesture(
     { phase: "idle" },
@@ -21,6 +22,7 @@ const press = (
       movable,
       activatable,
       activateOnFirstTouch,
+      dragIntent,
     },
   );
 
@@ -160,5 +162,62 @@ describe("touch gesture arbitration", () => {
     ).toEqual([
       { type: "swipe-release", velocityX: -0.5625, displacementX: -45 },
     ]);
+  });
+
+  it("hands an anchored prop's drag to the prop instead of travel, in either axis", () => {
+    for (const [x, y] of [
+      [55, 102],
+      [102, 55],
+    ] as const) {
+      const initial = press(false, false, true, true, true).state;
+      const handed = reduceTouchGesture(initial, {
+        type: "move",
+        pointerId: 1,
+        x,
+        y,
+        at: 80,
+      });
+      expect(handed.state).toEqual({
+        phase: "handed-off",
+        pointerId: 1,
+      } satisfies TouchGestureState);
+      expect(handed.effects).toEqual([
+        { type: "drag-intent", interactionId: "prop" },
+      ]);
+
+      // From here the prop owns the pointer stream: the arbiter neither
+      // scrolls the World nor activates on release.
+      const later = reduceTouchGesture(handed.state, {
+        type: "move",
+        pointerId: 1,
+        x: x + 60,
+        y,
+        at: 120,
+      });
+      expect(later.state).toBe(handed.state);
+      expect(later.effects).toEqual([]);
+      const released = reduceTouchGesture(later.state, {
+        type: "release",
+        pointerId: 1,
+      });
+      expect(released.state).toEqual({ phase: "idle" });
+      expect(released.effects).toEqual([]);
+    }
+  });
+
+  it("keeps finger jitter on a drag-intent prop inside a tap", () => {
+    const initial = press(false, false, true, true, true).state;
+    const jittered = reduceTouchGesture(initial, {
+      type: "move",
+      pointerId: 1,
+      x: 104,
+      y: 111,
+      at: 40,
+    });
+    expect(jittered.effects).toEqual([]);
+    expect(
+      reduceTouchGesture(jittered.state, { type: "release", pointerId: 1 })
+        .effects,
+    ).toEqual([{ type: "activate", interactionId: "prop" }]);
   });
 });

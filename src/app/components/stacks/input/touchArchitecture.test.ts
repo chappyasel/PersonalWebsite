@@ -22,6 +22,10 @@ const tapFirstCapability = read("../../../../lib/useTapFirstCapability.ts");
 const scenePointerEvents = read("./scenePointerEvents.ts");
 const golf = read("../scene/golf/GolfExperience.tsx");
 const golfBall = read("../scene/golf/GolfBallProp.tsx");
+const globeCloseUp = read("../scene/GlobeCloseUp.tsx");
+const globeState = read("../scene/globeCloseUpState.ts");
+const cameraRig = read("../scene/CameraRig.tsx");
+const unitAbout = read("../scene/units/UnitAbout.tsx");
 
 describe("coarse-pointer ownership", () => {
   it("has no vertical-to-horizontal Touch Events bridge", () => {
@@ -78,6 +82,65 @@ describe("coarse-pointer ownership", () => {
     expect(eggs).toContain("activateOnFirstTouch,");
     expect(touchLayer).toContain(
       "activateOnFirstTouch: Boolean(spec.activateOnFirstTouch)",
+    );
+  });
+
+  it("hands an anchored prop's drag to the prop, so the near globe turns under a finger", () => {
+    // A touch never reaches the r3f handlers that fire onDragIntent for a
+    // fine pointer, so the anchored carrier offers the same one-shot through
+    // the registry and the arbiter runs it instead of World travel. A
+    // carried prop's drag stays the carry: only the anchored case hands off.
+    expect(grabbable).toContain(
+      "dragIntent: hasDragIntent && !draggable ? fireDragIntent : undefined",
+    );
+    expect(touchLayer).toContain(
+      "dragIntent: Boolean(spec.dragIntent) && !spec.movableController",
+    );
+    expect(touchLayer).toMatch(
+      /case "drag-intent":[\s\S]*?clearPickup\(\);[\s\S]*?spec\?\.dragIntent\?\.\(\);/,
+    );
+  });
+
+  it("reads the near globe's mark at the finger when the press lands, once", () => {
+    // r3f's pointer never sees a touch (the arbiter claims it at the
+    // window), so it sits at the screen centre, which is where the near globe
+    // is. The arbiter publishes the finger's own pixels and the close-up
+    // casts from those. It casts ONCE, when the press is marked: the camera's
+    // touch parallax moves from the instant a finger is down, so a per-frame
+    // sample read a miss by release and the tap dismissed the globe.
+    expect(touchLayer).toMatch(
+      /touchWorldRef\.clientX = event\.clientX;\s*touchWorldRef\.clientY = event\.clientY;/,
+    );
+    expect(globeCloseUp).toContain(
+      'if (touchWorldRef.interactionPointerType !== "touch") return pointer;',
+    );
+    expect(globeCloseUp).toContain("raycaster.setFromCamera(pointerNdc(), camera);");
+    expect(globeCloseUp).toMatch(
+      /useFrame\(\(\) => \{\s*if \(touchWorldRef\.interactionPointerType === "touch"\) return;\s*sampleMarks\(\);/,
+    );
+    expect(globeCloseUp).toMatch(
+      /state\.pressedInteraction === hoverKey &&\s*previous\.pressedInteraction !== hoverKey &&\s*touchWorldRef\.interactionPointerType === "touch"\s*\)\s*sampleMarks\(\);/,
+    );
+    expect(unitAbout).toContain(
+      '<GlobeCloseUp unitIndex={index} hoverKey="egg:globe">',
+    );
+    // A turn moves the marks out from under the latched label.
+    expect(globeState).toMatch(
+      /export function beginGlobeDrag[\s\S]*?globeSpin\.setHeld\(true\);[\s\S]*?globeChapterHover\.set\(null\);/,
+    );
+  });
+
+  it("gives a prop that is already up close no Pickup Cue", () => {
+    // The arbiter marks every touch press, and two things answer that mark:
+    // the prop's nod compresses to 0.965 and the camera dollies in 0.3. On
+    // the near globe both fired at touchdown and both sprang back the
+    // instant a drag took the press over, a flinch a mouse never showed
+    // because the fine-pointer path marks no press at all.
+    expect(grabbable).toMatch(
+      /const pressed =\s*interactionState\.pressedInteraction === hoverKey &&\s*nearPropApproach\(\)\?\.id !== hoverKey;/,
+    );
+    expect(cameraRig).toMatch(
+      /pressed:\s*Boolean\(state\.pressedInteraction\) &&\s*!isGolfControlInteraction\(state\.pressedInteraction\) &&\s*!nearPropApproach\(\),/,
     );
   });
 

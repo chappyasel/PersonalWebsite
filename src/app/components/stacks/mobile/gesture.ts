@@ -19,6 +19,7 @@ export type TouchGestureState =
       movable: boolean;
       activatable: boolean;
       activateOnFirstTouch: boolean;
+      dragIntent: boolean;
     }
   | {
       phase: "swiping";
@@ -33,6 +34,9 @@ export type TouchGestureState =
       interactionId: string;
       pointerId: number;
     }
+  /** The prop owns the rest of this contact through its own drag intent
+   * (the near globe turning); the arbiter only waits for the pointer to lift. */
+  | { phase: "handed-off"; pointerId: number }
   | { phase: "cancelled"; pointerId: number };
 
 export type TouchGestureEvent =
@@ -47,6 +51,9 @@ export type TouchGestureEvent =
       movable: boolean;
       activatable: boolean;
       activateOnFirstTouch: boolean;
+      /** An anchored prop that answers a drag itself. Movement past the tap
+       * slop in either axis hands the contact to it instead of the World. */
+      dragIntent: boolean;
     }
   | { type: "move"; pointerId: number; x: number; y: number; at: number }
   | { type: "pickup"; pointerId: number }
@@ -55,6 +62,7 @@ export type TouchGestureEvent =
 
 export type TouchGestureEffect =
   | { type: "compress"; interactionId: string }
+  | { type: "drag-intent"; interactionId: string }
   | { type: "swipe-start"; interactionId: string; displacementX: number }
   | { type: "swipe-move"; deltaX: number; velocityX: number }
   | { type: "pickup"; interactionId: string }
@@ -92,6 +100,7 @@ export function reduceTouchGesture(
         movable: event.movable,
         activatable: event.activatable,
         activateOnFirstTouch: event.activateOnFirstTouch,
+        dragIntent: event.dragIntent,
       },
       effects: [{ type: "compress", interactionId: event.interactionId }],
     };
@@ -136,7 +145,8 @@ export function reduceTouchGesture(
           },
         ],
       };
-    if (state.phase === "cancelled") return { state, effects: [] };
+    if (state.phase === "cancelled" || state.phase === "handed-off")
+      return { state, effects: [] };
     if (state.phase === "swiping") {
       const dt = Math.max(1, event.at - state.lastAt);
       const deltaX = event.x - state.lastX;
@@ -153,6 +163,15 @@ export function reduceTouchGesture(
         state: { ...state, lastX: event.x, lastY: event.y },
         effects: [],
       };
+    // The prop answers this drag itself, in either axis: a globe turns
+    // sideways and tilts up and down. Neither World travel nor a cancel
+    // runs; the contact is the prop's until it lifts.
+    if (state.dragIntent) {
+      return {
+        state: { phase: "handed-off", pointerId: state.pointerId },
+        effects: [{ type: "drag-intent", interactionId: state.interactionId }],
+      };
+    }
     if (Math.abs(dx) > Math.abs(dy) * TOUCH_HORIZONTAL_DOMINANCE) {
       return {
         state: {

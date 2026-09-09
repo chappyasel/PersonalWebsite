@@ -416,8 +416,12 @@ on a discrete authored prop. A quick release establishes Touch Focus; movement
 before the hold threshold becomes a World Swipe with its full displacement;
 a stationary hold on any Movable Prop promotes the same contact into carrying.
 A second contact then adjusts hold depth without taking release ownership from
-the first. The exposed World outside authored props retains its native
-one-finger swipe behavior and reserves a two-finger World Pinch for framing.
+the first. An anchored prop that answers a drag itself (the near globe turns
+and tilts under the finger) takes the contact once it moves past the tap slop
+in either axis; the arbiter then neither travels the World nor cancels, and
+the prop owns the pointer stream until release. The exposed World outside
+authored props retains its native one-finger swipe behavior and reserves a
+two-finger World Pinch for framing.
 _Avoid_: Long-press mode, global scroll lock
 
 **Touch Halo** — the invisible, projected coarse-pointer target that expands
@@ -429,7 +433,9 @@ _Avoid_: Exact-mesh touch, permanent hotspot marker, oversized prop
 
 **Pickup Cue** — the world-native feedback that makes Touch Arbitration
 legible on a Movable Prop: immediate physical compression on contact, a subtle
-loaded lift as the hold threshold completes, then pickup. A light haptic may
+loaded lift as the hold threshold completes, then pickup. A prop already up
+close gives no cue: it is in hand, so a press on it neither compresses it nor
+pulls the camera. A light haptic may
 reinforce pickup where supported; it is never explained with floating
 instruction copy.
 _Avoid_: Permanent drag badge, generic progress spinner

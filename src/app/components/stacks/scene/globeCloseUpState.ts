@@ -16,6 +16,7 @@ import {
 } from "./aboutTravel";
 import { AIC_CHAPTERS, type AicChapter } from "./aicChapters";
 import { mergeGlobeMarkers } from "./globeBall";
+import { globeChapterHover } from "./globeChapterHover";
 import type { PortalAnalyticsContext, PropTarget } from "./links";
 import { createPropApproach } from "./propApproachState";
 import { createSpinHandle } from "./spinHandle";
@@ -25,6 +26,15 @@ export const globeApproach = createPropApproach("egg:globe");
 export const globeSpin = createSpinHandle();
 /** Extra pitch the drag gives the near globe, radians, read by PropApproach. */
 export const globeTilt = { current: 0 };
+/**
+ * Cast at the published touch point right now and set the hover from it.
+ * GlobeCloseUp installs it while the globe is near; it is the same sampler
+ * the press-time latch runs. Product code does not call it: the dev hook
+ * (`window.__stacks.globe`) does, so a headless run can ask "what would a
+ * finger here reach" without moving the camera. Null when the globe is not
+ * up close.
+ */
+export const globeMarkProbe = { current: null as (() => void) | null };
 
 /** World extents of the globe at its About scale, for framing the approach.
  * The prop is 0.35 x 0.49 at scale 1 and stands at 2.5179. */
@@ -178,6 +188,10 @@ type DragSample = { x: number; y: number; time: number };
 export function beginGlobeDrag(pointerId?: number) {
   if (typeof window === "undefined") return;
   globeSpin.setHeld(true);
+  // The ball is about to turn under the hand. On touch the label names the
+  // mark the press landed on and would otherwise stay pinned to a pixel the
+  // mark has left; a fine pointer re-samples next frame anyway.
+  globeChapterHover.set(null);
   let last: DragSample | null = null;
   let velocity = 0;
   const onMove = (event: PointerEvent) => {

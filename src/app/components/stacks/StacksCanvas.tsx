@@ -183,8 +183,10 @@ import {
 import { StaticWorldInvariantProbe } from "./scene/staticWorld";
 import { sceneUnitActivityController } from "./scene/unitActivity";
 import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
+import { globeChapterHover } from "./scene/globeChapterHover";
+import { globeMarkProbe } from "./scene/globeCloseUpState";
 import { sceneArtifactById } from "./sceneArtifacts";
-import { progressRef, useStacks } from "./store";
+import { progressRef, touchWorldRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
 import VisionRideExperience from "./visionRide/VisionRideExperience";
 import { visionRideDiagnosticsController } from "./visionRide/visionRideDiagnostics";
@@ -306,6 +308,18 @@ declare global {
         y: number,
         z: number,
       ) => { x: number; y: number; depth: number } | null;
+      /** The near globe's mark under the pointer and the coarse pointer the
+       * touch arbiter published, so a headless run can tell which of the two
+       * a finger reached. Pixels cannot answer that: the label is the only
+       * visible sign, and it renders a frame late. */
+      globe: (
+        patch?: Partial<
+          Pick<
+            typeof touchWorldRef,
+            "clientX" | "clientY" | "interactionPointerType"
+          >
+        >,
+      ) => Record<string, unknown>;
       /** Registered by Meadow in dev: live wind/density knobs.
        * No-arg call returns the current values. */
       meadow?: (opts?: MeadowDiagnosticsUpdate) => MeadowDiagnosticsSettings;
@@ -449,6 +463,20 @@ function installDevHooks() {
         x: r.left + ((v.x + 1) / 2) * r.width,
         y: r.top + ((1 - v.y) / 2) * r.height,
         depth: v.z,
+      };
+    },
+    // Without a patch this only reads, so a harness can watch the hover a
+    // real touch produced; with one it moves the published finger and casts
+    // from there, which is how a run finds mark positions to aim at.
+    globe(patch) {
+      if (patch) {
+        Object.assign(touchWorldRef, patch);
+        globeMarkProbe.current?.();
+      }
+      return {
+        hover: globeChapterHover.current,
+        touch: { ...touchWorldRef },
+        probed: Boolean(globeMarkProbe.current),
       };
     },
     state() {

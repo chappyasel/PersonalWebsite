@@ -64,6 +64,10 @@ function selectVisionRidePreview(modifiers: VisionRideModifiers) {
 export const touchWorldRef = {
   pointerX: 0,
   pointerY: 0,
+  /** The finger's last viewport position in CSS pixels. `pointerX/Y` are
+   * window-normalised for the meadow; a raycast wants the canvas frame. */
+  clientX: 0,
+  clientY: 0,
   interactionPointerType: "unknown" as "unknown" | "touch" | "mouse" | "pen",
   travelProgress: 0,
   wakeStrength: 0,

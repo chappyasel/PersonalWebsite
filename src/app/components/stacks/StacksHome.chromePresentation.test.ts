@@ -26,9 +26,26 @@ describe("presentation chrome choreography", () => {
 
   it("darkens the exposed room behind an expanded light-mode sheet", () => {
     expect(placardSource).toContain(
-      'className="pointer-events-none fixed inset-0 z-30 bg-black/30 dark:bg-black/10"',
+      'className="absolute inset-0 bg-black/30 dark:bg-black/10"',
     );
     expect(placardSource).not.toContain("fixed inset-0 z-30 bg-background/10");
+  });
+
+  it("dims the room with the sheet's travel rather than the panel state", () => {
+    // The shade is a function of the sheet's position, so a finger slide
+    // fades it in and out with the sheet instead of it popping after release.
+    expect(placardSource).toContain(
+      "mobileSheetDimOpacity(y.get(), peekRestY, expanded)",
+    );
+    expect(placardSource).toContain('return y.on("change", update);');
+    expect(placardSource).toContain("style={{ opacity: dimOpacity }}");
+    // The chrome's overlay fades target the outer element by attribute; the
+    // per-frame value lives on the child so that CSS transition cannot
+    // smear it.
+    expect(placardSource).toMatch(
+      /data-stacks-mobile-panel-dim=""\s*className="pointer-events-none fixed inset-0 z-30"\s*>\s*<motion\.div/,
+    );
+    expect(placardSource).not.toContain('key="dim"');
   });
 
   it("holds the light sheet above its dimmed room without bleaching its cards", () => {

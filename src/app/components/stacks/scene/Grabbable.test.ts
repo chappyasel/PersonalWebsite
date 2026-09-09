@@ -127,9 +127,14 @@ describe("Grabbable tap/carry arbitration", () => {
 
     expect(source).toMatch(/onDragIntent\?:\s*\(\s*origin:/);
     expect(move).toContain("current.moved = true");
-    expect(move).toContain("onDragIntentRef.current({");
+    expect(move).toContain("fireDragIntent();");
     expect(move.indexOf("current.moved = true")).toBeLessThan(
-      move.indexOf("onDragIntentRef.current({"),
+      move.indexOf("fireDragIntent();"),
+    );
+    // One helper serves both pointer paths: the fine pointer's move above
+    // and the coarse arbiter's hand-off through the registry.
+    expect(source).toMatch(
+      /const fireDragIntent = useCallback\(\(\) => \{[\s\S]*?onDragIntentRef\.current\(\{ x: world\.x, y: world\.y, z: world\.z \}\);/,
     );
   });
 

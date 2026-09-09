@@ -99,6 +99,7 @@ import {
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
   mobileSheetChipActive,
+  mobileSheetDimOpacity,
   mobileSheetGeometry,
   mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
@@ -1212,6 +1213,21 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   const restY = mobileSheetRestY(pose, renderedHeight, peek);
   const restRef = useRef(restY);
   restRef.current = restY;
+  // The shade over the room follows the sheet's travel, read off `y` every
+  // frame it changes (see mobileSheetDimOpacity). Not a Framer animation of
+  // its own: the drag already moves the sheet 1:1 and the spring already
+  // finishes it, so the dim inherits both by being a function of position.
+  const peekRestY = mobileSheetRestY("peek", renderedHeight, peek);
+  const dimOpacity = useMotionValue(0);
+  useEffect(() => {
+    const update = () => {
+      dimOpacity.set(
+        active ? mobileSheetDimOpacity(y.get(), peekRestY, expanded) : 0,
+      );
+    };
+    update();
+    return y.on("change", update);
+  }, [active, dimOpacity, expanded, peekRestY, y]);
   const settle = useCallback(() => {
     animate(y, restRef.current, SHEET_SPRING);
   }, [y]);
@@ -2001,19 +2017,23 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
 
   return (
     <div className="min-[1200px]:hidden">
-      <AnimatePresence>
-        {active && expanded && (
+      {/* The shade rides the sheet: a finger sliding it up brings the dim in
+          with it and a slide down takes it away, so it never pops in after
+          release the way a state-keyed fade did. The outer element carries
+          the chrome's overlay rules (StacksHome fades every dim out under a
+          modal or Field Notes with a CSS transition); the per-frame value
+          lives on its child so that transition cannot smear it. */}
+      {active && (
+        <div
+          data-stacks-mobile-panel-dim=""
+          className="pointer-events-none fixed inset-0 z-30"
+        >
           <motion.div
-            key="dim"
-            data-stacks-mobile-panel-dim=""
-            className="pointer-events-none fixed inset-0 z-30 bg-black/30 dark:bg-black/10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/30 dark:bg-black/10"
+            style={{ opacity: dimOpacity }}
           />
-        )}
-      </AnimatePresence>
+        </div>
+      )}
       {/* The glass is a sibling of the fading content, never its child. An
           opacity below one on any ancestor makes a backdrop root; when the
           material lived inside the crossfade below, browsers could not sample
@@ -2246,7 +2266,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           y: chipY,
           visibility: chipVisibility,
         }}
-        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50 ${
+        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-bold text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50 ${
           active && chipActive ? "pointer-events-auto" : "pointer-events-none"
         }`}
       >
@@ -2559,6 +2579,18 @@ export default function PlacardLayer({
           backdrop-filter: blur(42px) saturate(0.28) brightness(1.24);
           -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.24);
         }
+        /* The chip stands alone on the vignetted meadow at the bottom edge,
+           where the ground behind it measures about 8% luminance, so the
+           sheet's multiplicative brightness has nothing to lift and the fill
+           is all there is. At the shared 16% it read as a dark olive pill
+           with the ink barely off it (L 0.30 on a phone capture). 56% white
+           puts the chip at L 0.61, in step with the sheet's cards, while
+           the blur still lets the meadow tint it. */
+        html:not(.dark) .stacks-chip {
+          --sheet-fill: rgb(255 255 255 / 0.56);
+          backdrop-filter: blur(42px) saturate(0.28) brightness(1.34);
+          -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.34);
+        }
         /* Mobile's first resident sheet settles after the navigation begins.
            The material and interaction layers move together, while the
            header and body fade independently above the sibling glass. All
@@ -2678,6 +2710,13 @@ export default function PlacardLayer({
             0 -18px 42px -22px rgb(0 0 0 / 0.82) !important;
         }
         .dark .stacks-chip {
+          /* Same bottom-edge problem at night: the clear fill over the dark
+             meadow left the chip within a stop of the ground (L 0.07 against
+             0.06). A 6% white fill and a touch of lift bring it to the
+             sheet's own night glass (L 0.12) without turning it grey. */
+          --sheet-fill: rgb(255 255 255 / 0.06);
+          backdrop-filter: blur(32px) saturate(0.45) brightness(1.05);
+          -webkit-backdrop-filter: blur(32px) saturate(0.45) brightness(1.05);
           box-shadow:
             inset 0 1px 0 rgb(255 255 255 / 0.28),
             inset 0 -1px 0 rgb(255 255 255 / 0.08),

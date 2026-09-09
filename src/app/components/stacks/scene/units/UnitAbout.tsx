@@ -864,6 +864,8 @@ export default function UnitAbout({
               globeApproach.approach();
               return;
             }
+            // On touch this is the mark sampled when the press landed, not
+            // whatever is under the finger now (see GlobeCloseUp).
             const hovered = globeChapterHover.current;
             if (hovered?.kind === "chapter")
               openGlobeChapter(hovered.chapters, open, index);
@@ -877,7 +879,7 @@ export default function UnitAbout({
           liveBounds
         >
           <group name={aboutLandmarkNodeName("globe")}>
-            <GlobeCloseUp unitIndex={index}>
+            <GlobeCloseUp unitIndex={index} hoverKey="egg:globe">
               <SpinProp
                 unitIndex={index}
                 hoverKey="egg:globe"

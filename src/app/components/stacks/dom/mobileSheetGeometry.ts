@@ -329,6 +329,24 @@ export function mobileSheetRestY(
   return Math.max(0, renderedHeight - peekHeight);
 }
 
+/**
+ * How dark the room is behind a sheet at translate `y`: nothing at the peek
+ * detent and below it, full at the expanded pose, linear in the sheet's own
+ * travel between them. Keyed to the sheet's position rather than the panel
+ * state so a finger sliding the sheet brings the shade with it and the
+ * spring that finishes the gesture continues the same motion, instead of the
+ * shade appearing after release. A sheet with no travel between its detents
+ * (the placard fits inside peek) has nothing to map and takes the state.
+ */
+export function mobileSheetDimOpacity(
+  y: number,
+  peekRestY: number,
+  expanded: boolean,
+) {
+  if (peekRestY < 1) return expanded ? 1 : 0;
+  return Math.min(1, Math.max(0, 1 - y / peekRestY));
+}
+
 /** Maximum distance the resisted sheet may travel above its expanded pose. */
 export function mobileSheetMaxUpwardOverdrag(viewportHeight: number) {
   return Math.ceil(viewportHeight * MOBILE_SHEET_OVERDRAG_RESISTANCE);

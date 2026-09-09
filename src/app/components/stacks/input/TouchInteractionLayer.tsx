@@ -237,6 +237,15 @@ export default function TouchInteractionLayer() {
           case "compress":
             store.setPressedInteraction(effect.interactionId);
             break;
+          case "drag-intent":
+            // The prop takes the pointer stream from here (the globe's drag
+            // listens on window until the finger lifts). Release the press
+            // so nothing stays compressed under a turn, and forget the hold
+            // so it cannot become a pickup mid-drag.
+            clearPickup();
+            store.setPressedInteraction(null);
+            spec?.dragIntent?.();
+            break;
           case "focus":
             clearPickup();
             spec?.movableController?.cancel(event);
@@ -405,6 +414,8 @@ export default function TouchInteractionLayer() {
         (event.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
       touchWorldRef.pointerY =
         -(event.clientY / Math.max(1, window.innerHeight)) * 2 + 1;
+      touchWorldRef.clientX = event.clientX;
+      touchWorldRef.clientY = event.clientY;
       touchWorldRef.wakeStrength = 1;
     };
     const onPointerDown = (event: PointerEvent) => {
@@ -502,6 +513,7 @@ export default function TouchInteractionLayer() {
           movable: Boolean(spec.movableController),
           activatable: Boolean(spec.activation) || isHittableBall(hit.id),
           activateOnFirstTouch: Boolean(spec.activateOnFirstTouch),
+          dragIntent: Boolean(spec.dragIntent) && !spec.movableController,
         },
         event,
       );
