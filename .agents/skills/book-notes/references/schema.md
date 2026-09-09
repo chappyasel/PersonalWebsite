@@ -84,6 +84,22 @@ FROM books
 WHERE cover_url IS NOT NULL AND cover_color IS NULL;
 ```
 
+## Website link
+
+Notion's `Website` URL property is the one field the sync writes rather than
+reads (`syncWebsiteUrlsToNotion` in `src/lib/books/sync.ts`). After every sync
+it equals `'https://books.chappyasel.com/' || id` for each mirrored page, so a
+slug change (re-read shuffles, a retitled page) rewrites it on the next run and
+a page leaving the mirror has it cleared. It is not stored in Postgres; build
+the link from `id` instead, and never patch the property by hand.
+
+```sql
+-- The link the sync wrote for a book
+SELECT title, 'https://books.chappyasel.com/' || id AS website_url
+FROM books
+WHERE lower(title) LIKE '%thinking%';
+```
+
 ## Tags / topics
 
 ```sql

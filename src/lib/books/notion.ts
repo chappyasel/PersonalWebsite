@@ -18,86 +18,135 @@ const n2m = new NotionToMarkdown({
 });
 
 /**
- * Fetch all books from the Notion database
+ * The one Notion property the sync owns end to end. It holds the book's page
+ * on books.chappyasel.com so a row in the Book Notes table links straight to
+ * the site; the sync rewrites it whenever the slug moves (see
+ * `websiteUrlToWrite` in syncPlanning.ts). Never read for content.
  */
-export async function fetchBooksFromNotion(): Promise<BaseBook[]> {
-  try {
-    // First, retrieve the database to get its associated data source ID
-    const database = await notion.databases.retrieve({
-      database_id: env.NOTION_BOOKS_DATABASE_ID,
-    });
+export const WEBSITE_PROPERTY = "Website";
 
-    // Get the data source ID from the database's data_sources array
-    // A database can have multiple data sources, we'll use the first one
-    if (
-      "data_sources" in database &&
-      Array.isArray(database.data_sources) &&
-      database.data_sources.length > 0
-    ) {
-      const dataSourceId = database.data_sources[0]?.id;
-      if (!dataSourceId) {
-        throw new Error("Database has no associated data source");
-      }
+/** A book as Notion holds it, before the sync assigns a slug. */
+export type NotionBook = BaseBook & {
+  lastEditedTime: string;
+  /**
+   * What the `Website` property holds right now: null until the sync first
+   * writes it, stale after a slug change until the next sync.
+   */
+  websiteUrl: string | null;
+};
 
-      // Fetch all books with pagination
-      const allBooks: PageObjectResponse[] = [];
-      let cursor: string | undefined = undefined;
-      let hasMore = true;
+/**
+ * Resolve the Book Notes database to its data source. A database can carry
+ * several; the books live in the first.
+ */
+async function getBooksDataSourceId(): Promise<string> {
+  const database = await notion.databases.retrieve({
+    database_id: env.NOTION_BOOKS_DATABASE_ID,
+  });
 
-      while (hasMore) {
-        const response = await notion.dataSources.query({
-          data_source_id: dataSourceId,
-          filter: {
-            or: [
-              {
-                property: "Finished",
-                date: { is_not_empty: true },
-              },
-              {
-                property: "Started",
-                date: { is_not_empty: true },
-              },
-            ],
-          },
-          sorts: [
-            {
-              property: "Finished",
-              direction: "descending",
-            },
-          ],
-          result_type: "page",
-          start_cursor: cursor,
-          page_size: 100,
-        });
-
-        const pages = response.results.filter(
-          (result): result is PageObjectResponse =>
-            result.object === "page" && "properties" in result,
-        );
-
-        allBooks.push(...pages);
-
-        hasMore = response.has_more;
-        cursor = response.next_cursor ?? undefined;
-
-        console.log(
-          `Fetched ${pages.length} books (total: ${allBooks.length}, hasMore: ${hasMore})`,
-        );
-      }
-
-      return allBooks.map((page) => ({
-        ...transformNotionPageToBook(page),
-        lastEditedTime: getLastEditedTime(page),
-      }));
-    }
-
-    // Fallback: if no data sources found, throw an error
+  const dataSourceId =
+    "data_sources" in database && Array.isArray(database.data_sources)
+      ? database.data_sources[0]?.id
+      : undefined;
+  if (!dataSourceId) {
     throw new Error(
       "Database has no associated data sources. Make sure the database is properly configured.",
     );
+  }
+  return dataSourceId;
+}
+
+/**
+ * Add the `Website` URL column to the Book Notes data source when it is
+ * missing, so a fresh database (or one where the column was deleted) accepts
+ * the sync's writes without a manual step. A column of another type with the
+ * same name is left alone and reported, since renaming it is a human call.
+ */
+export async function ensureWebsiteProperty(): Promise<void> {
+  const dataSourceId = await getBooksDataSourceId();
+  const dataSource = await notion.dataSources.retrieve({
+    data_source_id: dataSourceId,
+  });
+
+  const existing =
+    "properties" in dataSource
+      ? dataSource.properties[WEBSITE_PROPERTY]
+      : undefined;
+  if (existing?.type === "url") return;
+  if (existing) {
+    console.warn(
+      `Notion "${WEBSITE_PROPERTY}" is a ${existing.type} property, not a URL; the sync cannot write book links into it.`,
+    );
+    return;
+  }
+
+  await notion.dataSources.update({
+    data_source_id: dataSourceId,
+    properties: { [WEBSITE_PROPERTY]: { type: "url", url: {} } },
+  });
+  console.log(`Added the "${WEBSITE_PROPERTY}" URL property to Book Notes`);
+}
+
+/**
+ * Fetch all books from the Notion database
+ */
+export async function fetchBooksFromNotion(): Promise<NotionBook[]> {
+  try {
+    const dataSourceId = await getBooksDataSourceId();
+
+    // Fetch all books with pagination
+    const allBooks: PageObjectResponse[] = [];
+    let cursor: string | undefined = undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await notion.dataSources.query({
+        data_source_id: dataSourceId,
+        filter: {
+          or: [
+            {
+              property: "Finished",
+              date: { is_not_empty: true },
+            },
+            {
+              property: "Started",
+              date: { is_not_empty: true },
+            },
+          ],
+        },
+        sorts: [
+          {
+            property: "Finished",
+            direction: "descending",
+          },
+        ],
+        result_type: "page",
+        start_cursor: cursor,
+        page_size: 100,
+      });
+
+      const pages = response.results.filter(
+        (result): result is PageObjectResponse =>
+          result.object === "page" && "properties" in result,
+      );
+
+      allBooks.push(...pages);
+
+      hasMore = response.has_more;
+      cursor = response.next_cursor ?? undefined;
+
+      console.log(
+        `Fetched ${pages.length} books (total: ${allBooks.length}, hasMore: ${hasMore})`,
+      );
+    }
+
+    return allBooks.map((page) => ({
+      ...transformNotionPageToBook(page),
+      lastEditedTime: getLastEditedTime(page),
+    }));
   } catch (err) {
     console.error("Error fetching books from Notion:", err);
-    throw new Error("Failed to fetch books from Notion");
+    throw new Error("Failed to fetch books from Notion", { cause: err });
   }
 }
 
@@ -106,7 +155,7 @@ export async function fetchBooksFromNotion(): Promise<BaseBook[]> {
  */
 export async function fetchBookDetails(
   bookId: string,
-): Promise<BaseBook & { notes: string }> {
+): Promise<Omit<NotionBook, "lastEditedTime"> & { notes: string }> {
   try {
     // Fetch the page
     const page = await notion.pages.retrieve({ page_id: bookId });
@@ -132,7 +181,9 @@ export async function fetchBookDetails(
     };
   } catch (err) {
     console.error(`Error fetching book details for ${bookId}:`, err);
-    throw new Error("Failed to fetch book details");
+    // Keep the Notion error as the cause so fetchWithBackoff can still see a
+    // 429 through the wrapper; a bare Error looked fatal and was never retried.
+    throw new Error("Failed to fetch book details", { cause: err });
   }
 }
 
@@ -141,7 +192,9 @@ export async function fetchBookDetails(
  * Note: The `id` field is initially set to the Notion page ID.
  * It will be replaced with a human-readable slug during sync.
  */
-function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
+function transformNotionPageToBook(
+  page: PageObjectResponse,
+): Omit<NotionBook, "lastEditedTime"> {
   const props = page.properties;
 
   return {
@@ -226,6 +279,11 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
         ? (props.Audible.url ?? null)
         : null,
     notionUrl: "url" in page ? page.url : "",
+    // Sync-owned; read only to decide whether it needs rewriting.
+    websiteUrl:
+      props[WEBSITE_PROPERTY] && "url" in props[WEBSITE_PROPERTY]
+        ? (props[WEBSITE_PROPERTY].url ?? null)
+        : null,
   };
 }
 

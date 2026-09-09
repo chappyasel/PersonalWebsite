@@ -1,5 +1,7 @@
 import { shouldRepairCover } from "./coverValidation";
 import { type AudibleLengthResult, audibleUrlFromAsin } from "./lengthFetcher";
+import { BOOKS_PRODUCTION_ORIGIN } from "./origin";
+import { getBookPath } from "./paths";
 import type { BaseBook } from "./types";
 
 type SyncBookMetadata = Pick<
@@ -55,4 +57,27 @@ export function shouldFetchBookContent(
     shouldRepairCover(book.coverUrl) ||
     hasIncompleteAudibleMetadata
   );
+}
+
+/**
+ * The public page for a book, as written to Notion's `Website` property.
+ * Always the production host: the sync may run from a dev machine, but the
+ * link in Notion has to work from anywhere.
+ */
+export function bookWebsiteUrl(bookId: string): string {
+  return `${BOOKS_PRODUCTION_ORIGIN}${getBookPath(bookId)}`;
+}
+
+/**
+ * The URL the sync must write into Notion's `Website` property, or null when
+ * the property already holds it. Empty, hand-edited, and stale-slug values
+ * all come back as a write, so the property converges on the current page
+ * URL no matter how it drifted.
+ */
+export function websiteUrlToWrite(book: {
+  id: string;
+  websiteUrl: string | null;
+}): string | null {
+  const url = bookWebsiteUrl(book.id);
+  return book.websiteUrl === url ? null : url;
 }

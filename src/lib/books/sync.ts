@@ -14,15 +14,21 @@ import {
   fetchPageCount,
   minutesToHourDotMinutes,
 } from "./lengthFetcher";
-import { fetchBookDetails, fetchBooksFromNotion } from "./notion";
+import {
+  ensureWebsiteProperty,
+  fetchBookDetails,
+  fetchBooksFromNotion,
+  type NotionBook,
+  WEBSITE_PROPERTY,
+} from "./notion";
 import { fetchWithBackoff } from "./rateLimiter";
 import { generateAllBookIds } from "./slugify";
 import {
   mergeAudibleMetadata,
   shouldFetchBookContent,
   shouldLookupAudibleMetadata,
+  websiteUrlToWrite,
 } from "./syncPlanning";
-import type { BaseBook } from "./types";
 import { env } from "~/env";
 
 export type SyncResult = {
@@ -35,6 +41,10 @@ export type SyncResult = {
   bookIdsToWarm: string[];
   fullContentFetched: number;
   fullContentSkipped: number;
+  /** Notion pages whose `Website` link was written this run. */
+  websiteUrlsWritten: number;
+  /** Pages still holding a missing or stale link; the next sync retries them. */
+  websiteUrlsPending: number;
   errors: SyncError[];
 };
 
@@ -55,7 +65,7 @@ export type SyncError = {
 type BookContentResult =
   | {
       success: true;
-      book: BaseBook & { notes: string } & { lastEditedTime: string };
+      book: NotionBook & { notes: string };
     }
   | {
       success: false;
@@ -160,6 +170,15 @@ export async function syncBooksFromNotion(
       bookIdsToInvalidate.add(bookId);
     }
 
+    // STEP 6.5: Point every Notion page at its site page. Runs after the
+    // upsert so a link never goes live before the row it names, and covers
+    // unchanged books too because a re-read can move their slug.
+    const { websiteUrlsWritten, websiteUrlsPending } =
+      await syncWebsiteUrlsToNotion([
+        ...successfulChangedBooks,
+        ...unchangedBooks,
+      ]);
+
     // STEP 7: Calculate results
     const errors = contentFetchResults
       .filter((r) => !r.success)
@@ -184,6 +203,8 @@ export async function syncBooksFromNotion(
       bookIdsToWarm: [...bookIdsToWarm].sort(),
       fullContentFetched: contentFetchResults.filter((r) => r.success).length,
       fullContentSkipped: unchangedBooks.length,
+      websiteUrlsWritten,
+      websiteUrlsPending,
       errors,
     };
 
@@ -242,6 +263,9 @@ async function deleteBooksRemovedFromNotion(
   for (const book of staleBooks) {
     console.log(`Deleting book removed from Notion: ${book.id}`);
     await db.delete(books).where(eq(books.notionId, book.notionId));
+    // The page may still exist (dates cleared) with a link that now 404s.
+    // A trashed page rejects the update, which is logged and harmless.
+    await updateNotionWebsiteUrl(book.notionId, book.id, null);
   }
 
   return {
@@ -256,35 +280,32 @@ async function deleteBooksRemovedFromNotion(
  * Uses notionId for lookup since that's the stable identifier from Notion.
  */
 function categorizeBooks(
-  notionBooks: Array<BaseBook & { lastEditedTime?: string }>,
+  notionBooks: NotionBook[],
   dbBooksMap: Map<string, Date>, // Map<notionId, lastEditedTime>
 ): {
-  newBooks: Array<BaseBook & { lastEditedTime: string }>;
-  updatedBooks: Array<BaseBook & { lastEditedTime: string }>;
-  unchangedBooks: Array<BaseBook & { lastEditedTime: string }>;
+  newBooks: NotionBook[];
+  updatedBooks: NotionBook[];
+  unchangedBooks: NotionBook[];
 } {
-  const newBooks: Array<BaseBook & { lastEditedTime: string }> = [];
-  const updatedBooks: Array<BaseBook & { lastEditedTime: string }> = [];
-  const unchangedBooks: Array<BaseBook & { lastEditedTime: string }> = [];
+  const newBooks: NotionBook[] = [];
+  const updatedBooks: NotionBook[] = [];
+  const unchangedBooks: NotionBook[] = [];
 
   for (const book of notionBooks) {
-    const lastEditedTime = book.lastEditedTime ?? new Date().toISOString();
-    const bookWithTime = { ...book, lastEditedTime };
-
     // Use notionId for lookup (stable identifier from Notion)
     const dbLastEdited = dbBooksMap.get(book.notionId);
 
     if (!dbLastEdited) {
       // Book doesn't exist in database - it's new
-      newBooks.push(bookWithTime);
+      newBooks.push(book);
     } else {
-      const notionEditedTime = new Date(lastEditedTime);
+      const notionEditedTime = new Date(book.lastEditedTime);
       if (shouldFetchBookContent(notionEditedTime, dbLastEdited, book)) {
         // Book was edited or has incomplete metadata that needs repair.
-        updatedBooks.push(bookWithTime);
+        updatedBooks.push(book);
       } else {
         // Book is unchanged
-        unchangedBooks.push(bookWithTime);
+        unchangedBooks.push(book);
       }
     }
   }
@@ -297,7 +318,7 @@ function categorizeBooks(
  * Uses notionId to fetch from Notion API, preserves slug ID for database.
  */
 async function fetchBooksContentWithRateLimit(
-  booksToFetch: Array<BaseBook & { lastEditedTime: string }>,
+  booksToFetch: NotionBook[],
 ): Promise<BookContentResult[]> {
   console.log(
     `Fetching full content for ${booksToFetch.length} books in parallel (concurrency: 20)...`,
@@ -360,7 +381,7 @@ async function fetchBooksContentWithRateLimit(
  */
 async function upsertBooksToDatabase(
   contentResults: BookContentResult[],
-  unchangedBooks: Array<BaseBook & { lastEditedTime: string }>,
+  unchangedBooks: NotionBook[],
 ): Promise<void> {
   // PRE-STEP: Migrate all changed slugs before any content upserts.
   // This prevents the case where an updated book's new slug collides with
@@ -590,7 +611,7 @@ async function upsertBooksToDatabase(
  */
 async function migrateChangedSlugs(
   contentResults: BookContentResult[],
-  unchangedBooks: Array<BaseBook & { lastEditedTime: string }>,
+  unchangedBooks: NotionBook[],
 ): Promise<void> {
   // Build map of notionId → newSlug for ALL books in this sync
   const newSlugMap = new Map<string, string>();
@@ -822,5 +843,94 @@ async function updateNotionCover(
     );
   } catch (error) {
     console.error(`  ✗ Failed to update Notion cover for ${pageId}:`, error);
+  }
+}
+
+/**
+ * Most `Website` links written in one sync. A slug change touches one or two
+ * pages, so this only bites on a mass rewrite (a new host, a fresh column),
+ * where it keeps the cron under its 180 s budget: writes go one at a time to
+ * stay under Notion's 3 req/s, so 150 is under a minute. The remainder goes
+ * out on the following syncs, which see the same gap.
+ */
+const MAX_WEBSITE_WRITES_PER_SYNC = 150;
+
+/**
+ * Write each book's site page into Notion's `Website` property when the
+ * property is empty or names a stale slug. One write at a time: 326 pages
+ * fired through the 20-wide queue tripped the rate limit and lost half of
+ * them. Nothing here throws past this function; a failed write is logged,
+ * counted as pending, and retried by the next sync, which sees the same gap.
+ */
+async function syncWebsiteUrlsToNotion(
+  syncedBooks: Array<
+    Pick<NotionBook, "notionId" | "id" | "title" | "websiteUrl">
+  >,
+): Promise<{ websiteUrlsWritten: number; websiteUrlsPending: number }> {
+  const writes = syncedBooks.flatMap((book) => {
+    const url = websiteUrlToWrite(book);
+    return url ? [{ book, url }] : [];
+  });
+  let written = 0;
+  const outcome = () => ({
+    websiteUrlsWritten: written,
+    websiteUrlsPending: writes.length - written,
+  });
+  if (writes.length === 0) return outcome();
+
+  const batch = writes.slice(0, MAX_WEBSITE_WRITES_PER_SYNC);
+  console.log(
+    `Writing ${batch.length} of ${writes.length} pending site link(s) into Notion...`,
+  );
+  // Only when there is something to write, so a steady-state sync costs no
+  // extra Notion calls. A failure here (a 429 past its retries, a revoked
+  // integration) postpones the links; it must not fail the book sync.
+  try {
+    await fetchWithBackoff(() => ensureWebsiteProperty());
+  } catch (error) {
+    console.error(
+      `  ✗ Could not confirm the "${WEBSITE_PROPERTY}" property; leaving ${writes.length} site link(s) for the next sync:`,
+      error,
+    );
+    return outcome();
+  }
+
+  for (const { book, url } of batch) {
+    const ok = await updateNotionWebsiteUrl(
+      book.notionId,
+      book.title || book.id,
+      url,
+    );
+    if (ok) written++;
+  }
+  return outcome();
+}
+
+/**
+ * Set (or clear, with null) the `Website` link on one Notion page.
+ * Resolves false instead of throwing so one bad page never fails the sync.
+ */
+async function updateNotionWebsiteUrl(
+  pageId: string,
+  label: string,
+  websiteUrl: string | null,
+): Promise<boolean> {
+  const notion = new Client({ auth: env.NOTION_API_KEY });
+  try {
+    await fetchWithBackoff(() =>
+      notion.pages.update({
+        page_id: pageId,
+        properties: {
+          [WEBSITE_PROPERTY]: { type: "url", url: websiteUrl },
+        },
+      }),
+    );
+    console.log(
+      `  🔗 ${websiteUrl ? `Linked "${label}" to ${websiteUrl}` : `Cleared the site link on "${label}"`}`,
+    );
+    return true;
+  } catch (error) {
+    console.error(`  ✗ Failed to write the site link for "${label}":`, error);
+    return false;
   }
 }
