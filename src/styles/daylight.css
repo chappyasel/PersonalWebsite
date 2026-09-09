@@ -1244,12 +1244,10 @@
   --dl-gap: 0.375rem;
   margin-top: 0.375rem;
 }
-/* A "Note on …" dropdown is an aside: italic, the secondary ink, one size
-   down, so it reads as the author's remark on the rows above it rather than
-   as another row. The sync flags it (variant "note") from its title. */
+/* The sync flags "Note on …" dropdowns as asides. Use secondary ink and a
+   smaller size; italics come from the document's rich-text formatting. */
 .dl-prose [data-notion-toggle="note"] {
   color: hsl(var(--muted-foreground));
-  font-style: italic;
   font-size: 0.9375rem;
 }
 .dl-prose [data-notion-toggle="note"] .dl-prose {
