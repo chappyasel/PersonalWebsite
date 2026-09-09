@@ -41,7 +41,7 @@ export async function generateMetadata({
     const book = await getBookForOG(bookId);
 
     return {
-      title: `${book.title} ~ Book Notes`,
+      title: `${book.title} ~ Chappy's Book Notes`,
       description: `${book.author} ~ Read and reviewed by Chappy Asel`,
       keywords: [book.title, book.author, ...book.tags, "book notes"],
       openGraph: {

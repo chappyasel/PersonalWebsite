@@ -298,7 +298,7 @@ export default async function Image() {
             color: "hsl(220, 25%, 92%)",
           }}
         >
-          Weightlifting ~ Chappy Asel
+          Chappy&apos;s Weightlifting
         </div>
       ),
       { ...size },

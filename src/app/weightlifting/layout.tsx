@@ -14,7 +14,7 @@ const origin =
 export const metadata: Metadata = {
   metadataBase: new URL(origin),
   icons: siteIconMetadata(origin),
-  title: "Weightlifting ~ Chappy Asel",
+  title: "Chappy's Weightlifting",
   description: SITE_PAGES.weightlifting.description,
   keywords: [
     "weightlifting",
@@ -24,10 +24,10 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
-    title: "Weightlifting ~ Chappy Asel",
+    title: "Chappy's Weightlifting",
     description: SITE_PAGES.weightlifting.description,
     url: "/",
-    siteName: "Chappy's Weightlifting Log",
+    siteName: "Chappy's Weightlifting",
     locale: "en_US",
     type: "website",
   },
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@chappyasel",
     creator: "@chappyasel",
-    title: "Weightlifting ~ Chappy Asel",
+    title: "Chappy's Weightlifting",
     description: SITE_PAGES.weightlifting.description,
   },
   alternates: {

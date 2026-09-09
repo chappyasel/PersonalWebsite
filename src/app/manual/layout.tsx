@@ -14,10 +14,10 @@ const origin =
 export const metadata: Metadata = {
   metadataBase: new URL(origin),
   icons: siteIconMetadata(origin),
-  title: "Personal Operating Manual ~ Chappy Asel",
+  title: "Chappy's Personal Operating Manual",
   description: SITE_PAGES.manual.description,
   openGraph: {
-    title: "Personal Operating Manual ~ Chappy Asel",
+    title: "Chappy's Personal Operating Manual",
     description: SITE_PAGES.manual.description,
     url: "/",
     siteName: "Chappy's Personal Operating Manual",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@chappyasel",
     creator: "@chappyasel",
-    title: "Personal Operating Manual ~ Chappy Asel",
+    title: "Chappy's Personal Operating Manual",
     description: SITE_PAGES.manual.description,
     images: ["/images/manual-og.png"],
   },

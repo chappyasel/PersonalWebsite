@@ -9,10 +9,10 @@ import { SITE_PAGES } from "~/lib/site/pages";
 // path prefix the way Liar's Dice's do.
 export const metadata: Metadata = {
   icons: siteIconMetadata("/systems"),
-  title: "Personal Systems ~ Chappy Asel",
+  title: "Chappy's Personal Systems",
   description: SITE_PAGES.systems.description,
   openGraph: {
-    title: "Personal Systems ~ Chappy Asel",
+    title: "Chappy's Personal Systems",
     description: SITE_PAGES.systems.description,
     url: "/systems",
     siteName: "Chappy's Personal Systems",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@chappyasel",
     creator: "@chappyasel",
-    title: "Personal Systems ~ Chappy Asel",
+    title: "Chappy's Personal Systems",
     description: SITE_PAGES.systems.description,
     images: ["/images/systems-og.png"],
   },
