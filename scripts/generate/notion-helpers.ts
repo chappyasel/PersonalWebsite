@@ -356,9 +356,23 @@ export async function transformBlock(
         ? await transformBlocks(block._children, imagesDir, imagePathPrefix)
         : [];
       const calloutText = transformRichText(block.callout.rich_text);
+      // A short, bold title above a callout body is a section readers can
+      // share. Headings receive anchors and section OG previews downstream.
+      const hasTitle =
+        children.length > 0 &&
+        calloutText.length > 0 &&
+        calloutText.every((run: any) => !run.text.trim() || run.bold) &&
+        richTextToPlain(block.callout.rich_text).trim().length <= 100;
       const content =
         calloutText.length > 0
-          ? [{ type: "paragraph", content: calloutText }, ...children]
+          ? [
+              {
+                type: hasTitle ? "heading" : "paragraph",
+                ...(hasTitle ? { level: 3 } : {}),
+                content: calloutText,
+              },
+              ...children,
+            ]
           : children;
       return {
         type: "callout",
@@ -397,7 +411,12 @@ export async function transformBlock(
       const children = block._children
         ? await transformBlocks(block._children, imagesDir, imagePathPrefix)
         : [];
-      return { type: "_numbered_list_item", content, children };
+      return {
+        type: "_numbered_list_item",
+        content,
+        children,
+        start: block.numbered_list_item.list_start_index,
+      };
     }
 
     case "image": {
@@ -479,10 +498,14 @@ export async function transformBlocks(
         { type: "paragraph", content: transformed.content },
         ...transformed.children,
       ];
-      if (last && last.type === "numbered_list") {
+      if (last && last.type === "numbered_list" && transformed.start == null) {
         last.items.push(itemBlocks);
       } else {
-        result.push({ type: "numbered_list", items: [itemBlocks] });
+        result.push({
+          type: "numbered_list",
+          ...(transformed.start != null ? { start: transformed.start } : {}),
+          items: [itemBlocks],
+        });
       }
     } else {
       result.push(transformed);

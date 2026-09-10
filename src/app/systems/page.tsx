@@ -44,7 +44,7 @@ export default async function SystemsPage() {
     { id: section.id, label: section.title, emoji: section.icon },
     ...(section.layers ?? []).map((layer) => ({
       id: layer.id,
-      label: layer.title,
+      label: layer.id === "planning-review-cycles" ? "P & R Cycles" : layer.title,
       emoji: layer.icon,
       depth: 1 as const,
     })),

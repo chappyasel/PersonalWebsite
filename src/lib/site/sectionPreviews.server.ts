@@ -22,11 +22,12 @@ function buildPreviews(page: SectionSharePage): Map<string, SectionPreview> {
   const add = (id: string, label: string, isToggle = false) => {
     const [name = "", ...explanation] = label.split(/\s+→\s*/u);
     let title = name
-      .trim()
       .replace(
-        /^(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*|[#*0-9]\uFE0F?\u20E3)\s*/u,
+        /(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*|\p{Regional_Indicator}|[#*0-9]\uFE0F?\u20E3)/gu,
         "",
-      );
+      )
+      .replace(/\s+/gu, " ")
+      .trim();
     if (isToggle) title = title.replace(/\s*\([^)]*\)\s*$/, "");
     if (!title || previews.has(id)) return;
     previews.set(id, {

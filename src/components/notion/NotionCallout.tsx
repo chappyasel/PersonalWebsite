@@ -68,20 +68,24 @@ export default function NotionCallout({
 }) {
   const borderColor = calloutColorMap[color] ?? calloutColorMap.default!;
   const mapped = calloutIconMap[icon.trim()];
+  const title = content[0];
+  const isRapidRecap =
+    title?.type === "heading" && title.id === "dtw26-rapid-recap";
 
   return (
     <div
-      className={`flex gap-3 rounded-lg border ${borderColor} bg-muted/40 px-4 py-3.5`}
+      className={`flex gap-3 rounded-lg ${isRapidRecap ? "border-[3px] border-double dark:bg-muted/70" : "border"} ${borderColor} bg-muted/40 px-4 py-3.5`}
     >
-      {mapped ? (
-        <mapped.glyph
-          size={18}
-          weight="duotone"
-          className={`mt-0.5 shrink-0 ${mapped.className}`}
-        />
-      ) : (
-        <span className="mt-0.5 shrink-0 text-base leading-none">{icon}</span>
-      )}
+      {!isRapidRecap &&
+        (mapped ? (
+          <mapped.glyph
+            size={18}
+            weight="duotone"
+            className={`mt-0.5 shrink-0 ${mapped.className}`}
+          />
+        ) : (
+          <span className="mt-0.5 shrink-0 text-base leading-none">{icon}</span>
+        ))}
       <div className="dl-prose min-w-0 flex-1">
         {content.map((block, i) => (
           <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />

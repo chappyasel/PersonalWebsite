@@ -6,22 +6,25 @@ import { GET } from "./route";
 vi.mock("server-only", () => ({}));
 
 describe("section OG images", () => {
-  it("renders a PNG for a nested Systems section", async () => {
-    const response = await GET(
-      new Request(
-        "https://www.chappyasel.com/api/og/section?page=systems&section=deep-think-weeks",
-      ),
-    );
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/png");
-    expect(response.headers.get("cache-control")).toContain("s-maxage=86400");
-    const bytes = Buffer.from(await response.arrayBuffer());
-    expect(await sharp(bytes).metadata()).toMatchObject({
-      width: 1200,
-      height: 630,
-      format: "png",
-    });
-  });
+  it.each(["deep-think-weeks", "dtw26-rapid-recap"])(
+    "renders a PNG for %s",
+    async (section) => {
+      const response = await GET(
+        new Request(
+          `https://www.chappyasel.com/api/og/section?page=systems&section=${section}`,
+        ),
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/png");
+      expect(response.headers.get("cache-control")).toContain("s-maxage=86400");
+      const bytes = Buffer.from(await response.arrayBuffer());
+      expect(await sharp(bytes).metadata()).toMatchObject({
+        width: 1200,
+        height: 630,
+        format: "png",
+      });
+    },
+  );
 
   it.each([
     "page=systems&section=made-up",

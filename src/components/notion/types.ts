@@ -24,7 +24,7 @@ export type NotionBlock =
       id?: string;
     }
   | { type: "bulleted_list"; items: NotionBlock[][] }
-  | { type: "numbered_list"; items: NotionBlock[][] }
+  | { type: "numbered_list"; start?: number; items: NotionBlock[][] }
   | {
       type: "image";
       src: string;

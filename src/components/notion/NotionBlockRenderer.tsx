@@ -151,6 +151,7 @@ export default function NotionBlockRenderer({
     case "numbered_list":
       return (
         <ol
+          start={block.start}
           className="ml-4 list-decimal marker:text-muted-foreground/40"
           data-relaxed={relaxedLists ? "" : undefined}
         >
@@ -160,7 +161,7 @@ export default function NotionBlockRenderer({
               item={item}
               bookLookup={bookLookup}
               relaxedLists={relaxedLists}
-              marker={`${i + 1}.`}
+              marker={`${i + (block.start ?? 1)}.`}
             />
           ))}
         </ol>

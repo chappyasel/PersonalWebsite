@@ -22,6 +22,35 @@ function parent(origin: string, path: string): ResolvingMetadata {
 }
 
 describe("section share previews", () => {
+  it("gives the rapid recap its own share URL and preview image", async () => {
+    const id = "dtw26-rapid-recap";
+    const link = sectionShareUrl("https://www.chappyasel.com/systems", id);
+    expect(link).toBe(
+      "https://www.chappyasel.com/systems?section=dtw26-rapid-recap#dtw26-rapid-recap",
+    );
+    const metadata = await sectionMetadata(
+      "systems",
+      Promise.resolve({ section: new URL(link).searchParams.get("section")! }),
+      parent("https://www.chappyasel.com", "/systems"),
+    );
+    expect(metadata.title).toEqual({ absolute: "DTW26 RAPID RECAP" });
+    expect(metadata.openGraph).toMatchObject({
+      url: "https://www.chappyasel.com/systems?section=dtw26-rapid-recap",
+      images: [
+        {
+          url: "https://www.chappyasel.com/api/og/section?page=systems&section=dtw26-rapid-recap",
+          width: 1200,
+          height: 630,
+        },
+      ],
+    });
+    expect(metadata.twitter).toMatchObject({
+      title: "DTW26 RAPID RECAP",
+      card: "summary_large_image",
+      images: metadata.openGraph?.images,
+    });
+  });
+
   it("resolves Deep Think Weeks from the nested synced toggle", async () => {
     const section = getSectionPreview("systems", "deep-think-weeks");
     expect(section).toEqual({

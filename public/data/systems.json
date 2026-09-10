@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-09T21:43:00.000Z",
+  "lastUpdated": "2026-09-10T21:17:00.000Z",
   "intro": [
     {
       "type": "paragraph",
@@ -983,96 +983,148 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "My own version is an annual retreat "
+                      "text": "For at least one week annually, I"
                     },
                     {
-                      "text": "completely",
+                      "text": " completely divorce myself from normal work and routines to read + write + think deeply. No comms, meetings, social media (or really any media at all beyond books), or day-to-day work. "
+                    },
+                    {
+                      "text": "Inhabit an entirely different headspace achievable only through this commitment to prolonged separation",
                       "bold": true,
-                      "italic": true
+                      "italic": true,
+                      "color": "yellow_background"
                     },
                     {
-                      "text": " divorced from normal work and routines. I use this distance to audit the whole system, think big picture, gather feedback, make a few very important decisions, and return with new ideas + experiments to run. It’s also a great time to reset, recharge, and practice gratitude!"
+                      "text": ".",
+                      "italic": true
                     }
                   ]
                 },
                 {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Format:",
-                            "bold": true
-                          },
-                          {
-                            "text": " 7+ days away from everything… no comms, meetings, social media (or really any media at all beyond books), or day-to-day work. "
-                          },
-                          {
-                            "text": "Inhabit an entirely different headspace achievable only through this commitment to prolonged separation",
-                            "bold": true,
-                            "italic": true,
-                            "color": "yellow_background"
-                          },
-                          {
-                            "text": ".",
-                            "italic": true
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Sequence:",
-                            "bold": true
-                          },
-                          {
-                            "text": " Unstructured discovery → reflection → outside feedback → articulation + challenge → decisions → implementation"
-                          }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Sources:",
-                            "bold": true
-                          },
-                          {
-                            "text": " Weeklys + Dailys / decisions / health + work data / notes + books / feedback from family + friends + peers"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "bulleted_list",
-                        "items": [
-                          [
-                            {
-                              "type": "paragraph",
-                              "content": [
-                                {
-                                  "text": "AI:",
-                                  "bold": true
-                                },
-                                {
-                                  "text": " Retrieve / compare / inventory / challenge / compress; values + commitments + final language stay mine"
-                                }
-                              ]
-                            }
-                          ]
-                        ]
-                      }
-                    ]
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I use this distance to think about the past and the future more clearly, audit the whole system (above and below), gather feedback, make a few very important decisions, and return with new ideas and experiments to run. It’s also a great time to reset + recharge + practice gratitude!"
+                    }
+                  ]
+                },
+                {
+                  "type": "callout",
+                  "icon": "💡",
+                  "color": "red_background",
+                  "content": [
+                    {
+                      "type": "heading",
+                      "level": 3,
+                      "content": [
+                        {
+                          "text": "♾️ DTW26 RAPID RECAP ♾️",
+                          "bold": true,
+                          "color": "default_background"
+                        }
+                      ],
+                      "id": "dtw26-rapid-recap"
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I dedicated 130+ hours across 15 days (Aug 25th-Sep 8th ‘26) to Deep Think Week this year. "
+                        },
+                        {
+                          "text": "See above and below for context.",
+                          "bold": true
+                        },
+                        {
+                          "text": " I’ll do a full writeup / blog post in the coming days and will link it here but a rapid recap will have to suffice in the meantime…"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "This one felt particularly consequential. With AGI on the near-term horizon, I wanted to fully step outside the bubble I’m so entirely immersed in the other 350 days of the year and regain some perspective. My info diet was almost entirely books about the history of computers + AI and about life + career (notes at "
+                        },
+                        {
+                          "text": "https://books.chappyasel.com/",
+                          "link": "https://books.chappyasel.com/"
+                        },
+                        {
+                          "text": ")."
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I’ve never before had this much uninterrupted time + space to think this intensively about the future + my life and work. I suspect very few are ever fortunate enough to! I’ll save most of what came out of those 130+h for the full writeup but here’s my most important conclusion…"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "If you’re reading this, you’re probably at / near the frontier of all this too. We are living through a rare period – greater than the internet and the industrial revolution – when a relatively small number of people and ideas will disproportionately shape our shared future."
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "This is no time to think small or to settle!  Nor do I intend to."
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "At the same time, the last few months have given me plenty of reasons for humility. I’ve made miscalculations, pursued false starts, overestimated some things, underestimated others, and spent important time moving in directions that ultimately weren’t right. It revealed weaknesses in how I think, work, and lead. It’s uncomfortable, but also one of the most valuable things this period has given me. Ambition has a way of exposing the places you need to grow!"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I’m leaving DTW26 with more questions and considerably less certainty in some  previous answers BUT no less conviction about the scale of what’s worth attempting! If anything, I’m more invigorated than ever by it!"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I have the extraordinary privilege of refusing to compromise on spending my life working towards things I genuinely believe could matter at the scale of our shared future. I expect many more wrong turns, failed experiments, and hard lessons. But I would like to stay on that course."
+                        }
+                      ]
+                    },
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Rome was not built in a day, and neither am I or the work I hope to do. Onwards and upwards!"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "The process…",
+                      "bold": true
+                    }
                   ]
                 },
                 {
                   "type": "numbered_list",
+                  "start": 0,
                   "items": [
                     [
                       {
@@ -1195,7 +1247,7 @@
                             "bold": true
                           },
                           {
-                            "text": ": Zoom into specific questions / problems / opportunities"
+                            "text": ": Zoom into specific questions / problems / opportunities → decisions"
                           }
                         ]
                       }
@@ -1209,7 +1261,21 @@
                             "bold": true
                           },
                           {
-                            "text": ": Critique the process itself / durable outputs"
+                            "text": ": Critique the process itself / public outputs"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Integration",
+                            "bold": true
+                          },
+                          {
+                            "text": ": Implement IRL!"
                           }
                         ]
                       }
