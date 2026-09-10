@@ -1235,8 +1235,17 @@
    wrapper clips at the column's edge, so a two-digit marker ("10.") in the
    renderer's 1rem margin lost its first digit (the twelve Considerations).
    Lists that reach ten get the room; shorter lists keep their alignment. */
-.dl-prose ol:has(> li:nth-child(10)) {
+.dl-prose :where(ol:has(> li:nth-child(10))) {
   margin-left: 1.75rem;
+}
+/* Dropdown bodies already have a left gutter for their caret. Keep numbered
+   steps aligned with sibling bullets, including lists with two-digit markers. */
+.dl-prose [data-notion-toggle] ol {
+  margin-left: 1rem;
+}
+/* Make child lists visibly subordinate to their parent item. */
+.dl-prose li > .dl-prose > :is(ul, ol) {
+  margin-left: 1.5rem;
 }
 /* The tail of a list item (a nested list, a paragraph under a bullet) keeps
    the row gap. */
