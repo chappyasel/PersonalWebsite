@@ -35,6 +35,15 @@ const fixture = {
   setPoints: [],
   importedAt: "2020-01-01",
   sourceModifiedAt: "2020-01-01",
+  historicalContext: {
+    anchor: {
+      date: "2019-01-01",
+      bodyFatLow: 20,
+      bodyFatHigh: 30,
+      note: "Synthetic private recollection",
+    },
+    strength: [{ date: "2019-01-01", lift: "Synthetic lift", value: 100 }],
+  },
   phases: [],
   weeks: [],
   scans: [],

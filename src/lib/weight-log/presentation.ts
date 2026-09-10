@@ -68,17 +68,20 @@ export function bodyFatAxis(
   points: WeightPoint[],
   includeProjection: boolean,
   historicalRanges: [number, number][] = [],
+  includeRecorded = true,
 ) {
   let maximum = 4;
   for (const [, upper] of historicalRanges) {
     if (Number.isFinite(upper)) maximum = Math.max(maximum, upper);
   }
   for (const point of points) {
-    const values = [
-      point.bodyFatMeasured,
-      point.bodyFatInterpolated,
-      point.bodyFatExtrapolated,
-    ];
+    const values = includeRecorded
+      ? [
+          point.bodyFatMeasured,
+          point.bodyFatInterpolated,
+          point.bodyFatExtrapolated,
+        ]
+      : [];
     if (includeProjection) values.push(point.bodyFatProjected);
     for (const value of values) {
       if (value !== null && Number.isFinite(value))

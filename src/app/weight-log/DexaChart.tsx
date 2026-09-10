@@ -1,10 +1,18 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { memo, useId, useMemo, useState } from "react";
 
 import { buildDexaAnalysis } from "~/lib/weight-log/dexa";
 import { projectDexaBulk } from "~/lib/weight-log/dexa-projection";
 import type { WeightLog } from "~/lib/weight-log/schema";
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "~/components/ui/accordion";
+import { Checkbox } from "~/components/ui/checkbox";
 
 const palette = {
   bulk: "#f87171",
@@ -36,7 +44,7 @@ const ticks = ([min, max]: [number, number]) => {
   );
 };
 
-export function DexaChart({
+export const DexaChart = memo(function DexaChart({
   scans,
   start,
   end,
@@ -102,19 +110,11 @@ export function DexaChart({
 
   return (
     <div className="mt-5">
-      <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-        <span>More lean mass for bodyweight ↑</span>
-        <span className="tabular-nums">
-          {points.length} of {scans.length} scans · Full-history R²{" "}
-          {analysis.rSquared?.toFixed(2) ?? "unavailable"}
-        </span>
-      </div>
       <label className="mt-3 flex w-fit cursor-pointer items-center gap-2 text-xs">
-        <input
-          type="checkbox"
+        <Checkbox
+          aria-label="Project current bulk to 240 lb · 95% ribbon"
           checked={showProjection}
-          onChange={(event) => setShowProjection(event.target.checked)}
-          className="accent-violet-500"
+          onCheckedChange={(checked) => setShowProjection(checked === true)}
         />
         Project current bulk to 240 lb · 95% ribbon
       </label>
@@ -489,142 +489,181 @@ export function DexaChart({
         </span>
         <span>− − Full-history trend</span>
         <span>··· Latest two scans</span>
-        <span>Vertical bars = distance from trend</span>
         <span>
           <span style={{ color: palette.latest }}>●</span> Latest scan
         </span>
       </div>
       {projection && (
-        <section
+        <Accordion
+          type="single"
+          collapsible
           aria-label="Bulk scenarios at 240 lb"
-          className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4"
+          className="mt-6"
         >
-          <h3 className="text-sm font-medium">
-            Current bulk · Scenarios at 240 lb
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            From the {dateLabel(projection.anchor.date)} scan · 95% model
-            prediction interval
-          </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                label: "Worst case",
-                percentile: "2.5th percentile",
-                lean: projection.lower,
-              },
-              {
-                label: "Expected case",
-                percentile: "Median",
-                lean: projection.expected,
-              },
-              {
-                label: "Best case",
-                percentile: "97.5th percentile",
-                lean: projection.upper,
-              },
-            ].map((scenario) => (
-              <div key={scenario.label} className="tabular-nums">
-                <p className="text-xs font-medium">
-                  {scenario.label}{" "}
-                  <span className="font-normal text-muted-foreground">
-                    · {scenario.percentile}
-                  </span>
-                </p>
-                <p className="mt-1 text-lg font-medium">
-                  {scenario.lean.toFixed(1)}{" "}
-                  <span className="text-xs font-normal">lb lean</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {signed(scenario.lean - projection.anchor.leanMass)} lb lean
-                  since scan
-                  {analysis.boneMass !== null
-                    ? ` · ${(100 * (1 - (scenario.lean + analysis.boneMass) / projection.target)).toFixed(1)}% body fat`
-                    : ""}
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            The ribbon contains the middle 95% of modeled outcomes. Best and
-            worst are percentile scenarios, not absolute limits. Only{" "}
-            {projection.intervals} usable bulk intervals in {projection.blocks}{" "}
-            scan groups support this estimate; actual 95% coverage has not been
-            validated.
-          </p>
-          <details className="mt-3 text-xs text-muted-foreground">
-            <summary className="cursor-pointer">Projection assumptions</summary>
-            <p className="mt-2 leading-relaxed">
-              Lean mass starts at the latest scan and changes by a constant
-              share of each pound gained. We resample whole groups of bulk
-              intervals that share a scan, then add the variation of one future
-              bulk. The expected path is the median of{" "}
-              {projection.simulations.toLocaleString()} deterministic
-              simulations. Date filters never refit the model.
-            </p>
-            <p className="mt-2 leading-relaxed">
-              Usable intervals are consecutive scans with at least 2 lb gained
-              and no more than 365 days between them, with lean mass recorded at
-              both ends. {projection.excluded} gain intervals were excluded.
-              Observed scan variation is retained; there is no additional
-              measurement-error model. The ribbon conditions on the latest scan
-              being exact and narrows to zero there. It projects lean soft
-              tissue, including water, rather than muscle alone. Body fat holds
-              inferred bone mineral content constant.
-            </p>
-            <p className="mt-2 leading-relaxed">
-              A future bulk needs a{" "}
-              <a
-                className="underline"
-                href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm"
-                target="_blank"
-                rel="noreferrer"
-              >
+          <AccordionItem value="details" className="border-0">
+            <AccordionTrigger className="py-2 text-sm hover:no-underline">
+              Current bulk · Scenarios at 240 lb
+            </AccordionTrigger>
+            <AccordionContent>
+              <p className="mt-1 text-xs text-muted-foreground">
+                From the {dateLabel(projection.anchor.date)} scan · 95% model
                 prediction interval
-              </a>
-              , which includes variation in future outcomes as well as
-              uncertainty in the fitted average. These empirical bounds assume
-              the next bulk resembles past bulks.
-            </p>
-          </details>
-        </section>
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                {[
+                  {
+                    label: "Worst case",
+                    percentile: "2.5th percentile",
+                    lean: projection.lower,
+                  },
+                  {
+                    label: "Expected case",
+                    percentile: "Median",
+                    lean: projection.expected,
+                  },
+                  {
+                    label: "Best case",
+                    percentile: "97.5th percentile",
+                    lean: projection.upper,
+                  },
+                ].map((scenario) => (
+                  <div key={scenario.label} className="tabular-nums">
+                    <p className="text-xs font-medium">
+                      {scenario.label}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        · {scenario.percentile}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-lg font-medium">
+                      {scenario.lean.toFixed(1)}{" "}
+                      <span className="text-xs font-normal">lb lean</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {signed(scenario.lean - projection.anchor.leanMass)} lb
+                      lean since scan
+                      {analysis.boneMass !== null
+                        ? ` · ${(100 * (1 - (scenario.lean + analysis.boneMass) / projection.target)).toFixed(1)}% body fat`
+                        : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                The ribbon contains the middle 95% of modeled outcomes. Best and
+                worst are percentile scenarios, not absolute limits. Only{" "}
+                {projection.intervals} usable bulk intervals in{" "}
+                {projection.blocks} scan groups support this estimate; actual
+                95% coverage has not been validated.
+              </p>
+              <Accordion
+                type="single"
+                collapsible
+                className="mt-3 text-xs text-muted-foreground"
+              >
+                <AccordionItem value="details" className="border-0">
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                    Projection assumptions
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <p className="mt-2 leading-relaxed">
+                      Lean mass starts at the latest scan and changes by a
+                      constant share of each pound gained. We resample whole
+                      groups of bulk intervals that share a scan, then add the
+                      variation of one future bulk. The expected path is the
+                      median of {projection.simulations.toLocaleString()}{" "}
+                      deterministic simulations. Date filters never refit the
+                      model.
+                    </p>
+                    <p className="mt-2 leading-relaxed">
+                      Usable intervals are consecutive scans with at least 2 lb
+                      gained and no more than 365 days between them, with lean
+                      mass recorded at both ends. {projection.excluded} gain
+                      intervals were excluded. Observed scan variation is
+                      retained; there is no additional measurement-error model.
+                      The ribbon conditions on the latest scan being exact and
+                      narrows to zero there. It projects lean soft tissue,
+                      including water, rather than muscle alone. Body fat holds
+                      inferred bone mineral content constant.
+                    </p>
+                    <p className="mt-2 leading-relaxed">
+                      A future bulk needs a{" "}
+                      <a
+                        className="underline"
+                        href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        prediction interval
+                      </a>
+                      , which includes variation in future outcomes as well as
+                      uncertainty in the fitted average. These empirical bounds
+                      assume the next bulk resembles past bulks.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
-      <div
-        className="mt-4 rounded-xl bg-neutral-500/5 p-4 text-sm tabular-nums"
-        aria-live="polite"
-        aria-atomic="true"
+      <Accordion
+        type="single"
+        collapsible
+        className="mt-4 text-sm tabular-nums"
       >
-        <p className="font-medium">
-          Scan {selected.number} · {dateLabel(selected.date)}
-          {selected.date === analysis.latestDate ? " · Latest" : ""}
-        </p>
-        <p className="mt-1 text-muted-foreground">
-          {selected.weight.toFixed(1)} lb bodyweight ·{" "}
-          {selected.leanMass.toFixed(1)} lb lean mass
-          {selected.residual !== null
-            ? ` · ${signed(selected.residual)} lb vs trend`
-            : ""}
-        </p>
-        {selected.efficiency !== null && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {selected.direction === "bulk" ? "Bulk" : "Cut"} efficiency{" "}
-            {Math.round(selected.efficiency * 100)}% ·{" "}
-            {selected.direction === "bulk"
-              ? "Lean mass gained / weight gained"
-              : "1 − lean mass lost / weight lost"}{" "}
-            since the preceding scan.
-          </p>
-        )}
-      </div>
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        Numbers follow scan order. Select a point for details. Arrows reflect
-        weight change between scans.
-        {analysis.boneMass !== null
-          ? ` Diagonal lines show body fat in 1 percentage-point steps, holding inferred bone mineral content at ${analysis.boneMass.toFixed(1)} lb from the latest scan’s weight minus lean and fat mass.`
-          : " Body-fat contours are unavailable without complete mass components in the latest scan."}{" "}
-        Lean soft tissue excludes bone and includes water. Efficiency describes
-        the scan interval and can fall outside 0–100%.
-      </p>
+        <AccordionItem value="details" className="border-0">
+          <AccordionTrigger className="py-2 text-sm hover:no-underline">
+            Scan {selected.number} · {dateLabel(selected.date)}
+            {selected.date === analysis.latestDate ? " · Latest" : ""}
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="mt-1 text-muted-foreground">
+              {selected.weight.toFixed(1)} lb bodyweight ·{" "}
+              {selected.leanMass.toFixed(1)} lb lean mass
+              {selected.residual !== null
+                ? ` · ${signed(selected.residual)} lb vs trend`
+                : ""}
+            </p>
+            {selected.efficiency !== null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selected.direction === "bulk" ? "Bulk" : "Cut"} efficiency{" "}
+                {Math.round(selected.efficiency * 100)}% ·{" "}
+                {selected.direction === "bulk"
+                  ? "Lean mass gained / weight gained"
+                  : "1 − lean mass lost / weight lost"}{" "}
+                since the preceding scan.
+              </p>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+      <Accordion
+        type="single"
+        collapsible
+        className="mt-4 text-xs text-muted-foreground"
+      >
+        <AccordionItem value="details" className="border-0">
+          <AccordionTrigger className="py-2 text-sm hover:no-underline">
+            About this chart
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="mt-3 tabular-nums">
+              {points.length} of {scans.length} scans · Full-history R²{" "}
+              {analysis.rSquared?.toFixed(2) ?? "unavailable"}
+            </p>
+            <p className="mt-3 leading-relaxed">
+              Numbers follow scan order. Vertical bars show distance from the
+              fitted trend. Select a point for details. Arrows reflect weight
+              change between scans.
+              {analysis.boneMass !== null
+                ? ` Diagonal lines show body fat in 1 percentage-point steps, holding inferred bone mineral content at ${analysis.boneMass.toFixed(1)} lb from the latest scan’s weight minus lean and fat mass.`
+                : " Body-fat contours are unavailable without complete mass components in the latest scan."}{" "}
+              Lean soft tissue excludes bone and includes water. Efficiency
+              describes the scan interval and can fall outside 0–100%.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
-}
+});

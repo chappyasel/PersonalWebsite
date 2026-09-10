@@ -39,6 +39,7 @@ describe("DEXA chart selection", () => {
     const scanTwo = screen.getByRole("button", { name: /Scan 2,/ });
     fireEvent.focus(scanTwo);
     expect(scanTwo.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: /^Scan 2 ·/ }));
     expect(screen.getByText(/Bulk efficiency 50%/)).toBeTruthy();
     rerender(<DexaChart scans={scans} start="2020-03-01" end="2020-03-01" />);
     expect(screen.queryByRole("button", { name: /Scan 2,/ })).toBeNull();
@@ -48,6 +49,7 @@ describe("DEXA chart selection", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(screen.getByText(/Cut efficiency 70%/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "About this chart" }));
     expect(screen.getByText(/1 of 3 scans/)).toBeTruthy();
   });
 
@@ -65,6 +67,7 @@ describe("DEXA chart selection", () => {
     );
     expect(screen.getByRole("button", { name: /Scan 1,/ })).toBeTruthy();
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
+    fireEvent.click(screen.getByRole("button", { name: "About this chart" }));
     expect(screen.getByText(/R² unavailable/)).toBeTruthy();
   });
 });
@@ -89,27 +92,32 @@ describe("DEXA bulk ribbon", () => {
     const { container, rerender } = render(
       <DexaChart scans={history} start="2020-01-01" end="2020-06-01" />,
     );
-    expect(
-      screen.getByRole("region", { name: "Bulk scenarios at 240 lb" }),
-    ).toBeTruthy();
+    expect(screen.getByLabelText("Bulk scenarios at 240 lb")).toBeTruthy();
+    const scenarios = screen.getByRole("button", {
+      name: "Current bulk · Scenarios at 240 lb",
+    });
+    expect(scenarios.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(screen.getByText("Current bulk · Scenarios at 240 lb"));
+    expect(scenarios.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("166.0")).toBeTruthy();
     expect(container.querySelector("polygon")).not.toBeNull();
     fireEvent.click(
       screen.getByRole("checkbox", { name: /Project current bulk/ }),
     );
     expect(container.querySelector("polygon")).toBeNull();
-    expect(
-      screen.queryByRole("region", { name: "Bulk scenarios at 240 lb" }),
-    ).toBeNull();
+    expect(screen.queryByLabelText("Bulk scenarios at 240 lb")).toBeNull();
     fireEvent.click(
       screen.getByRole("checkbox", { name: /Project current bulk/ }),
     );
     rerender(<DexaChart scans={history} start="2020-01-01" end="2020-04-01" />);
-    expect(
-      screen.queryByRole("region", { name: "Bulk scenarios at 240 lb" }),
-    ).toBeNull();
+    expect(screen.queryByLabelText("Bulk scenarios at 240 lb")).toBeNull();
     expect(screen.getByText(/Include the latest DEXA scan/)).toBeTruthy();
     rerender(<DexaChart scans={history} start="2020-06-01" end="2020-06-01" />);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Current bulk · Scenarios at 240 lb",
+      }),
+    );
     expect(screen.getByText("166.0")).toBeTruthy();
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });

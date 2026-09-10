@@ -13,8 +13,10 @@ export default function WeightLogLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="ph-no-capture ph-mask mx-auto max-w-7xl px-4 py-10 font-sans sm:px-8 sm:py-14">
-      {children}
-    </main>
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-800">
+      <main className="ph-no-capture ph-mask mx-auto max-w-7xl p-6 font-sans md:p-8">
+        {children}
+      </main>
+    </div>
   );
 }

@@ -3,10 +3,33 @@ import { z } from "zod";
 const date = z.iso.date();
 const weight = z.number().positive().max(1500).nullable();
 
+export const historicalContextSchema = z.object({
+  anchor: z
+    .object({
+      date,
+      bodyFatLow: z.number().min(0).max(100),
+      bodyFatHigh: z.number().min(0).max(100),
+      note: z.string().max(1000),
+    })
+    .refine((anchor) => anchor.bodyFatLow <= anchor.bodyFatHigh),
+  strength: z
+    .array(
+      z.object({
+        date,
+        lift: z.string().max(100),
+        value: z.number().positive().max(3000),
+      }),
+    )
+    .max(15000),
+});
+
+export type HistoricalContext = z.infer<typeof historicalContextSchema>;
+
 export const weightLogSchema = z.object({
   version: z.literal(1),
   importedAt: z.string(),
   sourceModifiedAt: z.string(),
+  historicalContext: historicalContextSchema.optional(),
   setPoints: z
     .array(
       z.object({ label: z.string(), weight: z.number().positive().max(1500) }),

@@ -3,7 +3,10 @@ import {
   decryptWeightLog,
   encryptWeightLog,
 } from "../../src/lib/weight-log/encryption";
-import { weightLogSchema } from "../../src/lib/weight-log/schema";
+import {
+  historicalContextSchema,
+  weightLogSchema,
+} from "../../src/lib/weight-log/schema";
 import {
   GetObjectCommand,
   PutObjectCommand,
@@ -49,6 +52,19 @@ try {
       if (raw.length > 5_000_000) throw new Error("Snapshot too large");
     }
     const snapshot = weightLogSchema.parse(JSON.parse(raw));
+    // Recollections and strength summaries have a separate private source;
+    // refreshing the workbook must not silently erase them.
+    try {
+      const context = await readFile("data/weight-log/history-context.enc");
+      snapshot.historicalContext = historicalContextSchema.parse(
+        JSON.parse(decryptWeightLog(context, secret)),
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error && error.code === "ENOENT")
+      )
+        throw error;
+    }
     const encrypted = encryptWeightLog(JSON.stringify(snapshot), secret);
     await mkdir("data/weight-log", { recursive: true, mode: 0o700 });
     await writeFile(localFile, encrypted, { mode: 0o600 });

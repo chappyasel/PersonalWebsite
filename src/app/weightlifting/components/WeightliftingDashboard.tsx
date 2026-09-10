@@ -3,7 +3,6 @@
 import { wlSearchParams } from "../lib/searchParams";
 import {
   CalendarDotsIcon,
-  CaretDownIcon,
   ChartBarIcon,
   ChartLineUpIcon,
   HouseLineIcon,
@@ -13,9 +12,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useQueryState } from "nuqs";
-import { type ReactNode, useId, useState } from "react";
+import { useState } from "react";
 
 import { devBaseUrl } from "~/lib/util";
+
+import { CollapsibleSection } from "~/components/ui/collapsible-section";
 
 import { PersonalRecords } from "./PersonalRecords";
 import { StatsCards } from "./StatsCards";
@@ -23,55 +24,6 @@ import { StrengthProgressionChart } from "./StrengthProgressionChart";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { TrainingOverYears } from "./TrainingOverYears";
 import { YearCalendar } from "./YearCalendar";
-
-function CollapsibleSection({
-  icon,
-  title,
-  defaultOpen = true,
-  children,
-}: {
-  icon: ReactNode;
-  title: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const contentId = useId();
-
-  return (
-    <section>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        aria-expanded={isOpen}
-        aria-controls={contentId}
-        className="mb-4 flex w-full items-center gap-2 font-rounded text-lg font-medium text-neutral-700 transition-opacity hover:opacity-80 dark:text-neutral-200"
-      >
-        {icon}
-        <span>{title}</span>
-        <CaretDownIcon
-          className={`ml-auto h-4 w-4 text-neutral-400 transition-transform dark:text-neutral-500 ${isOpen ? "rotate-180" : ""}`}
-          weight="bold"
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            id={contentId}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            style={{ overflow: "hidden" }}
-          >
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </section>
-  );
-}
 
 export function WeightliftingDashboard() {
   const [isHovered, setIsHovered] = useState(false);

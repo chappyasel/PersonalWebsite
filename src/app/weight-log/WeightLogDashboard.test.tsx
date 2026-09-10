@@ -5,7 +5,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { type ReactElement, cloneElement } from "react";
 import type * as Recharts from "recharts";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
@@ -14,15 +16,26 @@ import type { WeightLog } from "~/lib/weight-log/schema";
 
 import { WeightLogDashboard } from "./WeightLogDashboard";
 
+const chartRenders = vi.hoisted(() => ({ count: 0 }));
+
 vi.mock("recharts", async (importOriginal) => ({
   ...(await importOriginal<typeof Recharts>()),
-  ResponsiveContainer: ({ children }: { children: ReactElement }) =>
-    cloneElement(children as ReactElement<{ width: number; height: number }>, {
-      width: 800,
-      height: 450,
-    }),
+  ResponsiveContainer: ({ children }: { children: ReactElement }) => {
+    chartRenders.count++;
+    return cloneElement(
+      children as ReactElement<{ width: number; height: number }>,
+      {
+        width: 800,
+        height: 450,
+      },
+    );
+  },
 }));
-vi.mock("./DexaChart", () => ({ DexaChart: () => null }));
+vi.mock("./DexaChart", () => ({
+  DexaChart: ({ start, end }: { start: string; end: string }) => (
+    <div data-testid="dexa-chart" data-start={start} data-end={end} />
+  ),
+}));
 vi.mock("./WeightHistoryCalendar", () => ({
   WeightHistoryCalendar: () => null,
 }));
@@ -85,13 +98,156 @@ const log: WeightLog = {
   ],
 };
 
+function renderTrendOnly(data: WeightLog) {
+  const view = render(<WeightLogDashboard log={data} />);
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  for (const name of [
+    "Future weight plan",
+    "Body fat %",
+    "Early body fat · exploratory",
+    "Future body fat plan",
+  ]) {
+    fireEvent.click(screen.getByRole("checkbox", { name }));
+  }
+  fireEvent.click(screen.getByRole("button", { name: "Close layers" }));
+  return view;
+}
+
 function bodyFatOnly() {
-  const view = render(<WeightLogDashboard log={log} />);
+  const view = renderTrendOnly(log);
   fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: "7-day trend" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "Body fat %" }));
   return view.container;
 }
+
+it("shows history length and import freshness at the top, with colored scan data collapsed initially", () => {
+  const { container } = render(
+    <WeightLogDashboard
+      log={{
+        ...log,
+        weeks: ["2018-09-24", "2026-09-07"].map((date) => ({
+          ...log.weeks[0]!,
+          date,
+          weights: [null, null, null, 100, null, null, null],
+        })),
+        scans: log.scans.map((scan, index) =>
+          index === 0 ? { ...scan, leanMass: null } : scan,
+        ),
+      }}
+    />,
+  );
+  expect(screen.getByText(/2 weigh-ins · 8.0 years/)).toBeTruthy();
+  expect(screen.getByText(/Last import/).closest("header")).toBeTruthy();
+  expect(screen.queryByText("Private · Read only")).toBeNull();
+  expect(container.querySelector('[id$="-zoom-help"]')?.className).toBe(
+    "sr-only",
+  );
+  const summary = screen.getByText(/Scan data ·/);
+  expect(summary.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(summary);
+  const rows = within(
+    screen.getByRole("table", { name: "DEXA scan measurements" }),
+  ).getAllByRole("row");
+  const first = within(rows[1]!).getAllByRole("cell");
+  expect(first[0]!.style.backgroundColor).toBe("rgb(248, 250, 252)");
+  expect(first[1]!.textContent).toBe("—");
+  expect(first[1]!.style.backgroundColor).toBe("");
+  expect(first[3]!.style.backgroundColor).toBe("rgb(37, 99, 235)");
+  expect(within(rows[2]!).getAllByRole("cell")[3]!.style.backgroundColor).toBe(
+    "rgb(220, 38, 38)",
+  );
+});
+
+it("keeps filters inside the bodyweight chart and leaves DEXA history unchanged by phase or date selection", async () => {
+  render(
+    <WeightLogDashboard
+      log={{ ...log, phases: [{ ...log.phases[0]!, end: "2020-01-07" }] }}
+    />,
+  );
+  const chart = screen.getByRole("region", { name: "Bodyweight over time" });
+  const phase = within(chart).getByRole("combobox", { name: "Phase" });
+  expect(within(chart).getByLabelText("From")).toBeTruthy();
+  expect(screen.queryByText("Latest in view")).toBeNull();
+  expect(screen.queryByText("Change in view")).toBeNull();
+  expect(screen.queryByText("Weigh-ins in view")).toBeNull();
+  expect(screen.queryByText("Latest weekly average")).toBeNull();
+  fireEvent.click(screen.getByText(/Scan data ·/));
+  const table = screen.getByRole("table", { name: "DEXA scan measurements" });
+  expect(within(table).getAllByRole("row")).toHaveLength(4);
+  fireEvent.keyDown(phase, { key: "Enter" });
+  fireEvent.click(screen.getByRole("option", { name: "Cut · Test" }));
+  await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+  expect(screen.getByLabelText<HTMLInputElement>("To").value).toBe(
+    "2020-01-07",
+  );
+  expect(within(table).getAllByRole("row")).toHaveLength(4);
+  expect(screen.getByTestId("dexa-chart").getAttribute("data-start")).toBe(
+    "2020-01-06",
+  );
+  expect(screen.getByTestId("dexa-chart").getAttribute("data-end")).toBe(
+    "2020-01-10",
+  );
+  fireEvent.change(screen.getByLabelText("From"), {
+    target: { value: "2020-01-07" },
+  });
+  expect(within(table).getAllByRole("row")).toHaveLength(4);
+  expect(screen.getByTestId("dexa-chart").getAttribute("data-start")).toBe(
+    "2020-01-06",
+  );
+});
+
+it("groups weight and body-fat layers and toggles each future plan independently", () => {
+  const { container } = renderTrendOnly(log);
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  const weight = screen.getByRole("group", { name: "Weight" });
+  const fat = screen.getByRole("group", { name: "Body fat" });
+  const weightPlan = within(weight).getByRole("checkbox", {
+    name: "Future weight plan",
+  });
+  const fatPlan = within(fat).getByRole("checkbox", {
+    name: "Future body fat plan",
+  });
+  expect(
+    within(weight).queryByRole("checkbox", { name: "Future body fat plan" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("checkbox", { name: "7-day trend" }));
+  fireEvent.click(fatPlan);
+  expect(
+    container.querySelector(".future-body-fat-plan .recharts-line-curve"),
+  ).toBeTruthy();
+  expect(container.querySelector(".future-weight-plan")).toBeNull();
+  expect(
+    screen
+      .getByRole("checkbox", { name: "Body fat %" })
+      .getAttribute("aria-checked"),
+  ).toBe("false");
+  expect(
+    container.querySelectorAll(".body-fat-grid-major").length,
+  ).toBeGreaterThan(0);
+  expect(container.querySelectorAll(".weight-grid-major")).toHaveLength(0);
+  fireEvent.click(weightPlan);
+  const weightLine = container.querySelector(
+    ".future-weight-plan .recharts-line-curve",
+  )!;
+  const fatLine = container.querySelector(
+    ".future-body-fat-plan .recharts-line-curve",
+  )!;
+  expect(weightLine.getAttribute("stroke-dasharray")).toBe("14 5");
+  expect(fatLine.getAttribute("stroke-dasharray")).toBe("1 5");
+  expect(fatLine.getAttribute("stroke-linecap")).toBe("round");
+  fireEvent.click(fatPlan);
+  expect(container.querySelector(".future-body-fat-plan")).toBeNull();
+  expect(
+    container.querySelector(".future-weight-plan .recharts-line-curve"),
+  ).toBeTruthy();
+  expect(container.querySelectorAll(".body-fat-grid-major")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  const active = container.querySelector('[aria-label="Active layers"]')!;
+  expect(active.textContent).toContain("Future weight plan");
+  expect(active.textContent).not.toContain("left axis");
+  expect(active.textContent).not.toContain("Body fat");
+});
 
 it("uses a 4% floor, 1% gridlines, and 4% major lines, excluding hidden projections from its ceiling", () => {
   const container = bodyFatOnly();
@@ -114,24 +270,39 @@ it("does not draw DEXA markers for null readings along the chart's top edge", ()
   expect([...dots].every((dot) => dot.hasAttribute("cy"))).toBe(true);
 });
 
-it("opens with only the seven-day trend and lets the user add the annual average", () => {
+it("opens with the trend, future weight and all three purple body-fat layers", () => {
   const { container } = render(<WeightLogDashboard log={log} />);
   expect(screen.queryByRole("checkbox")).toBeNull();
-  expect(screen.getByText("About this chart").closest("details")?.open).toBe(
-    false,
-  );
-  expect(container.querySelectorAll(".recharts-line-curve")).toHaveLength(1);
-  expect(container.querySelectorAll(".weight-grid-major")).toHaveLength(3);
-  expect(container.querySelectorAll(".weight-grid-minor")).toHaveLength(8);
+  expect(
+    screen
+      .getByRole("button", { name: "About this chart" })
+      .getAttribute("aria-expanded"),
+  ).toBe("false");
+  expect(
+    container
+      .querySelector(".future-weight-plan .recharts-line-curve")
+      ?.getAttribute("stroke"),
+  ).toBe("#2563eb");
+  expect(
+    container
+      .querySelector(".future-body-fat-plan .recharts-line-curve")
+      ?.getAttribute("stroke"),
+  ).toBe("#a78bfa");
   fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
   expect(
     screen
       .getAllByRole("checkbox")
-      .filter((input) => (input as HTMLInputElement).checked),
-  ).toHaveLength(1);
+      .filter((input) => input.getAttribute("aria-checked") === "true")
+      .map((input) => input.getAttribute("aria-label")),
+  ).toEqual([
+    "7-day trend",
+    "Future weight plan",
+    "Body fat %",
+    "Early body fat · exploratory",
+    "Future body fat plan",
+  ]);
   fireEvent.click(screen.getByRole("checkbox", { name: "12-month average" }));
-  expect(container.querySelectorAll(".recharts-line-curve")).toHaveLength(2);
-  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Close layers" }));
   expect(screen.queryByRole("checkbox")).toBeNull();
   expect(screen.getByText("12-month average")).toBeTruthy();
 });
@@ -139,6 +310,15 @@ it("opens with only the seven-day trend and lets the user add the annual average
 it("adds early estimates and their sensitivity band only on request, with percent hover values", async () => {
   const earlyLog: WeightLog = {
     ...log,
+    historicalContext: {
+      anchor: {
+        date: "2020-01-06",
+        bodyFatLow: 18,
+        bodyFatHigh: 22,
+        note: "Synthetic approximate recollection.",
+      },
+      strength: [],
+    },
     scans: [100, 110, 120, 130].map((weight, index) => ({
       date: `${2020 + index}-01-10`,
       weight,
@@ -147,7 +327,7 @@ it("adds early estimates and their sensitivity band only on request, with percen
       bodyFatPercent: null,
     })),
   };
-  const { container } = render(<WeightLogDashboard log={earlyLog} />);
+  const { container } = renderTrendOnly(earlyLog);
   expect(container.querySelector(".historical-body-fat-line")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
   fireEvent.click(screen.getByRole("checkbox", { name: "7-day trend" }));
@@ -160,9 +340,12 @@ it("adds early estimates and their sensitivity band only on request, with percen
   expect(
     container.querySelector(".historical-body-fat-line .recharts-line-curve"),
   ).toBeTruthy();
-  expect(screen.getByRole("note").textContent).toContain(
-    "not a confidence interval",
+  expect(screen.queryByRole("note")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "About this chart" }));
+  expect(screen.getByText(/starting assumption/).textContent).toContain(
+    "recollection",
   );
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   const wrapper = container.querySelector(".recharts-wrapper")!;
   vi.spyOn(wrapper, "getBoundingClientRect").mockReturnValue({
     left: 0,
@@ -195,9 +378,12 @@ it("adds early estimates and their sensitivity band only on request, with percen
   expect(
     container.querySelector(".historical-body-fat-line .recharts-line-curve"),
   ).toBeTruthy();
-  expect(screen.getByText(/average error of/).textContent).toContain(
-    "1 backward checks",
+  fireEvent.click(screen.getByRole("button", { name: "About this chart" }));
+  expect(screen.getByText(/starting assumption/).textContent).toContain(
+    "recollection",
   );
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
   fireEvent.click(
     screen.getByRole("checkbox", { name: "Early body fat · exploratory" }),
   );
@@ -215,7 +401,12 @@ class ChartPointerEvent extends MouseEvent {
     this.pointerType = init.pointerType ?? "mouse";
   }
 }
-beforeAll(() => vi.stubGlobal("PointerEvent", ChartPointerEvent));
+beforeAll(() => {
+  vi.stubGlobal("PointerEvent", ChartPointerEvent);
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
+  HTMLElement.prototype.releasePointerCapture = vi.fn();
+});
 afterAll(() => vi.unstubAllGlobals());
 
 function dragArea(container: HTMLElement) {
@@ -247,7 +438,7 @@ function dates() {
 }
 
 it("zooms in either direction, supports nested zooms, and resets the original range", () => {
-  const { container } = render(<WeightLogDashboard log={log} />);
+  const { container } = renderTrendOnly(log);
   expect(
     container.querySelector(".recharts-surface")?.getAttribute("tabindex"),
   ).toBe("0");
@@ -263,7 +454,7 @@ it("zooms in either direction, supports nested zooms, and resets the original ra
 });
 
 it("ignores clicks, cancels with Escape, and bounds a drag released outside the plot", () => {
-  const { container } = render(<WeightLogDashboard log={log} />);
+  const { container } = renderTrendOnly(log);
   const area = dragArea(container);
   dragAcross(area, 350, 352);
   expect(dates()).toEqual(["2020-01-06", "2020-01-19"]);
@@ -287,7 +478,7 @@ it("ignores clicks, cancels with Escape, and bounds a drag released outside the 
 });
 
 it("shows a horizontal guide at the hovered trend value", async () => {
-  const { container } = render(<WeightLogDashboard log={log} />);
+  const { container } = renderTrendOnly(log);
   const wrapper = container.querySelector<HTMLElement>(".recharts-wrapper")!;
   Object.assign(wrapper, {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }),
@@ -321,4 +512,52 @@ it("shows a horizontal guide at the hovered trend value", async () => {
   await waitFor(() =>
     expect(container.querySelector(".weight-chart-hover-guide")).toBeNull(),
   );
+});
+
+it("closes Layers with the trigger after changing multiple checkboxes", async () => {
+  const user = userEvent.setup();
+  render(<WeightLogDashboard log={log} />);
+  await user.click(screen.getByRole("button", { name: /Layers/ }));
+  await user.click(screen.getByRole("checkbox", { name: "Weekly average" }));
+  await user.click(screen.getByRole("checkbox", { name: "12-month average" }));
+  await user.click(screen.getByRole("button", { name: /Layers/ }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await user.click(screen.getByRole("button", { name: /Layers/ }));
+  await user.pointer({
+    keys: "[TouchA]",
+    target: screen.getByRole("checkbox", { name: "Target" }),
+  });
+  await user.pointer({
+    keys: "[TouchA]",
+    target: screen.getByRole("button", { name: /Layers/ }),
+  });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await user.click(screen.getByRole("button", { name: /Layers/ }));
+  await user.click(screen.getByRole("checkbox", { name: "Weigh-ins" }));
+  await user.click(screen.getByRole("button", { name: "Close layers" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await user.click(screen.getByRole("button", { name: /Layers/ }));
+  expect(
+    screen
+      .getByRole("checkbox", { name: "Weigh-ins" })
+      .getAttribute("aria-checked"),
+  ).toBe("true");
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("opens and closes Layers without rebuilding the chart", async () => {
+  const user = userEvent.setup();
+  render(<WeightLogDashboard log={log} />);
+  const rendered = chartRenders.count;
+  await user.click(screen.getByRole("button", { name: /Layers/ }));
+  await user.click(screen.getByRole("button", { name: "Close layers" }));
+  expect(chartRenders.count).toBe(rendered);
+  for (const name of ["Chart settings", "Legend"]) {
+    await user.click(screen.getByRole("button", { name }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(chartRenders.count).toBe(rendered);
+  }
 });

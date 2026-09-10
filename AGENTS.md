@@ -8,6 +8,12 @@ explicitly asks for browser-based testing or inspection. This applies to UI and
 layout changes too: make ordinary changes by inspecting the source and running
 targeted unit, type, lint, or existing automated tests instead.
 
+## UI components
+
+Use the existing shadcn/ui components in `src/components/ui/` for standard
+controls, popovers, cards, and expandable sections. Compose these components
+instead of recreating their styling and interaction behavior with native elements.
+
 ## Debug controls
 
 When adding an optional visual effect or performance-sensitive rendering path,

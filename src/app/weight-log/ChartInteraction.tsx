@@ -145,7 +145,7 @@ export function ChartInteraction({
         width={width}
         height={height}
         fill="transparent"
-        style={{ touchAction: "pan-y" }}
+        style={{ touchAction: "auto" }}
         onPointerDown={(event) => {
           if (
             event.button !== 0 ||
