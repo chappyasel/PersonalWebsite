@@ -7,6 +7,7 @@ import type { SyncResult } from "./sync";
 import { env } from "~/env";
 
 const BOOKS_PRODUCTION_ORIGIN = "https://books.chappyasel.com";
+const HOMEPAGE_PRODUCTION_ORIGIN = "https://www.chappyasel.com";
 
 export type BookCacheRefreshResult = {
   attempted: boolean;
@@ -24,6 +25,7 @@ export function invalidateBookCachePaths(
   revalidateTag(BOOKS_DATA_TAG, "max");
 
   if (refreshCollection) {
+    revalidatePath("/");
     revalidatePath("/books");
   }
 
@@ -38,11 +40,13 @@ export function invalidateBookCachePaths(
  * Refresh caches after a successful Notion sync.
  *
  * Vercel scopes on-demand ISR invalidation by domain. Production therefore
- * asks a protected endpoint on books.chappyasel.com to invalidate and warm the
- * public book routes. Local/preview environments invalidate in-process.
+ * asks the canonical homepage and books domains to invalidate their routes.
+ * Only the books domain warms book images. The homepage's canonical www host
+ * avoids a redirect that would strip the authorization header.
+ * Local/preview environments invalidate in-process.
  */
 export async function refreshBookCachesAfterSync(
-  result: SyncResult,
+  result: Pick<SyncResult, "bookIdsToInvalidate" | "bookIdsToWarm">,
   source: "cron" | "manual",
 ): Promise<BookCacheRefreshResult> {
   const shouldRefresh =
@@ -75,27 +79,38 @@ export async function refreshBookCachesAfterSync(
   }
 
   try {
-    const response = await fetch(
-      `${BOOKS_PRODUCTION_ORIGIN}/api/revalidate-book-caches`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${env.CRON_SECRET}`,
-          "content-type": "application/json",
+    const responses = await Promise.allSettled(
+      [HOMEPAGE_PRODUCTION_ORIGIN, BOOKS_PRODUCTION_ORIGIN].map(
+        async (origin) => {
+          const response = await fetch(`${origin}/api/revalidate-book-caches`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${env.CRON_SECRET}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              bookIdsToInvalidate: result.bookIdsToInvalidate,
+              bookIdsToWarm:
+                origin === BOOKS_PRODUCTION_ORIGIN ? result.bookIdsToWarm : [],
+            }),
+            cache: "no-store",
+            signal: AbortSignal.timeout(120_000),
+          });
+          if (!response.ok) {
+            throw new Error(
+              `${origin} cache endpoint returned ${response.status}`,
+            );
+          }
+          return (await response.json()) as BookCacheRefreshResult;
         },
-        body: JSON.stringify({
-          bookIdsToInvalidate: result.bookIdsToInvalidate,
-          bookIdsToWarm: result.bookIdsToWarm,
-        }),
-        cache: "no-store",
-      },
+      ),
     );
-
-    if (!response.ok) {
-      throw new Error(`Book cache endpoint returned ${response.status}`);
+    for (const response of responses) {
+      if (response.status === "rejected") throw response.reason;
     }
-
-    return (await response.json()) as BookCacheRefreshResult;
+    const booksResponse = responses[1]!;
+    if (booksResponse.status === "rejected") throw booksResponse.reason;
+    return booksResponse.value;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error(`Book cache refresh failed: ${message}`);

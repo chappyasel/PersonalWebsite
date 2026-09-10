@@ -194,7 +194,15 @@ export const booksRouter = createTRPCRouter({
    * Manual sync trigger (protected - require authentication)
    */
   triggerSync: protectedProcedure.mutation(async () => {
-    const result = await syncBooksFromNotion("manual");
+    const result = await syncBooksFromNotion("manual", async (bookIds) => {
+      await refreshBookCachesAfterSync(
+        {
+          bookIdsToInvalidate: bookIds,
+          bookIdsToWarm: [],
+        },
+        "manual",
+      );
+    });
     const cacheRefresh = await refreshBookCachesAfterSync(result, "manual");
     return { ...result, cacheRefresh };
   }),

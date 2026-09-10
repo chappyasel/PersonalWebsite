@@ -6,7 +6,7 @@
   },
   "functions": {
     "src/app/api/cron/sync-books/route.ts": {
-      "maxDuration": 180
+      "maxDuration": 800
     },
     "src/app/api/cron/sync-weightlifting/route.ts": {
       "maxDuration": 180

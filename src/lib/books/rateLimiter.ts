@@ -1,11 +1,11 @@
 import PQueue from "p-queue";
 
-// Notion allows 2700 API calls per 15 minutes (3 req/sec average)
-// Use parallel processing with concurrency limit for faster syncing
+// All book clients share one queue. Space individual requests below Notion's
+// three-per-second limit and hold the queue during a server-requested cooldown.
 const notionQueue = new PQueue({
-  concurrency: 20, // Process up to 20 requests in parallel
-  // No interval/intervalCap - let requests run freely
-  // Notion will rate limit us if we exceed 2700/15min, and we'll backoff
+  concurrency: 1,
+  intervalCap: 1,
+  interval: 350,
 });
 
 /**
@@ -15,36 +15,39 @@ export async function fetchWithBackoff<T>(
   fetchFn: () => Promise<T>,
   maxRetries = 3,
 ): Promise<T> {
-  let lastError: unknown;
+  return notionQueue.add(async () => {
+    let lastError: unknown;
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      return await notionQueue.add(fetchFn);
-    } catch (error: unknown) {
-      lastError = error;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fetchFn();
+      } catch (error: unknown) {
+        lastError = error;
 
-      // Check if it's a rate limit error (429), possibly wrapped by a caller
-      // that rethrew with `{ cause }`.
-      const rateLimit = findRateLimitError(error);
+        // Check if it's a rate limit error (429), possibly wrapped by a caller
+        // that rethrew with `{ cause }`.
+        const rateLimit = findRateLimitError(error);
 
-      if (rateLimit) {
-        // Notion says how long the window lasts; guessing 1s/2s/4s under it
-        // burns every retry inside the same window and the call fails anyway.
-        const backoffMs =
-          retryAfterMs(rateLimit) ?? Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
-        console.warn(
-          `Rate limited, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        continue;
+        if (rateLimit) {
+          if (attempt === maxRetries - 1) throw error;
+          // Notion says how long the window lasts; guessing 1s/2s/4s under it
+          // burns every retry inside the same window and the call fails anyway.
+          const backoffMs =
+            retryAfterMs(rateLimit) ?? Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          console.warn(
+            `Rate limited, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+
+        // Non-rate-limit error, throw immediately
+        throw error;
       }
-
-      // Non-rate-limit error, throw immediately
-      throw error;
     }
-  }
 
-  throw lastError;
+    throw lastError;
+  });
 }
 
 /**

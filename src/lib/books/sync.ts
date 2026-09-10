@@ -1,4 +1,3 @@
-import { Client } from "@notionhq/client";
 import { eq } from "drizzle-orm";
 
 import { db } from "~/server/db";
@@ -15,13 +14,13 @@ import {
   minutesToHourDotMinutes,
 } from "./lengthFetcher";
 import {
+  type NotionBook,
+  WEBSITE_PROPERTY,
   ensureWebsiteProperty,
   fetchBookDetails,
   fetchBooksFromNotion,
-  type NotionBook,
-  WEBSITE_PROPERTY,
 } from "./notion";
-import { fetchWithBackoff } from "./rateLimiter";
+import { createBookNotionClient } from "./notionClient";
 import { generateAllBookIds } from "./slugify";
 import {
   mergeAudibleMetadata,
@@ -29,7 +28,6 @@ import {
   shouldLookupAudibleMetadata,
   websiteUrlToWrite,
 } from "./syncPlanning";
-import { env } from "~/env";
 
 export type SyncResult = {
   totalBooksInNotion: number;
@@ -79,6 +77,7 @@ type BookContentResult =
  */
 export async function syncBooksFromNotion(
   triggeredBy: "cron" | "manual" = "cron",
+  onFeaturedChanged?: (bookIds: string[]) => Promise<void>,
 ): Promise<SyncResult> {
   const syncId = await createSyncRecord(triggeredBy);
 
@@ -111,12 +110,37 @@ export async function syncBooksFromNotion(
 
     // STEP 3: Fetch existing books from database (indexed by notionId)
     const dbBooks = await db.query.books.findMany({
-      columns: { id: true, notionId: true, lastEditedTime: true },
+      columns: {
+        id: true,
+        notionId: true,
+        lastEditedTime: true,
+        isFeatured: true,
+      },
     });
     const dbBooksMap = new Map(
       dbBooks.map((b) => [b.notionId, new Date(b.lastEditedTime)]),
     );
     console.log(`Found ${dbBooks.length} books in database`);
+
+    // Featured selection only needs the page properties we already fetched.
+    // Save it before downloading notes, and keep the notes' edit watermark so
+    // a failed content download remains eligible for the next run.
+    const storedByNotionId = new Map(
+      dbBooks.map((book) => [book.notionId, book]),
+    );
+    const featuredChangedIds: string[] = [];
+    for (const book of notionBooksWithSlugs) {
+      const stored = storedByNotionId.get(book.notionId);
+      if (!stored || stored.isFeatured === book.isFeatured) continue;
+      await db
+        .update(books)
+        .set({ isFeatured: book.isFeatured })
+        .where(eq(books.notionId, book.notionId));
+      featuredChangedIds.push(stored.id);
+    }
+    if (featuredChangedIds.length > 0) {
+      await onFeaturedChanged?.(featuredChangedIds);
+    }
 
     // STEP 3.5: Delete books that no longer exist in Notion
     const notionIdSet = new Set(notionBooks.map((b) => b.notionId));
@@ -157,7 +181,10 @@ export async function syncBooksFromNotion(
     const bookIdsToWarm = new Set(
       successfulChangedBooks.map((book) => book.id),
     );
-    const bookIdsToInvalidate = new Set(deletedBookIds);
+    const bookIdsToInvalidate = new Set([
+      ...deletedBookIds,
+      ...featuredChangedIds,
+    ]);
 
     for (const book of [...successfulChangedBooks, ...unchangedBooks]) {
       const previousId = existingIdByNotionId.get(book.notionId);
@@ -314,29 +341,28 @@ function categorizeBooks(
 }
 
 /**
- * Fetch full content for books with rate limiting (parallel processing).
+ * Fetch book content concurrently, with individual Notion requests sharing
+ * the rate-limited client queue.
  * Uses notionId to fetch from Notion API, preserves slug ID for database.
  */
 async function fetchBooksContentWithRateLimit(
   booksToFetch: NotionBook[],
 ): Promise<BookContentResult[]> {
   console.log(
-    `Fetching full content for ${booksToFetch.length} books in parallel (concurrency: 20)...`,
+    `Fetching full content for ${booksToFetch.length} books (Notion requests spaced 350 ms apart)...`,
   );
 
   // Track completed count for progress logging
   let completed = 0;
   const total = booksToFetch.length;
 
-  // Process all books in parallel with p-queue managing concurrency
+  // Interleave books while the shared client queue limits API requests.
   const promises = booksToFetch.map(async (book) => {
     const displayTitle = book.title || `[ID: ${book.notionId.slice(0, 8)}]`;
 
     try {
       // Use notionId to fetch from Notion API
-      const bookWithNotes = await fetchWithBackoff(() =>
-        fetchBookDetails(book.notionId),
-      );
+      const bookWithNotes = await fetchBookDetails(book.notionId);
 
       completed++;
       console.log(`✓ [${completed}/${total}] Fetched: ${displayTitle}`);
@@ -441,9 +467,7 @@ async function upsertBooksToDatabase(
 
     const storedCover = storedCovers.get(book.notionId);
     let coverColor =
-      storedCover?.coverUrl === book.coverUrl
-        ? storedCover.coverColor
-        : null;
+      storedCover?.coverUrl === book.coverUrl ? storedCover.coverColor : null;
     if (coverColor === null && book.coverUrl) {
       coverColor = await resolveCoverColor(book.coverUrl);
       console.log(
@@ -790,7 +814,7 @@ async function updateNotionLengths(
     audibleUrl?: string;
   },
 ): Promise<void> {
-  const notion = new Client({ auth: env.NOTION_API_KEY });
+  const notion = createBookNotionClient();
 
   const properties: Record<
     string,
@@ -827,7 +851,7 @@ async function updateNotionCover(
   pageId: string,
   coverUrl: string | null,
 ): Promise<void> {
-  const notion = new Client({ auth: env.NOTION_API_KEY });
+  const notion = createBookNotionClient();
   try {
     await notion.pages.update({
       page_id: pageId,
@@ -849,17 +873,15 @@ async function updateNotionCover(
 /**
  * Most `Website` links written in one sync. A slug change touches one or two
  * pages, so this only bites on a mass rewrite (a new host, a fresh column),
- * where it keeps the cron under its 180 s budget: writes go one at a time to
- * stay under Notion's 3 req/s, so 150 is under a minute. The remainder goes
- * out on the following syncs, which see the same gap.
+ * where it reserves time for content and cache refreshes. Requests share the
+ * same paced queue as reads. The remainder goes out on following syncs.
  */
 const MAX_WEBSITE_WRITES_PER_SYNC = 150;
 
 /**
  * Write each book's site page into Notion's `Website` property when the
- * property is empty or names a stale slug. One write at a time: 326 pages
- * fired through the 20-wide queue tripped the rate limit and lost half of
- * them. Nothing here throws past this function; a failed write is logged,
+ * property is empty or names a stale slug. Nothing here throws past this
+ * function; a failed write is logged,
  * counted as pending, and retried by the next sync, which sees the same gap.
  */
 async function syncWebsiteUrlsToNotion(
@@ -886,7 +908,7 @@ async function syncWebsiteUrlsToNotion(
   // extra Notion calls. A failure here (a 429 past its retries, a revoked
   // integration) postpones the links; it must not fail the book sync.
   try {
-    await fetchWithBackoff(() => ensureWebsiteProperty());
+    await ensureWebsiteProperty();
   } catch (error) {
     console.error(
       `  ✗ Could not confirm the "${WEBSITE_PROPERTY}" property; leaving ${writes.length} site link(s) for the next sync:`,
@@ -915,16 +937,14 @@ async function updateNotionWebsiteUrl(
   label: string,
   websiteUrl: string | null,
 ): Promise<boolean> {
-  const notion = new Client({ auth: env.NOTION_API_KEY });
+  const notion = createBookNotionClient();
   try {
-    await fetchWithBackoff(() =>
-      notion.pages.update({
-        page_id: pageId,
-        properties: {
-          [WEBSITE_PROPERTY]: { type: "url", url: websiteUrl },
-        },
-      }),
-    );
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        [WEBSITE_PROPERTY]: { type: "url", url: websiteUrl },
+      },
+    });
     console.log(
       `  🔗 ${websiteUrl ? `Linked "${label}" to ${websiteUrl}` : `Cleared the site link on "${label}"`}`,
     );

@@ -72,6 +72,10 @@ Run SQL via the bundled script. Output is CSV on stdout.
 
 The Postgres book cache syncs daily at 09:00 UTC. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; blank scaffolds and undated want-to-read pages are intentionally outside the SQL mirror. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
 
+For existing mirrored books, `Featured?` is saved as soon as the sync reads the Notion properties. The cron and website manual-sync action invalidate the shelf caches before downloading notes. A failed note download therefore does not block a featured selection change. The notes' `last_edited_time` watermark stays unchanged until their full refresh succeeds, so `is_featured` can be newer than that watermark. New books still need their initial full sync before appearing on the shelf.
+
+Book API requests share a queue that spaces calls 350 ms apart and honors Notion's retry delay. Retries repeat the failed API request, including nested block pagination, rather than restarting a book's entire note conversion. The production book cron allows up to 800 seconds for larger refreshes.
+
 ## Book tag taxonomy cleanup / repair
 
 Use this workflow when Chappy asks to fix Book Notes tags, make tags show up on `books.chappyasel.com`, or replace non-standard tags.

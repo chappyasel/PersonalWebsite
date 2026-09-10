@@ -1,14 +1,13 @@
-import { Client, type PageObjectResponse } from "@notionhq/client";
+import { type PageObjectResponse } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
 
 import { hourDotMinutesToMinutes } from "./lengthFetcher";
 import { separateAdjacentQuoteBlocks, toggleHeadings } from "./markdown";
+import { createBookNotionClient } from "./notionClient";
 import type { BaseBook } from "./types";
 import { env } from "~/env";
 
-const notion = new Client({
-  auth: env.NOTION_API_KEY,
-});
+const notion = createBookNotionClient();
 
 const n2m = new NotionToMarkdown({
   notionClient: notion,

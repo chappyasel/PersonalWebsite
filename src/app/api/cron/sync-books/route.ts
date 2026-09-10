@@ -5,7 +5,7 @@ import { syncBooksFromNotion } from "~/lib/books/sync";
 
 import { env } from "~/env";
 
-export const maxDuration = 180;
+export const maxDuration = 800;
 
 /**
  * Verifies the authorization header matches the CRON_SECRET
@@ -20,7 +20,15 @@ function verifyAuth(request: NextRequest): boolean {
  */
 async function handleSync(source: "cron" | "manual") {
   console.log(`${source} triggered: syncing books from Notion...`);
-  const result = await syncBooksFromNotion(source);
+  const result = await syncBooksFromNotion(source, async (bookIds) => {
+    await refreshBookCachesAfterSync(
+      {
+        bookIdsToInvalidate: bookIds,
+        bookIdsToWarm: [],
+      },
+      source,
+    );
+  });
   const cacheRefresh = await refreshBookCachesAfterSync(result, source);
 
   return NextResponse.json({
