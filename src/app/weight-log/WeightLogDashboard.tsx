@@ -29,9 +29,11 @@ import {
 } from "~/lib/weight-log/presentation";
 import type { WeightLog } from "~/lib/weight-log/schema";
 
+import { ChartInteraction } from "./ChartInteraction";
 import { DexaChart } from "./DexaChart";
 import { PhaseGradient } from "./PhaseGradient";
 import { WeightHistoryCalendar } from "./WeightHistoryCalendar";
+import styles from "./WeightLogDashboard.module.css";
 
 const referenceColor = "#64748b";
 const lineStyles = {
@@ -163,6 +165,8 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
     bodyFat: false,
   });
   const [layersOpen, setLayersOpen] = useState(false);
+  const [zoomBase, setZoomBase] = useState<[string, string] | null>(null);
+  const [dragging, setDragging] = useState(false);
   const chartId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const phaseGradientId = `${chartId}-phase`;
   const phaseStroke = `url(#${phaseGradientId})`;
@@ -281,6 +285,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
             value={phase}
             className={`block ${control}`}
             onChange={(event) => {
+              setZoomBase(null);
               const selected = log.phases.find(
                 (item) => item.id === event.target.value,
               );
@@ -309,6 +314,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
             max={end || last}
             className={`block ${control}`}
             onChange={(event) => {
+              setZoomBase(null);
               setStart(event.target.value);
             }}
           />
@@ -322,6 +328,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
             max={last}
             className={`block ${control}`}
             onChange={(event) => {
+              setZoomBase(null);
               setEnd(event.target.value);
             }}
           />
@@ -329,6 +336,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
         <button
           className={control}
           onClick={() => {
+            setZoomBase(null);
             setPhase("all");
             setStart(first);
             setEnd(last);
@@ -339,6 +347,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
         <button
           className={control}
           onClick={() => {
+            setZoomBase(null);
             setPhase("all");
             setEnd(lastObserved);
             setStart(
@@ -356,6 +365,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
         <button
           className={control}
           onClick={() => {
+            setZoomBase(null);
             setPhase("all");
             setStart(
               dayString(
@@ -407,15 +417,30 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
           >
             Bodyweight over time
           </h2>
-          <button
-            type="button"
-            className={control}
-            aria-expanded={layersOpen}
-            aria-controls={`${chartId}-layers`}
-            onClick={() => setLayersOpen(!layersOpen)}
-          >
-            Layers · {Object.values(visible).filter(Boolean).length}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className={`${control} disabled:opacity-40`}
+              disabled={!zoomBase}
+              onClick={() => {
+                if (!zoomBase) return;
+                setStart(zoomBase[0]);
+                setEnd(zoomBase[1]);
+                setZoomBase(null);
+              }}
+            >
+              Reset zoom
+            </button>
+            <button
+              type="button"
+              className={control}
+              aria-expanded={layersOpen}
+              aria-controls={`${chartId}-layers`}
+              onClick={() => setLayersOpen(!layersOpen)}
+            >
+              Layers · {Object.values(visible).filter(Boolean).length}
+            </button>
+          </div>
         </div>
         {layersOpen && (
           <fieldset
@@ -490,6 +515,13 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
             {log.setPoints.map((point) => lb(point.weight)).join(" and ")}.
           </p>
         )}
+        <p
+          id={`${chartId}-zoom-help`}
+          className="mb-2 px-3 text-xs text-muted-foreground"
+        >
+          Drag across the plot to zoom; Esc cancels. You can also use the From
+          and To dates above.
+        </p>
         {!rangeValid ? (
           <p role="status" className="p-10 text-center text-muted-foreground">
             Choose a valid date range.
@@ -500,8 +532,8 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
           </p>
         ) : (
           <div
-            className="h-[420px] w-full sm:h-[540px]"
-            role="img"
+            className={`${styles.chart} h-[420px] w-full sm:h-[540px]`}
+            role="group"
             aria-label="Weight history with daily readings, weekly averages, and planned targets. Exact readings are available in the full-history calendar below."
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -509,6 +541,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                 data={chartData}
                 margin={{ top: 12, right: 16, bottom: 8, left: 0 }}
                 accessibilityLayer
+                aria-describedby={`${chartId}-zoom-help`}
               >
                 <Customized
                   component={
@@ -607,6 +640,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                   />
                 )}
                 <Tooltip
+                  active={dragging ? false : undefined}
                   labelFormatter={(value) =>
                     formatDate(dayString(Number(value)))
                   }
@@ -830,6 +864,19 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                     isAnimationActive={false}
                   />
                 )}
+                <Customized
+                  component={
+                    <ChartInteraction
+                      bounds={bounds}
+                      onDraggingChange={setDragging}
+                      onZoom={(from, to) => {
+                        setZoomBase((base) => base ?? [start, end]);
+                        setStart(from);
+                        setEnd(to);
+                      }}
+                    />
+                  }
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
