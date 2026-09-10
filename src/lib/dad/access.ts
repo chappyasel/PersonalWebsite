@@ -28,6 +28,8 @@ export function isValidDadPassword(
   candidate: string,
   expected: string,
 ): boolean {
+  if (typeof candidate !== "string" || !candidate || candidate.length > 256)
+    return false;
   return isValidDadAccessToken(dadAccessToken(candidate), expected);
 }
 

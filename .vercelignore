@@ -1,0 +1,9 @@
+/data/weight-log
+*.xlsx
+.env*
+!.env.example
+/node_modules
+/.next
+/data/youtube
+/content/dad
+/content/dad-search-index.json

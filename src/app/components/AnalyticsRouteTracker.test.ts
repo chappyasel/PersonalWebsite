@@ -27,6 +27,7 @@ describe("deep-page journey classification", () => {
   it("does not classify arbitrary or private paths", () => {
     expect(deepPageForLocation("/")).toBeNull();
     expect(deepPageForLocation("/youtube")).toBeNull();
+    expect(deepPageForLocation("/weight-log")).toBeNull();
     expect(deepPageForLocation("/dad/journal")).toBeNull();
     expect(deepPageForLocation("/manual/private")).toBeNull();
     expect(deepPageForLocation("/", "books.example.com")).toBeNull();

@@ -24,6 +24,9 @@ const config = {
   outputFileTracingIncludes: {
     "/api/search": ["./content/dad-search-index.json"],
   },
+  outputFileTracingExcludes: {
+    "/*": ["./data/weight-log/**/*", "./**/*.xlsx"],
+  },
   images: {
     remotePatterns: [
       {
@@ -42,6 +45,19 @@ const config = {
   },
   async headers() {
     return [
+      {
+        source: "/weight-log/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive, nosnippet",
+          },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
       {
         source: "/fonts/v1/:font*.woff2",
         headers: [

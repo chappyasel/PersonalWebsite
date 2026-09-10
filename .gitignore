@@ -54,6 +54,9 @@ npm-debug.log*
 
 # youtube takeout data
 /data/youtube/
+/data/weight-log
+*.xlsx
+/scripts/weight-log/__pycache__/
 .gstack/
 
 # favicon preview sheets (pnpm preview:favicons)

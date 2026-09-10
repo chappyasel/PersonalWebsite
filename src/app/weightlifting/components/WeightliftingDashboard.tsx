@@ -157,6 +157,16 @@ export function WeightliftingDashboard() {
       </p>
 
       {/* Stats */}
+      <a
+        href={
+          process.env.NODE_ENV === "production"
+            ? "https://www.chappyasel.com/weight-log"
+            : `${devBaseUrl()}/weight-log`
+        }
+        className="inline-flex rounded-lg border border-neutral-200 px-4 py-2 text-sm text-muted-foreground hover:text-foreground dark:border-neutral-700"
+      >
+        Weight log · Password required
+      </a>
       <section>
         <StatsCards />
       </section>
