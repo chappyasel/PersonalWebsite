@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import {
+  Area,
   ComposedChart,
   Customized,
   Line,
@@ -21,6 +22,10 @@ import {
   dayTime,
 } from "~/lib/weight-log/chart";
 import { fitPartition } from "~/lib/weight-log/estimates";
+import {
+  fitHistoricalBodyFat,
+  historicalBodyFat,
+} from "~/lib/weight-log/historical-body-fat";
 import {
   bodyFatAxis,
   calendarAxis,
@@ -46,6 +51,7 @@ const lineStyles = {
   setPoints: "6 5",
   projections: "14 5",
   bodyFat: "8 3 2 3",
+  historicalBodyFat: "2 6",
 };
 function LineSwatch({ dash, dot = false }: { dash: string; dot?: boolean }) {
   return (
@@ -76,6 +82,7 @@ const labels = {
   setPoints: "Set points",
   projections: "Future plan",
   bodyFat: "Body fat %",
+  historicalBodyFat: "Early body fat · exploratory",
 };
 const formatDate = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -147,7 +154,15 @@ function BodyFatTick({
 }
 
 export function WeightLogDashboard({ log }: { log: WeightLog }) {
-  const full = useMemo(() => buildWeightChart(log), [log]);
+  const historicalModel = useMemo(
+    () => fitHistoricalBodyFat(log.scans),
+    [log.scans],
+  );
+  const full = useMemo(() => {
+    const points = buildWeightChart(log);
+    const historical = historicalBodyFat(points, historicalModel);
+    return points.map((point, index) => ({ ...point, ...historical[index]! }));
+  }, [log, historicalModel]);
   const first = full[0]?.date ?? "";
   const last = full.at(-1)?.date ?? "";
   const [start, setStart] = useState(first);
@@ -163,6 +178,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
     setPoints: false,
     projections: false,
     bodyFat: false,
+    historicalBodyFat: false,
   });
   const [layersOpen, setLayersOpen] = useState(false);
   const [zoomBase, setZoomBase] = useState<[string, string] | null>(null);
@@ -212,7 +228,16 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
     .filter((scan) => rangeValid && scan.date >= start && scan.date <= end)
     .map((scan) => ({ ...scan, time: dayTime(scan.date) }));
   const bounds: [number, number] = [data[0]?.time ?? 0, data.at(-1)?.time ?? 1];
-  const bodyFatScale = bodyFatAxis(chartData, visible.projections);
+  const bodyFatVisible = visible.bodyFat || visible.historicalBodyFat;
+  const bodyFatScale = bodyFatAxis(
+    visible.bodyFat ? chartData : [],
+    visible.bodyFat && visible.projections,
+    visible.historicalBodyFat
+      ? chartData.flatMap((point) =>
+          point.bodyFatHistoricalRange ? [point.bodyFatHistoricalRange] : [],
+        )
+      : [],
+  );
   const weightAxisVisible =
     visible.weight ||
     visible.weekly ||
@@ -522,6 +547,13 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
           Drag across the plot to zoom; Esc cancels. You can also use the From
           and To dates above.
         </p>
+        {visible.historicalBodyFat && (
+          <p className="mb-3 px-3 text-xs text-muted-foreground" role="note">
+            {historicalModel
+              ? "Before the first DEXA: faint dotted estimates with a shaded sensitivity range. Earlier muscle gain is unknown; this is not a confidence interval. Details are in About this chart."
+              : "Early body-fat estimates need at least four usable DEXA scans with differing weights."}
+          </p>
+        )}
         {!rangeValid ? (
           <p role="status" className="p-10 text-center text-muted-foreground">
             Choose a valid date range.
@@ -567,7 +599,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                       strokeWidth={value % 5 === 0 ? 1 : 0.5}
                     />
                   ))}
-                {visible.bodyFat &&
+                {bodyFatVisible &&
                   !weightAxisVisible &&
                   bodyFatScale.ticks.map((value) => (
                     <ReferenceLine
@@ -589,7 +621,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                     key={`date-grid-${time}`}
                     x={time}
                     yAxisId={
-                      weightAxisVisible ? 0 : visible.bodyFat ? "bodyFat" : 0
+                      weightAxisVisible ? 0 : bodyFatVisible ? "bodyFat" : 0
                     }
                     className="date-grid"
                     stroke="currentColor"
@@ -624,7 +656,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                   axisLine={false}
                   tickLine={false}
                 />
-                {visible.bodyFat && (
+                {bodyFatVisible && (
                   <YAxis
                     yAxisId="bodyFat"
                     orientation="right"
@@ -644,10 +676,15 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                   labelFormatter={(value) =>
                     formatDate(dayString(Number(value)))
                   }
-                  formatter={(value: number, name: string) => [
-                    name.toLowerCase().includes("body fat")
-                      ? `${value.toFixed(1)}%`
-                      : lb(value),
+                  formatter={(
+                    value: number | [number, number],
+                    name: string,
+                  ) => [
+                    Array.isArray(value)
+                      ? `${value[0].toFixed(1)}% to ${value[1].toFixed(1)}%`
+                      : name.toLowerCase().includes("body fat")
+                        ? `${value.toFixed(1)}%`
+                        : lb(value),
                     name,
                   ]}
                   contentStyle={{
@@ -657,6 +694,22 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                     fontSize: 12,
                   }}
                 />
+                {visible.historicalBodyFat && (
+                  <Area
+                    yAxisId="bodyFat"
+                    type="linear"
+                    name="Early body fat · sensitivity range, not a confidence interval"
+                    dataKey="bodyFatHistoricalRange"
+                    className="historical-body-fat-range"
+                    fill={phaseStroke}
+                    fillOpacity={0.13}
+                    stroke="none"
+                    dot={false}
+                    activeDot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                )}
                 {log.phases
                   .filter(
                     (item) =>
@@ -804,6 +857,36 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                     stroke="none"
                   />
                 )}
+                {visible.historicalBodyFat && (
+                  <Line
+                    yAxisId="bodyFat"
+                    type="linear"
+                    name="Early body fat · exploratory estimate"
+                    dataKey="bodyFatHistorical"
+                    className="historical-body-fat-line"
+                    stroke={phaseStroke}
+                    strokeOpacity={0.6}
+                    strokeWidth={2}
+                    strokeDasharray={lineStyles.historicalBodyFat}
+                    dot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                )}
+                {visible.historicalBodyFat && historicalModel && (
+                  <ReferenceLine
+                    x={dayTime(historicalModel.anchor.date)}
+                    yAxisId="bodyFat"
+                    stroke="#8888"
+                    strokeDasharray="3 3"
+                    label={{
+                      value: "First DEXA",
+                      position: "insideTopRight",
+                      fontSize: 11,
+                      fill: "#888",
+                    }}
+                  />
+                )}
                 {visible.bodyFat && latest?.bodyFatExtrapolated != null && (
                   <ReferenceDot
                     yAxisId="bodyFat"
@@ -926,6 +1009,55 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
               workbook. They show the plan, not a prediction that it will
               happen.
             </p>
+          )}
+          {visible.historicalBodyFat && historicalModel && (
+            <section className="mt-4 px-3 text-xs leading-relaxed text-muted-foreground">
+              <h3 className="font-medium">Before the first DEXA</h3>
+              <p className="mt-2">
+                The early estimate works backward from the first scan, combining
+                smoothed scale weight with the relationship between weight and
+                fat-free mass in later scans. A scale offset makes the estimate
+                meet the first scan. Missing weight history leaves gaps. Equal
+                weights imply equal body composition in this model, so it cannot
+                recover muscle gained at the same weight.
+              </p>
+              <p className="mt-2">
+                Hiding each early scan and fitting only later scans gives an
+                average error of{" "}
+                {historicalModel.validationMeanError.toFixed(1)} percentage
+                points across {historicalModel.validationCount} backward checks.
+                The longest check reaches{" "}
+                {(historicalModel.validationMaxDays / 365.25).toFixed(1)} years
+                back. Earlier dates go beyond what those checks establish.
+              </p>
+              <p className="mt-2">
+                The shaded sensitivity range combines those errors with changes
+                from leaving individual scans out, and widens farther back in
+                time. Its minimum width is two percentage points on either side
+                at the first scan. This is a chosen uncertainty rule with no
+                calibrated probability of containing your actual body fat. The
+                chart retains its 4% floor; the tooltip shows the full range.
+              </p>
+              <p className="mt-2">
+                Strength is not converted into muscle mass here. Lift
+                performance also reflects factors beyond muscle size, and DEXA
+                fat-free mass includes water and bone. See the{" "}
+                <a
+                  href="https://pubmed.ncbi.nlm.nih.gov/39206316/"
+                  className="underline"
+                >
+                  strength and lean-mass study
+                </a>{" "}
+                and the{" "}
+                <a
+                  href="https://pubmed.ncbi.nlm.nih.gov/28204901/"
+                  className="underline"
+                >
+                  DEXA hydration study
+                </a>
+                .
+              </p>
+            </section>
           )}
           {visible.bodyFat && (
             <section className="mt-4 px-3 text-xs leading-relaxed text-muted-foreground">

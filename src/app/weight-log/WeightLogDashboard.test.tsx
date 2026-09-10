@@ -136,6 +136,75 @@ it("opens with only the seven-day trend and lets the user add the annual average
   expect(screen.getByText("12-month average")).toBeTruthy();
 });
 
+it("adds early estimates and their sensitivity band only on request, with percent hover values", async () => {
+  const earlyLog: WeightLog = {
+    ...log,
+    scans: [100, 110, 120, 130].map((weight, index) => ({
+      date: `${2020 + index}-01-10`,
+      weight,
+      leanMass: null,
+      fatMass: weight - (80 + index * 5),
+      bodyFatPercent: null,
+    })),
+  };
+  const { container } = render(<WeightLogDashboard log={earlyLog} />);
+  expect(container.querySelector(".historical-body-fat-line")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "7-day trend" }));
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "Early body fat · exploratory" }),
+  );
+  expect(
+    container.querySelector(".historical-body-fat-range .recharts-area-area"),
+  ).toBeTruthy();
+  expect(
+    container.querySelector(".historical-body-fat-line .recharts-line-curve"),
+  ).toBeTruthy();
+  expect(screen.getByRole("note").textContent).toContain(
+    "not a confidence interval",
+  );
+  const wrapper = container.querySelector(".recharts-wrapper")!;
+  vi.spyOn(wrapper, "getBoundingClientRect").mockReturnValue({
+    left: 0,
+    top: 0,
+    width: 800,
+    height: 450,
+    right: 800,
+    bottom: 450,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  Object.defineProperty(wrapper, "offsetWidth", { value: 800 });
+  Object.defineProperty(wrapper, "offsetHeight", { value: 450 });
+  fireEvent.mouseMove(wrapper, { clientX: 130, clientY: 100 });
+  await waitFor(() =>
+    expect(
+      container.querySelector(".weight-chart-hover-guide text")?.textContent,
+    ).toBe("20.0%"),
+  );
+  expect(
+    container.querySelector(".recharts-tooltip-wrapper")?.textContent,
+  ).toMatch(/% to .*%/);
+  fireEvent.change(screen.getByLabelText("From"), {
+    target: { value: "2020-01-07" },
+  });
+  fireEvent.change(screen.getByLabelText("To"), {
+    target: { value: "2020-01-08" },
+  });
+  expect(
+    container.querySelector(".historical-body-fat-line .recharts-line-curve"),
+  ).toBeTruthy();
+  expect(screen.getByText(/average error of/).textContent).toContain(
+    "1 backward checks",
+  );
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "Early body fat · exploratory" }),
+  );
+  expect(container.querySelector(".historical-body-fat-range")).toBeNull();
+  expect(container.querySelector(".historical-body-fat-line")).toBeNull();
+});
+
 class ChartPointerEvent extends MouseEvent {
   pointerId: number;
   pointerType: string;

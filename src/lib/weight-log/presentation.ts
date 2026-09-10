@@ -64,8 +64,15 @@ export function calendarAxis([start, end]: [number, number]) {
   };
 }
 
-export function bodyFatAxis(points: WeightPoint[], includeProjection: boolean) {
+export function bodyFatAxis(
+  points: WeightPoint[],
+  includeProjection: boolean,
+  historicalRanges: [number, number][] = [],
+) {
   let maximum = 4;
+  for (const [, upper] of historicalRanges) {
+    if (Number.isFinite(upper)) maximum = Math.max(maximum, upper);
+  }
   for (const point of points) {
     const values = [
       point.bodyFatMeasured,

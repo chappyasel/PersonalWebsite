@@ -90,7 +90,7 @@ export function weightTrend(points: readonly TrendInput[]): TrendEstimate[] {
 }
 
 type Scan = WeightLog["scans"][number];
-const fatFreeMass = (scan: Scan) =>
+export const fatFreeMass = (scan: Scan) =>
   scan.bodyFatPercent !== null
     ? scan.weight * (1 - scan.bodyFatPercent / 100)
     : scan.fatMass !== null
