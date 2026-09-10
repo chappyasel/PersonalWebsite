@@ -3,6 +3,7 @@
 import { ArrowRightIcon } from "@phosphor-icons/react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 
+import AnchorLink from "~/components/daylight/AnchorLink";
 import { releaseHash } from "~/components/daylight/hashTarget";
 import { SECTION_JUMP_EVENT } from "~/components/daylight/sectionJump";
 import type {
@@ -199,35 +200,42 @@ export default function NotionToggle({
       data-notion-toggle={variant ?? ""}
       className={id ? "scroll-mt-24" : undefined}
     >
-      <button
-        data-notion-toggle-trigger=""
-        type="button"
-        aria-controls={contentId}
-        aria-expanded={open}
-        onClick={toggle}
-        // The caret sits in the gutter where a sibling list's bullets are (the
-        // renderer's lists are ml-4), so the title and the body start on the
-        // list text's column. No vertical padding: the row is one line tall,
-        // like a list item, and .dl-prose spaces it like one.
-        className="group/notion-toggle relative flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        {marker && (
-          <span
-            aria-hidden="true"
-            data-notion-toggle-marker=""
-            className="absolute right-full top-0 mr-[0.3em] select-none tabular-nums text-muted-foreground/40"
-          >
-            {marker}
+      <div className="group/sec flex items-start gap-1">
+        <button
+          data-notion-toggle-trigger=""
+          type="button"
+          aria-controls={contentId}
+          aria-expanded={open}
+          onClick={toggle}
+          // The caret sits in the gutter where a sibling list's bullets are (the
+          // renderer's lists are ml-4), so the title and the body start on the
+          // list text's column. No vertical padding: the row is one line tall,
+          // like a list item, and .dl-prose spaces it like one.
+          className="group/notion-toggle relative flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {marker && (
+            <span
+              aria-hidden="true"
+              data-notion-toggle-marker=""
+              className="absolute right-full top-0 mr-[0.3em] select-none tabular-nums text-muted-foreground/40"
+            >
+              {marker}
+            </span>
+          )}
+          <DisclosureCaret
+            open={open}
+            className="group-hover/notion-toggle:text-foreground"
+          />
+          <span className="font-medium">
+            <ToggleTitle
+              title={title}
+              bookLookup={bookLookup}
+              status={status}
+            />
           </span>
-        )}
-        <DisclosureCaret
-          open={open}
-          className="group-hover/notion-toggle:text-foreground"
-        />
-        <span className="font-medium">
-          <ToggleTitle title={title} bookLookup={bookLookup} status={status} />
-        </span>
-      </button>
+        </button>
+        {id && <AnchorLink id={id} />}
+      </div>
       <DisclosurePanel id={contentId} open={open}>
         <div className="dl-prose pb-1 pl-6 pt-1.5">
           {blocks.map((block, i) => (

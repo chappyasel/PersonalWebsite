@@ -1,8 +1,11 @@
 import { PALETTES } from "../../theme";
 import {
+  COVER_H,
   COVER_W,
   FEATURED_COVER_Z,
   type SpineBookLength,
+  bookRowXBounds,
+  coverSeat,
   flatVolumeHeights,
   flatVolumeSeats,
   packRow,
@@ -18,6 +21,8 @@ import {
   TOP_FEATURED_ROW_Z,
   TOP_PACKED_ROW_OFFSET_X,
   TOP_PACKED_ROW_Z,
+  featuredLeanWindows,
+  featuredStackCenters,
   layoutFeatured,
 } from "./UnitBooks";
 import {
@@ -171,6 +176,169 @@ describe("packed rows built from the real library", () => {
       expect(h).toBeGreaterThanOrEqual(0.4);
       expect(h).toBeLessThanOrEqual(0.66);
     }
+  });
+
+  it("builds varied slimmer piles without duplicating library books", () => {
+    for (const [width, salt] of [
+      [2.54, 15],
+      [2.6, 40],
+    ]) {
+      for (const books of [fullLibrary, library, []]) {
+        const row = packRow(
+          width!,
+          [],
+          PALETTE,
+          salt!,
+          books,
+          {
+            left: -0.9,
+            right: -0.17,
+          },
+          "tall",
+        );
+        const stacks = row.filter((item) => item.kind === "flat");
+        expect(stacks).toHaveLength(1);
+        for (const stack of stacks) {
+          expect([4, 5]).toContain(stack.n);
+          const heights = flatVolumeHeights(stack);
+          expect(heights).toHaveLength(stack.n);
+          expect(heights.reduce((sum, h) => sum + h, 0)).toBeGreaterThanOrEqual(
+            0.35,
+          );
+          expect(heights.reduce((sum, h) => sum + h, 0)).toBeLessThanOrEqual(
+            0.385,
+          );
+          expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(
+            0.025,
+          );
+          const volumes = stack.volumes!;
+          expect(volumes).toHaveLength(stack.n);
+          expect(
+            Math.max(...volumes.map((v) => v.width)) -
+              Math.min(...volumes.map((v) => v.width)),
+          ).toBeGreaterThan(0.06);
+          for (const [j, volume] of volumes.entries()) {
+            const cosine = Math.cos(volume.yaw);
+            const sine = Math.sin(volume.yaw);
+            const halfWidth =
+              (volume.width * cosine + volume.depth * Math.abs(sine)) / 2;
+            const halfDepth =
+              (volume.width * Math.abs(sine) + volume.depth * cosine) / 2;
+            expect(stack.x + volume.x - halfWidth).toBeGreaterThan(-width! / 2);
+            expect(stack.x + volume.x + halfWidth).toBeLessThan(width! / 2);
+            expect(volume.z - halfDepth).toBeGreaterThan(-0.15);
+            expect(volume.z + halfDepth).toBeLessThan(0.19);
+            expect(Math.abs(volume.yaw)).toBeGreaterThanOrEqual(0.12);
+            if (j > 0) expect(volume.yaw * volumes[j - 1]!.yaw).toBeLessThan(0);
+            // Every upper book's center stays inside this support footprint,
+            // so their combined center of mass does too.
+            for (const above of volumes.slice(j + 1)) {
+              const dx = above.x - volume.x;
+              const dz = above.z - volume.z;
+              expect(Math.abs(dx * cosine - dz * sine)).toBeLessThan(
+                volume.width / 2,
+              );
+              expect(Math.abs(dx * sine + dz * cosine)).toBeLessThan(
+                volume.depth / 2,
+              );
+            }
+          }
+        }
+        const intervals = row.map((item) => bookRowXBounds([item]));
+        expect(intervals[0]!.min).toBeCloseTo(-width! / 2 + 0.04);
+        expect(intervals.at(-1)!.max).toBeCloseTo(width! / 2 - 0.044);
+        for (let j = 1; j < intervals.length; j++) {
+          const gap = intervals[j]!.min - intervals[j - 1]!.max;
+          expect(gap).toBeGreaterThanOrEqual(-1e-9);
+          expect(gap).toBeLessThan(0.06);
+        }
+        const ids = shelved(row);
+        expect(new Set(ids).size).toBe(ids.length);
+      }
+    }
+  });
+
+  it("groups three piles around featured books and seats four visible supported leans", () => {
+    let pileCount = 0;
+    let leanCount = 0;
+    const angles: number[] = [];
+    for (const [salt, count, offset] of [
+      [15, 2, TOP_PACKED_ROW_OFFSET_X],
+      [40, 1, 0],
+    ] as const) {
+      const covers = layoutFeatured(
+        Array.from({ length: 4 }, (_, i) => ({
+          key: `featured-${i}`,
+          label: `Featured ${i}`,
+          url: `/cover-${i}.jpg`,
+          color: "#765432",
+          thickness: 0.06,
+        })),
+        salt + 1,
+        salt === 15 ? -1.3 : -1.24,
+      );
+      const width = salt === 15 ? 2.66 : 2.6;
+      const row = packRow(
+        width,
+        [],
+        PALETTE,
+        salt,
+        fullLibrary,
+        undefined,
+        "tall",
+        featuredStackCenters(covers, offset, count),
+        featuredLeanWindows(covers, offset),
+      );
+      const rowBounds = bookRowXBounds(row);
+      expect(rowBounds.min).toBeGreaterThanOrEqual(-SHELF_GEOMETRY.width / 2);
+      expect(rowBounds.max).toBeLessThanOrEqual(SHELF_GEOMETRY.width / 2);
+      if (salt === 15) expect(rowBounds.max + offset).toBeGreaterThan(1.24);
+      const piles = row.filter((item) => item.kind === "flat");
+      expect(piles).toHaveLength(count);
+      pileCount += piles.length;
+      for (const pile of piles) {
+        const bounds = bookRowXBounds([pile]);
+        const neighboringCover = covers.some(
+          (cover) =>
+            cover.kind === "cover" &&
+            Math.abs(cover.x - (pile.x + offset)) < 0.3,
+        );
+        expect(neighboringCover).toBe(true);
+        expect(bounds.min).toBeGreaterThan(-width / 2);
+        expect(bounds.max).toBeLessThan(width / 2);
+      }
+      for (const [index, item] of row.entries()) {
+        if (item.kind !== "lean") continue;
+        leanCount++;
+        const theta = item.angle!;
+        angles.push(theta);
+        const support = row[index + (theta > 0 ? -1 : 1)]!;
+        expect(support.kind).toBe("spine");
+        if (support.kind !== "spine") continue;
+        expect(support.roll).toBe(0);
+        const halfExtent =
+          (item.w * Math.cos(theta) + item.h * Math.abs(Math.sin(theta))) / 2;
+        const contactX = item.x + (theta > 0 ? -halfExtent : halfExtent);
+        expect(contactX).toBeCloseTo(
+          support.x + (theta > 0 ? support.w / 2 : -support.w / 2),
+          8,
+        );
+        expect(item.h * Math.cos(theta)).toBeLessThan(support.h);
+        expect(Math.abs(theta)).toBeGreaterThanOrEqual(0.2);
+        expect(
+          featuredLeanWindows(covers, offset).some(
+            (window) => contactX >= window.left && contactX <= window.right,
+          ),
+        ).toBe(true);
+      }
+    }
+    expect(pileCount).toBe(3);
+    expect(leanCount).toBe(4);
+    expect(angles.filter((angle) => angle < 0)).toHaveLength(2);
+    expect(angles.filter((angle) => angle > 0)).toHaveLength(2);
+    expect(
+      new Set(angles.map((angle) => Math.abs(angle).toFixed(2))).size,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it("makes a book lying flat as thick as it is long", () => {
@@ -345,6 +513,72 @@ describe("packed rows built from the real library", () => {
 });
 
 describe("featured book carrying clearance", () => {
+  it("keeps the original covers and background books at a similar height", () => {
+    for (const salt of [16, 41]) {
+      const books = Array.from({ length: 4 }, (_, i) => ({
+        url: `/cover-${i}.jpg`,
+        key: `cover-${i}`,
+        label: `Cover ${i}`,
+        color: "#765432",
+        thickness: 0.09,
+      }));
+      const featured = layoutFeatured(books, salt, -1.24);
+      const packed = packRow(2.6, [], PALETTE, salt, [], undefined, "tall");
+      const tallest = Math.max(
+        ...packed.map((item) =>
+          item.kind === "flat"
+            ? flatVolumeHeights(item).reduce((a, b) => a + b, 0)
+            : item.kind === "spine" || item.kind === "lean"
+              ? item.h
+              : 0,
+        ),
+      );
+      for (const item of featured) {
+        if (item.kind !== "cover") continue;
+        expect(item.s).toBeGreaterThanOrEqual(0.88);
+        expect(item.s).toBeLessThanOrEqual(0.98);
+        expect(Math.abs(COVER_H * item.s! - 0.004 - tallest)).toBeLessThan(
+          0.065,
+        );
+        const yaw = Math.abs(item.yaw!);
+        const back =
+          LOWER_FEATURED_ROW_Z +
+          FEATURED_COVER_Z +
+          item.dz! -
+          item.s! *
+            ((item.thickness! + 0.006) * Math.cos(yaw) +
+              (COVER_W / 2) * Math.sin(yaw));
+        expect(back - (LOWER_PACKED_ROW_Z + 0.19)).toBeGreaterThan(0.008);
+      }
+    }
+  });
+
+  it("gives every featured book a small left/right tilt while seating its lower corner", () => {
+    for (const salt of [16, 41]) {
+      for (let count = 1; count <= 5; count++) {
+        const books = Array.from({ length: count }, (_, index) => ({
+          url: `/cover-${index}.jpg`,
+          key: `cover-${index}`,
+          label: `Cover ${index}`,
+          color: "#765432",
+          thickness: 0.056,
+        }));
+        for (const item of layoutFeatured(books, salt, -1.24)) {
+          if (item.kind !== "cover") continue;
+          expect(Math.abs(item.lean!)).toBeGreaterThanOrEqual(0.012);
+          expect(Math.abs(item.lean!)).toBeLessThanOrEqual(0.026);
+          expect(item.riser).toBe(0);
+          const bottom =
+            coverSeat(item.s!, item.lean!, item.riser!) -
+            item.s! *
+              ((COVER_H / 2) * Math.cos(item.lean!) +
+                (COVER_W / 2) * Math.abs(Math.sin(item.lean!)));
+          expect(bottom).toBeCloseTo(-0.004, 8);
+        }
+      }
+    }
+  });
+
   it("keeps the lower-left cover clear of the packed spine fronts", () => {
     const books = Array.from({ length: 4 }, (_, index) => ({
       url: `/cover-${index}.jpg`,
@@ -380,7 +614,7 @@ describe("featured book carrying clearance", () => {
     // The top row's x offset is a named constant now, because anything
     // measured against the featured rank has to be shifted by it to reach this
     // row's frame. Assert the VALUE and its use rather than the old literal.
-    expect(TOP_PACKED_ROW_OFFSET_X).toBeCloseTo(-0.05, 8);
+    expect(TOP_PACKED_ROW_OFFSET_X).toBe(0);
     expect(unitSource).toContain(
       "position={[TOP_PACKED_ROW_OFFSET_X, 0, TOP_PACKED_ROW_Z]}",
     );
@@ -441,6 +675,19 @@ describe("featured book carrying clearance", () => {
 });
 
 describe("Book Notes bookshelf carrying", () => {
+  it("preserves vertical hover travel when packed books are draggable", () => {
+    const start = primitivesSource.indexOf("function ShelfBook");
+    const end = primitivesSource.indexOf("const SPINE_LIFT", start);
+    const carrier = primitivesSource.slice(start, end);
+
+    expect(carrier).toContain("hoverTiltAngle={hoverSlide ? undefined : 0}");
+    expect(carrier).toContain(
+      "hoverLift={hoverSlide ? 0 : lift[1] * HOVER_MOTION_SCALE}",
+    );
+    expect(carrier).toContain("hoverSlide={hoverSlide}");
+    expect(carrier).toContain("<group rotation={rest}>{children}</group>");
+  });
+
   it("keeps featured-cover interaction mounted when visual LOD is plain", () => {
     const start = primitivesSource.indexOf("function FeaturedCover");
     const end = primitivesSource.indexOf("export function BookRowMesh", start);
@@ -473,7 +720,9 @@ describe("Book Notes bookshelf carrying", () => {
 
     expect(row).toContain("<UprightBookVolume");
     expect(row).toContain("<FlatBookVolume");
-    expect(row).toContain("pages={palette.pages}");
+    expect(row).toMatch(
+      /pages=\{\s*subdued \? subduedBookColor\(palette.pages\) : palette.pages\s*\}/,
+    );
   });
 
   it("makes every rendered book row opt into per-volume dragging", () => {

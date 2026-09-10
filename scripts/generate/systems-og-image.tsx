@@ -101,17 +101,6 @@ function OGImage() {
           marginBottom: "8px",
         },
       }),
-      React.createElement(
-        "div",
-        {
-          style: {
-            fontSize: "29px",
-            color: NIGHT.inkMuted,
-            lineHeight: 1.4,
-          },
-        },
-        "Seven layers, from foundations to tools",
-      ),
       // The seven layers as two centred rows (4 + 3), each label behind the
       // glyph the page gives that layer
       sectionLabelRows(layers, { fontSize: 21, glyphSize: 22, gap: "26px" }),

@@ -15,10 +15,11 @@ import { useBookNotesActionLabel } from "~/lib/books/useBookNotesActionLabel";
 import Grabbable from "./Grabbable";
 import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
-import Lift from "./Lift";
+import Lift, { HOVER_MOTION_SCALE } from "./Lift";
 import LitImage from "./LitImage";
 import { RoundedBox } from "./RoundedBox";
 import ShelfSpacingProbe from "./ShelfSpacingProbe";
+import { bookSpineInk, subduedBookColor } from "./backgroundBookTreatment";
 import { proxiedBookCover } from "./bookCoverTexture";
 import {
   bookRowHoverKey,
@@ -78,6 +79,8 @@ export type SpineBookRef = {
 export type RowItem =
   | {
       kind: "spine";
+      /** Explicit support pose; absent retains other units' slight organic roll. */
+      roll?: number;
       x: number;
       w: number;
       h: number;
@@ -104,9 +107,18 @@ export type RowItem =
       heights?: number[];
       depth?: number;
       staggerX?: number;
+      /** Individual trim sizes and flat poses, bottom first. */
+      volumes?: {
+        width: number;
+        depth: number;
+        yaw: number;
+        x: number;
+        z: number;
+      }[];
     }
   | {
       kind: "lean";
+      angle?: number;
       x: number;
       w: number;
       h: number;
@@ -227,12 +239,27 @@ export function bookRowXBounds(items: readonly RowItem[]) {
   let min = Infinity;
   let max = -Infinity;
   for (const item of items) {
+    if (item.kind === "flat" && item.volumes) {
+      for (const volume of item.volumes) {
+        const halfWidth =
+          (volume.width * Math.abs(Math.cos(volume.yaw)) +
+            volume.depth * Math.abs(Math.sin(volume.yaw))) /
+          2;
+        min = Math.min(min, item.x + volume.x - halfWidth);
+        max = Math.max(max, item.x + volume.x + halfWidth);
+      }
+      continue;
+    }
     const halfWidth =
       item.kind === "flat"
         ? (item.width ?? 0.32) / 2
         : item.kind === "cover"
           ? coverExtent(item.s ?? 1, item.lean ?? 0)
-          : item.w / 2;
+          : item.kind === "lean"
+            ? (item.w * Math.cos(item.angle ?? LEAN) +
+                item.h * Math.abs(Math.sin(item.angle ?? LEAN))) /
+              2
+            : item.w / 2;
     min = Math.min(min, item.x - halfWidth);
     max = Math.max(max, item.x + halfWidth);
   }
@@ -276,17 +303,7 @@ function bookDealer(books: readonly SpineBookLength[]) {
   return {
     peek: () => pool[0],
     take: () => pool.shift(),
-    /**
-     * The `n` SHORTEST books left, thickest first so the pile is stable.
-     *
-     * A stack is the one place on the shelf where length cannot be read: a
-     * book lying face-down shows its edge, and at this camera that edge is a
-     * few pixels whatever the page count. Dealing the stack in shelf order put
-     * Barbarians at the Gate — 550 pages, among the longest reads here — flat
-     * on its face, where the whole point of sizing books by length is lost.
-     * So the pile takes the books that have the least to show, and every long
-     * read stands up as the wide spine it earns.
-     */
+    /** Short piles elsewhere in the room keep the shortest reads. */
     takeShortest: (n: number) => {
       const picked = pool
         .map((book, index) => ({
@@ -295,11 +312,12 @@ function bookDealer(books: readonly SpineBookLength[]) {
           width: spineBookWidth(book.pageCount, book.audioLengthMin),
         }))
         .sort((a, b) => a.width - b.width)
-        .slice(0, n);
+        .slice(0, n)
+        .sort((a, b) => b.width - a.width);
       const taken = new Set(picked.map((entry) => entry.index));
       for (let i = pool.length - 1; i >= 0; i--)
         if (taken.has(i)) pool.splice(i, 1);
-      return picked.map((entry) => entry.book).reverse();
+      return picked.map((entry) => entry.book);
     },
   };
 }
@@ -332,38 +350,93 @@ export function packRow(
    * knows what stands in FRONT of the row gets to say where the hole is.
    */
   flatWindow?: { left: number; right: number },
+  stackStyle: "short" | "tall" = "short",
+  stackCenters?: readonly number[],
+  leanWindows?: readonly { left: number; right: number }[],
 ): RowItem[] {
   const items: RowItem[] = [];
   const dealer = bookDealer(books);
-  let x = -width / 2 + 0.1;
+  let x = -width / 2 + (stackStyle === "tall" ? 0.04 : 0.1);
   let coverIdx = 0;
   let i = 0;
   let flats = 0;
   let leaned = false;
-  /** Stack footprint: the 0.34 block plus the 0.03 the walker steps after it. */
-  const FLAT_RUN = 0.37;
-  const flatMark = flatWindow
-    ? (flatWindow.left + flatWindow.right) / 2 - FLAT_RUN / 2
-    : null;
-  // Two stacks on a long row, one on a short one. A single flat stack on a
-  // 2.9 row is one incident in three feet of upright spines.
-  const maxFlats = width > 2.4 ? 2 : 1;
+  const tallStacks = stackStyle === "tall";
+  // Includes yaw, cumulative stagger and a gap to the next standing book.
+  const flatRun = tallStacks ? 0.59 : 0.37;
+  const defaultFlatMark = tallStacks
+    ? Math.max(
+        -width / 2 + 0.1,
+        Math.min(
+          (flatWindow ? (flatWindow.left + flatWindow.right) / 2 : 0) -
+            flatRun / 2,
+          width / 2 - 0.1 - flatRun,
+        ),
+      )
+    : flatWindow
+      ? (flatWindow.left + flatWindow.right) / 2 - flatRun / 2
+      : null;
+  // Fit requested piles around their featured covers, retaining a standing
+  // cluster between piles. The row walker fills every remaining interval.
+  const marks = tallStacks
+    ? (stackCenters?.length
+        ? [...stackCenters].sort((a, b) => a - b)
+        : [defaultFlatMark! + flatRun / 2]
+      ).map((center, index, centers) => {
+        const left = -width / 2 + 0.1 + index * (flatRun + 0.16);
+        const right =
+          width / 2 -
+          0.1 -
+          flatRun -
+          (centers.length - 1 - index) * (flatRun + 0.16);
+        return Math.max(left, Math.min(center - flatRun / 2, right));
+      })
+    : [];
+  for (let index = 1; index < marks.length; index++)
+    marks[index] = Math.max(marks[index]!, marks[index - 1]! + flatRun + 0.16);
+  const maxFlats = tallStacks ? marks.length : width > 2.4 ? 2 : 1;
+  const leanedSections = new Set<number>();
+  let supportedLeans = 0;
+  const maxLeans = 2;
   // The tail margin exists so the loop can never start a 0.34-wide COVER it
   // has no room to finish. A row with no covers to place has nothing to
   // reserve for, and reserving anyway left a spine-only row a quarter of a
   // unit short of the width it was asked for.
-  const tail = covers.length ? 0.25 : 0.1;
-  /** One horizontal stack at the walker's current x, read bottom-up. It takes
-   * the SHORTEST books left rather than the next ones in shelf order — see
-   * `takeShortest` — so no long read is buried face-down, and the pile sits
-   * thickest-first the way a real one does. */
+  const tail = tallStacks ? 0.04 : covers.length ? 0.25 : 0.1;
+  // The library pile prioritizes varied proportions and a full silhouette.
   const pushFlatStack = () => {
-    const n = 2 + Math.round(rand(i, salt + 6));
-    const stacked = dealer.takeShortest(n);
+    const n = (tallStacks ? 4 : 2) + Math.round(rand(i, salt + 6));
+    const thicknessWeights = [1.2, 0.65, 1.05, 0.8, 1.3].slice(0, n);
+    const weightSum = thicknessWeights.reduce((sum, value) => sum + value, 0);
+    const stacked = tallStacks
+      ? Array.from({ length: n }, () => dealer.take())
+      : dealer.takeShortest(n);
+    const volumes = tallStacks
+      ? Array.from({ length: n }, (_, j) => {
+          // A broad bottom book supports an irregular pile. Alternating yaw is
+          // visible from the front; every volume still lies flat on the one below.
+          const width = j === 0 ? 0.49 : 0.36 + rand(i + j, salt + 23) * 0.12;
+          const yaw =
+            (j % 2 === 0 ? -1 : 1) * (0.12 + rand(i + j, salt + 24) * 0.14);
+          const depth = Math.min(
+            0.205 + rand(i + j, salt + 25) * 0.04,
+            (0.316 - width * Math.abs(Math.sin(yaw))) / Math.cos(yaw),
+          );
+          return {
+            width,
+            depth,
+            yaw,
+            x: j === 0 ? 0 : (rand(i + j, salt + 26) - 0.5) * 0.035,
+            // Keep rotated rear corners on the plank and fronts behind the covers.
+            z: 0.012 + rand(i + j, salt + 27) * 0.01,
+          };
+        })
+      : undefined;
     items.push({
       kind: "flat",
-      x: x + 0.17,
+      x: x + (tallStacks ? 0.285 : 0.17),
       n,
+      ...(volumes ? { volumes } : {}),
       colors: Array.from({ length: n }, (_, j) => {
         const book = stacked[j];
         return book
@@ -372,19 +445,22 @@ export function packRow(
               Math.floor(rand(i + j, salt + 7) * palette.spines.length)
             ]!;
       }),
-      // A book lying down is as thick as it is long — the same dimension a
-      // standing book spends on its spine width. Scenery keeps the flat 0.052.
-      heights: stacked.map((source) =>
-        source
-          ? spineBookWidth(source.pageCount, source.audioLengthMin)
-          : 0.052,
-      ),
+      heights: Array.from({ length: n }, (_, j) => {
+        const source = stacked[j];
+        return tallStacks
+          ? ((0.35 + rand(flats, salt + 28) * 0.035) * thicknessWeights[j]!) /
+              weightSum
+          : source
+            ? spineBookWidth(source.pageCount, source.audioLengthMin)
+            : 0.052;
+      }),
       books: stacked,
     });
-    x += FLAT_RUN;
+    x += flatRun;
     flats++;
   };
   while (x < width / 2 - tail) {
+    const flatMark = tallStacks ? (marks[flats] ?? null) : defaultFlatMark;
     const roll = rand(i, salt);
     // The authored stack position wins over the roll. Checked before the roll
     // branches so a gap or a cover cannot consume the one x where the stack is
@@ -392,10 +468,114 @@ export function packRow(
     const stackHere =
       flatMark !== null &&
       flats < maxFlats &&
-      x >= flatMark &&
-      x + FLAT_RUN <= flatWindow!.right;
+      (tallStacks
+        ? x + 0.025 >= flatMark
+        : x >= flatMark && x + flatRun <= flatWindow!.right);
     if (stackHere) {
+      if (tallStacks) x = Math.max(x, flatMark);
       pushFlatStack();
+    } else if (tallStacks) {
+      // Fill right up to the pile or row edge instead of jumping over a slot.
+      const boundary = flatMark ?? width / 2 - tail;
+      const remaining = boundary - x;
+      if (remaining < 0.012) break;
+      const support = items.at(-1);
+      if (
+        support?.kind === "spine" &&
+        supportedLeans < maxLeans &&
+        remaining > 0.15
+      ) {
+        let angle = 0.22 + rand(i, salt + 31) * 0.12;
+        const w = 0.06 + rand(i, salt + 32) * 0.022;
+        const h = support.h - 0.018;
+        const left = support.x + support.w / 2;
+        const section = leanWindows?.length
+          ? leanWindows.findIndex(
+              (window) => left >= window.left && left < window.right,
+            )
+          : flats;
+        const rightLimit =
+          Math.min(boundary, leanWindows?.[section]?.right ?? boundary) - 0.004;
+        let halfExtent = (w * Math.cos(angle) + h * Math.sin(angle)) / 2;
+        while (angle > 0.21 && left + halfExtent * 2 > rightLimit) {
+          angle -= 0.01;
+          halfExtent = (w * Math.cos(angle) + h * Math.sin(angle)) / 2;
+        }
+        const right = left + halfExtent * 2;
+        if (
+          section >= 0 &&
+          !leanedSections.has(section) &&
+          right <= rightLimit
+        ) {
+          const book = dealer.take();
+          const leanRight = (supportedLeans + salt) % 2 !== 0;
+          const color = book
+            ? spineBookColor(book, palette)
+            : palette.spines[
+                Math.floor(rand(i, salt + 4) * palette.spines.length)
+              ]!;
+          if (leanRight) {
+            // Mirror the complete pair: the upright support moves to the right
+            // and the leaner's top-right corner meets its left face.
+            const pairLeft = support.x - support.w / 2;
+            items[items.length - 1] = {
+              kind: "lean",
+              angle: -angle,
+              w,
+              h,
+              x: pairLeft + halfExtent,
+              color,
+              book,
+            };
+            items.push({
+              ...support,
+              x: pairLeft + halfExtent * 2 + support.w / 2,
+            });
+          } else {
+            items.push({
+              kind: "lean",
+              angle,
+              w,
+              h,
+              x: left + halfExtent,
+              color,
+              book,
+            });
+          }
+          x = right + 0.004;
+          supportedLeans++;
+          leanedSections.add(section);
+          i++;
+          continue;
+        }
+      }
+      const book = dealer.take();
+      let w = Math.min(
+        (0.055 + rand(i, salt + 2) * 0.095) * 0.76,
+        remaining - 0.004,
+      );
+      // Let a support book end at the next visible gap. Otherwise ordinary
+      // width jitter can consume the few centimeters its leaning neighbor needs.
+      if (supportedLeans < maxLeans) {
+        const window = leanWindows?.find(
+          (window, index) =>
+            !leanedSections.has(index) &&
+            window.left + 0.001 - x >= 0.03 &&
+            window.left + 0.001 - x <= w + 0.035 &&
+            Math.min(window.right, boundary) - window.left > 0.19,
+        );
+        if (window) w = window.left + 0.001 - x;
+      }
+      // Absorb a sliver into this book, rather than leave a conspicuous hole.
+      if (remaining - w < 0.026) w = remaining - 0.004;
+      const h = 0.445 + rand(i, salt + 3) * 0.065;
+      const color = book
+        ? spineBookColor(book, palette)
+        : palette.spines[
+            Math.floor(rand(i, salt + 4) * palette.spines.length)
+          ]!;
+      items.push({ kind: "spine", roll: 0, x: x + w / 2, w, h, color, book });
+      x += w + 0.004;
     } else if (roll > 0.7 && coverIdx < covers.length) {
       const w = 0.34;
       items.push({ kind: "cover", x: x + w / 2, ...covers[coverIdx]! });
@@ -447,7 +627,7 @@ export function packRow(
       } else {
         x += 0.06 + rand(i, salt + 1) * 0.08;
       }
-    } else if (flats < maxFlats && roll >= 0.04 && roll < 0.1) {
+    } else if (!tallStacks && flats < maxFlats && roll >= 0.04 && roll < 0.1) {
       // A horizontal stack lying on the row — real shelves are never all
       // vertical (audit §3-Books).
       pushFlatStack();
@@ -487,6 +667,7 @@ export function packRow(
     }
     i++;
   }
+  if (tallStacks) return items;
   // The end book keeps its authored 0.06 WIDTH in both branches below — it is
   // the piece that closes the row against the bookend, and that width is a
   // composition decision rather than a measurement. Its height is free, so a
@@ -604,6 +785,110 @@ function spineDetailTexture(ink: string, variant: number): THREE.CanvasTexture {
   return texture;
 }
 
+/** Sparse binding artwork on one cached overlay, with no invented glyphs
+ * or noisy grain. Each design uses just a few continuous strokes. */
+function detailedSpineTexture(
+  ink: string,
+  variant: number,
+): THREE.CanvasTexture {
+  const key = `binding:${ink}:${variant}`;
+  const cached = spineDetailCache.get(key);
+  if (cached) return cached;
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = ink;
+  const rule = (y: number, thickness = 1) => ctx.fillRect(8, y, 48, thickness);
+  // Aligned hairlines read as binding detail at shelf scale. Keep the centers
+  // mostly bare, and vary the layout rather than jittering individual marks.
+  ctx.globalAlpha = 0.32;
+  if (variant === 0) {
+    rule(26);
+    rule(228);
+    ctx.fillRect(30, 81, 2, 94);
+  } else if (variant === 1) {
+    rule(24);
+    rule(30);
+    rule(222);
+    rule(228);
+  } else if (variant === 2) {
+    ctx.fillRect(27, 70, 2, 108);
+    ctx.globalAlpha = 0.22;
+    ctx.fillRect(35, 82, 1, 70);
+    rule(228);
+  } else if (variant === 3) {
+    ctx.globalAlpha = 0.18;
+    rule(33, 4);
+    rule(219, 4);
+  } else if (variant === 4) {
+    rule(26);
+    ctx.fillRect(30, 89, 2, 78);
+  } else {
+    // Some bindings need only a quiet rule at the foot.
+    ctx.globalAlpha = 0.24;
+    rule(226);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  spineDetailCache.set(key, texture);
+  return texture;
+}
+
+function BookSpineDetail({
+  width,
+  height,
+  depth,
+  board,
+  ink,
+  variant,
+  enhanced = false,
+  horizontal = false,
+  subdued = false,
+}: {
+  width: number;
+  height: number;
+  depth: number;
+  board: string;
+  ink: string;
+  variant: number;
+  enhanced?: boolean;
+  horizontal?: boolean;
+  subdued?: boolean;
+}) {
+  return (
+    <mesh
+      position={[0, 0, depth / 2 + 0.001]}
+      rotation={[0, 0, horizontal ? -Math.PI / 2 : 0]}
+    >
+      <planeGeometry
+        args={
+          horizontal
+            ? [height * 0.9, width * 0.94]
+            : [width * 0.9, height * 0.94]
+        }
+      />
+      <meshStandardMaterial
+        map={
+          enhanced
+            ? detailedSpineTexture(bookSpineInk(board), variant)
+            : spineDetailTexture(ink, variant)
+        }
+        color={
+          enhanced
+            ? "#ffffff"
+            : subdued
+              ? subduedBookColor("#ffffff")
+              : "#ffffff"
+        }
+        transparent
+        depthWrite={false}
+        roughness={enhanced ? 0.85 : 0.7}
+      />
+    </mesh>
+  );
+}
+
 /** Swallows texture-load failures for a single cover so one broken URL
  * degrades to a blank book instead of killing the canvas. */
 export class CoverBoundary extends React.Component<
@@ -706,6 +991,10 @@ function ShelfBook({
         shape="box"
         massKg={0.65}
         hoverSlide={hoverSlide}
+        // Preserve the row's vertical lift when carrying is enabled. The
+        // default nod would rotate upright books into the featured covers.
+        hoverTiltAngle={hoverSlide ? undefined : 0}
+        hoverLift={hoverSlide ? 0 : lift[1] * HOVER_MOTION_SCALE}
         onHoverIntent={prefetchOwnNotes}
         {...(opensOwnNotes
           ? {
@@ -737,8 +1026,8 @@ function ShelfBook({
 
 /** Background volumes advertise their Portal by lifting vertically. They never
  * move toward the camera: that path crosses the front-rank cover plane and
- * produces exactly the z-fighting the owner reported. The global hover scale
- * turns 0.025 into a restrained 0.05-unit rise. */
+ * produces exactly the z-fighting the owner reported. Lift and Grabbable
+ * both apply the global hover scale to this rise. */
 const SPINE_LIFT: [number, number, number] = [0, 0.025, 0];
 /** Keep each book's authored organic roll while it rises. */
 const SPINE_SETTLE = 0;
@@ -1222,6 +1511,8 @@ function FlatStack({
   to,
   grabbableVolumes,
   onOpenBookId,
+  subdued = false,
+  detailedSpines = false,
 }: {
   item: Extract<RowItem, { kind: "flat" }>;
   index: number;
@@ -1231,44 +1522,70 @@ function FlatStack({
   to: PropDestination;
   grabbableVolumes: boolean;
   onOpenBookId?: (id: string) => void;
+  subdued?: boolean;
+  detailedSpines?: boolean;
 }) {
   const heights = useMemo(() => flatVolumeHeights(item), [item]);
   const seats = useMemo(() => flatVolumeSeats(item), [item]);
   return (
     <group>
-      {item.colors.map((color, j) => (
-        <ShelfBook
-          key={j}
-          linkUnit={linkUnit}
-          to={to}
-          hoverKey={bookRowHoverKey(linkUnit, salt, index, j)}
-          // The seat is the running sum of everything underneath plus half of
-          // this volume. It was `j × height`, which silently assumed a uniform
-          // pile; with real thicknesses that buries the upper books.
-          base={[item.x + j * (item.staggerX ?? 0.012), seats[j]!, 0]}
-          lift={FLAT_LIFT}
-          grabbable={grabbableVolumes}
-          // A stacked volume is pulled out, never tipped: the top one would
-          // otherwise nod up into the headphones or phone resting on it.
-          hoverSlide
-          shadeColor={palette.shadow}
-          book={item.books?.[j]}
-          onOpenBookId={onOpenBookId}
-        >
-          <group
-            name={bookRowNodeName("flat", linkUnit, salt, index, j)}
-            rotation={[0, rand(index + j, salt + 9) * 0.16 - 0.08, 0]}
+      {item.colors.map((color, j) => {
+        const volume = item.volumes?.[j];
+        return (
+          <ShelfBook
+            key={j}
+            linkUnit={linkUnit}
+            to={to}
+            hoverKey={bookRowHoverKey(linkUnit, salt, index, j)}
+            // The seat is the running sum of everything underneath plus half of
+            // this volume. It was `j × height`, which silently assumed a uniform
+            // pile; with real thicknesses that buries the upper books.
+            base={[
+              item.x + (volume?.x ?? j * (item.staggerX ?? 0.012)),
+              seats[j]!,
+              volume?.z ?? 0,
+            ]}
+            lift={FLAT_LIFT}
+            grabbable={grabbableVolumes}
+            // Pull a stacked volume out without tipping through its neighbors.
+            hoverSlide
+            shadeColor={palette.shadow}
+            book={item.books?.[j]}
+            onOpenBookId={onOpenBookId}
           >
-            <FlatBookVolume
-              width={item.width ?? 0.32}
-              height={heights[j]!}
-              depth={item.depth ?? 0.24}
-              color={color}
-              pages={palette.pages}
-            />
-          </group>
-        </ShelfBook>
-      ))}
+            <group
+              name={bookRowNodeName("flat", linkUnit, salt, index, j)}
+              rotation={[
+                0,
+                volume?.yaw ?? rand(index + j, salt + 9) * 0.16 - 0.08,
+                0,
+              ]}
+            >
+              <FlatBookVolume
+                width={volume?.width ?? item.width ?? 0.32}
+                height={heights[j]!}
+                depth={volume?.depth ?? item.depth ?? 0.24}
+                color={subdued ? subduedBookColor(color) : color}
+                pages={
+                  subdued ? subduedBookColor(palette.pages) : palette.pages
+                }
+              />
+              {detailedSpines && (
+                <BookSpineDetail
+                  width={volume?.width ?? item.width ?? 0.32}
+                  height={heights[j]!}
+                  depth={volume?.depth ?? item.depth ?? 0.24}
+                  board={subdued ? subduedBookColor(color) : color}
+                  ink={palette.ink}
+                  variant={Math.floor(rand(index + j, salt + 8) * 6)}
+                  enhanced
+                  horizontal
+                />
+              )}
+            </group>
+          </ShelfBook>
+        );
+      })}
     </group>
   );
 }
@@ -1286,6 +1603,8 @@ export function BookRowMesh({
   grabbableCovers = false,
   grabbableVolumes = false,
   firstCoverArrivalProgress,
+  subdued = false,
+  detailedSpines = false,
 }: {
   items: RowItem[];
   palette: Palette;
@@ -1313,6 +1632,10 @@ export function BookRowMesh({
   /** Optional Unit-authored Arrival Beat. Only the first cover participates;
    * packed context and the rest of the featured rank remain still. */
   firstCoverArrivalProgress?: () => number;
+  /** Fixed material treatment for background books, including carried ones. */
+  subdued?: boolean;
+  /** Contrast-aware binding artwork on the Books unit's background rows. */
+  detailedSpines?: boolean;
 }) {
   // Contact darkening under the row. No light in the scene casts a shadow and
   // N8AO runs at half resolution (and not at all on touch), so the line where
@@ -1371,12 +1694,13 @@ export function BookRowMesh({
             // the corner exactly on the plank: no sink, no float.
             base={[
               item.x,
-              (item.h / 2) * Math.cos(spineRoll(i, salt)) +
-                (item.w / 2) * Math.abs(Math.sin(spineRoll(i, salt))),
+              (item.h / 2) * Math.cos(item.roll ?? spineRoll(i, salt)) +
+                (item.w / 2) *
+                  Math.abs(Math.sin(item.roll ?? spineRoll(i, salt))),
               (depths[i]! - 0.3) / 2,
             ]}
             lift={SPINE_LIFT}
-            rest={[0, 0, spineRoll(i, salt)]}
+            rest={[0, 0, item.roll ?? spineRoll(i, salt)]}
             settle={SPINE_SETTLE}
             grabbable={grabbableVolumes}
             shadeColor={palette.shadow}
@@ -1392,28 +1716,25 @@ export function BookRowMesh({
                 width={item.w}
                 height={item.h}
                 depth={depths[i]!}
-                color={item.color}
-                pages={palette.pages}
+                color={subdued ? subduedBookColor(item.color) : item.color}
+                pages={
+                  subdued ? subduedBookColor(palette.pages) : palette.pages
+                }
                 roughness={0.55 + rand(i, salt + 6) * 0.35}
               />
-              {/* Printing. DETAIL_MIN_W rather than the old 0.09: at 0.09
-                  only the fat family carried any mark at all, so a row read as
-                  two or three printed books standing in a block of blanks.
-                  Variant 0 is deliberately empty, so about a sixth of the row
-                  still has nothing on it. */}
-              {item.w >= DETAIL_MIN_W && (
-                <mesh position={[0, 0, depths[i]! / 2 + 0.001]}>
-                  <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
-                  <meshStandardMaterial
-                    map={spineDetailTexture(
-                      palette.ink,
-                      Math.floor(rand(i, salt + 8) * 6),
-                    )}
-                    transparent
-                    depthWrite={false}
-                    roughness={0.7}
-                  />
-                </mesh>
+              {/* Keep markings on slim library spines too; the other units
+                  retain their original sparse printing. */}
+              {item.w >= (detailedSpines ? 0.045 : DETAIL_MIN_W) && (
+                <BookSpineDetail
+                  width={item.w}
+                  height={item.h}
+                  depth={depths[i]!}
+                  board={subdued ? subduedBookColor(item.color) : item.color}
+                  ink={palette.ink}
+                  variant={Math.floor(rand(i, salt + 8) * 6)}
+                  enhanced={detailedSpines}
+                  subdued={subdued}
+                />
               )}
             </SpineTip>
           </ShelfBook>
@@ -1428,6 +1749,8 @@ export function BookRowMesh({
             to={to}
             grabbableVolumes={grabbableVolumes}
             onOpenBookId={onOpenBookId}
+            subdued={subdued}
+            detailedSpines={detailedSpines}
           />
         ) : item.kind === "lean" ? (
           // Contact: rotZ drops one bottom corner — lift by the exact
@@ -1439,7 +1762,8 @@ export function BookRowMesh({
             hoverKey={bookRowHoverKey(linkUnit, salt, i)}
             base={[
               item.x,
-              (item.h / 2) * Math.cos(LEAN) + (item.w / 2) * Math.sin(LEAN),
+              (item.h / 2) * Math.cos(item.angle ?? LEAN) +
+                (item.w / 2) * Math.abs(Math.sin(item.angle ?? LEAN)),
               (depths[i]! - 0.3) / 2,
             ]}
             lift={SPINE_LIFT}
@@ -1451,7 +1775,7 @@ export function BookRowMesh({
             {/* The authored lean lives on a wrapping group so the named inner
                 node stays useful to the interaction probe. The parent Lift
                 translates both together and never changes this rest pose. */}
-            <group rotation={[0, 0, LEAN]}>
+            <group rotation={[0, 0, item.angle ?? LEAN]}>
               <SpineTip
                 name={bookRowNodeName("lean", linkUnit, salt, i)}
                 height={item.h}
@@ -1461,23 +1785,23 @@ export function BookRowMesh({
                   width={item.w}
                   height={item.h}
                   depth={depths[i]!}
-                  color={item.color}
-                  pages={palette.pages}
+                  color={subdued ? subduedBookColor(item.color) : item.color}
+                  pages={
+                    subdued ? subduedBookColor(palette.pages) : palette.pages
+                  }
                   roughness={0.65}
                 />
-                {item.w >= DETAIL_MIN_W && (
-                  <mesh position={[0, 0, depths[i]! / 2 + 0.001]}>
-                    <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
-                    <meshStandardMaterial
-                      map={spineDetailTexture(
-                        palette.ink,
-                        Math.floor(rand(i, salt + 8) * 6),
-                      )}
-                      transparent
-                      depthWrite={false}
-                      roughness={0.7}
-                    />
-                  </mesh>
+                {item.w >= (detailedSpines ? 0.045 : DETAIL_MIN_W) && (
+                  <BookSpineDetail
+                    width={item.w}
+                    height={item.h}
+                    depth={depths[i]!}
+                    board={subdued ? subduedBookColor(item.color) : item.color}
+                    ink={palette.ink}
+                    variant={Math.floor(rand(i, salt + 8) * 6)}
+                    enhanced={detailedSpines}
+                    subdued={subdued}
+                  />
                 )}
               </SpineTip>
             </group>

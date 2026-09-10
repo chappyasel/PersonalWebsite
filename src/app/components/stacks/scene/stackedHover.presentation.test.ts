@@ -47,12 +47,12 @@ describe("props with something stacked on them", () => {
     const text = source("./primitives.tsx");
     expect(text).toContain("const fallback = item.height ?? 0.052;");
     expect(text).toContain("(_, j) => item.heights?.[j] ?? fallback,");
-    expect(text).toContain("depth={item.depth ?? 0.24}");
+    expect(text).toContain("depth={volume?.depth ?? item.depth ?? 0.24}");
     // Seats are the running sum of every thickness below each volume. This is
     // the variable-height form of the same touching-stack invariant.
     expect(text).toContain("const seats = useMemo(() => flatVolumeSeats(item)");
-    expect(text).toContain(
-      "base={[item.x + j * (item.staggerX ?? 0.012), seats[j]!, 0]}",
+    expect(text).toMatch(
+      /base=\{\[\s*item\.x \+ \(volume\?\.x \?\? j \* \(item\.staggerX \?\? 0\.012\)\),\s*seats\[j\]!,\s*volume\?\.z \?\? 0,\s*\]\}/,
     );
   });
 

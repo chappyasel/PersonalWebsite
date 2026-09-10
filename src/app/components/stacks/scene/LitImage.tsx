@@ -16,6 +16,7 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
+import { liftBookCoverShadows } from "./bookCoverTreatment";
 import {
   type LitImageDetail,
   clearReleasedLitImageDetail,
@@ -91,12 +92,13 @@ function applyPhotographTreatment(
   target: THREE.Texture,
   warmth: number,
   contrast: number,
+  coverShadowLift: boolean,
 ) {
   const img = source.image as
     | (CanvasImageSource & { width: number; height: number })
     | undefined;
   if (!img?.width || !img.height) return;
-  if (warmth <= 0 && contrast === 0) {
+  if (warmth <= 0 && contrast === 0 && !coverShadowLift) {
     target.image = img;
     target.needsUpdate = true;
     return;
@@ -114,6 +116,11 @@ function applyPhotographTreatment(
     contrast === 0 ? "none" : `contrast(${Math.max(0.2, 1 + contrast * 0.8)})`;
   ctx.drawImage(img, 0, 0);
   ctx.filter = "none";
+  if (coverShadowLift) {
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    liftBookCoverShadows(pixels.data);
+    ctx.putImageData(pixels, 0, 0);
+  }
   if (warmth > 0) {
     ctx.globalCompositeOperation = "multiply";
     ctx.globalAlpha = warmth;
@@ -198,6 +205,7 @@ function LitImageSource({
       texture,
       grade * photographTreatment.warmthMultiplier,
       gradeChroma ? 0 : photographTreatment.contrast,
+      gradeChroma && photographTreatment.coverShadowLift,
     );
     texture.anisotropy = maxAnisotropy;
     fitCover(texture, width, height, zoom, [fx, fy]);
@@ -211,6 +219,7 @@ function LitImageSource({
     grade,
     gradeChroma,
     photographTreatment.contrast,
+    photographTreatment.coverShadowLift,
     photographTreatment.warmthMultiplier,
     zoom,
     fx,

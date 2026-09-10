@@ -55,7 +55,7 @@ describe("development diagnostics chrome", () => {
     expect(registrySource).toContain("Physics runtime");
     expect(diagnosticsSource).toContain("Scene quality");
     expect(registrySource).toContain("Lens and depth of field");
-    expect(registrySource).toContain("Photograph treatment");
+    expect(registrySource).toContain("Photographs and books");
     expect(registrySource).toContain("Post-processing passes");
     expect(registrySource).toContain("Scene effects and materials");
     expect(registrySource).toContain("Lighthouse beacon");

@@ -26,13 +26,15 @@ describe("photograph treatment controller", () => {
       chromaProtection: false,
       warmthMultiplier: 3,
       contrast: -1,
+      coverShadowLift: true,
     });
     expect(notifications).toBe(1);
     unsubscribe();
   });
 
   it("restores the production treatment", () => {
-    photographTreatmentController.update({ contrast: -0.4 });
+    photographTreatmentController.update({ contrast: -0.4, coverShadowLift: false });
+    expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(false);
     photographTreatmentController.reset();
 
     expect(photographTreatmentController.getSnapshot()).toBe(

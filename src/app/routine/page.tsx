@@ -1,7 +1,12 @@
 import rawData from "../../../public/data/routine.json";
+import type { ResolvingMetadata } from "next";
 
 import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { loadSitePageCards } from "~/lib/site/pageCards";
+import {
+  type SectionSearchParams,
+  sectionMetadata,
+} from "~/lib/site/sectionMetadata";
 
 import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
@@ -15,6 +20,13 @@ import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 import type { RoutineData } from "./types";
 
 const data = rawData as unknown as RoutineData;
+
+export function generateMetadata(
+  { searchParams }: { searchParams: SectionSearchParams },
+  parent: ResolvingMetadata,
+) {
+  return sectionMetadata("routine", searchParams, parent);
+}
 
 export default async function RoutinePage() {
   // The page is static JSON. The library only decorates its book links, and

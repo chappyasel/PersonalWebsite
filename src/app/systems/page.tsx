@@ -1,8 +1,13 @@
 import rawData from "../../../public/data/systems.json";
+import type { ResolvingMetadata } from "next";
 import React from "react";
 
 import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { loadSitePageCards } from "~/lib/site/pageCards";
+import {
+  type SectionSearchParams,
+  sectionMetadata,
+} from "~/lib/site/sectionMetadata";
 
 import SystemsHero from "./components/SystemsHero";
 import SystemsSection from "./components/SystemsSection";
@@ -11,12 +16,18 @@ import {
   type TOCItem,
 } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
-import { HashScrollSpacer } from "~/components/daylight/hashTarget";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import type { SystemsData } from "./types";
 
 const data = rawData as unknown as SystemsData;
+
+export function generateMetadata(
+  { searchParams }: { searchParams: SectionSearchParams },
+  parent: ResolvingMetadata,
+) {
+  return sectionMetadata("systems", searchParams, parent);
+}
 
 export default async function SystemsPage() {
   // The page is static JSON. The library only decorates its book links (the
@@ -60,7 +71,6 @@ export default async function SystemsPage() {
                   bookLookup={bookLookup}
                 />
               ))}
-              <HashScrollSpacer />
             </div>
           </div>
           <SkyFooter />

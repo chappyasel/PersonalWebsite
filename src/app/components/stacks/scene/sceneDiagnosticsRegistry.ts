@@ -7,14 +7,11 @@ import {
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
 import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
+import { backgroundBookTreatment } from "./backgroundBookTreatment";
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import { golfFocusPullConsoleController } from "./golfFocusPullConsole";
-import {
-  GOLF_SUSPENSE_CONSOLE_DEFAULT,
-  golfSuspenseConsoleController,
-} from "./golfSuspenseConsole";
 import {
   GOLF_MODE_DEFAULT,
   GOLF_MODE_LIMITS,
@@ -24,6 +21,10 @@ import {
   type GolfModeNumberKey,
   golfModeConsoleController,
 } from "./golfModeConsole";
+import {
+  GOLF_SUSPENSE_CONSOLE_DEFAULT,
+  golfSuspenseConsoleController,
+} from "./golfSuspenseConsole";
 import { insectDiagnosticsController } from "./insectPerchDiagnostic";
 import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnostics";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
@@ -234,7 +235,7 @@ const SECTION_DEFINITIONS = Object.freeze([
   {
     id: "render.photographs",
     panel: "render",
-    label: "Photograph treatment",
+    label: "Photographs and books",
   },
   {
     id: "render.passes",
@@ -1009,8 +1010,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     experimental: false,
     store: golfModeConsoleController,
     read: () => golfModeConsoleController.getSnapshot().occluders,
-    update: (value) =>
-      golfModeConsoleController.setOccluders(Boolean(value)),
+    update: (value) => golfModeConsoleController.setOccluders(Boolean(value)),
   }),
   booleanDescriptor({
     id: "sky.depth-traverse",
@@ -1689,6 +1689,75 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     productionCost: {
       activeValues: [true],
       enabled: "One composer color transform over the frame.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.book-cover-shadow-lift",
+    panel: "render",
+    group: "render.photographs",
+    label: "Book cover shadow lift",
+    help: "Lift dark cover ink while preserving highlights and scene lighting. Turn off to compare the original treatment.",
+    defaultValue: DEFAULT_PHOTOGRAPH_TREATMENT.coverShadowLift,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: photographTreatmentController,
+    read: () => photographTreatmentController.getSnapshot().coverShadowLift,
+    update: (value) =>
+      photographTreatmentController.update({ coverShadowLift: Boolean(value) }),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One CPU pixel pass when the cover texture or control changes.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.subdued-background-books",
+    panel: "render",
+    group: "render.photographs",
+    label: "Subdued background books",
+    help: "Mute boards and paper in the packed rows, including selected and carried books. Featured covers keep their normal colors.",
+    defaultValue: true,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: backgroundBookTreatment,
+    read: backgroundBookTreatment.getSnapshot,
+    update: (value) => backgroundBookTreatment.setSubdued(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "Adjust existing material colors when a background row renders.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.detailed-book-spines",
+    panel: "render",
+    group: "render.photographs",
+    label: "Detailed book spines",
+    help: "Add sparse binding rules and fine continuous spine lines to the background books, including flat stacks. Appearance stays fixed when carried.",
+    defaultValue: true,
+    experimental: false,
+    behavior: { read: "live", update: "session-only", reset: "reload" },
+    store: backgroundBookTreatment,
+    read: backgroundBookTreatment.getDetailedSpines,
+    update: (value) =>
+      backgroundBookTreatment.setDetailedSpines(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Reuse cached binding textures on spine overlays; one added overlay per stacked book.",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,

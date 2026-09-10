@@ -1,8 +1,13 @@
 import rawData from "../../../public/data/manual.json";
+import type { ResolvingMetadata } from "next";
 import React from "react";
 
 import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { loadSitePageCards } from "~/lib/site/pageCards";
+import {
+  type SectionSearchParams,
+  sectionMetadata,
+} from "~/lib/site/sectionMetadata";
 
 import ManualHero from "./components/ManualHero";
 import ManualOverview from "./components/ManualOverview";
@@ -15,6 +20,13 @@ import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 import type { ManualData } from "./types";
 
 const data = rawData as unknown as ManualData;
+
+export function generateMetadata(
+  { searchParams }: { searchParams: SectionSearchParams },
+  parent: ResolvingMetadata,
+) {
+  return sectionMetadata("manual", searchParams, parent);
+}
 
 export default async function ManualPage() {
   // The page is static JSON. The library only decorates its book links, and

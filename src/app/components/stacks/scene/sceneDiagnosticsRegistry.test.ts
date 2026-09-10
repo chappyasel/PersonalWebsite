@@ -6,6 +6,7 @@ import { MeadowDeformationController } from "./meadowDeformation";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import { MEADOW_WIND } from "./meadowMotion";
 import { pointerCameraTiltController } from "./pointerCameraTilt";
+import { photographTreatmentController } from "./photographTreatment";
 import {
   type DiagnosticRegistryEntry,
   type DiagnosticRegistryStore,
@@ -44,6 +45,18 @@ class NoWorkRenderer {
 }
 
 describe("Scene Diagnostics registry", () => {
+  it("compares book cover shadow treatment live without changing quality policy", () => {
+    const quality = sceneQualityController.getSnapshot();
+    try {
+      sceneDiagnosticsRegistry.update("render.book-cover-shadow-lift", false);
+      expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(false);
+      sceneDiagnosticsRegistry.update("render.book-cover-shadow-lift", true);
+      expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(true);
+      expect(sceneQualityController.getSnapshot()).toBe(quality);
+    } finally {
+      photographTreatmentController.reset();
+    }
+  });
   it("presents meadow strength and speed as authored multipliers", () => {
     const strength = sceneDiagnosticsRegistry.descriptors.find(
       (descriptor) => descriptor.id === "meadow.wind-strength",

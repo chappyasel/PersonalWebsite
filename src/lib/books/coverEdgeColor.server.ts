@@ -1,13 +1,15 @@
+import PQueue from "p-queue";
 import sharp from "sharp";
 
 import {
   type ReadingBookEdgeColor,
   fallbackCoverEdgeColor,
 } from "./coverEdgeColor";
+import { enhanceCoverUrl } from "./coverUtils";
 
 const SAMPLE_WIDTH = 48;
 const SAMPLE_HEIGHT = 64;
-const EDGE_BAND = 6;
+const EDGE_BAND = 2;
 const MAX_CACHE_ENTRIES = 96;
 const COVER_FETCH_TIMEOUT_MS = 650;
 const MAX_COVER_BYTES = 6 * 1024 * 1024;
@@ -21,7 +23,6 @@ type Bucket = {
   g: number;
   b: number;
   score: number;
-  chromatic: boolean;
 };
 
 function saturation(r: number, g: number, b: number) {
@@ -73,7 +74,6 @@ export async function extractCoverEdgeColor(
           g: 0,
           b: 0,
           score: 0,
-          chromatic: false,
         };
         entry.count += 1;
         entry.r += r;
@@ -82,31 +82,21 @@ export async function extractCoverEdgeColor(
         buckets.set(key, entry);
       }
     }
-    let chromaticPixels = 0;
     for (const entry of buckets.values()) {
       const r = entry.r / entry.count;
       const g = entry.g / entry.count;
       const b = entry.b / entry.count;
       const chroma = saturation(r, g, b);
       const brightness = (r + g + b) / (3 * 255);
-      entry.chromatic =
-        chroma >= 0.18 && brightness >= 0.09 && brightness <= 0.93;
-      if (entry.chromatic) chromaticPixels += entry.count;
       const neutralHighlight = brightness > 0.91 && chroma < 0.1 ? 0.16 : 1;
       const crushedShadow = brightness < 0.055 ? 0.32 : 1;
       entry.score =
         entry.count * (0.62 + chroma * 2.6) * neutralHighlight * crushedShadow;
     }
-    // Amazon jacket scans commonly include a white cover ground all the way
-    // to the crop. A literal modal perimeter bucket then paints every physical
-    // book the same white, even when teal/orange/red cover ink reaches that
-    // perimeter. Keep the sample edge-first, but once real jacket ink accounts
-    // for at least 0.5% of the band, select among that ink rather than treating
-    // the scanner/cover paper as cloth color.
-    const preferChromatic = chromaticPixels >= 6;
+    // Read the narrow perimeter, not title ink further inside the cover.
+    // Neutral edges are valid; a few colored pixels must not disqualify them.
     let best: Bucket | null = null;
     for (const entry of buckets.values()) {
-      if (preferChromatic && !entry.chromatic) continue;
       if (!best || entry.score > best.score) best = entry;
     }
     return best ? bucketHex(best) : null;
@@ -165,35 +155,30 @@ async function loadRemoteCover(url: string): Promise<CoverBytes | null> {
   }
 }
 
-const resolveCoverEdgeColor = createCoverEdgeColorResolver(loadRemoteCover);
-
-const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const coverQueue = new PQueue({ concurrency: 6 });
+const resolveCoverEdgeColor = createCoverEdgeColorResolver(
+  async (url) => (await coverQueue.add(() => loadRemoteCover(url))) ?? null,
+);
 
 /**
- * Board colors for physical books in the scene. The library's stored jacket
- * color (sampled once at sync, see coverColor.server.ts) wins whenever a book
- * has one: it costs no fetch at render time and cannot time out. The live
- * perimeter sample remains for books the sync has not colored yet.
+ * Physical board and spine colors, sampled independently of the library's
+ * whole-cover sort color. Successful samples are cached by clean artwork URL.
  */
 export async function readingBookEdgeColors(
   books: Array<{
     id: string;
     coverUrl: string | null;
-    coverColor?: string | null;
   }>,
 ): Promise<Record<string, ReadingBookEdgeColor>> {
   const entries = await Promise.all(
     books.map(async (book) => {
-      if (book.coverColor && HEX_COLOR.test(book.coverColor)) {
-        return [
-          book.id,
-          { edge: book.coverColor.toLowerCase(), source: "cover" as const },
-        ] as const;
-      }
       return [
         book.id,
         book.coverUrl
-          ? await resolveCoverEdgeColor(book.coverUrl, book.id)
+          ? await resolveCoverEdgeColor(
+              enhanceCoverUrl(book.coverUrl)!,
+              book.id,
+            )
           : {
               edge: fallbackCoverEdgeColor(book.id),
               source: "fallback" as const,

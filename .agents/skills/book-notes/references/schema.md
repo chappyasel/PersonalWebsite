@@ -84,6 +84,14 @@ FROM books
 WHERE cover_url IS NOT NULL AND cover_color IS NULL;
 ```
 
+The 3D homepage uses a separate, server-sampled **edge color** from
+`src/lib/books/coverEdgeColor.server.ts` for boards and spines. It samples
+the perimeter of the same cover image the scene renders, caches successful
+samples by URL, and does not read or write `cover_color`. A white-faced book
+with a red border can therefore sort with white books while wearing red
+boards in the scene. These are separate measurements, not competing sources
+for one value.
+
 ## Website link
 
 Notion's `Website` URL property is the one field the sync writes rather than

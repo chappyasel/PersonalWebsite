@@ -135,23 +135,33 @@ async function HomePageContent({
   const featuredBooks = allBooks.filter(
     (book) => book.isFeatured && book.coverUrl,
   );
-  const [activity, liftingPlacard, featuredBookColors, github] =
-    await Promise.all([
-      orEmpty(
-        "home:activity",
-        () => getCachedActivityMosaic(12),
-        emptyActivityMosaic(12),
-      ),
-      orEmpty(
-        "home:lifting",
-        getCachedWeightliftingPlacard,
-        EMPTY_WEIGHTLIFTING_PLACARD,
-      ),
-      readingBookEdgeColors(featuredBooks),
-      // Live when GITHUB_TOKEN is set, the committed snapshot otherwise; the
-      // Projects placard drops its GitHub cards if neither can be read.
-      orEmpty("home:github", getGitHubActivity, null),
-    ]);
+  const featuredIds = new Set(featuredBooks.map((book) => book.id));
+  const packedBooks = allBooks
+    .filter((book) => book.finished && !featuredIds.has(book.id))
+    .slice(0, 64);
+  const [
+    activity,
+    liftingPlacard,
+    featuredBookColors,
+    spineBookColors,
+    github,
+  ] = await Promise.all([
+    orEmpty(
+      "home:activity",
+      () => getCachedActivityMosaic(12),
+      emptyActivityMosaic(12),
+    ),
+    orEmpty(
+      "home:lifting",
+      getCachedWeightliftingPlacard,
+      EMPTY_WEIGHTLIFTING_PLACARD,
+    ),
+    readingBookEdgeColors(featuredBooks),
+    readingBookEdgeColors(packedBooks),
+    // Live when GITHUB_TOKEN is set, the committed snapshot otherwise; the
+    // Projects placard drops its GitHub cards if neither can be read.
+    orEmpty("home:github", getGitHubActivity, null),
+  ]);
   const bookPlacard = buildHomepageBookPlacard(allBooks);
   const bookStats = bookPlacard.stats;
   const bookCovers = allBooks.slice(0, 60).map((book) => ({
@@ -164,7 +174,6 @@ async function HomePageContent({
   // the scene knows about: `onOpenBook` resolves clicks out of this array and
   // `Scene` warms only these covers. Without the union, a featured cover could
   // fall past the cut and become an unclickable, late-decoding slab.
-  const featuredIds = new Set(featuredBooks.map((book) => book.id));
   const readingIds = new Set(readingBooks.map((book) => book.id));
   const shelfBooks = [
     ...featuredBooks,
@@ -180,17 +189,14 @@ async function HomePageContent({
   // in front of them. Slim on purpose — a spine renders no cover, so this
   // must not grow the image-warming set or ship full Book serializations.
   // 64 comfortably overfills the two rows' measured spine capacity (~48).
-  const spineBooks = allBooks
-    .filter((book) => book.finished && !featuredIds.has(book.id))
-    .slice(0, 64)
-    .map((book) => ({
-      id: book.id,
-      title: book.title,
-      author: book.author,
-      pageCount: book.pageCount,
-      audioLengthMin: book.audioLengthMin,
-      coverColor: book.coverColor,
-    }));
+  const spineBooks = packedBooks.map((book) => ({
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    pageCount: book.pageCount,
+    audioLengthMin: book.audioLengthMin,
+    edgeColor: spineBookColors[book.id]?.edge ?? null,
+  }));
 
   const data: StacksData = {
     covers: bookCovers,

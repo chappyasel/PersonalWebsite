@@ -4,6 +4,8 @@ import { CheckIcon, LinkIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useState } from "react";
 
+import { sectionShareUrl } from "~/lib/site/sectionShare";
+
 import {
   Tooltip,
   TooltipContent,
@@ -39,7 +41,7 @@ export default function AnchorLink({
       e.stopPropagation();
       const base =
         url ?? `${window.location.origin}${window.location.pathname}`;
-      const link = `${base}#${id}`;
+      const link = sectionShareUrl(base, id);
       if (!url) window.history.replaceState(null, "", `#${id}`);
       const flash = () => {
         setCopied(true);
@@ -61,6 +63,7 @@ export default function AnchorLink({
           <button
             type="button"
             onClick={copy}
+            onKeyDown={(event) => event.stopPropagation()}
             aria-label="Copy link to this section"
             className={`shrink-0 -translate-x-0.5 rounded-md p-1 text-muted-foreground/30 opacity-0 transition-all duration-200 hover:bg-muted/60 hover:text-foreground focus-visible:opacity-100 active:scale-[0.82] group-hover/sec:translate-x-0 group-hover/sec:opacity-100 ${className}`}
           >

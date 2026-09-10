@@ -10,6 +10,8 @@ export type PhotographTreatmentSnapshot = Readonly<{
   warmthMultiplier: number;
   /** Texture-space contrast applied only to photographs. */
   contrast: number;
+  /** Compensate dark book artwork for the lit print treatment. */
+  coverShadowLift: boolean;
 }>;
 
 export const DEFAULT_PHOTOGRAPH_TREATMENT: PhotographTreatmentSnapshot =
@@ -17,6 +19,7 @@ export const DEFAULT_PHOTOGRAPH_TREATMENT: PhotographTreatmentSnapshot =
     chromaProtection: true,
     warmthMultiplier: 1,
     contrast: 0,
+    coverShadowLift: true,
   });
 
 export const PHOTOGRAPH_TREATMENT_LIMITS = Object.freeze({
@@ -68,11 +71,13 @@ class PhotographTreatmentController {
         PHOTOGRAPH_TREATMENT_LIMITS.contrast,
         this.snapshot.contrast,
       ),
+      coverShadowLift: patch.coverShadowLift ?? this.snapshot.coverShadowLift,
     };
     if (
       next.chromaProtection === this.snapshot.chromaProtection &&
       next.warmthMultiplier === this.snapshot.warmthMultiplier &&
-      next.contrast === this.snapshot.contrast
+      next.contrast === this.snapshot.contrast &&
+      next.coverShadowLift === this.snapshot.coverShadowLift
     )
       return;
     this.snapshot = next;

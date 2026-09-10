@@ -1,8 +1,9 @@
 import sharp from "sharp";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { coverColorFamily } from "./coverColor";
+import { extractCoverColor } from "./coverColor.server";
 import {
-  contrastRatio,
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "./coverEdgeColor";
@@ -47,16 +48,15 @@ describe("cover perimeter colors", () => {
     expect(color).toBe("#1060a0");
   });
 
-  it("uses real perimeter ink instead of making white-ground covers identical", async () => {
+  it("keeps pale edges pale when colored ink sits inside the border", async () => {
     const [teal, orange, red] = await Promise.all(
       ["#147a83", "#ed5210", "#a91822"].map(async (accent) =>
         extractCoverEdgeColor(await whiteCoverWithEdgeInk(accent)),
       ),
     );
-    expect(teal).toBe("#107080");
-    expect(orange).toBe("#e05010");
-    expect(red).toBe("#a01020");
-    expect(new Set([teal, orange, red]).size).toBe(3);
+    expect(teal).toBe("#f0f0f0");
+    expect(orange).toBe("#f0f0f0");
+    expect(red).toBe("#f0f0f0");
   });
 
   it("falls back deterministically when image loading or decoding fails", async () => {
@@ -93,36 +93,82 @@ describe("cover perimeter colors", () => {
     expect(calls).toBe(1);
   });
 
-  it("keeps cloth boards distinct from cream pages in both themes", () => {
-    for (const dark of [false, true]) {
-      const colors = readingBookMaterialColors(
-        "#f6f3e9",
-        dark ? "#c7bda9" : "#f2e8d5",
-        dark,
-      );
-      expect(contrastRatio(colors.cover, colors.pages)).toBeGreaterThan(1.35);
-    }
-  });
-
-  it("keeps near-black violet jackets charcoal-plum rather than neon purple", () => {
-    expect(readingBookMaterialColors("#100020", "#f4ecdb", false).cover).toBe(
-      "#402d53",
-    );
-    expect(readingBookMaterialColors("#100020", "#b3a68f", true).cover).toBe(
-      "#4d3762",
-    );
-  });
+  it.each(["#d4dcd8", "#fcf8f8", "#3c4430", "#100020", "#f6f3e9"])(
+    "preserves the sampled jacket color %s in both themes",
+    (edge) => {
+      for (const dark of [false, true]) {
+        const colors = readingBookMaterialColors(
+          edge,
+          dark ? "#c7bda9" : "#f2e8d5",
+          dark,
+        );
+        expect(colors.cover).toBe(edge);
+        expect(colors.pages).toMatch(/^#[0-9a-f]{6}$/);
+      }
+    },
+  );
 });
 
 describe("readingBookEdgeColors", () => {
-  it("uses the library's stored jacket color before sampling anything", async () => {
-    const colors = await readingBookEdgeColors([
-      { id: "stored", coverUrl: "https://example.invalid/never-fetched.jpg", coverColor: "#2980B9" },
-      { id: "no-cover", coverUrl: null, coverColor: null },
-      { id: "bad-hex", coverUrl: null, coverColor: "blue" },
-    ]);
-    expect(colors.stored).toEqual({ edge: "#2980b9", source: "cover" });
-    expect(colors["no-cover"]?.source).toBe("fallback");
-    expect(colors["bad-hex"]?.source).toBe("fallback");
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("uses the red perimeter for boards while the white face stays in the white sort family", async () => {
+    const white = await sharp({
+      create: {
+        width: 44,
+        height: 60,
+        channels: 3,
+        background: "#fafafa",
+      },
+    })
+      .png()
+      .toBuffer();
+    const cover = await sharp({
+      create: {
+        width: 48,
+        height: 64,
+        channels: 3,
+        background: "#b81b2b",
+      },
+    })
+      .composite([{ input: white, left: 2, top: 2 }])
+      .png()
+      .toBuffer();
+    const coverColor = await extractCoverColor(cover);
+    expect(coverColorFamily(coverColor)).toBe("White");
+    const fetchCover = vi
+      .fn()
+      .mockResolvedValue(new Response(new Uint8Array(cover)));
+    vi.stubGlobal("fetch", fetchCover);
+    const books = [
+      {
+        id: "red-framed",
+        coverUrl: "https://example.test/red-framed.jpg",
+        coverColor,
+      },
+    ];
+    const colors = await readingBookEdgeColors(books);
+    expect(colors["red-framed"]).toEqual({ edge: "#b01020", source: "edge" });
+    expect(books[0]!.coverColor).toBe(coverColor);
+    expect(fetchCover).toHaveBeenCalledOnce();
+  });
+
+  it("does not treat a stored face color as an edge when sampling fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const books = [
+      {
+        id: "offline",
+        coverUrl: "https://example.test/offline.jpg",
+        coverColor: "#ffffff",
+      },
+      { id: "missing", coverUrl: null, coverColor: "#ffffff" },
+    ];
+    const colors = await readingBookEdgeColors(books);
+    for (const book of books) {
+      expect(colors[book.id]).toEqual({
+        edge: fallbackCoverEdgeColor(book.id),
+        source: "fallback",
+      });
+    }
   });
 });

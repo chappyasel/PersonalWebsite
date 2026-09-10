@@ -1569,7 +1569,8 @@ export default function SceneDiagnostics({
       DEFAULT_PHOTOGRAPH_TREATMENT.chromaProtection ||
     photographTreatment.warmthMultiplier !==
       DEFAULT_PHOTOGRAPH_TREATMENT.warmthMultiplier ||
-    photographTreatment.contrast !== DEFAULT_PHOTOGRAPH_TREATMENT.contrast;
+    photographTreatment.contrast !== DEFAULT_PHOTOGRAPH_TREATMENT.contrast ||
+    photographTreatment.coverShadowLift !== DEFAULT_PHOTOGRAPH_TREATMENT.coverShadowLift;
 
   useEffect(() => {
     if (!automaticReport) return;
@@ -2058,7 +2059,7 @@ export default function SceneDiagnostics({
                 disabled={!photographTreatmentChanged}
                 onClick={() => photographTreatmentController.reset()}
               >
-                Reset photograph treatment
+                Reset image treatment
               </button>
             </div>
           </DiagnosticRegistrySection>
