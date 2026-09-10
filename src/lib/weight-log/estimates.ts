@@ -14,6 +14,39 @@ export interface TrendEstimate {
   interpolated: boolean;
 }
 
+/** Arithmetic mean of recorded weigh-ins in (one calendar year ago, today].
+ * Partial history is usable; missing days are not filled with invented weights. */
+export function annualWeightAverage(points: readonly TrendInput[]) {
+  const last =
+    [...points].reverse().find((point) => point.weight !== null)?.time ??
+    -Infinity;
+  let left = 0,
+    sum = 0,
+    count = 0;
+  return points.map((point, index) => {
+    const date = new Date(point.time);
+    const year = date.getUTCFullYear() - 1;
+    const month = date.getUTCMonth();
+    const day = Math.min(
+      date.getUTCDate(),
+      new Date(Date.UTC(year, month + 1, 0)).getUTCDate(),
+    );
+    const cutoff = Date.UTC(year, month, day);
+    if (point.weight !== null) {
+      sum += point.weight;
+      count++;
+    }
+    while (left <= index && points[left]!.time <= cutoff) {
+      const weight = points[left++]!.weight;
+      if (weight !== null) {
+        sum -= weight;
+        count--;
+      }
+    }
+    return point.time <= last && count ? sum / count : null;
+  });
+}
+
 /** Available readings in the trailing calendar week, with one extreme trimmed
  * from each end at n >= 3. Short gaps interpolate between actual trend anchors. */
 export function weightTrend(points: readonly TrendInput[]): TrendEstimate[] {

@@ -1,4 +1,8 @@
-import { bodyFatEstimates, weightTrend } from "./estimates";
+import {
+  annualWeightAverage,
+  bodyFatEstimates,
+  weightTrend,
+} from "./estimates";
 import type { WeightLog } from "./schema";
 
 export const PHASE_COLORS = {
@@ -31,6 +35,7 @@ export interface WeightPoint {
   weight: number | null;
   weekly: number | null;
   trailing: number | null;
+  annual: number | null;
   trendReadings: number;
   trendInterpolated: boolean;
   projectedWeight: number | null;
@@ -84,6 +89,7 @@ export function buildWeightChart(log: WeightLog): WeightPoint[] {
         weight,
         weekly,
         trailing: null,
+        annual: null,
         trendReadings: 0,
         trendInterpolated: false,
         projectedWeight: null,
@@ -111,6 +117,7 @@ export function buildWeightChart(log: WeightLog): WeightPoint[] {
       weight: null,
       weekly: null,
       trailing: null,
+      annual: null,
       trendReadings: 0,
       trendInterpolated: false,
       projectedWeight: null,
@@ -126,11 +133,13 @@ export function buildWeightChart(log: WeightLog): WeightPoint[] {
     result.push(point);
   }
   const trend = weightTrend(result);
+  const annual = annualWeightAverage(result);
   const latestReading = [...result]
     .reverse()
     .find((point) => point.weight !== null)?.time;
   result.forEach((point, index) => {
     point.trailing = trend[index]!.value;
+    point.annual = annual[index]!;
     point.trendReadings = trend[index]!.readings;
     point.trendInterpolated = trend[index]!.interpolated;
   });

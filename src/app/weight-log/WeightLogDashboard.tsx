@@ -2,7 +2,6 @@
 
 import { useId, useMemo, useState } from "react";
 import {
-  CartesianGrid,
   ComposedChart,
   Customized,
   Line,
@@ -22,7 +21,12 @@ import {
   dayTime,
 } from "~/lib/weight-log/chart";
 import { fitPartition } from "~/lib/weight-log/estimates";
-import { bodyFatAxis, phaseColorAt } from "~/lib/weight-log/presentation";
+import {
+  bodyFatAxis,
+  calendarAxis,
+  phaseColorAt,
+  weightAxis,
+} from "~/lib/weight-log/presentation";
 import type { WeightLog } from "~/lib/weight-log/schema";
 
 import { DexaChart } from "./DexaChart";
@@ -36,6 +40,7 @@ const lineStyles = {
   target: "4 4",
   originalTarget: "1 4",
   trailing: "9 3",
+  annual: "2 4",
   setPoints: "6 5",
   projections: "14 5",
   bodyFat: "8 3 2 3",
@@ -65,6 +70,7 @@ const labels = {
   target: "Target",
   originalTarget: "Original target",
   trailing: "7-day trend",
+  annual: "12-month average",
   setPoints: "Set points",
   projections: "Future plan",
   bodyFat: "Body fat %",
@@ -146,15 +152,17 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
   const [end, setEnd] = useState(last);
   const [phase, setPhase] = useState("all");
   const [visible, setVisible] = useState({
-    weight: true,
-    weekly: true,
-    target: true,
+    weight: false,
+    weekly: false,
+    target: false,
     originalTarget: false,
     trailing: true,
-    setPoints: true,
-    projections: true,
-    bodyFat: true,
+    annual: false,
+    setPoints: false,
+    projections: false,
+    bodyFat: false,
   });
+  const [layersOpen, setLayersOpen] = useState(false);
   const chartId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const phaseGradientId = `${chartId}-phase`;
   const phaseStroke = `url(#${phaseGradientId})`;
@@ -207,8 +215,30 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
     visible.target ||
     visible.originalTarget ||
     visible.trailing ||
+    visible.annual ||
     visible.projections ||
     (visible.setPoints && log.setPoints.length > 0);
+  const timeScale = calendarAxis(bounds);
+  const weightScale = weightAxis(
+    chartData
+      .flatMap((point) => [
+        visible.weight ? point.weight : null,
+        visible.trailing ? point.trailing : null,
+        visible.annual ? point.annual : null,
+        ...chartPhases.flatMap((item) => {
+          const series = point.phaseSeries[item.id];
+          return [
+            visible.weekly ? (series?.weekly ?? null) : null,
+            visible.target ? (series?.target ?? null) : null,
+            visible.originalTarget ? (series?.originalTarget ?? null) : null,
+            visible.projections ? (series?.projection ?? null) : null,
+          ];
+        }),
+      ])
+      .concat(
+        visible.setPoints ? log.setPoints.map((point) => point.weight) : [],
+      ),
+  );
   const hasOverlappingPhases =
     new Set(log.weeks.map((week) => week.date)).size < log.weeks.length;
 
@@ -240,13 +270,6 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
           Private · Read only
         </span>
       </header>
-      {hasOverlappingPhases && (
-        <p className="rounded-xl border border-amber-600/20 bg-amber-500/5 p-4 text-sm text-muted-foreground">
-          Some phase dates overlap in the workbook. Each phase’s averages and
-          targets are drawn separately. Select a phase to inspect its recorded
-          dates.
-        </p>
-      )}
 
       <section
         aria-label="Chart filters"
@@ -377,37 +400,71 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
         aria-labelledby="weight-chart-title"
         className="rounded-2xl border border-neutral-200 px-2 py-5 dark:border-neutral-800 sm:px-5"
       >
-        <h2
-          id="weight-chart-title"
-          className="px-3 font-rounded text-lg font-medium"
-        >
-          Bodyweight over time
-        </h2>
-        <fieldset className="mb-5 mt-3 flex flex-wrap gap-x-5 gap-y-3 px-3">
-          <legend className="sr-only">Visible chart series</legend>
-          {(Object.keys(labels) as (keyof typeof labels)[]).map((key) => (
-            <label
-              key={key}
-              className="flex cursor-pointer items-center gap-2 text-xs"
-            >
-              <input
-                type="checkbox"
-                checked={visible[key]}
-                onChange={() =>
-                  setVisible((previous) => ({
-                    ...previous,
-                    [key]: !previous[key],
-                  }))
-                }
-                className="accent-neutral-600"
-              />
-              <LineSwatch dash={lineStyles[key]} dot={key === "weight"} />
-              {labels[key]}
-            </label>
-          ))}
-        </fieldset>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3">
+          <h2
+            id="weight-chart-title"
+            className="font-rounded text-lg font-medium"
+          >
+            Bodyweight over time
+          </h2>
+          <button
+            type="button"
+            className={control}
+            aria-expanded={layersOpen}
+            aria-controls={`${chartId}-layers`}
+            onClick={() => setLayersOpen(!layersOpen)}
+          >
+            Layers · {Object.values(visible).filter(Boolean).length}
+          </button>
+        </div>
+        {layersOpen && (
+          <fieldset
+            id={`${chartId}-layers`}
+            className="mx-3 mb-4 mt-3 grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:grid-cols-3"
+          >
+            <legend className="sr-only">Visible chart series</legend>
+            {(Object.keys(labels) as (keyof typeof labels)[]).map((key) => (
+              <label
+                key={key}
+                className="flex cursor-pointer items-center gap-2 text-xs"
+              >
+                <input
+                  type="checkbox"
+                  checked={visible[key]}
+                  onChange={() =>
+                    setVisible((previous) => ({
+                      ...previous,
+                      [key]: !previous[key],
+                    }))
+                  }
+                  className="accent-neutral-600"
+                />
+                <LineSwatch dash={lineStyles[key]} dot={key === "weight"} />
+                {labels[key]}
+              </label>
+            ))}
+          </fieldset>
+        )}
         <div
-          className="mb-4 flex flex-wrap gap-x-5 gap-y-2 px-3 text-xs"
+          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-3 text-xs"
+          aria-label="Active layers"
+        >
+          {(Object.keys(labels) as (keyof typeof labels)[])
+            .filter((key) => visible[key])
+            .map((key) => (
+              <span key={key} className="flex items-center gap-2">
+                <LineSwatch dash={lineStyles[key]} dot={key === "weight"} />
+                {labels[key]}
+              </span>
+            ))}
+          {!Object.values(visible).some(Boolean) && (
+            <span className="text-muted-foreground">
+              Choose a layer to plot.
+            </span>
+          )}
+        </div>
+        <div
+          className="mb-4 mt-3 flex flex-wrap gap-x-5 gap-y-2 px-3 text-xs text-muted-foreground"
           aria-label="Phase colors"
         >
           {(
@@ -462,14 +519,23 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                     />
                   }
                 />
-                {!visible.bodyFat && (
-                  <CartesianGrid
-                    stroke="currentColor"
-                    opacity={0.08}
-                    vertical={false}
-                  />
-                )}
+                {weightAxisVisible &&
+                  weightScale.ticks.map((value) => (
+                    <ReferenceLine
+                      key={`weight-grid-${value}`}
+                      y={value}
+                      className={
+                        value % 5 === 0
+                          ? "weight-grid-major"
+                          : "weight-grid-minor"
+                      }
+                      stroke="currentColor"
+                      strokeOpacity={value % 5 === 0 ? 0.22 : 0.07}
+                      strokeWidth={value % 5 === 0 ? 1 : 0.5}
+                    />
+                  ))}
                 {visible.bodyFat &&
+                  !weightAxisVisible &&
                   bodyFatScale.ticks.map((value) => (
                     <ReferenceLine
                       key={`body-fat-grid-${value}`}
@@ -485,30 +551,41 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                       strokeWidth={value % 4 === 0 ? 1 : 0.5}
                     />
                   ))}
+                {timeScale.ticks.map((time) => (
+                  <ReferenceLine
+                    key={`date-grid-${time}`}
+                    x={time}
+                    yAxisId={
+                      weightAxisVisible ? 0 : visible.bodyFat ? "bodyFat" : 0
+                    }
+                    className="date-grid"
+                    stroke="currentColor"
+                    strokeOpacity={0.12}
+                  />
+                ))}
                 <XAxis
                   dataKey="time"
                   type="number"
                   scale="time"
                   domain={bounds}
-                  tickFormatter={(value: number) =>
-                    new Date(value).toLocaleDateString("en-US", {
-                      timeZone: "UTC",
-                      month: "short",
-                      year: "2-digit",
-                    })
-                  }
-                  minTickGap={45}
-                  tick={{ fontSize: 11, fill: "#888" }}
+                  ticks={timeScale.ticks}
+                  tickFormatter={timeScale.format}
+                  interval="preserveStartEnd"
+                  minTickGap={18}
+                  tick={{
+                    fontSize: timeScale.mode === "year" ? 12 : 10,
+                    fontWeight: timeScale.mode === "year" ? 600 : 400,
+                    fill: "#888",
+                  }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
                   hide={!weightAxisVisible}
-                  domain={[
-                    (min: number) => Math.floor(min / 5) * 5 - 5,
-                    (max: number) => Math.ceil(max / 5) * 5 + 5,
-                  ]}
-                  width={52}
+                  domain={weightScale.domain}
+                  ticks={weightScale.ticks.filter((value) => value % 5 === 0)}
+                  interval={0}
+                  width={58}
                   unit=" lb"
                   tick={{ fontSize: 11, fill: "#888" }}
                   axisLine={false}
@@ -660,6 +737,18 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                       isAnimationActive={false}
                     />
                   ))}
+                {visible.annual && (
+                  <Line
+                    name={labels.annual}
+                    dataKey="annual"
+                    stroke={phaseStroke}
+                    strokeDasharray={lineStyles.annual}
+                    strokeWidth={2.5}
+                    dot={false}
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                )}
                 {visible.trailing && (
                   <Line
                     name={labels.trailing}
@@ -745,60 +834,85 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
             </ResponsiveContainer>
           </div>
         )}
-        <p className="mt-3 px-3 text-xs leading-relaxed text-muted-foreground">
-          Red marks bulking, blue marks cutting, and yellow marks maintenance.
-          Weekly averages cover Monday through Sunday and omit one highest and
-          one lowest reading when there are at least three. Workbook-specific
-          exclusions are preserved. Empty weeks remain gaps. Targets show the
-          plan recorded in the workbook.
-        </p>
-        {visible.trailing && (
-          <p className="mt-2 px-3 text-xs leading-relaxed text-muted-foreground">
-            The 7-day trend uses available readings in each trailing week,
-            trimming one highest and one lowest when there are at least three.
-            It bridges gaps up to 14 days and stops at the last weigh-in. Longer
-            gaps remain empty.
+        <details className="mt-3 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+          <summary className="cursor-pointer px-3 text-xs font-medium text-muted-foreground">
+            About this chart
+          </summary>
+          {hasOverlappingPhases && (
+            <p className="mt-3 px-3 text-xs leading-relaxed text-muted-foreground">
+              Some phase dates overlap in the workbook. Each phase’s averages
+              and targets are drawn separately. Select a phase to inspect its
+              recorded dates.
+            </p>
+          )}
+          <p className="mt-3 px-3 text-xs leading-relaxed text-muted-foreground">
+            Weight gridlines mark every pound, with stronger lines every 5 lb.
+            The body-fat-only view uses 1% steps with stronger lines every 4%.
+            Date markers follow calendar years, months, weeks, or days according
+            to the range.
           </p>
-        )}
-        {visible.projections && (
-          <p className="mt-2 px-3 text-xs leading-relaxed text-muted-foreground">
-            Dashed future lines follow the dated weight targets in the workbook.
-            They show the plan, not a prediction that it will happen.
+          <p className="mt-3 px-3 text-xs leading-relaxed text-muted-foreground">
+            The 12-month average uses recorded weigh-ins from the preceding 12
+            calendar months, with equal weight per reading. It uses available
+            history at the beginning, skips missing readings, and stops at the
+            last weigh-in. Changing the displayed dates does not reset either
+            rolling average.
           </p>
-        )}
-        {visible.bodyFat && (
-          <details className="mt-4 px-3 text-xs leading-relaxed text-muted-foreground">
-            <summary className="cursor-pointer font-medium">
-              How the body-fat estimate works
-            </summary>
-            <p className="mt-2">
-              Large outlined dots are DEXA readings, using the percentage axis
-              on the right. Dash-dot lines show estimates between scans. Between
-              scans, the model interpolates fat-free mass and combines it with
-              smoothed scale weight. A gradual scale-to-scan adjustment makes
-              the estimate meet each DEXA reading. Missing weight history leaves
-              gaps. These estimates can change when a new scan is added.
+          <p className="mt-3 px-3 text-xs leading-relaxed text-muted-foreground">
+            Red marks bulking, blue marks cutting, and yellow marks maintenance.
+            Weekly averages cover Monday through Sunday and omit one highest and
+            one lowest reading when there are at least three. Workbook-specific
+            exclusions are preserved. Empty weeks remain gaps. Targets show the
+            plan recorded in the workbook.
+          </p>
+          {visible.trailing && (
+            <p className="mt-2 px-3 text-xs leading-relaxed text-muted-foreground">
+              The 7-day trend uses available readings in each trailing week,
+              trimming one highest and one lowest when there are at least three.
+              It bridges gaps up to 14 days and stops at the last weigh-in.
+              Longer gaps remain empty.
             </p>
-            <p className="mt-2">
-              After the latest scan, dotted estimates use the median fat-free
-              share of past weight gains and losses.{" "}
-              {partition.bulkIntervals >= 2
-                ? `Gain model: ${(partition.bulk * 100).toFixed(0)}% fat-free mass from ${partition.bulkIntervals} usable intervals.`
-                : "Too few gain intervals: fat-free mass is held constant."}{" "}
-              {partition.cutIntervals >= 2
-                ? `Loss model: ${(partition.cut * 100).toFixed(0)}% fat-free mass from ${partition.cutIntervals} usable intervals.`
-                : "Too few loss intervals: fat-free mass is held constant."}{" "}
-              Intervals with under 2 lb of change, over a year between scans, or
-              implausible ratios are excluded.
+          )}
+          {visible.projections && (
+            <p className="mt-2 px-3 text-xs leading-relaxed text-muted-foreground">
+              Dashed future lines follow the dated weight targets in the
+              workbook. They show the plan, not a prediction that it will
+              happen.
             </p>
-            <p className="mt-2">
-              Future body fat applies the same model to planned weight. This is
-              a visualization heuristic, not a daily measurement or a validated
-              forecast; water and other short-term changes can move the
-              estimate.
-            </p>
-          </details>
-        )}
+          )}
+          {visible.bodyFat && (
+            <section className="mt-4 px-3 text-xs leading-relaxed text-muted-foreground">
+              <h3 className="font-medium">How the body-fat estimate works</h3>
+              <p className="mt-2">
+                Large outlined dots are DEXA readings, using the percentage axis
+                on the right. Dash-dot lines show estimates between scans.
+                Between scans, the model interpolates fat-free mass and combines
+                it with smoothed scale weight. A gradual scale-to-scan
+                adjustment makes the estimate meet each DEXA reading. Missing
+                weight history leaves gaps. These estimates can change when a
+                new scan is added.
+              </p>
+              <p className="mt-2">
+                After the latest scan, dotted estimates use the median fat-free
+                share of past weight gains and losses.{" "}
+                {partition.bulkIntervals >= 2
+                  ? `Gain model: ${(partition.bulk * 100).toFixed(0)}% fat-free mass from ${partition.bulkIntervals} usable intervals.`
+                  : "Too few gain intervals: fat-free mass is held constant."}{" "}
+                {partition.cutIntervals >= 2
+                  ? `Loss model: ${(partition.cut * 100).toFixed(0)}% fat-free mass from ${partition.cutIntervals} usable intervals.`
+                  : "Too few loss intervals: fat-free mass is held constant."}{" "}
+                Intervals with under 2 lb of change, over a year between scans,
+                or implausible ratios are excluded.
+              </p>
+              <p className="mt-2">
+                Future body fat applies the same model to planned weight. This
+                is a visualization heuristic, not a daily measurement or a
+                validated forecast; water and other short-term changes can move
+                the estimate.
+              </p>
+            </section>
+          )}
+        </details>
       </section>
 
       <section

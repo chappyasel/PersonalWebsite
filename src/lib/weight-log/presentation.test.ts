@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { PHASE_COLORS, dayTime } from "./chart";
 import {
+  calendarAxis,
   calendarMonth,
   phaseColorAt,
   phaseColorStops,
+  weightAxis,
   weightCellStyle,
 } from "./presentation";
 import type { WeightLog } from "./schema";
@@ -94,4 +96,31 @@ describe("weight calendar", () => {
     expect(calendarMonth(2024, 0).offset).toBe(0);
     expect(calendarMonth(2024, 11).dates.at(-1)).toBe("2024-12-31");
   });
+});
+
+it("aligns long views to January 1 every year and shorter views to months or Mondays", () => {
+  const years = calendarAxis([dayTime("2024-06-01"), dayTime("2027-09-01")]);
+  expect(years.ticks).toEqual(
+    [2025, 2026, 2027].map((year) => dayTime(`${year}-01-01`)),
+  );
+  expect(years.ticks.map(years.format)).toEqual(["2025", "2026", "2027"]);
+  const months = calendarAxis([dayTime("2025-01-15"), dayTime("2025-07-15")]);
+  expect(months.ticks.every((time) => new Date(time).getUTCDate() === 1)).toBe(
+    true,
+  );
+  const weeks = calendarAxis([dayTime("2025-01-15"), dayTime("2025-03-15")]);
+  expect(weeks.ticks.every((time) => new Date(time).getUTCDay() === 1)).toBe(
+    true,
+  );
+  expect(
+    calendarAxis([dayTime("2025-01-01"), dayTime("2025-01-03")]).ticks,
+  ).toHaveLength(3);
+});
+
+it("uses pound-by-pound grid spacing with bounds on five-pound marks", () => {
+  const scale = weightAxis([null, 102.4, 108.2]);
+  expect(scale.domain).toEqual([100, 110]);
+  expect(scale.ticks).toEqual(
+    Array.from({ length: 11 }, (_, index) => 100 + index),
+  );
 });

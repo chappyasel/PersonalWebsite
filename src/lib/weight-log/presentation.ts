@@ -3,6 +3,67 @@ import type { WeightLog } from "./schema";
 
 const DAY = 86_400_000;
 
+export function weightAxis(values: (number | null)[]) {
+  const measured = values.filter(
+    (value): value is number => value !== null && Number.isFinite(value),
+  );
+  const min = measured.length ? Math.min(...measured) : 0;
+  const max = measured.length ? Math.max(...measured) : 5;
+  const floor = Math.floor((min - 0.25) / 5) * 5;
+  const ceiling = Math.ceil((max + 0.25) / 5) * 5;
+  return {
+    domain: [floor, ceiling] as [number, number],
+    ticks: Array.from(
+      { length: ceiling - floor + 1 },
+      (_, index) => floor + index,
+    ),
+  };
+}
+
+export function calendarAxis([start, end]: [number, number]) {
+  const span = (end - start) / DAY;
+  const mode =
+    span >= 730 ? "year" : span >= 120 ? "month" : span >= 28 ? "week" : "day";
+  const first = new Date(start);
+  const ticks: number[] = [];
+  if (mode === "year" || mode === "month") {
+    const step = mode === "year" ? 12 : span >= 450 ? 3 : 1;
+    let year = first.getUTCFullYear();
+    let month =
+      mode === "year" ? 0 : Math.floor(first.getUTCMonth() / step) * step;
+    for (
+      let time = Date.UTC(year, month, 1);
+      time <= end;
+      time = Date.UTC(year, month, 1)
+    ) {
+      if (time >= start) ticks.push(time);
+      month += step;
+      if (month >= 12) {
+        year++;
+        month -= 12;
+      }
+    }
+  } else {
+    const step = mode === "week" ? 7 : span > 14 ? 2 : 1;
+    let time =
+      mode === "week" ? start + ((8 - first.getUTCDay()) % 7) * DAY : start;
+    for (; time <= end; time += step * DAY) ticks.push(time);
+  }
+  return {
+    ticks,
+    mode,
+    format: (time: number) =>
+      new Date(time).toLocaleDateString("en-US", {
+        timeZone: "UTC",
+        ...(mode === "year"
+          ? { year: "numeric" as const }
+          : mode === "month"
+            ? { month: "short" as const, year: "2-digit" as const }
+            : { month: "short" as const, day: "numeric" as const }),
+      }),
+  };
+}
+
 export function bodyFatAxis(points: WeightPoint[], includeProjection: boolean) {
   let maximum = 4;
   for (const point of points) {

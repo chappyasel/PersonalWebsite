@@ -81,16 +81,9 @@ const log: WeightLog = {
 
 function bodyFatOnly() {
   const view = render(<WeightLogDashboard log={log} />);
-  for (const name of [
-    "Weigh-ins",
-    "Weekly average",
-    "Target",
-    "7-day trend",
-    "Set points",
-    "Future plan",
-  ]) {
-    fireEvent.click(screen.getByRole("checkbox", { name }));
-  }
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "7-day trend" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Body fat %" }));
   return view.container;
 }
 
@@ -113,4 +106,26 @@ it("does not draw DEXA markers for null readings along the chart's top edge", ()
   const dots = container.querySelectorAll(".recharts-line-dots circle");
   expect(dots).toHaveLength(3);
   expect([...dots].every((dot) => dot.hasAttribute("cy"))).toBe(true);
+});
+
+it("opens with only the seven-day trend and lets the user add the annual average", () => {
+  const { container } = render(<WeightLogDashboard log={log} />);
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(screen.getByText("About this chart").closest("details")?.open).toBe(
+    false,
+  );
+  expect(container.querySelectorAll(".recharts-line-curve")).toHaveLength(1);
+  expect(container.querySelectorAll(".weight-grid-major")).toHaveLength(3);
+  expect(container.querySelectorAll(".weight-grid-minor")).toHaveLength(8);
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  expect(
+    screen
+      .getAllByRole("checkbox")
+      .filter((input) => (input as HTMLInputElement).checked),
+  ).toHaveLength(1);
+  fireEvent.click(screen.getByRole("checkbox", { name: "12-month average" }));
+  expect(container.querySelectorAll(".recharts-line-curve")).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(screen.getByText("12-month average")).toBeTruthy();
 });
