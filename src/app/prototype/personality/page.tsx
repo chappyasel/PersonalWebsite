@@ -1,24 +1,13 @@
-import { type Metadata } from "next";
-import { notFound } from "next/navigation";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { notFound, redirect } from "next/navigation";
 
-import PersonalityPrototype from "./PersonalityPrototype";
-import { type Snapshot } from "./model";
+import { views } from "~/lib/personalities/navigation";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "Personality curves prototype",
-  robots: { index: false, follow: false },
-};
-
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ variant?: string }>;
+}) {
   if (process.env.NODE_ENV !== "development") notFound();
-  const data = JSON.parse(
-    await readFile(
-      path.join(process.cwd(), "data/personality-prototype/snapshot.json"),
-      "utf8",
-    ),
-  ) as Snapshot;
-  return <PersonalityPrototype data={data} />;
+  const { variant } = await searchParams;
+  redirect(views.find((v) => v.id === variant)?.href ?? "/personalities");
 }

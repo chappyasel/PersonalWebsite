@@ -1,3 +1,5 @@
+This prototype has moved into the existing app at `/personalities`. See [the current README](../../personalities/README.md). Old variant links redirect to the corresponding view.
+
 # Personality curves prototype
 
 Question: which view makes it easiest to compare real Big Five results against a reference curve?

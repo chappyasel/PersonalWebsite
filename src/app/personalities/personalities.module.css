@@ -1,0 +1,246 @@
+.root h1,
+.root h2 {
+  font-family: Georgia, serif;
+  letter-spacing: -0.04em;
+}
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login-card {
+  width: min(440px, 100%);
+  padding: 36px;
+  gap: 22px;
+}
+.login-card h1 {
+  font-size: 38px;
+}
+.login-card p {
+  line-height: 1.7;
+  color: #586b66;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.login-card form {
+  display: grid;
+  gap: 14px;
+}
+.app-shell {
+  max-width: 1480px;
+  margin: auto;
+  padding: 32px 32px 60px;
+}
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.app-header h1 {
+  font-size: 42px;
+  margin: 8px 0;
+  line-height: 1.2;
+}
+.app-header p {
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.view-tabs {
+  margin: 22px 0;
+  max-width: 100%;
+  overflow-x: auto;
+  justify-content: flex-start;
+  gap: 12px !important;
+  height: 42px !important;
+}
+.view-tabs button {
+  padding: 8px 14px !important;
+}
+.comparison-note,
+.muted {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.7;
+}
+.field {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.entry-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+.entry-dialog {
+  max-width: 640px !important;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.manual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.import-preview {
+  padding: 20px;
+}
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+.score-grid span {
+  display: block;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
+}
+.score-grid strong {
+  font-size: 27px;
+  font-weight: 500;
+  display: block;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.history {
+  display: grid;
+  gap: 22px;
+}
+.history-heading {
+  display: grid;
+  grid-template-columns: minmax(200px, 350px) 1fr;
+  gap: 24px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.history-heading p {
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+  line-height: 1.7;
+}
+.history-card {
+  padding: 24px;
+  gap: 20px;
+}
+.history-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 20px;
+}
+.history-title h2 {
+  font-size: 26px;
+}
+.history-title p {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 6px;
+}
+.notes {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.source-ref {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
+}
+.facet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+.facet-grid h3 {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.facet-grid p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.empty-card {
+  padding: 32px;
+}
+.error {
+  color: #a12440;
+  background: #fcedf0;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+@media (max-width: 700px) {
+  .app-shell {
+    padding: 24px 18px;
+  }
+  .app-header,
+  .history-title {
+    align-items: start;
+    flex-direction: column;
+  }
+  .app-header h1 {
+    font-size: 34px;
+  }
+  .history-heading {
+    grid-template-columns: 1fr;
+  }
+  .score-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .facet-grid {
+    grid-template-columns: 1fr;
+  }
+  .view-tabs {
+    gap: 0 !important;
+  }
+  .view-tabs button {
+    padding: 8px 10px !important;
+  }
+}
+
+.root {
+  --background: 90 20% 98%;
+  --foreground: 180 27% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 180 27% 13%;
+  --primary: 177 40% 22%;
+  --primary-foreground: 0 0% 100%;
+  --border: 140 15% 85%;
+  --input: 140 15% 80%;
+  --muted: 150 20% 95%;
+  --muted-foreground: 160 10% 38%;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: Arial, Helvetica, sans-serif;
+}
+.view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto !important;
+  overflow: visible;
+}
+.history-card,
+.login-card {
+  display: grid;
+}
+.entry-dialog {
+  width: min(640px, 95vw) !important;
+  height: 100vh;
+  max-height: 100vh;
+}

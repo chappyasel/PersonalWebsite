@@ -32,6 +32,7 @@ const config = {
     "/*": [
       "./data/weight-log/**/*",
       "./data/personality-prototype/**/*",
+      "./data/personalities/**/*",
       "./**/*.xlsx",
     ],
   },
@@ -53,6 +54,18 @@ const config = {
   },
   async headers() {
     return [
+      ...["/personalities/:path*", "/api/personalities/:path*"].map(
+        (source) => ({
+          source,
+          headers: [
+            { key: "Cache-Control", value: "private, no-store, max-age=0" },
+            { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+            { key: "Referrer-Policy", value: "no-referrer" },
+            { key: "X-Content-Type-Options", value: "nosniff" },
+            { key: "X-Frame-Options", value: "DENY" },
+          ],
+        }),
+      ),
       {
         source: "/weight-log/:path*",
         headers: [

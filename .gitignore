@@ -62,3 +62,6 @@ npm-debug.log*
 
 # favicon preview sheets (pnpm preview:favicons)
 /favicon-previews
+
+# Private personality records, credentials, and local database
+/data/personalities/
