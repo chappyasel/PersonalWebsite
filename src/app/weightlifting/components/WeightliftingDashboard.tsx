@@ -19,7 +19,6 @@ import { devBaseUrl } from "~/lib/util";
 import { CollapsibleSection } from "~/components/ui/collapsible-section";
 
 import { PersonalRecords } from "./PersonalRecords";
-import { StatsCards } from "./StatsCards";
 import { StrengthProgressionChart } from "./StrengthProgressionChart";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
 import { TrainingOverYears } from "./TrainingOverYears";
@@ -108,25 +107,10 @@ export function WeightliftingDashboard() {
         log and learnings over the years!
       </p>
 
-      {/* Stats */}
-      <a
-        href={
-          process.env.NODE_ENV === "production"
-            ? "https://www.chappyasel.com/weight-log"
-            : `${devBaseUrl()}/weight-log`
-        }
-        className="inline-flex rounded-lg border border-neutral-200 px-4 py-2 text-sm text-muted-foreground hover:text-foreground dark:border-neutral-700"
-      >
-        Weight log · Password required
-      </a>
-      <section>
-        <StatsCards />
-      </section>
-
-      {/* Over the Years — headline training history */}
+      {/* Training history */}
       <CollapsibleSection
         icon={<ChartBarIcon className="h-5 w-5" weight="bold" />}
-        title="Over the Years"
+        title="Training History"
       >
         <TrainingOverYears />
       </CollapsibleSection>

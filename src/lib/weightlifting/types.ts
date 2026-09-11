@@ -24,7 +24,7 @@ export type WldExerciseType = {
 export type WldWorkout = {
   uuid: string;
   name: string;
-  date: string; // "YYYY-MM-DD HH:mm"
+  date: string; // "YYYY-MM-DD HH:mm", in the phone's time zone at export
   dateModified: boolean;
   duration: number; // seconds
   supersets: string[]; // e.g. ["0 1", "2 3"]

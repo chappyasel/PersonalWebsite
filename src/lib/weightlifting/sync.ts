@@ -11,6 +11,11 @@ import {
   wlWorkouts,
 } from "~/server/db/schema";
 
+import {
+  WORKOUT_DATE_POLICY,
+  getExportTimeZone,
+  pacificWorkoutDate,
+} from "./exportTimeZone";
 import { downloadWldFromS3 } from "./s3";
 import type { WldFile } from "./types";
 
@@ -42,9 +47,16 @@ export async function syncWeightlifting(
       wldData = await downloadWldFromS3();
     }
 
-    // 2. Hash check — skip if unchanged
+    // Validate the export zone before replacing any data.
+    const exportTimeZone = getExportTimeZone(wldData.workouts);
+
+    // Include the date policy so existing unnormalized rows are reimported.
     const rawJson = JSON.stringify(wldData);
-    const fileHash = crypto.createHash("sha256").update(rawJson).digest("hex");
+    const fileHash = crypto
+      .createHash("sha256")
+      .update(WORKOUT_DATE_POLICY)
+      .update(rawJson)
+      .digest("hex");
 
     const lastSync = await db.query.wlSyncMetadata.findFirst({
       where: eq(wlSyncMetadata.status, "success"),
@@ -109,7 +121,7 @@ export async function syncWeightlifting(
       const workoutRows = wldData.workouts.map((w) => ({
         uuid: w.uuid,
         name: w.name,
-        date: new Date(w.date.replace(" ", "T")),
+        date: pacificWorkoutDate(w.date, exportTimeZone),
         dateModified: w.dateModified,
         durationSeconds: w.duration,
         supersets: w.supersets,

@@ -1,5 +1,5 @@
 /**
- * Plain-language sublines for the lifetime stat cards. Raw totals mean
+ * Plain-language sublines for the training summary. Raw totals mean
  * little to a visitor who doesn't lift; each helper turns one into a rate
  * or a comparison, returning null when the data can't support the claim.
  */
