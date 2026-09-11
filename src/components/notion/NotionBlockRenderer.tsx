@@ -34,7 +34,11 @@ function ListItem({
     <li className={ownMarker ? "list-none" : undefined}>
       {first?.type === "paragraph" ? (
         <span>
-          <RichTextRenderer content={first.content} bookLookup={bookLookup} />
+          <RichTextRenderer
+            content={first.content}
+            bookLookup={bookLookup}
+            secondary
+          />
         </span>
       ) : first?.type === "toggle" && ownMarker ? (
         <NotionToggle
