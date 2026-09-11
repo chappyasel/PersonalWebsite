@@ -210,7 +210,6 @@ type StacksState = {
   setModalOpen: (modalOpen: boolean) => void;
   setBookModalReturning: (bookModalReturning: boolean) => void;
   openSceneArtifact: (id: SceneArtifactId, reducedMotion?: boolean) => void;
-  openModelSceneArtifact: (id: SceneArtifactId, reducedMotion: boolean) => void;
   selectImageSceneArtifact: (id: SceneArtifactId) => void;
   dispatchModelArtifactHandoff: (event: ModelArtifactHandoffEvent) => void;
   closeSceneArtifact: () => void;
@@ -310,22 +309,6 @@ export const useStacks = create<StacksState>((set) => ({
     ),
   setBookModalReturning: (bookModalReturning) => set({ bookModalReturning }),
   openSceneArtifact: (inspectedArtifact, reducedMotion = false) => {
-    recordArtifactFieldNote(inspectedArtifact);
-    set((state) => ({
-      inspectedArtifact,
-      modelArtifactHandoff: {
-        ...beginModelArtifactHandoff(inspectedArtifact, reducedMotion),
-        target:
-          state.modelArtifactHandoff?.artifactId === inspectedArtifact
-            ? state.modelArtifactHandoff.target
-            : null,
-      },
-      modalOpen: true,
-      focusedInteraction: null,
-      pressedInteraction: null,
-    }));
-  },
-  openModelSceneArtifact: (inspectedArtifact, reducedMotion) => {
     recordArtifactFieldNote(inspectedArtifact);
     set((state) => ({
       inspectedArtifact,

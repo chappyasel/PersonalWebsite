@@ -1606,26 +1606,6 @@ body:has(.daylight-root) {
   display: none;
 }
 
-/* ============ Sheet loading skeleton ============ */
-
-/* Streams inside the sheet while the intercepted page resolves: the sky
-   band holds the hero's space, the spinner sits where content lands. */
-.dl-sheet-loading {
+.dl-sheet-document {
   min-height: 100%;
-  background: hsl(var(--dl-arc2));
-}
-.dl-sheet-loading-sky {
-  height: clamp(14rem, 32vh, 20rem);
-  background: linear-gradient(
-    180deg,
-    hsl(var(--dl-sky-top)),
-    hsl(var(--dl-sky-mid)) 62%,
-    hsl(var(--dl-sky-low))
-  );
-}
-.dl-sheet-loading-body {
-  display: flex;
-  justify-content: center;
-  padding: 5rem 0;
-  color: hsl(var(--muted-foreground));
 }

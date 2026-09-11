@@ -195,6 +195,7 @@ const STAMP_DESIGNS = {
   atlas: { palette: 6, frame: 3, layout: 2, pattern: 10 },
   chapter: { palette: 8, frame: 0, layout: 5, pattern: 2 },
   console: { palette: 1, frame: 2, layout: 4, pattern: 11 },
+  "close-up": { palette: 3, frame: 2, layout: 1, pattern: 5 },
   chair: { palette: 9, frame: 0, layout: 3, pattern: 5 },
   ripple: { palette: 7, frame: 2, layout: 4, pattern: 4 },
   lamp: { palette: 1, frame: 3, layout: 2, pattern: 6 },
@@ -316,6 +317,12 @@ const STAMP_LETTERING = {
     primary: "Under the hood",
     secondary: "Service hatch",
     denomination: "HUD",
+  },
+  "close-up": {
+    style: "banner",
+    primary: "Close encounter",
+    secondary: "Hold still",
+    denomination: "2×",
   },
   chair: {
     style: "vertical",
@@ -514,6 +521,14 @@ const STAMP_ICON_TREATMENTS = {
   },
   chapter: { weight: "fill", scale: 1.04, x: 2, y: 6, rotate: 4, echo: false },
   console: { weight: "bold", scale: 1, x: 0, y: 3, rotate: -3, echo: false },
+  "close-up": {
+    weight: "light",
+    scale: 1.12,
+    x: -2,
+    y: 4,
+    rotate: -8,
+    echo: false,
+  },
   chair: {
     weight: "duotone",
     scale: 0.92,

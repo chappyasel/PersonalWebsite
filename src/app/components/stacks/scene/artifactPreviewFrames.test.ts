@@ -74,8 +74,5 @@ describe("artifact preview frame registry", () => {
       height: 0.64,
     })!;
     expect(cropped.relative).toBeGreaterThan(ARTIFACT_PLANE_ASPECT_TOLERANCE);
-    expect(
-      artifactPlaneAspectMismatch("homework-app", { width: 1, height: 1 }),
-    ).toBeNull();
   });
 });

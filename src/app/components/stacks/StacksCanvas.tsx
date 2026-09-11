@@ -14,11 +14,13 @@ import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
+  Activity,
   Component,
   type ErrorInfo,
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -28,9 +30,9 @@ import {
 import type * as THREE from "three";
 
 import { recordModalOriginAtPointer } from "~/lib/originFlight";
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
-import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
 import { requestBookPrefetch } from "./bookPrefetch";
@@ -40,7 +42,6 @@ import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { setLoadProgress } from "./loading";
-import { modelArtifactRoomShouldFreeze } from "./modal/modelArtifactHandoff";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import {
   PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_CHECKPOINTS,
@@ -51,6 +52,8 @@ import {
   performanceDiagnosticProgress,
   performanceDiagnosticSchedule,
 } from "./performanceDiagnosticRuntime";
+import { useRoomActive } from "./room/ResidentRoomHost";
+import { roomResidency } from "./room/roomResidency";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -64,6 +67,8 @@ import {
   sceneDiagnosticsQueryMode,
   sceneInstrumentationRequestedBySearch,
 } from "./scene/devHooks";
+import { globeChapterHover } from "./scene/globeChapterHover";
+import { globeMarkProbe } from "./scene/globeCloseUpState";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
@@ -183,9 +188,6 @@ import {
 import { StaticWorldInvariantProbe } from "./scene/staticWorld";
 import { sceneUnitActivityController } from "./scene/unitActivity";
 import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
-import { globeChapterHover } from "./scene/globeChapterHover";
-import { globeMarkProbe } from "./scene/globeCloseUpState";
-import { sceneArtifactById } from "./sceneArtifacts";
 import { progressRef, touchWorldRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
 import VisionRideExperience from "./visionRide/VisionRideExperience";
@@ -244,6 +246,22 @@ function FrozenResizeRepaint({ frozen }: { frozen: boolean }) {
     const frame = requestAnimationFrame(() => advance(performance.now()));
     return () => cancelAnimationFrame(frame);
   }, [frozen, size, advance]);
+  return null;
+}
+
+function RoomResumeFrame({ active }: { active: boolean }) {
+  const { advance, clock, setSize } = useThree();
+  const wasActive = useRef(active);
+  useLayoutEffect(() => {
+    if (active && !wasActive.current) {
+      // Native capture suppresses rAF. Repaint synchronously before it takes
+      // the incoming snapshot; restart delta timing after the parked interval.
+      setSize(window.innerWidth, window.innerHeight);
+      clock.getDelta();
+      advance(clock.elapsedTime, false);
+    }
+    wasActive.current = active;
+  }, [active, advance, clock, setSize]);
   return null;
 }
 
@@ -402,6 +420,9 @@ function installDevHooks() {
         parentRotation: o.parent
           ? [o.parent.rotation.x, o.parent.rotation.y, o.parent.rotation.z]
           : null,
+        // What a wrapper has hung on the node (PropApproach leaves its rest
+        // quaternion here for the insect perch resolver).
+        userData: Object.keys(o.userData),
       };
     },
     // World-space AABB of a named subtree. `node()` returns transforms, which
@@ -1400,9 +1421,14 @@ function SceneMatrixCostProbe() {
  * create/resume Web Audio inside the visitor's first real gesture; downloads
  * and ambience begin only after that autoplay-safe unlock. */
 function SceneAudioBridge() {
+  const roomActive = useRoomActive();
+  useEffect(() => {
+    sceneAudio.visibility(!roomActive || document.hidden);
+  }, [roomActive]);
   const camera = useThree((state) => state.camera);
   useEffect(() => {
     const unlock = (event: Event) => {
+      if (!roomResidency.getSnapshot().active) return;
       const soundToggle =
         event.target instanceof Element
           ? event.target.closest("[data-sound-toggle]")
@@ -1414,7 +1440,10 @@ function SceneAudioBridge() {
     };
     window.addEventListener("pointerdown", unlock, { capture: true });
     window.addEventListener("keydown", unlock, { capture: true });
-    const visibility = () => sceneAudio.visibility(document.hidden);
+    const visibility = () =>
+      sceneAudio.visibility(
+        document.hidden || !roomResidency.getSnapshot().active,
+      );
     document.addEventListener("visibilitychange", visibility);
     sceneAudio.startAmbience();
     return () => {
@@ -1484,9 +1513,15 @@ function ShaderPrewarm({
   resourceVariant: string;
 }) {
   const { gl, scene, camera } = useThree();
+  const roomActive = useRoomActive();
+  const warmedVariant = useRef<string | null>(null);
   const warmedResourceVariant = useRef<string | null>(null);
   useEffect(() => {
-    shaderPrecompileComplete = false;
+    if (!roomActive) return;
+    const alreadyWarm =
+      warmedVariant.current === variant &&
+      warmedResourceVariant.current === resourceVariant;
+    shaderPrecompileComplete = alreadyWarm;
     let cancelled = false;
     let timeout = 0;
     let firstFrame = 0;
@@ -1566,26 +1601,29 @@ function ShaderPrewarm({
             // Warming is an optimization. A driver that rejects the 1x1 path
             // must not prevent the already-renderable world from starting.
           }
+          warmedVariant.current = variant;
           shaderPrecompileComplete = true;
         });
       });
     };
     const unsubscribe = useProgress.subscribe(schedule);
-    schedule();
+    if (!alreadyWarm) schedule();
     return () => {
       cancelled = true;
       unsubscribe();
       cancelScheduled();
       shaderPrecompileComplete = false;
     };
-  }, [camera, gl, resourceVariant, scene, variant]);
+  }, [camera, gl, resourceVariant, scene, variant, roomActive]);
   return null;
 }
 
 /** Fine-pointer/full-quality desktops pay the solver startup after the first
  * painted frame, never during the first grab. The import remains lazy. */
 function PhysicsPrewarm() {
+  const roomActive = useRoomActive();
   useEffect(() => {
+    if (!roomActive) return;
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
       return;
     let idle = 0;
@@ -1621,7 +1659,7 @@ function PhysicsPrewarm() {
       window.clearTimeout(timeout);
       if (idle) window.cancelIdleCallback?.(idle);
     };
-  }, []);
+  }, [roomActive]);
   return null;
 }
 
@@ -1637,26 +1675,19 @@ export default function StacksCanvas({
    * the document, so this hands the page back. */
   onLost?: () => void;
 }) {
+  const roomActive = useRoomActive();
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
   const performanceSettings = useScenePerformanceSettings();
-  // Book and model inspection freeze the room. Photo inspection leaves it
-  // alive behind the same translucent treatment as Field Notes.
+  // Book inspection freezes the room. Photo inspection leaves it alive
+  // behind the same translucent treatment as Field Notes.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
   const visionRidePhase = useStacks((s) => s.visionRidePhase);
   const roomMounted = visionRideRoomMounted(visionRidePhase);
   const artifactHandoff = useStacks((s) => s.modelArtifactHandoff);
-  const modelArtifactPhase = artifactHandoff?.phase ?? null;
-  const inspectedArtifact = sceneArtifactById(
-    artifactHandoff?.artifactId ?? null,
-  );
-  const freezeRoom =
-    modalOpen &&
-    inspectedArtifact?.kind !== "image" &&
-    (modelArtifactPhase === null ||
-      modelArtifactRoomShouldFreeze(modelArtifactPhase));
+  const freezeRoom = !roomActive || (modalOpen && artifactHandoff === null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   // Two things `onCreated` leaves running after it returns: the pair of queued
   // frames that report the first paint, and the context-loss listener. Both
@@ -2107,12 +2138,11 @@ export default function StacksCanvas({
           )
             ? performanceSettings.skipDepthOfField
             : undefined,
-          ambientOcclusionTransparency:
-            scenePerformanceController.isOverridden(
-              "ambientOcclusionTransparency",
-            )
-              ? performanceSettings.ambientOcclusionTransparency
-              : undefined,
+          ambientOcclusionTransparency: scenePerformanceController.isOverridden(
+            "ambientOcclusionTransparency",
+          )
+            ? performanceSettings.ambientOcclusionTransparency
+            : undefined,
           depthOfFieldBokehMultiplier:
             qualityControls.depthOfFieldBokehMultiplier ?? undefined,
           depthOfFieldResolutionScale:
@@ -2220,6 +2250,9 @@ export default function StacksCanvas({
       now,
     });
   }, []);
+  useEffect(() => {
+    onQualityForeground(roomActive && !document.hidden, performance.now());
+  }, [roomActive, onQualityForeground]);
   const onQualitySample = useCallback(
     (metrics: SceneQualityMetrics, instrumented: boolean) => {
       const now = performance.now();
@@ -2561,9 +2594,11 @@ export default function StacksCanvas({
       style={{ background: sceneBackdropFor(dark) }}
     >
       <LoadReporter />
-      <TouchInteractionLayer />
-      <AutomaticPerformanceDiagnostic />
-      <ScreenshotModeDriver />
+      <Activity mode={roomActive ? "visible" : "hidden"}>
+        <TouchInteractionLayer />
+        <AutomaticPerformanceDiagnostic />
+        <ScreenshotModeDriver />
+      </Activity>
       <Canvas
         events={pointerEvents}
         shadows="soft"
@@ -2682,7 +2717,8 @@ export default function StacksCanvas({
         <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
         <SceneLightShapePadding />
-        <FrozenResizeRepaint frozen={freezeRoom} />
+        <FrozenResizeRepaint frozen={freezeRoom && roomActive} />
+        <RoomResumeFrame active={roomActive} />
         <ShaderPrewarm
           variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}-${plan.environment.farGrassShader}-${plan.environment.grassDeformation}-${performanceSettings.activeNeighborhoodLights ? "near-lights" : "all-lights"}-${performanceSettings.activeNeighborhoodLights && performanceSettings.stableNeighborhoodLightShape ? "stable-light-shape" : "variable-light-shape"}`}
           resourceVariant={
@@ -2706,7 +2742,10 @@ export default function StacksCanvas({
           // re-renders clones a fresh material per tinted mesh and strands
           // the old one on the GPU.
           enabled={
-            panelState === "closed" && !modalOpen && visionRidePhase === "idle"
+            roomActive &&
+            panelState === "closed" &&
+            !modalOpen &&
+            visionRidePhase === "idle"
           }
           style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >

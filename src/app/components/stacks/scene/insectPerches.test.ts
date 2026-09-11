@@ -68,9 +68,9 @@ describe("authored insect Perches", () => {
         .map((perch) => ("ownerId" in perch ? perch.ownerId : null)),
     ).toEqual(
       expect.arrayContaining([
-        "link:projects:weightlifting-icon",
+        "action:projects:weightlifting",
         "link:projects:dice:top",
-        "grab:projects:homework-icon",
+        "action:projects:homework",
         "grab:photo:projects-wwdc-v8",
       ]),
     );

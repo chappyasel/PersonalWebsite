@@ -27,7 +27,6 @@ import {
 } from "./insectSteering";
 
 const TAU = Math.PI * 2;
-const HALF_PI = Math.PI / 2;
 const FOLDED_WING_ANGLE = Math.PI / 2 - 0.12;
 /**
  * Fractions of a refused landing step to retry, shortest last. The obstacle a
@@ -157,9 +156,27 @@ export type InsectPilotProfile = {
   /** Wing amplitude at hover, which is LARGER than the cruise amplitude. This
    * is the decoupling that keeps a slow insect from freezing. */
   hoverWingAmplitude: number;
-  /** Thorax pitch, at cruise. Both scale to zero at hover with the wingbeat. */
+  /**
+   * Thorax pitch per wingbeat at cruise, in radians; scales to zero at hover
+   * with the wingbeat. Small on purpose: the body follows the stroke bound
+   * (nose up as it rises, down as it sinks), it does not rock. Thirty degrees
+   * was written for the old flat cut-out, which needed the swing to catch the
+   * camera at all, and on a solid body it read as teetering (owner review,
+   * 2026-09-11).
+   */
   bodyPitchAmplitude: number;
-  bodyPitchFrequency: number;
+  /** How far the nose follows the flight path's climb or dive, in radians. */
+  climbPitchLimit: number;
+  /**
+   * The Stroke Bound: every beat throws the body up and forward and it sinks
+   * again on the upstroke. Half-amplitudes in metres at cruise, vertical and
+   * along the heading; the sway is the sideways lean each stroke draws at
+   * random, which is where the flitter comes from. All three are presentation
+   * offsets from the collision datum and never move the insect.
+   */
+  strokeLift: number;
+  strokeSurge: number;
+  strokeSway: number;
   /** Nose-up angle held through the last beat before contact. */
   flarePitch: number;
   /** Distance from contact at which the flare begins. */
@@ -295,8 +312,11 @@ export const BUTTERFLY_PILOT_PROFILE: InsectPilotProfile = {
   flapReferenceSpeed: 1.05,
   hoverWingFrequency: 3.4,
   hoverWingAmplitude: 1.3,
-  bodyPitchAmplitude: 0.524,
-  bodyPitchFrequency: 3,
+  bodyPitchAmplitude: 0.14,
+  climbPitchLimit: 0.5,
+  strokeLift: 0.0045,
+  strokeSurge: 0.0025,
+  strokeSway: 0.0035,
   flarePitch: 0.56,
   flareDistance: 0.05,
 };
@@ -336,8 +356,11 @@ export const MOTH_PILOT_PROFILE: InsectPilotProfile = {
   flapReferenceSpeed: 0.92,
   hoverWingFrequency: 2.6,
   hoverWingAmplitude: 1.22,
-  bodyPitchAmplitude: 0.349,
-  bodyPitchFrequency: 2.2,
+  bodyPitchAmplitude: 0.1,
+  climbPitchLimit: 0.4,
+  strokeLift: 0.003,
+  strokeSurge: 0.0018,
+  strokeSway: 0.0025,
   flarePitch: 0.42,
   flareDistance: 0.05,
 };
@@ -507,7 +530,23 @@ export type InsectPilot = {
   /** Nose-up thorax pitch in radians. Presentation only: the renderer applies
    * it, and it can never move the insect or change what it sweeps against. */
   bodyPitch: number;
-  bodyPitchPhase: number;
+  /** The slow part of `bodyPitch`: the nose eased onto the flight path. */
+  climbPitch: number;
+  /** World-space offset of the drawn body from the collision datum, the
+   * Stroke Bound. Presentation only, exactly like `bodyPitch`: the renderer
+   * adds it, and nothing the pilot sweeps or lands with ever sees it. */
+  stroke: PilotVector;
+  /** Completed wingbeats since creation. */
+  strokeCount: number;
+  /** Wingbeats completed in the last fixed step; the Intent Layer turns on
+   * them. */
+  strokeBeats: number;
+  /** This wingbeat's sideways lean, drawn per stroke, and the eased value. */
+  strokeSwayTarget: number;
+  strokeSway: number;
+  /** 0..1 fade of the Stroke Bound, eased so a landing takes it out smoothly
+   * and a Perch never has it. */
+  strokeDepth: number;
   /** Where the current Escape started measuring its displacement from. */
   escapeOrigin: PilotVector;
   escapeCause: InsectEscapeCause;
@@ -757,11 +796,13 @@ export function createInsectPilot(options: InsectPilotOptions): InsectPilot {
     roam: options.roam ?? null,
     steering: options.roam ? createInsectSteeringState(options.seed) : null,
     bodyPitch: 0,
-    // Seeded a quarter cycle behind the wingbeat, which is the phase relation
-    // the flight literature reports. The two oscillators then run at their own
-    // speed-coupled rates and drift apart, exactly as two different frequencies
-    // physically must.
-    bodyPitchPhase: stableNoise(options.seed + 17) * TAU - HALF_PI,
+    climbPitch: 0,
+    stroke: vector(),
+    strokeCount: 0,
+    strokeBeats: 0,
+    strokeSwayTarget: 0,
+    strokeSway: 0,
+    strokeDepth: 1,
     escapeOrigin: vector(),
     escapeCause: "calm",
     escapeRedirects: 0,
@@ -1692,17 +1733,55 @@ export function insectBodyPitchForSpeed(
 }
 
 /**
- * The Flap Layer. Thorax pitch oscillating a quarter cycle behind the
- * wingbeat, at its own slower speed-coupled rate, plus the nose-up flare held
- * through the last beat before contact.
+ * The body's rise over one wingbeat, about −1.1..1.1 with zero mean.
  *
- * This matters more than its size suggests: the body is a flat cut-out seen at
- * a 9–12° elevation, so it is always near edge-on, and thirty degrees of pitch
- * swings the whole silhouette toward the camera. It is what makes the insect
- * appear at all.
+ * A butterfly's wings are enormous for its body and beat slowly, so each
+ * stroke is a discrete impulse rather than a hum: the downstroke throws the
+ * body up and forward, and it sinks through the upstroke until the next one.
+ * The wing angle is `sin(wingPhase)` with the downstroke on the falling half
+ * (π/2..3π/2), so the rise is centred on π and, with the second harmonic,
+ * takes under forty percent of the cycle; the sink takes the rest. That
+ * asymmetry is the whole difference between a bound and a bob.
+ */
+export function insectStrokeLift(wingPhase: number) {
+  return -Math.sin(wingPhase) + 0.25 * Math.sin(2 * wingPhase);
+}
+
+/** Rate of `insectStrokeLift`, normalised to −1..1: positive while the body
+ * is rising. The thorax pitches with it, nose up on the way up. */
+export function insectStrokeRise(wingPhase: number) {
+  return (-Math.cos(wingPhase) + 0.5 * Math.cos(2 * wingPhase)) / 1.5;
+}
+
+/** Distance from contact over which the Stroke Bound fades out during the
+ * hover arc, so the last beats before touchdown are flown on the datum the
+ * arrival was validated against. */
+const STROKE_FADE_DISTANCE = 0.12;
+/** Airspeed at which the nose fully follows the path; below it the velocity
+ * direction is mostly control noise and the body stays level. */
+const CLIMB_PITCH_SPEED = 0.3;
+const CLIMB_PITCH_RATE = 6;
+
+/**
+ * The Flap Layer: what the body does because the wings are beating.
  *
- * Presentation only. It writes one angle and can never move the insect or
- * change what it collides with.
+ * Three things, all presentation. The nose follows the flight path's climb
+ * or dive, slowly. The thorax pitches a little with each stroke, nose up as
+ * the body rises. And the body itself rides the Stroke Bound, an offset from
+ * the collision datum that lifts and surges it on every downstroke and leans
+ * it a random few millimetres sideways per beat. The nose-up flare held
+ * through the last beat before contact lives here too.
+ *
+ * What this replaced was a thirty-degree thorax rock locked to the wingbeat
+ * and nothing else: no bound, no climb. On the old flat cut-out the rock was
+ * what made the insect visible at a grazing angle; on a solid body it read as
+ * the whole animal teetering fore and aft while its path stayed dead smooth,
+ * which is the opposite of how a butterfly flies. Owner review: "shouldn't the
+ * body stay relatively consistent and smooth... each flap should slightly
+ * propel it... each flap gives it a slightly different random direction."
+ *
+ * Presentation only. It writes an angle and an offset and can never move the
+ * insect or change what it collides with.
  */
 /**
  * During touchdown and rest the body may approach the contact plane but never
@@ -1741,10 +1820,46 @@ function holdAboveContactPlane(pilot: InsectPilot) {
 function advanceFlap(pilot: InsectPilot, step: number) {
   const profile = pilot.profile;
   const speed = magnitude(pilot.velocity.x, pilot.velocity.y, pilot.velocity.z);
-  if (pilot.phase === "touchdown" || pilot.phase === "rest") {
+  const settling = pilot.phase === "touchdown" || pilot.phase === "rest";
+  const remaining =
+    settling || pilot.phase === "hover"
+      ? distance(pilot.position, pilot.contact)
+      : Number.POSITIVE_INFINITY;
+
+  // The Stroke Bound. Its depth eases rather than switches so a landing takes
+  // it out over a few beats; folded wings and a perch have none of it, and the
+  // deep slow hover beat carries proportionally more of it than cruise does,
+  // which is a hovering butterfly bobbing in place.
+  const targetDepth = settling
+    ? 0
+    : pilot.phase === "hover"
+      ? Math.max(0, Math.min(1, remaining / STROKE_FADE_DISTANCE))
+      : 1;
+  pilot.strokeDepth +=
+    (targetDepth - pilot.strokeDepth) * Math.min(1, step * 9);
+  // The sway settles within a quarter beat of being drawn, so it reads as a
+  // lean the stroke produced rather than a slide between two places.
+  pilot.strokeSway +=
+    (pilot.strokeSwayTarget - pilot.strokeSway) *
+    Math.min(1, step * Math.max(1, pilot.wingFrequency) * 4);
+  const open =
+    (1 - pilot.wingFold) *
+    pilot.strokeDepth *
+    (pilot.wingAmplitude / Math.max(EPSILON, profile.wingAmplitude));
+  const lift = insectStrokeLift(pilot.wingPhase);
+  const horizontal = Math.hypot(pilot.velocity.x, pilot.velocity.z);
+  const forwardX = horizontal > EPSILON ? pilot.velocity.x / horizontal : 0;
+  const forwardZ = horizontal > EPSILON ? pilot.velocity.z / horizontal : 0;
+  const along = profile.strokeSurge * lift * open;
+  const across = pilot.strokeSway * open;
+  pilot.stroke.x = forwardX * along + forwardZ * across;
+  pilot.stroke.y = profile.strokeLift * lift * open;
+  pilot.stroke.z = forwardZ * along - forwardX * across;
+
+  if (settling) {
     // Flare: pitch up into the surface over the last few centimetres, then
-    // settle flat once the feet are down.
-    const remaining = distance(pilot.position, pilot.contact);
+    // settle flat once the feet are down. The climb pitch drains with it so
+    // the next take-off starts level rather than from the arrival's dive.
     const target =
       pilot.phase === "rest"
         ? restingIdleBob(profile, pilot.restIdleAge) * pilot.restIdleDepth
@@ -1757,15 +1872,27 @@ function advanceFlap(pilot: InsectPilot, step: number) {
             ),
           );
     pilot.bodyPitch += (target - pilot.bodyPitch) * Math.min(1, step * 9);
+    pilot.climbPitch -= pilot.climbPitch * Math.min(1, step * CLIMB_PITCH_RATE);
     return;
   }
-  // Phase-locked to the wingbeat, a quarter cycle behind it, because that is
-  // what causes it. Running the thorax on its own slower oscillator — 1.5 Hz
-  // against a 6 Hz wing — reads as the whole insect rocking fore and aft
-  // independently of its wings, which is a bob, not a flap.
-  const amplitude = insectBodyPitchForSpeed(profile, speed);
-  pilot.bodyPitchPhase = pilot.wingPhase - HALF_PI;
-  pilot.bodyPitch = amplitude * Math.sin(pilot.bodyPitchPhase);
+  // The nose follows where the body is actually going, eased, and only once
+  // it is genuinely going somewhere: a hovering pilot's velocity is mostly
+  // correction, and a body that pitched with it would hunt.
+  const climb =
+    Math.atan2(pilot.velocity.y, horizontal) *
+    Math.min(1, speed / CLIMB_PITCH_SPEED);
+  const climbTarget = Math.max(
+    -profile.climbPitchLimit,
+    Math.min(profile.climbPitchLimit, climb),
+  );
+  pilot.climbPitch +=
+    (climbTarget - pilot.climbPitch) * Math.min(1, step * CLIMB_PITCH_RATE);
+  // Phase-locked to the wingbeat because that is what causes it: the thorax
+  // tips up as the stroke throws the body up and down again as it sinks.
+  // Running it on its own oscillator reads as a bob, not a flap.
+  const amplitude = insectBodyPitchForSpeed(profile, speed) * open;
+  pilot.bodyPitch =
+    pilot.climbPitch + amplitude * insectStrokeRise(pilot.wingPhase);
 }
 
 function advanceWing(pilot: InsectPilot, step: number) {
@@ -1836,7 +1963,18 @@ function advanceWing(pilot: InsectPilot, step: number) {
     -WING_FOLD_RATE * step,
     Math.min(WING_FOLD_RATE * step, targetFold - pilot.wingFold),
   );
-  pilot.wingPhase = (pilot.wingPhase + TAU * pilot.wingFrequency * step) % TAU;
+  const advanced = pilot.wingPhase + TAU * pilot.wingFrequency * step;
+  const beats = Math.floor(advanced / TAU);
+  pilot.wingPhase = advanced % TAU;
+  pilot.strokeBeats = beats;
+  if (beats > 0) {
+    pilot.strokeCount += beats;
+    // A fresh sideways lean per stroke, from the insect's own stream, so no
+    // two residents flitter alike and a reload replays the same flight.
+    pilot.strokeSwayTarget =
+      (stableNoise(pilot.seed * 3 + pilot.strokeCount * 7) * 2 - 1) *
+      pilot.profile.strokeSway;
+  }
   pilot.wingAngle =
     pilot.wingFold * FOLDED_WING_ANGLE +
     pilot.wingAmplitude * Math.sin(pilot.wingPhase) -
@@ -1966,6 +2104,7 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
         evade: pilot.roam.evade,
         position: pilot.position,
         velocity: pilot.velocity,
+        strokes: pilot.strokeBeats,
         step: FIXED_STEP,
         sampleDistanceField: world.sampleDistanceField
           ? (point, outGradient) =>

@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // Atmosphere for the homepage 3D scene — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
 import { useWorldBootScope } from "../boot/useWorldBoot";
@@ -3230,11 +3233,11 @@ function SkyDome({
         return;
       runSceneInteractionActivation(tappedEgg);
     };
-    window.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointerup", onUp);
+    roomWindowEvents.addEventListener("pointerdown", onDown);
+    roomWindowEvents.addEventListener("pointerup", onUp);
     return () => {
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointerup", onUp);
+      roomWindowEvents.removeEventListener("pointerdown", onDown);
+      roomWindowEvents.removeEventListener("pointerup", onUp);
     };
   }, []);
   useFrame(({ clock, camera, pointer, raycaster, size }, delta) => {

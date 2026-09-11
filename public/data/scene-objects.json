@@ -51,7 +51,7 @@
     "id": "action:about:vision-ride",
     "title": "Apple Vision Pro",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Apple Vision Pro",
@@ -116,7 +116,7 @@
     "id": "grab:ai-collective-mark",
     "title": "The AI Collective",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "The AI Collective",
@@ -129,7 +129,7 @@
     "id": "grab:coordination-research:about",
     "title": "Coordination Research",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Coordination Research",
@@ -158,7 +158,7 @@
     "id": "grab:reading:*",
     "title": "Currently Reading",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Book Notes",
@@ -171,7 +171,7 @@
     "id": "grab:tj-medallion:about",
     "title": "TJHSST Medallion",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "TJHSST",
@@ -192,7 +192,7 @@
     "id": "egg:globe",
     "title": "Globe",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "The darker countries are the 25 I have visited. The orange lights map the spread of AI Collective chapters around the world."
   },
@@ -224,7 +224,7 @@
     "id": "portrait",
     "title": "Chappy Asel",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "LinkedIn",
@@ -237,7 +237,7 @@
     "id": "about-collective-group-v8",
     "title": "AI Collective",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "The AI Collective",
@@ -250,7 +250,7 @@
     "id": "about-family-v8",
     "title": "Family Portrait",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "My family on Martha's Vineyard in August 2026. This island has been one of the constants in our lives for nearly three decades."
   },
@@ -258,7 +258,7 @@
     "id": "about-speaking-candid-v8",
     "title": "Speaking Candid",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Making the case for trust and community as AI accelerates, during the lead-up to The AI Collective's June 2025 launch."
   },
@@ -266,7 +266,7 @@
     "id": "about-delicate-arch-v8",
     "title": "Delicate Arch",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Delicate Arch at sunset in July 2021, during a family trip through Moab."
   },
@@ -274,7 +274,7 @@
     "id": "about-profile-full-v8",
     "title": "Portrait",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Martha's Vineyard, August 2026. One of the rare times I managed to stand still long enough for a proper portrait."
   },
@@ -405,7 +405,7 @@
     "id": "training-golf-group-v8",
     "title": "Golf Group",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Golf with family and friends, one of the newer additions to our family rotation."
   },
@@ -413,7 +413,7 @@
     "id": "training-pickleball-group-v8",
     "title": "Pickleball Group",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Pickleball with the family. We picked it up on a Hilton Head trip and immediately stopped playing tennis."
   },
@@ -421,7 +421,7 @@
     "id": "training-golf-flag-v8",
     "title": "On the Green",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "At the Chappaquiddick pin on Martha's Vineyard in August 2025."
   },
@@ -530,7 +530,7 @@
     "id": "training-trophy-side-v8",
     "title": "Boys with Gains Trophy",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "After my first natural bodybuilding show: second in novice bodybuilding and third in physique at Battle of the Bay in October 2022."
   },
@@ -538,7 +538,7 @@
     "id": "training-stage-kneeling-v8",
     "title": "Boys with Gains Stage Portrait",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022."
   },
@@ -546,7 +546,7 @@
     "id": "training-stage-side-v8",
     "title": "Boys with Gains on Stage",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "My first natural bodybuilding show, after twelve weeks of the hardest prep I had done."
   },
@@ -554,7 +554,7 @@
     "id": "training-trophy-front-v8",
     "title": "Boys with Gains Trophy Portrait",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "The hardware from Battle of the Bay: second in novice bodybuilding and third in physique."
   },
@@ -562,7 +562,7 @@
     "id": "aggregate-strength",
     "title": "Aggregate One Rep Max Trend",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Analyze data",
@@ -579,7 +579,7 @@
     "id": "big-three",
     "title": "Big 3 Progression",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Analyze data",
@@ -596,7 +596,7 @@
     "id": "dexa-history",
     "title": "DEXA Lean Mass vs Bodyweight",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Analyze data",
@@ -613,7 +613,7 @@
     "id": "training-gym-pose-v8",
     "title": "Gym Portrait",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Near the end of my 2025 cut. Bodybuilding has been one of the stranger long-running experiments in my life."
   },
@@ -621,7 +621,7 @@
     "id": "training-deadlift-v8",
     "title": "Deadlift",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "One of the deadlift sessions behind the charts on this shelf. I have logged every set since 2018, including the ugly ones."
   },
@@ -629,7 +629,7 @@
     "id": "training-bench-v8",
     "title": "Bench Press",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Benching nearly 500 pounds of estimated one-rep max. The actual rep looked about as graceful as this photo."
   },
@@ -637,7 +637,7 @@
     "id": "lift-table",
     "title": "Lift Table",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "PDF",
@@ -887,7 +887,7 @@
     "id": "systems-supplements-v8",
     "title": "Daily Supplements",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Routine",
@@ -966,7 +966,7 @@
     "id": "egg:clock:alarm",
     "title": "Alarm Clock",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Routine",
@@ -979,7 +979,7 @@
     "id": "systems-working-session-v8",
     "title": "Working Session",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "A working session with The AI Collective team, turning a wall of ideas into something people could actually use."
   },
@@ -987,7 +987,7 @@
     "id": "systems-home-office-v8",
     "title": "Home Office",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "My blissful work-from-home setup, complete with a view of Salesforce Tower."
   },
@@ -995,7 +995,7 @@
     "id": "systems-sf-dusk-v8",
     "title": "San Francisco at Dusk",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Sunset from my 33rd-floor apartment in San Francisco, where many AI Collective dinners and founder gatherings began."
   },
@@ -1003,7 +1003,7 @@
     "id": "systems-lake-v8",
     "title": "At the Lake",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Jumping into Lake Alpine during a 2020 road trip through California."
   },
@@ -1011,7 +1011,7 @@
     "id": "link:routineboard",
     "title": "Routine Board",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Routine",
@@ -1048,7 +1048,7 @@
     "id": "projects-coding-couch-v8",
     "title": "Coding on the Couch",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Building with the team I joined after leaving Apple, July 2024. Three laptops on one couch was a pretty accurate picture of that chapter."
   },
@@ -1080,7 +1080,7 @@
     "id": "projects-facebook-v8",
     "title": "At Facebook",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "At 1 Hacker Way during my Facebook software engineering internship in February 2020. COVID cut the internship short a few weeks later."
   },
@@ -1088,7 +1088,7 @@
     "id": "action:projects:mac",
     "title": "Macintosh",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "A compact Mac running the cellular automaton that formed the background of the previous version of this site."
   },
@@ -1101,10 +1101,10 @@
     "body": "The visible practical at the left end of the top shelf. It supplies the warm\nreflection that travels across the two polished icon faces. Click it off and on."
   },
   {
-    "id": "link:projects:weightlifting-icon",
-    "title": "Weightlifting App Icon",
+    "id": "action:projects:weightlifting",
+    "title": "Weightlifting App",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "App Store",
@@ -1192,18 +1192,18 @@
     "body": "The die on top of the pyramid. Restacking all six into a tower is one of the\nfield notes."
   },
   {
-    "id": "homework-app",
+    "id": "action:projects:homework",
     "title": "Homework App",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
-    "body": "The homework app I built in high school grew to 338,000 installs and number one in its category before Haystack AI acquired it in 2019."
+    "body": "The homework planner I built in high school. It grew to 338,000 installs, 63,000 monthly users and the number one homework app worldwide before Haystack AI acquired it in 2019. Tap the icon for a closer look."
   },
   {
     "id": "projects-wwdc-v8",
     "title": "WWDC",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Launching App Intents at Apple's WWDC 2022."
   },
@@ -1248,7 +1248,7 @@
     "id": "grab:paper:5",
     "title": "GPT-3 Paper",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Medium",
@@ -1269,7 +1269,7 @@
     "id": "grab:trust-essay:musings",
     "title": "Trust in the Age of Acceleration",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [
       {
         "label": "Read the essay",
@@ -1290,7 +1290,7 @@
     "id": "grab:vineyard-cutout",
     "title": "Martha's Vineyard Cutout",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Martha's Vineyard in miniature. My family has returned to the island every summer for nearly three decades."
   },
@@ -1298,7 +1298,7 @@
     "id": "systems-lighthouse-v8",
     "title": "Lighthouse",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Gay Head Light in Aquinnah, part of the island my family has returned to for nearly three decades."
   },
@@ -1306,7 +1306,7 @@
     "id": "grab:lighthouse:musings",
     "title": "Gay Head Light",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Gay Head Light in Aquinnah. The real lighthouse, the photograph, and this slightly ridiculous souvenir all made it onto the same shelf."
   },
@@ -1393,7 +1393,7 @@
     "id": "talk-demo-night-v8",
     "title": "Demo Night",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Our first large-scale AI Collective Demo Night in May 2024. Find the people building interesting things and put them in a room together."
   },
@@ -1401,7 +1401,7 @@
     "id": "talk-consensus-phone-v8",
     "title": "Consensus",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "An audience member filming my Consensus 2026 fireside on AI agents and crypto in Miami."
   },
@@ -1441,7 +1441,7 @@
     "id": "talk-ann-interview-v8",
     "title": "Interview with Ann",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Talking about The AI Collective and the optimism at the AI frontier on ANN News in January 2025."
   },
@@ -1449,7 +1449,7 @@
     "id": "talk-dc-policy-v8",
     "title": "DC Policy Talk",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Talking through what AI acceleration asks of policymakers and the people building the technology in Washington, DC."
   },
@@ -1457,7 +1457,7 @@
     "id": "talk-panel-v8",
     "title": "Panel Discussion",
     "status": "written",
-    "visitor": true,
+    "visitor": false,
     "links": [],
     "body": "Moderating \"The Future of AI Beyond the Chatbot Era\" at Stanford in August 2026."
   },

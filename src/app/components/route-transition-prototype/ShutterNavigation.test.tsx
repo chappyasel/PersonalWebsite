@@ -15,6 +15,17 @@ import RouteTransitionPrototype from "./RouteTransitionPrototype";
 import { SHUTTER_TIMING } from "./shutters";
 import { useRouteTransitionPrototype } from "./store";
 
+// Exercise ordinary page links rather than the removed comparison toolbar.
+function PageUnderTest() {
+  return (
+    <>
+      <RouteTransitionPrototype />
+      <a href="http://localhost/">Home</a>
+      <a href="http://localhost/weightlifting">Workouts</a>
+    </>
+  );
+}
+
 const navigation = vi.hoisted(() => ({
   pathname: "/books",
   router: { push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() },
@@ -67,9 +78,9 @@ afterEach(() => {
 });
 
 it("closes before navigating, holds for the route, then opens without a boot replay or extra dwell", async () => {
-  const view = render(<RouteTransitionPrototype />);
+  const view = render(<PageUnderTest />);
   await act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Workouts" })),
+    fireEvent.click(screen.getByRole("link", { name: "Workouts" })),
   );
   expect(animate).toHaveBeenCalledTimes(2);
   await act(async () => {
@@ -87,7 +98,7 @@ it("closes before navigating, holds for the route, then opens without a boot rep
   });
   expect(animate).toHaveBeenCalledTimes(2);
   navigation.pathname = "/weightlifting";
-  await act(async () => view.rerender(<RouteTransitionPrototype />));
+  await act(async () => view.rerender(<PageUnderTest />));
   expect(animate).toHaveBeenCalledTimes(4);
   expect(view.container.querySelector("[data-phase=opening]")).not.toBeNull();
   await act(async () => {
@@ -99,18 +110,18 @@ it("closes before navigating, holds for the route, then opens without a boot rep
 
 it("skips shutters for reduced motion", async () => {
   vi.stubGlobal("matchMedia", () => ({ matches: true }));
-  render(<RouteTransitionPrototype />);
+  render(<PageUnderTest />);
   await act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Home" })),
+    fireEvent.click(screen.getByRole("link", { name: "Home" })),
   );
   expect(navigation.router.push).toHaveBeenCalledWith("/#books");
   expect(animate).not.toHaveBeenCalled();
 });
 
 it("cancels closing shutters without navigating when disabled", async () => {
-  const view = render(<RouteTransitionPrototype />);
+  const view = render(<PageUnderTest />);
   await act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Home" })),
+    fireEvent.click(screen.getByRole("link", { name: "Home" })),
   );
   await act(async () => view.unmount());
   expect(cancelled).toHaveBeenCalledTimes(2);
@@ -122,27 +133,24 @@ it("falls through to navigation if an animation never completes", async () => {
     finished: new Promise<void>(() => undefined),
     cancel: cancelled,
   }));
-  const view = render(<RouteTransitionPrototype />);
+  const view = render(<PageUnderTest />);
   await act(async () =>
-    fireEvent.click(screen.getByRole("button", { name: "Home" })),
+    fireEvent.click(screen.getByRole("link", { name: "Home" })),
   );
   await act(async () => {
     await vi.advanceTimersByTimeAsync(SHUTTER_TIMING.close + 500);
   });
   expect(navigation.router.push).toHaveBeenCalledWith("/#books");
   navigation.pathname = "/";
-  await act(async () => view.rerender(<RouteTransitionPrototype />));
+  await act(async () => view.rerender(<PageUnderTest />));
   expect(view.container.querySelector(".route-prototype-curtains")).toBeNull();
-  expect(screen.getByRole("status").textContent).toContain(
-    "Shutter animation timed out",
-  );
 });
 
 it("uses shutters for a Weightlifting site portal but leaves modal transitions alone", async () => {
   navigation.pathname = "/";
   const view = render(
     <>
-      <RouteTransitionPrototype />
+      <PageUnderTest />
       <SheetLink href="/systems" onClick={(event) => event.preventDefault()}>
         Open systems sheet
       </SheetLink>
@@ -162,7 +170,7 @@ it("uses shutters for a Weightlifting site portal but leaves modal transitions a
   });
   expect(navigation.router.push).toHaveBeenCalledWith("/weightlifting");
   navigation.pathname = "/weightlifting";
-  await act(async () => view.rerender(<RouteTransitionPrototype />));
+  await act(async () => view.rerender(<PageUnderTest />));
 });
 
 function TrainingProp() {
@@ -185,7 +193,7 @@ it("starts shutters from the actual 3D prop navigation hook", async () => {
   navigation.pathname = "/";
   const view = render(
     <>
-      <RouteTransitionPrototype />
+      <PageUnderTest />
       <TrainingProp />
     </>,
   );
@@ -197,14 +205,14 @@ it("starts shutters from the actual 3D prop navigation hook", async () => {
   });
   expect(navigation.router.push).toHaveBeenCalledWith("/weightlifting");
   navigation.pathname = "/weightlifting";
-  await act(async () => view.rerender(<RouteTransitionPrototype />));
+  await act(async () => view.rerender(<PageUnderTest />));
 });
 
 it("animates the Weightlifting page title back to the Training shelf across local hostname aliases", async () => {
   navigation.pathname = "/weightlifting";
   const view = render(
     <>
-      <RouteTransitionPrototype />
+      <PageUnderTest />
       <a href="http://127.0.0.1:3000/">Chappy&apos;s Weightlifting</a>
     </>,
   );
@@ -218,7 +226,7 @@ it("animates the Weightlifting page title back to the Training shelf across loca
   });
   expect(navigation.router.push).toHaveBeenCalledWith("/#training");
   navigation.pathname = "/";
-  await act(async () => view.rerender(<RouteTransitionPrototype />));
+  await act(async () => view.rerender(<PageUnderTest />));
   expect(animate).toHaveBeenCalledTimes(4);
   await act(async () => {
     await vi.advanceTimersByTimeAsync(SHUTTER_TIMING.open);

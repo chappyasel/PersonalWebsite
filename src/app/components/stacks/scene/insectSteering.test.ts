@@ -31,8 +31,11 @@ import {
 } from "./insectPilot";
 import {
   BUTTERFLY_STEERING_PROFILE,
+  INSECT_CONTAINMENT_REACH,
   MOTH_STEERING_PROFILE,
+  advanceInsectSteering,
   createInsectSteeringState,
+  integrateInsectRoam,
   nudgeInsectSteering,
 } from "./insectSteering";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -192,9 +195,14 @@ function fly(count: number, seconds: number, frameRate = 60) {
  * the Intent Layer is handed, and all this needs, is a direction and a
  * strength.
  */
-function flyPast(cursor: PilotVector, seconds: number, evading: boolean) {
+function flyPast(
+  cursor: PilotVector,
+  seconds: number,
+  evading: boolean,
+  count = 6,
+) {
   const world = new SoftFlightWorld();
-  const pilots = Array.from({ length: 6 }, (_, index) => resident(index));
+  const pilots = Array.from({ length: count }, (_, index) => resident(index));
   const away = { x: 0, y: 0, z: 0, strength: 0 };
   let near = 0;
   let total = 0;
@@ -246,11 +254,16 @@ describe("pointer evasion", () => {
   };
 
   it("keeps residents out of the cursor's immediate neighbourhood", () => {
-    const ignoring = flyPast(cursor, 60, false);
-    const evading = flyPast(cursor, 60, true);
+    // Dwell inside the neighbourhood is a couple of percent, so six residents
+    // over a minute is a handful of visits and the ratio swung 0.55..0.69
+    // with the seed alone (measured 2026-09-11 across stroke kicks of 0,
+    // 0.12 and 0.22, twelve runs). Twelve residents over two minutes settle
+    // it near 0.56; the bound below is the claim, not the noise.
+    const ignoring = flyPast(cursor, 120, false, 12);
+    const evading = flyPast(cursor, 120, true, 12);
 
     expect(ignoring.near).toBeGreaterThan(0.01);
-    expect(evading.near).toBeLessThan(ignoring.near * 0.65);
+    expect(evading.near).toBeLessThan(ignoring.near * 0.8);
   });
 
   it("saturates, which is why the bias can stay small", () => {
@@ -427,6 +440,35 @@ describe("steering roam", () => {
       ).toBeLessThan(0.03);
   });
 
+  it("turns a step on every wingbeat, on top of the slow drift", () => {
+    const step = (strokes: number, seed = 5) => {
+      const state = createInsectSteeringState(seed);
+      const before = { x: state.wanderX, y: state.wanderY, z: state.wanderZ };
+      advanceInsectSteering({
+        state,
+        profile: BUTTERFLY_STEERING_PROFILE,
+        containment: CONTAINMENT,
+        position: { x: 0, y: 0.6, z: 0.6 },
+        velocity: { x: 0.4, y: 0, z: 0 },
+        strokes,
+        step: 1 / 120,
+        out: { x: 0, y: 0, z: 0 },
+      });
+      return Math.hypot(
+        state.wanderX - before.x,
+        state.wanderY - before.y,
+        state.wanderZ - before.z,
+      );
+    };
+    // A beat moves the wander point by about the authored kick; a step
+    // without one moves it only by the walk's tiny per-step jitter.
+    expect(step(0)).toBeLessThan(0.12);
+    expect(step(1)).toBeGreaterThan(step(0));
+    expect(step(1)).toBeLessThan(BUTTERFLY_STEERING_PROFILE.strokeTurn * 1.6);
+    // Per-insect streams: two residents beat in different directions.
+    expect(step(1, 5)).not.toBeCloseTo(step(1, 6), 6);
+  });
+
   it("breaks a steering fixed point rather than only reporting one", () => {
     // A controller that sums containment, repulsion, drift and wander can sum
     // to zero, and a resident that finds that point stays in it — owner
@@ -463,5 +505,70 @@ describe("steering roam", () => {
     expect(
       Math.hypot(out.x - second.x, out.y - second.y, out.z - second.z),
     ).toBeGreaterThan(0.05);
+  });
+});
+
+describe("volume backstop", () => {
+  const home = {
+    containment: () => 0,
+    residencyDrift: () => 0,
+    // Projects everything to the origin: a stand-in for a shape the insect
+    // has been released far outside of.
+    clamp: (
+      position: { x: number; y: number; z: number },
+      velocity: { x: number; y: number; z: number },
+    ) => {
+      const moved = position.x !== 0 || position.y !== 0 || position.z !== 0;
+      position.x = 0;
+      position.y = 0;
+      position.z = 0;
+      velocity.x = 0;
+      velocity.y = 0;
+      velocity.z = 0;
+      return moved;
+    },
+  };
+
+  it("flies a far-outside insect home at top speed instead of moving it there", () => {
+    const position = { x: 4.6, y: 0, z: 0 };
+    const velocity = { x: 0, y: 0, z: 0 };
+    integrateInsectRoam({
+      containment: home,
+      position,
+      velocity,
+      acceleration: { x: 0, y: 0, z: 0 },
+      maxSpeed: 1.5,
+      step: 1 / 60,
+    });
+    // One frame of travel at top speed, aimed home, and the velocity now
+    // says so too.
+    // Not moved this step: the velocity is aimed home at top speed and the
+    // following steps fly it there, never faster than the ceiling.
+    expect(position.x).toBeCloseTo(4.6, 6);
+    expect(velocity.x).toBeCloseTo(-1.5, 6);
+    integrateInsectRoam({
+      containment: home,
+      position,
+      velocity,
+      acceleration: { x: 0, y: 0, z: 0 },
+      maxSpeed: 1.5,
+      step: 1 / 60,
+    });
+    expect(position.x).toBeCloseTo(4.6 - 1.5 / 60, 6);
+  });
+
+  it("still puts a barely-outside insect straight back", () => {
+    const position = { x: INSECT_CONTAINMENT_REACH / 2, y: 0, z: 0 };
+    const velocity = { x: 0.3, y: 0, z: 0 };
+    integrateInsectRoam({
+      containment: home,
+      position,
+      velocity,
+      acceleration: { x: 0, y: 0, z: 0 },
+      maxSpeed: 1.5,
+      step: 1 / 60,
+    });
+    expect(position.x).toBe(0);
+    expect(velocity.x).toBe(0);
   });
 });

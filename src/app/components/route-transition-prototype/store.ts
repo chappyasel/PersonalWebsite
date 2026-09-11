@@ -12,10 +12,12 @@ export type TransitionVariant = (typeof VARIANTS)[number];
 // Source zoom is the shipped effect. Comparison variants remain local-only.
 export const useRouteTransitionPrototype = create<{
   enabled: boolean;
+  reverseRoom: boolean;
   variant: TransitionVariant;
   deferSceneStartup: boolean;
 }>(() => ({
   enabled: true,
+  reverseRoom: true,
   variant: "origin",
   deferSceneStartup: false,
 }));

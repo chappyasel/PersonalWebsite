@@ -7,6 +7,8 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import AnalyticsRouteTracker from "./components/AnalyticsRouteTracker";
 import { RouteTransitionPrototypeGate } from "./components/route-transition-prototype/Gate";
+import { booksHistoryBootstrapScript } from "./components/route-transition-prototype/historyBootstrap";
+import { ResidentRoomHost } from "./components/stacks/room/ResidentRoomHost";
 import { InlineBookPreviewProvider } from "~/components/books/InlineBookPreviewProvider";
 import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController";
 
@@ -115,6 +117,9 @@ export default function RootLayout({
         />
         <script dangerouslySetInnerHTML={{ __html: fontPreferenceScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script
+          dangerouslySetInnerHTML={{ __html: booksHistoryBootstrapScript }}
+        />
       </head>
       <body>
         <ThemeProvider>
@@ -123,6 +128,7 @@ export default function RootLayout({
             <AnalyticsRouteTracker />
             <RouteTransitionPrototypeGate />
             <InlineBookPreviewProvider>
+              <ResidentRoomHost />
               {children}
               {sheet}
             </InlineBookPreviewProvider>

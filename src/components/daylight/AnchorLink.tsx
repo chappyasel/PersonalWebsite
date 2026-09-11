@@ -16,10 +16,10 @@ import {
 /**
  * The one copy-section-link affordance for every daylight section header —
  * routine and manual share this so the gesture never drifts between the
- * pages. A hover-revealed button (render inside an element carrying the
- * `group/sec` Tailwind group) that copies a shareable deep link, reflects it
- * in the address bar, and flashes an animated check. Keyboard-focusable, with
- * a tooltip naming the action.
+ * pages. A button revealed on mouse hover and hidden on touch devices.
+ * Render inside the `group/sec` Tailwind group. It copies a shareable
+ * deep link, reflects it in the address bar, and flashes an animated check.
+ * Keyboard-focusable, with a tooltip naming the action.
  */
 export default function AnchorLink({
   id,
@@ -65,7 +65,9 @@ export default function AnchorLink({
             onClick={copy}
             onKeyDown={(event) => event.stopPropagation()}
             aria-label="Copy link to this section"
-            className={`shrink-0 -translate-x-0.5 rounded-md p-1 text-muted-foreground/30 opacity-0 transition-all duration-200 hover:bg-muted/60 hover:text-foreground focus-visible:opacity-100 active:scale-[0.82] group-hover/sec:translate-x-0 group-hover/sec:opacity-100 ${className}`}
+            // Revealing content during touch-emulated hover can consume the
+            // first tap in Safari before the section's click handler runs.
+            className={`shrink-0 rounded-md p-1 text-muted-foreground/30 transition-all duration-200 active:scale-[0.82] [@media_not_all_and_(hover:hover)_and_(pointer:fine)]:hidden [@media_(hover:hover)_and_(pointer:fine)]:-translate-x-0.5 [@media_(hover:hover)_and_(pointer:fine)]:opacity-0 [@media_(hover:hover)_and_(pointer:fine)]:hover:bg-muted/60 [@media_(hover:hover)_and_(pointer:fine)]:hover:text-foreground [@media_(hover:hover)_and_(pointer:fine)]:focus-visible:opacity-100 [@media_(hover:hover)_and_(pointer:fine)]:group-hover/sec:translate-x-0 [@media_(hover:hover)_and_(pointer:fine)]:group-hover/sec:opacity-100 ${className}`}
           >
             <span className="relative block h-[15px] w-[15px]">
               <AnimatePresence initial={false}>

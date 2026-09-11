@@ -194,8 +194,9 @@ describe("scene audio policy", () => {
   it("keeps the ambient beds subordinate to physical scene sounds", () => {
     const loudestWindSum =
       windGainForMotion(1) * (1 + SCENE_AUDIO_MIX.windCrossfadeFloor);
-    expect(loudestWindSum).toBeLessThan(0.05);
-    expect(SCENE_AUDIO_MIX.meadow).toBeLessThan(0.1);
+    expect(loudestWindSum).toBeLessThan(0.02);
+    expect(SCENE_AUDIO_MIX.meadow).toBeLessThan(0.04);
+    expect(loudestWindSum).toBeLessThan(SCENE_AUDIO_MIX.meadow);
   });
 
   it("makes normal grass motion audible and gives stronger gusts more presence", () => {
@@ -204,7 +205,7 @@ describe("scene audio policy", () => {
     expect(windGainForMotion(0.4)).toBe(0);
     expect(baseline).toBeGreaterThan(0);
     expect(revealGust).toBeGreaterThan(baseline * 2);
-    expect(windGainForMotion(1)).toBeLessThanOrEqual(0.034);
+    expect(windGainForMotion(1)).toBeLessThanOrEqual(0.013);
   });
 
   it("eases the shared wind gain instead of stepping both loops every frame", async () => {

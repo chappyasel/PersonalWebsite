@@ -36,6 +36,12 @@ import { prefersFullPage } from "./sheetRoute";
  * page would be wrong). */
 export const InModalSheetContext = createContext(false);
 
+/** Expansion changes layout, not history ownership. A visible return link
+ * dismisses this same sheet and returns to the page that launched it. */
+export const ModalSheetDismissContext = createContext<(() => void) | null>(
+  null,
+);
+
 const FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
@@ -359,97 +365,103 @@ function PresentedSheet({
   const isCard = variant === "card";
 
   return (
-    <AnimatePresence onExitComplete={() => router.back()}>
-      {open && (
-        <div
-          data-modal-sheet={expanded ? undefined : ""}
-          className={cn("fixed inset-0 z-50", !expanded && className)}
-        >
-          {/* Dim only, no backdrop-filter: Chromium smears a backdrop blur
+    // Keep ownership marked through the exit callback, even after the dialog
+    // itself has left the DOM. History Back must still bypass page capture.
+    <div data-presented-sheet="" className="contents">
+      <AnimatePresence onExitComplete={() => router.back()}>
+        {open && (
+          <div
+            data-modal-sheet={expanded ? undefined : ""}
+            className={cn("fixed inset-0 z-50", !expanded && className)}
+          >
+            {/* Dim only, no backdrop-filter: Chromium smears a backdrop blur
               across overlapping siblings after viewport resizes (the whole
               card went soft), and no layer pinning reliably kept the card
               out of that pass. */}
-          <motion.div
-            ref={backdropRef}
-            className={cn(
-              "absolute inset-0 bg-stone-900/70 dark:bg-black/70",
-              expanded && "pointer-events-none",
-            )}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.28 }}
-            onPointerDown={armDismiss}
-            onClick={dismissIfArmed}
-          />
-          <div
-            className="absolute inset-0 flex items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]"
-            onPointerDown={armDismiss}
-            onClick={dismissIfArmed}
-          >
             <motion.div
-              ref={shellRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={label}
-              tabIndex={-1}
+              ref={backdropRef}
               className={cn(
-                "relative w-full overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] outline-none",
-                isCard
-                  ? "flex max-h-full max-w-[27.5rem] flex-col"
-                  : "h-full max-w-5xl",
+                "absolute inset-0 bg-stone-900/70 dark:bg-black/70",
+                expanded && "pointer-events-none",
               )}
-              onClick={(event) => event.stopPropagation()}
-              initial={
-                origin || reduceMotion
-                  ? false
-                  : { opacity: 0, scale: 0.965, y: 14 }
-              }
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={
-                reduceMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.982, y: 8 }
-              }
-              transition={
-                reduceMotion
-                  ? { duration: 0 }
-                  : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }
-              }
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.28 }}
+              onPointerDown={armDismiss}
+              onClick={dismissIfArmed}
+            />
+            <div
+              className="absolute inset-0 flex items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]"
+              onPointerDown={armDismiss}
+              onClick={dismissIfArmed}
             >
-              {!expanded && (
-                <SheetControlCluster
+              <motion.div
+                ref={shellRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={label}
+                tabIndex={-1}
+                className={cn(
+                  "relative w-full overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] outline-none",
+                  isCard
+                    ? "flex max-h-full max-w-[27.5rem] flex-col"
+                    : "h-full max-w-5xl",
+                )}
+                onClick={(event) => event.stopPropagation()}
+                initial={
+                  origin || reduceMotion
+                    ? false
+                    : { opacity: 0, scale: 0.965, y: 14 }
+                }
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={
+                  reduceMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.982, y: 8 }
+                }
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }
+                }
+              >
+                {!expanded && (
+                  <SheetControlCluster
+                    className={cn(
+                      "absolute z-10",
+                      isCard ? "right-3 top-3" : "right-4 top-4",
+                    )}
+                  >
+                    <SheetExpandControl
+                      href={expandHref}
+                      onClick={expand}
+                      size={isCard ? "compact" : "regular"}
+                    />
+                    <SheetCloseControl
+                      onClick={close}
+                      size={isCard ? "compact" : "regular"}
+                    />
+                  </SheetControlCluster>
+                )}
+                <div
+                  data-modal-scroller
                   className={cn(
-                    "absolute z-10",
-                    isCard ? "right-3 top-3" : "right-4 top-4",
+                    "overflow-y-auto overscroll-contain",
+                    isCard ? "min-h-0 flex-1" : "h-full",
                   )}
                 >
-                  <SheetExpandControl
-                    href={expandHref}
-                    onClick={expand}
-                    size={isCard ? "compact" : "regular"}
-                  />
-                  <SheetCloseControl
-                    onClick={close}
-                    size={isCard ? "compact" : "regular"}
-                  />
-                </SheetControlCluster>
-              )}
-              <div
-                data-modal-scroller
-                className={cn(
-                  "overflow-y-auto overscroll-contain",
-                  isCard ? "min-h-0 flex-1" : "h-full",
-                )}
-              >
-                <InModalSheetContext.Provider value={true}>
-                  {children}
-                </InModalSheetContext.Provider>
-              </div>
-            </motion.div>
+                  <InModalSheetContext.Provider value={true}>
+                    <ModalSheetDismissContext.Provider value={close}>
+                      {children}
+                    </ModalSheetDismissContext.Provider>
+                  </InModalSheetContext.Provider>
+                </div>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

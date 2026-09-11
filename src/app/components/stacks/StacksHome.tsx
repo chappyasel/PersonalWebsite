@@ -16,6 +16,7 @@ import { SceneStartupGate } from "../route-transition-prototype/SceneStartupGate
 import { useRouteTransitionPrototype } from "../route-transition-prototype/store";
 import dynamic from "next/dynamic";
 import {
+  Activity,
   Component,
   Profiler,
   type ProfilerOnRenderCallback,
@@ -39,6 +40,7 @@ import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
+import { useRoomActive } from "./room/ResidentRoomHost";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
 
@@ -243,6 +245,7 @@ export default function StacksHome({
   data: StacksData;
   slots: StacksSlots;
 }) {
+  const roomActive = useRoomActive();
   const boot = useWorldBoot();
   useAutomaticPerformanceDiagnostic();
   const { epoch, mode, revealed, worldMounted } = boot;
@@ -360,7 +363,7 @@ export default function StacksHome({
 
   useEffect(() => {
     const world = worldShellRef.current;
-    if (mode !== "world" || !world) return;
+    if (!roomActive || mode !== "world" || !world) return;
 
     const selectableElementFor = (target: EventTarget | Node | null) => {
       const element =
@@ -487,7 +490,7 @@ export default function StacksHome({
       world.removeEventListener("touchend", onTouchEnd);
       world.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [mode]);
+  }, [mode, roomActive]);
 
   return (
     <>
@@ -681,6 +684,10 @@ export default function StacksHome({
             html[data-prop-focus] .stacks-og-ui *,
             html:has(.PhotoView-Portal) .stacks-og-ui,
             html:has(.PhotoView-Portal) .stacks-og-ui * { pointer-events: none !important; }
+            /* The one piece of chrome that belongs to the near prop: its
+               caption's links (dom/PropCaption.tsx) must take the click the
+               blanket rule above would swallow. */
+            html[data-prop-focus] .stacks-og-ui [data-prop-caption-visible] a { pointer-events: auto !important; }
             @media (width < 768px) {
               /* Field Notes keeps the room mounted and hands it to the paper
                  progressively. Its material is already visible while these
@@ -778,19 +785,21 @@ export default function StacksHome({
             html[data-og-capture] .stacks-boot,
             html[data-og-capture] .stacks-flat { display: none !important; }
           `}</style>
-          <div className="stacks-og-ui contents">
-            <UnitRail />
-            <ChromeLayer />
-            <Profiler id="placard" onRender={recordPerformanceCommit}>
-              <PlacardLayer
-                data={data}
-                slots={slots}
-                sceneRevealed={revealed}
-              />
-            </Profiler>
-            <ScrollBridges />
-          </div>
-          <VisionRideControls />
+          <Activity mode={roomActive ? "visible" : "hidden"}>
+            <div className="stacks-og-ui contents">
+              <UnitRail />
+              <ChromeLayer />
+              <Profiler id="placard" onRender={recordPerformanceCommit}>
+                <PlacardLayer
+                  data={data}
+                  slots={slots}
+                  sceneRevealed={revealed}
+                />
+              </Profiler>
+              <ScrollBridges />
+            </div>
+            <VisionRideControls />
+          </Activity>
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or
               transforming the world itself — both would turn the placards'
@@ -798,20 +807,22 @@ export default function StacksHome({
           <div aria-hidden className="stacks-world-curtain" />
         </div>
       )}
-      {boot.flatMounted && (
-        <FlatHome
-          slots={slots}
-          animated={boot.flatAnimated}
-          journeyActive={
-            boot.status === "ineligible" || boot.status === "failed"
-          }
-        />
-      )}
-      {/* Books modal — mounted at the root, outside GrainientBackground's
+      <Activity mode={roomActive ? "visible" : "hidden"}>
+        {boot.flatMounted && (
+          <FlatHome
+            slots={slots}
+            animated={boot.flatAnimated}
+            journeyActive={
+              boot.status === "ineligible" || boot.status === "failed"
+            }
+          />
+        )}
+        {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning
           resolves to the viewport. */}
-      <StacksBookModal bookCount={data.bookStats.total} />
-      <SceneArtifactInspector />
+        <StacksBookModal bookCount={data.bookStats.total} />
+        <SceneArtifactInspector />
+      </Activity>
     </>
   );
 }

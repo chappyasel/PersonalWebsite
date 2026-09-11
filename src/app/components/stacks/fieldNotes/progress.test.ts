@@ -142,6 +142,7 @@ describe("Field Notes progress", () => {
       },
     ],
     ["butterfly-effect", { type: "butterfly-landed-on-held-prop" }],
+    ["close-encounter", { type: "butterfly-landed-on-near-prop" }],
     ["hole-in-one", { type: "golf-ball-holed", firstShot: true }],
     ["the-long-game", { type: "about-golf-ball-struck" }],
     ["wrong-sport", { type: "golf-prop-struck" }],

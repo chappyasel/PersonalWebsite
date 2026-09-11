@@ -42,6 +42,19 @@ export type InsectSteeringProfile = Readonly<{
    * whatever height its containment happened to balance and sit there.
    */
   wanderTurnSeconds: number;
+  /**
+   * How far the wander point jumps on each completed wingbeat, as a
+   * displacement on the unit sphere.
+   *
+   * The random walk above turns a heading smoothly over seconds. A butterfly's
+   * path also changes in steps, because the force each stroke produces is not
+   * the force the last one did: it is the beat, not the second, that is the
+   * unit of decision. Handing the Intent Layer the beats lets the heading
+   * wobble at the stroke rate on top of the slow drift, which is the flitter.
+   * The kick is intent like everything else here, so it still goes through
+   * `response` and can never shove the body.
+   */
+  strokeTurn: number;
   /** Time constant converting a desired velocity into an acceleration. */
   response: number;
   /** Repulsion begins at this clearance and is strongest at the surface. */
@@ -91,6 +104,7 @@ export const BUTTERFLY_STEERING_PROFILE: InsectSteeringProfile = {
   wanderDistance: 1,
   wanderRadius: 0.5,
   wanderTurnSeconds: 2.6,
+  strokeTurn: 0.22,
   response: 0.42,
   repelDistance: 0.34,
   repelBias: 2.6,
@@ -122,6 +136,7 @@ export const MOTH_STEERING_PROFILE: InsectSteeringProfile = {
   wanderDistance: 0.62,
   wanderRadius: 0.55,
   wanderTurnSeconds: 0.85,
+  strokeTurn: 0.14,
   response: 0.26,
   repelDistance: 0.28,
   repelBias: 3,
@@ -286,6 +301,9 @@ export type InsectSteeringStep = {
   evade?: InsectEvasion | null;
   position: CollisionPoint;
   velocity: CollisionPoint;
+  /** Wingbeats the Flap Layer completed since the last step, usually 0 or 1.
+   * Absent for a caller with no wings to count. */
+  strokes?: number;
   step: number;
   /** Absent for a world with no geometry adapter; roaming then relies on
    * containment alone, which is still a complete model. */
@@ -316,6 +334,16 @@ export function advanceInsectSteering(options: InsectSteeringStep) {
   state.wanderX += (nextRandom(state) * 2 - 1) * jitter;
   state.wanderY += (nextRandom(state) * 2 - 1) * jitter;
   state.wanderZ += (nextRandom(state) * 2 - 1) * jitter;
+  // Plus one discrete jump per wingbeat: the stroke that just happened threw
+  // the body a little differently from the one before. Drawn only on a beat,
+  // so the per-insect stream stays in step with the fixed-rate walk above.
+  const strokes = options.strokes ?? 0;
+  if (strokes > 0 && profile.strokeTurn > 0) {
+    const kick = profile.strokeTurn * Math.sqrt(strokes);
+    state.wanderX += (nextRandom(state) * 2 - 1) * kick;
+    state.wanderY += (nextRandom(state) * 2 - 1) * kick * 0.5;
+    state.wanderZ += (nextRandom(state) * 2 - 1) * kick;
+  }
   const wanderLength =
     Math.hypot(state.wanderX, state.wanderY, state.wanderZ) || 1;
   state.wanderX /= wanderLength;
@@ -463,5 +491,42 @@ export function integrateInsectRoam(options: {
   position.x += velocity.x * step;
   position.y += velocity.y * step;
   position.z += velocity.z * step;
-  options.containment.clamp(position, velocity, 0.05);
+  // The projection is a backstop for a pathological force stack, never a way
+  // to move an insect. A resident released far outside its volume (leaving a
+  // prop held up at the camera, four units from the shelf) used to be
+  // projected home in one frame, which the owner saw as the butterfly
+  // vanishing. Past a short reach the return is FLOWN: the velocity is pointed at the
+  // projection at the roam's own top speed and the next steps carry it
+  // there; containment steering takes over once it is back inside.
+  LEASH_POSITION.x = position.x;
+  LEASH_POSITION.y = position.y;
+  LEASH_POSITION.z = position.z;
+  LEASH_VELOCITY.x = velocity.x;
+  LEASH_VELOCITY.y = velocity.y;
+  LEASH_VELOCITY.z = velocity.z;
+  if (!options.containment.clamp(LEASH_POSITION, LEASH_VELOCITY, 0.05)) return;
+  const dx = LEASH_POSITION.x - position.x;
+  const dy = LEASH_POSITION.y - position.y;
+  const dz = LEASH_POSITION.z - position.z;
+  const distance = Math.hypot(dx, dy, dz);
+  if (distance <= INSECT_CONTAINMENT_REACH) {
+    position.x = LEASH_POSITION.x;
+    position.y = LEASH_POSITION.y;
+    position.z = LEASH_POSITION.z;
+    velocity.x = LEASH_VELOCITY.x;
+    velocity.y = LEASH_VELOCITY.y;
+    velocity.z = LEASH_VELOCITY.z;
+    return;
+  }
+  // Only the velocity: the steps that follow carry it there at the ceiling,
+  // never faster than a butterfly can fly.
+  velocity.x = (dx / distance) * options.maxSpeed;
+  velocity.y = (dy / distance) * options.maxSpeed;
+  velocity.z = (dz / distance) * options.maxSpeed;
 }
+
+/** How far outside its volume an insect may be put straight back, in units.
+ * Anything further is flown home at top speed rather than moved. */
+export const INSECT_CONTAINMENT_REACH = 0.08;
+const LEASH_POSITION = { x: 0, y: 0, z: 0 };
+const LEASH_VELOCITY = { x: 0, y: 0, z: 0 };

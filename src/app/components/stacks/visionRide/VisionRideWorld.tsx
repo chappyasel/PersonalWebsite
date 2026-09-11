@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents, roomDocumentEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { useStacks } from "../store";
 import { useGLTF } from "@react-three/drei";
@@ -1897,8 +1900,8 @@ export default function VisionRideWorld({
         window.innerHeight,
       );
     };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
+    roomWindowEvents.addEventListener("pointermove", onMove, { passive: true });
+    return () => roomWindowEvents.removeEventListener("pointermove", onMove);
   }, [reducedMotion]);
 
   // WASD and the arrows drive the car by key code so keyboard layout does not
@@ -1933,15 +1936,15 @@ export default function VisionRideWorld({
     const onVisibility = () => {
       if (document.visibilityState !== "visible") pressed.clear();
     };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", clear);
-    document.addEventListener("visibilitychange", onVisibility);
+    roomWindowEvents.addEventListener("keydown", onKeyDown);
+    roomWindowEvents.addEventListener("keyup", onKeyUp);
+    roomWindowEvents.addEventListener("blur", clear);
+    roomDocumentEvents.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", clear);
-      document.removeEventListener("visibilitychange", onVisibility);
+      roomWindowEvents.removeEventListener("keydown", onKeyDown);
+      roomWindowEvents.removeEventListener("keyup", onKeyUp);
+      roomWindowEvents.removeEventListener("blur", clear);
+      roomDocumentEvents.removeEventListener("visibilitychange", onVisibility);
       pressed.clear();
     };
   }, [reducedMotion]);
@@ -1961,12 +1964,12 @@ export default function VisionRideWorld({
         zoom.current.target + wheelZoomDelta(event, window.innerHeight),
       );
     };
-    window.addEventListener("wheel", onWheel, {
+    roomWindowEvents.addEventListener("wheel", onWheel, {
       passive: false,
       capture: true,
     });
     return () =>
-      window.removeEventListener("wheel", onWheel, { capture: true });
+      roomWindowEvents.removeEventListener("wheel", onWheel, { capture: true });
   }, [reducedMotion]);
 
   useFrame((_, delta) => {

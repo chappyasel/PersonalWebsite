@@ -1,6 +1,6 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 
+import SheetReturnLink from "~/components/modal-sheet/SheetReturnLink";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 /**
@@ -34,13 +34,13 @@ export default function DaylightHeroMeta({
       data-daylight-hero-meta
       className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-[hsl(var(--dl-sky-ink)/0.8)]"
     >
-      <Link
+      <SheetReturnLink
         href="https://www.chappyasel.com"
         className="flex items-center gap-1.5 transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
       >
         <ArrowLeftIcon size={12} weight="bold" />
         chappyasel.com
-      </Link>
+      </SheetReturnLink>
       <span aria-hidden className="opacity-60">
         ·
       </span>

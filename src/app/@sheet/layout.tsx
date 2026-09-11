@@ -4,6 +4,8 @@ import { useSelectedLayoutSegment } from "next/navigation";
 import type { ReactNode } from "react";
 
 import DaylightSheet from "~/components/daylight/DaylightSheet";
+import DocumentSheetContent from "~/components/modal-sheet/DocumentSheetContent";
+import DocumentSheetNavigation from "~/components/modal-sheet/DocumentSheetNavigation";
 
 import "~/styles/daylight.css";
 
@@ -20,8 +22,10 @@ export default function SheetLayout({ children }: { children: ReactNode }) {
   const document = segment ? DOCUMENTS[segment] : undefined;
   if (!document) return children;
   return (
-    <DaylightSheet label={document.label} expandHref={document.href}>
-      {children}
-    </DaylightSheet>
+    <DocumentSheetNavigation documentPath={document.href}>
+      <DaylightSheet label={document.label} expandHref={document.href}>
+        <DocumentSheetContent key={segment}>{children}</DocumentSheetContent>
+      </DaylightSheet>
+    </DocumentSheetNavigation>
   );
 }

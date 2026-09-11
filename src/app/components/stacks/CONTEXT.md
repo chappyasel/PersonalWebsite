@@ -95,6 +95,19 @@ it never hides the boot vignette and never overrides reduced motion or
 Save-Data.
 _Avoid_: Cached load, fast path
 
+**Resident Room** — a room that has completed World Boot and remains mounted
+for up to three minutes after its homepage route leaves. The shared layout
+owns its mounted tree; the homepage supplies that tree only when visited.
+Reading routes never load it speculatively. While parked, its canvas stops
+rendering, audio suspends, scene input listeners detach, and DOM chrome effects
+pause. Returning before the wall-clock deadline keeps the same canvas and
+camera. Expiry, context loss, or disabling residency releases the mounted
+room; a later visit must pass World Boot again. Moving between reading routes
+does not renew the deadline. The last shelf hash survives expiry within the
+document, with an explicitly requested destination taking precedence.
+The Scene Diagnostics control resets on reload and leaves quality policy alone.
+_Avoid_: Permanent background rendering, cached screenshot, bypassing reveal gates
+
 **Demotion** — giving the world up after it was already promised, because of a
 hang, a chunk or scene throw, or a lost GL context. The document comes back
 animated. Distinct from a visitor who was never eligible, who is not being

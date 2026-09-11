@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // Prop navigation — scenery props with an honest destination become Portals
 // into the matching page of the site. A visible nearest-hit prop answers even
 // while the traverse is rounding into its neighboring unit; `activeUnits`
@@ -233,14 +236,14 @@ function retainWindowListeners() {
   if (typeof window === "undefined") return;
   listenerOwners += 1;
   if (listenerOwners === 1) {
-    window.addEventListener("pointerdown", onWindowDown);
-    window.addEventListener("pointerup", onWindowUp);
+    roomWindowEvents.addEventListener("pointerdown", onWindowDown);
+    roomWindowEvents.addEventListener("pointerup", onWindowUp);
   }
   return () => {
     listenerOwners = Math.max(0, listenerOwners - 1);
     if (listenerOwners !== 0) return;
-    window.removeEventListener("pointerdown", onWindowDown);
-    window.removeEventListener("pointerup", onWindowUp);
+    roomWindowEvents.removeEventListener("pointerdown", onWindowDown);
+    roomWindowEvents.removeEventListener("pointerup", onWindowUp);
     down.ok = false;
   };
 }

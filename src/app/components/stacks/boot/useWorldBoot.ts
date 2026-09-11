@@ -2,6 +2,7 @@
 
 // The React adapter: four effects that do nothing but carry signals in and
 // time forward. No policy lives here.
+import { useRoomActive } from "../room/ResidentRoomHost";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { type WorldBootView } from "./worldBootMachine";
@@ -23,6 +24,7 @@ const getServerSnapshot = () => SERVER_WORLD_BOOT_VIEW;
  * with the handshake unclaimed. The boot starts in an effect, one commit
  * later, so hydration never has to reconcile a world that was not there. */
 export function useWorldBoot(): WorldBootView {
+  const roomActive = useRoomActive();
   const view = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
@@ -49,11 +51,14 @@ export function useWorldBoot(): WorldBootView {
   // setTimeout (throttled, but still fires).
   useEffect(() => {
     const publish = () =>
-      worldBoot.send({ type: "visibility", hidden: document.hidden });
+      worldBoot.send({
+        type: "visibility",
+        hidden: document.hidden || !roomActive,
+      });
     publish();
     document.addEventListener("visibilitychange", publish);
     return () => document.removeEventListener("visibilitychange", publish);
-  }, []);
+  }, [roomActive]);
 
   // A lost WebGL context is the one failure worth a second try. macOS drops
   // a window's context while it is parked on another desktop, and the visitor
@@ -61,7 +66,7 @@ export function useWorldBoot(): WorldBootView {
   // visible again, boot afresh; how many times is the machine's policy.
   const { recoverable } = view;
   useEffect(() => {
-    if (!recoverable) return;
+    if (!recoverable || !roomActive) return;
     let timer: number | null = null;
     const attempt = () => {
       if (document.hidden || timer !== null) return;
@@ -76,7 +81,7 @@ export function useWorldBoot(): WorldBootView {
       document.removeEventListener("visibilitychange", attempt);
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [recoverable]);
+  }, [recoverable, roomActive]);
 
   // One timer for whichever deadline is armed: the hang backstop before the
   // reveal, the cross-fade after it.

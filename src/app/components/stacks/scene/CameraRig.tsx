@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents, roomDocumentEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // Drives the camera from the drei scroll offset, publishes per-frame progress
 // to the transient ref, flips activeUnit only on unit-boundary crosses, and
 // registers the scroll element with the store for the DOM bridges.
@@ -470,12 +473,12 @@ export default function CameraRig() {
     el.addEventListener("pointerdown", cancelFromPointer, { passive: true });
     el.addEventListener("wheel", cancelFromPointer, { passive: true });
     el.addEventListener("touchstart", cancelFromPointer, { passive: true });
-    window.addEventListener("keydown", cancelFromKeyboard);
-    window.addEventListener("pointerdown", recordPointerType, {
+    roomWindowEvents.addEventListener("keydown", cancelFromKeyboard);
+    roomWindowEvents.addEventListener("pointerdown", recordPointerType, {
       capture: true,
       passive: true,
     });
-    window.addEventListener("pointermove", recordPointerType, {
+    roomWindowEvents.addEventListener("pointermove", recordPointerType, {
       capture: true,
       passive: true,
     });
@@ -535,11 +538,11 @@ export default function CameraRig() {
       el.removeEventListener("pointerdown", cancelFromPointer);
       el.removeEventListener("wheel", cancelFromPointer);
       el.removeEventListener("touchstart", cancelFromPointer);
-      window.removeEventListener("keydown", cancelFromKeyboard);
-      window.removeEventListener("pointerdown", recordPointerType, {
+      roomWindowEvents.removeEventListener("keydown", cancelFromKeyboard);
+      roomWindowEvents.removeEventListener("pointerdown", recordPointerType, {
         capture: true,
       });
-      window.removeEventListener("pointermove", recordPointerType, {
+      roomWindowEvents.removeEventListener("pointermove", recordPointerType, {
         capture: true,
       });
       unsubscribeCursor();
@@ -627,25 +630,25 @@ export default function CameraRig() {
       capture: true,
       passive: false,
     });
-    document.addEventListener("pointermove", onPointerMove);
-    document.addEventListener("pointerup", onPointerUp);
-    document.addEventListener("pointercancel", onPointerUp);
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", clearInput);
-    window.addEventListener("pagehide", persistPose);
+    roomDocumentEvents.addEventListener("pointermove", onPointerMove);
+    roomDocumentEvents.addEventListener("pointerup", onPointerUp);
+    roomDocumentEvents.addEventListener("pointercancel", onPointerUp);
+    roomWindowEvents.addEventListener("keydown", onKeyDown);
+    roomWindowEvents.addEventListener("keyup", onKeyUp);
+    roomWindowEvents.addEventListener("blur", clearInput);
+    roomWindowEvents.addEventListener("pagehide", persistPose);
 
     return () => {
       scrollElement.removeEventListener("pointerdown", onPointerDown, true);
       scrollElement.removeEventListener("contextmenu", onContextMenu);
       scrollElement.removeEventListener("wheel", onWheel, true);
-      document.removeEventListener("pointermove", onPointerMove);
-      document.removeEventListener("pointerup", onPointerUp);
-      document.removeEventListener("pointercancel", onPointerUp);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", clearInput);
-      window.removeEventListener("pagehide", persistPose);
+      roomDocumentEvents.removeEventListener("pointermove", onPointerMove);
+      roomDocumentEvents.removeEventListener("pointerup", onPointerUp);
+      roomDocumentEvents.removeEventListener("pointercancel", onPointerUp);
+      roomWindowEvents.removeEventListener("keydown", onKeyDown);
+      roomWindowEvents.removeEventListener("keyup", onKeyUp);
+      roomWindowEvents.removeEventListener("blur", clearInput);
+      roomWindowEvents.removeEventListener("pagehide", persistPose);
       persistPose();
       clearInput();
     };

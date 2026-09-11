@@ -67,9 +67,9 @@ describe("parseObjectNotes", () => {
       "## grab:reading:\\*\n\nTitle: Reading\nStatus: written\n\nCaption.\n",
     );
     expect(note?.id).toBe("grab:reading:*");
-    expect(objectNoteFor(indexObjectNotes([note!]), "grab:reading:book-1")).toBe(
-      note,
-    );
+    expect(
+      objectNoteFor(indexObjectNotes([note!]), "grab:reading:book-1"),
+    ).toBe(note);
   });
 
   it("demotes a section whose prose was never written", () => {
@@ -259,6 +259,40 @@ describe("parseObjectNotes", () => {
       [{ id: "photo:one", body: "New caption." }],
     );
     expect(updated).toContain("Title: One\nStatus: written\nAudience: visitor");
+  });
+
+  it("hides an unfinished caption without losing its owner question or comments", () => {
+    const source =
+      "## prop:one\n\nTitle: One\nStatus: needs-owner\nAudience: visitor\n\nNEEDS: Where was this?\n\n<!-- Keep this note. -->\n";
+    const updated = updateObjectNoteCaptions(source, [
+      { id: "prop:one", visitor: false },
+    ]);
+    expect(updated).toBe(
+      source.replace("Audience: visitor", "Audience: internal"),
+    );
+    expect(parseObjectNotes(updated)[0]).toMatchObject({
+      visitor: false,
+      status: "needs-owner",
+      needs: "Where was this?",
+      body: "",
+    });
+    expect(() =>
+      updateObjectNoteCaptions(updated, [{ id: "prop:one", visitor: true }]),
+    ).toThrow("Write a caption");
+  });
+
+  it("enables a family caption and preserves neighboring sections", () => {
+    const source =
+      "## prop:\\*\n\nTitle: Family\nStatus: written\nLink: Home https://example.com/\n\nThe family caption.\n\n## other\n\nTitle: Other\n\nUnchanged.\n";
+    const updated = updateObjectNoteCaptions(source, [
+      { id: "prop:*", visitor: true },
+    ]);
+    expect(updated).toBe(
+      source.replace(
+        "Link: Home https://example.com/",
+        "Link: Home https://example.com/\nAudience: visitor",
+      ),
+    );
   });
 
   it.each([

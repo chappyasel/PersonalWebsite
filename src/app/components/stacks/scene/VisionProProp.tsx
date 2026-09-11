@@ -1,4 +1,5 @@
 "use client";
+import { useRoomActive } from "../room/ResidentRoomHost";
 
 import { useStacks } from "../store";
 import type { VisionRidePhase } from "../visionRide/visionRideState";
@@ -143,6 +144,7 @@ export function tuneVisionProMaterial(
  * band as separate material surfaces. The loose battery and cable are
  * intentionally excluded from the shelf export. */
 export function VisionProProp({ dark }: { dark: boolean }) {
+  const roomActive = useRoomActive();
   const { scene } = useGLTF(VISION_PRO_MODEL_URL, false);
   const displaySnapshot = useVisionProDisplaySnapshot();
   const previewRequested = useStacks(visionProDisplayPreviewRequested);
@@ -209,7 +211,7 @@ export function VisionProProp({ dark }: { dark: boolean }) {
   }, [dark, displayTexture, model, renderedVariant]);
 
   useEffect(() => {
-    if (!displayTexture) return;
+    if (!displayTexture || !roomActive) return;
     const materials: THREE.MeshStandardMaterial[] = [];
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -250,7 +252,7 @@ export function VisionProProp({ dark }: { dark: boolean }) {
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [dark, displayTexture, model, targetBrightness]);
+  }, [dark, displayTexture, model, targetBrightness, roomActive]);
 
   useEffect(
     () => () => {

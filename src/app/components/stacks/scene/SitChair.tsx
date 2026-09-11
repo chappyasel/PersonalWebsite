@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // Sit in the reading chair.
 //
 // The whole mechanic is three files that never import each other: this one
@@ -83,11 +86,11 @@ function useSeatClick(unitIndex: number) {
       satAt = performance.now();
       requestSeat();
     };
-    window.addEventListener("pointerdown", onDown, true);
-    window.addEventListener("pointerup", onUp, true);
+    roomWindowEvents.addEventListener("pointerdown", onDown, true);
+    roomWindowEvents.addEventListener("pointerup", onUp, true);
     return () => {
-      window.removeEventListener("pointerdown", onDown, true);
-      window.removeEventListener("pointerup", onUp, true);
+      roomWindowEvents.removeEventListener("pointerdown", onDown, true);
+      roomWindowEvents.removeEventListener("pointerup", onUp, true);
     };
   }, [unitIndex]);
 }
@@ -152,14 +155,14 @@ function useSeatEscape() {
       e.preventDefault();
       leaveSeat();
     };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("click", onClick, true);
+    roomWindowEvents.addEventListener("keydown", onKey);
+    roomWindowEvents.addEventListener("click", onClick, true);
     const unsubscribe = subscribeSeated(() =>
       useStacks.getState().setSeated(isSeated()),
     );
     return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("click", onClick, true);
+      roomWindowEvents.removeEventListener("keydown", onKey);
+      roomWindowEvents.removeEventListener("click", onClick, true);
       // This empty-deps effect is the chair/world lifetime, not a render
       // effect. Reset before unsubscribing so the store mirror also clears;
       // normal in-world rerenders and ordinary stand-up easing never run it.

@@ -2,22 +2,26 @@
 
 // Projects — framed app screenshots; reference books + the trophy below
 // (the homework-app acquisition earns it).
-import {
-  MODEL_ARTIFACT_PREVIEWS_ENABLED,
-  type PhotoArtifactId,
-} from "../../sceneArtifacts";
+import { type PhotoArtifactId } from "../../sceneArtifacts";
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import MacApproach from "../MacApproach";
 import ModelProp from "../ModelProp";
+import PropApproach from "../PropApproach";
+import {
+  ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_HEIGHT,
+} from "../aboutAwardGeometry";
 import {
   ABOUT_APPLE_LIGHT_YAW,
   ABOUT_LOWER_AWARD_SCALE,
 } from "../aboutCoordinationLayout";
+import { appleApproach, appleTurn } from "../appleApproachState";
 import { APPLE_OUTLINE } from "../appleOutline";
 import { EggLamp, Sway } from "../eggs";
+import { homeworkApproach, homeworkTurn } from "../homeworkApproachState";
 import { macApproach } from "../macApproachState";
 import {
   MAC_BOOT_SECONDS,
@@ -41,10 +45,15 @@ import { DeskApple, reducedMotion } from "../objects";
 import { DeskFrame, deskFrameHeight } from "../photos";
 import { type PixelLook, nextPixelLook } from "../pixelArt";
 import { ShelfUnit } from "../primitives";
+import { beginPropTurn, usePropApproachNear } from "../propApproachState";
 import { propReactionIsEngaged } from "../reactionEngagement";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
+import {
+  weightliftingApproach,
+  weightliftingTurn,
+} from "../weightliftingApproachState";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -467,8 +476,18 @@ const PIXEL_LOOK_ACTION_LABELS: Record<Exclude<PixelLook, "off">, string> = {
   palette: "16-bit mode",
 };
 
+/** The Apple mark's extents for the near framing (PropApproach): the billet
+ * plus the mark standing on it, at the shelf's scale. */
+const PROJECT_APPLE_NEAR_SCALE =
+  ABOUT_LOWER_AWARD_SCALE * PROJECT_APPLE_MARK_POSE.scaleRatio;
+const PROJECT_APPLE_NEAR_HEIGHT =
+  (0.017 + ABOUT_APPLE_MARK_HEIGHT) * PROJECT_APPLE_NEAR_SCALE;
+const PROJECT_APPLE_NEAR_WIDTH =
+  ABOUT_APPLE_BASE_WIDTH * PROJECT_APPLE_NEAR_SCALE;
+
 export default function UnitProjects({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
+  const appleNear = usePropApproachNear(appleApproach);
   return (
     <group>
       <ShelfUnit
@@ -662,32 +681,34 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           unitIndex={index}
           palette={palette}
           dark={dark}
-          hoverKey="link:projects:weightlifting-icon"
+          hoverKey="action:projects:weightlifting"
           base={[REVIEWED_SHELF_LAYOUT.projects.topWeightliftingIconX, 0, 0.02]}
           artwork="/images/stacks/v8/512/projects-weightlifting-icon.webp"
           fallbackColor="#6961d8"
           textured={textured}
           yaw={0.07}
-          href="https://apps.apple.com/us/app/id1266077653"
           portalLabel="Weightlifting App"
-          portalDetail={["App Store"]}
+          // Up to the camera on a tap, like the Homework tile; the App Store
+          // link it used to open directly now sits under its caption.
+          approach={weightliftingApproach}
+          turn={weightliftingTurn}
         />
         <DicePyramid unitIndex={index} palette={palette} dark={dark} />
         <ProjectIcon
           unitIndex={index}
           palette={palette}
           dark={dark}
-          hoverKey="grab:projects:homework-icon"
+          hoverKey="action:projects:homework"
           base={[REVIEWED_SHELF_LAYOUT.projects.topHomeworkIconX, 0, 0.02]}
           artwork="/images/stacks/v8/512/projects-homework-icon.webp"
-          fallbackColor="#12ace8"
+          fallbackColor="#ffffff"
           textured={textured}
           yaw={-0.07}
-          // The 3D inspector is switched off in sceneArtifacts; the icon
-          // stays a plain grabbable until it comes back.
-          artifact={
-            MODEL_ARTIFACT_PREVIEWS_ENABLED ? "homework-app" : undefined
-          }
+          portalLabel="Homework App"
+          // A tap brings the tile up to the camera, the way the Mac and the
+          // globe come up; its caption (objects.md) rides along in the DOM.
+          approach={homeworkApproach}
+          turn={homeworkTurn}
         />
         <ProjectPhoto
           unitIndex={index}
@@ -723,20 +744,43 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           shadeWidth={0.26}
           shape="box"
           massKg={0.35}
-          href="https://www.apple.com/"
           portalLabel="Apple"
           portalDetail={["Former AR/VR Software Engineer"]}
+          // A tap brings the mark up to the camera like the tiles beside it;
+          // apple.com, which the tap used to open, is the button under it.
+          actionLabel="Closer look"
+          onTap={() =>
+            appleApproach.near
+              ? appleApproach.dismiss()
+              : appleApproach.approach()
+          }
+          activateOnFirstTouch
+          draggable={!appleNear}
+          onDragIntent={() => {
+            if (appleApproach.near) beginPropTurn(appleTurn);
+            else appleApproach.dismiss();
+          }}
+          liveBounds
         >
-          <group
-            rotation={[
+          <PropApproach
+            controller={appleApproach}
+            unitIndex={index}
+            height={PROJECT_APPLE_NEAR_HEIGHT}
+            width={PROJECT_APPLE_NEAR_WIDTH}
+            // The authored yaw lives here so the near pose can square the
+            // mark to the camera.
+            restRotation={[
               0,
               ABOUT_APPLE_LIGHT_YAW + PROJECT_APPLE_MARK_POSE.rotationY,
               0,
             ]}
-            scale={ABOUT_LOWER_AWARD_SCALE * PROJECT_APPLE_MARK_POSE.scaleRatio}
+            keepPressesOnProp
+            turn={appleTurn}
           >
-            <DeskApple palette={palette} unitIndex={index} />
-          </group>
+            <group scale={PROJECT_APPLE_NEAR_SCALE}>
+              <DeskApple palette={palette} unitIndex={index} />
+            </group>
+          </PropApproach>
         </Grabbable>
         <Grabbable
           unitIndex={index}

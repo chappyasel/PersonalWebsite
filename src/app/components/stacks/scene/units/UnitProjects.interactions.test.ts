@@ -26,11 +26,18 @@ describe("Projects shelf movable props", () => {
     expect(source).toContain("<EggLamp");
     expect(source).toContain("projects-weightlifting-icon.webp");
     expect(source).toContain("projects-homework-icon.webp");
-    // The 3D inspector is behind a switch (off since 2026-08-23), but the
-    // icon keeps its artifact wiring so flipping the switch is the whole job.
-    expect(source).toMatch(
-      /artifact=\{\s*MODEL_ARTIFACT_PREVIEWS_ENABLED\s*\?\s*"homework-app"\s*:\s*undefined\s*\}/,
+    // The icon flies to the camera like the Mac and the globe (PropApproach)
+    // instead of opening the retired second-canvas 3D inspector.
+    expect(source).toContain('hoverKey="action:projects:homework"');
+    expect(source).toContain("approach={homeworkApproach}");
+    // The Weightlifting tile comes up the same way; its App Store link moved
+    // from the tap into the caption under the near tile.
+    expect(source).toContain('hoverKey="action:projects:weightlifting"');
+    expect(source).toContain("approach={weightliftingApproach}");
+    expect(source).not.toContain(
+      'href="https://apps.apple.com/us/app/id1266077653"',
     );
+    expect(source).not.toContain("MODEL_ARTIFACT_PREVIEWS_ENABLED");
     expect(source).toContain('hoverKey="grab:plant:projects-small"');
     expect(source).toContain('url="/models/potted-plant.glb"');
     // The notebook moved to the Systems shelf on 2026-08-23; the pixel-art
@@ -84,6 +91,11 @@ describe("Projects shelf movable props", () => {
     expect(source.indexOf('id="projects-wwdc-v8"')).toBeLessThan(
       source.indexOf('hoverKey="shimmer:apple"'),
     );
+    // The mark comes up to the camera on a tap; apple.com is the button
+    // under it rather than the tap's destination.
+    expect(source).toContain("usePropApproachNear(appleApproach)");
+    expect(source).toContain("controller={appleApproach}");
+    expect(source).not.toContain('href="https://www.apple.com/"');
   });
 
   it("sizes the Facebook frame to the other lower-shelf photograph", () => {

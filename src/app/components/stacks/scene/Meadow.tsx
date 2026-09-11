@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents, roomDocumentEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // The meadow below the horizon — a faithful port of Ebenezer's FluffyGrass
 // recipe (MIT, https://github.com/thebenezer/FluffyGrass — the vendored
 // grass-tuft.glb + alpha texture are his) onto this scene's verified field
@@ -1595,8 +1598,8 @@ export default function Meadow({
       if (deformationEnabled)
         deformation.tick(performance.now() / 1000, document.hidden);
     };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    roomDocumentEvents.addEventListener("visibilitychange", onVisibility);
+    return () => roomDocumentEvents.removeEventListener("visibilitychange", onVisibility);
   }, [deformation, deformationEnabled]);
 
   // Instance fill, once per tile. The matrices still point at meadowField's
@@ -1756,8 +1759,8 @@ export default function Meadow({
       pokeClickRadiusScale.current[slot] = 1;
       pokeClickTimeScale.current[slot] = 1;
     };
-    window.addEventListener("pointerdown", onDown, { passive: true });
-    return () => window.removeEventListener("pointerdown", onDown);
+    roomWindowEvents.addEventListener("pointerdown", onDown, { passive: true });
+    return () => roomWindowEvents.removeEventListener("pointerdown", onDown);
   }, [built]);
 
   useEffect(

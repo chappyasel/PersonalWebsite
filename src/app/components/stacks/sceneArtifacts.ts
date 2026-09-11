@@ -3,12 +3,6 @@ import type { PropDestination } from "./scene/interactionRegistry";
 export const ANALYZE_DATA_REPOSITORY =
   "https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData";
 
-/** Whether clicking a model artifact (the Homework icon) opens the 3D
- * inspector. Switched off 2026-08-23 because the lift-and-orbit preview was
- * regressing; the artifact, its viewer, and the handoff stay in place so
- * flipping this back re-enables the whole path. */
-export const MODEL_ARTIFACT_PREVIEWS_ENABLED = false as boolean;
-
 type ArtifactAction =
   | Readonly<{
       kind: "external";
@@ -24,7 +18,6 @@ type ArtifactAction =
 type SceneArtifactCollection =
   | "training-analysis"
   | "training-history"
-  | "projects-homework"
   | "about-photos"
   | "training-photos"
   | "projects-photos"
@@ -51,15 +44,11 @@ type SceneImageArtifactShape = SceneArtifactBase &
     height: number;
   }>;
 
-type SceneModelArtifactShape = SceneArtifactBase &
-  Readonly<{
-    kind: "model";
-    model: "homework-icon";
-    fallbackImage: string;
-    description: readonly string[];
-  }>;
-
-type SceneArtifactShape = SceneImageArtifactShape | SceneModelArtifactShape;
+// Every artifact is a print today. The Homework icon used to be a "model"
+// kind with its own second-canvas inspector; it now flies to the camera in
+// the live room like the Mac and the globe (PropApproach), and its caption
+// comes from content/stacks/objects.md like every other prop's.
+type SceneArtifactShape = SceneImageArtifactShape;
 
 const ANALYSIS_ACTIONS = [
   {
@@ -447,50 +436,21 @@ const LIFT_TABLE_ARTIFACT = {
   ],
 } as const satisfies SceneImageArtifactShape;
 
-const HOMEWORK_ARTIFACT = {
-  id: "homework-app",
-  kind: "model",
-  interactionId: "grab:projects:homework-icon",
-  collection: "projects-homework",
-  title: "Homework App",
-  model: "homework-icon",
-  fallbackImage: "/images/stacks/v8/projects-homework-icon.webp",
-  description: [
-    "Founded a platform for organizing, tracking, and reminding users of upcoming homework assignments.",
-    "Sold to Haystack AI in 2019 after negotiating terms for acquisition.",
-    "Upon acquisition: 338k installs, 63k MAU, a 4.7-star rating, the #1 global homework app, and a top-60 Productivity app.",
-  ],
-  actions: [],
-} as const satisfies SceneModelArtifactShape;
-
 export const SCENE_ARTIFACTS = [
   ...TRAINING_FIGURES,
   ...SCENE_PHOTOS,
   LIFT_TABLE_ARTIFACT,
-  HOMEWORK_ARTIFACT,
 ] as const satisfies readonly SceneArtifactShape[];
 
 export type SceneArtifactId = (typeof SCENE_ARTIFACTS)[number]["id"];
 export type SceneArtifact = SceneArtifactShape &
   (typeof SCENE_ARTIFACTS)[number];
 export type SceneImageArtifact = Extract<SceneArtifact, { kind: "image" }>;
-export type SceneModelArtifact = Extract<SceneArtifact, { kind: "model" }>;
 
 export function isSceneImageArtifact(
   artifact: SceneArtifact,
 ): artifact is SceneImageArtifact {
   return artifact.kind === "image";
-}
-
-export function isSceneModelArtifact(
-  artifact: SceneArtifact,
-): artifact is SceneModelArtifact {
-  return artifact.kind === "model";
-}
-
-/** Whether this artifact opens a preview at all right now. */
-export function sceneArtifactPreviewEnabled(artifact: SceneArtifact) {
-  return artifact.kind !== "model" || MODEL_ARTIFACT_PREVIEWS_ENABLED;
 }
 
 const TRAINING_BOARD_PHOTO_IDS: ReadonlySet<PhotoArtifactId> = new Set([
