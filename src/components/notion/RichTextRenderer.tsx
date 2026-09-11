@@ -121,9 +121,12 @@ const READ_MORE = /^\s*read more\s*(?:→|->)?\s*$/i;
 export default function RichTextRenderer({
   content,
   bookLookup,
+  secondary = false,
 }: {
   content: RichText[];
   bookLookup?: BookLookup;
+  /** Soften descriptions while preserving bold labels and authored colors. */
+  secondary?: boolean;
 }) {
   return (
     <>
@@ -198,6 +201,10 @@ export default function RichTextRenderer({
               {el}
             </code>
           );
+
+        if (secondary && !rt.bold && (!rt.color || rt.color === "default")) {
+          el = <span className="text-foreground/75">{el}</span>;
+        }
 
         if (rt.color) {
           const cls = notionColorMap[rt.color] ?? "";

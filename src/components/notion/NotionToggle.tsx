@@ -46,7 +46,12 @@ function ToggleTitle({
     const match = LEADING_ARROW.exec(run.text);
     if (!match) {
       return (
-        <RichTextRenderer key={index} content={[run]} bookLookup={bookLookup} />
+        <RichTextRenderer
+          key={index}
+          content={[run]}
+          bookLookup={bookLookup}
+          secondary={arrowAt !== -1 && index > arrowAt}
+        />
       );
     }
 
@@ -65,6 +70,7 @@ function ToggleTitle({
           <RichTextRenderer
             content={[{ ...run, text: remaining }]}
             bookLookup={bookLookup}
+            secondary
           />
         )}
       </Fragment>
@@ -237,7 +243,7 @@ export default function NotionToggle({
         {id && <AnchorLink id={id} />}
       </div>
       <DisclosurePanel id={contentId} open={open}>
-        <div className="dl-prose pb-1 pl-6 pt-1.5">
+        <div className="dl-prose pb-3 pl-6 pt-1.5">
           {blocks.map((block, i) => (
             <NotionBlockRenderer
               key={i}
