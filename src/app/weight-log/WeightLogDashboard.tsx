@@ -703,7 +703,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
   );
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1>
@@ -747,7 +747,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
       <CollapsibleSection
         title="Bodyweight over time"
         icon={<ChartLineUpIcon className="h-5 w-5" weight="bold" />}
-        cardClassName="px-2 dark:bg-neutral-900 sm:px-4"
+        cardClassName="px-2 sm:px-4"
       >
         <section
           aria-label="Chart filters"
@@ -1375,7 +1375,6 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
       <CollapsibleSection
         title="DEXA lean mass vs bodyweight"
         icon={<ChartScatterIcon className="h-5 w-5" weight="bold" />}
-        cardClassName="dark:bg-neutral-900"
       >
         {scans.length === 0 ? (
           <p className="py-8 text-sm text-muted-foreground">
