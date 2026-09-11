@@ -19,6 +19,7 @@ import { useStacks } from "../store";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import {
@@ -93,7 +94,9 @@ import {
   recordInsectTrail,
 } from "./insectTrail";
 import { MEADOW_GROUND_BASE } from "./meadowField";
+import { nearPropApproach } from "./propApproachState";
 import { getSceneImpulse, sceneImpulseInsectDeparture } from "./sceneImpulse";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const TAU = Math.PI * 2;
 
@@ -102,59 +105,430 @@ const TAU = Math.PI * 2;
  * old rectangles with distinct forewing and hindwing lobes. */
 const WING_SPAN = 0.05;
 
-function createWingGeometry() {
-  const wing = new THREE.Shape();
-  // Shape-space +y becomes world -z after the mesh is laid flat. The upper
-  // run is therefore the swept-back forewing; the lower lobe is the smaller,
-  // rounder hindwing. Both meet at the thorax rather than at a square edge.
-  wing.moveTo(0.002, -0.014);
-  wing.bezierCurveTo(0.018, -0.03, 0.043, -0.033, WING_SPAN, -0.021);
-  wing.bezierCurveTo(0.057, -0.006, 0.047, 0.009, 0.034, 0.012);
-  wing.bezierCurveTo(0.044, 0.024, 0.038, 0.038, 0.023, 0.035);
-  wing.bezierCurveTo(0.011, 0.031, 0.004, 0.017, 0.002, 0.008);
-  wing.closePath();
-  const geometry = new THREE.ShapeGeometry(wing, 5);
+/** The wing outline, traced once for the geometry and once for the painted
+ * wing map so the two can never disagree about where the margin is. Shape
+ * space: +x is span, +y becomes world -z (toward the abdomen) after the mesh
+ * is laid flat, so the lower run is the swept-back forewing and the upper
+ * lobe the rounder hindwing. Both meet at the thorax. */
+function traceWingOutline(path: {
+  moveTo(x: number, y: number): void;
+  bezierCurveTo(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    x: number,
+    y: number,
+  ): void;
+  closePath(): void;
+}) {
+  path.moveTo(0.002, -0.014);
+  path.bezierCurveTo(0.018, -0.03, 0.043, -0.033, WING_SPAN, -0.021);
+  path.bezierCurveTo(0.057, -0.006, 0.047, 0.009, 0.034, 0.012);
+  path.bezierCurveTo(0.044, 0.024, 0.038, 0.038, 0.023, 0.035);
+  path.bezierCurveTo(0.011, 0.031, 0.004, 0.017, 0.002, 0.008);
+  path.closePath();
+}
 
-  // A low-cost root-to-tip value gradient suggests wing membranes and a dark
-  // thoracic joint without another mesh, texture, or draw call. Vertex colour
-  // multiplies each butterfly's authored species colour.
-  const position = geometry.getAttribute("position");
-  const colors = new Float32Array(position.count * 3);
-  for (let i = 0; i < position.count; i++) {
-    const across = THREE.MathUtils.clamp(position.getX(i) / WING_SPAN, 0, 1);
-    const shade = 0.62 + 0.38 * Math.sqrt(across);
-    colors[i * 3] = shade;
-    colors[i * 3 + 1] = shade;
-    colors[i * 3 + 2] = shade;
-  }
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geometry.computeVertexNormals();
+function wingShape() {
+  const wing = new THREE.Shape();
+  traceWingOutline(wing);
+  return wing;
+}
+
+/** Shape-space bounds of the outline: the UV frame the wing map is painted
+ * in. Computed from the shape itself rather than typed, for the same reason
+ * the outline is traced once. */
+function wingBounds() {
+  const box = new THREE.Box2();
+  for (const point of wingShape().getPoints(24)) box.expandByPoint(point);
+  return box;
+}
+
+/** Where the veins fan out from: the wing root at the thorax. */
+const WING_ROOT = new THREE.Vector2(0.003, -0.002);
+
+/**
+ * The wing mesh is a quad over the outline's bounds, not the outline itself.
+ * The silhouette lives in the wing map's alpha (see `createWingMapTexture`),
+ * feathered a few texels, so a wing drawn many times across a shutter (the
+ * blur samples) merges into one soft streak instead of a stack of cut-outs.
+ * It used to be a ShapeGeometry of the outline with a vertex gradient; the
+ * gradient is baked into the map now, so the quad needs no attributes.
+ */
+function createWingGeometry() {
+  const bounds = wingBounds();
+  const size = bounds.getSize(new THREE.Vector2());
+  const center = bounds.getCenter(new THREE.Vector2());
+  const geometry = new THREE.PlaneGeometry(size.x, size.y);
+  geometry.translate(center.x, center.y, 0);
   return geometry;
 }
 
+const WING_MAP_SIZE = 512;
+
+/**
+ * The wing's markings, painted once on a canvas: veins fanning from the root,
+ * a dark margin with a row of pale spots, a darker apex on the forewing and a
+ * dark thoracic joint. Greyscale on purpose: it multiplies the species colour
+ * and the vertex gradient, so one map serves all three butterflies and the
+ * blur samples, and the authored colours stay exactly what they were where
+ * the membrane is plain. Null where there is no document (tests).
+ */
+export type WingMaps = {
+  map: THREE.CanvasTexture;
+  alphaMap: THREE.CanvasTexture;
+};
+
+/** Feather on the silhouette mask, in texels of the 512 map: about a third
+ * of a millimetre at the wing's scale, enough to antialias a still wing and
+ * let overlapping blur samples merge. */
+const WING_MASK_FEATHER = 3;
+
+function createWingMapTexture(): WingMaps | null {
+  if (typeof document === "undefined") return null;
+  const S = WING_MAP_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const bounds = wingBounds();
+  const size = bounds.getSize(new THREE.Vector2());
+  // Shape space to canvas: v runs up, canvas y runs down (CanvasTexture
+  // flips on upload, so canvas top is v = 1).
+  const X = (x: number) => ((x - bounds.min.x) / size.x) * S;
+  const Y = (y: number) => (1 - (y - bounds.min.y) / size.y) * S;
+  const outline = new Path2D();
+  traceWingOutline({
+    moveTo: (x, y) => outline.moveTo(X(x), Y(y)),
+    bezierCurveTo: (ax, ay, bx, by, x, y) =>
+      outline.bezierCurveTo(X(ax), Y(ay), X(bx), Y(by), X(x), Y(y)),
+    closePath: () => outline.closePath(),
+  });
+  const margin = wingShape().getPoints(48);
+  const root = { x: X(WING_ROOT.x), y: Y(WING_ROOT.y) };
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, S, S);
+  ctx.save();
+  ctx.clip(outline);
+
+  // Veins: primaries from the root to every fourth margin point, then a
+  // short fork from each primary's outer third toward the margin between.
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(70, 64, 58, 0.42)";
+  const primaries = margin.filter((_, index) => index % 4 === 2);
+  for (const [index, point] of primaries.entries()) {
+    const tip = { x: X(point.x), y: Y(point.y) };
+    // Bow each vein slightly toward the next one so the fan reads as a
+    // membrane under tension rather than spokes.
+    const next = primaries[index + 1] ?? point;
+    const control = {
+      x: (root.x + tip.x) / 2 + (X(next.x) - tip.x) * 0.18,
+      y: (root.y + tip.y) / 2 + (Y(next.y) - tip.y) * 0.18,
+    };
+    ctx.lineWidth = S * 0.0075;
+    ctx.beginPath();
+    ctx.moveTo(root.x, root.y);
+    ctx.quadraticCurveTo(control.x, control.y, tip.x, tip.y);
+    ctx.stroke();
+    if (index + 1 < primaries.length) {
+      const between = margin[margin.indexOf(point) + 2] ?? point;
+      const fork = {
+        x: root.x + (tip.x - root.x) * 0.58,
+        y: root.y + (tip.y - root.y) * 0.58,
+      };
+      ctx.lineWidth = S * 0.005;
+      ctx.beginPath();
+      ctx.moveTo(fork.x, fork.y);
+      ctx.lineTo(X(between.x), Y(between.y));
+      ctx.stroke();
+    }
+  }
+  // The discal cell: a cross-vein closing the fan a third of the way out.
+  ctx.lineWidth = S * 0.0055;
+  ctx.strokeStyle = "rgba(70, 64, 58, 0.34)";
+  ctx.beginPath();
+  for (const [index, point] of primaries.entries()) {
+    const at = {
+      x: root.x + (X(point.x) - root.x) * 0.38,
+      y: root.y + (Y(point.y) - root.y) * 0.38,
+    };
+    if (index === 0) ctx.moveTo(at.x, at.y);
+    else ctx.lineTo(at.x, at.y);
+  }
+  ctx.stroke();
+
+  // Dark margin, drawn as a wide stroke on the outline so the clip keeps only
+  // the inner half, then a row of pale spots sitting just inside it.
+  // Kept light: at the near prop's magnification a heavy band read as a
+  // black outline around the whole wing (owner review, 2026-09-11).
+  ctx.lineWidth = S * 0.05;
+  ctx.strokeStyle = "rgba(80, 72, 64, 0.38)";
+  ctx.stroke(outline);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  for (const [index, point] of margin.entries()) {
+    if (index % 3 !== 1) continue;
+    const at = { x: X(point.x), y: Y(point.y) };
+    const inward = { x: root.x - at.x, y: root.y - at.y };
+    const length = Math.hypot(inward.x, inward.y) || 1;
+    const spot = {
+      x: at.x + (inward.x / length) * S * 0.026,
+      y: at.y + (inward.y / length) * S * 0.026,
+    };
+    ctx.beginPath();
+    ctx.ellipse(spot.x, spot.y, S * 0.009, S * 0.0065, 0, 0, TAU);
+    ctx.fill();
+  }
+
+  // Forewing apex: a darker field with three pale windows, the one marking
+  // that tells a forewing from a hindwing at a glance.
+  const apex = { x: X(WING_SPAN - 0.006), y: Y(-0.018) };
+  const apexField = ctx.createRadialGradient(
+    apex.x,
+    apex.y,
+    0,
+    apex.x,
+    apex.y,
+    S * 0.2,
+  );
+  apexField.addColorStop(0, "rgba(60, 52, 46, 0.48)");
+  apexField.addColorStop(1, "rgba(60, 52, 46, 0)");
+  ctx.fillStyle = apexField;
+  ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  for (const [dx, dy, r] of [
+    [-0.16, -0.04, 0.02],
+    [-0.09, 0.02, 0.017],
+    [-0.03, 0.07, 0.014],
+  ] as const) {
+    ctx.beginPath();
+    ctx.ellipse(
+      apex.x + dx * S,
+      apex.y + dy * S,
+      r * S,
+      r * S * 0.7,
+      0.5,
+      0,
+      TAU,
+    );
+    ctx.fill();
+  }
+
+  // The thoracic joint, dark where the wing meets the body.
+  const joint = ctx.createRadialGradient(
+    root.x,
+    root.y,
+    0,
+    root.x,
+    root.y,
+    S * 0.14,
+  );
+  joint.addColorStop(0, "rgba(40, 34, 30, 0.6)");
+  joint.addColorStop(1, "rgba(40, 34, 30, 0)");
+  ctx.fillStyle = joint;
+  ctx.fillRect(0, 0, S, S);
+
+  // The root-to-tip value gradient that used to be vertex colour on the
+  // outline mesh, lifted: it began at 0.62 and, with the veins on top, made
+  // the whole inner wing read as burnt. 0.84 at the root rising as the
+  // square root to 1 at the tip still suggests the membrane thinning.
+  const shade = ctx.createLinearGradient(X(0), 0, X(WING_SPAN), 0);
+  for (let stop = 0; stop <= 8; stop++) {
+    const across = stop / 8;
+    const value = Math.round(255 * (0.84 + 0.16 * Math.sqrt(across)));
+    shade.addColorStop(across, `rgb(${value}, ${value}, ${value})`);
+  }
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 0, S, S);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+  // Outside the outline the map is never shown, but the feathered edge
+  // samples it: paint the margin colour there rather than white so the
+  // silhouette fades from the margin, not from a pale halo.
+  ctx.lineWidth = S * 0.05;
+  ctx.strokeStyle = "rgb(196, 190, 184)";
+  ctx.stroke(outline);
+
+  // The silhouette, as an alpha map: the outline filled, then feathered by a
+  // small box blur run by hand (canvas filters are not everywhere yet). It
+  // is a separate texture rather than the map's own alpha channel because a
+  // canvas stores premultiplied colour, and texels at alpha zero come back
+  // black, which is a dark fringe wherever the edge is filtered.
+  const maskCanvas = document.createElement("canvas");
+  maskCanvas.width = S;
+  maskCanvas.height = S;
+  const mask = maskCanvas.getContext("2d");
+  if (!mask) return null;
+  mask.fillStyle = "#000000";
+  mask.fillRect(0, 0, S, S);
+  mask.fillStyle = "#ffffff";
+  mask.fill(outline);
+  const image = mask.getImageData(0, 0, S, S);
+  const feathered = featherMask(image.data, S, WING_MASK_FEATHER);
+  for (let i = 0; i < S * S; i++) {
+    const value = feathered[i]!;
+    image.data[i * 4] = value;
+    image.data[i * 4 + 1] = value;
+    image.data[i * 4 + 2] = value;
+    image.data[i * 4 + 3] = 255;
+  }
+  mask.putImageData(image, 0, 0);
+
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 4;
+  map.generateMipmaps = true;
+  map.minFilter = THREE.LinearMipmapLinearFilter;
+  const alphaMap = new THREE.CanvasTexture(maskCanvas);
+  alphaMap.anisotropy = 4;
+  alphaMap.generateMipmaps = true;
+  alphaMap.minFilter = THREE.LinearMipmapLinearFilter;
+  return { map, alphaMap };
+}
+
+/** Separable box blur of one channel of an RGBA buffer, twice, which is
+ * close enough to a Gaussian for a three-texel feather. */
+function featherMask(rgba: Uint8ClampedArray, size: number, radius: number) {
+  let source = new Float32Array(size * size);
+  for (let i = 0; i < size * size; i++) source[i] = rgba[i * 4]!;
+  let target = new Float32Array(size * size);
+  const window = radius * 2 + 1;
+  for (let pass = 0; pass < 2; pass++) {
+    // Horizontal, then vertical, each as a running sum.
+    for (let y = 0; y < size; y++) {
+      let sum = 0;
+      for (let x = -radius; x <= radius; x++)
+        sum += source[y * size + Math.min(size - 1, Math.max(0, x))]!;
+      for (let x = 0; x < size; x++) {
+        target[y * size + x] = sum / window;
+        const leaving = Math.max(0, x - radius);
+        const entering = Math.min(size - 1, x + radius + 1);
+        sum += source[y * size + entering]! - source[y * size + leaving]!;
+      }
+    }
+    [source, target] = [target, source];
+    for (let x = 0; x < size; x++) {
+      let sum = 0;
+      for (let y = -radius; y <= radius; y++)
+        sum += source[Math.min(size - 1, Math.max(0, y)) * size + x]!;
+      for (let y = 0; y < size; y++) {
+        target[y * size + x] = sum / window;
+        const leaving = Math.max(0, y - radius);
+        const entering = Math.min(size - 1, y + radius + 1);
+        sum += source[entering * size + x]! - source[leaving * size + x]!;
+      }
+    }
+    [source, target] = [target, source];
+  }
+  return source;
+}
+
+/** Piecewise-linear body radius along its length, head at -y. */
+const BODY_PROFILE: readonly (readonly [y: number, radius: number])[] = [
+  // The lathe stops at the neck; the head is its own small sphere below,
+  // hung slightly under the body line and widened by two eyes. A head on the
+  // axis, bulb over a pinched neck, read as something else entirely in
+  // silhouette (owner review, 2026-09-11).
+  [-0.0165, 0.0006],
+  [-0.0155, 0.0024],
+  [-0.0135, 0.0032],
+  [-0.011, 0.005],
+  [-0.004, 0.0056],
+  [0.003, 0.0047],
+  [0.01, 0.0046],
+  [0.018, 0.004],
+  [0.026, 0.003],
+  [0.033, 0.0018],
+  [0.037, 0.0004],
+];
+
+function bodyRadiusAt(y: number) {
+  for (let i = 1; i < BODY_PROFILE.length; i++) {
+    const [y0, r0] = BODY_PROFILE[i - 1]!;
+    const [y1, r1] = BODY_PROFILE[i]!;
+    if (y <= y1) return THREE.MathUtils.lerp(r0, r1, (y - y0) / (y1 - y0));
+  }
+  return BODY_PROFILE[BODY_PROFILE.length - 1]![1];
+}
+
+/**
+ * A real body rather than a silhouette: a lathe with a head, a narrow neck, a
+ * thorax and a ringed, tapering abdomen; curved antennae ending in clubs; and
+ * six legs that reach the surface when the insect is perched. One merged
+ * geometry, one lit material, so up close on a prop brought to the camera it
+ * shades like a thing with volume, and at shelf distance it costs what the
+ * flat cut-out cost.
+ *
+ * Built in the mesh's own flat frame (the JSX lays it down with the wings):
+ * +x is lateral, -y is forward toward the head, +z is up.
+ */
 function createBodyGeometry() {
-  const body = new THREE.Shape();
-  body.moveTo(-0.006, -0.012);
-  body.bezierCurveTo(-0.007, 0.002, -0.0045, 0.028, 0, 0.037);
-  body.bezierCurveTo(0.0045, 0.028, 0.007, 0.002, 0.006, -0.012);
-  body.closePath();
+  const profile: THREE.Vector2[] = [];
+  const first = BODY_PROFILE[0]![0];
+  const last = BODY_PROFILE[BODY_PROFILE.length - 1]![0];
+  for (let y = first; y <= last + 1e-6; y += 0.0012) {
+    // Abdominal segments as a shallow ripple on the radius.
+    const ripple =
+      y > 0.006
+        ? 0.07 * Math.max(0, Math.sin(((y - 0.006) / 0.0068) * TAU))
+        : 0;
+    profile.push(new THREE.Vector2(bodyRadiusAt(y) * (1 - ripple), y));
+  }
+  const body = new THREE.LatheGeometry(profile, 14);
 
-  const head = new THREE.Shape();
-  head.absarc(0, -0.019, 0.0065, 0, TAU, false);
-
-  // Antennae are narrow tapered membranes rather than Lines: native WebGL
-  // line width is inconsistent, while these remain visible as a one-pixel
-  // silhouette on every device and can merge into the same body draw.
-  const antenna = (side: 1 | -1) => {
-    const shape = new THREE.Shape();
-    shape.moveTo(side * 0.0015, -0.022);
-    shape.lineTo(side * 0.014, -0.045);
-    shape.lineTo(side * 0.0124, -0.046);
-    shape.lineTo(side * 0.0005, -0.024);
-    shape.closePath();
-    return shape;
-  };
-  return new THREE.ShapeGeometry([body, head, antenna(-1), antenna(1)], 5);
+  const parts: THREE.BufferGeometry[] = [
+    body,
+    // Head: small, low, and wide across the compound eyes.
+    new THREE.SphereGeometry(0.0033, 10, 8).translate(0, -0.0178, -0.0007),
+    new THREE.SphereGeometry(0.0021, 8, 6).translate(0.0025, -0.0175, -0.0003),
+    new THREE.SphereGeometry(0.0021, 8, 6).translate(-0.0025, -0.0175, -0.0003),
+  ];
+  const tube = (points: THREE.Vector3[], radius: number) =>
+    new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(points),
+      8,
+      radius,
+      5,
+      false,
+    );
+  for (const side of [1, -1] as const) {
+    // Antennae: up and out from the head, clubbed at the tip.
+    const antenna = tube(
+      [
+        new THREE.Vector3(side * 0.0012, -0.0195, 0.0018),
+        new THREE.Vector3(side * 0.008, -0.033, 0.006),
+        new THREE.Vector3(side * 0.0145, -0.045, 0.0055),
+      ],
+      0.00045,
+    );
+    const club = new THREE.SphereGeometry(0.0011, 8, 6).translate(
+      side * 0.0145,
+      -0.045,
+      0.0055,
+    );
+    parts.push(antenna, club);
+    // Legs: from the underside of the thorax, a knee, then down to about a
+    // centimetre below the body, which is the perched stance the collision
+    // envelope already assumes (INSECT_ENVELOPES.butterfly.contactLift).
+    for (const y of [-0.0115, -0.006, -0.0005]) {
+      parts.push(
+        tube(
+          [
+            new THREE.Vector3(side * 0.003, y, -0.0025),
+            new THREE.Vector3(side * 0.0075, y + 0.0012, -0.0035),
+            new THREE.Vector3(side * 0.0095, y + 0.003, -0.0098),
+          ],
+          0.0004,
+        ),
+      );
+    }
+  }
+  const merged = mergeGeometries(parts, false);
+  for (const part of parts) part.dispose();
+  return merged ?? body;
 }
 
 /** Body heading eases toward the travel direction rather than snapping to it:
@@ -260,18 +634,36 @@ const BUTTERFLY_RENDER_SINK =
  */
 export const BUTTERFLY_COUNT = 18;
 
-// Three translucent wing poses across a fixed shutter interval read as
-// rotational motion blur rather than a duplicate wing. All 126 samples are
-// submitted in one InstancedMesh, so the entire population costs one draw call.
+// Wing motion blur as a shutter: the wing is drawn at up to ten poses spread
+// EITHER SIDE of the current one across a fixed exposure, faint and soft-edged
+// (the silhouette is a feathered alpha map), and the sharp wing itself thins
+// out as the wingbeat speeds up. A moving wing is then a symmetric streak
+// that is densest in the middle, which is what a camera records; the previous
+// treatment (five trailing copies behind an opaque wing) read as a sharp wing
+// with ghosts, however faint the ghosts were made. Owner review, 2026-09-11:
+// "make them a little blurrier when they're moving around, especially their
+// wings flapping." All samples for the whole population are one InstancedMesh
+// and one draw call. `wingBlurSamples` from the quality plan is the count PER
+// SIDE.
 const WING_BLUR_SAMPLES = 5;
-const WING_BLUR_INSTANCE_COUNT = BUTTERFLY_COUNT * 2 * WING_BLUR_SAMPLES;
-/** Fixed middle ground chosen after comparing 50 ms / 3× against an
- * intentionally excessive 80 ms / 10× diagnostic treatment. */
+/** Instances reserved per wing: the samples on each side. */
+const WING_BLUR_PER_WING = WING_BLUR_SAMPLES * 2;
+const WING_BLUR_INSTANCE_COUNT = BUTTERFLY_COUNT * 2 * WING_BLUR_PER_WING;
+/** Shutter length in seconds, centred on now. At the 8.8 Hz cruise beat this
+ * is half a stroke, far longer than any camera: a screenshot of a butterfly
+ * in fast flight should show a fan, not a wing (owner review, 2026-09-11:
+ * "still aren't quite blurry enough"). */
 const WING_BLUR_EXPOSURE = 0.06;
-const WING_BLUR_STRENGTH = 5;
-const WING_BLUR_MIN_ANGULAR_SPEED = 7;
-const WING_BLUR_FULL_ANGULAR_SPEED = 52;
-const WING_BLUR_OPACITY = [0.075, 0.045, 0.025, 0.016, 0.01] as const;
+/** Alpha of the sample nearest the wing at full smear; further samples fall
+ * off as a Gaussian in their fraction of the half window. */
+const WING_BLUR_PEAK = 0.4;
+const WING_BLUR_FALLOFF = 1.8;
+/** How much of the sharp wing's opacity the smear takes at full speed. Real
+ * blur spreads a fixed amount of coverage over a longer arc, so the centre
+ * must thin as the streak grows. */
+const WING_BLUR_WING_FADE = 0.6;
+const WING_BLUR_MIN_ANGULAR_SPEED = 6;
+const WING_BLUR_FULL_ANGULAR_SPEED = 40;
 const WING_BLUR_ANGLE_LIMIT = 1.45;
 
 function createWingBlurMaterial() {
@@ -280,11 +672,12 @@ function createWingBlurMaterial() {
     side: THREE.DoubleSide,
     transparent: true,
     depthWrite: false,
-    vertexColors: true,
     toneMapped: false,
   });
-  // MeshBasicMaterial keeps the exact authored wing colour/gradient. The one
-  // custom attribute only supplies per-sample alpha, letting a single
+  // Plain species colour with the silhouette alpha and no wing map: a wing
+  // moving fast enough to streak has smeared its own veins away, and the
+  // streak reads lighter and cleaner without ten copies of the pattern piled
+  // up. The one custom attribute supplies per-sample alpha, letting a single
   // InstancedMesh hold every colour, side, and temporal pose.
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
@@ -310,8 +703,61 @@ varying float vInstanceOpacity;`,
         "vec4 diffuseColor = vec4( diffuse, opacity * vInstanceOpacity );",
       );
   };
-  material.customProgramCacheKey = () => "butterfly-wing-blur-v1";
+  material.customProgramCacheKey = () => "butterfly-wing-blur-v2";
   return material;
+}
+
+/** Camera distances between which the wing pattern resolves: none at the
+ * shelf, where a wing is a few dozen pixels and the veins only darkened the
+ * colour, all of it on a prop brought up close. The near prop sits at
+ * 1.2..1.6 u, ordinary roaming at 2.5 u and beyond. */
+const WING_DETAIL_NEAR = 1.8;
+const WING_DETAIL_FAR = 3;
+
+type WingSurface = {
+  material: THREE.MeshBasicMaterial;
+  /** 0..1, how much of the painted pattern shows; a uniform the frame loop
+   * writes from the butterfly's distance to the camera. */
+  detail: { value: number };
+};
+
+/**
+ * The sharp wing's material: species colour, the silhouette alpha, and the
+ * painted pattern blended in by `detail`. From the shelf the pattern read as
+ * a dark, burnt wing rather than a marking (owner review, 2026-09-11), so
+ * at a distance the wing is its authored colour alone and the veins,
+ * margin and apex resolve only as it comes up to the camera, the way detail
+ * does on anything that small.
+ */
+function createWingSurface(color: string, maps: WingMaps | null): WingSurface {
+  const detail = { value: 0 };
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    side: THREE.DoubleSide,
+    transparent: true,
+    // The quad outside the silhouette must neither draw nor write depth;
+    // the feathered band between is blended.
+    alphaTest: 0.08,
+    ...(maps ? { map: maps.map, alphaMap: maps.alphaMap } : {}),
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uWingDetail = detail;
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+uniform float uWingDetail;`,
+      )
+      .replace(
+        "#include <map_fragment>",
+        `#ifdef USE_MAP
+	vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+	diffuseColor.rgb *= mix( vec3( 1.0 ), sampledDiffuseColor.rgb, uWingDetail );
+#endif`,
+      );
+  };
+  material.customProgramCacheKey = () => "butterfly-wing-v2";
+  return { material, detail };
 }
 
 /** Where a resident starts. After boot this is only an initial condition:
@@ -653,6 +1099,27 @@ export function butterflyMayBeginLanding(occupancy: {
   );
 }
 
+/** A prop up at the camera (PropApproach) is already in hand: the pointer
+ * resting on it is not a reach for it. Hover and focus on the near prop are
+ * therefore not disturbances. Otherwise nothing could land on it, and a
+ * butterfly already there left the moment the cursor crossed the prop, which
+ * up close is nearly always (owner: "the butterfly disappears when it's near
+ * the thing"). Presses and drags still count. */
+export function insectInteractionForOwner(
+  ownerId: string | null,
+  interaction: InsectInteractionState,
+): InsectInteractionState {
+  if (!ownerId || nearPropApproach()?.id !== ownerId) return interaction;
+  return {
+    ...interaction,
+    hovered: interaction.hovered === ownerId ? null : interaction.hovered,
+    focusedInteraction:
+      interaction.focusedInteraction === ownerId
+        ? null
+        : interaction.focusedInteraction,
+  };
+}
+
 /** While a visitor carries a prop, that prop is the only useful landing
  * candidate. The shelf-wide drag response rejects every other Perch. */
 export function butterflyPerchCanReceiveLanding(
@@ -661,7 +1128,10 @@ export function butterflyPerchCanReceiveLanding(
 ) {
   if (interaction.dragging)
     return ownerId !== null && ownerId === interaction.dragging;
-  return !insectOwnerIsDisturbed(ownerId, interaction);
+  return !insectOwnerIsDisturbed(
+    ownerId,
+    insectInteractionForOwner(ownerId, interaction),
+  );
 }
 
 export function butterflyPerchFailureMessage(
@@ -977,26 +1447,44 @@ function Flight({
     [],
   );
   const bodyGeometry = useMemo(() => createBodyGeometry(), []);
+  // Lit, unlike the wings: the body is the one part with volume now, and a
+  // dark unlit lathe would be the same silhouette the flat cut-out was.
   const bodyMaterial = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({
-        color: "#30251e",
-        side: THREE.DoubleSide,
+      new THREE.MeshStandardMaterial({
+        color: "#2b211a",
+        roughness: 0.72,
+        metalness: 0,
       }),
     [],
   );
-  const wingMaterials = useMemo(
-    () =>
-      FLIGHTS.map(
-        (flight) =>
-          new THREE.MeshBasicMaterial({
-            color: flight.color,
-            side: THREE.DoubleSide,
-            vertexColors: true,
-          }),
-      ),
-    [],
+  const wingMaps = useMemo(() => createWingMapTexture(), []);
+  useEffect(
+    () => () => {
+      wingMaps?.map.dispose();
+      wingMaps?.alphaMap.dispose();
+    },
+    [wingMaps],
   );
+  // One material per butterfly, not per species: the sharp wing's opacity
+  // and pattern are driven by that insect's own wingbeat and distance each
+  // frame. The program is shared.
+  const wingSurfaces = useMemo(
+    () =>
+      Array.from({ length: BUTTERFLY_COUNT }, (_, index) =>
+        createWingSurface(FLIGHTS[index % FLIGHTS.length]!.color, wingMaps),
+      ),
+    [wingMaps],
+  );
+  const wingMaterials = useMemo(
+    () => wingSurfaces.map((surface) => surface.material),
+    [wingSurfaces],
+  );
+  useEffect(() => {
+    if (!wingMaps) return;
+    wingBlurMaterial.alphaMap = wingMaps.alphaMap;
+    wingBlurMaterial.needsUpdate = true;
+  }, [wingBlurMaterial, wingMaps]);
   const sessionSeed = useRef(Math.floor(Math.random() * 0x7fffffff));
   const motions = useRef(
     Array.from({ length: BUTTERFLY_COUNT }, (_, index) =>
@@ -1022,8 +1510,8 @@ function Flight({
     for (let i = 0; i < BUTTERFLY_COUNT; i++) {
       color.set(FLIGHTS[i % FLIGHTS.length]!.color);
       for (let side = 0; side < 2; side++) {
-        for (let sample = 0; sample < WING_BLUR_SAMPLES; sample++) {
-          const index = (i * 2 + side) * WING_BLUR_SAMPLES + sample;
+        for (let sample = 0; sample < WING_BLUR_PER_WING; sample++) {
+          const index = (i * 2 + side) * WING_BLUR_PER_WING + sample;
           mesh.setColorAt(index, color);
         }
       }
@@ -1037,11 +1525,15 @@ function Flight({
       pointerIsTouch.current = event.pointerType === "touch";
       pointerActiveUntil.current = performance.now() + 750;
     };
-    window.addEventListener("pointermove", rememberPointer, { passive: true });
-    window.addEventListener("pointerdown", rememberPointer, { passive: true });
+    roomWindowEvents.addEventListener("pointermove", rememberPointer, {
+      passive: true,
+    });
+    roomWindowEvents.addEventListener("pointerdown", rememberPointer, {
+      passive: true,
+    });
     return () => {
-      window.removeEventListener("pointermove", rememberPointer);
-      window.removeEventListener("pointerdown", rememberPointer);
+      roomWindowEvents.removeEventListener("pointermove", rememberPointer);
+      roomWindowEvents.removeEventListener("pointerdown", rememberPointer);
       for (const motion of landingMotions) {
         if (motion.pilot && motion.world)
           commandInsectPilot(motion.pilot, { type: "cancel" }, motion.world);
@@ -1170,8 +1662,9 @@ function Flight({
       1e-4
     ) {
       for (let index = 0; index < wingMaterials.length; index += 1) {
-        wingMaterials[index]!.color.copy(authoredWingColors[index]!).lerp(
-          coordinationWingColors[index]!,
+        const colorIndex = index % FLIGHTS.length;
+        wingMaterials[index]!.color.copy(authoredWingColors[colorIndex]!).lerp(
+          coordinationWingColors[colorIndex]!,
           coordinationColorMix.current,
         );
       }
@@ -1185,9 +1678,9 @@ function Flight({
               coordinationColorMix.current,
             );
           for (let side = 0; side < 2; side++) {
-            for (let sample = 0; sample < WING_BLUR_SAMPLES; sample++) {
+            for (let sample = 0; sample < WING_BLUR_PER_WING; sample++) {
               const instanceIndex =
-                (index * 2 + side) * WING_BLUR_SAMPLES + sample;
+                (index * 2 + side) * WING_BLUR_PER_WING + sample;
               wingBlurMesh.setColorAt(instanceIndex, blendedWingColor);
             }
           }
@@ -1576,7 +2069,12 @@ function Flight({
           }
           const ownerId = insectPerchOwnerId(perch);
           ownerIsHeld = ownerId !== null && ownerId === stacks.dragging;
-          direct = !ownerIsHeld && insectOwnerIsDisturbed(ownerId, stacks);
+          direct =
+            !ownerIsHeld &&
+            insectOwnerIsDisturbed(
+              ownerId,
+              insectInteractionForOwner(ownerId, stacks),
+            );
           environmentalDrag =
             Boolean(stacks.dragging) &&
             perch.unitIndex === stacks.activeUnit &&
@@ -1794,6 +2292,10 @@ function Flight({
           : null;
         if (landedOwnerId !== null && landedOwnerId === stacks.dragging)
           recordFieldNoteEvent({ type: "butterfly-landed-on-held-prop" });
+        // A prop up at the camera is keyed by its hover key, which is also
+        // the perch owner for the Mac and the Homework tile.
+        if (landedOwnerId !== null && landedOwnerId === nearPropApproach()?.id)
+          recordFieldNoteEvent({ type: "butterfly-landed-on-near-prop" });
         motion.restEndsAt =
           t +
           LANDING_TIMING.butterflyRest[0] +
@@ -1814,11 +2316,13 @@ function Flight({
       // moved the resting envelope and turned Perches red; they are separate
       // numbers now. The sink rides `wingFold`, so the body settles exactly as
       // the wings close rather than popping down when touchdown begins.
+      // The Stroke Bound rides on top: the per-wingbeat lift, surge and sway
+      // the pilot computes as presentation, zero on a Perch.
       const sink = BUTTERFLY_RENDER_SINK * pilot.wingFold;
       b.position.set(
-        pilot.position.x - pilot.normal.x * sink,
-        pilot.position.y - pilot.normal.y * sink,
-        pilot.position.z - pilot.normal.z * sink,
+        pilot.position.x + pilot.stroke.x - pilot.normal.x * sink,
+        pilot.position.y + pilot.stroke.y - pilot.normal.y * sink,
+        pilot.position.z + pilot.stroke.z - pilot.normal.z * sink,
       );
       wr.rotation.z = pilot.wingAngle;
       wl.rotation.z = -pilot.wingAngle;
@@ -2020,26 +2524,48 @@ function Flight({
           pilot.wingAmplitude *
           Math.cos(pilot.wingPhase),
       );
+      const blurStrength =
+        THREE.MathUtils.smoothstep(
+          wingAngularSpeed,
+          WING_BLUR_MIN_ANGULAR_SPEED,
+          WING_BLUR_FULL_ANGULAR_SPEED,
+        ) * day;
+      // The sharp wing thins as the streak spreads. Only while there is a
+      // streak to hand the coverage to: a tier with no samples keeps its
+      // wings opaque.
+      wingMaterials[i]!.opacity = wingBlurMesh
+        ? 1 - WING_BLUR_WING_FADE * blurStrength
+        : 1;
+      wingSurfaces[i]!.detail.value =
+        1 -
+        THREE.MathUtils.smoothstep(
+          camera.position.distanceTo(b.position),
+          WING_DETAIL_NEAR,
+          WING_DETAIL_FAR,
+        );
       if (wingBlurMesh) {
-        const blurStrength =
-          THREE.MathUtils.smoothstep(
-            wingAngularSpeed,
-            WING_BLUR_MIN_ANGULAR_SPEED,
-            WING_BLUR_FULL_ANGULAR_SPEED,
-          ) * day;
         b.updateMatrix();
         for (let sideIndex = 0; sideIndex < 2; sideIndex++) {
           const direction = sideIndex === 0 ? 1 : -1;
-          for (let sample = 0; sample < wingBlurSamples; sample++) {
+          for (let sample = 0; sample < wingBlurSamples * 2; sample++) {
             const instanceIndex =
-              (i * 2 + sideIndex) * WING_BLUR_SAMPLES + sample;
-            const age = (sample + 1) / wingBlurSamples;
-            const historicalPhase =
-              pilot.wingPhase -
-              TAU * pilot.wingFrequency * WING_BLUR_EXPOSURE * age;
+              (i * 2 + sideIndex) * WING_BLUR_PER_WING + sample;
+            // Samples run out from the current pose in both directions;
+            // `fraction` is how far along the half window this one sits.
+            const forward = sample >= wingBlurSamples ? 1 : -1;
+            const fraction =
+              ((sample % wingBlurSamples) + 0.5) / wingBlurSamples;
+            const samplePhase =
+              pilot.wingPhase +
+              forward *
+                TAU *
+                pilot.wingFrequency *
+                WING_BLUR_EXPOSURE *
+                0.5 *
+                fraction;
             const angle = THREE.MathUtils.clamp(
               direction *
-                (flapOffset + pilot.wingAmplitude * Math.sin(historicalPhase)),
+                (flapOffset + pilot.wingAmplitude * Math.sin(samplePhase)),
               -WING_BLUR_ANGLE_LIMIT,
               WING_BLUR_ANGLE_LIMIT,
             );
@@ -2051,7 +2577,9 @@ function Flight({
             wingBlurMesh.setMatrixAt(instanceIndex, wingBlurInstanceMatrix);
             wingBlurOpacity.setX(
               instanceIndex,
-              blurStrength * WING_BLUR_STRENGTH * WING_BLUR_OPACITY[sample]!,
+              blurStrength *
+                WING_BLUR_PEAK *
+                Math.exp(-WING_BLUR_FALLOFF * fraction * fraction),
             );
           }
         }
@@ -2069,6 +2597,7 @@ function Flight({
         return (
           <group
             key={`butterfly:${i}`}
+            name={`butterfly:${i}`}
             ref={(o) => {
               // Yaw, then pitch about the resulting lateral axis, then bank.
               // The default XYZ order would pitch about world X, which is only
@@ -2098,7 +2627,7 @@ function Flight({
                   thorax and laid flat so z rotation is a dihedral flap. */}
                 <mesh
                   geometry={wingGeometry}
-                  material={wingMaterials[i % wingMaterials.length]}
+                  material={wingMaterials[i]}
                   rotation={[-Math.PI / 2, 0, 0]}
                   scale={[side, 1, 1]}
                   raycast={() => null}
@@ -2113,7 +2642,9 @@ function Flight({
           ref={wingBlur}
           args={[wingBlurGeometry, wingBlurMaterial, WING_BLUR_INSTANCE_COUNT]}
           frustumCulled={false}
-          renderOrder={2}
+          // Under the wings, so the thinned sharp wing blends over the streak
+          // and the middle of the smear is its densest part.
+          renderOrder={-1}
           raycast={() => null}
         />
       )}

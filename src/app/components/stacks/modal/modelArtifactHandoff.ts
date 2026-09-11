@@ -103,9 +103,3 @@ export function modelArtifactPreviewVisible(
 ): boolean {
   return phase === "crossfading-in" || phase === "inspecting";
 }
-
-export function modelArtifactRoomShouldFreeze(
-  phase: ModelArtifactHandoffPhase | null,
-): boolean {
-  return phase === "inspecting";
-}

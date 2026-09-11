@@ -87,6 +87,7 @@ import {
   mothFrame,
   mothIllumination,
 } from "./wildlifeBehavior";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const THEME_LAMBDA = 3.5;
 const MOTH_YAW_LAMBDA = 4;
@@ -712,11 +713,15 @@ function LivingWildlife({
       pointerIsTouch.current = event.pointerType === "touch";
       pointerActiveUntil.current = performance.now() + 750;
     };
-    window.addEventListener("pointermove", rememberPointer, { passive: true });
-    window.addEventListener("pointerdown", rememberPointer, { passive: true });
+    roomWindowEvents.addEventListener("pointermove", rememberPointer, {
+      passive: true,
+    });
+    roomWindowEvents.addEventListener("pointerdown", rememberPointer, {
+      passive: true,
+    });
     return () => {
-      window.removeEventListener("pointermove", rememberPointer);
-      window.removeEventListener("pointerdown", rememberPointer);
+      roomWindowEvents.removeEventListener("pointermove", rememberPointer);
+      roomWindowEvents.removeEventListener("pointerdown", rememberPointer);
       for (const motion of motions) motion.world.dispose();
     };
   }, []);
@@ -1471,11 +1476,13 @@ function LivingWildlife({
             // As with the butterflies: the drawn body sits closer to the
             // surface than the collision datum does, and settles with the
             // wings rather than popping down at touchdown.
+            // The Stroke Bound rides on top, as for the butterflies.
             const mothSink = MOTH_RENDER_SINK * (pilot?.wingFold ?? 0);
+            const stroke = pilot?.stroke;
             mothDummy.position.set(
-              position.x - motion.target.normal.x * mothSink,
-              position.y - motion.target.normal.y * mothSink,
-              position.z - motion.target.normal.z * mothSink,
+              position.x + (stroke?.x ?? 0) - motion.target.normal.x * mothSink,
+              position.y + (stroke?.y ?? 0) - motion.target.normal.y * mothSink,
+              position.z + (stroke?.z ?? 0) - motion.target.normal.z * mothSink,
             );
             mothDummy.quaternion
               .copy(mothParentQuaternion)

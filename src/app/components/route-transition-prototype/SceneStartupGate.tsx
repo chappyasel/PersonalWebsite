@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { useRouteTransitionPrototype } from "./store";
 
@@ -10,5 +10,10 @@ export function SceneStartupGate({ children }: { children: ReactNode }) {
   const deferred = useRouteTransitionPrototype(
     (state) => state.enabled && state.deferSceneStartup,
   );
-  return deferred ? null : children;
+  const [started, setStarted] = useState(!deferred);
+  useEffect(() => {
+    if (!deferred) setStarted(true);
+  }, [deferred]);
+  // Deferral only delays a new canvas. A parked room must stay mounted.
+  return started || !deferred ? children : null;
 }

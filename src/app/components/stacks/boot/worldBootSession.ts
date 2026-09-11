@@ -198,15 +198,20 @@ function consumePrepaintStartedAt(at: number): number | undefined {
     : undefined;
 }
 
+let documentActive = true;
+
 function applyDocument(view: WorldBootView): void {
   if (typeof document === "undefined" || !view.ownsDocument) return;
   const root = document.documentElement;
-  if (view.documentPhase === null) {
+  if (!documentActive || view.documentPhase === null) {
     root.removeAttribute(WORLD_BOOT_POLICY.worldAttribute);
   } else {
     root.setAttribute(WORLD_BOOT_POLICY.worldAttribute, view.documentPhase);
   }
-  root.toggleAttribute(WORLD_BOOT_POLICY.ogCaptureAttribute, view.ogCapture);
+  root.toggleAttribute(
+    WORLD_BOOT_POLICY.ogCaptureAttribute,
+    documentActive && view.ogCapture,
+  );
 }
 
 const UNSTARTED_STATE = initialWorldBootState();
@@ -221,6 +226,12 @@ class WorldBootSession {
   private state = UNSTARTED_STATE;
   private snapshot = SERVER_WORLD_BOOT_VIEW;
   private listeners = new Set<() => void>();
+
+  /** Parking changes presentation ownership, never the room readiness facts. */
+  setDocumentActive(active: boolean): void {
+    documentActive = active;
+    applyDocument(this.snapshot);
+  }
 
   /** Publish a signal that belongs to no particular world. */
   send(signal: WorldBootSignal, at = nowMs()): WorldBootView {

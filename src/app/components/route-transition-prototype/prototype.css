@@ -42,23 +42,6 @@
   font-size: 11px;
 }
 
-.route-prototype-bar {
-  position: fixed;
-  z-index: 2147483646;
-  bottom: max(16px, env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: calc(100vw - 24px);
-  padding: 8px 12px 10px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 18px;
-  color: hsl(var(--foreground));
-  background: hsl(var(--background) / 0.97);
-  box-shadow: 0 8px 40px #0003;
-  view-transition-name: route-prototype-controls;
-}
-
 .route-prototype-curtains {
   position: fixed;
   inset: 0;
@@ -154,17 +137,6 @@ html[data-route-prototype="cards"]::view-transition-new(root) {
   overflow: clip;
   backface-visibility: hidden;
 }
-html[data-route-prototype]::view-transition-group(route-prototype-controls) {
-  z-index: 10;
-  animation-duration: 0s;
-}
-html[data-route-prototype]::view-transition-old(route-prototype-controls) {
-  display: none;
-}
-html[data-route-prototype]::view-transition-new(route-prototype-controls) {
-  animation: none;
-}
-
 @keyframes route-prototype-swipe-out {
   to {
     transform: translateX(var(--route-out));
@@ -260,4 +232,93 @@ html[data-route-prototype="origin"]::view-transition-new(root) {
   transform-origin: 0 0;
   will-change: transform, opacity;
   pointer-events: auto;
+}
+
+/* Reverse the opening rectangle: close from the viewport edges toward the
+   source, revealing the room around it. Both pages stay at native size. */
+html[data-route-return]::view-transition-old(root) {
+  z-index: 2;
+  animation-name: route-books-return;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+}
+html[data-route-return]::view-transition-new(root) {
+  z-index: 1;
+  animation-name: route-room-reveal;
+  clip-path: none;
+  transform: none;
+}
+html[data-route-return="soft"]::view-transition-old(root) {
+  animation-name: route-books-return-soft;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes route-books-return {
+  0% {
+    clip-path: inset(0px 0px 0px 0px round 0px);
+    transform: none;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+  80% {
+    opacity: 0.04;
+  }
+  100% {
+    clip-path: var(--route-return-clip);
+    transform: none;
+    opacity: 0;
+  }
+}
+@keyframes route-books-return-soft {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: var(--route-return-transform);
+    opacity: 0;
+  }
+}
+@keyframes route-room-reveal {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Same source reveal, scoped to the reading area of a persistent sheet. */
+html[data-sheet-navigation]::view-transition-group(root),
+html[data-sheet-navigation]::view-transition-new(root),
+html[data-sheet-navigation]::view-transition-group(sheet-document) {
+  animation: none;
+}
+html[data-sheet-navigation]::view-transition-old(root) {
+  display: none;
+}
+html[data-sheet-navigation]::view-transition-old(sheet-document),
+html[data-sheet-navigation]::view-transition-new(sheet-document) {
+  mix-blend-mode: normal;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  transform-origin: 0 0;
+  animation-duration: 620ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+  --route-origin-zoom: var(--sheet-origin-zoom);
+  --route-origin-clip: var(--sheet-origin-clip);
+}
+html[data-sheet-navigation]::view-transition-old(sheet-document) {
+  animation-name: route-origin-out;
+}
+html[data-sheet-navigation]::view-transition-new(sheet-document) {
+  animation-name: route-origin-in;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-sheet-navigation]::view-transition-old(sheet-document),
+  html[data-sheet-navigation]::view-transition-new(sheet-document) {
+    animation: none;
+  }
 }

@@ -29,7 +29,6 @@ import { insectDiagnosticsController } from "./insectPerchDiagnostic";
 import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnostics";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import { MEADOW_WIND } from "./meadowMotion";
-import { modelArtifactDiagnosticsController } from "./modelArtifactDiagnostics";
 import { PERFORMANCE_PROFILE_PRESENTATION } from "./performanceProfilePresentation";
 import {
   PERFORMANCE_PROFILE_IDS,
@@ -1900,30 +1899,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       lighthouseBeaconDiagnosticsController.getSnapshot().effectEnabled,
     update: (value) =>
       lighthouseBeaconDiagnosticsController.setEffectEnabled(Boolean(value)),
-  }),
-  booleanDescriptor({
-    id: "render.model-artifact-preview",
-    panel: "render",
-    group: "render.scene-effects",
-    label: "3D artifact preview",
-    help: "Mount the interactive model renderer while inspecting a 3D artifact.",
-    defaultValue: true,
-    experimental: false,
-    productionCost: {
-      activeValues: [true],
-      enabled:
-        "One temporary WebGL context, a small environment map, and demand-driven model frames while the inspector is open.",
-      offPath: {
-        renderTargetAllocations: 0,
-        textureSamples: 0,
-        perFrameWork: false,
-      },
-    },
-    store: modelArtifactDiagnosticsController,
-    read: () =>
-      modelArtifactDiagnosticsController.getSnapshot().rendererEnabled,
-    update: (value) =>
-      modelArtifactDiagnosticsController.setRendererEnabled(Boolean(value)),
   }),
   booleanDescriptor({
     id: "render.artifact-preview-blur",

@@ -44,6 +44,23 @@ export function originZoomGeometry(
   };
 }
 
+// Close the full-size page's clip back to the entry point. Only a missing
+// or expired source uses the small centered pullback.
+export function originReturnGeometry(
+  source: OriginRect | null,
+  width: number,
+  height: number,
+) {
+  return {
+    clip: source
+      ? originZoomGeometry(source, width, height).clip
+      : "inset(0px 0px 0px 0px round 0px)",
+    transform: source
+      ? "none"
+      : `translate(${width * 0.03}px, ${height * 0.03}px) scale(0.94)`,
+  };
+}
+
 // Browsers without screen snapshots still expand from the real source box.
 // Only the panel is synthetic; navigation and its URL stay exactly the same.
 export async function playOriginPanel(
@@ -52,6 +69,7 @@ export async function playOriginPanel(
   commit: () => Promise<void>,
   signal: AbortSignal,
   speed: number,
+  returning = false,
 ) {
   const animations: Animation[] = [];
   async function animate(frames: Keyframe[], duration: number) {
@@ -87,6 +105,17 @@ export async function playOriginPanel(
     });
   }
   try {
+    if (returning) {
+      await commit();
+      await animate(
+        [
+          { transform: "none", opacity: 1 },
+          { transform: "translate(3vw, 3vh) scale(.94)", opacity: 0 },
+        ],
+        360 * speed,
+      );
+      return;
+    }
     await animate(
       [
         { transform: from, borderRadius: "24px", opacity: 1 },

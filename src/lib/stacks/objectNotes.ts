@@ -31,7 +31,7 @@ export type ObjectNote = Readonly<{
    * body is empty and `needs` says what is missing. Never a placeholder
    * caption: an invented one is worse than none. */
   status: "written" | "needs-owner";
-  /** Explicitly selected for public caption UI and the local editor. */
+  /** Enabled in public caption UI. Hidden notes remain editable locally. */
   visitor: boolean;
   links: readonly ObjectNoteLink[];
   body: string;
@@ -144,14 +144,74 @@ export function parseObjectNotes(markdown: string): ObjectNote[] {
   return notes;
 }
 
-export type ObjectNoteCaptionEdit = Readonly<{ id: string; body: string }>;
+export type ObjectNoteCaptionEdit = Readonly<{
+  id: string;
+  body?: string;
+  visitor?: boolean;
+}>;
+
+/** Visibility changes preserve the prose, review status, and owner questions. */
+export function updateObjectNoteCaptions(
+  markdown: string,
+  edits: readonly ObjectNoteCaptionEdit[],
+): string {
+  const original = indexObjectNotes(parseObjectNotes(markdown));
+  const seen = new Set<string>();
+  for (const edit of edits) {
+    if (!original[edit.id]) throw new Error(`Unknown caption id: ${edit.id}`);
+    if (seen.has(edit.id)) throw new Error(`Duplicate caption id: ${edit.id}`);
+    seen.add(edit.id);
+    if (edit.visitor !== undefined && typeof edit.visitor !== "boolean")
+      throw new Error("Caption visibility must be a boolean");
+    if (edit.body === undefined && edit.visitor === undefined)
+      throw new Error("Caption edit is empty");
+  }
+  let updated = updateObjectNoteBodies(
+    markdown,
+    edits.flatMap((edit) =>
+      edit.body === undefined ? [] : [{ id: edit.id, body: edit.body }],
+    ),
+  );
+  for (const edit of edits) {
+    if (edit.visitor === undefined) continue;
+    const matches = [...updated.matchAll(/^##[ \t]+(.+?)[ \t]*$/gm)];
+    const index = matches.findIndex(
+      (match) => normalizeObjectNoteId(match[1]!.trim()) === edit.id,
+    );
+    const start = matches[index]!.index;
+    const end = matches[index + 1]?.index ?? updated.length;
+    const lines = updated.slice(start, end).split("\n");
+    let audienceIndex = -1;
+    let insertIndex = 1;
+    for (let i = 1; i < lines.length; i += 1) {
+      const line = lines[i]!;
+      if (!line.trim() && insertIndex === 1) continue;
+      if (!FIELD.test(line)) break;
+      insertIndex = i + 1;
+      if (/^audience:/i.test(line)) audienceIndex = i;
+    }
+    const audience = `Audience: ${edit.visitor ? "visitor" : "internal"}`;
+    if (audienceIndex >= 0) lines[audienceIndex] = audience;
+    else lines.splice(insertIndex, 0, audience);
+    updated = updated.slice(0, start) + lines.join("\n") + updated.slice(end);
+  }
+  const result = indexObjectNotes(parseObjectNotes(updated));
+  for (const edit of edits) {
+    const note = result[edit.id]!;
+    if (edit.visitor !== undefined && note.visitor !== edit.visitor)
+      throw new Error(`Caption visibility did not save: ${edit.id}`);
+    if (edit.visitor === true && (!note.body || note.status !== "written"))
+      throw new Error(`Write a caption before enabling it: ${edit.id}`);
+  }
+  return updated;
+}
 
 /** Replace caption prose inside named sections while leaving every untouched
  * section exactly as authored. Intended for the local caption editor, not for
  * free-form Markdown editing. */
-export function updateObjectNoteCaptions(
+function updateObjectNoteBodies(
   markdown: string,
-  edits: readonly ObjectNoteCaptionEdit[],
+  edits: readonly Readonly<{ id: string; body: string }>[],
 ): string {
   const trailingNewlines = /\n*$/.exec(markdown)?.[0] ?? "";
   const originalIds = parseObjectNotes(markdown).map((note) => note.id);
@@ -202,7 +262,9 @@ export function updateObjectNoteCaptions(
       );
     }
     if (!metadata.some((line) => line.startsWith("Status:"))) {
-      const titleIndex = metadata.findIndex((line) => line.startsWith("Title:"));
+      const titleIndex = metadata.findIndex((line) =>
+        line.startsWith("Title:"),
+      );
       metadata.splice(titleIndex + 1, 0, "Status: written");
     }
     const replacement = `${lines[0]}\n\n${metadata.join("\n")}\n\n${body}\n\n`;
@@ -214,10 +276,7 @@ export function updateObjectNoteCaptions(
     throw new Error("Caption edit changed the document structure");
   const parsedById = indexObjectNotes(parsed);
   for (const [id, body] of byId) {
-    if (
-      parsedById[id]?.body !== body ||
-      parsedById[id]?.status !== "written"
-    )
+    if (parsedById[id]?.body !== body || parsedById[id]?.status !== "written")
       throw new Error(`Caption does not round-trip safely: ${id}`);
   }
   return updated;

@@ -15,7 +15,6 @@ export const FIELD_NOTES_VERSION = 1;
 type SceneArtifactCollection =
   | "training-analysis"
   | "training-history"
-  | "projects-homework"
   | "about-photos"
   | "training-photos"
   | "projects-photos"
@@ -58,6 +57,8 @@ export type FieldNoteEvent =
       collection: SceneArtifactCollection;
     }>
   | Readonly<{ type: "butterfly-landed-on-held-prop" }>
+  /** A butterfly settled on a prop brought up to the camera (PropApproach). */
+  | Readonly<{ type: "butterfly-landed-on-near-prop" }>
   | Readonly<{ type: "golf-ball-holed"; firstShot: boolean }>
   | Readonly<{ type: "about-golf-ball-struck" }>
   | Readonly<{ type: "golf-prop-struck"; propId?: string }>
@@ -275,6 +276,9 @@ export function reduceFieldNotesProgress(
       break;
     case "butterfly-landed-on-held-prop":
       award(earned, awarded, "butterfly-effect", now);
+      break;
+    case "butterfly-landed-on-near-prop":
+      award(earned, awarded, "close-encounter", now);
       break;
     case "golf-ball-holed":
       if (event.firstShot) award(earned, awarded, "hole-in-one", now);

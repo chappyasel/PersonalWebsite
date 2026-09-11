@@ -21,12 +21,16 @@ export type SceneAudioState = {
 };
 
 const VOICE_CAP = 12;
+// The ambient bed is scenery, not feedback. It was halved on 2026-09-11 after
+// the owner heard the beds compete with the room, and the wind takes a further
+// quarter off on top so a full gust stays under the birds rather than over
+// them (peak wind sum ~0.019 against a 0.035 meadow bed).
 export const SCENE_AUDIO_MIX = {
   windAudibleThreshold: 0.4,
-  windMotionRange: 0.034,
+  windMotionRange: 0.013,
   windCrossfadeFloor: 0.44,
   windResponseSeconds: 0.85,
-  meadow: 0.07,
+  meadow: 0.035,
 } as const;
 
 export function windGainForMotion(motion: number) {

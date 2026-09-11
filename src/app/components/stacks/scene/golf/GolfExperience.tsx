@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 import { sceneAudio } from "../../audio/sceneAudio";
 import { recordFieldNoteEvent } from "../../fieldNotes/progress";
 import { useStacks } from "../../store";
@@ -414,12 +417,12 @@ export default function GolfExperience({
         ),
       );
     };
-    window.addEventListener("pointermove", trackPointer, {
+    roomWindowEvents.addEventListener("pointermove", trackPointer, {
       capture: true,
       passive: true,
     });
     return () =>
-      window.removeEventListener("pointermove", trackPointer, {
+      roomWindowEvents.removeEventListener("pointermove", trackPointer, {
         capture: true,
       });
   }, [gl]);

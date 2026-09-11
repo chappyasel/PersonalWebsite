@@ -187,9 +187,7 @@ it("still opens the library when the shelf capture fails", async () => {
   expect(navigation.router.push).toHaveBeenCalledWith("/books");
   navigation.pathname = "/books";
   await act(async () => view.rerender(<RouteTransitionPrototype />));
-  expect(screen.getByRole("status").textContent).toContain(
-    "Camera unavailable",
-  );
+  expect(view.container.querySelector(".books-shelf-prototype")).toBeNull();
 });
 
 it("restores the card's ordinary navigation when the prototype unmounts", async () => {

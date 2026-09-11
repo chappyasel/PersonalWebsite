@@ -4,7 +4,6 @@ import {
   type ModelArtifactHandoffState,
   beginModelArtifactHandoff,
   modelArtifactPreviewVisible,
-  modelArtifactRoomShouldFreeze,
   reduceModelArtifactHandoff,
 } from "./modelArtifactHandoff";
 
@@ -24,17 +23,15 @@ function event(
 
 describe("model artifact handoff", () => {
   it("moves the source before revealing and freezing the inspection scene", () => {
-    let state = beginModelArtifactHandoff("homework-app", false);
+    let state = beginModelArtifactHandoff("portrait", false);
     expect(state.phase).toBe("lifting");
     expect(modelArtifactPreviewVisible(state.phase)).toBe(false);
-    expect(modelArtifactRoomShouldFreeze(state.phase)).toBe(false);
 
     state = event(state, { type: "preview-ready", target });
     expect(state.phase).toBe("lifting");
     state = event(state, { type: "source-crossfade-point" });
     expect(state.phase).toBe("crossfading-in");
     expect(modelArtifactPreviewVisible(state.phase)).toBe(true);
-    expect(modelArtifactRoomShouldFreeze(state.phase)).toBe(false);
     expect(event(state, { type: "source-hidden" }).phase).toBe(
       "crossfading-in",
     );
@@ -45,11 +42,10 @@ describe("model artifact handoff", () => {
 
     state = event(state, { type: "source-hidden" });
     expect(state.phase).toBe("inspecting");
-    expect(modelArtifactRoomShouldFreeze(state.phase)).toBe(true);
   });
 
   it("holds the real object at the camera until a slow preview is ready", () => {
-    let state = beginModelArtifactHandoff("homework-app", false);
+    let state = beginModelArtifactHandoff("portrait", false);
     state = event(state, { type: "source-at-target" });
     expect(state.phase).toBe("waiting-for-preview");
     expect(modelArtifactPreviewVisible(state.phase)).toBe(false);
@@ -60,23 +56,21 @@ describe("model artifact handoff", () => {
 
   it("crossfades back before returning the real object to the shelf", () => {
     let state: ModelArtifactHandoffState = {
-      ...beginModelArtifactHandoff("homework-app", false),
+      ...beginModelArtifactHandoff("portrait", false),
       phase: "inspecting",
       target,
     };
     state = event(state, { type: "close" });
     expect(state.phase).toBe("crossfading-out");
-    expect(modelArtifactRoomShouldFreeze(state.phase)).toBe(false);
     state = event(state, { type: "source-visible" });
     expect(state.phase).toBe("returning");
-    expect(modelArtifactRoomShouldFreeze(state.phase)).toBe(false);
     expect(
       reduceModelArtifactHandoff(state, { type: "source-home" }),
     ).toBeNull();
   });
 
   it("reverses a pickup immediately when it closes before inspection", () => {
-    const lifting = beginModelArtifactHandoff("homework-app", false);
+    const lifting = beginModelArtifactHandoff("portrait", false);
     expect(event(lifting, { type: "close" }).phase).toBe("returning");
   });
 });

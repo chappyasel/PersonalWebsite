@@ -14,7 +14,6 @@ import {
   type SceneArtifactId,
   sceneArtifactById,
   sceneArtifactCollection,
-  sceneArtifactPreviewEnabled,
 } from "./sceneArtifacts";
 import { useStacks } from "./store";
 
@@ -184,16 +183,14 @@ function activateSceneArtifact(id: SceneArtifactId) {
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
-  if (artifact?.kind === "model")
-    state.openModelSceneArtifact(id, reduceMotion);
-  else state.openSceneArtifact(id, reduceMotion);
+  if (!artifact) return;
+  state.openSceneArtifact(id, reduceMotion);
 }
 
 export function openSceneArtifact(id: SceneArtifactId) {
   const state = useStacks.getState();
   if (state.modalOpen || state.panelState !== "closed") return;
-  const artifact = sceneArtifactById(id);
-  if (!artifact || !sceneArtifactPreviewEnabled(artifact)) return;
+  if (!sceneArtifactById(id)) return;
   beginSceneArtifactPreviewOriginSession(id);
   window.history.pushState(
     { ...currentHistoryState(), [HISTORY_KEY]: id },
@@ -236,10 +233,10 @@ export function sceneArtifactFromHistoryState(
   }
   const value = (state as Record<string, unknown>)[HISTORY_KEY];
   if (typeof value !== "string") return null;
-  // An entry written while a now-disabled preview was on reads as no
-  // artifact, so navigating back onto it closes rather than reopens.
-  const artifact = sceneArtifactById(value as SceneArtifactId);
-  return artifact && sceneArtifactPreviewEnabled(artifact)
+  // An entry written for an artifact that no longer exists (the Homework
+  // icon's retired 3D inspector) reads as no artifact, so navigating back
+  // onto it closes rather than reopens.
+  return sceneArtifactById(value as SceneArtifactId)
     ? (value as SceneArtifactId)
     : null;
 }

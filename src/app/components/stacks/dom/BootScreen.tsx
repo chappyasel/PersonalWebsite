@@ -35,15 +35,13 @@ import {
   type AboutBootQuad,
   aboutBootFrameProjection,
 } from "../scene/aboutBootFrameProjection";
-import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
 import {
   ABOUT_BOOT_CAMERA,
   aboutBootPlankProjection,
   projectAboutBootPoint,
 } from "../scene/aboutBootPerspective";
+import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
 import { aboutBootShelfSupportProjection } from "../scene/aboutBootSupportProjection";
-import { ABOUT_GOLF_BALLS } from "../scene/golf/aboutGolfBalls";
-import { GOLF_BALL_RADIUS } from "../scene/golf/golfBallGeometry";
 import { ABOUT_GLOBE_THEME_COLORS } from "../scene/aboutGlobePalette";
 import {
   ABOUT_ROLES,
@@ -75,7 +73,12 @@ import {
   coordinationNodePosition,
   createCoordinationNetwork,
 } from "../scene/coordinationNetwork";
-import { projectIconBody } from "../scene/projectIconGeometry";
+import { ABOUT_GOLF_BALLS } from "../scene/golf/aboutGolfBalls";
+import { GOLF_BALL_RADIUS } from "../scene/golf/golfBallGeometry";
+import {
+  projectIconBody,
+  projectIconOutlineSvg,
+} from "../scene/projectIconGeometry";
 import {
   SHELF_GEOMETRY,
   SHELF_PLANKS,
@@ -1107,39 +1110,33 @@ function RoleIconStackGlyph() {
     const faceRadius =
       Math.max(body.fallbackFaceRadius, body.radius - body.faceInset) *
       SCENE_TO_BOOT_SVG;
+    const facePath = projectIconOutlineSvg(faceHeight, faceRadius);
+    const faceTransform = `translate(${centerX + faceShiftX} ${faceTop + faceHeight / 2}) scale(${projectedFaceWidth / faceHeight} 1)`;
     const clipId = `stacks-boot-role-clip-${role.id}`;
     return (
-      <g key={role.id} data-boot-role={role.id} data-boot-role-yaw={role.yaw}>
+      <g
+        key={role.id}
+        data-boot-role={role.id}
+        data-boot-role-yaw={role.yaw}
+        style={
+          {
+            "--stacks-boot-role-light": role.bootColor.light,
+            "--stacks-boot-role-dark": role.bootColor.dark,
+          } as BootStyle
+        }
+      >
         <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-          <rect
-            x={centerX + faceShiftX - projectedFaceWidth / 2}
-            y={faceTop}
-            width={projectedFaceWidth}
-            height={faceHeight}
-            rx={faceRadius}
-          />
+          <path d={facePath} transform={faceTransform} />
         </clipPath>
-        <rect
+        <path
           className="stacks-boot-role-icon-body"
-          x={centerX - projectedBodyWidth / 2}
-          y={topY}
-          width={projectedBodyWidth}
-          height={size}
-          rx={size * 0.16}
+          d={projectIconOutlineSvg(size, body.radius * SCENE_TO_BOOT_SVG)}
+          transform={`translate(${centerX} ${topY + size / 2}) scale(${projectedBodyWidth / size} 1)`}
         />
-        <rect
+        <path
           className="stacks-boot-role-icon"
-          x={centerX + faceShiftX - projectedFaceWidth / 2}
-          y={faceTop}
-          width={projectedFaceWidth}
-          height={faceHeight}
-          rx={faceRadius}
-          style={
-            {
-              "--stacks-boot-role-light": role.bootColor.light,
-              "--stacks-boot-role-dark": role.bootColor.dark,
-            } as BootStyle
-          }
+          d={facePath}
+          transform={faceTransform}
         />
         <image
           className="stacks-boot-role-artwork"
@@ -1296,9 +1293,7 @@ function LandmarkGlyph({
       return <RoleIconStackGlyph />;
     case "reading-stack":
       return (
-        <ReadingStackGlyph
-          books={readingBooks}
-          colors={readingBookColors}        />
+        <ReadingStackGlyph books={readingBooks} colors={readingBookColors} />
       );
     default:
       return assertNever(glyph);
@@ -1400,14 +1395,17 @@ export function BootScreenArtwork({
                           side *
                             (SHELF_GEOMETRY.width / 2 -
                               SHELF_GEOMETRY.strapInsetX),
-                          (SHELF_GEOMETRY.groundY + SHELF_GEOMETRY.top.centerY) /
+                          (SHELF_GEOMETRY.groundY +
+                            SHELF_GEOMETRY.top.centerY) /
                             2,
                           SHELF_GEOMETRY.strapZ,
                         ])}
                       >
                         <rect
                           data-boot-support-upright={side}
-                          x={bootFixed(projection.upright.x * SCENE_TO_BOOT_SVG)}
+                          x={bootFixed(
+                            projection.upright.x * SCENE_TO_BOOT_SVG,
+                          )}
                           y={bootFixed(
                             -projection.upright.top * SCENE_TO_BOOT_SVG,
                           )}
@@ -1424,7 +1422,9 @@ export function BootScreenArtwork({
                         <rect
                           data-boot-support-foot={side}
                           x={bootFixed(projection.foot.x * SCENE_TO_BOOT_SVG)}
-                          y={bootFixed(-projection.foot.top * SCENE_TO_BOOT_SVG)}
+                          y={bootFixed(
+                            -projection.foot.top * SCENE_TO_BOOT_SVG,
+                          )}
                           width={bootFixed(
                             projection.foot.width * SCENE_TO_BOOT_SVG,
                           )}
@@ -1542,7 +1542,11 @@ export function BootScreenArtwork({
                     shelf, at the live poses UnitAbout seats them at. */}
                 {ABOUT_GOLF_BALLS.map((ball) => {
                   const placed = projectAboutBootPoint(
-                    [ball.base[0], ball.base[1] + GOLF_BALL_RADIUS, ball.base[2]],
+                    [
+                      ball.base[0],
+                      ball.base[1] + GOLF_BALL_RADIUS,
+                      ball.base[2],
+                    ],
                     ABOUT_BOOT_CAMERA,
                   );
                   return (
@@ -1616,9 +1620,7 @@ export function BootScreenArtwork({
               ))}
             </span>
           </p>
-          <div aria-hidden>
-            {includeStageScript ? <BootWaitNotes /> : null}
-          </div>
+          <div aria-hidden>{includeStageScript ? <BootWaitNotes /> : null}</div>
         </div>
       </div>
     </>

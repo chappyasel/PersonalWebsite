@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // Pick a prop up and move it. Lift.tsx's louder sibling: where Lift eases a
 // few millimetres under the pointer, this hands the object over to you.
 //
@@ -111,7 +114,6 @@ import {
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
-import { modelArtifactDiagnosticsController } from "./modelArtifactDiagnostics";
 import type {
   HeldMoveResult,
   HeldPose,
@@ -276,19 +278,6 @@ function measureArtifactFaceSize(root: THREE.Object3D, size: THREE.Vector3) {
   else faceBounds.getSize(size);
 }
 
-let modelArtifactPreviewWarmup: Promise<unknown> | null = null;
-
-function prewarmModelArtifactPreview(artwork: string) {
-  if (
-    !modelArtifactDiagnosticsController.getSnapshot().rendererEnabled ||
-    typeof window === "undefined"
-  )
-    return;
-  modelArtifactPreviewWarmup ??= import("../modal/ModelArtifactStage");
-  const image = new window.Image();
-  image.src = artwork;
-}
-
 // --- the lazily-loaded solver -----------------------------------------------
 //
 // Module scope, not component state: the download is shared by every prop on
@@ -434,26 +423,26 @@ function onEventBlur() {
 function startEventDispatcher() {
   if (eventDispatcherListening || typeof window === "undefined") return;
   eventDispatcherListening = true;
-  window.addEventListener("wheel", onEventWheel, {
+  roomWindowEvents.addEventListener("wheel", onEventWheel, {
     capture: true,
     passive: false,
   });
-  window.addEventListener("pointerdown", onEventDown);
-  window.addEventListener("pointermove", onEventMove);
-  window.addEventListener("pointerup", onEventUp);
-  window.addEventListener("pointercancel", onEventCancel);
-  window.addEventListener("blur", onEventBlur);
+  roomWindowEvents.addEventListener("pointerdown", onEventDown);
+  roomWindowEvents.addEventListener("pointermove", onEventMove);
+  roomWindowEvents.addEventListener("pointerup", onEventUp);
+  roomWindowEvents.addEventListener("pointercancel", onEventCancel);
+  roomWindowEvents.addEventListener("blur", onEventBlur);
 }
 
 function stopEventDispatcher() {
   if (!eventDispatcherListening || typeof window === "undefined") return;
   eventDispatcherListening = false;
-  window.removeEventListener("wheel", onEventWheel, { capture: true });
-  window.removeEventListener("pointerdown", onEventDown);
-  window.removeEventListener("pointermove", onEventMove);
-  window.removeEventListener("pointerup", onEventUp);
-  window.removeEventListener("pointercancel", onEventCancel);
-  window.removeEventListener("blur", onEventBlur);
+  roomWindowEvents.removeEventListener("wheel", onEventWheel, { capture: true });
+  roomWindowEvents.removeEventListener("pointerdown", onEventDown);
+  roomWindowEvents.removeEventListener("pointermove", onEventMove);
+  roomWindowEvents.removeEventListener("pointerup", onEventUp);
+  roomWindowEvents.removeEventListener("pointercancel", onEventCancel);
+  roomWindowEvents.removeEventListener("blur", onEventBlur);
   activeEventEntry = null;
 }
 
@@ -924,8 +913,8 @@ export default function Grabbable({
     () => new THREE.Quaternion(),
     [],
   );
-  /** gWorld_target = camera x relative x THIS. Identity for a model; for a
-   * print it is the inverse of the face's orientation within the group, so
+  /** gWorld_target = camera x relative x THIS. For a print it is the
+   * inverse of the face's orientation within the group, so
    * the FACE arrives camera-facing even when the flat/pinned pose that
    * tilted it is authored on children inside the group. Recomputed every
    * frame because the hover tilt keeps decaying inside the group mid-flight. */
@@ -2524,11 +2513,18 @@ export default function Grabbable({
         interactionState.pressedInteraction === hoverKey &&
         nearPropApproach()?.id !== hoverKey;
       const focused = interactionState.focusedInteraction === hoverKey;
+      // Nor a nod: the approach wrapper resolves its near pose into this nod
+      // group's frame one frame behind whatever the spring did, so a lean
+      // that toggles with the hover at the near prop's edge showed up as the
+      // Homework tile jumping about under a moving pointer. The Mac never
+      // nods and the globe's signature has no lean, which is why only the
+      // tile did it.
       const wants =
         phase.current === "rest" &&
         tiltOnHover &&
         propReactionIsEngaged(interactionState, hoverKey) &&
-        !still;
+        !still &&
+        nearPropApproach()?.id !== hoverKey;
       // Sway measures too, but with the furniture cutoff lifted: foliage
       // already won the archetype in `archetypeFor`, and letting size veto it
       // here would silence the monstera and the large plants, whose leaves are
@@ -2738,8 +2734,6 @@ export default function Grabbable({
           // something you can pick up, several hundred milliseconds before the
           // press. Idempotent, and a no-op on touch or a degraded machine.
           if (physicsEnabled) prewarmGrabbablePhysics();
-          if (artifactEntry?.kind === "model")
-            prewarmModelArtifactPreview(artifactEntry.fallbackImage);
         }}
         onPointerOut={(event) => {
           if (

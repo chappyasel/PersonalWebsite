@@ -45,7 +45,8 @@ export type FieldNoteArtwork =
   | "journal"
   | "atlas"
   | "chapter"
-  | "console";
+  | "console"
+  | "close-up";
 
 export type FieldNoteDefinition = Readonly<{
   id: string;
@@ -433,6 +434,16 @@ export const FIELD_NOTES = [
     hidden: false,
     hint: "The room ships with its console. Find the key.",
     foundCopy: "Opened the scene console.",
+  },
+  {
+    id: "close-encounter",
+    title: "Close Encounter",
+    rarity: "Uncommon",
+    artwork: "close-up",
+    hidden: false,
+    hint: "Bring something up for a closer look, then hold still.",
+    foundCopy:
+      "Had a butterfly land on something you were looking at up close.",
   },
   {
     id: "full-journal",

@@ -2,9 +2,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import {
+  type ObjectNoteCaptionEdit,
+  parseObjectNotes,
+  updateObjectNoteCaptions,
+} from "./objectNotes";
 import { SCENE_PHOTOS } from "~/app/components/stacks/sceneArtifacts";
-
-import { parseObjectNotes, updateObjectNoteCaptions } from "./objectNotes";
 
 export type CaptionEditorPaths = Readonly<{
   sourcePath: string;
@@ -16,6 +19,8 @@ export type CaptionEditorEntry = Readonly<{
   title: string;
   status: "written" | "needs-owner";
   body: string;
+  visitor: boolean;
+  needs?: string;
   section: string;
   kind: "photo" | "object";
   image?: string;
@@ -28,7 +33,7 @@ export type CaptionEditorSnapshot = Readonly<{
 
 export type CaptionEditorSaveInput = Readonly<{
   revision: string;
-  edits: ReadonlyArray<Readonly<{ id: string; body: string }>>;
+  edits: readonly ObjectNoteCaptionEdit[];
 }>;
 
 export type CaptionEditorSaveResult =
@@ -45,9 +50,9 @@ const photoById = new Map<string, { image: string; section: string }>(
     photo.id,
     {
       image: photo.image,
-      section: photo.collection.replace("-photos", "").replace(/^./, (c) =>
-        c.toUpperCase(),
-      ),
+      section: photo.collection
+        .replace("-photos", "")
+        .replace(/^./, (c) => c.toUpperCase()),
     },
   ]),
 );
@@ -67,8 +72,8 @@ const objectSection: Record<string, string> = {
   "egg:clock:alarm": "Systems",
   "link:routineboard": "Systems",
   "action:projects:mac": "Projects",
-  "link:projects:weightlifting-icon": "Projects",
-  "homework-app": "Projects",
+  "action:projects:weightlifting": "Projects",
+  "action:projects:homework": "Projects",
   "grab:paper:5": "Musings",
   "grab:trust-essay:musings": "Musings",
   "grab:vineyard-cutout": "Musings",
@@ -82,20 +87,20 @@ function revisionFor(markdown: string) {
 function snapshotFor(markdown: string): CaptionEditorSnapshot {
   return {
     revision: revisionFor(markdown),
-    entries: parseObjectNotes(markdown)
-      .filter((note) => note.visitor)
-      .map((note) => {
-        const photo = photoById.get(note.id);
-        return {
-          id: note.id,
-          title: note.title,
-          status: note.status,
-          body: note.body,
-          section: photo?.section ?? objectSection[note.id] ?? "Other",
-          kind: photo ? "photo" : "object",
-          ...(photo ? { image: photo.image } : {}),
-        };
-      }),
+    entries: parseObjectNotes(markdown).map((note) => {
+      const photo = photoById.get(note.id);
+      return {
+        id: note.id,
+        title: note.title,
+        status: note.status,
+        body: note.body,
+        visitor: note.visitor,
+        ...(note.needs ? { needs: note.needs } : {}),
+        section: photo?.section ?? objectSection[note.id] ?? "Other",
+        kind: photo ? "photo" : "object",
+        ...(photo ? { image: photo.image } : {}),
+      };
+    }),
   };
 }
 
@@ -121,14 +126,6 @@ async function performCaptionSave(
   const markdown = await readFile(paths.sourcePath, "utf8");
   if (revisionFor(markdown) !== input.revision)
     return { saved: false, reason: "stale" };
-
-  const visitorIds = new Set(
-    parseObjectNotes(markdown)
-      .filter((note) => note.visitor)
-      .map((note) => note.id),
-  );
-  if (input.edits.some((edit) => !visitorIds.has(edit.id)))
-    throw new Error("Caption edit contains an unknown id");
 
   const updated = updateObjectNoteCaptions(markdown, input.edits);
   const baked = `${JSON.stringify(parseObjectNotes(updated), null, 2)}\n`;

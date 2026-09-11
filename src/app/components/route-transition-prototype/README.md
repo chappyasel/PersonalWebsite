@@ -1,11 +1,12 @@
 # Major route transition prototype
 
-Current question: does zooming into the actual clicked link, card, or 3D prop
-make a major page change feel like entering that object?
+Major page changes open from the clicked link, card, or 3D prop. Returning to
+the room closes the departing page toward that entry point.
 
 Source zoom is enabled in production and locally, with no query parameter.
 Scene Diagnostics → Render has a live off switch that resets on reload. The
-floating comparison bar and earlier variants only appear in development.
+floating comparison bar has been removed. Earlier variants remain available
+only through explicit development URLs.
 Production always uses source zoom, including when a URL carries an old variant.
 
 Books and Weightlifting portal links stay on the current main-site origin.
@@ -34,28 +35,51 @@ soften it slightly. The effect now reads more as opening the clicked object
 than diving deep into it. Clipped sources use their visible area. If an origin
 is unavailable, the reveal uses a centred fallback rectangle.
 
-Returning home defers the canvas mount and its eager preload until the native
-reveal finishes. Shader and scene startup otherwise compete with the animation.
-The existing boot screen and readiness gates still handle loading afterward.
-Cancellation, the diagnostics off switch, and a three-second backstop release
-the deferral. Reduced motion and other variants keep their existing startup behavior. Slow mode doubles the backstop along with the animation.
+## Room round trips
 
-Local browser measurements on September 10, 2026, for Books → Home with loaded
-route code: before this change, the reveal took 1537ms with an 875ms frame gap.
-Afterward, a repeated return took 635ms with no frame gaps over 50ms during the
-reveal. A first run after hot reload still had a 184ms hitch. These measurements
-cover the reveal only; the room still rebuilds afterward, and keeping it mounted
-between routes remains a separate change.
+Room to Books, Weightlifting, Systems, Manual, Routine, and the other main
+sections keep the source reveal. Returning to the room reverses the rectangle:
+the viewport edges close inward toward the original entry point over 620ms,
+revealing the room around the departing page. Both pages stay at native size.
+The departing page fades throughout the close: 35% opacity halfway through,
+4% at 80%, and transparent at the endpoint.
 
-Without native View Transitions, a panel expands from the same source bounds,
-the route changes under cover, and the panel fades away. The comparison bar
-reports this fallback. Reduced motion still navigates immediately. Cold route
-compilation can cause a native snapshot to be skipped; the bar reports it.
+The history entry stores a small source descriptor and the room generation.
+DOM sources receive a temporary identity attribute; 3D sources retain their
+interaction ID. No element references, screenshots, or page content enter
+history state. Same-page history replacements by Next or page filters
+retain the descriptor; replacements into another page do not. The controller remeasures after the destination layout commits,
+including the resumed camera's resize. An expired room, removed element, or
+source outside the viewport uses a centered 6% pullback and fade instead.
 
-This pass handles links, cards, and registered 3D portal actions. Existing
-modal open/expand treatments remain separate. Returning via a title link zooms
-from that title; it does not yet reverse into a remembered source card or keep
-the old room mounted.
+Browser Back and Forward between the room and these sections use the same
+direction rules. Back uses the departing page's source descriptor, even if
+the destination room entry remembers an older trip.
+A small head script registers the history listener before Next hydrates. The
+controller binds to it when loaded and holds Next's restore until the old
+snapshot exists, then replays the original state exactly once. It never adds an entry or
+calls history.go. A newer traversal cancels the previous pass. Disabling the
+controller releases a held restore. Same-section changes, book detail routes,
+and modal history retain their own behavior. A bounded in-memory record
+restores each page visit's scroll position after the delayed route commit.
+The departing room ignores history events and URL mirroring once the URL
+belongs to another page. This adapter depends on Next's
+App Router popstate listener; recheck it when upgrading Next.
+
+Scene Diagnostics has a live "Retrace the room entry point" switch for
+comparison. It resets on reload. Turning it off restores the original source
+zoom and stops the room history interception. Reduced motion bypasses capture.
+Browsers without native snapshots use a short panel pullback on return.
+
+The shared layout retains a previously ready room for up to three minutes.
+While parked, its frame loop, input listeners, and audio are paused. Returning
+before expiry reuses the canvas. After expiry, startup waits until the native
+transition finishes, then the existing boot screen handles loading. A
+three-second backstop releases that deferral if capture stalls.
+
+Without native View Transitions, entering a page expands a panel from the
+source bounds, changes the route under cover, and fades the panel away. Cold
+route compilation can cause native capture to be skipped; navigation continues.
 
 ## Earlier signature shutters
 
@@ -67,15 +91,13 @@ commit retains a ten-second backstop so failed development navigation cannot
 leave the overlay up indefinitely.
 
 Returning to a cold homepage can reveal its real boot screen. The shutters do
-not wait for a second 3D loading sequence behind closed doors. Preserving a
-previously loaded room across routes is a later change.
+not wait for a second 3D loading sequence behind closed doors. A ready room remains available during the three-minute return window.
 
 The pass uses CSS transforms through the Web Animations API. It mounts the
 panels synchronously and does not wait for an animation frame to begin. Each
 animation has a deadline and releases its animations and listeners on exit.
 Reduced motion navigates immediately. Failed animations still navigate, and
-rapid repeat clicks cannot start overlapping passes. The 0.5× control doubles
-both motion durations.
+rapid repeat clicks cannot start overlapping passes.
 
 ## Navigation coverage
 
@@ -93,9 +115,26 @@ links retain their normal behavior.
 `SheetLink` and `SheetExpandControl` declare that their existing transitions
 should be preserved. The shutter controller leaves them alone, including the
 small-viewport full-page behavior of document launchers. This pass does not add
-modal-to-page expansion or modal-state restoration.
+modal-state restoration. Expanding a Systems, Manual, or Routine sheet keeps
+the same intercepted presentation and history entry. Its visible return link
+uses the sheet's own source collapse and one history Back. A mounted sheet,
+including an expanded one, bypasses the full-page history capture. The root
+sheet slot has an explicit empty homepage route so a separate navigation to
+`/` also clears the overlay instead of retaining its previous content.
 
-Page title links return through the selected effect to their matching shelf: Books to
+Switching between Systems, Manual, and Routine keeps the current document
+visible while the next route resolves. These intercepted routes have no
+`loading.tsx` fallback, and their links request full-document prefetches.
+The clicked link supplies bounds relative to the sheet's reading area. That
+area uses the same 620ms source reveal, gentle outgoing push, and full-resolution
+incoming clip as full-page navigation. The surrounding sheet stays fixed.
+Its scroll resets at commit, while explicit section hashes retain Next's anchor
+navigation. The global page-animation switch and reduced motion bypass capture
+and source measurement. Without native snapshots, the ready reading area uses
+the same clip reveal directly. The sheet's size, expanded state, launch origin,
+and single history entry survive the switch.
+
+Page title links return through source zoom to their matching shelf: Books to
 `#books`, Weightlifting to `#training`, and Systems documents to `#systems`.
 Root links resolve on the current local origin even if a helper spells the host
 as localhost while the tab uses an IP address.
@@ -107,13 +146,12 @@ leaves the prop's original navigation in place. Sheet launches and arbitrary
 external prop links keep their existing behavior.
 
 Existing standalone subdomain tabs should be reloaded once to enter the shared
-local app. Production subdomain migration, browser Back/Forward transitions,
-and other imperative controllers such as universal search are not part of this
-prototype.
+app. Browser history animation covers room round trips.
+Other imperative controllers such as universal search keep their own behavior.
 
 ## Other comparisons
 
-The floating bar retains the earlier experiments:
+Earlier experiments remain in the source for reference:
 
 - A, shutters: the short panel close/open described above.
 
@@ -122,8 +160,8 @@ The floating bar retains the earlier experiments:
 - D, Books shelf: an SVG counterpart of the Books unit exchanges covers with
   the library. D adds an experimental featured-books row to the library.
 
-Choose these in the bar. An optional `variant` parameter retains that choice
-on reload. Returning to source zoom removes it. D's Books boot illustration is available
+An explicit development `variant` parameter selects an earlier experiment.
+Without it, source zoom runs. D's Books boot illustration is available
 at `/?variant=bookshelf#books`; plain `/#books` uses the ordinary boot again.
 
 D projects the shared Books layout into SVG. Its boot retains the original
@@ -136,7 +174,7 @@ behind a held 2D preview, so this does not measure a standalone 2D mode.
 B and C require native View Transitions and fall back to shutters when that API
 is absent. Their route-update callback resolves at React's layout commit;
 waiting for animation frames inside capture can deadlock it. Cold development
-compilation can still cause native capture to be skipped, which the bar reports.
+compilation can still cause native capture to be skipped, without blocking navigation.
 
 ## Verification and scope
 
@@ -144,11 +182,21 @@ Automated checks cover DOM and projected 3D source bounds, origin zoom geometry,
 the panel fallback, shutter sequencing and cancellation, reduced motion,
 stalled-animation fallback, real card click/keyboard launchers, retained modal
 behavior, SVG ordering and border colors, and default development/production
-policy. No interactive browser inspection has been performed for this pass.
+policy. Directional tests cover source identity, resized bounds, expired-room
+fallback, history-state preservation, one-time restore, rapid traversal, and
+disabling during capture. Weightlifting regressions cover a complete prop/title
+round trip, resized source bounds, Back/Forward with an older room history
+entry, and scroll restoration. The picker is absent in development and production.
+
+Production Chromium checks on September 11, 2026 covered the library heading
+and title-link round trip, resized source bounds, Back/Forward, preserved
+reading position and history length, book-modal Back, rapid traversal, and
+the expired-room fallback. The earlier scaled return was inspected at its midpoint. The subsequent
+edge-inward clip correction was checked with geometry and navigation tests.
 
 Field Notes: no discovery added. Changing a navigation treatment fails quality
 bar test 2; it does not add a meaningful visitor action.
 
 Branch: `prototype/major-route-transitions`. The illustrated shelf remains an
-experiment. Source zoom is the current candidate for full-page navigation;
-modal-state-aware expansion and preserving the room are later work.
+experiment. Source zoom handles full-page navigation;
+room round trips use the reverse close.

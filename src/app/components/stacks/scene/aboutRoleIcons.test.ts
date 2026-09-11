@@ -77,7 +77,7 @@ describe("About Role Icons", () => {
 
   it("keeps the half-size billet's rounded extrusions physically valid", () => {
     const body = projectIconBody(ABOUT_ROLE_ICON_SIZE);
-    expect(body.depth).toBeGreaterThan(body.radius * 2);
+    expect(body.depth).toBeGreaterThan(body.edgeRadius * 2);
     expect(body.fallbackFaceDepth).toBeGreaterThan(body.fallbackFaceRadius * 2);
     expect(body.size - body.faceInset * 2).toBeGreaterThan(
       body.fallbackFaceRadius * 2,
@@ -101,7 +101,8 @@ describe("About Role Icons", () => {
     expect(ABOUT_ROLE_STACK_HEIGHT).toBeLessThan(LOWER_SHELF_HEADROOM);
     // The billets sit on the awards' own depth line, inside the plank.
     expect(Math.abs(SHELF_GEOMETRY.lower.centerZ)).toBeLessThan(
-      SHELF_GEOMETRY.lower.depth / 2 - ABOUT_ROLE_ICON_SIZE * 0.375,
+      SHELF_GEOMETRY.lower.depth / 2 -
+        projectIconBody(ABOUT_ROLE_ICON_SIZE).depth,
     );
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].glyph).toBe("role-icons");
   });

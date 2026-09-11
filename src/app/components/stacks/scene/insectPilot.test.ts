@@ -23,6 +23,8 @@ import {
   insectBodyPitchForSpeed,
   insectFlapActivation,
   insectPilotPhaseLimits,
+  insectStrokeLift,
+  insectStrokeRise,
   insectWingAmplitudeForSpeed,
   insectWingFrequencyForSpeed,
   restingIdleBob,
@@ -1223,19 +1225,80 @@ describe("Flap Layer", () => {
     }
   });
 
-  it("pitches the thorax within the published amplitude and only when moving", () => {
+  it("pitches the thorax a little per stroke, and only when moving", () => {
     for (const [species, profile] of profiles) {
       expect(insectBodyPitchForSpeed(profile, 0)).toBeLessThan(0.02);
       const cruising = insectBodyPitchForSpeed(profile, profile.maxSpeed);
-      expect(cruising).toBeGreaterThan(0.2);
+      expect(cruising).toBeGreaterThan(0.08);
       expect(cruising).toBeLessThanOrEqual(profile.bodyPitchAmplitude + 1e-9);
-      // Thirty degrees for a butterfly, twenty for a moth.
+      // Eight degrees for a butterfly, six for a moth. It was thirty and
+      // twenty, for a flat cut-out that needed the swing to be seen at all;
+      // on a solid body that read as teetering.
       expect(profile.bodyPitchAmplitude).toBeCloseTo(
-        species === "butterfly" ? 0.524 : 0.349,
+        species === "butterfly" ? 0.14 : 0.1,
         3,
       );
-      expect(profile.bodyPitchFrequency).toBeLessThanOrEqual(3);
+      expect(profile.bodyPitchAmplitude).toBeLessThan(0.2);
+      // The nose may follow a climb much further than a stroke tips it.
+      expect(profile.climbPitchLimit).toBeGreaterThan(
+        profile.bodyPitchAmplitude * 2,
+      );
     }
+  });
+
+  it("bounds the body on each beat: a fast rise, a slow sink, no drift", () => {
+    let sum = 0;
+    let rising = 0;
+    const samples = 3600;
+    for (let i = 0; i < samples; i++) {
+      const phase = (i / samples) * Math.PI * 2;
+      sum += insectStrokeLift(phase);
+      if (insectStrokeRise(phase) > 0) rising++;
+    }
+    // Zero mean, so the bound never carries the drawn body away from the
+    // datum over time.
+    expect(Math.abs(sum / samples)).toBeLessThan(1e-9);
+    // The downstroke throws the body up in well under half the cycle and it
+    // sinks through the rest, which is what tells a bound from a bob.
+    expect(rising / samples).toBeGreaterThan(0.3);
+    expect(rising / samples).toBeLessThan(0.45);
+    // The rise is centred on the downstroke (wing angle falling through zero
+    // at phase π).
+    expect(insectStrokeRise(Math.PI)).toBeCloseTo(1, 6);
+    expect(Math.abs(insectStrokeLift(Math.PI))).toBeLessThan(1e-9);
+  });
+
+  it("rides the Stroke Bound in flight and stands on the datum at rest", () => {
+    const world = new PrimitiveFlightWorld();
+    const value = pilot(world);
+    let peak = 0;
+    for (let frame = 0; frame < 60 * 2; frame++) {
+      advanceInsectPilot(value, 1 / 60, world);
+      peak = Math.max(peak, Math.abs(value.stroke.y));
+    }
+    // Visible, and well inside the sweep sphere's slack over the wing span.
+    expect(peak).toBeGreaterThan(value.profile.strokeLift * 0.8);
+    expect(peak).toBeLessThan(0.012);
+
+    expect(
+      commandInsectPilot(
+        value,
+        { type: "land", target: landingTarget("bound") },
+        world,
+      ),
+    ).toBe(true);
+    let landed = false;
+    for (let frame = 0; frame < 60 * 40 && !landed; frame++) {
+      advanceInsectPilot(value, 1 / 60, world);
+      if (value.phase === "rest") landed = true;
+    }
+    expect(landed).toBe(true);
+    for (let frame = 0; frame < 60; frame++)
+      advanceInsectPilot(value, 1 / 60, world);
+    expect(
+      Math.hypot(value.stroke.x, value.stroke.y, value.stroke.z),
+    ).toBeLessThan(1e-4);
+    expect(Math.abs(value.climbPitch)).toBeLessThan(0.01);
   });
 
   it("flares nose-up into contact and settles flat at rest", () => {
@@ -1267,7 +1330,7 @@ describe("Flap Layer", () => {
   it("cannot move the insect", () => {
     // The Flap Layer writes one angle. Zeroing every flap value must leave the
     // flight path bit-identical, which is what makes it free to tune.
-    const flown = (bodyPitchAmplitude: number) => {
+    const flown = (scale: number) => {
       const world = new PrimitiveFlightWorld();
       const value = createInsectPilot({
         occupantId: "flap",
@@ -1279,7 +1342,13 @@ describe("Flap Layer", () => {
           velocity: { x: 0.3, y: 0, z: 0 },
           acceleration: { x: 0, y: 0, z: 0 },
         },
-        profile: { ...BUTTERFLY_PILOT_PROFILE, bodyPitchAmplitude },
+        profile: {
+          ...BUTTERFLY_PILOT_PROFILE,
+          bodyPitchAmplitude: scale,
+          strokeLift: scale,
+          strokeSurge: scale,
+          strokeSway: scale,
+        },
       });
       commandInsectPilot(
         value,
@@ -1601,11 +1670,9 @@ describe("the perched idle", () => {
     expect(half).toBeCloseTo(0, 6);
     expect(threeQuarter).toBeCloseTo(-profile.restingIdle.bob, 6);
 
-    // Tiny, as asked. A perched insect that pitches like a flying one reads as
-    // a landing that never finished.
-    expect(profile.restingIdle.bob).toBeLessThan(
-      profile.bodyPitchAmplitude / 4,
-    );
+    // Tiny, as asked. A perched insect that pitches like a landing one reads
+    // as a landing that never finished.
+    expect(profile.restingIdle.bob).toBeLessThan(profile.flarePitch / 4);
   });
 
   it("never puts two residents on the same schedule", () => {

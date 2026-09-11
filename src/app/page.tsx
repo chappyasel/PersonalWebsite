@@ -25,12 +25,14 @@ import Quotes from "./components/Quotes";
 import Talks from "./components/Talks";
 import Weightlifting from "./components/Weightlifting";
 import BooksBootPrototype from "./components/route-transition-prototype/BooksBootPrototype";
+import FlatHome from "./components/stacks/FlatHome";
 import StacksHome from "./components/stacks/StacksHome";
 import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";
 import { type StacksData } from "./components/stacks/data";
 import BootScreen, {
   BootReadingBooksBridge,
 } from "./components/stacks/dom/BootScreen";
+import { ResidentRoom } from "./components/stacks/room/ResidentRoom";
 import { proxiedBookCover } from "./components/stacks/scene/bookCoverTexture";
 import { featuredBookThickness } from "./components/stacks/scene/units/featuredBookGeometry";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
@@ -283,14 +285,16 @@ async function HomePageContent({
       />
       {/* The book modal's breadcrumb hovers the library's stats card, the
           same figures the Book Notes placard shows; no second query. */}
-      <SitePageCardsProvider
-        cards={{
-          books: { stats: bookPlacard.stats, yearly: bookPlacard.yearly },
-          weightlifting: null,
-        }}
-      >
-        <StacksHome data={data} slots={slots} />
-      </SitePageCardsProvider>
+      <ResidentRoom fallback={<FlatHome slots={slots} animated={false} />}>
+        <SitePageCardsProvider
+          cards={{
+            books: { stats: bookPlacard.stats, yearly: bookPlacard.yearly },
+            weightlifting: null,
+          }}
+        >
+          <StacksHome data={data} slots={slots} />
+        </SitePageCardsProvider>
+      </ResidentRoom>
     </>
   );
 }
