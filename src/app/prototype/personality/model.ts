@@ -43,6 +43,28 @@ export function zScore(score: number, norm: Norm) {
   return (score - norm.mean) / norm.sd;
 }
 
+// Equal weight per trait. Require all five so every person is comparable.
+export function aggregateDistance(
+  scores: ScoreRecord["scores"],
+  norms: Snapshot["norms"],
+) {
+  let squaredDistance = 0;
+  for (const trait of traits) {
+    const score = scores[trait];
+    const norm = norms[trait];
+    if (
+      score === undefined ||
+      !Number.isFinite(score) ||
+      !Number.isFinite(norm.mean) ||
+      !Number.isFinite(norm.sd) ||
+      norm.sd <= 0
+    )
+      return undefined;
+    squaredDistance += zScore(score, norm) ** 2;
+  }
+  return Math.sqrt(squaredDistance / traits.length);
+}
+
 // Normal CDF approximation, with absolute error below 0.00000015.
 export function percentile(z: number) {
   const t = 1 / (1 + 0.2316419 * Math.abs(z));

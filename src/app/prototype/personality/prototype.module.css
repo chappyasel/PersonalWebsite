@@ -525,3 +525,128 @@
     min-width: 560px;
   }
 }
+
+.aggregateLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 34px;
+}
+.toolbar[data-aggregate="true"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.aggregateNote {
+  font-size: 13px;
+  color: var(--pc-muted);
+  line-height: 1.7;
+  margin: 16px 0 24px;
+  max-width: 760px;
+}
+.distanceAxis,
+.distanceRow {
+  display: grid;
+  grid-template-columns: 165px minmax(0, 1fr) 52px;
+  gap: 20px;
+}
+.distanceAxis {
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--pc-muted);
+  margin: 30px 0 10px;
+}
+.distanceAxis > div {
+  position: relative;
+  height: 20px;
+}
+.distanceAxis > div > span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.distanceAxis > span:last-child {
+  text-align: right;
+}
+.distanceRow {
+  width: 100%;
+  height: auto;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  text-align: left;
+}
+.distanceRow[aria-pressed="true"] {
+  background: #e1e8df;
+}
+.distanceName {
+  white-space: normal;
+}
+.distanceRow strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.distanceTrack {
+  height: 8px;
+  background: #e5eae5;
+  border-radius: 20px;
+}
+.distanceTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: 20px;
+}
+.aggregateNumber {
+  font-size: 48px;
+  letter-spacing: -0.04em;
+  margin: 24px 0;
+  line-height: 1;
+}
+.aggregateNumber small {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--pc-muted);
+  margin-top: 10px;
+}
+.distanceBreakdown {
+  margin: 16px 0 24px;
+}
+.distanceBreakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 12px;
+}
+.distanceBreakdown span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.distanceBreakdown i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.distanceBreakdown strong {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1050px) {
+  .aggregateLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .toolbar[data-aggregate="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .distanceAxis,
+  .distanceRow {
+    grid-template-columns: 115px minmax(0, 1fr) 40px;
+    gap: 12px;
+  }
+  .distanceRow {
+    font-size: 12px;
+  }
+  .distanceAxis {
+    font-size: 10px;
+  }
+}

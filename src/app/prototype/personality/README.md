@@ -7,6 +7,9 @@ Run `pnpm prototype:personality`, then visit http://localhost:3016/prototype/per
 - `?variant=A` focuses on one trait, with everyone on the same curve.
 - `?variant=B` stacks all five curves beside the selected person's results.
 - `?variant=C` compares percentiles in a sortable matrix with a curve inspector.
+- `?variant=D` ranks people by their root-mean-square z-score across all five traits, with signed trait distances for the selected person.
+
+Overall distance uses `sqrt(sum(z_trait ** 2) / 5)` relative to the saved reference means. Every trait has equal weight; positive and negative deviations do not cancel. Only complete, finite five-trait profiles qualify. The ranking respects person filters and snapshot preference. This is a descriptive distance in trait SD units, not a joint population z-score, percentile, or estimate of rarity. It does not adjust for trait correlations.
 
 Use the floating arrows or the left and right keyboard arrows to switch views. Selections survive view switches. Reload resets selections. Each plotted dot and name can select a person. The source preference chooses one snapshot per person and falls back to their only result when there is no alternative.
 

@@ -1,6 +1,6 @@
 "use client";
 
-// Three throwaway views on /prototype/personality?variant=A|B|C.
+// Four throwaway views on /prototype/personality?variant=A|B|C|D.
 // Question: is a focused curve, five-curve overview, or matrix easiest to compare?
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 
+import AggregateView from "./AggregateView";
 import {
   type Norm,
   type Person,
@@ -41,6 +42,7 @@ const variants = [
   { key: "A", name: "One curve" },
   { key: "B", name: "All five" },
   { key: "C", name: "Compare everyone" },
+  { key: "D", name: "Overall distance" },
 ];
 const poles: Record<Trait, [string, string]> = {
   Openness: ["Familiar & practical", "Curious & exploratory"],
@@ -654,13 +656,15 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
           <span>Your friends, family, and saved results.</span>
         </p>
       </header>
-      <div className={styles.toolbar}>
-        <Choice
-          label="Trait"
-          value={trait}
-          options={traits.map((t) => ({ value: t, label: t }))}
-          onChange={(value) => setTrait(value as Trait)}
-        />
+      <div className={styles.toolbar} data-aggregate={variant === "D"}>
+        {variant !== "D" && (
+          <Choice
+            label="Trait"
+            value={trait}
+            options={traits.map((t) => ({ value: t, label: t }))}
+            onChange={(value) => setTrait(value as Trait)}
+          />
+        )}
         <Choice
           label="Show"
           value={group}
@@ -690,19 +694,23 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
           onChange={setFocusId}
         />
       </div>
-      <p className={styles.modelNote}>
-        The curve uses the reference values saved in your analysis. Percentiles
-        are model estimates; the dots are your actual scores. The shaded band is
-        one standard deviation either side of the mean.
-      </p>
+      {variant !== "D" && (
+        <p className={styles.modelNote}>
+          The curve uses the reference values saved in your analysis.
+          Percentiles are model estimates; the dots are your actual scores. The
+          shaded band is one standard deviation either side of the mean.
+        </p>
+      )}
       {props ? (
         <div className={styles.visual}>
           {variant === "A" ? (
             <VariantA {...props} />
           ) : variant === "B" ? (
             <VariantB {...props} />
-          ) : (
+          ) : variant === "C" ? (
             <VariantC {...props} />
+          ) : (
+            <AggregateView {...props} />
           )}
         </div>
       ) : (
@@ -829,9 +837,10 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
         </Accordion>
       </div>
       <footer className={styles.footer} aria-live="polite">
-        View {variant} · {trait} · {group} · {people.length} shown · Inspecting{" "}
-        {focus?.name ?? "nobody"} · Preferred source:{" "}
-        {preference === "directory" ? "spreadsheet" : "notebook"}
+        View {variant} ·{" "}
+        {variant === "D" ? "All five traits, RMS distance" : trait} · {group} ·{" "}
+        {people.length} shown · Inspecting {focus?.name ?? "nobody"} · Preferred
+        source: {preference === "directory" ? "spreadsheet" : "notebook"}
       </footer>
       <PrototypeSwitcher variant={variant} />
     </main>
