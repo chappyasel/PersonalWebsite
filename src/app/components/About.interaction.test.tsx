@@ -29,7 +29,9 @@ describe("About bio section links", () => {
 
     fireEvent.click(screen.getByRole("link", { name: "speak" }));
 
-    expect(window.location.hash).toBe("#talks");
+    // Talks owns a path, so the section link writes that path, not a hash.
+    expect(window.location.pathname).toBe("/talks");
+    expect(window.location.hash).toBe("");
     expect(travelTo).toHaveBeenCalledWith(6);
   });
 });

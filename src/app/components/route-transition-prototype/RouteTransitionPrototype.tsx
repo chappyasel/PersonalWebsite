@@ -15,6 +15,8 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
+import { isRoomPathname } from "~/lib/site/roomRoutes";
+
 import { type BooksShelfPrototypeHandle } from "./BooksShelfPrototype";
 import { installHistoryTransition } from "./historyTransition";
 import { PROTOTYPE_NAVIGATION_EVENT, prototypeDestination } from "./navigation";
@@ -49,7 +51,11 @@ const DESTINATIONS = [
   ["/books", "Books"],
   ["/weightlifting", "Workouts"],
 ] as const;
-const section = (path: string) => path.split("/")[1] ?? "";
+// Every room pathname is one section, the room, so travel between its
+// stops never reads as a route change.
+const section = (path: string) =>
+  isRoomPathname(path) ? "" : (path.split("/")[1] ?? "");
+const isRoom = (url: URL) => isRoomPathname(url.pathname);
 
 function pause(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve) => {
@@ -205,9 +211,9 @@ export default function RouteTransitionPrototype() {
       );
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const speed = 1;
-    setTarget(url.pathname === "/" ? "Home" : section(url.pathname));
+    setTarget(isRoom(url) ? "Home" : section(url.pathname));
     setPhase("preparing");
-    if (variant === "bookshelf" && url.pathname === "/") {
+    if (variant === "bookshelf" && isRoom(url)) {
       url.hash = "books";
       url.searchParams.delete("transitionPrototype");
       url.searchParams.set("variant", "bookshelf");
@@ -215,7 +221,7 @@ export default function RouteTransitionPrototype() {
 
     if (
       (variant === "shutters" || variant === "origin") &&
-      url.pathname === "/" &&
+      isRoom(url) &&
       !url.hash &&
       !traversal
     ) {
@@ -291,10 +297,10 @@ export default function RouteTransitionPrototype() {
       } else if (
         variant === "bookshelf" &&
         booksShelf.current &&
-        (url.pathname === "/books" || url.pathname === "/")
+        (url.pathname === "/books" || isRoom(url))
       ) {
         await booksShelf.current.transition(
-          url.pathname === "/",
+          isRoom(url),
           commit,
           signal,
           speed,
@@ -343,7 +349,7 @@ export default function RouteTransitionPrototype() {
         const root = document.documentElement;
         if (
           variant === "origin" &&
-          url.pathname === "/" &&
+          isRoom(url) &&
           !roomResidency.hasReadyRoom()
         ) {
           useRouteTransitionPrototype.setState({ deferSceneStartup: true });
@@ -359,7 +365,7 @@ export default function RouteTransitionPrototype() {
           root.style.setProperty("--route-origin-zoom", geometry.zoom);
           root.style.setProperty("--route-origin-clip", geometry.clip);
         }
-        root.dataset.routeDirection = url.pathname === "/" ? "back" : "forward";
+        root.dataset.routeDirection = isRoom(url) ? "back" : "forward";
         root.style.setProperty(
           "--route-prototype-duration",
           `${(variant === "origin" ? 620 : 900) * speed}ms`,

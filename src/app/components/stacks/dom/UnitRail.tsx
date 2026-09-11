@@ -9,12 +9,7 @@
 // the canonical section name; a unit may opt into a shorter navigation-only
 // label without changing the title of the destination it opens.
 import { publishAboutBootStage } from "../boot/aboutBootStage";
-import {
-  GOLF_STOP_POSITION,
-  UNITS,
-  UNIT_COUNT,
-  unitUrlForLocation,
-} from "../data";
+import { GOLF_STOP_POSITION, UNITS, UNIT_COUNT, unitUrl } from "../data";
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
@@ -294,11 +289,7 @@ export default function UnitRail() {
       window.history.pushState(
         null,
         "",
-        unitUrlForLocation(
-          window.location.pathname,
-          window.location.search,
-          index,
-        ),
+        unitUrl(index, window.location.search),
       );
     };
     if (panelState === "open" || panelState === "opening") {

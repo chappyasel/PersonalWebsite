@@ -46,8 +46,8 @@ import {
   universalSearchZeroResultsProperties,
 } from "~/lib/analytics";
 import { type FontOption, useFont } from "~/lib/font-provider";
-import { type ThemeChoice } from "~/lib/theme";
 import { SITE_PAGES } from "~/lib/site/pages";
+import { type ThemeChoice } from "~/lib/theme";
 import { runCommandAction } from "~/lib/universal-search/actions";
 import { queryServerSearch } from "~/lib/universal-search/client-providers";
 import { navigateUniversalSearchResult } from "~/lib/universal-search/navigation";
@@ -202,10 +202,7 @@ function commandMatches(query: string): RankedCommandEntry[] {
 /** The tile a page's browser tab wears, from the page's own icon route: a
  * bare /tab-icon on a subdomain site (the proxy only knows the bare path
  * there), or under the page's path on the main host (/systems/tab-icon). */
-function pageTileUrl(
-  entry: CommandDestinationEntry,
-  location: SearchLocation,
-) {
+function pageTileUrl(entry: CommandDestinationEntry, location: SearchLocation) {
   const prefix = (entry.target.path ?? "").replace(/\/+$/, "");
   return resolveDestinationTarget(
     { kind: "site", site: entry.target.site, path: `${prefix}/tab-icon` },
@@ -1094,6 +1091,9 @@ export function UniversalSearchPalette(props: UniversalSearchPaletteProps) {
           location: window.location,
           notifySameDocument: () =>
             window.dispatchEvent(new PopStateEvent("popstate")),
+          pushSameDocument: (path) => window.history.pushState(null, "", path),
+          notifyExplicitDestination: () =>
+            window.dispatchEvent(new HashChangeEvent("hashchange")),
           // Same-origin jumps on interceptor-free hosts stay in-app.
           softNavigate: (path) => router.push(path),
         }),
