@@ -275,11 +275,7 @@ export default function StacksHome({
   // render that carried `boot` here happened before it.
   useEffect(() => {
     if (!worldBoot.getView().worldMounted) return;
-    if (
-      process.env.NODE_ENV === "development" &&
-      useRouteTransitionPrototype.getState().deferSceneStartup
-    )
-      return;
+    if (useRouteTransitionPrototype.getState().deferSceneStartup) return;
     void (
       StacksCanvas as unknown as { render?: { preload?: () => void } }
     ).render?.preload?.();
@@ -507,21 +503,13 @@ export default function StacksHome({
         >
           <CanvasBoundary onError={demote}>
             <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
-              {process.env.NODE_ENV === "development" ? (
-                <SceneStartupGate>
-                  <StacksCanvas
-                    data={data}
-                    onReady={reportFirstFrame}
-                    onLost={reportLostContext}
-                  />
-                </SceneStartupGate>
-              ) : (
+              <SceneStartupGate>
                 <StacksCanvas
                   data={data}
                   onReady={reportFirstFrame}
                   onLost={reportLostContext}
                 />
-              )}
+              </SceneStartupGate>
             </Profiler>
           </CanvasBoundary>
           <style>{`

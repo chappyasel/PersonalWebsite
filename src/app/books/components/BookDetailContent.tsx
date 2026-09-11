@@ -1,5 +1,6 @@
 "use client";
 
+import { useBookPath } from "../hooks/useBookPath";
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
 import {
   ArrowSquareOutIcon,
@@ -53,7 +54,7 @@ import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
-import { getBookPath, getBookShareUrl, getBooksPath } from "~/lib/books/paths";
+import { getBookShareUrl, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book, BookReading } from "~/lib/books/types";
 import { abandonedPercent } from "~/lib/books/types";
 import { cn } from "~/lib/util";
@@ -810,6 +811,8 @@ export function BookDetailContent({
     });
   }, [book.id, book.title, book.author, book.rating, book.tags]);
 
+  const bookPath = useBookPath();
+
   const handleNotionClick = () => {
     capture("book_notion_opened", {
       book_id: book.id,
@@ -1236,7 +1239,7 @@ export function BookDetailContent({
             <SheetControlCluster className="absolute right-6 top-0.5 z-10 xs:right-14 sm:top-2 lg:top-[10px]">
               {!expanded && (
                 <SheetExpandControl
-                  href={modalBookHref ?? getBookPath(bookId)}
+                  href={modalBookHref ?? bookPath(bookId)}
                   onClick={onExpand}
                 />
               )}

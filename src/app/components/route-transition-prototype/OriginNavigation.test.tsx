@@ -59,8 +59,31 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   setInteractionRectProjectionResolver(null);
   Reflect.deleteProperty(document, "startViewTransition");
+});
+
+it("animates production portals without showing comparison controls", async () => {
+  vi.stubEnv("NODE_ENV", "production");
+  useRouteTransitionPrototype.setState({ variant: "shutters" });
+  const view = render(
+    <>
+      <RouteTransitionPrototype />
+      <a href="https://books.chappyasel.com/" target="_blank">
+        Book Notes
+      </a>
+    </>,
+  );
+  expect(
+    screen.queryByRole("region", { name: "Route transition prototype" }),
+  ).toBeNull();
+  await act(async () => fireEvent.click(screen.getByText("Book Notes")));
+  expect(navigation.router.push).toHaveBeenCalledWith("/books");
+  expect(document.documentElement.dataset.routePrototype).toBe("origin");
+  navigation.pathname = "/books";
+  await act(async () => view.rerender(<RouteTransitionPrototype />));
+  await act(async () => finish());
 });
 
 it("zooms from the clicked link's actual rectangle and releases capture at route commit", async () => {

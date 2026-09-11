@@ -1,6 +1,7 @@
 "use client";
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
+import { useBookPath } from "../hooks/useBookPath";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -72,6 +73,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
   const { closeModal, openModalById } = useModalActions();
   const pathname = usePathname();
+  const bookPath = useBookPath();
   // The card that opened this modal pushed the shelf's own query along with
   // the book path, so these are the shelf's size, sort and filters.
   const searchParams = useSearchParams();
@@ -186,7 +188,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
           ? inlineBookIdFromHistory(window.location.pathname, event.state)
           : bookIdFromPathname(
               window.location.pathname,
-              fromStacks || process.env.NODE_ENV === "development",
+              fromStacks || bookPath("_").startsWith("/books/"),
             );
       if (id) {
         if (
@@ -216,6 +218,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   }, [
     isModalOpen,
     fromStacks,
+    bookPath,
     closeModal,
     onCloseStart,
     openModalById,
@@ -239,7 +242,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
         ? inlineBookIdFromHistory(pathname, window.history.state)
         : bookIdFromPathname(
             pathname,
-            fromStacks || process.env.NODE_ENV === "development",
+            fromStacks || bookPath("_").startsWith("/books/"),
           )) === bookId
     ) {
       sawOwnPathRef.current = true;
@@ -254,12 +257,13 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     isModalOpen,
     bookId,
     fromStacks,
+    bookPath,
     closeModal,
     onCloseStart,
     presentation?.source,
   ]);
 
-  const expandHref = fullBookPageHref(bookId, presentation);
+  const expandHref = fullBookPageHref(bookId, presentation, bookPath(bookId));
 
   // A tag leads to the shelf narrowed to that tag. Over the 3D homepage that
   // is a real cross-host link; on Books it is the grid already sitting under

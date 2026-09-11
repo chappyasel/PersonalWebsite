@@ -2,12 +2,13 @@
  * Generate the path for a book detail page
  * @param bookId - The book ID
  * @param queryParams - Optional query string (without leading ?)
- * @returns The shared app path locally, or the Books-host path in production.
+ * @returns A book path under the given base, defaulting to the standalone Books host.
  */
-export function getBookPath(bookId: string, queryParams?: string): string {
-  // Local Books entry points redirect to the main app's /books route. Keep
-  // this independent of window so server and client render identical hrefs.
-  const prefix = process.env.NODE_ENV === "development" ? "/books" : "";
+export function getBookPath(
+  bookId: string,
+  queryParams?: string,
+  prefix = "",
+): string {
   const basePath = `${prefix}/${bookId}`;
   return queryParams ? `${basePath}?${queryParams}` : basePath;
 }

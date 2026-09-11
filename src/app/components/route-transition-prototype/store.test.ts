@@ -7,7 +7,7 @@ afterEach(() => {
 
 it.each([
   ["development", true],
-  ["production", false],
+  ["production", true],
 ] as const)(
   "defaults the prototype to %s: %s without URL parameters",
   async (environment, enabled) => {

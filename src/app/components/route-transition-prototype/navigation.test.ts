@@ -34,12 +34,33 @@ it.each([
   vi.stubEnv("NODE_ENV", "development");
   expect(prototypeDestination(href, from)?.href).toBe(expected);
 });
-it("does not normalize production cross-origin navigation", () => {
+it("keeps production portal navigation in the current main app", () => {
   vi.stubEnv("NODE_ENV", "production");
   expect(
     prototypeDestination(
       "https://weightlifting.chappyasel.com/",
       "https://www.chappyasel.com/",
-    ),
-  ).toBeNull();
+    )?.href,
+  ).toBe("https://www.chappyasel.com/weightlifting");
+});
+it("normalizes the main domain alias on the return trip", () => {
+  vi.stubEnv("NODE_ENV", "production");
+  expect(
+    prototypeDestination(
+      "https://chappyasel.com/",
+      "https://www.chappyasel.com/books",
+    )?.href,
+  ).toBe("https://www.chappyasel.com/");
+});
+it("leaves external sites and local URLs alone in production", () => {
+  vi.stubEnv("NODE_ENV", "production");
+  for (const href of [
+    "https://example.com/books",
+    "http://books.localhost:3000/",
+    "http://localhost:3000/",
+  ]) {
+    expect(
+      prototypeDestination(href, "https://www.chappyasel.com/"),
+    ).toBeNull();
+  }
 });

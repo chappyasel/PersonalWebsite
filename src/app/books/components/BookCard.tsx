@@ -1,6 +1,7 @@
 "use client";
 
 import { useModalActions } from "../contexts/BookPreviewContext";
+import { useBookPath } from "../hooks/useBookPath";
 import {
   formatLength,
   formatReadDates,
@@ -26,7 +27,6 @@ import { memo, useEffect, useRef, useState } from "react";
 
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
-import { getBookPath } from "~/lib/books/paths";
 import {
   abandonedPercent,
   isCurrentlyReading,
@@ -171,6 +171,7 @@ export const BookCard = memo(function BookCard({
   const cardRef = useRef<HTMLButtonElement>(null);
   useIntersectionMotion(cardRef);
   const searchParams = useSearchParams();
+  const bookPath = useBookPath();
   const utils = api.useUtils();
   const [copied, setCopied] = useState(false);
   const [isHoveringCopyZone, setIsHoveringCopyZone] = useState(false);
@@ -210,14 +211,14 @@ export const BookCard = memo(function BookCard({
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
   // Preserve current query params when navigating to book detail
-  const bookUrl = getBookPath(book.id, searchParams.toString());
+  const bookUrl = bookPath(book.id, searchParams.toString());
 
   const handleCopyLink = () => {
     capture("book_link_copied", {
       book_id: book.id,
       book_title: book.title,
     });
-    const fullUrl = `${window.location.origin}${getBookPath(book.id)}`;
+    const fullUrl = `${window.location.origin}${bookPath(book.id)}`;
     void navigator.clipboard.writeText(fullUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);

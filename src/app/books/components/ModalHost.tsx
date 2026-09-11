@@ -1,6 +1,7 @@
 "use client";
 
 import { useModalState } from "../contexts/BookPreviewContext";
+import { useBookPath } from "../hooks/useBookPath";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
@@ -29,10 +30,9 @@ export type ModalPresentation = {
 export function fullBookPageHref(
   bookId: string,
   presentation?: ModalPresentation,
+  bookPath = getBookPath(bookId),
 ): string {
-  return presentation
-    ? `${presentation.booksHref}/${bookId}`
-    : getBookPath(bookId);
+  return presentation ? `${presentation.booksHref}/${bookId}` : bookPath;
 }
 
 export function ModalHost({
@@ -41,13 +41,14 @@ export function ModalHost({
   presentation?: ModalPresentation;
 }) {
   const { isModalOpen, selectedBookId } = useModalState();
+  const bookPath = useBookPath();
   // The net under the openers' own phone-size checks (sheetRoute.ts): every
   // opener pushes the book's history entry as it opens, so if the modal is
   // still asked to open on a small viewport, replacing that entry with the
   // full page keeps back on the shelf or the world. Nothing renders
   // meanwhile.
   const fullPageHref = selectedBookId
-    ? fullBookPageHref(selectedBookId, presentation)
+    ? fullBookPageHref(selectedBookId, presentation, bookPath(selectedBookId))
     : null;
   const bypassed = isModalOpen && fullPageHref !== null && prefersFullPage();
   useEffect(() => {

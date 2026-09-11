@@ -7,8 +7,8 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import Link from "next/link";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import RouteTransitionPrototype from "./RouteTransitionPrototype";
 import { useRouteTransitionPrototype } from "./store";
@@ -76,6 +76,8 @@ it.each(["click", "Enter"])(
         </PlacardNestedLinkCard>
       </>,
     );
+    // The comparison-only shelf code now loads lazily.
+    await act(async () => Promise.resolve());
     await act(async () => {
       if (interaction === "click")
         fireEvent.click(screen.getByText("Currently reading"));
@@ -133,7 +135,9 @@ it("animates the Book Notes home link back to the Books shelf", async () => {
     1,
     expect.any(Function),
   );
-  expect(navigation.router.push).toHaveBeenCalledWith("/?variant=bookshelf#books");
+  expect(navigation.router.push).toHaveBeenCalledWith(
+    "/?variant=bookshelf#books",
+  );
   navigation.pathname = "/";
   await act(async () => view.rerender(<RouteTransitionPrototype />));
 });

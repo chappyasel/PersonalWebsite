@@ -6,13 +6,14 @@ describe("book paths", () => {
   afterEach(() => vi.unstubAllEnvs());
   it("opens book cards and expanded modals under the shared local Books route", () => {
     vi.stubEnv("NODE_ENV", "development");
-    expect(getBookPath("behave", "size=L&search=behave")).toBe(
+    expect(getBookPath("behave", "size=L&search=behave", "/books")).toBe(
       "/books/behave?size=L&search=behave",
     );
   });
   it("keeps production book paths relative to the Books host", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(getBookPath("behave")).toBe("/behave");
+    expect(getBookPath("behave", undefined, "")).toBe("/behave");
+    expect(getBookPath("behave", undefined, "/books")).toBe("/books/behave");
   });
   it.each([
     [

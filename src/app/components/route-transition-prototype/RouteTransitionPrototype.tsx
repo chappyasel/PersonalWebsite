@@ -1,18 +1,22 @@
 "use client";
 
 // Compare page transitions, including the Books shelf's 3D/2D/library handoff.
-// Enabled locally; production never mounts this comparison.
+// Production uses source zoom; the comparison controls are local-only.
 import { projectSceneInteractionRect } from "../stacks/scene/interactionRegistry";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { flushSync } from "react-dom";
 
 import { Button } from "~/components/ui/button";
 
-import {
-  BooksShelfPrototype,
-  type BooksShelfPrototypeHandle,
-} from "./BooksShelfPrototype";
+import { type BooksShelfPrototypeHandle } from "./BooksShelfPrototype";
 import { PROTOTYPE_NAVIGATION_EVENT, prototypeDestination } from "./navigation";
 import {
   type OriginRect,
@@ -26,6 +30,12 @@ import {
   setPrototypeEnabled,
   useRouteTransitionPrototype,
 } from "./store";
+
+const BooksShelfPrototype = lazy(() =>
+  import("./BooksShelfPrototype").then((module) => ({
+    default: module.BooksShelfPrototype,
+  })),
+);
 
 const LABELS = {
   origin: "Zoom from source",
@@ -73,7 +83,9 @@ function localDestination(link: HTMLElement): URL | null {
 export default function RouteTransitionPrototype() {
   const router = useRouter();
   const pathname = usePathname();
-  const variant = useRouteTransitionPrototype((state) => state.variant);
+  const variant = useRouteTransitionPrototype((state) =>
+    process.env.NODE_ENV === "production" ? "origin" : state.variant,
+  );
   const [phase, setPhase] = useState("idle");
   const [target, setTarget] = useState("");
   const [slow, setSlow] = useState(false);
@@ -364,7 +376,9 @@ export default function RouteTransitionPrototype() {
   return (
     <>
       {variant === "bookshelf" ? (
-        <BooksShelfPrototype ref={booksShelf} />
+        <Suspense fallback={null}>
+          <BooksShelfPrototype ref={booksShelf} />
+        </Suspense>
       ) : null}
       {phase === "expanding source" ? (
         <div
@@ -385,137 +399,141 @@ export default function RouteTransitionPrototype() {
           <p className="route-prototype-destination">Opening {target}</p>
         </div>
       ) : null}
-      <div
-        className="route-prototype-bar"
-        role="region"
-        aria-label="Route transition prototype"
-        onKeyDown={(event) => {
-          if (
-            event.target instanceof Element &&
-            event.target.closest(
-              "input, textarea, select, [contenteditable=true], [role=switch]",
+      {process.env.NODE_ENV !== "production" && (
+        <div
+          className="route-prototype-bar"
+          role="region"
+          aria-label="Route transition prototype"
+          onKeyDown={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest(
+                "input, textarea, select, [contenteditable=true], [role=switch]",
+              )
             )
-          )
-            return;
-          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-            event.preventDefault();
-            event.stopPropagation();
-            cycle(event.key === "ArrowLeft" ? -1 : 1);
-          }
-        }}
-      >
-        <div className="flex items-center justify-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => cycle(-1)}
-            aria-label="Previous transition"
-          >
-            ←
-          </Button>
-          <span className="min-w-40 text-center text-sm">
-            {LABELS[variant]}
-          </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => cycle(1)}
-            aria-label="Next transition"
-          >
-            →
-          </Button>
-          <Button
-            size="sm"
-            variant={slow ? "secondary" : "ghost"}
-            disabled={busy}
-            aria-pressed={slow}
-            onClick={() => setSlow(!slow)}
-          >
-            0.5×
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => {
-              const url = new URL(location.href);
-              url.searchParams.delete("transitionPrototype");
-              url.searchParams.delete("variant");
-              history.replaceState(null, "", url);
-              setPrototypeEnabled(false);
-            }}
-            aria-label="Turn off transition prototype"
-          >
-            ×
-          </Button>
-        </div>
-        <div className="flex items-center justify-center gap-2">
-          {variant === "bookshelf" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy || pathname !== "/"}
-              onClick={async () => {
-                const controller = new AbortController();
-                active.current = controller;
-                setNotice("");
-                setPhase("preparing shelf");
-                try {
-                  const reduced = matchMedia(
-                    "(prefers-reduced-motion: reduce)",
-                  ).matches;
-                  await booksShelf.current?.preview(
-                    controller.signal,
-                    reduced ? 0 : slow ? 2 : 1,
-                    setPhase,
-                  );
-                } catch (error) {
-                  setNotice(
-                    error instanceof Error ? error.message : String(error),
-                  );
-                } finally {
-                  active.current = null;
-                  setPhase("idle");
-                }
-              }}
-            >
-              2D / 3D
-            </Button>
-          ) : null}
-          {DESTINATIONS.map(([path, label]) => (
-            <Button
-              key={path}
-              size="sm"
-              variant="outline"
-              disabled={
-                busy ||
-                section(pathname) === section(path) ||
-                (variant === "bookshelf" && path === "/weightlifting")
-              }
-              onClick={(event) =>
-                navigate(
-                  new URL(path, location.origin),
-                  event.currentTarget.getBoundingClientRect(),
-                )
-              }
-            >
-              {variant === "bookshelf" && path === "/" ? "Books shelf" : label}
-            </Button>
-          ))}
-        </div>
-        <p
-          role="status"
-          className="mt-2 text-center text-xs text-muted-foreground"
+              return;
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              event.stopPropagation();
+              cycle(event.key === "ArrowLeft" ? -1 : 1);
+            }
+          }}
         >
-          Prototype · {phase}
-          {busy ? ` → ${target}` : ` · ${pathname}`}{" "}
-          {!supported && (variant === "swipe" || variant === "cards")
-            ? "· Shutter fallback"
-            : ""}
-          {notice ? <span className="mt-1 block">{notice}</span> : null}
-        </p>
-      </div>
+          <div className="flex items-center justify-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => cycle(-1)}
+              aria-label="Previous transition"
+            >
+              ←
+            </Button>
+            <span className="min-w-40 text-center text-sm">
+              {LABELS[variant]}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => cycle(1)}
+              aria-label="Next transition"
+            >
+              →
+            </Button>
+            <Button
+              size="sm"
+              variant={slow ? "secondary" : "ghost"}
+              disabled={busy}
+              aria-pressed={slow}
+              onClick={() => setSlow(!slow)}
+            >
+              0.5×
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                const url = new URL(location.href);
+                url.searchParams.delete("transitionPrototype");
+                url.searchParams.delete("variant");
+                history.replaceState(null, "", url);
+                setPrototypeEnabled(false);
+              }}
+              aria-label="Turn off transition prototype"
+            >
+              ×
+            </Button>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            {variant === "bookshelf" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || pathname !== "/"}
+                onClick={async () => {
+                  const controller = new AbortController();
+                  active.current = controller;
+                  setNotice("");
+                  setPhase("preparing shelf");
+                  try {
+                    const reduced = matchMedia(
+                      "(prefers-reduced-motion: reduce)",
+                    ).matches;
+                    await booksShelf.current?.preview(
+                      controller.signal,
+                      reduced ? 0 : slow ? 2 : 1,
+                      setPhase,
+                    );
+                  } catch (error) {
+                    setNotice(
+                      error instanceof Error ? error.message : String(error),
+                    );
+                  } finally {
+                    active.current = null;
+                    setPhase("idle");
+                  }
+                }}
+              >
+                2D / 3D
+              </Button>
+            ) : null}
+            {DESTINATIONS.map(([path, label]) => (
+              <Button
+                key={path}
+                size="sm"
+                variant="outline"
+                disabled={
+                  busy ||
+                  section(pathname) === section(path) ||
+                  (variant === "bookshelf" && path === "/weightlifting")
+                }
+                onClick={(event) =>
+                  navigate(
+                    new URL(path, location.origin),
+                    event.currentTarget.getBoundingClientRect(),
+                  )
+                }
+              >
+                {variant === "bookshelf" && path === "/"
+                  ? "Books shelf"
+                  : label}
+              </Button>
+            ))}
+          </div>
+          <p
+            role="status"
+            className="mt-2 text-center text-xs text-muted-foreground"
+          >
+            Prototype · {phase}
+            {busy ? ` → ${target}` : ` · ${pathname}`}{" "}
+            {!supported && (variant === "swipe" || variant === "cards")
+              ? "· Shutter fallback"
+              : ""}
+            {notice ? <span className="mt-1 block">{notice}</span> : null}
+          </p>
+        </div>
+      )}
     </>
   );
 }

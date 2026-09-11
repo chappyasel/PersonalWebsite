@@ -1,14 +1,15 @@
 "use client";
 
 import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
-
-import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
+import { useBookPath } from "../hooks/useBookPath";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
+import { getBookShareUrl } from "~/lib/books/paths";
 import type { Book } from "~/lib/books/types";
+
+import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 
 interface UseKeyboardNavigationOptions {
   books: Book[];
@@ -24,6 +25,7 @@ export function useKeyboardNavigation({
   const { setKeyboardFocus, clearKeyboardFocus, openModal, closeModal } =
     useModalActions();
   const searchParams = useSearchParams();
+  const bookPath = useBookPath();
 
   // Track the last focused book ID to restore after modal close
   const lastFocusedBookIdRef = useRef<string | null>(null);
@@ -256,7 +258,7 @@ export function useKeyboardNavigation({
         setShowFocusIndicator(true); // Show indicator on keyboard action
         lastFocusedBookIdRef.current = book.id;
       }
-      const href = getBookPath(book.id, searchParams.toString());
+      const href = bookPath(book.id, searchParams.toString());
       // On a phone the book is its own page, not a modal over the shelf.
       if (loadFullPageOnSmallViewport(href)) return;
       // Open the modal
@@ -264,7 +266,14 @@ export function useKeyboardNavigation({
       // Update URL without navigation (preserve query params)
       window.history.pushState(BOOK_MODAL_HISTORY_STATE, "", href);
     }
-  }, [books, keyboardFocusedIndex, setKeyboardFocus, openModal, searchParams]);
+  }, [
+    books,
+    keyboardFocusedIndex,
+    setKeyboardFocus,
+    openModal,
+    searchParams,
+    bookPath,
+  ]);
 
   // Copy the focused book's URL and trigger visual feedback
   const copyFocusedBookUrl = useCallback(() => {

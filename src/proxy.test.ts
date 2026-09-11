@@ -70,16 +70,30 @@ describe("local connected-site entry points", () => {
     );
     expect(response.headers.get("location")).toBe(expected);
   });
-  it("keeps production subdomains separate", async () => {
+  it.each(["books", "weightlifting", "manual", "routine"])(
+    "opens the production %s entry point in the main app",
+    async (site) => {
+      vi.stubEnv("NODE_ENV", "production");
+      const response = await proxy(
+        new NextRequest(`https://${site}.chappyasel.com/?search=example`, {
+          headers: { accept: "text/html" },
+        }),
+      );
+      expect(response.headers.get("location")).toBe(
+        `https://www.chappyasel.com/${site}?search=example`,
+      );
+    },
+  );
+  it("preserves deep production subdomain URLs", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const response = await proxy(
-      new NextRequest("https://weightlifting.chappyasel.com/", {
+      new NextRequest("https://weightlifting.chappyasel.com/exercise/squat", {
         headers: { accept: "text/html" },
       }),
     );
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("x-middleware-rewrite")).toBe(
-      "https://weightlifting.chappyasel.com/weightlifting",
+      "https://weightlifting.chappyasel.com/weightlifting/exercise/squat",
     );
   });
   it("does not redirect a local RSC request", async () => {

@@ -5,8 +5,7 @@ export function requestPrototypeNavigation(
   href: string,
   sourceId?: string,
 ): boolean {
-  if (process.env.NODE_ENV === "production" || typeof window === "undefined")
-    return false;
+  if (typeof window === "undefined") return false;
   return !window.dispatchEvent(
     new CustomEvent(PROTOTYPE_NAVIGATION_EVENT, {
       detail: { href, sourceId },
@@ -47,14 +46,21 @@ export function prototypeDestination(
   );
   // The controller stays mounted on the main local origin, including when a
   // development link spells it localhost and the tab uses 127.0.0.1 or a LAN IP.
-  if (process.env.NODE_ENV !== "production" && !onSubdomain) {
-    const portal = ["books", "weightlifting"].find((site) =>
-      [`${site}.localhost`, `${site}.chappyasel.com`].includes(url.hostname),
+  if (!onSubdomain) {
+    const production = process.env.NODE_ENV === "production";
+    const portal = SUBDOMAINS.find((site) =>
+      (production
+        ? [`${site}.chappyasel.com`]
+        : [`${site}.localhost`, `${site}.chappyasel.com`]
+      ).includes(url.hostname),
     );
     if (portal && url.pathname === "/")
       return new URL(`/${portal}${url.search}${url.hash}`, current.origin);
     if (
-      ROOT_HOSTS.includes(url.hostname) &&
+      (production
+        ? ["chappyasel.com", "www.chappyasel.com"]
+        : ROOT_HOSTS
+      ).includes(url.hostname) &&
       (url.pathname === "/" ||
         SECTIONS.includes(url.pathname.split("/")[1] ?? ""))
     ) {

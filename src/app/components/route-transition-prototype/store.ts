@@ -9,13 +9,13 @@ export const VARIANTS = [
 ] as const;
 export type TransitionVariant = (typeof VARIANTS)[number];
 
-// Throwaway comparison on the real routes. No persisted debug overrides.
+// Source zoom is the shipped effect. Comparison variants remain local-only.
 export const useRouteTransitionPrototype = create<{
   enabled: boolean;
   variant: TransitionVariant;
   deferSceneStartup: boolean;
 }>(() => ({
-  enabled: process.env.NODE_ENV === "development",
+  enabled: true,
   variant: "origin",
   deferSceneStartup: false,
 }));

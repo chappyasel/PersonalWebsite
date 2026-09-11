@@ -42,18 +42,25 @@ export async function proxy(req: NextRequest) {
 
   // Local site entry points share one document once opened. This lets the
   // room/page transition controller survive navigation in either direction.
-  // Only document GETs redirect; assets, RSC requests, APIs and production
-  // subdomains retain their existing routing.
+  // Production section entry pages also join the main app; deep subdomain
+  // URLs, assets, APIs, and RSC requests retain their existing routing.
   const localSite = ["books", "weightlifting", "manual", "routine"].find(
     (site) =>
       hostname === `${site}.localhost` ||
       hostname.startsWith(`${site}.localhost:`),
   );
+  const productionSite = ["books", "weightlifting", "manual", "routine"].find(
+    (site) =>
+      hostname === `${site}.chappyasel.com` &&
+      (pathname === "/" || pathname === `/${site}` || pathname === `/${site}/`),
+  );
+  const sharedSite =
+    process.env.NODE_ENV === "development" ? localSite : productionSite;
   if (
-    process.env.NODE_ENV === "development" &&
-    localSite &&
+    sharedSite &&
     req.method === "GET" &&
     req.headers.get("accept")?.includes("text/html") &&
+    req.headers.get("rsc") !== "1" &&
     !pathname.startsWith("/api/") &&
     !pathname.startsWith("/_next/") &&
     !pathname.split("/").at(-1)?.includes(".")
@@ -62,8 +69,12 @@ export async function proxy(req: NextRequest) {
     // Use an explicit loopback origin. The dev server's outer routing layer
     // also makes redirects to its own internal localhost origin relative,
     // even when proxy URL normalization is disabled.
-    url.hostname = "127.0.0.1";
-    const prefix = `/${localSite}`;
+    url.hostname = productionSite ? "www.chappyasel.com" : "127.0.0.1";
+    if (productionSite) {
+      url.protocol = "https:";
+      url.port = "";
+    }
+    const prefix = `/${sharedSite}`;
     if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) {
       url.pathname = `${prefix}${pathname === "/" ? "" : pathname}`;
     }

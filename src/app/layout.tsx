@@ -7,8 +7,8 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import AnalyticsRouteTracker from "./components/AnalyticsRouteTracker";
 import { RouteTransitionPrototypeGate } from "./components/route-transition-prototype/Gate";
-import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController";
 import { InlineBookPreviewProvider } from "~/components/books/InlineBookPreviewProvider";
+import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController";
 
 import { HOMEPAGE_DESCRIPTION } from "./homeMetadata";
 import "~/styles/globals.css";
@@ -121,7 +121,7 @@ export default function RootLayout({
           <FontProvider>
             <UniversalSearchController />
             <AnalyticsRouteTracker />
-            {process.env.NODE_ENV !== "production" ? <RouteTransitionPrototypeGate /> : null}
+            <RouteTransitionPrototypeGate />
             <InlineBookPreviewProvider>
               {children}
               {sheet}

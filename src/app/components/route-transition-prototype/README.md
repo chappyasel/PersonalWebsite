@@ -3,17 +3,20 @@
 Current question: does zooming into the actual clicked link, card, or 3D prop
 make a major page change feel like entering that object?
 
-Run `pnpm dev` and open the main local host, using the port printed by the
-server. No query parameter is required. Source zoom is the local default; the
-prototype remains disabled in production. Scene Diagnostics → Render has a
-live off switch. Closing the floating comparison bar also disables it until
-reload. Local Books, Weightlifting, Manual, and Routine subdomain document
-requests redirect to their paths on the main local app at `127.0.0.1`, preserving
-the port. Proxy URL normalization is disabled in development because Next
-otherwise turns the cross-host redirect into a relative URL and loops on the
-subdomain. Local book links use `/books/<id>` for both cards and expanded modals.
-Production routing,
-API requests, and RSC requests keep their existing behavior.
+Source zoom is enabled in production and locally, with no query parameter.
+Scene Diagnostics → Render has a live off switch that resets on reload. The
+floating comparison bar and earlier variants only appear in development.
+Production always uses source zoom, including when a URL carries an old variant.
+
+Books and Weightlifting portal links stay on the current main-site origin.
+Production Books, Weightlifting, Manual, and Routine root entry points redirect
+to their main-site paths so returning home can animate too. Deep subdomain URLs,
+API requests, and RSC requests retain their existing routing. Book links use the
+main site's `/books/<id>` or the standalone Books host's `/<id>` as appropriate.
+
+Local subdomain document requests redirect to `127.0.0.1`, preserving the port.
+Proxy URL normalization stays disabled in development to avoid relative redirect
+loops. Run `pnpm dev` and use the port printed by the server.
 
 ## Zoom from the clicked source
 
@@ -35,8 +38,7 @@ Returning home defers the canvas mount and its eager preload until the native
 reveal finishes. Shader and scene startup otherwise compete with the animation.
 The existing boot screen and readiness gates still handle loading afterward.
 Cancellation, the diagnostics off switch, and a three-second backstop release
-the deferral. Production, reduced motion, and other variants keep their existing
-startup behavior. Slow mode doubles the backstop along with the animation.
+the deferral. Reduced motion and other variants keep their existing startup behavior. Slow mode doubles the backstop along with the animation.
 
 Local browser measurements on September 10, 2026, for Books → Home with loaded
 route code: before this change, the reveal took 1537ms with an 875ms frame gap.
