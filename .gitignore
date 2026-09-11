@@ -55,6 +55,7 @@ npm-debug.log*
 # youtube takeout data
 /data/youtube/
 /data/weight-log
+/data/personality-prototype/
 *.xlsx
 /scripts/weight-log/__pycache__/
 .gstack/

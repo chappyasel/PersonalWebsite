@@ -29,7 +29,11 @@ const config = {
     "/api/search": ["./content/dad-search-index.json"],
   },
   outputFileTracingExcludes: {
-    "/*": ["./data/weight-log/**/*", "./**/*.xlsx"],
+    "/*": [
+      "./data/weight-log/**/*",
+      "./data/personality-prototype/**/*",
+      "./**/*.xlsx",
+    ],
   },
   images: {
     remotePatterns: [
