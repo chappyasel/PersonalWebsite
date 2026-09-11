@@ -1,9 +1,37 @@
 import type { Metadata } from "next";
 
+const title = "Chappy's Weight Log";
+const description =
+  "Bodyweight history, training phases, and DEXA scans in an interactive chart.";
+const url = "https://www.chappyasel.com/weight-log";
+const image = {
+  url: "https://www.chappyasel.com/images/weight-log-og.png",
+  width: 1200,
+  height: 630,
+  alt: "Chappy's Weight Log. Bodyweight history, training phases, and DEXA scans.",
+};
+
 export const metadata: Metadata = {
-  title: "Weight Log",
-  description: "Password-protected weight history.",
-  robots: { index: false, follow: false, noarchive: true, nosnippet: true },
+  title,
+  description,
+  alternates: { canonical: url },
+  openGraph: {
+    title,
+    description,
+    url,
+    siteName: "Chappy Asel",
+    locale: "en_US",
+    type: "website",
+    images: [image],
+  },
+  twitter: {
+    card: "summary_large_image",
+    creator: "@chappyasel",
+    title,
+    description,
+    images: [image],
+  },
+  robots: { index: false, follow: false, noarchive: true },
   referrer: "no-referrer",
 };
 
