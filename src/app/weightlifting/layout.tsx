@@ -57,7 +57,7 @@ export default function WeightliftingLayout({
   return (
     <TRPCReactProvider>
       <NuqsAdapter>
-        <main className="p-6 md:p-8">{children}</main>
+        <main className="p-3 sm:p-6 md:p-8">{children}</main>
         {sheet}
       </NuqsAdapter>
     </TRPCReactProvider>

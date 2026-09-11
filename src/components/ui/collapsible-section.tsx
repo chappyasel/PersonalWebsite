@@ -46,7 +46,7 @@ export function CollapsibleSection({
           <AccordionContent className="pb-0">
             <Card
               className={cn(
-                "border-neutral-200 bg-white p-4 shadow-none dark:border-neutral-700 dark:bg-neutral-800",
+                "border-neutral-200 bg-white p-3 shadow-none dark:border-neutral-700 dark:bg-neutral-800 sm:p-4",
                 cardClassName,
               )}
             >

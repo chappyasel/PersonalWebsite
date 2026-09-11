@@ -32,7 +32,7 @@ export function WeightliftingDashboard() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-10 font-sans">
+    <div className="mx-auto max-w-4xl space-y-6 font-sans sm:space-y-10">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">

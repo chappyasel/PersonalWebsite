@@ -1,15 +1,13 @@
 import Link from "next/link";
 
-import { getWeightLog, hasWeightLogAccess } from "~/lib/weight-log/data";
+import { getWeightLog } from "~/lib/weight-log/data";
 
-import { WeightLogPasswordGate } from "./PasswordGate";
 import { WeightLogDashboard } from "./WeightLogDashboard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function WeightLogPage() {
-  if (!(await hasWeightLogAccess())) return <WeightLogPasswordGate />;
   try {
     const log = await getWeightLog();
     return <WeightLogDashboard log={log} />;

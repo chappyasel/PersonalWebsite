@@ -88,7 +88,6 @@ export const WeightHistoryCalendar = memo(function WeightHistoryCalendar({
     <CollapsibleSection
       title="Full weigh-in history"
       icon={<CalendarDotsIcon className="h-5 w-5" weight="bold" />}
-      cardClassName="dark:bg-neutral-900"
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-xs text-muted-foreground">{yearCount} weigh-ins</p>
