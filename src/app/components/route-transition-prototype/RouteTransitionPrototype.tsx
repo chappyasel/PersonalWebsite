@@ -1,7 +1,8 @@
 "use client";
 
 // Compare page transitions, including the Books shelf's 3D/2D/library handoff.
-// Production uses source zoom; the comparison controls are local-only.
+// Source zoom is the default. Earlier experiments remain available by URL.
+import { roomResidency } from "../stacks/room/roomResidency";
 import { projectSceneInteractionRect } from "../stacks/scene/interactionRegistry";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -14,22 +15,28 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
-import { Button } from "~/components/ui/button";
-
 import { type BooksShelfPrototypeHandle } from "./BooksShelfPrototype";
+import { installHistoryTransition } from "./historyTransition";
 import { PROTOTYPE_NAVIGATION_EVENT, prototypeDestination } from "./navigation";
 import {
   type OriginRect,
+  originReturnGeometry,
   originZoomGeometry,
   playOriginPanel,
 } from "./originZoom";
 import "./prototype.css";
-import { playShutters } from "./shutters";
 import {
-  VARIANTS,
-  setPrototypeEnabled,
-  useRouteTransitionPrototype,
-} from "./store";
+  PageScrollMemory,
+  type RoomJourney,
+  measureRoomSource,
+  preserveRoomJourneyOnReplace,
+  readRoomJourney,
+  rememberRoomSource,
+  roomDirection,
+  writeRoomJourney,
+} from "./roomJourney";
+import { playShutters } from "./shutters";
+import { useRouteTransitionPrototype } from "./store";
 
 const BooksShelfPrototype = lazy(() =>
   import("./BooksShelfPrototype").then((module) => ({
@@ -37,13 +44,6 @@ const BooksShelfPrototype = lazy(() =>
   })),
 );
 
-const LABELS = {
-  origin: "Zoom from source",
-  shutters: "A · Signature shutters",
-  swipe: "B · Screen swipe",
-  cards: "C · Perspective cards",
-  bookshelf: "D · Books shelf",
-};
 const DESTINATIONS = [
   ["/", "Home"],
   ["/books", "Books"],
@@ -62,6 +62,18 @@ function pause(ms: number, signal: AbortSignal) {
     const timer = setTimeout(done, ms);
     signal.addEventListener("abort", done, { once: true });
   });
+}
+
+function clearTransitionPresentation() {
+  useRouteTransitionPrototype.setState({ deferSceneStartup: false });
+  document.documentElement.style.removeProperty("--route-origin-zoom");
+  document.documentElement.style.removeProperty("--route-origin-clip");
+  delete document.documentElement.dataset.routePrototype;
+  delete document.documentElement.dataset.routeDirection;
+  delete document.documentElement.dataset.routeReturn;
+  document.documentElement.style.removeProperty("--route-return-transform");
+  document.documentElement.style.removeProperty("--route-return-clip");
+  document.documentElement.style.removeProperty("--route-prototype-duration");
 }
 
 // Full-site portals stay on the main local origin for the handoff. Document
@@ -86,18 +98,26 @@ export default function RouteTransitionPrototype() {
   const variant = useRouteTransitionPrototype((state) =>
     process.env.NODE_ENV === "production" ? "origin" : state.variant,
   );
+  const reverseRoom = useRouteTransitionPrototype((state) => state.reverseRoom);
+  const currentJourney = useRef<RoomJourney | null>(null);
+  const [pageScrolls] = useState(() => new PageScrollMemory());
+  const historyNavigate = useRef<
+    (url: URL, state: unknown, restore: () => void) => Promise<void>
+  >(async () => undefined);
+  const historyAccepts = useRef<(url: URL) => boolean>(() => false);
   const [phase, setPhase] = useState("idle");
   const [target, setTarget] = useState("");
-  const [slow, setSlow] = useState(false);
   const [supported, setSupported] = useState(false);
-  const [notice, setNotice] = useState("");
   const curtains = useRef<HTMLDivElement>(null);
   const originPanel = useRef<HTMLDivElement>(null);
   const pending = useRef<{ path: string; resolve: () => void } | null>(null);
   const active = useRef<AbortController | null>(null);
   const nativeTransition = useRef<ViewTransition | null>(null);
   const booksShelf = useRef<BooksShelfPrototypeHandle>(null);
-  const busy = phase !== "idle";
+
+  useEffect(() => {
+    if (reverseRoom) return preserveRoomJourneyOnReplace();
+  }, [reverseRoom]);
 
   useEffect(() => {
     setSupported(typeof document.startViewTransition === "function");
@@ -106,34 +126,87 @@ export default function RouteTransitionPrototype() {
       active.current?.abort();
       pending.current?.resolve();
       nativeTransition.current?.skipTransition();
-      useRouteTransitionPrototype.setState({ deferSceneStartup: false });
-      document.documentElement.style.removeProperty("--route-origin-zoom");
-      document.documentElement.style.removeProperty("--route-origin-clip");
-      delete document.documentElement.dataset.routePrototype;
-      delete document.documentElement.dataset.routeDirection;
-      document.documentElement.style.removeProperty(
-        "--route-prototype-duration",
-      );
+      clearTransitionPresentation();
     };
   }, [router]);
 
+  useEffect(
+    () =>
+      installHistoryTransition({
+        accepts: (url) => historyAccepts.current(url),
+        transition: (url, state, restore) =>
+          historyNavigate.current(url, state, restore),
+        cancel: () => {
+          active.current?.abort();
+          nativeTransition.current?.skipTransition();
+          pending.current?.resolve();
+          pending.current = null;
+          active.current = null;
+          nativeTransition.current = null;
+          clearTransitionPresentation();
+          setPhase("idle");
+        },
+      }),
+    [],
+  );
+
   useLayoutEffect(() => {
+    currentJourney.current = readRoomJourney(history.state);
     if (pending.current?.path === pathname) {
       pending.current.resolve();
       pending.current = null;
     }
   }, [pathname]);
 
-  async function navigate(url: URL, origin?: OriginRect | null) {
+  historyAccepts.current = (url) =>
+    variant === "origin" &&
+    reverseRoom &&
+    // An intercepted sheet owns its history entry even after expansion.
+    // Its own exit (or native Back) must not trigger a second page capture.
+    !document.querySelector("[data-presented-sheet]") &&
+    roomDirection(pathname, url.pathname) !== null;
+  historyNavigate.current = (url, state, restore) =>
+    navigate(url, null, undefined, {
+      restore,
+      journey:
+        roomDirection(pathname, url.pathname) === "return"
+          ? currentJourney.current
+          : readRoomJourney(state),
+    });
+
+  async function navigate(
+    url: URL,
+    origin?: OriginRect | null,
+    source?: HTMLElement | string,
+    traversal?: { restore: () => void; journey: RoomJourney | null },
+  ) {
     if (active.current || section(url.pathname) === section(pathname)) return;
     const controller = new AbortController();
     const { signal } = controller;
     active.current = controller;
+    const direction =
+      variant === "origin" && reverseRoom
+        ? roomDirection(pathname, url.pathname)
+        : null;
+    const room = roomResidency.getSnapshot();
+    const warmReturn = direction === "return" && roomResidency.hasReadyRoom();
+    const journey =
+      direction === "enter" && !traversal
+        ? rememberRoomSource(source, room.generation)
+        : (traversal?.journey ?? readRoomJourney(history.state));
+    if (direction && journey && !traversal) writeRoomJourney(journey);
+    if (direction === "return")
+      pageScrolls.save(currentJourney.current ?? journey, scrollX, scrollY);
+    if (direction === "enter" && traversal)
+      origin = measureRoomSource(
+        journey,
+        room.generation,
+        projectSceneInteractionRect,
+      );
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const speed = slow ? 2 : 1;
+    const speed = 1;
     setTarget(url.pathname === "/" ? "Home" : section(url.pathname));
     setPhase("preparing");
-    setNotice("");
     if (variant === "bookshelf" && url.pathname === "/") {
       url.hash = "books";
       url.searchParams.delete("transitionPrototype");
@@ -143,7 +216,8 @@ export default function RouteTransitionPrototype() {
     if (
       (variant === "shutters" || variant === "origin") &&
       url.pathname === "/" &&
-      !url.hash
+      !url.hash &&
+      !traversal
     ) {
       const returnShelf: Record<string, string> = {
         books: "books",
@@ -152,8 +226,10 @@ export default function RouteTransitionPrototype() {
         routine: "systems",
         systems: "systems",
       };
+      const remembered = roomResidency.getSnapshot().returnHash;
       const shelf = returnShelf[section(pathname)];
-      if (shelf) url.hash = shelf;
+      if (remembered !== null) url.hash = remembered;
+      else if (shelf) url.hash = shelf;
     }
     let navigationIssued = false;
     let sceneStartupBackstop: ReturnType<typeof setTimeout> | undefined;
@@ -163,10 +239,47 @@ export default function RouteTransitionPrototype() {
         pending.current = { path: url.pathname, resolve };
       });
       navigationIssued = true;
-      router.push(url.pathname + url.search + url.hash);
+      if (traversal) traversal.restore();
+      else router.push(url.pathname + url.search + url.hash);
       // Next's router.push returns void. Wait for the destination layout commit.
       await Promise.race([committed, pause(10_000, signal)]);
+      if (signal.aborted) return;
       pending.current = null;
+      if (direction && journey) {
+        writeRoomJourney(journey);
+        currentJourney.current = journey;
+      }
+      if (direction === "enter" && traversal) {
+        const position = pageScrolls.get(journey);
+        if (position) window.scrollTo({ ...position, behavior: "instant" });
+      }
+      if (direction === "return") {
+        // React has resumed the resident room and resized its camera in layout
+        // effects. Measure now, never from a stale screenshot or parked layout.
+        const destination = warmReturn
+          ? measureRoomSource(
+              journey,
+              roomResidency.getSnapshot().generation,
+              projectSceneInteractionRect,
+            )
+          : null;
+        document.documentElement.dataset.routeReturn = destination
+          ? "source"
+          : "soft";
+        const geometry = originReturnGeometry(
+          destination,
+          innerWidth,
+          innerHeight,
+        );
+        document.documentElement.style.setProperty(
+          "--route-return-transform",
+          geometry.transform,
+        );
+        document.documentElement.style.setProperty(
+          "--route-return-clip",
+          geometry.clip,
+        );
+      }
       // Native view transitions suppress rendering until this callback resolves.
       // Waiting for requestAnimationFrame here deadlocks capture until the
       // browser times out and skips the animation. The layout commit is enough.
@@ -174,7 +287,6 @@ export default function RouteTransitionPrototype() {
 
     try {
       if (reduced) {
-        setNotice("Reduced motion: animation disabled");
         await commit();
       } else if (
         variant === "bookshelf" &&
@@ -188,9 +300,21 @@ export default function RouteTransitionPrototype() {
           speed,
           setPhase,
         );
+      } else if (variant === "origin" && !supported && direction === "return") {
+        // No snapshot API: use a short pullback of the covering panel.
+        flushSync(() => setPhase("expanding source"));
+        if (originPanel.current)
+          await playOriginPanel(
+            originPanel.current,
+            "none",
+            commit,
+            signal,
+            speed,
+            true,
+          );
+        else await commit();
       } else if (variant === "origin" && !supported) {
         const geometry = originZoomGeometry(origin, innerWidth, innerHeight);
-        setNotice("Snapshot API unavailable: expanding from the source box");
         flushSync(() => setPhase("expanding source"));
         if (originPanel.current)
           await playOriginPanel(
@@ -202,8 +326,6 @@ export default function RouteTransitionPrototype() {
           );
         else await commit();
       } else if (variant === "shutters" || !supported) {
-        if (variant !== "shutters")
-          setNotice("Snapshot API unavailable: playing A instead");
         // Mount before measuring/animating. No frame callback is required to
         // start a shutter pass, so background-frame throttling cannot stall it.
         flushSync(() => setPhase("closing"));
@@ -219,7 +341,11 @@ export default function RouteTransitionPrototype() {
         });
       } else {
         const root = document.documentElement;
-        if (variant === "origin" && url.pathname === "/") {
+        if (
+          variant === "origin" &&
+          url.pathname === "/" &&
+          !roomResidency.hasReadyRoom()
+        ) {
           useRouteTransitionPrototype.setState({ deferSceneStartup: true });
           // A skipped or stalled capture must never strand the room's boot.
           sceneStartupBackstop = setTimeout(() => {
@@ -227,6 +353,7 @@ export default function RouteTransitionPrototype() {
           }, 3000 * speed);
         }
         root.dataset.routePrototype = variant;
+        if (direction === "return") root.dataset.routeReturn = "soft";
         if (variant === "origin") {
           const geometry = originZoomGeometry(origin, innerWidth, innerHeight);
           root.style.setProperty("--route-origin-zoom", geometry.zoom);
@@ -250,36 +377,23 @@ export default function RouteTransitionPrototype() {
           () => {
             if (!signal.aborted) setPhase("animating");
           },
-          (error: unknown) => {
-            if (!signal.aborted)
-              setNotice(
-                `Animation skipped: ${error instanceof Error ? error.name : String(error)}`,
-              );
-          },
+          () => undefined,
         );
         await transition.finished.catch(() => undefined);
         await navigation;
       }
-    } catch (error) {
+    } catch {
       // Cancellation or skipped browser capture must not strand the page.
       if (!signal.aborted) {
-        setNotice(
-          `Animation interrupted: ${error instanceof Error ? error.message : String(error)}`,
-        );
         if (!navigationIssued) await commit();
       }
     } finally {
       clearTimeout(sceneStartupBackstop);
-      useRouteTransitionPrototype.setState({ deferSceneStartup: false });
+      // A newer browser traversal may already own the effect and its CSS.
+      if (active.current !== controller) return;
       active.current = null;
       nativeTransition.current = null;
-      document.documentElement.style.removeProperty("--route-origin-zoom");
-      document.documentElement.style.removeProperty("--route-origin-clip");
-      delete document.documentElement.dataset.routePrototype;
-      delete document.documentElement.dataset.routeDirection;
-      document.documentElement.style.removeProperty(
-        "--route-prototype-duration",
-      );
+      clearTransitionPresentation();
       setPhase("idle");
     }
   }
@@ -290,7 +404,7 @@ export default function RouteTransitionPrototype() {
       if (!url || section(url.pathname) === section(pathname)) return;
       event.preventDefault();
       event.stopPropagation();
-      void navigate(url, link.getBoundingClientRect());
+      void navigate(url, link.getBoundingClientRect(), link);
     };
     const click = (event: MouseEvent) => {
       if (
@@ -345,7 +459,13 @@ export default function RouteTransitionPrototype() {
           ? projectSceneInteractionRect(request.sourceId)
           : null;
       event.preventDefault();
-      void navigate(url, origin);
+      void navigate(
+        url,
+        origin,
+        "sourceId" in request && typeof request.sourceId === "string"
+          ? request.sourceId
+          : undefined,
+      );
     };
     window.addEventListener(PROTOTYPE_NAVIGATION_EVENT, requested);
     document.addEventListener("click", click, true);
@@ -356,21 +476,6 @@ export default function RouteTransitionPrototype() {
       document.removeEventListener("keydown", keydown, true);
     };
   });
-
-  function cycle(direction: number) {
-    if (busy) return;
-    const next =
-      VARIANTS[
-        (VARIANTS.indexOf(variant) + direction + VARIANTS.length) %
-          VARIANTS.length
-      ]!;
-    useRouteTransitionPrototype.setState({ variant: next });
-    const url = new URL(location.href);
-    url.searchParams.delete("transitionPrototype");
-    if (next === "origin") url.searchParams.delete("variant");
-    else url.searchParams.set("variant", next);
-    router.replace(url.pathname + url.search + url.hash, { scroll: false });
-  }
 
   const showCurtains = ["closing", "covered", "opening"].includes(phase);
   return (
@@ -399,141 +504,6 @@ export default function RouteTransitionPrototype() {
           <p className="route-prototype-destination">Opening {target}</p>
         </div>
       ) : null}
-      {process.env.NODE_ENV !== "production" && (
-        <div
-          className="route-prototype-bar"
-          role="region"
-          aria-label="Route transition prototype"
-          onKeyDown={(event) => {
-            if (
-              event.target instanceof Element &&
-              event.target.closest(
-                "input, textarea, select, [contenteditable=true], [role=switch]",
-              )
-            )
-              return;
-            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-              event.preventDefault();
-              event.stopPropagation();
-              cycle(event.key === "ArrowLeft" ? -1 : 1);
-            }
-          }}
-        >
-          <div className="flex items-center justify-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => cycle(-1)}
-              aria-label="Previous transition"
-            >
-              ←
-            </Button>
-            <span className="min-w-40 text-center text-sm">
-              {LABELS[variant]}
-            </span>
-            <Button
-              size="icon"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => cycle(1)}
-              aria-label="Next transition"
-            >
-              →
-            </Button>
-            <Button
-              size="sm"
-              variant={slow ? "secondary" : "ghost"}
-              disabled={busy}
-              aria-pressed={slow}
-              onClick={() => setSlow(!slow)}
-            >
-              0.5×
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => {
-                const url = new URL(location.href);
-                url.searchParams.delete("transitionPrototype");
-                url.searchParams.delete("variant");
-                history.replaceState(null, "", url);
-                setPrototypeEnabled(false);
-              }}
-              aria-label="Turn off transition prototype"
-            >
-              ×
-            </Button>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            {variant === "bookshelf" ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy || pathname !== "/"}
-                onClick={async () => {
-                  const controller = new AbortController();
-                  active.current = controller;
-                  setNotice("");
-                  setPhase("preparing shelf");
-                  try {
-                    const reduced = matchMedia(
-                      "(prefers-reduced-motion: reduce)",
-                    ).matches;
-                    await booksShelf.current?.preview(
-                      controller.signal,
-                      reduced ? 0 : slow ? 2 : 1,
-                      setPhase,
-                    );
-                  } catch (error) {
-                    setNotice(
-                      error instanceof Error ? error.message : String(error),
-                    );
-                  } finally {
-                    active.current = null;
-                    setPhase("idle");
-                  }
-                }}
-              >
-                2D / 3D
-              </Button>
-            ) : null}
-            {DESTINATIONS.map(([path, label]) => (
-              <Button
-                key={path}
-                size="sm"
-                variant="outline"
-                disabled={
-                  busy ||
-                  section(pathname) === section(path) ||
-                  (variant === "bookshelf" && path === "/weightlifting")
-                }
-                onClick={(event) =>
-                  navigate(
-                    new URL(path, location.origin),
-                    event.currentTarget.getBoundingClientRect(),
-                  )
-                }
-              >
-                {variant === "bookshelf" && path === "/"
-                  ? "Books shelf"
-                  : label}
-              </Button>
-            ))}
-          </div>
-          <p
-            role="status"
-            className="mt-2 text-center text-xs text-muted-foreground"
-          >
-            Prototype · {phase}
-            {busy ? ` → ${target}` : ` · ${pathname}`}{" "}
-            {!supported && (variant === "swipe" || variant === "cards")
-              ? "· Shutter fallback"
-              : ""}
-            {notice ? <span className="mt-1 block">{notice}</span> : null}
-          </p>
-        </div>
-      )}
     </>
   );
 }

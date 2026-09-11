@@ -164,7 +164,9 @@ describe("Vision ride integration", () => {
     const world = read("./VisionRideWorld.tsx");
     const controls = read("../dom/VisionRideControls.tsx");
     expect(controls).toContain("pointer-events-auto fixed inset-0");
-    expect(world).toContain('window.addEventListener("pointermove", onMove');
+    expect(world).toContain(
+      'roomWindowEvents.addEventListener("pointermove", onMove',
+    );
     expect(world).toContain("normalizedPointer(");
     expect(world).toContain('if (event.pointerType === "touch") return;');
     expect(world).toContain("visionRideTouchRuntime.getSnapshot()");
@@ -181,8 +183,12 @@ describe("Vision ride integration", () => {
     expect(world).not.toContain("state.pointer.x");
     // WASD and the arrows drive steering and throttle by key code, and never
     // steal a keystroke from a text field or modifier chord.
-    expect(world).toContain('window.addEventListener("keydown", onKeyDown)');
-    expect(world).toContain('window.addEventListener("keyup", onKeyUp)');
+    expect(world).toContain(
+      'roomWindowEvents.addEventListener("keydown", onKeyDown)',
+    );
+    expect(world).toContain(
+      'roomWindowEvents.addEventListener("keyup", onKeyUp)',
+    );
     expect(world).toContain("isVisionRideDriveKey(event.code)");
     expect(world).toContain("isEditableShortcutTarget(event.target)");
     expect(world).toContain("driveAxes(keysPressed.current)");
@@ -193,7 +199,9 @@ describe("Vision ride integration", () => {
     expect(world).toContain("driveChaseDistanceScale(motion.current.pedal)");
     // The wheel zooms the chase from the window in the capture phase and
     // owns the event, so nothing under the ride travels.
-    expect(world).toContain('window.addEventListener("wheel", onWheel, {');
+    expect(world).toContain(
+      'roomWindowEvents.addEventListener("wheel", onWheel, {',
+    );
     expect(world).toContain("wheelZoomDelta(event, window.innerHeight)");
     expect(world).toContain("zoom.current.target = clampZoomLog(");
     expect(world).toContain("advanceZoom(");
@@ -230,7 +238,7 @@ describe("Vision ride integration", () => {
       'useStacks.getState().visionRidePhase !== "cruising"',
     );
     expect(world).toContain(
-      'document.addEventListener("visibilitychange", onVisibility)',
+      'roomDocumentEvents.addEventListener("visibilitychange", onVisibility)',
     );
     // lookAt pins the car's nominal position on every viewport, and the
     // framing itself comes from the pure, per-orientation module.

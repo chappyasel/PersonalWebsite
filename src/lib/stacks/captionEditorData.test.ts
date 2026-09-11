@@ -31,7 +31,11 @@ const SOURCE = [
 async function fixture(brokenBaked = false) {
   const root = await mkdtemp(join(tmpdir(), "caption-data-"));
   const sourcePath = join(root, "content", "objects.md");
-  const bakedPath = join(root, "public", brokenBaked ? "broken" : "objects.json");
+  const bakedPath = join(
+    root,
+    "public",
+    brokenBaked ? "broken" : "objects.json",
+  );
   await mkdir(join(root, "content"), { recursive: true });
   await mkdir(join(root, "public"), { recursive: true });
   await writeFile(sourcePath, SOURCE);
@@ -41,30 +45,92 @@ async function fixture(brokenBaked = false) {
 }
 
 describe("caption editor data", () => {
-  it("loads only visitor entries with a revision and section", async () => {
+  it("loads enabled and hidden entries with a revision and section", async () => {
     const snapshot = await loadCaptionEditorSnapshot(await fixture());
     expect(snapshot.revision).toMatch(/^[a-f0-9]{64}$/);
     expect(snapshot.entries).toEqual([
-      expect.objectContaining({ id: "portrait", section: "About", kind: "photo" }),
+      expect.objectContaining({
+        id: "portrait",
+        section: "About",
+        kind: "photo",
+      }),
+      expect.objectContaining({
+        id: "prop:two",
+        visitor: false,
+        body: "Hidden.",
+      }),
     ]);
+  });
+
+  it("persists visibility in Markdown and JSON and can re-enable a hidden caption", async () => {
+    const paths = await fixture();
+    let snapshot = await loadCaptionEditorSnapshot(paths);
+    for (const visitor of [false, true]) {
+      const result = await saveCaptionEditorSnapshot(
+        {
+          revision: snapshot.revision,
+          edits: [{ id: "portrait", visitor }],
+        },
+        paths,
+      );
+      expect(result.saved).toBe(true);
+      snapshot = await loadCaptionEditorSnapshot(paths);
+      expect(snapshot.entries[0]).toMatchObject({
+        visitor,
+        body: "Old caption.",
+      });
+      const baked: unknown = JSON.parse(
+        await readFile(paths.bakedPath, "utf8"),
+      );
+      expect(baked).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "portrait",
+            visitor,
+            body: "Old caption.",
+          }),
+        ]),
+      );
+    }
+    const result = await saveCaptionEditorSnapshot(
+      {
+        revision: snapshot.revision,
+        edits: [
+          { id: "prop:two", body: "A corrected description.", visitor: true },
+        ],
+      },
+      paths,
+    );
+    expect(result.saved && result.snapshot.entries[1]).toMatchObject({
+      visitor: true,
+      body: "A corrected description.",
+    });
   });
 
   it("saves against the current revision and rejects stale edits", async () => {
     const paths = await fixture();
     const first = await loadCaptionEditorSnapshot(paths);
     const saved = await saveCaptionEditorSnapshot(
-      { revision: first.revision, edits: [{ id: "portrait", body: "New caption." }] },
+      {
+        revision: first.revision,
+        edits: [{ id: "portrait", body: "New caption." }],
+      },
       paths,
     );
     const stale = await saveCaptionEditorSnapshot(
-      { revision: first.revision, edits: [{ id: "portrait", body: "Lost caption." }] },
+      {
+        revision: first.revision,
+        edits: [{ id: "portrait", body: "Lost caption." }],
+      },
       paths,
     );
 
     expect(saved.saved).toBe(true);
     expect(stale).toEqual({ saved: false, reason: "stale" });
     expect(await readFile(paths.sourcePath, "utf8")).toContain("New caption.");
-    expect(await readFile(paths.sourcePath, "utf8")).not.toContain("Lost caption.");
+    expect(await readFile(paths.sourcePath, "utf8")).not.toContain(
+      "Lost caption.",
+    );
   });
 
   it("serializes concurrent saves so only one revision wins", async () => {
@@ -86,9 +152,9 @@ describe("caption editor data", () => {
       { saved: false, reason: "stale" },
     ]);
     const stored = await readFile(paths.sourcePath, "utf8");
-    expect(stored.includes("First change.") || stored.includes("Second change.")).toBe(
-      true,
-    );
+    expect(
+      stored.includes("First change.") || stored.includes("Second change."),
+    ).toBe(true);
   });
 
   it("restores Markdown when the generated JSON write fails", async () => {
@@ -96,7 +162,10 @@ describe("caption editor data", () => {
     const first = await loadCaptionEditorSnapshot(paths);
     await expect(
       saveCaptionEditorSnapshot(
-        { revision: first.revision, edits: [{ id: "portrait", body: "New caption." }] },
+        {
+          revision: first.revision,
+          edits: [{ id: "portrait", body: "New caption." }],
+        },
         paths,
       ),
     ).rejects.toThrow();

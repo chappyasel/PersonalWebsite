@@ -22,6 +22,7 @@ import {
   MUSINGS_TRUST_COVER_PERCH,
 } from "./musingsShelfGeometry";
 import { deskFrameHeight } from "./photoGeometry";
+import { nearPropApproach } from "./propApproachState";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
 import {
   ABOUT_READING_BOOK,
@@ -373,6 +374,77 @@ function isVisibleContact(hit: THREE.Intersection) {
   );
 }
 
+const NEAR_NODE_MATRIX = new THREE.Matrix4();
+const NEAR_REST_MATRIX = new THREE.Matrix4();
+const NEAR_PARENT_MATRIX = new THREE.Matrix4();
+const NEAR_PARENT_INVERSE = new THREE.Matrix4();
+const NEAR_DELTA = new THREE.Matrix4();
+const NEAR_DELTA_NORMALS = new THREE.Matrix3();
+const NEAR_REST_QUATERNION = new THREE.Quaternion();
+const NEAR_UNIT_SCALE = new THREE.Vector3(1, 1, 1);
+const NEAR_ORIGIN = new THREE.Vector3();
+
+/**
+ * Carry a Perch's authored anchor and normal along with a prop that is up at
+ * the camera (PropApproach). The anchor is authored in the shelf frame, and
+ * the approach moves the prop's visible children, not its carrier, so with
+ * the prop four units away the anchor was left over an empty shelf spot.
+ * Candidates are ranked by distance to the anchor, which from that far
+ * favoured whichever face of the prop was nearest the shelf: the tile's back,
+ * whose normal then failed the tolerance and the Perch reported
+ * `contact-normal-mismatch` the whole time the tile was up. Measured with
+ * `__stacksInsects.probe` on 2026-09-11.
+ *
+ * The delta is the approach group's world transform against what it would
+ * be at rest (PropApproach leaves its rest quaternion in userData). A prop
+ * turned upside down by hand carries its normal with it, so the flipped tile
+ * still refuses, which is right.
+ */
+export function carryWithNearProp(
+  ownerId: string,
+  roots: readonly THREE.Object3D[],
+  position: THREE.Vector3,
+  normal: THREE.Vector3,
+) {
+  if (nearPropApproach()?.id !== ownerId) return;
+  const prefix = `prop-approach:${ownerId}:`;
+  // An explicit stack rather than `traverse`: TypeScript cannot see an
+  // assignment made inside traverse's callback and narrows the result to
+  // `never`.
+  const stack: THREE.Object3D[] = [...roots];
+  let found: THREE.Object3D | null = null;
+  while (stack.length && !found) {
+    const object = stack.pop()!;
+    if (
+      object.name.startsWith(prefix) &&
+      Array.isArray(object.userData.propApproachRest)
+    )
+      found = object;
+    else stack.push(...object.children);
+  }
+  if (!found?.parent) return;
+  const rest = found.userData.propApproachRest as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  NEAR_REST_QUATERNION.fromArray(rest);
+  NEAR_REST_MATRIX.compose(NEAR_ORIGIN, NEAR_REST_QUATERNION, NEAR_UNIT_SCALE);
+  found.updateMatrix();
+  NEAR_NODE_MATRIX.copy(found.matrix);
+  NEAR_PARENT_MATRIX.copy(found.parent.matrixWorld);
+  NEAR_PARENT_INVERSE.copy(NEAR_PARENT_MATRIX).invert();
+  // world' = parent · node · rest⁻¹ · parent⁻¹ · world
+  NEAR_DELTA.copy(NEAR_PARENT_MATRIX)
+    .multiply(NEAR_NODE_MATRIX)
+    .multiply(NEAR_REST_MATRIX.invert())
+    .multiply(NEAR_PARENT_INVERSE);
+  position.applyMatrix4(NEAR_DELTA);
+  NEAR_DELTA_NORMALS.getNormalMatrix(NEAR_DELTA);
+  normal.applyMatrix3(NEAR_DELTA_NORMALS).normalize();
+}
+
 function resolveOwner(perch: InsectPerch) {
   if (perch.ownerId) return getSceneInteraction(perch.ownerId);
   const prefix = perch.ownerPrefix;
@@ -435,6 +507,12 @@ export function resolveInsectPerch(
     CACHED_AUTHORED_NORMAL.set(...perch.normal)
       .applyQuaternion(CACHED_QUATERNION)
       .normalize();
+    carryWithNearProp(
+      cachedOwnerId,
+      sceneInteractionRoots(cachedOwnerId),
+      CACHED_AUTHORED_POSITION,
+      CACHED_AUTHORED_NORMAL,
+    );
     return {
       ok: true,
       ownerId: cachedOwnerId,
@@ -466,6 +544,12 @@ export function resolveInsectPerch(
   CONTACT_AUTHORED_NORMAL.set(...perch.normal)
     .applyQuaternion(CONTACT_AUTHORED_QUATERNION)
     .normalize();
+  carryWithNearProp(
+    owner.id,
+    measured,
+    CONTACT_AUTHORED_POSITION,
+    CONTACT_AUTHORED_NORMAL,
+  );
   CONTACT_BOX.makeEmpty();
   for (const node of measured) {
     CONTACT_PART_BOX.setFromObject(node, true);
@@ -1055,7 +1139,7 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ],
       normal: [0, 1, 0],
       tangent: [0.9976, 0, -0.0699],
-      ownerId: "link:projects:weightlifting-icon",
+      ownerId: "action:projects:weightlifting",
     },
     {
       id: "projects:dice-pyramid-top",
@@ -1069,7 +1153,7 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       position: [REVIEWED_SHELF_LAYOUT.projects.topHomeworkIconX, 0.355, 0.02],
       normal: [0, 1, 0],
       tangent: [0.9976, 0, 0.0699],
-      ownerId: "grab:projects:homework-icon",
+      ownerId: "action:projects:homework",
     },
   ],
   [

@@ -76,7 +76,7 @@ reason. `shelf:<unit>:lower`.
 
 Title: Apple Vision Pro
 Status: written
-Audience: visitor
+Audience: internal
 Link: Apple Vision Pro https://www.apple.com/apple-vision-pro/
 
 The product I spent two years helping launch at Apple. I worked as an AR/VR software engineer on the teams behind Vision Pro.
@@ -120,7 +120,7 @@ same icon artwork at twice this size.
 
 Title: The AI Collective
 Status: written
-Audience: visitor
+Audience: internal
 Link: The AI Collective https://aicollective.com/
 
 What started as a weekly meetup with friends after ChatGPT launched grew into a global nonprofit community.
@@ -129,7 +129,7 @@ What started as a weekly meetup with friends after ChatGPT launched grew into a 
 
 Title: Coordination Research
 Status: written
-Audience: visitor
+Audience: internal
 Link: Coordination Research https://coordination.sh/
 
 An experiment in helping people and AI agents understand and strengthen the networks around them.
@@ -155,7 +155,7 @@ mode, and it can make the same trip to the hitting bay.
 
 Title: Currently Reading
 Status: written
-Audience: visitor
+Audience: internal
 Link: Book Notes https://books.chappyasel.com
 
 The three books I am reading right now, pulled live from my library. Tap one to open my notes.
@@ -164,7 +164,7 @@ The three books I am reading right now, pulled live from my library. Tap one to 
 
 Title: TJHSST Medallion
 Status: written
-Audience: visitor
+Audience: internal
 Link: TJHSST https://tjhsst.fcps.edu/
 
 My high school medallion, class of 2017. I now serve on the TJ Partnership Fund board as an alumni director.
@@ -182,7 +182,7 @@ not move, because fixed task lighting is architecture and not a prop to throw.
 
 Title: Globe
 Status: written
-Audience: visitor
+Audience: internal
 
 The darker countries are the 25 I have visited. The orange lights map the spread of AI Collective chapters around the world.
 
@@ -211,7 +211,7 @@ The tall potted plant at the right end of the top shelf.
 
 Title: Chappy Asel
 Status: written
-Audience: visitor
+Audience: internal
 Link: LinkedIn https://www.linkedin.com/in/chappyasel/
 
 Onstage at Consensus 2026 in Miami, making the case that AI agents may become crypto's first real users.
@@ -220,7 +220,7 @@ Onstage at Consensus 2026 in Miami, making the case that AI agents may become cr
 
 Title: AI Collective
 Status: written
-Audience: visitor
+Audience: internal
 Link: The AI Collective https://aicollective.com/
 
 Kicking off The AI Collective's Bengaluru chapter in March 2025. A San Francisco meetup had somehow turned into this.
@@ -229,7 +229,7 @@ Kicking off The AI Collective's Bengaluru chapter in March 2025. A San Francisco
 
 Title: Family Portrait
 Status: written
-Audience: visitor
+Audience: internal
 
 My family on Martha's Vineyard in August 2026. This island has been one of the constants in our lives for nearly three decades.
 
@@ -237,7 +237,7 @@ My family on Martha's Vineyard in August 2026. This island has been one of the c
 
 Title: Speaking Candid
 Status: written
-Audience: visitor
+Audience: internal
 
 Making the case for trust and community as AI accelerates, during the lead-up to The AI Collective's June 2025 launch.
 
@@ -245,7 +245,7 @@ Making the case for trust and community as AI accelerates, during the lead-up to
 
 Title: Delicate Arch
 Status: written
-Audience: visitor
+Audience: internal
 
 Delicate Arch at sunset in July 2021, during a family trip through Moab.
 
@@ -253,7 +253,7 @@ Delicate Arch at sunset in July 2021, during a family trip through Moab.
 
 Title: Portrait
 Status: written
-Audience: visitor
+Audience: internal
 
 Martha's Vineyard, August 2026. One of the rare times I managed to stand still long enough for a proper portrait.
 
@@ -380,7 +380,7 @@ here needs to open the index.
 
 Title: Golf Group
 Status: written
-Audience: visitor
+Audience: internal
 
 Golf with family and friends, one of the newer additions to our family rotation.
 
@@ -388,7 +388,7 @@ Golf with family and friends, one of the newer additions to our family rotation.
 
 Title: Pickleball Group
 Status: written
-Audience: visitor
+Audience: internal
 
 Pickleball with the family. We picked it up on a Hilton Head trip and immediately stopped playing tennis.
 
@@ -396,7 +396,7 @@ Pickleball with the family. We picked it up on a Hilton Head trip and immediatel
 
 Title: On the Green
 Status: written
-Audience: visitor
+Audience: internal
 
 At the Chappaquiddick pin on Martha's Vineyard in August 2025.
 
@@ -498,7 +498,7 @@ tip about.
 
 Title: Boys with Gains Trophy
 Status: written
-Audience: visitor
+Audience: internal
 
 After my first natural bodybuilding show: second in novice bodybuilding and third in physique at Battle of the Bay in October 2022.
 
@@ -506,7 +506,7 @@ After my first natural bodybuilding show: second in novice bodybuilding and thir
 
 Title: Boys with Gains Stage Portrait
 Status: written
-Audience: visitor
+Audience: internal
 
 Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022.
 
@@ -514,7 +514,7 @@ Stepping onstage for the first time at Battle of the Bay in Fremont, October 202
 
 Title: Boys with Gains on Stage
 Status: written
-Audience: visitor
+Audience: internal
 
 My first natural bodybuilding show, after twelve weeks of the hardest prep I had done.
 
@@ -522,7 +522,7 @@ My first natural bodybuilding show, after twelve weeks of the hardest prep I had
 
 Title: Boys with Gains Trophy Portrait
 Status: written
-Audience: visitor
+Audience: internal
 
 The hardware from Battle of the Bay: second in novice bodybuilding and third in physique.
 
@@ -530,7 +530,7 @@ The hardware from Battle of the Bay: second in novice bodybuilding and third in 
 
 Title: Aggregate One Rep Max Trend
 Status: written
-Audience: visitor
+Audience: internal
 Link: Analyze data https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData
 Link: Weightlifting https://weightlifting.chappyasel.com
 
@@ -540,7 +540,7 @@ Every lift rolled into one one-rep-max trend, built from the training data I hav
 
 Title: Big 3 Progression
 Status: written
-Audience: visitor
+Audience: internal
 Link: Analyze data https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData
 Link: Weightlifting https://weightlifting.chappyasel.com
 
@@ -550,7 +550,7 @@ Squat, bench, and deadlift over time. The lines are cleaner than the actual prog
 
 Title: DEXA Lean Mass vs Bodyweight
 Status: written
-Audience: visitor
+Audience: internal
 Link: Analyze data https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData
 Link: Weightlifting https://weightlifting.chappyasel.com
 
@@ -560,7 +560,7 @@ My bodyweight and lean mass across every DEXA scan. It looks like I may be neari
 
 Title: Gym Portrait
 Status: written
-Audience: visitor
+Audience: internal
 
 Near the end of my 2025 cut. Bodybuilding has been one of the stranger long-running experiments in my life.
 
@@ -568,7 +568,7 @@ Near the end of my 2025 cut. Bodybuilding has been one of the stranger long-runn
 
 Title: Deadlift
 Status: written
-Audience: visitor
+Audience: internal
 
 One of the deadlift sessions behind the charts on this shelf. I have logged every set since 2018, including the ugly ones.
 
@@ -576,7 +576,7 @@ One of the deadlift sessions behind the charts on this shelf. I have logged ever
 
 Title: Bench Press
 Status: written
-Audience: visitor
+Audience: internal
 
 Benching nearly 500 pounds of estimated one-rep max. The actual rep looked about as graceful as this photo.
 
@@ -584,7 +584,7 @@ Benching nearly 500 pounds of estimated one-rep max. The actual rep looked about
 
 Title: Lift Table
 Status: written
-Audience: visitor
+Audience: internal
 Link: PDF https://www.chappyasel.com/documents/lift-table.pdf
 
 The first lifting chart I put together, before the analysis became a small research project of its own.
@@ -808,7 +808,7 @@ print, where the old slate read as a hole in the light.
 
 Title: Daily Supplements
 Status: written
-Audience: visitor
+Audience: internal
 Link: Routine https://www.chappyasel.com/routine
 
 One of the dorkier parts of my routine: twelve supplements in the morning, eight at night, each with an explicit dose and purpose.
@@ -880,7 +880,7 @@ library; this one points at the personal manual.
 
 Title: Alarm Clock
 Status: written
-Audience: visitor
+Audience: internal
 Link: Routine https://www.chappyasel.com/routine
 
 It shows your local time until you click it. Then it winds back to 3:45, which is when I get up.
@@ -889,7 +889,7 @@ It shows your local time until you click it. Then it winds back to 3:45, which i
 
 Title: Working Session
 Status: written
-Audience: visitor
+Audience: internal
 
 A working session with The AI Collective team, turning a wall of ideas into something people could actually use.
 
@@ -897,7 +897,7 @@ A working session with The AI Collective team, turning a wall of ideas into some
 
 Title: Home Office
 Status: written
-Audience: visitor
+Audience: internal
 
 My blissful work-from-home setup, complete with a view of Salesforce Tower.
 
@@ -905,7 +905,7 @@ My blissful work-from-home setup, complete with a view of Salesforce Tower.
 
 Title: San Francisco at Dusk
 Status: written
-Audience: visitor
+Audience: internal
 
 Sunset from my 33rd-floor apartment in San Francisco, where many AI Collective dinners and founder gatherings began.
 
@@ -913,7 +913,7 @@ Sunset from my 33rd-floor apartment in San Francisco, where many AI Collective d
 
 Title: At the Lake
 Status: written
-Audience: visitor
+Audience: internal
 
 Jumping into Lake Alpine during a 2020 road trip through California.
 
@@ -921,7 +921,7 @@ Jumping into Lake Alpine during a 2020 road trip through California.
 
 Title: Routine Board
 Status: written
-Audience: visitor
+Audience: internal
 Link: Routine https://www.chappyasel.com/routine
 
 The daily checklist I actually use, compressed into one board. The full version lives in my routine.
@@ -961,7 +961,7 @@ because the acquisition earned it.
 
 Title: Coding on the Couch
 Status: written
-Audience: visitor
+Audience: internal
 
 Building with the team I joined after leaving Apple, July 2024. Three laptops on one couch was a pretty accurate picture of that chapter.
 
@@ -999,7 +999,7 @@ a 32-colour palette.
 
 Title: At Facebook
 Status: written
-Audience: visitor
+Audience: internal
 
 At 1 Hacker Way during my Facebook software engineering internship in February 2020. COVID cut the internship short a few weeks later.
 
@@ -1007,8 +1007,7 @@ At 1 Hacker Way during my Facebook software engineering internship in February 2
 
 Title: Macintosh
 Status: written
-Audience: visitor
-automaton: a one-dimensional rule scrolling up from the bottom row into a band
+Audience: internal
 
 A compact Mac running the cellular automaton that formed the background of the previous version of this site.
 
@@ -1020,11 +1019,11 @@ Status: written
 The visible practical at the left end of the top shelf. It supplies the warm
 reflection that travels across the two polished icon faces. Click it off and on.
 
-## link:projects:weightlifting-icon
+## action:projects:weightlifting
 
-Title: Weightlifting App Icon
+Title: Weightlifting App
 Status: written
-Audience: visitor
+Audience: internal
 Link: App Store https://apps.apple.com/us/app/id1266077653
 
 The app I founded to track my own lifting. I have used it to log every workout since 2018.
@@ -1080,19 +1079,19 @@ Link: Liar's Dice https://www.chappyasel.com/liarsdice
 The die on top of the pyramid. Restacking all six into a tower is one of the
 field notes.
 
-## homework-app
+## action:projects:homework
 
 Title: Homework App
 Status: written
-Audience: visitor
+Audience: internal
 
-The homework app I built in high school grew to 338,000 installs and number one in its category before Haystack AI acquired it in 2019.
+The homework planner I built in high school. It grew to 338,000 installs, 63,000 monthly users and the number one homework app worldwide before Haystack AI acquired it in 2019. Tap the icon for a closer look.
 
 ## projects-wwdc-v8
 
 Title: WWDC
 Status: written
-Audience: visitor
+Audience: internal
 
 Launching App Intents at Apple's WWDC 2022.
 
@@ -1135,7 +1134,7 @@ A mug on the Musings top shelf, near the kettle.
 
 Title: GPT-3 Paper
 Status: written
-Audience: visitor
+Audience: internal
 Link: Medium https://medium.com/@chappyasel
 
 My 2021 college paper on GPT-3 and the technological singularity. Researching it first pointed me toward community as the missing layer around AI.
@@ -1152,7 +1151,7 @@ portal.
 
 Title: Trust in the Age of Acceleration
 Status: written
-Audience: visitor
+Audience: internal
 Link: Read the essay https://www.aicollective.com/trust
 
 My argument that trust is the invisible thread holding society together, and that AI acceleration is pulling on it faster than our institutions can adapt.
@@ -1172,7 +1171,7 @@ carry it and turn it over.
 
 Title: Martha's Vineyard Cutout
 Status: written
-Audience: visitor
+Audience: internal
 
 Martha's Vineyard in miniature. My family has returned to the island every summer for nearly three decades.
 
@@ -1180,7 +1179,7 @@ Martha's Vineyard in miniature. My family has returned to the island every summe
 
 Title: Lighthouse
 Status: written
-Audience: visitor
+Audience: internal
 
 Gay Head Light in Aquinnah, part of the island my family has returned to for nearly three decades.
 
@@ -1188,7 +1187,7 @@ Gay Head Light in Aquinnah, part of the island my family has returned to for nea
 
 Title: Gay Head Light
 Status: written
-Audience: visitor
+Audience: internal
 sand: weathered red brick gone salmon in the sun, a greyed brownstone band under
 
 Gay Head Light in Aquinnah. The real lighthouse, the photograph, and this slightly ridiculous souvenir all made it onto the same shelf.
@@ -1266,7 +1265,7 @@ particular books, so they all open the library.
 
 Title: Demo Night
 Status: written
-Audience: visitor
+Audience: internal
 
 Our first large-scale AI Collective Demo Night in May 2024. Find the people building interesting things and put them in a room together.
 
@@ -1274,7 +1273,7 @@ Our first large-scale AI Collective Demo Night in May 2024. Find the people buil
 
 Title: Consensus
 Status: written
-Audience: visitor
+Audience: internal
 
 An audience member filming my Consensus 2026 fireside on AI agents and crypto in Miami.
 
@@ -1317,7 +1316,7 @@ A pothos on the Talks lower shelf.
 
 Title: Interview with Ann
 Status: written
-Audience: visitor
+Audience: internal
 
 Talking about The AI Collective and the optimism at the AI frontier on ANN News in January 2025.
 
@@ -1325,7 +1324,7 @@ Talking about The AI Collective and the optimism at the AI frontier on ANN News 
 
 Title: DC Policy Talk
 Status: written
-Audience: visitor
+Audience: internal
 
 Talking through what AI acceleration asks of policymakers and the people building the technology in Washington, DC.
 
@@ -1333,7 +1332,7 @@ Talking through what AI acceleration asks of policymakers and the people buildin
 
 Title: Panel Discussion
 Status: written
-Audience: visitor
+Audience: internal
 
 Moderating "The Future of AI Beyond the Chatbot Era" at Stanford in August 2026.
 

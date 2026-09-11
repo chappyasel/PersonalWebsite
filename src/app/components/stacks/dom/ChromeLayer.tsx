@@ -31,6 +31,7 @@ import ChromeKeyboard from "./ChromeKeyboard";
 import ChromeKeyboardHelp from "./ChromeKeyboardHelp";
 import GlobeChapterLabel from "./GlobeChapterLabel";
 import PortalLabel from "./PortalLabel";
+import PropCaption from "./PropCaption";
 import { createFreeRoamChromeVisibility } from "./chromeKeys";
 
 const SoundToggle = dynamic(
@@ -253,6 +254,7 @@ export default function ChromeLayer() {
     <>
       <PortalLabel />
       <GlobeChapterLabel />
+      <PropCaption />
       {!tapFirst && (
         <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
       )}

@@ -18,14 +18,11 @@ import {
   closeSceneArtifact,
   ensureSceneArtifactPreviewOrigin,
   imageRatioPreviewOrigin,
-  openSceneArtifact,
   readSceneArtifactPreviewOriginSession,
-  sceneArtifactFromHistoryState,
   sceneArtifactPreviewOriginSessionMatchesViewport,
   selectSceneArtifact,
   stageSceneArtifactPreviewReturnOrigin,
 } from "./sceneArtifactState";
-import { MODEL_ARTIFACT_PREVIEWS_ENABLED } from "./sceneArtifacts";
 import { useStacks } from "./store";
 
 const viewport = {
@@ -474,24 +471,4 @@ describe("scene artifact lifecycle", () => {
     releaseFrame();
     release();
   });
-
-  it.skipIf(MODEL_ARTIFACT_PREVIEWS_ENABLED)(
-    "keeps the model artifact shut while its previews are switched off",
-    () => {
-      stubWindow();
-      openSceneArtifact("homework-app");
-      expect(useStacks.getState()).toMatchObject({
-        inspectedArtifact: null,
-        modelArtifactHandoff: null,
-      });
-      // A history entry written while the switch was on reads as no artifact,
-      // so back-navigation onto it closes instead of reopening the viewer.
-      expect(
-        sceneArtifactFromHistoryState({ stacksSceneArtifact: "homework-app" }),
-      ).toBeNull();
-      expect(
-        sceneArtifactFromHistoryState({ stacksSceneArtifact: "portrait" }),
-      ).toBe("portrait");
-    },
-  );
 });

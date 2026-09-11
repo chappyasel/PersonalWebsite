@@ -12,9 +12,10 @@ describe("Field Notes catalog", () => {
     );
 
     // 2026-09-07: The Long Game adds one Rare cross-room golf discovery.
+    // 2026-09-11: Close Encounter adds one Uncommon near-prop landing.
     expect(counts).toEqual({
       Common: 14,
-      Uncommon: 11,
+      Uncommon: 12,
       Rare: 12,
       Legendary: 5,
     });

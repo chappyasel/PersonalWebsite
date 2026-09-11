@@ -4,7 +4,6 @@ import { useObjectNote } from "../objectNotes";
 import { useArtifactPreviewFrames } from "../scene/artifactPreviewFrames";
 import { artifactPreviewVisualEffects } from "../scene/artifactPreviewVisualEffects";
 import { destinationFor } from "../scene/interactionRegistry";
-import { useModelArtifactRendererEnabled } from "../scene/modelArtifactDiagnostics";
 import {
   closeSceneArtifact,
   readSceneArtifactPreviewOriginSession,
@@ -17,7 +16,6 @@ import {
   SCENE_ARTIFACTS,
   type SceneArtifact,
   type SceneArtifactId,
-  type SceneModelArtifact,
   isSceneImageArtifact,
   sceneArtifactById,
   sceneArtifactCollection,
@@ -31,14 +29,9 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import {
   type CSSProperties,
-  Component,
-  type ErrorInfo,
   type HTMLAttributes,
-  type ReactNode,
   createRef,
   useCallback,
   useEffect,
@@ -48,7 +41,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { createPortal } from "react-dom";
 import { PhotoSlider } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import type {
@@ -82,19 +74,10 @@ import {
   artifactPreviewPoseKeyframes,
   artifactPreviewPoseTransform,
 } from "./artifactPreviewPose";
-import {
-  type ModelArtifactCameraTarget,
-  modelArtifactPreviewVisible,
-} from "./modelArtifactHandoff";
-
-const ModelArtifactStage = dynamic(() => import("./ModelArtifactStage"), {
-  ssr: false,
-  loading: () => null,
-});
+import { modelArtifactPreviewVisible } from "./modelArtifactHandoff";
 
 const glassControl =
   "world-glass-control border transition-[background-color,border-color,color,transform] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none";
-const ignoreIndexChange = () => undefined;
 
 type PreviewChromeProps = Readonly<{
   artifact: SceneArtifact;
@@ -113,14 +96,8 @@ function PreviewChrome({
   onIndexChange,
   onClose,
 }: PreviewChromeProps) {
-  const model = artifact.kind === "model";
-  const note = useObjectNote(artifact.kind === "image" ? artifact.id : null);
-  const caption =
-    artifact.kind === "image"
-      ? note?.visitor
-        ? note.body
-        : artifact.caption
-      : undefined;
+  const note = useObjectNote(artifact.id);
+  const caption = note?.visitor && note.status === "written" ? note.body : undefined;
 
   return (
     <div
@@ -132,7 +109,6 @@ function PreviewChrome({
         type="button"
         onClick={onClose}
         aria-label={`Close ${artifact.title} preview`}
-        autoFocus={model}
         data-artifact-preview-control="close"
         className={`pointer-events-auto absolute right-[max(14px,env(safe-area-inset-right))] top-[max(14px,env(safe-area-inset-top))] grid size-11 place-items-center rounded-full sm:size-10 ${glassControl}`}
       >
@@ -143,9 +119,7 @@ function PreviewChrome({
         data-artifact-preview-scrim
         className="absolute inset-x-0 bottom-0 px-[max(16px,env(safe-area-inset-left))] pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-5"
       >
-        <div
-          className={`mx-auto flex max-w-[1500px] flex-col gap-2 ${model ? "sm:items-end" : "sm:flex-row sm:items-center"}`}
-        >
+        <div className="mx-auto flex max-w-[1500px] flex-col gap-2 sm:flex-row sm:items-center">
           {total > 1 && (
             <div
               data-artifact-preview-control="navigation"
@@ -178,7 +152,7 @@ function PreviewChrome({
             </div>
           )}
 
-          {artifact.kind === "image" && caption && (
+          {caption && (
             <section
               id={`artifact-caption-${artifact.id}`}
               data-artifact-preview-caption
@@ -190,23 +164,6 @@ function PreviewChrome({
               <p className="mt-1 text-[13px] leading-relaxed text-white/75 sm:text-sm">
                 {caption}
               </p>
-            </section>
-          )}
-
-          {artifact.kind === "model" && (
-            <section
-              id={`artifact-description-${artifact.id}`}
-              data-artifact-preview-description
-              className="mx-auto w-full max-w-[720px] self-center text-left"
-            >
-              <h2 className="font-serif text-lg leading-tight text-white sm:text-xl">
-                {artifact.title}
-              </h2>
-              <ul className="mx-auto mt-2 w-fit max-w-full list-disc space-y-1 pl-4 text-left text-[13px] leading-[1.45] text-white/70 sm:text-sm">
-                {artifact.description.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
             </section>
           )}
 
@@ -577,167 +534,6 @@ function PreviewPrint({
   );
 }
 
-class ModelStageBoundary extends Component<
-  Readonly<{
-    children: ReactNode;
-    onFailure: () => void;
-  }>,
-  Readonly<{ failed: boolean }>
-> {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  componentDidCatch(_error: Error, _info: ErrorInfo) {
-    this.props.onFailure();
-  }
-
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
-
-function ModelArtifactViewer({
-  artifact,
-  visible,
-  onAfterClose,
-}: {
-  artifact: SceneModelArtifact;
-  visible: boolean;
-  onAfterClose: () => void;
-}) {
-  const { resolvedTheme } = useTheme();
-  const rendererEnabled = useModelArtifactRendererEnabled();
-  const handoff = useStacks((state) =>
-    state.modelArtifactHandoff?.artifactId === artifact.id
-      ? state.modelArtifactHandoff
-      : null,
-  );
-  const dispatchHandoff = useStacks(
-    (state) => state.dispatchModelArtifactHandoff,
-  );
-  const [portalReady, setPortalReady] = useState(false);
-  const [rendererFailed, setRendererFailed] = useState(false);
-  const fallbackImage = useRef<HTMLImageElement>(null);
-  const lastTarget = useRef<ModelArtifactCameraTarget | null>(null);
-
-  useEffect(() => setPortalReady(true), []);
-
-  useEffect(() => {
-    if (!visible) {
-      const timeout = window.setTimeout(onAfterClose, 360);
-      return () => window.clearTimeout(timeout);
-    }
-    setRendererFailed(false);
-  }, [onAfterClose, visible]);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (visible && event.key === "Escape") closeSceneArtifact();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [visible]);
-
-  const reportRendererFailure = useCallback(() => {
-    setRendererFailed(true);
-  }, []);
-  const reportRendererReady = useCallback(
-    (target: ModelArtifactCameraTarget) => {
-      lastTarget.current = target;
-      dispatchHandoff({ type: "preview-ready", target });
-    },
-    [dispatchHandoff],
-  );
-
-  useEffect(() => {
-    if (handoff && !handoff.target && lastTarget.current)
-      dispatchHandoff({ type: "preview-ready", target: lastTarget.current });
-  }, [dispatchHandoff, handoff]);
-
-  if (!portalReady) return null;
-
-  const renderModel = rendererEnabled && !rendererFailed;
-  const previewVisible = handoff
-    ? modelArtifactPreviewVisible(handoff.phase)
-    : false;
-  const chromeVisible = handoff?.phase === "inspecting";
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${artifact.title} artifact`}
-      aria-describedby={`artifact-description-${artifact.id}`}
-      data-model-artifact-viewer
-      data-model-artifact-visible={previewVisible ? "" : undefined}
-      data-model-artifact-phase={handoff?.phase}
-      className="fixed inset-0 z-[2000]"
-    >
-      <div
-        aria-hidden
-        data-model-artifact-backdrop
-        onClick={closeSceneArtifact}
-        className="stacks-artifact-preview-mask absolute inset-0"
-      />
-      <div
-        data-model-artifact-stage-shell
-        onClick={renderModel ? undefined : closeSceneArtifact}
-        className="absolute inset-x-0 bottom-[clamp(220px,32vh,290px)] top-0 z-10 sm:bottom-[clamp(160px,24vh,220px)]"
-      >
-        {!renderModel && (
-          <Image
-            ref={fallbackImage}
-            data-model-artifact-fallback
-            src={artifact.fallbackImage}
-            alt=""
-            width={1024}
-            height={1024}
-            onLoad={() => {
-              const bounds = fallbackImage.current?.getBoundingClientRect();
-              if (!bounds) return;
-              reportRendererReady({
-                bounds,
-                cameraRelativeQuaternion: [0, 0, 0, 1],
-              });
-            }}
-            className="pointer-events-none absolute left-1/2 top-1/2 max-h-[58%] w-[min(58vw,360px)] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_22px_30px_rgba(0,0,0,0.28)]"
-          />
-        )}
-        {renderModel && (
-          <ModelStageBoundary onFailure={reportRendererFailure}>
-            <ModelArtifactStage
-              dark={resolvedTheme === "dark"}
-              interactive={handoff?.phase === "inspecting"}
-              onReady={reportRendererReady}
-              onBackgroundClick={closeSceneArtifact}
-              onRendererFailure={reportRendererFailure}
-            />
-          </ModelStageBoundary>
-        )}
-      </div>
-      <PreviewChrome
-        artifact={artifact}
-        total={1}
-        index={0}
-        visible={chromeVisible}
-        onIndexChange={ignoreIndexChange}
-        onClose={closeSceneArtifact}
-      />
-    </div>,
-    document.body,
-  );
-}
-
 export default function SceneArtifactInspector() {
   const selectedId = useStacks((state) => state.inspectedArtifact);
   const artifactHandoffPhase = useStacks(
@@ -1022,13 +818,6 @@ export default function SceneArtifactInspector() {
               preview={props}
             />
           )}
-        />
-      )}
-      {artifact?.kind === "model" && (
-        <ModelArtifactViewer
-          artifact={artifact}
-          visible={selectedId === artifact.id}
-          onAfterClose={clearLastSelected}
         />
       )}
     </>

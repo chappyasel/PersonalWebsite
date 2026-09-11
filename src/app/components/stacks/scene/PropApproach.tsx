@@ -17,10 +17,13 @@
 // the frame and a few degrees of turn toward the cursor, damped.
 //
 // Written for the Projects Mac (MacApproach.tsx is that prop's name for it);
-// the About globe is the second prop to fly. What differs between them is
-// carried by props here: the globe keeps presses that land on it, because a
-// drag on the near globe turns it, and it takes an extra pitch so the drag
-// can tip it toward the poles.
+// the About globe was the second prop to fly and the Homework icon the third.
+// What differs between them is carried by props here: the globe keeps
+// presses that land on it, because a drag on the near globe turns it, and it
+// takes an extra pitch so the drag can tip it toward the poles.
+//
+// While a prop is near, PropCaption (dom/) shows its visitor caption from
+// content/stacks/objects.md, keyed by the controller's id.
 import { pressLandsInRoom } from "../dom/roomPress";
 import { progressRef, useStacks } from "../store";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -31,12 +34,20 @@ import { focusPull } from "./focusPull";
 import {
   PROP_APPROACH_FOLLOW,
   PROP_APPROACH_LAMBDA,
+  PROP_TURN_FLING_DECAY,
+  PROP_TURN_HOME_DECAY,
   type PropApproach as PropApproachController,
+  type PropTurn,
   nearPropApproach,
+  propApproachBottomFraction,
   propApproachDistance,
   propApproachReleased,
+  resetPropTurn,
   subscribePropApproaches,
+  wrapPropTurn,
+  wrapYaw,
 } from "./propApproachState";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const ORIGIN = new THREE.Vector3();
 /** Ease rate for the extra pitch, per second: quick enough to feel attached
@@ -53,6 +64,7 @@ export default function PropApproach({
   facePitch = 0,
   keepPressesOnProp = false,
   tilt,
+  turn,
   innerRef,
   children,
 }: {
@@ -77,6 +89,12 @@ export default function PropApproach({
   /** Extra pitch about the camera's right axis, in radians, read every
    * frame and eased; written by a gesture on the prop. */
   tilt?: { current: number };
+  /** A whole-prop turn by hand (beginPropTurn): yaw about the camera's up
+   * axis and pitch about its right axis, read every frame and eased, with
+   * the release's fling integrated here and everything levelled on the way
+   * home. For a prop that turns as one piece; the globe spins its ball
+   * through `tilt` and its own SpinProp instead. */
+  turn?: PropTurn;
   /** The group carrying the prop, for callers that need to raycast it. */
   innerRef?: React.RefObject<THREE.Group | null>;
   children: React.ReactNode;
@@ -87,6 +105,9 @@ export default function PropApproach({
   const startPosition = useRef(0);
   const wasNear = useRef(false);
   const tiltEased = useRef(0);
+  const turnYawEased = useRef(0);
+  const turnPitchEased = useRef(0);
+  const turnWasNear = useRef(false);
   const get = useThree((state) => state.get);
   const still = useMemo(
     () =>
@@ -171,24 +192,35 @@ export default function PropApproach({
     const onPointerDown = (event: PointerEvent) => {
       if (!controller.near || !event.isPrimary || event.button !== 0) return;
       if (!pressLandsInRoom(event.target)) return;
+      // A press on the caption's link is a press on the caption, not a
+      // dismissal: the prop stays up while the link opens.
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-prop-caption]")
+      )
+        return;
       if (keepPressesOnProp && pressHitsProp(event)) return;
       controller.dismiss();
       event.stopPropagation();
     };
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown, { capture: true });
+    roomWindowEvents.addEventListener("keydown", onKeyDown);
+    roomWindowEvents.addEventListener("pointerdown", onPointerDown, {
+      capture: true,
+    });
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown, {
+      roomWindowEvents.removeEventListener("keydown", onKeyDown);
+      roomWindowEvents.removeEventListener("pointerdown", onPointerDown, {
         capture: true,
       });
       // The unit can be virtualised away mid-approach. Nothing may be left
-      // pulling focus toward a prop that is no longer drawn.
+      // pulling focus toward a prop that is no longer drawn, and no drag
+      // listener may outlive it.
       controller.set(false);
       controller.progress.current = 0;
       focusPull.weight = 0;
+      turn?.cancel?.();
     };
-  }, [controller, get, group, keepPressesOnProp, scratch]);
+  }, [controller, get, group, keepPressesOnProp, scratch, turn]);
 
   useFrame(({ camera, size, pointer }, rawDelta) => {
     const node = group.current;
@@ -227,10 +259,70 @@ export default function PropApproach({
     tiltEased.current = still
       ? tiltGoal
       : THREE.MathUtils.damp(tiltEased.current, tiltGoal, TILT_LAMBDA, delta);
+    // The hand turn: coast after a release, then ease the drawn pose after
+    // the commanded one. Going home levels it, so the prop lands square.
+    if (turn) {
+      // The moment the prop starts home, bring a whole-lap yaw back into
+      // (-π, π] (same orientation) and end any drag: easing 2π down to 0
+      // would carry the flight's slerp across π and onto the other short
+      // arc, a 144° snap between frames (Codex review, 2026-09-11).
+      if (goal === 0 && turnWasNear.current) {
+        wrapPropTurn(turn);
+        turnYawEased.current = wrapYaw(turnYawEased.current);
+      }
+      turnWasNear.current = goal === 1;
+      if (!turn.held && turn.yawVelocity !== 0) {
+        const step = turn.yawVelocity * delta;
+        // Going home the coast keeps running, only faster to run down, and
+        // never past the half turn the wrap above put it inside of.
+        if (goal === 0 && Math.abs(turn.yaw + step) > Math.PI * 0.9)
+          turn.yawVelocity = 0;
+        else turn.yaw += step;
+        turn.yawVelocity = THREE.MathUtils.damp(
+          turn.yawVelocity,
+          0,
+          goal === 1 ? PROP_TURN_FLING_DECAY : PROP_TURN_HOME_DECAY,
+          delta,
+        );
+        if (Math.abs(turn.yawVelocity) < 0.02) turn.yawVelocity = 0;
+      }
+      // Up close the drawn turn follows the commanded one. On the way home
+      // it unwinds WITH the flight: the goal is the turn scaled by what is
+      // left of the approach, so the prop is still turning as it recedes
+      // and is level exactly when it lands, instead of snapping level the
+      // moment it is dismissed. Scaled by the ease-out of the remainder
+      // rather than the remainder itself: the flight leaves fast, and a
+      // linear unwind reversed a coasting spin in the first frame (measured
+      // 0.17 rad in one frame); this lets the coast carry a little further
+      // before the levelling takes over, and still lands level.
+      const remaining = 1 - progress.current;
+      const unwind = goal === 1 ? 1 : 1 - remaining * remaining;
+      const yawGoal = turn.yaw * unwind;
+      const pitchGoal = turn.pitch * unwind;
+      turnYawEased.current = still
+        ? yawGoal
+        : THREE.MathUtils.damp(
+            turnYawEased.current,
+            yawGoal,
+            TILT_LAMBDA,
+            delta,
+          );
+      turnPitchEased.current = still
+        ? pitchGoal
+        : THREE.MathUtils.damp(
+            turnPitchEased.current,
+            pitchGoal,
+            TILT_LAMBDA,
+            delta,
+          );
+    }
     if (goal === 0 && progress.current < 1e-3) {
       if (progress.current !== 0) {
         progress.current = 0;
         tiltEased.current = 0;
+        turnYawEased.current = 0;
+        turnPitchEased.current = 0;
+        if (turn) resetPropTurn(turn);
         if (tilt) tilt.current = 0;
         node.position.copy(ORIGIN);
         node.quaternion.copy(restQuaternion);
@@ -292,6 +384,19 @@ export default function PropApproach({
         follow.current.y * PROP_APPROACH_FOLLOW.y * halfHeight,
       );
     world.copy(centre).addScaledVector(up, -height / 2);
+    // Where the foot lands on screen, for the caption under the prop. From
+    // the un-nudged pose, so the caption holds still while the prop drifts
+    // after the pointer.
+    controller.frame.bottom =
+      size.top +
+      size.height *
+        propApproachBottomFraction({
+          fovDegrees: fov,
+          aspect,
+          height,
+          width,
+          fill,
+        });
 
     parent.updateWorldMatrix(true, false);
     parent.getWorldQuaternion(parentQuaternion);
@@ -302,8 +407,10 @@ export default function PropApproach({
     // leaning face square instead, the follow turns the prop a few degrees
     // toward the cursor, and the gesture's tilt tips it further.
     followEuler.set(
-      -follow.current.y * PROP_APPROACH_FOLLOW.pitch + tiltEased.current,
-      follow.current.x * PROP_APPROACH_FOLLOW.yaw,
+      -follow.current.y * PROP_APPROACH_FOLLOW.pitch +
+        tiltEased.current +
+        turnPitchEased.current,
+      follow.current.x * PROP_APPROACH_FOLLOW.yaw + turnYawEased.current,
       0,
     );
     followQuaternion.setFromEuler(followEuler);
@@ -322,6 +429,19 @@ export default function PropApproach({
     focusPull.y = centre.y;
     focusPull.z = centre.z;
   });
+
+  // The insect perch resolver reads the prop's live tilt off this group
+  // (insectPerches.tsx, `carryWithNearProp`): the group's name finds it and
+  // the rest quaternion in userData is what the displacement is measured
+  // against.
+  useEffect(() => {
+    const node = group.current;
+    if (!node) return;
+    node.userData.propApproachRest = restQuaternion.toArray();
+    return () => {
+      delete node.userData.propApproachRest;
+    };
+  }, [group, restQuaternion]);
 
   return (
     <group

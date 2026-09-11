@@ -1,3 +1,4 @@
+import { roomWindowEvents } from "../room/roomEvents";
 // The About globe up close: its approach controller, the hand that turns it,
 // the tilt a drag gives it, and which map mark the pointer is over.
 //
@@ -214,16 +215,16 @@ export function beginGlobeDrag(pointerId?: number) {
   };
   const end = (event: PointerEvent) => {
     if (pointerId !== undefined && event.pointerId !== pointerId) return;
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", end);
-    window.removeEventListener("pointercancel", end);
+    roomWindowEvents.removeEventListener("pointermove", onMove);
+    roomWindowEvents.removeEventListener("pointerup", end);
+    roomWindowEvents.removeEventListener("pointercancel", end);
     globeSpin.setHeld(false);
     // A drag that ended more than a beat ago has no speed left to give.
     const stale = last ? event.timeStamp - last.time > 120 : true;
     const fling = !stale && Math.abs(velocity) >= GLOBE_FLING_MIN;
     globeSpin.fling(fling ? velocity : 0);
   };
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", end);
-  window.addEventListener("pointercancel", end);
+  roomWindowEvents.addEventListener("pointermove", onMove);
+  roomWindowEvents.addEventListener("pointerup", end);
+  roomWindowEvents.addEventListener("pointercancel", end);
 }

@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { TRAINING_FIGURE_CARD_LAYOUT } from "./scene/units/trainingBoardLayout";
 import {
   ANALYZE_DATA_REPOSITORY,
-  MODEL_ARTIFACT_PREVIEWS_ENABLED,
   SCENE_ARTIFACTS,
   SCENE_PHOTOS,
   TRAINING_BOARD_PHOTOS,
@@ -12,7 +11,6 @@ import {
   adjacentSceneArtifact,
   sceneArtifactById,
   sceneArtifactCollection,
-  sceneArtifactPreviewEnabled,
 } from "./sceneArtifacts";
 
 const inspector = fs.readFileSync(
@@ -25,14 +23,6 @@ const progressivePreviewImage = fs.readFileSync(
 );
 const cards = fs.readFileSync(
   new URL("./scene/units/TrainingFigureCards.tsx", import.meta.url),
-  "utf8",
-);
-const modelStage = fs.readFileSync(
-  new URL("./modal/ModelArtifactStage.tsx", import.meta.url),
-  "utf8",
-);
-const stacksCanvas = fs.readFileSync(
-  new URL("./StacksCanvas.tsx", import.meta.url),
   "utf8",
 );
 const photoCarrierSources = [
@@ -299,13 +289,11 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("order-1 flex w-fit max-w-full");
     expect(inspector.match(/sm:order-none/g)).toHaveLength(2);
     expect(inspector).toContain("data-artifact-preview-scrim");
-    expect(inspector).toContain("data-artifact-preview-description");
     expect(inspector).toContain("data-artifact-preview-caption");
     expect(inspector).toContain("useObjectNote");
     expect(inspector).toContain("note?.visitor");
-    expect(inspector.indexOf("note.body")).toBeLessThan(
-      inspector.indexOf("artifact.caption"),
-    );
+    expect(inspector).toContain('note.status === "written"');
+    expect(inspector).not.toContain("artifact.caption");
     expect(inspector).toContain("bg-black/55");
     expect(inspector).not.toContain("bg-gradient-to-t");
     expect(inspector).not.toContain("bg-[#f2e7cf]/85");
@@ -326,7 +314,7 @@ describe("Scene artifact inspector", () => {
   });
 
   it("defines Lift Table as a directly inspectable singleton image", () => {
-    expect(SCENE_ARTIFACTS).toHaveLength(35);
+    expect(SCENE_ARTIFACTS).toHaveLength(34);
     expect(sceneArtifactById("lift-table")).toMatchObject({
       kind: "image",
       title: "Lift Table",
@@ -335,66 +323,6 @@ describe("Scene artifact inspector", () => {
       image: "/images/stacks/artifacts/lift-table.png",
       actions: [{ label: "Open PDF", href: "/documents/lift-table.pdf" }],
     });
-  });
-
-  it("defines Homework as a captioned, link-free model artifact", () => {
-    expect(sceneArtifactCollection("homework-app")).toHaveLength(1);
-    expect(sceneArtifactById("homework-app")).toMatchObject({
-      kind: "model",
-      title: "Homework App",
-      model: "homework-icon",
-      interactionId: "grab:projects:homework-icon",
-      fallbackImage: "/images/stacks/v8/projects-homework-icon.webp",
-      actions: [],
-      description: [
-        expect.stringContaining("organizing, tracking, and reminding"),
-        expect.stringContaining("Haystack AI in 2019"),
-        expect.stringContaining("338k installs, 63k MAU"),
-      ],
-    });
-    expect(inspector).toContain("useModelArtifactRendererEnabled");
-    expect(inspector).toContain("data-model-artifact-fallback");
-    expect(inspector).toContain("modelArtifactPreviewVisible");
-    expect(inspector).toContain("data-model-artifact-phase");
-    expect(inspector).toContain("!renderModel && (");
-    expect(inspector).toContain("artifact.actions.length > 0");
-    expect(modelStage).toContain('frameloop="demand"');
-    expect(modelStage).toContain("<OrbitControls");
-    expect(modelStage).toContain("enablePan={false}");
-    expect(modelStage).toContain("interactive={false}");
-    expect(modelStage).toContain("onPointerMissed");
-    expect(modelStage).toContain("onBackgroundClick()");
-    expect(modelStage).toContain("projectArtifactInspectionLighting");
-    expect(modelStage).not.toContain('color={dark ? "#c6d3ef"');
-    expect(inspector).toContain(
-      'interactive={handoff?.phase === "inspecting"}',
-    );
-    expect(inspector).toContain("onClick={closeSceneArtifact}");
-    expect(inspector).toContain(
-      "onClick={renderModel ? undefined : closeSceneArtifact}",
-    );
-    expect(inspector).toContain("onBackgroundClick={closeSceneArtifact}");
-    expect(inspector).toContain(
-      'className="mx-auto w-full max-w-[720px] self-center text-left"',
-    );
-    expect(modelStage).toContain("enabled={interactive}");
-    expect(stacksCanvas).toContain("modelArtifactRoomShouldFreeze");
-    expect(stacksCanvas).toContain('inspectedArtifact?.kind !== "image"');
-    expect(stacksCanvas).toContain(
-      'frameloop={freezeRoom ? "never" : "always"}',
-    );
-  });
-
-  it("switches the whole model preview path behind one flag", () => {
-    // Off since 2026-08-23 (the lift-and-orbit preview was regressing); the
-    // viewer and handoff stay in place so re-enabling is flipping this back.
-    expect(MODEL_ARTIFACT_PREVIEWS_ENABLED).toBe(false);
-    expect(
-      sceneArtifactPreviewEnabled(sceneArtifactById("homework-app")!),
-    ).toBe(MODEL_ARTIFACT_PREVIEWS_ENABLED);
-    expect(sceneArtifactPreviewEnabled(sceneArtifactById("portrait")!)).toBe(
-      true,
-    );
   });
 
   it("moves the physical source relative to the live camera before crossfading", () => {

@@ -29,7 +29,11 @@ import {
   insectDiagnosticsController,
   insectDiagnosticsEnabled,
 } from "./insectPerchDiagnostic";
-import { getInsectPerches } from "./insectPerches";
+import {
+  getInsectPerch,
+  getInsectPerches,
+  resolveInsectPerch,
+} from "./insectPerches";
 import {
   sceneInteractionInventory,
   sceneInteractionRoots,
@@ -695,6 +699,24 @@ export default function InsectPerchDiagnostics() {
         // from a bounding box and re-running the page to find out.
         probe: (unit: number, ownerId: string, steps?: number) =>
           probeInteractionSurface(unit, ownerId, steps),
+        // Run the real resolver on one Perch and report what it decided,
+        // including where it thinks the authored anchor is (which moves with
+        // a prop that is up at the camera).
+        resolve: (perchId: string) => {
+          const perch = getInsectPerch(perchId);
+          if (!perch) return null;
+          const result = resolveInsectPerch(perch);
+          return result.ok
+            ? {
+                ok: true,
+                ownerId: result.ownerId,
+                authored: result.authoredPosition.toArray(),
+                position: result.position.toArray(),
+                normal: result.normal.toArray(),
+                normalAgreement: result.normalAgreement,
+              }
+            : { ok: false, code: result.rejectionCode };
+        },
         // The same job for a wall rather than a lid. See
         // `probeInteractionFlank` — a downward probe cannot see the side of a
         // lamp shade at all, which is why every lamp Perch was on the top.

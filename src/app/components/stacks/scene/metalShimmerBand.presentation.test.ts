@@ -36,7 +36,12 @@ describe("metal shimmer band", () => {
       'hoverKey="grab:ai-collective-mark"',
     ],
     ["tj medallion", "./AuthoredProps.tsx", "hoverKey={TJ_MEDALLION_HOVER}"],
-    ["project icon", "./units/ProjectArtifacts.tsx", "hoverKey={hoverKey}"],
+    [
+      "project icon",
+      "./units/ProjectArtifacts.tsx",
+      // The carrier, not the ProjectIconVisual above it that shares the key.
+      "<Grabbable\n      unitIndex={unitIndex}\n      hoverKey={hoverKey}",
+    ],
   ];
 
   it.each(SHIMMER_PROPS)(

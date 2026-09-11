@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import postcss from "postcss";
+import tailwindcss from "tailwindcss";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NotionToggle from "~/components/notion/NotionToggle";
@@ -33,6 +35,55 @@ afterEach(() => {
 });
 
 describe("section copy buttons", () => {
+  it("hides copy links on touch and limits their reveal to mouse input", async () => {
+    const view = render(<AnchorLink id="foundations" className="inline-flex" />);
+    const button = view.getByRole("button", {
+      name: "Copy link to this section",
+    });
+    // Compile the rendered classes: jsdom cannot reproduce Safari withholding
+    // a click when an emulated hover reveals content. Guard that CSS trigger.
+    const css = await postcss([
+      tailwindcss({
+        content: [{ raw: button.outerHTML, extension: "html" }],
+        corePlugins: { preflight: false },
+      }),
+    ]).process("@tailwind utilities;", { from: undefined });
+    let desktopHidden = false;
+    let touchHidden = false;
+    css.root.walkRules((rule) => {
+      if (
+        rule.nodes.some(
+          (node) =>
+            node.type === "decl" &&
+            node.prop === "display" &&
+            node.value === "none",
+        )
+      ) {
+        expect(rule.parent).toMatchObject({
+          type: "atrule",
+          name: "media",
+          params: "not all and (hover:hover) and (pointer:fine)",
+        });
+        touchHidden = true;
+      }
+      const hidesButton = rule.nodes.some(
+        (node) =>
+          node.type === "decl" &&
+          node.prop === "opacity" &&
+          node.value === "0",
+      );
+      if (!hidesButton && !/(?<!\\):hover\b/.test(rule.selector)) return;
+      expect(rule.parent).toMatchObject({
+        type: "atrule",
+        name: "media",
+        params: "(hover:hover) and (pointer:fine)",
+      });
+      if (hidesButton) desktopHidden = true;
+    });
+    expect(desktopHidden).toBe(true);
+    expect(touchHidden).toBe(true);
+  });
+
   it("copies the section selection while keeping address-bar navigation as an anchor", async () => {
     const view = render(<AnchorLink id="deep-think-weeks" />);
     await act(async () =>

@@ -206,6 +206,17 @@ export default function ScrollBridges() {
       }
     }
 
+    // Activity reconnects this bridge on return without replacing the scroll
+    // element. A different explicit shelf hash still owns the destination.
+    const requested = scenePositionFromHash(window.location.hash);
+    const current = useStacks.getState();
+    if (
+      requested !== null &&
+      (Math.round(requested) !== current.activeUnit ||
+        golfFocusedForScenePosition(requested) !== current.golfStop)
+    )
+      jumpTo(requested);
+
     // Mirror travel into the URL — at most one replaceState per unit change.
     // The golf half of it is the scroll's stop window, not golf mode: the
     // mouse can put the visitor in golf from the Books stop, and that must
@@ -224,7 +235,8 @@ export default function ScrollBridges() {
         activeUnit: state.activeUnit,
         golfFocused: state.golfStop,
       };
-      if (!shouldMirrorWorldHistory(state)) return;
+      if (window.location.pathname !== "/" || !shouldMirrorWorldHistory(state))
+        return;
       window.history.replaceState(
         null,
         "",
@@ -238,6 +250,9 @@ export default function ScrollBridges() {
     });
 
     const travelToLocation = () => {
+      // A replayed major-route pop can reach us before Activity disconnects
+      // the old room. The destination page owns its URL and scroll position.
+      if (window.location.pathname !== "/") return;
       const state = useStacks.getState();
       const target = initialScenePositionFromLocation(
         window.location.pathname,
@@ -257,6 +272,7 @@ export default function ScrollBridges() {
       state.travelTo?.(target);
     };
     const onPopState = () => {
+      if (window.location.pathname !== "/") return;
       const state = useStacks.getState();
       if (state.modalOpen || state.visionRidePhase !== "idle") return;
       // Browser back while the mobile panel is up closes the panel — the

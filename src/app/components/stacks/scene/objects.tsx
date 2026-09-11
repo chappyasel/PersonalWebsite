@@ -1,5 +1,8 @@
 "use client";
 
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
+
+
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import type { ArtifactPreviewFrameLayer } from "../modal/artifactPreviewFrame";
@@ -83,11 +86,11 @@ export function usePropClick(
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
       fire.current();
     };
-    window.addEventListener("pointerdown", onDown, true);
-    window.addEventListener("pointerup", onUp, true);
+    roomWindowEvents.addEventListener("pointerdown", onDown, true);
+    roomWindowEvents.addEventListener("pointerup", onUp, true);
     return () => {
-      window.removeEventListener("pointerdown", onDown, true);
-      window.removeEventListener("pointerup", onUp, true);
+      roomWindowEvents.removeEventListener("pointerdown", onDown, true);
+      roomWindowEvents.removeEventListener("pointerup", onUp, true);
     };
   }, [unitIndex, hoverKey]);
 }

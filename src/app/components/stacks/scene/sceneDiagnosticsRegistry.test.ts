@@ -407,30 +407,6 @@ describe("Scene Diagnostics registry", () => {
     deformation.dispose();
   });
 
-  it("can disable the temporary 3D artifact renderer live", () => {
-    const descriptor = sceneDiagnosticsRegistry.descriptors.find(
-      (entry) => entry.id === "render.model-artifact-preview",
-    );
-    expect(descriptor).toMatchObject({
-      label: "3D artifact preview",
-      defaultValue: true,
-      experimental: false,
-      productionCost: {
-        activeValues: [true],
-        offPath: {
-          renderTargetAllocations: 0,
-          textureSamples: 0,
-          perFrameWork: false,
-        },
-      },
-    });
-
-    sceneDiagnosticsRegistry.update("render.model-artifact-preview", false);
-    expect(sceneDiagnosticsRegistry.read("render.model-artifact-preview")).toBe(
-      false,
-    );
-    sceneDiagnosticsRegistry.update("render.model-artifact-preview", true);
-  });
 });
 
 class FakeStore implements DiagnosticRegistryStore {

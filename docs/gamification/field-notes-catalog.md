@@ -389,7 +389,38 @@ the completed state until the visitor finds the new entry.
     - Notes: The stable About ball ID proves its origin; no carry history is
       stored. The successful impact frame, not entering the bay, awards it.
 
-39. [ ] **Full Journal** `◇`
+39. [ ] **The Whole World** `◇`
+
+    - Rarity: Common.
+    - Earned by: Bring the About globe up to the camera.
+    - First hint: Bring the About globe up for a closer look.
+    - Notes:
+
+40. [ ] **Local Chapter** `◇`
+
+    - Rarity: Uncommon.
+    - Earned by: Open an AI Collective chapter from the globe.
+    - First hint: Find an AI Collective chapter on the globe and open it.
+    - Notes:
+
+41. [ ] **Under the Hood** `◇`
+
+    - Rarity: Rare.
+    - Earned by: Open the scene console, by the backtick key or `?debug=1`.
+    - First hint: The room ships with its console. Find the key.
+    - Notes:
+
+42. [ ] **Close Encounter** `◇`
+
+    - Rarity: Uncommon.
+    - Earned by: Bring a prop up for a closer look (the Homework tile, the
+      Weightlifting tile or the Mac) and have a butterfly land on it while it
+      is up.
+    - First hint: Bring something up for a closer look, then hold still.
+    - Notes: Hover on the near prop no longer scares a butterfly off, so
+      holding the pointer over it is fine; a press puts the prop back.
+
+43. [ ] **Full Journal** `◇`
     - Rarity: Legendary.
     - Earned by: Earn every other Field Note. Awarded in the same moment as
       the final other discovery.

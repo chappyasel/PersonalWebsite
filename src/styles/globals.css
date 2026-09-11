@@ -1425,7 +1425,7 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 }
 
 .stacks-boot-role-icon-body {
-  fill: var(--stacks-boot-metal);
+  fill: var(--stacks-boot-role-light, var(--stacks-boot-metal));
   opacity: 0.94;
 }
 
@@ -1433,7 +1433,8 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   pointer-events: none;
 }
 
-.dark .stacks-boot-role-icon {
+.dark .stacks-boot-role-icon,
+.dark .stacks-boot-role-icon-body {
   fill: var(--stacks-boot-role-dark, var(--stacks-boot-metal));
 }
 
