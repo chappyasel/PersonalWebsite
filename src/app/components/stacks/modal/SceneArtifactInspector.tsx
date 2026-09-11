@@ -1,5 +1,6 @@
 "use client";
 
+import { useObjectNote } from "../objectNotes";
 import { useArtifactPreviewFrames } from "../scene/artifactPreviewFrames";
 import { artifactPreviewVisualEffects } from "../scene/artifactPreviewVisualEffects";
 import { destinationFor } from "../scene/interactionRegistry";
@@ -113,6 +114,13 @@ function PreviewChrome({
   onClose,
 }: PreviewChromeProps) {
   const model = artifact.kind === "model";
+  const note = useObjectNote(artifact.kind === "image" ? artifact.id : null);
+  const caption =
+    artifact.kind === "image"
+      ? note?.visitor
+        ? note.body
+        : artifact.caption
+      : undefined;
 
   return (
     <div
@@ -120,7 +128,6 @@ function PreviewChrome({
       data-preview-chrome-visible={visible ? "" : undefined}
       className="pointer-events-none fixed inset-0 z-[30] text-white"
     >
-      {!model && <h2 className="sr-only">{artifact.title}</h2>}
       <button
         type="button"
         onClick={onClose}
@@ -169,6 +176,21 @@ function PreviewChrome({
                 <ArrowRightIcon aria-hidden size={18} weight="bold" />
               </button>
             </div>
+          )}
+
+          {artifact.kind === "image" && caption && (
+            <section
+              id={`artifact-caption-${artifact.id}`}
+              data-artifact-preview-caption
+              className="order-0 min-w-0 max-w-2xl self-center rounded-xl bg-black/55 px-3 py-2 text-center shadow-lg backdrop-blur-sm sm:flex-1 sm:self-auto sm:text-left"
+            >
+              <h2 className="font-serif text-lg leading-tight text-white sm:text-xl">
+                {artifact.title}
+              </h2>
+              <p className="mt-1 text-[13px] leading-relaxed text-white/75 sm:text-sm">
+                {caption}
+              </p>
+            </section>
           )}
 
           {artifact.kind === "model" && (

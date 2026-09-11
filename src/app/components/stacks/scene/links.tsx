@@ -29,6 +29,7 @@ import {
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   capture,
 } from "../../../../lib/analytics";
+import { requestPrototypeNavigation } from "../../route-transition-prototype/navigation";
 import { UNITS } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
@@ -156,6 +157,7 @@ export function useOpenTarget(): (
         recordModalOriginAtPointer();
         openSheetRoute(href, router);
       } else {
+        if (requestPrototypeNavigation(href, analyticsContext.portalId)) return;
         // Same-tab navigation, exactly what the placard's <Link> does (the app
         // router hands a cross-origin href to the browser itself).
         router.push(href);

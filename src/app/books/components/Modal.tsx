@@ -37,7 +37,11 @@ import {
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
 import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
-import { bookIdFromPathname, isBookModalHistoryState } from "./modalHistory";
+import {
+  bookIdFromPathname,
+  inlineBookIdFromHistory,
+  isBookModalHistoryState,
+} from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
 
 const FOCUSABLE_SELECTOR = [
@@ -90,7 +94,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const stacksOriginRef = useRef<ModalOrigin | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
-  const fromStacks = presentation?.source === "stacks";
+  // Documents use the same external-library links and origin flight as Stacks.
+  const fromStacks = presentation !== undefined;
   const onCloseStart = presentation?.onCloseStart;
 
   const bookId = selectedBookId ?? "";
@@ -176,9 +181,18 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   // book reopens it, so the URL and the page never disagree.
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      const id = bookIdFromPathname(window.location.pathname, fromStacks);
+      const id =
+        presentation?.source === "document"
+          ? inlineBookIdFromHistory(window.location.pathname, event.state)
+          : bookIdFromPathname(
+              window.location.pathname,
+              fromStacks || process.env.NODE_ENV === "development",
+            );
       if (id) {
-        if (!isModalOpen && isBookModalHistoryState(event.state)) {
+        if (
+          !isModalOpen &&
+          isBookModalHistoryState(event.state, presentation?.source)
+        ) {
           openModalById(id);
         }
         return;
@@ -199,7 +213,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [isModalOpen, fromStacks, closeModal, onCloseStart, openModalById]);
+  }, [
+    isModalOpen,
+    fromStacks,
+    closeModal,
+    onCloseStart,
+    openModalById,
+    presentation?.source,
+  ]);
 
   // A soft navigation while the modal is open (Universal Search on the books
   // site, say) replaces the page underneath; the modal must not linger over
@@ -213,7 +234,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       sawOwnPathRef.current = false;
       return;
     }
-    if (bookIdFromPathname(pathname, fromStacks) === bookId) {
+    if (
+      (presentation?.source === "document"
+        ? inlineBookIdFromHistory(pathname, window.history.state)
+        : bookIdFromPathname(
+            pathname,
+            fromStacks || process.env.NODE_ENV === "development",
+          )) === bookId
+    ) {
       sawOwnPathRef.current = true;
       return;
     }
@@ -221,7 +249,15 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     isClosingRef.current = true;
     onCloseStart?.();
     closeModal();
-  }, [pathname, isModalOpen, bookId, fromStacks, closeModal, onCloseStart]);
+  }, [
+    pathname,
+    isModalOpen,
+    bookId,
+    fromStacks,
+    closeModal,
+    onCloseStart,
+    presentation?.source,
+  ]);
 
   const expandHref = fullBookPageHref(bookId, presentation);
 
@@ -424,9 +460,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   // Prevent background scroll when modal is open
   useEffect(() => {
     if (isModalOpen) {
+      const previous = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => {
-        document.body.style.overflow = "";
+        document.body.style.overflow = previous;
       };
     }
   }, [isModalOpen]);
@@ -528,7 +565,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                   book?.title ? `${book.title} details` : "Book details"
                 }
                 tabIndex={-1}
-                data-book-modal-shell={fromStacks ? "stacks" : undefined}
+                data-book-modal-shell={presentation?.source}
                 className={`relative w-full max-w-4xl outline-none ${fullHeight ? "h-full" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={

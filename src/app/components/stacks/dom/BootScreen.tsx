@@ -1319,22 +1319,49 @@ export default function BootScreen({
   const resolvedReadingBookColors =
     readingBookColors ?? streamedReadingBooks?.colors ?? {};
   const cadence = ABOUT_BOOT_CADENCE;
-  const keyframes = bootCssKeyframes(
-    ABOUT_BOOT_VISIBLE_COMPOSITION.length,
-    cadence,
-  );
   const sceneRef = useRef<SVGSVGElement>(null);
   const motesRef = useRef<HTMLDivElement>(null);
   useBootMotion(sceneRef, cadence, readingBooks);
   useBootMotes(motesRef);
   useBootStage();
   return (
+    <BootScreenArtwork
+      readingBooks={resolvedReadingBooks}
+      readingBookColors={resolvedReadingBookColors}
+      sceneRef={sceneRef}
+      motesRef={motesRef}
+      includeStageScript
+    />
+  );
+}
+
+// The transition prototype reuses the drawing without starting the world boot
+// machine, publishing a stage, or allocating animation loops.
+export function BootScreenArtwork({
+  readingBooks: resolvedReadingBooks = DEFAULT_BOOT_READING_BOOKS,
+  readingBookColors: resolvedReadingBookColors = {},
+  sceneRef,
+  motesRef,
+  includeStageScript = false,
+}: BootScreenProps & {
+  sceneRef?: RefObject<SVGSVGElement | null>;
+  motesRef?: RefObject<HTMLDivElement | null>;
+  includeStageScript?: boolean;
+}) {
+  const cadence = ABOUT_BOOT_CADENCE;
+  const keyframes = bootCssKeyframes(
+    ABOUT_BOOT_VISIBLE_COMPOSITION.length,
+    cadence,
+  );
+  return (
     <>
       {/* Lays the bookcase over the spot the camera will put the real shelf,
           from the same rest-pose math, before this markup's first paint. It
           has to be rendered from here: the layout math reaches the unit
           registry, which the server page cannot import. */}
-      <script dangerouslySetInnerHTML={{ __html: ABOUT_BOOT_STAGE_SCRIPT }} />
+      {includeStageScript ? (
+        <script dangerouslySetInnerHTML={{ __html: ABOUT_BOOT_STAGE_SCRIPT }} />
+      ) : null}
       <div
         className="stacks-boot"
         style={
@@ -1590,7 +1617,7 @@ export default function BootScreen({
             </span>
           </p>
           <div aria-hidden>
-            <BootWaitNotes />
+            {includeStageScript ? <BootWaitNotes /> : null}
           </div>
         </div>
       </div>

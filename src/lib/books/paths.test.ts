@@ -1,8 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getBooksPath, getBooksTagQuery } from "./paths";
+import { getBookPath, getBooksPath, getBooksTagQuery } from "./paths";
 
 describe("book paths", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("opens book cards and expanded modals under the shared local Books route", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(getBookPath("behave", "size=L&search=behave")).toBe(
+      "/books/behave?size=L&search=behave",
+    );
+  });
+  it("keeps production book paths relative to the Books host", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(getBookPath("behave")).toBe("/behave");
+  });
   it.each([
     [
       "the main host",

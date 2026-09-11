@@ -13,6 +13,7 @@ import Link from "next/link";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { humanizeSlug, inlineBookFacts } from "~/lib/books/inlineFacts";
 
+import { prefersFullPage } from "~/components/modal-sheet/sheetRoute";
 import type { BookLookupEntry } from "~/components/notion/types";
 import {
   Tooltip,
@@ -21,6 +22,8 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import { useInlineBookPreview } from "./InlineBookPreviewProvider";
+
 /**
  * The one way to link a book from running text.
  *
@@ -28,7 +31,8 @@ import {
  * Google page-curl edge), rounded, with a real shadow and no mat. The title
  * is italic. Hovering shows the same facts the library's own cards carry:
  * author, rating, when it was read, how long it is. Tap-first devices skip
- * the card and follow the link, which always goes to the book's notes.
+ * the card. Desktop clicks open the notes over the document; small viewports
+ * and modified clicks follow the link to the book's own page.
  *
  * Without a library row (an unknown slug, or the database being away) the
  * link still renders from the slug alone, with no cover and no card.
@@ -49,10 +53,27 @@ export default function BookLink({
 }) {
   const title = label ?? book?.title ?? humanizeSlug(slug);
   const cover = enhanceCoverUrl(book?.coverUrl ?? null);
+  const openBook = useInlineBookPreview();
 
   const anchor = (
     <Link
       href={href}
+      data-route-transition="preserve"
+      onClick={(event) => {
+        if (
+          !openBook ||
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey ||
+          prefersFullPage()
+        )
+          return;
+        event.preventDefault();
+        openBook(slug, event.currentTarget.getBoundingClientRect());
+      }}
       className="inline-flex items-baseline gap-1.5 underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
     >
       {cover && (

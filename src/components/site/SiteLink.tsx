@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
 
-import type { SitePageKey } from "~/lib/site/pages";
+import { SITE_PAGES, type SitePageKey } from "~/lib/site/pages";
 
 import { daylightAccentClass } from "~/components/daylight/sectionIcons";
+import { InModalSheetContext } from "~/components/modal-sheet/ModalSheet";
+import SheetLink from "~/components/modal-sheet/SheetLink";
 
 import SitePageHoverCard, { SITE_PAGE_GLYPH } from "./SitePageHoverCard";
 
@@ -25,10 +27,19 @@ export default function SiteLink({
 }) {
   const { Icon, accent } = SITE_PAGE_GLYPH[page];
   const accentClass = daylightAccentClass(accent);
+  const inSheet = useContext(InModalSheetContext);
+  const isDocument =
+    page === "manual" || page === "routine" || page === "systems";
+  const LinkComponent = isDocument ? SheetLink : Link;
+  const url = new URL(href, "https://chappyasel.com");
+  const destination =
+    isDocument && inSheet
+      ? `${SITE_PAGES[page].path}${url.search}${url.hash}`
+      : href;
   return (
     <SitePageHoverCard page={page}>
-      <Link
-        href={href}
+      <LinkComponent
+        href={destination}
         className="whitespace-nowrap underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
       >
         <Icon
@@ -37,7 +48,7 @@ export default function SiteLink({
           className={`mr-1 inline-block align-[-0.125em] opacity-80 ${accentClass}`}
         />
         {children}
-      </Link>
+      </LinkComponent>
     </SitePageHoverCard>
   );
 }

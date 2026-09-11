@@ -24,6 +24,7 @@ import Projects from "./components/Projects";
 import Quotes from "./components/Quotes";
 import Talks from "./components/Talks";
 import Weightlifting from "./components/Weightlifting";
+import BooksBootPrototype from "./components/route-transition-prototype/BooksBootPrototype";
 import StacksHome from "./components/stacks/StacksHome";
 import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";
 import { type StacksData } from "./components/stacks/data";
@@ -100,6 +101,37 @@ export default async function HomePage() {
           the cached book selection before this shell so its first SVG already
           contains the real jackets; the heavier activity data still streams. */}
       <script dangerouslySetInnerHTML={{ __html: worldBootPrepaintScript() }} />
+      {process.env.NODE_ENV !== "production" ? (
+        <BooksBootPrototype
+          featuredBooks={allBooks
+            .filter((book) => book.isFeatured && book.coverUrl)
+            .map(
+              ({ id, title, author, coverUrl, pageCount, audioLengthMin }) => ({
+                id,
+                title,
+                author,
+                coverUrl,
+                pageCount,
+                audioLengthMin,
+              }),
+            )}
+          spineBooks={allBooks
+            .filter(
+              (book) => book.finished && !(book.isFeatured && book.coverUrl),
+            )
+            .slice(0, 64)
+            .map(
+              ({ id, title, author, coverUrl, pageCount, audioLengthMin }) => ({
+                id,
+                title,
+                author,
+                coverUrl,
+                pageCount,
+                audioLengthMin,
+              }),
+            )}
+        />
+      ) : null}
       <BootScreen
         readingBooks={bootReadingBooks}
         readingBookColors={readingBookColors}

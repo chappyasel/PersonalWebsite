@@ -6,6 +6,25 @@ app (WeightliftingApp / BenchTracker) is the source of truth for both the
 data and the presentation idioms; where the site shows the same concept as
 the app, it follows the app's formatting and layout exactly.
 
+## Reporting time zone
+
+The site reports workout dates and start times in Pacific time. The `.wld`
+export formats all dates using the phone's time zone when it exports,
+without a zone or offset. It cannot recover local time at each workout's
+original location.
+
+`src/lib/weightlifting/exportTimeZone.ts` identifies the observed Pacific
+and Eastern export zones using unedited winter and summer dates from the
+July 2026 backup. Sync requires at least six agreeing references spanning
+both seasons. Unknown or inconsistent exports fail before replacing data.
+PostgreSQL converts each date using historical DST rules. The existing UTC
+database fields hold Pacific calendar time for compatibility with the
+site's date queries. They are not absolute instants.
+
+The date-policy version participates in the sync hash so a policy change
+reimports unchanged backups. Future export zones require verified
+references and conversion tests, or explicit zone metadata from the app.
+
 ## Glossary
 
 - **Workout** — one gym session: a named, dated, timed list of exercises.

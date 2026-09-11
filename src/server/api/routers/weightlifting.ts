@@ -212,17 +212,14 @@ const getCachedCategoryVolume = unstable_cache(
 );
 
 /**
- * Composition splits for the Over the Years stacks: training hours per
+ * Composition splits for Training History: training hours per
  * month per day-of-week, and workout counts per month per time-of-day.
  *
- * Workout timestamps are the phone's LOCAL wall time stored as UTC
- * (verified empirically: the raw hour matches the default workout name's
- * time-of-day bucket 91% of the time; converting to America/Los_Angeles
- * matches 0.2%). So reading them AT TIME ZONE 'UTC' already yields the
- * local day, week, and hour — no ET/PT correction is needed or possible;
- * each workout carries the wall clock of wherever it was logged.
+ * Sync normalizes export dates to Pacific wall time in the UTC fields.
+ * Reading UTC here preserves that reporting zone for every workout,
+ * including workouts logged while traveling.
  *
- * Time-of-day buckets come from the workout's START hour, not the app's
+ * Time-of-day buckets use the normalized START hour, not the app's
  * default workout names — renamed workouts used to fall into "Other".
  * Bucket edges are the owner's: Early Morning 1–7, Morning 7–11,
  * Mid-Day 11–16, Evening 16–20, Dusk 20–1.
@@ -276,9 +273,7 @@ const getCachedTrainingSplits = unstable_cache(
       })),
     };
   },
-  // v2: time-of-day buckets moved from workout names to start hours; the
-  // bumped key keeps the old cached shape from serving under the new labels
-  ["wl-training-splits-v2"],
+  ["wl-training-splits-pacific-v3"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 

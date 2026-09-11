@@ -300,8 +300,13 @@ describe("Scene artifact inspector", () => {
     expect(inspector.match(/sm:order-none/g)).toHaveLength(2);
     expect(inspector).toContain("data-artifact-preview-scrim");
     expect(inspector).toContain("data-artifact-preview-description");
-    expect(inspector).not.toContain("data-artifact-preview-caption");
-    expect(inspector).not.toContain("useObjectNote");
+    expect(inspector).toContain("data-artifact-preview-caption");
+    expect(inspector).toContain("useObjectNote");
+    expect(inspector).toContain("note?.visitor");
+    expect(inspector.indexOf("note.body")).toBeLessThan(
+      inspector.indexOf("artifact.caption"),
+    );
+    expect(inspector).toContain("bg-black/55");
     expect(inspector).not.toContain("bg-gradient-to-t");
     expect(inspector).not.toContain("bg-[#f2e7cf]/85");
     expect(inspector).toContain("ArrowUpRightIcon");

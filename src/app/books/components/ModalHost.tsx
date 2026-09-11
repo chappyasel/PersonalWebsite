@@ -13,12 +13,12 @@ const Modal = dynamic(() => import("./Modal").then((module) => module.Modal), {
 });
 
 export type ModalPresentation = {
-  /** The modal was opened over the 3D homepage rather than inside Books. */
-  source: "stacks";
+  /** The modal was opened outside the Books library. */
+  source: "stacks" | "document";
   /** Absolute in production, dev-subdomain URL locally. */
   booksHref: string;
   /** Same source-of-truth count shown by the standalone detail breadcrumb. */
-  bookCount: number;
+  bookCount?: number;
   /** Lets the 3D homepage prepare its frozen room before modal teardown. */
   onCloseStart?: () => void;
 };
@@ -61,6 +61,11 @@ export function ModalHost({
 
   useEffect(() => {
     if (isWarm) return;
+    // Keep the history listener mounted after a quick open/close, too.
+    if (isModalOpen) {
+      setIsWarm(true);
+      return;
+    }
 
     const warm = () => setIsWarm(true);
     const events = ["pointermove", "pointerdown", "keydown", "touchstart"];
@@ -78,7 +83,7 @@ export function ModalHost({
       if (supportsIdle) window.cancelIdleCallback(idleHandle);
       else window.clearTimeout(idleHandle);
     };
-  }, [isWarm]);
+  }, [isWarm, isModalOpen]);
 
   if (bypassed) return null;
   return isModalOpen || isWarm ? <Modal presentation={presentation} /> : null;

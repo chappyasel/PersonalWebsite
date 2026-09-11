@@ -1,0 +1,263 @@
+/* Local development comparison. No effect layers mount while disabled. */
+[data-books-shelf-preview] [data-book-id] {
+  animation: none !important;
+}
+.books-shelf-prototype {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.books-shelf-prototype-paper {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+      ellipse at 42% 58%,
+      hsl(var(--muted)),
+      transparent 65%
+    ),
+    hsl(var(--background));
+}
+.books-shelf-prototype-drawing {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.books-shelf-prototype-drawing [data-shelf-cover] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.books-shelf-prototype-caption {
+  position: absolute;
+  left: 24px;
+  top: max(24px, env(safe-area-inset-top));
+  color: hsl(var(--foreground));
+  font-size: 15px;
+  line-height: 1.6;
+}
+.books-shelf-prototype-caption small {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+
+.route-prototype-bar {
+  position: fixed;
+  z-index: 2147483646;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 18px;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background) / 0.97);
+  box-shadow: 0 8px 40px #0003;
+  view-transition-name: route-prototype-controls;
+}
+
+.route-prototype-curtains {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  overflow: hidden;
+}
+.route-prototype-curtains [data-panel] {
+  position: absolute;
+  inset-block: 0;
+  width: 50.1%;
+  background: hsl(var(--background));
+  will-change: transform;
+}
+.route-prototype-curtains [data-panel="left"] {
+  left: 0;
+  transform: translateX(-100%);
+  box-shadow: 8px 0 28px #b8997712;
+}
+.route-prototype-curtains [data-panel="right"] {
+  right: 0;
+  transform: translateX(100%);
+  box-shadow: -8px 0 28px #b8997712;
+}
+/* The meeting edges echo the boot doors; no boot scene is replayed. */
+.route-prototype-curtains [data-panel="left"] {
+  border-right: 1px solid hsl(var(--foreground) / 0.08);
+}
+.route-prototype-curtains [data-panel="right"] {
+  border-left: 1px solid hsl(var(--foreground) / 0.08);
+}
+.route-prototype-destination {
+  position: absolute;
+  inset-inline: 0;
+  bottom: max(32px, env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+/* This appears only if route loading actually holds the closed doors. */
+.route-prototype-curtains[data-phase="covered"] .route-prototype-destination {
+  opacity: 1;
+  transition-delay: 500ms;
+}
+
+html[data-route-prototype] {
+  --route-out: -100%;
+  --route-in: 100%;
+  --route-out-angle: -12deg;
+  --route-in-angle: 12deg;
+}
+html[data-route-direction="back"] {
+  --route-out: 100%;
+  --route-in: -100%;
+  --route-out-angle: 12deg;
+  --route-in-angle: -12deg;
+}
+html[data-route-prototype]::view-transition {
+  background: hsl(var(--background));
+}
+html[data-route-prototype]::view-transition-group(root) {
+  animation: none;
+}
+html[data-route-prototype]::view-transition-old(root),
+html[data-route-prototype]::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation-duration: var(--route-prototype-duration, 900ms);
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+  animation-fill-mode: both;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+html[data-route-prototype="swipe"]::view-transition-old(root) {
+  animation-name: route-prototype-swipe-out;
+}
+html[data-route-prototype="swipe"]::view-transition-new(root) {
+  animation-name: route-prototype-swipe-in;
+}
+html[data-route-prototype="cards"]::view-transition-old(root) {
+  animation-name: route-prototype-card-out;
+}
+html[data-route-prototype="cards"]::view-transition-new(root) {
+  animation-name: route-prototype-card-in;
+}
+html[data-route-prototype="cards"]::view-transition-image-pair(root) {
+  perspective: 1600px;
+}
+html[data-route-prototype="cards"]::view-transition-old(root),
+html[data-route-prototype="cards"]::view-transition-new(root) {
+  box-shadow: 0 24px 100px #0005;
+  overflow: clip;
+  backface-visibility: hidden;
+}
+html[data-route-prototype]::view-transition-group(route-prototype-controls) {
+  z-index: 10;
+  animation-duration: 0s;
+}
+html[data-route-prototype]::view-transition-old(route-prototype-controls) {
+  display: none;
+}
+html[data-route-prototype]::view-transition-new(route-prototype-controls) {
+  animation: none;
+}
+
+@keyframes route-prototype-swipe-out {
+  to {
+    transform: translateX(var(--route-out));
+  }
+}
+@keyframes route-prototype-swipe-in {
+  from {
+    transform: translateX(var(--route-in));
+  }
+}
+@keyframes route-prototype-card-out {
+  0% {
+    transform: translateX(0) scale(1) rotateY(0);
+    border-radius: 0;
+  }
+  28% {
+    transform: translateX(0) scale(0.84) rotateY(0);
+    border-radius: 24px;
+  }
+  100% {
+    transform: translateX(var(--route-out)) scale(0.84)
+      rotateY(var(--route-out-angle));
+    border-radius: 24px;
+  }
+}
+@keyframes route-prototype-card-in {
+  0% {
+    transform: translateX(var(--route-in)) scale(0.84)
+      rotateY(var(--route-in-angle));
+    border-radius: 24px;
+  }
+  72% {
+    transform: translateX(0) scale(0.84) rotateY(0);
+    border-radius: 24px;
+  }
+  100% {
+    transform: translateX(0) scale(1) rotateY(0);
+    border-radius: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-route-prototype]::view-transition-old(root),
+  html[data-route-prototype]::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* Push gently toward the source while opening a full-resolution destination.
+   Expanding the clip avoids magnifying a tiny patch of the outgoing bitmap. */
+html[data-route-prototype="origin"]::view-transition-old(root),
+html[data-route-prototype="origin"]::view-transition-new(root) {
+  transform-origin: 0 0;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+html[data-route-prototype="origin"]::view-transition-old(root) {
+  animation-name: route-origin-out;
+}
+html[data-route-prototype="origin"]::view-transition-new(root) {
+  animation-name: route-origin-in;
+  transform: none;
+}
+@keyframes route-origin-out {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  45% {
+    opacity: 0;
+  }
+  100% {
+    transform: var(--route-origin-zoom);
+    opacity: 0;
+  }
+}
+@keyframes route-origin-in {
+  0% {
+    clip-path: var(--route-origin-clip);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0px 0px 0px 0px round 0px);
+    opacity: 1;
+  }
+}
+.route-prototype-origin-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  background: hsl(var(--background));
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+  pointer-events: auto;
+}

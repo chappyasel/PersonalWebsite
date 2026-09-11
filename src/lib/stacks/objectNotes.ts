@@ -31,6 +31,8 @@ export type ObjectNote = Readonly<{
    * body is empty and `needs` says what is missing. Never a placeholder
    * caption: an invented one is worse than none. */
   status: "written" | "needs-owner";
+  /** Explicitly selected for public caption UI and the local editor. */
+  visitor: boolean;
   links: readonly ObjectNoteLink[];
   body: string;
   needs?: string;
@@ -38,10 +40,12 @@ export type ObjectNote = Readonly<{
 
 const SECTION = /^##[ \t]+(.+?)[ \t]*$/;
 const FIELD = /^([A-Za-z][A-Za-z-]*):[ \t]*(.*)$/;
+const normalizeObjectNoteId = (id: string) => id.replaceAll("\\*", "*");
 
 function parseSection(id: string, lines: string[]): ObjectNote | null {
   let title = "";
   let status: ObjectNote["status"] = "needs-owner";
+  let visitor = false;
   const links: ObjectNoteLink[] = [];
   const body: string[] = [];
   let needs: string | undefined;
@@ -62,6 +66,7 @@ function parseSection(id: string, lines: string[]): ObjectNote | null {
         if (name === "title") title = value!.trim();
         else if (name === "status")
           status = value!.trim() === "written" ? "written" : "needs-owner";
+        else if (name === "audience") visitor = value!.trim() === "visitor";
         else if (name === "link") {
           // "<label words> <https url>": split at the last space so a label
           // may contain spaces.
@@ -87,6 +92,7 @@ function parseSection(id: string, lines: string[]): ObjectNote | null {
     id,
     title,
     status: text ? status : "needs-owner",
+    visitor,
     links,
     body: text,
     ...(needs ? { needs } : {}),
@@ -129,13 +135,92 @@ export function parseObjectNotes(markdown: string): ObjectNote[] {
     const heading = SECTION.exec(line);
     if (heading) {
       flush();
-      id = heading[1]!.trim();
+      id = normalizeObjectNoteId(heading[1]!.trim());
       continue;
     }
     if (id) lines.push(line);
   }
   flush();
   return notes;
+}
+
+export type ObjectNoteCaptionEdit = Readonly<{ id: string; body: string }>;
+
+/** Replace caption prose inside named sections while leaving every untouched
+ * section exactly as authored. Intended for the local caption editor, not for
+ * free-form Markdown editing. */
+export function updateObjectNoteCaptions(
+  markdown: string,
+  edits: readonly ObjectNoteCaptionEdit[],
+): string {
+  const trailingNewlines = /\n*$/.exec(markdown)?.[0] ?? "";
+  const originalIds = parseObjectNotes(markdown).map((note) => note.id);
+  const byId = new Map<string, string>();
+  for (const edit of edits) {
+    const body = edit.body.trim();
+    if (!edit.id.trim() || !body)
+      throw new Error("Caption edits need an id and body");
+    if (byId.has(edit.id)) throw new Error(`Duplicate caption id: ${edit.id}`);
+    byId.set(edit.id, body);
+  }
+
+  const matches = [...markdown.matchAll(/^##[ \t]+(.+?)[ \t]*$/gm)];
+  const known = new Set(
+    matches.map((match) => normalizeObjectNoteId(match[1]!.trim())),
+  );
+  for (const id of byId.keys()) {
+    if (!known.has(id)) throw new Error(`Unknown caption id: ${id}`);
+  }
+
+  let updated = markdown;
+  for (let i = matches.length - 1; i >= 0; i -= 1) {
+    const match = matches[i]!;
+    const id = normalizeObjectNoteId(match[1]!.trim());
+    const body = byId.get(id);
+    if (!body) continue;
+    const start = match.index;
+    const end = matches[i + 1]?.index ?? markdown.length;
+    const section = markdown.slice(start, end);
+    const lines = section.split("\n");
+    const metadata: string[] = [];
+    let sawMetadata = false;
+    let metadataClosed = false;
+    for (const line of lines.slice(1)) {
+      if (metadataClosed) continue;
+      if (!line.trim()) {
+        if (sawMetadata) metadataClosed = true;
+        continue;
+      }
+      if (line.startsWith("NEEDS:")) continue;
+      if (!FIELD.test(line)) {
+        metadataClosed = true;
+        continue;
+      }
+      sawMetadata = true;
+      metadata.push(
+        line.toLowerCase().startsWith("status:") ? "Status: written" : line,
+      );
+    }
+    if (!metadata.some((line) => line.startsWith("Status:"))) {
+      const titleIndex = metadata.findIndex((line) => line.startsWith("Title:"));
+      metadata.splice(titleIndex + 1, 0, "Status: written");
+    }
+    const replacement = `${lines[0]}\n\n${metadata.join("\n")}\n\n${body}\n\n`;
+    updated = `${updated.slice(0, start)}${replacement}${updated.slice(end)}`;
+  }
+  updated = updated.replace(/\n*$/, trailingNewlines);
+  const parsed = parseObjectNotes(updated);
+  if (parsed.map((note) => note.id).join("\n") !== originalIds.join("\n"))
+    throw new Error("Caption edit changed the document structure");
+  const parsedById = indexObjectNotes(parsed);
+  for (const [id, body] of byId) {
+    if (
+      parsedById[id]?.body !== body ||
+      parsedById[id]?.status !== "written"
+    )
+      throw new Error(`Caption does not round-trip safely: ${id}`);
+  }
+  return updated;
 }
 
 export function indexObjectNotes(

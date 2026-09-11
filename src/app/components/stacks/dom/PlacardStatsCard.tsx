@@ -87,6 +87,8 @@ export function PlacardNestedLinkCard({
     <TiltCard interactive className="w-full">
       <div
         data-placard-link=""
+        data-placard-href={href}
+        data-placard-target={newTab ? "_blank" : undefined}
         role="link"
         tabIndex={0}
         aria-label={label}

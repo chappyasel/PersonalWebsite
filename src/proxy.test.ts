@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { dadAccessToken } from "~/lib/dad/access";
 
@@ -31,6 +31,64 @@ describe("Dad proxy authorization", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+describe("local connected-site entry points", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it.each([
+    [
+      "http://weightlifting.localhost:3001/",
+      "http://127.0.0.1:3001/weightlifting",
+    ],
+    [
+      "http://books.localhost:3001/?tags=Psychology",
+      "http://127.0.0.1:3001/books?tags=Psychology",
+    ],
+    [
+      "http://manual.localhost:3001/?section=intro",
+      "http://127.0.0.1:3001/manual?section=intro",
+    ],
+    ["http://routine.localhost:3001/", "http://127.0.0.1:3001/routine"],
+    [
+      "http://books.localhost:3001/behave",
+      "http://127.0.0.1:3001/books/behave",
+    ],
+    [
+      "http://books.localhost:3001/books/behave",
+      "http://127.0.0.1:3001/books/behave",
+    ],
+    [
+      "http://weightlifting.localhost:3001/weightlifting/squat",
+      "http://127.0.0.1:3001/weightlifting/squat",
+    ],
+  ])("opens %s in the shared local app", async (href, expected) => {
+    vi.stubEnv("NODE_ENV", "development");
+    const response = await proxy(
+      new NextRequest(href, { headers: { accept: "text/html" } }),
+    );
+    expect(response.headers.get("location")).toBe(expected);
+  });
+  it("keeps production subdomains separate", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const response = await proxy(
+      new NextRequest("https://weightlifting.chappyasel.com/", {
+        headers: { accept: "text/html" },
+      }),
+    );
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-rewrite")).toBe(
+      "https://weightlifting.chappyasel.com/weightlifting",
+    );
+  });
+  it("does not redirect a local RSC request", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const response = await proxy(
+      new NextRequest("http://books.localhost:3001/", {
+        headers: { accept: "text/x-component", rsc: "1" },
+      }),
+    );
     expect(response.headers.get("location")).toBeNull();
   });
 });

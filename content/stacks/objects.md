@@ -76,11 +76,10 @@ reason. `shelf:<unit>:lower`.
 
 Title: Apple Vision Pro
 Status: written
+Audience: visitor
 Link: Apple Vision Pro https://www.apple.com/apple-vision-pro/
 
-Put on the product I worked on at Apple for a retrowave ride. The shelf model keeps its continuous front glass,
-aluminum enclosure, light seal, Solo Knit Band, Digital Crown, and top button. I
-was an AR/VR software engineer on the teams that launched Vision Pro.
+The product I spent two years helping launch at Apple. I worked as an AR/VR software engineer on the teams behind Vision Pro.
 
 ## link:about:role:madrona
 
@@ -121,23 +120,19 @@ same icon artwork at twice this size.
 
 Title: The AI Collective
 Status: written
+Audience: visitor
 Link: The AI Collective https://aicollective.com/
 
-The Collective's mark, extruded straight out of the brand SVG so the open C,
-both squared arrow tips and the inner negative space are the real paths. I
-co-founded it as a weekly meetup with friends when ChatGPT launched. It is now a
-nonprofit with more than 250,000 members and 200 chapters.
+What started as a weekly meetup with friends after ChatGPT launched grew into a global nonprofit community.
 
 ## grab:coordination-research:about
 
 Title: Coordination Research
 Status: written
+Audience: visitor
 Link: Coordination Research https://coordination.sh/
 
-A small black hole on a black hexagonal plinth with a live network of sixty
-nodes turning inside it. Green nodes are people, blue nodes are agents. Hover it
-and one improbably long chord grows across the sphere; drag it and the shockwave
-runs out through the rest of the room.
+An experiment in helping people and AI agents understand and strengthen the networks around them.
 
 ## golf-ball:about-a
 
@@ -160,23 +155,19 @@ mode, and it can make the same trip to the hitting bay.
 
 Title: Currently Reading
 Status: written
+Audience: visitor
 Link: Book Notes https://books.chappyasel.com
 
-The top three books I am reading right now, jackets fanned on the desk. They
-come from the live library, so they change as it does, and each carries its real
-cover. Tapping one previews its notes without leaving the room. The three books
-peel into their own lanes on hover instead of taking the shared nod, which swung
-them through each other. Ids are `grab:reading:<bookId>`.
+The three books I am reading right now, pulled live from my library. Tap one to open my notes.
 
 ## grab:tj-medallion:about
 
 Title: TJHSST Medallion
 Status: written
+Audience: visitor
 Link: TJHSST https://tjhsst.fcps.edu/
 
-My high school medallion, class of 2017. I am an alumni director on the TJ
-Partnership Fund board. The shape is authored geometry with the real artwork on
-its face, and it is turned to catch the desk lamp beside it.
+My high school medallion, class of 2017. I now serve on the TJ Partnership Fund board as an alumni director.
 
 ## egg:lamp:0
 
@@ -191,19 +182,9 @@ not move, because fixed task lighting is architecture and not a prop to throw.
 
 Title: Globe
 Status: written
+Audience: visitor
 
-A real map on a low-poly ball. The countries in the darker green are the ones
-I have been to, 25 so far, Bali standing in for Indonesia. The orange marks are
-AI Collective chapters, one per city, a heavier mark where several sit close
-together, from the same list the chapters page reads.
-
-Click it and it comes up to the camera. Up close, drag to turn it, point at a
-mark to see which chapter it is, and click the mark to open that chapter on
-aicollective.com. Click anywhere else, or press Escape, to put it back. At
-rest it drifts at 0.11 rad/s, slow enough that you notice it the second time
-you look. On hover it runs about nine times that, a lap every six and a half
-seconds, which is a globe someone has just spun. Only the ball turns; the
-stand stays put.
+The darker countries are the 25 I have visited. The orange lights map the spread of AI Collective chapters around the world.
 
 ## grab:plant:about-cactus
 
@@ -230,47 +211,51 @@ The tall potted plant at the right end of the top shelf.
 
 Title: Chappy Asel
 Status: written
+Audience: visitor
 Link: LinkedIn https://www.linkedin.com/in/chappyasel/
 
-The framed portrait on the desk. It is the same photograph the About page uses,
-turned a little toward the lamp side.
+Onstage at Consensus 2026 in Miami, making the case that AI agents may become crypto's first real users.
 
 ## about-collective-group-v8
 
 Title: AI Collective
 Status: written
+Audience: visitor
 Link: The AI Collective https://aicollective.com/
 
-A group photograph from the AI Collective, lying flat on the top shelf between
-the globe and the portrait.
+Kicking off The AI Collective's Bengaluru chapter in March 2025. A San Francisco meetup had somehow turned into this.
 
 ## about-family-v8
 
 Title: Family Portrait
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: who is in this photograph, roughly where and when it was taken, and what you want the caption to say about it.
+My family on Martha's Vineyard in August 2026. This island has been one of the constants in our lives for nearly three decades.
 
 ## about-speaking-candid-v8
 
 Title: Speaking Candid
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which talk or event this candid is from and the year.
+Making the case for trust and community as AI accelerates, during the lead-up to The AI Collective's June 2025 launch.
 
 ## about-delicate-arch-v8
 
 Title: Delicate Arch
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: when you were at Delicate Arch and who with, and whether the caption should be about the trip or the hike.
+Delicate Arch at sunset in July 2021, during a family trip through Moab.
 
 ## about-profile-full-v8
 
 Title: Portrait
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: what this full-length portrait was shot for and when. The tap already opens Instagram.
+Martha's Vineyard, August 2026. One of the rare times I managed to stand still long enough for a proper portrait.
 
 ## grab:dumbbell:about
 
@@ -394,23 +379,26 @@ here needs to open the index.
 ## training-golf-group-v8
 
 Title: Golf Group
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: who is in the group and which course or outing this was.
+Golf with family and friends, one of the newer additions to our family rotation.
 
 ## training-pickleball-group-v8
 
 Title: Pickleball Group
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: who is in this photo, which court, and roughly when. Six of you at the net with paddles.
+Pickleball with the family. We picked it up on a Hilton Head trip and immediately stopped playing tennis.
 
 ## training-golf-flag-v8
 
 Title: On the Green
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which course this is and roughly when.
+At the Chappaquiddick pin on Martha's Vineyard in August 2025.
 
 ## grab:golf-tee:shelf-left
 
@@ -509,88 +497,97 @@ tip about.
 ## training-trophy-side-v8
 
 Title: Boys with Gains Trophy
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which show and year this trophy is from, what you placed, and whether Boys with Gains is your own account or the promoter's.
+After my first natural bodybuilding show: second in novice bodybuilding and third in physique at Battle of the Bay in October 2022.
 
 ## training-stage-kneeling-v8
 
 Title: Boys with Gains Stage Portrait
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which show and year this stage portrait is from.
+Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022.
 
 ## training-stage-side-v8
 
 Title: Boys with Gains on Stage
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which show and year, and whether this is the same day as the other stage shot.
+My first natural bodybuilding show, after twelve weeks of the hardest prep I had done.
 
 ## training-trophy-front-v8
 
 Title: Boys with Gains Trophy Portrait
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: whether this is the same show as the other trophy shot, and what the trophy was for.
+The hardware from Battle of the Bay: second in novice bodybuilding and third in physique.
 
 ## aggregate-strength
 
 Title: Aggregate One Rep Max Trend
 Status: written
+Audience: visitor
 Link: Analyze data https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData
 Link: Weightlifting https://weightlifting.chappyasel.com
 
-Aggregate one rep max across every lift, plotted from my Weightlifting App data.
-The code that draws it is in the AnalyzeData repo.
+Every lift rolled into one one-rep-max trend, built from the training data I have logged since 2018.
 
 ## big-three
 
 Title: Big 3 Progression
 Status: written
+Audience: visitor
 Link: Analyze data https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData
 Link: Weightlifting https://weightlifting.chappyasel.com
 
-The big three over time, from the same export.
+Squat, bench, and deadlift over time. The lines are cleaner than the actual progression was.
 
 ## dexa-history
 
 Title: DEXA Lean Mass vs Bodyweight
 Status: written
+Audience: visitor
 Link: Analyze data https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData
 Link: Weightlifting https://weightlifting.chappyasel.com
 
-Lean mass against bodyweight across my DEXA scans.
+My bodyweight and lean mass across every DEXA scan. It looks like I may be nearing the asymptote, which is a fun hypothesis and definitely not something this chart can prove.
 
 ## training-gym-pose-v8
 
 Title: Gym Portrait
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: when this was taken and whether it belongs to a particular prep.
+Near the end of my 2025 cut. Bodybuilding has been one of the stranger long-running experiments in my life.
 
 ## training-deadlift-v8
 
 Title: Deadlift
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: the weight on the bar and roughly when.
+One of the deadlift sessions behind the charts on this shelf. I have logged every set since 2018, including the ugly ones.
 
 ## training-bench-v8
 
 Title: Bench Press
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: the weight on the bar and roughly when.
+Benching nearly 500 pounds of estimated one-rep max. The actual rep looked about as graceful as this photo.
 
 ## lift-table
 
 Title: Lift Table
 Status: written
+Audience: visitor
 Link: PDF https://www.chappyasel.com/documents/lift-table.pdf
 
-The first lifting chart I put together. It is a letter page, lying flat in a row
-with the three photographs beside it.
+The first lifting chart I put together, before the analysis became a small research project of its own.
 
 ## grab:dumbbell:training:right
 
@@ -811,12 +808,10 @@ print, where the old slate read as a hole in the light.
 
 Title: Daily Supplements
 Status: written
+Audience: visitor
 Link: Routine https://www.chappyasel.com/routine
 
-The daily supplements laid out. The print stands right back against the plank's
-rear edge, directly behind the two physical pill cases it shows. The full list,
-twelve in the morning and eight at night with doses and what each one is for, is
-on the routine page.
+One of the dorkier parts of my routine: twelve supplements in the morning, eight at night, each with an explicit dose and purpose.
 
 ## grab:pills:organizer:back-lower
 
@@ -885,54 +880,51 @@ library; this one points at the personal manual.
 
 Title: Alarm Clock
 Status: written
+Audience: visitor
 Link: Routine https://www.chappyasel.com/routine
 
-At rest it shows your own local time. Click it and the hands wind clockwise to
-3:45, which is when I get up, hold a beat, then wind on around to your time
-again. That contrast is the whole joke. On hover it shivers, about a degree and
-a half of roll and 2.6 mm of travel, which is what a bell housing on a hard
-surface actually does.
+It shows your local time until you click it. Then it winds back to 3:45, which is when I get up.
 
 ## systems-working-session-v8
 
 Title: Working Session
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: whose session, where, and roughly when.
+A working session with The AI Collective team, turning a wall of ideas into something people could actually use.
 
 ## systems-home-office-v8
 
 Title: Home Office
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which home office this is and when, and whether the caption should say anything about the setup.
+My blissful work-from-home setup, complete with a view of Salesforce Tower.
 
 ## systems-sf-dusk-v8
 
 Title: San Francisco at Dusk
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: where this was shot from and when, and whether it should say anything about living there.
+Sunset from my 33rd-floor apartment in San Francisco, where many AI Collective dinners and founder gatherings began.
 
 ## systems-lake-v8
 
 Title: At the Lake
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: where this lake is and when you were there. The print is in the artifact catalog but is not mounted on any shelf right now; it is waiting for a slot the way the lighthouse print did.
+Jumping into Lake Alpine during a 2020 road trip through California.
 
 ## link:routineboard
 
 Title: Routine Board
 Status: written
+Audience: visitor
 Link: Routine https://www.chappyasel.com/routine
 
-A clipboard with the daily checklist and three boxes struck through. There is no
-model behind it: the prop library has no clipboard, notebook, planner or desk
-tray of any kind, and four boxes and a canvas is cheaper than the wrong model.
-The sheet is deliberately unreadable, using the same title marks the book spines
-use, because at the size it covers on screen real words would be a smear and
-fake words would be a lie.
+The daily checklist I actually use, compressed into one board. The full version lives in my routine.
 
 ## egg:clock:floor
 
@@ -968,9 +960,10 @@ because the acquisition earned it.
 ## projects-coding-couch-v8
 
 Title: Coding on the Couch
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: when and where this was, and whether it is worth saying what you were building.
+Building with the team I joined after leaving Apple, July 2024. Three laptops on one couch was a pretty accurate picture of that chapter.
 
 ## grab:phone:projects
 
@@ -1005,26 +998,19 @@ a 32-colour palette.
 ## projects-facebook-v8
 
 Title: At Facebook
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: what you were at Facebook for and when.
+At 1 Hacker Way during my Facebook software engineering internship in February 2020. COVID cut the internship short a few weeks later.
 
 ## action:projects:mac
 
 Title: Macintosh
 Status: written
-
-A compact Macintosh with a live pixel screen. It boots to the Happy Mac face,
-which tracks the pointer and blinks. After five seconds at this shelf, or the
-moment the pointer rests on the machine, the screen switches to a cellular
+Audience: visitor
 automaton: a one-dimensional rule scrolling up from the bottom row into a band
-of Conway's Life along the top. It is the same program that ran as the
-background of the previous version of this site. Tap the Mac and it comes up to
-the camera so the cells are legible; tap again, press Escape, or move on to put
-it back. It is a compact Mac and not a laptop for a plain reason: at the
-twenty-odd pixels this covers on screen a MacBook is a grey wedge, while the
-beige box with the recessed screen, the floppy slot and the chin is
-unmistakable from across the room.
+
+A compact Mac running the cellular automaton that formed the background of the previous version of this site.
 
 ## egg:lamp:4
 
@@ -1038,10 +1024,10 @@ reflection that travels across the two polished icon faces. Click it off and on.
 
 Title: Weightlifting App Icon
 Status: written
+Audience: visitor
 Link: App Store https://apps.apple.com/us/app/id1266077653
 
-The app's own icon on a shelf billet: the real artwork, not a screenshot mounted
-as wall art.
+The app I founded to track my own lifting. I have used it to log every workout since 2018.
 
 ## link:projects:dice:bottom-left
 
@@ -1098,20 +1084,17 @@ field notes.
 
 Title: Homework App
 Status: written
+Audience: visitor
 
-The icon of the app I built in high school for organizing, tracking and
-reminding people about upcoming homework assignments. It became the number one
-homework app in the world, and Haystack AI acquired it in 2019 while I was still
-in college: 338k installs, 63k monthly actives, a 4.7 rating and a top-60
-Productivity app at the time. The lift-and-orbit preview behind this icon is
-switched off for now, so on the shelf it is a plain grabbable.
+The homework app I built in high school grew to 338,000 installs and number one in its category before Haystack AI acquired it in 2019.
 
 ## projects-wwdc-v8
 
 Title: WWDC
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which WWDC year this is and what you were there for.
+Launching App Intents at Apple's WWDC 2022.
 
 ## shimmer:apple
 
@@ -1152,12 +1135,10 @@ A mug on the Musings top shelf, near the kettle.
 
 Title: GPT-3 Paper
 Status: written
+Audience: visitor
 Link: Medium https://medium.com/@chappyasel
 
-Five real pages of the paper I wrote in 2021, loose on the shelf with a pen on
-top of them. It was my final paper in college, on the technological singularity,
-written right after GPT-3 came out, and that research is what pointed me at
-community. The pages open my writing.
+My 2021 college paper on GPT-3 and the technological singularity. Researching it first pointed me toward community as the missing layer around AI.
 
 ## grab:pen:5
 
@@ -1171,14 +1152,10 @@ portal.
 
 Title: Trust in the Age of Acceleration
 Status: written
+Audience: visitor
 Link: Read the essay https://www.aicollective.com/trust
 
-The essay printed and stab-sewn into a booklet on a small wooden reading stand.
-Its own line is that trust is the invisible thread that holds the world
-together, so the binding thread is the one detail here that is not plain
-stationery. The cover is page one of the real PDF, the beam artwork and the
-title block, rasterised at twice letter resolution so the type survives being
-carried up close. Nothing is redrawn and no mark is invented.
+My argument that trust is the invisible thread holding society together, and that AI acceleration is pulling on it faster than our institutions can adapt.
 
 ## grab:vineyard-sign
 
@@ -1195,35 +1172,26 @@ carry it and turn it over.
 
 Title: Martha's Vineyard Cutout
 Status: written
+Audience: visitor
 
-The island cut out of wood and standing in a slotted base, its coastline
-extruded from a silhouette, the grain sun-bleached. It stands up instead of
-lying flat because the camera sits only about eleven degrees above this shelf,
-and a flat piece would foreshorten to five centimetres of nothing. The pin marks
-the Katama house. It is a marker only; the Maps link that used to open the
-address is gone.
+Martha's Vineyard in miniature. My family has returned to the island every summer for nearly three decades.
 
 ## systems-lighthouse-v8
 
 Title: Lighthouse
 Status: written
+Audience: visitor
 
-Gay Head Light, photographed on the island. The print stands between the wooden
-cutout of the island it was taken on and the souvenir of the light it shows.
+Gay Head Light in Aquinnah, part of the island my family has returned to for nearly three decades.
 
 ## grab:lighthouse:musings
 
 Title: Gay Head Light
 Status: written
-
-A 32 cm resin souvenir of Gay Head Light in Aquinnah, standing in a tray of
+Audience: visitor
 sand: weathered red brick gone salmon in the sun, a greyed brownstone band under
-the gallery, black iron above that, and a lantern that turns on a seven and a
-half second period. The beam is four crossed sheets per direction with a soft
-analytic cone, because a flat glowing rectangle looks like a rotating prop
-instead of light in the air. Three tries at the sand ended with the tray:
-strewn grains broke physics and strewn decals read as paint. Tower, rim and sand
-move as one souvenir.
+
+Gay Head Light in Aquinnah. The real lighthouse, the photograph, and this slightly ridiculous souvenir all made it onto the same shelf.
 
 ## grab:sticker:vineyard-vines
 
@@ -1297,16 +1265,18 @@ particular books, so they all open the library.
 ## talk-demo-night-v8
 
 Title: Demo Night
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which demo night, where, and when.
+Our first large-scale AI Collective Demo Night in May 2024. Find the people building interesting things and put them in a room together.
 
 ## talk-consensus-phone-v8
 
 Title: Consensus
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: confirm this is Consensus 2026 in Miami, the one talk on the Talks page from that stage, and say what is on the phone.
+An audience member filming my Consensus 2026 fireside on AI agents and crypto in Miami.
 
 ## grab:sticker-camera:talks-a
 
@@ -1346,23 +1316,26 @@ A pothos on the Talks lower shelf.
 ## talk-ann-interview-v8
 
 Title: Interview with Ann
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: who Ann is, what show or outlet the interview was for, and when.
+Talking about The AI Collective and the optimism at the AI frontier on ANN News in January 2025.
 
 ## talk-dc-policy-v8
 
 Title: DC Policy Talk
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which DC event this was, the year, and what the talk was about.
+Talking through what AI acceleration asks of policymakers and the people building the technology in Washington, DC.
 
 ## talk-panel-v8
 
 Title: Panel Discussion
-Status: needs-owner
+Status: written
+Audience: visitor
 
-NEEDS: which panel, where, and who else was on it.
+Moderating "The Future of AI Beyond the Chatbot Era" at Stanford in August 2026.
 
 ## grab:harmonica:talks
 

@@ -6,6 +6,7 @@ import {
   HouseLineIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -27,6 +28,11 @@ type BooksPageClientProps = {
   initialTags: string[];
   initialStats: BookStats;
 };
+
+const BooksShelfLibraryPreview = dynamic(
+  () => import("../components/route-transition-prototype/BooksShelfLibraryPreview"),
+  { ssr: false },
+);
 
 export default function BooksPageClient({
   initialBooks,
@@ -179,6 +185,9 @@ export default function BooksPageClient({
 
         {/* Main Content */}
         <main className="flex flex-1 flex-col gap-6">
+          {process.env.NODE_ENV !== "production" ? (
+            <BooksShelfLibraryPreview books={initialBooks} />
+          ) : null}
           <BooksControls
             isZoomOut={isZoomOut}
             initialTags={initialTags}

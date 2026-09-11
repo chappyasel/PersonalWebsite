@@ -84,6 +84,7 @@ export function SheetExpandControl({
     <Labelled label={label}>
       <a
         href={href}
+        data-route-transition="preserve"
         onClick={onClick}
         className={cn(BASE, sizing(size))}
         aria-label={label}

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import type { ComponentProps } from "react";
+import { type ComponentProps, useContext } from "react";
 
+import { InModalSheetContext } from "./ModalSheet";
 import { prefersFullPage } from "./sheetRoute";
 
 type SheetLinkProps = Omit<
@@ -19,10 +20,13 @@ type SheetLinkProps = Omit<
  * the caller's onClick recording the origin rect, right-click) is untouched.
  */
 export default function SheetLink({ href, ...props }: SheetLinkProps) {
+  const inSheet = useContext(InModalSheetContext);
   return (
     <Link
       {...props}
       href={href}
+      replace={inSheet || props.replace}
+      data-route-transition="preserve"
       onNavigate={(event) => {
         if (!prefersFullPage()) return;
         event.preventDefault();

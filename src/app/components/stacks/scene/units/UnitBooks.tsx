@@ -18,7 +18,7 @@ import {
   readingBookMaterialColors,
 } from "../../../../../lib/books/coverEdgeColor";
 import { arrivalBeatRef, useStacks } from "../../store";
-import { rand } from "../../theme";
+import { type Palette, rand } from "../../theme";
 import { backgroundBookTreatment } from "../backgroundBookTreatment";
 import {
   type BookInteraction,
@@ -35,6 +35,7 @@ import {
   FEATURED_COVER_Z,
   type RowItem,
   ShelfUnit,
+  type SpineBookLength,
   coverExtent,
   coverSeat,
   packRow,
@@ -370,6 +371,61 @@ function BooksArrivalBeat({
   return <group ref={group}>{children}</group>;
 }
 
+/** Shared by the live shelf and its development boot illustration. */
+export function layoutBooksFeaturedRows(
+  featured: Parameters<typeof layoutFeatured>[0],
+): [RowItem[], RowItem[]] {
+  const rows = splitShelfRows(featured, SHELF_CAP);
+  return [
+    layoutFeatured(rows.top, 16, EDGE_L_TOP),
+    layoutFeatured(rows.lower, 41, EDGE_L_LOWER),
+  ];
+}
+
+export function layoutBooksPackedRows(
+  spineBooks: SpineBookLength[],
+  palette: Palette,
+  topFeatured: RowItem[],
+  lowerFeatured: RowItem[],
+): [RowItem[], RowItem[]] {
+  const top = packRow(
+    2.66,
+    [],
+    palette,
+    15,
+    spineBooks,
+    undefined,
+    "tall",
+    featuredStackCenters(topFeatured, TOP_PACKED_ROW_OFFSET_X, 2),
+    featuredLeanWindows(topFeatured, TOP_PACKED_ROW_OFFSET_X),
+  );
+  const placed = new Set(
+    top.flatMap((item) =>
+      item.kind === "flat"
+        ? (item.books ?? []).flatMap((book) => (book ? [book.id] : []))
+        : item.kind === "spine" || item.kind === "lean"
+          ? item.book
+            ? [item.book.id]
+            : []
+          : [],
+    ),
+  );
+  return [
+    top,
+    packRow(
+      2.6,
+      [],
+      palette,
+      40,
+      spineBooks.filter((book) => !placed.has(book.id)),
+      undefined,
+      "tall",
+      featuredStackCenters(lowerFeatured, 0, 1),
+      featuredLeanWindows(lowerFeatured, 0),
+    ),
+  ];
+}
+
 export default function UnitBooks({
   data,
   palette,
@@ -464,13 +520,10 @@ export default function UnitBooks({
    * split 4/3 rather than leaving a visual hole; an empty list renders no front
    * rank at all.
    */
-  const [topFeatured, lowerFeatured] = useMemo(() => {
-    const rows = splitShelfRows(featured, SHELF_CAP);
-    return [
-      layoutFeatured(rows.top, 16, EDGE_L_TOP),
-      layoutFeatured(rows.lower, 41, EDGE_L_LOWER),
-    ];
-  }, [featured]);
+  const [topFeatured, lowerFeatured] = useMemo(
+    () => layoutBooksFeaturedRows(featured),
+    [featured],
+  );
 
   /**
    * The rows BEHIND the featured books — the rest of the library, and now
@@ -499,42 +552,12 @@ export default function UnitBooks({
         ? readingBookMaterialColors(book.edgeColor, palette.pages, dark).cover
         : undefined,
     }));
-    const top = packRow(
-      2.66,
-      [],
-      palette,
-      15,
+    return layoutBooksPackedRows(
       spineBooks,
-      undefined,
-      "tall",
-      featuredStackCenters(topFeatured, TOP_PACKED_ROW_OFFSET_X, 2),
-      featuredLeanWindows(topFeatured, TOP_PACKED_ROW_OFFSET_X),
+      palette,
+      topFeatured,
+      lowerFeatured,
     );
-    const placed = new Set(
-      top.flatMap((item) =>
-        item.kind === "flat"
-          ? (item.books ?? []).flatMap((book) => (book ? [book.id] : []))
-          : item.kind === "spine" || item.kind === "lean"
-            ? item.book
-              ? [item.book.id]
-              : []
-            : [],
-      ),
-    );
-    return [
-      top,
-      packRow(
-        2.6,
-        [],
-        palette,
-        40,
-        spineBooks.filter((book) => !placed.has(book.id)),
-        undefined,
-        "tall",
-        featuredStackCenters(lowerFeatured, 0, 1),
-        featuredLeanWindows(lowerFeatured, 0),
-      ),
-    ];
   }, [palette, dark, data.spineBooks, topFeatured, lowerFeatured]);
 
   const interactionInput = useMemo(

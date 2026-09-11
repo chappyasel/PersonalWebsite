@@ -277,6 +277,7 @@ function PresentedSheet({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (isUniversalSearchOpen()) return;
+      if (document.querySelector('[data-book-modal-shell="document"]')) return;
       if (event.key === "Escape") closeRef.current();
     };
     window.addEventListener("keydown", onKey);
@@ -316,6 +317,7 @@ function PresentedSheet({
   useEffect(() => {
     const containFocus = (event: FocusEvent) => {
       if (isUniversalSearchOpen()) return;
+      if (document.querySelector('[data-book-modal-shell="document"]')) return;
       const shell = shellRef.current;
       if (!shell) return;
       if (event.target instanceof Node && shell.contains(event.target)) return;
@@ -323,6 +325,7 @@ function PresentedSheet({
     };
     const trapTab = (event: KeyboardEvent) => {
       if (isUniversalSearchOpen()) return;
+      if (document.querySelector('[data-book-modal-shell="document"]')) return;
       if (event.key !== "Tab") return;
       const shell = shellRef.current;
       if (!shell) return;

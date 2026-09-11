@@ -255,6 +255,12 @@ let runtimeInput: BookInteractionInput | null = null;
 let runtimeInventory: BookInteraction[] = [];
 let runtimeScreens: Record<string, [number, number]> = {};
 
+/** Read the actual rendered rows on demand. The development-only 2D shelf
+ * prototype takes a copy before navigation unmounts the world. No frame work. */
+export function readBookShelfRows() {
+  return runtimeInput?.rows ?? null;
+}
+
 export function setBookInteractionInventory(
   input: BookInteractionInput | null,
 ) {

@@ -1,7 +1,20 @@
 "use client";
 
+import {
+  daysInGymLine,
+  eiffelTowersLine,
+  setsPerWorkoutLine,
+  workoutsPerWeekLine,
+} from "../lib/statTranslations";
 import { categoryColor } from "../lib/utils";
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import {
+  BarbellIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  ClockIcon,
+  HashIcon,
+  SquaresFourIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, Rectangle, XAxis, YAxis } from "recharts";
 
@@ -37,13 +50,22 @@ const chartConfig = {
 /** "all" for lifetime stats (chart = one bar per year), or a "YYYY" year */
 type Scope = "all" | (string & {});
 type Metric = "volume" | "hours" | "workouts";
+type SummaryMetric = Metric | "sets";
 type Mode = "total" | "week" | "day";
 
-const METRIC_LABELS: Record<Metric, string> = {
+const METRIC_LABELS: Record<SummaryMetric, string> = {
   volume: "Volume",
   hours: "Hours",
   workouts: "Workouts",
+  sets: "Sets",
 };
+
+const SUMMARY_METRICS = [
+  { metric: "workouts", icon: HashIcon },
+  { metric: "sets", icon: SquaresFourIcon },
+  { metric: "volume", icon: BarbellIcon },
+  { metric: "hours", icon: ClockIcon },
+] as const;
 
 const MODE_LABELS: Record<Mode, string> = {
   total: "Total",
@@ -137,7 +159,11 @@ function formatVolumeShort(value: number): string {
   return formatNumber(value);
 }
 
-function formatMetricValue(metric: Metric, mode: Mode, value: number): string {
+function formatMetricValue(
+  metric: SummaryMetric,
+  mode: Mode,
+  value: number,
+): string {
   if (metric === "volume") return formatVolumeShort(value);
   if (metric === "hours") return `${formatNumber(value)}h`;
   return mode === "total"
@@ -351,7 +377,7 @@ export function TrainingOverYears() {
       });
       // Elapsed days anchor at the first training week, not January of the
       // first year — summing whole calendar years would dilute the /wk and
-      // /day rates and contradict the stat cards next door
+      // /day rates
       const firstWeek = analytics.weekly[0]?.period;
       const elapsedDays = firstWeek
         ? Math.max(
@@ -365,6 +391,7 @@ export function TrainingOverYears() {
       return {
         years,
         workouts: analytics.totals.workouts,
+        sets: analytics.totals.sets,
         volume: analytics.totals.volume,
         hours: analytics.totals.hours,
         days: elapsedDays,
@@ -415,6 +442,7 @@ export function TrainingOverYears() {
     return {
       years,
       workouts: yearBucket?.workouts ?? 0,
+      sets: yearBucket?.sets ?? 0,
       volume: yearBucket?.volume ?? 0,
       hours: yearBucket?.hours ?? 0,
       days: effectiveDaysInYear(scope, now),
@@ -548,6 +576,21 @@ export function TrainingOverYears() {
   const stepperButtonClass =
     "flex size-7 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200";
 
+  const summarySublines: Record<SummaryMetric, string | null> = {
+    workouts:
+      scope === "all"
+        ? workoutsPerWeekLine(
+            stats.workouts,
+            analytics?.weekly[0]?.period ?? null,
+          )
+        : stats.workouts > 0
+          ? `${(stats.workouts / (Math.max(stats.days, 1) / 7)).toFixed(1)} a week`
+          : null,
+    sets: setsPerWorkoutLine(stats.sets, stats.workouts),
+    volume: eiffelTowersLine(stats.volume),
+    hours: daysInGymLine(stats.hours * 3600),
+  };
+
   // The topmost visible stack segment gets the rounded cap
   const topKeyOf = (point: ChartPoint): string | null => {
     if (point.projected > 0) return null;
@@ -602,26 +645,40 @@ export function TrainingOverYears() {
         )}
       </div>
 
-      <div className="flex justify-around gap-2">
-        {(["workouts", "volume", "hours"] as const).map((m) => {
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+        {SUMMARY_METRICS.map(({ metric: m, icon: Icon }) => {
           // Same fractional-week divisor the bars use — clamping to a whole
           // week here would contradict the chart every early January
           const days = Math.max(stats.days, 1);
           const divisor =
             mode === "total" ? 1 : mode === "week" ? days / 7 : days;
           return (
-            <div key={m} className="flex flex-col items-center gap-0.5">
-              <span className="font-rounded text-2xl font-bold text-neutral-800 dark:text-neutral-100 md:text-3xl">
-                {formatMetricValue(m, mode, stats[m] / divisor)}
-              </span>
-              <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                {METRIC_LABELS[m]}
+            <div
+              key={m}
+              className="flex min-w-0 flex-col items-center gap-1 text-center"
+            >
+              <dt className="flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                <Icon className="size-4" weight="bold" aria-hidden="true" />
+                {m === "sets" && mode === "total"
+                  ? "Total Sets"
+                  : METRIC_LABELS[m]}
                 {MODE_SUFFIX[mode]}
-              </span>
+              </dt>
+              <dd className="font-rounded text-2xl font-bold tabular-nums text-neutral-800 dark:text-neutral-100 md:text-3xl">
+                {formatMetricValue(m, mode, stats[m] / divisor)}
+                {m === "volume" && (
+                  <span className="ml-1 text-sm font-medium">lbs</span>
+                )}
+              </dd>
+              {mode === "total" && summarySublines[m] && (
+                <dd className="text-xs text-neutral-400 dark:text-neutral-500">
+                  {summarySublines[m]}
+                </dd>
+              )}
             </div>
           );
         })}
-      </div>
+      </dl>
 
       {stats.pace && (
         <p className="-mt-2 text-center text-xs text-neutral-500 dark:text-neutral-400">
@@ -797,7 +854,7 @@ export function TrainingOverYears() {
       )}
       {metric === "workouts" && (
         <p className="-mt-2 text-center text-[11px] text-neutral-400 dark:text-neutral-500">
-          Bucketed by start time, local to wherever each workout was logged.
+          Workout start times in Pacific time.
         </p>
       )}
     </div>

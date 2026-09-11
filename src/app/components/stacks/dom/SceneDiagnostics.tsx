@@ -89,6 +89,7 @@ import { createPortal } from "react-dom";
 import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
 
 import { KeycapSequence } from "~/components/ui/keycap";
+import { RouteTransitionPrototypeControl } from "../../route-transition-prototype/Gate";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
@@ -1915,6 +1916,7 @@ export default function SceneDiagnostics({
           <header className="stacks-diagnostics-panel-heading">
             <strong>Scene quality</strong>
           </header>
+          <RouteTransitionPrototypeControl />
           {/* Stable production policy comes first. Session-only render
               switches are grouped by what they own: lens, finishing passes,
               authored scene effects, optimizations, and scheduling. */}

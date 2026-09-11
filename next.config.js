@@ -12,6 +12,10 @@ const diagnosticBuildId = (
 
 /** @type {import("next").NextConfig} */
 const config = {
+  // Local subdomains redirect into the shared main app. Next's proxy adapter
+  // otherwise compares against its internal localhost URL and makes that
+  // cross-host Location relative, redirecting books.localhost back to itself.
+  skipProxyUrlNormalize: process.env.NODE_ENV === "development",
   env: {
     NEXT_PUBLIC_STACKS_BUILD_ID: diagnosticBuildId,
   },

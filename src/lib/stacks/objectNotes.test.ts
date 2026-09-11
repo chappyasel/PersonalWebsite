@@ -8,6 +8,7 @@ import {
   indexObjectNotes,
   objectNoteFor,
   parseObjectNotes,
+  updateObjectNoteCaptions,
 } from "./objectNotes";
 import { SCENE_ARTIFACTS } from "~/app/components/stacks/sceneArtifacts";
 
@@ -30,6 +31,7 @@ describe("parseObjectNotes", () => {
         "",
         "Title: Creatine",
         "Status: written",
+        "Audience: visitor",
         "Link: Bulk Supplements https://example.com/x",
         "",
         "Five grams a day, every day.",
@@ -50,12 +52,24 @@ describe("parseObjectNotes", () => {
       id: "grab:bag:creatine",
       title: "Creatine",
       status: "written",
+      visitor: true,
       links: [{ label: "Bulk Supplements", href: "https://example.com/x" }],
       body: "Five grams a day, every day.",
     });
     expect(parsed[1]?.status).toBe("needs-owner");
+    expect(parsed[1]?.visitor).toBe(false);
     expect(parsed[1]?.needs).toBe("who is in this photo");
     expect(parsed[1]?.body).toBe("");
+  });
+
+  it("normalizes escaped wildcard headings for runtime family lookup", () => {
+    const [note] = parseObjectNotes(
+      "## grab:reading:\\*\n\nTitle: Reading\nStatus: written\n\nCaption.\n",
+    );
+    expect(note?.id).toBe("grab:reading:*");
+    expect(objectNoteFor(indexObjectNotes([note!]), "grab:reading:book-1")).toBe(
+      note,
+    );
   });
 
   it("demotes a section whose prose was never written", () => {
@@ -125,6 +139,7 @@ describe("parseObjectNotes", () => {
         id: "grab:pills:bottle:*",
         title: "Bottle",
         status: "written",
+        visitor: false,
         links: [],
         body: "b",
       },
@@ -133,6 +148,7 @@ describe("parseObjectNotes", () => {
         id: "shelf:*:top",
         title: "Plank",
         status: "written",
+        visitor: false,
         links: [],
         body: "b",
       },
@@ -141,6 +157,7 @@ describe("parseObjectNotes", () => {
         id: "link:row:1:*:*:*",
         title: "Volume",
         status: "written",
+        visitor: false,
         links: [],
         body: "b",
       },
@@ -153,13 +170,117 @@ describe("parseObjectNotes", () => {
 
   it("prefers the most specific template", () => {
     const index = indexObjectNotes([
-      { id: "a:b:*", title: "tail", status: "written", links: [], body: "b" },
-      { id: "a:*:*", title: "wider", status: "written", links: [], body: "b" },
-      { id: "a:b:c", title: "exact", status: "written", links: [], body: "b" },
+      {
+        id: "a:b:*",
+        title: "tail",
+        status: "written",
+        visitor: false,
+        links: [],
+        body: "b",
+      },
+      {
+        id: "a:*:*",
+        title: "wider",
+        status: "written",
+        visitor: false,
+        links: [],
+        body: "b",
+      },
+      {
+        id: "a:b:c",
+        title: "exact",
+        status: "written",
+        visitor: false,
+        links: [],
+        body: "b",
+      },
     ] satisfies ObjectNote[]);
     expect(objectNoteFor(index, "a:b:c")?.title).toBe("exact");
     expect(objectNoteFor(index, "a:b:z")?.title).toBe("tail");
     expect(objectNoteFor(index, "a:q:z")?.title).toBe("wider");
+  });
+
+  it("updates selected captions without rewriting neighboring sections", () => {
+    const source = [
+      "# Scene objects",
+      "",
+      "## photo:one",
+      "",
+      "Title: One",
+      "Status: needs-owner",
+      "Audience: visitor",
+      "Link: Home https://example.com/",
+      "",
+      "NEEDS: when this happened",
+      "Context: old caption prose, not metadata",
+      "",
+      "## prop:two",
+      "",
+      "Title: Two",
+      "Status: written",
+      "",
+      "Keep this exactly.",
+      "",
+    ].join("\n");
+
+    const updated = updateObjectNoteCaptions(source, [
+      { id: "photo:one", body: "A much better caption." },
+    ]);
+
+    expect(updated).toContain(
+      [
+        "## photo:one",
+        "",
+        "Title: One",
+        "Status: written",
+        "Audience: visitor",
+        "Link: Home https://example.com/",
+        "",
+        "A much better caption.",
+      ].join("\n"),
+    );
+    expect(updated).not.toContain("NEEDS:");
+    expect(updated).not.toContain("Context: old caption prose");
+    expect(updated).toContain(
+      [
+        "## prop:two",
+        "",
+        "Title: Two",
+        "Status: written",
+        "",
+        "Keep this exactly.",
+      ].join("\n"),
+    );
+  });
+
+  it("adds written status when a valid section omitted it", () => {
+    const updated = updateObjectNoteCaptions(
+      "## photo:one\n\nTitle: One\nAudience: visitor\n\nOld caption.\n",
+      [{ id: "photo:one", body: "New caption." }],
+    );
+    expect(updated).toContain("Title: One\nStatus: written\nAudience: visitor");
+  });
+
+  it.each([
+    ["blank captions", [{ id: "photo:one", body: "   " }]],
+    ["unknown ids", [{ id: "missing", body: "Caption" }]],
+    ["field-shaped prose", [{ id: "photo:one", body: "Note: at home" }]],
+    ["new sections", [{ id: "photo:one", body: "## Injected\nBad" }]],
+    ["unclosed comments", [{ id: "photo:one", body: "<!-- hidden" }]],
+    [
+      "duplicate ids",
+      [
+        { id: "photo:one", body: "First" },
+        { id: "photo:one", body: "Second" },
+      ],
+    ],
+  ])("rejects %s", (_label, edits) => {
+    expect(() =>
+      updateObjectNoteCaptions(
+        "## photo:one\n\nTitle: One\nStatus: written\n\nOld caption.\n",
+        edits,
+      ),
+    ).toThrow();
   });
 });
 

@@ -40,6 +40,36 @@ export async function proxy(req: NextRequest) {
 
   const hostname = req.headers.get("host") ?? req.nextUrl.hostname;
 
+  // Local site entry points share one document once opened. This lets the
+  // room/page transition controller survive navigation in either direction.
+  // Only document GETs redirect; assets, RSC requests, APIs and production
+  // subdomains retain their existing routing.
+  const localSite = ["books", "weightlifting", "manual", "routine"].find(
+    (site) =>
+      hostname === `${site}.localhost` ||
+      hostname.startsWith(`${site}.localhost:`),
+  );
+  if (
+    process.env.NODE_ENV === "development" &&
+    localSite &&
+    req.method === "GET" &&
+    req.headers.get("accept")?.includes("text/html") &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/_next/") &&
+    !pathname.split("/").at(-1)?.includes(".")
+  ) {
+    const url = req.nextUrl.clone();
+    // Use an explicit loopback origin. The dev server's outer routing layer
+    // also makes redirects to its own internal localhost origin relative,
+    // even when proxy URL normalization is disabled.
+    url.hostname = "127.0.0.1";
+    const prefix = `/${localSite}`;
+    if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) {
+      url.pathname = `${prefix}${pathname === "/" ? "" : pathname}`;
+    }
+    return NextResponse.redirect(url);
+  }
+
   // books.chappyasel.com → /books/*
   const isBooksSubdomain =
     hostname.startsWith("books.localhost") ||

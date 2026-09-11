@@ -12,6 +12,8 @@
 // The whole of that policy — capability, warm cache, the four reveal gates,
 // the hang backstop, demotion, and route cleanup — lives in ./boot as one
 // state machine. What is left here is the seam: signals in, view out.
+import { SceneStartupGate } from "../route-transition-prototype/SceneStartupGate";
+import { useRouteTransitionPrototype } from "../route-transition-prototype/store";
 import dynamic from "next/dynamic";
 import {
   Component,
@@ -273,6 +275,11 @@ export default function StacksHome({
   // render that carried `boot` here happened before it.
   useEffect(() => {
     if (!worldBoot.getView().worldMounted) return;
+    if (
+      process.env.NODE_ENV === "development" &&
+      useRouteTransitionPrototype.getState().deferSceneStartup
+    )
+      return;
     void (
       StacksCanvas as unknown as { render?: { preload?: () => void } }
     ).render?.preload?.();
@@ -500,11 +507,21 @@ export default function StacksHome({
         >
           <CanvasBoundary onError={demote}>
             <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
-              <StacksCanvas
-                data={data}
-                onReady={reportFirstFrame}
-                onLost={reportLostContext}
-              />
+              {process.env.NODE_ENV === "development" ? (
+                <SceneStartupGate>
+                  <StacksCanvas
+                    data={data}
+                    onReady={reportFirstFrame}
+                    onLost={reportLostContext}
+                  />
+                </SceneStartupGate>
+              ) : (
+                <StacksCanvas
+                  data={data}
+                  onReady={reportFirstFrame}
+                  onLost={reportLostContext}
+                />
+              )}
             </Profiler>
           </CanvasBoundary>
           <style>{`
