@@ -23,7 +23,8 @@ import { ROOM_SECTION_PATHNAMES } from "~/lib/site/roomRoutes";
 
 // Every page and exploration on the site in one list, for the owner and the
 // friends he sends here. Nothing links to it and crawlers are told to skip
-// it. Locked and unlisted pages are listed with a note. Rows follow the
+// it. It is /site-index, not /index: Vercel's router maps /index onto / and
+// serves the homepage there. Locked and unlisted pages are listed with a note. Rows follow the
 // Universal Search palette: one 28px icon slot, then one text column. Pages
 // wear the tile their browser tab wears; room stops and loose items wear a
 // glyph.
