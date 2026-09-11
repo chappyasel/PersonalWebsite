@@ -1,6 +1,6 @@
 "use client";
 
-// Four throwaway views on /prototype/personality?variant=A|B|C|D.
+// Five throwaway views on /prototype/personality?variant=A|B|C|D|E.
 // Question: is a focused curve, five-curve overview, or matrix easiest to compare?
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -25,6 +25,7 @@ import {
 } from "~/components/ui/select";
 
 import AggregateView from "./AggregateView";
+import ClosestView from "./ClosestView";
 import {
   type Norm,
   type Person,
@@ -43,6 +44,7 @@ const variants = [
   { key: "B", name: "All five" },
   { key: "C", name: "Compare everyone" },
   { key: "D", name: "Overall distance" },
+  { key: "E", name: "Closest to…" },
 ];
 const poles: Record<Trait, [string, string]> = {
   Openness: ["Familiar & practical", "Curious & exploratory"],
@@ -628,10 +630,11 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
     (p) => group === "Everyone" || p.group === group || p.id === "chappy",
   );
   const people = members.filter((p) => !hidden.includes(p.id));
+  const focusOptions = variant === "E" ? scored : people;
   const focus =
-    people.find((p) => p.id === focusId) ??
-    people.find((p) => p.id === "chappy") ??
-    people[0];
+    focusOptions.find((p) => p.id === focusId) ??
+    focusOptions.find((p) => p.id === "chappy") ??
+    focusOptions[0];
   const props = focus
     ? {
         people,
@@ -656,8 +659,11 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
           <span>Your friends, family, and saved results.</span>
         </p>
       </header>
-      <div className={styles.toolbar} data-aggregate={variant === "D"}>
-        {variant !== "D" && (
+      <div
+        className={styles.toolbar}
+        data-aggregate={variant === "D" || variant === "E"}
+      >
+        {variant !== "D" && variant !== "E" && (
           <Choice
             label="Trait"
             value={trait}
@@ -684,17 +690,17 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
           onChange={setPreference}
         />
         <Choice
-          label="Inspect a person"
+          label={variant === "E" ? "Closest to" : "Inspect a person"}
           value={focus?.id ?? "empty"}
           options={
-            people.length
-              ? people.map((p) => ({ value: p.id, label: p.name }))
+            focusOptions.length
+              ? focusOptions.map((p) => ({ value: p.id, label: p.name }))
               : [{ value: "empty", label: "No people selected" }]
           }
           onChange={setFocusId}
         />
       </div>
-      {variant !== "D" && (
+      {variant !== "D" && variant !== "E" && (
         <p className={styles.modelNote}>
           The curve uses the reference values saved in your analysis.
           Percentiles are model estimates; the dots are your actual scores. The
@@ -709,8 +715,10 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
             <VariantB {...props} />
           ) : variant === "C" ? (
             <VariantC {...props} />
-          ) : (
+          ) : variant === "D" ? (
             <AggregateView {...props} />
+          ) : (
+            <ClosestView key={props.focus.id} {...props} />
           )}
         </div>
       ) : (
@@ -838,9 +846,18 @@ export default function PersonalityPrototype({ data }: { data: Snapshot }) {
       </div>
       <footer className={styles.footer} aria-live="polite">
         View {variant} ·{" "}
-        {variant === "D" ? "All five traits, RMS distance" : trait} · {group} ·{" "}
-        {people.length} shown · Inspecting {focus?.name ?? "nobody"} · Preferred
-        source: {preference === "directory" ? "spreadsheet" : "notebook"}
+        {variant === "E"
+          ? "All five traits, pairwise distance"
+          : variant === "D"
+            ? "All five traits, RMS distance"
+            : trait}{" "}
+        · {group} ·{" "}
+        {variant === "E"
+          ? people.filter((p) => p.id !== focus?.id).length
+          : people.length}{" "}
+        shown · {variant === "E" ? "Reference" : "Inspecting"}{" "}
+        {focus?.name ?? "nobody"} · Preferred source:{" "}
+        {preference === "directory" ? "spreadsheet" : "notebook"}
       </footer>
       <PrototypeSwitcher variant={variant} />
     </main>

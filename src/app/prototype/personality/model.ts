@@ -65,6 +65,52 @@ export function aggregateDistance(
   return Math.sqrt(squaredDistance / traits.length);
 }
 
+export function profileDistance(
+  a: ScoreRecord["scores"],
+  b: ScoreRecord["scores"],
+  norms: Snapshot["norms"],
+) {
+  let squaredDistance = 0;
+  for (const trait of traits) {
+    const left = a[trait];
+    const right = b[trait];
+    const sd = norms[trait].sd;
+    if (
+      left === undefined ||
+      right === undefined ||
+      !Number.isFinite(left) ||
+      !Number.isFinite(right) ||
+      !Number.isFinite(sd) ||
+      sd <= 0
+    )
+      return undefined;
+    squaredDistance += ((left - right) / sd) ** 2;
+  }
+  return Math.sqrt(squaredDistance / traits.length);
+}
+
+export function closestProfiles(
+  reference: Person,
+  candidates: Person[],
+  preference: string,
+  norms: Snapshot["norms"],
+) {
+  const source = recordFor(reference, preference);
+  if (!source) return [];
+  return candidates
+    .flatMap((person) => {
+      if (person.id === reference.id) return [];
+      const record = recordFor(person, preference);
+      const distance =
+        record && profileDistance(source.scores, record.scores, norms);
+      return distance === undefined ? [] : [{ person, distance }];
+    })
+    .sort(
+      (a, b) =>
+        a.distance - b.distance || a.person.name.localeCompare(b.person.name),
+    );
+}
+
 // Normal CDF approximation, with absolute error below 0.00000015.
 export function percentile(z: number) {
   const t = 1 / (1 + 0.2316419 * Math.abs(z));

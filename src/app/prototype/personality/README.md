@@ -8,6 +8,9 @@ Run `pnpm prototype:personality`, then visit http://localhost:3016/prototype/per
 - `?variant=B` stacks all five curves beside the selected person's results.
 - `?variant=C` compares percentiles in a sortable matrix with a curve inspector.
 - `?variant=D` ranks people by their root-mean-square z-score across all five traits, with signed trait distances for the selected person.
+- `?variant=E` lets any scored person be the reference and ranks everyone else by their RMS trait differences. Click a match to inspect both profiles or open that person's ranked list. The reference remains available even when candidate filters hide them.
+
+Closest-person distance uses `sqrt(sum(((candidate_trait - reference_trait) / reference_sd_trait) ** 2) / 5)`. It compares the full profiles, not the difference between their aggregate distances from the population means. Smaller is closer. Self matches and incomplete profiles are excluded, and ties sort by name. Both people use the selected snapshot preference with the existing fallback. Candidate filters never redefine the standard deviations.
 
 Overall distance uses `sqrt(sum(z_trait ** 2) / 5)` relative to the saved reference means. Every trait has equal weight; positive and negative deviations do not cancel. Only complete, finite five-trait profiles qualify. The ranking respects person filters and snapshot preference. This is a descriptive distance in trait SD units, not a joint population z-score, percentile, or estimate of rarity. It does not adjust for trait correlations.
 
