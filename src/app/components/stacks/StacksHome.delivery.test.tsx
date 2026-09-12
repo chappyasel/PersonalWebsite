@@ -113,7 +113,9 @@ it("keeps the actual panel owner mounted with reader state and scroll intact aft
         .getByRole("button", { name: "Continue reading" })
         .dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
-    expect(mocks.send).toHaveBeenCalledWith({ type: "illustrationInteracted" });
+    expect(mocks.send).not.toHaveBeenCalledWith({
+      type: "illustrationInteracted",
+    });
     mocks.view = { ...mocks.view, presentation: "travel", worldMounted: true };
     view.rerender(<StacksHome data={data} slots={slots} />);
     expect(view.getByTestId("reader")).toBe(reader);

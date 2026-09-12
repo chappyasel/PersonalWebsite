@@ -77,6 +77,22 @@ function live() {
 const view = (state: WorldBootState) => worldBootView(state);
 
 describe("illustrated promotion", () => {
+  it("automatically promotes the current shelf after navigation during loading", () => {
+    const browsing = run([
+      start(),
+      changed(KEY),
+      interacted(20),
+      changed(NEXT_KEY, 30),
+    ]);
+    const loaded = ready(browsing, 40);
+    const matched = run([registered(NEXT_KEY, loaded.epoch, 1000)], loaded);
+    expect(view(matched)).toMatchObject({
+      presentation: "dissolve",
+      canRequest3D: false,
+      illustrationKey: NEXT_KEY,
+    });
+  });
+
   it("keeps a usable illustration until the selected frame is registered", () => {
     const state = ready();
     expect(view(state)).toMatchObject({
@@ -195,10 +211,14 @@ describe("illustrated promotion", () => {
       const state = run([changed(null, 500)], phase());
       expect(view(state)).toMatchObject({
         presentation: "illustrated",
-        worldMounted: false,
+        worldMounted: true,
         handoffStartedAt: null,
       });
-      expect(run([registered(), arrived(), tick(10000)], state)).toBe(state);
+      const next = run(
+        [changed(NEXT_KEY, 510), registered(NEXT_KEY, 1, 520)],
+        state,
+      );
+      expect(view(next).presentation).toBe("dissolve");
     },
   );
 
@@ -458,70 +478,33 @@ describe("explicit retry after an artwork mismatch", () => {
 });
 
 describe("visitor ownership and renderer replacement", () => {
-  it.each([ready, dissolving, travelling])(
-    "reading cancels pending promotion and ignores teardown signals",
+  it.each([ready, dissolving, travelling, live])(
+    "ordinary reader input preserves automatic promotion and the renderer",
     (phase) => {
-      const held = run([interacted(500)], phase());
-      expect(view(held)).toMatchObject({
-        status: "illustrated",
-        presentation: "illustrated",
-        interactionHeld: true,
-        worldMounted: false,
-        canRequest3D: true,
-        recoverable: false,
-      });
-      const late = run(
-        [
-          registered(),
-          arrived(),
-          { type: "contextLost", epoch: 1, at: 1000 },
-          { type: "firstFrame", epoch: 1, at: 1000 },
-        ],
-        held,
-      );
-      expect(late).toBe(held);
-      expect(view(run([start({ at: 2000 })], held)).worldMounted).toBe(false);
+      const before = phase();
+      expect(run([interacted(500)], before)).toBe(before);
+      expect(view(before).interactionHeld).toBe(false);
+      expect(view(before).worldMounted).toBe(true);
     },
   );
 
-  it("preserves interaction before hydration starts", () => {
+  it("interaction before hydration does not disable automatic entry", () => {
     const state = run([changed(KEY), interacted(), start()]);
     expect(view(state)).toMatchObject({
       presentation: "illustrated",
       illustrationKey: KEY,
-      interactionHeld: true,
-      worldMounted: false,
-    });
-  });
-
-  it("records live interaction without taking away the live room", () => {
-    const held = run([interacted(900)], live());
-    expect(view(held)).toMatchObject({
-      presentation: "live",
-      interactionHeld: true,
+      interactionHeld: false,
       worldMounted: true,
     });
-    const lost = run([{ type: "contextLost", epoch: 1, at: 1000 }], held);
-    expect(view(lost)).toMatchObject({
-      presentation: "illustrated",
-      illustrationKey: KEY,
-      recoverable: false,
-      worldMounted: false,
-    });
-    expect(view(run([start({ at: 2000 })], lost)).interactionHeld).toBe(true);
   });
 
-  it("accepts reader ownership after context loss, before a queued retry", () => {
+  it("reader interaction keeps context-loss recovery available", () => {
     const lost = run([{ type: "contextLost", epoch: 1, at: 1000 }], live());
-    expect(view(lost).recoverable).toBe(true);
-    const held = run([interacted(1100)], lost);
-    expect(view(held)).toMatchObject({
-      recoverable: false,
-      interactionHeld: true,
-    });
-    const restarted = run([start({ at: 1600 })], held);
-    expect(view(restarted).worldMounted).toBe(false);
-    expect(restarted.contextLossRecoveries).toBe(0);
+    const browsing = run([interacted(1100)], lost);
+    expect(view(browsing).recoverable).toBe(true);
+    const restarted = run([start({ at: 1600 })], browsing);
+    expect(view(restarted).worldMounted).toBe(true);
+    expect(restarted.contextLossRecoveries).toBe(1);
   });
 
   it("restarts under a fresh epoch and keeps selected illustration", () => {
@@ -542,7 +525,7 @@ describe("visitor ownership and renderer replacement", () => {
     ).toBe(next);
   });
 
-  it("only an explicit retry or a true exit releases a reader hold", () => {
+  it("explicit retry and room exit retain their ordinary behavior", () => {
     const held = run([interacted(500)], ready());
     const retry = run([start({ at: 1000, explicitRequest: true })], held);
     expect(view(retry)).toMatchObject({

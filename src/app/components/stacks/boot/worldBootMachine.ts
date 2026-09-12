@@ -867,15 +867,10 @@ export function reduceWorldBoot(
         prepaintTimedOut: false,
       };
 
-    case "illustrationInteracted": {
-      if (state.interactionHeld && !illustrationHandoffActive(state))
-        return state;
-      const held = { ...state, interactionHeld: true };
-      return state.illustratedMode &&
-        (state.status === "booting" || illustrationHandoffActive(state))
-        ? retainIllustration(held)
-        : held;
-    }
+    // The reader remains mounted through promotion. Ordinary input is not an
+    // opt-out from WebGL; only a changed drawing invalidates the camera match.
+    case "illustrationInteracted":
+      return state;
 
     case "illustrationChanged": {
       if (state.illustrationKey === event.key) return state;
@@ -886,7 +881,15 @@ export function reduceWorldBoot(
         matchUnavailable: false,
       };
       return state.illustratedMode && illustrationHandoffActive(state)
-        ? retainIllustration(changed)
+        ? {
+            ...changed,
+            status: "booting",
+            handoffStartedAt: null,
+            deadline: {
+              kind: "hangBackstop",
+              at: event.at + policy.hangBackstopMs,
+            },
+          }
         : changed;
     }
 

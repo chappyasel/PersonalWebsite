@@ -2,9 +2,14 @@
 import type { StacksData } from "../data";
 import { useStacks } from "../store";
 import { act, cleanup, render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import IllustratedRoom from "./IllustratedRoom";
+
+vi.mock("./IllustratedTraverse", () => ({
+  IllustratedTraverse: ({ children }: { children: ReactNode }) => children,
+}));
 
 vi.mock("../dom/BootScreen", () => ({
   BootScreenArtwork: () => (
@@ -26,6 +31,7 @@ let decode = vi.fn<() => Promise<void>>();
 let rectangle = { x: 20, y: 100, width: 500, height: 300 };
 beforeEach(() => {
   rectangle = { x: 20, y: 100, width: 500, height: 300 };
+  HTMLElement.prototype.scrollTo = vi.fn();
   useStacks.setState({ activeUnit: 1, golfStop: false });
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     () => ({
@@ -156,7 +162,7 @@ it("keeps a failed drawing unregistered and offers explicit retry without owning
   expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
   expect(onReady).toHaveBeenLastCalledWith(null);
   expect(onUnavailable).toHaveBeenCalled();
-  act(() => view.getByRole("button", { name: "Enter 3D room" }).click());
+  act(() => view.getByRole("button", { name: "Retry 3D" }).click());
   expect(onRequest3D).toHaveBeenCalledOnce();
   expect(view.queryByRole("dialog")).toBeNull();
 });
@@ -177,6 +183,8 @@ it("leaves unsupported Golf unregistered instead of showing a Books drawing", ()
     />,
   );
   expect(view.getByRole("status").textContent).toContain("still read");
-  expect(view.container.querySelector("img")).toBeNull();
+  expect(
+    view.container.querySelector("[data-illustration-selected] img"),
+  ).toBeNull();
   expect(onReady).toHaveBeenLastCalledWith(null);
 });

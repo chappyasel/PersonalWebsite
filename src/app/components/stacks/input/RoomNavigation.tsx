@@ -17,6 +17,7 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
 } from "react";
 
 import { isRoomPathname } from "~/lib/site/roomRoutes";
@@ -77,6 +78,8 @@ const NavigationContext = createContext<(index: number) => boolean>((index) =>
   navigateRoomLink(index, true),
 );
 export const useRoomNavigation = () => useContext(NavigationContext);
+const NavigationReadyContext = createContext(true);
+export const useRoomNavigationReady = () => useContext(NavigationReadyContext);
 
 export function shouldMirrorWorldHistory(
   state: Pick<
@@ -106,6 +109,7 @@ export default function RoomNavigation({
   const scrollEl = useStacks((s) => s.scrollEl);
   const jumpTo = useStacks((s) => s.jumpTo);
   const initialized = useRef(false);
+  const [locationReady, setLocationReady] = useState(false);
   const lastLocation = useRef<string | null>(null);
   const locationAppliedTo = useRef<HTMLDivElement | null>(null);
   const go = useCallback(
@@ -146,12 +150,7 @@ export default function RoomNavigation({
     }
     // A replacement renderer adopts the existing selection. It never resets
     // the resident panel or its scroller to the URL's previous state.
-    if (
-      rendererEnabled &&
-      scrollEl &&
-      jumpTo &&
-      locationAppliedTo.current !== scrollEl
-    ) {
+    if (scrollEl && jumpTo && locationAppliedTo.current !== scrollEl) {
       locationAppliedTo.current = scrollEl;
       const state = useStacks.getState();
       jumpTo(state.golfStop ? GOLF_STOP_POSITION : state.activeUnit);
@@ -174,6 +173,7 @@ export default function RoomNavigation({
         navigateRoom(target, { rendererEnabled, instant: true });
     }
     lastLocation.current = here;
+    setLocationReady(true);
 
     // Mirror travel into the URL — at most one replaceState per unit change.
     // The golf half of it is the scroll's stop window, not golf mode: the
@@ -303,7 +303,9 @@ export default function RoomNavigation({
 
   return (
     <NavigationContext.Provider value={go}>
-      {children}
+      <NavigationReadyContext.Provider value={locationReady}>
+        {children}
+      </NavigationReadyContext.Provider>
     </NavigationContext.Provider>
   );
 }

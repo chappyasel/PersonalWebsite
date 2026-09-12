@@ -72,6 +72,29 @@ function mountRoom(url: string) {
   };
 }
 
+it("adopts the selected stop while the renderer is still hidden", () => {
+  const initial = useStacks.getState();
+  const jumpTo = vi.fn();
+  history.replaceState(null, "", "/projects");
+  useStacks.setState({
+    ...initial,
+    activeUnit: 4,
+    golfStop: false,
+    scrollEl: document.createElement("div"),
+    jumpTo,
+  });
+  try {
+    const mounted = render(<RoomNavigation rendererEnabled={false} />);
+    expect(jumpTo).toHaveBeenCalledWith(4);
+    jumpTo.mockClear();
+    mounted.rerender(<RoomNavigation rendererEnabled />);
+    expect(jumpTo).not.toHaveBeenCalled();
+  } finally {
+    cleanup();
+    useStacks.setState(initial);
+  }
+});
+
 it("mirrors travel as each stop's one URL, from any room path", () => {
   const room = mountRoom("/");
   try {
@@ -260,9 +283,9 @@ it("adopts the selected shelf when a replacement renderer arrives", () => {
     act(() =>
       useStacks.setState({ scrollEl: document.createElement("div"), jumpTo }),
     );
-    expect(jumpTo).not.toHaveBeenCalled();
-    view.rerender(<RoomNavigation rendererEnabled />);
     expect(jumpTo).toHaveBeenCalledWith(6);
+    view.rerender(<RoomNavigation rendererEnabled />);
+    expect(jumpTo).toHaveBeenCalledOnce();
   } finally {
     cleanup();
     useStacks.setState(initial);

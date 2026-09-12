@@ -1,6 +1,6 @@
 {
   "objective": "Integrate approved illustrated shelves into production boot and usable WebGL fallback, with registered dissolve and camera travel",
-  "status": "verified",
+  "status": "feedback_verified",
   "base": "f54e6e2",
   "integrationBranch": "feat/illustrated-room",
   "integrationWorktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-room",
@@ -8,7 +8,8 @@
     "review": "db63222",
     "geometry": "dd0a306",
     "foundation": "7483645",
-    "renderer": "e0becc7d4c4ff87595683ccf85191ee76ff04595"
+    "renderer": "e0becc7d4c4ff87595683ccf85191ee76ff04595",
+    "firstIntegration": "46b4953"
   },
   "workers": [
     {
@@ -38,7 +39,7 @@
     "server first paint and presentation CSS",
     "integration review, checks and final commit"
   ],
-  "browserSlot": "All final audits headless; one regular-browser preview after commit",
+  "browserSlot": "Headless verification only; reuse the existing regular-browser preview tab",
   "fieldNotes": "No award. Automatic fallback and handoff fail quality-bar test 2.",
   "mergedCommits": {
     "foundation": "7483645",
@@ -57,5 +58,15 @@
     "testsSkipped": 8,
     "build": "passed; room routes remain static",
     "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json"
+  },
+  "feedbackCheckpoint": {
+    "after": "46b4953",
+    "productionCases": 7,
+    "interactionCases": 3,
+    "aboutGeometryCases": 2,
+    "fullSuiteTestsPassed": 3941,
+    "preview": "http://localhost:3334/projects",
+    "illustratedReview": "http://localhost:3334/projects?hold-boot=1",
+    "recoveryCases": 6
   }
 }

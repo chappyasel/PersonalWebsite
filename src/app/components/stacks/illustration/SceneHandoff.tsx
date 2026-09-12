@@ -299,6 +299,8 @@ function ActiveSceneHandoff({
         now - r.lastAttempt < 250 ||
         !current.canvasReady ||
         current.waitStage !== "opening" ||
+        Math.abs(handoffCamera.scenePosition - target.unit) > 0.0005 ||
+        Math.abs(handoffCamera.scrollError) > 0.00001 ||
         Math.abs(handoffCamera.aimError) > 0.0005
       )
         return;

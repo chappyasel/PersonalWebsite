@@ -277,21 +277,6 @@ export default function StacksHome({
   const handoff = presentation === "dissolve" || presentation === "travel";
   const roomMounted = worldMounted || presentation !== "document";
   const contentVisible = illustrated || handoff || revealed;
-  const illustrationInteracted = useCallback(() => {
-    worldBoot.send({ type: "illustrationInteracted" });
-  }, []);
-  useEffect(() => {
-    if (!handoff || !roomActive) return;
-    const cancel = () => illustrationInteracted();
-    window.addEventListener("pointerdown", cancel, true);
-    window.addEventListener("wheel", cancel, { capture: true, passive: true });
-    window.addEventListener("keydown", cancel, true);
-    return () => {
-      window.removeEventListener("pointerdown", cancel, true);
-      window.removeEventListener("wheel", cancel, true);
-      window.removeEventListener("keydown", cancel, true);
-    };
-  }, [handoff, roomActive, illustrationInteracted]);
   const illustrationReady = useCallback((key: string | null) => {
     worldBoot.send({ type: "illustrationChanged", key });
   }, []);
@@ -325,10 +310,9 @@ export default function StacksHome({
       );
       if (index < 0) return;
       event.preventDefault();
-      illustrationInteracted();
       navigateRoomLink(index, false);
     },
-    [illustrated, illustrationInteracted],
+    [illustrated],
   );
   useLayoutEffect(() => {
     if (!roomActive || !roomMounted || !illustratedEnabled) return;
@@ -594,9 +578,6 @@ export default function StacksHome({
           data-boot-failure={boot.failure ?? undefined}
           data-boot-ineligibility={boot.ineligibility ?? undefined}
           data-boot-held={boot.interactionHeld ? "" : undefined}
-          onPointerDownCapture={illustrationInteracted}
-          onKeyDownCapture={illustrationInteracted}
-          onWheelCapture={illustrationInteracted}
           onClickCapture={followIllustratedSection}
           data-load-path={boot.loadPath}
           data-canvas-ready={boot.canvasReady ? "" : undefined}
@@ -897,10 +878,7 @@ export default function StacksHome({
             html[data-og-capture] .stacks-flat { display: none !important; }
           `}</style>
           <Activity mode={roomActive ? "visible" : "hidden"}>
-            <RoomNavigation
-              rendererEnabled={presentation === "live"}
-              onInteract={illustrationInteracted}
-            >
+            <RoomNavigation rendererEnabled={presentation === "live"}>
               {presentation !== "document" &&
                 worldBoot.getState().illustratedMode && (
                   <IllustratedRoom

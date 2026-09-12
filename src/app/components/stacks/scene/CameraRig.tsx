@@ -733,6 +733,32 @@ export default function CameraRig() {
     }
     wasFreeRoaming.current = false;
 
+    const bootView = worldBoot.getView();
+    // DOM navigation owns the current stop while the renderer is hidden.
+    // Adopt it before computing the ordinary camera, including explicit
+    // retries that skip illustration matching. Waiting until `live` makes
+    // the transition travel to About and then jump back to the chosen shelf.
+    if (worldBoot.getState().illustratedMode && !bootView.revealed) {
+      const selected = useStacks.getState();
+      const position = selected.golfStop
+        ? GOLF_STOP_POSITION
+        : selected.activeUnit;
+      const offset = Math.min(
+        1,
+        Math.max(0, scrollOffsetForUnit(position, currentAboutShift())),
+      );
+      const el = scroll.el;
+      const max = el.scrollWidth - el.clientWidth;
+      if (el.isConnected && max > 0) {
+        initialAboutPending.current = false;
+        if (Math.abs(el.scrollLeft - offset * max) > 0.5)
+          el.scrollLeft = offset * max;
+        (scroll as unknown as { scroll: { current: number } }).scroll.current =
+          offset;
+        scroll.offset = offset;
+      }
+    }
+
     // Drei installs its horizontal listener over multiple effects and ignores
     // the first native scroll event. On a narrow/touch viewport its event
     // connection is not observable through the same object identity as on
@@ -780,7 +806,6 @@ export default function CameraRig() {
     const frame = delta > 0.05 ? 0.05 : delta;
     // Behind the boot screen the damps take the hidden step instead, so the
     // room is already at rest when the vignette lifts (HIDDEN_SETTLE_SECONDS).
-    const bootView = worldBoot.getView();
     const illustrationOwnsPose = illustrationOwnsCamera(bootView);
     const dt = bootView.revealed ? frame : HIDDEN_SETTLE_SECONDS;
     // A gizmo drag must not also steer the camera: while the layout editor
@@ -1525,7 +1550,16 @@ export default function CameraRig() {
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
     if (illustrationOwnsPose) {
+      const selected = useStacks.getState();
+      const selectedPosition = selected.golfStop
+        ? GOLF_STOP_POSITION
+        : selected.activeUnit;
       handoffCamera.targetX = targetX;
+      handoffCamera.scenePosition = selectedPosition;
+      // About has a rail-clearance offset within its stop. Compare the real
+      // scroll target to that authored rest position, not integer progress.
+      handoffCamera.scrollError =
+        offset - scrollOffsetForUnit(selectedPosition, currentAboutShift());
       handoffCamera.aimError = look.current.x - restingAimX;
       handoffCamera.frame++;
     }

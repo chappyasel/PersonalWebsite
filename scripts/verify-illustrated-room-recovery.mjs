@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { chromium } from "playwright";
 
-const base = "http://localhost:3333";
+const base =
+  process.argv.find((arg) => arg.startsWith("--base="))?.slice(7) ??
+  "http://localhost:3333";
 const output = "docs/reviews/illustrated-room-integration-evidence/raw";
 const browser = await chromium.launch({
   headless: true,
@@ -10,6 +12,10 @@ const browser = await chromium.launch({
 });
 const results = [];
 async function run(name, options, test) {
+  const selected = process.argv
+    .find((arg) => arg.startsWith("--case="))
+    ?.slice(7);
+  if (selected && selected !== name) return;
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     colorScheme: "light",
@@ -26,7 +32,24 @@ async function run(name, options, test) {
     results.push({ name, passed: true, ...details, errors });
     console.log("PASS", name, JSON.stringify(details));
   } catch (error) {
-    results.push({ name, passed: false, error: String(error), errors });
+    results.push({
+      name,
+      passed: false,
+      error: String(error),
+      errors,
+      state: await page.evaluate(() => ({
+        phase: document.documentElement.dataset.roomView,
+        url: location.href,
+        attrs: [...document.documentElement.attributes].map((a) => [
+          a.name,
+          a.value,
+        ]),
+        boot: document
+          .querySelector("[data-boot-status]")
+          ?.outerHTML.slice(0, 600),
+        handoff: window.__roomHandoff,
+      })),
+    });
     console.log("FAIL", name, String(error));
     await page.screenshot({ path: `${output}/${name}-failure.png` });
     process.exitCode = 1;
@@ -73,7 +96,7 @@ try {
     await page.goBack();
     await page.waitForSelector('[data-room-artwork][data-unit="4"]');
     assert.equal(
-      await page.getByRole("button", { name: "Enter 3D room" }).count(),
+      await page.getByRole("button", { name: "Retry 3D" }).count(),
       1,
     );
     return { appearance, historyReturnedToProjects: true };
@@ -101,6 +124,11 @@ try {
     });
     assert.ok(before.scroll > 0);
     assert.ok(before.focused);
+    assert.equal(
+      before.url,
+      `${base}/projects`,
+      "Reader scrolling must not move to another shelf",
+    );
     const lost = await page.evaluate(() => {
       const canvas = document.querySelector(".stacks-canvas-shell canvas");
       const gl = canvas?.getContext("webgl2");
@@ -124,10 +152,8 @@ try {
     assert.equal(after.scroll, before.scroll);
     assert.equal(after.focused, before.focused);
     assert.equal(after.url, before.url);
-    assert.equal(await page.locator(".stacks-canvas-shell canvas").count(), 0);
-    await page.getByRole("button", { name: "Enter 3D room" }).click();
     await waitPhase(page, "live");
-    return { before, after, explicitRetryReachedLive: true };
+    return { before, after, automaticRecoveryReachedLive: true };
   });
 
   await run("stale-registration-explicit-retry", {}, async (page) => {
@@ -140,9 +166,9 @@ try {
     });
     await page.goto(`${base}/projects`);
     await waitDrawing(page);
-    await page.getByRole("button", { name: "Enter 3D room" }).waitFor();
+    await page.getByRole("button", { name: "Retry 3D" }).waitFor();
     assert.equal(await page.locator(".stacks-canvas-shell canvas").count(), 0);
-    await page.getByRole("button", { name: "Enter 3D room" }).click();
+    await page.getByRole("button", { name: "Retry 3D" }).click();
     await waitPhase(page, "live");
     return { mismatchedArtworkKept2D: true, explicitRetryReachedLive: true };
   });
@@ -184,7 +210,7 @@ try {
     await page.route("**/projects/*.svg", (route) => route.abort());
     await page.goto(`${base}/projects`, { waitUntil: "domcontentloaded" });
     await page.locator(".room-illustration-unavailable").waitFor();
-    await page.getByRole("button", { name: "Enter 3D room" }).click();
+    await page.getByRole("button", { name: "Retry 3D" }).click();
     await waitPhase(page, "live");
     return {
       failedImageLeftReaderAvailable: true,
@@ -202,6 +228,7 @@ try {
         await page.locator(".stacks-canvas-shell canvas").count(),
         0,
       );
+      await page.locator("main").waitFor({ state: "visible" });
       assert.ok(await page.locator("main").isVisible());
       return { semanticDocumentVisible: true, canvasMounted: false };
     },

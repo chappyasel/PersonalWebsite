@@ -9,7 +9,7 @@ This implements the approved direction on `feat/illustrated-room`, based on `f54
 - About keeps its original SVG and book covers. The other six shelves use the approved captures, packaged as 24 self-contained SVGs across two themes and two viewport sizes. Background props stay out of the drawings.
 - Server-rendered route selection chooses the first shelf. Hash stops switch after hydration. CSS selects the initial theme and viewport variant without making the routes dynamic or downloading every drawing.
 - The existing reader, links, navigation, history, and focus remain available during loading, transition, and WebGL failure. A stalled or failed image cannot keep the server shell over the hydrated reader.
-- Actual input during startup holds the illustrated view. An explicit "Enter 3D room" action can retry. A geometry or content mismatch also holds the illustration; explicit retry can enter the ordinary 3D view without the matched transition.
+- Ordinary reader input leaves automatic entry enabled. Wheel travel and native phone swipes move a horizontal row of illustrated shelves. Registration waits until travel settles, and the hidden 3D camera adopts the selected shelf before promotion. A real renderer or matching failure exposes a "Retry 3D" action.
 - Reduced motion and data-saving preferences retain the semantic document experience. Golf retains its existing boot because it is a fractional stop between shelves.
 - The Scene Diagnostics panel has a live illustration-handoff control. Its off path avoids registration traversal and per-frame handoff work.
 
@@ -23,7 +23,7 @@ During the 160 ms dissolve, the camera and captured shelf pose stay fixed. Camer
 
 ## Artifact integrity
 
-The approved SVG bytes are unchanged. The generator packages texture details, registration metadata, and a browser-free source fingerprint. Runtime code fetches only the selected SVG and registration file. There are 483 embedded image details across the 24 drawings. SVG payload totals 1,636,199 bytes before compression and 873,824 bytes with gzip.
+The approved SVG bytes are unchanged. The generator packages texture details, registration metadata, and a browser-free source fingerprint. Runtime code fetches the selected and adjacent SVGs for continuous scrolling, and only the selected registration file. There are 483 embedded image details across the 24 drawings. SVG payload totals 1,636,199 bytes before compression and 873,824 bytes with gzip.
 
 Two metadata repairs preserve the capture evidence:
 
@@ -57,4 +57,18 @@ The homepage OG freshness receipt was already stale at the base commit, with 111
 
 ## Field Notes
 
-No discovery is added. Automatic loading, fallback, and camera arrival fail achievement quality-bar test 2, which requires a qualifying action with meaning beyond incrementing a counter. Visitors do not earn an achievement for their device losing WebGL or for waiting for the room to load.
+No discovery is added. Scrolling preserves the existing room navigation rather than introducing a new discovery. Automatic loading, fallback, and camera arrival fail achievement quality-bar test 2, which requires a qualifying action with meaning beyond incrementing a counter. Visitors do not earn an achievement for their device losing WebGL or for waiting for the room to load.
+
+## Feedback checkpoint after 46b4953
+
+The first checkpoint incorrectly treated any click, key, or wheel event as a permanent request to stay in 2D. Its hidden camera also adopted the selected shelf only after promotion, allowing the transition to visit About before moving back. Regression tests now require automatic promotion after navigation and reject registration while the ordinary camera is at another shelf.
+
+The illustrated view now shares a static sky, horizon haze, and meadow across its horizontal shelf row. Artwork grows to the available stage bounds with a 700px physical shelf cap. Phone swipes and desktop wheel input use the existing room gesture exclusions, preserving reader scrolling, search overlays, and browser pinch zoom. The scroller waits for the initial URL selection and snaps directly to that shelf. Rail navigation retains its requested destination until smooth scrolling finishes, so a delayed image or queued scroll event cannot snap back to the previous shelf. Only the active phone sheet paints its title; inactive sheets remain mounted and measurable.
+
+The feedback audit exercises a section change during delayed renderer registration, no-WebGL wheel travel, and a native phone swipe. It checks automatic arrival on Systems without an About detour, the correct URL and active shelf, a settled artwork rectangle, the atmospheric background, and inactive phone sheet visibility. All three cases passed headlessly. All six recovery cases also passed against the rebuilt production app, including navigation with an indefinitely stalled Projects image and automatic recovery after context loss. The updated suite passes 3,941 tests across 466 files, with eight tests skipped. TypeScript, ESLint, artwork freshness, and the production build passed.
+
+```sh
+node scripts/verify-illustrated-room-feedback.mjs
+```
+
+For visual review, `/projects` exercises normal automatic entry. `/projects?hold-boot=1` keeps the illustrated room available for scrolling and layout feedback. The hold is a review switch; normal visits enter 3D automatically.

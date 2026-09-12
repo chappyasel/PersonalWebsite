@@ -11,11 +11,15 @@ html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
 }
 .room-first-paint-name {
   position: absolute;
-  left: 50%;
-  top: 70%;
-  transform: translateX(-50%);
+  z-index: 1;
+  left: max(1.25rem, env(safe-area-inset-left, 0px));
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
   font-family: var(--font-serif), Georgia, serif;
-  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-size: 1rem;
+  letter-spacing: -0.025em;
   color: hsl(var(--foreground));
 }
 .room-first-paint-artwork {
@@ -23,8 +27,8 @@ html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
   --room-first-paint-width: var(--room-first-paint-light-desktop-width);
   --room-first-paint-ratio: var(--room-first-paint-light-desktop-ratio);
   width: min(
-    92cqw,
-    var(--room-first-paint-width),
+    98cqw,
+    calc(var(--room-first-paint-width) * var(--room-illustration-scale)),
     calc(100cqh * var(--room-first-paint-ratio))
   );
   aspect-ratio: var(--room-first-paint-ratio);
@@ -32,6 +36,14 @@ html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
   background-position: center;
   background-size: contain;
   background-repeat: no-repeat;
+}
+@media (min-width: 1200px) {
+  .room-first-paint-name {
+    left: max(1.75rem, env(safe-area-inset-left, 0px));
+    top: max(1.25rem, env(safe-area-inset-top, 0px));
+    min-height: 0;
+    font-size: 1.125rem;
+  }
 }
 html.dark .room-first-paint-artwork {
   --room-first-paint-image: var(--room-first-paint-dark-desktop-image);

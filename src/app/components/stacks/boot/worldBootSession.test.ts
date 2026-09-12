@@ -174,7 +174,7 @@ describe("illustrated browser adapter", () => {
     (preference) => {
       optIn();
       session.start("hydrate");
-      session.send({ type: "illustrationInteracted" });
+      session.scope().send({ type: "illustrationUnavailable", key: null });
       if (preference === "motion") reducedMotion = true;
       else saveData = true;
       session.request3D();
@@ -194,13 +194,13 @@ describe("illustrated browser adapter", () => {
     },
   );
 
-  it("honors a held reader and stale scopes across explicit retry", () => {
+  it("preserves reader interaction and rejects stale scopes across explicit retry", () => {
     optIn();
     const old = session.start("hydrate");
     session.send({ type: "illustrationChanged", key: KEY });
     session.send({ type: "illustrationInteracted" });
-    expect(session.getView().worldMounted).toBe(false);
-    session.start("hydrate");
+    expect(session.getView().worldMounted).toBe(true);
+    old.send({ type: "illustrationUnavailable", key: KEY });
     expect(session.getView().worldMounted).toBe(false);
     const current = session.request3D();
     const before = session.getView();

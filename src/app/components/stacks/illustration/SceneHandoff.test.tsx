@@ -282,6 +282,8 @@ beforeEach(() => {
   handoffCamera.aimError = 0;
   handoffCamera.targetX = 0;
   handoffCamera.frame = 1;
+  Object.assign(handoffCamera, { scenePosition: 0 });
+  handoffCamera.scrollError = 0;
 
   artwork = document.createElement("div");
   artwork.dataset.roomArtwork = "";
@@ -322,6 +324,26 @@ afterEach(() => {
   }
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("waits until the ordinary camera reaches the selected shelf before matching", async () => {
+  Object.assign(handoffCamera, { scenePosition: 4 });
+  render(<SceneHandoff data={data} />);
+  await frame();
+  expect(harness.register).not.toHaveBeenCalled();
+  Object.assign(handoffCamera, { scenePosition: 0 });
+  await frame(harness.now + 300);
+  expect(harness.register).toHaveBeenCalledOnce();
+});
+
+it("requires the native scroll to reach the authored stop, including About's rail offset", async () => {
+  handoffCamera.scrollError = 0.03;
+  render(<SceneHandoff data={data} />);
+  await frame();
+  expect(harness.register).not.toHaveBeenCalled();
+  handoffCamera.scrollError = 0;
+  await frame(harness.now + 300);
+  expect(harness.register).toHaveBeenCalledOnce();
 });
 
 it("waits for a zero-sized canvas to acquire layout before registering rendered frames", async () => {

@@ -1,12 +1,13 @@
 "use client";
 
 import { toBootReadingBooks } from "../boot/homepageReadingBooks";
-import { GOLF_STOP_POSITION, type StacksData } from "../data";
+import { GOLF_STOP_POSITION, type StacksData, UNITS } from "../data";
 import { useStacks } from "../store";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 
+import { IllustratedTraverse } from "./IllustratedTraverse";
 import { IllustrationStage } from "./IllustrationStage";
 import {
   type RoomArtworkViewport,
@@ -73,6 +74,7 @@ export default function IllustratedRoom({
   const drawingUnit = golfStop ? GOLF_STOP_POSITION : unit;
   const artwork = getRoomArtwork(drawingUnit, theme, viewport);
   const root = useRef<HTMLDivElement>(null);
+  const [moving, setMoving] = useState(false);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
   const [failedRevision, setFailedRevision] = useState<string | null>(null);
@@ -91,8 +93,14 @@ export default function IllustratedRoom({
   useLayoutEffect(() => {
     onReady(null);
     const container = root.current;
+    if (moving) {
+      container
+        ?.querySelectorAll("[data-artwork-key]")
+        .forEach((node) => node.removeAttribute("data-room-artwork"));
+      return;
+    }
     const element = container?.querySelector<SVGSVGElement | HTMLImageElement>(
-      "svg.stacks-boot-scene, img[data-illustration-image]",
+      "[data-illustration-selected] svg.stacks-boot-scene, [data-illustration-selected] img[data-illustration-image]",
     );
     element?.removeAttribute("data-room-artwork");
     if (!element) {
@@ -166,19 +174,19 @@ export default function IllustratedRoom({
       window.visualViewport?.removeEventListener("resize", measure);
       onReady(null);
     };
-  }, [revision, unit, theme, onReady, onUnavailable]);
+  }, [revision, unit, theme, moving, onReady, onUnavailable]);
 
   // About's reused SVG owns its markup. Only the hydrated, selected image
   // receives the active marker; the server drawing never enters this query.
   useLayoutEffect(() => {
     const element = root.current?.querySelector(
-      "svg.stacks-boot-scene, img[data-illustration-image]",
+      "[data-illustration-selected] svg.stacks-boot-scene, [data-illustration-selected] img[data-illustration-image]",
     );
-    if (visible && readyKey) {
+    if (visible && readyKey && !moving) {
       element?.setAttribute("data-room-artwork", "");
       onReady(readyKey);
     } else element?.removeAttribute("data-room-artwork");
-  }, [visible, readyKey, onReady]);
+  }, [visible, readyKey, moving, onReady]);
 
   return (
     <div
@@ -187,18 +195,35 @@ export default function IllustratedRoom({
       aria-hidden={!visible}
       data-illustration-visible={visible ? "" : undefined}
     >
-      <IllustrationStage
-        unitIndex={drawingUnit}
-        theme={theme}
-        viewport={viewport}
-        readingBooks={aboutBooks}
-        readingBookColors={data.readingBookColors}
-        unavailable={failedRevision === revision}
-      />
+      <IllustratedTraverse
+        unit={unit}
+        enabled={visible}
+        onMovingChange={setMoving}
+      >
+        {UNITS.map((entry, index) => (
+          <div
+            key={entry.slug}
+            className="room-illustration-stop"
+            data-illustration-selected={index === unit ? "" : undefined}
+            aria-hidden={index !== unit}
+          >
+            {Math.abs(index - unit) <= 1 && (
+              <IllustrationStage
+                unitIndex={index === unit ? drawingUnit : index}
+                theme={theme}
+                viewport={viewport}
+                readingBooks={aboutBooks}
+                readingBookColors={data.readingBookColors}
+                unavailable={index === unit && failedRevision === revision}
+              />
+            )}
+          </div>
+        ))}
+      </IllustratedTraverse>
       {visible && canRequest3D && (
         <div className="room-illustration-actions">
           <Button variant="outline" size="sm" onClick={onRequest3D}>
-            Enter 3D room
+            Retry 3D
           </Button>
         </div>
       )}

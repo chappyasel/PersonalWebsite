@@ -5,6 +5,8 @@ export const handoffCamera = {
   aimError: Infinity,
   targetX: Infinity,
   frame: 0,
+  scenePosition: Infinity,
+  scrollError: Infinity,
 };
 
 export function illustrationOwnsCamera(view: WorldBootView): boolean {

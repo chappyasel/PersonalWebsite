@@ -816,5 +816,218 @@
     "homepageOg": "pre-existing stale receipt; no image drift",
     "searchBoundary": "passed; lazy palette and private server index traced",
     "weightLogBoundary": "passed"
+  },
+  "feedbackCheckpoint": {
+    "after": "46b4953",
+    "interactionCases": [
+      {
+        "mode": "automatic-navigation",
+        "passed": true,
+        "cameraXRange": [13.960454024521054, 13.960454024521054],
+        "liveCamera": {
+          "pos": [13.9605, 0.2778, 5.25],
+          "yaw": 0,
+          "fov": 33
+        },
+        "url": "/#systems"
+      },
+      {
+        "mode": "fallback-wheel",
+        "passed": true,
+        "before": 5760,
+        "after": 7200,
+        "artwork": {
+          "x": 198.75,
+          "y": 301.859375,
+          "width": 661.0625,
+          "height": 444.171875
+        },
+        "background": "linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      },
+      {
+        "mode": "fallback-phone",
+        "passed": true,
+        "before": 1560,
+        "after": 1950,
+        "artwork": {
+          "x": 3.90625,
+          "y": 233.453125,
+          "width": 382.1875,
+          "height": 268.875
+        },
+        "background": "linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      }
+    ],
+    "aboutCases": [
+      {
+        "case": "feedback-about-light-desktop",
+        "phase": "live",
+        "maxResidualPx": 0.0017804118947376414,
+        "errors": [],
+        "drawingOpacity": 0
+      },
+      {
+        "case": "feedback-about-dark-phone",
+        "phase": "live",
+        "maxResidualPx": 0.0010292971960307485,
+        "errors": [],
+        "drawingOpacity": 0
+      }
+    ],
+    "testsPassed": 3941,
+    "testsSkipped": 8,
+    "typecheck": "passed",
+    "eslint": "passed",
+    "build": "passed with search and weight-log boundary checks",
+    "production": [
+      {
+        "case": "feedback-production-about",
+        "route": "/about",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      },
+      {
+        "case": "feedback-production-books",
+        "route": "/#books",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      },
+      {
+        "case": "feedback-production-musings",
+        "route": "/musings",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      },
+      {
+        "case": "feedback-production-projects",
+        "route": "/projects",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      },
+      {
+        "case": "feedback-production-systems",
+        "route": "/#systems",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      },
+      {
+        "case": "feedback-production-talks",
+        "route": "/talks",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      },
+      {
+        "case": "feedback-production-weightlifting",
+        "route": "/#weightlifting",
+        "phase": "live",
+        "drawingOpacity": 0,
+        "errors": [],
+        "headless": true
+      }
+    ],
+    "testFilesPassed": 466,
+    "productionRecovery": [
+      {
+        "name": "no-webgl-navigation",
+        "passed": true,
+        "appearance": {
+          "opacity": "1",
+          "color": "rgb(65, 60, 57)"
+        },
+        "historyReturnedToProjects": true,
+        "errors": []
+      },
+      {
+        "name": "context-loss-reader",
+        "passed": true,
+        "before": {
+          "scroll": 350,
+          "focused": true,
+          "url": "http://localhost:3334/projects"
+        },
+        "after": {
+          "connected": true,
+          "scroll": 350,
+          "focused": true,
+          "url": "http://localhost:3334/projects"
+        },
+        "automaticRecoveryReachedLive": true,
+        "errors": []
+      },
+      {
+        "name": "stale-registration-explicit-retry",
+        "passed": true,
+        "mismatchedArtworkKept2D": true,
+        "explicitRetryReachedLive": true,
+        "errors": []
+      },
+      {
+        "name": "stalled-image-reader",
+        "passed": true,
+        "readerAvailableBeforeDecode": true,
+        "navigationWorked": true,
+        "errors": []
+      },
+      {
+        "name": "failed-image-explicit-retry",
+        "passed": true,
+        "failedImageLeftReaderAvailable": true,
+        "explicitRetryReachedLive": true,
+        "errors": []
+      },
+      {
+        "name": "reduced-motion-document",
+        "passed": true,
+        "semanticDocumentVisible": true,
+        "canvasMounted": false,
+        "errors": []
+      }
+    ],
+    "productionInteractions": [
+      {
+        "mode": "automatic-navigation",
+        "passed": true,
+        "cameraXRange": null,
+        "url": "/#systems"
+      },
+      {
+        "mode": "fallback-wheel",
+        "passed": true,
+        "before": 5760,
+        "after": 7200,
+        "artwork": {
+          "x": 198.75,
+          "y": 301.859375,
+          "width": 661.0625,
+          "height": 444.171875
+        },
+        "background": "linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      },
+      {
+        "mode": "fallback-phone",
+        "passed": true,
+        "before": 1560,
+        "after": 1950,
+        "artwork": {
+          "x": 3.90625,
+          "y": 233.453125,
+          "width": 382.1875,
+          "height": 268.875
+        },
+        "background": "linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      }
+    ]
   }
 }

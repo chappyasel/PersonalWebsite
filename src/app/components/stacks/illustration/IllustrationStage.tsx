@@ -45,6 +45,12 @@ export function IllustrationStage({
         {
           "--room-artwork-desktop-width": `${displayWidth(desktop)}px`,
           "--room-artwork-phone-width": `${displayWidth(phone)}px`,
+          "--room-artwork-desktop-ratio": desktop
+            ? desktop.viewBox[2]! / desktop.viewBox[3]!
+            : 300 / 230,
+          "--room-artwork-phone-ratio": phone
+            ? phone.viewBox[2]! / phone.viewBox[3]!
+            : 300 / 230,
         } as CSSProperties
       }
     >
