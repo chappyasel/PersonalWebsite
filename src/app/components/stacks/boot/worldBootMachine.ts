@@ -32,6 +32,13 @@ import { WORLD_BOOT_POLICY, type WorldBootPolicy } from "./worldBootPolicy";
  * document is the homepage. */
 export type WorldPhase = "pending" | "warm" | "ready";
 
+export type RoomPresentation =
+  | "document"
+  | "illustrated"
+  | "dissolve"
+  | "travel"
+  | "live";
+
 export type WorldBootStatus =
   /** No capability decision yet. What the server rendered: the flat page. */
   | "unstarted"
@@ -40,6 +47,12 @@ export type WorldBootStatus =
   | "ineligible"
   /** The boot screen is up and the world is loading behind it. */
   | "booting"
+  /** Usable 2D view after cancellation or an explicit choice to keep reading. */
+  | "illustrated"
+  /** The registered camera stays still while the illustration fades. */
+  | "dissolving"
+  /** The illustration is gone and the camera travels to its ordinary pose. */
+  | "travelling"
   /** Every reveal gate is open. The world is on screen and the flat document
    * is still mounted underneath for the cross-fade. */
   | "revealing"
@@ -65,7 +78,9 @@ export type WorldBootIneligibility =
 export type WorldBootDeadline =
   | "prepaintBackstop"
   | "hangBackstop"
-  | "flatRetire";
+  | "flatRetire"
+  | "illustrationDissolve"
+  | "illustrationHandoff";
 
 export type LoadPath = "cold" | "warm";
 
@@ -134,6 +149,10 @@ export type WorldBootEvent =
       prefersReducedMotion: boolean;
       saveData: boolean;
       ogCapture: boolean;
+      /** New first-view presentation. Legacy callers and OG retain their path. */
+      illustratedMode?: boolean;
+      /** A deliberate retry may release a reader's hold, but not preferences. */
+      explicitRequest?: boolean;
       /** A URL-scoped presentation aid. It deliberately disables both the
        * reveal gate and hang deadline while leaving the world free to load. */
       holdBoot?: boolean;
@@ -154,6 +173,20 @@ export type WorldBootEvent =
   | { type: "meadowReady"; at: number; epoch: number }
   /** A live diagnostics off-to-on remount invalidated the old buffers. */
   | { type: "meadowPending"; at: number; epoch: number }
+  /** The scene adapter observed at least two rendered matching frames. */
+  | { type: "illustrationRegistered"; at: number; epoch: number; key: string }
+  /** The same registered camera has reached its ordinary room pose. */
+  | {
+      type: "illustrationTravelCompleted";
+      at: number;
+      epoch: number;
+      key: string;
+    }
+  | { type: "illustrationUnavailable"; at: number; epoch: number; key: string }
+  /** Reading/navigation is a page fact and survives renderer replacement. */
+  | { type: "illustrationInteracted"; at: number }
+  | { type: "illustrationChanged"; at: number; key: string | null }
+  | { type: "illustrationMotionChanged"; at: number; enabled: boolean }
   /** The boot vignette began a fresh item-by-item pass. Not epoch-scoped: the
    * vignette belongs to the page instance, and it is running before the
    * world's owner has streamed in. */
@@ -194,6 +227,15 @@ export type WorldBootState = {
   loadPath: LoadPath;
   ogCapture: boolean;
   holdBoot: boolean;
+  illustratedMode: boolean;
+  illustrationKey: string | null;
+  registeredIllustrationKey: string | null;
+  interactionHeld: boolean;
+  handoffStartedAt: number | null;
+  /** Session-only diagnostics setting. It never changes eligibility. */
+  motionEnabled: boolean;
+  /** A fail-open document must stay readable through delayed hydration. */
+  prepaintTimedOut: boolean;
   failure: WorldBootFailure | null;
   ineligibility: WorldBootIneligibility | null;
   /** Monotonic time when this machine generation began. */
@@ -228,6 +270,14 @@ export type WorldBootState = {
 
 /** Everything an adapter needs to know, and nothing about how it renders. */
 export type WorldBootView = {
+  presentation: RoomPresentation;
+  illustrationKey: string | null;
+  interactionHeld: boolean;
+  handoffStartedAt: number | null;
+  motionEnabled: boolean;
+  canRequest3D: boolean;
+  /** Revealed/chrome readiness stays false until the camera finishes travel. */
+  canvasVisible: boolean;
   /** The generation a producer mounting right now must stamp its signals
    * with. */
   epoch: number;
@@ -278,6 +328,13 @@ export function initialWorldBootState(): WorldBootState {
     loadPath: "cold",
     ogCapture: false,
     holdBoot: false,
+    illustratedMode: false,
+    illustrationKey: null,
+    registeredIllustrationKey: null,
+    interactionHeld: false,
+    handoffStartedAt: null,
+    motionEnabled: true,
+    prepaintTimedOut: false,
     failure: null,
     ineligibility: null,
     startedAt: null,
@@ -458,7 +515,92 @@ function giveUp(
   state: WorldBootState,
   failure: WorldBootFailure,
 ): WorldBootState {
-  return { ...state, status: "failed", failure, deadline: null };
+  return {
+    ...state,
+    status: "failed",
+    failure,
+    deadline: null,
+    registeredIllustrationKey: null,
+    handoffStartedAt: null,
+    prepaintTimedOut:
+      state.prepaintTimedOut ||
+      (state.origin === "prepaint" && failure === "hang"),
+  };
+}
+
+function retainIllustration(state: WorldBootState): WorldBootState {
+  return {
+    ...state,
+    status: "illustrated",
+    deadline: null,
+    registeredIllustrationKey: null,
+    handoffStartedAt: null,
+  };
+}
+
+function illustrationHandoffActive(state: WorldBootState): boolean {
+  return state.status === "dissolving" || state.status === "travelling";
+}
+
+/** Only this machine authorizes the camera sequence. Timers can advance the
+ * fade to travel, but only a matching renderer event can finish promotion. */
+function settleIllustrated(
+  state: WorldBootState,
+  at: number,
+  policy: WorldBootPolicy,
+): WorldBootState {
+  if (state.hiddenSince !== null || state.holdBoot) return state;
+  if (state.status === "booting") {
+    if (state.interactionHeld) return retainIllustration(state);
+    const roomReady = worldGatesOpen(state, at, policy);
+    const staged = latchWaitStage(
+      roomReady && state.worldReadyAt === null
+        ? { ...state, worldReadyAt: at }
+        : state,
+    );
+    if (roomReady) {
+      if (!staged.motionEnabled) {
+        return { ...staged, status: "live", deadline: null };
+      }
+      if (
+        staged.illustrationKey !== null &&
+        staged.registeredIllustrationKey === staged.illustrationKey
+      ) {
+        return {
+          ...staged,
+          status: "dissolving",
+          handoffStartedAt: at,
+          deadline: {
+            kind: "illustrationDissolve",
+            at: at + policy.illustrationTravelDelayMs,
+          },
+        };
+      }
+    }
+    // A painted scene is not proof of a registered scene. Keep the original
+    // hang budget until registration too, then use the presentation backstop.
+    return deadlineDue(staged, at) ? giveUp(staged, "hang") : staged;
+  }
+  if (
+    state.status === "dissolving" &&
+    deadlineDue(state, at) === "illustrationDissolve"
+  ) {
+    return {
+      ...state,
+      status: "travelling",
+      deadline: {
+        kind: "illustrationHandoff",
+        at: at + policy.illustrationHandoffTimeoutMs,
+      },
+    };
+  }
+  if (
+    deadlineDue(state, at) &&
+    (state.status === "travelling" || state.status === "ineligible")
+  ) {
+    return giveUp(state, "hang");
+  }
+  return state;
 }
 
 /** Deadline and reveal arbitration, applied after every event so the machine
@@ -473,6 +615,7 @@ function settle(
   at: number,
   policy: WorldBootPolicy,
 ): WorldBootState {
+  if (state.illustratedMode) return settleIllustrated(state, at, policy);
   if (state.status === "booting") {
     if (state.holdBoot) return state;
     const staged = latchWaitStage(state);
@@ -549,6 +692,8 @@ function applyVisibility(
     hiddenSince: null,
     worldReadyAt:
       state.worldReadyAt === null ? null : state.worldReadyAt + elapsed,
+    handoffStartedAt:
+      state.handoffStartedAt === null ? null : state.handoffStartedAt + elapsed,
     deadline: state.deadline
       ? { ...state.deadline, at: state.deadline.at + elapsed }
       : null,
@@ -567,14 +712,26 @@ export function reduceWorldBoot(
   // the reveal gate on a canvas that has not painted.
   if ("epoch" in event && event.epoch !== state.epoch) return state;
 
+  // The old About animation may still complete while its page unmounts. It
+  // has no authority over the illustrated path's registration or sequence.
+  if (state.illustratedMode && isVignetteSignal(event)) return state;
+
+  const illustrationPageSignal =
+    event.type === "illustrationInteracted" ||
+    event.type === "illustrationChanged" ||
+    event.type === "illustrationMotionChanged";
+
   // Once the world has been given up on or the route has been left, the rest
   // of the signals from a tearing-down scene would only churn subscribers.
   if (
-    (state.status === "failed" || state.status === "exited") &&
+    (state.status === "failed" ||
+      state.status === "exited" ||
+      state.status === "illustrated") &&
     event.type !== "start" &&
     event.type !== "exit" &&
     event.type !== "visibility" &&
-    !isVignetteSignal(event)
+    !isVignetteSignal(event) &&
+    !(illustrationPageSignal && state.status !== "exited")
   ) {
     return state;
   }
@@ -582,12 +739,21 @@ export function reduceWorldBoot(
   switch (event.type) {
     case "start": {
       const fresh = initialWorldBootState();
+      const sameVisit = state.status !== "exited";
       const base: WorldBootState = {
         ...fresh,
         epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
         holdBoot: event.holdBoot ?? false,
+        illustratedMode: (event.illustratedMode ?? false) && !event.ogCapture,
+        illustrationKey: sameVisit ? state.illustrationKey : null,
+        interactionHeld:
+          sameVisit && !event.explicitRequest && state.interactionHeld,
+        motionEnabled: state.motionEnabled,
+        prepaintTimedOut:
+          event.prepaintTimedOut ||
+          (sameVisit && !event.explicitRequest && state.prepaintTimedOut),
         startedAt: event.journeyStartedAt ?? event.at,
         // The vignette runs in the initial entry bundle and can finish its
         // pass before the streamed homepage data resolves and the world's
@@ -611,13 +777,32 @@ export function reduceWorldBoot(
         saveData: event.saveData,
       });
       if (ineligibility) {
-        return { ...base, status: "ineligible", ineligibility };
+        return {
+          ...base,
+          status: "ineligible",
+          ineligibility,
+          // Even a browser without WebGL must recover its semantic document
+          // if the illustrated UI's hydration bundle never arrives.
+          deadline:
+            base.illustratedMode &&
+            ineligibility === "webgl_unavailable" &&
+            event.origin === "prepaint" &&
+            !event.holdBoot
+              ? startDeadline(event, policy)
+              : null,
+        };
       }
       // The pre-paint backstop already handed this visitor the document. Do
       // not put the boot screen back over it and start a second, longer wait
       // — hydration that late is the same hang, seen from further along.
-      if (event.prepaintTimedOut) {
+      if (base.prepaintTimedOut) {
         return { ...base, status: "failed", failure: "hang" };
+      }
+      if (base.illustratedMode && base.interactionHeld) {
+        return {
+          ...retainIllustration(base),
+          contextLossRecoveries: state.contextLossRecoveries,
+        };
       }
       return settle(
         {
@@ -641,7 +826,87 @@ export function reduceWorldBoot(
         status: "exited",
         deadline: null,
         bootVignetteReady: false,
+        interactionHeld: false,
+        illustrationKey: null,
+        registeredIllustrationKey: null,
+        handoffStartedAt: null,
+        prepaintTimedOut: false,
       };
+
+    case "illustrationInteracted": {
+      if (state.interactionHeld && !illustrationHandoffActive(state))
+        return state;
+      const held = { ...state, interactionHeld: true };
+      return state.illustratedMode &&
+        (state.status === "booting" || illustrationHandoffActive(state))
+        ? retainIllustration(held)
+        : held;
+    }
+
+    case "illustrationChanged": {
+      if (state.illustrationKey === event.key) return state;
+      const changed = {
+        ...state,
+        illustrationKey: event.key,
+        registeredIllustrationKey: null,
+      };
+      return state.illustratedMode && illustrationHandoffActive(state)
+        ? retainIllustration(changed)
+        : changed;
+    }
+
+    case "illustrationMotionChanged": {
+      if (state.motionEnabled === event.enabled) return state;
+      const changed = {
+        ...state,
+        motionEnabled: event.enabled,
+        registeredIllustrationKey: null,
+      };
+      if (state.illustratedMode && illustrationHandoffActive(state)) {
+        return settle(
+          { ...changed, status: "booting", handoffStartedAt: null },
+          event.at,
+          policy,
+        );
+      }
+      return settle(changed, event.at, policy);
+    }
+
+    case "illustrationRegistered":
+      if (
+        !state.illustratedMode ||
+        !state.motionEnabled ||
+        state.status !== "booting" ||
+        event.key !== state.illustrationKey
+      )
+        return state;
+      return settle(
+        { ...state, registeredIllustrationKey: event.key },
+        event.at,
+        policy,
+      );
+
+    case "illustrationTravelCompleted":
+      if (
+        !state.illustratedMode ||
+        state.status !== "travelling" ||
+        state.hiddenSince !== null ||
+        !worldGatesOpen(state, event.at, policy) ||
+        event.key !== state.illustrationKey ||
+        event.key !== state.registeredIllustrationKey
+      )
+        return state;
+      return { ...state, status: "live", deadline: null };
+
+    case "illustrationUnavailable":
+      if (
+        !state.illustratedMode ||
+        !state.motionEnabled ||
+        event.key !== state.illustrationKey ||
+        !(state.status === "booting" || illustrationHandoffActive(state))
+      )
+        return state;
+      return retainIllustration(state);
 
     case "runtimeError":
       return giveUp(state, "runtimeError");
@@ -698,9 +963,48 @@ export function worldBootView(
   state: WorldBootState,
   policy: WorldBootPolicy = WORLD_BOOT_POLICY,
 ): WorldBootView {
-  const revealed = state.status === "revealing" || state.status === "live";
-  const worldMounted = state.status === "booting" || revealed;
+  const revealed =
+    state.status === "live" ||
+    (!state.illustratedMode && state.status === "revealing");
+  const worldMounted =
+    state.status === "booting" ||
+    state.status === "revealing" ||
+    illustrationHandoffActive(state) ||
+    state.status === "live";
+  const illustrated =
+    state.illustratedMode &&
+    !state.prepaintTimedOut &&
+    state.ineligibility !== "reduced_motion" &&
+    state.ineligibility !== "save_data" &&
+    state.status !== "unstarted" &&
+    state.status !== "exited";
+  const presentation: RoomPresentation = revealed
+    ? "live"
+    : !illustrated
+      ? "document"
+      : state.status === "dissolving"
+        ? "dissolve"
+        : state.status === "travelling"
+          ? "travel"
+          : "illustrated";
   return {
+    presentation,
+    illustrationKey: state.illustrationKey,
+    interactionHeld: state.interactionHeld,
+    handoffStartedAt: state.handoffStartedAt,
+    motionEnabled: state.motionEnabled,
+    canRequest3D:
+      state.illustratedMode &&
+      !worldMounted &&
+      state.status !== "unstarted" &&
+      state.status !== "exited" &&
+      state.ineligibility !== "reduced_motion" &&
+      state.ineligibility !== "save_data" &&
+      !(
+        state.failure === "contextLost" &&
+        state.contextLossRecoveries >= policy.contextLossRecoveries
+      ),
+    canvasVisible: revealed || illustrationHandoffActive(state),
     epoch: state.epoch,
     status: state.status,
     documentPhase: !worldMounted
@@ -723,6 +1027,7 @@ export function worldBootView(
     awaitingReveal:
       state.status === "booting" && state.firstFrame && !state.holdBoot,
     awaitingVignette:
+      !state.illustratedMode &&
       state.status === "booting" &&
       state.worldReadyAt !== null &&
       !state.bootVignetteReady,
@@ -736,6 +1041,7 @@ export function worldBootView(
     recoverable:
       state.status === "failed" &&
       state.failure === "contextLost" &&
+      (!state.illustratedMode || !state.interactionHeld) &&
       state.contextLossRecoveries < policy.contextLossRecoveries,
   };
 }

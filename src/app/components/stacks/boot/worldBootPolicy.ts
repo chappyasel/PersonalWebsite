@@ -17,6 +17,9 @@ export type WorldBootPolicy = {
    * on this literal during the first paint, so a change here is a change
    * there. */
   worldAttribute: string;
+  /** Server opt-in and current DOM presentation, independent of WebGL. */
+  illustrationAttribute: string;
+  presentationAttribute: string;
   /** Marks the automated OG capture, which renders the live scene with the
    * homepage chrome hidden. */
   ogCaptureAttribute: string;
@@ -72,6 +75,11 @@ export type WorldBootPolicy = {
    * the curtain can cross-fade over it. Matches the 360ms opacity transition
    * in globals.css plus a frame of slack. */
   flatRetireMs: number;
+  illustrationDissolveMs: number;
+  illustrationTravelDelayMs: number;
+  illustrationTravelMs: number;
+  /** A missing camera completion signal returns the usable illustration. */
+  illustrationHandoffTimeoutMs: number;
   /** Window globals the pre-paint script uses to hand its backstop timer to
    * React. Named here so the script and the React adapter cannot drift. */
   prepaintTimerGlobal: string;
@@ -87,6 +95,8 @@ export type WorldBootPolicy = {
 
 export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   worldAttribute: "data-world",
+  illustrationAttribute: "data-room-illustration",
+  presentationAttribute: "data-room-view",
   ogCaptureAttribute: "data-og-capture",
   ogCaptureParam: "og-capture",
   holdBootParam: "hold-boot",
@@ -101,6 +111,10 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   contextLossRestartDelayMs: 600,
   vignetteCeilingMs: 1200,
   flatRetireMs: 420,
+  illustrationDissolveMs: 160,
+  illustrationTravelDelayMs: 180,
+  illustrationTravelMs: 400,
+  illustrationHandoffTimeoutMs: 3000,
   prepaintTimerGlobal: "__stacksWorldBootTimer",
   prepaintTokenGlobal: "__stacksWorldBootToken",
   prepaintStartedAtGlobal: "__stacksWorldBootStartedAt",

@@ -965,6 +965,12 @@ describe("totality", () => {
       g.contextLost(7),
       g.exit(7),
       tick(7),
+      { type: "illustrationInteracted", at: 7 },
+      { type: "illustrationChanged", key: "test-art", at: 7 },
+      { type: "illustrationMotionChanged", enabled: false, at: 7 },
+      { type: "illustrationRegistered", key: "test-art", epoch, at: 7 },
+      { type: "illustrationTravelCompleted", key: "test-art", epoch, at: 7 },
+      { type: "illustrationUnavailable", key: "test-art", epoch, at: 7 },
     ];
   }
 
@@ -972,6 +978,25 @@ describe("totality", () => {
     unstarted: () => initialWorldBootState(),
     ineligible: () => run([start({ saveData: true })]),
     booting: () => bootedTo("booting"),
+    illustrated: () =>
+      run([
+        start({ illustratedMode: true }),
+        { type: "illustrationInteracted", at: 5 },
+      ]),
+    dissolving: () => ({
+      ...bootedTo("revealing"),
+      illustratedMode: true,
+      status: "dissolving",
+      illustrationKey: "test-art",
+      registeredIllustrationKey: "test-art",
+      handoffStartedAt: 260,
+      deadline: { kind: "illustrationDissolve", at: 440 },
+    }),
+    travelling: () => ({
+      ...STATES.dissolving(),
+      status: "travelling",
+      deadline: { kind: "illustrationHandoff", at: 3440 },
+    }),
     revealing: () => bootedTo("revealing"),
     live: () => bootedTo("live"),
     failed: () => run([g1.runtimeError(5)], bootedTo("booting")),

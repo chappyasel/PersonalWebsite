@@ -72,6 +72,9 @@ export function useWorldBoot(): WorldBootView {
       if (document.hidden || timer !== null) return;
       timer = window.setTimeout(() => {
         timer = null;
+        // A reader can claim the illustration after this timer was armed,
+        // before React has committed the effect cleanup. Re-read the policy.
+        if (document.hidden || !worldBoot.getView().recoverable) return;
         worldBoot.start("hydrate");
       }, WORLD_BOOT_POLICY.contextLossRestartDelayMs);
     };

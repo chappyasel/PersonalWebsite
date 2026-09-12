@@ -37,7 +37,10 @@ export type WorldBootSignal = Distribute<
         | "tick"
         | "visibility"
         | "bootVignetteStarted"
-        | "bootVignetteCompleted";
+        | "bootVignetteCompleted"
+        | "illustrationInteracted"
+        | "illustrationChanged"
+        | "illustrationMotionChanged";
     }
   >,
   "at"
@@ -99,12 +102,12 @@ function probeWebGLSupport(): boolean {
 
 /** Cached per tab: the answer to "can this browser run it" cannot change
  * mid-session, and creating a throwaway context costs about a millisecond. */
-function webglAvailable(): boolean {
+function webglAvailable(recheck = false): boolean {
   try {
     const cached = window.sessionStorage.getItem(
       WORLD_BOOT_POLICY.webglCapabilityKey,
     );
-    if (cached !== null) return cached === "1";
+    if (!recheck && cached !== null) return cached === "1";
     const available = probeWebGLSupport();
     window.sessionStorage.setItem(
       WORLD_BOOT_POLICY.webglCapabilityKey,
@@ -208,6 +211,18 @@ function applyDocument(view: WorldBootView): void {
   } else {
     root.setAttribute(WORLD_BOOT_POLICY.worldAttribute, view.documentPhase);
   }
+  if (
+    documentActive &&
+    !view.ogCapture &&
+    root.getAttribute(WORLD_BOOT_POLICY.illustrationAttribute) === "enabled"
+  ) {
+    root.setAttribute(
+      WORLD_BOOT_POLICY.presentationAttribute,
+      view.presentation,
+    );
+  } else {
+    root.removeAttribute(WORLD_BOOT_POLICY.presentationAttribute);
+  }
   root.toggleAttribute(
     WORLD_BOOT_POLICY.ogCaptureAttribute,
     documentActive && view.ogCapture,
@@ -222,7 +237,7 @@ const UNSTARTED_STATE = initialWorldBootState();
 export const SERVER_WORLD_BOOT_VIEW: WorldBootView =
   worldBootView(UNSTARTED_STATE);
 
-class WorldBootSession {
+export class WorldBootSession {
   private state = UNSTARTED_STATE;
   private snapshot = SERVER_WORLD_BOOT_VIEW;
   private listeners = new Set<() => void>();
@@ -269,28 +284,35 @@ class WorldBootSession {
    * on is read here and passed to the machine as data. Returns the scope for
    * the generation it opened, which is what the caller must stamp its own
    * later signals — its exit above all — with. */
-  start(origin: "prepaint" | "hydrate"): WorldBootScope {
+  start(
+    origin: "prepaint" | "hydrate",
+    options: { explicitRequest?: boolean } = {},
+  ): WorldBootScope {
     const at = nowMs();
     const connection = (
       navigator as Navigator & { connection?: { saveData?: boolean } }
     ).connection;
+    const params = new URLSearchParams(window.location.search);
+    const ogCapture = params.has(WORLD_BOOT_POLICY.ogCaptureParam);
     this.dispatch({
       type: "start",
       at,
       origin,
       prepaintTimedOut: consumePrepaintTimeout(),
       journeyStartedAt: consumePrepaintStartedAt(at),
-      webglAvailable: webglAvailable(),
+      webglAvailable: webglAvailable(options.explicitRequest),
       prefersReducedMotion: window.matchMedia(
         WORLD_BOOT_POLICY.reducedMotionQuery,
       ).matches,
       saveData: Boolean(connection?.saveData),
-      ogCapture: new URLSearchParams(window.location.search).has(
-        WORLD_BOOT_POLICY.ogCaptureParam,
-      ),
-      holdBoot: new URLSearchParams(window.location.search).has(
-        WORLD_BOOT_POLICY.holdBootParam,
-      ),
+      ogCapture,
+      illustratedMode:
+        !ogCapture &&
+        document.documentElement.getAttribute(
+          WORLD_BOOT_POLICY.illustrationAttribute,
+        ) === "enabled",
+      explicitRequest: options.explicitRequest,
+      holdBoot: params.has(WORLD_BOOT_POLICY.holdBootParam),
       // The attribute for a document's first start, the stored record for an
       // SPA re-entry, which cleared that attribute itself on the way out.
       warm: warmEvidenceFor({
@@ -300,6 +322,24 @@ class WorldBootSession {
       }),
     });
     return this.scope();
+  }
+
+  /** A deliberate retry refreshes browser evidence. Preferences still win. */
+  request3D(): WorldBootScope {
+    if (
+      !documentActive ||
+      this.snapshot.worldMounted ||
+      (this.state.failure === "contextLost" &&
+        this.state.contextLossRecoveries >=
+          WORLD_BOOT_POLICY.contextLossRecoveries)
+    )
+      return this.scope();
+    return this.start("hydrate", { explicitRequest: true });
+  }
+
+  /** Diagnostics changes presentation only and resets with this JS session. */
+  setIllustrationMotionEnabled(enabled: boolean): void {
+    this.send({ type: "illustrationMotionChanged", enabled });
   }
 
   getView(): WorldBootView {
