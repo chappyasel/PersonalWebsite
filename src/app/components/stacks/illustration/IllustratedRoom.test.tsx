@@ -1,0 +1,179 @@
+// @vitest-environment jsdom
+import type { StacksData } from "../data";
+import { useStacks } from "../store";
+import { act, cleanup, render } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+import IllustratedRoom from "./IllustratedRoom";
+
+vi.mock("../dom/BootScreen", () => ({
+  BootScreenArtwork: () => (
+    <svg className="stacks-boot-scene" viewBox="0 0 300 230">
+      <image href="/cover.png" />
+    </svg>
+  ),
+}));
+const initial = useStacks.getState();
+const data = {
+  readingBooks: [],
+  readingBookColors: {},
+} as unknown as StacksData;
+let resize: () => void;
+let decode = vi.fn<() => Promise<void>>();
+let rectangle = { x: 20, y: 100, width: 500, height: 300 };
+beforeEach(() => {
+  rectangle = { x: 20, y: 100, width: 500, height: 300 };
+  useStacks.setState({ activeUnit: 1, golfStop: false });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    () => ({
+      ...rectangle,
+      top: rectangle.y,
+      left: rectangle.x,
+      right: rectangle.x + rectangle.width,
+      bottom: rectangle.y + rectangle.height,
+      toJSON: () => ({}),
+    }),
+  );
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe() {
+        /* Measured explicitly in tests. */
+      }
+      disconnect() {
+        /* No native observer. */
+      }
+    },
+  );
+  decode = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  Object.defineProperty(HTMLImageElement.prototype, "decode", {
+    configurable: true,
+    value: decode,
+  });
+});
+afterEach(() => {
+  cleanup();
+  useStacks.setState(initial);
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+it("publishes only decoded, measured active artwork and invalidates changed geometry", async () => {
+  let finish!: () => void;
+  decode.mockReturnValue(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const onReady = vi.fn();
+  const props = {
+    data,
+    theme: "light" as const,
+    viewport: "desktop" as const,
+    visible: true,
+    canRequest3D: false,
+    onRequest3D: vi.fn(),
+    onReady,
+    onUnavailable: vi.fn(),
+  };
+  const view = render(<IllustratedRoom {...props} />);
+  expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
+  expect(onReady).toHaveBeenLastCalledWith(null);
+  await act(async () => finish());
+  const image = view.container.querySelector("img[data-room-artwork]")!;
+  const key = image.getAttribute("data-artwork-key");
+  expect(key).toBe(onReady.mock.lastCall?.[0]);
+  expect(image.getAttribute("data-unit")).toBe("1");
+  expect(image.getAttribute("data-theme")).toBe("light");
+  expect(JSON.parse(key!)).toContain(500);
+  rectangle = { ...rectangle, width: 420 };
+  act(() => resize());
+  expect(onReady.mock.lastCall?.[0]).not.toBe(key);
+  expect(image.getAttribute("data-artwork-key")).toBe(
+    onReady.mock.lastCall?.[0],
+  );
+  view.rerender(<IllustratedRoom {...props} visible={false} />);
+  expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
+});
+
+it("does not publish stale decode completion after a shelf changes", async () => {
+  const finish: Array<() => void> = [];
+  decode.mockImplementation(
+    () => new Promise<void>((resolve) => finish.push(resolve)),
+  );
+  const onReady = vi.fn();
+  const view = render(
+    <IllustratedRoom
+      data={data}
+      theme="light"
+      viewport="desktop"
+      visible
+      canRequest3D={false}
+      onRequest3D={vi.fn()}
+      onReady={onReady}
+      onUnavailable={vi.fn()}
+    />,
+  );
+  act(() => useStacks.setState({ activeUnit: 4 }));
+  await act(async () => finish[0]!());
+  expect(onReady).toHaveBeenLastCalledWith(null);
+  expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
+  await act(async () => finish[1]!());
+  expect(
+    view.container
+      .querySelector("img[data-room-artwork]")
+      ?.getAttribute("data-unit"),
+  ).toBe("4");
+});
+
+it("keeps a failed drawing unregistered and offers explicit retry without owning content", async () => {
+  decode.mockRejectedValue(new Error("decode failed"));
+  const onReady = vi.fn();
+  const onUnavailable = vi.fn();
+  const onRequest3D = vi.fn();
+  const view = render(
+    <IllustratedRoom
+      data={data}
+      theme="dark"
+      viewport="phone"
+      visible
+      canRequest3D
+      onRequest3D={onRequest3D}
+      onReady={onReady}
+      onUnavailable={onUnavailable}
+    />,
+  );
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(view.getByRole("status").textContent).toContain("still read");
+  expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
+  expect(onReady).toHaveBeenLastCalledWith(null);
+  expect(onUnavailable).toHaveBeenCalled();
+  act(() => view.getByRole("button", { name: "Enter 3D room" }).click());
+  expect(onRequest3D).toHaveBeenCalledOnce();
+  expect(view.queryByRole("dialog")).toBeNull();
+});
+
+it("leaves unsupported Golf unregistered instead of showing a Books drawing", () => {
+  useStacks.setState({ golfStop: true });
+  const onReady = vi.fn();
+  const view = render(
+    <IllustratedRoom
+      data={data}
+      theme="light"
+      viewport="desktop"
+      visible
+      canRequest3D={false}
+      onRequest3D={vi.fn()}
+      onReady={onReady}
+      onUnavailable={vi.fn()}
+    />,
+  );
+  expect(view.getByRole("status").textContent).toContain("still read");
+  expect(view.container.querySelector("img")).toBeNull();
+  expect(onReady).toHaveBeenLastCalledWith(null);
+});

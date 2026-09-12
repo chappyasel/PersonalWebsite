@@ -9,7 +9,8 @@
 // revealed, the remaining documents become resident one at a time during
 // idle windows so travel never has to reconstruct them.
 import { requestBookPrefetch } from "../bookPrefetch";
-import { type StacksData, type StacksSlots, UNITS, unitUrl } from "../data";
+import { type StacksData, type StacksSlots, UNITS } from "../data";
+import { useRoomNavigation } from "../input/RoomNavigation";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
@@ -1455,39 +1456,14 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     sheetOpacity,
   ]);
 
-  const swipeToAdjacentUnit = useCallback((direction: -1 | 1) => {
-    const state = useStacks.getState();
-    const target = state.activeUnit + direction;
-    if (
-      target < 0 ||
-      target >= UNITS.length ||
-      !state.travelTo ||
-      state.modalOpen
-    )
-      return false;
-    const pushHistory = () => {
-      window.history.pushState(
-        null,
-        "",
-        unitUrl(target, window.location.search),
-      );
-    };
-    if (state.panelState === "open" || state.panelState === "opening") {
-      closeStacksPanel();
-      state.travelTo(target);
-      const unsubscribe = useStacks.subscribe((next) => {
-        if (next.panelState !== "closed") return;
-        unsubscribe();
-        pushHistory();
-      });
-    } else if (state.panelState === "closing") {
-      return false;
-    } else {
-      pushHistory();
-      state.travelTo(target);
-    }
-    return true;
-  }, []);
+  const navigate = useRoomNavigation();
+  const swipeToAdjacentUnit = useCallback(
+    (direction: -1 | 1) => {
+      const target = useStacks.getState().activeUnit + direction;
+      return target >= 0 && target < UNITS.length ? navigate(target) : false;
+    },
+    [navigate],
+  );
 
   // ONE title per sheet, and it is the unit's own name.
   //

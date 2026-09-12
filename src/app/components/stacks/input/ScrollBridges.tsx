@@ -11,14 +11,7 @@
 // propagation: drei's ScrollControls attaches its own passive wheel handler
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
-import {
-  GOLF_STOP_POSITION,
-  UNIT_COUNT,
-  golfFocusedForScenePosition,
-  initialScenePositionFromLocation,
-  scenePositionFromHash,
-  sceneUrl,
-} from "../data";
+import { GOLF_STOP_POSITION, UNIT_COUNT } from "../data";
 import { haptic } from "../mobile/liveness";
 import {
   type TouchTravelStop,
@@ -29,11 +22,25 @@ import { authoredTravelStops } from "../mobile/travel";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
-import { closeStacksPanel, isPanelHistoryEntry, useStacks } from "../store";
-import { useEffect, useRef } from "react";
+import { closeStacksPanel, useStacks } from "../store";
+import { useEffect } from "react";
 
-import { isRoomPathname } from "~/lib/site/roomRoutes";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+
+import {
+  isStacksScrollableTarget,
+  shouldHandleWorldNavigationKey,
+  worldNavigationStep,
+  worldNavigationUnit,
+} from "./roomNavigationKeys";
+
+export {
+  isStacksScrollableTarget,
+  worldNavigationStep,
+  worldNavigationUnit,
+  isInteractiveWorldNavigationTarget,
+  shouldHandleWorldNavigationKey,
+} from "./roomNavigationKeys";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
   if (e.deltaMode === 1) return axisDelta * 33; // lines
@@ -60,39 +67,6 @@ export function blocksWorldTouchTravel(state: BridgeInteractionState) {
   );
 }
 
-/** DOM cards opt out of world navigation without needing to stop bubbling.
- * Kept structural so events whose target is Window/Text cannot throw. */
-export function isStacksScrollableTarget(target: EventTarget | null) {
-  const closest = (target as { closest?: (selector: string) => Element | null })
-    ?.closest;
-  return (
-    typeof closest === "function" &&
-    !!closest.call(
-      target,
-      "[data-stacks-scrollable], [data-stacks-mobile-panel]",
-    )
-  );
-}
-
-/** Horizontal and vertical arrow pairs describe the same previous/next
- * movement through the one-dimensional World. Page keys retain their existing
- * aliases. Keeping the mapping pure makes it harder for the input paths to
- * drift apart. */
-export function worldNavigationStep(key: string): -1 | 1 | null {
-  if (key === "ArrowRight" || key === "ArrowDown" || key === "PageDown")
-    return 1;
-  if (key === "ArrowLeft" || key === "ArrowUp" || key === "PageUp") return -1;
-  return null;
-}
-
-/** The number row jumps straight to a shelf, in the rail's order: 1 is About,
- * 7 is the last unit. Digits above the unit count stay with the page. */
-export function worldNavigationUnit(key: string): number | null {
-  if (!/^[1-9]$/.test(key)) return null;
-  const unit = Number(key) - 1;
-  return unit < UNIT_COUNT ? unit : null;
-}
-
 /** A/D follow the same left/right convention as free-roam controls, but pan
  * the authored world while free roam is inactive. Unlike arrows, these keys
  * remain continuous for as long as they are held. */
@@ -106,29 +80,6 @@ export function worldPanDirection(key: string): -1 | 1 | null {
 /** Browser pinch zoom arrives as Ctrl+wheel on desktop trackpads. */
 export function isBrowserZoomWheel(event: Pick<WheelEvent, "ctrlKey">) {
   return event.ctrlKey;
-}
-
-export function isInteractiveWorldNavigationTarget(target: EventTarget | null) {
-  const closest = (target as { closest?: (selector: string) => Element | null })
-    ?.closest;
-  return (
-    typeof closest === "function" &&
-    !!closest.call(
-      target,
-      "a[href], button, input, textarea, select, [role='button'], [role='link'], [contenteditable]:not([contenteditable='false'])",
-    )
-  );
-}
-
-export function shouldHandleWorldNavigationKey(
-  event: Pick<KeyboardEvent, "defaultPrevented" | "target">,
-  universalSearchOpen = false,
-) {
-  return (
-    !universalSearchOpen &&
-    !event.defaultPrevented &&
-    !isInteractiveWorldNavigationTarget(event.target)
-  );
 }
 
 export function backgroundWorldGesture(
@@ -151,159 +102,10 @@ export function backgroundWorldGesture(
   return "travel";
 }
 
-export function shouldMirrorWorldHistory(
-  state: Pick<
-    ReturnType<typeof useStacks.getState>,
-    "modalOpen" | "panelState" | "unitMapPreview"
-  > & {
-    visionRidePhase?: ReturnType<typeof useStacks.getState>["visionRidePhase"];
-  },
-) {
-  return (
-    !state.modalOpen &&
-    (state.visionRidePhase === undefined || state.visionRidePhase === "idle") &&
-    state.panelState === "closed" &&
-    state.unitMapPreview === null
-  );
-}
+export { shouldMirrorWorldHistory } from "./RoomNavigation";
 
 export default function ScrollBridges() {
   const scrollEl = useStacks((s) => s.scrollEl);
-  const jumpTo = useStacks((s) => s.jumpTo);
-  // The scroll element the location was last applied to. Once per element,
-  // not once per page: a world rebuilt after a lost context arrives with a
-  // fresh element parked at About while the URL still names the shelf the
-  // visitor was reading.
-  const locationAppliedTo = useRef<HTMLDivElement | null>(null);
-
-  // History wiring. Hash mirrors the active unit (replaceState while
-  // traveling); deep-links jump instantly on mount; back/forward travels.
-  useEffect(() => {
-    if (!scrollEl || !jumpTo) return;
-
-    const previousRestoration = window.history.scrollRestoration;
-    window.history.scrollRestoration = "manual";
-
-    if (locationAppliedTo.current !== scrollEl) {
-      locationAppliedTo.current = scrollEl;
-      const target = initialScenePositionFromLocation(
-        window.location.pathname,
-        window.location.hash,
-      );
-      if (target > 0) jumpTo(target);
-      // Hash aliases are read-compatible, then immediately canonicalized so
-      // the address bar shows each stop's one URL (`/projects`, `/#books`,
-      // `/golf`) for copy, refresh, and subsequent history entries. A
-      // path-only URL such as `/about` is left as typed until travel.
-      if (scenePositionFromHash(window.location.hash) !== null) {
-        const canonical = sceneUrl(
-          Math.round(target),
-          golfFocusedForScenePosition(target),
-          window.location.search,
-        );
-        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-        if (current !== canonical)
-          window.history.replaceState(null, "", canonical);
-      }
-    }
-
-    // Activity reconnects this bridge on return without replacing the scroll
-    // element. A different explicit shelf hash still owns the destination.
-    const requested = scenePositionFromHash(window.location.hash);
-    const current = useStacks.getState();
-    if (
-      requested !== null &&
-      (Math.round(requested) !== current.activeUnit ||
-        golfFocusedForScenePosition(requested) !== current.golfStop)
-    )
-      jumpTo(requested);
-
-    // Mirror travel into the URL — at most one replaceState per unit change.
-    // The golf half of it is the scroll's stop window, not golf mode: the
-    // mouse can put the visitor in golf from the Books stop, and that must
-    // not rewrite the URL under them.
-    let mirrored = {
-      activeUnit: useStacks.getState().activeUnit,
-      golfFocused: useStacks.getState().golfStop,
-    };
-    const unsubscribe = useStacks.subscribe((state) => {
-      if (
-        state.activeUnit === mirrored.activeUnit &&
-        state.golfStop === mirrored.golfFocused
-      )
-        return;
-      mirrored = {
-        activeUnit: state.activeUnit,
-        golfFocused: state.golfStop,
-      };
-      if (
-        !isRoomPathname(window.location.pathname) ||
-        !shouldMirrorWorldHistory(state)
-      )
-        return;
-      window.history.replaceState(
-        null,
-        "",
-        sceneUrl(
-          mirrored.activeUnit,
-          mirrored.golfFocused,
-          window.location.search,
-        ),
-      );
-    });
-
-    const travelToLocation = () => {
-      // A replayed major-route pop can reach us before Activity disconnects
-      // the old room. The destination page owns its URL and scroll position.
-      if (!isRoomPathname(window.location.pathname)) return;
-      const state = useStacks.getState();
-      const target = initialScenePositionFromLocation(
-        window.location.pathname,
-        window.location.hash,
-      );
-      const nextMirrored = {
-        activeUnit: Math.round(target),
-        golfFocused: golfFocusedForScenePosition(target),
-      };
-      if (
-        mirrored.activeUnit === nextMirrored.activeUnit &&
-        mirrored.golfFocused === nextMirrored.golfFocused
-      ) {
-        return;
-      }
-      mirrored = nextMirrored; // suppress the replaceState echo for this travel
-      state.travelTo?.(target);
-    };
-    const onPopState = () => {
-      if (!isRoomPathname(window.location.pathname)) return;
-      const state = useStacks.getState();
-      if (state.modalOpen || state.visionRidePhase !== "idle") return;
-      // Browser back while the mobile panel is up closes the panel — the
-      // pushed entry belongs to it — and never travels. Unless the pop
-      // LANDED on the panel's entry: that is a surface stacked above it (a
-      // document sheet, the book modal) closing, and the panel stays.
-      if (state.panelState === "open" || state.panelState === "opening") {
-        if (isPanelHistoryEntry(window.history.state)) return;
-        state.setPanelState("closing");
-        return;
-      }
-      if (state.panelState === "closing") return; // our own history.back()
-      travelToLocation();
-    };
-    // Direct fragment navigation (including Universal Search) fires
-    // hashchange rather than popstate. It is an explicit destination, so it
-    // travels even if an overlaid panel is finishing its own close.
-    const onHashChange = () => travelToLocation();
-    window.addEventListener("popstate", onPopState);
-    window.addEventListener("hashchange", onHashChange);
-
-    return () => {
-      unsubscribe();
-      window.removeEventListener("popstate", onPopState);
-      window.removeEventListener("hashchange", onHashChange);
-      window.history.scrollRestoration = previousRestoration;
-    };
-  }, [scrollEl, jumpTo]);
 
   useEffect(() => {
     if (!scrollEl) return;

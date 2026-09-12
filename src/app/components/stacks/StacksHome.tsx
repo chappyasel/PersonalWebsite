@@ -14,16 +14,19 @@
 // state machine. What is left here is the seam: signals in, view out.
 import { SceneStartupGate } from "../route-transition-prototype/SceneStartupGate";
 import { useRouteTransitionPrototype } from "../route-transition-prototype/store";
+import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import {
   Activity,
   Component,
+  type MouseEvent,
   Profiler,
   type ProfilerOnRenderCallback,
   useCallback,
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
 } from "react";
 
 import { type HomepageBootOutcome, captureOnce } from "~/lib/analytics";
@@ -37,12 +40,22 @@ import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import VisionRideControls from "./dom/VisionRideControls";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
+import IllustratedRoom from "./illustration/IllustratedRoom";
+import RoomNavigation, { navigateRoomLink } from "./input/RoomNavigation";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import { useRoomActive } from "./room/ResidentRoomHost";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
+
+const subscribeViewport = (listener: () => void) => {
+  window.addEventListener("resize", listener);
+  return () => window.removeEventListener("resize", listener);
+};
+const getArtworkViewport = () =>
+  window.innerWidth < 600 ? ("phone" as const) : ("desktop" as const);
+const getServerArtworkViewport = () => "desktop" as const;
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
 const SceneArtifactInspector = dynamic(
@@ -249,6 +262,62 @@ export default function StacksHome({
   const boot = useWorldBoot();
   useAutomaticPerformanceDiagnostic();
   const { epoch, mode, revealed, worldMounted } = boot;
+  const { resolvedTheme } = useTheme();
+  const theme = resolvedTheme === "dark" ? "dark" : "light";
+  const viewport = useSyncExternalStore(
+    subscribeViewport,
+    getArtworkViewport,
+    getServerArtworkViewport,
+  );
+  const presentation = boot.presentation;
+  const illustrated = presentation === "illustrated";
+  const handoff = presentation === "dissolve" || presentation === "travel";
+  const roomMounted = worldMounted || presentation !== "document";
+  const contentVisible = illustrated || revealed;
+  const illustrationInteracted = useCallback(() => {
+    worldBoot.send({ type: "illustrationInteracted" });
+  }, []);
+  const illustrationReady = useCallback((key: string | null) => {
+    worldBoot.send({ type: "illustrationChanged", key });
+    if (key) document.documentElement.dataset.illustratedUi = "ready";
+  }, []);
+  const illustrationUnavailable = useCallback(() => {
+    document.documentElement.dataset.illustratedUi = "ready";
+  }, []);
+  const request3D = useCallback(() => worldBoot.request3D(), []);
+  const followIllustratedSection = useCallback(
+    (event: MouseEvent) => {
+      if (
+        !illustrated ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey
+      )
+        return;
+      const anchor = (event.target as Element).closest?.("a[href]");
+      const href = anchor?.getAttribute("href");
+      if (!href?.startsWith("#")) return;
+      const index = UNITS.findIndex((entry) =>
+        [entry.slug, entry.urlSlug, ...(entry.urlAliases ?? [])].includes(
+          href.slice(1),
+        ),
+      );
+      if (index < 0) return;
+      event.preventDefault();
+      illustrationInteracted();
+      navigateRoomLink(index, false);
+    },
+    [illustrated, illustrationInteracted],
+  );
+  useEffect(() => {
+    if (!roomActive || !roomMounted) return;
+    return () => {
+      delete document.documentElement.dataset.illustratedUi;
+    };
+  }, [roomActive, roomMounted]);
   const settledUnit = useStacks((state) => state.settledUnit);
   const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
@@ -494,27 +563,42 @@ export default function StacksHome({
 
   return (
     <>
-      {worldMounted && (
+      {roomMounted && (
         <div
           ref={worldShellRef}
+          data-room-presentation={presentation}
+          onPointerDownCapture={illustrationInteracted}
+          onKeyDownCapture={illustrationInteracted}
+          onWheelCapture={illustrationInteracted}
+          onClickCapture={followIllustratedSection}
           data-load-path={boot.loadPath}
           data-canvas-ready={boot.canvasReady ? "" : undefined}
-          data-revealed={revealed ? "" : undefined}
+          data-revealed={contentVisible ? "" : undefined}
           className={`stacks-world-shell fixed inset-0 z-10 ${
-            revealed ? "pointer-events-auto" : "pointer-events-none"
+            contentVisible ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
-          <CanvasBoundary onError={demote}>
-            <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
-              <SceneStartupGate>
-                <StacksCanvas
-                  data={data}
-                  onReady={reportFirstFrame}
-                  onLost={reportLostContext}
-                />
-              </SceneStartupGate>
-            </Profiler>
-          </CanvasBoundary>
+          {worldMounted && (
+            <CanvasBoundary key={epoch} onError={demote}>
+              <div
+                className="absolute inset-0"
+                style={{
+                  visibility: boot.canvasVisible ? "visible" : "hidden",
+                  pointerEvents: presentation === "live" ? "auto" : "none",
+                }}
+              >
+                <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
+                  <SceneStartupGate>
+                    <StacksCanvas
+                      data={data}
+                      onReady={reportFirstFrame}
+                      onLost={reportLostContext}
+                    />
+                  </SceneStartupGate>
+                </Profiler>
+              </div>
+            </CanvasBoundary>
+          )}
           <style>{`
             /* Keep the desktop chrome's geometry measurable so the capture
                uses the same authored tilt-shift line as the live scene. The
@@ -786,19 +870,37 @@ export default function StacksHome({
             html[data-og-capture] .stacks-flat { display: none !important; }
           `}</style>
           <Activity mode={roomActive ? "visible" : "hidden"}>
-            <div className="stacks-og-ui contents">
-              <UnitRail />
-              <ChromeLayer />
-              <Profiler id="placard" onRender={recordPerformanceCommit}>
-                <PlacardLayer
-                  data={data}
-                  slots={slots}
-                  sceneRevealed={revealed}
-                />
-              </Profiler>
-              <ScrollBridges />
-            </div>
-            <VisionRideControls />
+            <RoomNavigation
+              rendererEnabled={presentation === "live"}
+              onInteract={illustrationInteracted}
+            >
+              {presentation !== "document" &&
+                worldBoot.getState().illustratedMode && (
+                  <IllustratedRoom
+                    data={data}
+                    theme={theme}
+                    viewport={viewport}
+                    visible={illustrated || handoff}
+                    canRequest3D={boot.canRequest3D}
+                    onRequest3D={request3D}
+                    onReady={illustrationReady}
+                    onUnavailable={illustrationUnavailable}
+                  />
+                )}
+              <div className="stacks-og-ui contents" inert={handoff}>
+                <UnitRail />
+                <ChromeLayer />
+                <Profiler id="placard" onRender={recordPerformanceCommit}>
+                  <PlacardLayer
+                    data={data}
+                    slots={slots}
+                    sceneRevealed={contentVisible}
+                  />
+                </Profiler>
+                {presentation === "live" && <ScrollBridges />}
+              </div>
+              {presentation === "live" && <VisionRideControls />}
+            </RoomNavigation>
           </Activity>
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or

@@ -1,0 +1,129 @@
+/* Illustration and live room share one shell and one resident content tree. */
+.room-illustration {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  background: hsl(var(--background));
+}
+.room-illustration[data-illustration-visible] {
+  visibility: visible;
+}
+.room-illustration-stage {
+  position: absolute;
+  inset: 5.5rem 0 35%;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+.room-illustration-picture {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.room-illustration-picture > img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(92cqw, var(--room-artwork-desktop-width, 500px));
+  max-height: 100cqh;
+}
+@media (max-width: 599px) {
+  .room-illustration-picture > img {
+    max-width: min(92cqw, var(--room-artwork-phone-width, 500px));
+  }
+}
+.room-illustration-about {
+  width: min(92cqw, 560px, calc(100cqh * 300 / 230));
+}
+.room-illustration .stacks-boot {
+  --stacks-boot-eye-shift: 0 !important;
+  position: static !important;
+  display: block !important;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  background: none !important;
+  opacity: 1 !important;
+  visibility: inherit !important;
+  pointer-events: none;
+}
+.room-illustration .stacks-boot-threshold,
+.room-illustration .stacks-boot-entry,
+.room-illustration .stacks-boot-scene-stage {
+  position: static !important;
+  width: 100% !important;
+  height: auto !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+.room-illustration .stacks-boot-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.room-illustration .stacks-boot-item,
+.room-illustration .stacks-boot-item-motion,
+.room-illustration .stacks-boot-supports,
+.room-illustration .stacks-boot-planks {
+  opacity: 1 !important;
+  animation: none !important;
+}
+.room-illustration .stacks-boot-item-motion {
+  transform: none !important;
+}
+.room-illustration .stacks-boot-floor-prop,
+.room-illustration .stacks-boot-wordmark,
+.room-illustration .stacks-boot-wait,
+.room-illustration .stacks-boot-motes,
+.room-illustration .stacks-boot-scene-stage::before {
+  display: none !important;
+}
+.room-illustration-actions {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 25;
+  pointer-events: auto;
+}
+.room-illustration-unavailable {
+  max-width: 28ch;
+  padding: 1rem;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+.stacks-world-shell[data-room-presentation="dissolve"] .stacks-og-ui,
+.stacks-world-shell[data-room-presentation="dissolve"] .stacks-og-ui *,
+.stacks-world-shell[data-room-presentation="travel"] .stacks-og-ui,
+.stacks-world-shell[data-room-presentation="travel"] .stacks-og-ui * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.stacks-world-shell[data-room-presentation="illustrated"] .stacks-reveal,
+.stacks-world-shell[data-room-presentation="illustrated"]
+  .stacks-unit-rail-desktop,
+.stacks-world-shell[data-room-presentation="illustrated"]
+  .stacks-unit-rail-mobile,
+.stacks-world-shell[data-room-presentation="illustrated"]
+  [data-stacks-desktop-dock],
+.stacks-world-shell[data-room-presentation="illustrated"]
+  [data-stacks-details-toggle-shell],
+.stacks-world-shell[data-room-presentation="illustrated"]
+  [data-stacks-sheet-material],
+.stacks-world-shell[data-room-presentation="illustrated"]
+  [data-stacks-mobile-panel] {
+  animation: none !important;
+}
+.stacks-world-shell[data-room-presentation="illustrated"] .stacks-world-curtain,
+.stacks-world-shell[data-room-presentation="dissolve"] .stacks-world-curtain,
+.stacks-world-shell[data-room-presentation="travel"] .stacks-world-curtain {
+  display: none;
+}
+@media (min-width: 1200px) {
+  .room-illustration-stage {
+    inset: 5rem 40% 3rem 12rem;
+  }
+}

@@ -3,7 +3,7 @@ import { useStacks } from "../store";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import ScrollBridges from "./ScrollBridges";
+import RoomNavigation from "./RoomNavigation";
 
 afterEach(() => {
   cleanup();
@@ -25,7 +25,7 @@ it("leaves the departing room idle while Next restores another page", () => {
     visionRidePhase: "idle",
   });
   try {
-    render(<ScrollBridges />);
+    render(<RoomNavigation rendererEnabled />);
     history.replaceState(null, "", "/books");
     act(() => {
       window.dispatchEvent(
@@ -59,7 +59,7 @@ function mountRoom(url: string) {
     activeUnit: 0,
     golfStop: false,
   });
-  render(<ScrollBridges />);
+  render(<RoomNavigation rendererEnabled />);
   const here = () => location.pathname + location.search + location.hash;
   return {
     travelTo,
@@ -155,5 +155,147 @@ it("travels on an explicit destination written without a fragment change", () =>
     expect(room.travelTo).toHaveBeenLastCalledWith(6);
   } finally {
     room.restore();
+  }
+});
+
+it("initializes and navigates without a canvas, ignoring stale renderer commands", () => {
+  const initial = useStacks.getState();
+  const travelTo = vi.fn();
+  const jumpTo = vi.fn();
+  const intent = vi.fn();
+  history.replaceState(null, "", "/projects?debug=1");
+  useStacks.setState({
+    activeUnit: 0,
+    golfStop: false,
+    golfFocused: false,
+    scrollEl: null,
+    travelTo,
+    jumpTo,
+    panelState: "closed",
+    modalOpen: false,
+    visionRidePhase: "idle",
+    unitMapPreview: null,
+  });
+  try {
+    render(<RoomNavigation rendererEnabled={false} onInteract={intent} />);
+    expect(useStacks.getState().activeUnit).toBe(4);
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }),
+      );
+    });
+    expect(useStacks.getState().activeUnit).toBe(5);
+    expect(location.pathname + location.search).toBe("/musings?debug=1");
+    act(() => {
+      history.pushState(null, "", "/?debug=1#books");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(useStacks.getState().activeUnit).toBe(1);
+    expect(travelTo).not.toHaveBeenCalled();
+    expect(jumpTo).not.toHaveBeenCalled();
+    expect(intent).toHaveBeenCalled();
+  } finally {
+    cleanup();
+    useStacks.setState(initial);
+  }
+});
+
+it("preserves the resident panel and its scroll position through renderer loss", () => {
+  const initial = useStacks.getState();
+  history.replaceState(null, "", "/#books");
+  useStacks.setState({
+    activeUnit: 1,
+    golfStop: false,
+    golfFocused: false,
+    scrollEl: document.createElement("div"),
+    jumpTo: vi.fn(),
+    travelTo: vi.fn(),
+    panelState: "open",
+    modalOpen: false,
+    visionRidePhase: "idle",
+  });
+  try {
+    const view = render(
+      <RoomNavigation rendererEnabled>
+        <div data-testid="reader">Book notes</div>
+      </RoomNavigation>,
+    );
+    const reader = view.getByTestId("reader");
+    reader.scrollTop = 231;
+    view.rerender(
+      <RoomNavigation rendererEnabled={false}>
+        <div data-testid="reader">Book notes</div>
+      </RoomNavigation>,
+    );
+    expect(view.getByTestId("reader")).toBe(reader);
+    expect(reader.scrollTop).toBe(231);
+    expect(useStacks.getState().panelState).toBe("open");
+    expect(useStacks.getState().activeUnit).toBe(1);
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+    });
+    expect(useStacks.getState().activeUnit).toBe(1);
+  } finally {
+    cleanup();
+    useStacks.setState(initial);
+  }
+});
+
+it("adopts the selected shelf when a replacement renderer arrives", () => {
+  const initial = useStacks.getState();
+  history.replaceState(null, "", "/talks");
+  useStacks.setState({
+    activeUnit: 0,
+    scrollEl: null,
+    jumpTo: null,
+    travelTo: null,
+    panelState: "closed",
+    modalOpen: false,
+    visionRidePhase: "idle",
+  });
+  try {
+    const view = render(<RoomNavigation rendererEnabled={false} />);
+    expect(useStacks.getState().activeUnit).toBe(6);
+    const jumpTo = vi.fn();
+    act(() =>
+      useStacks.setState({ scrollEl: document.createElement("div"), jumpTo }),
+    );
+    expect(jumpTo).not.toHaveBeenCalled();
+    view.rerender(<RoomNavigation rendererEnabled />);
+    expect(jumpTo).toHaveBeenCalledWith(6);
+  } finally {
+    cleanup();
+    useStacks.setState(initial);
+  }
+});
+
+it("preserves panel-entry Back ownership without a renderer", () => {
+  const initial = useStacks.getState();
+  history.replaceState({ stacksPanel: true }, "", "/#books");
+  useStacks.setState({
+    activeUnit: 1,
+    golfStop: false,
+    scrollEl: null,
+    jumpTo: null,
+    travelTo: null,
+    panelState: "open",
+    modalOpen: false,
+    visionRidePhase: "idle",
+  });
+  try {
+    render(<RoomNavigation rendererEnabled={false} />);
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(useStacks.getState().panelState).toBe("open");
+    history.replaceState(null, "", "/#books");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(useStacks.getState().panelState).toBe("closing");
+    expect(useStacks.getState().activeUnit).toBe(1);
+  } finally {
+    cleanup();
+    useStacks.setState(initial);
   }
 });
