@@ -1,6 +1,6 @@
 # Illustrated room integration
 
-The room starts as a usable illustration. Its navigation and reader stay mounted while WebGL loads behind it. Once the renderer proves it matches the drawing, the drawing dissolves and the camera moves into the ordinary 3D view. If WebGL fails, visitors can keep using the illustrated room.
+The room starts as a usable illustration. Its navigation and reader stay mounted while WebGL loads behind it. The drawing dissolves into the ready room with the camera already at its ordinary resting pose. If WebGL fails, visitors can keep using the illustrated room.
 
 This implements the approved direction on `feat/illustrated-room`, based on `f54e6e2`. The earlier experiments remain on `prototype/illustrated-room-review`, `prototype/boot-geometry`, and `prototype/boot-render-masks`.
 
@@ -9,15 +9,15 @@ This implements the approved direction on `feat/illustrated-room`, based on `f54
 - About keeps its original SVG and book covers. The other six shelves use the approved captures, packaged as 24 self-contained SVGs across two themes and two viewport sizes. Background props stay out of the drawings.
 - Server-rendered route selection chooses the first shelf. Hash stops switch after hydration. CSS selects the initial theme and viewport variant without making the routes dynamic or downloading every drawing.
 - The existing reader, links, navigation, history, and focus remain available during loading, transition, and WebGL failure. A stalled or failed image cannot keep the server shell over the hydrated reader.
-- Ordinary reader input leaves automatic entry enabled. Wheel travel and native phone swipes move a horizontal row of illustrated shelves. Registration waits until travel settles, and the hidden 3D camera adopts the selected shelf before promotion. A real renderer or matching failure exposes a "Retry 3D" action.
+- Ordinary reader input leaves automatic entry enabled. Wheel travel and native phone swipes move a horizontal row of illustrated shelves. Registration waits until travel settles, and the hidden 3D camera adopts the selected shelf before promotion. A projection mismatch uses an automatic stationary fade. Renderer failures or invalid artwork evidence expose a "Retry 3D" action.
 - Reduced motion and data-saving preferences retain the semantic document experience. Golf retains its existing boot because it is a fractional stop between shelves.
 - The Scene Diagnostics panel has a live illustration-handoff control. Its off path avoids registration traversal and per-frame handoff work.
 
 ## Matching and animation
 
-One boot state machine owns illustration, dissolve, a final painted-frame acknowledgement, and the live room. Assets settling and the first frame are necessary but insufficient. The active shelf must pass the saved geometry, pose, content, and projection checks, then paint two matching frames for the current artwork key and recovery epoch.
+One boot state machine owns illustration, dissolve, a final painted-frame acknowledgement, and the live room. Assets settling and the first frame are necessary but insufficient. The active shelf must pass the saved geometry, pose, and content checks, then paint two resting frames for the current artwork key and recovery epoch. Projection alignment determines whether the handoff is recorded as matched or as an ordinary fade; it does not decide whether a working renderer stays mounted.
 
-First paint and hydration place each drawing against the ordinary resting camera. The six captured shelves use a uniform scale and translation fitted from their immutable captured probe coordinates. About projects its shelf geometry, landmark anchors, and reading covers through the viewport camera while retaining its approved glyph paths. Runtime registration compares the resulting image against mounted geometry through the actual resting camera, with a 3 CSS pixel maximum. Pending nested Suspense content retries within the normal boot deadline. A missing mesh does not become proof of a successful match.
+First paint and hydration place each drawing against the ordinary resting camera. The six captured shelves use a uniform scale and translation fitted from their immutable captured probe coordinates. About projects its shelf geometry, landmark anchors, and reading covers through the viewport camera while retaining its approved glyph paths. Runtime registration compares the resulting image against mounted geometry through the actual resting camera, with a 3 CSS pixel maximum for a matched handoff. Finite projection residuals above that limit use the same stationary dissolve without claiming an exact match. Pending nested Suspense content retries within the normal boot deadline. A missing mesh does not become proof of a successful match.
 
 During the 160 ms dissolve, the ordinary resting camera and captured shelf pose stay fixed. There is no camera travel or lens interpolation. After the dissolve, the renderer paints an ordinary frame before publishing readiness. Pointer parallax and idle camera motion resume only after promotion. Context loss returns to the same reader without replacing its DOM tree.
 
@@ -85,6 +85,18 @@ The same held-touch audit exposed a timing race independent of gesture handling.
 
 The full suite passes 3,969 tests across 468 files, with eight tests skipped. Independent Three.js tests cover all seven resting cameras, both artwork themes, first-paint serialization, and representative desktop and phone viewports. Headless development checks measured a 0.5005px Projects residual and a 0.0174px About phone residual; camera and projection matrices did not change during either dissolve. Four held-touch runs and four continuous-wheel runs resumed automatic entry after settling in the production build, without additional input. Production evidence is recorded in the summary alongside the route and recovery results.
 
-A remaining limit belongs to the saved image variants. At some portrait tablet proportions, neither frozen capture fits the ordinary camera within 3px. The app retains its complete 2D view and offers explicit retry rather than automatically showing a misaligned handoff. Tests pin this behavior at 600×900, 820×1180, and 1024×1366. Covering those proportions automatically requires additional capture views or genuinely reprojectable artwork. About's frozen glyph interiors remain an artistic approximation; its measured shelf corners and anchors are not a claim about every glyph pixel.
+A remaining limit belongs to the saved image variants. At some portrait tablet proportions, neither frozen capture fits the ordinary camera within 3px. The app retains its complete 2D view and offers explicit retry rather than automatically showing a misaligned handoff. Tests pin this behavior at 600×900, 820×1180, and 1024×1366. Exact matching at those proportions requires additional capture views or reprojectable artwork. The first-load correction below supersedes the decision to retain 2D solely for an alignment miss. About's frozen glyph interiors remain an artistic approximation; its measured shelf corners and anchors are not a claim about every glyph pixel.
 
 No new Field Note qualifies. Automatic presentation and loading still fail quality-bar test 2.
+
+## First-load and entrance correction after b35243d
+
+The previous checkpoint incorrectly treated a viewport alignment miss as a loading failure. Projects at 1200×900 loaded successfully, missed the saved drawing by 5.00px, and then unmounted its ready renderer. It now paints two ordinary resting frames and enters automatically. The state machine records that ordinary-frame proof separately from a successful 3px match. Stale keys, held gestures, unfinished props, and invalid capture identities retain their existing checks.
+
+The UI enters once per resident room. The shelf appears first, the content rises 12px into place, and the navigation follows with a 6px rise. Interaction or reduced motion ends the entrance immediately. Shelf navigation and renderer retries do not replay it. Only the content and navigation move; the measured artwork box remains fixed.
+
+Loading and completed 2D views show the wordmark, theme switch, navigation, and reader. Field Notes, sound, and scene shortcuts appear when 3D becomes live. The live Scene Diagnostics panel remains available. Automatic loading and presentation do not qualify for a new Field Note under quality-bar test 2.
+
+A separate math experiment ruled out a global affine or projective warp as a reliable alignment fix. The saved views contain objects at different depths. Fitting a few anchors distorted other parts of the shelf without meeting the 3px limit across common window sizes. Uniform artwork placement remains unchanged.
+
+Production checks pass for cold Projects loads at 1200×900, 1024×768, 2560×1440, and 820×1180, plus Books at 1200×900. Desktop and phone entrance checks confirm the shelf-first sequence, initially hidden cards and navigation, zero artwork movement, usable theme switching, and restored mute preferences before live presentation. The 354 focused boot and illustration tests pass, along with TypeScript, lint, artwork freshness, and the final production build.

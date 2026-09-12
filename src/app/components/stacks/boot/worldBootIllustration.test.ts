@@ -93,6 +93,65 @@ describe("illustrated promotion", () => {
     });
   });
 
+  it("automatically fades a painted ordinary view when alignment is unavailable", () => {
+    const loaded = ready();
+    const painted = run(
+      [
+        {
+          type: "illustrationOrdinaryPainted",
+          key: KEY,
+          epoch: 1,
+          at: 300,
+        },
+      ],
+      loaded,
+    );
+    expect(painted.registeredIllustrationKey).toBeNull();
+    expect(view(painted)).toMatchObject({
+      presentation: "dissolve",
+      worldMounted: true,
+      canRequest3D: false,
+    });
+    const travelling = run([tick(480)], painted);
+    expect(view(travelling).revealed).toBe(false);
+    expect(view(run([arrived()], travelling)).presentation).toBe("live");
+  });
+
+  it("rejects an ordinary frame from an old shelf or renderer", () => {
+    const loaded = ready();
+    for (const [key, epoch] of [
+      [NEXT_KEY, 1],
+      [KEY, 0],
+    ] as const) {
+      expect(
+        run(
+          [
+            {
+              type: "illustrationOrdinaryPainted",
+              key,
+              epoch,
+              at: 300,
+            },
+          ],
+          loaded,
+        ),
+      ).toBe(loaded);
+    }
+    const loading = run([start(), changed(KEY)]);
+    const early = run(
+      [
+        {
+          type: "illustrationOrdinaryPainted",
+          key: KEY,
+          epoch: 1,
+          at: 10,
+        },
+      ],
+      loading,
+    );
+    expect(view(early).presentation).toBe("illustrated");
+  });
+
   it("keeps a usable illustration until the selected frame is registered", () => {
     const state = ready();
     expect(view(state)).toMatchObject({

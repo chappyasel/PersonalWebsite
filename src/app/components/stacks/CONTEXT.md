@@ -61,9 +61,10 @@ _Avoid_: Loading state, world flag
 **Boot Stage** — the illustrated shelf's screen position and scale, derived
 from the ordinary resting camera before first paint and again after hydration.
 The selected shelf starts at its final size. Once the visitor stops scrolling
-and the mounted geometry matches within 3 CSS pixels, the drawing dissolves
-in place. The camera stays still through the handoff. Portrait proportions
-that the saved artwork cannot match retain the complete 2D view.
+and the ordinary camera paints the selected shelf, the drawing dissolves in
+place. A match within 3 CSS pixels is recorded as exact; other finite projection
+residuals use an ordinary fade. The camera stays still through both paths. A
+viewport alignment miss does not discard a working renderer.
 _Avoid_: Centered loader, loading box
 
 **Reveal Gate** — the four facts that must all hold before the boot screen is

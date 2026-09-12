@@ -1285,5 +1285,83 @@
       "headless": true,
       "interventionAfterRelease": false
     }
+  },
+  "firstLoadCorrection": {
+    "after": "b35243d",
+    "coldLoads": [
+      {
+        "name": "cold-/projects-1200x900",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-1024x768",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-2560x1440",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-820x1180",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/#books-1200x900",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      }
+    ],
+    "focusedTestsPassed": 354,
+    "productionBuild": "passed final build including typecheck, search and weight-log boundaries",
+    "alignmentPolicy": "Finite projection mismatch keeps the renderer and requires two ordinary resting frames before automatic fade. Successful 3px registration remains distinct.",
+    "warpExperiment": "Global affine and projective warps did not meet the 3px limit and could distort other shelf geometry.",
+    "fieldNotes": "Automatic presentation fails quality-bar test 2; no new award.",
+    "entrance": [
+      {
+        "name": "entrance-1440",
+        "passed": true,
+        "phases": ["shelf", "content", "navigation", "complete"],
+        "artworkMovementCssPx": 0,
+        "initialContentOpacity": 0,
+        "initialNavigationOpacity": 0,
+        "secondaryControlsHiddenIn2D": true,
+        "mutePreferenceRestoredBeforeLive": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-390",
+        "passed": true,
+        "phases": ["shelf", "content", "navigation", "complete"],
+        "artworkMovementCssPx": 0,
+        "initialContentOpacity": 0,
+        "initialNavigationOpacity": 0,
+        "secondaryControlsHiddenIn2D": true,
+        "mutePreferenceRestoredBeforeLive": true,
+        "errors": []
+      }
+    ],
+    "gestures": [
+      {
+        "gesture": "held-touch",
+        "passed": true,
+        "automaticEntryAfterSettling": true,
+        "errors": []
+      },
+      {
+        "gesture": "continuous-wheel",
+        "passed": true,
+        "automaticEntryAfterSettling": true,
+        "errors": []
+      }
+    ]
   }
 }

@@ -33,15 +33,25 @@ export class ShelfNotMountedError extends Error {
   readonly name = "ShelfNotMountedError";
 }
 
-function requireMatch(residuals: RegisteredShelf["residuals"]) {
-  if (
-    residuals.length < 7 ||
-    residuals.some(({ px }) => !Number.isFinite(px) || px > 3)
-  ) {
-    throw new Error(
+/** Geometry loaded correctly, but this saved view cannot align at this size. */
+export class ShelfAlignmentError extends Error {
+  readonly name = "ShelfAlignmentError";
+  constructor(readonly residuals: RegisteredShelf["residuals"]) {
+    super(
       `Shelf registration exceeds 3px (${Math.max(...residuals.map(({ px }) => px)).toFixed(2)}px)`,
     );
   }
+}
+
+function requireMatch(residuals: RegisteredShelf["residuals"]) {
+  if (
+    residuals.length < 7 ||
+    residuals.some(({ px }) => !Number.isFinite(px))
+  ) {
+    throw new Error("Shelf registration has incomplete projection evidence");
+  }
+  if (residuals.some(({ px }) => px > 3))
+    throw new ShelfAlignmentError(residuals);
 }
 
 async function sha256(value: unknown) {

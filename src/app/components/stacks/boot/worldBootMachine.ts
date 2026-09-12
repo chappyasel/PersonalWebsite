@@ -175,7 +175,14 @@ export type WorldBootEvent =
   | { type: "meadowPending"; at: number; epoch: number }
   /** The scene adapter observed at least two rendered matching frames. */
   | { type: "illustrationRegistered"; at: number; epoch: number; key: string }
-  /** The same registered camera has reached its ordinary room pose. */
+  /** Two ordinary resting frames painted even though the image cannot align. */
+  | {
+      type: "illustrationOrdinaryPainted";
+      at: number;
+      epoch: number;
+      key: string;
+    }
+  /** The ordinary room pose has painted after the dissolve. */
   | {
       type: "illustrationTravelCompleted";
       at: number;
@@ -236,6 +243,8 @@ export type WorldBootState = {
   illustratedMode: boolean;
   illustrationKey: string | null;
   registeredIllustrationKey: string | null;
+  /** A ready resting view can fade in without claiming an exact image match. */
+  ordinaryIllustrationKey: string | null;
   /** Matching failed for the selected artwork. Cleared when that key changes. */
   matchUnavailable: boolean;
   /** One explicit retry may enter through the ordinary camera instead. */
@@ -341,6 +350,7 @@ export function initialWorldBootState(): WorldBootState {
     illustratedMode: false,
     illustrationKey: null,
     registeredIllustrationKey: null,
+    ordinaryIllustrationKey: null,
     matchUnavailable: false,
     skipIllustrationMatch: false,
     interactionHeld: false,
@@ -533,6 +543,7 @@ function giveUp(
     failure,
     deadline: null,
     registeredIllustrationKey: null,
+    ordinaryIllustrationKey: null,
     handoffStartedAt: null,
     skipIllustrationMatch: false,
     prepaintTimedOut:
@@ -547,9 +558,18 @@ function retainIllustration(state: WorldBootState): WorldBootState {
     status: "illustrated",
     deadline: null,
     registeredIllustrationKey: null,
+    ordinaryIllustrationKey: null,
     handoffStartedAt: null,
     skipIllustrationMatch: false,
   };
+}
+
+function illustrationFramePainted(state: WorldBootState): boolean {
+  return (
+    state.illustrationKey !== null &&
+    (state.registeredIllustrationKey === state.illustrationKey ||
+      state.ordinaryIllustrationKey === state.illustrationKey)
+  );
 }
 
 function illustrationHandoffActive(state: WorldBootState): boolean {
@@ -580,10 +600,7 @@ function settleIllustrated(
           skipIllustrationMatch: false,
         };
       }
-      if (
-        staged.illustrationKey !== null &&
-        staged.registeredIllustrationKey === staged.illustrationKey
-      ) {
+      if (illustrationFramePainted(staged)) {
         return {
           ...staged,
           status: "dissolving",
@@ -860,6 +877,7 @@ export function reduceWorldBoot(
         interactionHeld: false,
         illustrationKey: null,
         registeredIllustrationKey: null,
+        ordinaryIllustrationKey: null,
         matchUnavailable: false,
         skipIllustrationMatch: false,
         handoffStartedAt: null,
@@ -877,6 +895,7 @@ export function reduceWorldBoot(
         ...state,
         illustrationKey: event.key,
         registeredIllustrationKey: null,
+        ordinaryIllustrationKey: null,
         matchUnavailable: false,
       };
       return state.illustratedMode && illustrationHandoffActive(state)
@@ -898,6 +917,7 @@ export function reduceWorldBoot(
         ...state,
         motionEnabled: event.enabled,
         registeredIllustrationKey: null,
+        ordinaryIllustrationKey: null,
       };
       if (state.illustratedMode && illustrationHandoffActive(state)) {
         return settle(
@@ -910,6 +930,7 @@ export function reduceWorldBoot(
     }
 
     case "illustrationRegistered":
+    case "illustrationOrdinaryPainted":
       if (
         !state.illustratedMode ||
         !state.motionEnabled ||
@@ -921,8 +942,11 @@ export function reduceWorldBoot(
       return settle(
         {
           ...state,
-          registeredIllustrationKey: event.key,
-          matchUnavailable: false,
+          registeredIllustrationKey:
+            event.type === "illustrationRegistered" ? event.key : null,
+          ordinaryIllustrationKey:
+            event.type === "illustrationOrdinaryPainted" ? event.key : null,
+          matchUnavailable: event.type === "illustrationOrdinaryPainted",
         },
         event.at,
         policy,
@@ -935,7 +959,7 @@ export function reduceWorldBoot(
         state.hiddenSince !== null ||
         !worldGatesOpen(state, event.at, policy) ||
         event.key !== state.illustrationKey ||
-        event.key !== state.registeredIllustrationKey
+        !illustrationFramePainted(state)
       )
         return state;
       return { ...state, status: "live", deadline: null };

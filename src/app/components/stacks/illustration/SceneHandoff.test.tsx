@@ -28,7 +28,11 @@ import SceneHandoff from "./SceneHandoff";
 import { handoffCamera } from "./handoffCamera";
 import { illustrationInteraction } from "./illustrationInteraction";
 import type * as RegistrationModule from "./registration";
-import { type RegisteredShelf, ShelfNotMountedError } from "./registration";
+import {
+  type RegisteredShelf,
+  ShelfAlignmentError,
+  ShelfNotMountedError,
+} from "./registration";
 
 type Frame = { callback: () => void; priority: number };
 type SceneRendered = (
@@ -93,10 +97,11 @@ vi.mock("../boot/worldBootSession", () => ({
 }));
 
 vi.mock("./registration", async (importOriginal) => {
-  const { ShelfNotMountedError } =
+  const { ShelfNotMountedError, ShelfAlignmentError } =
     await importOriginal<typeof RegistrationModule>();
   return {
     ShelfNotMountedError,
+    ShelfAlignmentError,
     registerAboutShelf: () => harness.register(),
     registerCapturedShelf: () => harness.register(),
   };
@@ -510,10 +515,42 @@ it("keeps the overall boot deadline when a prop never mounts", async () => {
   expect(signals("illustrationUnavailable")).toEqual([]);
 });
 
-it.each([
-  "Saved mesh identity changed: prop",
-  "Shelf registration exceeds 3px (8.00px)",
-])(
+it("automatically fades the ordinary view when a valid shelf cannot align at this size", async () => {
+  const residuals = Array.from({ length: 8 }, (_, i) => ({
+    id: String(i),
+    px: 8,
+  }));
+  harness.register.mockRejectedValueOnce(new ShelfAlignmentError(residuals));
+  render(<SceneHandoff data={data} />);
+  await frame();
+  expect(harness.view.worldMounted).toBe(true);
+  expect(harness.view.canRequest3D).toBe(false);
+  expect(signals("illustrationUnavailable")).toEqual([]);
+  await frame();
+  illustrationInteraction.moving = true;
+  paint();
+  expect(signals("illustrationOrdinaryPainted")).toEqual([]);
+  illustrationInteraction.moving = false;
+  await frame();
+  paint();
+  expect(signals("illustrationOrdinaryPainted")).toEqual([]);
+  await frame();
+  paint();
+  expect(signals("illustrationRegistered")).toEqual([]);
+  expect(signals("illustrationOrdinaryPainted")).toHaveLength(1);
+  expect(harness.view.presentation).toBe("dissolve");
+  expect(state.registeredIllustrationKey).toBeNull();
+  expectMatrix(harness.three.camera.matrixWorld, ordinaryCamera.matrixWorld);
+  expect(retained.matrixWorld.equals(ordinaryMesh)).toBe(true);
+  expect(outside.visible).toBe(true);
+  harness.now = harness.view.handoffStartedAt! + P.illustrationTravelDelayMs;
+  act(() => dispatch({ type: "tick", at: harness.now }));
+  await frame();
+  paint();
+  expect(harness.view.presentation).toBe("live");
+});
+
+it.each(["Saved mesh identity changed: prop"])(
   "immediately retains the illustration for a fatal registration failure: %s",
   async (message) => {
     harness.register.mockRejectedValue(new Error(message));

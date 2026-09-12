@@ -36,12 +36,14 @@ import FlatHome from "./FlatHome";
 import { useWorldBoot } from "./boot/useWorldBoot";
 import { worldBoot } from "./boot/worldBootSession";
 import { type StacksData, type StacksSlots, UNITS } from "./data";
-import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import VisionRideControls from "./dom/VisionRideControls";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import IllustratedRoom from "./illustration/IllustratedRoom";
+import { RoomChrome } from "./illustration/RoomChrome";
+import "./illustration/illustratedEntrance.css";
+import { useIllustratedEntrance } from "./illustration/useIllustratedEntrance";
 import RoomNavigation, { navigateRoomLink } from "./input/RoomNavigation";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
@@ -328,6 +330,9 @@ export default function StacksHome({
   const settledUnit = useStacks((state) => state.settledUnit);
   const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
+  const entrance = useIllustratedEntrance(
+    illustratedEnabled && roomMounted && roomActive,
+  );
 
   // Bound to this boot's generation. The canvas can lose its context or throw
   // while it is being torn down for a route change; without the stamp, that
@@ -575,6 +580,7 @@ export default function StacksHome({
           ref={worldShellRef}
           data-room-presentation={presentation}
           data-illustrated-entry={illustratedEnabled ? "" : undefined}
+          data-room-entrance={illustratedEnabled ? entrance : undefined}
           data-boot-status={boot.status}
           data-boot-wait={boot.waitStage}
           data-boot-failure={boot.failure ?? undefined}
@@ -897,7 +903,10 @@ export default function StacksHome({
                 )}
               <div className="stacks-og-ui contents">
                 <UnitRail />
-                <ChromeLayer />
+                <RoomChrome
+                  illustrated={illustratedEnabled}
+                  live={presentation === "live"}
+                />
                 <Profiler id="placard" onRender={recordPerformanceCommit}>
                   <PlacardLayer
                     data={data}

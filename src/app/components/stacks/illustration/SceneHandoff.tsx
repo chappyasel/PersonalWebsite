@@ -25,6 +25,7 @@ import { illustrationInteraction } from "./illustrationInteraction";
 import type { Rectangle } from "./projection";
 import {
   type RegisteredShelf,
+  ShelfAlignmentError,
   ShelfNotMountedError,
   registerAboutShelf,
   registerCapturedShelf,
@@ -80,6 +81,7 @@ function ActiveSceneHandoff({
     target: null as Target | null,
     shelf: null as RegisteredShelf | null,
     preparing: false,
+    ordinaryOnly: false,
     lastAttempt: 0,
     lastError: "",
     pendingMesh: "",
@@ -123,6 +125,7 @@ function ActiveSceneHandoff({
     r.painted = 0;
     r.armed = false;
     r.preparing = false;
+    r.ordinaryOnly = false;
     r.arrived = false;
     r.lastError = "";
     if (!illustrationKey) {
@@ -231,7 +234,12 @@ function ActiveSceneHandoff({
         r.painted++;
         r.lastPaint = r.frame;
         if (r.painted === 2)
-          scope.send({ type: "illustrationRegistered", key: r.target.key });
+          scope.send({
+            type: r.ordinaryOnly
+              ? "illustrationOrdinaryPainted"
+              : "illustrationRegistered",
+            key: r.target.key,
+          });
       }
       if (r.arrived && current.presentation === "travel") {
         r.arrived = false;
@@ -247,6 +255,7 @@ function ActiveSceneHandoff({
           presentation: current.presentation,
           painted: r.painted,
           residuals: r.shelf?.residuals,
+          alignment: r.ordinaryOnly ? "ordinary-fade" : "matched",
           error: r.lastError,
           camera: camera.matrixWorld.toArray(),
           projection: camera.projectionMatrix.toArray(),
@@ -325,6 +334,29 @@ function ActiveSceneHandoff({
       camera.updateMatrixWorld(true);
       const restCamera = (camera as PerspectiveCamera).clone();
       r.preparing = true;
+      const prepare = (shelf: RegisteredShelf, ordinaryOnly = false) => {
+        if (
+          r.target !== target ||
+          worldBoot.getView().illustrationKey !== target.key
+        )
+          return;
+        r.shelf = shelf;
+        r.ordinaryOnly = ordinaryOnly;
+        r.pendingMesh = "";
+        r.nodes = [];
+        if (!ordinaryOnly)
+          scene.traverse((node) => {
+            if (node instanceof Mesh || node instanceof Sprite)
+              r.nodes.push({
+                node,
+                world: new Matrix4(),
+                auto: true,
+                visible: true,
+              });
+          });
+        shelf.world.decompose(r.startPosition, r.startQuaternion, r.startScale);
+        r.painted = 0;
+      };
       void Promise.resolve()
         .then(() =>
           target.source
@@ -338,37 +370,27 @@ function ActiveSceneHandoff({
               )
             : registerAboutShelf(unit, target.box, target.viewport, restCamera),
         )
-        .then((shelf) => {
-          if (
-            r.target !== target ||
-            worldBoot.getView().illustrationKey !== target.key
-          )
-            return;
-          r.shelf = shelf;
-          r.pendingMesh = "";
-          r.nodes = [];
-          scene.traverse((node) => {
-            if (node instanceof Mesh || node instanceof Sprite)
-              r.nodes.push({
-                node,
-                world: new Matrix4(),
-                auto: true,
-                visible: true,
-              });
-          });
-          shelf.world.decompose(
-            r.startPosition,
-            r.startQuaternion,
-            r.startScale,
-          );
-          r.painted = 0;
-        })
+        .then((shelf) => prepare(shelf))
         .catch((error: unknown) => {
           if (r.target !== target) return;
           if (error instanceof ShelfNotMountedError) {
             // Nested Suspense can commit a prop after LoadingManager reports
             // an idle network. Keep the drawing until its actual mesh mounts.
             r.pendingMesh = error.message;
+            return;
+          }
+          if (error instanceof ShelfAlignmentError) {
+            // A projection mismatch is not a renderer failure. Keep the
+            // ordinary camera still and prove two painted frames before fading.
+            prepare(
+              {
+                world: restCamera.matrixWorld.clone(),
+                projection: restCamera.projectionMatrix.clone(),
+                meshes: new Map(),
+                residuals: error.residuals,
+              },
+              true,
+            );
             return;
           }
           r.lastError = String(error);
