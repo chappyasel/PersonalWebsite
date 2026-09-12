@@ -67,3 +67,12 @@ references and conversion tests, or explicit zone metadata from the app.
 - **Category** — the app's muscle-group taxonomy (Abs / Core, Back,
   Biceps, Cardio, Chest, Legs, Olympic, Shoulders, Triceps, Other), each
   with a fixed color used everywhere both app and site color exercises.
+
+## Bodyweight-conditioned strength
+
+Each exercise detail's Show More panel includes Strength at Bodyweight, which
+compares recorded 1RMe with estimated bodyweight from the existing encrypted Weight Log snapshot. Every
+valid attempt in the requested exercise variation participates in strict Pareto
+dominance. Presentation floors never filter the analysis inputs. The latest
+highlight is the strongest set on the latest calendar day. See
+[the analytical contract and refresh commands](../../../docs/weightlifting-pareto.md).

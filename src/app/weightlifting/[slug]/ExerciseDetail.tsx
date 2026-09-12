@@ -62,7 +62,11 @@ export async function ExerciseDetail({ slug }: { slug: string }) {
       />
 
       {/* App-parity explorer: sort picker, podium, graph, show more, instances */}
-      <ExerciseExplorer instances={detail.instances} color={color} />
+      <ExerciseExplorer
+        instances={detail.instances}
+        color={color}
+        displayName={detail.displayName}
+      />
     </div>
   );
 }
