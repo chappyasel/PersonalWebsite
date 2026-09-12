@@ -10,7 +10,7 @@
       "inputSvg": "books/light-desktop/artwork.svg",
       "inputCapture": "books/light-desktop/capture.json",
       "svgSha256": "54ca709311ce4fb0cdf6944e702be7249f4fdcef548ab16f9fec34b753005579",
-      "captureSha256": "a3dbfeb1bee6ab3012253b76d6eea532b5019eeeb4bab648ccef077096b45157",
+      "captureSha256": "c81e93a1e7d55eb5a4233165cba31d0858de259e5dd03afa09716733c43010b0",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/light-desktop/books-packed-lower.webp",
@@ -100,7 +100,7 @@
       "inputSvg": "books/dark-desktop/artwork.svg",
       "inputCapture": "books/dark-desktop/capture.json",
       "svgSha256": "8f82ab928a7888ecd026978dff07812d9cb3711991989347bd5f774a89da2871",
-      "captureSha256": "56937f04abf7928c417971b9a74bb9f3f4abb96720573028224d0fdfb929704a",
+      "captureSha256": "5ba1a6b6dcfe219a5ab4753c726b2e2643959fedebf90ad4024d8ff14b86224f",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/dark-desktop/books-packed-lower.webp",
@@ -190,7 +190,7 @@
       "inputSvg": "books/light-phone/artwork.svg",
       "inputCapture": "books/light-phone/capture.json",
       "svgSha256": "826922d31be2a4010fc0af78e0f7bbbdcfc7a8b24e97a778c3a47b7d1f4fc0cf",
-      "captureSha256": "4cf8bc4bec81acbf6a7ad74dd23595d00f75285edca3b0e09f4cbac443109604",
+      "captureSha256": "6352af34e5aac838bd62556b4bcfdd43d73186640872b4e22359ba048a4d8525",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/light-phone/books-packed-lower.webp",
@@ -280,7 +280,7 @@
       "inputSvg": "books/dark-phone/artwork.svg",
       "inputCapture": "books/dark-phone/capture.json",
       "svgSha256": "2aa0ebf90beaada22613ef19cf5101bb57c590abe90ca06981684aa464294147",
-      "captureSha256": "4478b248e1e42a3ae68099b98887bd5fc687318951d5d0e60e39fdb7c1702299",
+      "captureSha256": "35bc5960d000a8f94e31358c93587301959da419417fc1a0009096e2bbd67823",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/dark-phone/books-packed-lower.webp",
@@ -370,7 +370,7 @@
       "inputSvg": "projects/light-desktop/artwork.svg",
       "inputCapture": "projects/light-desktop/capture.json",
       "svgSha256": "e063c09fa865bfca6d8f1e5114c982c9536afe85f35e7d1a8356ddd63704845a",
-      "captureSha256": "45d1408d4aaa025928ab72b17ef4da650a1fc2fb8cfc3307ec9f122e9dbf905d",
+      "captureSha256": "18f4d25981722287f976ea019adddf5e17d32229e0e0b6acbbad20130c3e316c",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/projects/light-desktop/mac.webp",
@@ -495,7 +495,7 @@
       "inputSvg": "projects/dark-desktop/artwork.svg",
       "inputCapture": "projects/dark-desktop/capture.json",
       "svgSha256": "476d86a1126ea25504c914bdcf08f07e8ebbe345179c0a9430ff7c5e6bdce4ae",
-      "captureSha256": "cf4aa3d2269e7e5a7c3d249ae25893caca92f138d8ead9638228cf91d8aeb833",
+      "captureSha256": "02bdda583ba1c86f269fa7bf8d0bf0bceff5aafb30c72d0bcef66cdaf4c87f5a",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/projects/dark-desktop/mac.webp",
@@ -620,7 +620,7 @@
       "inputSvg": "projects/light-phone/artwork.svg",
       "inputCapture": "projects/light-phone/capture.json",
       "svgSha256": "a1b60c433f31edd9257c7daee0f840e9e2fa0c1aff662cd59898ee14e94516fb",
-      "captureSha256": "58435288bc9e89d494c1ff052d4d72eba9116bc9829f74eec5cca3a23ed52f1e",
+      "captureSha256": "7b061cd4aa1ee7728fe055e917e50e57abe56a518ad5f9f9f30a9cecc527591e",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/projects/light-phone/mac.webp",
@@ -745,7 +745,7 @@
       "inputSvg": "projects/dark-phone/artwork.svg",
       "inputCapture": "projects/dark-phone/capture.json",
       "svgSha256": "7deca3eb9bd561bb0167324913339fe99786848e9eaec3b9c1d262169e0a8349",
-      "captureSha256": "9ec5265d15f22d7197cfdb24302a74c901ced12d9d9fa77e97bce30801595c50",
+      "captureSha256": "610cb4d835d68e81e02a0d404c90504e5be45792fbbd55deda6b2aa937296327",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/projects/dark-phone/mac.webp",
@@ -870,7 +870,7 @@
       "inputSvg": "systems/light-desktop/artwork.svg",
       "inputCapture": "systems/light-desktop/capture.json",
       "svgSha256": "6d983955bebf0474bf30c273b3d32e59d209fab58746f92898e10802b5e7c39c",
-      "captureSha256": "a3e62fc96e8fe65fe1215df1933f5cd2ca968c93dabbb6ffcfce109bec46b5a9",
+      "captureSha256": "a04df1fd71fb0d519659f773aa04a4a6798f9759900639c82a4727c8138c7fe5",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/light-desktop/grab-bag-realgood.webp",
@@ -1156,7 +1156,7 @@
       "inputSvg": "systems/dark-desktop/artwork.svg",
       "inputCapture": "systems/dark-desktop/capture.json",
       "svgSha256": "a5818ee5d08940d13fd5e72ae66f87d46d90ef850214097794153ae00292c07c",
-      "captureSha256": "11e45bc43c894fab16fdcba3dfb1af428ea289917fa54f446807fdd434b4d594",
+      "captureSha256": "95de83bd727100b67cb935360f60713e7c8e5643db0556816bd0099974519adf",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/dark-desktop/grab-bag-realgood.webp",
@@ -1442,7 +1442,7 @@
       "inputSvg": "systems/light-phone/artwork.svg",
       "inputCapture": "systems/light-phone/capture.json",
       "svgSha256": "0c285c777d3133f637e5ada36f7222ed9a3a90b5caa15b316e40dd4275b021f6",
-      "captureSha256": "08ca460c44cc96b6f926e6c2acde90c187fcce8038c7cdf55ff3e9786dbd653b",
+      "captureSha256": "d71feb3fbb355e2c1d6de83b5f342bd2f85e4aa864e46cac34e909f42017a363",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/light-phone/grab-bag-realgood.webp",
@@ -1728,7 +1728,7 @@
       "inputSvg": "systems/dark-phone/artwork.svg",
       "inputCapture": "systems/dark-phone/capture.json",
       "svgSha256": "3e664abab2b938f0b0802cf4a34cfd8bfec9facb016e8d689990405c660af9d5",
-      "captureSha256": "e2c391fd5f80e0ad3192b35dc8e71016d1ac23c01cff35c848dc2bf1a036bac6",
+      "captureSha256": "6b0e1021726894ea985317a9fb63e19e9559e8db2cb7070fedbebc5f231f23cf",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-bag-realgood.webp",
@@ -2014,7 +2014,7 @@
       "inputSvg": "weightlifting/light-desktop/artwork.svg",
       "inputCapture": "weightlifting/light-desktop/capture.json",
       "svgSha256": "116a612b1910e8ff3a2face9c9366db96a8e3b0709ece4023a45020a470b0c03",
-      "captureSha256": "53c1f0746a0d538aa18fa37e50a2e5f079bc077214feb5f0a32c445f5a2c424b",
+      "captureSha256": "07e3e279e575daaa71aca6cc1528328ca7af2b2b3cee03a3ced665b389df6377",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/weightlifting/light-desktop/grab-pre-x.webp",
@@ -2251,7 +2251,7 @@
       "inputSvg": "weightlifting/dark-desktop/artwork.svg",
       "inputCapture": "weightlifting/dark-desktop/capture.json",
       "svgSha256": "176d0ac88a17905e4ea641bd633742f61c010e0e4054f7c73d75007932b0c253",
-      "captureSha256": "28e9d7012768b6caab83295a5f2e894163c1753f90f55fce5f1fa8928eec9157",
+      "captureSha256": "914e454a6db133beb22017c33030a12bc9e7d2dac7abcf372dcae16f7d26804c",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-pre-x.webp",
@@ -2488,7 +2488,7 @@
       "inputSvg": "weightlifting/light-phone/artwork.svg",
       "inputCapture": "weightlifting/light-phone/capture.json",
       "svgSha256": "04c27e94f7642403b61712951ef62976c0e9900cc2de6c44682cf9571e6f6d34",
-      "captureSha256": "66801532f7c54404ea83c98d72b012b5028001248ad0d357ce7bbfa16dd43305",
+      "captureSha256": "bdb4683f9acf9bbc8843ef996ab048ee5f1a5f9e9ed208ed2e6347ab51a17bbc",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/weightlifting/light-phone/grab-pre-x.webp",
@@ -2725,7 +2725,7 @@
       "inputSvg": "weightlifting/dark-phone/artwork.svg",
       "inputCapture": "weightlifting/dark-phone/capture.json",
       "svgSha256": "f9d8085e3fb360bb5f61be8e4d0b45978b8b8ff8d6d0e8c32ef6471d155f5fd2",
-      "captureSha256": "d178bfec3c28fb9742b861cc5e39ff28101ede3507f10bfc588ad5648f5a69de",
+      "captureSha256": "b5f424877b194fa89362d50c0d32d96724684402107157af8cdc8f130520217d",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/weightlifting/dark-phone/grab-pre-x.webp",
@@ -2962,7 +2962,7 @@
       "inputSvg": "musings/light-desktop/artwork.svg",
       "inputCapture": "musings/light-desktop/capture.json",
       "svgSha256": "6b925c042bc4034f93d38a9a813f574d24af933bbee41d15cec5d1f498e96c5b",
-      "captureSha256": "a5cfa3e7eb4ee87dd3070ffb2938c97be5fe6e9a512a50e9414bfc4bd4d38a66",
+      "captureSha256": "f78feeb643ef8e24c4cd94201050a7b0ccc81dcfad6286173d2276975c30e8d7",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/musings/light-desktop/grab-vineyard-cutout.webp",
@@ -3080,7 +3080,7 @@
       "inputSvg": "musings/dark-desktop/artwork.svg",
       "inputCapture": "musings/dark-desktop/capture.json",
       "svgSha256": "93058db8e0cb947616372a24fcdc031977b98a4ab55c8288db1ce0ac19e4e877",
-      "captureSha256": "fbf788e0161306e171b100dd1b5ec3887a0418c047917ac67e8803787a552acc",
+      "captureSha256": "aa278e1dbc3a0d90baa42e270f8c2a505c938d8aa4f1e6b7843023ce3b281f14",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/musings/dark-desktop/grab-vineyard-cutout.webp",
@@ -3198,7 +3198,7 @@
       "inputSvg": "musings/light-phone/artwork.svg",
       "inputCapture": "musings/light-phone/capture.json",
       "svgSha256": "ebe2e8942cac4e94873234471167f124e2c671488f712a23beec14c4251c5d1d",
-      "captureSha256": "8150a983e79ad53058005406a04f649dcd919fed775c139beb24c05ba2abfe88",
+      "captureSha256": "009a65585692536f2aa8d7f7ed81306f2cfa60685924bb401abd834e19f662aa",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/musings/light-phone/grab-vineyard-cutout.webp",
@@ -3316,7 +3316,7 @@
       "inputSvg": "musings/dark-phone/artwork.svg",
       "inputCapture": "musings/dark-phone/capture.json",
       "svgSha256": "3b04ea11bafc39151556af7c1b6f9576a6ac9cc1e1dd7cd885412566c9e823a9",
-      "captureSha256": "abeb48bac3b7e4c4c2a4cdf23abb0d15ea8f41deb146af3e23e1b4bfb99bd9e9",
+      "captureSha256": "c5d3c1c958282c9af440065811825cc5a2cf283c83917c852307dca5beef4de3",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/musings/dark-phone/grab-vineyard-cutout.webp",
@@ -3434,7 +3434,7 @@
       "inputSvg": "talks/light-desktop/artwork.svg",
       "inputCapture": "talks/light-desktop/capture.json",
       "svgSha256": "de3cbe54469bef2f973e6137ef71589aa232b7e1365e79a53a958819ed1884b4",
-      "captureSha256": "9d515d95a3e6795972cd9454698594c614a6996632f55615b65803ab6d2357b1",
+      "captureSha256": "e81b15d94bdcfb0c07d722327da48a1303c7914a4e4102b7790afb0cfbf5381d",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/talks/light-desktop/grab-photo-talk-demo-night-v8.webp",
@@ -3545,7 +3545,7 @@
       "inputSvg": "talks/dark-desktop/artwork.svg",
       "inputCapture": "talks/dark-desktop/capture.json",
       "svgSha256": "91e3f8154d5096646bc632d24d5c689c76e94b3f1468ed213c3870a31d5be350",
-      "captureSha256": "c94c3d81d185b472e69f38210a33f5362637c17ba89287d731930b53dbb9a788",
+      "captureSha256": "7a2bfcfa438a433718393ae29153ecbeb2732a267e8752adc89ee2dd478af76f",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/talks/dark-desktop/grab-photo-talk-demo-night-v8.webp",
@@ -3656,7 +3656,7 @@
       "inputSvg": "talks/light-phone/artwork.svg",
       "inputCapture": "talks/light-phone/capture.json",
       "svgSha256": "26794cfbc9672f8f238d8ced11cf488dee7023526861450bd3672584e5f6e99f",
-      "captureSha256": "7f6942342c879d2f32bdd22ae8a8d3c07f40b5c381028c51f068578f4f1eab52",
+      "captureSha256": "956acaa9fae10008fbd6fd25353770cf5a7df9c6ef7268a828c86c9d6d8a0c5a",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/talks/light-phone/grab-photo-talk-demo-night-v8.webp",
@@ -3767,7 +3767,7 @@
       "inputSvg": "talks/dark-phone/artwork.svg",
       "inputCapture": "talks/dark-phone/capture.json",
       "svgSha256": "5fa09992acab7d6bdd84b292a1c77b85efd33356425e9d916df125faca7dafdd",
-      "captureSha256": "a6f851a2e2daeba64b457e57222cf0f17e31f02cf4cecc9db1cee905e1455535",
+      "captureSha256": "66018491b3371d2c78188d00111f6deaebc744850ffdbdcbf3118c0e8da5d5d6",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-photo-talk-demo-night-v8.webp",
@@ -4272,6 +4272,16 @@
       "path": "public/models/yucca-plant.glb",
       "sha256": "0a7688800e2e4d4c4ab400f4407f5bfb8698ceb8323bf57981fe6f80738567fc",
       "archivedSha256": "0a7688800e2e4d4c4ab400f4407f5bfb8698ceb8323bf57981fe6f80738567fc"
+    },
+    {
+      "path": "scripts/generate/room-artwork-inputs/captured-source/roundedBoxGeometry.ts",
+      "sha256": "3d6712292db1eeac024abbff133b52b4baa1243bf612c2377671d7b294b7aa15",
+      "archivedSha256": "3d6712292db1eeac024abbff133b52b4baa1243bf612c2377671d7b294b7aa15"
+    },
+    {
+      "path": "scripts/generate/room-artwork-inputs/captured-source/shelfGeometry.ts",
+      "sha256": "ef0dd92969e2a514c7ee4c2fe5649c758a140c36bb6cee30057a836dc85346d5",
+      "archivedSha256": "ef0dd92969e2a514c7ee4c2fe5649c758a140c36bb6cee30057a836dc85346d5"
     },
     {
       "path": "src/app/components/stacks/data.ts",
@@ -5069,5 +5079,5 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "501e5e8ad502fbaf79681621d98efd9c9994d853d49f38fb1a4b2ca5de5c4c71"
+  "sourceFingerprint": "a1d8fd9319cba1c8b2e9d5a3791383e2f9c612663043e5e07e90bc358d0b53d5"
 }

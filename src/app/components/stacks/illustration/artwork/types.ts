@@ -51,7 +51,19 @@ export type RoomArtworkRegistration = Readonly<{
     geometryType: string;
     localMatrix: readonly number[];
     sample: { kind: "bounds" | "point"; coordinates: readonly number[] };
+    /** Required for bounds samples: immutable mesh-local expected point from archived geometry. */
+    readonly capturedCoordinates?: readonly [number, number, number];
   }[];
+  boundsProbeProvenance?: Readonly<{
+    sourceRevision: string;
+    sources: readonly { path: string; sha256: string; snapshot?: string }[];
+    plank: string;
+    dimensions: readonly number[];
+    roundedBox: { radius: number; smoothness: number; centered: boolean };
+    derivation: string;
+    coordinateSpace: string;
+    coordinatePrecision: string;
+  }>;
   owners: readonly {
     id: string;
     parentOwner?: string | null;
