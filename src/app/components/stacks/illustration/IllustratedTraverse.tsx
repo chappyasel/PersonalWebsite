@@ -9,11 +9,12 @@ import {
 import { isStacksScrollableTarget } from "../input/roomNavigationKeys";
 import { touchSwipeDestination } from "../mobile/swipeTravel";
 import { closeStacksPanel, useStacks } from "../store";
-import { type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useCallback, useLayoutEffect, useRef } from "react";
 
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 import "./illustratedTraverse.css";
+import { illustrationInteraction } from "./illustrationInteraction";
 
 /** Native lateral travel, using the same wheel ownership and touch stops as 3D. */
 export function IllustratedTraverse({
@@ -32,6 +33,13 @@ export function IllustratedTraverse({
   const destination = useRef<number | null>(null);
   const initialized = useRef(false);
   const locationReady = useRoomNavigationReady();
+  const moving = useCallback(
+    (value: boolean) => {
+      illustrationInteraction.moving = value;
+      onMovingChange(value);
+    },
+    [onMovingChange],
+  );
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -45,10 +53,10 @@ export function IllustratedTraverse({
     } else if (published.current !== unit) {
       published.current = unit;
       destination.current = unit;
-      onMovingChange(true);
+      moving(true);
       el.scrollTo({ left: unit * el.clientWidth, behavior: "smooth" });
     }
-  }, [unit, enabled, locationReady, onMovingChange]);
+  }, [unit, enabled, locationReady, moving]);
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -91,10 +99,10 @@ export function IllustratedTraverse({
       }
       select();
       destination.current = null;
-      onMovingChange(false);
+      moving(false);
     };
     const scroll = () => {
-      onMovingChange(true);
+      moving(true);
       // A rail command owns selection until it arrives. Intermediate scroll
       // positions must not rewrite its destination through the room store.
       if (destination.current === null) select();
@@ -108,6 +116,9 @@ export function IllustratedTraverse({
         isUniversalSearchOpen(),
       );
       if (action === "blocked" || isBrowserZoomWheel(event)) return;
+      moving(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 180);
       destination.current = null;
       event.preventDefault();
       event.stopPropagation();
@@ -125,6 +136,7 @@ export function IllustratedTraverse({
       destination.current = null;
       touching = true;
       touchStart = el.scrollLeft;
+      moving(true);
     };
     const up = () => {
       if (!touching) return;
@@ -142,6 +154,7 @@ export function IllustratedTraverse({
     window.addEventListener("wheel", wheel, { passive: false, capture: true });
     window.addEventListener("resize", resize);
     return () => {
+      illustrationInteraction.moving = false;
       window.clearTimeout(timer);
       el.removeEventListener("scroll", scroll);
       el.removeEventListener("pointerdown", down);
@@ -150,7 +163,7 @@ export function IllustratedTraverse({
       window.removeEventListener("wheel", wheel, true);
       window.removeEventListener("resize", resize);
     };
-  }, [enabled, locationReady, onMovingChange]);
+  }, [enabled, locationReady, moving]);
 
   return (
     <div ref={root} className="room-illustration-traverse">

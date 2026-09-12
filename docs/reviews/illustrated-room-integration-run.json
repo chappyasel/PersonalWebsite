@@ -1,6 +1,6 @@
 {
-  "objective": "Integrate approved illustrated shelves into production boot and usable WebGL fallback, with registered dissolve and camera travel",
-  "status": "feedback_verified",
+  "objective": "Integrate approved illustrated shelves into automatic production boot and usable WebGL fallback, with a registered dissolve at the ordinary camera pose",
+  "status": "dissolve_in_place_verified",
   "base": "f54e6e2",
   "integrationBranch": "feat/illustrated-room",
   "integrationWorktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-room",
@@ -9,7 +9,8 @@
     "geometry": "dd0a306",
     "foundation": "7483645",
     "renderer": "e0becc7d4c4ff87595683ccf85191ee76ff04595",
-    "firstIntegration": "46b4953"
+    "firstIntegration": "46b4953",
+    "automaticEntry": "8d45705"
   },
   "workers": [
     {
@@ -68,5 +69,16 @@
     "preview": "http://localhost:3334/projects",
     "illustratedReview": "http://localhost:3334/projects?hold-boot=1",
     "recoveryCases": 6
+  },
+  "dissolveCheckpoint": {
+    "after": "8d45705",
+    "productionCases": 14,
+    "recoveryCases": 6,
+    "interactionCases": 3,
+    "fullSuiteTestsPassed": 3969,
+    "preview": "http://localhost:3334/projects",
+    "loadingReview": "http://localhost:3334/projects?hold-boot=1",
+    "tabletLimit": "Saved image views do not yet cover every tablet proportion within 3px.",
+    "gestureCases": 8
   }
 }

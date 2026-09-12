@@ -4,8 +4,7 @@
   --room-sky-top: #83b2ce;
   --room-sky-horizon: #c3d6d8;
   --room-sky-haze: #e3e0c5;
-  --room-cloud: #f4f3e7;
-  --room-cloud-opacity: 0.5;
+  --room-cloud: rgb(244 243 231 / 0.5);
   --room-meadow-far: #bbc9a2;
   --room-meadow-middle: #aac093;
   --room-meadow-near: #9bb684;
@@ -17,13 +16,7 @@
   --room-illustration-stage-bottom: calc(
     var(--room-illustration-sheet-peek) + 3rem
   );
-  position: absolute;
-  inset: 0;
-  isolation: isolate;
-  overflow: hidden;
-  visibility: hidden;
-  pointer-events: none;
-  background: linear-gradient(
+  --room-illustration-background: linear-gradient(
     180deg,
     var(--room-sky-top),
     var(--room-sky-horizon) 43%,
@@ -31,13 +24,18 @@
     var(--room-meadow-far) 77%,
     var(--room-meadow-near)
   );
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
 }
 html.dark .room-illustration {
   --room-sky-top: #1e2842;
   --room-sky-horizon: #3a4762;
   --room-sky-haze: #646153;
-  --room-cloud: #c6c4bc;
-  --room-cloud-opacity: 0.12;
+  --room-cloud: rgb(198 196 188 / 0.12);
   --room-meadow-far: #435944;
   --room-meadow-middle: #314935;
   --room-meadow-near: #223b2b;
@@ -51,23 +49,23 @@ html.dark .room-illustration {
   pointer-events: none;
 }
 .room-illustration::before {
-  inset: 0 0 29%;
-  opacity: var(--room-cloud-opacity);
+  inset: 0;
   background: radial-gradient(
-      ellipse 43% 5% at 13% 24%,
+      ellipse 43% 3.55% at 13% 17.04%,
       var(--room-cloud),
       transparent 100%
     ),
     radial-gradient(
-      ellipse 33% 4% at 80% 15%,
+      ellipse 33% 2.84% at 80% 10.65%,
       var(--room-cloud),
       transparent 100%
     ),
     radial-gradient(
-      ellipse 50% 7% at 62% 70%,
+      ellipse 50% 4.97% at 62% 49.7%,
       var(--room-cloud),
       transparent 100%
-    );
+    ),
+    var(--room-illustration-background);
 }
 .room-illustration::after {
   inset: 56% -3% -1px;
@@ -90,6 +88,12 @@ html.dark .room-illustration {
 }
 .room-illustration[data-illustration-visible] {
   visibility: visible;
+}
+.room-illustration[data-illustration-loading]::before {
+  background: var(--room-illustration-background);
+}
+.room-illustration[data-illustration-loading]::after {
+  opacity: 0;
 }
 .room-illustration-stage {
   position: absolute;
@@ -183,6 +187,30 @@ html.dark .room-illustration {
   transform: translateX(-50%);
   z-index: 35;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.room-illustration-status {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  color: hsl(var(--foreground));
+  font-size: 0.75rem;
+  line-height: 1.3;
+  pointer-events: none;
+}
+.room-illustration-status[data-illustration-status="loading"] {
+  /* The backing keeps small text readable through the scene dissolve. */
+  background: hsl(var(--background) / 0.88);
+}
+.room-illustration-status > span + span {
+  color: hsl(var(--foreground) / 0.78);
+  font-size: 0.6875rem;
 }
 .room-illustration-unavailable {
   max-width: 28ch;

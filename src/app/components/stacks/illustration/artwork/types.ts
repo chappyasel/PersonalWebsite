@@ -25,6 +25,8 @@ export type RoomArtworkMetadata = Readonly<{
   unitWorldPrecisionDecimals: number;
   registrationSrc: string;
   registrationAvailable: boolean;
+  /** Immutable captured probe points used to place the SVG before WebGL exists. */
+  layoutPoints: readonly (readonly number[])[];
 }>;
 
 /** Lazy per-case metadata. Matrix arrays follow Three.js column-major order. */

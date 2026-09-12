@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { IllustratedTraverse } from "./IllustratedTraverse";
+import { illustrationInteraction } from "./illustrationInteraction";
 
 const initial = useStacks.getState();
 beforeEach(() => {
@@ -89,6 +90,36 @@ it("leaves reader scrolling and browser pinch zoom alone", () => {
   fireEvent.wheel(viewport.firstElementChild!, { deltaY: 1000 });
   fireEvent.wheel(viewport, { deltaY: 1000, ctrlKey: true });
   expect(viewport.scrollLeft).toBe(4000);
+});
+
+it("blocks handoff for a held touch and wheel input that cannot move past an end", () => {
+  const moving = vi.fn();
+  const mounted = render(
+    <IllustratedTraverse unit={0} enabled onMovingChange={moving}>
+      <div />
+    </IllustratedTraverse>,
+  );
+  const viewport = mounted.container.firstElementChild as HTMLDivElement;
+  const down = new Event("pointerdown");
+  Object.defineProperty(down, "pointerType", { value: "touch" });
+  fireEvent(viewport, down);
+  expect(illustrationInteraction.moving).toBe(true);
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
+  expect(illustrationInteraction.moving).toBe(true);
+  fireEvent.pointerUp(window);
+  act(() => {
+    vi.advanceTimersByTime(180);
+  });
+  expect(illustrationInteraction.moving).toBe(false);
+  fireEvent.wheel(viewport, { deltaY: -80 });
+  viewport.scrollLeft = 0; // A native scroller clamps at the first stop.
+  expect(illustrationInteraction.moving).toBe(true);
+  act(() => {
+    vi.advanceTimersByTime(180);
+  });
+  expect(illustrationInteraction.moving).toBe(false);
 });
 
 it("keeps a rail destination when an old scroll event arrives during smooth travel", () => {

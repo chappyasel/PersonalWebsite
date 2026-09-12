@@ -73,7 +73,9 @@ it("selects background variants from the established theme class and viewport", 
     "utf8",
   );
   expect(styles).toContain("html.dark .room-first-paint-artwork");
-  expect(styles).toContain("@media (max-width: 599px)");
+  expect(styles).toContain(
+    "@media (max-width: 1199.999px) and (max-aspect-ratio: 3/4)",
+  );
   expect(styles).not.toContain("prefers-color-scheme");
   // Only the selected custom property becomes an image request. The other
   // variant URLs remain inert values until their class/media rule applies.

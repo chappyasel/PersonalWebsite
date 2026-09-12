@@ -95,11 +95,25 @@ export function useWorldBoot(illustrated = false): WorldBootView {
   const { deadlineAt } = view;
   useEffect(() => {
     if (deadlineAt === null) return;
-    const timer = window.setTimeout(
-      () => worldBoot.send({ type: "tick" }),
-      Math.max(0, deadlineAt - performance.now()),
-    );
-    return () => window.clearTimeout(timer);
+    let timer: number | null = null;
+    const checkDeadline = () => {
+      const remaining = deadlineAt - performance.now();
+      if (remaining > 0) {
+        // Timer delays use whole milliseconds; the boot clock does not.
+        // An early tick leaves the deadline unchanged, so React would never
+        // rearm this effect. Check the clock again until the deadline is due.
+        timer = window.setTimeout(
+          checkDeadline,
+          Math.max(1, Math.ceil(remaining)),
+        );
+        return;
+      }
+      worldBoot.send({ type: "tick" });
+    };
+    checkDeadline();
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, [deadlineAt]);
 
   // The reveal gate closes on a quiet window rather than an event, so it has

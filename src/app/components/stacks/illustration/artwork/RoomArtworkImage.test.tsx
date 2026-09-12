@@ -10,7 +10,7 @@ describe("room artwork SSR contract", () => {
       <RoomArtworkImage unitIndex={6} alt="Talks" />,
     );
     expect(html).toContain("prefers-color-scheme: dark");
-    expect(html).toContain("max-width: 599px");
+    expect(html).toContain("max-aspect-ratio: 3/4");
     expect(html).toContain("/talks/light-desktop.svg");
     expect(html).not.toMatch(
       /\/(books|projects|weightlifting|systems|musings)\//,

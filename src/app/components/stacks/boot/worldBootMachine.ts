@@ -51,7 +51,7 @@ export type WorldBootStatus =
   | "illustrated"
   /** The registered camera stays still while the illustration fades. */
   | "dissolving"
-  /** The illustration is gone and the camera travels to its ordinary pose. */
+  /** The illustration is gone; the renderer confirms its ordinary rest frame. */
   | "travelling"
   /** Every reveal gate is open. The world is on screen and the flat document
    * is still mounted underneath for the cross-fade. */
@@ -286,7 +286,7 @@ export type WorldBootView = {
   handoffStartedAt: number | null;
   motionEnabled: boolean;
   canRequest3D: boolean;
-  /** Revealed/chrome readiness stays false until the camera finishes travel. */
+  /** Readiness stays false until the ordinary rest frame has painted. */
   canvasVisible: boolean;
   /** The generation a producer mounting right now must stamp its signals
    * with. */
@@ -556,8 +556,7 @@ function illustrationHandoffActive(state: WorldBootState): boolean {
   return state.status === "dissolving" || state.status === "travelling";
 }
 
-/** Only this machine authorizes the camera sequence. Timers can advance the
- * fade to travel, but only a matching renderer event can finish promotion. */
+/** Timers can finish the dissolve; only a matching painted frame can finish promotion. */
 function settleIllustrated(
   state: WorldBootState,
   at: number,

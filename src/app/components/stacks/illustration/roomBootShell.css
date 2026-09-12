@@ -50,7 +50,7 @@ html.dark .room-first-paint-artwork {
   --room-first-paint-width: var(--room-first-paint-dark-desktop-width);
   --room-first-paint-ratio: var(--room-first-paint-dark-desktop-ratio);
 }
-@media (max-width: 599px) {
+@media (max-width: 1199.999px) and (max-aspect-ratio: 3/4) {
   .room-first-paint-artwork {
     --room-first-paint-image: var(--room-first-paint-light-phone-image);
     --room-first-paint-width: var(--room-first-paint-light-phone-width);
@@ -62,10 +62,20 @@ html.dark .room-first-paint-artwork {
     --room-first-paint-ratio: var(--room-first-paint-dark-phone-ratio);
   }
 }
-.stacks-world-shell[data-room-presentation="illustrated"] .room-illustration {
+.stacks-world-shell[data-room-presentation="illustrated"] .room-illustration,
+.stacks-world-shell[data-room-presentation="dissolve"] .room-illustration {
   opacity: 1;
 }
-.stacks-world-shell[data-room-presentation="dissolve"] .room-illustration {
+/* Fade the drawing and its atmosphere without fading the loading message. */
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration::before,
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration::after,
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration-traverse,
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration
+  > .room-illustration-stage {
   opacity: 0;
   transition: opacity 160ms linear;
 }
@@ -76,7 +86,10 @@ html[data-og-capture] .room-first-paint {
   display: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .room-illustration {
+  .room-illustration::before,
+  .room-illustration::after,
+  .room-illustration-traverse,
+  .room-illustration-stage {
     transition: none !important;
   }
 }

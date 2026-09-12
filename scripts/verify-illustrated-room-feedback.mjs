@@ -151,7 +151,9 @@ try {
           .boundingBox();
         const background = await page
           .locator(".stacks-world-shell .room-illustration")
-          .evaluate((node) => getComputedStyle(node).backgroundImage);
+          .evaluate(
+            (node) => getComputedStyle(node, "::before").backgroundImage,
+          );
         assert.ok(background.includes("gradient"));
         if (phone) {
           const inactive = await page

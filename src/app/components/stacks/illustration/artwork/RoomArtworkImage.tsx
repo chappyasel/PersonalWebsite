@@ -38,8 +38,8 @@ export function RoomArtworkImage({
         themes.map((tone) => {
           const asset = getRoomArtwork(unitIndex, tone, view)!;
           const conditions = [
-            ...(viewport === "responsive"
-              ? [view === "phone" ? "(max-width: 599px)" : "(min-width: 600px)"]
+            ...(viewport === "responsive" && view === "phone"
+              ? ["(width < 1200px) and (max-aspect-ratio: 3/4)"]
               : []),
             ...(theme === "system" ? [`(prefers-color-scheme: ${tone})`] : []),
           ];

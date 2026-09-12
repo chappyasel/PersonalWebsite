@@ -55,7 +55,9 @@ const subscribeViewport = (listener: () => void) => {
   return () => window.removeEventListener("resize", listener);
 };
 const getArtworkViewport = () =>
-  window.innerWidth < 600 ? ("phone" as const) : ("desktop" as const);
+  window.innerWidth < 1200 && window.innerWidth / window.innerHeight <= 0.75
+    ? ("phone" as const)
+    : ("desktop" as const);
 const getServerArtworkViewport = () => "desktop" as const;
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
@@ -887,6 +889,7 @@ export default function StacksHome({
                     viewport={viewport}
                     visible={illustrated || handoff}
                     canRequest3D={boot.canRequest3D}
+                    loading={boot.worldMounted || boot.recoverable}
                     onRequest3D={request3D}
                     onReady={illustrationReady}
                     onUnavailable={illustrationUnavailable}

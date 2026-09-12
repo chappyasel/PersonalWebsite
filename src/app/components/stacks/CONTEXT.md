@@ -58,16 +58,12 @@ first paint, before React exists, and it is the single published answer to
 "which homepage is on screen".
 _Avoid_: Loading state, world flag
 
-**Boot Stage** — where the boot vignette's bookcase stands on screen. It opens
-in its centred box, as it always has. When the URL opens the world on About,
-it then glides onto the live shelf at unit 0's origin and scale. The pre-paint
-script derives both values from the camera's About rest pose for the current
-viewport. The glide begins when the room is ready or the last reveal object
-lands, whichever happens first. The vignette pass completes only after the
-glide lands, so the handoff dissolves in place. A section hash or pathname that
-opens on another stop leaves the boot stage centred and completes without a
-glide. The same URL predicate and projection run before paint and after
-hydration.
+**Boot Stage** — the illustrated shelf's screen position and scale, derived
+from the ordinary resting camera before first paint and again after hydration.
+The selected shelf starts at its final size. Once the visitor stops scrolling
+and the mounted geometry matches within 3 CSS pixels, the drawing dissolves
+in place. The camera stays still through the handoff. Portrait proportions
+that the saved artwork cannot match retain the complete 2D view.
 _Avoid_: Centered loader, loading box
 
 **Reveal Gate** — the four facts that must all hold before the boot screen is

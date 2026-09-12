@@ -77,7 +77,6 @@ export type WorldBootPolicy = {
   flatRetireMs: number;
   illustrationDissolveMs: number;
   illustrationTravelDelayMs: number;
-  illustrationTravelMs: number;
   /** A missing camera completion signal returns the usable illustration. */
   illustrationHandoffTimeoutMs: number;
   /** Window globals the pre-paint script uses to hand its backstop timer to
@@ -113,7 +112,6 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   flatRetireMs: 420,
   illustrationDissolveMs: 160,
   illustrationTravelDelayMs: 180,
-  illustrationTravelMs: 400,
   illustrationHandoffTimeoutMs: 3000,
   prepaintTimerGlobal: "__stacksWorldBootTimer",
   prepaintTokenGlobal: "__stacksWorldBootToken",

@@ -1006,7 +1006,8 @@ export default function CameraRig() {
     const baselineEyeY =
       captureCameraY === null
         ? cameraY +
-          (pointerY * 0.08 * pointerMode.truck + Math.sin(t * 0.4) * 0.03) *
+          (pointerY * 0.08 * pointerMode.truck +
+            (illustrationOwnsPose ? 0 : Math.sin(t * 0.4) * 0.03)) *
             calm
         : cameraY;
     const baselineLookY =

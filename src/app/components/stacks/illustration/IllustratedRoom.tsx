@@ -9,6 +9,7 @@ import { Button } from "~/components/ui/button";
 
 import { IllustratedTraverse } from "./IllustratedTraverse";
 import { IllustrationStage } from "./IllustrationStage";
+import { IllustrationStatus } from "./IllustrationStatus";
 import {
   type RoomArtworkViewport,
   getRoomArtwork,
@@ -56,6 +57,7 @@ export default function IllustratedRoom({
   viewport,
   visible,
   canRequest3D,
+  loading = !canRequest3D,
   onRequest3D,
   onReady,
   onUnavailable,
@@ -65,12 +67,16 @@ export default function IllustratedRoom({
   theme: "light" | "dark";
   visible: boolean;
   canRequest3D: boolean;
+  loading?: boolean;
   onRequest3D: () => void;
   onReady: (key: string | null) => void;
   onUnavailable: () => void;
 }) {
   const unit = useStacks((state) => state.activeUnit);
   const golfStop = useStacks((state) => state.golfStop);
+  const interactingWithPanel = useStacks(
+    (state) => state.panelState !== "closed" || state.modalOpen,
+  );
   const drawingUnit = golfStop ? GOLF_STOP_POSITION : unit;
   const artwork = getRoomArtwork(drawingUnit, theme, viewport);
   const root = useRef<HTMLDivElement>(null);
@@ -93,7 +99,7 @@ export default function IllustratedRoom({
   useLayoutEffect(() => {
     onReady(null);
     const container = root.current;
-    if (moving) {
+    if (moving || interactingWithPanel) {
       container
         ?.querySelectorAll("[data-artwork-key]")
         .forEach((node) => node.removeAttribute("data-room-artwork"));
@@ -174,7 +180,15 @@ export default function IllustratedRoom({
       window.visualViewport?.removeEventListener("resize", measure);
       onReady(null);
     };
-  }, [revision, unit, theme, moving, onReady, onUnavailable]);
+  }, [
+    revision,
+    unit,
+    theme,
+    moving,
+    interactingWithPanel,
+    onReady,
+    onUnavailable,
+  ]);
 
   // About's reused SVG owns its markup. Only the hydrated, selected image
   // receives the active marker; the server drawing never enters this query.
@@ -182,11 +196,11 @@ export default function IllustratedRoom({
     const element = root.current?.querySelector(
       "[data-illustration-selected] svg.stacks-boot-scene, [data-illustration-selected] img[data-illustration-image]",
     );
-    if (visible && readyKey && !moving) {
+    if (visible && readyKey && !moving && !interactingWithPanel) {
       element?.setAttribute("data-room-artwork", "");
       onReady(readyKey);
     } else element?.removeAttribute("data-room-artwork");
-  }, [visible, readyKey, moving, onReady]);
+  }, [visible, readyKey, moving, interactingWithPanel, onReady]);
 
   return (
     <div
@@ -194,6 +208,7 @@ export default function IllustratedRoom({
       className="room-illustration"
       aria-hidden={!visible}
       data-illustration-visible={visible ? "" : undefined}
+      data-illustration-loading={loading ? "" : undefined}
     >
       <IllustratedTraverse
         unit={unit}
@@ -220,11 +235,14 @@ export default function IllustratedRoom({
           </div>
         ))}
       </IllustratedTraverse>
-      {visible && canRequest3D && (
+      {visible && (
         <div className="room-illustration-actions">
-          <Button variant="outline" size="sm" onClick={onRequest3D}>
-            Retry 3D
-          </Button>
+          <IllustrationStatus loading={loading} />
+          {canRequest3D && (
+            <Button variant="ghost" size="sm" onClick={onRequest3D}>
+              Retry 3D
+            </Button>
+          )}
         </div>
       )}
     </div>

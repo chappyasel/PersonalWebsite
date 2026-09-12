@@ -15,11 +15,11 @@ This implements the approved direction on `feat/illustrated-room`, based on `f54
 
 ## Matching and animation
 
-One boot state machine owns `illustrated`, `dissolve`, `travel`, and `live`. Assets settling and the first frame are necessary but insufficient. The active shelf must pass the saved geometry, pose, content, and projection checks, then paint two matching frames for the current artwork key and recovery epoch.
+One boot state machine owns illustration, dissolve, a final painted-frame acknowledgement, and the live room. Assets settling and the first frame are necessary but insufficient. The active shelf must pass the saved geometry, pose, content, and projection checks, then paint two matching frames for the current artwork key and recovery epoch.
 
-The renderer projects the saved camera through the actual image and canvas rectangles. It compares live geometry against immutable captured probe coordinates with a 3 CSS pixel maximum. Pending nested Suspense content retries within the normal boot deadline. A missing mesh does not become proof of a successful match.
+First paint and hydration place each drawing against the ordinary resting camera. The six captured shelves use a uniform scale and translation fitted from their immutable captured probe coordinates. About projects its shelf geometry, landmark anchors, and reading covers through the viewport camera while retaining its approved glyph paths. Runtime registration compares the resulting image against mounted geometry through the actual resting camera, with a 3 CSS pixel maximum. Pending nested Suspense content retries within the normal boot deadline. A missing mesh does not become proof of a successful match.
 
-During the 160 ms dissolve, the camera and captured shelf pose stay fixed. Camera travel starts at 180 ms and runs for 400 ms into the ordinary live camera pose. Readiness and analytics publish after the renderer paints the arrival frame. Context loss returns to the same reader without replacing its DOM tree.
+During the 160 ms dissolve, the ordinary resting camera and captured shelf pose stay fixed. There is no camera travel or lens interpolation. After the dissolve, the renderer paints an ordinary frame before publishing readiness. Pointer parallax and idle camera motion resume only after promotion. Context loss returns to the same reader without replacing its DOM tree.
 
 ## Artifact integrity
 
@@ -72,3 +72,19 @@ node scripts/verify-illustrated-room-feedback.mjs
 ```
 
 For visual review, `/projects` exercises normal automatic entry. `/projects?hold-boot=1` keeps the illustrated room available for scrolling and layout feedback. The hold is a review switch; normal visits enter 3D automatically.
+
+## Dissolve-in-place checkpoint after 8d45705
+
+Loading uses an abstract sky-to-ground gradient with a small "Loading 3D…" status and "You can explore while it loads." The status stays visible through the dissolve. A settled fallback restores the illustrated meadow and shows "2D view" with an optional retry action.
+
+The drawing starts at the resting 3D camera's scale and position. Both the parser-time script and hydrated layout run the same projection functions, without requiring WebGL. SVG bytes for the six captured shelves are unchanged. Generated metadata now includes immutable world-space layout probes derived from the original capture, not a new prop list.
+
+Touch-down, continuous wheel input, and rail travel synchronously block renderer acknowledgement. React also invalidates registration while a reader panel is expanded, a modal is open, the active shelf changes, or the artwork's viewport rectangle changes. A stale decode, registration promise, or painted-frame callback cannot promote the previous drawing. Scrolling at the row boundary still holds the transition until input stops.
+
+The same held-touch audit exposed a timing race independent of gesture handling. A fractional timeout could fire before the dissolve deadline, leaving the phase unchanged with no timer to advance it. The adapter now rounds the delay upward and rechecks the clock on every wake. Regression tests reproduce the original stall, verify an early wake rearms, and verify unmount cancels that rearmed timer. The live surroundings now render under the fading atmosphere so they do not appear abruptly on the final frame.
+
+The full suite passes 3,969 tests across 468 files, with eight tests skipped. Independent Three.js tests cover all seven resting cameras, both artwork themes, first-paint serialization, and representative desktop and phone viewports. Headless development checks measured a 0.5005px Projects residual and a 0.0174px About phone residual; camera and projection matrices did not change during either dissolve. Four held-touch runs and four continuous-wheel runs resumed automatic entry after settling in the production build, without additional input. Production evidence is recorded in the summary alongside the route and recovery results.
+
+A remaining limit belongs to the saved image variants. At some portrait tablet proportions, neither frozen capture fits the ordinary camera within 3px. The app retains its complete 2D view and offers explicit retry rather than automatically showing a misaligned handoff. Tests pin this behavior at 600×900, 820×1180, and 1024×1366. Covering those proportions automatically requires additional capture views or genuinely reprojectable artwork. About's frozen glyph interiors remain an artistic approximation; its measured shelf corners and anchors are not a claim about every glyph pixel.
+
+No new Field Note qualifies. Automatic presentation and loading still fail quality-bar test 2.

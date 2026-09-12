@@ -1029,5 +1029,261 @@
         "background": "linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
       }
     ]
+  },
+  "dissolveCheckpoint": {
+    "after": "8d45705",
+    "cameraTravel": false,
+    "productionCases": [
+      {
+        "case": "rest-production-about-desktop",
+        "route": "/about",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-about-phone",
+        "route": "/about",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-books-desktop",
+        "route": "/#books",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-books-phone",
+        "route": "/#books",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-musings-desktop",
+        "route": "/musings",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-musings-phone",
+        "route": "/musings",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-projects-desktop",
+        "route": "/projects",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-projects-phone",
+        "route": "/projects",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-systems-desktop",
+        "route": "/#systems",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-systems-phone",
+        "route": "/#systems",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-talks-desktop",
+        "route": "/talks",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-talks-phone",
+        "route": "/talks",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-weightlifting-desktop",
+        "route": "/#weightlifting",
+        "theme": "light",
+        "viewport": [1440, 900],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      },
+      {
+        "case": "rest-production-weightlifting-phone",
+        "route": "/#weightlifting",
+        "theme": "dark",
+        "viewport": [390, 844],
+        "phase": "live",
+        "errors": [],
+        "headless": true,
+        "drawingOpacity": 0
+      }
+    ],
+    "testsPassed": 3969,
+    "testFilesPassed": 468,
+    "testsSkipped": 8,
+    "typecheck": "passed in full production build",
+    "eslint": "full lint passed after the timer-test lint correction",
+    "build": "passed including search and weight-log boundaries",
+    "aboutArtwork": "current",
+    "capturedSvgBytes": "unchanged",
+    "homeOg": "existing freshness receipt is stale; verify:artifacts stops there",
+    "tabletLimit": "Saved variants exceed 3px at some portrait tablet proportions; retain 2D with explicit retry. Tests cover 600\u00d7900, 820\u00d71180, and 1024\u00d71366.",
+    "recovery": [
+      {
+        "name": "no-webgl-navigation",
+        "passed": true,
+        "appearance": {
+          "opacity": "1",
+          "color": "rgb(65, 60, 57)"
+        },
+        "historyReturnedToProjects": true,
+        "errors": []
+      },
+      {
+        "name": "context-loss-reader",
+        "passed": true,
+        "before": {
+          "scroll": 350,
+          "focused": true,
+          "url": "http://localhost:3334/projects"
+        },
+        "after": {
+          "connected": true,
+          "scroll": 350,
+          "focused": true,
+          "url": "http://localhost:3334/projects"
+        },
+        "automaticRecoveryReachedLive": true,
+        "errors": []
+      },
+      {
+        "name": "stale-registration-explicit-retry",
+        "passed": true,
+        "mismatchedArtworkKept2D": true,
+        "explicitRetryReachedLive": true,
+        "errors": []
+      },
+      {
+        "name": "stalled-image-reader",
+        "passed": true,
+        "readerAvailableBeforeDecode": true,
+        "navigationWorked": true,
+        "errors": []
+      },
+      {
+        "name": "failed-image-explicit-retry",
+        "passed": true,
+        "failedImageLeftReaderAvailable": true,
+        "explicitRetryReachedLive": true,
+        "errors": []
+      },
+      {
+        "name": "reduced-motion-document",
+        "passed": true,
+        "semanticDocumentVisible": true,
+        "canvasMounted": false,
+        "errors": []
+      }
+    ],
+    "interactions": [
+      {
+        "mode": "automatic-navigation",
+        "passed": true,
+        "cameraXRange": null,
+        "url": "/#systems"
+      },
+      {
+        "mode": "fallback-wheel",
+        "passed": true,
+        "before": 5760,
+        "after": 7200,
+        "artwork": {
+          "x": 122.859375,
+          "y": 214.78125,
+          "width": 762.046875,
+          "height": 512.03125
+        },
+        "background": "radial-gradient(43% 3.55% at 13% 17.04%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(33% 2.84% at 80% 10.65%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(50% 4.97% at 62% 49.7%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      },
+      {
+        "mode": "fallback-phone",
+        "passed": true,
+        "before": 1560,
+        "after": 1950,
+        "artwork": {
+          "x": -13.640625,
+          "y": 226.65625,
+          "width": 408.640625,
+          "height": 287.484375
+        },
+        "background": "radial-gradient(43% 3.55% at 13% 17.04%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(33% 2.84% at 80% 10.65%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(50% 4.97% at 62% 49.7%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      }
+    ],
+    "deadlineRegression": "An early fractional timeout stalled the dissolve. The timer rounds up and rechecks its deadline; three regression tests pass.",
+    "gestures": {
+      "passed": 8,
+      "heldTouch": 4,
+      "continuousWheel": 4,
+      "base": "http://localhost:3334",
+      "headless": true,
+      "interventionAfterRelease": false
+    }
   }
 }

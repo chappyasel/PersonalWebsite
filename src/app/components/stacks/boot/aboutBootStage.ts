@@ -65,6 +65,12 @@ export type AboutBootStage = {
    * dock truck. The drawables are projected for the canonical desktop eye,
    * and `eyeShift` in the layout carries the difference to them. */
   eyeX: number;
+  camera?: {
+    eye: [number, number, number];
+    aim: [number, number, number];
+    fov: number;
+    imageShiftUp: number;
+  };
 };
 
 /** CSS custom properties the stage is published through. The boot CSS reads
@@ -277,6 +283,7 @@ export function aboutBootStageForViewport(
   vh: number,
   railRightPx: number,
   g: AboutBootStageGeometry,
+  unitIndex = 0,
 ): AboutBootStage {
   const clamp = (value: number, low: number, high: number) =>
     Math.min(high, Math.max(low, value));
@@ -308,7 +315,7 @@ export function aboutBootStageForViewport(
   // aboutStopShift, desktop only: the camera slides right until the shelf's
   // left edge clears the rail by the authored margin.
   let shift = 0;
-  if (!narrow) {
+  if (!narrow && unitIndex === 0) {
     const tanH = Math.tan(radians(cam.fov / 2)) * aspect;
     const frac = (railRightPx + g.railShelfMarginPx) / vw;
     const camX =
@@ -327,7 +334,7 @@ export function aboutBootStageForViewport(
     1,
   );
   const scenePosition = travelled * (g.unitCount - 1);
-  const blend = clamp(scenePosition, 0, 1);
+  const blend = unitIndex === 0 ? clamp(scenePosition, 0, 1) : 1;
 
   // desktopStopFraming's lateral truck: stops 1..6 slide the eye and the aim
   // together so the shelf sits in the gap between the rail and the dock.
@@ -381,7 +388,8 @@ export function aboutBootStageForViewport(
   }
   const stopY = portrait ? 0.25 : cam.y;
   const fov = portrait ? g.portraitFov : cam.fov;
-  const unitZ = g.unitOneZ * blend;
+  const originZ = unitIndex % 2 === 0 ? 0 : g.unitOneZ;
+  const unitZ = unitIndex === 0 ? g.unitOneZ * blend : originZ;
   const camZ = unitZ + overview;
   const lookZ = unitZ + g.lookZOffset;
 
@@ -447,8 +455,8 @@ export function aboutBootStageForViewport(
   const length = Math.hypot(dy, dz);
   const zy = dy / length;
   const zz = dz / length;
-  const depth = eyeY * zy + camZ * zz;
-  const up = -eyeY * zz + camZ * zy;
+  const depth = eyeY * zy + (camZ - originZ) * zz;
+  const up = -eyeY * zz + (camZ - originZ) * zy;
   const focal = safeHeight / 2 / Math.tan(radians(fov / 2));
   const unitPx = focal / depth;
   return {
@@ -456,6 +464,12 @@ export function aboutBootStageForViewport(
     eyeX: shift + lateral,
     originY: safeHeight / 2 - up * unitPx - imageShiftUp,
     unitPx,
+    camera: {
+      eye: [unitIndex * g.unitSpacing + shift + lateral, eyeY, camZ],
+      aim: [unitIndex * g.unitSpacing + shift + lateral, lookY, lookZ],
+      fov,
+      imageShiftUp,
+    },
   };
 }
 

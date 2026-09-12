@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import sharp from "sharp";
+import { Matrix4, Vector3 } from "three";
 
 import { verifyCapturedBooksIdentity } from "./room-artwork-books.mjs";
 import { verifyCapturedClockRotation } from "./room-artwork-clock.mjs";
@@ -109,6 +110,8 @@ export async function generate({ root = ROOT, check = false } = {}) {
     )
       throw new Error(`Changed approved input ${entry.unit}/${entry.label}`);
     const capture = JSON.parse(captureBytes.toString());
+    /** @type {import("../../src/app/components/stacks/illustration/artwork/types").RoomArtworkRegistration["probes"]} */
+    const layoutProbes = capture.probes;
     await verifyCapturedBooksIdentity(capture, read);
     verifyCapturedClockRotation(capture);
     const svg = await inlineDetails(original.toString(), entry.details, read);
@@ -140,6 +143,13 @@ export async function generate({ root = ROOT, check = false } = {}) {
       unitWorldPrecisionDecimals: capture.unitWorldPrecisionDecimals,
       registrationSrc,
       registrationAvailable: capture.registrationAvailable,
+      layoutPoints: layoutProbes.map((probe) =>
+        new Vector3()
+          .fromArray(probe.capturedCoordinates ?? probe.sample.coordinates)
+          .applyMatrix4(new Matrix4().fromArray(probe.localMatrix))
+          .applyMatrix4(new Matrix4().fromArray(capture.unitWorld))
+          .toArray(),
+      ),
     };
     catalog[`${entry.index}/${entry.label}`] = metadata;
     const registration = {

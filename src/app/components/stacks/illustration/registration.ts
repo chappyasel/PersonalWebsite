@@ -4,7 +4,13 @@ import {
 } from "../scene/aboutBootComposition";
 import { projectAboutBootPoint } from "../scene/aboutBootPerspective";
 import { SHELF_PLANKS, SHELF_SURFACE } from "../scene/shelfGeometry";
-import { Matrix4, Mesh, type Object3D, Vector3 } from "three";
+import {
+  Matrix4,
+  Mesh,
+  type Object3D,
+  type PerspectiveCamera,
+  Vector3,
+} from "three";
 
 import { aboutIllustrationProjection } from "./aboutProjection";
 import type { RoomArtworkRegistration } from "./artwork";
@@ -55,6 +61,7 @@ export async function registerCapturedShelf(
   box: Rectangle,
   viewport: Rectangle,
   dataIdentity?: string,
+  restCamera?: PerspectiveCamera,
 ): Promise<RegisteredShelf> {
   if (!source.registrationAvailable || !source.unitWorld)
     throw new Error(
@@ -106,15 +113,18 @@ export async function registerCapturedShelf(
     if (pose !== owner.poseSha256 || identity !== owner.geometryIdentitySha256)
       throw new Error(`Saved mesh identity changed: ${owner.id}`);
   }
-  const world = new Matrix4().fromArray(source.camera.world);
+  const captureWorld = new Matrix4().fromArray(source.camera.world);
+  const world = restCamera?.matrixWorld.clone() ?? captureWorld;
   const capturedProjection = new Matrix4().fromArray(source.camera.projection);
-  const projection = rebaseProjection(
-    source.camera.projection,
-    source.raster,
-    source.viewBox,
-    box,
-    viewport,
-  );
+  const projection =
+    restCamera?.projectionMatrix.clone() ??
+    rebaseProjection(
+      source.camera.projection,
+      source.raster,
+      source.viewBox,
+      box,
+      viewport,
+    );
   const capturedUnit = new Matrix4().fromArray(source.unitWorld);
   const residuals = source.probes.map((probe) => {
     const mesh = paths.get(probe.path);
@@ -139,7 +149,7 @@ export async function registerCapturedShelf(
     capturePoint
       .applyMatrix4(new Matrix4().fromArray(probe.localMatrix))
       .applyMatrix4(capturedUnit);
-    const pixel = cssPoint(capturePoint, world, capturedProjection, {
+    const pixel = cssPoint(capturePoint, captureWorld, capturedProjection, {
       x: 0,
       y: 0,
       width: source.raster[0]!,
@@ -166,11 +176,27 @@ export function registerAboutShelf(
   unit: Object3D,
   box: Rectangle,
   viewport: Rectangle,
+  restCamera?: PerspectiveCamera,
 ): RegisteredShelf {
   const structure = unit.getObjectByName("shelf-structure:0");
   if (!structure?.parent)
     throw new ShelfNotMountedError("About shelf has not mounted");
-  const { world, projection } = aboutIllustrationProjection(box, viewport);
+  const { world, projection } = restCamera
+    ? {
+        world: restCamera.matrixWorld.clone(),
+        projection: restCamera.projectionMatrix.clone(),
+      }
+    : aboutIllustrationProjection(box, viewport);
+  const drawingCamera = restCamera
+    ? {
+        eye: restCamera.position.toArray() as [number, number, number],
+        aim: restCamera
+          .getWorldDirection(new Vector3())
+          .add(restCamera.position)
+          .toArray() as [number, number, number],
+        unitYaw: unit.rotation.y,
+      }
+    : undefined;
   const cache = new Map<Object3D, Matrix4>();
   const meshes = new Map<Mesh, Matrix4>();
   structure.parent.traverse((node) => {
@@ -205,7 +231,7 @@ export function registerAboutShelf(
         plank.thickness / 2 + plank.centerY,
         ((corner < 2 ? -1 : 1) * plank.depth) / 2 + plank.centerZ,
       ] as const;
-      const projected = projectAboutBootPoint(authored);
+      const projected = projectAboutBootPoint(authored, drawingCamera);
       const expected = artworkPoint(
         [projected.x * 100, -projected.y * 100],
         [-150, -108, 300, 230],
@@ -232,11 +258,10 @@ export function registerAboutShelf(
     if (!root || !physicalMesh)
       throw new ShelfNotMountedError(`About ${id} has not mounted`);
     const landmark = ABOUT_BOOT_LANDMARKS[id];
-    const projected = projectAboutBootPoint([
-      landmark.x,
-      SHELF_SURFACE[landmark.shelf],
-      landmark.z,
-    ]);
+    const projected = projectAboutBootPoint(
+      [landmark.x, SHELF_SURFACE[landmark.shelf], landmark.z],
+      drawingCamera,
+    );
     const expected = artworkPoint(
       [projected.x * 100, -projected.y * 100],
       [-150, -108, 300, 230],

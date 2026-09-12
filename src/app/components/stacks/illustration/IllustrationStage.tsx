@@ -7,6 +7,7 @@ import type { CSSProperties } from "react";
 
 import type { ReadingBookEdgeColor } from "~/lib/books/coverEdgeColor";
 
+import { IllustrationFrame } from "./IllustrationFrame";
 import {
   RoomArtworkImage,
   type RoomArtworkTheme,
@@ -39,8 +40,8 @@ export function IllustrationStage({
   const displayWidth = (asset: typeof desktop) =>
     asset ? (500 * asset.viewBox[2]!) / asset.drawingWidth : 500;
   return (
-    <div
-      className="room-illustration-stage"
+    <IllustrationFrame
+      unitIndex={unitIndex}
       style={
         {
           "--room-artwork-desktop-width": `${displayWidth(desktop)}px`,
@@ -54,27 +55,30 @@ export function IllustrationStage({
         } as CSSProperties
       }
     >
-      {unitIndex === 0 ? (
-        <div className="room-illustration-about">
-          <BootScreenArtwork
-            readingBooks={readingBooks}
-            readingBookColors={readingBookColors}
+      {(camera) =>
+        unitIndex === 0 ? (
+          <div className="room-illustration-about">
+            <BootScreenArtwork
+              readingBooks={readingBooks}
+              readingBookColors={readingBookColors}
+              camera={camera}
+            />
+          </div>
+        ) : desktop && !unavailable ? (
+          <RoomArtworkImage
+            unitIndex={unitIndex}
+            theme={theme}
+            viewport={viewport}
+            data-illustration-image=""
+            pictureClassName="room-illustration-picture"
+            alt={`${UNITS[unitIndex]?.label ?? "Room"} shelf illustration`}
           />
-        </div>
-      ) : desktop && !unavailable ? (
-        <RoomArtworkImage
-          unitIndex={unitIndex}
-          theme={theme}
-          viewport={viewport}
-          data-illustration-image=""
-          pictureClassName="room-illustration-picture"
-          alt={`${UNITS[unitIndex]?.label ?? "Room"} shelf illustration`}
-        />
-      ) : (
-        <p className="room-illustration-unavailable" role="status">
-          The illustration is unavailable. You can still read this section.
-        </p>
-      )}
-    </div>
+        ) : (
+          <p className="room-illustration-unavailable" role="status">
+            The illustration is unavailable. You can still read this section.
+          </p>
+        )
+      }
+    </IllustrationFrame>
   );
 }

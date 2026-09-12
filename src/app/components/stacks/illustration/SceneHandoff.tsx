@@ -1,8 +1,8 @@
 "use client";
 
-import { WORLD_BOOT_POLICY } from "../boot/worldBootPolicy";
 import { worldBoot } from "../boot/worldBootSession";
 import type { StacksData } from "../data";
+import { useStacks } from "../store";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import {
@@ -21,6 +21,7 @@ import {
   serializeRoomBooksArtworkIdentity,
 } from "./artwork";
 import { handoffCamera } from "./handoffCamera";
+import { illustrationInteraction } from "./illustrationInteraction";
 import type { Rectangle } from "./projection";
 import {
   type RegisteredShelf,
@@ -163,7 +164,9 @@ function ActiveSceneHandoff({
           const asset = getRoomArtwork(
             unit,
             element.dataset.theme === "dark" ? "dark" : "light",
-            innerWidth < 600 ? "phone" : "desktop",
+            innerWidth < 1200 && innerWidth / innerHeight <= 0.75
+              ? "phone"
+              : "desktop",
           );
           if (!asset) throw new Error("No artwork for this room stop");
           const response = await fetch(asset.registrationSrc, {
@@ -220,6 +223,7 @@ function ActiveSceneHandoff({
       if (
         args[2] !== camera ||
         current.epoch !== scope.epoch ||
+        illustrationInteraction.moving ||
         current.illustrationKey !== r.target?.key
       )
         return;
@@ -264,6 +268,16 @@ function ActiveSceneHandoff({
     r.armed = false;
     const current = worldBoot.getView();
     const target = r.target;
+    const room = useStacks.getState();
+    if (
+      illustrationInteraction.moving ||
+      room.panelState !== "closed" ||
+      room.modalOpen
+    ) {
+      r.painted = 0;
+      r.arrived = false;
+      return;
+    }
     if (process.env.NODE_ENV === "development") {
       const debug = window as Window & { __roomHandoff?: object };
       debug.__roomHandoff = {
@@ -308,6 +322,8 @@ function ActiveSceneHandoff({
       const unit = scene.getObjectByName(`room-unit:${target.unit}`);
       if (!unit) return;
       scene.updateMatrixWorld(true);
+      camera.updateMatrixWorld(true);
+      const restCamera = (camera as PerspectiveCamera).clone();
       r.preparing = true;
       void Promise.resolve()
         .then(() =>
@@ -318,8 +334,9 @@ function ActiveSceneHandoff({
                 target.box,
                 target.viewport,
                 target.dataIdentity,
+                restCamera,
               )
-            : registerAboutShelf(unit, target.box, target.viewport),
+            : registerAboutShelf(unit, target.box, target.viewport, restCamera),
         )
         .then((shelf) => {
           if (
@@ -359,6 +376,9 @@ function ActiveSceneHandoff({
             (window as Window & { __roomHandoff?: unknown }).__roomHandoff = {
               key: target.key,
               error: r.lastError,
+              restCamera: restCamera.matrixWorld.toArray(),
+              restProjection: restCamera.projectionMatrix.toArray(),
+              box: target.box,
             };
           }
           scope.send({ type: "illustrationUnavailable", key: target.key });
@@ -389,7 +409,11 @@ function ActiveSceneHandoff({
         if (rest) {
           node.matrixWorldAutoUpdate = false;
           node.matrixWorld.copy(rest);
-        } else node.visible = false;
+        } else if (current.presentation === "illustrated") {
+          node.visible = false;
+        }
+        // The ordinary surroundings appear beneath the fading atmosphere,
+        // so plants and meadow do not pop in on the final frame.
       }
       r.nodesOverridden = true;
       r.armed = true;
@@ -397,32 +421,9 @@ function ActiveSceneHandoff({
       current.presentation === "travel" &&
       current.handoffStartedAt !== null
     ) {
-      const t = Math.min(
-        1,
-        Math.max(
-          0,
-          (now -
-            current.handoffStartedAt -
-            WORLD_BOOT_POLICY.illustrationTravelDelayMs) /
-            WORLD_BOOT_POLICY.illustrationTravelMs,
-        ),
-      );
-      const ease = 1 - Math.pow(1 - t, 3);
-      camera.position.lerpVectors(r.startPosition, r.ordinary.position, ease);
-      camera.quaternion.slerpQuaternions(
-        r.startQuaternion,
-        r.ordinary.quaternion,
-        ease,
-      );
-      camera.updateMatrixWorld(true);
-      for (let i = 0; i < 16; i++)
-        camera.projectionMatrix.elements[i] =
-          r.shelf.projection.elements[i]! +
-          (r.ordinary.projectionMatrix.elements[i]! -
-            r.shelf.projection.elements[i]!) *
-            ease;
-      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-      r.arrived = t === 1;
+      // The drawing was placed against this ordinary camera. The final
+      // handoff step only acknowledges a painted frame; it never moves it.
+      r.arrived = true;
     }
   });
   return null;

@@ -1,10 +1,12 @@
 import BootScreen from "../dom/BootScreen";
 import type { CSSProperties } from "react";
 
+import { IllustrationFrame } from "./IllustrationFrame";
 import {
   IllustrationStage,
   type IllustrationStageProps,
 } from "./IllustrationStage";
+import { IllustrationStatus } from "./IllustrationStatus";
 import { getRoomArtwork } from "./artwork/getRoomArtwork";
 import "./roomBootShell.css";
 
@@ -30,13 +32,16 @@ function FirstPaintArtwork(props: Omit<RoomBootShellProps, "illustrated">) {
     }
   }
   return (
-    <div className="room-illustration-stage" style={style as CSSProperties}>
+    <IllustrationFrame
+      unitIndex={props.unitIndex}
+      style={style as CSSProperties}
+    >
       <div
         className="room-first-paint-artwork"
         role="img"
         aria-label={`${fallback.unit} shelf illustration`}
       />
-    </div>
+    </IllustrationFrame>
   );
 }
 
@@ -53,9 +58,16 @@ export default function RoomBootShell({
       />
     );
   return (
-    <div className="room-first-paint room-illustration" aria-hidden>
+    <div
+      className="room-first-paint room-illustration"
+      data-illustration-loading
+      aria-hidden
+    >
       <FirstPaintArtwork {...props} />
       <span className="room-first-paint-name">Chappy Asel</span>
+      <div className="room-illustration-actions">
+        <IllustrationStatus loading />
+      </div>
     </div>
   );
 }

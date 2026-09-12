@@ -2,13 +2,16 @@
 import type { StacksData } from "../data";
 import { useStacks } from "../store";
 import { act, cleanup, render } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import IllustratedRoom from "./IllustratedRoom";
 
 vi.mock("./IllustratedTraverse", () => ({
-  IllustratedTraverse: ({ children }: { children: ReactNode }) => children,
+  IllustratedTraverse: ({ children }: { children: ReactNode }) => (
+    <div className="room-illustration-traverse">{children}</div>
+  ),
 }));
 
 vi.mock("../dom/BootScreen", () => ({
@@ -158,7 +161,12 @@ it("keeps a failed drawing unregistered and offers explicit retry without owning
   await act(async () => {
     await Promise.resolve();
   });
-  expect(view.getByRole("status").textContent).toContain("still read");
+  expect(
+    view.getByText(/The illustration is unavailable/).getAttribute("role"),
+  ).toBe("status");
+  expect(view.getByRole("status", { name: "Room view" }).textContent).toBe(
+    "2D view",
+  );
   expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
   expect(onReady).toHaveBeenLastCalledWith(null);
   expect(onUnavailable).toHaveBeenCalled();
@@ -182,9 +190,81 @@ it("leaves unsupported Golf unregistered instead of showing a Books drawing", ()
       onUnavailable={vi.fn()}
     />,
   );
-  expect(view.getByRole("status").textContent).toContain("still read");
+  expect(
+    view.getByText(/The illustration is unavailable/).getAttribute("role"),
+  ).toBe("status");
   expect(
     view.container.querySelector("[data-illustration-selected] img"),
   ).toBeNull();
   expect(onReady).toHaveBeenLastCalledWith(null);
+});
+
+it("keeps the loading message readable through dissolve, then retires it with the illustration", async () => {
+  const styles = readFileSync(
+    "src/app/components/stacks/illustration/roomBootShell.css",
+    "utf8",
+  );
+  const props = {
+    data,
+    theme: "light" as const,
+    viewport: "desktop" as const,
+    visible: true,
+    loading: true,
+    canRequest3D: false,
+    onRequest3D: vi.fn(),
+    onReady: vi.fn(),
+    onUnavailable: vi.fn(),
+  };
+  const content = (presentation: "illustrated" | "dissolve" | "live") => (
+    <>
+      <style>{styles}</style>
+      <div className="stacks-world-shell" data-room-presentation={presentation}>
+        <IllustratedRoom {...props} visible={presentation !== "live"} />
+      </div>
+    </>
+  );
+  const view = render(content("illustrated"));
+  await act(async () => Promise.resolve());
+  const status = view.getByRole("status", { name: "Room view" });
+  expect(status.textContent).toContain("Loading 3D…");
+  expect(status.textContent).toContain("You can explore while it loads.");
+  expect(status.getAttribute("aria-atomic")).toBe("true");
+  expect(
+    view.container.querySelector("[data-illustration-loading]"),
+  ).not.toBeNull();
+  view.rerender(content("dissolve"));
+  const drawing = view.container.querySelector(".room-illustration-traverse")!;
+  expect(getComputedStyle(drawing).opacity).toBe("0");
+  expect(
+    getComputedStyle(view.container.querySelector(".room-illustration")!)
+      .opacity,
+  ).toBe("1");
+  expect(drawing.contains(status)).toBe(false);
+  expect(view.getByRole("status", { name: "Room view" })).toBe(status);
+  view.rerender(content("live"));
+  expect(view.queryByRole("status", { name: "Room view" })).toBeNull();
+});
+
+it("replaces loading copy with a quiet 2D label when the illustrated view settles", async () => {
+  const props = {
+    data,
+    theme: "dark" as const,
+    viewport: "phone" as const,
+    visible: true,
+    canRequest3D: false,
+    onRequest3D: vi.fn(),
+    onReady: vi.fn(),
+    onUnavailable: vi.fn(),
+  };
+  const view = render(<IllustratedRoom {...props} loading />);
+  await act(async () => Promise.resolve());
+  const status = view.getByRole("status", { name: "Room view" });
+  view.rerender(<IllustratedRoom {...props} loading={false} />);
+  expect(view.getByRole("status", { name: "Room view" })).toBe(status);
+  expect(status.textContent).toBe("2D view");
+  expect(status.children).toHaveLength(1);
+  expect(
+    view.container.querySelector("[data-illustration-loading]"),
+  ).toBeNull();
+  expect(view.queryByText("You can explore while it loads.")).toBeNull();
 });

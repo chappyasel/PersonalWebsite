@@ -26,6 +26,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import SceneHandoff from "./SceneHandoff";
 import { handoffCamera } from "./handoffCamera";
+import { illustrationInteraction } from "./illustrationInteraction";
 import type * as RegistrationModule from "./registration";
 import { type RegisteredShelf, ShelfNotMountedError } from "./registration";
 
@@ -222,6 +223,7 @@ async function dissolve() {
 }
 
 beforeEach(() => {
+  illustrationInteraction.moving = false;
   harness.frames.clear();
   harness.listeners.clear();
   harness.sent = [];
@@ -596,7 +598,9 @@ it("keeps a prepared match when unrelated data gets a new object identity", asyn
   expect(signals("illustrationRegistered")).toHaveLength(1);
 });
 
-it("reports camera arrival only after the ordinary final pose actually renders", async () => {
+it("dissolves in place and reports completion only after the ordinary pose paints", async () => {
+  shelf.world.copy(ordinaryCamera.matrixWorld);
+  shelf.projection.copy(ordinaryCamera.projectionMatrix);
   await dissolve();
   const started = harness.view.handoffStartedAt!;
   harness.now = started + P.illustrationTravelDelayMs - 1;
@@ -604,17 +608,14 @@ it("reports camera arrival only after the ordinary final pose actually renders",
   await frame();
   expectMatrix(harness.three.camera.matrixWorld, shelf.world);
   expect(harness.view.revealed).toBe(false);
+  expect(outside.visible).toBe(true);
+  expect(hidden.visible).toBe(false);
 
   harness.now = started + P.illustrationTravelDelayMs;
   act(() => dispatch({ type: "tick", at: harness.now }));
   await frame();
-  paint();
   expect(harness.view.presentation).toBe("travel");
-  const arrival = harness.now + P.illustrationTravelMs;
-  await frame(arrival - 1);
-  paint();
-  expect(signals("illustrationTravelCompleted")).toEqual([]);
-  await frame(arrival);
+  const arrival = harness.now;
   expect(harness.three.camera.position.toArray()).toEqual(
     ordinaryCamera.position.toArray(),
   );
@@ -629,6 +630,17 @@ it("reports camera arrival only after the ordinary final pose actually renders",
     { type: "illustrationTravelCompleted", key: KEY, epoch: 1, at: arrival },
   ]);
   expect(harness.view).toMatchObject({ presentation: "live", revealed: true });
+});
+
+it("rejects a paint acknowledgement when a gesture starts before React commits", async () => {
+  await dissolve();
+  harness.now = harness.view.handoffStartedAt! + P.illustrationTravelDelayMs;
+  act(() => dispatch({ type: "tick", at: harness.now }));
+  await frame();
+  illustrationInteraction.moving = true;
+  paint();
+  expect(signals("illustrationTravelCompleted")).toEqual([]);
+  expect(harness.view.revealed).toBe(false);
 });
 
 it.each(["unmount", "motion off"] as const)(
