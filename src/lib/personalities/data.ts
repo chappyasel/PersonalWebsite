@@ -12,6 +12,7 @@ export type Assessment = {
   id: string;
   personId: string;
   takenOn: string | null;
+  dateEstimated?: boolean;
   addedAt: string;
   source: string;
   externalResultId: string | null;

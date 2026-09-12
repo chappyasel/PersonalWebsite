@@ -1,0 +1,17 @@
+/* Radix hides native scrollbars by default; this select uses them instead of arrows. */
+.viewport[data-radix-select-viewport] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+}
+
+.viewport[data-radix-select-viewport]::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+}
+
+.viewport[data-radix-select-viewport]::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: hsl(var(--muted-foreground) / 0.4);
+  background-clip: padding-box;
+}

@@ -8,6 +8,8 @@ export const env = createEnv({
    */
   server: {
     DATABASE_URL: z.string().url(),
+    PERSONALITIES_DATABASE_URL: z.string().url().optional(),
+    PERSONALITIES_ORIGIN: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -53,6 +55,8 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    PERSONALITIES_DATABASE_URL: process.env.PERSONALITIES_DATABASE_URL,
+    PERSONALITIES_ORIGIN: process.env.PERSONALITIES_ORIGIN,
     NODE_ENV: process.env.NODE_ENV,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,

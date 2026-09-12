@@ -1,0 +1,269 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+}
+.heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.heading h2 {
+  font:
+    30px Georgia,
+    serif;
+  letter-spacing: -0.035em;
+}
+.heading p {
+  font-size: 13px;
+  color: #617171;
+  margin-top: 8px;
+}
+.controls {
+  flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.controls > button {
+  width: 130px;
+}
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.map {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  overflow: visible;
+}
+.grid line {
+  stroke: #e1e6e1;
+  stroke-dasharray: 3 5;
+}
+.zero line {
+  stroke: #a6b5ac;
+}
+.grid text,
+.zero text {
+  font-size: 11px;
+  fill: #68776f;
+}
+.axis {
+  font-size: 13px;
+  fill: #526259;
+}
+.point {
+  cursor: pointer;
+  outline: none;
+}
+.point:focus-visible > circle {
+  stroke: #182a2a;
+  stroke-width: 2;
+}
+.name {
+  font-size: 12px;
+  fill: #182a2a;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: #fafbf9;
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 12px;
+  color: #617171;
+}
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.note,
+.method {
+  font-size: 12px;
+  color: #617171;
+  line-height: 1.7;
+  margin-top: 12px;
+}
+.sidebar {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+.card {
+  padding: 20px;
+}
+.card h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.weights {
+  margin-top: 20px;
+}
+.weights h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.weight {
+  display: grid;
+  grid-template-columns: 115px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  margin: 9px 0;
+  font-size: 11px;
+}
+.weight strong,
+.variance strong {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.bar {
+  height: 13px;
+  position: relative;
+  background: #f0f4ef;
+  border-radius: 2px;
+}
+.bar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  border-left: 1px solid #b3bfb8;
+}
+.bar i {
+  position: absolute;
+  height: 100%;
+  border-radius: 2px;
+}
+.variance {
+  display: grid;
+  grid-template-columns: 30px 1fr 42px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  margin-top: 12px;
+}
+.variance > div {
+  height: 8px;
+  background: #edf1eb;
+  border-radius: 3px;
+}
+.variance i {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+.scores {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 12px;
+}
+.scores > div {
+  display: flex;
+  justify-content: space-between;
+}
+.scores strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.scores small {
+  color: #617171;
+  font-weight: 400;
+}
+.method {
+  grid-column: 1/-1;
+  margin: 0;
+}
+.empty {
+  padding: 30px;
+}
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .heading h2 {
+    font-size: 26px;
+  }
+  .name {
+    font-size: 14px;
+  }
+}
+
+.axisReading {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #526259;
+  margin: 8px 0;
+}
+.axisReading strong {
+  font-weight: 600;
+}
+.clusterSection {
+  grid-column: 1/-1;
+}
+.clusterHeading h3 {
+  font:
+    26px Georgia,
+    serif;
+  letter-spacing: -0.025em;
+}
+.clusterHeading p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #617171;
+  margin-top: 8px;
+}
+.clusterCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.clusterDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.clusterLabel {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 14px;
+}
+.members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 18px;
+}
+.hiddenMember {
+  font-size: 12px;
+  color: #617171;
+  padding: 6px;
+}

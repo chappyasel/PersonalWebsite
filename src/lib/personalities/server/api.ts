@@ -5,20 +5,24 @@ import {
   object,
   optionalText,
   takenOn,
-  text,
   validateAssessment,
   validatePerson,
 } from "../validation";
 import "server-only";
 
-import { db, passwordHash } from "./database";
+import { isValidDadPassword } from "~/lib/dad/access";
+
+import { personalitiesEnabled, requestOrigin } from "./config";
+import { db } from "./database";
 import {
+  clientAddress,
   cookie,
   digest,
+  passwordVersion,
   sessionToken,
   token,
-  verifyPassword,
 } from "./security";
+import { env } from "~/env";
 
 const SITE = "private";
 const SESSION_SECONDS = 60 * 60 * 24;
@@ -50,7 +54,7 @@ async function limited(key: string, max: number, seconds: number) {
   const now = Date.now();
   const result = await db()
     .prepare(
-      "INSERT INTO rate_limits (key,count,expires_at) VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires_at<=? THEN 1 ELSE count+1 END, expires_at=CASE WHEN expires_at<=? THEN excluded.expires_at ELSE expires_at END RETURNING count",
+      "INSERT INTO personality_rate_limits (key,count,expires_at) VALUES ($1,1,$2) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN personality_rate_limits.expires_at<=$3 THEN 1 ELSE personality_rate_limits.count+1 END, expires_at=CASE WHEN personality_rate_limits.expires_at<=$4 THEN excluded.expires_at ELSE personality_rate_limits.expires_at END RETURNING count",
     )
     .bind(key, now + seconds * 1000, now, now)
     .first<{ count: number }>();
@@ -61,11 +65,9 @@ async function limited(key: string, max: number, seconds: number) {
     );
 }
 function csrf(request: Request) {
-  const configured = process.env.PERSONALITIES_ORIGIN;
-  const origin =
-    configured ??
-    `${new URL(request.url).protocol}//${request.headers.get("host") ?? new URL(request.url).host}`;
+  const origin = requestOrigin(request);
   if (
+    !origin ||
     request.headers.get("origin") !== origin ||
     request.headers.get("x-personality-request") !== "1" ||
     !request.headers.get("content-type")?.startsWith("application/json")
@@ -102,9 +104,9 @@ async function requireSession(request: Request) {
   if (!value) throw new HttpError(401, "Unlock the library to continue.");
   const session = await db()
     .prepare(
-      "SELECT site_id FROM sessions WHERE token_hash=? AND expires_at>? AND password_version=?",
+      "SELECT site_id FROM personality_sessions WHERE token_hash=$1 AND expires_at>$2 AND password_version=$3",
     )
-    .bind(digest(value), Date.now(), digest(passwordHash()))
+    .bind(digest(value), Date.now(), passwordVersion(env.DAD_CONTENT_PASSWORD))
     .first<{ site_id: string }>();
   if (session?.site_id !== SITE)
     throw new HttpError(
@@ -115,7 +117,7 @@ async function requireSession(request: Request) {
 }
 async function personInSite(id: string, site: string) {
   const row = await db()
-    .prepare("SELECT id FROM people WHERE id=? AND site_id=?")
+    .prepare("SELECT id FROM personality_people WHERE id=$1 AND site_id=$2")
     .bind(id, site)
     .first();
   if (!row) throw new HttpError(404, "Person not found.");
@@ -125,6 +127,7 @@ function assessment(row: Record<string, unknown>): Assessment {
     id: String(row.id),
     personId: String(row.person_id),
     takenOn: row.taken_on as string | null,
+    dateEstimated: row.date_estimated === true,
     addedAt: String(row.added_at),
     source: String(row.source),
     externalResultId: row.external_result_id as string | null,
@@ -132,10 +135,8 @@ function assessment(row: Record<string, unknown>): Assessment {
     testVersion: String(row.test_version),
     scoreKind: row.score_kind as Assessment["scoreKind"],
     scoreMax: row.score_max as 100 | 120,
-    scores: JSON.parse(String(row.scores)) as Assessment["scores"],
-    facets: row.facet_scores
-      ? (JSON.parse(row.facet_scores as string) as Assessment["facets"])
-      : [],
+    scores: row.scores as Assessment["scores"],
+    facets: row.facet_scores ? (row.facet_scores as Assessment["facets"]) : [],
     notes: String(row.notes),
   };
 }
@@ -146,7 +147,7 @@ async function saveAssessment(input: unknown, site: string) {
   if (a.importKey) {
     const found = await db()
       .prepare(
-        "SELECT a.id FROM assessments a JOIN people p ON p.id=a.person_id WHERE a.import_key=? AND p.site_id=?",
+        "SELECT a.id FROM personality_assessments a JOIN personality_people p ON p.id=a.person_id WHERE a.import_key=$1 AND p.site_id=$2",
       )
       .bind(a.importKey, site)
       .first<{ id: string }>();
@@ -154,7 +155,7 @@ async function saveAssessment(input: unknown, site: string) {
   }
   await db()
     .prepare(
-      "INSERT INTO assessments (id,person_id,taken_on,added_at,source,external_result_id,source_reference,test_version,score_kind,score_max,scores,facet_scores,notes,import_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO personality_assessments (id,person_id,taken_on,added_at,source,external_result_id,source_reference,test_version,score_kind,score_max,scores,facet_scores,notes,import_key,date_estimated) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::text::jsonb,$12::text::jsonb,$13,$14,$15)",
     )
     .bind(
       id,
@@ -171,19 +172,16 @@ async function saveAssessment(input: unknown, site: string) {
       JSON.stringify(a.facets),
       a.notes,
       a.importKey ?? null,
+      a.dateEstimated === true,
     )
     .run();
   return { id };
 }
 export async function handle(request: Request) {
   try {
-    if (process.env.NODE_ENV !== "development")
-      return json({ error: "Not found." }, 404);
-    const hostname = new URL(
-      `http://${request.headers.get("host") ?? new URL(request.url).host}`,
-    ).hostname;
-    if (!["localhost", "127.0.0.1", "[::1]"].includes(hostname))
-      return json({ error: "Local access only." }, 403);
+    if (!personalitiesEnabled()) return json({ error: "Not found." }, 404);
+    if (!requestOrigin(request))
+      return json({ error: "Request host could not be verified." }, 403);
     const path = new URL(request.url).pathname
       .replace("/api/personalities", "/api")
       .replace(/\/$/, "");
@@ -191,35 +189,37 @@ export async function handle(request: Request) {
     if (method !== "GET") csrf(request);
     if (path === "/api/login" && method === "POST") {
       const data = await body(request);
-      const password = text(data.password, "password", 200);
+      const password = data.password;
+      if (typeof password !== "string" || !password || password.length > 256)
+        throw new InputError("Enter a valid password.");
       await limited("login-global", 100, 600);
-      await limited(
-        "login-" + digest(request.headers.get("cf-connecting-ip") ?? "local"),
-        10,
-        600,
-      );
-      if (!verifyPassword(password, passwordHash()))
+      await limited("login-" + digest(clientAddress(request)), 10, 600);
+      if (!isValidDadPassword(password, env.DAD_CONTENT_PASSWORD))
         throw new HttpError(401, "Incorrect password.");
       const now = Date.now();
       await db().batch([
         db()
           .prepare(
-            "INSERT INTO private_sites (id,password_hash,created_at) VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET password_hash=excluded.password_hash",
+            "INSERT INTO personality_sites (id,created_at) VALUES ($1,$2) ON CONFLICT(id) DO NOTHING",
           )
-          .bind(SITE, passwordHash(), new Date().toISOString()),
-        db().prepare("DELETE FROM sessions WHERE expires_at<=?").bind(now),
-        db().prepare("DELETE FROM rate_limits WHERE expires_at<=?").bind(now),
+          .bind(SITE, new Date().toISOString()),
+        db()
+          .prepare("DELETE FROM personality_sessions WHERE expires_at<=$1")
+          .bind(now),
+        db()
+          .prepare("DELETE FROM personality_rate_limits WHERE expires_at<=$1")
+          .bind(now),
       ]);
       const value = token();
       await db()
         .prepare(
-          "INSERT INTO sessions (token_hash,site_id,expires_at,password_version) VALUES (?,?,?,?)",
+          "INSERT INTO personality_sessions (token_hash,site_id,expires_at,password_version) VALUES ($1,$2,$3,$4)",
         )
         .bind(
           digest(value),
           SITE,
           now + SESSION_SECONDS * 1000,
-          digest(passwordHash()),
+          passwordVersion(env.DAD_CONTENT_PASSWORD),
         )
         .run();
       return json({ ok: true }, 200, {
@@ -230,7 +230,7 @@ export async function handle(request: Request) {
     if (path === "/api/logout" && method === "POST") {
       const value = sessionToken(request)!;
       await db()
-        .prepare("DELETE FROM sessions WHERE token_hash=?")
+        .prepare("DELETE FROM personality_sessions WHERE token_hash=$1")
         .bind(digest(value))
         .run();
       return json({ ok: true }, 200, { "Set-Cookie": cookie(request, "", 0) });
@@ -239,13 +239,13 @@ export async function handle(request: Request) {
       const [persons, results] = await Promise.all([
         db()
           .prepare(
-            "SELECT id,name,group_name,created_at FROM people WHERE site_id=? ORDER BY CASE group_name WHEN 'You' THEN 0 ELSE 1 END,name",
+            "SELECT id,name,group_name,created_at FROM personality_people WHERE site_id=$1 ORDER BY CASE group_name WHEN 'You' THEN 0 ELSE 1 END,name",
           )
           .bind(site)
           .all(),
         db()
           .prepare(
-            "SELECT a.* FROM assessments a JOIN people p ON p.id=a.person_id WHERE p.site_id=? ORDER BY a.taken_on DESC,a.added_at DESC",
+            "SELECT a.* FROM personality_assessments a JOIN personality_people p ON p.id=a.person_id WHERE p.site_id=$1 ORDER BY a.taken_on DESC NULLS LAST,a.added_at DESC,a.id",
           )
           .bind(site)
           .all(),
@@ -265,7 +265,9 @@ export async function handle(request: Request) {
       const p = validatePerson(await body(request));
       if (p.importKey) {
         const found = await db()
-          .prepare("SELECT id FROM people WHERE site_id=? AND import_key=?")
+          .prepare(
+            "SELECT id FROM personality_people WHERE site_id=$1 AND import_key=$2",
+          )
           .bind(site, p.importKey)
           .first();
         if (found) return json(found);
@@ -273,7 +275,7 @@ export async function handle(request: Request) {
       const id = crypto.randomUUID();
       await db()
         .prepare(
-          "INSERT INTO people (id,site_id,name,group_name,created_at,import_key) VALUES (?,?,?,?,?,?)",
+          "INSERT INTO personality_people (id,site_id,name,group_name,created_at,import_key) VALUES ($1,$2,$3,$4,$5,$6)",
         )
         .bind(id, site, p.name, p.group, new Date().toISOString(), p.importKey)
         .run();
@@ -299,18 +301,33 @@ export async function handle(request: Request) {
       const id = match[1]!;
       const existing = await db()
         .prepare(
-          "SELECT a.id FROM assessments a JOIN people p ON p.id=a.person_id WHERE a.id=? AND p.site_id=?",
+          "SELECT a.id,a.date_estimated FROM personality_assessments a JOIN personality_people p ON p.id=a.person_id WHERE a.id=$1 AND p.site_id=$2",
         )
         .bind(id, site)
         .first();
       if (!existing) throw new HttpError(404, "Assessment not found.");
       if (method === "DELETE")
-        await db().prepare("DELETE FROM assessments WHERE id=?").bind(id).run();
+        await db()
+          .prepare("DELETE FROM personality_assessments WHERE id=$1")
+          .bind(id)
+          .run();
       else {
         const d = await body(request);
+        if (
+          d.dateEstimated !== undefined &&
+          typeof d.dateEstimated !== "boolean"
+        )
+          throw new InputError("Invalid date estimate flag.");
         await db()
-          .prepare("UPDATE assessments SET taken_on=?,notes=? WHERE id=?")
-          .bind(takenOn(d.takenOn), optionalText(d.notes, 4000) ?? "", id)
+          .prepare(
+            "UPDATE personality_assessments SET taken_on=$1,notes=$2,date_estimated=$3 WHERE id=$4",
+          )
+          .bind(
+            takenOn(d.takenOn),
+            optionalText(d.notes, 4000) ?? "",
+            d.dateEstimated ?? existing.date_estimated === true,
+            id,
+          )
           .run();
       }
       return json({ ok: true });
@@ -320,7 +337,12 @@ export async function handle(request: Request) {
     if (error instanceof HttpError)
       return json({ error: error.message }, error.status);
     if (error instanceof InputError) return json({ error: error.message }, 400);
-    if (error instanceof Error && error.message.includes("UNIQUE constraint"))
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "23505"
+    )
       return json(
         {
           error:
@@ -328,6 +350,15 @@ export async function handle(request: Request) {
         },
         409,
       );
+    const code =
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof error.code === "string" &&
+      /^[A-Z0-9_]{1,40}$/.test(error.code)
+        ? error.code
+        : "UNKNOWN";
+    console.error("Personalities request failed", { code });
     return json(
       { error: "The request could not be completed. Please try again." },
       500,

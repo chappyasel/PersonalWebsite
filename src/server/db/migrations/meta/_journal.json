@@ -134,6 +134,13 @@
       "when": 1788825086292,
       "tag": "0018_book_cover_color",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1789175264958,
+      "tag": "0019_personalities",
+      "breakpoints": true
     }
   ]
 }

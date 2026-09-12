@@ -22,6 +22,7 @@
     "db:studio:dev": "dotenv -e .env.development.local -- drizzle-kit studio",
     "db:studio:prod": "drizzle-kit studio",
     "dev": "node scripts/dev.mjs",
+    "personalities:db": "node scripts/personalities-db.mjs",
     "prototype:personality": "SKIP_ENV_VALIDATION=1 next dev --hostname 127.0.0.1 --port 3016",
     "fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "fix:last": "eslint --fix $(git diff --name-only HEAD | grep -E '\\.(js|jsx|ts|tsx)$' | head -n 1)",

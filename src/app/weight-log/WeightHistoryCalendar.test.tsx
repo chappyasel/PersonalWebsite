@@ -98,7 +98,9 @@ it("shows a full year and preserves historical colors and exact readings when na
   await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
   expect(screen.queryByText("Weigh-in")).toBeNull();
   expect(
-    screen.getByRole("button", { name: "Next year" }).hasAttribute("disabled"),
+    (await screen.findByRole("button", { name: "Next year" })).hasAttribute(
+      "disabled",
+    ),
   ).toBe(true);
 });
 

@@ -1,5 +1,26 @@
 "use client";
 
+import {
+  ArrowLeftIcon,
+  ArrowsLeftRightIcon,
+  CaretDownIcon,
+  ChartLineIcon,
+  CheckIcon,
+  ClockCounterClockwiseIcon,
+  GraphIcon,
+  LinkIcon,
+  MagnifyingGlassIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  RulerIcon,
+  SlidersHorizontalIcon,
+  StackIcon,
+  TableIcon,
+  TrashIcon,
+  TrendUpIcon,
+  UserPlusIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,7 +34,11 @@ import {
   norms,
   traits,
 } from "~/lib/personalities/data";
-import { viewForPath, views } from "~/lib/personalities/navigation";
+import {
+  advancedViews,
+  mainViews,
+  viewForPath,
+} from "~/lib/personalities/navigation";
 
 import {
   Accordion,
@@ -21,9 +46,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
+import {
+  Popover,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -48,9 +81,22 @@ import {
 } from "~/components/ui/sheet";
 import { Textarea } from "~/components/ui/textarea";
 
+import ChangesView from "./compare/ChangesView";
 import Charts from "./compare/Charts";
+import DirectCompare from "./compare/DirectCompare";
 import type { Snapshot } from "./compare/model";
 import styles from "./personalities.module.css";
+
+const viewIcons = {
+  A: StackIcon,
+  compare: ArrowsLeftRightIcon,
+  changes: TrendUpIcon,
+  C: TableIcon,
+  D: RulerIcon,
+  E: UsersThreeIcon,
+  pca: GraphIcon,
+  history: ClockCounterClockwiseIcon,
+};
 
 async function api<T = unknown>(path: string, body?: unknown, method?: string) {
   const response = await fetch(`/api/personalities/${path}`, {
@@ -92,7 +138,7 @@ function Pick({
           if (v !== null) onChange(String(v));
         }}
       >
-        <SelectTrigger className={["w-full"].join(" ")}>
+        <SelectTrigger className="w-full" aria-label={label}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -177,9 +223,12 @@ export default function App() {
     return (
       <main className={styles["login-page"]}>
         <Card className={styles["login-card"]}>
-          <p className={styles.eyebrow}>PRIVATE PERSONALITY LIBRARY</p>
-          <h1>People on a curve.</h1>
-          <p>Your assessments, your history, and the people you know.</p>
+          <p className={styles.eyebrow}>BIG FIVE</p>
+          <h1>Personalities</h1>
+          <p>
+            Compare results with friends and explore how scores change over
+            time.
+          </p>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -202,7 +251,7 @@ export default function App() {
               maxLength={200}
             />
             <Button type="submit" disabled={busy}>
-              {busy ? "Unlocking…" : "Unlock library"}
+              {busy ? "Opening…" : "Continue"}
             </Button>
           </form>
           {error && <p role="alert">{error}</p>}
@@ -226,8 +275,9 @@ export default function App() {
         ].map((a) => ({
           id: a.id,
           takenOn: a.takenOn,
+          dateEstimated: a.dateEstimated,
           source: a.source,
-          label: `${dateLabel(a.takenOn)} · ${a.source}`,
+          label: `${a.dateEstimated ? "~ " : ""}${dateLabel(a.takenOn)} · ${a.source}`,
           ref: a.sourceReference ?? a.source,
           scores: a.scores,
         })),
@@ -252,64 +302,76 @@ export default function App() {
     <main className={styles["app-shell"]}>
       <header className={styles["app-header"]}>
         <div>
-          <p className={styles.eyebrow}>PRIVATE PERSONALITY LIBRARY</p>
-          <h1>People on a curve.</h1>
+          <p className={styles.eyebrow}>BIG FIVE</p>
+          <h1>Personalities</h1>
           <p>
             {library.people.length} people · {count} assessments
           </p>
         </div>
-        <div className={styles.actions}>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setGroup("Friends");
-              setError("");
-              setModal("person");
-            }}
-          >
-            Add person
-          </Button>
-          <Button onClick={openScore} disabled={!library.people.length}>
-            Add score
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={busy}
-            onClick={() =>
-              void action(async () => {
-                await api("logout", {});
-                setLibrary(null);
-                setSelected({});
-                setPreview(null);
-                setModal(null);
-                setEditing(null);
-                setDeleting(null);
-                router.push("/personalities");
-              })
-            }
-          >
-            Lock
-          </Button>
-        </div>
+        <Button
+          onClick={() =>
+            library.people.length ? openScore() : setModal("person")
+          }
+          className={styles["add-button"]}
+        >
+          <PlusIcon size={16} weight="bold" aria-hidden="true" /> Add results
+        </Button>
       </header>
       <nav
         aria-label="Personality analysis views"
         className={styles["view-tabs"]}
       >
-        {views.map((v) => (
-          <Button
-            key={v.id}
-            variant={view === v.id ? "default" : "outline"}
-            asChild
-          >
+        {mainViews.map((v) => {
+          const Icon = viewIcons[v.id];
+          return (
             <Link
+              key={v.id}
               href={v.href}
+              className={styles["view-tab"]}
               aria-current={view === v.id ? "page" : undefined}
             >
+              <Icon
+                size={18}
+                weight={view === v.id ? "duotone" : "regular"}
+                aria-hidden="true"
+              />
               {v.name}
             </Link>
-          </Button>
-        ))}
+          );
+        })}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className={styles["advanced-trigger"]}
+              data-active={advancedViews.some((v) => v.id === view)}
+            >
+              <SlidersHorizontalIcon size={18} aria-hidden="true" />
+              {advancedViews.find((v) => v.id === view)?.name ?? "Advanced"}
+              <CaretDownIcon size={13} aria-hidden="true" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 p-1">
+            <p className="px-3 py-2 text-xs text-muted-foreground">
+              Advanced analyses
+            </p>
+            {advancedViews.map((v) => {
+              const Icon = viewIcons[v.id];
+              return (
+                <PopoverClose key={v.id} asChild>
+                  <Link
+                    href={v.href}
+                    aria-current={view === v.id ? "page" : undefined}
+                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm outline-none hover:bg-accent focus-visible:bg-accent ${view === v.id ? "bg-accent font-medium" : ""}`}
+                  >
+                    <Icon size={17} aria-hidden="true" />
+                    {v.name}
+                  </Link>
+                </PopoverClose>
+              );
+            })}
+          </PopoverContent>
+        </Popover>
       </nav>
       {error && !modal && !editing && !deleting && (
         <p role="alert" className={styles.error}>
@@ -325,19 +387,21 @@ export default function App() {
               options={peopleOptions}
               onChange={setPersonId}
             />
-            <p>
-              Every saved assessment stays separate. Undated results and other
-              score formats remain in history.
-            </p>
+            <p>All saved results, newest first. Estimated dates are marked.</p>
           </div>
           {person?.assessments.length ? (
             [...person.assessments].sort(chronological).map((a) => (
               <Card key={a.id} className={styles["history-card"]}>
                 <div className={styles["history-title"]}>
                   <div>
-                    <h2>{dateLabel(a.takenOn)}</h2>
+                    <div className={styles["date-heading"]}>
+                      <h2>{dateLabel(a.takenOn)}</h2>
+                      {a.dateEstimated && (
+                        <Badge variant="secondary">Estimated</Badge>
+                      )}
+                    </div>
                     <p>
-                      {a.source} · {a.testVersion} ·{" "}
+                      {a.source} ·{" "}
                       {a.scoreKind === "raw"
                         ? `raw scores out of ${a.scoreMax}`
                         : a.scoreKind}
@@ -353,6 +417,7 @@ export default function App() {
                           router.push("/personalities");
                         }}
                       >
+                        <ChartLineIcon size={16} aria-hidden="true" />
                         Use in comparisons
                       </Button>
                     )}
@@ -363,6 +428,7 @@ export default function App() {
                         setEditing(a);
                       }}
                     >
+                      <PencilSimpleIcon size={16} aria-hidden="true" />
                       Edit date / notes
                     </Button>
                     <Button
@@ -372,7 +438,7 @@ export default function App() {
                         setDeleting(a);
                       }}
                     >
-                      Delete
+                      <TrashIcon size={16} aria-hidden="true" /> Delete
                     </Button>
                   </div>
                 </div>
@@ -393,11 +459,19 @@ export default function App() {
                     the raw-score reference used by the comparison views.
                   </p>
                 )}
-                {a.notes && <p className={styles.notes}>{a.notes}</p>}
-                <p className={styles["source-ref"]}>
-                  {a.sourceReference}
-                  {a.externalResultId ? ` · ${a.externalResultId}` : ""}
-                </p>
+                {(a.notes || a.sourceReference) && (
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="source">
+                      <AccordionTrigger>Date & source details</AccordionTrigger>
+                      <AccordionContent>
+                        {a.notes && <p className={styles.notes}>{a.notes}</p>}
+                        <p className={styles["source-ref"]}>
+                          {a.sourceReference}
+                        </p>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
                 {a.facets.length > 0 && (
                   <Accordion type="single" collapsible>
                     <AccordionItem value="facets">
@@ -436,17 +510,32 @@ export default function App() {
             </Card>
           )}
         </section>
+      ) : view === "compare" ? (
+        <DirectCompare
+          data={snapshot}
+          personId={personId}
+          onPerson={setPersonId}
+          onAssessment={(id, assessmentId) =>
+            setSelected((s) => ({ ...s, [id]: assessmentId }))
+          }
+        />
+      ) : view === "changes" ? (
+        <ChangesView
+          data={snapshot}
+          personId={personId}
+          onPerson={setPersonId}
+        />
       ) : (
         <>
           <p className={styles["comparison-note"]}>
-            Showing one assessment per person, initially their latest dated
-            IPIP-120 result. Choose older results in the assessment selector or
-            People & history.
+            Latest result per person. Select a date to compare earlier tests.
+            {view === "A" && " Click a trait to expand its curve."}
           </p>
           <Charts
             data={snapshot}
             variant={view}
             initialFocus={chartFocus}
+            onPersonFocus={setPersonId}
             onAssessment={(id, assessmentId) =>
               setSelected((s) => ({ ...s, [id]: assessmentId }))
             }
@@ -462,17 +551,22 @@ export default function App() {
           }
         }}
       >
-        <DialogContent className={styles["entry-dialog"]}>
+        <DialogContent side="center" className={styles["entry-dialog"]}>
           <DialogHeader>
             <DialogTitle>
-              {modal === "person" ? "Add a person" : "Add an assessment"}
+              {modal === "person" ? "New person" : "Add results"}
             </DialogTitle>
             <DialogDescription>
               {modal === "person"
                 ? "Create their profile, then add their results."
-                : "A new result adds to history. It never replaces a previous score."}
+                : "Choose someone, then import a test or enter their scores."}
             </DialogDescription>
           </DialogHeader>
+          {error && (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          )}
           {modal === "person" ? (
             <form
               onSubmit={(e) => {
@@ -485,7 +579,7 @@ export default function App() {
                   });
                   await refresh();
                   setPersonId(p.id);
-                  setModal(null);
+                  openScore();
                 });
               }}
               className={styles["entry-form"]}
@@ -494,6 +588,7 @@ export default function App() {
                 Name
                 <Input
                   id="assessment-field-1"
+                  autoFocus
                   name="name"
                   required
                   maxLength={100}
@@ -508,31 +603,73 @@ export default function App() {
                 }))}
                 onChange={setGroup}
               />
-              <Button type="submit" disabled={busy}>
-                Save person
-              </Button>
+              <div className={styles.actions}>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setError("");
+                    setModal(library.people.length ? "score" : null);
+                  }}
+                >
+                  <ArrowLeftIcon size={16} aria-hidden="true" /> Back
+                </Button>
+                <Button type="submit" disabled={busy}>
+                  {busy ? "Saving…" : "Continue to scores"}
+                </Button>
+              </div>
             </form>
           ) : (
             <>
-              <Pick
-                label="Person"
-                value={personId}
-                options={peopleOptions}
-                onChange={setPersonId}
-              />
-              <div>
+              <div className={styles["person-entry"]}>
                 <Pick
-                  label="Entry method"
-                  value={entry}
-                  options={[
-                    { value: "code", label: "Import a code" },
-                    { value: "manual", label: "Enter numbers" },
-                  ]}
-                  onChange={(v) => {
-                    setEntry(v);
-                    setError("");
-                  }}
+                  label="Person"
+                  value={personId}
+                  options={peopleOptions}
+                  onChange={setPersonId}
                 />
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    setGroup("Friends");
+                    setError("");
+                    setModal("person");
+                  }}
+                >
+                  <UserPlusIcon size={16} aria-hidden="true" /> New person
+                </Button>
+              </div>
+              <div>
+                <div
+                  className={styles["entry-methods"]}
+                  role="group"
+                  aria-label="How to add results"
+                >
+                  {[
+                    { id: "code", label: "Import a code", icon: LinkIcon },
+                    {
+                      id: "manual",
+                      label: "Enter numbers",
+                      icon: PencilSimpleIcon,
+                    },
+                  ].map((method) => (
+                    <Button
+                      key={method.id}
+                      type="button"
+                      variant={entry === method.id ? "default" : "ghost"}
+                      aria-pressed={entry === method.id}
+                      onClick={() => {
+                        setEntry(method.id);
+                        setError("");
+                      }}
+                    >
+                      <method.icon size={16} aria-hidden="true" />
+                      {method.label}
+                    </Button>
+                  ))}
+                </div>
                 {entry === "code" && (
                   <div>
                     <div className={styles["entry-form"]}>
@@ -566,6 +703,7 @@ export default function App() {
                           })
                         }
                       >
+                        <MagnifyingGlassIcon size={16} aria-hidden="true" />
                         {busy ? "Fetching…" : "Preview result"}
                       </Button>
                       {preview && (
@@ -594,6 +732,7 @@ export default function App() {
                               })
                             }
                           >
+                            <CheckIcon size={16} aria-hidden="true" />
                             Save to {person?.name}&apos;s history
                           </Button>
                         </Card>
@@ -612,6 +751,7 @@ export default function App() {
                           await api("assessments", {
                             personId,
                             takenOn: d.get("takenOn"),
+                            dateEstimated: d.get("dateEstimated") === "on",
                             source: "manual",
                             testVersion:
                               format === "ipip-120"
@@ -676,6 +816,9 @@ export default function App() {
                           maxLength={10}
                         />
                       </label>
+                      <label className={styles["estimate-field"]}>
+                        <Checkbox name="dateEstimated" /> Approximate date
+                      </label>
                       <div className={styles["manual-grid"]}>
                         {traits.map((t) => (
                           <label
@@ -708,18 +851,14 @@ export default function App() {
                         />
                       </label>
                       <Button type="submit" disabled={busy || !personId}>
-                        Save assessment
+                        <CheckIcon size={16} aria-hidden="true" />
+                        {busy ? "Saving…" : "Save results"}
                       </Button>
                     </form>
                   </div>
                 )}
               </div>
             </>
-          )}
-          {error && (
-            <p className={styles.error} role="alert">
-              {error}
-            </p>
           )}
         </DialogContent>
       </Dialog>
@@ -729,7 +868,7 @@ export default function App() {
           if (!open && !busy) setEditing(null);
         }}
       >
-        <DialogContent>
+        <DialogContent side="center">
           <DialogHeader>
             <DialogTitle>Edit assessment details</DialogTitle>
             <DialogDescription>
@@ -745,7 +884,11 @@ export default function App() {
                 void action(async () => {
                   await api(
                     `assessments/${editing.id}`,
-                    { takenOn: d.get("takenOn"), notes: d.get("notes") },
+                    {
+                      takenOn: d.get("takenOn"),
+                      dateEstimated: d.get("dateEstimated") === "on",
+                      notes: d.get("notes"),
+                    },
                     "PATCH",
                   );
                   await refresh();
@@ -763,6 +906,13 @@ export default function App() {
                   maxLength={10}
                 />
               </label>
+              <label className={styles["estimate-field"]}>
+                <Checkbox
+                  name="dateEstimated"
+                  defaultChecked={editing.dateEstimated ?? false}
+                />{" "}
+                Approximate date
+              </label>
               <label className={styles.field} htmlFor="assessment-field-7">
                 Notes
                 <Textarea
@@ -773,7 +923,7 @@ export default function App() {
                 />
               </label>
               <Button type="submit" disabled={busy}>
-                Save details
+                <CheckIcon size={16} aria-hidden="true" /> Save details
               </Button>
             </form>
           )}
@@ -790,7 +940,7 @@ export default function App() {
           if (!open && !busy) setDeleting(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent side="center">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this assessment?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -821,7 +971,7 @@ export default function App() {
                   });
               }}
             >
-              Delete assessment
+              <TrashIcon size={16} aria-hidden="true" /> Delete assessment
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

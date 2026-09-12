@@ -48,6 +48,8 @@ export function validateAssessment(
 ): Omit<Assessment, "id" | "addedAt"> {
   const d = object(value);
   const personId = text(d.personId, "person", 100);
+  if (d.dateEstimated !== undefined && typeof d.dateEstimated !== "boolean")
+    throw new InputError("Invalid date estimate flag.");
   const scoreKind = d.scoreKind;
   if (!["raw", "percentile", "percentage"].includes(String(scoreKind)))
     throw new InputError("Choose the score format.");
@@ -108,6 +110,7 @@ export function validateAssessment(
   return {
     personId,
     takenOn: takenOn(d.takenOn),
+    dateEstimated: d.dateEstimated === true,
     source,
     externalResultId,
     sourceReference: optionalText(d.sourceReference),

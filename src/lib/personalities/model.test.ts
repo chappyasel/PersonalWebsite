@@ -10,6 +10,7 @@ import {
 import { resultCode, takenOn, validateAssessment } from "./validation";
 import {
   aggregateDistance,
+  comparisonMetrics,
   profileDistance,
 } from "~/app/personalities/compare/model";
 
@@ -66,6 +67,40 @@ describe("personality comparisons and history", () => {
     expect(() =>
       validateAssessment({ ...raw, scores: { ...middle, Openness: 121 } }),
     ).toThrow();
+  });
+  it("reports signed SD gaps and nonlinear percentile-point gaps", () => {
+    const central = comparisonMetrics(
+      middle,
+      { ...middle, Openness: middle.Openness + norms.Openness.sd },
+      norms,
+    )[0]!;
+    const tail = comparisonMetrics(
+      { ...middle, Openness: middle.Openness + norms.Openness.sd },
+      { ...middle, Openness: middle.Openness + 2 * norms.Openness.sd },
+      norms,
+    )[0]!;
+    expect(central.deltaSd).toBeCloseTo(1);
+    expect(central.leftPercentile).toBeCloseTo(50, 4);
+    expect(central.percentileGap).toBeCloseTo(34.1345, 3);
+    expect(tail.deltaSd).toBeCloseTo(1);
+    expect(tail.percentileGap).toBeLessThan(central.percentileGap);
+    const reverse = comparisonMetrics(
+      { ...middle, Openness: middle.Openness + norms.Openness.sd },
+      middle,
+      norms,
+    )[0]!;
+    expect(reverse.deltaSd).toBeCloseTo(-1);
+    expect(reverse.percentileGap).toBeCloseTo(-central.percentileGap);
+    const gaps = comparisonMetrics(
+      middle,
+      {
+        ...middle,
+        Openness: middle.Openness + 15,
+        Extraversion: middle.Extraversion + 20,
+      },
+      norms,
+    ).sort((a, b) => Math.abs(b.deltaSd) - Math.abs(a.deltaSd));
+    expect(gaps[0]!.trait).toBe("Openness");
   });
   it("rejects arbitrary import hosts", () => {
     expect(resultCode("abcdef0123456789abcdef01")).toBe(

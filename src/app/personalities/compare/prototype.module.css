@@ -46,10 +46,15 @@
   margin-top: 6px;
 }
 .toolbar {
-  display: grid;
-  grid-template-columns: 1fr 0.8fr 1.2fr 1fr;
-  gap: 18px;
-  padding: 25px 0 16px;
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0 24px;
+}
+.toolbar > .choice {
+  flex: 0 1 180px;
+  min-width: 0;
 }
 .choice > span {
   display: block;
@@ -444,9 +449,6 @@
     grid-template-columns: minmax(0, 1fr) 260px;
     gap: 20px;
   }
-  .toolbar {
-    grid-template-columns: 1fr 1fr;
-  }
   .ridge {
     grid-template-columns: 140px minmax(0, 1fr);
   }
@@ -522,9 +524,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 290px;
   gap: 34px;
-}
-.toolbar[data-aggregate="true"] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .aggregateNote {
   font-size: 13px;
@@ -627,9 +626,6 @@
   }
 }
 @media (max-width: 600px) {
-  .toolbar[data-aggregate="true"] {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .distanceAxis,
   .distanceRow {
     grid-template-columns: 115px minmax(0, 1fr) 40px;
@@ -700,13 +696,29 @@
 }
 
 .assessmentChoice {
-  max-width: 520px;
-  margin: 0 0 24px;
+  flex: 0 1 350px;
+  min-width: 0;
+  max-width: 100%;
 }
 .choice > button {
   width: 100%;
 }
 .page {
-  padding: 18px 0 40px;
+  padding: 0 0 32px;
   min-height: 0;
+}
+
+@media (max-width: 600px) {
+  .toolbar > .choice {
+    flex: 1 1 calc(50% - 12px);
+  }
+  .assessmentChoice {
+    flex: 1 1 100%;
+  }
+}
+
+.backToTraits {
+  margin-bottom: 16px;
+  padding-left: 0;
+  gap: 8px;
 }

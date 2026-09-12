@@ -2,6 +2,7 @@ import type { Icon } from "@phosphor-icons/react";
 import {
   BarbellIcon,
   BooksIcon,
+  BrainIcon,
   ChartLineIcon,
   CodeIcon,
   GearIcon,
@@ -153,6 +154,13 @@ const PAGES: Entry[] = [
 ];
 
 const LOCKED: Entry[] = [
+  {
+    name: "Personalities",
+    href: "/personalities",
+    what: "Big Five trait curves, comparisons, and test history.",
+    note: "Password protected.",
+    icon: glyph(BrainIcon),
+  },
   {
     name: "Dad's Journal",
     href: "/dad",

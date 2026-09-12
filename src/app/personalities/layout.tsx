@@ -1,6 +1,8 @@
 import { type Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { personalitiesEnabled } from "~/lib/personalities/server/config";
+
 import App from "./App";
 import styles from "./personalities.module.css";
 
@@ -12,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  if (process.env.NODE_ENV !== "development") notFound();
+  if (!personalitiesEnabled()) notFound();
   return (
     <div className={styles.root}>
       <App />

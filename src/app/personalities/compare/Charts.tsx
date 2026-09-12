@@ -2,7 +2,10 @@
 
 // Comparison views on /prototype/personality?variant=A|B|C|D|E.
 // Question: is a focused curve, five-curve overview, or matrix easiest to compare?
-import { Search } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { useState } from "react";
 
 import {
@@ -25,6 +28,7 @@ import {
 
 import AggregateView from "./AggregateView";
 import ClosestView from "./ClosestView";
+import PcaView from "./PcaView";
 import {
   type Norm,
   type Person,
@@ -32,6 +36,7 @@ import {
   type Trait,
   pctLabel,
   recordFor,
+  recordsByDate,
   traitColors,
   traits,
   zScore,
@@ -318,8 +323,8 @@ function PersonDetails({
         <AccordionItem value="sources">
           <AccordionTrigger>Saved results & sources</AccordionTrigger>
           <AccordionContent>
-            {focus.records.map((r) => (
-              <div className={styles.record} key={r.source}>
+            {recordsByDate(focus.records).map((r) => (
+              <div className={styles.record} key={r.id}>
                 <strong>{r.label}</strong>
                 <p>
                   {traits
@@ -550,13 +555,21 @@ export default function Charts({
   onAssessment,
   initialFocus,
   variant,
+  onPersonFocus,
 }: {
   data: Snapshot;
   variant: string;
+  onPersonFocus: (id: string) => void;
   initialFocus?: string;
   onAssessment: (personId: string, assessmentId: string) => void;
 }) {
   const [trait, setTrait] = useState<Trait>("Extraversion");
+  const [expandedTrait, setExpandedTrait] = useState<Trait | null>(null);
+  const overview = variant === "A" || variant === "B";
+  const chooseTrait = (value: Trait) => {
+    setTrait(value);
+    if (overview) setExpandedTrait(value);
+  };
   const [group, setGroup] = useState("Everyone");
   const preference = "";
   const [query, setQuery] = useState("");
@@ -566,6 +579,10 @@ export default function Charts({
       data.people[0]?.id ??
       "",
   );
+  const chooseFocus = (id: string) => {
+    setFocusId(id);
+    onPersonFocus(id);
+  };
   const [hidden, setHidden] = useState<string[]>([]);
   const scored = data.people.filter((p) => p.records.length > 0);
   const members = scored.filter(
@@ -584,23 +601,26 @@ export default function Charts({
         preference,
         trait,
         norms: data.norms,
-        onFocus: setFocusId,
-        onTrait: setTrait,
+        onFocus: chooseFocus,
+        onTrait: chooseTrait,
       }
     : null;
   const missing = data.people.filter((p) => p.records.length === 0);
   return (
-    <main className={styles.page}>
-      <div
-        className={styles.toolbar}
-        data-aggregate={variant === "D" || variant === "E"}
-      >
-        {variant !== "D" && variant !== "E" && (
+    <section className={styles.page} aria-label="Personality comparison">
+      <div className={styles.toolbar}>
+        {variant !== "D" && variant !== "E" && variant !== "pca" && (
           <Choice
-            label="Trait"
-            value={trait}
-            options={traits.map((t) => ({ value: t, label: t }))}
-            onChange={(value) => setTrait(value as Trait)}
+            label={overview ? "View" : "Trait"}
+            value={overview ? (expandedTrait ?? "all") : trait}
+            options={[
+              ...(overview ? [{ value: "all", label: "All five traits" }] : []),
+              ...traits.map((t) => ({ value: t, label: t })),
+            ]}
+            onChange={(value) => {
+              if (value === "all") setExpandedTrait(null);
+              else chooseTrait(value as Trait);
+            }}
           />
         )}
         <Choice
@@ -613,46 +633,53 @@ export default function Charts({
           onChange={setGroup}
         />
         <Choice
-          label={variant === "E" ? "Closest to" : "Inspect a person"}
+          label={variant === "E" ? "Closest to" : "Person"}
           value={focus?.id ?? "empty"}
           options={
             focusOptions.length
               ? focusOptions.map((p) => ({ value: p.id, label: p.name }))
               : [{ value: "empty", label: "No people selected" }]
           }
-          onChange={setFocusId}
+          onChange={chooseFocus}
         />
+        {focus && (
+          <div className={styles.assessmentChoice}>
+            <Choice
+              label="Test result"
+              value={recordFor(focus, preference)?.id ?? ""}
+              options={recordsByDate(focus.records).map((r) => ({
+                value: r.id!,
+                label: r.label,
+              }))}
+              onChange={(id) => onAssessment(focus.id, id)}
+            />
+          </div>
+        )}
       </div>
-      {focus && (
-        <div className={styles.assessmentChoice}>
-          <Choice
-            label={`Assessment for ${focus.name}`}
-            value={recordFor(focus, preference)?.id ?? ""}
-            options={focus.records.map((r) => ({
-              value: r.id!,
-              label: r.label,
-            }))}
-            onChange={(id) => onAssessment(focus.id, id)}
-          />
-        </div>
-      )}
-      {variant !== "D" && variant !== "E" && (
-        <p className={styles.modelNote}>
-          The curve uses the reference values saved in your analysis.
-          Percentiles are model estimates; the dots are your actual scores. The
-          shaded band is one standard deviation either side of the mean.
-        </p>
-      )}
       {props ? (
         <div className={styles.visual}>
-          {variant === "A" ? (
-            <VariantA {...props} />
-          ) : variant === "B" ? (
-            <VariantB {...props} />
+          {overview ? (
+            expandedTrait ? (
+              <>
+                <Button
+                  variant="ghost"
+                  className={styles.backToTraits}
+                  onClick={() => setExpandedTrait(null)}
+                >
+                  <ArrowLeftIcon size={16} aria-hidden="true" />
+                  All five traits
+                </Button>
+                <VariantA {...props} trait={expandedTrait} />
+              </>
+            ) : (
+              <VariantB {...props} />
+            )
           ) : variant === "C" ? (
             <VariantC {...props} />
           ) : variant === "D" ? (
             <AggregateView {...props} />
+          ) : variant === "pca" ? (
+            <PcaView cohort={scored} {...props} />
           ) : (
             <ClosestView key={props.focus.id} {...props} />
           )}
@@ -671,7 +698,7 @@ export default function Charts({
             </AccordionTrigger>
             <AccordionContent>
               <div className={styles.search}>
-                <Search size={16} />
+                <MagnifyingGlassIcon aria-hidden="true" size={16} />
                 <Input
                   aria-label="Search people"
                   placeholder="Find a friend or family member"
@@ -734,28 +761,49 @@ export default function Charts({
                 assessment; use the assessment selector to choose another.
                 Undated assessments remain available.
               </p>
-              <p>
-                Reference means and standard deviations come from the original
-                spreadsheet and notebook. Percentiles assume a normal
-                distribution and are estimates, not measured population ranks.
-                Other providers and percentage-only results appear in history
-                but are excluded from these comparisons.
-              </p>
-              <div className={styles.normTable}>
-                {traits.map((t) => (
-                  <p key={t}>
-                    <span>{t}</span>
-                    <strong>
-                      μ {data.norms[t].mean.toFixed(1)} · σ{" "}
-                      {data.norms[t].sd.toFixed(1)}
-                    </strong>
+              {variant === "pca" ? (
+                <p>
+                  PCA centers and scales each trait using this group’s mean and
+                  sample standard deviation. It does not use the reference
+                  population norms or assume normally distributed traits. Axis
+                  signs are arbitrary; the trait correlations explain each
+                  direction.{" "}
+                  <a
+                    href="https://scikit-learn.org/stable/modules/decomposition.html#pca"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    How PCA works
+                  </a>
+                  .
+                </p>
+              ) : (
+                <>
+                  <p>
+                    Reference means and standard deviations come from the
+                    original spreadsheet and notebook. Percentiles assume a
+                    normal distribution and are estimates, not measured
+                    population ranks. Other providers and percentage-only
+                    results appear in history but are excluded from these
+                    comparisons.
                   </p>
-                ))}
-              </div>
-              <p>Reference model</p>
-              {data.sources.map((source) => (
-                <code key={source}>{source}</code>
-              ))}
+                  <div className={styles.normTable}>
+                    {traits.map((t) => (
+                      <p key={t}>
+                        <span>{t}</span>
+                        <strong>
+                          μ {data.norms[t].mean.toFixed(1)} · σ{" "}
+                          {data.norms[t].sd.toFixed(1)}
+                        </strong>
+                      </p>
+                    ))}
+                  </div>
+                  <p>Reference model</p>
+                  {data.sources.map((source) => (
+                    <code key={source}>{source}</code>
+                  ))}
+                </>
+              )}
               <p>
                 {missing.length} people have no comparable assessments and are
                 not plotted.
@@ -764,21 +812,6 @@ export default function Charts({
           </AccordionItem>
         </Accordion>
       </div>
-      <footer className={styles.footer} aria-live="polite">
-        View {variant} ·{" "}
-        {variant === "E"
-          ? "All five traits, pairwise distance"
-          : variant === "D"
-            ? "All five traits, RMS distance"
-            : trait}{" "}
-        · {group} ·{" "}
-        {variant === "E"
-          ? people.filter((p) => p.id !== focus?.id).length
-          : people.length}{" "}
-        shown · {variant === "E" ? "Reference" : "Inspecting"}{" "}
-        {focus?.name ?? "nobody"} · Preferred source:{" "}
-        {"selected assessment per person"}
-      </footer>
-    </main>
+    </section>
   );
 }

@@ -1,0 +1,226 @@
+.container {
+  display: grid;
+  gap: 20px;
+}
+.heading h2 {
+  font:
+    30px Georgia,
+    serif;
+  letter-spacing: -0.035em;
+}
+.heading p,
+.note {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.7;
+}
+.heading p {
+  margin-top: 8px;
+}
+.pairControls,
+.dateControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.pickerCard {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+.field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.field > span {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.field button {
+  width: 100%;
+}
+.changeControls {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.changeControls > div {
+  width: 220px;
+  max-width: 100%;
+}
+.summary {
+  font-size: 15px;
+  line-height: 1.7;
+}
+.summary strong {
+  font-weight: 600;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.plotScroll {
+  overflow-x: auto;
+}
+.comparisonPlot,
+.timeline {
+  display: block;
+  width: 100%;
+  min-width: 580px;
+}
+.grid line {
+  stroke: hsl(var(--border));
+  stroke-dasharray: 3 5;
+}
+.grid text,
+.axis {
+  fill: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+.trait {
+  fill: hsl(var(--foreground));
+  font-size: 13px;
+}
+.value {
+  fill: hsl(var(--foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.deltaCards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.delta {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+.delta span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.delta strong {
+  font-size: 30px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.delta small {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.note a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.empty {
+  padding: 28px;
+}
+@media (max-width: 700px) {
+  .pairControls,
+  .dateControls {
+    grid-template-columns: 1fr;
+  }
+  .deltaCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .heading h2 {
+    font-size: 26px;
+  }
+}
+
+.pairedTraits {
+  display: grid;
+  gap: 18px;
+}
+.pairedTrait {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  column-gap: 24px;
+  align-items: center;
+  padding: 22px;
+}
+.traitHeader {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.traitHeader h3 {
+  font-size: 19px;
+  font-weight: 600;
+}
+.gaps {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.gaps strong {
+  font-size: 20px;
+  font-weight: 600;
+}
+.gaps span {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.pairedCurve {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+}
+.personReadouts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.personReadouts > div {
+  display: flex;
+  gap: 6px 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.personReadouts strong {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+}
+.personReadouts span {
+  color: hsl(var(--muted-foreground));
+}
+@media (max-width: 700px) {
+  .pairedTrait {
+    padding: 16px;
+  }
+  .gaps {
+    gap: 8px 12px;
+  }
+  .personReadouts > div {
+    display: grid;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .pairedTrait {
+    grid-template-columns: 1fr;
+  }
+}

@@ -97,7 +97,7 @@ export function BookSort() {
               aria-label={
                 order === "desc" ? "Sort ascending" : "Sort descending"
               }
-              className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+              className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus-visible:border-primary/60 focus-visible:bg-accent"
             >
               {order === "desc" ? (
                 <SortDescendingIcon className="h-4 w-4" weight="bold" />

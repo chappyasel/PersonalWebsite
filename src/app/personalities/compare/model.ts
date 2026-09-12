@@ -1,3 +1,5 @@
+import { traitDifferences } from "~/lib/personalities/comparisons";
+
 export const traits = [
   "Openness",
   "Conscientiousness",
@@ -9,6 +11,7 @@ export type Trait = (typeof traits)[number];
 export type ScoreRecord = {
   id?: string;
   takenOn?: string | null;
+  dateEstimated?: boolean;
   source: string;
   label: string;
   ref: string;
@@ -38,6 +41,15 @@ export function recordFor(person: Person, preference: string) {
   return (
     person.records.find((record) => record.source === preference) ??
     person.records[0]
+  );
+}
+
+// Keep menu order independent of the selected record stored at records[0].
+export function recordsByDate(records: readonly ScoreRecord[]) {
+  return [...records].sort(
+    (a, b) =>
+      (b.takenOn ?? "").localeCompare(a.takenOn ?? "") ||
+      (a.id ?? a.label).localeCompare(b.id ?? b.label),
   );
 }
 
@@ -128,4 +140,36 @@ export function percentile(z: number) {
 
 export function pctLabel(z: number) {
   return `${percentile(z).toFixed(1)}%`;
+}
+
+/** Signed differences are right minus left; percentile gaps are percentage points. */
+export function comparisonMetrics(
+  left: ScoreRecord["scores"],
+  right: ScoreRecord["scores"],
+  norms: Snapshot["norms"],
+) {
+  return traitDifferences(left, right).flatMap((difference) => {
+    const norm = norms[difference.trait];
+    if (
+      !Number.isFinite(norm.mean) ||
+      !Number.isFinite(norm.sd) ||
+      norm.sd <= 0
+    )
+      return [];
+    const leftZ = zScore(difference.left, norm),
+      rightZ = zScore(difference.right, norm);
+    const leftPercentile = percentile(leftZ),
+      rightPercentile = percentile(rightZ);
+    return [
+      {
+        ...difference,
+        leftZ,
+        rightZ,
+        deltaSd: difference.delta / norm.sd,
+        leftPercentile,
+        rightPercentile,
+        percentileGap: rightPercentile - leftPercentile,
+      },
+    ];
+  });
 }

@@ -178,6 +178,9 @@ it("keeps filters inside the bodyweight chart and leaves DEXA history unchanged 
   fireEvent.keyDown(phase, { key: "Enter" });
   fireEvent.click(screen.getByRole("option", { name: "Cut · Test" }));
   await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+  await waitFor(() =>
+    expect(within(table).getAllByRole("row")).toHaveLength(4),
+  );
   expect(screen.getByLabelText<HTMLInputElement>("To").value).toBe(
     "2020-01-07",
   );
