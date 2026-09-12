@@ -27,14 +27,16 @@ import Weightlifting from "./components/Weightlifting";
 import BooksBootPrototype from "./components/route-transition-prototype/BooksBootPrototype";
 import FlatHome from "./components/stacks/FlatHome";
 import StacksHome from "./components/stacks/StacksHome";
+import {
+  selectHomepageReadingBooks,
+  toBootReadingBooks,
+} from "./components/stacks/boot/homepageReadingBooks";
 import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";
 import { type StacksData } from "./components/stacks/data";
 import BootScreen, {
   BootReadingBooksBridge,
 } from "./components/stacks/dom/BootScreen";
 import { ResidentRoom } from "./components/stacks/room/ResidentRoom";
-import { proxiedBookCover } from "./components/stacks/scene/bookCoverTexture";
-import { featuredBookThickness } from "./components/stacks/scene/units/featuredBookGeometry";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import { homepageMetadata } from "./homeMetadata";
@@ -62,29 +64,6 @@ const SCENE_TALK_STILLS: Record<number, string> = {
 type HomepageBooks = Awaited<ReturnType<typeof getDefaultBooks>>;
 type HomepageReadingBooks = ReturnType<typeof selectHomepageReadingBooks>;
 type HomepageReadingColors = Awaited<ReturnType<typeof readingBookEdgeColors>>;
-
-/** Unfinished rows share a synthetic finish date in the library query. Sort
- * current reads by their real start date, then backfill from recent covered
- * books so the loading and live shelves always receive the same trio. */
-function selectHomepageReadingBooks(allBooks: HomepageBooks) {
-  const currentReads = allBooks
-    .filter((book) => book.started && !book.finished && book.coverUrl)
-    .sort((a, b) => (b.started ?? "").localeCompare(a.started ?? ""))
-    .slice(0, 3);
-  const currentReadIds = new Set(currentReads.map((book) => book.id));
-  return [
-    ...currentReads,
-    ...allBooks.filter((book) => book.coverUrl && !currentReadIds.has(book.id)),
-  ].slice(0, 3);
-}
-
-function toBootReadingBooks(readingBooks: HomepageReadingBooks) {
-  return readingBooks.map(({ id, coverUrl, pageCount, audioLengthMin }) => ({
-    id,
-    coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null,
-    thickness: 1.1 * featuredBookThickness(pageCount, audioLengthMin),
-  }));
-}
 
 export default async function HomePage() {
   // Abandoned books are hidden by default site-wide: no homepage surface
