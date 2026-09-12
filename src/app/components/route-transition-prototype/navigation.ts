@@ -1,5 +1,7 @@
 // Shared entry for DOM links and scene actions. The request is cancelable:
 // callers keep their existing behavior unless a mounted controller accepts it.
+import { isRoomPathname } from "~/lib/site/roomRoutes";
+
 export const PROTOTYPE_NAVIGATION_EVENT = "route-prototype:navigate";
 export function requestPrototypeNavigation(
   href: string,
@@ -21,7 +23,6 @@ const SECTIONS = [
   "routine",
   "systems",
   "liarsdice",
-  "golf",
   "weight-log",
 ];
 const SUBDOMAINS = ["books", "weightlifting", "manual", "routine"];
@@ -61,7 +62,7 @@ export function prototypeDestination(
         ? ["chappyasel.com", "www.chappyasel.com"]
         : ROOT_HOSTS
       ).includes(url.hostname) &&
-      (url.pathname === "/" ||
+      (isRoomPathname(url.pathname) ||
         SECTIONS.includes(url.pathname.split("/")[1] ?? ""))
     ) {
       return new URL(url.pathname + url.search + url.hash, current.origin);
@@ -69,7 +70,7 @@ export function prototypeDestination(
   }
   if (url.origin !== current.origin) return null;
   if (
-    url.pathname !== "/" &&
+    !isRoomPathname(url.pathname) &&
     !SECTIONS.includes(url.pathname.split("/")[1] ?? "")
   )
     return null;

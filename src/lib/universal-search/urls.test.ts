@@ -20,7 +20,10 @@ describe("Universal Search destination URLs", () => {
       "https://manual.chappyasel.com/",
     );
     expect(resolveRegistryDestination("section-projects", location)).toBe(
-      "https://www.chappyasel.com/#projects",
+      "https://www.chappyasel.com/projects",
+    );
+    expect(resolveRegistryDestination("section-books", location)).toBe(
+      "https://www.chappyasel.com/#books",
     );
     expect(resolveRegistryDestination("destination-liars-dice", location)).toBe(
       "https://www.chappyasel.com/liarsdice",
@@ -59,7 +62,7 @@ describe("Universal Search destination URLs", () => {
       "https://personal-website-git-search.vercel.app/books/",
     );
     expect(resolveRegistryDestination("section-projects", preview)).toBe(
-      "https://personal-website-git-search.vercel.app/#projects",
+      "https://personal-website-git-search.vercel.app/projects",
     );
   });
 

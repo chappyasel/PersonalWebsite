@@ -91,7 +91,7 @@ export const COMMAND_ENTRIES = [
     keywords: ["software", "code", "portfolio"],
     icon: "projects",
     promoted: true,
-    target: { kind: "site", site: "home", hash: "projects" },
+    target: { kind: "site", site: "home", path: "/projects" },
   },
   {
     id: "section-musings",
@@ -101,7 +101,7 @@ export const COMMAND_ENTRIES = [
     keywords: ["medium", "posts", "essays"],
     icon: "musings",
     promoted: true,
-    target: { kind: "site", site: "home", hash: "musings" },
+    target: { kind: "site", site: "home", path: "/musings" },
   },
   {
     id: "destination-liars-dice",

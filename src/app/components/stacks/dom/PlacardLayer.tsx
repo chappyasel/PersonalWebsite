@@ -9,12 +9,7 @@
 // revealed, the remaining documents become resident one at a time during
 // idle windows so travel never has to reconstruct them.
 import { requestBookPrefetch } from "../bookPrefetch";
-import {
-  type StacksData,
-  type StacksSlots,
-  UNITS,
-  unitUrlForLocation,
-} from "../data";
+import { type StacksData, type StacksSlots, UNITS, unitUrl } from "../data";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
@@ -1474,11 +1469,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       window.history.pushState(
         null,
         "",
-        unitUrlForLocation(
-          window.location.pathname,
-          window.location.search,
-          target,
-        ),
+        unitUrl(target, window.location.search),
       );
     };
     if (state.panelState === "open" || state.panelState === "opening") {

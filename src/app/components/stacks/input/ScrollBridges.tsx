@@ -17,7 +17,7 @@ import {
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
   scenePositionFromHash,
-  sceneUrlForLocation,
+  sceneUrl,
 } from "../data";
 import { haptic } from "../mobile/liveness";
 import {
@@ -32,6 +32,7 @@ import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, isPanelHistoryEntry, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
+import { isRoomPathname } from "~/lib/site/roomRoutes";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
@@ -190,15 +191,15 @@ export default function ScrollBridges() {
         window.location.hash,
       );
       if (target > 0) jumpTo(target);
-      // Accepted legacy aliases are read-compatible, then immediately
-      // canonicalized so a centered golf stop always exposes #golf for copy,
-      // refresh, and subsequent history entries.
+      // Hash aliases are read-compatible, then immediately canonicalized so
+      // the address bar shows each stop's one URL (`/projects`, `/#books`,
+      // `/golf`) for copy, refresh, and subsequent history entries. A
+      // path-only URL such as `/about` is left as typed until travel.
       if (scenePositionFromHash(window.location.hash) !== null) {
-        const canonical = sceneUrlForLocation(
-          window.location.pathname,
-          window.location.search,
+        const canonical = sceneUrl(
           Math.round(target),
           golfFocusedForScenePosition(target),
+          window.location.search,
         );
         const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         if (current !== canonical)
@@ -235,16 +236,18 @@ export default function ScrollBridges() {
         activeUnit: state.activeUnit,
         golfFocused: state.golfStop,
       };
-      if (window.location.pathname !== "/" || !shouldMirrorWorldHistory(state))
+      if (
+        !isRoomPathname(window.location.pathname) ||
+        !shouldMirrorWorldHistory(state)
+      )
         return;
       window.history.replaceState(
         null,
         "",
-        sceneUrlForLocation(
-          window.location.pathname,
-          window.location.search,
+        sceneUrl(
           mirrored.activeUnit,
           mirrored.golfFocused,
+          window.location.search,
         ),
       );
     });
@@ -252,7 +255,7 @@ export default function ScrollBridges() {
     const travelToLocation = () => {
       // A replayed major-route pop can reach us before Activity disconnects
       // the old room. The destination page owns its URL and scroll position.
-      if (window.location.pathname !== "/") return;
+      if (!isRoomPathname(window.location.pathname)) return;
       const state = useStacks.getState();
       const target = initialScenePositionFromLocation(
         window.location.pathname,
@@ -272,7 +275,7 @@ export default function ScrollBridges() {
       state.travelTo?.(target);
     };
     const onPopState = () => {
-      if (window.location.pathname !== "/") return;
+      if (!isRoomPathname(window.location.pathname)) return;
       const state = useStacks.getState();
       if (state.modalOpen || state.visionRidePhase !== "idle") return;
       // Browser back while the mobile panel is up closes the panel — the

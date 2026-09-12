@@ -1,3 +1,5 @@
+import { isRoomPathname } from "~/lib/site/roomRoutes";
+
 import { type OriginRect } from "./originZoom";
 
 // Keep the original keys so existing in-document history entries still retrace.
@@ -20,14 +22,18 @@ function isRoomDestination(path: string) {
     "routine",
     "systems",
     "liarsdice",
-    "golf",
     "weight-log",
   ].includes(path.split("/")[1] ?? "");
 }
 
+/** `/`, `/golf`, and a shelf's own path are all the room: moving between
+ * them is travel, not a journey. */
 export function roomDirection(from: string, to: string) {
-  if (from === "/" && isRoomDestination(to)) return "enter";
-  if (isRoomDestination(from) && to === "/") return "return";
+  const fromRoom = isRoomPathname(from);
+  const toRoom = isRoomPathname(to);
+  if (fromRoom && toRoom) return null;
+  if (fromRoom && isRoomDestination(to)) return "enter";
+  if (isRoomDestination(from) && toRoom) return "return";
   return null;
 }
 

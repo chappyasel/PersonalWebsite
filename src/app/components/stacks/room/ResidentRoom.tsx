@@ -1,7 +1,7 @@
 "use client";
 
 import { worldBoot } from "../boot/worldBootSession";
-import { sceneUrlForLocation } from "../data";
+import { sceneHash } from "../data";
 import { useStacks } from "../store";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
@@ -26,10 +26,7 @@ export function ResidentRoom({
     setAttached(true);
     return () => {
       const state = useStacks.getState();
-      const hash = new URL(
-        sceneUrlForLocation("/", "", state.activeUnit, state.golfStop),
-        "https://room.invalid",
-      ).hash;
+      const hash = sceneHash(state.activeUnit, state.golfStop);
       const scope = worldBoot.scope();
       roomResidency.leave(token, worldBoot.getView().revealed, hash, () =>
         scope.send({ type: "exit" }),

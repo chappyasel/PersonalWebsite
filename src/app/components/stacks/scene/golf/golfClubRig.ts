@@ -22,6 +22,10 @@ export type GolfClubPose = {
   shaftTwist: number;
 };
 
+/** The swing supplies the launch velocity. Baking its moving model or picking
+ * targets into static colliders at impact makes loose props ricochet backward. */
+export const GOLF_CLUB_USER_DATA = { physicsIgnore: true } as const;
+
 export function golfClubHintRotation(
   amount: number,
   pointerX = 0,

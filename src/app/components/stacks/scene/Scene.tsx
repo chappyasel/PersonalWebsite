@@ -7,7 +7,7 @@ import {
   UNITS,
   UNIT_COUNT,
   type UnitSlug,
-  unitUrlForLocation,
+  unitUrl,
 } from "../data";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
@@ -109,11 +109,7 @@ function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
   if (state.golfFocused) return;
   if (index === state.activeUnit) return;
   if (!state.travelTo) return;
-  window.history.pushState(
-    null,
-    "",
-    unitUrlForLocation(window.location.pathname, window.location.search, index),
-  );
+  window.history.pushState(null, "", unitUrl(index, window.location.search));
   state.travelTo(index);
 }
 

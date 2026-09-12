@@ -19,7 +19,6 @@ import {
 import { useResolvedMeadowVisibility } from "../scenePerformance";
 import { golfMode } from "../golfMode";
 import { golfFocusPullDiagnostics } from "../shelfDepthOfField";
-import { SHELF_GEOMETRY } from "../shelfGeometry";
 import type { UnitProps } from "../units/types";
 import { unitPose } from "../worldLayout";
 import { Html } from "@react-three/drei";
@@ -40,6 +39,7 @@ import {
 } from "./GolfBallProp";
 import { isAboutGolfBallKey } from "./aboutGolfBalls";
 import {
+  GOLF_CLUB_USER_DATA,
   golfClubHintRotation,
   golfClubIdleBlend,
   golfClubPointerFollowRequested,
@@ -59,7 +59,6 @@ import {
 } from "./golfLayout";
 import {
   GOLF_BALL_RADIUS,
-  GOLF_GRAVITY,
   GolfFixedStepper,
   type GolfWorld,
   createGolfBallState,
@@ -97,6 +96,7 @@ import {
   setGolfSuspenseEnabled,
 } from "./golfSuspense";
 import { planGolfTrajectory } from "./golfTrajectory";
+import { planLoosePropLaunch } from "./loosePropLaunch";
 import type {
   GolfBallId,
   GolfBallPhase,
@@ -657,43 +657,14 @@ export default function GolfExperience({
       recordFieldNoteEvent({ type: "golf-prop-struck", propId: loose.id });
       if (loose.id === "action:about:vision-ride")
         useStacks.getState().armVisionRideModifier("golf");
-      // Not the golf trajectory scaled down. These props live in the rigid
-      // body world, whose floor is flat at ground height, while the meadow
-      // climbs half a metre toward the green; a can carried 17 m would land
-      // under the grass. So a struck prop gets a chip toward the cup: a
-      // carry of 3.5 to 7 m by mass (a tennis ball takes the whole swing, a
-      // can or the basketball about half), landing where the meadow still
-      // meets the floor, and rolling on from there.
-      const toCup = {
-        x: cup.x - loose.position.x,
-        z: cup.z - loose.position.z,
-      };
-      const cupDistance = Math.max(0.001, Math.hypot(toCup.x, toCup.z));
-      const scatter = (Math.random() - 0.5) * 0.24;
-      const dir = {
-        x:
-          (toCup.x / cupDistance) * Math.cos(scatter) -
-          (toCup.z / cupDistance) * Math.sin(scatter),
-        z:
-          (toCup.x / cupDistance) * Math.sin(scatter) +
-          (toCup.z / cupDistance) * Math.cos(scatter),
-      };
-      const massFactor = Math.min(
-        1,
-        Math.max(0.55, Math.sqrt(GOLF_BALL_MASS_KG / loose.ball.massKg) * 1.4),
+      const launch = toWorldDirection(
+        planLoosePropLaunch(
+          loose.position,
+          cup,
+          loose.ball.massKg,
+          loose.ball.contactHeight,
+        ),
       );
-      const carry = Math.min(7, Math.max(3.5, cupDistance * 0.38 * massFactor));
-      const flightTime = 0.9 + carry / 14;
-      const landingY = SHELF_GEOMETRY.groundY + loose.ball.contactHeight;
-      const launch = toWorldDirection({
-        x: (dir.x * carry) / flightTime,
-        y:
-          (landingY -
-            loose.position.y +
-            0.5 * GOLF_GRAVITY * flightTime * flightTime) /
-          flightTime,
-        z: (dir.z * carry) / flightTime,
-      });
       const strikePosition = toWorld(loose.position);
       const horizontalSpeed = Math.hypot(launch.x, launch.z);
       const response = meadowPhysicalResponse({
@@ -1047,6 +1018,7 @@ export default function GolfExperience({
     <group name="training-golf-experience">
       <group
         ref={club}
+        userData={GOLF_CLUB_USER_DATA}
         position={CLUB_REST_PIVOT}
         rotation={[-0.08, 0.04, 0, "YXZ"]}
         onClick={(event: ThreeEvent<MouseEvent>) => {

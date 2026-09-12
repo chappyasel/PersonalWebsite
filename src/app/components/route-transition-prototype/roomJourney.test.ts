@@ -26,12 +26,15 @@ it("retraces major room destinations while leaving book modals and same-section 
     "/routine",
     "/systems/planning",
     "/liarsdice",
-    "/golf",
     "/weight-log",
   ]) {
     expect(roomDirection("/", path)).toBe("enter");
     expect(roomDirection(path, "/")).toBe("return");
     expect(roomDirection(path, path)).toBeNull();
+    // A shelf's own path is the room too.
+    expect(roomDirection("/projects", path)).toBe("enter");
+    expect(roomDirection(path, "/talks")).toBe("return");
+    expect(roomDirection(path, "/golf")).toBe("return");
   }
   for (const [from, to] of [
     ["/books", "/books/behave"],
@@ -39,6 +42,10 @@ it("retraces major room destinations while leaving book modals and same-section 
     ["/", "/books/behave"],
     ["/books", "/weightlifting"],
     ["/books", "/books"],
+    // Travel between room stops is not a journey.
+    ["/", "/golf"],
+    ["/", "/projects"],
+    ["/musings", "/about"],
   ])
     expect(roomDirection(from!, to!)).toBeNull();
 });

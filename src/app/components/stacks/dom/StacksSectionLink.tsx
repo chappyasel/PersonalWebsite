@@ -1,6 +1,6 @@
 "use client";
 
-import { UNITS, type UnitSlug, unitUrlForLocation } from "../data";
+import { UNITS, type UnitSlug, unitUrl } from "../data";
 import { closeStacksPanel, useStacks } from "../store";
 import type { MouseEvent, ReactNode } from "react";
 
@@ -40,11 +40,7 @@ export function StacksSectionLink({
       window.history.pushState(
         null,
         "",
-        unitUrlForLocation(
-          window.location.pathname,
-          window.location.search,
-          unitIndex,
-        ),
+        unitUrl(unitIndex, window.location.search),
       );
     };
 

@@ -19,6 +19,13 @@ import type {
   HomepageBookPlacard,
   HomepageBookStats,
 } from "~/lib/books/types";
+import {
+  GOLF_PATHNAME,
+  ROOM_HOME_PATHNAME,
+  ROOM_SECTION_PATHNAMES,
+  normalizeRoomPathname,
+  roomSectionSlugForPathname,
+} from "~/lib/site/roomRoutes";
 
 export type UnitSlug =
   | "about"
@@ -84,7 +91,7 @@ export const UNITS: Unit[] = [
 ];
 
 export const UNIT_COUNT = UNITS.length;
-export const GOLF_PATHNAME = "/golf";
+export { GOLF_PATHNAME } from "~/lib/site/roomRoutes";
 export const GOLF_UNIT_INDEX = UNITS.findIndex(
   (unit) => unit.slug === "training",
 );
@@ -105,8 +112,10 @@ export const GOLF_STOP_POSITION = 1.52;
 export const GOLF_FOCUS_START = 1.36;
 export const GOLF_FOCUS_END = 1.62;
 
-export function unitIndexFromHash(hash: string): number | null {
-  const slug = hash.replace(/^#/, "");
+/** The shelf whose stop is the homepage. Its URL is `/`, never `/#about`. */
+const HOME_UNIT_INDEX = UNITS.findIndex((unit) => unit.slug === "about");
+
+function unitIndexForSlug(slug: string): number | null {
   const index = UNITS.findIndex(
     (unit) =>
       unit.slug === slug ||
@@ -116,23 +125,25 @@ export function unitIndexFromHash(hash: string): number | null {
   return index === -1 ? null : index;
 }
 
+export function unitIndexFromHash(hash: string): number | null {
+  return unitIndexForSlug(hash.replace(/^#/, ""));
+}
+
 export function scenePositionFromHash(hash: string): number | null {
   if (hash.replace(/^#/, "") === "golf") return GOLF_STOP_POSITION;
   return unitIndexFromHash(hash);
 }
 
-function normalizedPathname(pathname: string) {
-  return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
-}
-
+/** The stop a pathname opens on when the URL carries no hash: the golf
+ * green on /golf, a shelf on its own path, About everywhere else. */
 export function defaultScenePositionForPathname(pathname: string) {
-  return normalizedPathname(pathname) === GOLF_PATHNAME
-    ? GOLF_STOP_POSITION
-    : 0;
+  if (normalizeRoomPathname(pathname) === GOLF_PATHNAME)
+    return GOLF_STOP_POSITION;
+  const slug = roomSectionSlugForPathname(pathname);
+  return (slug === null ? null : unitIndexForSlug(slug)) ?? HOME_UNIT_INDEX;
 }
 
-/** Explicit section hashes win; otherwise a hidden route may choose a
- * different initial room stop than the canonical homepage. */
+/** Explicit section hashes win; otherwise the pathname chooses the stop. */
 export function initialScenePositionFromLocation(
   pathname: string,
   hash: string,
@@ -146,37 +157,39 @@ export function golfFocusedForScenePosition(position: number) {
   return position >= GOLF_FOCUS_START && position <= GOLF_FOCUS_END;
 }
 
-/** Mirrors travel without erasing a pathname's special default. On /golf,
- * the hidden Golf stop is the clean URL, so every public unit keeps a hash. */
-export function unitUrlForLocation(
-  pathname: string,
-  search: string,
-  unitIndex: number,
-) {
-  const base = `${pathname}${search}`;
+function unitPublicSlug(unitIndex: number) {
   const unit = UNITS[unitIndex];
-  const slug = unit?.urlSlug ?? unit?.slug;
-  const pathnameDefault = defaultScenePositionForPathname(pathname);
-  if (
-    !slug ||
-    (Number.isInteger(pathnameDefault) && unitIndex === pathnameDefault)
-  )
-    return base;
-  return `${base}#${slug}`;
+  return unit ? (unit.urlSlug ?? unit.slug) : null;
 }
 
-export function sceneUrlForLocation(
-  pathname: string,
-  search: string,
-  unitIndex: number,
-  golfFocused: boolean,
-) {
-  const base = `${pathname}${search}`;
-  if (golfFocused)
-    return normalizedPathname(pathname) === GOLF_PATHNAME
-      ? base
-      : `${base}#golf`;
-  return unitUrlForLocation(pathname, search, unitIndex);
+/** One URL per stop. A shelf that owns a path IS that path; About's stop is
+ * the homepage; every other shelf is the homepage plus its hash. Search
+ * params ride along so an owner mode (`?debug=1`) survives travel. Hash
+ * aliases and `/about` still resolve on load, but nothing writes them. */
+export function unitUrl(unitIndex: number, search = "") {
+  const slug = unitPublicSlug(unitIndex);
+  if (slug === null || unitIndex === HOME_UNIT_INDEX)
+    return `${ROOM_HOME_PATHNAME}${search}`;
+  const pathname = ROOM_SECTION_PATHNAMES[slug];
+  if (pathname) return `${pathname}${search}`;
+  return `${ROOM_HOME_PATHNAME}${search}#${slug}`;
+}
+
+/** The URL the address bar shows for a scene position: the golf stop when
+ * the scroll window is centred on the green, else the active shelf's. */
+export function sceneUrl(unitIndex: number, golfFocused: boolean, search = "") {
+  if (golfFocused) return `${GOLF_PATHNAME}${search}`;
+  return unitUrl(unitIndex, search);
+}
+
+/** The hash form of a stop, for a return that must land on `/`. The room
+ * reads it the way it reads any alias; the next travel writes the canonical
+ * URL. */
+export function sceneHash(unitIndex: number, golfFocused: boolean) {
+  if (golfFocused) return "#golf";
+  const slug = unitPublicSlug(unitIndex);
+  if (slug === null || unitIndex === HOME_UNIT_INDEX) return "";
+  return `#${slug}`;
 }
 
 export type StacksTalk = {

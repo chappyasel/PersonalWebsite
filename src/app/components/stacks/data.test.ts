@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import { SITE_PAGES } from "~/lib/site/pages";
+import { ROOM_SECTION_PATHNAMES, isRoomPathname } from "~/lib/site/roomRoutes";
+
 import {
   GOLF_FOCUS_END,
   GOLF_FOCUS_START,
   GOLF_STOP_POSITION,
   GOLF_UNIT_INDEX,
   UNITS,
+  defaultScenePositionForPathname,
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
-  sceneUrlForLocation,
+  sceneHash,
+  sceneUrl,
   unitIndexFromHash,
-  unitUrlForLocation,
+  unitUrl,
 } from "./data";
 
 describe("homepage 3D traverse order", () => {
@@ -42,8 +47,8 @@ describe("homepage 3D traverse order", () => {
     expect(unitIndexFromHash("#training")).toBe(2);
     expect(unitIndexFromHash("#musings")).toBe(5);
     expect(unitIndexFromHash("#blog")).toBe(5);
-    expect(unitUrlForLocation("/", "", 2)).toBe("/#weightlifting");
-    expect(unitUrlForLocation("/", "", 5)).toBe("/#musings");
+    expect(unitUrl(2)).toBe("/#weightlifting");
+    expect(unitUrl(5)).toBe("/musings");
   });
 
   it("shortens Talks only in the unit rail", () => {
@@ -85,16 +90,51 @@ describe("homepage 3D traverse order", () => {
     expect(golfFocusedForScenePosition(2)).toBe(false);
   });
 
-  it("keeps each pathname default clean and hashes every non-default stop", () => {
-    expect(sceneUrlForLocation("/golf", "", 2, true)).toBe("/golf");
-    expect(sceneUrlForLocation("/", "", 2, true)).toBe("/#golf");
-    expect(unitUrlForLocation("/golf", "", 2)).toBe("/golf#weightlifting");
-    expect(unitUrlForLocation("/golf", "?quality=2", 2)).toBe(
-      "/golf?quality=2#weightlifting",
+  it("gives every stop one URL, whatever path the visitor arrived on", () => {
+    // Shelves that own a path are that path.
+    expect(unitUrl(4)).toBe("/projects");
+    expect(unitUrl(5)).toBe("/musings");
+    expect(unitUrl(6)).toBe("/talks");
+    // About's stop is the homepage; the pages' shelves hang a hash off it.
+    expect(unitUrl(0)).toBe("/");
+    expect(unitUrl(1)).toBe("/#books");
+    expect(unitUrl(2)).toBe("/#weightlifting");
+    expect(unitUrl(3)).toBe("/#systems");
+    // Owner modes ride along.
+    expect(unitUrl(2, "?quality=2")).toBe("/?quality=2#weightlifting");
+    expect(unitUrl(4, "?debug=1")).toBe("/projects?debug=1");
+    // The golf window owns its own path.
+    expect(sceneUrl(2, true)).toBe("/golf");
+    expect(sceneUrl(1, true, "?debug=1")).toBe("/golf?debug=1");
+    expect(sceneUrl(4, false)).toBe("/projects");
+    // A return that must land on `/` gets the alias hash.
+    expect(sceneHash(0, false)).toBe("");
+    expect(sceneHash(4, false)).toBe("#projects");
+    expect(sceneHash(1, true)).toBe("#golf");
+  });
+
+  it("opens a shelf's own path on that shelf and still reads every alias", () => {
+    expect(defaultScenePositionForPathname("/projects")).toBe(4);
+    expect(defaultScenePositionForPathname("/musings/")).toBe(5);
+    expect(defaultScenePositionForPathname("/talks")).toBe(6);
+    expect(defaultScenePositionForPathname("/about")).toBe(0);
+    expect(defaultScenePositionForPathname("/golf")).toBe(GOLF_STOP_POSITION);
+    expect(defaultScenePositionForPathname("/")).toBe(0);
+    // An explicit hash outranks the path.
+    expect(initialScenePositionFromLocation("/projects", "#books")).toBe(1);
+    expect(initialScenePositionFromLocation("/talks", "#golf")).toBe(
+      GOLF_STOP_POSITION,
     );
-    expect(unitUrlForLocation("/golf", "", 0)).toBe("/golf#about");
-    expect(unitUrlForLocation("/golf", "", 3)).toBe("/golf#systems");
-    expect(unitUrlForLocation("/", "", 0)).toBe("/");
-    expect(unitUrlForLocation("/", "", 2)).toBe("/#weightlifting");
+    // Every path in the table names a shelf, and none is a real page.
+    const pagePaths = Object.values(SITE_PAGES).map((page) => page.path);
+    for (const [slug, pathname] of Object.entries(ROOM_SECTION_PATHNAMES)) {
+      expect(unitIndexFromHash(`#${slug}`)).not.toBeNull();
+      expect(pagePaths).not.toContain(pathname);
+      expect(isRoomPathname(pathname)).toBe(true);
+    }
+    for (const pathname of ["/", "/golf", "/golf/"])
+      expect(isRoomPathname(pathname)).toBe(true);
+    for (const pathname of [...pagePaths, "/liarsdice", "/weight-log", "/dad"])
+      expect(isRoomPathname(pathname)).toBe(false);
   });
 });

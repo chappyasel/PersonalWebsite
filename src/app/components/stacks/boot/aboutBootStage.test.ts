@@ -181,9 +181,7 @@ describe("aboutBootStageForViewport", () => {
     );
     // The same eye the projector every drawable uses stands at.
     expect(canonical.eyeX).toBeCloseTo(ABOUT_BOOT_CAMERA.eye[0], 9);
-    expect(ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY.canonicalEyeX).toBe(
-      canonical.eyeX,
-    );
+    expect(ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY.canonicalEyeX).toBe(canonical.eyeX);
     expect(
       aboutBootStageLayout(
         1440,
@@ -371,6 +369,11 @@ describe("aboutBootStageEnabledForLocation", () => {
       { pathname: "/golf/", hash: "" },
       { pathname: "/golf", hash: "#about" },
       { pathname: "/golf", hash: "#systems" },
+      { pathname: "/about", hash: "" },
+      { pathname: "/projects", hash: "" },
+      { pathname: "/musings/", hash: "" },
+      { pathname: "/talks", hash: "#about" },
+      { pathname: "/projects", hash: "#golf" },
     ];
 
     for (const location of locations) {
@@ -523,6 +526,8 @@ describe("aboutBootStageScript", () => {
       { pathname: "/", hash: "#books" },
       { pathname: "/", hash: "#golf" },
       { pathname: "/golf", hash: "" },
+      { pathname: "/projects", hash: "" },
+      { pathname: "/talks", hash: "" },
     ]) {
       const { properties, attributes } = run(
         1440,

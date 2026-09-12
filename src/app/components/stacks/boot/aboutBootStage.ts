@@ -52,6 +52,8 @@ import {
   unitPose,
 } from "../scene/worldLayout";
 
+import { ROOM_SECTION_PATHNAMES } from "~/lib/site/roomRoutes";
+
 export type AboutBootStage = {
   /** Screen x of unit 0's origin, CSS px from the viewport's left edge. */
   originX: number;
@@ -106,7 +108,14 @@ export const ABOUT_BOOT_STAGE_LOCATION_ROUTING: AboutBootStageLocationRouting =
       ),
       ["golf", GOLF_STOP_POSITION] as const,
     ]),
-    pathnamePositions: { [GOLF_PATHNAME]: GOLF_STOP_POSITION },
+    // A shelf's own path opens on that shelf; `/about` is the homepage stop.
+    pathnamePositions: Object.fromEntries([
+      [GOLF_PATHNAME, GOLF_STOP_POSITION] as const,
+      ...UNITS.flatMap((unit, index) => {
+        const pathname = ROOM_SECTION_PATHNAMES[unit.urlSlug ?? unit.slug];
+        return pathname ? [[pathname, index] as const] : [];
+      }),
+    ]),
   };
 
 /** Whether the live world will open on the shelf drawn by the boot vignette.
@@ -333,7 +342,10 @@ export function aboutBootStageForViewport(
     const d = g.dock;
     const dockWidth = Math.min(
       d.widthMaxRem * d.rem,
-      Math.max(d.widthMinRem * d.rem, d.widthFraction * vw + d.widthBaseRem * d.rem),
+      Math.max(
+        d.widthMinRem * d.rem,
+        d.widthFraction * vw + d.widthBaseRem * d.rem,
+      ),
     );
     const dockGutter = Math.min(
       d.gutterMaxRem * d.rem,
@@ -344,7 +356,10 @@ export function aboutBootStageForViewport(
     );
     const dockEdge = vw - dockWidth - dockGutter;
     const mid = (railEdge + dockEdge) / 2;
-    const centrePx = Math.min(mid, dockEdge - g.dockShelfMarginPx - halfShelfPx);
+    const centrePx = Math.min(
+      mid,
+      dockEdge - g.dockShelfMarginPx - halfShelfPx,
+    );
     const lateralOffset = clamp(
       (vw / 2 - centrePx) / pxPerWorld,
       0,
