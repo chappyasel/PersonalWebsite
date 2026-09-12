@@ -1,0 +1,130 @@
+[
+  {
+    "unit": "books",
+    "label": "light-desktop",
+    "url": "http://127.0.0.1:3322/?harness=1&nomeadow=1&perf-profile=no-composer#books",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "raster": [
+      1440,
+      900
+    ],
+    "elapsedMs": 52222,
+    "errors": [],
+    "exactSavedCamera": true,
+    "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+    "cssScale": 0.6811989100817438,
+    "toleranceCssPx": 3,
+    "maxCssResidualUpperBound": 0,
+    "compatible": true,
+    "colourComparisons": [
+      {
+        "owner": "shelf",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "4aab8305b301b444caf491e30462a914bac02c1a3c4a4e842e3a2b32852ec2ba",
+        "newColourSha256": "4aab8305b301b444caf491e30462a914bac02c1a3c4a4e842e3a2b32852ec2ba"
+      },
+      {
+        "owner": "stacks-cover-the-art-of-doing-science-and-engineering",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "stacks-cover-the-12-levers",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "stacks-cover-superminds",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "stacks-cover-bowling-alone",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "books-packed-top",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "books-bookend-top",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "a21961ab59ba78ee56d0bc7ecd996eac76ac68535a0c1572c6a63a5b4640c4b8",
+        "newColourSha256": "a21961ab59ba78ee56d0bc7ecd996eac76ac68535a0c1572c6a63a5b4640c4b8"
+      },
+      {
+        "owner": "books-packed-lower",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "books-bookend-lower",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "50d8519d3a02cf7506fb45a7a26fcd6633d390ea4ee56fc0a7989343f37349bd",
+        "newColourSha256": "50d8519d3a02cf7506fb45a7a26fcd6633d390ea4ee56fc0a7989343f37349bd"
+      },
+      {
+        "owner": "stacks-cover-barking-up-the-wrong-tree",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "stacks-cover-homo-deus",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "stacks-cover-life-3-0",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      },
+      {
+        "owner": "stacks-cover-thinking-fast-and-slow",
+        "changedChannels": 0,
+        "maxChannelDifference": 0,
+        "meanChannelDifference": 0,
+        "oldColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8",
+        "newColourSha256": "dde500bff0b4583cc26b217b9e1c3ca1f9d705f83b549dff7aeb77bccd740bc8"
+      }
+    ],
+    "dataIdentitySha256": "9fd5f5d568da662835975a290a5676effaec64f33c2886b947690420c6fb3750"
+  }
+]
