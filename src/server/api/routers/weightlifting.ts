@@ -28,6 +28,7 @@ import {
 } from "~/server/queries/weightlifting";
 import { getCachedExerciseIndex } from "~/server/queries/weightliftingExercise";
 import { getChartSelectableExercises } from "~/server/queries/weightliftingExercises";
+import { getCachedWeightliftingPareto } from "~/server/queries/weightliftingPareto";
 
 const getCachedPersonalRecords = unstable_cache(
   async () => {
@@ -312,6 +313,9 @@ const getCachedTrainingRows = unstable_cache(
 );
 
 export const weightliftingRouter = createTRPCRouter({
+  getBodyweightPareto: publicProcedure
+    .input(z.object({ displayName: z.string().min(1).max(511) }))
+    .query(({ input }) => getCachedWeightliftingPareto(input.displayName)),
   /** Paginated workout list with date range filter */
   getWorkouts: publicProcedure
     .input(

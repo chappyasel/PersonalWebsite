@@ -38,6 +38,7 @@
     "check:perches": "tsx ./scripts/stacks-perch-check.ts",
     "test:performance": "playwright test",
     "test:performance:safety": "playwright test tests/e2e/stacks-performance-harness.spec.ts --grep 'holds the Safety triangle budget'",
+    "refresh:lifting-pareto": "node --env-file=.env --conditions=react-server --import tsx scripts/weightlifting/refresh-pareto.ts",
     "generate:blog-posts": "tsx ./scripts/generate/blog-posts.ts",
     "generate:search-index": "tsx ./scripts/generate/universal-search-index.ts",
     "generate:dad-search-index": "tsx ./scripts/generate/dad-search-index.ts",
