@@ -1,5 +1,5 @@
+import RoomHomePage from "../RoomHomePage";
 import { roomStopMetadata, roomViewport } from "../homeMetadata";
-import HomePage from "../page";
 import { type Metadata, type Viewport } from "next";
 
 // The room, opened on the hidden golf green between Books and Weightlifting.
@@ -17,5 +17,5 @@ export const metadata: Metadata = roomStopMetadata({
 export const viewport: Viewport = roomViewport;
 
 export default function GolfPage() {
-  return <HomePage />;
+  return <RoomHomePage initialUnit={1.52} illustrated={false} />;
 }

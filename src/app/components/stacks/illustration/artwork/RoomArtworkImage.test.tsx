@@ -1,10 +1,7 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { RoomArtworkImage } from "./RoomArtworkImage";
-import { serializeRoomBooksArtworkIdentity } from "./booksIdentity";
 import { getRoomArtwork } from "./getRoomArtwork";
 
 describe("room artwork SSR contract", () => {
@@ -36,28 +33,5 @@ describe("room artwork SSR contract", () => {
     expect(getRoomArtwork(4, "dark", "phone")?.camera.projection).toHaveLength(
       16,
     );
-  });
-});
-
-describe("Books approved data identity", () => {
-  it("reproduces the recovered digest from only layout and material inputs", () => {
-    const captured = JSON.parse(
-      readFileSync(
-        "docs/reviews/production-artwork-metadata-recovery/books-data-identity.json",
-        "utf8",
-      ),
-    ) as Parameters<typeof serializeRoomBooksArtworkIdentity>[0];
-    const hash = createHash("sha256")
-      .update(serializeRoomBooksArtworkIdentity(captured))
-      .digest("hex");
-    expect(hash).toBe(
-      "56d8b48a2065491894ec97743dfa0805ea05d150e25f8aa01f03fd67b39155b3",
-    );
-    expect(
-      serializeRoomBooksArtworkIdentity({
-        ...captured,
-        featuredBooks: captured.featuredBooks.slice(1),
-      }),
-    ).not.toBe(serializeRoomBooksArtworkIdentity(captured));
   });
 });

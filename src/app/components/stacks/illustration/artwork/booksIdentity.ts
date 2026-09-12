@@ -1,11 +1,11 @@
 import type { StacksData } from "../../data";
 
-/** Only the server fields consumed by the Books layout/materials. No notes or ratings. */
+/** Ordered Books content and dimensions. Sampled palette colors do not define identity. */
 export function serializeRoomBooksArtworkIdentity(
-  data: Pick<StacksData, "featuredBooks" | "featuredBookColors" | "spineBooks">,
+  data: Pick<StacksData, "featuredBooks" | "spineBooks">,
 ): string {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     featuredBooks: data.featuredBooks.map((book) => ({
       id: book.id,
       title: book.title,
@@ -14,18 +14,12 @@ export function serializeRoomBooksArtworkIdentity(
       pageCount: book.pageCount,
       audioLengthMin: book.audioLengthMin,
     })),
-    featuredBookColors: Object.fromEntries(
-      Object.entries(data.featuredBookColors).sort(([a], [b]) =>
-        a.localeCompare(b),
-      ),
-    ),
     spineBooks: data.spineBooks.map((book) => ({
       id: book.id,
       title: book.title,
       author: book.author,
       pageCount: book.pageCount,
       audioLengthMin: book.audioLengthMin,
-      edgeColor: book.edgeColor,
     })),
   });
 }

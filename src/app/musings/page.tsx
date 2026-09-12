@@ -1,5 +1,5 @@
+import RoomHomePage from "../RoomHomePage";
 import { roomStopMetadata, roomViewport } from "../homeMetadata";
-import HomePage from "../page";
 import { type Metadata, type Viewport } from "next";
 
 // The room, opened on the Musings shelf.
@@ -16,5 +16,5 @@ export const metadata: Metadata = roomStopMetadata({
 export const viewport: Viewport = roomViewport;
 
 export default function MusingsPage() {
-  return <HomePage />;
+  return <RoomHomePage initialUnit={5} />;
 }

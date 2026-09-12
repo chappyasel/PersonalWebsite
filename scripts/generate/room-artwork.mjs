@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import sharp from "sharp";
 
+import { verifyCapturedBooksIdentity } from "./room-artwork-books.mjs";
+import { verifyCapturedClockRotation } from "./room-artwork-clock.mjs";
+
 export const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -106,6 +109,8 @@ export async function generate({ root = ROOT, check = false } = {}) {
     )
       throw new Error(`Changed approved input ${entry.unit}/${entry.label}`);
     const capture = JSON.parse(captureBytes.toString());
+    await verifyCapturedBooksIdentity(capture, read);
+    verifyCapturedClockRotation(capture);
     const svg = await inlineDetails(original.toString(), entry.details, read);
     const svgViewBox = svg
       .match(/viewBox="([^"]+)"/)?.[1]

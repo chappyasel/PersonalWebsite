@@ -84,9 +84,10 @@
 }
 .room-illustration-actions {
   position: absolute;
-  bottom: 1rem;
-  left: 1rem;
-  z-index: 25;
+  top: calc(env(safe-area-inset-top, 0px) + 7.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
   pointer-events: auto;
 }
 .room-illustration-unavailable {
@@ -95,27 +96,68 @@
   text-align: center;
   color: hsl(var(--muted-foreground));
 }
-.stacks-world-shell[data-room-presentation="dissolve"] .stacks-og-ui,
-.stacks-world-shell[data-room-presentation="dissolve"] .stacks-og-ui *,
-.stacks-world-shell[data-room-presentation="travel"] .stacks-og-ui,
-.stacks-world-shell[data-room-presentation="travel"] .stacks-og-ui * {
-  visibility: hidden !important;
-  pointer-events: none !important;
+/* Illustrated chrome sits on the theme background instead of the live sky. */
+.stacks-world-shell[data-room-presentation="illustrated"]
+  .stacks-on-background-text,
+.stacks-world-shell[data-room-presentation="illustrated"]
+  .stacks-on-background-text
+  .stacks-rail-icon,
+.stacks-world-shell[data-room-presentation="illustrated"]
+  [data-stacks-desktop-panel]
+  .placard-sections
+  h1,
+.stacks-world-shell[data-room-presentation="illustrated"]
+  [data-stacks-desktop-panel]
+  .placard-section-heading {
+  color: hsl(var(--foreground)) !important;
+  text-shadow: none !important;
 }
-.stacks-world-shell[data-room-presentation="illustrated"] .stacks-reveal,
 .stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-unit-rail-desktop,
+  .stacks-on-background-text {
+  --tw-ring-color: hsl(var(--foreground) / 0.45);
+}
 .stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-unit-rail-mobile,
+  .stacks-on-background-text
+  svg,
 .stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-desktop-dock],
+  [data-stacks-desktop-panel]
+  .placard-sections
+  h1
+  svg,
 .stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-details-toggle-shell],
+  [data-stacks-desktop-panel]
+  .placard-section-heading
+  svg {
+  filter: none !important;
+}
 .stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-sheet-material],
-.stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-mobile-panel] {
+  .stacks-on-background-mark {
+  background-color: hsl(var(--foreground) / 0.85) !important;
+  box-shadow: none !important;
+}
+.stacks-world-shell[data-illustrated-entry] .stacks-reveal,
+.stacks-world-shell[data-illustrated-entry] .stacks-rail-row,
+.stacks-world-shell[data-illustrated-entry] [data-stacks-rail-indicator],
+.stacks-world-shell[data-illustrated-entry] .stacks-unit-rail-desktop,
+.stacks-world-shell[data-illustrated-entry] .stacks-unit-rail-mobile,
+.stacks-world-shell[data-illustrated-entry] [data-stacks-desktop-dock],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-details-toggle-shell],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-sheet-material],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-panel] {
   animation: none !important;
+}
+/* Settle entrance children while retaining their containers' placement. */
+.stacks-world-shell[data-illustrated-entry] .stacks-reveal,
+.stacks-world-shell[data-illustrated-entry] .stacks-rail-row {
+  opacity: 1 !important;
+  transform: none !important;
+}
+.stacks-world-shell[data-illustrated-entry] .stacks-reveal {
+  filter: none !important;
+}
+.stacks-world-shell[data-illustrated-entry] [data-stacks-rail-indicator] {
+  transform: none !important;
+  scale: 1 !important;
 }
 .stacks-world-shell[data-room-presentation="illustrated"] .stacks-world-curtain,
 .stacks-world-shell[data-room-presentation="dissolve"] .stacks-world-curtain,
@@ -123,7 +165,25 @@
   display: none;
 }
 @media (min-width: 1200px) {
+  .room-illustration-actions {
+    top: auto;
+    bottom: 2rem;
+    left: calc((60vw + 12rem) / 2);
+  }
   .room-illustration-stage {
     inset: 5rem 40% 3rem 12rem;
   }
+}
+
+/* About's SVG has visible descendants; retire the whole compositing layer. */
+.stacks-world-shell .room-illustration:not([data-illustration-visible]) {
+  opacity: 0 !important;
+}
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-intro] {
+  animation: none !important;
+  translate: 0 0 !important;
+}
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-intro="header"],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-intro="body"] {
+  opacity: 1 !important;
 }

@@ -704,7 +704,10 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           </group>
         }
       >
-        <group position={[-1.14, 0, -0.08]}>
+        <group
+          name={"room-boot:systems-manual-row"}
+          position={[-1.14, 0, -0.08]}
+        >
           <BookRowMesh
             items={manualRow}
             palette={palette}

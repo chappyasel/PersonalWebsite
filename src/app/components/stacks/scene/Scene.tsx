@@ -9,6 +9,7 @@ import {
   type UnitSlug,
   unitUrl,
 } from "../data";
+import SceneHandoff from "../illustration/SceneHandoff";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -140,7 +141,11 @@ function CollisionIndexedUnit({
     };
   }, [index, physicsScene]);
   return (
-    <group ref={root} {...unitPoseForCapture(index, headOnCapture)}>
+    <group
+      name={`room-unit:${index}`}
+      ref={root}
+      {...unitPoseForCapture(index, headOnCapture)}
+    >
       <UnitActivityProvider index={index}>{children}</UnitActivityProvider>
     </group>
   );
@@ -481,6 +486,7 @@ function Scene({
         />
         <PhysicsSceneFrameDriver />
       </PhysicsSceneProvider>
+      <SceneHandoff data={data} />
       {process.env.NODE_ENV === "development" && diagnosticsRequested ? (
         <>
           <InsectPerchDiagnostics />

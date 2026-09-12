@@ -430,7 +430,7 @@ function TrainingBoard({
   unitIndex: number;
 }) {
   return (
-    <group position={[0, 0.396, 0]}>
+    <group name="room-boot:training-board" position={[0, 0.396, 0]}>
       <CorkBoardBody palette={palette} dark={dark} textured={textured} />
       {TRAINING_PINS.map((pin) => {
         const height = pin.height;

@@ -1,3 +1,5 @@
+"use client";
+
 import { UNITS } from "../data";
 import { BootScreenArtwork } from "../dom/BootScreen";
 import type { BootReadingBook } from "../dom/bootReadingBooks";

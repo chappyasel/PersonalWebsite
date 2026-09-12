@@ -17,6 +17,9 @@ const initial = useStacks.getState();
 const data = {
   readingBooks: [],
   readingBookColors: {},
+  featuredBooks: [],
+  featuredBookColors: {},
+  spineBooks: [],
 } as unknown as StacksData;
 let resize: () => void;
 let decode = vi.fn<() => Promise<void>>();

@@ -1,3 +1,4 @@
+import { worldBoot } from "../boot/worldBootSession";
 import {
   type VisionRideFinishPreview,
   type VisionRideScenePreview,
@@ -858,6 +859,27 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       visionRideDiagnosticsController.setFinishPreview(
         value as VisionRideFinishPreview,
       ),
+  }),
+  booleanDescriptor({
+    id: "camera.illustration-handoff",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Illustration handoff",
+    help: "Match the shelf drawing before moving into the room. Turning this off uses the ordinary ready frame.",
+    defaultValue: true,
+    experimental: false,
+    store: { subscribe: (listener) => worldBoot.subscribe(listener) },
+    read: () => worldBoot.getView().motionEnabled,
+    update: (value) => worldBoot.setIllustrationMotionEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One camera and temporary scene transforms during arrival.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
   }),
   booleanDescriptor({
     id: "camera.authored-depth",

@@ -479,7 +479,10 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
           </React.Suspense>
         </Grabbable>
 
-        <group position={[...MUSINGS_BOOK_ROW_BASE]}>
+        <group
+          name={"room-boot:musings-book-row"}
+          position={[...MUSINGS_BOOK_ROW_BASE]}
+        >
           <BookRowMesh
             items={uprightBooks}
             palette={palette}

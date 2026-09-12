@@ -182,7 +182,13 @@ export type WorldBootEvent =
       epoch: number;
       key: string;
     }
-  | { type: "illustrationUnavailable"; at: number; epoch: number; key: string }
+  /** Decode can fail before a drawing has published its first geometry key. */
+  | {
+      type: "illustrationUnavailable";
+      at: number;
+      epoch: number;
+      key: string | null;
+    }
   /** Reading/navigation is a page fact and survives renderer replacement. */
   | { type: "illustrationInteracted"; at: number }
   | { type: "illustrationChanged"; at: number; key: string | null }
@@ -230,6 +236,10 @@ export type WorldBootState = {
   illustratedMode: boolean;
   illustrationKey: string | null;
   registeredIllustrationKey: string | null;
+  /** Matching failed for the selected artwork. Cleared when that key changes. */
+  matchUnavailable: boolean;
+  /** One explicit retry may enter through the ordinary camera instead. */
+  skipIllustrationMatch: boolean;
   interactionHeld: boolean;
   handoffStartedAt: number | null;
   /** Session-only diagnostics setting. It never changes eligibility. */
@@ -331,6 +341,8 @@ export function initialWorldBootState(): WorldBootState {
     illustratedMode: false,
     illustrationKey: null,
     registeredIllustrationKey: null,
+    matchUnavailable: false,
+    skipIllustrationMatch: false,
     interactionHeld: false,
     handoffStartedAt: null,
     motionEnabled: true,
@@ -522,6 +534,7 @@ function giveUp(
     deadline: null,
     registeredIllustrationKey: null,
     handoffStartedAt: null,
+    skipIllustrationMatch: false,
     prepaintTimedOut:
       state.prepaintTimedOut ||
       (state.origin === "prepaint" && failure === "hang"),
@@ -535,6 +548,7 @@ function retainIllustration(state: WorldBootState): WorldBootState {
     deadline: null,
     registeredIllustrationKey: null,
     handoffStartedAt: null,
+    skipIllustrationMatch: false,
   };
 }
 
@@ -559,8 +573,13 @@ function settleIllustrated(
         : state,
     );
     if (roomReady) {
-      if (!staged.motionEnabled) {
-        return { ...staged, status: "live", deadline: null };
+      if (!staged.motionEnabled || staged.skipIllustrationMatch) {
+        return {
+          ...staged,
+          status: "live",
+          deadline: null,
+          skipIllustrationMatch: false,
+        };
       }
       if (
         staged.illustrationKey !== null &&
@@ -740,14 +759,21 @@ export function reduceWorldBoot(
     case "start": {
       const fresh = initialWorldBootState();
       const sameVisit = state.status !== "exited";
+      const illustratedMode =
+        (event.illustratedMode ?? false) && !event.ogCapture;
       const base: WorldBootState = {
         ...fresh,
         epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
         holdBoot: event.holdBoot ?? false,
-        illustratedMode: (event.illustratedMode ?? false) && !event.ogCapture,
+        illustratedMode,
         illustrationKey: sameVisit ? state.illustrationKey : null,
+        matchUnavailable: sameVisit && state.matchUnavailable,
+        skipIllustrationMatch:
+          illustratedMode &&
+          event.explicitRequest === true &&
+          (state.matchUnavailable || state.illustrationKey === null),
         interactionHeld:
           sameVisit && !event.explicitRequest && state.interactionHeld,
         motionEnabled: state.motionEnabled,
@@ -781,6 +807,7 @@ export function reduceWorldBoot(
           ...base,
           status: "ineligible",
           ineligibility,
+          skipIllustrationMatch: false,
           // Even a browser without WebGL must recover its semantic document
           // if the illustrated UI's hydration bundle never arrives.
           deadline:
@@ -796,7 +823,12 @@ export function reduceWorldBoot(
       // not put the boot screen back over it and start a second, longer wait
       // — hydration that late is the same hang, seen from further along.
       if (base.prepaintTimedOut) {
-        return { ...base, status: "failed", failure: "hang" };
+        return {
+          ...base,
+          status: "failed",
+          failure: "hang",
+          skipIllustrationMatch: false,
+        };
       }
       if (base.illustratedMode && base.interactionHeld) {
         return {
@@ -829,6 +861,8 @@ export function reduceWorldBoot(
         interactionHeld: false,
         illustrationKey: null,
         registeredIllustrationKey: null,
+        matchUnavailable: false,
+        skipIllustrationMatch: false,
         handoffStartedAt: null,
         prepaintTimedOut: false,
       };
@@ -849,6 +883,7 @@ export function reduceWorldBoot(
         ...state,
         illustrationKey: event.key,
         registeredIllustrationKey: null,
+        matchUnavailable: false,
       };
       return state.illustratedMode && illustrationHandoffActive(state)
         ? retainIllustration(changed)
@@ -876,12 +911,17 @@ export function reduceWorldBoot(
       if (
         !state.illustratedMode ||
         !state.motionEnabled ||
+        state.skipIllustrationMatch ||
         state.status !== "booting" ||
         event.key !== state.illustrationKey
       )
         return state;
       return settle(
-        { ...state, registeredIllustrationKey: event.key },
+        {
+          ...state,
+          registeredIllustrationKey: event.key,
+          matchUnavailable: false,
+        },
         event.at,
         policy,
       );
@@ -902,11 +942,12 @@ export function reduceWorldBoot(
       if (
         !state.illustratedMode ||
         !state.motionEnabled ||
+        state.skipIllustrationMatch ||
         event.key !== state.illustrationKey ||
         !(state.status === "booting" || illustrationHandoffActive(state))
       )
         return state;
-      return retainIllustration(state);
+      return retainIllustration({ ...state, matchUnavailable: true });
 
     case "runtimeError":
       return giveUp(state, "runtimeError");
@@ -992,7 +1033,7 @@ export function worldBootView(
     illustrationKey: state.illustrationKey,
     interactionHeld: state.interactionHeld,
     handoffStartedAt: state.handoffStartedAt,
-    motionEnabled: state.motionEnabled,
+    motionEnabled: state.motionEnabled && !state.skipIllustrationMatch,
     canRequest3D:
       state.illustratedMode &&
       !worldMounted &&

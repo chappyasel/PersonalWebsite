@@ -122,6 +122,9 @@ export type AnalyticsEventProperties = {
       | "ineligible"
       | "booting"
       | "revealing"
+      | "illustrated"
+      | "dissolving"
+      | "travelling"
       | "live"
       | "failed"
       | "exited";

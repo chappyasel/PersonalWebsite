@@ -10,7 +10,7 @@
       "inputSvg": "books/light-desktop/artwork.svg",
       "inputCapture": "books/light-desktop/capture.json",
       "svgSha256": "54ca709311ce4fb0cdf6944e702be7249f4fdcef548ab16f9fec34b753005579",
-      "captureSha256": "c81e93a1e7d55eb5a4233165cba31d0858de259e5dd03afa09716733c43010b0",
+      "captureSha256": "f0bef198af1786b2c08d94d167bc28b1b24b084388d45cff9c6408e5ed6d4f89",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/light-desktop/books-packed-lower.webp",
@@ -100,7 +100,7 @@
       "inputSvg": "books/dark-desktop/artwork.svg",
       "inputCapture": "books/dark-desktop/capture.json",
       "svgSha256": "8f82ab928a7888ecd026978dff07812d9cb3711991989347bd5f774a89da2871",
-      "captureSha256": "5ba1a6b6dcfe219a5ab4753c726b2e2643959fedebf90ad4024d8ff14b86224f",
+      "captureSha256": "6d647272114201cd4b733c0ed00f5055b7db905153a0a1bc54f9e66b85d31839",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/dark-desktop/books-packed-lower.webp",
@@ -190,7 +190,7 @@
       "inputSvg": "books/light-phone/artwork.svg",
       "inputCapture": "books/light-phone/capture.json",
       "svgSha256": "826922d31be2a4010fc0af78e0f7bbbdcfc7a8b24e97a778c3a47b7d1f4fc0cf",
-      "captureSha256": "6352af34e5aac838bd62556b4bcfdd43d73186640872b4e22359ba048a4d8525",
+      "captureSha256": "74e2f9bf5f2820301bb9c86b6cf9425584d794c49dd1bc7f5df7ad74f1c21a80",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/light-phone/books-packed-lower.webp",
@@ -280,7 +280,7 @@
       "inputSvg": "books/dark-phone/artwork.svg",
       "inputCapture": "books/dark-phone/capture.json",
       "svgSha256": "2aa0ebf90beaada22613ef19cf5101bb57c590abe90ca06981684aa464294147",
-      "captureSha256": "35bc5960d000a8f94e31358c93587301959da419417fc1a0009096e2bbd67823",
+      "captureSha256": "74ecc72b90309136a983ab826b01cf2f190ff5ce915ae142cc3dd858f60a6582",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/books/dark-phone/books-packed-lower.webp",
@@ -870,7 +870,7 @@
       "inputSvg": "systems/light-desktop/artwork.svg",
       "inputCapture": "systems/light-desktop/capture.json",
       "svgSha256": "6d983955bebf0474bf30c273b3d32e59d209fab58746f92898e10802b5e7c39c",
-      "captureSha256": "a04df1fd71fb0d519659f773aa04a4a6798f9759900639c82a4727c8138c7fe5",
+      "captureSha256": "b9680551a26e5bab05dde5a835ac071a8dfdbb35bd38bdaddd05b27b97fdce11",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/light-desktop/grab-bag-realgood.webp",
@@ -1156,7 +1156,7 @@
       "inputSvg": "systems/dark-desktop/artwork.svg",
       "inputCapture": "systems/dark-desktop/capture.json",
       "svgSha256": "a5818ee5d08940d13fd5e72ae66f87d46d90ef850214097794153ae00292c07c",
-      "captureSha256": "95de83bd727100b67cb935360f60713e7c8e5643db0556816bd0099974519adf",
+      "captureSha256": "1b2bd562e4bd923b8669d229d7dfdf7022cb699c7e4f9aa31ac888106e670c01",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/dark-desktop/grab-bag-realgood.webp",
@@ -1442,7 +1442,7 @@
       "inputSvg": "systems/light-phone/artwork.svg",
       "inputCapture": "systems/light-phone/capture.json",
       "svgSha256": "0c285c777d3133f637e5ada36f7222ed9a3a90b5caa15b316e40dd4275b021f6",
-      "captureSha256": "d71feb3fbb355e2c1d6de83b5f342bd2f85e4aa864e46cac34e909f42017a363",
+      "captureSha256": "9b12d51f6df1045b324bc94dffce471ad76d58bcf58b010ba72babe8e8e3ae6a",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/light-phone/grab-bag-realgood.webp",
@@ -1728,7 +1728,7 @@
       "inputSvg": "systems/dark-phone/artwork.svg",
       "inputCapture": "systems/dark-phone/capture.json",
       "svgSha256": "3e664abab2b938f0b0802cf4a34cfd8bfec9facb016e8d689990405c660af9d5",
-      "captureSha256": "6b0e1021726894ea985317a9fb63e19e9559e8db2cb7070fedbebc5f231f23cf",
+      "captureSha256": "950f42e01f65bb687b90c5b22546a19e2f24be81828ea357dcd6e40953a46376",
       "details": [
         {
           "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-bag-realgood.webp",
@@ -4305,7 +4305,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/GroundPool.tsx",
-      "sha256": "9965471650a5dbbcac6e210d42e0dfae876a9ba6a546c92a2a1c4895c8acd3fc",
+      "sha256": "d54ca166165101de7a7172dbfdd012ca3118a181efa96f1828192478567b1a1b",
       "archivedSha256": "cb13bf50a0755afb63c141bf83e714d98a26eefe747cfb6523bad8c0318edb4f"
     },
     {
@@ -4480,7 +4480,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/eggs.tsx",
-      "sha256": "d5e922b95cb583a5cbe95d39784593b78aa888e98b1609ea9dbb810819b90c4f",
+      "sha256": "a09af3dc20ac2c52540646be6aa87891b835033803d3e6eea92c3632846133a7",
       "archivedSha256": "7ba63597cb9f63034db991c2f6c97b0c384ca66ffeaf4437cb7f729a7a6a9125"
     },
     {
@@ -4885,7 +4885,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/staticWorld.tsx",
-      "sha256": "074e5e592f8287770e4a41e681359387bd9330714f32716bae36e49cc4927bb5",
+      "sha256": "a1039bd275a51c4d100497cb0ae4c65fdf1e010c3920a8b1fba6041808f52908",
       "archivedSha256": "d10c6a8a388897fc5d4d159dee93fc0c481eee8a6fc32f2aa3b7fe95a2a00351"
     },
     {
@@ -4915,7 +4915,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/LighthouseBeacon.tsx",
-      "sha256": "6d9b768523d5fcc56fef1b8437087d2c40b229698e3188492f473883f9d36259",
+      "sha256": "9290dfbc5a030b86b9440abab4f1d256bff241a99e11de2d43541c9235d20716",
       "archivedSha256": "94cb46883817a06fe17e6f3dfb4131c365d0d790f2280868e5d24c9ffadfa917"
     },
     {
@@ -4955,12 +4955,12 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
-      "sha256": "0ea37e9984de25c192de7646a013ed34b97e35d6563767f1b2fe5ab79237452e",
+      "sha256": "0bae66d7eee2fb788a2371469525830166e1a0851003f9778e39fec3bde4fd9c",
       "archivedSha256": "d73050d98a7c2420a2f3b21b75d7745e5762c4e9857e9e0ba939e1932c03858c"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitBooks.tsx",
-      "sha256": "0e272c01b41878d1232877c1754a8cb4dac6671a0f0fd9f7964e62a850f990cd",
+      "sha256": "549b8b3b7cf13d33b87319a93a42bcf9dcffac5cabd5e91717edc0a55524b21d",
       "archivedSha256": "0804f3462782fc6c9400348477445cecbf8b4b11136d60e88483568ef7774320"
     },
     {
@@ -4970,17 +4970,17 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitSystems.tsx",
-      "sha256": "169463ac70bc6c88c6ee0b844d44326b4b54b34bc82b9bddf43806e6bc035007",
+      "sha256": "9efabc615598e68e201bc5a6c1674cd31444de92190c67f0617e40bd2d9a1c9d",
       "archivedSha256": "29c00b65f7efcdf0a5a989b8158a280270b6bf2d3d939d52493d448f2c83df21"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
-      "sha256": "d1b1b9651f2d8dbe34a8230896c179c3196c0957a9da161f90873d3ec297349a",
+      "sha256": "384734a737b598295f08cb5b7c13f40235726b080674763fc1989b50d49c6019",
       "archivedSha256": "567752b48fedd6d067c375e7577ae6be581713ee1c5a38ba5d18643834946a69"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
-      "sha256": "67a950194a133c8f2a35f847013d17539d61a1892f97ffd4a45b0a2a1c985b75",
+      "sha256": "d71bc259bfbe4c6b25b56e63df5ab6b79d88bbbe99d3d7e3d6c8174cb0f7456a",
       "archivedSha256": "08921e1ae90613c729dfbda650ddc1ed6caafafed13e1c0d0075138daede0b2d"
     },
     {
@@ -5079,5 +5079,59 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "a1d8fd9319cba1c8b2e9d5a3791383e2f9c612663043e5e07e90bc358d0b53d5"
+  "sourceFingerprint": "af1950e7f3e169c0f9c3726746efd52b0cee2ad958dac06b19ef713ddefcdac9",
+  "reviewedSourceChanges": [
+    {
+      "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
+      "previousFingerprint": "a1d8fd9319cba1c8b2e9d5a3791383e2f9c612663043e5e07e90bc358d0b53d5",
+      "sourceFingerprint": "af1950e7f3e169c0f9c3726746efd52b0cee2ad958dac06b19ef713ddefcdac9",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/GroundPool.tsx",
+          "previousSha256": "9965471650a5dbbcac6e210d42e0dfae876a9ba6a546c92a2a1c4895c8acd3fc",
+          "sha256": "d54ca166165101de7a7172dbfdd012ca3118a181efa96f1828192478567b1a1b"
+        },
+        {
+          "path": "src/app/components/stacks/scene/eggs.tsx",
+          "previousSha256": "d5e922b95cb583a5cbe95d39784593b78aa888e98b1609ea9dbb810819b90c4f",
+          "sha256": "a09af3dc20ac2c52540646be6aa87891b835033803d3e6eea92c3632846133a7"
+        },
+        {
+          "path": "src/app/components/stacks/scene/staticWorld.tsx",
+          "previousSha256": "074e5e592f8287770e4a41e681359387bd9330714f32716bae36e49cc4927bb5",
+          "sha256": "a1039bd275a51c4d100497cb0ae4c65fdf1e010c3920a8b1fba6041808f52908"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/LighthouseBeacon.tsx",
+          "previousSha256": "6d9b768523d5fcc56fef1b8437087d2c40b229698e3188492f473883f9d36259",
+          "sha256": "9290dfbc5a030b86b9440abab4f1d256bff241a99e11de2d43541c9235d20716"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
+          "previousSha256": "0ea37e9984de25c192de7646a013ed34b97e35d6563767f1b2fe5ab79237452e",
+          "sha256": "0bae66d7eee2fb788a2371469525830166e1a0851003f9778e39fec3bde4fd9c"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitBooks.tsx",
+          "previousSha256": "0e272c01b41878d1232877c1754a8cb4dac6671a0f0fd9f7964e62a850f990cd",
+          "sha256": "549b8b3b7cf13d33b87319a93a42bcf9dcffac5cabd5e91717edc0a55524b21d"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitSystems.tsx",
+          "previousSha256": "169463ac70bc6c88c6ee0b844d44326b4b54b34bc82b9bddf43806e6bc035007",
+          "sha256": "9efabc615598e68e201bc5a6c1674cd31444de92190c67f0617e40bd2d9a1c9d"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
+          "previousSha256": "d1b1b9651f2d8dbe34a8230896c179c3196c0957a9da161f90873d3ec297349a",
+          "sha256": "384734a737b598295f08cb5b7c13f40235726b080674763fc1989b50d49c6019"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
+          "previousSha256": "67a950194a133c8f2a35f847013d17539d61a1892f97ffd4a45b0a2a1c985b75",
+          "sha256": "d71bc259bfbe4c6b25b56e63df5ab6b79d88bbbe99d3d7e3d6c8174cb0f7456a"
+        }
+      ]
+    }
+  ]
 }

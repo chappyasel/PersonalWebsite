@@ -626,7 +626,10 @@ export default function UnitBooks({
             toneSeed={index}
             lower={
               <group>
-                <group position={[0, 0, LOWER_PACKED_ROW_Z]}>
+                <group
+                  name="room-boot:books:packed:lower"
+                  position={[0, 0, LOWER_PACKED_ROW_Z]}
+                >
                   <BookRowMesh
                     items={lowerRow}
                     subdued={subduedBackgroundBooks}
@@ -699,7 +702,10 @@ export default function UnitBooks({
                 />
               </group>
             )}
-            <group position={[TOP_PACKED_ROW_OFFSET_X, 0, TOP_PACKED_ROW_Z]}>
+            <group
+              name="room-boot:books:packed:top"
+              position={[TOP_PACKED_ROW_OFFSET_X, 0, TOP_PACKED_ROW_Z]}
+            >
               <BookRowMesh
                 items={topRow}
                 subdued={subduedBackgroundBooks}

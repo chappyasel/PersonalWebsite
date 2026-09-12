@@ -8,7 +8,11 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 
 import { IllustrationStage } from "./IllustrationStage";
-import { type RoomArtworkViewport, getRoomArtwork } from "./artwork";
+import {
+  type RoomArtworkViewport,
+  getRoomArtwork,
+  serializeRoomBooksArtworkIdentity,
+} from "./artwork";
 import "./illustratedRoom.css";
 
 export function illustrationGeometryKey({
@@ -69,6 +73,8 @@ export default function IllustratedRoom({
   const drawingUnit = golfStop ? GOLF_STOP_POSITION : unit;
   const artwork = getRoomArtwork(drawingUnit, theme, viewport);
   const root = useRef<HTMLDivElement>(null);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const [failedRevision, setFailedRevision] = useState<string | null>(null);
   const [ready, setReady] = useState<{ revision: string; key: string } | null>(
     null,
@@ -78,7 +84,7 @@ export default function IllustratedRoom({
     unit === 0
       ? JSON.stringify(["about", theme, aboutBooks, data.readingBookColors])
       : artwork
-        ? `${artwork.sourceRevision}:${artwork.sourceFingerprint}:${artwork.src}`
+        ? `${artwork.sourceRevision}:${artwork.sourceFingerprint}:${artwork.src}:${unit === 1 ? serializeRoomBooksArtworkIdentity(data) : ""}`
         : `missing:${drawingUnit}:${theme}`;
   const readyKey = ready?.revision === revision ? ready.key : null;
 
@@ -115,6 +121,7 @@ export default function IllustratedRoom({
         return;
       }
       // Publish the matching DOM markers before waking the scene bridge.
+      if (visibleRef.current) element.dataset.roomArtwork = "";
       element.dataset.artworkKey = key;
       element.dataset.unit = String(unit);
       element.dataset.theme = theme;

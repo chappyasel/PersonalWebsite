@@ -28,7 +28,7 @@ const cameraRig = source("./scene/CameraRig.tsx");
 const chromeLayer = source("./dom/ChromeLayer.tsx");
 const effects = source("./scene/Effects.tsx");
 const golfExperience = source("./scene/golf/GolfExperience.tsx");
-const scrollBridges = source("./input/ScrollBridges.tsx");
+const roomNavigation = source("./input/RoomNavigation.tsx");
 const opticalPrototype = source("./scene/OpticalBokehPrototype.tsx");
 const environment = source("./scene/SceneEnvironment.tsx");
 const meadow = source("./scene/Meadow.tsx");
@@ -266,8 +266,8 @@ describe("golf suspense wiring", () => {
     expect(cameraRig).toContain("inGolf.eye[2] = baseZ - dollyNotYetIn;");
     expect(cameraRig).toContain("useStacks.getState().setGolfStop(golfStop);");
     expect(cameraRig).not.toContain("state.golfFocused");
-    expect(scrollBridges).toContain("golfFocused: useStacks.getState().golfStop,");
-    expect(scrollBridges).toContain("state.golfStop === mirrored.golfFocused");
+    expect(roomNavigation).toContain("golfFocused: useStacks.getState().golfStop,");
+    expect(roomNavigation).toContain("state.golfStop === mirrored.golfFocused");
     // A jump seeds the mode from the window so a deep link shows the tee.
     expect(cameraRig).toMatch(
       /golfModeState\.current = createGolfModeState\(golfStop\);\s*golfModeTarget\.current = golfStop \? 1 : 0;/,
@@ -313,7 +313,7 @@ describe("pointer arrival wiring", () => {
     // (0, 0) for "has the mouse been heard from". It steps on the real
     // frame, never the hidden settle step.
     expect(cameraRig).toMatch(
-      /advancePointerArrival\(pointerArrival\.current, \{\s*revealed: bootView\.revealed,\s*pointerSeen: pointer\.x !== 0 \|\| pointer\.y !== 0,\s*frameSeconds: frame,\s*\}\)/,
+      /advancePointerArrival\(pointerArrival\.current, \{\s*revealed: bootView\.revealed && !illustrationOwnsPose,\s*pointerSeen: pointer\.x !== 0 \|\| pointer\.y !== 0,\s*frameSeconds: frame,\s*\}\)/,
     );
     // The rest is the composition's parallax centre for the run and the
     // screen centre for the rise, and it is applied where the pointer is

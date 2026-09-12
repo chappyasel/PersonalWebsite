@@ -24,6 +24,7 @@ import {
   type ProfilerOnRenderCallback,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
@@ -254,12 +255,14 @@ class CanvasBoundary extends Component<
 export default function StacksHome({
   data,
   slots,
+  illustrated: illustratedEnabled = true,
 }: {
   data: StacksData;
   slots: StacksSlots;
+  illustrated?: boolean;
 }) {
   const roomActive = useRoomActive();
-  const boot = useWorldBoot();
+  const boot = useWorldBoot(illustratedEnabled);
   useAutomaticPerformanceDiagnostic();
   const { epoch, mode, revealed, worldMounted } = boot;
   const { resolvedTheme } = useTheme();
@@ -273,16 +276,31 @@ export default function StacksHome({
   const illustrated = presentation === "illustrated";
   const handoff = presentation === "dissolve" || presentation === "travel";
   const roomMounted = worldMounted || presentation !== "document";
-  const contentVisible = illustrated || revealed;
+  const contentVisible = illustrated || handoff || revealed;
   const illustrationInteracted = useCallback(() => {
     worldBoot.send({ type: "illustrationInteracted" });
   }, []);
+  useEffect(() => {
+    if (!handoff || !roomActive) return;
+    const cancel = () => illustrationInteracted();
+    window.addEventListener("pointerdown", cancel, true);
+    window.addEventListener("wheel", cancel, { capture: true, passive: true });
+    window.addEventListener("keydown", cancel, true);
+    return () => {
+      window.removeEventListener("pointerdown", cancel, true);
+      window.removeEventListener("wheel", cancel, true);
+      window.removeEventListener("keydown", cancel, true);
+    };
+  }, [handoff, roomActive, illustrationInteracted]);
   const illustrationReady = useCallback((key: string | null) => {
     worldBoot.send({ type: "illustrationChanged", key });
-    if (key) document.documentElement.dataset.illustratedUi = "ready";
   }, []);
   const illustrationUnavailable = useCallback(() => {
-    document.documentElement.dataset.illustratedUi = "ready";
+    const view = worldBoot.getView();
+    worldBoot.scope(view.epoch).send({
+      type: "illustrationUnavailable",
+      key: view.illustrationKey,
+    });
   }, []);
   const request3D = useCallback(() => worldBoot.request3D(), []);
   const followIllustratedSection = useCallback(
@@ -312,12 +330,15 @@ export default function StacksHome({
     },
     [illustrated, illustrationInteracted],
   );
-  useEffect(() => {
-    if (!roomActive || !roomMounted) return;
+  useLayoutEffect(() => {
+    if (!roomActive || !roomMounted || !illustratedEnabled) return;
+    // The reader can take over before image decode. Only scene registration
+    // waits on the drawing, so a stalled cover cannot cover usable content.
+    document.documentElement.dataset.illustratedUi = "ready";
     return () => {
       delete document.documentElement.dataset.illustratedUi;
     };
-  }, [roomActive, roomMounted]);
+  }, [roomActive, roomMounted, illustratedEnabled]);
   const settledUnit = useStacks((state) => state.settledUnit);
   const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
@@ -567,6 +588,12 @@ export default function StacksHome({
         <div
           ref={worldShellRef}
           data-room-presentation={presentation}
+          data-illustrated-entry={illustratedEnabled ? "" : undefined}
+          data-boot-status={boot.status}
+          data-boot-wait={boot.waitStage}
+          data-boot-failure={boot.failure ?? undefined}
+          data-boot-ineligibility={boot.ineligibility ?? undefined}
+          data-boot-held={boot.interactionHeld ? "" : undefined}
           onPointerDownCapture={illustrationInteracted}
           onKeyDownCapture={illustrationInteracted}
           onWheelCapture={illustrationInteracted}
@@ -887,7 +914,7 @@ export default function StacksHome({
                     onUnavailable={illustrationUnavailable}
                   />
                 )}
-              <div className="stacks-og-ui contents" inert={handoff}>
+              <div className="stacks-og-ui contents">
                 <UnitRail />
                 <ChromeLayer />
                 <Profiler id="placard" onRender={recordPerformanceCommit}>

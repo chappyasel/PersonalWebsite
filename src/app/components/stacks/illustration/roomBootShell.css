@@ -1,0 +1,70 @@
+.room-first-paint {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+}
+html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
+  .room-first-paint {
+  display: block;
+  visibility: visible;
+}
+.room-first-paint-name {
+  position: absolute;
+  left: 50%;
+  top: 70%;
+  transform: translateX(-50%);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  color: hsl(var(--foreground));
+}
+.room-first-paint-artwork {
+  --room-first-paint-image: var(--room-first-paint-light-desktop-image);
+  --room-first-paint-width: var(--room-first-paint-light-desktop-width);
+  --room-first-paint-ratio: var(--room-first-paint-light-desktop-ratio);
+  width: min(
+    92cqw,
+    var(--room-first-paint-width),
+    calc(100cqh * var(--room-first-paint-ratio))
+  );
+  aspect-ratio: var(--room-first-paint-ratio);
+  background-image: var(--room-first-paint-image);
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+html.dark .room-first-paint-artwork {
+  --room-first-paint-image: var(--room-first-paint-dark-desktop-image);
+  --room-first-paint-width: var(--room-first-paint-dark-desktop-width);
+  --room-first-paint-ratio: var(--room-first-paint-dark-desktop-ratio);
+}
+@media (max-width: 599px) {
+  .room-first-paint-artwork {
+    --room-first-paint-image: var(--room-first-paint-light-phone-image);
+    --room-first-paint-width: var(--room-first-paint-light-phone-width);
+    --room-first-paint-ratio: var(--room-first-paint-light-phone-ratio);
+  }
+  html.dark .room-first-paint-artwork {
+    --room-first-paint-image: var(--room-first-paint-dark-phone-image);
+    --room-first-paint-width: var(--room-first-paint-dark-phone-width);
+    --room-first-paint-ratio: var(--room-first-paint-dark-phone-ratio);
+  }
+}
+.stacks-world-shell[data-room-presentation="illustrated"] .room-illustration {
+  opacity: 1;
+}
+.stacks-world-shell[data-room-presentation="dissolve"] .room-illustration {
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+.stacks-world-shell[data-room-presentation="travel"] .room-illustration {
+  opacity: 0;
+}
+html[data-og-capture] .room-first-paint {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-illustration {
+    transition: none !important;
+  }
+}

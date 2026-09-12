@@ -214,6 +214,247 @@ describe("illustrated promotion", () => {
       canRequest3D: true,
     });
   });
+
+  it("stops pending 3D when decode fails before the first artwork key and allows explicit retry", () => {
+    const failed = run([
+      start(),
+      { type: "illustrationUnavailable", epoch: 1, key: null, at: 5 },
+    ]);
+    expect(failed).toMatchObject({
+      matchUnavailable: true,
+      illustrationKey: null,
+      registeredIllustrationKey: null,
+      deadline: null,
+    });
+    expect(view(failed)).toMatchObject({
+      status: "illustrated",
+      presentation: "illustrated",
+      worldMounted: false,
+      revealed: false,
+      canRequest3D: true,
+    });
+    expect(
+      run([{ type: "firstFrame", epoch: 1, at: 10 }, tick(50_000)], failed),
+    ).toBe(failed);
+    const retry = run([start({ at: 1000, explicitRequest: true })], failed);
+    expect(view(retry)).toMatchObject({
+      worldMounted: true,
+      motionEnabled: false,
+      revealed: false,
+    });
+    expect(view(ready(retry, 1100))).toMatchObject({
+      presentation: "live",
+      revealed: true,
+      motionEnabled: true,
+    });
+  });
+
+  it.each([ready, dissolving, travelling])(
+    "ignores null and stale artwork failures after a current key exists",
+    (phase) => {
+      const current = phase();
+      expect(
+        run(
+          [
+            { type: "illustrationUnavailable", epoch: 1, key: null, at: 600 },
+            {
+              type: "illustrationUnavailable",
+              epoch: 1,
+              key: NEXT_KEY,
+              at: 601,
+            },
+          ],
+          current,
+        ),
+      ).toBe(current);
+    },
+  );
+
+  it("rejects a prior epoch's null-key decode failure", () => {
+    const current = run([start(), start({ at: 1000 })]);
+    expect(current.illustrationKey).toBeNull();
+    expect(
+      run(
+        [
+          { type: "illustrationUnavailable", epoch: 1, key: null, at: 1100 },
+          { type: "illustrationUnavailable", epoch: 2, key: KEY, at: 1101 },
+        ],
+        current,
+      ),
+    ).toBe(current);
+    expect(
+      view(
+        run(
+          [{ type: "illustrationUnavailable", epoch: 2, key: null, at: 1102 }],
+          current,
+        ),
+      ).worldMounted,
+    ).toBe(false);
+  });
+});
+
+describe("explicit retry after an artwork mismatch", () => {
+  function unavailable() {
+    return run(
+      [{ type: "illustrationUnavailable", epoch: 1, key: KEY, at: 300 }],
+      ready(),
+    );
+  }
+
+  it("keeps automatic promotion stopped after a proven mismatch", () => {
+    const failed = unavailable();
+    expect(failed.matchUnavailable).toBe(true);
+    expect(view(failed)).toMatchObject({
+      presentation: "illustrated",
+      worldMounted: false,
+      motionEnabled: true,
+    });
+    expect(run([registered(), arrived(), tick(10_000)], failed)).toBe(failed);
+  });
+
+  it("lets an explicit retry use the ordinary camera after every room gate passes", () => {
+    const retry = run(
+      [start({ at: 1000, explicitRequest: true })],
+      unavailable(),
+    );
+    expect(retry).toMatchObject({
+      skipIllustrationMatch: true,
+      motionEnabled: true,
+    });
+    expect(view(retry)).toMatchObject({
+      motionEnabled: false,
+      worldMounted: true,
+      revealed: false,
+    });
+    expect(
+      run(
+        [
+          registered(KEY, 2, 1001),
+          { type: "illustrationUnavailable", epoch: 2, key: KEY, at: 1002 },
+        ],
+        retry,
+      ),
+    ).toBe(retry);
+    const loading = run(
+      [
+        { type: "assetLoad", epoch: 2, at: 1100, assets: completeAssets },
+        { type: "firstFrame", epoch: 2, at: 1100 },
+        tick(1100 + P.assetSettleMs),
+      ],
+      retry,
+    );
+    expect(view(loading).revealed).toBe(false);
+    const entered = run([{ type: "meadowReady", epoch: 2, at: 1400 }], loading);
+    expect(view(entered)).toMatchObject({
+      presentation: "live",
+      revealed: true,
+      documentPhase: "ready",
+      motionEnabled: true,
+      handoffStartedAt: null,
+    });
+    expect(entered).toMatchObject({
+      motionEnabled: true,
+      skipIllustrationMatch: false,
+    });
+  });
+
+  it("does not bypass matching for an explicit retry of an unfailed drawing", () => {
+    const held = run([interacted(500)], ready());
+    const retry = run([start({ at: 1000, explicitRequest: true })], held);
+    const loaded = ready(retry, 1100);
+    expect(view(loaded)).toMatchObject({
+      presentation: "illustrated",
+      interactionHeld: false,
+      motionEnabled: true,
+      revealed: false,
+    });
+    expect(view(run([registered(KEY, 2, 1400)], loaded)).presentation).toBe(
+      "dissolve",
+    );
+  });
+
+  it("allows an explicit ordinary-camera retry when no decoded artwork key exists", () => {
+    const noArtwork = run([changed(null, 400)], unavailable());
+    expect(noArtwork.matchUnavailable).toBe(false);
+    const automatic = ready(run([start({ at: 1000 })], noArtwork), 1100);
+    expect(view(automatic).presentation).toBe("illustrated");
+    const explicit = ready(
+      run([start({ at: 1000, explicitRequest: true })], noArtwork),
+      1100,
+    );
+    expect(view(explicit)).toMatchObject({
+      presentation: "live",
+      handoffStartedAt: null,
+      motionEnabled: true,
+    });
+  });
+
+  it("requires matching again on automatic context-loss recovery", () => {
+    const entered = ready(
+      run([start({ at: 1000, explicitRequest: true })], unavailable()),
+      1100,
+    );
+    const lost = run([{ type: "contextLost", epoch: 2, at: 2000 }], entered);
+    expect(view(lost)).toMatchObject({
+      recoverable: true,
+      motionEnabled: true,
+    });
+    const recovered = ready(run([start({ at: 2600 })], lost), 2700);
+    expect(recovered.skipIllustrationMatch).toBe(false);
+    expect(view(recovered)).toMatchObject({
+      presentation: "illustrated",
+      motionEnabled: true,
+      revealed: false,
+    });
+    const matched = run([registered(KEY, 3, 3000)], recovered);
+    expect(view(matched).presentation).toBe("dissolve");
+    expect(matched.matchUnavailable).toBe(false);
+  });
+
+  it("clears mismatch evidence when the artwork changes or the visit ends", () => {
+    const changedArtwork = run([changed(NEXT_KEY, 500)], unavailable());
+    expect(changedArtwork.matchUnavailable).toBe(false);
+    const retry = ready(
+      run([start({ at: 1000, explicitRequest: true })], changedArtwork),
+      1100,
+    );
+    expect(view(retry)).toMatchObject({
+      presentation: "illustrated",
+      motionEnabled: true,
+    });
+    expect(view(run([registered(NEXT_KEY, 2, 1400)], retry)).presentation).toBe(
+      "dissolve",
+    );
+    const exited = run([{ type: "exit", epoch: 1, at: 500 }], unavailable());
+    expect(exited).toMatchObject({
+      matchUnavailable: false,
+      skipIllustrationMatch: false,
+    });
+  });
+
+  it.each([
+    [{ prefersReducedMotion: true }, "document", "reduced_motion"],
+    [{ saveData: true }, "document", "save_data"],
+    [{ webglAvailable: false }, "illustrated", "webgl_unavailable"],
+  ] as const)(
+    "still respects capability and preferences on retry %j",
+    (preferences, presentation, reason) => {
+      const retry = run(
+        [start({ ...preferences, at: 1000, explicitRequest: true })],
+        unavailable(),
+      );
+      expect(view(retry)).toMatchObject({
+        presentation,
+        ineligibility: reason,
+        worldMounted: false,
+        revealed: false,
+      });
+      expect(retry).toMatchObject({
+        motionEnabled: true,
+        skipIllustrationMatch: false,
+      });
+    },
+  );
 });
 
 describe("visitor ownership and renderer replacement", () => {

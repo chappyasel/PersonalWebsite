@@ -35,7 +35,7 @@ describe("universal search shell wiring", () => {
 
   it("gives the semantic homepage fallback real deep-link targets", () => {
     const flatHome = source("src/app/components/stacks/FlatHome.tsx");
-    const bridges = source("src/app/components/stacks/input/ScrollBridges.tsx");
+    const bridges = source("src/app/components/stacks/input/RoomNavigation.tsx");
 
     expect(flatHome).toContain("id={unit.urlSlug ?? section}");
     expect(bridges).toContain(

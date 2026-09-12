@@ -117,7 +117,9 @@ it("keeps the actual panel owner mounted with reader state and scroll intact aft
     mocks.view = { ...mocks.view, presentation: "travel", worldMounted: true };
     view.rerender(<StacksHome data={data} slots={slots} />);
     expect(view.getByTestId("reader")).toBe(reader);
-    expect(reader.closest("[inert]")).not.toBeNull();
+    expect(reader.closest("[inert]")).toBeNull();
+    expect(reader.scrollTop).toBe(184);
+    expect(document.activeElement).toBe(input);
     expect(mocks.mounts).toBe(1);
   } finally {
     cleanup();

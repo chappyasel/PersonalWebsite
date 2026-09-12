@@ -359,7 +359,11 @@ function LighthouseBeamEffect({
   });
 
   return (
-    <group ref={lantern} position={[0, height, 0]}>
+    <group
+      name="room-boot:lighthouse-beacon"
+      ref={lantern}
+      position={[0, height, 0]}
+    >
       <group ref={visuals} visible={false}>
         <mesh userData={SCENERY} raycast={noRaycast} renderOrder={4}>
           <sphereGeometry args={[radius * 0.21, 12, 8]} />

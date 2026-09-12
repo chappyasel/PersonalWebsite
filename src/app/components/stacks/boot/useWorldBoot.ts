@@ -23,7 +23,7 @@ const getServerSnapshot = () => SERVER_WORLD_BOOT_VIEW;
  * The first client render deliberately matches the server: the flat document,
  * with the handshake unclaimed. The boot starts in an effect, one commit
  * later, so hydration never has to reconcile a world that was not there. */
-export function useWorldBoot(): WorldBootView {
+export function useWorldBoot(illustrated = false): WorldBootView {
   const roomActive = useRoomActive();
   const view = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
@@ -31,6 +31,10 @@ export function useWorldBoot(): WorldBootView {
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
     // scripts) — the boot screen still comes up rather than the document.
+    // SPA route changes do not execute the server's parse-time script.
+    document.documentElement.dataset.roomIllustration = illustrated
+      ? "enabled"
+      : "disabled";
     const scope = worldBoot.start("hydrate");
     // React owns failure recovery from here: the error boundary and the hang
     // backstop replace the parse-time timer.
@@ -42,7 +46,7 @@ export function useWorldBoot(): WorldBootView {
       // gone, and must not take the live one down with it.
       scope.send({ type: "exit" });
     };
-  }, []);
+  }, [illustrated]);
 
   // Tab visibility, published once at mount and on every change. The machine
   // freezes its deadlines while the document is hidden; without this a tab
