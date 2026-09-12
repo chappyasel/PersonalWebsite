@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     title: "Chappy's Personal Operating Manual",
     description: SITE_PAGES.manual.description,
     url: "/",
-    siteName: "Chappy's Personal Operating Manual",
+    siteName: "Chappy Asel",
     locale: "en_US",
     type: "website",
     images: [
