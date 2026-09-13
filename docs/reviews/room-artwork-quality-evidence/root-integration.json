@@ -1,0 +1,6571 @@
+{
+  "baselineCommit": "27c0155",
+  "independentReview": {
+    "cases": 24,
+    "owners": 528,
+    "maxFreshOwnerResidualCssPx": 2.8845846341069277,
+    "placementCameraOwnerOrderAndCaptureIdentityUnchanged": true,
+    "themes": ["light", "dark"],
+    "layouts": ["desktop", "phone"],
+    "reviewedBeforeAfterBoards": 24,
+    "qaRasterizerNote": "Embedded WebP is converted to pixel-identical PNG in memory for librsvg inspection; native headless Chromium independently decodes served SVGs."
+  },
+  "oldBitmapComparison": {
+    "role": "Regression detector, not fresh live-source ground truth. Eight threshold outliers correspond to recovered shaker detail, lighthouse fine geometry and phone plant leaves, supported by the fresh owner masks.",
+    "outliers": [
+      {
+        "key": "2/light-desktop",
+        "maxCssPxManhattan": 4.5,
+        "changedMaskPercent": 0.508
+      },
+      {
+        "key": "2/dark-desktop",
+        "maxCssPxManhattan": 4.5,
+        "changedMaskPercent": 0.476
+      },
+      {
+        "key": "2/light-phone",
+        "maxCssPxManhattan": 6.5,
+        "changedMaskPercent": 0.76
+      },
+      {
+        "key": "2/dark-phone",
+        "maxCssPxManhattan": 6.5,
+        "changedMaskPercent": 0.742
+      },
+      {
+        "key": "5/light-desktop",
+        "maxCssPxManhattan": 6,
+        "changedMaskPercent": 0.568
+      },
+      {
+        "key": "5/dark-desktop",
+        "maxCssPxManhattan": 8,
+        "changedMaskPercent": 0.567
+      },
+      {
+        "key": "6/light-phone",
+        "maxCssPxManhattan": 8,
+        "changedMaskPercent": 0.912
+      },
+      {
+        "key": "6/dark-phone",
+        "maxCssPxManhattan": 8,
+        "changedMaskPercent": 0.867
+      }
+    ]
+  },
+  "gzipBytes": {
+    "min": 73699,
+    "max": 233096
+  },
+  "servedDrawingSha256": {
+    "public/images/stacks/boot/books/dark-desktop.shelf.svg": "00e27633f24b8e3d525d76acc928c891db6c2685312bce58f0e691a8bde03a2e",
+    "public/images/stacks/boot/books/dark-desktop.svg": "23b8f3107738c63d900e4e234eb2b96ee4333a228db3e96af5518616ab5e05aa",
+    "public/images/stacks/boot/books/dark-phone.shelf.svg": "ca189e14f14e3ae7a014009e150c839c173334219560871fad95eaf1d7425805",
+    "public/images/stacks/boot/books/dark-phone.svg": "51a163cf9fe01033ca3e9b67799d6ee55b39928712f479a90ce0a028ea20185d",
+    "public/images/stacks/boot/books/light-desktop.shelf.svg": "6a16d3d178707f5f4aec903095dcb5ac0006de383f120860b02f231428365c39",
+    "public/images/stacks/boot/books/light-desktop.svg": "52896122e83686984529870b2f41370fee1112f43d29a302114012938f613f59",
+    "public/images/stacks/boot/books/light-phone.shelf.svg": "77c525c6ac13176816f2d7c81adf36f3997303aa8ee48b00b44b03d5e1ebaf24",
+    "public/images/stacks/boot/books/light-phone.svg": "56f4a621cae173a809d581409449c1294ee181d82944de3a6f8ff38ab0f408ee",
+    "public/images/stacks/boot/musings/dark-desktop.shelf.svg": "3994d8e527806680a74894c6d0f03f530bffa566eb45a780c96e03653a6a9e67",
+    "public/images/stacks/boot/musings/dark-desktop.svg": "3746cfb3098896bcd10ced2f0d5dfef0d4d06015bfdfb36d1da85eaec2bf84ee",
+    "public/images/stacks/boot/musings/dark-phone.shelf.svg": "e8bea38da61107497dd38b596531d5087021fe19ad3900316aecb373187ae3e7",
+    "public/images/stacks/boot/musings/dark-phone.svg": "4c050c885372d07f55853b437084a19956a310c0a97d1c537ed7c20053e1f1d5",
+    "public/images/stacks/boot/musings/light-desktop.shelf.svg": "372b73c6500570bcbbc9a78385459ef0c59656ee8fe2a69c7afa7cee1799c6b7",
+    "public/images/stacks/boot/musings/light-desktop.svg": "475f396f7c6a3a01be6d3f1cf22895e79e432558c1f3ab8417550296084f65ac",
+    "public/images/stacks/boot/musings/light-phone.shelf.svg": "077f225021ba59ee0d86c2d7a7979047a40fb52b5a2172ccba0becf66b13661e",
+    "public/images/stacks/boot/musings/light-phone.svg": "2344192fac13a481d9c3c5e70890f412c477e195d3422e84e0bebbcc326743e1",
+    "public/images/stacks/boot/projects/dark-desktop.shelf.svg": "b5cb2b6e84af2fb9dca174c5f6e517de4f07a23a4fa2d6623f0ea84ab65994ae",
+    "public/images/stacks/boot/projects/dark-desktop.svg": "a587f11fc0f159088a8d8f4392736db0225f5a30b0e8e0b4ea0a1f0bcff9005d",
+    "public/images/stacks/boot/projects/dark-phone.shelf.svg": "d139909a2b7afde86fe08eba994a8f1a1626da3874d374e81a2ec53b20517a8b",
+    "public/images/stacks/boot/projects/dark-phone.svg": "101b37eacc1545c59d783baccdce101e3b94517ddc84124c5f48f15f87e206ce",
+    "public/images/stacks/boot/projects/light-desktop.shelf.svg": "cbf7e61f613b259a57050f166601970d6fc83c29d77686ddd7bb67eec0d23fee",
+    "public/images/stacks/boot/projects/light-desktop.svg": "1dc6fcb4cf604d3262b73210aec876eb21454098526c488f133a87fb13d7d7d0",
+    "public/images/stacks/boot/projects/light-phone.shelf.svg": "14ad0955f03c89bc7bfcf6e5b821a4b5295ada41c25293752f71ee0cf814cefe",
+    "public/images/stacks/boot/projects/light-phone.svg": "48f03cd2bd4cb855765759ace9160f6da637e04a7fc7431b6c271cfa6966b1a3",
+    "public/images/stacks/boot/systems/dark-desktop.shelf.svg": "1b055fc38abd1978944739b17a1afdf329b5bfb672863bebdd0506038645a964",
+    "public/images/stacks/boot/systems/dark-desktop.svg": "e8c81c22637af4766ac2faf02ca5999eb67d4cf630051cf64ca1c0ec3f010e4a",
+    "public/images/stacks/boot/systems/dark-phone.shelf.svg": "21e3dd71bfb7d7470c429fee9a9f996ee6a54d0225388cfe9b700b992141eb9c",
+    "public/images/stacks/boot/systems/dark-phone.svg": "ecd489a17b11708ba662c7b6607e42e99e07555b28b11e7a21ae35f28cbad131",
+    "public/images/stacks/boot/systems/light-desktop.shelf.svg": "cd87d2113af54a085d13f7767fa9190ecc55564a421bb82a69987cb630951c10",
+    "public/images/stacks/boot/systems/light-desktop.svg": "67de6051a0ea9917fb3fa87fdf65c2940ee0d27918760e9f3e5cd056131f493a",
+    "public/images/stacks/boot/systems/light-phone.shelf.svg": "ad5ba08fb4d566ea0e62685eb246cec721b5dace5ddd59a0eeaa2c731a1fea6d",
+    "public/images/stacks/boot/systems/light-phone.svg": "d2094dc874cd5b1a7fb5390782bb9d4a8af3fc76a53c97fbf396bf454a6d402c",
+    "public/images/stacks/boot/talks/dark-desktop.shelf.svg": "9b6fea59b4590357e657fe29dd9a5d124f4fb01b29c5e771e48fff5dc185f6e6",
+    "public/images/stacks/boot/talks/dark-desktop.svg": "98e2ac2896f2e558c905c50d2610e5c54987cb871a518157778cd7adf29b0e92",
+    "public/images/stacks/boot/talks/dark-phone.shelf.svg": "1713b38d29c64bdfaf8badfdab672bd421a6117f66a2848d8f1f43dfb71e0363",
+    "public/images/stacks/boot/talks/dark-phone.svg": "d335c64162859d9702303c061146d7177bcf4205ae9f5c1b441d681205d6f086",
+    "public/images/stacks/boot/talks/light-desktop.shelf.svg": "bc5ac560f64fe0cce7a6c97e5f65c8eb4ecc25a6e01ee9643ef774ec219db0c8",
+    "public/images/stacks/boot/talks/light-desktop.svg": "669a36deb5510aee4cf9c1cc16c470912f947d3e2063beeeeb3da722cb07a26d",
+    "public/images/stacks/boot/talks/light-phone.shelf.svg": "79b3c3d1d5beb214dc79c2cdde38fdf16ace56287f899fe1544034c2f6d06a58",
+    "public/images/stacks/boot/talks/light-phone.svg": "b70a011b6413a8f23e40b7ed05b3c6110b3596d235782c1e0987f33fff6146f7",
+    "public/images/stacks/boot/weightlifting/dark-desktop.shelf.svg": "10c5c3deafd83b7326adc4b0a0cf2b7e9d11736ac485864c38dff4cbd79847e8",
+    "public/images/stacks/boot/weightlifting/dark-desktop.svg": "5dad94ff3bba725791b924d6fec8d601bc40a60cc40d3ca1c496861d7453613d",
+    "public/images/stacks/boot/weightlifting/dark-phone.shelf.svg": "b0698fdb67f68afb94b4d52c166a41c2262030d0e982fd8d6775bb563e3e6e95",
+    "public/images/stacks/boot/weightlifting/dark-phone.svg": "67565bd03407530df9990d1c967cb23e4c63ff78de35b60a25aa38f6881841ed",
+    "public/images/stacks/boot/weightlifting/light-desktop.shelf.svg": "f8e2d22edb92ae4bcbdc85fc9de23c14e6c6b78478cba94b5d79784ca6cd7c9a",
+    "public/images/stacks/boot/weightlifting/light-desktop.svg": "453ecad0e64e2ec4e5ec8b247e101f9586d4edb3522af838de126993def01de5",
+    "public/images/stacks/boot/weightlifting/light-phone.shelf.svg": "d8115f614ffca1ae4295ae67c4ca253e65b45463f1d1263af830a6e46b44031e",
+    "public/images/stacks/boot/weightlifting/light-phone.svg": "c4fad460f475f3a72c6153ecbed11c1063c0c5d10d612d407d16ad23408b69e4"
+  },
+  "perVariant": [
+    {
+      "key": "1/light-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 0.5,
+      "changedMaskPixels": 1839,
+      "unionPixels": 826776,
+      "beforeSvgBytes": 70550,
+      "afterSvgBytes": 226863,
+      "beforeGzip": 48143,
+      "afterGzip": 167172,
+      "images": [
+        {
+          "pixelWidth": 1284,
+          "svgWidth": 642,
+          "bytes": 33128
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 19138
+        },
+        {
+          "pixelWidth": 192,
+          "svgWidth": 96,
+          "bytes": 10696
+        },
+        {
+          "pixelWidth": 208,
+          "svgWidth": 104,
+          "bytes": 12864
+        },
+        {
+          "pixelWidth": 210,
+          "svgWidth": 105,
+          "bytes": 9158
+        },
+        {
+          "pixelWidth": 1366,
+          "svgWidth": 683,
+          "bytes": 25532
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 6018
+        },
+        {
+          "pixelWidth": 206,
+          "svgWidth": 103,
+          "bytes": 13050
+        },
+        {
+          "pixelWidth": 202,
+          "svgWidth": 101,
+          "bytes": 17608
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 16698
+        }
+      ]
+    },
+    {
+      "key": "1/dark-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 0.5,
+      "changedMaskPixels": 1846,
+      "unionPixels": 826768,
+      "beforeSvgBytes": 70887,
+      "afterSvgBytes": 227512,
+      "beforeGzip": 48475,
+      "afterGzip": 167675,
+      "images": [
+        {
+          "pixelWidth": 1284,
+          "svgWidth": 642,
+          "bytes": 33452
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 18998
+        },
+        {
+          "pixelWidth": 192,
+          "svgWidth": 96,
+          "bytes": 10644
+        },
+        {
+          "pixelWidth": 208,
+          "svgWidth": 104,
+          "bytes": 12854
+        },
+        {
+          "pixelWidth": 210,
+          "svgWidth": 105,
+          "bytes": 9132
+        },
+        {
+          "pixelWidth": 1366,
+          "svgWidth": 683,
+          "bytes": 25806
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 5920
+        },
+        {
+          "pixelWidth": 206,
+          "svgWidth": 103,
+          "bytes": 13354
+        },
+        {
+          "pixelWidth": 202,
+          "svgWidth": 101,
+          "bytes": 17504
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 16672
+        }
+      ]
+    },
+    {
+      "key": "1/light-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1,
+      "changedMaskPixels": 754,
+      "unionPixels": 220032,
+      "beforeSvgBytes": 36215,
+      "afterSvgBytes": 176979,
+      "beforeGzip": 22830,
+      "afterGzip": 129338,
+      "images": [
+        {
+          "pixelWidth": 1095,
+          "svgWidth": 365,
+          "bytes": 27038
+        },
+        {
+          "pixelWidth": 177,
+          "svgWidth": 59,
+          "bytes": 14792
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 8788
+        },
+        {
+          "pixelWidth": 180,
+          "svgWidth": 60,
+          "bytes": 9908
+        },
+        {
+          "pixelWidth": 183,
+          "svgWidth": 61,
+          "bytes": 6800
+        },
+        {
+          "pixelWidth": 1143,
+          "svgWidth": 381,
+          "bytes": 19934
+        },
+        {
+          "pixelWidth": 177,
+          "svgWidth": 59,
+          "bytes": 6134
+        },
+        {
+          "pixelWidth": 174,
+          "svgWidth": 58,
+          "bytes": 8850
+        },
+        {
+          "pixelWidth": 171,
+          "svgWidth": 57,
+          "bytes": 12062
+        },
+        {
+          "pixelWidth": 174,
+          "svgWidth": 58,
+          "bytes": 12142
+        }
+      ]
+    },
+    {
+      "key": "1/dark-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1,
+      "changedMaskPixels": 753,
+      "unionPixels": 220032,
+      "beforeSvgBytes": 36069,
+      "afterSvgBytes": 176115,
+      "beforeGzip": 22723,
+      "afterGzip": 128730,
+      "images": [
+        {
+          "pixelWidth": 1095,
+          "svgWidth": 365,
+          "bytes": 26526
+        },
+        {
+          "pixelWidth": 177,
+          "svgWidth": 59,
+          "bytes": 14660
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 8904
+        },
+        {
+          "pixelWidth": 180,
+          "svgWidth": 60,
+          "bytes": 9828
+        },
+        {
+          "pixelWidth": 183,
+          "svgWidth": 61,
+          "bytes": 6820
+        },
+        {
+          "pixelWidth": 1143,
+          "svgWidth": 381,
+          "bytes": 19846
+        },
+        {
+          "pixelWidth": 177,
+          "svgWidth": 59,
+          "bytes": 6062
+        },
+        {
+          "pixelWidth": 174,
+          "svgWidth": 58,
+          "bytes": 9088
+        },
+        {
+          "pixelWidth": 171,
+          "svgWidth": 57,
+          "bytes": 11994
+        },
+        {
+          "pixelWidth": 174,
+          "svgWidth": 58,
+          "bytes": 12116
+        }
+      ]
+    },
+    {
+      "key": "4/light-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 2,
+      "changedMaskPixels": 4475,
+      "unionPixels": 544389,
+      "beforeSvgBytes": 83875,
+      "afterSvgBytes": 157404,
+      "beforeGzip": 38131,
+      "afterGzip": 101393,
+      "images": [
+        {
+          "pixelWidth": 292,
+          "svgWidth": 146,
+          "bytes": 12758
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 69,
+          "bytes": 3862
+        },
+        {
+          "pixelWidth": 126,
+          "svgWidth": 63,
+          "bytes": 3600
+        },
+        {
+          "pixelWidth": 182,
+          "svgWidth": 91,
+          "bytes": 14158
+        },
+        {
+          "pixelWidth": 182,
+          "svgWidth": 91,
+          "bytes": 4398
+        },
+        {
+          "pixelWidth": 100,
+          "svgWidth": 50,
+          "bytes": 1954
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 2104
+        },
+        {
+          "pixelWidth": 102,
+          "svgWidth": 51,
+          "bytes": 1966
+        },
+        {
+          "pixelWidth": 104,
+          "svgWidth": 52,
+          "bytes": 2006
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 2128
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 1688
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 81,
+          "bytes": 3732
+        },
+        {
+          "pixelWidth": 190,
+          "svgWidth": 95,
+          "bytes": 6654
+        },
+        {
+          "pixelWidth": 230,
+          "svgWidth": 115,
+          "bytes": 9466
+        },
+        {
+          "pixelWidth": 250,
+          "svgWidth": 125,
+          "bytes": 15552
+        }
+      ]
+    },
+    {
+      "key": "4/dark-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 2,
+      "changedMaskPixels": 4759,
+      "unionPixels": 545201,
+      "beforeSvgBytes": 85117,
+      "afterSvgBytes": 158414,
+      "beforeGzip": 38775,
+      "afterGzip": 102245,
+      "images": [
+        {
+          "pixelWidth": 290,
+          "svgWidth": 145,
+          "bytes": 12724
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 69,
+          "bytes": 3822
+        },
+        {
+          "pixelWidth": 124,
+          "svgWidth": 62,
+          "bytes": 3588
+        },
+        {
+          "pixelWidth": 180,
+          "svgWidth": 90,
+          "bytes": 14056
+        },
+        {
+          "pixelWidth": 182,
+          "svgWidth": 91,
+          "bytes": 4428
+        },
+        {
+          "pixelWidth": 100,
+          "svgWidth": 50,
+          "bytes": 1876
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 2320
+        },
+        {
+          "pixelWidth": 102,
+          "svgWidth": 51,
+          "bytes": 2042
+        },
+        {
+          "pixelWidth": 104,
+          "svgWidth": 52,
+          "bytes": 2172
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 2242
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 1838
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 81,
+          "bytes": 3556
+        },
+        {
+          "pixelWidth": 190,
+          "svgWidth": 95,
+          "bytes": 6744
+        },
+        {
+          "pixelWidth": 230,
+          "svgWidth": 115,
+          "bytes": 9302
+        },
+        {
+          "pixelWidth": 250,
+          "svgWidth": 125,
+          "bytes": 15730
+        }
+      ]
+    },
+    {
+      "key": "4/light-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1.5,
+      "changedMaskPixels": 2134,
+      "unionPixels": 145832,
+      "beforeSvgBytes": 48716,
+      "afterSvgBytes": 114481,
+      "beforeGzip": 19404,
+      "afterGzip": 73699,
+      "images": [
+        {
+          "pixelWidth": 246,
+          "svgWidth": 82,
+          "bytes": 9994
+        },
+        {
+          "pixelWidth": 126,
+          "svgWidth": 42,
+          "bytes": 3688
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 38,
+          "bytes": 2776
+        },
+        {
+          "pixelWidth": 156,
+          "svgWidth": 52,
+          "bytes": 10028
+        },
+        {
+          "pixelWidth": 156,
+          "svgWidth": 52,
+          "bytes": 3558
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 1126
+        },
+        {
+          "pixelWidth": 93,
+          "svgWidth": 31,
+          "bytes": 1424
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 30,
+          "bytes": 1412
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 30,
+          "bytes": 968
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 30,
+          "bytes": 1614
+        },
+        {
+          "pixelWidth": 93,
+          "svgWidth": 31,
+          "bytes": 1246
+        },
+        {
+          "pixelWidth": 159,
+          "svgWidth": 53,
+          "bytes": 4986
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 54,
+          "bytes": 3346
+        },
+        {
+          "pixelWidth": 201,
+          "svgWidth": 67,
+          "bytes": 6726
+        },
+        {
+          "pixelWidth": 201,
+          "svgWidth": 67,
+          "bytes": 10466
+        }
+      ]
+    },
+    {
+      "key": "4/dark-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1.5,
+      "changedMaskPixels": 2139,
+      "unionPixels": 145974,
+      "beforeSvgBytes": 48516,
+      "afterSvgBytes": 114975,
+      "beforeGzip": 19284,
+      "afterGzip": 73913,
+      "images": [
+        {
+          "pixelWidth": 246,
+          "svgWidth": 82,
+          "bytes": 10042
+        },
+        {
+          "pixelWidth": 126,
+          "svgWidth": 42,
+          "bytes": 3746
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 38,
+          "bytes": 2778
+        },
+        {
+          "pixelWidth": 156,
+          "svgWidth": 52,
+          "bytes": 10078
+        },
+        {
+          "pixelWidth": 156,
+          "svgWidth": 52,
+          "bytes": 3558
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 1136
+        },
+        {
+          "pixelWidth": 93,
+          "svgWidth": 31,
+          "bytes": 1454
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 30,
+          "bytes": 1626
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 30,
+          "bytes": 1010
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 30,
+          "bytes": 1682
+        },
+        {
+          "pixelWidth": 93,
+          "svgWidth": 31,
+          "bytes": 1272
+        },
+        {
+          "pixelWidth": 159,
+          "svgWidth": 53,
+          "bytes": 5094
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 54,
+          "bytes": 3326
+        },
+        {
+          "pixelWidth": 201,
+          "svgWidth": 67,
+          "bytes": 6826
+        },
+        {
+          "pixelWidth": 201,
+          "svgWidth": 67,
+          "bytes": 10356
+        }
+      ]
+    },
+    {
+      "key": "3/light-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1,
+      "changedMaskPixels": 2394,
+      "unionPixels": 629090,
+      "beforeSvgBytes": 111956,
+      "afterSvgBytes": 256512,
+      "beforeGzip": 56691,
+      "afterGzip": 180198,
+      "images": [
+        {
+          "pixelWidth": 154,
+          "svgWidth": 77,
+          "bytes": 9062
+        },
+        {
+          "pixelWidth": 122,
+          "svgWidth": 61,
+          "bytes": 6480
+        },
+        {
+          "pixelWidth": 130,
+          "svgWidth": 65,
+          "bytes": 7504
+        },
+        {
+          "pixelWidth": 134,
+          "svgWidth": 67,
+          "bytes": 7776
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 9214
+        },
+        {
+          "pixelWidth": 70,
+          "svgWidth": 35,
+          "bytes": 3442
+        },
+        {
+          "pixelWidth": 320,
+          "svgWidth": 160,
+          "bytes": 8658
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 27,
+          "bytes": 1518
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 3010
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 30,
+          "bytes": 2840
+        },
+        {
+          "pixelWidth": 72,
+          "svgWidth": 36,
+          "bytes": 1434
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 24,
+          "bytes": 1476
+        },
+        {
+          "pixelWidth": 62,
+          "svgWidth": 31,
+          "bytes": 2076
+        },
+        {
+          "pixelWidth": 56,
+          "svgWidth": 28,
+          "bytes": 1522
+        },
+        {
+          "pixelWidth": 46,
+          "svgWidth": 23,
+          "bytes": 992
+        },
+        {
+          "pixelWidth": 188,
+          "svgWidth": 94,
+          "bytes": 6818
+        },
+        {
+          "pixelWidth": 246,
+          "svgWidth": 123,
+          "bytes": 3044
+        },
+        {
+          "pixelWidth": 246,
+          "svgWidth": 123,
+          "bytes": 3074
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 45,
+          "bytes": 4420
+        },
+        {
+          "pixelWidth": 92,
+          "svgWidth": 46,
+          "bytes": 5414
+        },
+        {
+          "pixelWidth": 92,
+          "svgWidth": 46,
+          "bytes": 4874
+        },
+        {
+          "pixelWidth": 214,
+          "svgWidth": 107,
+          "bytes": 3852
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 1796
+        },
+        {
+          "pixelWidth": 42,
+          "svgWidth": 21,
+          "bytes": 1374
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 27,
+          "bytes": 1908
+        },
+        {
+          "pixelWidth": 52,
+          "svgWidth": 26,
+          "bytes": 1532
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 24,
+          "bytes": 1408
+        },
+        {
+          "pixelWidth": 306,
+          "svgWidth": 153,
+          "bytes": 16250
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 24,
+          "bytes": 1632
+        },
+        {
+          "pixelWidth": 238,
+          "svgWidth": 119,
+          "bytes": 11262
+        },
+        {
+          "pixelWidth": 44,
+          "svgWidth": 22,
+          "bytes": 1022
+        },
+        {
+          "pixelWidth": 56,
+          "svgWidth": 28,
+          "bytes": 1274
+        },
+        {
+          "pixelWidth": 112,
+          "svgWidth": 56,
+          "bytes": 7710
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 3000
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 2628
+        },
+        {
+          "pixelWidth": 44,
+          "svgWidth": 22,
+          "bytes": 1390
+        },
+        {
+          "pixelWidth": 236,
+          "svgWidth": 118,
+          "bytes": 9712
+        },
+        {
+          "pixelWidth": 182,
+          "svgWidth": 91,
+          "bytes": 8742
+        }
+      ]
+    },
+    {
+      "key": "3/dark-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1.5,
+      "changedMaskPixels": 2562,
+      "unionPixels": 630935,
+      "beforeSvgBytes": 111479,
+      "afterSvgBytes": 251947,
+      "beforeGzip": 56766,
+      "afterGzip": 178163,
+      "images": [
+        {
+          "pixelWidth": 154,
+          "svgWidth": 77,
+          "bytes": 9016
+        },
+        {
+          "pixelWidth": 122,
+          "svgWidth": 61,
+          "bytes": 6592
+        },
+        {
+          "pixelWidth": 132,
+          "svgWidth": 66,
+          "bytes": 7540
+        },
+        {
+          "pixelWidth": 134,
+          "svgWidth": 67,
+          "bytes": 7842
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 9428
+        },
+        {
+          "pixelWidth": 70,
+          "svgWidth": 35,
+          "bytes": 3468
+        },
+        {
+          "pixelWidth": 320,
+          "svgWidth": 160,
+          "bytes": 7982
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 27,
+          "bytes": 1438
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 3012
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 30,
+          "bytes": 2776
+        },
+        {
+          "pixelWidth": 70,
+          "svgWidth": 35,
+          "bytes": 1550
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 24,
+          "bytes": 1516
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 1988
+        },
+        {
+          "pixelWidth": 56,
+          "svgWidth": 28,
+          "bytes": 1498
+        },
+        {
+          "pixelWidth": 46,
+          "svgWidth": 23,
+          "bytes": 1020
+        },
+        {
+          "pixelWidth": 188,
+          "svgWidth": 94,
+          "bytes": 6788
+        },
+        {
+          "pixelWidth": 246,
+          "svgWidth": 123,
+          "bytes": 3052
+        },
+        {
+          "pixelWidth": 246,
+          "svgWidth": 123,
+          "bytes": 3384
+        },
+        {
+          "pixelWidth": 92,
+          "svgWidth": 46,
+          "bytes": 4392
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 45,
+          "bytes": 5598
+        },
+        {
+          "pixelWidth": 90,
+          "svgWidth": 45,
+          "bytes": 4866
+        },
+        {
+          "pixelWidth": 214,
+          "svgWidth": 107,
+          "bytes": 3732
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 1808
+        },
+        {
+          "pixelWidth": 44,
+          "svgWidth": 22,
+          "bytes": 1342
+        },
+        {
+          "pixelWidth": 56,
+          "svgWidth": 28,
+          "bytes": 1894
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 27,
+          "bytes": 1504
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 24,
+          "bytes": 1268
+        },
+        {
+          "pixelWidth": 308,
+          "svgWidth": 154,
+          "bytes": 16244
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 24,
+          "bytes": 1618
+        },
+        {
+          "pixelWidth": 238,
+          "svgWidth": 119,
+          "bytes": 11296
+        },
+        {
+          "pixelWidth": 44,
+          "svgWidth": 22,
+          "bytes": 952
+        },
+        {
+          "pixelWidth": 56,
+          "svgWidth": 28,
+          "bytes": 1250
+        },
+        {
+          "pixelWidth": 112,
+          "svgWidth": 56,
+          "bytes": 7722
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 3164
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 2660
+        },
+        {
+          "pixelWidth": 44,
+          "svgWidth": 22,
+          "bytes": 1406
+        },
+        {
+          "pixelWidth": 236,
+          "svgWidth": 118,
+          "bytes": 9408
+        },
+        {
+          "pixelWidth": 182,
+          "svgWidth": 91,
+          "bytes": 7946
+        }
+      ]
+    },
+    {
+      "key": "3/light-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 2,
+      "changedMaskPixels": 914,
+      "unionPixels": 168316,
+      "beforeSvgBytes": 65985,
+      "afterSvgBytes": 189486,
+      "beforeGzip": 29107,
+      "afterGzip": 132033,
+      "images": [
+        {
+          "pixelWidth": 126,
+          "svgWidth": 42,
+          "bytes": 6838
+        },
+        {
+          "pixelWidth": 108,
+          "svgWidth": 36,
+          "bytes": 5220
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 38,
+          "bytes": 5744
+        },
+        {
+          "pixelWidth": 117,
+          "svgWidth": 39,
+          "bytes": 5884
+        },
+        {
+          "pixelWidth": 225,
+          "svgWidth": 75,
+          "bytes": 6914
+        },
+        {
+          "pixelWidth": 69,
+          "svgWidth": 23,
+          "bytes": 2824
+        },
+        {
+          "pixelWidth": 261,
+          "svgWidth": 87,
+          "bytes": 5972
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 1098
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 20,
+          "bytes": 2602
+        },
+        {
+          "pixelWidth": 57,
+          "svgWidth": 19,
+          "bytes": 2412
+        },
+        {
+          "pixelWidth": 69,
+          "svgWidth": 23,
+          "bytes": 1114
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 1142
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 20,
+          "bytes": 1442
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 942
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 856
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 6308
+        },
+        {
+          "pixelWidth": 216,
+          "svgWidth": 72,
+          "bytes": 2212
+        },
+        {
+          "pixelWidth": 210,
+          "svgWidth": 70,
+          "bytes": 2508
+        },
+        {
+          "pixelWidth": 81,
+          "svgWidth": 27,
+          "bytes": 2896
+        },
+        {
+          "pixelWidth": 81,
+          "svgWidth": 27,
+          "bytes": 3230
+        },
+        {
+          "pixelWidth": 81,
+          "svgWidth": 27,
+          "bytes": 3766
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 2788
+        },
+        {
+          "pixelWidth": 63,
+          "svgWidth": 21,
+          "bytes": 1062
+        },
+        {
+          "pixelWidth": 45,
+          "svgWidth": 15,
+          "bytes": 1050
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 1416
+        },
+        {
+          "pixelWidth": 51,
+          "svgWidth": 17,
+          "bytes": 942
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 964
+        },
+        {
+          "pixelWidth": 258,
+          "svgWidth": 86,
+          "bytes": 10828
+        },
+        {
+          "pixelWidth": 207,
+          "svgWidth": 69,
+          "bytes": 7686
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 1244
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 6610
+        },
+        {
+          "pixelWidth": 45,
+          "svgWidth": 15,
+          "bytes": 806
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 1030
+        },
+        {
+          "pixelWidth": 216,
+          "svgWidth": 72,
+          "bytes": 2342
+        },
+        {
+          "pixelWidth": 219,
+          "svgWidth": 73,
+          "bytes": 1764
+        },
+        {
+          "pixelWidth": 42,
+          "svgWidth": 14,
+          "bytes": 886
+        },
+        {
+          "pixelWidth": 207,
+          "svgWidth": 69,
+          "bytes": 6408
+        },
+        {
+          "pixelWidth": 156,
+          "svgWidth": 52,
+          "bytes": 6768
+        }
+      ]
+    },
+    {
+      "key": "3/dark-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 2,
+      "changedMaskPixels": 959,
+      "unionPixels": 168312,
+      "beforeSvgBytes": 65316,
+      "afterSvgBytes": 189666,
+      "beforeGzip": 28947,
+      "afterGzip": 132244,
+      "images": [
+        {
+          "pixelWidth": 126,
+          "svgWidth": 42,
+          "bytes": 6832
+        },
+        {
+          "pixelWidth": 108,
+          "svgWidth": 36,
+          "bytes": 5096
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 38,
+          "bytes": 5830
+        },
+        {
+          "pixelWidth": 117,
+          "svgWidth": 39,
+          "bytes": 5836
+        },
+        {
+          "pixelWidth": 225,
+          "svgWidth": 75,
+          "bytes": 6968
+        },
+        {
+          "pixelWidth": 69,
+          "svgWidth": 23,
+          "bytes": 2836
+        },
+        {
+          "pixelWidth": 261,
+          "svgWidth": 87,
+          "bytes": 5962
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 1104
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 20,
+          "bytes": 2570
+        },
+        {
+          "pixelWidth": 57,
+          "svgWidth": 19,
+          "bytes": 2386
+        },
+        {
+          "pixelWidth": 69,
+          "svgWidth": 23,
+          "bytes": 1102
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 1198
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 20,
+          "bytes": 1498
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 974
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 826
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 6396
+        },
+        {
+          "pixelWidth": 216,
+          "svgWidth": 72,
+          "bytes": 2248
+        },
+        {
+          "pixelWidth": 210,
+          "svgWidth": 70,
+          "bytes": 2526
+        },
+        {
+          "pixelWidth": 81,
+          "svgWidth": 27,
+          "bytes": 2868
+        },
+        {
+          "pixelWidth": 81,
+          "svgWidth": 27,
+          "bytes": 3294
+        },
+        {
+          "pixelWidth": 81,
+          "svgWidth": 27,
+          "bytes": 3766
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 2742
+        },
+        {
+          "pixelWidth": 63,
+          "svgWidth": 21,
+          "bytes": 1052
+        },
+        {
+          "pixelWidth": 45,
+          "svgWidth": 15,
+          "bytes": 1052
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 1356
+        },
+        {
+          "pixelWidth": 51,
+          "svgWidth": 17,
+          "bytes": 1084
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 958
+        },
+        {
+          "pixelWidth": 258,
+          "svgWidth": 86,
+          "bytes": 10788
+        },
+        {
+          "pixelWidth": 207,
+          "svgWidth": 69,
+          "bytes": 7714
+        },
+        {
+          "pixelWidth": 48,
+          "svgWidth": 16,
+          "bytes": 1200
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 6664
+        },
+        {
+          "pixelWidth": 45,
+          "svgWidth": 15,
+          "bytes": 784
+        },
+        {
+          "pixelWidth": 54,
+          "svgWidth": 18,
+          "bytes": 1010
+        },
+        {
+          "pixelWidth": 216,
+          "svgWidth": 72,
+          "bytes": 2386
+        },
+        {
+          "pixelWidth": 219,
+          "svgWidth": 73,
+          "bytes": 1736
+        },
+        {
+          "pixelWidth": 42,
+          "svgWidth": 14,
+          "bytes": 954
+        },
+        {
+          "pixelWidth": 207,
+          "svgWidth": 69,
+          "bytes": 6552
+        },
+        {
+          "pixelWidth": 156,
+          "svgWidth": 52,
+          "bytes": 6476
+        }
+      ]
+    },
+    {
+      "key": "2/light-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 4.5,
+      "changedMaskPixels": 3633,
+      "unionPixels": 714690,
+      "beforeSvgBytes": 88127,
+      "afterSvgBytes": 316582,
+      "beforeGzip": 60364,
+      "afterGzip": 233096,
+      "images": [
+        {
+          "pixelWidth": 140,
+          "svgWidth": 70,
+          "bytes": 7042
+        },
+        {
+          "pixelWidth": 170,
+          "svgWidth": 85,
+          "bytes": 9360
+        },
+        {
+          "pixelWidth": 252,
+          "svgWidth": 126,
+          "bytes": 12638
+        },
+        {
+          "pixelWidth": 360,
+          "svgWidth": 180,
+          "bytes": 6666
+        },
+        {
+          "pixelWidth": 604,
+          "svgWidth": 302,
+          "bytes": 54294
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 57,
+          "bytes": 5944
+        },
+        {
+          "pixelWidth": 158,
+          "svgWidth": 79,
+          "bytes": 5198
+        },
+        {
+          "pixelWidth": 112,
+          "svgWidth": 56,
+          "bytes": 4198
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 69,
+          "bytes": 3624
+        },
+        {
+          "pixelWidth": 116,
+          "svgWidth": 58,
+          "bytes": 5448
+        },
+        {
+          "pixelWidth": 66,
+          "svgWidth": 33,
+          "bytes": 1530
+        },
+        {
+          "pixelWidth": 170,
+          "svgWidth": 85,
+          "bytes": 7792
+        },
+        {
+          "pixelWidth": 158,
+          "svgWidth": 79,
+          "bytes": 3650
+        },
+        {
+          "pixelWidth": 214,
+          "svgWidth": 107,
+          "bytes": 10776
+        },
+        {
+          "pixelWidth": 170,
+          "svgWidth": 85,
+          "bytes": 7978
+        },
+        {
+          "pixelWidth": 66,
+          "svgWidth": 33,
+          "bytes": 1706
+        },
+        {
+          "pixelWidth": 88,
+          "svgWidth": 44,
+          "bytes": 4058
+        },
+        {
+          "pixelWidth": 232,
+          "svgWidth": 116,
+          "bytes": 17194
+        },
+        {
+          "pixelWidth": 86,
+          "svgWidth": 43,
+          "bytes": 3016
+        },
+        {
+          "pixelWidth": 172,
+          "svgWidth": 86,
+          "bytes": 6468
+        },
+        {
+          "pixelWidth": 172,
+          "svgWidth": 86,
+          "bytes": 9894
+        },
+        {
+          "pixelWidth": 172,
+          "svgWidth": 86,
+          "bytes": 1044
+        },
+        {
+          "pixelWidth": 178,
+          "svgWidth": 89,
+          "bytes": 12726
+        },
+        {
+          "pixelWidth": 230,
+          "svgWidth": 115,
+          "bytes": 16656
+        },
+        {
+          "pixelWidth": 190,
+          "svgWidth": 95,
+          "bytes": 1534
+        },
+        {
+          "pixelWidth": 80,
+          "svgWidth": 40,
+          "bytes": 1144
+        },
+        {
+          "pixelWidth": 80,
+          "svgWidth": 40,
+          "bytes": 978
+        },
+        {
+          "pixelWidth": 198,
+          "svgWidth": 99,
+          "bytes": 1678
+        },
+        {
+          "pixelWidth": 84,
+          "svgWidth": 42,
+          "bytes": 982
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 1596
+        },
+        {
+          "pixelWidth": 244,
+          "svgWidth": 122,
+          "bytes": 3318
+        }
+      ]
+    },
+    {
+      "key": "2/dark-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 4.5,
+      "changedMaskPixels": 3415,
+      "unionPixels": 717747,
+      "beforeSvgBytes": 84791,
+      "afterSvgBytes": 298479,
+      "beforeGzip": 57876,
+      "afterGzip": 219426,
+      "images": [
+        {
+          "pixelWidth": 140,
+          "svgWidth": 70,
+          "bytes": 6908
+        },
+        {
+          "pixelWidth": 170,
+          "svgWidth": 85,
+          "bytes": 9442
+        },
+        {
+          "pixelWidth": 252,
+          "svgWidth": 126,
+          "bytes": 12138
+        },
+        {
+          "pixelWidth": 360,
+          "svgWidth": 180,
+          "bytes": 6052
+        },
+        {
+          "pixelWidth": 606,
+          "svgWidth": 303,
+          "bytes": 38484
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 57,
+          "bytes": 6454
+        },
+        {
+          "pixelWidth": 158,
+          "svgWidth": 79,
+          "bytes": 5160
+        },
+        {
+          "pixelWidth": 112,
+          "svgWidth": 56,
+          "bytes": 4456
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 69,
+          "bytes": 3706
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 1420
+        },
+        {
+          "pixelWidth": 116,
+          "svgWidth": 58,
+          "bytes": 6074
+        },
+        {
+          "pixelWidth": 340,
+          "svgWidth": 85,
+          "bytes": 7678
+        },
+        {
+          "pixelWidth": 158,
+          "svgWidth": 79,
+          "bytes": 3684
+        },
+        {
+          "pixelWidth": 214,
+          "svgWidth": 107,
+          "bytes": 11364
+        },
+        {
+          "pixelWidth": 64,
+          "svgWidth": 32,
+          "bytes": 1642
+        },
+        {
+          "pixelWidth": 170,
+          "svgWidth": 85,
+          "bytes": 8276
+        },
+        {
+          "pixelWidth": 88,
+          "svgWidth": 44,
+          "bytes": 4074
+        },
+        {
+          "pixelWidth": 230,
+          "svgWidth": 115,
+          "bytes": 17206
+        },
+        {
+          "pixelWidth": 86,
+          "svgWidth": 43,
+          "bytes": 3014
+        },
+        {
+          "pixelWidth": 172,
+          "svgWidth": 86,
+          "bytes": 7100
+        },
+        {
+          "pixelWidth": 172,
+          "svgWidth": 86,
+          "bytes": 9952
+        },
+        {
+          "pixelWidth": 172,
+          "svgWidth": 86,
+          "bytes": 1390
+        },
+        {
+          "pixelWidth": 176,
+          "svgWidth": 88,
+          "bytes": 12562
+        },
+        {
+          "pixelWidth": 232,
+          "svgWidth": 116,
+          "bytes": 16698
+        },
+        {
+          "pixelWidth": 190,
+          "svgWidth": 95,
+          "bytes": 1852
+        },
+        {
+          "pixelWidth": 78,
+          "svgWidth": 39,
+          "bytes": 1142
+        },
+        {
+          "pixelWidth": 82,
+          "svgWidth": 41,
+          "bytes": 1080
+        },
+        {
+          "pixelWidth": 198,
+          "svgWidth": 99,
+          "bytes": 2012
+        },
+        {
+          "pixelWidth": 84,
+          "svgWidth": 42,
+          "bytes": 972
+        },
+        {
+          "pixelWidth": 204,
+          "svgWidth": 102,
+          "bytes": 2058
+        },
+        {
+          "pixelWidth": 244,
+          "svgWidth": 122,
+          "bytes": 2494
+        }
+      ]
+    },
+    {
+      "key": "2/light-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 6.5,
+      "changedMaskPixels": 1477,
+      "unionPixels": 194370,
+      "beforeSvgBytes": 44822,
+      "afterSvgBytes": 240681,
+      "beforeGzip": 27661,
+      "afterGzip": 175878,
+      "images": [
+        {
+          "pixelWidth": 126,
+          "svgWidth": 42,
+          "bytes": 4982
+        },
+        {
+          "pixelWidth": 153,
+          "svgWidth": 51,
+          "bytes": 7216
+        },
+        {
+          "pixelWidth": 222,
+          "svgWidth": 74,
+          "bytes": 10642
+        },
+        {
+          "pixelWidth": 504,
+          "svgWidth": 168,
+          "bytes": 40840
+        },
+        {
+          "pixelWidth": 102,
+          "svgWidth": 34,
+          "bytes": 4684
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 46,
+          "bytes": 3914
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 2818
+        },
+        {
+          "pixelWidth": 318,
+          "svgWidth": 106,
+          "bytes": 6424
+        },
+        {
+          "pixelWidth": 105,
+          "svgWidth": 35,
+          "bytes": 4474
+        },
+        {
+          "pixelWidth": 123,
+          "svgWidth": 41,
+          "bytes": 2710
+        },
+        {
+          "pixelWidth": 189,
+          "svgWidth": 63,
+          "bytes": 6214
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 46,
+          "bytes": 2726
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 20,
+          "bytes": 1256
+        },
+        {
+          "pixelWidth": 180,
+          "svgWidth": 60,
+          "bytes": 7822
+        },
+        {
+          "pixelWidth": 195,
+          "svgWidth": 65,
+          "bytes": 6584
+        },
+        {
+          "pixelWidth": 63,
+          "svgWidth": 21,
+          "bytes": 1334
+        },
+        {
+          "pixelWidth": 84,
+          "svgWidth": 28,
+          "bytes": 3050
+        },
+        {
+          "pixelWidth": 192,
+          "svgWidth": 64,
+          "bytes": 11844
+        },
+        {
+          "pixelWidth": 195,
+          "svgWidth": 65,
+          "bytes": 5490
+        },
+        {
+          "pixelWidth": 150,
+          "svgWidth": 50,
+          "bytes": 6766
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 54,
+          "bytes": 706
+        },
+        {
+          "pixelWidth": 78,
+          "svgWidth": 26,
+          "bytes": 2402
+        },
+        {
+          "pixelWidth": 147,
+          "svgWidth": 49,
+          "bytes": 8466
+        },
+        {
+          "pixelWidth": 201,
+          "svgWidth": 67,
+          "bytes": 11690
+        },
+        {
+          "pixelWidth": 159,
+          "svgWidth": 53,
+          "bytes": 1068
+        },
+        {
+          "pixelWidth": 72,
+          "svgWidth": 24,
+          "bytes": 970
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 988
+        },
+        {
+          "pixelWidth": 69,
+          "svgWidth": 23,
+          "bytes": 1006
+        },
+        {
+          "pixelWidth": 72,
+          "svgWidth": 24,
+          "bytes": 892
+        },
+        {
+          "pixelWidth": 141,
+          "svgWidth": 47,
+          "bytes": 1008
+        },
+        {
+          "pixelWidth": 174,
+          "svgWidth": 58,
+          "bytes": 2450
+        }
+      ]
+    },
+    {
+      "key": "2/dark-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 6.5,
+      "changedMaskPixels": 1442,
+      "unionPixels": 194376,
+      "beforeSvgBytes": 43542,
+      "afterSvgBytes": 234925,
+      "beforeGzip": 26740,
+      "afterGzip": 171595,
+      "images": [
+        {
+          "pixelWidth": 126,
+          "svgWidth": 42,
+          "bytes": 4986
+        },
+        {
+          "pixelWidth": 153,
+          "svgWidth": 51,
+          "bytes": 7190
+        },
+        {
+          "pixelWidth": 222,
+          "svgWidth": 74,
+          "bytes": 10650
+        },
+        {
+          "pixelWidth": 504,
+          "svgWidth": 168,
+          "bytes": 33048
+        },
+        {
+          "pixelWidth": 102,
+          "svgWidth": 34,
+          "bytes": 5044
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 46,
+          "bytes": 3930
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 3124
+        },
+        {
+          "pixelWidth": 318,
+          "svgWidth": 106,
+          "bytes": 5688
+        },
+        {
+          "pixelWidth": 105,
+          "svgWidth": 35,
+          "bytes": 5048
+        },
+        {
+          "pixelWidth": 123,
+          "svgWidth": 41,
+          "bytes": 2850
+        },
+        {
+          "pixelWidth": 189,
+          "svgWidth": 63,
+          "bytes": 6696
+        },
+        {
+          "pixelWidth": 138,
+          "svgWidth": 46,
+          "bytes": 2806
+        },
+        {
+          "pixelWidth": 60,
+          "svgWidth": 20,
+          "bytes": 1276
+        },
+        {
+          "pixelWidth": 180,
+          "svgWidth": 60,
+          "bytes": 8172
+        },
+        {
+          "pixelWidth": 195,
+          "svgWidth": 65,
+          "bytes": 6972
+        },
+        {
+          "pixelWidth": 63,
+          "svgWidth": 21,
+          "bytes": 1392
+        },
+        {
+          "pixelWidth": 84,
+          "svgWidth": 28,
+          "bytes": 3092
+        },
+        {
+          "pixelWidth": 192,
+          "svgWidth": 64,
+          "bytes": 11860
+        },
+        {
+          "pixelWidth": 195,
+          "svgWidth": 65,
+          "bytes": 6020
+        },
+        {
+          "pixelWidth": 150,
+          "svgWidth": 50,
+          "bytes": 6974
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 54,
+          "bytes": 1060
+        },
+        {
+          "pixelWidth": 78,
+          "svgWidth": 26,
+          "bytes": 2456
+        },
+        {
+          "pixelWidth": 147,
+          "svgWidth": 49,
+          "bytes": 8432
+        },
+        {
+          "pixelWidth": 201,
+          "svgWidth": 67,
+          "bytes": 12022
+        },
+        {
+          "pixelWidth": 159,
+          "svgWidth": 53,
+          "bytes": 1028
+        },
+        {
+          "pixelWidth": 72,
+          "svgWidth": 24,
+          "bytes": 1084
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 1332
+        },
+        {
+          "pixelWidth": 69,
+          "svgWidth": 23,
+          "bytes": 1062
+        },
+        {
+          "pixelWidth": 72,
+          "svgWidth": 24,
+          "bytes": 926
+        },
+        {
+          "pixelWidth": 141,
+          "svgWidth": 47,
+          "bytes": 910
+        },
+        {
+          "pixelWidth": 174,
+          "svgWidth": 58,
+          "bytes": 2002
+        }
+      ]
+    },
+    {
+      "key": "5/light-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 6,
+      "changedMaskPixels": 3011,
+      "unionPixels": 529804,
+      "beforeSvgBytes": 66228,
+      "afterSvgBytes": 181850,
+      "beforeGzip": 35199,
+      "afterGzip": 128698,
+      "images": [
+        {
+          "pixelWidth": 248,
+          "svgWidth": 124,
+          "bytes": 8770
+        },
+        {
+          "pixelWidth": 128,
+          "svgWidth": 64,
+          "bytes": 10636
+        },
+        {
+          "pixelWidth": 380,
+          "svgWidth": 190,
+          "bytes": 6088
+        },
+        {
+          "pixelWidth": 224,
+          "svgWidth": 112,
+          "bytes": 6854
+        },
+        {
+          "pixelWidth": 252,
+          "svgWidth": 126,
+          "bytes": 26644
+        },
+        {
+          "pixelWidth": 418,
+          "svgWidth": 209,
+          "bytes": 6540
+        },
+        {
+          "pixelWidth": 124,
+          "svgWidth": 62,
+          "bytes": 7264
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 57,
+          "bytes": 1862
+        },
+        {
+          "pixelWidth": 148,
+          "svgWidth": 74,
+          "bytes": 7630
+        },
+        {
+          "pixelWidth": 420,
+          "svgWidth": 105,
+          "bytes": 13340
+        },
+        {
+          "pixelWidth": 484,
+          "svgWidth": 242,
+          "bytes": 10700
+        },
+        {
+          "pixelWidth": 194,
+          "svgWidth": 97,
+          "bytes": 9596
+        },
+        {
+          "pixelWidth": 160,
+          "svgWidth": 80,
+          "bytes": 3416
+        },
+        {
+          "pixelWidth": 158,
+          "svgWidth": 79,
+          "bytes": 2466
+        }
+      ]
+    },
+    {
+      "key": "5/dark-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 8,
+      "changedMaskPixels": 2982,
+      "unionPixels": 525990,
+      "beforeSvgBytes": 66291,
+      "afterSvgBytes": 183902,
+      "beforeGzip": 35315,
+      "afterGzip": 129466,
+      "images": [
+        {
+          "pixelWidth": 248,
+          "svgWidth": 124,
+          "bytes": 8402
+        },
+        {
+          "pixelWidth": 126,
+          "svgWidth": 63,
+          "bytes": 10236
+        },
+        {
+          "pixelWidth": 382,
+          "svgWidth": 191,
+          "bytes": 6830
+        },
+        {
+          "pixelWidth": 224,
+          "svgWidth": 112,
+          "bytes": 6794
+        },
+        {
+          "pixelWidth": 418,
+          "svgWidth": 209,
+          "bytes": 7246
+        },
+        {
+          "pixelWidth": 252,
+          "svgWidth": 126,
+          "bytes": 27426
+        },
+        {
+          "pixelWidth": 124,
+          "svgWidth": 62,
+          "bytes": 7330
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 57,
+          "bytes": 1888
+        },
+        {
+          "pixelWidth": 148,
+          "svgWidth": 74,
+          "bytes": 7752
+        },
+        {
+          "pixelWidth": 424,
+          "svgWidth": 106,
+          "bytes": 11664
+        },
+        {
+          "pixelWidth": 484,
+          "svgWidth": 242,
+          "bytes": 9786
+        },
+        {
+          "pixelWidth": 194,
+          "svgWidth": 97,
+          "bytes": 9430
+        },
+        {
+          "pixelWidth": 162,
+          "svgWidth": 81,
+          "bytes": 4126
+        },
+        {
+          "pixelWidth": 158,
+          "svgWidth": 79,
+          "bytes": 2490
+        }
+      ]
+    },
+    {
+      "key": "5/light-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 2.5,
+      "changedMaskPixels": 1328,
+      "unionPixels": 140533,
+      "beforeSvgBytes": 36203,
+      "afterSvgBytes": 136703,
+      "beforeGzip": 17375,
+      "afterGzip": 96239,
+      "images": [
+        {
+          "pixelWidth": 216,
+          "svgWidth": 72,
+          "bytes": 7010
+        },
+        {
+          "pixelWidth": 105,
+          "svgWidth": 35,
+          "bytes": 8820
+        },
+        {
+          "pixelWidth": 300,
+          "svgWidth": 100,
+          "bytes": 2994
+        },
+        {
+          "pixelWidth": 198,
+          "svgWidth": 66,
+          "bytes": 5670
+        },
+        {
+          "pixelWidth": 342,
+          "svgWidth": 114,
+          "bytes": 4778
+        },
+        {
+          "pixelWidth": 213,
+          "svgWidth": 71,
+          "bytes": 18824
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 38,
+          "bytes": 5160
+        },
+        {
+          "pixelWidth": 117,
+          "svgWidth": 39,
+          "bytes": 1836
+        },
+        {
+          "pixelWidth": 132,
+          "svgWidth": 44,
+          "bytes": 5556
+        },
+        {
+          "pixelWidth": 228,
+          "svgWidth": 76,
+          "bytes": 9756
+        },
+        {
+          "pixelWidth": 399,
+          "svgWidth": 133,
+          "bytes": 8424
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 8630
+        },
+        {
+          "pixelWidth": 135,
+          "svgWidth": 45,
+          "bytes": 2390
+        },
+        {
+          "pixelWidth": 135,
+          "svgWidth": 45,
+          "bytes": 1316
+        }
+      ]
+    },
+    {
+      "key": "5/dark-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 3,
+      "changedMaskPixels": 1344,
+      "unionPixels": 140628,
+      "beforeSvgBytes": 35860,
+      "afterSvgBytes": 137289,
+      "beforeGzip": 17459,
+      "afterGzip": 96714,
+      "images": [
+        {
+          "pixelWidth": 216,
+          "svgWidth": 72,
+          "bytes": 6840
+        },
+        {
+          "pixelWidth": 105,
+          "svgWidth": 35,
+          "bytes": 8792
+        },
+        {
+          "pixelWidth": 297,
+          "svgWidth": 99,
+          "bytes": 3668
+        },
+        {
+          "pixelWidth": 198,
+          "svgWidth": 66,
+          "bytes": 5738
+        },
+        {
+          "pixelWidth": 342,
+          "svgWidth": 114,
+          "bytes": 5264
+        },
+        {
+          "pixelWidth": 213,
+          "svgWidth": 71,
+          "bytes": 18874
+        },
+        {
+          "pixelWidth": 114,
+          "svgWidth": 38,
+          "bytes": 5216
+        },
+        {
+          "pixelWidth": 117,
+          "svgWidth": 39,
+          "bytes": 1766
+        },
+        {
+          "pixelWidth": 132,
+          "svgWidth": 44,
+          "bytes": 5764
+        },
+        {
+          "pixelWidth": 228,
+          "svgWidth": 76,
+          "bytes": 8836
+        },
+        {
+          "pixelWidth": 399,
+          "svgWidth": 133,
+          "bytes": 8178
+        },
+        {
+          "pixelWidth": 168,
+          "svgWidth": 56,
+          "bytes": 8184
+        },
+        {
+          "pixelWidth": 135,
+          "svgWidth": 45,
+          "bytes": 3140
+        },
+        {
+          "pixelWidth": 135,
+          "svgWidth": 45,
+          "bytes": 1248
+        }
+      ]
+    },
+    {
+      "key": "6/light-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1,
+      "changedMaskPixels": 3836,
+      "unionPixels": 686046,
+      "beforeSvgBytes": 110975,
+      "afterSvgBytes": 262313,
+      "beforeGzip": 57093,
+      "afterGzip": 172732,
+      "images": [
+        {
+          "pixelWidth": 446,
+          "svgWidth": 223,
+          "bytes": 40002
+        },
+        {
+          "pixelWidth": 104,
+          "svgWidth": 52,
+          "bytes": 3362
+        },
+        {
+          "pixelWidth": 312,
+          "svgWidth": 156,
+          "bytes": 2322
+        },
+        {
+          "pixelWidth": 338,
+          "svgWidth": 169,
+          "bytes": 10620
+        },
+        {
+          "pixelWidth": 214,
+          "svgWidth": 107,
+          "bytes": 2914
+        },
+        {
+          "pixelWidth": 252,
+          "svgWidth": 126,
+          "bytes": 3300
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 4638
+        },
+        {
+          "pixelWidth": 342,
+          "svgWidth": 171,
+          "bytes": 17400
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 1658
+        },
+        {
+          "pixelWidth": 324,
+          "svgWidth": 162,
+          "bytes": 19630
+        },
+        {
+          "pixelWidth": 104,
+          "svgWidth": 52,
+          "bytes": 3480
+        },
+        {
+          "pixelWidth": 448,
+          "svgWidth": 224,
+          "bytes": 27552
+        },
+        {
+          "pixelWidth": 316,
+          "svgWidth": 158,
+          "bytes": 19386
+        }
+      ]
+    },
+    {
+      "key": "6/dark-desktop",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 1,
+      "changedMaskPixels": 3624,
+      "unionPixels": 682454,
+      "beforeSvgBytes": 111723,
+      "afterSvgBytes": 262072,
+      "beforeGzip": 56711,
+      "afterGzip": 172718,
+      "images": [
+        {
+          "pixelWidth": 448,
+          "svgWidth": 224,
+          "bytes": 39866
+        },
+        {
+          "pixelWidth": 104,
+          "svgWidth": 52,
+          "bytes": 3276
+        },
+        {
+          "pixelWidth": 314,
+          "svgWidth": 157,
+          "bytes": 2166
+        },
+        {
+          "pixelWidth": 338,
+          "svgWidth": 169,
+          "bytes": 10962
+        },
+        {
+          "pixelWidth": 214,
+          "svgWidth": 107,
+          "bytes": 2858
+        },
+        {
+          "pixelWidth": 254,
+          "svgWidth": 127,
+          "bytes": 3304
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 4326
+        },
+        {
+          "pixelWidth": 342,
+          "svgWidth": 171,
+          "bytes": 16060
+        },
+        {
+          "pixelWidth": 256,
+          "svgWidth": 128,
+          "bytes": 1478
+        },
+        {
+          "pixelWidth": 324,
+          "svgWidth": 162,
+          "bytes": 20764
+        },
+        {
+          "pixelWidth": 106,
+          "svgWidth": 53,
+          "bytes": 3468
+        },
+        {
+          "pixelWidth": 448,
+          "svgWidth": 224,
+          "bytes": 28656
+        },
+        {
+          "pixelWidth": 316,
+          "svgWidth": 158,
+          "bytes": 19418
+        }
+      ]
+    },
+    {
+      "key": "6/light-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 8,
+      "changedMaskPixels": 1675,
+      "unionPixels": 183684,
+      "beforeSvgBytes": 56380,
+      "afterSvgBytes": 174965,
+      "beforeGzip": 26581,
+      "afterGzip": 119271,
+      "images": [
+        {
+          "pixelWidth": 357,
+          "svgWidth": 119,
+          "bytes": 27694
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 2534
+        },
+        {
+          "pixelWidth": 270,
+          "svgWidth": 90,
+          "bytes": 1416
+        },
+        {
+          "pixelWidth": 186,
+          "svgWidth": 62,
+          "bytes": 2282
+        },
+        {
+          "pixelWidth": 288,
+          "svgWidth": 96,
+          "bytes": 8002
+        },
+        {
+          "pixelWidth": 57,
+          "svgWidth": 19,
+          "bytes": 2014
+        },
+        {
+          "pixelWidth": 285,
+          "svgWidth": 95,
+          "bytes": 12248
+        },
+        {
+          "pixelWidth": 222,
+          "svgWidth": 74,
+          "bytes": 1498
+        },
+        {
+          "pixelWidth": 279,
+          "svgWidth": 93,
+          "bytes": 15554
+        },
+        {
+          "pixelWidth": 219,
+          "svgWidth": 73,
+          "bytes": 3170
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 2370
+        },
+        {
+          "pixelWidth": 372,
+          "svgWidth": 124,
+          "bytes": 19220
+        },
+        {
+          "pixelWidth": 255,
+          "svgWidth": 85,
+          "bytes": 13214
+        }
+      ]
+    },
+    {
+      "key": "6/dark-phone",
+      "placementUnchanged": true,
+      "ownerOrderUnchanged": true,
+      "captureIdentityUnchanged": true,
+      "maxCssPxManhattan": 8,
+      "changedMaskPixels": 1593,
+      "unionPixels": 183682,
+      "beforeSvgBytes": 56576,
+      "afterSvgBytes": 173249,
+      "beforeGzip": 26174,
+      "afterGzip": 118787,
+      "images": [
+        {
+          "pixelWidth": 357,
+          "svgWidth": 119,
+          "bytes": 26706
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 2520
+        },
+        {
+          "pixelWidth": 270,
+          "svgWidth": 90,
+          "bytes": 1428
+        },
+        {
+          "pixelWidth": 186,
+          "svgWidth": 62,
+          "bytes": 2406
+        },
+        {
+          "pixelWidth": 288,
+          "svgWidth": 96,
+          "bytes": 7904
+        },
+        {
+          "pixelWidth": 57,
+          "svgWidth": 19,
+          "bytes": 1770
+        },
+        {
+          "pixelWidth": 285,
+          "svgWidth": 95,
+          "bytes": 11974
+        },
+        {
+          "pixelWidth": 222,
+          "svgWidth": 74,
+          "bytes": 1564
+        },
+        {
+          "pixelWidth": 279,
+          "svgWidth": 93,
+          "bytes": 16476
+        },
+        {
+          "pixelWidth": 219,
+          "svgWidth": 73,
+          "bytes": 3056
+        },
+        {
+          "pixelWidth": 96,
+          "svgWidth": 32,
+          "bytes": 2414
+        },
+        {
+          "pixelWidth": 372,
+          "svgWidth": 124,
+          "bytes": 19328
+        },
+        {
+          "pixelWidth": 255,
+          "svgWidth": 85,
+          "bytes": 13280
+        }
+      ]
+    }
+  ],
+  "freshOwnerComparisons": [
+    {
+      "key": "1/light-desktop",
+      "owners": [
+        {
+          "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 240,
+          "addedPixels": 1
+        },
+        {
+          "id": "stacks-cover-the-12-levers",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 237,
+          "addedPixels": 1
+        },
+        {
+          "id": "stacks-cover-superminds",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 174,
+          "addedPixels": 1
+        },
+        {
+          "id": "stacks-cover-bowling-alone",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 217,
+          "addedPixels": 1
+        },
+        {
+          "id": "books-packed-top",
+          "maxCssPxManhattan": 0.49996468178089964,
+          "lostPixels": 1229,
+          "addedPixels": 60
+        },
+        {
+          "id": "books-bookend-top",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 90,
+          "addedPixels": 175
+        },
+        {
+          "id": "books-packed-lower",
+          "maxCssPxManhattan": 0.49996468178089964,
+          "lostPixels": 1646,
+          "addedPixels": 98
+        },
+        {
+          "id": "books-bookend-lower",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 242,
+          "addedPixels": 80
+        },
+        {
+          "id": "stacks-cover-barking-up-the-wrong-tree",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 197,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-homo-deus",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 209,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-life-3-0",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 212,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-thinking-fast-and-slow",
+          "maxCssPxManhattan": 0.24998234089044982,
+          "lostPixels": 218,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 0.49996468178089964
+    },
+    {
+      "key": "1/dark-desktop",
+      "owners": [
+        {
+          "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 240,
+          "addedPixels": 1
+        },
+        {
+          "id": "stacks-cover-the-12-levers",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 240,
+          "addedPixels": 1
+        },
+        {
+          "id": "stacks-cover-superminds",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 175,
+          "addedPixels": 1
+        },
+        {
+          "id": "stacks-cover-bowling-alone",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 217,
+          "addedPixels": 1
+        },
+        {
+          "id": "books-packed-top",
+          "maxCssPxManhattan": 0.4999656023648809,
+          "lostPixels": 1221,
+          "addedPixels": 60
+        },
+        {
+          "id": "books-bookend-top",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 182,
+          "addedPixels": 107
+        },
+        {
+          "id": "books-packed-lower",
+          "maxCssPxManhattan": 0.4999656023648809,
+          "lostPixels": 1627,
+          "addedPixels": 98
+        },
+        {
+          "id": "books-bookend-lower",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 243,
+          "addedPixels": 85
+        },
+        {
+          "id": "stacks-cover-barking-up-the-wrong-tree",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 196,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-homo-deus",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 216,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-life-3-0",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 211,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-thinking-fast-and-slow",
+          "maxCssPxManhattan": 0.24998280118244046,
+          "lostPixels": 221,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 0.4999656023648809
+    },
+    {
+      "key": "1/light-phone",
+      "owners": [
+        {
+          "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 109,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-the-12-levers",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 123,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-superminds",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 102,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-bowling-alone",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 150,
+          "addedPixels": 0
+        },
+        {
+          "id": "books-packed-top",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 997,
+          "addedPixels": 12
+        },
+        {
+          "id": "books-bookend-top",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 60,
+          "addedPixels": 32
+        },
+        {
+          "id": "books-packed-lower",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 943,
+          "addedPixels": 133
+        },
+        {
+          "id": "books-bookend-lower",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 35,
+          "addedPixels": 96
+        },
+        {
+          "id": "stacks-cover-barking-up-the-wrong-tree",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 166,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-homo-deus",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 107,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-life-3-0",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 181,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-thinking-fast-and-slow",
+          "maxCssPxManhattan": 0.24037100418019428,
+          "lostPixels": 112,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 0.24037100418019428
+    },
+    {
+      "key": "1/dark-phone",
+      "owners": [
+        {
+          "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 109,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-the-12-levers",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 123,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-superminds",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 102,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-bowling-alone",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 147,
+          "addedPixels": 0
+        },
+        {
+          "id": "books-packed-top",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 996,
+          "addedPixels": 12
+        },
+        {
+          "id": "books-bookend-top",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 61,
+          "addedPixels": 32
+        },
+        {
+          "id": "books-packed-lower",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 941,
+          "addedPixels": 137
+        },
+        {
+          "id": "books-bookend-lower",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 36,
+          "addedPixels": 95
+        },
+        {
+          "id": "stacks-cover-barking-up-the-wrong-tree",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 165,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-homo-deus",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 107,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-life-3-0",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 182,
+          "addedPixels": 0
+        },
+        {
+          "id": "stacks-cover-thinking-fast-and-slow",
+          "maxCssPxManhattan": 0.2403709323680549,
+          "lostPixels": 114,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 0.2403709323680549
+    },
+    {
+      "key": "4/light-desktop",
+      "owners": [
+        {
+          "id": "lamp",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 243,
+          "addedPixels": 297
+        },
+        {
+          "id": "action-projects-weightlifting",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 168,
+          "addedPixels": 3
+        },
+        {
+          "id": "link-projects-dice-bottom-left",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 99,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-center",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 81,
+          "addedPixels": 1
+        },
+        {
+          "id": "link-projects-dice-bottom-right",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 83,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-middle-left",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 75,
+          "addedPixels": 1
+        },
+        {
+          "id": "link-projects-dice-middle-right",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 50,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-top",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 78,
+          "addedPixels": 1
+        },
+        {
+          "id": "action-projects-homework",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 143,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-photo-projects-wwdc-v8",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 159,
+          "addedPixels": 0
+        },
+        {
+          "id": "shimmer-apple",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 94,
+          "addedPixels": 181
+        },
+        {
+          "id": "grab-plant-projects-small",
+          "maxCssPxManhattan": 0.4999674986379103,
+          "lostPixels": 442,
+          "addedPixels": 186
+        },
+        {
+          "id": "trophy",
+          "maxCssPxManhattan": 0.7499512479568654,
+          "lostPixels": 1,
+          "addedPixels": 3610
+        },
+        {
+          "id": "photo",
+          "maxCssPxManhattan": 0.4999674986379103,
+          "lostPixels": 1101,
+          "addedPixels": 70
+        },
+        {
+          "id": "grab-phone-projects",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 99,
+          "addedPixels": 15
+        },
+        {
+          "id": "arduino",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 96,
+          "addedPixels": 2
+        },
+        {
+          "id": "card",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 108,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-photo-projects-facebook-v8",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 288,
+          "addedPixels": 0
+        },
+        {
+          "id": "mac",
+          "maxCssPxManhattan": 0.24998374931895515,
+          "lostPixels": 1915,
+          "addedPixels": 82
+        }
+      ],
+      "maxCssPxManhattan": 0.7499512479568654
+    },
+    {
+      "key": "4/dark-desktop",
+      "owners": [
+        {
+          "id": "lamp",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 242,
+          "addedPixels": 273
+        },
+        {
+          "id": "action-projects-weightlifting",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 200,
+          "addedPixels": 1
+        },
+        {
+          "id": "link-projects-dice-bottom-left",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 64,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-center",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 139,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-right",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 67,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-middle-left",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 75,
+          "addedPixels": 1
+        },
+        {
+          "id": "link-projects-dice-middle-right",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 76,
+          "addedPixels": 1
+        },
+        {
+          "id": "link-projects-dice-top",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 140,
+          "addedPixels": 2
+        },
+        {
+          "id": "action-projects-homework",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 161,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-photo-projects-wwdc-v8",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 142,
+          "addedPixels": 0
+        },
+        {
+          "id": "shimmer-apple",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 50,
+          "addedPixels": 163
+        },
+        {
+          "id": "grab-plant-projects-small",
+          "maxCssPxManhattan": 0.7499814591379886,
+          "lostPixels": 458,
+          "addedPixels": 185
+        },
+        {
+          "id": "trophy",
+          "maxCssPxManhattan": 0.7499814591379886,
+          "lostPixels": 0,
+          "addedPixels": 3586
+        },
+        {
+          "id": "photo",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 965,
+          "addedPixels": 141
+        },
+        {
+          "id": "grab-phone-projects",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 108,
+          "addedPixels": 14
+        },
+        {
+          "id": "arduino",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 85,
+          "addedPixels": 4
+        },
+        {
+          "id": "card",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 86,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-photo-projects-facebook-v8",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 238,
+          "addedPixels": 0
+        },
+        {
+          "id": "mac",
+          "maxCssPxManhattan": 0.24999381971266288,
+          "lostPixels": 1392,
+          "addedPixels": 155
+        }
+      ],
+      "maxCssPxManhattan": 0.7499814591379886
+    },
+    {
+      "key": "4/light-phone",
+      "owners": [
+        {
+          "id": "lamp",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 126,
+          "addedPixels": 198
+        },
+        {
+          "id": "action-projects-weightlifting",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 58,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-left",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 45,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-center",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 13,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-right",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 87,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-middle-left",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 33,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-middle-right",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 90,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-top",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 27,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-projects-homework",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 120,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-projects-wwdc-v8",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 57,
+          "addedPixels": 0
+        },
+        {
+          "id": "shimmer-apple",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 124,
+          "addedPixels": 64
+        },
+        {
+          "id": "grab-plant-projects-small",
+          "maxCssPxManhattan": 0.4807528041130963,
+          "lostPixels": 211,
+          "addedPixels": 94
+        },
+        {
+          "id": "trophy",
+          "maxCssPxManhattan": 0.7211292061696444,
+          "lostPixels": 0,
+          "addedPixels": 1747
+        },
+        {
+          "id": "photo",
+          "maxCssPxManhattan": 0.4807528041130963,
+          "lostPixels": 972,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-phone-projects",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 52,
+          "addedPixels": 0
+        },
+        {
+          "id": "arduino",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 40,
+          "addedPixels": 2
+        },
+        {
+          "id": "card",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 87,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-projects-facebook-v8",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 108,
+          "addedPixels": 0
+        },
+        {
+          "id": "mac",
+          "maxCssPxManhattan": 0.24037640205654814,
+          "lostPixels": 1636,
+          "addedPixels": 43
+        }
+      ],
+      "maxCssPxManhattan": 0.7211292061696444
+    },
+    {
+      "key": "4/dark-phone",
+      "owners": [
+        {
+          "id": "lamp",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 132,
+          "addedPixels": 154
+        },
+        {
+          "id": "action-projects-weightlifting",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 76,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-left",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 176,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-center",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 42,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-bottom-right",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 88,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-middle-left",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 29,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-middle-right",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 83,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-projects-dice-top",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 10,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-projects-homework",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 114,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-projects-wwdc-v8",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 56,
+          "addedPixels": 0
+        },
+        {
+          "id": "shimmer-apple",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 99,
+          "addedPixels": 51
+        },
+        {
+          "id": "grab-plant-projects-small",
+          "maxCssPxManhattan": 0.9615106587501555,
+          "lostPixels": 207,
+          "addedPixels": 100
+        },
+        {
+          "id": "trophy",
+          "maxCssPxManhattan": 0.7211329940626167,
+          "lostPixels": 0,
+          "addedPixels": 1682
+        },
+        {
+          "id": "photo",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 1070,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-phone-projects",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 53,
+          "addedPixels": 0
+        },
+        {
+          "id": "arduino",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 40,
+          "addedPixels": 3
+        },
+        {
+          "id": "card",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 86,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-projects-facebook-v8",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 151,
+          "addedPixels": 0
+        },
+        {
+          "id": "mac",
+          "maxCssPxManhattan": 0.24037766468753888,
+          "lostPixels": 1364,
+          "addedPixels": 70
+        }
+      ],
+      "maxCssPxManhattan": 0.9615106587501555
+    },
+    {
+      "key": "3/light-desktop",
+      "owners": [
+        {
+          "id": "systems-manual-row",
+          "maxCssPxManhattan": 0.4999803915161971,
+          "lostPixels": 361,
+          "addedPixels": 3
+        },
+        {
+          "id": "egg-clock-alarm",
+          "maxCssPxManhattan": 1.2499509787904928,
+          "lostPixels": 355,
+          "addedPixels": 33
+        },
+        {
+          "id": "grab-photo-systems-working-session-v8",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 84,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-home-office-v8",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 194,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-sf-dusk-v8",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 150,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-routineboard",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 168,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-plant-sansevieria",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 671,
+          "addedPixels": 387
+        },
+        {
+          "id": "grab-bag-realgood",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 146,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-bag-betaalanine",
+          "maxCssPxManhattan": 0.4999803915161971,
+          "lostPixels": 151,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-bag-collagen",
+          "maxCssPxManhattan": 0.4999803915161971,
+          "lostPixels": 150,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-bag-creatine",
+          "maxCssPxManhattan": 0.7499705872742957,
+          "lostPixels": 215,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-mio-hydrate-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 64,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-mio-lemonade-1",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 67,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-mio-hydrate-2",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 63,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-notebook-systems",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 138,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-photo-systems-supplements-v8",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 122,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-back-lower",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 172,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-organizer-back-upper",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 126,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-lower",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 153,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-upper",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 139,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-can-diet-dr-pepper",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 118,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-can-mtn-dew-zero",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 106,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-can-sunkist-zero",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 88,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-0-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 37,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-1-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 60,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-pills-bottle-1-1",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 63,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-pills-bottle-2-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 34,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-3-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 32,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-pills-bottle-4-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 76,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-5-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 67,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-pills-bottle-5-1",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 44,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-6-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 75,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-7-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 26,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-8-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 52,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-9-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 44,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-10-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 27,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-11-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 43,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-12-0",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 19,
+          "addedPixels": 3
+        },
+        {
+          "id": "systems-sun-lamp",
+          "maxCssPxManhattan": 0.24999019575809855,
+          "lostPixels": 147,
+          "addedPixels": 14
+        }
+      ],
+      "maxCssPxManhattan": 1.2499509787904928
+    },
+    {
+      "key": "3/dark-desktop",
+      "owners": [
+        {
+          "id": "systems-manual-row",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 345,
+          "addedPixels": 0
+        },
+        {
+          "id": "egg-clock-alarm",
+          "maxCssPxManhattan": 1.2500617191226198,
+          "lostPixels": 254,
+          "addedPixels": 20
+        },
+        {
+          "id": "grab-photo-systems-working-session-v8",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 823,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-home-office-v8",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 119,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-sf-dusk-v8",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 115,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-routineboard",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 158,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-plant-sansevieria",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 805,
+          "addedPixels": 275
+        },
+        {
+          "id": "grab-bag-realgood",
+          "maxCssPxManhattan": 0.7500370314735719,
+          "lostPixels": 201,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-bag-betaalanine",
+          "maxCssPxManhattan": 0.500024687649048,
+          "lostPixels": 119,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-bag-collagen",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 148,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-bag-creatine",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 153,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-mio-hydrate-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 71,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-mio-lemonade-1",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 79,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-mio-hydrate-2",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 63,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-notebook-systems",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 153,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-supplements-v8",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 227,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-back-lower",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 186,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-organizer-back-upper",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 127,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-lower",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 155,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-upper",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 112,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-can-diet-dr-pepper",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 115,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-can-mtn-dew-zero",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 96,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-can-sunkist-zero",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 127,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-0-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 60,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-1-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 104,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-pills-bottle-1-1",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 41,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-pills-bottle-2-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 136,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-3-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 42,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-4-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 34,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-5-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 37,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-5-1",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 33,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-6-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 54,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-pills-bottle-7-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 104,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-8-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 24,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-9-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 70,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pills-bottle-10-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 59,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pills-bottle-11-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 86,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-pills-bottle-12-0",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 36,
+          "addedPixels": 0
+        },
+        {
+          "id": "systems-sun-lamp",
+          "maxCssPxManhattan": 0.250012343824524,
+          "lostPixels": 141,
+          "addedPixels": 12
+        }
+      ],
+      "maxCssPxManhattan": 1.2500617191226198
+    },
+    {
+      "key": "3/light-phone",
+      "owners": [
+        {
+          "id": "systems-manual-row",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 118,
+          "addedPixels": 0
+        },
+        {
+          "id": "egg-clock-alarm",
+          "maxCssPxManhattan": 0.9615008519339533,
+          "lostPixels": 142,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-photo-systems-working-session-v8",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 321,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-home-office-v8",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 198,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-sf-dusk-v8",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 238,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-routineboard",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 239,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-plant-sansevieria",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 328,
+          "addedPixels": 167
+        },
+        {
+          "id": "grab-bag-realgood",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 103,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-bag-betaalanine",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 86,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-bag-collagen",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 61,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-bag-creatine",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 55,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-mio-hydrate-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 34,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-mio-lemonade-1",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 50,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-mio-hydrate-2",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 35,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-notebook-systems",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 74,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-supplements-v8",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 12,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-back-lower",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 68,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-back-upper",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 90,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-lower",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 92,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-upper",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 97,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-can-diet-dr-pepper",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 28,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-can-mtn-dew-zero",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 125,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-can-sunkist-zero",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 42,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-0-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 27,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-1-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 28,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-1-1",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 35,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-2-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 13,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-3-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 45,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-4-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 11,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-5-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 22,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-5-1",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 14,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-6-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 11,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-7-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 13,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-8-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 38,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-9-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 41,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-10-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 14,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-11-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 7,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-12-0",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 9,
+          "addedPixels": 0
+        },
+        {
+          "id": "systems-sun-lamp",
+          "maxCssPxManhattan": 0.24037521298348832,
+          "lostPixels": 74,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 0.9615008519339533
+    },
+    {
+      "key": "3/dark-phone",
+      "owners": [
+        {
+          "id": "systems-manual-row",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 116,
+          "addedPixels": 0
+        },
+        {
+          "id": "egg-clock-alarm",
+          "maxCssPxManhattan": 0.9615001017379265,
+          "lostPixels": 140,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-photo-systems-working-session-v8",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 322,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-home-office-v8",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 197,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-sf-dusk-v8",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 222,
+          "addedPixels": 0
+        },
+        {
+          "id": "link-routineboard",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 170,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-plant-sansevieria",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 294,
+          "addedPixels": 169
+        },
+        {
+          "id": "grab-bag-realgood",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 102,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-bag-betaalanine",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 89,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-bag-collagen",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 56,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-bag-creatine",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 56,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-mio-hydrate-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 35,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-mio-lemonade-1",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 46,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-mio-hydrate-2",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 36,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-notebook-systems",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 71,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-systems-supplements-v8",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 52,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-back-lower",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 73,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-back-upper",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 91,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-lower",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 91,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-organizer-front-upper",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 102,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-can-diet-dr-pepper",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 29,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-can-mtn-dew-zero",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 128,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-can-sunkist-zero",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 40,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-0-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 29,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-1-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 29,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-1-1",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 33,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-2-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 14,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-3-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 41,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-4-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 7,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-5-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 22,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-5-1",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 14,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-6-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 10,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-7-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 11,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-8-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 40,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-9-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 39,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-10-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 17,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-11-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 9,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pills-bottle-12-0",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 6,
+          "addedPixels": 0
+        },
+        {
+          "id": "systems-sun-lamp",
+          "maxCssPxManhattan": 0.24037502543448164,
+          "lostPixels": 77,
+          "addedPixels": 1
+        }
+      ],
+      "maxCssPxManhattan": 0.9615001017379265
+    },
+    {
+      "key": "2/light-desktop",
+      "owners": [
+        {
+          "id": "pinboard",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 521,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-photo-training-trophy-side-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 219,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-kneeling-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 132,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-side-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 93,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-trophy-front-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 124,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-aggregate-strength",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 159,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-big-three",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 122,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-dexa-history",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 116,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-gym-pose-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 163,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-deadlift-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 149,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-bench-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 124,
+          "addedPixels": 0
+        },
+        {
+          "id": "artifact-lift-table",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 107,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-right",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 136,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-protein",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 181,
+          "addedPixels": 6
+        },
+        {
+          "id": "grab-gorilla-mode",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 294,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pre-x",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 196,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-shaker-training",
+          "maxCssPxManhattan": 1.0000330642124962,
+          "lostPixels": 196,
+          "addedPixels": 1015
+        },
+        {
+          "id": "grab-shaker-training-navy",
+          "maxCssPxManhattan": 1.5000495963187443,
+          "lostPixels": 190,
+          "addedPixels": 981
+        },
+        {
+          "id": "grab-shaker-training-amber",
+          "maxCssPxManhattan": 2.5000826605312403,
+          "lostPixels": 209,
+          "addedPixels": 926
+        },
+        {
+          "id": "grab-photo-training-golf-group-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 229,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-golf-flag-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 198,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-pickleball-group-v8",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 141,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-left",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 52,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-middle",
+          "maxCssPxManhattan": 0.5000165321062481,
+          "lostPixels": 20,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-golf-tee-shelf-right",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 33,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-ball-tennis",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 72,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-ball-baseball",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 75,
+          "addedPixels": 7
+        },
+        {
+          "id": "golf-ball-shelf-a",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 56,
+          "addedPixels": 1
+        },
+        {
+          "id": "golf-ball-shelf-b",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 49,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-dumbbell-training-left",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 320,
+          "addedPixels": 17
+        },
+        {
+          "id": "grab-basketball",
+          "maxCssPxManhattan": 0.25000826605312404,
+          "lostPixels": 239,
+          "addedPixels": 16
+        }
+      ],
+      "maxCssPxManhattan": 2.5000826605312403
+    },
+    {
+      "key": "2/dark-desktop",
+      "owners": [
+        {
+          "id": "pinboard",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 528,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-photo-training-trophy-side-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 230,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-kneeling-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 127,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-side-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 102,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-trophy-front-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 125,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-aggregate-strength",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 127,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-big-three",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 129,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-dexa-history",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 175,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-gym-pose-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 41,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-deadlift-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 122,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-bench-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 108,
+          "addedPixels": 0
+        },
+        {
+          "id": "artifact-lift-table",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 94,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-right",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 335,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-protein",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 179,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-gorilla-mode",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 186,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pre-x",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 114,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-shaker-training",
+          "maxCssPxManhattan": 1.0000090466698581,
+          "lostPixels": 236,
+          "addedPixels": 988
+        },
+        {
+          "id": "grab-shaker-training-navy",
+          "maxCssPxManhattan": 0,
+          "lostPixels": 0,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-shaker-training-amber",
+          "maxCssPxManhattan": 0.5000045233349291,
+          "lostPixels": 200,
+          "addedPixels": 878
+        },
+        {
+          "id": "grab-photo-training-golf-group-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 220,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-golf-flag-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 228,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-pickleball-group-v8",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 157,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-left",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 57,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-middle",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 17,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-right",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 31,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-ball-tennis",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 77,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-ball-baseball",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 78,
+          "addedPixels": 8
+        },
+        {
+          "id": "golf-ball-shelf-a",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 60,
+          "addedPixels": 1
+        },
+        {
+          "id": "golf-ball-shelf-b",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 47,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-left",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 307,
+          "addedPixels": 23
+        },
+        {
+          "id": "grab-basketball",
+          "maxCssPxManhattan": 0.25000226166746453,
+          "lostPixels": 246,
+          "addedPixels": 10
+        }
+      ],
+      "maxCssPxManhattan": 1.0000090466698581
+    },
+    {
+      "key": "2/light-phone",
+      "owners": [
+        {
+          "id": "pinboard",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 263,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-trophy-side-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 97,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-kneeling-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 73,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-side-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 22,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-trophy-front-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 75,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-aggregate-strength",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 53,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-big-three",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 71,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-dexa-history",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 60,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-gym-pose-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 167,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-deadlift-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 5,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-bench-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 2,
+          "addedPixels": 0
+        },
+        {
+          "id": "artifact-lift-table",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 9,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-right",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 71,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-protein",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 101,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-gorilla-mode",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 117,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pre-x",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 123,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-shaker-training",
+          "maxCssPxManhattan": 2.1635394983006058,
+          "lostPixels": 85,
+          "addedPixels": 302
+        },
+        {
+          "id": "grab-shaker-training-navy",
+          "maxCssPxManhattan": 2.1635394983006058,
+          "lostPixels": 89,
+          "addedPixels": 224
+        },
+        {
+          "id": "grab-shaker-training-amber",
+          "maxCssPxManhattan": 2.1635394983006058,
+          "lostPixels": 91,
+          "addedPixels": 287
+        },
+        {
+          "id": "grab-photo-training-golf-group-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 115,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-golf-flag-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 72,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-pickleball-group-v8",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 33,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-left",
+          "maxCssPxManhattan": 0.48078655517791236,
+          "lostPixels": 22,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-middle",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 21,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-right",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 14,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-ball-tennis",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 47,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-ball-baseball",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 38,
+          "addedPixels": 0
+        },
+        {
+          "id": "golf-ball-shelf-a",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 29,
+          "addedPixels": 0
+        },
+        {
+          "id": "golf-ball-shelf-b",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 25,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-left",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 165,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-basketball",
+          "maxCssPxManhattan": 0.24039327758895618,
+          "lostPixels": 129,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 2.1635394983006058
+    },
+    {
+      "key": "2/dark-phone",
+      "owners": [
+        {
+          "id": "pinboard",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 259,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-trophy-side-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 104,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-kneeling-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 73,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-stage-side-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 31,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-trophy-front-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 79,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-aggregate-strength",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 53,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-big-three",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 71,
+          "addedPixels": 0
+        },
+        {
+          "id": "action-training-figure-dexa-history",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 58,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-gym-pose-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 6,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-deadlift-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 5,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-bench-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 3,
+          "addedPixels": 0
+        },
+        {
+          "id": "artifact-lift-table",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 8,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-right",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 149,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-protein",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 107,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-gorilla-mode",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 134,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pre-x",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 111,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-shaker-training",
+          "maxCssPxManhattan": 2.163536419741806,
+          "lostPixels": 122,
+          "addedPixels": 295
+        },
+        {
+          "id": "grab-shaker-training-navy",
+          "maxCssPxManhattan": 2.163536419741806,
+          "lostPixels": 99,
+          "addedPixels": 325
+        },
+        {
+          "id": "grab-shaker-training-amber",
+          "maxCssPxManhattan": 2.163536419741806,
+          "lostPixels": 87,
+          "addedPixels": 202
+        },
+        {
+          "id": "grab-photo-training-golf-group-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 116,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-golf-flag-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 71,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-training-pickleball-group-v8",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 26,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-left",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 25,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-middle",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 26,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-golf-tee-shelf-right",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 18,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-ball-tennis",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 28,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-ball-baseball",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 42,
+          "addedPixels": 0
+        },
+        {
+          "id": "golf-ball-shelf-a",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 34,
+          "addedPixels": 0
+        },
+        {
+          "id": "golf-ball-shelf-b",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 23,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-dumbbell-training-left",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 155,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-basketball",
+          "maxCssPxManhattan": 0.24039293552686733,
+          "lostPixels": 144,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 2.163536419741806
+    },
+    {
+      "key": "5/light-desktop",
+      "owners": [
+        {
+          "id": "grab-plant-musings",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 242,
+          "addedPixels": 98
+        },
+        {
+          "id": "musings-lamp",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 311,
+          "addedPixels": 404
+        },
+        {
+          "id": "grab-headphones",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 337,
+          "addedPixels": 14
+        },
+        {
+          "id": "grab-kettle",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 245,
+          "addedPixels": 7
+        },
+        {
+          "id": "egg-tea",
+          "maxCssPxManhattan": 0.5000347542439575,
+          "lostPixels": 190,
+          "addedPixels": 6
+        },
+        {
+          "id": "grab-openbook",
+          "maxCssPxManhattan": 0.5000347542439575,
+          "lostPixels": 324,
+          "addedPixels": 28
+        },
+        {
+          "id": "musings-book-row",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 521,
+          "addedPixels": 10
+        },
+        {
+          "id": "grab-mug",
+          "maxCssPxManhattan": 0.7500521313659363,
+          "lostPixels": 354,
+          "addedPixels": 32
+        },
+        {
+          "id": "grab-paper-5",
+          "maxCssPxManhattan": 0.5000347542439575,
+          "lostPixels": 252,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-pen-5",
+          "maxCssPxManhattan": 0.5000347542439575,
+          "lostPixels": 49,
+          "addedPixels": 16
+        },
+        {
+          "id": "grab-trust-essay-musings",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 224,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-vineyard-sign",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 32,
+          "addedPixels": 6
+        },
+        {
+          "id": "grab-vineyard-cutout",
+          "maxCssPxManhattan": 0.7500521313659363,
+          "lostPixels": 286,
+          "addedPixels": 27
+        },
+        {
+          "id": "grab-photo-systems-lighthouse-v8",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 72,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-lighthouse-musings",
+          "maxCssPxManhattan": 0,
+          "lostPixels": 0,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-vineyard-vines",
+          "maxCssPxManhattan": 0.25001737712197875,
+          "lostPixels": 46,
+          "addedPixels": 13
+        }
+      ],
+      "maxCssPxManhattan": 0.7500521313659363
+    },
+    {
+      "key": "5/dark-desktop",
+      "owners": [
+        {
+          "id": "grab-plant-musings",
+          "maxCssPxManhattan": 0.4999777044865496,
+          "lostPixels": 349,
+          "addedPixels": 107
+        },
+        {
+          "id": "musings-lamp",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 415,
+          "addedPixels": 295
+        },
+        {
+          "id": "grab-headphones",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 335,
+          "addedPixels": 18
+        },
+        {
+          "id": "grab-kettle",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 250,
+          "addedPixels": 8
+        },
+        {
+          "id": "egg-tea",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 135,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-openbook",
+          "maxCssPxManhattan": 0.4999777044865496,
+          "lostPixels": 313,
+          "addedPixels": 27
+        },
+        {
+          "id": "musings-book-row",
+          "maxCssPxManhattan": 0.4999777044865496,
+          "lostPixels": 612,
+          "addedPixels": 10
+        },
+        {
+          "id": "grab-mug",
+          "maxCssPxManhattan": 0.9999554089730992,
+          "lostPixels": 351,
+          "addedPixels": 40
+        },
+        {
+          "id": "grab-paper-5",
+          "maxCssPxManhattan": 0.4999777044865496,
+          "lostPixels": 240,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-pen-5",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 50,
+          "addedPixels": 14
+        },
+        {
+          "id": "grab-trust-essay-musings",
+          "maxCssPxManhattan": 0.4999777044865496,
+          "lostPixels": 230,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-vineyard-sign",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 91,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-vineyard-cutout",
+          "maxCssPxManhattan": 0.4999777044865496,
+          "lostPixels": 326,
+          "addedPixels": 41
+        },
+        {
+          "id": "grab-photo-systems-lighthouse-v8",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 170,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-lighthouse-musings",
+          "maxCssPxManhattan": 0,
+          "lostPixels": 0,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-vineyard-vines",
+          "maxCssPxManhattan": 0.2499888522432748,
+          "lostPixels": 42,
+          "addedPixels": 9
+        }
+      ],
+      "maxCssPxManhattan": 0.9999554089730992
+    },
+    {
+      "key": "5/light-phone",
+      "owners": [
+        {
+          "id": "grab-plant-musings",
+          "maxCssPxManhattan": 0.48076120391601074,
+          "lostPixels": 167,
+          "addedPixels": 40
+        },
+        {
+          "id": "musings-lamp",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 202,
+          "addedPixels": 201
+        },
+        {
+          "id": "grab-headphones",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 167,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-kettle",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 114,
+          "addedPixels": 1
+        },
+        {
+          "id": "egg-tea",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 112,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-openbook",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 164,
+          "addedPixels": 5
+        },
+        {
+          "id": "musings-book-row",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 522,
+          "addedPixels": 13
+        },
+        {
+          "id": "grab-mug",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 182,
+          "addedPixels": 7
+        },
+        {
+          "id": "grab-paper-5",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 133,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-pen-5",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 32,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-trust-essay-musings",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 116,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-vineyard-sign",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 11,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-vineyard-cutout",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 162,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-photo-systems-lighthouse-v8",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 94,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-lighthouse-musings",
+          "maxCssPxManhattan": 2.8845672234960644,
+          "lostPixels": 414,
+          "addedPixels": 18
+        },
+        {
+          "id": "grab-sticker-vineyard-vines",
+          "maxCssPxManhattan": 0.24038060195800537,
+          "lostPixels": 22,
+          "addedPixels": 0
+        }
+      ],
+      "maxCssPxManhattan": 2.8845672234960644
+    },
+    {
+      "key": "5/dark-phone",
+      "owners": [
+        {
+          "id": "grab-plant-musings",
+          "maxCssPxManhattan": 0.48076410568448796,
+          "lostPixels": 154,
+          "addedPixels": 54
+        },
+        {
+          "id": "musings-lamp",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 258,
+          "addedPixels": 177
+        },
+        {
+          "id": "grab-headphones",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 157,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-kettle",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 99,
+          "addedPixels": 2
+        },
+        {
+          "id": "egg-tea",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 77,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-openbook",
+          "maxCssPxManhattan": 0.48076410568448796,
+          "lostPixels": 154,
+          "addedPixels": 7
+        },
+        {
+          "id": "musings-book-row",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 365,
+          "addedPixels": 15
+        },
+        {
+          "id": "grab-mug",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 201,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-paper-5",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 102,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-pen-5",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 28,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-trust-essay-musings",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 114,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-vineyard-sign",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 32,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-vineyard-cutout",
+          "maxCssPxManhattan": 0.48076410568448796,
+          "lostPixels": 162,
+          "addedPixels": 8
+        },
+        {
+          "id": "grab-photo-systems-lighthouse-v8",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 72,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-lighthouse-musings",
+          "maxCssPxManhattan": 2.8845846341069277,
+          "lostPixels": 438,
+          "addedPixels": 12
+        },
+        {
+          "id": "grab-sticker-vineyard-vines",
+          "maxCssPxManhattan": 0.24038205284224398,
+          "lostPixels": 23,
+          "addedPixels": 1
+        }
+      ],
+      "maxCssPxManhattan": 2.8845846341069277
+    },
+    {
+      "key": "6/light-desktop",
+      "owners": [
+        {
+          "id": "talks-monitor-support",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 168,
+          "addedPixels": 8
+        },
+        {
+          "id": "grab-photo-talk-ann-interview-v8",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 299,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-easel-support",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 1234,
+          "addedPixels": 17
+        },
+        {
+          "id": "grab-photo-talk-dc-policy-v8",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 796,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-plinth-support",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 103,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-photo-talk-panel-v8",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 265,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-harmonica-talks",
+          "maxCssPxManhattan": 0.5000313536467634,
+          "lostPixels": 204,
+          "addedPixels": 6
+        },
+        {
+          "id": "grab-plant-talks-top",
+          "maxCssPxManhattan": 0.5000313536467634,
+          "lostPixels": 419,
+          "addedPixels": 222
+        },
+        {
+          "id": "grab-photo-talk-demo-night-v8",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 322,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-hanging-support",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 156,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-photo-talk-consensus-phone-v8",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 266,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-sticker-camera-talks-a",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 104,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-camera-talks-b",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 98,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-microphone",
+          "maxCssPxManhattan": 0.2500156768233817,
+          "lostPixels": 159,
+          "addedPixels": 4
+        },
+        {
+          "id": "grab-plant-talks-pothos",
+          "maxCssPxManhattan": 2.0001254145870537,
+          "lostPixels": 2786,
+          "addedPixels": 413
+        }
+      ],
+      "maxCssPxManhattan": 2.0001254145870537
+    },
+    {
+      "key": "6/dark-desktop",
+      "owners": [
+        {
+          "id": "talks-monitor-support",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 168,
+          "addedPixels": 9
+        },
+        {
+          "id": "grab-photo-talk-ann-interview-v8",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 255,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-easel-support",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 1353,
+          "addedPixels": 26
+        },
+        {
+          "id": "grab-photo-talk-dc-policy-v8",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 236,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-plinth-support",
+          "maxCssPxManhattan": 0.4999494556415528,
+          "lostPixels": 53,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-photo-talk-panel-v8",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 260,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-harmonica-talks",
+          "maxCssPxManhattan": 0.4999494556415528,
+          "lostPixels": 56,
+          "addedPixels": 3
+        },
+        {
+          "id": "grab-plant-talks-top",
+          "maxCssPxManhattan": 0.4999494556415528,
+          "lostPixels": 389,
+          "addedPixels": 213
+        },
+        {
+          "id": "grab-photo-talk-demo-night-v8",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 304,
+          "addedPixels": 1
+        },
+        {
+          "id": "talks-hanging-support",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 95,
+          "addedPixels": 6
+        },
+        {
+          "id": "grab-photo-talk-consensus-phone-v8",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 281,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-camera-talks-a",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 85,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-sticker-camera-talks-b",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 86,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-microphone",
+          "maxCssPxManhattan": 0.2499747278207764,
+          "lostPixels": 144,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-plant-talks-pothos",
+          "maxCssPxManhattan": 1.249873639103882,
+          "lostPixels": 2677,
+          "addedPixels": 416
+        }
+      ],
+      "maxCssPxManhattan": 1.249873639103882
+    },
+    {
+      "key": "6/light-phone",
+      "owners": [
+        {
+          "id": "talks-monitor-support",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 77,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-talk-ann-interview-v8",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 100,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-easel-support",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 676,
+          "addedPixels": 6
+        },
+        {
+          "id": "grab-photo-talk-dc-policy-v8",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 5,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-plinth-support",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 36,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-photo-talk-panel-v8",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 159,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-harmonica-talks",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 176,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-plant-talks-top",
+          "maxCssPxManhattan": 0.4807468130724285,
+          "lostPixels": 144,
+          "addedPixels": 123
+        },
+        {
+          "id": "grab-photo-talk-demo-night-v8",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 153,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-hanging-support",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 147,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-photo-talk-consensus-phone-v8",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 87,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-camera-talks-a",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 36,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-camera-talks-b",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 32,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-microphone",
+          "maxCssPxManhattan": 0.24037340653621425,
+          "lostPixels": 74,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-plant-talks-pothos",
+          "maxCssPxManhattan": 1.2018670326810712,
+          "lostPixels": 1306,
+          "addedPixels": 212
+        }
+      ],
+      "maxCssPxManhattan": 1.2018670326810712
+    },
+    {
+      "key": "6/dark-phone",
+      "owners": [
+        {
+          "id": "talks-monitor-support",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 60,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-photo-talk-ann-interview-v8",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 100,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-easel-support",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 700,
+          "addedPixels": 5
+        },
+        {
+          "id": "grab-photo-talk-dc-policy-v8",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 6,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-plinth-support",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 37,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-photo-talk-panel-v8",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 155,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-harmonica-talks",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 171,
+          "addedPixels": 2
+        },
+        {
+          "id": "grab-plant-talks-top",
+          "maxCssPxManhattan": 0.4807493881968176,
+          "lostPixels": 159,
+          "addedPixels": 150
+        },
+        {
+          "id": "grab-photo-talk-demo-night-v8",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 143,
+          "addedPixels": 0
+        },
+        {
+          "id": "talks-hanging-support",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 160,
+          "addedPixels": 1
+        },
+        {
+          "id": "grab-photo-talk-consensus-phone-v8",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 106,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-camera-talks-a",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 36,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-sticker-camera-talks-b",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 30,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-microphone",
+          "maxCssPxManhattan": 0.2403746940984088,
+          "lostPixels": 82,
+          "addedPixels": 0
+        },
+        {
+          "id": "grab-plant-talks-pothos",
+          "maxCssPxManhattan": 0.9614987763936352,
+          "lostPixels": 1152,
+          "addedPixels": 241
+        }
+      ],
+      "maxCssPxManhattan": 0.9614987763936352
+    }
+  ],
+  "integration": {
+    "branch": "feat/illustrated-room",
+    "artworkCommit": "f709d3a",
+    "workerCommits": ["48da322", "d10cb35", "afd2356", "0d923cc"],
+    "runtimeSourceChanges": false,
+    "aboutUnchanged": true,
+    "shelfOnlyArtworkUnchanged": true,
+    "allReviewedBytesMatchIntegratedAndServedFiles": true,
+    "unitTests": 422,
+    "captureUtilityTests": 15,
+    "productionBuild": "passed, including TypeScript and postbuild search/weight-log boundary checks",
+    "artifacts": "24 variants and528 owner masks pass; About current",
+    "headlessEntrance": {
+      "uniqueCases": 19,
+      "shelfEntranceCases": 14,
+      "coldAutomaticEntries": 5,
+      "passed": true,
+      "source": "Initial full matrix plus four desktop retests after controlled baseline rounding comparison",
+      "results": [
+        {
+          "name": "entrance-about-1440",
+          "route": "/",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1593.2999999523163,
+          "emptyBox": [
+            409.6777038574219, 167.08935546875, 620.61181640625,
+            475.79998779296875
+          ],
+          "finalBox": [130.109375, 146.40625, 795.65625, 610],
+          "errors": []
+        },
+        {
+          "name": "entrance-about-390",
+          "route": "/",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1229.7999999523163,
+          "emptyBox": [
+            31.9921875, 254.81961059570312, 326.015625, 249.94125366210938
+          ],
+          "finalBox": [-13.984375, 198.015625, 417.96875, 320.4375],
+          "errors": []
+        },
+        {
+          "name": "entrance-books-1440",
+          "route": "/#books",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1441.7000000476837,
+          "emptyBox": [
+            423.6565246582031, 229.1100616455078, 594.311279296875,
+            351.74346923828125
+          ],
+          "finalBox": [123.765625, 276.296875, 761.9375, 450.953125],
+          "errors": []
+        },
+        {
+          "name": "entrance-books-390",
+          "route": "/#books",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1637.5999999046326,
+          "emptyBox": [
+            35.261932373046875, 280.80474853515625, 318.72747802734375,
+            197.98593139648438
+          ],
+          "finalBox": [-14.015625, 260.328125, 408.625, 253.828125],
+          "errors": []
+        },
+        {
+          "name": "entrance-training-1440",
+          "route": "/#weightlifting",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1670.0999999046326,
+          "emptyBox": [
+            415.8514404296875, 200.6298828125, 609.97216796875, 408.732177734375
+          ],
+          "finalBox": [117.71875, 202.109375, 782.015625, 524.015625],
+          "errors": []
+        },
+        {
+          "name": "entrance-training-390",
+          "route": "/#weightlifting",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1666.1000000238419,
+          "emptyBox": [
+            34.822113037109375, 265.0419616699219, 319.5074768066406,
+            229.5028076171875
+          ],
+          "finalBox": [-6.390625, 219.765625, 409.625, 294.234375],
+          "errors": []
+        },
+        {
+          "name": "entrance-systems-1440",
+          "route": "/#systems",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1834.1000000238419,
+          "emptyBox": [
+            423.5449523925781, 225.2078094482422, 594.335693359375,
+            359.55560302734375
+          ],
+          "finalBox": [123.734375, 266.109375, 761.96875, 460.96875],
+          "errors": []
+        },
+        {
+          "name": "entrance-systems-390",
+          "route": "/#systems",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1765.6000000238419,
+          "emptyBox": [
+            35.510772705078125, 278.54876708984375, 318.72747802734375,
+            202.48312377929688
+          ],
+          "finalBox": [-13.765625, 254.515625, 408.625, 259.59375],
+          "errors": []
+        },
+        {
+          "name": "entrance-projects-1440",
+          "route": "/projects",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 2135.2000000476837,
+          "emptyBox": [
+            415.76568603515625, 215.84713745117188, 609.9113159179688,
+            378.2634582519531
+          ],
+          "finalBox": [117.6875, 241.203125, 781.9375, 484.953125],
+          "errors": []
+        },
+        {
+          "name": "entrance-projects-390",
+          "route": "/projects",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1918.4000000953674,
+          "emptyBox": [
+            35.069854736328125, 273.2978515625, 319.4831237792969,
+            212.98873901367188
+          ],
+          "finalBox": [-6.140625, 241.03125, 409.59375, 273.0625],
+          "errors": []
+        },
+        {
+          "name": "entrance-blog-1440",
+          "route": "/musings",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1467.7000000476837,
+          "emptyBox": [
+            423.5531921386719, 205.29019165039062, 594.396484375,
+            399.3843688964844
+          ],
+          "finalBox": [123.625, 214.78125, 762.046875, 512.03125],
+          "errors": []
+        },
+        {
+          "name": "entrance-blog-390",
+          "route": "/musings",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1580,
+          "emptyBox": [
+            35.730438232421875, 267.67010498046875, 318.73968505859375,
+            224.23779296875
+          ],
+          "finalBox": [-13.546875, 226.65625, 408.640625, 287.484375],
+          "errors": []
+        },
+        {
+          "name": "entrance-talks-1440",
+          "route": "/talks",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1437.9000000953674,
+          "emptyBox": [
+            416.166259765625, 213.87307739257812, 609.216552734375,
+            382.2121887207031
+          ],
+          "finalBox": [118.671875, 234.890625, 781.046875, 490.015625],
+          "errors": []
+        },
+        {
+          "name": "entrance-talks-390",
+          "route": "/talks",
+          "passed": true,
+          "phases": [
+            "shelf",
+            "items",
+            "placing",
+            "content",
+            "navigation",
+            "complete"
+          ],
+          "staggeredAt": 1534.6999999284744,
+          "emptyBox": [
+            35.289581298828125, 272.17254638671875, 319.4831237792969,
+            215.23126220703125
+          ],
+          "finalBox": [-5.921875, 238.0625, 409.59375, 275.9375],
+          "errors": []
+        },
+        {
+          "name": "cold-/projects-1200x900",
+          "passed": true,
+          "automaticEntry": true,
+          "errors": []
+        },
+        {
+          "name": "cold-/projects-1024x768",
+          "passed": true,
+          "automaticEntry": true,
+          "errors": []
+        },
+        {
+          "name": "cold-/projects-2560x1440",
+          "passed": true,
+          "automaticEntry": true,
+          "errors": []
+        },
+        {
+          "name": "cold-/projects-820x1180",
+          "passed": true,
+          "automaticEntry": true,
+          "errors": []
+        },
+        {
+          "name": "cold-/#books-1200x900",
+          "passed": true,
+          "automaticEntry": true,
+          "errors": []
+        }
+      ]
+    },
+    "preview": "http://localhost:3334",
+    "status": "Verified locally, not pushed or deployed"
+  },
+  "centeringBaselineControl": {
+    "baselineCommit": "27c0155",
+    "method": "Repeat the four failing desktop entrances on the same production build, intercepting only artwork and registration responses with the original files.",
+    "results": [
+      {
+        "case": "entrance-books-1440",
+        "oldArtworkCenterErrorCssPx": 0.812164306640625,
+        "newArtworkCenterErrorCssPx": 0.812164306640625,
+        "identical": true
+      },
+      {
+        "case": "entrance-training-1440",
+        "oldArtworkCenterErrorCssPx": 0.8375244140625,
+        "newArtworkCenterErrorCssPx": 0.8375244140625,
+        "identical": true
+      },
+      {
+        "case": "entrance-blog-1440",
+        "oldArtworkCenterErrorCssPx": 0.751434326171875,
+        "newArtworkCenterErrorCssPx": 0.751434326171875,
+        "identical": true
+      },
+      {
+        "case": "entrance-talks-1440",
+        "oldArtworkCenterErrorCssPx": 0.7745361328125,
+        "newArtworkCenterErrorCssPx": 0.7745361328125,
+        "identical": true
+      }
+    ],
+    "testChange": "Align horizontal center tolerance with existing traverse snapping tolerance of1CSSpixel; no runtime change."
+  }
+}

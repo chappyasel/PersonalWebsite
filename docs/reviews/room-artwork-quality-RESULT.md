@@ -1,5 +1,7 @@
 # Room artwork quality result
 
+Integrated on `feat/illustrated-room`. See the [integration checkpoint](room-artwork-quality-integration.md) for production build and combined boot verification.
+
 All six non-About shelves now use fresh 4x masks and colour captures, fitted contours, and sharper embedded details in all 24 theme/viewport cases. Root accepted the final desktop, phone and dark-detail review. The independent fresh-mask comparison passes all 528 rendered owners, with a maximum conservative Manhattan residual of 2.885 CSS px against the 3 px gate.
 
 The recovery branch is `feat/room-artwork-quality-recovery`, based on `27c0155`. Commit `48da322` preserves the recovered capture utilities and approved templates. Commit `d10cb35` contains the final artwork, frozen inputs, validation utilities and evidence. This report is the final documentation commit.
@@ -40,25 +42,25 @@ The focused utility suite passes 15 tests; the four generator suites pass 56. No
 
 Exact gzip bytes, original → final:
 
-| Unit | Light desktop | Dark desktop | Light phone | Dark phone |
-| --- | ---: | ---: | ---: | ---: |
-| projects | 38,131 → 101,393 | 38,775 → 102,245 | 19,404 → 73,699 | 19,284 → 73,913 |
-| books | 48,143 → 167,172 | 48,475 → 167,675 | 22,830 → 129,338 | 22,723 → 128,730 |
-| systems | 56,691 → 180,198 | 56,766 → 178,163 | 29,107 → 132,033 | 28,947 → 132,244 |
+| Unit          |    Light desktop |     Dark desktop |      Light phone |       Dark phone |
+| ------------- | ---------------: | ---------------: | ---------------: | ---------------: |
+| projects      | 38,131 → 101,393 | 38,775 → 102,245 |  19,404 → 73,699 |  19,284 → 73,913 |
+| books         | 48,143 → 167,172 | 48,475 → 167,675 | 22,830 → 129,338 | 22,723 → 128,730 |
+| systems       | 56,691 → 180,198 | 56,766 → 178,163 | 29,107 → 132,033 | 28,947 → 132,244 |
 | weightlifting | 60,364 → 233,096 | 57,876 → 219,426 | 27,661 → 175,878 | 26,740 → 171,595 |
-| musings | 35,199 → 128,698 | 35,315 → 129,466 | 17,375 → 96,239 | 17,459 → 96,714 |
-| talks | 57,093 → 172,732 | 56,711 → 172,718 | 26,581 → 119,271 | 26,174 → 118,787 |
+| musings       | 35,199 → 128,698 | 35,315 → 129,466 |  17,375 → 96,239 |  17,459 → 96,714 |
+| talks         | 57,093 → 172,732 | 56,711 → 172,718 | 26,581 → 119,271 | 26,174 → 118,787 |
 
 Across all 24 variants, the total is 873,824 → 3,401,423 gzip bytes. Full SVG bytes total 4,843,364. Individual final variants are approximately 72–228 KiB gzip. This is a deliberate quality/payload tradeoff after reducing detail density from the initial 4x exports.
 
 `IllustratedRoom.tsx` maps all `UNITS` to `IllustrationStage`, and `RoomArtworkImage` has no lazy loading. The browser selects one theme/viewport variant per shelf, while the traversable row mounts all shelves. It does not load only the selected shelf per visit. The six generated shelves together have these gzip totals for one theme/layout:
 
-| Theme/layout | Gzip bytes | KiB |
-| --- | ---: | ---: |
-| Light desktop | 983,289 | 960.24 |
-| Dark desktop | 969,693 | 946.97 |
-| Light phone | 726,458 | 709.43 |
-| Dark phone | 721,983 | 705.06 |
+| Theme/layout  | Gzip bytes |    KiB |
+| ------------- | ---------: | -----: |
+| Light desktop |    983,289 | 960.24 |
+| Dark desktop  |    969,693 | 946.97 |
+| Light phone   |    726,458 | 709.43 |
+| Dark phone    |    721,983 | 705.06 |
 
 These totals exclude About and other page resources. They are artifact gzip measurements, not measured network transfer totals. Runtime loading behavior is unchanged.
 
