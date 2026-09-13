@@ -63,7 +63,7 @@ describe("Field Notes stamp tooltip presentation", () => {
       ),
     ].map((match) => match.slice(1).join(":"));
 
-    expect(recipes).toHaveLength(39);
+    expect(recipes).toHaveLength(40);
     expect(new Set(recipes).size).toBe(recipes.length);
     expect(designBlock).toContain(
       "camera: { palette: 11, frame: 0, layout: 4, pattern: 9 }",
@@ -81,7 +81,7 @@ describe("Field Notes stamp tooltip presentation", () => {
     const letteringStyles = [
       ...letteringBlock.matchAll(/style: "([^"]+)"/g),
     ].map((match) => match[1]);
-    expect(letteringStyles).toHaveLength(39);
+    expect(letteringStyles).toHaveLength(40);
     expect(new Set(letteringStyles).size).toBe(8);
     expect(letteringBlock).toContain('denomination: "360°"');
     expect(letteringBlock).toContain('primary: "Heavy mail"');
@@ -96,10 +96,10 @@ describe("Field Notes stamp tooltip presentation", () => {
     const iconWeights = [...iconBlock.matchAll(/weight: "([^"]+)"/g)].map(
       (match) => match[1],
     );
-    expect(iconWeights).toHaveLength(39);
+    expect(iconWeights).toHaveLength(40);
     expect(new Set(iconWeights).size).toBe(6);
     expect(iconBlock).toContain("scale: 1.34");
-    expect(iconBlock.match(/echo: true/g)).toHaveLength(16);
+    expect(iconBlock.match(/echo: true/g)).toHaveLength(17);
     expect(source).toContain("FieldNoteAccentIcon");
     expect(source).toContain("--stamp-icon-rotate");
   });

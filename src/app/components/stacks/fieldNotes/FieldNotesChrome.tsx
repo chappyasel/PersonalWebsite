@@ -188,6 +188,7 @@ type StampDesign = Readonly<{
 /** Artwork is authored so no two discoveries can land on the same visual
  * recipe. Hashing below is reserved for physical printing imperfections. */
 const STAMP_DESIGNS = {
+  dimension: { palette: 8, frame: 2, layout: 5, pattern: 6 },
   tour: { palette: 10, frame: 1, layout: 0, pattern: 6 },
   portal: { palette: 5, frame: 2, layout: 3, pattern: 1 },
   camera: { palette: 11, frame: 0, layout: 4, pattern: 9 },
@@ -256,6 +257,12 @@ type StampIconTreatment = Readonly<{
 }>;
 
 const STAMP_LETTERING = {
+  dimension: {
+    style: "split",
+    primary: "Dimension shift",
+    secondary: "Paper / world",
+    denomination: "2/3",
+  },
   tour: {
     style: "denomination",
     primary: "Grand circuit",
@@ -507,6 +514,14 @@ const STAMP_LETTERING = {
 } as const satisfies Record<FieldNoteArtwork, StampLettering>;
 
 const STAMP_ICON_TREATMENTS = {
+  dimension: {
+    weight: "duotone",
+    scale: 1.15,
+    x: 1,
+    y: 2,
+    rotate: -8,
+    echo: true,
+  },
   tour: { weight: "fill", scale: 1.08, x: -8, y: 5, rotate: -8, echo: false },
   portal: { weight: "bold", scale: 0.9, x: -5, y: 2, rotate: 0, echo: true },
   camera: {

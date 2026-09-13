@@ -10,6 +10,7 @@ import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import {
   Activity,
+  type CSSProperties,
   Component,
   type MouseEvent,
   Profiler,
@@ -25,6 +26,7 @@ import {
 import { type HomepageBootOutcome, captureOnce } from "~/lib/analytics";
 
 import { useWorldBoot } from "./boot/useWorldBoot";
+import { WORLD_BOOT_POLICY } from "./boot/worldBootPolicy";
 import { worldBoot } from "./boot/worldBootSession";
 import { type StacksData, type StacksSlots, UNITS } from "./data";
 import PlacardLayer from "./dom/PlacardLayer";
@@ -38,9 +40,11 @@ import "./illustration/illustratedEntrance.css";
 import { useIllustratedEntrance } from "./illustration/useIllustratedEntrance";
 import RoomNavigation, { navigateRoomLink } from "./input/RoomNavigation";
 import ScrollBridges from "./input/ScrollBridges";
+import { dimensionTravel } from "./input/dimensionTravel";
+import { useRoomDimensionKeys } from "./input/roomDimensions";
 import StacksBookModal from "./modal/StacksBookModal";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
-import { useRoomActive } from "./room/ResidentRoomHost";
+import { RoomActivityContext, useRoomActive } from "./room/ResidentRoomHost";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
 
@@ -262,6 +266,7 @@ export default function StacksHome({
   const roomActive = useRoomActive();
   const boot = useWorldBoot(illustratedEnabled);
   useAutomaticPerformanceDiagnostic();
+  useRoomDimensionKeys(roomActive);
   const { epoch, mode, revealed, worldMounted } = boot;
   const { resolvedTheme } = useTheme();
   const theme = resolvedTheme === "dark" ? "dark" : "light";
@@ -580,6 +585,12 @@ export default function StacksHome({
         <div
           ref={worldShellRef}
           data-room-presentation={presentation}
+          data-room-manual-3d={boot.manual3D ? "" : undefined}
+          style={
+            {
+              "--room-switch-duration": `${WORLD_BOOT_POLICY.flatRetireMs}ms`,
+            } as CSSProperties
+          }
           data-illustrated-entry={illustratedEnabled ? "" : undefined}
           data-room-entrance={illustratedEnabled ? entrance : undefined}
           data-boot-status={boot.status}
@@ -595,7 +606,7 @@ export default function StacksHome({
             contentVisible ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
-          {worldMounted && (
+          {(worldMounted || boot.rendererRetained) && (
             <CanvasBoundary key={epoch} onError={demote}>
               <div
                 className="absolute inset-0"
@@ -606,11 +617,15 @@ export default function StacksHome({
               >
                 <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
                   <SceneStartupGate>
-                    <StacksCanvas
-                      data={data}
-                      onReady={reportFirstFrame}
-                      onLost={reportLostContext}
-                    />
+                    <RoomActivityContext.Provider
+                      value={!boot.rendererRetained}
+                    >
+                      <StacksCanvas
+                        data={data}
+                        onReady={reportFirstFrame}
+                        onLost={reportLostContext}
+                      />
+                    </RoomActivityContext.Provider>
                   </SceneStartupGate>
                 </Profiler>
               </div>
@@ -895,8 +910,22 @@ export default function StacksHome({
                     theme={theme}
                     viewport={viewport}
                     visible={illustrated || handoff}
-                    canRequest3D={boot.canRequest3D}
-                    loading={boot.worldMounted || boot.recoverable}
+                    navigationEnabled={
+                      boot.status !== "flattening" && !boot.manual3D
+                    }
+                    transitionPosition={
+                      boot.interactionHeld ||
+                      boot.status === "flattening" ||
+                      boot.manual3D
+                        ? dimensionTravel.position
+                        : null
+                    }
+                    transitionId={dimensionTravel.revision}
+                    canRequest3D={boot.canRequest3D && !boot.interactionHeld}
+                    loading={
+                      (boot.worldMounted && boot.status !== "flattening") ||
+                      boot.recoverable
+                    }
                     entranceSettled={entrance === "complete"}
                     onRequest3D={request3D}
                     onReady={illustrationReady}
@@ -908,6 +937,7 @@ export default function StacksHome({
                 <RoomChrome
                   illustrated={illustratedEnabled}
                   live={presentation === "live"}
+                  keepControls={boot.interactionHeld}
                 />
                 <Profiler id="placard" onRender={recordPerformanceCommit}>
                   <PlacardLayer

@@ -1,16 +1,26 @@
 "use client";
 
 import { worldBoot } from "../boot/worldBootSession";
-import { useLayoutEffect, useSyncExternalStore } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from "react";
 
 import { roomResidency } from "./roomResidency";
 
+/** Pause the renderer subtree independently of the surrounding reader. */
+export const RoomActivityContext = createContext(true);
+
 export function useRoomActive() {
-  return useSyncExternalStore(
+  const enabled = useContext(RoomActivityContext);
+  const active = useSyncExternalStore(
     roomResidency.subscribe,
     () => roomResidency.getSnapshot().active,
     () => true,
   );
+  return enabled && active;
 }
 
 /** Lives in the shared layout, but receives its content only from a visited

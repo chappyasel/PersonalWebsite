@@ -26,7 +26,7 @@ describe("presentation chrome choreography", () => {
 
   it("darkens the exposed room behind an expanded light-mode sheet", () => {
     expect(placardSource).toContain(
-      'className="absolute inset-0 bg-black/30 dark:bg-black/10"',
+      'className="stacks-sheet-scene-dim absolute inset-0 bg-black/30 dark:bg-black/10"',
     );
     expect(placardSource).not.toContain("fixed inset-0 z-30 bg-background/10");
   });

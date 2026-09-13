@@ -45,6 +45,7 @@ export type FieldNoteArtwork =
   | "journal"
   | "atlas"
   | "chapter"
+  | "dimension"
   | "console"
   | "close-up";
 
@@ -444,6 +445,15 @@ export const FIELD_NOTES = [
     hint: "Bring something up for a closer look, then hold still.",
     foundCopy:
       "Had a butterfly land on something you were looking at up close.",
+  },
+  {
+    id: "dimension-shift",
+    title: "Dimension Shift",
+    rarity: "Common",
+    artwork: "dimension",
+    hidden: false,
+    hint: "The room has a paper side. Try R.",
+    foundCopy: "Switched between the illustrated room and its 3D world.",
   },
   {
     id: "full-journal",

@@ -326,10 +326,10 @@ describe("development diagnostics chrome", () => {
     expect(registrySource).toContain("Free-roam camera");
     expect(diagnosticsSource).toContain("WASD");
     expect(registrySource).toContain("Fog in free roam");
-    expect(registrySource).toContain('ariaKeyShortcuts: "R Shift+R"');
+    expect(registrySource).toContain('ariaKeyShortcuts: "Shift+~"');
     expect(diagnosticsSource).toContain("Q/E");
     expect(diagnosticsSource).toContain("Shift for one-third");
-    expect(diagnosticsSource).toContain("Shift+R starts from");
+    expect(diagnosticsSource).toContain("Shift + ~ enters");
     expect(diagnosticsSource).toContain("never captures the mouse");
     expect(diagnosticsSource).toContain("Hold the right button");
     expect(diagnosticsSource).toContain("selects an editable prop");

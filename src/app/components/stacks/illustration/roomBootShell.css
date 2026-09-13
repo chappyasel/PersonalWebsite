@@ -61,6 +61,12 @@ html.dark[data-room-view] {
   display: block;
   min-height: 0;
 }
+@media (width < 1200px) {
+  .stacks-world-shell[data-illustrated-entry] .stacks-theme-toggle {
+    /* Center the 40px controls on the entrance name's 36px line box. */
+    top: calc(var(--room-name-top) - 0.125rem);
+  }
+}
 html:not(.dark)[data-room-view]
   .stacks-world-shell[data-illustrated-entry]
   :is(
@@ -203,7 +209,7 @@ html.dark .room-first-paint-artwork {
 .stacks-world-shell[data-room-presentation="dissolve"] .room-illustration {
   opacity: 1;
 }
-/* Fade the drawing and its atmosphere without fading the loading message. */
+/* Automatic entry dissolves the drawing before the camera travels. */
 .stacks-world-shell[data-room-presentation="dissolve"]
   .room-illustration::before,
 .stacks-world-shell[data-room-presentation="dissolve"]

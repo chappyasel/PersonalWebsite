@@ -983,6 +983,13 @@ describe("totality", () => {
         start({ illustratedMode: true }),
         { type: "illustrationInteracted", at: 5 },
       ]),
+    flattening: () => ({
+      ...bootedTo("live"),
+      illustratedMode: true,
+      status: "flattening",
+      interactionHeld: true,
+      deadline: { kind: "illustrationReturn", at: 1000 },
+    }),
     dissolving: () => ({
       ...bootedTo("revealing"),
       illustratedMode: true,

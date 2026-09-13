@@ -59,3 +59,14 @@ it("retains the legacy room's existing chrome ownership", () => {
     view.getByRole("button", { name: "Scene Diagnostics" }),
   ).not.toBeNull();
 });
+
+it("keeps help and diagnostics available after deliberately choosing 2D", () => {
+  const view = render(<RoomChrome illustrated live={false} keepControls />);
+  expect(
+    view.getByRole("button", { name: "Open keyboard shortcuts" }),
+  ).not.toBeNull();
+  expect(
+    view.getByRole("button", { name: "Scene Diagnostics" }),
+  ).not.toBeNull();
+  expect(view.queryByText("Chappy Asel")).toBeNull();
+});

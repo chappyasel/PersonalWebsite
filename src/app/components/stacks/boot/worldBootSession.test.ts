@@ -261,3 +261,39 @@ describe("illustrated browser adapter", () => {
     expect(P.reducedMotionQuery).toBe("(prefers-reduced-motion: reduce)");
   });
 });
+
+describe("cached 3D requests", () => {
+  it("reuses the existing renderer scope within the grace period", () => {
+    optIn();
+    session.start("hydrate");
+    promote();
+    const epoch = session.getView().epoch;
+    vi.spyOn(performance, "now").mockReturnValue(1000);
+    session.request2D();
+    session.send({ type: "tick" }, 1000 + P.flatRetireMs);
+    expect(session.getView().rendererRetained).toBe(true);
+    const probes = contextProbe.mock.calls.length;
+    vi.spyOn(performance, "now").mockReturnValue(2000);
+    expect(session.request3D(true).epoch).toBe(epoch);
+    expect(session.getView()).toMatchObject({
+      worldMounted: true,
+      rendererRetained: false,
+    });
+    expect(contextProbe).toHaveBeenCalledTimes(probes);
+  });
+
+  it("rebuilds after the grace period even if its timer has not fired", () => {
+    optIn();
+    session.start("hydrate");
+    promote();
+    const epoch = session.getView().epoch;
+    vi.spyOn(performance, "now").mockReturnValue(1000);
+    session.request2D();
+    session.send({ type: "tick" }, 1000 + P.flatRetireMs);
+    vi.spyOn(performance, "now").mockReturnValue(
+      1001 + P.flatRetireMs + P.illustrationCacheMs,
+    );
+    expect(session.request3D(true).epoch).toBe(epoch + 1);
+    expect(session.getView().canvasReady).toBe(false);
+  });
+});

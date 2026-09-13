@@ -75,6 +75,8 @@ export type WorldBootPolicy = {
    * the curtain can cross-fade over it. Matches the 360ms opacity transition
    * in globals.css plus a frame of slack. */
   flatRetireMs: number;
+  /** Keep a paused renderer for quick returns from the illustrated room. */
+  illustrationCacheMs: number;
   illustrationDissolveMs: number;
   illustrationTravelDelayMs: number;
   /** A missing camera completion signal returns the usable illustration. */
@@ -110,6 +112,7 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   contextLossRestartDelayMs: 600,
   vignetteCeilingMs: 1200,
   flatRetireMs: 420,
+  illustrationCacheMs: 30_000,
   illustrationDissolveMs: 160,
   illustrationTravelDelayMs: 180,
   illustrationHandoffTimeoutMs: 3000,

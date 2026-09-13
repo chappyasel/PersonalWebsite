@@ -25,7 +25,7 @@ import {
 import {
   closeStacksPanel,
   openStacksPanel,
-  panelCoverageRef,
+  publishPanelFraming,
   setStacksSheetDismissed,
   useStacks,
 } from "../store";
@@ -1325,13 +1325,13 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   // canvas. Published off the motion value's change stream rather than off
   // React state, because the detents are only three of the values a drag
   // passes through and the whole point is that the scene tracks the finger.
-  // `panelCoverageRef` is a plain mutable ref, so this is a number write per
-  // frame and no render. Clamped at the top because the drag deliberately
+  // The shared publisher updates the camera ref and the illustration transform
+  // without a React render. Clamped at the top because the drag deliberately
   // overshoots above full height (the resisted branch in the gesture).
   useEffect(() => {
     if (!active) return;
     const publish = (value: number) => {
-      panelCoverageRef.current = mobileSheetPublishedCoverage({
+      const coverage = mobileSheetPublishedCoverage({
         narrow,
         viewportHeight: vh,
         renderedHeight,
@@ -1339,14 +1339,31 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         peekHeight: peek,
         modalOpen,
       });
+      publishPanelFraming({
+        coverage,
+        expansion:
+          narrow && !modalOpen
+            ? mobileSheetDimOpacity(value, peekRestY, expanded)
+            : 0,
+      });
     };
     publish(y.get());
     const unsubscribe = y.on("change", publish);
     return () => {
       unsubscribe();
-      panelCoverageRef.current = 0;
+      publishPanelFraming(null);
     };
-  }, [active, modalOpen, y, vh, narrow, peek, renderedHeight]);
+  }, [
+    active,
+    modalOpen,
+    y,
+    vh,
+    narrow,
+    peek,
+    renderedHeight,
+    peekRestY,
+    expanded,
+  ]);
 
   // Opening from anywhere lands on expanded, so a unit tapped in the room
   // while the sheet was dismissed comes back to peek when it closes rather
@@ -2002,7 +2019,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           className="pointer-events-none fixed inset-0 z-30"
         >
           <motion.div
-            className="absolute inset-0 bg-black/30 dark:bg-black/10"
+            className="stacks-sheet-scene-dim absolute inset-0 bg-black/30 dark:bg-black/10"
             style={{ opacity: dimOpacity }}
           />
         </div>
@@ -2134,6 +2151,16 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
               placard's title over another's content. */}
               <button
                 ref={headerButtonRef}
+                onFocus={(event) => {
+                  if (event.currentTarget.matches(":focus-visible"))
+                    event.currentTarget.dataset.keyboardFocus = "";
+                }}
+                onBlur={(event) => {
+                  delete event.currentTarget.dataset.keyboardFocus;
+                }}
+                onPointerDown={(event) => {
+                  delete event.currentTarget.dataset.keyboardFocus;
+                }}
                 type="button"
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${title} section panel`}
                 onClick={expanded ? collapse : expand}
@@ -2145,8 +2172,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 // mixes 35% toward black, toward white in dark mode. No ring:
                 // this is the sheet's grabber row, not a visible control, and
                 // the ring showed on the programmatic focus after a tap.
-                // Keyboard focus underlines instead.
-                className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-4 text-left text-[color:color-mix(in_srgb,hsl(var(--foreground)),black_35%)] decoration-foreground/20 decoration-2 underline-offset-[0.2em] outline-none focus-visible:underline dark:text-[color:color-mix(in_srgb,hsl(var(--foreground)),white_35%)]"
+                // Only focus arriving through keyboard navigation underlines. A
+                // later scene shortcut must not decorate a pointer-focused title.
+                className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-4 text-left text-[color:color-mix(in_srgb,hsl(var(--foreground)),black_35%)] decoration-foreground/20 decoration-2 underline-offset-[0.2em] outline-none data-[keyboard-focus]:underline dark:text-[color:color-mix(in_srgb,hsl(var(--foreground)),white_35%)]"
               >
                 <ShownIcon
                   aria-hidden

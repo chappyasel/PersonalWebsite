@@ -6,11 +6,14 @@ import { ThemeToggle } from "~/components/ui/theme-toggle";
 export function RoomChrome({
   illustrated,
   live,
+  keepControls = false,
 }: {
   illustrated: boolean;
   live: boolean;
+  /** Manual 2D keeps help, Field Notes, and diagnostics reachable. */
+  keepControls?: boolean;
 }) {
-  const sceneControlsVisible = !illustrated || live;
+  const sceneControlsVisible = !illustrated || live || keepControls;
   return (
     <>
       <div

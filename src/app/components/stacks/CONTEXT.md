@@ -81,9 +81,28 @@ Each selected shelf retains its ordinary camera frame. Navigation, desktop
 titles, and the name share one ink color that eases from the illustration
 foreground to white during the light-mode handoff. The boot and live names
 share position and text metrics and crossfade in place. Dark text has no
-contact shadow; ink and shadow follow the artwork's dissolve clock. The loading notice
-lives outside the retired drawing so its exit can finish over the live scene;
-its timers stop when that exit starts.
+contact shadow; ink and shadow follow the artwork's dissolve clock. Manual
+2D/3D switches use matching 420 ms fades. The return to 3D waits for two fresh
+rendered frames, then fades over the ordinary camera without registering
+the artwork again. The room has no loading or view label at the top.
+Settled 2D keeps the boot gradient without cloud shapes or foreground grass.
+The full shelf row stays mounted after the entrance so distant nav jumps can
+scroll through the intervening shelves. Mobile sheet coverage also drives the
+illustration’s vertical framing and scale through the sheet’s motion stream,
+without a renderer or a separate animation loop. The open sheet dims 2D by
+65% in the light theme and 50% in the dark theme. Dimension switches capture
+the fractional travel position, map it through the artwork row’s unequal
+stop distances, and hold it through the fade. Mouse and trackpad travel can
+rest between shelves; touch gestures and nav commands still snap to stops.
+The 2D row has only the seven shelves. A Golf URL entry gets a compact green
+and flag while it loads. The flag flutters with CSS, respects reduced motion,
+and has a live diagnostics checkbox. Initial positioning and resize scroll
+events preserve Golf's fractional destination until the visitor travels;
+they must not select the nearest shelf before the renderer takes over.
+The flag and background fade over the ready 3D scene before retiring;
+skipping shelf alignment does not skip this fade. The flag does
+not reappear when normal browsing passes Golf or switches back to 2D. This
+passive loading marker adds no achievement under quality-bar test 2.
 _Avoid_: Centered loader, loading box
 
 **Reveal Gate** — the four facts that must all hold before the boot screen is

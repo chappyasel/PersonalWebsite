@@ -124,6 +124,7 @@ export type AnalyticsEventProperties = {
       | "booting"
       | "revealing"
       | "illustrated"
+      | "flattening"
       | "dissolving"
       | "travelling"
       | "live"

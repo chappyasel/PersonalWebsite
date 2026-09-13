@@ -420,7 +420,24 @@ the completed state until the visitor finds the new entry.
     - Notes: Hover on the near prop no longer scares a butterfly off, so
       holding the pointer over it is fine; a press puts the prop back.
 
-43. [ ] **Full Journal** `◇`
+43. [x] **Dimension Shift** `◇`
+
+    - ID: `dimension-shift`.
+    - Rarity: Common.
+    - Earned by: Finish an explicit transition between the live 3D room and
+      its 2D illustration using `R` or the Scene Diagnostics checkbox.
+      Automatic startup, cancelling a load, and failed 3D requests do not count.
+    - First hint: The room has a paper side. Try R.
+    - Notes: Passes all seven quality-bar tests. The alternate view is useful
+      on its own, remains optional, and needs only a pending transition in
+      memory. Reduced-motion visitors can explicitly request 3D without a
+      transition animation. The renderer pauses once 2D covers it and stays cached for 30 seconds
+      for quick returns. Scene Diagnostics can disable that grace period.
+      Photo mode and pixel finishes do not create distinct 2D experiences,
+      so combination stamps fail test 2. The Vision Pro ride keeps ownership
+      of its input until the visitor exits it.
+
+44. [ ] **Full Journal** `◇`
     - Rarity: Legendary.
     - Earned by: Earn every other Field Note. Awarded in the same moment as
       the final other discovery.

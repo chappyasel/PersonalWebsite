@@ -1,6 +1,7 @@
 "use client";
 
 import { RouteTransitionPrototypeControl } from "../../route-transition-prototype/Gate";
+import { worldBoot } from "../boot/worldBootSession";
 import { FIELD_NOTES, type FieldNoteId } from "../fieldNotes/catalog";
 import { resetFieldNotePlacements } from "../fieldNotes/placement";
 import {
@@ -11,6 +12,7 @@ import {
   useFieldNotesProgress,
 } from "../fieldNotes/progress";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
+import { requestRoomDimension } from "../input/roomDimensions";
 import { browserStorage } from "../mobile/liveness";
 import {
   downloadPerformanceDiagnosticBundle,
@@ -1459,6 +1461,16 @@ export default function SceneDiagnostics({
   initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const [golfFlagMotion, setGolfFlagMotion] = useState(
+    () =>
+      typeof document === "undefined" ||
+      document.documentElement.dataset.golfFlagMotion !== "off",
+  );
+  const dimensionView = useSyncExternalStore(
+    (listener) => worldBoot.subscribe(listener),
+    () => worldBoot.getView(),
+    () => worldBoot.getView(),
+  );
   const [hudVisible, setHudVisible] = useState(true);
   // The console ships to everyone behind the backtick, and finding it is
   // worth a stamp (Under the Hood).
@@ -1802,9 +1814,9 @@ export default function SceneDiagnostics({
             <p className="stacks-diagnostics-note">
               Free roam never captures the mouse. Hold the right button and drag
               to look. WASD follows the camera on a level plane, Q/E moves
-              down/up, and hold Shift for one-third speed. R resumes or exits
-              free roam, Shift+R starts from the current view, and ` opens
-              debug. Left click selects an editable prop. The same gizmo moves,
+              down/up, and hold Shift for one-third speed. Shift + ~ enters free
+              roam from the current view or exits it. The backtick opens debug.
+              Left click selects an editable prop. The same gizmo moves,
               rotates, and scales it; ⌘Z undoes. Arrows move on X/Z; use Page
               Up/Down for height.
             </p>
@@ -1917,7 +1929,46 @@ export default function SceneDiagnostics({
         >
           <header className="stacks-diagnostics-panel-heading">
             <strong>Scene quality</strong>
+            <label className="stacks-diagnostics-control">
+              <input
+                type="checkbox"
+                aria-keyshortcuts="R"
+                disabled={dimensionView.status === "flattening"}
+                checked={
+                  dimensionView.worldMounted &&
+                  dimensionView.status !== "flattening"
+                }
+                onChange={(event) =>
+                  requestRoomDimension(event.target.checked ? "3d" : "2d")
+                }
+              />{" "}
+              3D room
+            </label>
           </header>
+          <label className="stacks-diagnostics-control">
+            <input
+              type="checkbox"
+              checked={dimensionView.retain3DEnabled}
+              onChange={(event) =>
+                worldBoot.set3DRetentionEnabled(event.target.checked)
+              }
+            />{" "}
+            Keep 3D ready for 30 seconds in 2D
+          </label>
+          <label className="stacks-diagnostics-control">
+            <input
+              type="checkbox"
+              checked={golfFlagMotion}
+              onChange={(event) => {
+                setGolfFlagMotion(event.target.checked);
+                document.documentElement.dataset.golfFlagMotion = event.target
+                  .checked
+                  ? "on"
+                  : "off";
+              }}
+            />{" "}
+            Golf loading flag animation
+          </label>
           <RouteTransitionPrototypeControl />
           {/* Stable production policy comes first. Session-only render
               switches are grouped by what they own: lens, finishing passes,
@@ -2443,7 +2494,7 @@ export default function SceneDiagnostics({
               <KeycapSequence keys={["Q", "E"]} label="Q or E" />
               <span>camera Y</span>
               <span aria-hidden="true">·</span>
-              <KeycapSequence keys={["R"]} label="R" />
+              <KeycapSequence keys={["Shift", "~"]} label="Shift plus tilde" />
               <span>exit</span>
             </div>,
             document.body,

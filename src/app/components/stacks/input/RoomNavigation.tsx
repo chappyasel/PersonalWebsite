@@ -1,5 +1,6 @@
 "use client";
 
+import { worldBoot } from "../boot/worldBootSession";
 import {
   GOLF_STOP_POSITION,
   UNIT_COUNT,
@@ -23,6 +24,7 @@ import {
 import { isRoomPathname } from "~/lib/site/roomRoutes";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
+import { dimensionTravel } from "./dimensionTravel";
 import {
   isStacksScrollableTarget,
   shouldHandleWorldNavigationKey,
@@ -153,7 +155,13 @@ export default function RoomNavigation({
     if (scrollEl && jumpTo && locationAppliedTo.current !== scrollEl) {
       locationAppliedTo.current = scrollEl;
       const state = useStacks.getState();
-      jumpTo(state.golfStop ? GOLF_STOP_POSITION : state.activeUnit);
+      jumpTo(
+        worldBoot.getView().manual3D && dimensionTravel.position !== null
+          ? dimensionTravel.position
+          : state.golfStop
+            ? GOLF_STOP_POSITION
+            : state.activeUnit,
+      );
     }
 
     // Activity may reconnect after another route changed the address. A

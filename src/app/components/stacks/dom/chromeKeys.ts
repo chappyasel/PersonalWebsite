@@ -27,7 +27,7 @@
  * photo previews animate the wrapper's visible children instead. The canvas
  * remains outside it.
  *
- * Owner-only controls live with their features. Development builds add R for
+ * Owner-only controls live with their features. Development builds add Shift + ~ for
  * free roam, backtick for the debug console, and the combined prop gizmo.
  * Screenshot mode (`?screenshot=1`, scene/screenshotMode.ts) adds `[` and
  * `]` to dolly the camera while it is on; they are handled in ChromeKeyboard
@@ -157,6 +157,7 @@ export function shortcutGroups(
       { keys: ["ArrowLeft", "ArrowRight"], does: "Previous or next shelf" },
       { keys: ["A", "D"], does: "Pan the room" },
       { keys: ["1", "7"], join: "to", does: "Jump to a shelf" },
+      { keys: ["R"], does: "Switch between 2D and 3D" },
       { keys: ["F"], does: "Open or close Field Notes" },
       { keys: ["\\"], does: "Hide or show details" },
       { keys: ["H"], does: "Hide or show the interface" },
@@ -178,8 +179,7 @@ export function shortcutGroups(
     groups.push({
       title: "Owner",
       rows: [
-        { keys: ["R"], does: "Free roam (WASD, Q/E, right-drag)" },
-        { keys: ["Shift", "R"], does: "Free roam from the current view" },
+        { keys: ["Shift", "~"], does: "Free roam (WASD, Q/E, right-drag)" },
         { keys: ["`"], does: "Debug console" },
         {
           keys: ["Click"],
