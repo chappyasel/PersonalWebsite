@@ -4,6 +4,7 @@ import { RssIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { getMusing, musings } from "~/lib/musings/content";
 import { musingMetadata, musingStructuredData } from "~/lib/musings/metadata";
 
@@ -40,6 +41,10 @@ export default async function MusingPage({
   const { slug } = await params;
   const article = getMusing(slug);
   if (!article) notFound();
+  const bookLookup = await lookupInlineBooks(
+    `musings:${slug}:books`,
+    article.blocks,
+  );
   const minutes = Math.max(
     1,
     Math.ceil(article.text.split(/\s+/).length / 230),
@@ -98,7 +103,7 @@ export default async function MusingPage({
           <DocumentGallery key={slug}>
             <article>
               <div className="prose prose-lg max-w-none break-words dark:prose-invert prose-headings:font-serif prose-headings:font-medium prose-p:leading-relaxed prose-a:text-foreground prose-a:decoration-muted-foreground/50 prose-a:underline-offset-4 prose-blockquote:font-normal prose-figcaption:text-center prose-figcaption:text-sm prose-figcaption:text-muted-foreground prose-img:my-0">
-                <MusingBody blocks={article.blocks} />
+                <MusingBody blocks={article.blocks} bookLookup={bookLookup} />
               </div>
               <footer className="mt-16 border-t border-border pt-6 text-sm text-muted-foreground">
                 <nav aria-label="Article navigation">
