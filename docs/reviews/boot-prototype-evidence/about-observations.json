@@ -1,0 +1,22 @@
+[
+  {
+    "theme": "light",
+    "method": "Current About DOM, initial stage forced visible, reduced motion",
+    "sceneBounds": {
+      "x": 439.9931335449219,
+      "y": 198.87625122070312,
+      "width": 559.9608459472656,
+      "height": 429.2959899902344
+    }
+  },
+  {
+    "theme": "dark",
+    "method": "Current About DOM, initial stage forced visible, reduced motion",
+    "sceneBounds": {
+      "x": 439.9931335449219,
+      "y": 198.87625122070312,
+      "width": 559.9608459472656,
+      "height": 429.2959899902344
+    }
+  }
+]

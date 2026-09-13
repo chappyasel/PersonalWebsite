@@ -1,0 +1,37 @@
+{
+  "objective": "Explore distinct elegant boot animation concepts before production integration",
+  "status": "complete",
+  "workers": [
+    {
+      "task": "boot-motion-spatial",
+      "workspace": "dcdf2843-ff74-4d61-a888-06f71640de44",
+      "terminal": "fe6ed60c-6a3a-4bfe-9a46-40e501b29818",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks",
+      "focus": "Camera-led spatial continuity. Design one compelling boot concept that reveals the real room from the shelf illustration and makes the accumulated scene craft apparent, plus one meaningful variant. You know the generator and camera. Think about whether the illustration moves to a fixed live camera or a live camera follows the illustration, what exact matching requires, how freestanding scenery enters, and when illustrated material becomes 3D light/depth. Give a firm recommendation with technical honesty: four static capture cases are not automatically an exact projection at arbitrary viewports, crop/0.52 framing is not registration, screenshot camera differs from real rail/truck/depth policy. Distinguish requirements from measured proof. Other agents cover graphic image reveal and shelf-object choreography, so make your concept spatially distinct.",
+      "status": "complete",
+      "dependencies": [],
+      "host": "local",
+      "result": "docs/reviews/boot-motion-spatial-ideation.md"
+    },
+    {
+      "task": "boot-motion-choreography",
+      "workspace": "d760a288-7da4-44c7-b68e-24221f73d16b",
+      "terminal": "c7823c99-5e6e-47ad-98e3-1bd5468c59b8",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry",
+      "focus": "Object choreography and pacing. Design one compelling boot concept where the shelf and selected objects arrive with elegant, distinctive physical timing, plus one meaningful variant. Use the real Books, Systems, Talks and About inventories. Show the care in the shelf through coordinated groups/contrasts, not a generic 40-item stagger, rubbery bounce, objects dropping from the sky or restarting animations on slow loads. Decide which objects should carry the gesture and how to avoid expensive one-off per-unit sequences. Other agents cover graphic image reveal and camera-led spatial continuity, so make yours distinct. Be candid about whether it becomes toy-like or obscures the actual artifacts.",
+      "status": "complete",
+      "dependencies": [],
+      "host": "local",
+      "result": "docs/reviews/boot-motion-choreography-ideation.md"
+    }
+  ],
+  "nativeWorker": {
+    "task": "/root/boot_motion_art_direction",
+    "status": "complete",
+    "scope": "Graphic reveal concept, root docs only",
+    "result": "docs/reviews/2026-09-12-boot-motion-graphic-ideation.md"
+  },
+  "synthesis": "docs/reviews/2026-09-12-boot-motion-directions.md",
+  "recommendation": "Drawing becomes room; keep graphic reveal and object choreography as separate alternatives",
+  "implementation": "paused; ideation documents only"
+}

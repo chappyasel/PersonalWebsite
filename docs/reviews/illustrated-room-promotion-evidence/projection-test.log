@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  12:02:09
+   Duration  103ms (transform 14ms, setup 0ms, import 34ms, tests 2ms, environment 0ms)
+

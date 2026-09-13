@@ -1,0 +1,60 @@
+{
+  "objective": "Shelf-only illustrations for all seven units, real About reading covers, remaining Systems/Musings/Talks",
+  "status": "complete",
+  "captureSlot": null,
+  "preview": "http://localhost:3330/admin/room-boot-comparison",
+  "outputRoot": "public/room-boot-shelf-prototype",
+  "workers": [
+    {
+      "workspace": "dcdf2843-ff74-4d61-a888-06f71640de44",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks",
+      "branch": "prototype/boot-render-masks",
+      "port": 3322,
+      "terminal": "fe6ed60c-6a3a-4bfe-9a46-40e501b29818",
+      "task": "room-boot-shelf-builder",
+      "status": "complete",
+      "host": "local",
+      "prompt": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks/docs/reviews/room-boot-shelf-brief.md",
+      "dependencies": [],
+      "report": "docs/reviews/room-boot-shelf-RESULT.md"
+    },
+    {
+      "workspace": "d760a288-7da4-44c7-b68e-24221f73d16b",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry",
+      "branch": "prototype/boot-geometry",
+      "port": 3321,
+      "terminal": "c7823c99-5e6e-47ad-98e3-1bd5468c59b8",
+      "task": "room-boot-shelf-reviewer",
+      "status": "complete",
+      "host": "local",
+      "prompt": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry/docs/reviews/room-boot-shelf-brief.md",
+      "dependencies": [
+        "shared profile contract for adapter implementation",
+        "generated images for final review"
+      ],
+      "report": "docs/reviews/room-boot-shelf-review.md"
+    }
+  ],
+  "previousRun": "docs/reviews/room-boot-generalization-run.json",
+  "completedAt": "2026-09-12T14:36:37.884797+00:00",
+  "result": {
+    "generatedCases": 24,
+    "uiCasesPassed": 28,
+    "typecheck": "passed in root and builder worktrees",
+    "lint": "targeted checks passed",
+    "captureProfileTests": 9,
+    "orderingTests": 2,
+    "preservedArtifacts": 308,
+    "assetRuntime": "Node 24.19.0",
+    "about": "Three covers decoded,14 visible shelf objects,3 floor props hidden; source unchanged",
+    "composition": "Shelf objects and shelf plants retained; freestanding scenery omitted from drawings",
+    "report": "docs/reviews/2026-09-12-room-boot-shelf-only.md",
+    "evidence": "docs/reviews/room-boot-shelf-ui-evidence/checks.json",
+    "regularBrowserOpened": "http://localhost:3330/admin/room-boot-comparison?unit=systems&theme=light&view=desktop",
+    "limits": [
+      "Development prototype only; production handoff not implemented",
+      "3px registration not established",
+      "Three reused Projects cases lack exhaustive physical-mesh audits"
+    ]
+  }
+}
