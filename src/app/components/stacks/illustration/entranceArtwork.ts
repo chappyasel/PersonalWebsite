@@ -44,7 +44,7 @@ export async function prepareEntranceArtwork(
     signal.throwIfAborted();
     const items = [
       ...about.querySelectorAll<SVGGElement>(
-        ".stacks-boot-landmarks .stacks-boot-item-motion",
+        ".stacks-boot-landmarks .stacks-boot-item-motion, .stacks-boot-floor-props .stacks-boot-item-motion",
       ),
     ];
     return { items: orderEntranceItems(items), dispose: () => undefined };

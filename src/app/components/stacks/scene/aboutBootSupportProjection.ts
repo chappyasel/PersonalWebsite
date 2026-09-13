@@ -41,8 +41,8 @@ export type AboutBootShelfSupportProjection = Readonly<{
 
 /** One side's upright, foot and cleat as the About rest camera sees them:
  * every corner projected, with each visible face preserved. The upright
- * runs from the top plank's underside to the ground; the foot and cleat
- * sit on the ground. */
+ * runs from the top plank's underside to the foot's top surface. The foot
+ * paints first, so the post occludes the rear part of that surface. */
 export function aboutBootShelfSupportProjection(
   side: -1 | 1,
   camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
@@ -61,7 +61,7 @@ export function aboutBootShelfSupportProjection(
         centerZ: SHELF_GEOMETRY.strapZ,
         depth: support.width,
         top: plankUnderside,
-        bottom: ground,
+        bottom: ground + support.footHeight,
       },
       camera,
     ),

@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { BootScreenArtwork } from "../dom/BootScreen";
 import { act, cleanup, fireEvent, renderHook } from "@testing-library/react";
 import { type ReactNode, StrictMode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
@@ -410,4 +412,45 @@ it("reveals rows left to right despite different object heights and reversed SVG
       item.getAttribute("data-part"),
     ),
   ).toEqual(["mac", "photo", "plant"]);
+});
+
+it("assembles About's two golf balls and dumbbell in the last visible row", async () => {
+  root.current.querySelector(".room-illustration-stage")!.innerHTML =
+    renderToStaticMarkup(<BootScreenArtwork />);
+  const prop = (node: Element) =>
+    node.closest("[data-boot-ground-prop]") ??
+    node.querySelector("[data-boot-ground-prop]");
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      const floor = Boolean(this.closest(".stacks-boot-floor-props"));
+      const ground = prop(this);
+      const left =
+        ground?.getAttribute("data-boot-ground-prop") === "dumbbell"
+          ? 200
+          : Number(ground?.getAttribute("cx") ?? 0);
+      const top = floor ? 200 : 0;
+      return {
+        x: left,
+        y: top,
+        left,
+        top,
+        right: left + 10,
+        bottom: top + 10,
+        width: 10,
+        height: 10,
+        toJSON: () => ({}),
+      };
+    },
+  );
+  const view = renderHook(() => useIllustratedEntrance(true, root, "about"));
+  await prepare();
+  expect(view.result.current).toBe("items");
+  expect(
+    animations
+      .slice(-3)
+      .map((a) => prop(a.element)?.getAttribute("data-boot-ground-prop")),
+  ).toEqual(["golf-ball", "golf-ball", "dumbbell"]);
+  expect(
+    animations.filter((a) => a.element.closest(".stacks-boot-floor-props")),
+  ).toHaveLength(3);
 });

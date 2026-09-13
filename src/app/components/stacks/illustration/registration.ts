@@ -181,7 +181,7 @@ export async function registerCapturedShelf(
   return { world, projection, meshes, residuals };
 }
 
-/** About retains its original projected drawing, with live covers and no floor props. */
+/** About retains its projected drawing, live covers, and authored floor props. */
 export function registerAboutShelf(
   unit: Object3D,
   box: Rectangle,

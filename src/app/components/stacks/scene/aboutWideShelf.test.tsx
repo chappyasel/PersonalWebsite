@@ -4,8 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PerspectiveCamera, Vector3 } from "three";
 import { expect, it } from "vitest";
 
-import { aboutBootRestCamera } from "./aboutBootPerspective";
-import { SHELF_PLANKS } from "./shelfGeometry";
+import {
+  aboutBootRestCamera,
+  projectAboutBootPoint,
+} from "./aboutBootPerspective";
+import { aboutBootShelfSupportProjection } from "./aboutBootSupportProjection";
+import { SHELF_GEOMETRY, SHELF_PLANKS } from "./shelfGeometry";
 import {
   RAIL_SHELF_MARGIN_PX,
   cameraForAspect,
@@ -99,3 +103,42 @@ it.each([-3, 3])("closes only the visible plank ends from eye x=%i", (x) => {
     expect(points[0]![0]).not.toBe(points[3]![0]);
   }
 });
+
+it.each([-3, 0, 3])(
+  "seats each post on its foot without painting over the joint at eye x=%i",
+  (x) => {
+    const camera = {
+      eye: [x, 0.25, 5.8],
+      aim: [x, -0.08, -0.2],
+      unitYaw: 0.1,
+    } as const;
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(
+      <BootScreenArtwork shelfOnly camera={camera} />,
+    );
+    for (const side of [-1, 1] as const) {
+      const support = root.querySelector(`[data-boot-support="${side}"]`)!;
+      // The foot's rear/top surfaces are behind the post at the join.
+      expect(
+        support.firstElementChild?.hasAttribute("data-boot-support-foot"),
+      ).toBe(true);
+      const post = aboutBootShelfSupportProjection(side, camera).upright;
+      const centerX =
+        side * (SHELF_GEOMETRY.width / 2 - SHELF_GEOMETRY.strapInsetX);
+      for (const [index, dx] of [
+        [2, 1],
+        [3, -1],
+      ] as const) {
+        const join = projectAboutBootPoint(
+          [
+            centerX + (dx * SHELF_GEOMETRY.support.width) / 2,
+            SHELF_GEOMETRY.groundY + SHELF_GEOMETRY.support.footHeight,
+            SHELF_GEOMETRY.strapZ + SHELF_GEOMETRY.support.width / 2,
+          ],
+          camera,
+        );
+        expect(post.faces.front.points[index]).toEqual([join.x, join.y]);
+      }
+    }
+  },
+);

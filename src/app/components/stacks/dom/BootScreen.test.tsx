@@ -111,6 +111,7 @@ it("can paint About's empty wood without requesting any landmark or book cover",
   expect(markup).toContain("data-boot-plank-faces");
   expect(markup).toContain("data-boot-support-upright");
   expect(markup).not.toContain("data-landmark-id");
+  expect(markup).not.toContain("data-boot-ground-prop");
   expect(markup).not.toContain("<image");
 });
 

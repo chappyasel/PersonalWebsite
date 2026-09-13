@@ -1426,7 +1426,7 @@ export function BootScreenArtwork({
                           camera,
                         )}
                       >
-                        {(["upright", "foot"] as const).map((part) => (
+                        {(["foot", "upright"] as const).map((part) => (
                           <g
                             key={part}
                             {...{ [`data-boot-support-${part}`]: side }}
@@ -1542,71 +1542,80 @@ export function BootScreenArtwork({
                       ),
                     )}
                 </g>
-                <g
-                  className="stacks-boot-item stacks-boot-floor-prop"
-                  data-boot-ground-prop="dumbbell"
-                  style={
-                    {
-                      "--stacks-boot-object-light": "#76716d",
-                      "--stacks-boot-object-dark": "#595653",
-                      ...bootPlacementStyle(
-                        ABOUT_MODEL_POSES.dumbbell.base,
-                        camera,
-                      ),
-                    } as BootStyle
-                  }
-                >
-                  <ModelSilhouetteGlyph
-                    id="dumbbell"
-                    width={
-                      ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[0] *
-                      SCENE_TO_BOOT_SVG
-                    }
-                    height={
-                      ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[1] *
-                      SCENE_TO_BOOT_SVG
-                    }
-                  />
-                </g>
-                {/* The two golf balls resting on the grass in front of the
-                    shelf, at the live poses UnitAbout seats them at. */}
-                {ABOUT_GOLF_BALLS.map((ball) => {
-                  const placed = projectAboutBootPoint(
-                    [
-                      ball.base[0],
-                      ball.base[1] + GOLF_BALL_RADIUS,
-                      ball.base[2],
-                    ],
-                    camera,
-                  );
-                  return (
-                    <circle
-                      className="stacks-boot-item stacks-boot-floor-prop stacks-boot-golf-ball"
-                      data-boot-ground-prop="golf-ball"
-                      data-golf-ball={ball.id}
-                      key={ball.id}
+                {!shelfOnly && (
+                  <g className="stacks-boot-floor-props">
+                    <g
+                      className="stacks-boot-item stacks-boot-floor-prop"
+                      data-boot-ground-prop="dumbbell"
                       style={
                         {
-                          "--stacks-boot-object-light": "#f3efe6",
-                          "--stacks-boot-object-dark": "#cfcac0",
-                          ...bootParallaxStyle(
-                            [
-                              ball.base[0],
-                              ball.base[1] + GOLF_BALL_RADIUS,
-                              ball.base[2],
-                            ],
+                          "--stacks-boot-object-light": "#76716d",
+                          "--stacks-boot-object-dark": "#595653",
+                          ...bootPlacementStyle(
+                            ABOUT_MODEL_POSES.dumbbell.base,
                             camera,
                           ),
                         } as BootStyle
                       }
-                      cx={bootFixed(placed.x * SCENE_TO_BOOT_SVG)}
-                      cy={bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}
-                      r={bootFixed(
-                        GOLF_BALL_RADIUS * placed.scale * SCENE_TO_BOOT_SVG,
-                      )}
-                    />
-                  );
-                })}
+                    >
+                      <g className="stacks-boot-item-motion">
+                        <ModelSilhouetteGlyph
+                          id="dumbbell"
+                          width={
+                            ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[0] *
+                            SCENE_TO_BOOT_SVG
+                          }
+                          height={
+                            ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[1] *
+                            SCENE_TO_BOOT_SVG
+                          }
+                        />
+                      </g>
+                    </g>
+                    {/* The two golf balls resting on the grass in front of the
+                    shelf, at the live poses UnitAbout seats them at. */}
+                    {ABOUT_GOLF_BALLS.map((ball) => {
+                      const placed = projectAboutBootPoint(
+                        [
+                          ball.base[0],
+                          ball.base[1] + GOLF_BALL_RADIUS,
+                          ball.base[2],
+                        ],
+                        camera,
+                      );
+                      return (
+                        <g className="stacks-boot-item-motion" key={ball.id}>
+                          <circle
+                            className="stacks-boot-item stacks-boot-floor-prop stacks-boot-golf-ball"
+                            data-boot-ground-prop="golf-ball"
+                            data-golf-ball={ball.id}
+                            style={
+                              {
+                                "--stacks-boot-object-light": "#f3efe6",
+                                "--stacks-boot-object-dark": "#cfcac0",
+                                ...bootParallaxStyle(
+                                  [
+                                    ball.base[0],
+                                    ball.base[1] + GOLF_BALL_RADIUS,
+                                    ball.base[2],
+                                  ],
+                                  camera,
+                                ),
+                              } as BootStyle
+                            }
+                            cx={bootFixed(placed.x * SCENE_TO_BOOT_SVG)}
+                            cy={bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}
+                            r={bootFixed(
+                              GOLF_BALL_RADIUS *
+                                placed.scale *
+                                SCENE_TO_BOOT_SVG,
+                            )}
+                          />
+                        </g>
+                      );
+                    })}
+                  </g>
+                )}
               </svg>
               <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
                 {Array.from(

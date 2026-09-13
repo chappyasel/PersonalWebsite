@@ -50,3 +50,25 @@ outside this commit. No OG recapture or deployment was performed.
 
 Field Notes: excluded by quality-bar test 2. Correcting the layout does not add
 a visitor discovery or a new authored action.
+
+## Foot joints and restored floor props
+
+The first correction still painted each complete foot over its upright. That
+made the foot's top cover the joint and put the post at the apparent back edge
+of the block. The visible post now ends at the foot's top plane and paints
+after the foot. The parsing-time projection uses the same join. Static SVG
+renders confirmed that the post now seats within the foot's top surface.
+
+About's two golf balls and dumbbell remained in the source artwork but the
+illustrated-room stylesheet hid all floor props. That rule is removed. The
+existing shapes use their live poses and join the entrance as the last row,
+ordered left to right. Empty-shelf markup omits them, and the shelf phase hides
+their group until item assembly begins.
+
+Validation: 81 tests passed across the boot markup, projected wood,
+first-paint parity, and entrance animation files. The joint regression failed
+at three camera positions before the correction. The entrance test uses the
+real About markup and confirms that both golf balls and the dumbbell animate.
+Node 24 typecheck and targeted ESLint passed. Existing object artwork and 3D
+geometry are unchanged. These corrections remain excluded from Field Notes
+by quality-bar test 2.

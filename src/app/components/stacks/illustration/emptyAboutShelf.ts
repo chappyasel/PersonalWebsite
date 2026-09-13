@@ -163,7 +163,7 @@ export function emptyAboutShelf(
         z,
         s.width,
         geometry.top.centerY - geometry.top.thickness / 2,
-        g,
+        g + s.footHeight,
       ),
       foot: box(x, s.footWidth, z, s.footDepth, g + s.footHeight, g),
     };

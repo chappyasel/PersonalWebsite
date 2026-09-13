@@ -105,10 +105,10 @@
     scale(0.78);
   transform-origin: center;
 }
-.room-first-paint .stacks-boot-landmarks,
+.room-first-paint :is(.stacks-boot-landmarks, .stacks-boot-floor-props),
 .stacks-world-shell[data-room-entrance="shelf"]
   [data-illustration-selected]
-  .stacks-boot-landmarks {
+  :is(.stacks-boot-landmarks, .stacks-boot-floor-props) {
   visibility: hidden;
 }
 .room-illustration-stage {
