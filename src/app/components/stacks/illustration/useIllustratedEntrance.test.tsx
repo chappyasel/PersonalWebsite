@@ -86,6 +86,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   root.current.remove();
+  document.querySelector(".room-entry-wordmark")?.remove();
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -104,7 +105,7 @@ async function finishAll() {
   });
 }
 
-it("assembles separate items, waits for their actual finish, places the shelf, then introduces cards and navigation", async () => {
+it("assembles separate items, waits for their actual finish, then places the shelf", async () => {
   const view = renderHook(() =>
     useIllustratedEntrance(true, root, "projects:light"),
   );
@@ -129,14 +130,42 @@ it("assembles separate items, waits for their actual finish, places the shelf, t
   expect(animations.at(-1)!.frames.at(-1)).toEqual({ transform: "none" });
   expect(animations.at(-1)!.element.className).toBe("room-illustration-stage");
   await finishAll();
-  expect(view.result.current).toBe("content");
-  await finishAll();
-  expect(view.result.current).toBe("navigation");
-  await finishAll();
   expect(view.result.current).toBe("complete");
   expect(root.current.querySelector(".room-entrance-artwork")).toBeNull();
   expect(root.current.querySelector("[data-entrance-artwork]")).toBeNull();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it("holds the name through every item and waits for its corner arrival before handoff", async () => {
+  const name = document.createElement("span");
+  name.className = "room-entry-wordmark";
+  name.style.transform = "translate(300px, 200px) scale(1.8)";
+  document.body.append(name);
+  const view = renderHook(() => useIllustratedEntrance(true, root, "projects"));
+  await prepare();
+  await act(async () => animations[0]!.finish());
+  expect(animations.some((animation) => animation.element === name)).toBe(
+    false,
+  );
+  await finishAll();
+  expect(view.result.current).toBe("placing");
+  const nameArrival = animations.find(
+    (animation) => animation.element === name,
+  )!;
+  expect(nameArrival.options.duration).toBe(P.nameMs);
+  expect(nameArrival.frames).toEqual([
+    { transform: name.style.transform },
+    { transform: "none" },
+  ]);
+  const placement = animations.at(-1)!;
+  expect(placement.element.className).toBe("room-illustration-stage");
+  await act(async () => placement.finish());
+  expect(view.result.current).toBe("placing");
+  await act(async () => nameArrival.finish());
+  expect(view.result.current).toBe("complete");
+  expect(animations.every((animation) => animation.playState === "idle")).toBe(
+    true,
+  );
 });
 
 it("waits for initial URL positioning before borrowing the selected shelf", async () => {

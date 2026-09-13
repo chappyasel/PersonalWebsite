@@ -9,6 +9,9 @@ import { getRoomArtwork } from "./artwork/getRoomArtwork";
 import shelves from "./artwork/shelves.generated.json";
 
 vi.mock("../dom/BootScreen", () => ({
+  BootWaitNotes: () => (
+    <div className="stacks-boot-wait-notes">Setting out the books.</div>
+  ),
   default: () => <div data-legacy-boot="" />,
   BootScreenArtwork: () => <svg data-about-artwork="" />,
 }));
@@ -46,7 +49,6 @@ it.each([1, 2, 3, 4, 5, 6])(
     expect(shell.querySelector("[data-room-artwork]")).toBeNull();
     for (const theme of ["light", "dark"] as const) {
       for (const viewport of ["desktop", "phone"] as const) {
-        const asset = getRoomArtwork(unitIndex, theme, viewport)!;
         const prefix = `--room-first-paint-${theme}-${viewport}`;
         expect(stage.style.getPropertyValue(`${prefix}-image`)).toBe(
           `var(--room-shelf-${unitIndex}-${theme}-${viewport})`,

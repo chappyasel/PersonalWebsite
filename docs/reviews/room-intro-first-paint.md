@@ -12,10 +12,14 @@ About uses its current viewport camera before hydration, including phone
 perspective. Its small standalone projection adapter takes geometry from
 the shelf contracts and is tested against the normal About projector.
 
-One persistent wordmark starts centered above the shelf and moves into the
-corner over 1.5 seconds. It survives hydration without restarting. Navigation
-starts around 2.8 seconds after the hydrated entrance begins, following the
-cards. A small loading line above the shelf replaces the two-line pill.
+One persistent wordmark starts at 20% of viewport height and stays centered
+above the shelf until every item
+finishes appearing. It then moves into the corner over 850 milliseconds while
+the shelf settles, the mobile sheet slides up, and the navigation fades in.
+It survives hydration without restarting. A larger loading heading stays
+centered above the shelf with three cycling dots and the original stage-aware
+notes. The notes remain outside screen-reader announcements. There is no pill
+background.
 Reduced motion, gesture skips, retries, and automatic 3D handoff keep their
 existing behavior. No new delay was added to the WebGL asset loader.
 
@@ -30,6 +34,23 @@ Verification passed:
 - Headless desktop/mobile assembly and five automatic cold-load 3D entries.
   The desktop placement check was repeated alone after concurrent browser
   work skipped its intermediate frames; the isolated check passed.
+
+The follow-up raised the mobile name and loading message into the top row,
+above the navigation. The live name uses the same position so it does not
+jump during the 3D handoff.
+
+A frame trace also caught a hydration gap. Navigation initially treats Talks
+as a neighboring shelf before resolving the URL. When Talks becomes selected,
+the generic neighbor transition used to fade it from zero opacity after the
+server shell disappeared. The selected entrance shelf now skips that fade.
+The entrance checker records frames from the server shell onward and rejects
+wrong selections, missing shelf frames, and mobile loading/nav overlap.
+
+The follow-up passed 80 focused tests, typecheck and targeted ESLint. Headless
+Talks and Books checks passed at 1440×900 and 390×844, including joint name,
+content and navigation arrival. All five automatic cold-load 3D entries also
+passed. The production build and boundary checks
+passed before the CSS positioning follow-up.
 
 No visible browser was opened. This automatic intro does not meet Field
 Notes quality-bar test 2, so it adds no discovery.

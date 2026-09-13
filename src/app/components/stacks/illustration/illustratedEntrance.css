@@ -8,23 +8,30 @@
 }
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
-    [data-room-entrance="items"],
-    [data-room-entrance="placing"]
+    [data-room-entrance="items"]
   ) {
   --room-entry-content-opacity: 0;
   --room-entry-content-offset: 12px;
 }
 .stacks-world-shell[data-room-entrance="shelf"],
-.stacks-world-shell[data-room-entrance="items"],
-.stacks-world-shell[data-room-entrance="placing"],
-.stacks-world-shell[data-room-entrance="content"] {
+.stacks-world-shell[data-room-entrance="items"] {
   --room-entry-nav-opacity: 0;
   --room-entry-nav-offset: 6px;
 }
 /* Keep the centered opening clear while the compact neighbor slots wait at
-   their resting positions. They appear with the reader after placement. */
+   their resting positions. They appear when placement finishes. */
 .room-illustration-stop {
   transition: opacity 180ms ease-out;
+}
+/* URL resolution can promote a hidden neighbor during hydration. Its empty
+   shelf must replace the first-paint shell at full opacity in that frame. */
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"],
+    [data-room-entrance="placing"]
+  )
+  .room-illustration-stop[data-illustration-selected] {
+  transition: none;
 }
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
@@ -41,9 +48,7 @@
 }
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
-    [data-room-entrance="items"],
-    [data-room-entrance="placing"],
-    [data-room-entrance="content"]
+    [data-room-entrance="items"]
   )
   [data-stacks-details-toggle-shell] {
   visibility: hidden;
@@ -51,22 +56,18 @@
 /* A tap that skips assembly must not activate an invisible card or control. */
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
-    [data-room-entrance="items"],
-    [data-room-entrance="placing"]
+    [data-room-entrance="items"]
   )
   :is([data-stacks-desktop-panel], [data-stacks-mobile-intro="sheet"]),
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
-    [data-room-entrance="items"],
-    [data-room-entrance="placing"]
+    [data-room-entrance="items"]
   )
   :is([data-stacks-desktop-panel], [data-stacks-mobile-intro="sheet"])
   *,
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
-    [data-room-entrance="items"],
-    [data-room-entrance="placing"],
-    [data-room-entrance="content"]
+    [data-room-entrance="items"]
   )
   :is(
     .stacks-unit-rail-desktop,
@@ -76,9 +77,7 @@
   ),
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
-    [data-room-entrance="items"],
-    [data-room-entrance="placing"],
-    [data-room-entrance="content"]
+    [data-room-entrance="items"]
   )
   :is(
     .stacks-unit-rail-desktop,
@@ -146,7 +145,7 @@
 }
 .room-illustrated-chrome .stacks-wordmark,
 .room-illustrated-chrome .stacks-theme-toggle {
-  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  top: env(safe-area-inset-top, 0px);
   display: flex;
   min-height: 2.5rem;
   align-items: center;
@@ -174,9 +173,7 @@
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
     [data-room-entrance="items"],
-    [data-room-entrance="placing"],
-    [data-room-entrance="content"],
-    [data-room-entrance="navigation"]
+    [data-room-entrance="placing"]
   )
   :is(
     .stacks-unit-rail-desktop,
@@ -188,7 +185,7 @@
   translate: 0 var(--room-entry-nav-offset);
   transition: none;
 }
-.stacks-world-shell[data-room-entrance="navigation"]
+.stacks-world-shell[data-room-entrance="placing"]
   :is(
     .stacks-unit-rail-desktop,
     .stacks-unit-rail-mobile,
@@ -196,8 +193,8 @@
     .stacks-theme-toggle
   ) {
   transition:
-    opacity 180ms ease-out,
-    translate 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 500ms ease-out,
+    translate 650ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 /* Busy first frames can shorten the arrival. Finish without a second transition. */
 .stacks-world-shell:where([data-room-entrance="complete"])
@@ -237,11 +234,17 @@
     ) !important;
     translate: 0 var(--room-entry-content-offset) !important;
     transition:
-      opacity 300ms ease-out,
-      translate 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+      opacity 450ms ease-out,
+      translate 650ms cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 }
 @media (max-width: 1199px) {
+  .stacks-world-shell:is(
+      [data-room-entrance="shelf"],
+      [data-room-entrance="items"]
+    ) {
+    --room-entry-content-offset: 48px;
+  }
   /* Material and content remain separate so native sheet glass keeps sampling. */
   .stacks-world-shell[data-room-entrance]:not([data-room-entrance="complete"])
     :is(
@@ -251,8 +254,8 @@
     opacity: var(--room-entry-content-opacity) !important;
     translate: 0 var(--room-entry-content-offset) !important;
     transition:
-      opacity 300ms ease-out,
-      translate 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+      opacity 450ms ease-out,
+      translate 650ms cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {

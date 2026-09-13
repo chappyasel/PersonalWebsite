@@ -84,7 +84,7 @@ export default function RoomBootShell({
           </div>
         ))}
         <div className="room-illustration-actions">
-          <IllustrationStatus loading />
+          <IllustrationStatus loading firstPaint />
         </div>
       </div>
       {/* This survives the shell's hydration handoff, so its animation never restarts. */}

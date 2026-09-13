@@ -215,7 +215,11 @@ const getServerBootRevealed = () => SERVER_WORLD_BOOT_VIEW.revealed;
  *
  * The supporting notes stay outside the live region. They rotate often enough
  * to reassure a sighted visitor, but announcing each turn would become noise. */
-function BootWaitNotes() {
+export function BootWaitNotes({
+  active: enabled = true,
+}: {
+  active?: boolean;
+}) {
   const stage = useSyncExternalStore(
     subscribeWorldBoot,
     getWaitStage,
@@ -236,13 +240,13 @@ function BootWaitNotes() {
   // the page, behind a running 3D scene.
   useEffect(() => {
     setTurn(0);
-    if (revealed || BOOT_WAIT_NOTES[stage].length < 2) return;
+    if (!enabled || revealed || BOOT_WAIT_NOTES[stage].length < 2) return;
     const timer = window.setInterval(
       () => setTurn((previous) => previous + 1),
       BOOT_WAIT_NOTE_INTERVAL_MS,
     );
     return () => window.clearInterval(timer);
-  }, [revealed, stage]);
+  }, [enabled, revealed, stage]);
 
   const active = turn % BOOT_WAIT_NOTES[stage].length;
   return (

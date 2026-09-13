@@ -15,6 +15,9 @@ vi.mock("./IllustratedTraverse", () => ({
 }));
 
 vi.mock("../dom/BootScreen", () => ({
+  BootWaitNotes: () => (
+    <div className="stacks-boot-wait-notes">Setting out the books.</div>
+  ),
   BootScreenArtwork: () => (
     <svg className="stacks-boot-scene" viewBox="0 0 300 230">
       <image href="/cover.png" />
@@ -267,8 +270,13 @@ it("keeps the loading message readable through dissolve, then retires it with th
   const view = render(content("illustrated"));
   await act(async () => Promise.resolve());
   const status = view.getByRole("status", { name: "Room view" });
-  expect(status.textContent).toContain("Loading 3D…");
-  expect(status.textContent).toBe("Loading 3D…");
+  expect(status.querySelector(".room-loading-heading")?.textContent).toBe(
+    "Loading 3D...",
+  );
+  expect(status.querySelectorAll(".stacks-boot-wait-dot")).toHaveLength(3);
+  expect(
+    status.querySelector(".stacks-boot-wait-notes")?.closest("[aria-hidden]"),
+  ).not.toBeNull();
   expect(status.getAttribute("aria-atomic")).toBe("true");
   expect(
     view.container.querySelector("[data-illustration-loading]"),

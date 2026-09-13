@@ -178,7 +178,7 @@ html.dark .room-illustration {
 }
 .room-illustration-actions {
   position: absolute;
-  top: calc(max(0.75rem, env(safe-area-inset-top, 0px)) + 3.25rem);
+  top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 35;
@@ -190,35 +190,34 @@ html.dark .room-illustration {
   white-space: nowrap;
 }
 .room-illustration-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  min-width: min(28ch, 88vw);
   text-align: center;
-  color: hsl(var(--foreground) / 0.65);
-  font-size: 0.6875rem;
-  letter-spacing: 0.025em;
-  line-height: 1.3;
+  color: hsl(var(--foreground) / 0.82);
   pointer-events: none;
 }
-.room-illustration-status[data-illustration-status="loading"]::before {
-  content: "";
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: room-loading-breathe 1800ms ease-in-out infinite alternate;
+.room-loading-heading {
+  display: block;
+  font-family: var(--font-selected), Georgia, serif;
+  font-size: clamp(17px, 1.5vw, 21px);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
 }
-@keyframes room-loading-breathe {
-  from {
-    opacity: 0.35;
-  }
-  to {
-    opacity: 0.8;
-  }
+.room-illustration-status .stacks-boot-wait-notes {
+  margin-top: 6px;
+  height: 18px;
+  color: hsl(var(--foreground) / 0.6);
+  font-family: var(--font-selected), Georgia, serif;
+  font-size: 13px;
+  line-height: 18px;
+}
+.room-illustration-status[data-illustration-status="fallback"] {
+  min-width: 0;
+  font-size: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .room-illustration-status[data-illustration-status="loading"]::before {
+  .room-illustration-status .stacks-boot-wait-dot {
     animation: none;
+    opacity: 1;
   }
 }
 .room-illustration-unavailable {
@@ -270,12 +269,7 @@ html.dark .room-illustration {
   }
   .room-illustration-actions {
     top: max(1.5rem, env(safe-area-inset-top, 0px));
-    left: calc(
-      (
-          100% + var(--room-illustration-stage-left) -
-            var(--room-illustration-stage-right)
-        ) / 2
-    );
+    left: 50%;
   }
 }
 @media (max-width: 1199px) and (max-height: 599px) and (orientation: landscape) {

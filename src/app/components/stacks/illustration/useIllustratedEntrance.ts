@@ -9,8 +9,6 @@ export type IllustratedEntrancePhase =
   | "shelf"
   | "items"
   | "placing"
-  | "content"
-  | "navigation"
   | "complete";
 export const ILLUSTRATED_ENTRANCE = {
   assetWaitMs: 2000,
@@ -19,9 +17,7 @@ export const ILLUSTRATED_ENTRANCE = {
   itemStepMs: 90,
   maxStaggerMs: 1500,
   placementMs: 620,
-  navigationDelayMs: 180,
-  navigationAtMs: 2800,
-  navigationMs: 180,
+  nameMs: 850,
 } as const;
 
 /** One assembly per resident room. WebGL readiness never shortens it; input
@@ -45,7 +41,6 @@ export function useIllustratedEntrance(
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const controller = new AbortController();
     const { signal } = controller;
-    const entranceStartedAt = performance.now();
     const animations = new Set<Animation>();
     let disposeArtwork: (() => void) | undefined;
     let started = false;
@@ -104,16 +99,6 @@ export function useIllustratedEntrance(
       if (document.hidden) animation.pause();
       return animation;
     };
-    // Compositor time also orders cards/nav, so hidden tabs pause the whole
-    // sequence instead of consuming it offscreen.
-    const wait = async (element: Element, duration: number) => {
-      const animation = animate(element, [{ opacity: 1 }, { opacity: 1 }], {
-        duration,
-      });
-      await animation.finished;
-      animations.delete(animation);
-      signal.throwIfAborted();
-    };
     setPhase("shelf");
     events.forEach((event) =>
       window.addEventListener(event, finish, { capture: true, passive: true }),
@@ -160,6 +145,21 @@ export function useIllustratedEntrance(
       await Promise.all(reveals.map((animation) => animation.finished));
       signal.throwIfAborted();
       const initialTransform = getComputedStyle(stage).transform;
+      const name = document.querySelector<HTMLElement>(".room-entry-wordmark");
+      const nameArrival = name
+        ? animate(
+            name,
+            [
+              { transform: getComputedStyle(name).transform },
+              { transform: "none" },
+            ],
+            {
+              duration: ILLUSTRATED_ENTRANCE.nameMs,
+              easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+              fill: "both",
+            },
+          )
+        : null;
       const placement = animate(
         stage,
         [{ transform: initialTransform }, { transform: "none" }],
@@ -170,19 +170,10 @@ export function useIllustratedEntrance(
         },
       );
       setPhase("placing");
-      await placement.finished;
+      // The name, sheet and navigation arrive together only after every item.
+      // Wait for both compositor timelines before the room may dissolve.
+      await Promise.all([placement.finished, nameArrival?.finished]);
       signal.throwIfAborted();
-      setPhase("content");
-      await wait(
-        stage,
-        Math.max(
-          ILLUSTRATED_ENTRANCE.navigationDelayMs,
-          ILLUSTRATED_ENTRANCE.navigationAtMs -
-            (performance.now() - entranceStartedAt),
-        ),
-      );
-      setPhase("navigation");
-      await wait(stage, ILLUSTRATED_ENTRANCE.navigationMs);
       finish();
     })().catch(() => {
       // Entrance preparation never covers the usable reader indefinitely.

@@ -16,7 +16,7 @@ html[data-room-view="illustrated"]:not(:has([data-illustration-positioned]))
 }
 .room-entry-wordmark {
   --room-name-left: max(1.25rem, env(safe-area-inset-left, 0px));
-  --room-name-top: calc(max(0.75rem, env(safe-area-inset-top, 0px)) + 0.5rem);
+  --room-name-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
   position: fixed;
   z-index: 51;
   left: var(--room-name-left);
@@ -30,7 +30,11 @@ html[data-room-view="illustrated"]:not(:has([data-illustration-positioned]))
   color: hsl(var(--foreground));
   white-space: nowrap;
   transform-origin: left top;
-  animation: room-name-arrive 1500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform: translate(
+      calc(50vw - var(--room-name-left) - 90%),
+      calc(20vh - var(--room-name-top) - 90%)
+    )
+    scale(1.8);
 }
 html:is(
     [data-room-view="illustrated"],
@@ -44,18 +48,16 @@ html:is(
 .room-illustrated-chrome .stacks-wordmark {
   visibility: hidden;
 }
-@keyframes room-name-arrive {
-  0%,
-  20% {
-    transform: translate(
-        calc(50vw - var(--room-name-left) - 90%),
-        calc(28vh - var(--room-name-top) - 90%)
+/* The compositor moves the persistent name; these are its final base styles
+   after completion or an input/reduced-motion skip. */
+html:has(
+    .stacks-world-shell:is(
+        [data-room-entrance="placing"],
+        [data-room-entrance="complete"]
       )
-      scale(1.8);
-  }
-  100% {
-    transform: none;
-  }
+  )
+  .room-entry-wordmark {
+  transform: none;
 }
 .room-first-paint-artwork {
   --room-first-paint-image: var(--room-first-paint-light-desktop-image);
@@ -122,7 +124,7 @@ html[data-og-capture] .room-first-paint {
 }
 @media (prefers-reduced-motion: reduce) {
   .room-entry-wordmark {
-    animation: none;
+    transform: none;
   }
   .room-illustration::before,
   .room-illustration::after,

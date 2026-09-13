@@ -37,6 +37,7 @@ async function installTrace(page) {
   await page.addInitScript(() => {
     localStorage.setItem("stacks-scene-sound-muted:v1", "true");
     window.__entryTrace = [];
+    window.__firstShelfTrace = [];
     window.__entryTraceStop = false;
     const box = (node) => {
       const rect = node?.getBoundingClientRect();
@@ -59,6 +60,27 @@ async function installTrace(page) {
     const inspect = () => {
       if (window.__entryTraceStop || window.__entryTrace.length >= 4000) return;
       const shell = document.querySelector("[data-room-entrance]");
+      const firstUnits = [
+        ...document.querySelectorAll("[data-first-paint-unit]"),
+      ]
+        .filter(
+          (node) =>
+            opacity(node.querySelector(".room-illustration-stage")) >= 0.99,
+        )
+        .map((node) => Number(node.dataset.firstPaintUnit));
+      const selected = document.querySelector("[data-illustration-selected]");
+      const selectedStage = selected?.querySelector(".room-illustration-stage");
+      const selectedVisible = selectedStage && opacity(selectedStage) >= 0.99;
+      window.__firstShelfTrace.push({
+        at: performance.now(),
+        firstUnits,
+        hydratedUnit: selectedVisible
+          ? [...document.querySelectorAll(".room-illustration-stop")].indexOf(
+              selected,
+            )
+          : null,
+        presentation: document.documentElement.dataset.roomView,
+      });
       if (shell) {
         const stops = [...shell.querySelectorAll(".room-illustration-stop")];
         const selected = shell.querySelector("[data-illustration-selected]");
@@ -67,6 +89,8 @@ async function installTrace(page) {
           "img[data-illustration-image], svg.stacks-boot-scene",
         );
         const style = stage ? getComputedStyle(stage) : null;
+        const name = document.querySelector(".room-entry-wordmark");
+        const nameTransform = name ? getComputedStyle(name).transform : null;
         const stopBox = box(selected);
         const nav = shell.querySelector(
           innerWidth >= 1200
@@ -130,6 +154,14 @@ async function installTrace(page) {
               : image
                 ? "about"
                 : null,
+          nameBox: box(name),
+          loadingBox: box(shell.querySelector(".room-illustration-actions")),
+          navBox: box(nav),
+          nameTransform,
+          nameIdentity:
+            nameTransform !== null &&
+            new DOMMatrixReadOnly(nameTransform).isIdentity,
+          cardTranslate: card ? getComputedStyle(card).translate : null,
           navOpacity: opacity(nav),
           cardOpacity: opacity(card),
           cardUnit:
@@ -197,6 +229,29 @@ async function installTrace(page) {
     requestAnimationFrame(inspect);
   });
 }
+function assertFirstShelf(trace, unit) {
+  let painted = false;
+  for (const frame of trace) {
+    if (frame.presentation !== "illustrated") continue;
+    const shown = frame.firstUnits.length > 0 || frame.hydratedUnit !== null;
+    assert.ok(
+      !painted || shown,
+      `Shelf disappeared during hydration at ${frame.at}ms`,
+    );
+    painted ||= shown;
+    assert.ok(
+      frame.firstUnits.every((index) => index === unit),
+      "Wrong first-paint shelf",
+    );
+    if (frame.hydratedUnit !== null)
+      assert.equal(
+        frame.hydratedUnit,
+        unit,
+        "Hydration showed a different shelf",
+      );
+  }
+  assert.ok(painted, "No first shelf captured");
+}
 function assertNoEarlyHandoff(trace) {
   for (const frame of trace) {
     if (frame.phase !== "complete") {
@@ -226,17 +281,10 @@ function assertNoEarlyHandoff(trace) {
 }
 function assertSequence(trace, unit, width, height) {
   const phases = [...new Set(trace.map((frame) => frame.phase))];
-  assert.deepEqual(phases, [
-    "shelf",
-    "items",
-    "placing",
-    "content",
-    "navigation",
-    "complete",
-  ]);
+  assert.deepEqual(phases, ["shelf", "items", "placing", "complete"]);
   assertNoEarlyHandoff(trace);
   const early = trace.filter((frame) =>
-    ["shelf", "items", "placing"].includes(frame.phase),
+    ["shelf", "items"].includes(frame.phase),
   );
   assert.ok(
     early.some(
@@ -245,6 +293,15 @@ function assertSequence(trace, unit, width, height) {
     "No initial content/chrome measurements",
   );
   for (const frame of early) {
+    assert.ok(frame.nameBox, "Missing centered name");
+    assert.ok(
+      Math.abs(frame.nameBox[0] + frame.nameBox[2] / 2 - width / 2) < 1,
+      "Name moved horizontally before item completion",
+    );
+    assert.ok(
+      Math.abs(frame.nameBox[1] + frame.nameBox[3] / 2 - height * 0.2) < 1,
+      "Name moved vertically before item completion",
+    );
     if (frame.navOpacity !== null)
       assert.ok(
         frame.navOpacity <= 0.01,
@@ -259,7 +316,7 @@ function assertSequence(trace, unit, width, height) {
   for (const frame of trace) {
     for (const owner of [...frame.animatedUnits, ...frame.overlayUnits])
       assert.equal(owner, unit, `Another shelf animated at ${frame.at}ms`);
-    if (["items", "placing", "content", "navigation"].includes(frame.phase)) {
+    if (["items", "placing"].includes(frame.phase)) {
       assert.equal(
         frame.positioned,
         true,
@@ -276,8 +333,6 @@ function assertSequence(trace, unit, width, height) {
           "Wrong artwork source",
         );
     }
-    if (frame.phase === "content" && frame.navOpacity !== null)
-      assert.ok(frame.navOpacity <= 0.01, "Navigation arrived before content");
   }
   const empty = trace.find(
     (frame) =>
@@ -355,12 +410,44 @@ function assertSequence(trace, unit, width, height) {
   assert.ok(
     placing.every(
       (frame) =>
-        frame.itemOpacities.length >= 2 &&
-        frame.itemOpacities.every((value) => value >= 0.99),
+        (frame.itemOpacities.length >= 2 &&
+          frame.itemOpacities.every((value) => value >= 0.99)) ||
+        (frame.overlayUnits.length === 0 && frame.staticImageVisible === true),
     ),
     "Placement preceded item completion",
   );
+  assert.ok(
+    placing.some(
+      (frame) =>
+        !frame.nameIdentity &&
+        frame.navOpacity > 0.01 &&
+        frame.navOpacity < 0.99 &&
+        frame.cardOpacity > 0.01 &&
+        frame.cardOpacity < 0.99,
+    ),
+    "Name, content and navigation did not arrive together",
+  );
+  if (width < 1200)
+    assert.ok(
+      placing.some((frame) => {
+        const offset = Number.parseFloat(frame.cardTranslate?.split(" ")[1]);
+        return offset > 1 && offset < 47;
+      }),
+      "Mobile sheet did not slide up during name arrival",
+    );
   const final = trace.at(-1);
+  assert.equal(final.nameIdentity, true, "Name did not reach its corner");
+  if (width < 1200) {
+    assert.ok(
+      final.loadingBox && final.navBox,
+      "Missing loading/navigation boxes",
+    );
+    assert.ok(
+      final.loadingBox[1] + final.loadingBox[3] <= final.navBox[1],
+      "Loading text overlaps mobile navigation",
+    );
+    assert.ok(final.nameBox[1] <= 8.5, "Mobile name corner is too low");
+  }
   assert.equal(
     final.stageIdentity,
     true,
@@ -464,6 +551,10 @@ try {
         window.__entryTraceStop = true;
         return window.__entryTrace;
       });
+      const firstShelfTrace = await page.evaluate(
+        () => window.__firstShelfTrace,
+      );
+      assertFirstShelf(firstShelfTrace, unit);
       const summary = assertSequence(trace, unit, width, height);
       assert.equal(await page.locator(".room-illustrated-chrome").count(), 1);
       assert.equal(
@@ -485,6 +576,7 @@ try {
         route,
         passed: true,
         ...summary,
+        firstShelfTrace,
         errors,
         trace,
       });
@@ -500,6 +592,9 @@ try {
         error: String(error),
         errors,
         trace: await page.evaluate(() => window.__entryTrace).catch(() => null),
+        firstShelfTrace: await page
+          .evaluate(() => window.__firstShelfTrace)
+          .catch(() => null),
       });
       console.log("FAIL", name, String(error));
       process.exitCode = 1;
