@@ -40,7 +40,7 @@ try {
       theme,
     );
     await page.goto(
-      `${origin}/?harness=1&quality=showcase${enabled ? "&insectLandingWorker=1" : ""}`,
+      `${origin}/?harness=1&quality=showcase&insectLandingWorker=${enabled ? "1" : "0"}`,
       { waitUntil: "domcontentloaded" },
     );
     await page.bringToFront();

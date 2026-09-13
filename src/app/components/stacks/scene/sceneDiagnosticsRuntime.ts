@@ -49,8 +49,8 @@ export function diagnosticReloadSeedFromSearch(
     ...(params.get("prewarmAll") === "0"
       ? { prewarmAllUnitVisuals: false }
       : {}),
-    ...(params.get("insectLandingWorker") === "1"
-      ? { insectLandingWorker: true }
+    ...(["0", "1"].includes(params.get("insectLandingWorker") ?? "")
+      ? { insectLandingWorker: params.get("insectLandingWorker") === "1" }
       : {}),
     ...(params.has("nodof") ? { skipDepthOfField: true } : {}),
     ...(params.has("noaotransparency")

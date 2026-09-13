@@ -10,6 +10,10 @@ import type * as InsectFlightWorld from "./insectFlightWorld";
 import { ThreeInsectFlightWorld } from "./insectFlightWorld";
 import { type InsectPerch, registerInsectPerch } from "./insectPerches";
 import { registerMeadowLamp } from "./meadowLights";
+import {
+  DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+  scenePerformanceController,
+} from "./scenePerformance";
 
 vi.mock("../room/roomEvents", () => ({
   roomWindowEvents: new EventTarget(),
@@ -36,6 +40,7 @@ vi.mock("./insectFlightWorld", async (original) => ({
 }));
 
 afterEach(() => {
+  scenePerformanceController.update(DEFAULT_SCENE_PERFORMANCE_SETTINGS);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -43,6 +48,9 @@ afterEach(() => {
 it.each(["synchronous", "worker"])(
   "keeps %s moth landing searches at their own lamps when the camera changes sections",
   async (mode) => {
+    scenePerformanceController.update({
+      insectLandingWorker: mode === "worker",
+    });
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     vi.stubGlobal("requestAnimationFrame", vi.fn());
     extend({

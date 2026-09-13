@@ -35,7 +35,7 @@ describe("reversible scene performance settings", () => {
       practicalGlowMode: "halo",
       effectiveDprLadder: true,
       adaptiveSharpen: true,
-      insectLandingWorker: false,
+      insectLandingWorker: true,
       skipAmbientOcclusion: false,
       skipBloom: false,
       skipDepthOfField: false,

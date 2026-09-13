@@ -683,8 +683,9 @@ capture reproduces it.
 
 ## Insect landing worker
 
-The experimental Scene console switch under Render → Optimizations moves moth
-and butterfly landing compilation to one shared worker. It defaults off. Flight
+The Scene console switch under Render → Optimizations moves moth
+and butterfly landing compilation to one shared worker. It defaults on following
+Chappy's approval on 2026-09-13; `?insectLandingWorker=0` disables it at boot. Flight
 and rendering stay on main. Worker snapshots conservatively enclose small ambient
 collider motion; adoption verifies the live target, snapshot containment, current
 insect connector, and reservation before starting an approach. The

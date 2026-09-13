@@ -2091,7 +2091,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     help: "Plan moth and butterfly landings off the main thread. On failure insects keep roaming; switch off to restore synchronous planning. Resets on reload.",
     key: "insectLandingWorker",
     booleanPresentation: "switch",
-    experimental: true,
+    experimental: false,
     productionCost: {
       activeValues: [true],
       enabled:

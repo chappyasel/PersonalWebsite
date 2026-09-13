@@ -1,13 +1,15 @@
 # Insect landing worker
 
 The experimental switch moves landing compilation for both moths and butterflies
-into one shared Web Worker. It defaults off. Ordinary flight, live triangle
+into one shared Web Worker. It defaults on following Chappy's explicit approval
+on 2026-09-13. Ordinary flight, live triangle
 contact resolution, collision-index maintenance, reservation, and Three rendering
 stay on the main thread.
 
 Scene Diagnostics → Render → Optimizations → Insect landing worker controls it
-live through the existing shadcn Switch. `?insectLandingWorker=1` seeds the same switch for local comparisons. Neither
-control persists across reloads without that explicit query parameter. The switch
+live through the existing shadcn Switch. `?insectLandingWorker=0` disables it at
+boot; `?insectLandingWorker=1` enables it explicitly for comparisons. Live overrides
+reset to the approved default on reload unless a query seed is present. The switch
 does not change the resolved quality policy.
 
 ## Planning and adoption
@@ -75,7 +77,7 @@ Worker startup exceptions, message errors, runtime errors, and a five-second
 startup/active-job timeout suspend new worker landing attempts until the toggle
 cycles. Insects keep flying. There is no automatic synchronous fallback while the
 worker switch remains on. Turning it off explicitly restores the synchronous
-baseline. The default-off path creates no worker and makes no worker snapshots or
+baseline. The disabled path creates no worker and makes no worker snapshots or
 messages.
 
 `__stacks.state().insectPlanning` exposes bounded planning and transport totals for
@@ -126,8 +128,9 @@ recorded rAF time, excluding the first interval of each capture.
 Dark averaged 3.8 FPS higher, with 16 frames above 100 ms reduced to zero.
 Its aggregate p95/p99 barely changed because the stalls were infrequent. Light
 averaged 2.2 FPS lower and had a worse p99. This single run per setting supports
-dark-mode stall reduction, not a general FPS or battery claim. Keep the switch
-default-off pending repeated measurements and owner review of landing cadence.
+dark-mode stall reduction, not a general FPS or battery claim. The experiment was
+initially default-off. Chappy subsequently approved default-on for both species;
+the mixed light-mode result remains a reason to repeat measurements on more devices.
 
 Planning totals below cover each complete context, including boot and settling.
 They describe different request sequences and are not a matched-request compiler
@@ -179,10 +182,25 @@ cover contained ambient motion versus movement beyond the conservative snapshot.
 Typecheck and changed-file ESLint pass. An additional diagnostics/Chrome check
 passed 65 tests after adding the shadcn Switch presentation. The production build
 and real worker startup pass. The live shadcn Switch starts and stops the worker,
-returns to off after reload, leaves quality policy unchanged, and produces no page
+returned to the then-default off after reload, left quality policy unchanged, and produced no page
 errors. The browser check also confirms that requests stop increasing after
 disabling it. Results are saved in `/tmp/insect-worker-ui.json`; the inspected
 control capture is `/tmp/insect-worker-ui.png`. `git diff --check` passes.
+
+After the default-on approval, the release was rebased onto current `main` with
+only the two insect commits; unrelated illustrated-room prototype work was
+excluded. A fresh production build passed. Local browser checks in both themes
+confirmed default-on worker startup and completed requests, live shutdown with
+no further requests, reset to on after reload, and an explicit `=0` rollback that
+creates no worker or requests. Quality policy stayed unchanged and both themes
+reported no page errors. These checks are in `/tmp/insect-worker-default-ui.json`;
+they test startup and rollback, not a new performance comparison.
+The complete `pnpm verify` gate passes on the default-on release: TypeScript,
+strict repository-wide ESLint, 3,932 tests (21 skipped), search-index freshness,
+and meadow geometry checks. The synchronous geometry fixtures explicitly select
+the baseline path; worker lifecycle tests continue to use delayed real compiler
+results. The default-settings assertion and boot rollback test cover the approved
+default and its override.
 
 No visitor-facing Action, Portal, Artifact, Easter egg, route, or authored scene
 experience was added. Field Notes catalog additions do not apply.

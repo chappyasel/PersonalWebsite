@@ -48,9 +48,7 @@ describe("Scene Diagnostics registry", () => {
   it("compares insect planning live without changing quality policy", () => {
     const quality = sceneQualityController.getSnapshot();
     try {
-      expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS.insectLandingWorker).toBe(
-        false,
-      );
+      expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS.insectLandingWorker).toBe(true);
       sceneDiagnosticsRegistry.update("render.insect-landing-worker", true);
       expect(scenePerformanceController.getSnapshot().insectLandingWorker).toBe(
         true,
@@ -61,7 +59,10 @@ describe("Scene Diagnostics registry", () => {
         false,
       );
     } finally {
-      scenePerformanceController.update({ insectLandingWorker: false });
+      scenePerformanceController.update({
+        insectLandingWorker:
+          DEFAULT_SCENE_PERFORMANCE_SETTINGS.insectLandingWorker,
+      });
     }
   });
   it("compares book cover shadow treatment live without changing quality policy", () => {
