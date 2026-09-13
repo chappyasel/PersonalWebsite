@@ -1124,7 +1124,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     group: "simulate.camera",
     label: "Free-roam camera",
     help: "Detach the camera from the authored traverse until reload.",
-    ariaKeyShortcuts: "R Shift+R",
+    ariaKeyShortcuts: "Shift+~",
     defaultValue: DEFAULT_FREE_ROAM.enabled,
     experimental: false,
     store: freeRoamDiagnosticsController,

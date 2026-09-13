@@ -10,6 +10,9 @@
   scrollbar-width: none;
   touch-action: pan-x;
   pointer-events: auto;
+  translate: 0 var(--room-sheet-shift, 0px);
+  scale: var(--room-sheet-scale, 1);
+  transform-origin: 50% var(--room-sheet-origin-y, 50%);
 }
 .room-illustration-traverse::-webkit-scrollbar {
   display: none;

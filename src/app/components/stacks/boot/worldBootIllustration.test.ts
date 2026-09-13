@@ -602,7 +602,7 @@ describe("visitor ownership and renderer replacement", () => {
 });
 
 describe("policy, visibility and diagnostics", () => {
-  it("opens an overview automatically only after the renderer is ready", () => {
+  it("fades the Golf overview over the ready renderer before retiring it", () => {
     const overview = run([
       start(),
       {
@@ -617,16 +617,30 @@ describe("policy, visibility and diagnostics", () => {
       worldMounted: true,
       revealed: false,
     });
-    expect(view(ready(overview, 100))).toMatchObject({
+    const fading = ready(overview, 100);
+    expect(view(fading)).toMatchObject({
+      presentation: "dissolve",
+      canvasVisible: true,
+      revealed: false,
+      illustrationKey: "golf-overview:light",
+    });
+    const fadeEnd = fading.deadline!.at;
+    expect(fadeEnd - fading.handoffStartedAt!).toBe(
+      P.illustrationTravelDelayMs,
+    );
+    expect(view(run([tick(fadeEnd - 1)], fading)).presentation).toBe(
+      "dissolve",
+    );
+    expect(view(run([tick(fadeEnd)], fading))).toMatchObject({
       presentation: "live",
       revealed: true,
     });
     const shelf = run(
-      [{ type: "illustrationChanged", key: KEY, at: 20 }],
-      overview,
+      [{ type: "illustrationChanged", key: KEY, at: fadeEnd - 1 }],
+      fading,
     );
     expect(shelf.skipIllustrationMatch).toBe(false);
-    expect(view(ready(shelf, 100)).presentation).toBe("illustrated");
+    expect(view(run([tick(fadeEnd)], shelf)).presentation).toBe("illustrated");
   });
 
   it.each([
@@ -737,4 +751,280 @@ describe("policy, visibility and diagnostics", () => {
       run([{ type: "bootVignetteCompleted", at: 1 }], og).bootVignetteReady,
     ).toBe(true);
   });
+});
+
+describe("explicit dimension selection", () => {
+  it("fades to paper before pausing the renderer, then stays in 2D", () => {
+    const returning = run(
+      [{ type: "request2D", animate: true, at: 1000 }],
+      live(),
+    );
+    expect(view(returning)).toMatchObject({
+      status: "flattening",
+      presentation: "illustrated",
+      worldMounted: true,
+      canvasVisible: true,
+      interactionHeld: true,
+    });
+    expect(
+      run([{ type: "request2D", animate: true, at: 1100 }], returning),
+    ).toBe(returning);
+    expect(
+      view(run([tick(1000 + P.flatRetireMs - 1)], returning)).worldMounted,
+    ).toBe(true);
+    const paper = run([tick(1000 + P.flatRetireMs)], returning);
+    expect(view(paper)).toMatchObject({
+      status: "illustrated",
+      worldMounted: false,
+      canRequest3D: true,
+    });
+    expect(run([registered(), arrived(), tick(20000)], paper)).toBe(paper);
+    const retry = run(
+      [start({ at: 2000, explicitRequest: true, dimensionRequest: true })],
+      paper,
+    );
+    expect(retry.epoch).toBe(paper.epoch + 1);
+    expect(retry.illustrationKey).toBe(KEY);
+    expect(view(ready(retry, 2100)).revealed).toBe(false);
+  });
+
+  it("can stop a pending load without pretending the room was live", () => {
+    const paper = run(
+      [{ type: "request2D", animate: true, at: 20 }],
+      run([start()]),
+    );
+    expect(view(paper)).toMatchObject({
+      status: "illustrated",
+      worldMounted: false,
+      revealed: false,
+    });
+  });
+
+  it("freezes the return deadline while the room is hidden", () => {
+    const hidden = run(
+      [
+        { type: "request2D", animate: true, at: 1000 },
+        { type: "visibility", hidden: true, at: 1100 },
+        tick(10000),
+      ],
+      live(),
+    );
+    expect(hidden.status).toBe("flattening");
+    const visible = run(
+      [{ type: "visibility", hidden: false, at: 10100 }],
+      hidden,
+    );
+    expect(visible.deadline?.at).toBe(10000 + P.flatRetireMs);
+    expect(run([tick(10000 + P.flatRetireMs)], visible).status).toBe(
+      "illustrated",
+    );
+  });
+
+  it("supports explicit reduced-motion entry without changing automatic delivery", () => {
+    const automatic = run([start({ prefersReducedMotion: true })]);
+    expect(automatic.ineligibility).toBe("reduced_motion");
+    const selected = run(
+      [
+        start({
+          at: 1000,
+          prefersReducedMotion: true,
+          explicitRequest: true,
+          dimensionRequest: true,
+        }),
+      ],
+      automatic,
+    );
+    expect(view(selected)).toMatchObject({
+      worldMounted: true,
+      motionEnabled: false,
+    });
+    // Navigating or resizing during this load must not restore animation.
+    const changedShelf = run([changed(NEXT_KEY, 1050)], selected);
+    const entered = run(
+      [{ type: "dimensionFramePainted", epoch: selected.epoch, at: 1400 }],
+      ready(changedShelf, 1100),
+    );
+    expect(view(entered).presentation).toBe("live");
+    const paper = run(
+      [{ type: "request2D", animate: false, at: 2000 }],
+      entered,
+    );
+    expect(view(paper)).toMatchObject({
+      status: "illustrated",
+      worldMounted: false,
+      rendererRetained: true,
+      deadlineKind: "illustrationCache",
+    });
+  });
+
+  it("still requires WebGL and respects Save-Data for explicit entry", () => {
+    for (const evidence of [{ webglAvailable: false }, { saveData: true }]) {
+      expect(
+        view(
+          run([
+            start({
+              ...evidence,
+              explicitRequest: true,
+              dimensionRequest: true,
+            }),
+          ]),
+        ).worldMounted,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("paused renderer retention", () => {
+  const paper = () =>
+    run([{ type: "request2D", animate: false, at: 1000 }], live());
+
+  it("resumes the same generation with loaded assets and fresh rendered frames", () => {
+    const cached = paper();
+    expect(view(cached)).toMatchObject({
+      rendererRetained: true,
+      worldMounted: false,
+      canvasVisible: false,
+    });
+    const moved = run([changed(NEXT_KEY, 1500)], cached);
+    const resumed = run([{ type: "resume3D", at: 2000 }], moved);
+    expect(resumed).toMatchObject({
+      epoch: cached.epoch,
+      firstFrame: true,
+      assetsSeen: true,
+      meadowReady: true,
+      illustrationKey: NEXT_KEY,
+      interactionHeld: false,
+    });
+    expect(view(resumed)).toMatchObject({
+      rendererRetained: false,
+      worldMounted: true,
+      revealed: false,
+    });
+    const matched = run(
+      [{ type: "dimensionFramePainted", epoch: cached.epoch, at: 2001 }],
+      resumed,
+    );
+    expect(view(matched).presentation).toBe("dissolve");
+    const entered = run(
+      [
+        tick(2001 + P.flatRetireMs + 20),
+        { type: "dimensionFramePainted", epoch: cached.epoch, at: 2500 },
+      ],
+      matched,
+    );
+    expect(view(entered).revealed).toBe(true);
+  });
+
+  it("expires without extending the grace period for navigation or a hidden tab", () => {
+    const cached = paper();
+    const expires = 1000 + P.illustrationCacheMs;
+    const hidden = run(
+      [changed(NEXT_KEY, 1500), { type: "visibility", hidden: true, at: 2000 }],
+      cached,
+    );
+    expect(hidden.deadline?.at).toBe(expires);
+    const expired = run([tick(expires)], hidden);
+    expect(view(expired)).toMatchObject({
+      rendererRetained: false,
+      worldMounted: false,
+      presentation: "illustrated",
+    });
+    expect(run([{ type: "resume3D", at: expires + 1 }], expired)).toBe(expired);
+    // Resuming visibility after a throttled timer must also expire the cache.
+    expect(
+      view(
+        run([{ type: "visibility", hidden: false, at: expires + 1 }], hidden),
+      ).rendererRetained,
+    ).toBe(false);
+  });
+
+  it("lets diagnostics release a cached renderer immediately and disables future retention", () => {
+    const disabled = run(
+      [{ type: "retain3DChanged", enabled: false, at: 1500 }],
+      paper(),
+    );
+    expect(view(disabled)).toMatchObject({
+      rendererRetained: false,
+      retain3DEnabled: false,
+    });
+    const immediate = run(
+      [
+        { type: "retain3DChanged", enabled: false, at: 900 },
+        { type: "request2D", animate: true, at: 1000 },
+        tick(1000 + P.flatRetireMs),
+      ],
+      live(),
+    );
+    expect(view(immediate)).toMatchObject({
+      rendererRetained: false,
+      worldMounted: false,
+    });
+    expect(immediate.deadline).toBeNull();
+  });
+
+  it("discards cached renderers on context loss, render failure, or exit", () => {
+    for (const type of ["contextLost", "runtimeError", "exit"] as const) {
+      const cached = paper();
+      const ended = run([{ type, epoch: cached.epoch, at: 2000 }], cached);
+      expect(view(ended).rendererRetained).toBe(false);
+      expect(run([{ type: "resume3D", at: 2001 }], ended)).toBe(ended);
+    }
+  });
+
+  it("never retains an incomplete boot", () => {
+    const cancelled = run(
+      [{ type: "request2D", animate: false, at: 50 }],
+      run([start()]),
+    );
+    expect(view(cancelled).rendererRetained).toBe(false);
+  });
+});
+
+it("can resume cached 3D when the illustrated asset is unavailable", () => {
+  const cached = run(
+    [{ type: "request2D", animate: false, at: 1000 }, changed(null, 1500)],
+    live(),
+  );
+  const resumed = run([{ type: "resume3D", at: 2000 }, tick(2001)], cached);
+  expect(resumed.epoch).toBe(cached.epoch);
+  const entered = run(
+    [
+      { type: "dimensionFramePainted", epoch: cached.epoch, at: 2010 },
+      tick(2010 + P.flatRetireMs + 20),
+      { type: "dimensionFramePainted", epoch: cached.epoch, at: 2500 },
+    ],
+    resumed,
+  );
+  expect(view(entered).presentation).toBe("live");
+});
+
+it("keeps an unavailable-artwork return behind the illustration until it can fade", () => {
+  const cached = run(
+    [{ type: "request2D", animate: false, at: 1000 }, changed(null, 1500)],
+    live(),
+  );
+  const resumed = run([{ type: "resume3D", at: 2000 }, tick(2001)], cached);
+  expect(view(resumed).revealed).toBe(false);
+});
+
+it("gives a manual return to 3D the same fade time as the return to 2D", () => {
+  const cached = run([{ type: "request2D", animate: false, at: 1000 }], live());
+  const resumed = run(
+    [
+      { type: "resume3D", at: 2000 },
+      { type: "dimensionFramePainted", epoch: cached.epoch, at: 2001 },
+    ],
+    cached,
+  );
+  expect(
+    resumed.deadline!.at - resumed.handoffStartedAt!,
+  ).toBeGreaterThanOrEqual(P.flatRetireMs);
+});
+
+it("times out a manual return whose renderer never paints", () => {
+  const cached = run([{ type: "request2D", animate: false, at: 1000 }], live());
+  const resumed = run([{ type: "resume3D", at: 2000 }], cached);
+  const expired = run([tick(2000 + P.hangBackstopMs)], resumed);
+  expect(view(expired).worldMounted).toBe(false);
+  expect(view(expired).presentation).toBe("illustrated");
 });

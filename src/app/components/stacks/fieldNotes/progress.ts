@@ -33,6 +33,7 @@ export type FieldNoteEvent =
       destination: string;
     }>
   | Readonly<{ type: "photo-mode-entered" }>
+  | Readonly<{ type: "dimension-transition-completed" }>
   | Readonly<{
       type: "prop-carried";
       propId: string;
@@ -312,6 +313,9 @@ export function reduceFieldNotesProgress(
       break;
     case "globe-turned-by-hand":
       award(earned, awarded, "global-perspective", now);
+      break;
+    case "dimension-transition-completed":
+      award(earned, awarded, "dimension-shift", now);
       break;
     case "console-opened":
       award(earned, awarded, "under-the-hood", now);

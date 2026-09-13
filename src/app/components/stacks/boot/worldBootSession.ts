@@ -38,6 +38,9 @@ export type WorldBootSignal = Distribute<
         | "visibility"
         | "bootVignetteStarted"
         | "bootVignetteCompleted"
+        | "resume3D"
+        | "retain3DChanged"
+        | "request2D"
         | "illustrationInteracted"
         | "illustrationChanged"
         | "illustrationMotionChanged";
@@ -286,7 +289,7 @@ export class WorldBootSession {
    * later signals — its exit above all — with. */
   start(
     origin: "prepaint" | "hydrate",
-    options: { explicitRequest?: boolean } = {},
+    options: { explicitRequest?: boolean; dimensionRequest?: boolean } = {},
   ): WorldBootScope {
     const at = nowMs();
     const connection = (
@@ -312,6 +315,7 @@ export class WorldBootSession {
           WORLD_BOOT_POLICY.illustrationAttribute,
         ) === "enabled",
       explicitRequest: options.explicitRequest,
+      dimensionRequest: options.dimensionRequest,
       holdBoot: params.has(WORLD_BOOT_POLICY.holdBootParam),
       // The attribute for a document's first start, the stored record for an
       // SPA re-entry, which cleared that attribute itself on the way out.
@@ -325,7 +329,7 @@ export class WorldBootSession {
   }
 
   /** A deliberate retry refreshes browser evidence. Preferences still win. */
-  request3D(): WorldBootScope {
+  request3D(dimensionRequest = false): WorldBootScope {
     if (
       !documentActive ||
       this.snapshot.worldMounted ||
@@ -334,7 +338,28 @@ export class WorldBootSession {
           WORLD_BOOT_POLICY.contextLossRecoveries)
     )
       return this.scope();
-    return this.start("hydrate", { explicitRequest: true });
+    this.send({ type: "tick" });
+    if (this.snapshot.rendererRetained) {
+      this.send({
+        type: "resume3D",
+        reducedMotion: window.matchMedia(WORLD_BOOT_POLICY.reducedMotionQuery)
+          .matches,
+      });
+      return this.scope();
+    }
+    return this.start("hydrate", { explicitRequest: true, dimensionRequest });
+  }
+
+  set3DRetentionEnabled(enabled: boolean): void {
+    this.send({ type: "retain3DChanged", enabled });
+  }
+
+  request2D(): void {
+    if (!documentActive) return;
+    this.send({
+      type: "request2D",
+      animate: !window.matchMedia(WORLD_BOOT_POLICY.reducedMotionQuery).matches,
+    });
   }
 
   /** Diagnostics changes presentation only and resets with this JS session. */

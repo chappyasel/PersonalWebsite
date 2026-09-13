@@ -6,6 +6,7 @@ import {
   backgroundWorldGesture,
   isBrowserZoomWheel,
 } from "../input/ScrollBridges";
+import { dimensionTravel } from "../input/dimensionTravel";
 import { isStacksScrollableTarget } from "../input/roomNavigationKeys";
 import { touchSwipeDestination } from "../mobile/swipeTravel";
 import { RAIL_RIGHT_PX_FALLBACK } from "../scene/worldLayout";
@@ -17,12 +18,18 @@ import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import type { RoomArtworkTheme, RoomArtworkViewport } from "./artwork/types";
 import "./illustratedTraverse.css";
 import { illustrationInteraction } from "./illustrationInteraction";
-import { illustrationTravelStops } from "./illustrationTravelStops";
+import {
+  illustratedScrollForPosition,
+  illustrationTravelStops,
+  positionForIllustratedScroll,
+} from "./illustrationTravelStops";
 
 /** Native lateral travel, using the same wheel ownership and touch stops as 3D. */
 export function IllustratedTraverse({
   unit,
   enabled,
+  transitionPosition = null,
+  transitionId = 0,
   theme = "light",
   viewport = "desktop",
   onMovingChange,
@@ -30,6 +37,8 @@ export function IllustratedTraverse({
 }: {
   unit: number;
   enabled: boolean;
+  transitionPosition?: number | null;
+  transitionId?: number;
   theme?: RoomArtworkTheme;
   viewport?: RoomArtworkViewport;
   onMovingChange: (moving: boolean) => void;
@@ -39,6 +48,8 @@ export function IllustratedTraverse({
   const published = useRef(unit);
   const destination = useRef<number | null>(null);
   const initialized = useRef(false);
+  const restoredPosition = useRef<number | null>(null);
+  const appliedTransition = useRef<number | null>(null);
   const stops = useRef<ReturnType<typeof illustrationTravelStops>>([]);
   const locationReady = useRoomNavigationReady();
   const moving = useCallback(
@@ -48,6 +59,19 @@ export function IllustratedTraverse({
     },
     [onMovingChange],
   );
+
+  useLayoutEffect(() => {
+    const read = () =>
+      positionForIllustratedScroll(
+        stops.current,
+        root.current?.scrollLeft ?? 0,
+      );
+    dimensionTravel.readIllustratedPosition = read;
+    return () => {
+      if (dimensionTravel.readIllustratedPosition === read)
+        dimensionTravel.readIllustratedPosition = null;
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -78,10 +102,14 @@ export function IllustratedTraverse({
       next.forEach((stop, index) =>
         slots[index]?.style.setProperty("--room-stop-width", `${stop.width}px`),
       );
-      if (initialized.current && previous[published.current])
-        el.scrollLeft +=
-          next[published.current]!.scrollLeft -
-          previous[published.current]!.scrollLeft;
+      if (initialized.current && previous.length) {
+        el.scrollLeft = illustratedScrollForPosition(
+          next,
+          positionForIllustratedScroll(previous, el.scrollLeft),
+        );
+        if (restoredPosition.current !== null)
+          restoredPosition.current = el.scrollLeft;
+      }
     };
     update();
     const observer = new ResizeObserver(update);
@@ -102,20 +130,42 @@ export function IllustratedTraverse({
     // History resolves the initial path/hash after hydration. Wait for that
     // selection so the first position snaps directly to the requested shelf.
     if (!el || !locationReady || !el.clientWidth) return;
-    if (!initialized.current || !enabled) {
-      el.scrollLeft = stops.current[unit]!.scrollLeft;
+    if (
+      transitionPosition !== null &&
+      appliedTransition.current !== transitionId
+    ) {
+      appliedTransition.current = transitionId;
+      const left = illustratedScrollForPosition(
+        stops.current,
+        transitionPosition,
+      );
+      // Also cancels any native smooth scroll toward a previous nav destination.
+      el.scrollTo({ left, behavior: "instant" });
+      restoredPosition.current = left;
+      destination.current = null;
       initialized.current = true;
       published.current = unit;
-    } else if (published.current !== unit) {
+      moving(false);
+    } else if (
+      !initialized.current ||
+      (!enabled && transitionPosition === null)
+    ) {
+      el.scrollLeft = illustratedScrollForPosition(stops.current, unit);
+      // Native scroll events also fire for initialization. Keep the requested
+      // semantic position until travel actually moves away from it.
+      restoredPosition.current = el.scrollLeft;
+      initialized.current = true;
+      published.current = unit;
+    } else if (enabled && published.current !== unit) {
       published.current = unit;
       destination.current = unit;
       moving(true);
       el.scrollTo({
-        left: stops.current[unit]!.scrollLeft,
+        left: illustratedScrollForPosition(stops.current, unit),
         behavior: "smooth",
       });
     }
-  }, [unit, enabled, locationReady, moving]);
+  }, [unit, enabled, locationReady, moving, transitionPosition, transitionId]);
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -140,6 +190,13 @@ export function IllustratedTraverse({
     const settle = () => {
       if (touching || !el.clientWidth) return;
       const closest = nearest();
+      // Mouse/trackpad travel can rest between shelves; only touch and nav
+      // commands snap to a stop. This also keeps a restored handoff in place.
+      if (destination.current === null && touchStart === null) {
+        select();
+        moving(false);
+        return;
+      }
       const target =
         destination.current ??
         (touchStart === null
@@ -150,9 +207,10 @@ export function IllustratedTraverse({
               stops: stops.current,
             }) ?? closest));
       touchStart = null;
-      const left =
-        stops.current[Math.max(0, Math.min(UNIT_COUNT - 1, target))]!
-          .scrollLeft;
+      const left = illustratedScrollForPosition(
+        stops.current,
+        Math.max(0, Math.min(UNIT_COUNT - 1, target)),
+      );
       if (Math.abs(el.scrollLeft - left) > 1) {
         el.scrollTo({ left, behavior: "smooth" });
         timer = window.setTimeout(settle, 180);
@@ -163,6 +221,12 @@ export function IllustratedTraverse({
       moving(false);
     };
     const scroll = () => {
+      if (
+        restoredPosition.current !== null &&
+        Math.abs(el.scrollLeft - restoredPosition.current) < 1
+      )
+        return;
+      restoredPosition.current = null;
       moving(true);
       // A rail command owns selection until it arrives. Intermediate scroll
       // positions must not rewrite its destination through the room store.
@@ -205,15 +269,11 @@ export function IllustratedTraverse({
       window.clearTimeout(timer);
       timer = window.setTimeout(settle, 180);
     };
-    const resize = () => {
-      el.scrollLeft = stops.current[published.current]!.scrollLeft;
-    };
     el.addEventListener("scroll", scroll, { passive: true });
     el.addEventListener("pointerdown", down, { passive: true });
     window.addEventListener("pointerup", up, { passive: true });
     window.addEventListener("pointercancel", up, { passive: true });
     window.addEventListener("wheel", wheel, { passive: false, capture: true });
-    window.addEventListener("resize", resize);
     return () => {
       illustrationInteraction.moving = false;
       window.clearTimeout(timer);
@@ -222,7 +282,6 @@ export function IllustratedTraverse({
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
       window.removeEventListener("wheel", wheel, true);
-      window.removeEventListener("resize", resize);
     };
   }, [enabled, locationReady, moving]);
 

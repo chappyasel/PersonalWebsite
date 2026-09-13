@@ -1,20 +1,30 @@
 // @vitest-environment jsdom
-import RoomNavigation from "../input/RoomNavigation";
+import { GOLF_STOP_POSITION, type StacksData } from "../data";
+import RoomNavigation, { navigateRoom } from "../input/RoomNavigation";
 import { useStacks } from "../store";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import IllustratedRoom from "./IllustratedRoom";
 import { IllustratedTraverse } from "./IllustratedTraverse";
 import { illustrationInteraction } from "./illustrationInteraction";
+import type * as TravelStopsModule from "./illustrationTravelStops";
 import { illustrationTravelStops } from "./illustrationTravelStops";
 
-vi.mock("./illustrationTravelStops", () => ({
+vi.mock("./illustrationTravelStops", async (importOriginal) => ({
+  ...(await importOriginal<typeof TravelStopsModule>()),
   illustrationTravelStops: vi.fn(),
 }));
 
 const initial = useStacks.getState();
+const originalDecode = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "decode",
+);
 beforeEach(() => {
   vi.useFakeTimers();
+  history.replaceState(null, "", "/");
+  document.documentElement.dataset.roomFirstUnit = "0";
   vi.mocked(illustrationTravelStops).mockImplementation((width) =>
     Array.from({ length: 7 }, (_, position) => ({
       position,
@@ -45,8 +55,85 @@ beforeEach(() => {
     if (typeof options === "object") this.scrollLeft = options.left ?? 0;
   });
 });
+
+it.each(["/golf", "/#golf"])(
+  "preserves the Golf entry through hydration scroll events for %s",
+  (url) => {
+    history.replaceState(null, "", url);
+    document.documentElement.dataset.roomFirstUnit = String(GOLF_STOP_POSITION);
+    Object.defineProperty(HTMLImageElement.prototype, "decode", {
+      configurable: true,
+      value: vi.fn(() => new Promise<void>(() => undefined)),
+    });
+    useStacks.setState({
+      activeUnit: 0,
+      golfStop: false,
+      scrollEl: null,
+      jumpTo: null,
+    });
+    const onReady = vi.fn();
+    const mounted = render(
+      <RoomNavigation rendererEnabled={false}>
+        <IllustratedRoom
+          data={
+            { readingBooks: [], readingBookColors: {} } as unknown as StacksData
+          }
+          theme="light"
+          viewport="desktop"
+          visible
+          canRequest3D={false}
+          onRequest3D={vi.fn()}
+          onReady={onReady}
+          onUnavailable={vi.fn()}
+        />
+      </RoomNavigation>,
+    );
+    const row = mounted.container.querySelector<HTMLElement>(
+      ".room-illustration-traverse",
+    )!;
+    expect(row.scrollLeft).toBe(GOLF_STOP_POSITION * 1000);
+    fireEvent.scroll(row);
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(useStacks.getState().golfStop).toBe(true);
+    expect(location.pathname).toBe("/golf");
+    expect(mounted.container.querySelector("[data-golf-entry]")).not.toBeNull();
+    expect(onReady).toHaveBeenLastCalledWith("golf-overview:light", false);
+    expect(illustrationInteraction.moving).toBe(false);
+
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    fireEvent.resize(window);
+    fireEvent.scroll(row);
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(row.scrollLeft).toBe(GOLF_STOP_POSITION * 800);
+    expect(useStacks.getState().golfStop).toBe(true);
+    expect(location.pathname).toBe("/golf");
+
+    const jumpTo = vi.fn();
+    act(() =>
+      useStacks.setState({ scrollEl: document.createElement("div"), jumpTo }),
+    );
+    expect(jumpTo).toHaveBeenLastCalledWith(GOLF_STOP_POSITION);
+
+    // An explicit shelf command still leaves the loading preview.
+    act(() => navigateRoom(4, { rendererEnabled: false }));
+    fireEvent.scroll(row);
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(useStacks.getState().golfStop).toBe(false);
+    expect(useStacks.getState().activeUnit).toBe(4);
+    expect(mounted.container.querySelector("[data-golf-entry]")).toBeNull();
+  },
+);
 afterEach(() => {
   cleanup();
+  if (originalDecode)
+    Object.defineProperty(HTMLImageElement.prototype, "decode", originalDecode);
+  else Reflect.deleteProperty(HTMLImageElement.prototype, "decode");
   useStacks.setState(initial);
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -228,4 +315,52 @@ it("follows rail selection and detaches input after promotion", () => {
   );
   fireEvent.wheel(viewport, { deltaY: 1000 });
   expect(viewport.scrollLeft).toBe(2000);
+});
+
+it("holds a restored fractional position after the fade and still accepts a nav command", () => {
+  const moving = vi.fn();
+  const content = (enabled: boolean, unit: number) => (
+    <IllustratedTraverse
+      unit={unit}
+      enabled={enabled}
+      transitionPosition={2.4}
+      transitionId={1}
+      onMovingChange={moving}
+    >
+      <div />
+    </IllustratedTraverse>
+  );
+  const view = render(content(false, 2));
+  const row = view.container.firstElementChild as HTMLElement;
+  expect(row.scrollLeft).toBe(2400);
+  view.rerender(content(true, 2));
+  fireEvent.scroll(row);
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
+  expect(row.scrollLeft).toBe(2400);
+  view.rerender(content(true, 5));
+  expect(row.scrollLeft).toBe(5000);
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  expect(row.scrollTo).toHaveBeenLastCalledWith({
+    left: 5000,
+    behavior: "smooth",
+  });
+});
+
+it("lets wheel travel settle between shelves", () => {
+  const moving = vi.fn();
+  const view = render(
+    <IllustratedTraverse unit={4} enabled onMovingChange={moving}>
+      <div />
+    </IllustratedTraverse>,
+  );
+  const row = view.container.firstElementChild as HTMLElement;
+  fireEvent.wheel(row, { deltaY: 250 });
+  fireEvent.scroll(row);
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
+  expect(row.scrollLeft).toBe(4250);
+  expect(moving).toHaveBeenLastCalledWith(false);
 });

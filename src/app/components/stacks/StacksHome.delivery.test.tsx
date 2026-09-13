@@ -29,6 +29,7 @@ vi.mock("./boot/worldBootSession", () => ({
     send: mocks.send,
     scope: () => ({ send: mocks.send }),
     getView: () => mocks.view,
+    subscribe: () => () => undefined,
     getState: () => ({ illustratedMode: true }),
     request3D: vi.fn(),
   },
@@ -38,7 +39,10 @@ vi.mock("next-themes", () => ({
   useTheme: () => ({ resolvedTheme: "light" }),
 }));
 vi.mock("~/lib/analytics", () => ({ captureOnce: vi.fn() }));
-vi.mock("./room/ResidentRoomHost", () => ({ useRoomActive: () => true }));
+vi.mock(import("./room/ResidentRoomHost"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  useRoomActive: () => true,
+}));
 vi.mock("./dom/ChromeLayer", () => ({ default: () => null }));
 vi.mock("./dom/UnitRail", () => ({ default: () => null }));
 vi.mock("./dom/VisionRideControls", () => ({ default: () => null }));

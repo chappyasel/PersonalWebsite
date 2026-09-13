@@ -49,6 +49,8 @@ export type WorldBootStatus =
   | "booting"
   /** Usable 2D view after cancellation or an explicit choice to keep reading. */
   | "illustrated"
+  /** The illustration fades over the live renderer before it is released. */
+  | "flattening"
   /** The registered camera stays still while the illustration fades. */
   | "dissolving"
   /** The illustration is gone; the renderer confirms its ordinary rest frame. */
@@ -80,6 +82,8 @@ export type WorldBootDeadline =
   | "hangBackstop"
   | "flatRetire"
   | "illustrationDissolve"
+  | "illustrationReturn"
+  | "illustrationCache"
   | "illustrationHandoff";
 
 export type LoadPath = "cold" | "warm";
@@ -153,6 +157,8 @@ export type WorldBootEvent =
       illustratedMode?: boolean;
       /** A deliberate retry may release a reader's hold, but not preferences. */
       explicitRequest?: boolean;
+      /** Explicit dimension selection can enter 3D without transition motion. */
+      dimensionRequest?: boolean;
       /** A URL-scoped presentation aid. It deliberately disables both the
        * reveal gate and hang deadline while leaving the world free to load. */
       holdBoot?: boolean;
@@ -166,6 +172,7 @@ export type WorldBootEvent =
     }
   /** A frame has actually been painted by the world's renderer. */
   | { type: "firstFrame"; at: number; epoch: number }
+  | { type: "dimensionFramePainted"; at: number; epoch: number }
   /** The loading manager published a new state. */
   | { type: "assetLoad"; at: number; epoch: number; assets: AssetLoadState }
   /** The meadow filled its instance buffers, or reported immediately because
@@ -198,6 +205,9 @@ export type WorldBootEvent =
     }
   /** Reading/navigation is a page fact and survives renderer replacement. */
   | { type: "illustrationInteracted"; at: number }
+  | { type: "request2D"; at: number; animate: boolean }
+  | { type: "resume3D"; at: number; reducedMotion?: boolean }
+  | { type: "retain3DChanged"; at: number; enabled: boolean }
   | {
       type: "illustrationChanged";
       at: number;
@@ -258,6 +268,11 @@ export type WorldBootState = {
   handoffStartedAt: number | null;
   /** Session-only diagnostics setting. It never changes eligibility. */
   motionEnabled: boolean;
+  /** Browser preference, distinct from the session diagnostics override. */
+  reducedMotion: boolean;
+  retain3DEnabled: boolean;
+  manual3D: boolean;
+  dimensionFrameReady: boolean;
   /** A fail-open document must stay readable through delayed hydration. */
   prepaintTimedOut: boolean;
   failure: WorldBootFailure | null;
@@ -300,6 +315,7 @@ export type WorldBootView = {
   handoffStartedAt: number | null;
   motionEnabled: boolean;
   canRequest3D: boolean;
+  manual3D: boolean;
   /** Readiness stays false until the ordinary rest frame has painted. */
   canvasVisible: boolean;
   /** The generation a producer mounting right now must stamp its signals
@@ -314,6 +330,9 @@ export type WorldBootView = {
   mode: "flat" | "world";
   loadPath: LoadPath;
   worldMounted: boolean;
+  /** Mounted but paused behind the 2D illustration until the cache expires. */
+  rendererRetained: boolean;
+  retain3DEnabled: boolean;
   /** The renderer has painted. */
   canvasReady: boolean;
   revealed: boolean;
@@ -361,6 +380,10 @@ export function initialWorldBootState(): WorldBootState {
     interactionHeld: false,
     handoffStartedAt: null,
     motionEnabled: true,
+    reducedMotion: false,
+    retain3DEnabled: true,
+    manual3D: false,
+    dimensionFrameReady: false,
     prepaintTimedOut: false,
     failure: null,
     ineligibility: null,
@@ -561,12 +584,31 @@ function retainIllustration(state: WorldBootState): WorldBootState {
   return {
     ...state,
     status: "illustrated",
+    manual3D: false,
+    dimensionFrameReady: false,
     deadline: null,
     registeredIllustrationKey: null,
     ordinaryIllustrationKey: null,
     handoffStartedAt: null,
     skipIllustrationMatch: false,
   };
+}
+
+function cacheIllustration(
+  state: WorldBootState,
+  at: number,
+  policy: WorldBootPolicy,
+): WorldBootState {
+  const paper = retainIllustration(state);
+  return state.retain3DEnabled
+    ? {
+        ...paper,
+        deadline: {
+          kind: "illustrationCache",
+          at: at + policy.illustrationCacheMs,
+        },
+      }
+    : paper;
 }
 
 function illustrationFramePainted(state: WorldBootState): boolean {
@@ -581,13 +623,25 @@ function illustrationHandoffActive(state: WorldBootState): boolean {
   return state.status === "dissolving" || state.status === "travelling";
 }
 
-/** Timers can finish the dissolve; only a matching painted frame can finish promotion. */
+/** After the room paints, fade the drawing before finishing any camera travel. */
 function settleIllustrated(
   state: WorldBootState,
   at: number,
   policy: WorldBootPolicy,
 ): WorldBootState {
+  // Resource retention expires even in a hidden tab. It is not an animation clock.
+  if (
+    state.status === "illustrated" &&
+    state.deadline?.kind === "illustrationCache"
+  ) {
+    return at >= state.deadline.at ? retainIllustration(state) : state;
+  }
   if (state.hiddenSince !== null || state.holdBoot) return state;
+  if (state.status === "flattening") {
+    return deadlineDue(state, at) === "illustrationReturn"
+      ? cacheIllustration(state, at, policy)
+      : state;
+  }
   if (state.status === "booting") {
     if (state.interactionHeld) return retainIllustration(state);
     const roomReady = worldGatesOpen(state, at, policy);
@@ -597,7 +651,27 @@ function settleIllustrated(
         : state,
     );
     if (roomReady) {
-      if (!staged.motionEnabled || staged.skipIllustrationMatch) {
+      if (staged.manual3D) {
+        if (!staged.dimensionFrameReady)
+          return deadlineDue(staged, at) ? giveUp(staged, "hang") : staged;
+        if (!staged.motionEnabled || staged.reducedMotion)
+          return { ...staged, status: "live", manual3D: false, deadline: null };
+        return {
+          ...staged,
+          status: "dissolving",
+          handoffStartedAt: at,
+          deadline: {
+            kind: "illustrationDissolve",
+            at: at + policy.flatRetireMs + 20,
+          },
+        };
+      }
+      if (
+        !staged.motionEnabled ||
+        staged.reducedMotion ||
+        (staged.skipIllustrationMatch &&
+          (staged.matchUnavailable || staged.illustrationKey === null))
+      ) {
         return {
           ...staged,
           status: "live",
@@ -605,7 +679,9 @@ function settleIllustrated(
           skipIllustrationMatch: false,
         };
       }
-      if (illustrationFramePainted(staged)) {
+      // An abstract entry has no shelf geometry to register, but its drawing
+      // still dissolves over the painted room before it is retired.
+      if (staged.skipIllustrationMatch || illustrationFramePainted(staged)) {
         return {
           ...staged,
           status: "dissolving",
@@ -625,6 +701,13 @@ function settleIllustrated(
     state.status === "dissolving" &&
     deadlineDue(state, at) === "illustrationDissolve"
   ) {
+    if (state.skipIllustrationMatch && !state.manual3D)
+      return {
+        ...state,
+        status: "live",
+        deadline: null,
+        skipIllustrationMatch: false,
+      };
     return {
       ...state,
       status: "travelling",
@@ -734,9 +817,10 @@ function applyVisibility(
       state.worldReadyAt === null ? null : state.worldReadyAt + elapsed,
     handoffStartedAt:
       state.handoffStartedAt === null ? null : state.handoffStartedAt + elapsed,
-    deadline: state.deadline
-      ? { ...state.deadline, at: state.deadline.at + elapsed }
-      : null,
+    deadline:
+      state.deadline && state.deadline.kind !== "illustrationCache"
+        ? { ...state.deadline, at: state.deadline.at + elapsed }
+        : state.deadline,
   };
 }
 
@@ -757,6 +841,9 @@ export function reduceWorldBoot(
   if (state.illustratedMode && isVignetteSignal(event)) return state;
 
   const illustrationPageSignal =
+    event.type === "resume3D" ||
+    event.type === "retain3DChanged" ||
+    event.type === "request2D" ||
     event.type === "illustrationInteracted" ||
     event.type === "illustrationChanged" ||
     event.type === "illustrationMotionChanged";
@@ -766,7 +853,8 @@ export function reduceWorldBoot(
   if (
     (state.status === "failed" ||
       state.status === "exited" ||
-      state.status === "illustrated") &&
+      (state.status === "illustrated" &&
+        state.deadline?.kind !== "illustrationCache")) &&
     event.type !== "start" &&
     event.type !== "exit" &&
     event.type !== "visibility" &&
@@ -798,6 +886,9 @@ export function reduceWorldBoot(
         interactionHeld:
           sameVisit && !event.explicitRequest && state.interactionHeld,
         motionEnabled: state.motionEnabled,
+        reducedMotion: event.prefersReducedMotion,
+        retain3DEnabled: state.retain3DEnabled,
+        manual3D: illustratedMode && event.dimensionRequest === true,
         prepaintTimedOut:
           event.prepaintTimedOut ||
           (sameVisit && !event.explicitRequest && state.prepaintTimedOut),
@@ -820,7 +911,8 @@ export function reduceWorldBoot(
       };
       const ineligibility = worldIneligibility({
         webglAvailable: event.webglAvailable,
-        prefersReducedMotion: event.prefersReducedMotion,
+        prefersReducedMotion:
+          event.prefersReducedMotion && !event.dimensionRequest,
         saveData: event.saveData,
       });
       if (ineligibility) {
@@ -888,8 +980,76 @@ export function reduceWorldBoot(
         prepaintTimedOut: false,
       };
 
-    // The reader remains mounted through promotion. Ordinary input is not an
-    // opt-out from WebGL; only a changed drawing invalidates the camera match.
+    case "retain3DChanged": {
+      const changed = { ...state, retain3DEnabled: event.enabled };
+      return !event.enabled && state.deadline?.kind === "illustrationCache"
+        ? retainIllustration(changed)
+        : changed;
+    }
+
+    case "resume3D": {
+      if (
+        state.status !== "illustrated" ||
+        state.deadline?.kind !== "illustrationCache"
+      )
+        return state;
+      if (event.at >= state.deadline.at) return retainIllustration(state);
+      // Keep the generation, asset readiness, scene graph, and GPU resources.
+      // The handoff adapter still verifies the current shelf has painted.
+      return {
+        ...state,
+        status: "booting",
+        manual3D: true,
+        dimensionFrameReady: false,
+        reducedMotion: event.reducedMotion ?? state.reducedMotion,
+        skipIllustrationMatch:
+          state.skipIllustrationMatch ||
+          state.matchUnavailable ||
+          state.illustrationKey === null,
+        interactionHeld: false,
+        deadline: {
+          kind: "hangBackstop",
+          at: event.at + policy.hangBackstopMs,
+        },
+      };
+    }
+
+    case "dimensionFramePainted": {
+      if (!state.manual3D || state.hiddenSince !== null || state.holdBoot)
+        return state;
+      if (state.status === "travelling")
+        return worldGatesOpen(state, event.at, policy)
+          ? { ...state, status: "live", manual3D: false, deadline: null }
+          : state;
+      if (state.status !== "booting") return state;
+      return settle({ ...state, dimensionFrameReady: true }, event.at, policy);
+    }
+
+    case "request2D": {
+      if (
+        !state.illustratedMode ||
+        state.ogCapture ||
+        state.status === "unstarted" ||
+        state.status === "exited" ||
+        state.status === "flattening" ||
+        (state.status === "illustrated" && state.interactionHeld)
+      )
+        return state;
+      const held = { ...state, interactionHeld: true };
+      if (state.status !== "live") return retainIllustration(held);
+      if (!event.animate || !state.motionEnabled || state.reducedMotion)
+        return cacheIllustration(held, event.at, policy);
+      return {
+        ...held,
+        status: "flattening",
+        deadline: {
+          kind: "illustrationReturn",
+          at: event.at + policy.flatRetireMs,
+        },
+      };
+    }
+
+    // Ordinary reading does not select 2D or interrupt automatic promotion.
     case "illustrationInteracted":
       return state;
 
@@ -902,6 +1062,7 @@ export function reduceWorldBoot(
       const changed = {
         ...state,
         illustrationKey: event.key,
+        dimensionFrameReady: false,
         skipIllustrationMatch: event.matchRequired === false,
         registeredIllustrationKey: null,
         ordinaryIllustrationKey: null,
@@ -941,6 +1102,7 @@ export function reduceWorldBoot(
     case "illustrationRegistered":
     case "illustrationOrdinaryPainted":
       if (
+        state.manual3D ||
         !state.illustratedMode ||
         !state.motionEnabled ||
         state.skipIllustrationMatch ||
@@ -963,6 +1125,7 @@ export function reduceWorldBoot(
 
     case "illustrationTravelCompleted":
       if (
+        state.manual3D ||
         !state.illustratedMode ||
         state.status !== "travelling" ||
         state.hiddenSince !== null ||
@@ -975,6 +1138,7 @@ export function reduceWorldBoot(
 
     case "illustrationUnavailable":
       if (
+        state.manual3D ||
         !state.illustratedMode ||
         !state.motionEnabled ||
         state.skipIllustrationMatch ||
@@ -1045,6 +1209,7 @@ export function worldBootView(
   const worldMounted =
     state.status === "booting" ||
     state.status === "revealing" ||
+    state.status === "flattening" ||
     illustrationHandoffActive(state) ||
     state.status === "live";
   const illustrated =
@@ -1063,10 +1228,14 @@ export function worldBootView(
           : "illustrated";
   return {
     presentation,
+    manual3D: state.manual3D,
     illustrationKey: state.illustrationKey,
     interactionHeld: state.interactionHeld,
     handoffStartedAt: state.handoffStartedAt,
-    motionEnabled: state.motionEnabled && !state.skipIllustrationMatch,
+    motionEnabled:
+      state.motionEnabled &&
+      !state.reducedMotion &&
+      !state.skipIllustrationMatch,
     canRequest3D:
       state.illustratedMode &&
       !worldMounted &&
@@ -1078,7 +1247,10 @@ export function worldBootView(
         state.failure === "contextLost" &&
         state.contextLossRecoveries >= policy.contextLossRecoveries
       ),
-    canvasVisible: revealed || illustrationHandoffActive(state),
+    canvasVisible:
+      revealed ||
+      state.status === "flattening" ||
+      illustrationHandoffActive(state),
     epoch: state.epoch,
     status: state.status,
     documentPhase: !worldMounted
@@ -1092,6 +1264,10 @@ export function worldBootView(
     mode: worldMounted ? "world" : "flat",
     loadPath: state.loadPath,
     worldMounted,
+    rendererRetained:
+      state.status === "illustrated" &&
+      state.deadline?.kind === "illustrationCache",
+    retain3DEnabled: state.retain3DEnabled,
     canvasReady: state.firstFrame,
     revealed,
     // The flat document is the semantic content and never leaves the tree

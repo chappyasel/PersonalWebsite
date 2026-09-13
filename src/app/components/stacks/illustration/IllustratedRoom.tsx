@@ -1,7 +1,11 @@
 "use client";
 
 import { toBootReadingBooks } from "../boot/homepageReadingBooks";
-import { GOLF_STOP_POSITION, type StacksData, UNITS } from "../data";
+import {
+  GOLF_STOP_POSITION,
+  type StacksData,
+  initialScenePositionFromLocation,
+} from "../data";
 import { useRoomNavigationReady } from "../input/RoomNavigation";
 import { useStacks } from "../store";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -10,13 +14,14 @@ import { Button } from "~/components/ui/button";
 
 import { IllustratedTraverse } from "./IllustratedTraverse";
 import { IllustrationStage } from "./IllustrationStage";
-import { IllustrationStatus } from "./IllustrationStatus";
 import {
   type RoomArtworkViewport,
   getRoomArtwork,
   serializeRoomBooksArtworkIdentity,
 } from "./artwork";
 import "./illustratedRoom.css";
+import { ILLUSTRATION_POSITIONS } from "./illustrationTravelStops";
+import { useIllustrationSheetFraming } from "./useIllustrationSheetFraming";
 
 export function illustrationGeometryKey({
   revision,
@@ -57,6 +62,9 @@ export default function IllustratedRoom({
   theme,
   viewport,
   visible,
+  navigationEnabled = true,
+  transitionPosition = null,
+  transitionId = 0,
   canRequest3D,
   loading = !canRequest3D,
   entranceSettled = true,
@@ -68,6 +76,9 @@ export default function IllustratedRoom({
   viewport: RoomArtworkViewport;
   theme: "light" | "dark";
   visible: boolean;
+  navigationEnabled?: boolean;
+  transitionPosition?: number | null;
+  transitionId?: number;
   canRequest3D: boolean;
   loading?: boolean;
   entranceSettled?: boolean;
@@ -81,9 +92,29 @@ export default function IllustratedRoom({
   const interactingWithPanel = useStacks(
     (state) => state.panelState !== "closed" || state.modalOpen,
   );
-  const drawingUnit = golfStop ? GOLF_STOP_POSITION : unit;
+  const [golfEntry, setGolfEntry] = useState(false);
+  const golfEntryResolved = useRef(false);
+  useLayoutEffect(() => {
+    if (!locationReady || golfEntryResolved.current) return;
+    golfEntryResolved.current = true;
+    const firstUnit = document.documentElement.dataset.roomFirstUnit;
+    const entry =
+      firstUnit === undefined
+        ? initialScenePositionFromLocation(
+            window.location.pathname,
+            window.location.hash,
+          )
+        : Number(firstUnit);
+    setGolfEntry(visible && entry === GOLF_STOP_POSITION);
+  }, [locationReady, visible]);
+  useLayoutEffect(() => {
+    if (!visible || !golfStop) setGolfEntry(false);
+  }, [visible, golfStop]);
+  const showGolfEntry = golfEntry && golfStop;
+  const drawingUnit = showGolfEntry ? GOLF_STOP_POSITION : unit;
   const artwork = getRoomArtwork(drawingUnit, theme, viewport);
   const root = useRef<HTMLDivElement>(null);
+  useIllustrationSheetFraming(root, visible && entranceSettled, drawingUnit);
   const [moving, setMoving] = useState(false);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
@@ -110,7 +141,7 @@ export default function IllustratedRoom({
         .forEach((node) => node.removeAttribute("data-room-artwork"));
       return;
     }
-    if (golfStop) {
+    if (showGolfEntry) {
       const key = `golf-overview:${theme}`;
       setReady({ revision, key });
       onReady(key, false);
@@ -193,7 +224,7 @@ export default function IllustratedRoom({
     };
   }, [
     revision,
-    golfStop,
+    showGolfEntry,
     locationReady,
     unit,
     theme,
@@ -218,11 +249,11 @@ export default function IllustratedRoom({
       entranceSettled
     ) {
       element?.setAttribute("data-room-artwork", "");
-      onReady(readyKey, !golfStop);
+      onReady(readyKey, !showGolfEntry);
     } else element?.removeAttribute("data-room-artwork");
   }, [
     visible,
-    golfStop,
+    showGolfEntry,
     readyKey,
     moving,
     interactingWithPanel,
@@ -238,36 +269,46 @@ export default function IllustratedRoom({
         aria-hidden={!visible}
         data-illustration-visible={visible ? "" : undefined}
         data-illustration-loading={loading ? "" : undefined}
+        data-golf-entry={showGolfEntry ? "" : undefined}
       >
         <IllustratedTraverse
-          unit={unit}
-          enabled={visible}
+          // Travel follows the resolved destination immediately, even before
+          // the entry artwork's layout effect has selected the Golf flag.
+          unit={golfStop ? GOLF_STOP_POSITION : unit}
+          enabled={visible && navigationEnabled}
+          transitionPosition={transitionPosition}
+          transitionId={transitionId}
           theme={theme}
           viewport={viewport}
           onMovingChange={setMoving}
         >
-          {UNITS.map((entry, index) => (
+          {ILLUSTRATION_POSITIONS.map((position) => (
             <div
-              key={entry.slug}
+              key={position}
+              data-illustration-position={position}
               className="room-illustration-stop"
-              data-illustration-selected={index === unit ? "" : undefined}
-              aria-hidden={index !== unit}
+              data-illustration-selected={
+                position === drawingUnit ? "" : undefined
+              }
+              aria-hidden={position !== drawingUnit}
             >
               {locationReady &&
-                (index === unit ||
-                  (entranceSettled && Math.abs(index - unit) <= 1)) && (
+                (position === drawingUnit || entranceSettled) && (
                   <IllustrationStage
-                    unitIndex={index === unit ? drawingUnit : index}
+                    unitIndex={position}
                     theme={theme}
                     viewport={viewport}
                     readingBooks={aboutBooks}
                     readingBookColors={data.readingBookColors}
-                    unavailable={index === unit && failedRevision === revision}
+                    unavailable={
+                      position === drawingUnit && failedRevision === revision
+                    }
                   />
                 )}
             </div>
           ))}
         </IllustratedTraverse>
+        {showGolfEntry && <IllustrationStage unitIndex={GOLF_STOP_POSITION} />}
       </div>
       <div
         className="room-illustration-actions"
@@ -275,7 +316,6 @@ export default function IllustratedRoom({
         aria-hidden={!visible}
         inert={!visible}
       >
-        <IllustrationStatus loading={loading} active={visible} />
         {canRequest3D && (
           <Button variant="ghost" size="sm" onClick={onRequest3D}>
             Retry 3D

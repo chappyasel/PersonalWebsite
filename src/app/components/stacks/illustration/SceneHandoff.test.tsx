@@ -725,3 +725,49 @@ it("does no frame or registration work when illustration motion starts disabled"
   expect(harness.register).not.toHaveBeenCalled();
   expect(harness.sent).toEqual([]);
 });
+
+it("does no registration or frame work while the renderer is retained in 2D", async () => {
+  state = { ...state, status: "live" };
+  dispatch({ type: "request2D", animate: false, at: harness.now }, false);
+  expect(harness.view.rendererRetained).toBe(true);
+  render(<SceneHandoff data={data} />);
+  await frame();
+  expect(harness.frames.size).toBe(0);
+  expect(harness.register).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  "waits for fresh paints on a cached return, with reduced motion %s",
+  async (reducedMotion) => {
+    state = { ...state, status: "live" };
+    dispatch({ type: "request2D", animate: false, at: harness.now }, false);
+    dispatch({ type: "resume3D", reducedMotion, at: harness.now }, false);
+    render(<SceneHandoff data={data} />);
+    await frame();
+    paint(new PerspectiveCamera());
+    expect(signals("dimensionFramePainted")).toEqual([]);
+    paint();
+    paint();
+    expect(harness.view.presentation).toBe("illustrated");
+    expect(signals("dimensionFramePainted")).toEqual([]);
+    await frame(harness.now + 16);
+    paint();
+    expect(harness.register).not.toHaveBeenCalled();
+    expect(observers).toEqual([]);
+    expectMatrix(harness.three.camera.matrixWorld, ordinaryCamera.matrixWorld);
+    expectMatrix(retained.matrixWorld, ordinaryMesh);
+    if (!reducedMotion) {
+      expect(harness.view.presentation).toBe("dissolve");
+      await frame(harness.now + P.flatRetireMs - 1);
+      act(() => dispatch({ type: "tick", at: harness.now }));
+      expect(harness.view.presentation).toBe("dissolve");
+      await frame(harness.now + 21);
+      act(() => dispatch({ type: "tick", at: harness.now }));
+      expect(harness.view.revealed).toBe(false);
+      paint();
+    }
+    expect(harness.view.presentation).toBe("live");
+    expect(harness.frames.size).toBe(0);
+    expect(sceneCallback()).toBe(priorSceneRender);
+  },
+);

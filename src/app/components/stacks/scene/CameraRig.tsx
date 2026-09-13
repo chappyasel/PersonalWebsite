@@ -14,6 +14,7 @@ import {
   handoffCamera,
   illustrationOwnsCamera,
 } from "../illustration/handoffCamera";
+import { dimensionTravel } from "../input/dimensionTravel";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { presentationProfileForViewport } from "../mobile/presentation";
@@ -710,15 +711,20 @@ export default function CameraRig() {
     wasFreeRoaming.current = false;
 
     const bootView = worldBoot.getView();
+    // The drawing fades over the last painted camera, even during a fling.
+    if (bootView.status === "flattening") return;
     // DOM navigation owns the current stop while the renderer is hidden.
     // Adopt it before computing the ordinary camera, including explicit
     // retries that skip illustration matching. Waiting until `live` makes
     // the transition travel to About and then jump back to the chosen shelf.
     if (worldBoot.getState().illustratedMode && !bootView.revealed) {
       const selected = useStacks.getState();
-      const position = selected.golfStop
-        ? GOLF_STOP_POSITION
-        : selected.activeUnit;
+      const position =
+        bootView.manual3D && dimensionTravel.position !== null
+          ? dimensionTravel.position
+          : selected.golfStop
+            ? GOLF_STOP_POSITION
+            : selected.activeUnit;
       const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(position)));
       const el = scroll.el;
       const max = el.scrollWidth - el.clientWidth;

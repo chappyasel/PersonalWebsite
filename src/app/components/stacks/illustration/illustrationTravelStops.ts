@@ -9,6 +9,11 @@ import { getRoomArtwork } from "./artwork/getRoomArtwork";
 import type { RoomArtworkTheme, RoomArtworkViewport } from "./artwork/types";
 import { artworkFrame } from "./artworkFrame";
 
+export const ILLUSTRATION_POSITIONS = Array.from(
+  { length: UNIT_COUNT },
+  (_, i) => i,
+);
+
 /** Desktop preserves scene spacing; narrow layouts tuck the artwork closer.
  * Each selected stop retains its exact ordinary-camera viewport frame. */
 export function illustrationTravelStops(
@@ -19,7 +24,7 @@ export function illustrationTravelStops(
   viewport: RoomArtworkViewport,
 ) {
   const gap = Math.min(96, Math.max(48, width / 15));
-  const stages = Array.from({ length: UNIT_COUNT }, (_, unit) =>
+  const stages = ILLUSTRATION_POSITIONS.map((unit) =>
     aboutBootStageForViewport(
       width,
       height,
@@ -29,20 +34,26 @@ export function illustrationTravelStops(
     ),
   );
   const frames = stages.map((stage, unit) =>
-    artworkFrame(getRoomArtwork(unit, theme, viewport), stage, width, height),
+    artworkFrame(
+      getRoomArtwork(ILLUSTRATION_POSITIONS[unit]!, theme, viewport),
+      stage,
+      width,
+      height,
+    ),
   );
   let scrollLeft = 0;
-  return frames.map((frame, position) => {
-    const next = frames[position + 1];
+  return frames.map((frame, index) => {
+    const position = ILLUSTRATION_POSITIONS[index]!;
+    const next = frames[index + 1];
     // A viewport-wide final slot lets the last shelf reach its camera frame.
     // Average the two resting camera scales for a continuous desktop row.
-    const stage = stages[position]!;
-    const nextStage = stages[position + 1];
+    const stage = stages[index]!;
+    const nextStage = stages[index + 1];
     const slotWidth =
       !next || !nextStage
         ? width
         : width >= STACKS_DESKTOP_MIN_WIDTH
-          ? ((unitPose(position + 1).position[0] -
+          ? ((unitPose(ILLUSTRATION_POSITIONS[index + 1]!).position[0] -
               unitPose(position).position[0]) *
               (stage.unitPx + nextStage.unitPx)) /
               2 +
@@ -53,4 +64,44 @@ export function illustrationTravelStops(
     scrollLeft += slotWidth;
     return stop;
   });
+}
+
+/** Preserve fractional scene positions despite unequal distances between drawings. */
+export function illustratedScrollForPosition(
+  stops: readonly { position: number; scrollLeft: number }[],
+  position: number,
+) {
+  if (!stops.length) return 0;
+  const last = stops[stops.length - 1]!;
+  if (position <= stops[0]!.position) return stops[0]!.scrollLeft;
+  for (let i = 1; i < stops.length; i++) {
+    const right = stops[i]!;
+    const left = stops[i - 1]!;
+    if (position <= right.position)
+      return (
+        left.scrollLeft +
+        ((right.scrollLeft - left.scrollLeft) * (position - left.position)) /
+          (right.position - left.position)
+      );
+  }
+  return last.scrollLeft;
+}
+
+export function positionForIllustratedScroll(
+  stops: readonly { position: number; scrollLeft: number }[],
+  scrollLeft: number,
+) {
+  if (!stops.length) return 0;
+  if (scrollLeft <= stops[0]!.scrollLeft) return stops[0]!.position;
+  for (let i = 1; i < stops.length; i++) {
+    const right = stops[i]!;
+    const left = stops[i - 1]!;
+    if (scrollLeft <= right.scrollLeft)
+      return (
+        left.position +
+        ((right.position - left.position) * (scrollLeft - left.scrollLeft)) /
+          (right.scrollLeft - left.scrollLeft)
+      );
+  }
+  return stops[stops.length - 1]!.position;
 }

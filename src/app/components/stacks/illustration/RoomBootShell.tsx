@@ -7,7 +7,6 @@ import {
   IllustrationStage,
   type IllustrationStageProps,
 } from "./IllustrationStage";
-import { IllustrationStatus } from "./IllustrationStatus";
 import { RoomFirstPaintSelection } from "./RoomFirstPaintSelection";
 import { getRoomArtwork } from "./artwork/getRoomArtwork";
 import shelves from "./artwork/shelves.generated.json";
@@ -86,9 +85,6 @@ export default function RoomBootShell({
             <FirstPaintArtwork {...props} unitIndex={unitIndex} />
           </div>
         ))}
-        <div className="room-illustration-actions">
-          <IllustrationStatus loading firstPaint />
-        </div>
       </div>
       {/* This survives the shell's hydration handoff, so its animation never restarts. */}
       <span className="room-entry-wordmark" aria-hidden>

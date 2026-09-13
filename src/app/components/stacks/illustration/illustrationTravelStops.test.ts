@@ -77,7 +77,8 @@ it.each([
     const to = stops[i + 1]!.scrollLeft + stages[i + 1]!.originX;
     const pixelsPerUnit = (stages[i]!.unitPx + stages[i + 1]!.unitPx) / 2;
     expect((to - from) / pixelsPerUnit).toBeCloseTo(
-      unitPose(i + 1).position[0] - unitPose(i).position[0],
+      unitPose(stops[i + 1]!.position).position[0] -
+        unitPose(stops[i]!.position).position[0],
       8,
     );
   }

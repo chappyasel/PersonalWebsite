@@ -51,8 +51,17 @@ type Target = {
 /** The boot machine owns timing. This adapter only matches, paints and executes its camera command. */
 export default function SceneHandoff({ data }: { data: StacksData }) {
   const view = useSyncExternalStore(subscribe, getView, getView);
+  if (
+    view.manual3D &&
+    (view.status === "booting" ||
+      view.status === "dissolving" ||
+      view.status === "travelling")
+  )
+    return <ManualSceneHandoff key={`${view.epoch}:${view.illustrationKey}`} />;
   // The disabled and live paths have no frame subscription or scene traversal.
   if (
+    view.rendererRetained ||
+    view.status === "flattening" ||
     !view.motionEnabled ||
     view.ogCapture ||
     view.presentation === "live" ||
@@ -66,6 +75,53 @@ export default function SceneHandoff({ data }: { data: StacksData }) {
       data={data}
     />
   );
+}
+
+/** A dimension switch keeps the ordinary camera and waits for fresh scene paints. */
+function ManualSceneHandoff() {
+  const { scene, camera } = useThree();
+  const scope = useRef(worldBoot.scope()).current;
+  const run = useRef({ frame: 0, lastPaint: 0, painted: 0 });
+  useFrame(() => {
+    run.current.frame++;
+  });
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const previous = scene.onAfterRender;
+    scene.onAfterRender = function (...args) {
+      previous.apply(this, args);
+      const current = worldBoot.getView();
+      const room = useStacks.getState();
+      const r = run.current;
+      if (
+        args[2] !== camera ||
+        current.epoch !== scope.epoch ||
+        !current.manual3D
+      )
+        return;
+      if (
+        document.hidden ||
+        illustrationInteraction.moving ||
+        room.panelState !== "closed" ||
+        room.modalOpen
+      ) {
+        r.painted = 0;
+        return;
+      }
+      if (r.lastPaint === r.frame) return;
+      r.lastPaint = r.frame;
+      r.painted++;
+      if (
+        r.painted >= 2 &&
+        (current.status === "booting" || current.status === "travelling")
+      )
+        scope.send({ type: "dimensionFramePainted" });
+    };
+    return () => {
+      scene.onAfterRender = previous;
+    };
+  }, [scene, camera, scope]);
+  return null;
 }
 
 function ActiveSceneHandoff({

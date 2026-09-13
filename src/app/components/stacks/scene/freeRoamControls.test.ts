@@ -25,8 +25,8 @@ const held = (...codes: string[]) => new Set(codes);
 const shortcut = (
   overrides: Partial<Parameters<typeof freeRoamShortcutIntent>[0]> = {},
 ) => ({
-  key: "r",
-  shiftKey: false,
+  key: "~",
+  shiftKey: true,
   metaKey: false,
   ctrlKey: false,
   altKey: false,
@@ -208,51 +208,34 @@ describe("free-roam pose persistence", () => {
   });
 });
 
-describe("the R shortcut", () => {
-  const off = { enabled: false };
-  const on = { enabled: true };
-
-  it("enters free roam, and asks for nothing else", () => {
-    // No pointer lock rides along: the mouse stays free for the scene.
-    expect(freeRoamShortcutIntent(shortcut(), off)).toEqual({
-      action: "toggle",
-    });
-  });
-
-  it("leaves free roam", () => {
-    expect(freeRoamShortcutIntent(shortcut(), on)).toEqual({
-      action: "toggle",
-    });
-  });
-
-  it("starts from the current pose on Shift+R", () => {
-    expect(freeRoamShortcutIntent(shortcut({ shiftKey: true }), off)).toEqual({
+describe("the Shift + ~ shortcut", () => {
+  it("enters free roam from the current pose", () => {
+    expect(freeRoamShortcutIntent(shortcut(), { enabled: false })).toEqual({
       action: "start-from-current-pose",
     });
   });
 
-  it("treats Shift+R as an exit once free roam is already running", () => {
-    // Shift+R is an entry style, not a second toggle: pressing R to leave has
-    // to work whether or not a thumb is still on Shift.
-    expect(
-      freeRoamShortcutIntent(shortcut({ shiftKey: true }), on)?.action,
-    ).toBe("toggle");
-  });
-
-  it("accepts an uppercase key, which is what Shift+R actually delivers", () => {
-    expect(freeRoamShortcutIntent(shortcut({ key: "R" }), off)).not.toBeNull();
+  it("leaves free roam with the same shortcut", () => {
+    expect(freeRoamShortcutIntent(shortcut(), { enabled: true })).toEqual({
+      action: "toggle",
+    });
   });
 
   it.each([
-    ["a held key repeating at the OS rate", { repeat: true }],
-    ["another handler already claimed it", { defaultPrevented: true }],
-    ["it is a browser shortcut", { metaKey: true }],
-    ["it is a browser shortcut", { ctrlKey: true }],
-    ["it is a browser shortcut", { altKey: true }],
-    ["someone is typing the letter r", { editableTarget: true }],
-    ["it is not the r key", { key: "g" }],
+    ["a held key repeating", { repeat: true }],
+    ["another handler claimed it", { defaultPrevented: true }],
+    ["Meta is held", { metaKey: true }],
+    ["Control is held", { ctrlKey: true }],
+    ["Alt is held", { altKey: true }],
+    ["someone is typing", { editableTarget: true }],
+    ["Shift is not held", { shiftKey: false }],
+    ["bare backtick opens diagnostics", { key: "`", shiftKey: false }],
+    ["R toggles dimensions", { key: "r", shiftKey: false }],
+    ["the old Shift+R shortcut", { key: "R" }],
   ])("ignores the keystroke when %s", (_reason, overrides) => {
-    expect(freeRoamShortcutIntent(shortcut(overrides), off)).toBeNull();
+    expect(
+      freeRoamShortcutIntent(shortcut(overrides), { enabled: false }),
+    ).toBeNull();
   });
 });
 

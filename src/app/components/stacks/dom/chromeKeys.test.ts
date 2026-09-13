@@ -59,6 +59,7 @@ describe("chrome keyboard", () => {
         "F",
         "1",
         "7",
+        "R",
         "?",
         "Esc",
         "ArrowLeft",

@@ -38,6 +38,7 @@ describe("Field Notes progress", () => {
       },
     ],
     ["photo-finish", { type: "photo-mode-entered" }],
+    ["dimension-shift", { type: "dimension-transition-completed" }],
     [
       "heavy-lifting",
       {

@@ -95,10 +95,27 @@ export const railRightPxRef = { current: 0 };
  * 0 when it is away and ~0.9 when it is expanded. Transient for the same
  * reason as `progressRef`: it changes on every frame of a drag, and the camera
  * reads it inside its own useFrame to keep the shelf centred in whatever strip
- * of screen is still visible. Written by the sheet, read by CameraRig, never
- * subscribed to. `panelState` remains the reactive channel for anything that
+ * of screen is still visible. Written by the sheet and read by CameraRig. The illustration
+ * subscribes to the same publications below. `panelState` remains the reactive channel for anything that
  * only cares whether the sheet is up at all. */
 export const panelCoverageRef = { current: 0 };
+
+/** DOM illustrations read the same drag stream without a React render or frame loop. */
+export type PanelFraming = { coverage: number; expansion: number };
+let panelFraming: PanelFraming | null = null;
+const panelFramingListeners = new Set<() => void>();
+export const getPanelFraming = () => panelFraming;
+export function subscribePanelFraming(listener: () => void) {
+  panelFramingListeners.add(listener);
+  return () => {
+    panelFramingListeners.delete(listener);
+  };
+}
+export function publishPanelFraming(next: PanelFraming | null) {
+  panelCoverageRef.current = next?.coverage ?? 0;
+  panelFraming = next;
+  for (const listener of panelFramingListeners) listener();
+}
 
 /** Mobile full-screen panel gesture state machine (Model B). Travel and all
  * input bridges freeze whenever this is not "closed". */
