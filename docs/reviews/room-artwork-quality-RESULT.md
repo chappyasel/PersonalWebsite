@@ -49,7 +49,18 @@ Exact gzip bytes, original → final:
 | musings | 35,199 → 128,698 | 35,315 → 129,466 | 17,375 → 96,239 | 17,459 → 96,714 |
 | talks | 57,093 → 172,732 | 56,711 → 172,718 | 26,581 → 119,271 | 26,174 → 118,787 |
 
-The total is 873,824 → 3,401,423 gzip bytes. Full SVG bytes total 4,843,364. This is a deliberate quality/payload tradeoff after reducing detail density from the initial 4x exports. Runtime still selects one asset; this change adds no eager all-unit loading.
+Across all 24 variants, the total is 873,824 → 3,401,423 gzip bytes. Full SVG bytes total 4,843,364. Individual final variants are approximately 72–228 KiB gzip. This is a deliberate quality/payload tradeoff after reducing detail density from the initial 4x exports.
+
+`IllustratedRoom.tsx` maps all `UNITS` to `IllustrationStage`, and `RoomArtworkImage` has no lazy loading. The browser selects one theme/viewport variant per shelf, while the traversable row mounts all shelves. It does not load only the selected shelf per visit. The six generated shelves together have these gzip totals for one theme/layout:
+
+| Theme/layout | Gzip bytes | KiB |
+| --- | ---: | ---: |
+| Light desktop | 983,289 | 960.24 |
+| Dark desktop | 969,693 | 946.97 |
+| Light phone | 726,458 | 709.43 |
+| Dark phone | 721,983 | 705.06 |
+
+These totals exclude About and other page resources. They are artifact gzip measurements, not measured network transfer totals. Runtime loading behavior is unchanged.
 
 ## Preservation and handoff
 
