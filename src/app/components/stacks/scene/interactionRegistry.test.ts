@@ -20,7 +20,11 @@ describe("scene interaction registry", () => {
     expect(destinationFor("weightlifting").label).toBe(
       "Chappy's Weightlifting",
     );
-    expect(destinationFor("blog").label).toBe("Medium");
+    expect(destinationFor("blog")).toMatchObject({
+      href: "/musings",
+      label: "Musings",
+      external: false,
+    });
     expect(destinationFor("manual")).toMatchObject({
       href: "/manual",
       label: "Personal Manual",

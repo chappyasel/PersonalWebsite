@@ -72,6 +72,23 @@ function runtimeHarness() {
 }
 
 describe("Scene Diagnostics runtime seeds", () => {
+  it("allows worker rollback at boot and a later live override", () => {
+    const harness = runtimeHarness();
+    expect(harness.settings().insectLandingWorker).toBe(true);
+    harness.runtime.initialize("?insectLandingWorker=0");
+    expect(harness.settings().insectLandingWorker).toBe(false);
+    harness.runtime.updatePerformanceBoolean("insectLandingWorker", true);
+    harness.runtime.initialize("?insectLandingWorker=0");
+    expect(harness.settings().insectLandingWorker).toBe(true);
+    expect(harness.quality.modeUpdates).toBe(0);
+    expect(diagnosticReloadSeedFromSearch("?insectLandingWorker=1")).toEqual({
+      insectLandingWorker: true,
+    });
+    expect(
+      diagnosticReloadSeedFromSearch("?insectLandingWorker=invalid"),
+    ).toEqual({});
+  });
+
   it("parses optional-render switches, boot residency, and grass rollback", () => {
     expect(
       diagnosticReloadSeedFromSearch(

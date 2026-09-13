@@ -128,7 +128,7 @@ export const SCENE_PHOTOS = [
   photoArtifact({
     id: "about-collective-group-v8",
     collection: "about-photos",
-    title: "AI Collective",
+    title: "The AI Collective",
     image: "/images/stacks/v8/about-collective-group.webp",
     width: 1024,
     height: 640,

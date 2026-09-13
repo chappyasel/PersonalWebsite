@@ -15,6 +15,7 @@ import SupplementCardsSection from "./components/SupplementCards";
 import { DaylightTOCSidebar } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
 import { HashScrollSpacer } from "~/components/daylight/hashTarget";
+import { DocumentGallery } from "~/components/images/DocumentGallery";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import type { RoutineData } from "./types";
@@ -64,67 +65,69 @@ export default async function RoutinePage() {
 
   return (
     <SitePageCardsProvider cards={cards}>
-      <div className="daylight-root dl-ground-arc min-h-screen bg-background text-foreground">
-        <main className="relative">
-          <RoutineHero
-            intro={data.intro}
-            lastUpdated={data.lastUpdated}
-            bookLookup={bookLookup}
-          />
+      <DocumentGallery>
+        <div className="daylight-root dl-ground-arc min-h-screen bg-background text-foreground">
+          <main className="relative">
+            <RoutineHero
+              intro={data.intro}
+              lastUpdated={data.lastUpdated}
+              bookLookup={bookLookup}
+            />
 
-          {/* Content with TOC */}
-          <div className="dl-columns mt-11 px-4 pb-12">
-            <DaylightTOCSidebar items={tocItems} />
-            <div className="dl-column space-y-14" data-routine-content>
-              {/* Why So Early - collapsible preface */}
-              {data.whyEarly.length > 0 && (
-                <RoutineSection
-                  section={{
-                    id: "why-early",
-                    title: "Why So Early?",
-                    icon: "⏰",
-                    blocks: data.whyEarly,
-                  }}
+            {/* Content with TOC */}
+            <div className="dl-columns mt-11 px-4 pb-12">
+              <DaylightTOCSidebar items={tocItems} />
+              <div className="dl-column space-y-14" data-routine-content>
+                {/* Why So Early - collapsible preface */}
+                {data.whyEarly.length > 0 && (
+                  <RoutineSection
+                    section={{
+                      id: "why-early",
+                      title: "Why So Early?",
+                      icon: "⏰",
+                      blocks: data.whyEarly,
+                    }}
+                    bookLookup={bookLookup}
+                  />
+                )}
+
+                {/* The Timeline */}
+                <RoutineTimeline
+                  am={data.timeline.am}
+                  pm={data.timeline.pm}
                   bookLookup={bookLookup}
                 />
-              )}
 
-              {/* The Timeline */}
-              <RoutineTimeline
-                am={data.timeline.am}
-                pm={data.timeline.pm}
-                bookLookup={bookLookup}
-              />
+                {/* Supp Stacks (merged rant + cards) */}
+                {(data.supplements.am.length > 0 ||
+                  data.supplements.pm.length > 0) && (
+                  <SupplementCardsSection
+                    am={data.supplements.am}
+                    pm={data.supplements.pm}
+                    contextBlocks={suppStacksRant?.blocks}
+                    bookLookup={bookLookup}
+                  />
+                )}
 
-              {/* Supp Stacks (merged rant + cards) */}
-              {(data.supplements.am.length > 0 ||
-                data.supplements.pm.length > 0) && (
-                <SupplementCardsSection
-                  am={data.supplements.am}
-                  pm={data.supplements.pm}
-                  contextBlocks={suppStacksRant?.blocks}
-                  bookLookup={bookLookup}
-                />
-              )}
-
-              {/* Related Rants (excluding supp-stacks): long essays, so they
+                {/* Related Rants (excluding supp-stacks): long essays, so they
                   start folded (owner's call); a deep link or a rail click
                   opens one. */}
-              {otherRants.map((section) => (
-                <RoutineSection
-                  key={section.id}
-                  section={section}
-                  bookLookup={bookLookup}
-                  defaultOpen={false}
-                />
-              ))}
+                {otherRants.map((section) => (
+                  <RoutineSection
+                    key={section.id}
+                    section={section}
+                    bookLookup={bookLookup}
+                    defaultOpen={false}
+                  />
+                ))}
 
-              <HashScrollSpacer />
+                <HashScrollSpacer />
+              </div>
             </div>
-          </div>
-          <SkyFooter />
-        </main>
-      </div>
+            <SkyFooter />
+          </main>
+        </div>
+      </DocumentGallery>
     </SitePageCardsProvider>
   );
 }

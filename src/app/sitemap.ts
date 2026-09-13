@@ -1,9 +1,22 @@
+import systemsData from "../../public/data/systems.json";
 import { type MetadataRoute } from "next";
 
-import systemsData from "../../public/data/systems.json";
+import { musings } from "~/lib/musings/content";
+import { musingUrl } from "~/lib/musings/types";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
+    {
+      url: "https://www.chappyasel.com/musings",
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    ...musings.map((article) => ({
+      url: musingUrl(article.slug),
+      lastModified: new Date(article.updatedAt),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     {
       url: "https://www.chappyasel.com/",
       lastModified: new Date(),

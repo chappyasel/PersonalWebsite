@@ -15,6 +15,7 @@ import ManualSection from "./components/ManualSection";
 import { DaylightTOCSidebar } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
 import { sectionShortTitle } from "~/components/daylight/sectionTitles";
+import { DocumentGallery } from "~/components/images/DocumentGallery";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import type { ManualData } from "./types";
@@ -53,34 +54,36 @@ export default async function ManualPage() {
 
   return (
     <SitePageCardsProvider cards={cards}>
-      <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
-        <main className="relative">
-          <ManualHero
-            lead={data.hero.lead}
-            lastUpdated={data.lastUpdated}
-            bookLookup={bookLookup}
-          />
+      <DocumentGallery>
+        <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
+          <main className="relative">
+            <ManualHero
+              lead={data.hero.lead}
+              lastUpdated={data.lastUpdated}
+              bookLookup={bookLookup}
+            />
 
-          {/* Content with TOC */}
-          <div className="dl-columns mt-11 px-4 pb-12">
-            <DaylightTOCSidebar items={tocItems} />
-            <div className="dl-column space-y-14">
-              <ManualOverview
-                panels={data.hero.panels}
-                bookLookup={bookLookup}
-              />
-              {data.sections.map((section) => (
-                <ManualSection
-                  key={section.id}
-                  section={section}
+            {/* Content with TOC */}
+            <div className="dl-columns mt-11 px-4 pb-12">
+              <DaylightTOCSidebar items={tocItems} />
+              <div className="dl-column space-y-14">
+                <ManualOverview
+                  panels={data.hero.panels}
                   bookLookup={bookLookup}
                 />
-              ))}
+                {data.sections.map((section) => (
+                  <ManualSection
+                    key={section.id}
+                    section={section}
+                    bookLookup={bookLookup}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-          <SkyFooter />
-        </main>
-      </div>
+            <SkyFooter />
+          </main>
+        </div>
+      </DocumentGallery>
     </SitePageCardsProvider>
   );
 }

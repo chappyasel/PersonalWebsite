@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { memo, useId, useMemo, useState } from "react";
 
 import { buildDexaAnalysis } from "~/lib/weight-log/dexa";
@@ -482,10 +483,20 @@ export const DexaChart = memo(function DexaChart({
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
         <span>
-          <span style={{ color: palette.cut }}>→</span> Cut
+          <ArrowRightIcon
+            aria-hidden="true"
+            className="inline-block size-3"
+            style={{ color: palette.cut }}
+          />{" "}
+          Cut
         </span>
         <span>
-          <span style={{ color: palette.bulk }}>→</span> Bulk
+          <ArrowRightIcon
+            aria-hidden="true"
+            className="inline-block size-3"
+            style={{ color: palette.bulk }}
+          />{" "}
+          Bulk
         </span>
         <span>− − Full-history trend</span>
         <span>··· Latest two scans</span>

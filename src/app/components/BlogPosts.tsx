@@ -42,7 +42,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
     >
       <Link
         href={post.link}
-        target="_blank"
+        target={post.link.startsWith("/") ? undefined : "_blank"}
         className="group relative flex w-full flex-col p-5 [transform-style:preserve-3d] sm:flex-row sm:p-6"
       >
         {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
@@ -56,14 +56,16 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           className="relative h-full sm:h-auto sm:basis-1/3"
           style={{ transform: "translateZ(30px)" }}
         >
-          <Image
-            className="h-auto w-full rounded-2xl bg-muted object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] sm:h-full"
-            src={post.thumbnail}
-            alt={post.title}
-            width={post.thumbnailWidth}
-            height={post.thumbnailHeight}
-            sizes="(max-width: 640px) calc(100vw - 3rem), 240px"
-          />
+          {post.thumbnail ? (
+            <Image
+              className="h-auto w-full rounded-2xl bg-muted object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] sm:h-full"
+              src={post.thumbnail}
+              alt={post.title}
+              width={post.thumbnailWidth}
+              height={post.thumbnailHeight}
+              sizes="(max-width: 640px) calc(100vw - 3rem), 240px"
+            />
+          ) : null}
         </div>
 
         <div

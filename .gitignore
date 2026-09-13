@@ -55,6 +55,7 @@ npm-debug.log*
 # youtube takeout data
 /data/youtube/
 /data/weight-log
+/data/personality-prototype/
 *.xlsx
 /scripts/weight-log/__pycache__/
 .gstack/
@@ -64,3 +65,8 @@ npm-debug.log*
 
 # Local browser frames and full traces; the compact review summary is committed.
 /docs/reviews/illustrated-room-integration-evidence/raw/
+# Private personality records, credentials, and local database
+/data/personalities/
+
+# Private Medium import plans, Notion responses, and resumable upload records
+/data/musings-import/

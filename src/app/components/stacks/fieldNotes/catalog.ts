@@ -423,8 +423,8 @@ export const FIELD_NOTES = [
     rarity: "Uncommon",
     artwork: "chapter",
     hidden: false,
-    hint: "Find an AI Collective chapter on the globe and open it.",
-    foundCopy: "Opened an AI Collective chapter from the globe.",
+    hint: "Find a chapter of The AI Collective on the globe and open it.",
+    foundCopy: "Opened a chapter of The AI Collective from the globe.",
   },
   {
     id: "under-the-hood",

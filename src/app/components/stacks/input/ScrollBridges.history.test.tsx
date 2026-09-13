@@ -131,7 +131,7 @@ it("carries owner modes through the mirrored URL", () => {
   const room = mountRoom("/?debug=1");
   try {
     act(() => useStacks.setState({ activeUnit: 5 }));
-    expect(room.here()).toBe("/musings?debug=1");
+    expect(room.here()).toBe("/?debug=1#musings");
     act(() => useStacks.setState({ activeUnit: 3 }));
     expect(room.here()).toBe("/?debug=1#systems");
   } finally {
@@ -208,7 +208,9 @@ it("initializes and navigates without a canvas, ignoring stale renderer commands
       );
     });
     expect(useStacks.getState().activeUnit).toBe(5);
-    expect(location.pathname + location.search).toBe("/musings?debug=1");
+    expect(location.pathname + location.search + location.hash).toBe(
+      "/?debug=1#musings",
+    );
     act(() => {
       history.pushState(null, "", "/?debug=1#books");
       window.dispatchEvent(new PopStateEvent("popstate"));

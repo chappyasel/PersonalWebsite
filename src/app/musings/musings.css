@@ -1,0 +1,7 @@
+/* Musings has no TOC rail. Keep the hero and list centered even at the
+   desktop widths where the shared daylight grid reserves room for one. */
+.musings-root .dl-columns {
+  display: block;
+  max-width: calc(var(--dl-column) + 2rem);
+  margin-inline: auto;
+}

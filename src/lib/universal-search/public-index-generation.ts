@@ -244,7 +244,8 @@ function toggleLabel(title: RichText[]) {
  */
 function systemsDocuments(root: JsonObject): PublicSearchDocument[] {
   const documents: PublicSearchDocument[] = [];
-  const target = (hash: string) => siteTarget("home", { path: "/systems", hash });
+  const target = (hash: string) =>
+    siteTarget("home", { path: "/systems", hash });
 
   for (const section of objectArray(root.sections)) {
     const id = stringValue(section.id);
@@ -279,7 +280,10 @@ function systemsDocuments(root: JsonObject): PublicSearchDocument[] {
       });
       for (const block of blocks.filter(isObject)) {
         if (block.type !== "toggle") continue;
-        const toggle = block as unknown as Extract<NotionBlock, { type: "toggle" }>;
+        const toggle = block as unknown as Extract<
+          NotionBlock,
+          { type: "toggle" }
+        >;
         const toggleName = toggleLabel(toggle.title);
         if (!toggleName) continue;
         documents.push({
@@ -313,9 +317,13 @@ function blogDocuments(root: JsonObject): PublicSearchDocument[] {
         source: "musing",
         label,
         target,
-        metadata: ["Medium"],
-        body: cleanPlainText(stringValue(post.description)),
-        ...(thumbnail?.startsWith("https://") && !isYouTubeUrl(thumbnail)
+        metadata: [stringValue(post.source) || "Medium"],
+        body: cleanPlainText(
+          stringValue(post.searchText) || stringValue(post.description),
+        ),
+        ...((thumbnail.startsWith("/images/") ||
+          thumbnail.startsWith("https://")) &&
+        !isYouTubeUrl(thumbnail)
           ? { image: thumbnail }
           : {}),
       },

@@ -1,8 +1,5 @@
 "use client";
 
-import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 // Prop navigation — scenery props with an honest destination become Portals
 // into the matching page of the site. A visible nearest-hit prop answers even
 // while the traverse is rounding into its neighboring unit; `activeUnits`
@@ -52,17 +49,13 @@ import {
   destinationFor,
   registerSceneInteraction,
 } from "./interactionRegistry";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 /** The portals the shelf world can open. Books and Weightlifting live on their
  * own subdomains in production — the exact hrefs the placard and the flat
  * sections already link to; the manual and the routine are same-origin
- * routes; "blog" is the Medium profile the Musings posts come from. */
+ * routes; "blog" opens the lightweight Musings index. */
 export type { PropDestination } from "./interactionRegistry";
-
-/** Off-site destinations open in a new tab (the existing onOpenUrl path the
- * talk frames and blog notebooks use); everything else is this site and
- * navigates in place. */
-const NEW_TAB: PropDestination[] = ["blog"];
 
 /** The two documents with an intercepted sheet (src/app/@sheet): they pop
  * from the pointer over the live world, or load as their own page when the
@@ -140,16 +133,14 @@ export function useOpenTarget(): (
           destination: target.href !== undefined ? "external" : target.to,
         });
       }
-      // A raw href is somebody else's site by definition — always a new tab,
-      // and it wins over `to` because the two never coexist.
-      if (target.href !== undefined) {
-        window.open(target.href, "_blank", "noopener,noreferrer");
-        return;
-      }
-      const href = propHref(target.to);
-      if (NEW_TAB.includes(target.to)) {
+      const destination =
+        target.href !== undefined
+          ? { href: target.href, external: target.external ?? true }
+          : destinationFor(target.to);
+      const { href, external } = destination;
+      if (external) {
         window.open(href, "_blank", "noopener,noreferrer");
-      } else if (SHEET.includes(target.to)) {
+      } else if (target.to && SHEET.includes(target.to)) {
         // The intercepted sheet pops from its source: a prop is shader
         // geometry with no DOM box, so the last pointer-down stands in —
         // tracked by the origin module itself, because this open() is

@@ -22,12 +22,6 @@ import {
 } from "../sceneArtifacts";
 import { useStacks } from "../store";
 import { PALETTES, type Palette } from "../theme";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpRightIcon,
-  XIcon,
-} from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import {
   type CSSProperties,
@@ -48,6 +42,8 @@ import type {
   PhotoRenderParams,
   DataType as PhotoSliderItem,
 } from "react-photo-view/dist/types";
+
+import { ImageViewerChrome } from "~/components/images/ImageViewerChrome";
 
 import { ProgressivePreviewImage } from "./ProgressivePreviewImage";
 import {
@@ -76,18 +72,6 @@ import {
 } from "./artifactPreviewPose";
 import { modelArtifactPreviewVisible } from "./modelArtifactHandoff";
 
-const glassControl =
-  "world-glass-control border transition-[background-color,border-color,color,transform] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none";
-
-type PreviewChromeProps = Readonly<{
-  artifact: SceneArtifact;
-  total: number;
-  index: number;
-  visible: boolean;
-  onIndexChange: (index: number) => void;
-  onClose: () => void;
-}>;
-
 function PreviewChrome({
   artifact,
   total,
@@ -95,108 +79,34 @@ function PreviewChrome({
   visible,
   onIndexChange,
   onClose,
-}: PreviewChromeProps) {
+}: {
+  artifact: SceneArtifact;
+  total: number;
+  index: number;
+  visible: boolean;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}) {
   const note = useObjectNote(artifact.id);
-  const caption = note?.visitor && note.status === "written" ? note.body : undefined;
-
+  const caption =
+    note?.visitor && note.status === "written" ? note.body : undefined;
   return (
-    <div
-      data-scene-artifact-inspector
-      data-preview-chrome-visible={visible ? "" : undefined}
-      className="pointer-events-none fixed inset-0 z-[30] text-white"
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={`Close ${artifact.title} preview`}
-        data-artifact-preview-control="close"
-        className={`pointer-events-auto absolute right-[max(14px,env(safe-area-inset-right))] top-[max(14px,env(safe-area-inset-top))] grid size-11 place-items-center rounded-full sm:size-10 ${glassControl}`}
-      >
-        <XIcon aria-hidden size={21} weight="bold" />
-      </button>
-
-      <div
-        data-artifact-preview-scrim
-        className="absolute inset-x-0 bottom-0 px-[max(16px,env(safe-area-inset-left))] pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-5"
-      >
-        <div className="mx-auto flex max-w-[1500px] flex-col gap-2 sm:flex-row sm:items-center">
-          {total > 1 && (
-            <div
-              data-artifact-preview-control="navigation"
-              className={`pointer-events-auto order-2 flex self-center rounded-full ${glassControl} sm:order-none sm:self-auto`}
-            >
-              <button
-                type="button"
-                onClick={() => onIndexChange(index - 1)}
-                disabled={index === 0}
-                aria-label="Previous image"
-                className="grid size-11 place-items-center rounded-l-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 motion-reduce:transition-none sm:size-10"
-              >
-                <ArrowLeftIcon aria-hidden size={18} weight="bold" />
-              </button>
-              <span
-                aria-live="polite"
-                className="grid min-w-14 place-items-center border-x border-white/10 px-2 font-mono text-[11px] tracking-[0.08em] text-white/70"
-              >
-                {index + 1} / {total}
-              </span>
-              <button
-                type="button"
-                onClick={() => onIndexChange(index + 1)}
-                disabled={index === total - 1}
-                aria-label="Next image"
-                className="grid size-11 place-items-center rounded-r-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 motion-reduce:transition-none sm:size-10"
-              >
-                <ArrowRightIcon aria-hidden size={18} weight="bold" />
-              </button>
-            </div>
-          )}
-
-          {caption && (
-            <section
-              id={`artifact-caption-${artifact.id}`}
-              data-artifact-preview-caption
-              className="order-0 min-w-0 max-w-2xl self-center rounded-xl bg-black/55 px-3 py-2 text-center shadow-lg backdrop-blur-sm sm:flex-1 sm:self-auto sm:text-left"
-            >
-              <h2 className="font-serif text-lg leading-tight text-white sm:text-xl">
-                {artifact.title}
-              </h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-white/75 sm:text-sm">
-                {caption}
-              </p>
-            </section>
-          )}
-
-          {artifact.actions.length > 0 && (
-            <div
-              data-artifact-preview-control="actions"
-              className="pointer-events-auto order-1 flex w-fit max-w-full items-center justify-center gap-2 self-center sm:order-none sm:ml-auto sm:self-auto"
-            >
-              {artifact.actions.map((action) => {
-                const target =
-                  action.kind === "destination"
-                    ? destinationFor(action.to)
-                    : { href: action.href, external: true };
-                return (
-                  <a
-                    key={`${artifact.id}:${action.label}`}
-                    href={target.href}
-                    target={target.external ? "_blank" : undefined}
-                    rel={target.external ? "noreferrer" : undefined}
-                    className={`inline-flex min-h-11 max-w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-5 text-center text-sm font-medium sm:min-h-10 ${glassControl}`}
-                  >
-                    {action.label}
-                    {target.external && (
-                      <ArrowUpRightIcon aria-hidden size={15} weight="bold" />
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <ImageViewerChrome
+      title={artifact.title}
+      caption={caption}
+      captionId={`artifact-caption-${artifact.id}`}
+      total={total}
+      index={index}
+      visible={visible}
+      onIndexChange={onIndexChange}
+      onClose={onClose}
+      actions={artifact.actions.map((action) => ({
+        ...(action.kind === "destination"
+          ? destinationFor(action.to)
+          : { href: action.href, external: true }),
+        label: action.label,
+      }))}
+    />
   );
 }
 

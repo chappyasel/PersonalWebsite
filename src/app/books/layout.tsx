@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: "Chappy's Book Notes",
     description: SITE_PAGES.books.description,
     url: "/",
-    siteName: "Chappy's Book Notes",
+    siteName: "Chappy Asel",
     locale: "en_US",
     type: "website",
   },

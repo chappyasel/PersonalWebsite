@@ -13,10 +13,19 @@ import {
   sceneArtifactCollection,
 } from "./sceneArtifacts";
 
-const inspector = fs.readFileSync(
-  new URL("./modal/SceneArtifactInspector.tsx", import.meta.url),
-  "utf8",
-);
+const inspector = [
+  fs.readFileSync(
+    new URL("./modal/SceneArtifactInspector.tsx", import.meta.url),
+    "utf8",
+  ),
+  fs.readFileSync(
+    new URL(
+      "../../../components/images/ImageViewerChrome.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+].join("\n");
 const progressivePreviewImage = fs.readFileSync(
   new URL("./modal/ProgressivePreviewImage.tsx", import.meta.url),
   "utf8",

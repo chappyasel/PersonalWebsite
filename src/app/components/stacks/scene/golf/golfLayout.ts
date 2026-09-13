@@ -1,6 +1,6 @@
 import { SHELF_GEOMETRY } from "../shelfGeometry";
-import { GOLF_BALL_RADIUS } from "../units/trainingGolfBall";
 
+import { GOLF_BALL_RADIUS } from "./golfBallGeometry";
 import type { GolfBallId, GolfVec3 } from "./golfTypes";
 
 /** The source model is 341.72 units tall from its pointed tip to its cup. A

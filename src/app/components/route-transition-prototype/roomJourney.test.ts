@@ -27,6 +27,8 @@ it("retraces major room destinations while leaving book modals and same-section 
     "/systems/planning",
     "/liarsdice",
     "/weight-log",
+    "/musings",
+    "/musings/ai-stack",
   ]) {
     expect(roomDirection("/", path)).toBe("enter");
     expect(roomDirection(path, "/")).toBe("return");
@@ -45,7 +47,10 @@ it("retraces major room destinations while leaving book modals and same-section 
     // Travel between room stops is not a journey.
     ["/", "/golf"],
     ["/", "/projects"],
-    ["/musings", "/about"],
+    ["/projects", "/about"],
+    ["/musings", "/musings/ai-stack"],
+    ["/musings/ai-stack", "/musings"],
+    ["/musings/ai-stack", "/musings/apple-way"],
   ])
     expect(roomDirection(from!, to!)).toBeNull();
 });

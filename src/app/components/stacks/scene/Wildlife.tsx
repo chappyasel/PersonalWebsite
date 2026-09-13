@@ -911,7 +911,7 @@ function LivingWildlife({
               basis,
             );
             updateMothLampCone(motion.cone, lamp, basis);
-            motion.world.setContext(lampUnitIndex, clockTime);
+            motion.world.setContext(lampUnitIndex, clockTime, dark);
             mothFrame(
               behaviorId,
               t,
@@ -1008,7 +1008,7 @@ function LivingWildlife({
               // very Perch it just chose one frame earlier.
               const validPerch =
                 !!perch &&
-                perch.unitIndex === stacks.activeUnit &&
+                perch.unitIndex === lampUnitIndex &&
                 insectPerchAcceptsMoth(perch) &&
                 insectPerchMothLightIsOn(perch);
               const prepared =
@@ -1065,6 +1065,7 @@ function LivingWildlife({
             if (
               pilot?.phase === "roam" &&
               !automaticLandingsPaused &&
+              !pilot.pendingLanding &&
               t >= motion.nextAttemptAt &&
               lampAmount > 0.45
             ) {
@@ -1078,9 +1079,12 @@ function LivingWildlife({
               // the fixture anyway, so a book or shelf edge inside the pool is
               // both a legitimate site and the one that gives them parity with
               // the butterflies.
+              // Moths stay with their lamp, including when the camera leaves.
+              // Using the active unit here sent distant moths into exhaustive
+              // cross-room route searches on the crowded Systems shelf.
               const candidates = [...getInsectPerches().values()].filter(
                 (perch) =>
-                  perch.unitIndex === stacks.activeUnit &&
+                  perch.unitIndex === lampUnitIndex &&
                   insectPerchAcceptsMoth(perch) &&
                   insectPerchMothLightIsOn(perch) &&
                   !insectPerchOccupant(perch.id) &&

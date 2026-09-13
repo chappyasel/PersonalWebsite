@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     title: "Chappy's Weightlifting",
     description: SITE_PAGES.weightlifting.description,
     url: "/",
-    siteName: "Chappy's Weightlifting",
+    siteName: "Chappy Asel",
     locale: "en_US",
     type: "website",
   },

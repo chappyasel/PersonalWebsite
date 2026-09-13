@@ -1,8 +1,21 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { prototypeDestination } from "./navigation";
+import { isMusingPageChange, prototypeDestination } from "./navigation";
 
 afterEach(() => vi.unstubAllEnvs());
+it("distinguishes reading documents without treating feeds or the same pathname as a page change", () => {
+  expect(isMusingPageChange("/musings", "/musings/ai-stack")).toBe(true);
+  expect(isMusingPageChange("/musings/ai-stack", "/musings/apple-way")).toBe(
+    true,
+  );
+  expect(isMusingPageChange("/musings/ai-stack", "/musings")).toBe(true);
+  expect(isMusingPageChange("/musings", "/musings/")).toBe(false);
+  expect(isMusingPageChange("/books", "/books/behave")).toBe(false);
+  expect(isMusingPageChange("/musings", "/musings/feed.xml")).toBe(false);
+  expect(
+    prototypeDestination("/musings/feed.xml", "http://localhost:3017/musings"),
+  ).toBeNull();
+});
 it.each([
   [
     "http://localhost:3001/",

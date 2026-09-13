@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     title: "Chappy's Personal Systems",
     description: SITE_PAGES.systems.description,
     url: "/systems",
-    siteName: "Chappy's Personal Systems",
+    siteName: "Chappy Asel",
     locale: "en_US",
     type: "website",
     images: [

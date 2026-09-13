@@ -596,3 +596,5 @@ export const ytCalibrationMembers = pgTable(
     ),
   }),
 );
+
+export * from "./personalities-schema";

@@ -50,6 +50,8 @@ export type ScenePerformanceSettings = Readonly<{
   /** Recover restrained local contrast after the DPR ladder lowers the
    * framebuffer resolution. Native-resolution frames remain untouched. */
   adaptiveSharpen: boolean;
+  /** Shared landing compiler. Live overrides reset on reload. */
+  insectLandingWorker: boolean;
   /** Independently remove the composer's costly spatial passes. */
   skipAmbientOcclusion: boolean;
   skipBloom: boolean;
@@ -108,6 +110,7 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
     practicalGlowMode: "halo",
     effectiveDprLadder: true,
     adaptiveSharpen: true,
+    insectLandingWorker: true,
     skipAmbientOcclusion: false,
     skipBloom: false,
     skipDepthOfField: false,

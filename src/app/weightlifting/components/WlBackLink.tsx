@@ -1,6 +1,7 @@
 "use client";
 
 import { useWlPath } from "../lib/paths";
+import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type MouseEvent as ReactMouseEvent, useContext } from "react";
@@ -42,7 +43,11 @@ export function WlBackLink({ className }: { className?: string }) {
         className,
       )}
     >
-      ← Chappy&apos;s Weightlifting
+      <ArrowLeftIcon
+        aria-hidden="true"
+        className="inline-block size-[1em] align-[-0.125em]"
+      />{" "}
+      Chappy&apos;s Weightlifting
     </Link>
   );
 }

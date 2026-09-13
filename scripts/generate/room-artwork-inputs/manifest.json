@@ -4674,7 +4674,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/golf/golfLayout.ts",
-      "sha256": "a4596533ada0d8a1bbc66fb3020b6c117065aee62e99409fe0d1397a90abdf69",
+      "sha256": "3c48014a84efc0717ffecfe453de52a7d345fdeb0fc682129bb7db408a7a1e09",
       "archivedSha256": "a4596533ada0d8a1bbc66fb3020b6c117065aee62e99409fe0d1397a90abdf69"
     },
     {
@@ -4774,7 +4774,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/interactionRegistry.ts",
-      "sha256": "07cc279c15b37b44133dee7ea8b40d69120c868274b663982efb319c3e037fda",
+      "sha256": "cf8ed58d8b4e9242810f5ec46fb7d6dffe4cb0928575ac376aa1b242963d9898",
       "archivedSha256": "07cc279c15b37b44133dee7ea8b40d69120c868274b663982efb319c3e037fda"
     },
     {
@@ -4794,7 +4794,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/links.tsx",
-      "sha256": "df03324ca87983cea079cc0ffd9faab90e9f18869438655f1263501ec5d10894",
+      "sha256": "4cb9dad797f27204446be0a79296c9b1128feb002748b352398aba136811d0a3",
       "archivedSha256": "df03324ca87983cea079cc0ffd9faab90e9f18869438655f1263501ec5d10894"
     },
     {
@@ -4844,7 +4844,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/objects.tsx",
-      "sha256": "03d77434b40fa153548e452a1b5ddb22badbd198cef92591e48a7930a1991846",
+      "sha256": "55940e70b733614dcbee2608934669d14dd5692c3907a6efe5753c9f315c422f",
       "archivedSha256": "03d77434b40fa153548e452a1b5ddb22badbd198cef92591e48a7930a1991846"
     },
     {
@@ -4989,7 +4989,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/scenePerformance.ts",
-      "sha256": "268f889384cc3a696264eaa929b2f0d1575e8f6db453b70bf419871567c21225",
+      "sha256": "4b55ee8d85cdc59a7589168594562eea43cd4b8732527a88160d5fb50c41043e",
       "archivedSha256": "268f889384cc3a696264eaa929b2f0d1575e8f6db453b70bf419871567c21225"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "d871110149c2d85f29ee9b82d0eec3d7b55786d5a7e1050b579bc31229a42404",
+  "sourceFingerprint": "434f0c1818c904aa617753b2ea94fc32c1c60b3bf932308e1f5f1aae0fe7da03",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5335,6 +5335,45 @@
           "path": "src/app/components/stacks/scene/worldLayout.ts",
           "previousSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865",
           "sha256": "5e41f2e18542d5a746b50a25d679799a948158877940ff3dff1e597018c82384"
+        }
+      ]
+    },
+    {
+      "reason": "Release integration with main: reviewed interactionRegistry and links changes from external Medium links to internal Musings navigation, objects NotebookLean external flag, and scenePerformance default-on insect landing worker. These alter activation/navigation and asynchronous wildlife scheduling, not shelf mesh geometry, material values, authored poses, or capture cameras. The approved 24 artwork variants remain unchanged. See docs/reviews/illustrated-room-release.md.",
+      "previousFingerprint": "d871110149c2d85f29ee9b82d0eec3d7b55786d5a7e1050b579bc31229a42404",
+      "sourceFingerprint": "b8f1ad6a4c0733b517e25665a98a130d696049d26269e51759b8c6da7d9b47c3",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/interactionRegistry.ts",
+          "previousSha256": "07cc279c15b37b44133dee7ea8b40d69120c868274b663982efb319c3e037fda",
+          "sha256": "cf8ed58d8b4e9242810f5ec46fb7d6dffe4cb0928575ac376aa1b242963d9898"
+        },
+        {
+          "path": "src/app/components/stacks/scene/links.tsx",
+          "previousSha256": "df03324ca87983cea079cc0ffd9faab90e9f18869438655f1263501ec5d10894",
+          "sha256": "4cb9dad797f27204446be0a79296c9b1128feb002748b352398aba136811d0a3"
+        },
+        {
+          "path": "src/app/components/stacks/scene/objects.tsx",
+          "previousSha256": "03d77434b40fa153548e452a1b5ddb22badbd198cef92591e48a7930a1991846",
+          "sha256": "55940e70b733614dcbee2608934669d14dd5692c3907a6efe5753c9f315c422f"
+        },
+        {
+          "path": "src/app/components/stacks/scene/scenePerformance.ts",
+          "previousSha256": "268f889384cc3a696264eaa929b2f0d1575e8f6db453b70bf419871567c21225",
+          "sha256": "4b55ee8d85cdc59a7589168594562eea43cd4b8732527a88160d5fb50c41043e"
+        }
+      ]
+    },
+    {
+      "reason": "Golf layout now imports the existing dependency-free 0.05 ball radius instead of the Three.js mesh factory. This repairs the first-load import boundary without changing any layout value or geometry. The static initialGraph regression and existing Golf layout tests cover the change.",
+      "previousFingerprint": "b8f1ad6a4c0733b517e25665a98a130d696049d26269e51759b8c6da7d9b47c3",
+      "sourceFingerprint": "434f0c1818c904aa617753b2ea94fc32c1c60b3bf932308e1f5f1aae0fe7da03",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/golf/golfLayout.ts",
+          "previousSha256": "a4596533ada0d8a1bbc66fb3020b6c117065aee62e99409fe0d1397a90abdf69",
+          "sha256": "3c48014a84efc0717ffecfe453de52a7d345fdeb0fc682129bb7db408a7a1e09"
         }
       ]
     }

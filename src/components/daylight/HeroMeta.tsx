@@ -1,4 +1,5 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
+import type { ReactNode } from "react";
 
 import SheetReturnLink from "~/components/modal-sheet/SheetReturnLink";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
@@ -26,8 +27,16 @@ import { ThemeToggle } from "~/components/ui/theme-toggle";
  */
 export default function DaylightHeroMeta({
   lastUpdated,
+  backHref = "https://www.chappyasel.com",
+  backLabel = "chappyasel.com",
+  additionalLinks,
+  children,
 }: {
-  lastUpdated: string;
+  lastUpdated?: string;
+  backHref?: string;
+  backLabel?: string;
+  additionalLinks?: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div
@@ -35,26 +44,47 @@ export default function DaylightHeroMeta({
       className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-[hsl(var(--dl-sky-ink)/0.8)]"
     >
       <SheetReturnLink
-        href="https://www.chappyasel.com"
+        href={backHref}
+        prefetch={false}
         className="flex items-center gap-1.5 transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
       >
         <ArrowLeftIcon size={12} weight="bold" />
-        chappyasel.com
+        {backLabel}
       </SheetReturnLink>
+      {additionalLinks ? (
+        <>
+          <span aria-hidden className="opacity-60">
+            ·
+          </span>
+          {additionalLinks}
+        </>
+      ) : null}
       <span aria-hidden className="opacity-60">
         ·
       </span>
       <ThemeToggle compact className="-mx-1" />
-      <span aria-hidden className="opacity-60">
-        ·
-      </span>
-      <span className="opacity-60">
-        Last updated{" "}
-        {new Date(lastUpdated).toLocaleDateString("en-US", {
-          month: "long",
-          year: "numeric",
-        })}
-      </span>
+      {children ? (
+        <>
+          <span aria-hidden className="opacity-60">
+            ·
+          </span>
+          {children}
+        </>
+      ) : null}
+      {lastUpdated ? (
+        <>
+          <span aria-hidden className="opacity-60">
+            ·
+          </span>
+          <span className="opacity-60">
+            Last updated{" "}
+            {new Date(lastUpdated).toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+        </>
+      ) : null}
     </div>
   );
 }

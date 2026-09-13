@@ -19,7 +19,12 @@ import { isRoomPathname } from "~/lib/site/roomRoutes";
 
 import { type BooksShelfPrototypeHandle } from "./BooksShelfPrototype";
 import { installHistoryTransition } from "./historyTransition";
-import { PROTOTYPE_NAVIGATION_EVENT, prototypeDestination } from "./navigation";
+import {
+  PROTOTYPE_NAVIGATION_EVENT,
+  isMusingPageChange,
+  isMusingReadingPath,
+  prototypeDestination,
+} from "./navigation";
 import {
   type OriginRect,
   originReturnGeometry,
@@ -56,6 +61,8 @@ const DESTINATIONS = [
 const section = (path: string) =>
   isRoomPathname(path) ? "" : (path.split("/")[1] ?? "");
 const isRoom = (url: URL) => isRoomPathname(url.pathname);
+const sameTransitionPage = (from: string, to: string) =>
+  section(from) === section(to) && !isMusingPageChange(from, to);
 
 function pause(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve) => {
@@ -127,7 +134,9 @@ export default function RouteTransitionPrototype() {
 
   useEffect(() => {
     setSupported(typeof document.startViewTransition === "function");
-    for (const [path] of DESTINATIONS) router.prefetch(path);
+    if (!isMusingReadingPath(location.pathname)) {
+      for (const [path] of DESTINATIONS) router.prefetch(path);
+    }
     return () => {
       active.current?.abort();
       pending.current?.resolve();
@@ -166,11 +175,11 @@ export default function RouteTransitionPrototype() {
 
   historyAccepts.current = (url) =>
     variant === "origin" &&
-    reverseRoom &&
     // An intercepted sheet owns its history entry even after expansion.
     // Its own exit (or native Back) must not trigger a second page capture.
     !document.querySelector("[data-presented-sheet]") &&
-    roomDirection(pathname, url.pathname) !== null;
+    ((reverseRoom && roomDirection(pathname, url.pathname) !== null) ||
+      isMusingPageChange(pathname, url.pathname));
   historyNavigate.current = (url, state, restore) =>
     navigate(url, null, undefined, {
       restore,
@@ -186,7 +195,7 @@ export default function RouteTransitionPrototype() {
     source?: HTMLElement | string,
     traversal?: { restore: () => void; journey: RoomJourney | null },
   ) {
-    if (active.current || section(url.pathname) === section(pathname)) return;
+    if (active.current || sameTransitionPage(pathname, url.pathname)) return;
     const controller = new AbortController();
     const { signal } = controller;
     active.current = controller;
@@ -231,6 +240,7 @@ export default function RouteTransitionPrototype() {
         manual: "systems",
         routine: "systems",
         systems: "systems",
+        musings: "musings",
       };
       const remembered = roomResidency.getSnapshot().returnHash;
       const shelf = returnShelf[section(pathname)];
@@ -407,7 +417,7 @@ export default function RouteTransitionPrototype() {
   useEffect(() => {
     const follow = (link: HTMLElement, event: Event) => {
       const url = localDestination(link);
-      if (!url || section(url.pathname) === section(pathname)) return;
+      if (!url || sameTransitionPage(pathname, url.pathname)) return;
       event.preventDefault();
       event.stopPropagation();
       void navigate(url, link.getBoundingClientRect(), link);
@@ -457,7 +467,7 @@ export default function RouteTransitionPrototype() {
       )
         return;
       const url = prototypeDestination(request.href, location.href);
-      if (!url || section(url.pathname) === section(pathname)) return;
+      if (!url || sameTransitionPage(pathname, url.pathname)) return;
       const origin =
         variant === "origin" &&
         "sourceId" in request &&

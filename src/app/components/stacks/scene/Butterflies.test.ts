@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   BUTTERFLY_COUNT,
@@ -58,6 +58,19 @@ import {
   unitCenterX,
 } from "./insectResidency";
 import { registerSceneInteraction } from "./interactionRegistry";
+import {
+  DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+  scenePerformanceController,
+} from "./scenePerformance";
+
+// These geometry checks exercise immediate synchronous reservation. The worker
+// lifecycle and delayed adoption are covered in insectLandingWorker.test.ts.
+beforeEach(() =>
+  scenePerformanceController.update({ insectLandingWorker: false }),
+);
+afterEach(() =>
+  scenePerformanceController.update(DEFAULT_SCENE_PERFORMANCE_SETTINGS),
+);
 
 const butterflySource = fs.readFileSync(
   new URL("./Butterflies.tsx", import.meta.url),

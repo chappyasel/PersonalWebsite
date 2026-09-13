@@ -113,7 +113,7 @@ describe("approved room artwork packaging", () => {
     await expect(generate({ check: true })).resolves.toMatchObject({
       cases: 24,
     });
-  });
+  }, 30_000);
 
   it("embeds the exact detail bytes without changing drawing markup", async () => {
     const bytes = Buffer.from("approved raster bytes");

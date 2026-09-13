@@ -1,5 +1,6 @@
 "use client";
 
+import { BodyweightPareto } from "../components/BodyweightPareto";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useWlPath } from "../lib/paths";
 import {
@@ -27,10 +28,11 @@ import {
 } from "recharts";
 
 import { recordModalOrigin } from "~/lib/originFlight";
-
-import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
 import type { ExerciseInstance } from "~/server/queries/weightliftingExercise";
 
+import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
+import { Button } from "~/components/ui/button";
+import { Card } from "~/components/ui/card";
 import {
   type ChartConfig,
   ChartContainer,
@@ -289,9 +291,11 @@ function GraphTooltip({
 export function ExerciseExplorer({
   instances,
   color,
+  displayName,
 }: {
   instances: ExerciseInstance[];
   color: string;
+  displayName: string;
 }) {
   const router = useRouter();
   const wlPath = useWlPath();
@@ -299,6 +303,7 @@ export function ExerciseExplorer({
   const [queryType, setQueryType] = useState<QueryType>("recent");
   const [timeSpan, setTimeSpan] = useState<TimeSpanKey>("all");
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const morePanelId = useId();
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const gradientId = useId();
   const metric = METRICS.find((m) => m.key === metricKey)!;
@@ -661,16 +666,20 @@ export function ExerciseExplorer({
         </section>
 
         {/* Show More (ADEDSectionMore) */}
-        <section>
-          <button
+        <section id="exercise-more" className="scroll-mt-6">
+          <Button
+            variant="outline"
+            aria-expanded={moreExpanded}
+            aria-controls={morePanelId}
             onClick={() => setMoreExpanded(!moreExpanded)}
-            className="w-full rounded-2xl border border-neutral-200 bg-white py-3 text-[17px] font-semibold text-neutral-500 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700/60"
+            className="h-auto w-full rounded-2xl border border-neutral-200 bg-white py-3 text-[17px] font-semibold text-neutral-500 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700/60"
           >
             {moreExpanded ? "Show Less" : "Show More"}
-          </button>
+          </Button>
           <AnimatePresence initial={false}>
             {moreExpanded && (
               <motion.div
+                id={morePanelId}
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -678,6 +687,17 @@ export function ExerciseExplorer({
                 style={{ overflow: "hidden" }}
               >
                 <div className="space-y-5 pt-5">
+                  <Card
+                    id="strength-at-bodyweight"
+                    className="rounded-2xl border-neutral-200 bg-white p-4 shadow-none dark:border-neutral-700 dark:bg-neutral-800"
+                  >
+                    <SectionTitle>Strength at Bodyweight</SectionTitle>
+                    <BodyweightPareto
+                      key={displayName}
+                      displayName={displayName}
+                      color={color}
+                    />
+                  </Card>
                   {/* Recent Set Progressions: multi-set only, no gradient,
                     unrotated set-number x labels, latest solid */}
                   {setProgressions.maxSets > 1 && (

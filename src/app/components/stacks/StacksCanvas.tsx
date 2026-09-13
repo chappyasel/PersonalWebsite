@@ -70,6 +70,8 @@ import {
 import { globeChapterHover } from "./scene/globeChapterHover";
 import { globeMarkProbe } from "./scene/globeCloseUpState";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
+import { insectLandingMetrics } from "./scene/insectLandingMetrics";
+import { insectLandingWorker } from "./scene/insectLandingWorker";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
 import type {
@@ -194,6 +196,7 @@ import VisionRideExperience from "./visionRide/VisionRideExperience";
 import { visionRideDiagnosticsController } from "./visionRide/visionRideDiagnostics";
 import { visionRideRoomMounted } from "./visionRide/visionRideState";
 import { isWebGLContextUsable } from "./webglProbe";
+import { requestPrototypeNavigation } from "~/app/components/route-transition-prototype/navigation";
 import { scenePointerMoveWithoutCoarseHover } from "~/app/components/stacks/input/scenePointerEvents";
 
 // Mount/unmount ONLY (never enabled={false}: a mounted-disabled composer pins
@@ -514,6 +517,10 @@ function installDevHooks() {
         visionRideModelStatus,
       } = useStacks.getState();
       return {
+        insectPlanning: {
+          ...insectLandingMetrics,
+          transport: { ...insectLandingWorker.timings },
+        },
         offset: progressRef.current,
         activeUnit,
         // Straight from the boot machine. The scene store used to keep its own
@@ -2543,13 +2550,17 @@ export default function StacksCanvas({
     (url: string) => {
       // The two document pages open as intercepted sheets over the live
       // world (src/app/@sheet) — the scene stays booted underneath and the
-      // back gesture lands right back in it. Everything else keeps the
-      // new-tab behavior. The sheet pops from a small rect at the pointer
+      // back gesture lands right back in it. Local article links use page
+      // transitions; external destinations open a new tab. The sheet pops from a small rect at the pointer
       // (a door is shader geometry with no DOM box); on a phone-sized
       // viewport openSheetRoute loads the full page instead.
       if (url === "/routine" || url === "/manual") {
         recordModalOriginAtPointer();
         openSheetRoute(url, router);
+        return;
+      }
+      if (url.startsWith("/") && !url.startsWith("//")) {
+        if (!requestPrototypeNavigation(url)) router.push(url);
         return;
       }
       window.open(url, "_blank", "noopener,noreferrer");

@@ -586,6 +586,18 @@ html[data-font="literata"] {
   -webkit-backdrop-filter: blur(1px);
 }
 
+/* Unframed document images need separation from the text behind them,
+ * including through transparent pixels. The shared diagnostics switch
+ * removes the filter entirely when blur is disabled. */
+.document-gallery-mask {
+  background: rgb(18 22 28 / 0.62) !important;
+}
+
+.document-gallery-mask--blurred {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
 /* The enlarged photo is drawn as the print it is on the shelf (its paper,
  * mat, or frame are children of this box), and it casts a shadow onto the
  * darkened room. The shadow lives on the box, so the viewer's morph scales it
