@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/cron/sync-weightlifting",
-      "schedule": "0 9 */3 * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }

@@ -41,7 +41,10 @@ without hover.
 
 The World reserves two-finger pinch from native viewport zoom. A pinch that
 begins on exposed background adjusts visitor-camera framing; once a Movable
-Prop is carried, it adjusts that prop's camera-relative hold depth instead.
+Prop is carried, it adjusts that prop's hold depth instead. Carrying uses a
+vertical plane fixed at pickup, so camera pitch, parallax, and collision
+sliding cannot turn ordinary finger movement into a push behind the shelf.
+A pinch can pull the prop closer and return it as far as its pickup depth.
 The first contact remains the carry owner, so releasing the second finger ends
 only depth adjustment while releasing the first drops the prop. Native
 one-finger horizontal travel remains unchanged.

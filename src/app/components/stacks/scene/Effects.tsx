@@ -40,7 +40,14 @@ import {
   EffectAttribute,
   ToneMappingMode,
 } from "postprocessing";
-import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { MathUtils, Uniform, Vector2, Vector3, Vector4 } from "three";
 
 import {
@@ -52,6 +59,8 @@ import {
 import { PhotoMaskPass } from "./PhotoMaskPass";
 import { useCinematicSun } from "./cinematicSun";
 import { focusPull, focusPullTarget } from "./focusPull";
+import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
+import { golfMode } from "./golfMode";
 import {
   captureLensCenterFromSearch,
   effectiveCaptureLensCenter,
@@ -87,7 +96,6 @@ import {
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import { useScreenshotMode } from "./screenshotMode";
-import { golfMode } from "./golfMode";
 import {
   type ShelfDepthOfFieldTuning,
   advanceShelfDepthOfFieldPull,
@@ -1012,6 +1020,12 @@ export default function Effects({
   const gradeProfile = useSceneGradeProfile();
   const performanceSettings = useScenePerformanceSettings();
   const photographTreatment = usePhotographTreatment();
+  const freeRoam = useSyncExternalStore(
+    freeRoamDiagnosticsController.subscribe,
+    freeRoamDiagnosticsController.getSnapshot,
+    freeRoamDiagnosticsController.getSnapshot,
+  );
+  const freeRoamBlurOff = freeRoam.enabled && !freeRoam.blurEnabled;
   const { cinematicPlus, depthOfFieldModel, opticalDepthOfField } =
     useSceneQualityControls();
   const sun = useCinematicSun();
@@ -1073,10 +1087,12 @@ export default function Effects({
         plan.composer === "direct" ? "off" : plan.composer,
         plan.depthOfField,
         !performanceSettings.sideTiltShift ||
+          freeRoamBlurOff ||
           pixelBlurOff ||
           visionRideRoomHidden,
       ),
     [
+      freeRoamBlurOff,
       performanceSettings.sideTiltShift,
       pixelBlurOff,
       plan.composer,
@@ -1102,6 +1118,7 @@ export default function Effects({
         seated,
         isolated:
           performanceSettings.skipDepthOfField ||
+          freeRoamBlurOff ||
           pixelBlurOff ||
           visionRideRoomHidden,
       }),
@@ -1110,6 +1127,7 @@ export default function Effects({
       depthOfFieldBokehScale,
       depthOfFieldResolutionScale,
       golfFocused,
+      freeRoamBlurOff,
       performanceSettings.skipDepthOfField,
       pixelBlurOff,
       planDepthOfField,

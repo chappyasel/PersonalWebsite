@@ -231,52 +231,57 @@ export default function IllustratedRoom({
   ]);
 
   return (
-    <div
-      ref={root}
-      className="room-illustration"
-      aria-hidden={!visible}
-      data-illustration-visible={visible ? "" : undefined}
-      data-illustration-loading={loading ? "" : undefined}
-    >
-      <IllustratedTraverse
-        unit={unit}
-        enabled={visible}
-        theme={theme}
-        viewport={viewport}
-        onMovingChange={setMoving}
+    <>
+      <div
+        ref={root}
+        className="room-illustration"
+        aria-hidden={!visible}
+        data-illustration-visible={visible ? "" : undefined}
+        data-illustration-loading={loading ? "" : undefined}
       >
-        {UNITS.map((entry, index) => (
-          <div
-            key={entry.slug}
-            className="room-illustration-stop"
-            data-illustration-selected={index === unit ? "" : undefined}
-            aria-hidden={index !== unit}
-          >
-            {locationReady &&
-              (index === unit ||
-                (entranceSettled && Math.abs(index - unit) <= 1)) && (
-                <IllustrationStage
-                  unitIndex={index === unit ? drawingUnit : index}
-                  theme={theme}
-                  viewport={viewport}
-                  readingBooks={aboutBooks}
-                  readingBookColors={data.readingBookColors}
-                  unavailable={index === unit && failedRevision === revision}
-                />
-              )}
-          </div>
-        ))}
-      </IllustratedTraverse>
-      {visible && (
-        <div className="room-illustration-actions">
-          <IllustrationStatus loading={loading} />
-          {canRequest3D && (
-            <Button variant="ghost" size="sm" onClick={onRequest3D}>
-              Retry 3D
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
+        <IllustratedTraverse
+          unit={unit}
+          enabled={visible}
+          theme={theme}
+          viewport={viewport}
+          onMovingChange={setMoving}
+        >
+          {UNITS.map((entry, index) => (
+            <div
+              key={entry.slug}
+              className="room-illustration-stop"
+              data-illustration-selected={index === unit ? "" : undefined}
+              aria-hidden={index !== unit}
+            >
+              {locationReady &&
+                (index === unit ||
+                  (entranceSettled && Math.abs(index - unit) <= 1)) && (
+                  <IllustrationStage
+                    unitIndex={index === unit ? drawingUnit : index}
+                    theme={theme}
+                    viewport={viewport}
+                    readingBooks={aboutBooks}
+                    readingBookColors={data.readingBookColors}
+                    unavailable={index === unit && failedRevision === revision}
+                  />
+                )}
+            </div>
+          ))}
+        </IllustratedTraverse>
+      </div>
+      <div
+        className="room-illustration-actions"
+        data-illustration-actions-visible={visible}
+        aria-hidden={!visible}
+        inert={!visible}
+      >
+        <IllustrationStatus loading={loading} active={visible} />
+        {canRequest3D && (
+          <Button variant="ghost" size="sm" onClick={onRequest3D}>
+            Retry 3D
+          </Button>
+        )}
+      </div>
+    </>
   );
 }

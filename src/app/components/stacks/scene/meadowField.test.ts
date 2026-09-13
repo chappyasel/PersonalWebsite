@@ -423,7 +423,7 @@ describe("placement", () => {
     expect(3.25).toBeLessThan(NEAR_FEATHER_ZONE.minZ);
   });
 
-  it("keeps a camera-side grass apron outside the settled view", () => {
+  it("keeps the connected camera lawn within its authored bounds", () => {
     const apronIndices: number[] = [];
     for (let i = 0; i < grass.near.count; i++) {
       if (grass.near.band[i] === 4) apronIndices.push(i);
@@ -436,6 +436,37 @@ describe("placement", () => {
       expect(grass.near.z[i]!).toBeGreaterThanOrEqual(FLING_GRASS_APRON.minZ);
       expect(grass.near.z[i]!).toBeLessThanOrEqual(FLING_GRASS_APRON.maxZ);
     }
+  });
+
+  it("covers the gaps between the side lawn and camera apron at Safety density", () => {
+    // These patches lie between the old traverse trapezoid and its separate
+    // full-width strip. Checking only the strip perimeter missed both holes.
+    const distances: number[] = [];
+    for (const [minX, maxX] of [
+      [-30, -10],
+      [34, 50],
+    ] as const) {
+      for (let x: number = minX; x <= maxX; x += 0.5) {
+        for (let z = -6; z <= 4.5; z += 0.5) {
+          let nearest = Infinity;
+          for (const stream of streams) {
+            for (let i = 0; i < stream.rungCounts[0]!; i++) {
+              if (stream.height[i]! < 0.08) continue;
+              nearest = Math.min(
+                nearest,
+                Math.hypot(x - stream.x[i]!, z - stream.z[i]!),
+              );
+            }
+          }
+          distances.push(nearest);
+        }
+      }
+    }
+    distances.sort((a, b) => a - b);
+    expect(distances[Math.floor(distances.length * 0.99)]).toBeLessThan(0.9);
+    expect(Math.max(...distances)).toBeLessThan(1.2);
+    expect(grass.near.count).toBe(11000);
+    expect(grass.far.count).toBe(6000);
   });
 
   it("grows the camera-side apron in broad height drifts", () => {

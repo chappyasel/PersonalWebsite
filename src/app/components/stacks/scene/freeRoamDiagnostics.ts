@@ -1,6 +1,7 @@
 export type FreeRoamDiagnosticsState = Readonly<{
   enabled: boolean;
   fogEnabled: boolean;
+  blurEnabled: boolean;
   startFromCurrentPose: boolean;
 }>;
 
@@ -69,6 +70,7 @@ const INITIAL_FREE_ROAM_DIAGNOSTICS_STATE: FreeRoamDiagnosticsState =
   Object.freeze({
     enabled: false,
     fogEnabled: false,
+    blurEnabled: false,
     startFromCurrentPose: false,
   });
 
@@ -80,6 +82,7 @@ export function createFreeRoamDiagnosticsController() {
     if (
       snapshot.enabled === next.enabled &&
       snapshot.fogEnabled === next.fogEnabled &&
+      snapshot.blurEnabled === next.blurEnabled &&
       snapshot.startFromCurrentPose === next.startFromCurrentPose
     )
       return snapshot;
@@ -100,6 +103,7 @@ export function createFreeRoamDiagnosticsController() {
       publish({
         enabled,
         fogEnabled: enabled ? snapshot.fogEnabled : false,
+        blurEnabled: enabled ? snapshot.blurEnabled : false,
         startFromCurrentPose: false,
       }),
 
@@ -107,6 +111,7 @@ export function createFreeRoamDiagnosticsController() {
       publish({
         enabled: !snapshot.enabled,
         fogEnabled: snapshot.enabled ? false : snapshot.fogEnabled,
+        blurEnabled: snapshot.enabled ? false : snapshot.blurEnabled,
         startFromCurrentPose: false,
       }),
 
@@ -116,8 +121,12 @@ export function createFreeRoamDiagnosticsController() {
         : publish({
             enabled: true,
             fogEnabled: false,
+            blurEnabled: false,
             startFromCurrentPose: true,
           }),
+
+    setBlurEnabled: (blurEnabled: boolean) =>
+      publish({ ...snapshot, blurEnabled: snapshot.enabled && blurEnabled }),
 
     setFogEnabled: (fogEnabled: boolean) =>
       publish({ ...snapshot, fogEnabled: snapshot.enabled && fogEnabled }),

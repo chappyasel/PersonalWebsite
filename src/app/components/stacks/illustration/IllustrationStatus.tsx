@@ -9,13 +9,15 @@ import { startLoadingNotice } from "./startLoadingNotice";
 export function IllustrationStatus({
   loading,
   firstPaint = false,
+  active = true,
 }: {
   loading: boolean;
   firstPaint?: boolean;
+  active?: boolean;
 }) {
   useEffect(() => {
-    if (loading) startLoadingNotice();
-  }, [loading]);
+    if (loading && active) startLoadingNotice();
+  }, [loading, active]);
   return (
     <div
       className="room-illustration-status"
@@ -46,7 +48,7 @@ export function IllustrationStatus({
             </span>
           </span>
           <div aria-hidden>
-            <BootWaitNotes active={!firstPaint} />
+            <BootWaitNotes active={active && !firstPaint} />
           </div>
         </>
       ) : (

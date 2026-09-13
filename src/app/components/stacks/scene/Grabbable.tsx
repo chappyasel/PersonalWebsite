@@ -1,8 +1,5 @@
 "use client";
 
-import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 // Pick a prop up and move it. Lift.tsx's louder sibling: where Lift eases a
 // few millimetres under the pointer, this hands the object over to you.
 //
@@ -88,6 +85,7 @@ import {
   heldDepthBounds,
   heldDepthFromPinch,
   heldDepthWheelPixels,
+  heldDragDirection,
   nextHeldDepth,
 } from "./heldDepth";
 import {
@@ -156,6 +154,7 @@ import {
   stepSway,
 } from "./swayMotion";
 import { sceneUnitActivityController, useUnitFrame } from "./unitActivity";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
  * settles at the same rate the shelf's hover affordance moves. */
@@ -437,7 +436,9 @@ function startEventDispatcher() {
 function stopEventDispatcher() {
   if (!eventDispatcherListening || typeof window === "undefined") return;
   eventDispatcherListening = false;
-  roomWindowEvents.removeEventListener("wheel", onEventWheel, { capture: true });
+  roomWindowEvents.removeEventListener("wheel", onEventWheel, {
+    capture: true,
+  });
   roomWindowEvents.removeEventListener("pointerdown", onEventDown);
   roomWindowEvents.removeEventListener("pointermove", onEventMove);
   roomWindowEvents.removeEventListener("pointerup", onEventUp);
@@ -1004,6 +1005,8 @@ export default function Grabbable({
   const world = useMemo(() => new THREE.Vector3(), []);
   const cameraForward = useMemo(() => new THREE.Vector3(), []);
   const heldPlanePoint = useMemo(() => new THREE.Vector3(), []);
+  const heldPlaneOrigin = useMemo(() => new THREE.Vector3(), []);
+  const heldLocalPlaneNormal = useMemo(() => new THREE.Vector3(), []);
   const shadeGround = useMemo(() => new THREE.Vector3(), []);
   const visibilityPoint = useMemo(() => new THREE.Vector3(), []);
   const visibilityMatrix = useMemo(() => new THREE.Matrix4(), []);
@@ -1094,13 +1097,15 @@ export default function Grabbable({
     const g = group.current;
     if (!g) return;
     camera.getWorldDirection(cameraForward);
+    heldDragDirection(cameraForward, cameraForward);
+    heldPlaneOrigin.copy(camera.position);
     g.getWorldPosition(world);
     heldDepth.current = Math.max(
       camera.near * 2,
       world.sub(camera.position).dot(cameraForward),
     );
     heldDepthRange.current = heldDepthBounds(heldDepth.current);
-  }, [camera, cameraForward, world]);
+  }, [camera, cameraForward, heldPlaneOrigin, world]);
 
   const startDepthGesture = useCallback((spanPx: number) => {
     if (phase.current !== "held") return;
@@ -2289,14 +2294,12 @@ export default function Grabbable({
       artifactHandoffMaterials.current = [];
       artifactHandoffId.current = null;
     } else if (phase.current === "held" && pointerId.current !== null) {
-      // Drag plane: camera-facing at the visitor-controlled hold depth, so
-      // the pointer moves the object laterally while the wheel moves it along
-      // the view ray. Rebuilt each frame because the camera rig keeps
-      // breathing (a slow bob plus pointer parallax) even while you drag.
-      camera.getWorldDirection(cameraForward);
+      // Keep the pickup's vertical plane fixed in the room. Camera pitch and
+      // parallax must not turn a lift into a push behind the shelf. Only an
+      // explicit wheel or pinch gesture changes the plane's depth.
       plane.normal.copy(cameraForward).negate();
       heldPlanePoint
-        .copy(camera.position)
+        .copy(heldPlaneOrigin)
         .addScaledVector(cameraForward, heldDepth.current);
       plane.setFromNormalAndCoplanarPoint(plane.normal, heldPlanePoint);
       // Re-cast every frame from the tracked NDC. r3f only refreshes the
@@ -2362,6 +2365,11 @@ export default function Grabbable({
         );
       }
       if (simulated.current && entry?.world) {
+        heldLocalPlaneNormal.copy(cameraForward);
+        if (g.parent) {
+          g.parent.getWorldQuaternion(heldParentWorld);
+          heldLocalPlaneNormal.applyQuaternion(heldParentWorld.invert());
+        }
         const result: HeldMoveResult = entry.world.moveHeld(
           entry,
           {
@@ -2369,6 +2377,7 @@ export default function Grabbable({
             quaternion: g.quaternion,
           } satisfies HeldPose,
           delta,
+          heldLocalPlaneNormal,
         );
         velocity.copy(result.acceptedVelocity);
       }

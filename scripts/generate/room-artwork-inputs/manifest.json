@@ -4444,7 +4444,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/Grabbable.tsx",
-      "sha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79",
+      "sha256": "de0cadf07433f482c41d60f6d39a3990cfc15ddd4ada6d7af74a28b2dd059857",
       "archivedSha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79"
     },
     {
@@ -4739,7 +4739,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/heldDepth.ts",
-      "sha256": "99b2b9bab8e46d658f49633d3293cec6014b0c4113541930dc231f00871375d7",
+      "sha256": "9a86d1b1a967e3cbae5bc2030dc7728cc84fa445b1659d4eca594eed636c7fdf",
       "archivedSha256": "99b2b9bab8e46d658f49633d3293cec6014b0c4113541930dc231f00871375d7"
     },
     {
@@ -4819,7 +4819,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/meadowField.ts",
-      "sha256": "fff202380d55bf07b94add5363503d02c08422e531f4d009804552aa67cee3d0",
+      "sha256": "77d811dad00830cbc42f4355a4692e1b73e4d46125a7e40ff2a9a7455423d7bd",
       "archivedSha256": "fff202380d55bf07b94add5363503d02c08422e531f4d009804552aa67cee3d0"
     },
     {
@@ -4889,7 +4889,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/physics.ts",
-      "sha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089",
+      "sha256": "114e3c87ab38c617f9108e98804c800316c8765f7e9b01d66a61e26e2626fa87",
       "archivedSha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "434f0c1818c904aa617753b2ea94fc32c1c60b3bf932308e1f5f1aae0fe7da03",
+  "sourceFingerprint": "de4f59454c8324eb765461c10eb453e9a5a44b9f0ea564ff3e920eb84e51dabf",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5374,6 +5374,33 @@
           "path": "src/app/components/stacks/scene/golf/golfLayout.ts",
           "previousSha256": "a4596533ada0d8a1bbc66fb3020b6c117065aee62e99409fe0d1397a90abdf69",
           "sha256": "3c48014a84efc0717ffecfe453de52a7d345fdeb0fc682129bb7db408a7a1e09"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed the complete local follow-up in docs/reviews/illustrated-room-completion.md. Grabbable and heldDepth change only active carry-plane behavior; physics changes held collision response, with authored rest poses and masses unchanged. MeadowField changes background grass coverage, which the shelf-only captures exclude. No shelf geometry, materials, textures, rest cameras, or approved drawing inputs change.",
+      "previousFingerprint": "434f0c1818c904aa617753b2ea94fc32c1c60b3bf932308e1f5f1aae0fe7da03",
+      "sourceFingerprint": "de4f59454c8324eb765461c10eb453e9a5a44b9f0ea564ff3e920eb84e51dabf",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/Grabbable.tsx",
+          "previousSha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79",
+          "sha256": "de0cadf07433f482c41d60f6d39a3990cfc15ddd4ada6d7af74a28b2dd059857"
+        },
+        {
+          "path": "src/app/components/stacks/scene/heldDepth.ts",
+          "previousSha256": "99b2b9bab8e46d658f49633d3293cec6014b0c4113541930dc231f00871375d7",
+          "sha256": "9a86d1b1a967e3cbae5bc2030dc7728cc84fa445b1659d4eca594eed636c7fdf"
+        },
+        {
+          "path": "src/app/components/stacks/scene/meadowField.ts",
+          "previousSha256": "fff202380d55bf07b94add5363503d02c08422e531f4d009804552aa67cee3d0",
+          "sha256": "77d811dad00830cbc42f4355a4692e1b73e4d46125a7e40ff2a9a7455423d7bd"
+        },
+        {
+          "path": "src/app/components/stacks/scene/physics.ts",
+          "previousSha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089",
+          "sha256": "114e3c87ab38c617f9108e98804c800316c8765f7e9b01d66a61e26e2626fa87"
         }
       ]
     }
