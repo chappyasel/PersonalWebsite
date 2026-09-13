@@ -1,3 +1,4 @@
+import { PerspectiveCamera, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,7 +16,7 @@ import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { CAMERA, unitPose } from "./worldLayout";
 
 describe("aboutBootRestCamera", () => {
-  it("stands where CameraRig rests at the canonical desktop viewport", () => {
+  it("retains the authored extraction pose for existing silhouettes", () => {
     // The pin the stage test carries: eye x 0.7241 is the About shift plus
     // its share of the dock truck at 1440×900 with the rail at 179px.
     expect(ABOUT_BOOT_CAMERA.eye[0]).toBeCloseTo(0.722, 2);
@@ -71,25 +72,28 @@ describe("projectAboutBootPoint", () => {
     expect(bounds.width).toBeCloseTo(old.width, 12);
   });
 
-  it("matches the running scene's projection at 2056×1290", () => {
-    // Measured on 2026-09-07 through `__stacks.project` at the reveal, with
-    // the pointer at its rest: unit 0's origin at (663.6, 621.3) and a plane
-    // unit of 381.9px. World points, so the unit yaw is taken out. The
-    // camera's idle bob was about 0.02 into its swing, worth a couple of
-    // thousandths in the vertical.
+  it("matches Three's projection at the current wide About rest pose", () => {
     const rest = aboutBootRestCamera(2056, 1290, 179);
     const world: AboutBootCamera = { ...rest, unitYaw: 0 };
-    expect(rest.eye[0]).toBeCloseTo(0.9526, 3);
-    const px = projectAboutBootPoint([1, 0, 0], world);
-    expect(px.x).toBeCloseTo((1045.5 - 663.6) / 381.9, 2);
-    expect(px.y).toBeCloseTo(0, 3);
-    const py = projectAboutBootPoint([0, 1, 0], world);
-    expect(py.x).toBeCloseTo((659.8 - 663.6) / 381.9, 2);
-    expect(py.y).toBeCloseTo((621.3 - 235.9) / 381.9, 2);
-    const pz = projectAboutBootPoint([0, 0, -1], world);
-    expect(pz.x).toBeCloseTo((717.9 - 663.6) / 381.9, 2);
-    expect(pz.y).toBeCloseTo((621.3 - 605.6) / 381.9, 1);
-    expect(pz.scale).toBeLessThan(1);
+    const camera = new PerspectiveCamera(CAMERA.fov, 2056 / 1290, 0.1, 200);
+    camera.position.fromArray(rest.eye);
+    camera.lookAt(new Vector3().fromArray(rest.aim));
+    camera.updateMatrixWorld();
+    const origin = new Vector3().project(camera);
+    const unit = new Vector3(1, 0, 0).project(camera).x - origin.x;
+    for (const point of [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, -1],
+    ] as const) {
+      const actual = projectAboutBootPoint(point, world);
+      const expected = new Vector3(...point).project(camera);
+      expect(actual.x).toBeCloseTo((expected.x - origin.x) / unit, 9);
+      expect(actual.y).toBeCloseTo(
+        (expected.y - origin.y) / unit / (2056 / 1290),
+        9,
+      );
+    }
   });
 
   it("turns unit-local points through the unit's yaw before projecting", () => {
@@ -109,7 +113,11 @@ describe("projectAboutBootPoint", () => {
   });
 
   it("scales a floor prop nearer than the plane up by about a tenth", () => {
-    const dumbbell = projectAboutBootPoint([1.05, SHELF_GEOMETRY.groundY, 0.62]);
+    const dumbbell = projectAboutBootPoint([
+      1.05,
+      SHELF_GEOMETRY.groundY,
+      0.62,
+    ]);
     expect(dumbbell.scale).toBeGreaterThan(1.08);
     expect(dumbbell.scale).toBeLessThan(1.13);
     // On the plane, at the origin, nothing moves.

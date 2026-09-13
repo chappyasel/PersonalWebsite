@@ -127,7 +127,7 @@ export function IllustrationFrame({
           __html:
             script +
             (emptyAbout
-              ? `try{var e=document.currentScript.parentElement;for(var f of a.faces){e.querySelector('[data-boot-plank-top][data-shelf-id="'+f.id+'"]').setAttribute("points",f.top);e.querySelector('[data-boot-plank][data-shelf-id="'+f.id+'"]').setAttribute("points",f.front);}for(var b of a.supports)for(var k of ["upright","foot"]){var n=e.querySelector('[data-boot-support-'+k+'="'+b.side+'"]');for(var p in b[k])n.setAttribute(p,b[k][p]);}}catch(e){}`
+              ? `try{var e=document.currentScript.parentElement;for(var f of a.faces){e.querySelector('[data-boot-plank-top][data-shelf-id="'+f.id+'"]').setAttribute("points",f.top);e.querySelector('[data-boot-plank][data-shelf-id="'+f.id+'"]').setAttribute("points",f.front);for(var k of ["left","right"]){var n=e.querySelector('[data-boot-plank-side="'+k+'"][data-shelf-id="'+f.id+'"]');n.setAttribute("points",f[k].points);n.setAttribute("visibility",f[k].visible?"visible":"hidden");}}for(var b of a.supports)for(var k of ["upright","foot"]){var n=e.querySelector('[data-boot-support-'+k+'="'+b.side+'"]');for(var p in b[k].faces){var q=n.querySelector('[data-boot-box-face="'+p+'"]'),v=b[k].faces[p];q.setAttribute("points",v.points);q.setAttribute("visibility",v.visible?"visible":"hidden");}}}catch(e){}`
               : ""),
         }}
       />

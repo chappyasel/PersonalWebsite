@@ -69,6 +69,11 @@ scrolling, then the drawing dissolves in place over the ready camera. A match
 within 3 CSS pixels is recorded as exact; other finite projection
 residuals use an ordinary fade. The camera stays still through both paths. A
 viewport alignment miss does not discard a working renderer.
+About rests at semantic stop zero and uses the same desktop rail/dock truck
+as the other shelves. Its SVG planks include visible end caps; uprights and
+feet use projected box faces rather than bounding rectangles. First paint and
+hydration share that geometry. Existing silhouettes keep their authored
+extraction camera while live anchors follow the current viewport camera.
 The opening centers the visible wood at 55% of viewport height. Desktop 2D
 travel uses the scene's unit intervals at the mean resting camera scale.
 Narrow layouts compact the gap between artwork bounds to 48 to 80 CSS pixels.
@@ -596,7 +601,7 @@ On, it makes every unit except About cold through the residency controller
 (`sceneUnitActivityController.setSoloUnit`), so the shelf stands alone; the
 per-unit ground pools follow the same answer. It hides the interface with the
 H key's attribute, but silently, and owns only the hide it introduced, the
-same contract free roam uses. The About stop drops its rail shift and the
+same contract free roam uses. Capture drops the desktop rail/dock truck and
 pointer parallax reads a centred pointer, so the shelf rests on the middle of
 the viewport whatever the window's aspect. The dolly is added AFTER the
 visitor zoom clamp, because that clamp is a floor of 0.75 and a 4:1 banner

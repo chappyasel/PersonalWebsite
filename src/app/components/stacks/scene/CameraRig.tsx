@@ -107,7 +107,6 @@ import {
   CAMERA_LOOK_X_MAX_LAG,
   RAIL_RIGHT_PX_FALLBACK,
   STACKS_DESKTOP_MIN_WIDTH,
-  aboutStopShift,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
   cameraForAspect,
@@ -208,31 +207,8 @@ export const cameraTravelDiagnostics = {
   lookLagX: 0,
 };
 
-/** The About stop's rest shift ("move the initial scene", round 2): solved
- * so the projected shelf edge clears the rail's measured widest row. Read
- * from the live window and railRightPxRef each call rather than captured —
- * the scroll-element effect outlives resizes and font swaps. Mobile chrome
- * has no left rail, so below the desktop seam the stop stays on the
- * shelf's centre line. RAIL_RIGHT_PX_FALLBACK stands in until UnitRail's
- * first measurement lands (its layout effect runs before this frame in
- * practice). */
-function currentAboutShift(): number {
-  if (typeof window === "undefined") return 0;
-  if (captureHeadOnFromSearch(window.location.search)) return 0;
-  // Screenshot mode hides the rail, so there is nothing to clear: the
-  // shelf rests on its own centre line like the OG capture.
-  if (screenshotModeController.getSnapshot().enabled) return 0;
-  if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return 0;
-  return aboutStopShift(
-    window.innerWidth,
-    window.innerHeight,
-    railRightPxRef.current || RAIL_RIGHT_PX_FALLBACK,
-  );
-}
-
-/** The rail measurement the other stops' lateral truck is solved against
- * (`stopLateralOffset`), under the same gates as the About shift: none
- * under OG capture, none below the desktop seam. */
+/** Live rail measurement for desktop composition, omitted when capture
+ * mode hides the chrome and the shelf should be centered in the viewport. */
 function currentRailRightPx(): number | undefined {
   if (typeof window === "undefined") return undefined;
   if (captureHeadOnFromSearch(window.location.search)) return undefined;
@@ -420,7 +396,7 @@ export default function CameraRig() {
     const scrollTarget = (scroll as unknown as { scroll: { current: number } })
       .scroll;
     const clampedOffset = (unit: number) =>
-      Math.min(1, Math.max(0, scrollOffsetForUnit(unit, currentAboutShift())));
+      Math.min(1, Math.max(0, scrollOffsetForUnit(unit)));
     // Start on About's true stop, leaving a real native-scroll lead-in to its
     // left for the complete chair. ScrollControls can mount before its pages
     // have layout, when max === 0; writing scrollLeft then is silently lost
@@ -743,10 +719,7 @@ export default function CameraRig() {
       const position = selected.golfStop
         ? GOLF_STOP_POSITION
         : selected.activeUnit;
-      const offset = Math.min(
-        1,
-        Math.max(0, scrollOffsetForUnit(position, currentAboutShift())),
-      );
+      const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(position)));
       const el = scroll.el;
       const max = el.scrollWidth - el.clientWidth;
       if (el.isConnected && max > 0) {
@@ -778,10 +751,7 @@ export default function CameraRig() {
         const el = scroll.el;
         const max = el.scrollWidth - el.clientWidth;
         if (el.isConnected && max > 0) {
-          const offset = Math.min(
-            1,
-            Math.max(0, scrollOffsetForUnit(0, currentAboutShift())),
-          );
+          const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(0)));
           el.scrollLeft = offset * max;
           const target = (scroll as unknown as { scroll: { current: number } })
             .scroll;
@@ -1560,7 +1530,7 @@ export default function CameraRig() {
       // About has a rail-clearance offset within its stop. Compare the real
       // scroll target to that authored rest position, not integer progress.
       handoffCamera.scrollError =
-        offset - scrollOffsetForUnit(selectedPosition, currentAboutShift());
+        offset - scrollOffsetForUnit(selectedPosition);
       handoffCamera.aimError = look.current.x - restingAimX;
       handoffCamera.frame++;
     }

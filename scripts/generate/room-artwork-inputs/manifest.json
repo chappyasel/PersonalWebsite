@@ -5219,11 +5219,11 @@
     },
     {
       "path": "src/app/components/stacks/scene/worldLayout.ts",
-      "sha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865",
+      "sha256": "5e41f2e18542d5a746b50a25d679799a948158877940ff3dff1e597018c82384",
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "55edbbe5cbbf322103a1d87bf37c6d6a527e575a57fbf51978d0f4a78ed8ab88",
+  "sourceFingerprint": "d871110149c2d85f29ee9b82d0eec3d7b55786d5a7e1050b579bc31229a42404",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5323,6 +5323,18 @@
           "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
           "previousSha256": "384734a737b598295f08cb5b7c13f40235726b080674763fc1989b50d49c6019",
           "sha256": "5eb50a6007502e967b1df7bc93a7a7211c909b1b607914c437b334731d9e3374"
+        }
+      ]
+    },
+    {
+      "reason": "About now rests at semantic stop zero and uses the same desktop rail/dock truck as the other shelves. Reviewed worldLayout diff: unit geometry, unit poses, camera constants, and rail-free screenshot capture composition are unchanged. About SVG wood is projected at runtime; the six captured shelf drawings and their capture cameras remain valid. See docs/reviews/about-wide-shelf-framing.md.",
+      "previousFingerprint": "55edbbe5cbbf322103a1d87bf37c6d6a527e575a57fbf51978d0f4a78ed8ab88",
+      "sourceFingerprint": "d871110149c2d85f29ee9b82d0eec3d7b55786d5a7e1050b579bc31229a42404",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/worldLayout.ts",
+          "previousSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865",
+          "sha256": "5e41f2e18542d5a746b50a25d679799a948158877940ff3dff1e597018c82384"
         }
       ]
     }

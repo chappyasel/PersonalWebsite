@@ -24,13 +24,8 @@
 // `cameraZ / (cameraZ - z)` scaling, so the fan's mild perspective is the
 // same maths with the real camera put back in.
 //
-// The camera is the canonical desktop rest pose (1440×900 with the rail's
-// fallback width). On desktop only the eye's x moves with the viewport (the
-// About shift plus its share of the dock truck), which shifts a point off the
-// plane by (1 - scale) times that difference: under 0.05 plane units for the
-// nearest floor prop across every desktop width, and a few thousandths for
-// anything on a shelf. Narrow viewports stand the camera farther back, so
-// their depth ratios are slightly milder than these.
+// Existing silhouettes retain their authored extraction camera. Live anchors
+// and solid wood use the current viewport's rest camera.
 import { UNIT_COUNT } from "../data";
 
 import {
@@ -47,8 +42,6 @@ import {
 import { SHELF_SURFACE } from "./shelfGeometry";
 import {
   RAIL_RIGHT_PX_FALLBACK,
-  STACKS_DESKTOP_MIN_WIDTH,
-  aboutStopShift,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
   scrollOffsetForUnit,
@@ -77,18 +70,14 @@ export type AboutBootProjectedPoint = Readonly<{
   scale: number;
 }>;
 
-/** CameraRig's About rest pose for a viewport, assembled from the exported
- * camera helpers the way the frame loop assembles it: the About shift plus
- * the composition's lateral truck for x, the composition's height, distance
- * and aim, and the depth offsets only if they ship on. */
+/** CameraRig's About rest pose, including the shared desktop truck and
+ * the depth offsets only when enabled. */
 export function aboutBootRestCamera(
   vw = 1440,
   vh = 900,
   railRightPx = RAIL_RIGHT_PX_FALLBACK,
 ): AboutBootCamera {
-  const shift =
-    vw < STACKS_DESKTOP_MIN_WIDTH ? 0 : aboutStopShift(vw, vh, railRightPx);
-  const offset = scrollOffsetForUnit(0, shift);
+  const offset = scrollOffsetForUnit(0);
   const scenePosition = unitProgressForScrollOffset(offset) * (UNIT_COUNT - 1);
   const composition = cameraCompositionForViewport(
     vw,
@@ -106,7 +95,7 @@ export function aboutBootRestCamera(
       false,
     ),
   );
-  const eyeX = shift + composition.lateralOffset;
+  const eyeX = composition.lateralOffset;
   const eyeY = composition.y + depth.eyeHeight;
   const horizontal = composition.z - composition.lookZ;
   const baselinePitch = Math.atan2(
@@ -122,7 +111,13 @@ export function aboutBootRestCamera(
 }
 
 /** The canonical camera every boot drawable is projected through. */
-export const ABOUT_BOOT_CAMERA: AboutBootCamera = aboutBootRestCamera();
+export const ABOUT_BOOT_CAMERA: AboutBootCamera = {
+  // Authored extraction pose for the existing silhouettes. Live placement
+  // uses aboutBootRestCamera; changing viewport framing must not retrace art.
+  eye: [0.721974082768699, 0.25, 5.723052168736327],
+  aim: [0.721974082768699, -0.08000000000000002, -0.2769478312636723],
+  unitYaw: 0.1,
+};
 
 type Basis = Readonly<{
   eye: Point3;
@@ -176,10 +171,7 @@ function basisFor(camera: AboutBootCamera): Basis {
 }
 
 /** A unit-local point turned through the unit's yaw into world space. */
-export function aboutBootWorldPoint(
-  point: Point3,
-  unitYaw: number,
-): Point3 {
+export function aboutBootWorldPoint(point: Point3, unitYaw: number): Point3 {
   const cos = Math.cos(unitYaw);
   const sin = Math.sin(unitYaw);
   return [
@@ -229,15 +221,118 @@ export function projectAboutBootQuad(
   }) as unknown as AboutBootQuad;
 }
 
-export type AboutBootPlankProjection = Readonly<{
-  /** The face toward the camera, top edge first, clockwise on screen. */
-  front: AboutBootQuad;
-  /** The upper surface, which the camera sees because it looks down at the
-   * shelf: far edge first, so the near edge is the front face's top edge. */
-  top: AboutBootQuad;
+export type AboutBootBox = Readonly<{
+  centerX: number;
+  width: number;
+  centerZ: number;
+  depth: number;
+  top: number;
+  bottom: number;
 }>;
 
-/** A plank as the camera sees it: its front face and its top surface. */
+export type AboutBootBoxFace =
+  | "top"
+  | "front"
+  | "right"
+  | "left"
+  | "back"
+  | "bottom";
+export type AboutBootBoxProjection = AboutBootBoxBounds & {
+  faces: Record<AboutBootBoxFace, { points: AboutBootQuad; visible: boolean }>;
+};
+
+/** Project complete solids. Visibility comes from the eye in unit-local
+ * coordinates, so hidden end faces cannot shade the inside of a plank. */
+export function aboutBootBoxProjection(
+  box: AboutBootBox,
+  camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
+): AboutBootBoxProjection {
+  const l = box.centerX - box.width / 2,
+    r = box.centerX + box.width / 2;
+  const n = box.centerZ + box.depth / 2,
+    f = box.centerZ - box.depth / 2;
+  const t = box.top,
+    b = box.bottom;
+  const cos = Math.cos(camera.unitYaw),
+    sin = Math.sin(camera.unitYaw);
+  const ex = camera.eye[0] * cos - camera.eye[2] * sin;
+  const ez = camera.eye[0] * sin + camera.eye[2] * cos;
+  const face = (
+    corners: readonly [Point3, Point3, Point3, Point3],
+    visible: boolean,
+  ) => ({
+    points: projectAboutBootQuad(corners, camera),
+    visible,
+  });
+  return {
+    ...aboutBootBoxBounds(box, camera),
+    faces: {
+      top: face(
+        [
+          [l, t, f],
+          [r, t, f],
+          [r, t, n],
+          [l, t, n],
+        ],
+        camera.eye[1] > t,
+      ),
+      front: face(
+        [
+          [l, t, n],
+          [r, t, n],
+          [r, b, n],
+          [l, b, n],
+        ],
+        ez > n,
+      ),
+      right: face(
+        [
+          [r, t, n],
+          [r, t, f],
+          [r, b, f],
+          [r, b, n],
+        ],
+        ex > r,
+      ),
+      left: face(
+        [
+          [l, t, f],
+          [l, t, n],
+          [l, b, n],
+          [l, b, f],
+        ],
+        ex < l,
+      ),
+      back: face(
+        [
+          [r, t, f],
+          [l, t, f],
+          [l, b, f],
+          [r, b, f],
+        ],
+        ez < f,
+      ),
+      bottom: face(
+        [
+          [l, b, n],
+          [r, b, n],
+          [r, b, f],
+          [l, b, f],
+        ],
+        camera.eye[1] < b,
+      ),
+    },
+  };
+}
+
+export type AboutBootPlankProjection = Readonly<{
+  front: AboutBootQuad;
+  top: AboutBootQuad;
+  right: AboutBootBoxProjection["faces"]["right"];
+  left: AboutBootBoxProjection["faces"]["left"];
+}>;
+
+/** A plank's front, top and visible end caps share the box projector. */
 export function aboutBootPlankProjection(
   plank: Readonly<{
     width: number;
@@ -248,30 +343,20 @@ export function aboutBootPlankProjection(
   }>,
   camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
 ): AboutBootPlankProjection {
-  const halfWidth = plank.width / 2;
-  const top = plank.centerY + plank.thickness / 2;
-  const bottom = plank.centerY - plank.thickness / 2;
-  const near = plank.centerZ + plank.depth / 2;
-  const far = plank.centerZ - plank.depth / 2;
+  const { faces } = aboutBootBoxProjection(
+    {
+      ...plank,
+      centerX: 0,
+      top: plank.centerY + plank.thickness / 2,
+      bottom: plank.centerY - plank.thickness / 2,
+    },
+    camera,
+  );
   return {
-    front: projectAboutBootQuad(
-      [
-        [-halfWidth, top, near],
-        [halfWidth, top, near],
-        [halfWidth, bottom, near],
-        [-halfWidth, bottom, near],
-      ],
-      camera,
-    ),
-    top: projectAboutBootQuad(
-      [
-        [-halfWidth, top, far],
-        [halfWidth, top, far],
-        [halfWidth, top, near],
-        [-halfWidth, top, near],
-      ],
-      camera,
-    ),
+    top: faces.top.points,
+    front: faces.front.points,
+    right: faces.right,
+    left: faces.left,
   };
 }
 
@@ -283,10 +368,7 @@ export type AboutBootBoxBounds = Readonly<{
   bottom: number;
 }>;
 
-/** The plane-space bounding box of an axis-aligned unit-local box: every
- * corner projected, then the extremes. Uprights and feet are drawn from
- * this rather than as eight-cornered solids; at their depth the difference
- * is under two pixels. */
+/** Bounds for layout measurements only. Rendering uses the projected faces. */
 export function aboutBootBoxBounds(
   box: Readonly<{
     centerX: number;

@@ -18,6 +18,8 @@ it.each([
   [1200, 900],
   [1440, 900],
   [2560, 1440],
+  [3440, 1440],
+  [3840, 1080],
 ])(
   "projects About's first-paint wood through the same camera at %i x %i",
   (width, height) => {
@@ -46,6 +48,14 @@ it.each([
           .flatMap(([x, y]) => [x * SCENE_TO_BOOT_SVG, -y * SCENE_TO_BOOT_SVG])
           .forEach((value, i) => expect(actual[i]).toBeCloseTo(value, 3));
       }
+      for (const side of ["left", "right"] as const) {
+        expect(output.faces[index]![side].visible).toBe(expected[side].visible);
+        const actual =
+          output.faces[index]![side].points.split(/[ ,]/).map(Number);
+        expected[side].points
+          .flatMap(([x, y]) => [x * SCENE_TO_BOOT_SVG, -y * SCENE_TO_BOOT_SVG])
+          .forEach((value, i) => expect(actual[i]).toBeCloseTo(value, 3));
+      }
     }
     for (const support of output.supports) {
       const expected = aboutBootShelfSupportProjection(
@@ -53,6 +63,22 @@ it.each([
         camera,
       );
       for (const part of ["upright", "foot"] as const) {
+        for (const face of Object.keys(
+          expected[part].faces,
+        ) as (keyof typeof expected.upright.faces)[]) {
+          expect(support[part].faces[face].visible).toBe(
+            expected[part].faces[face].visible,
+          );
+          const actual = support[part].faces[face].points
+            .split(/[ ,]/)
+            .map(Number);
+          expected[part].faces[face].points
+            .flatMap(([x, y]) => [
+              x * SCENE_TO_BOOT_SVG,
+              -y * SCENE_TO_BOOT_SVG,
+            ])
+            .forEach((value, i) => expect(actual[i]).toBeCloseTo(value, 3));
+        }
         expect(support[part].x).toBeCloseTo(
           expected[part].x * SCENE_TO_BOOT_SVG,
           3,

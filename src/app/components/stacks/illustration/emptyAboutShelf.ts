@@ -42,28 +42,6 @@ export function emptyAboutShelf(
   const fixed = (v: number) => Number(v.toFixed(3));
   const quad = (corners: Point3[]) =>
     corners.map((p) => project(p).map(fixed).join(",")).join(" ");
-  const faces = planks.map((p) => {
-    const x = p.width / 2,
-      y = p.centerY + p.thickness / 2,
-      b = p.centerY - p.thickness / 2,
-      n = p.centerZ + p.depth / 2,
-      f = p.centerZ - p.depth / 2;
-    return {
-      id: p.id,
-      top: quad([
-        [-x, y, f],
-        [x, y, f],
-        [x, y, n],
-        [-x, y, n],
-      ]),
-      front: quad([
-        [-x, y, n],
-        [x, y, n],
-        [x, b, n],
-        [-x, b, n],
-      ]),
-    };
-  });
   const box = (
     x: number,
     w: number,
@@ -72,6 +50,74 @@ export function emptyAboutShelf(
     top: number,
     bottom: number,
   ) => {
+    const l = x - w / 2,
+      r = x + w / 2,
+      n = z + d / 2,
+      f = z - d / 2;
+    const t = top,
+      b = bottom;
+    const ex = camera.eye[0] * cos - camera.eye[2] * sin;
+    const ez = camera.eye[0] * sin + camera.eye[2] * cos;
+    const face = (corners: Point3[], visible: boolean) => ({
+      points: quad(corners),
+      visible,
+    });
+    const faces = {
+      top: face(
+        [
+          [l, t, f],
+          [r, t, f],
+          [r, t, n],
+          [l, t, n],
+        ],
+        camera.eye[1] > t,
+      ),
+      front: face(
+        [
+          [l, t, n],
+          [r, t, n],
+          [r, b, n],
+          [l, b, n],
+        ],
+        ez > n,
+      ),
+      right: face(
+        [
+          [r, t, n],
+          [r, t, f],
+          [r, b, f],
+          [r, b, n],
+        ],
+        ex > r,
+      ),
+      left: face(
+        [
+          [l, t, f],
+          [l, t, n],
+          [l, b, n],
+          [l, b, f],
+        ],
+        ex < l,
+      ),
+      back: face(
+        [
+          [r, t, f],
+          [l, t, f],
+          [l, b, f],
+          [r, b, f],
+        ],
+        ez < f,
+      ),
+      bottom: face(
+        [
+          [l, b, n],
+          [r, b, n],
+          [r, b, f],
+          [l, b, f],
+        ],
+        camera.eye[1] < b,
+      ),
+    };
     const points = [-w / 2, w / 2].flatMap((dx) =>
       [-d / 2, d / 2].flatMap((dz) =>
         [top, bottom].map((y) => project([x + dx, y, z + dz])),
@@ -80,12 +126,30 @@ export function emptyAboutShelf(
     const xs = points.map((p) => p[0]!),
       ys = points.map((p) => p[1]!);
     return {
+      faces,
       x: fixed(Math.min(...xs)),
       y: fixed(Math.min(...ys)),
       width: fixed(Math.max(...xs) - Math.min(...xs)),
       height: fixed(Math.max(...ys) - Math.min(...ys)),
     };
   };
+  const faces = planks.map((p) => {
+    const { faces } = box(
+      0,
+      p.width,
+      p.centerZ,
+      p.depth,
+      p.centerY + p.thickness / 2,
+      p.centerY - p.thickness / 2,
+    );
+    return {
+      id: p.id,
+      top: faces.top.points,
+      front: faces.front.points,
+      left: faces.left,
+      right: faces.right,
+    };
+  });
   const s = geometry.support;
   const supports = [-1, 1].map((side) => {
     const x = side * (geometry.width / 2 - geometry.strapInsetX),

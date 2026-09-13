@@ -509,45 +509,30 @@ describe("Homepage entrance", () => {
 
   it("derives both shelf uprights and feet without exposed lower cleats", () => {
     const markup = renderBoot();
-    const attribute = (tag: string | undefined, name: string) =>
-      Number(new RegExp(`${name}="([^"]+)"`).exec(tag ?? "")?.[1]);
-
     for (const side of [-1, 1] as const) {
-      const upright = new RegExp(
-        `<rect data-boot-support-upright="${side}"[^>]*>`,
-      ).exec(markup)?.[0];
-      const foot = new RegExp(
-        `<rect data-boot-support-foot="${side}"[^>]*>`,
-      ).exec(markup)?.[0];
-      // Every corner of each box through the shared projector, then the
-      // plane-space extremes (aboutBootSupportProjection.ts).
       const projection = aboutBootShelfSupportProjection(side);
-
-      expect(attribute(upright, "x")).toBeCloseTo(
-        projection.upright.x * 100,
-        2,
-      );
-      expect(attribute(upright, "y")).toBeCloseTo(
-        -projection.upright.top * 100,
-        2,
-      );
-      expect(attribute(upright, "width")).toBeCloseTo(
-        projection.upright.width * 100,
-        2,
-      );
-      expect(attribute(upright, "height")).toBeCloseTo(
-        (projection.upright.top - projection.upright.bottom) * 100,
-        2,
-      );
-      expect(attribute(foot, "x")).toBeCloseTo(projection.foot.x * 100, 2);
-      expect(attribute(foot, "width")).toBeCloseTo(
-        projection.foot.width * 100,
-        2,
-      );
-      expect(attribute(foot, "height")).toBeCloseTo(
-        (projection.foot.top - projection.foot.bottom) * 100,
-        2,
-      );
+      for (const part of ["upright", "foot"] as const) {
+        const group =
+          new RegExp(`<g data-boot-support-${part}="${side}">(.*?)</g>`).exec(
+            markup,
+          )?.[1] ?? "";
+        for (const [face, value] of Object.entries(projection[part].faces)) {
+          const polygon =
+            new RegExp(`<polygon data-boot-box-face="${face}"[^>]*>`).exec(
+              group,
+            )?.[0] ?? "";
+          expect(polygon).toContain(
+            `visibility="${value.visible ? "visible" : "hidden"}"`,
+          );
+          const points = /points="([^"]+)"/
+            .exec(polygon)![1]!
+            .split(/[ ,]/)
+            .map(Number);
+          value.points
+            .flatMap(([x, y]) => [x * 100, -y * 100])
+            .forEach((v, i) => expect(points[i]).toBeCloseTo(v, 3));
+        }
+      }
       // The upright reaches from the top plank's underside to the ground,
       // seen from 0.25 above the plank, so it stands a little taller than
       // its flat elevation and the foot sits a little below the plane's

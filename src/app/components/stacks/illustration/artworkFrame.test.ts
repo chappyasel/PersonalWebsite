@@ -10,7 +10,6 @@ import {
 import {
   RAIL_RIGHT_PX_FALLBACK,
   STACKS_DESKTOP_MIN_WIDTH,
-  aboutStopShift,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
   scrollOffsetForUnit,
@@ -41,11 +40,9 @@ function ordinaryCamera(
   rail: number,
 ) {
   const narrow = width < STACKS_DESKTOP_MIN_WIDTH;
-  const shift = !narrow && unit === 0 ? aboutStopShift(width, height, rail) : 0;
   const position =
     unit === 0
-      ? unitProgressForScrollOffset(scrollOffsetForUnit(0, shift)) *
-        (UNIT_COUNT - 1)
+      ? unitProgressForScrollOffset(scrollOffsetForUnit(0)) * (UNIT_COUNT - 1)
       : unit;
   const composition = cameraCompositionForViewport(
     width,
@@ -59,7 +56,7 @@ function ordinaryCamera(
     position,
     ABOUT_BOOT_STAGE_GEOMETRY.depthEnabled,
   );
-  const x = unitPose(unit).position[0] + shift + composition.lateralOffset;
+  const x = unitPose(unit).position[0] + composition.lateralOffset;
   const y = composition.y + depth.eyeHeight;
   const distance = composition.z - composition.lookZ;
   const pitch =

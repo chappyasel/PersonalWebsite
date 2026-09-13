@@ -1426,41 +1426,26 @@ export function BootScreenArtwork({
                           camera,
                         )}
                       >
-                        <rect
-                          suppressHydrationWarning={shelfOnly}
-                          data-boot-support-upright={side}
-                          x={bootFixed(
-                            projection.upright.x * SCENE_TO_BOOT_SVG,
-                          )}
-                          y={bootFixed(
-                            -projection.upright.top * SCENE_TO_BOOT_SVG,
-                          )}
-                          width={bootFixed(
-                            projection.upright.width * SCENE_TO_BOOT_SVG,
-                          )}
-                          height={bootFixed(
-                            (projection.upright.top -
-                              projection.upright.bottom) *
-                              SCENE_TO_BOOT_SVG,
-                          )}
-                          rx="2"
-                        />
-                        <rect
-                          suppressHydrationWarning={shelfOnly}
-                          data-boot-support-foot={side}
-                          x={bootFixed(projection.foot.x * SCENE_TO_BOOT_SVG)}
-                          y={bootFixed(
-                            -projection.foot.top * SCENE_TO_BOOT_SVG,
-                          )}
-                          width={bootFixed(
-                            projection.foot.width * SCENE_TO_BOOT_SVG,
-                          )}
-                          height={bootFixed(
-                            (projection.foot.top - projection.foot.bottom) *
-                              SCENE_TO_BOOT_SVG,
-                          )}
-                          rx="1.5"
-                        />
+                        {(["upright", "foot"] as const).map((part) => (
+                          <g
+                            key={part}
+                            {...{ [`data-boot-support-${part}`]: side }}
+                          >
+                            {Object.entries(projection[part].faces).map(
+                              ([face, value]) => (
+                                <polygon
+                                  key={face}
+                                  suppressHydrationWarning={shelfOnly}
+                                  data-boot-box-face={face}
+                                  points={bootPoints(value.points)}
+                                  visibility={
+                                    value.visible ? "visible" : "hidden"
+                                  }
+                                />
+                              ),
+                            )}
+                          </g>
+                        ))}
                       </g>
                     );
                   })}
@@ -1480,6 +1465,18 @@ export function BootScreenArtwork({
                           camera,
                         )}
                       >
+                        {(["left", "right"] as const).map((side) => (
+                          <polygon
+                            key={side}
+                            suppressHydrationWarning={shelfOnly}
+                            data-boot-plank-side={side}
+                            data-shelf-id={plank.id}
+                            points={bootPoints(projection[side].points)}
+                            visibility={
+                              projection[side].visible ? "visible" : "hidden"
+                            }
+                          />
+                        ))}
                         <polygon
                           suppressHydrationWarning={shelfOnly}
                           data-boot-plank-top=""
