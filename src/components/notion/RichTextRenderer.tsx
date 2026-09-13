@@ -4,6 +4,7 @@ import Link from "next/link";
 import React from "react";
 
 import { bookSlugFromUrl, humanizeSlug } from "~/lib/books/inlineFacts";
+import { localMusingHref } from "~/lib/musings/links";
 import { SITE_PAGES, isBareUrl, sitePageForHref } from "~/lib/site/pages";
 
 import BookLink from "~/components/books/BookLink";
@@ -220,8 +221,8 @@ export default function RichTextRenderer({
         }
 
         if (rt.link) {
-          const isExternal =
-            rt.link.startsWith("http") || rt.link.startsWith("//");
+          const href = localMusingHref(rt.link);
+          const isExternal = href.startsWith("http") || href.startsWith("//");
           // Every link shares one underline. Section references and site
           // pages add the target's glyph in front of the words; that, not a
           // different underline, is what marks them as wayfinding.
@@ -271,7 +272,7 @@ export default function RichTextRenderer({
           } else {
             el = (
               <Link
-                href={rt.link}
+                href={href}
                 target={isExternal ? "_blank" : undefined}
                 rel={isExternal ? "noopener noreferrer" : undefined}
                 className={linkClass}

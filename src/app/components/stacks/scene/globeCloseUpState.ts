@@ -119,7 +119,7 @@ export function globeChapterTarget(
       }
     : {
         href: `${AIC_SITE}/chapters`,
-        label: "AI Collective chapters",
+        label: "The AI Collective chapters",
         external: true,
       };
 }

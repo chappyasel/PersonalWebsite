@@ -108,7 +108,7 @@ it("carries owner modes through the mirrored URL", () => {
   const room = mountRoom("/?debug=1");
   try {
     act(() => useStacks.setState({ activeUnit: 5 }));
-    expect(room.here()).toBe("/musings?debug=1");
+    expect(room.here()).toBe("/?debug=1#musings");
     act(() => useStacks.setState({ activeUnit: 3 }));
     expect(room.here()).toBe("/?debug=1#systems");
   } finally {

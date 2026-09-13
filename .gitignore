@@ -65,3 +65,6 @@ npm-debug.log*
 
 # Private personality records, credentials, and local database
 /data/personalities/
+
+# Private Medium import plans, Notion responses, and resumable upload records
+/data/musings-import/

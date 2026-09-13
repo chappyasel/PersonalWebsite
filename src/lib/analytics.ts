@@ -36,7 +36,8 @@ export type ContactMethod =
   | "x"
   | "instagram"
   | "github"
-  | "medium";
+  | "medium"
+  | "musings";
 export type DeepPage =
   | "books"
   | "weightlifting"

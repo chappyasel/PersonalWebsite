@@ -2,6 +2,7 @@
 
 // Comparison views on /prototype/personality?variant=A|B|C|D|E.
 // Question: is a focused curve, five-curve overview, or matrix easiest to compare?
+import { ArrowDownIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   ArrowLeftIcon,
   MagnifyingGlassIcon,
@@ -483,7 +484,9 @@ function VariantC(props: ViewProps) {
                 >
                   <Button variant="ghost" onClick={() => props.onTrait(trait)}>
                     {trait.slice(0, 1)}
-                    {trait === props.trait ? " ↓" : ""}
+                    {trait === props.trait && (
+                      <ArrowDownIcon aria-hidden="true" className="size-3" />
+                    )}
                     <span className="sr-only"> {trait}</span>
                   </Button>
                 </th>

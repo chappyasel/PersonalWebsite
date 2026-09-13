@@ -22,6 +22,15 @@ Use the existing shadcn/ui components in `src/components/ui/` for standard
 controls, popovers, cards, and expandable sections. Compose these components
 instead of recreating their styling and interaction behavior with native elements.
 
+Use Phosphor icons for all interface icons across the website. Import from
+`@phosphor-icons/react`, or `@phosphor-icons/react/dist/ssr` for server-compatible
+components. Never draw navigation, external-link, sorting, or direction icons
+with ASCII/Unicode characters, HTML arrow entities, emoji substitutes, or
+another icon library. Use `aria-hidden` for decorative icons and accessible
+names for icon-only controls. Preserve arrow notation in authored content,
+code examples, parsers, and logs. ESLint enforces icon imports and rejects
+text arrows in JSX.
+
 ## Debug controls
 
 When adding an optional visual effect or performance-sensitive rendering path,

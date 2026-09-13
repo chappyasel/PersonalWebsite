@@ -2,7 +2,12 @@
 
 // Five throwaway views on /prototype/personality?variant=A|B|C|D|E.
 // Question: is a focused curve, five-curve overview, or matrix easiest to compare?
-import { ArrowLeft, ArrowRight, Search } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowLeftIcon as ArrowLeft,
+  ArrowRightIcon as ArrowRight,
+  MagnifyingGlassIcon as Search,
+} from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -547,7 +552,9 @@ function VariantC(props: ViewProps) {
                 >
                   <Button variant="ghost" onClick={() => props.onTrait(trait)}>
                     {trait.slice(0, 1)}
-                    {trait === props.trait ? " ↓" : ""}
+                    {trait === props.trait && (
+                      <ArrowDownIcon aria-hidden="true" className="size-3" />
+                    )}
                     <span className="sr-only"> {trait}</span>
                   </Button>
                 </th>

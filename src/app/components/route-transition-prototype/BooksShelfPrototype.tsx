@@ -269,7 +269,7 @@ export const BooksShelfPrototype = forwardRef<BooksShelfPrototypeHandle>(
               await delay(60);
             await nextFrame();
             if (signal.aborted) return;
-            onPhase("shelf → library");
+            onPhase("shelf to library");
             const flights = coverFlight(
               visibleLibraryCovers(),
               false,
@@ -298,7 +298,7 @@ export const BooksShelfPrototype = forwardRef<BooksShelfPrototypeHandle>(
           } else {
             const rects = visibleLibraryCovers();
             mount(cached.current, "Returning to the Books shelf");
-            onPhase("library → shelf");
+            onPhase("library to shelf");
             await Promise.all([
               animate(
                 root.current?.querySelector("[data-shelf-paper]") ?? null,
@@ -322,7 +322,7 @@ export const BooksShelfPrototype = forwardRef<BooksShelfPrototypeHandle>(
             await coverFlight(rects, true, speed, signal);
             await delay(220 * speed);
             if (signal.aborted) return;
-            onPhase("2D → 3D");
+            onPhase("2D to 3D");
             await animate(
               root.current,
               [{ opacity: 1 }, { opacity: 0 }],

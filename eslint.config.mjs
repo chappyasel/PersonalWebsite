@@ -50,9 +50,37 @@ export default defineConfig([
         "error",
         {
           selector:
+            "JSXText[value=/[\\u2190-\\u21ff\\u27f0-\\u27ff\\u2900-\\u297f\\u2b05-\\u2b07➔➜➝➞➤➧‹›«»]|->|<-/u], JSXExpressionContainer Literal[value=/[\\u2190-\\u21ff\\u27f0-\\u27ff\\u2900-\\u297f\\u2b05-\\u2b07➔➜➝➞➤➧‹›«»]|->|<-/u]",
+          message:
+            "Use a Phosphor icon instead of a text arrow in the interface.",
+        },
+        {
+          selector:
             "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
           message:
             "Do not use native title attributes. They create delayed browser tooltips. Use visible UI copy or an accessible name instead.",
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "lucide-react",
+                "lucide-react/*",
+                "react-icons",
+                "react-icons/*",
+                "@heroicons/*",
+                "@radix-ui/react-icons",
+                "@fortawesome/*",
+                "@tabler/icons*",
+                "@mui/icons-material",
+                "@mui/icons-material/*",
+              ],
+              message: "Use @phosphor-icons/react for interface icons.",
+            },
+          ],
         },
       ],
       "drizzle/enforce-delete-with-where": [

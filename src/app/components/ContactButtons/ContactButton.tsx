@@ -22,7 +22,7 @@ export function ContactButton({ contact }: { contact: Contact }) {
     <Link
       className="relative flex h-8 w-8 items-center justify-center transition-all duration-300 ease-in-out hover:text-muted-foreground"
       href={contact.link}
-      target="_blank"
+      target={contact.link.startsWith("/") ? undefined : "_blank"}
       aria-label={contact.title}
       onClick={() =>
         capture("homepage_contact_selected", { method: contact.analyticsId })

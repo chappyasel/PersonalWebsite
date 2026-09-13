@@ -1,3 +1,12 @@
+import {
+  ArrowDownIcon,
+  ArrowElbowDownLeftIcon,
+  ArrowLeftIcon,
+  ArrowLineDownIcon,
+  ArrowLineUpIcon,
+  ArrowRightIcon,
+  ArrowUpIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { type ComponentPropsWithoutRef, type ReactNode } from "react";
 
 import { cn } from "~/lib/utils";
@@ -6,7 +15,26 @@ type KeycapProps = ComponentPropsWithoutRef<"kbd"> & {
   width?: "key" | "fit";
 };
 
-export function Keycap({ className, width = "key", ...props }: KeycapProps) {
+const keyIcons = {
+  ArrowLeft: ArrowLeftIcon,
+  ArrowRight: ArrowRightIcon,
+  ArrowUp: ArrowUpIcon,
+  ArrowDown: ArrowDownIcon,
+  PageUp: ArrowLineUpIcon,
+  PageDown: ArrowLineDownIcon,
+  Enter: ArrowElbowDownLeftIcon,
+};
+
+export function Keycap({
+  className,
+  width = "key",
+  children,
+  ...props
+}: KeycapProps) {
+  const Icon =
+    typeof children === "string" && Object.hasOwn(keyIcons, children)
+      ? keyIcons[children as keyof typeof keyIcons]
+      : null;
   return (
     <kbd
       className={cn(
@@ -19,7 +47,17 @@ export function Keycap({ className, width = "key", ...props }: KeycapProps) {
         className,
       )}
       {...props}
-    />
+    >
+      {Icon ? (
+        <Icon
+          aria-label={typeof children === "string" ? children : undefined}
+          className="size-2.5"
+          weight="bold"
+        />
+      ) : (
+        children
+      )}
+    </kbd>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -243,7 +244,12 @@ export default function ChangesView({
                       {d.delta}
                     </strong>
                     <small>
-                      {d.left} → {d.right} / 120
+                      {d.left}{" "}
+                      <ArrowRightIcon
+                        aria-hidden="true"
+                        className="inline-block size-[1em] align-[-0.125em]"
+                      />{" "}
+                      {d.right} / 120
                     </small>
                   </Card>
                 ))}

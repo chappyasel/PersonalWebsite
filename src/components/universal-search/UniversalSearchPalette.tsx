@@ -1063,11 +1063,14 @@ export function UniversalSearchPaletteContent({
             </Command.List>
             <div className="flex items-center justify-between border-t border-border/70 px-4 py-1.5 font-sans text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <KeycapSequence keys={["↑", "↓"]} label="Up and down arrows" />
+                <KeycapSequence
+                  keys={["ArrowUp", "ArrowDown"]}
+                  label="Up and down arrows"
+                />
                 Navigate
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <Keycap aria-hidden="true">↵</Keycap>
+                <Keycap aria-hidden="true">Enter</Keycap>
                 Open
               </span>
             </div>

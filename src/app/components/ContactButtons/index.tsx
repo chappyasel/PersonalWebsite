@@ -38,10 +38,10 @@ const CONTACTS: Contact[] = [
     icon: <GithubLogoIcon size={28} weight="duotone" />,
   },
   {
-    title: "Medium",
-    username: "@chappyasel",
-    link: "https://medium.com/@chappyasel",
-    analyticsId: "medium",
+    title: "Musings",
+    username: "Essays & RSS",
+    link: "/musings",
+    analyticsId: "musings",
     icon: <RssSimpleIcon size={28} weight="duotone" />,
   },
 ];

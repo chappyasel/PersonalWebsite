@@ -938,7 +938,7 @@ export function NotebookLean({
               href={key}
               portalLabel={key ? "Read this musing" : undefined}
               to={key ? undefined : "blog"}
-              external
+              external={key ? !key.startsWith("/") : false}
             >
               {spine}
             </Grabbable>

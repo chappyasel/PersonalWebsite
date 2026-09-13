@@ -118,6 +118,72 @@ it.each(["development", "production"])(
   },
 );
 
+it.each([
+  ["/musings", "/musings/ai-stack", false],
+  ["/musings/ai-stack", "/musings/apple-way", false],
+  ["/musings/ai-stack", "/musings", false],
+  ["/musings", "/musings/ai-stack", true],
+] as const)(
+  "animates the reading route %s to %s, reduced motion %s",
+  async (from, to, reduced) => {
+    navigation.pathname = from;
+    history.replaceState({ __NA: true }, "", from);
+    vi.stubGlobal("matchMedia", () => ({ matches: reduced }));
+    const page = () => (
+      <>
+        <RouteTransitionPrototype />
+        <a href={to}>Read essay</a>
+      </>
+    );
+    const view = render(page());
+    expect(navigation.router.prefetch).not.toHaveBeenCalled();
+    await act(async () => fireEvent.click(screen.getByText("Read essay")));
+    expect(navigation.router.push).toHaveBeenCalledWith(to);
+    expect(vi.spyOn(document, "startViewTransition")).toHaveBeenCalledTimes(
+      reduced ? 0 : 1,
+    );
+    if (!reduced)
+      expect(document.documentElement.dataset.routePrototype).toBe("origin");
+    navigation.pathname = to;
+    await act(async () => view.rerender(page()));
+    if (!reduced) await act(async () => finish());
+    expect(document.documentElement.dataset.routePrototype).toBeUndefined();
+  },
+);
+
+it.each([
+  ["/musings/ai-stack", "/musings"],
+  ["/musings", "/musings/ai-stack"],
+] as const)(
+  "animates browser traversal from %s to %s without pushing history",
+  async (from, to) => {
+    navigation.pathname = from;
+    history.replaceState({ __NA: true }, "", from);
+    const view = render(<PageUnderTest />);
+    const restore = vi.fn(() => {
+      navigation.pathname = to;
+      view.rerender(<PageUnderTest />);
+    });
+    window.addEventListener("popstate", restore);
+    try {
+      history.replaceState({ __NA: true }, "", to);
+      await act(async () =>
+        window.dispatchEvent(
+          new PopStateEvent("popstate", { state: { __NA: true } }),
+        ),
+      );
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(navigation.router.push).not.toHaveBeenCalled();
+      expect(vi.spyOn(document, "startViewTransition")).toHaveBeenCalledTimes(
+        1,
+      );
+      await act(async () => finish());
+    } finally {
+      window.removeEventListener("popstate", restore);
+    }
+  },
+);
+
 it("zooms from the clicked link's actual rectangle and releases capture at route commit", async () => {
   const view = render(
     <>

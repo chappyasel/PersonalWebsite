@@ -4,7 +4,7 @@
  * A hash never reaches the server, so every `/#projects` link used to unfurl
  * as the homepage card. A shelf that owns a path can carry its own title,
  * description, and card, the way `/golf` always has. Books, Weightlifting,
- * and Systems are real pages at those paths, so their stops keep the hash
+ * Systems, and Musings are real pages at those paths, so their stops keep the hash
  * form. About's stop is the homepage itself: `/about` opens there, but the
  * stop's canonical URL stays `/`.
  *
@@ -20,7 +20,6 @@ export const GOLF_PATHNAME = "/golf";
 export const ROOM_SECTION_PATHNAMES: Readonly<Record<string, string>> = {
   about: "/about",
   projects: "/projects",
-  musings: "/musings",
   talks: "/talks",
 };
 

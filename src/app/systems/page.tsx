@@ -16,6 +16,7 @@ import {
   type TOCItem,
 } from "~/components/daylight/DaylightTOC";
 import SkyFooter from "~/components/daylight/SkyFooter";
+import { DocumentGallery } from "~/components/images/DocumentGallery";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
 import type { SystemsData } from "./types";
@@ -44,7 +45,8 @@ export default async function SystemsPage() {
     { id: section.id, label: section.title, emoji: section.icon },
     ...(section.layers ?? []).map((layer) => ({
       id: layer.id,
-      label: layer.id === "planning-review-cycles" ? "P & R Cycles" : layer.title,
+      label:
+        layer.id === "planning-review-cycles" ? "P & R Cycles" : layer.title,
       emoji: layer.icon,
       depth: 1 as const,
     })),
@@ -52,30 +54,32 @@ export default async function SystemsPage() {
 
   return (
     <SitePageCardsProvider cards={cards}>
-      <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
-        <main className="relative">
-          <SystemsHero
-            intro={data.intro}
-            lastUpdated={data.lastUpdated}
-            bookLookup={bookLookup}
-          />
+      <DocumentGallery>
+        <div className="daylight-root dl-ground-wash min-h-screen bg-background text-foreground">
+          <main className="relative">
+            <SystemsHero
+              intro={data.intro}
+              lastUpdated={data.lastUpdated}
+              bookLookup={bookLookup}
+            />
 
-          {/* Content with TOC */}
-          <div className="dl-columns mt-11 px-4 pb-12">
-            <DaylightTOCSidebar items={tocItems} />
-            <div className="dl-column space-y-14" data-systems-content>
-              {data.sections.map((section) => (
-                <SystemsSection
-                  key={section.id}
-                  section={section}
-                  bookLookup={bookLookup}
-                />
-              ))}
+            {/* Content with TOC */}
+            <div className="dl-columns mt-11 px-4 pb-12">
+              <DaylightTOCSidebar items={tocItems} />
+              <div className="dl-column space-y-14" data-systems-content>
+                {data.sections.map((section) => (
+                  <SystemsSection
+                    key={section.id}
+                    section={section}
+                    bookLookup={bookLookup}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-          <SkyFooter />
-        </main>
-      </div>
+            <SkyFooter />
+          </main>
+        </div>
+      </DocumentGallery>
     </SitePageCardsProvider>
   );
 }

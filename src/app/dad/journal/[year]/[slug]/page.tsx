@@ -1,3 +1,4 @@
+import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -30,7 +31,10 @@ export default async function JournalEntryPage({
         className="group mb-12 inline-flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
       >
         <span className="transition-transform group-hover:-translate-x-0.5">
-          ←
+          <ArrowLeftIcon
+            aria-hidden="true"
+            className="inline-block size-[1em] align-[-0.125em]"
+          />
         </span>
         Journal
       </Link>

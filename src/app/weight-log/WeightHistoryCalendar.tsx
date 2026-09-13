@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { CalendarDotsIcon } from "@phosphor-icons/react/dist/ssr";
 import { memo, useMemo, useRef, useState } from "react";
 
@@ -100,7 +101,10 @@ export const WeightHistoryCalendar = memo(function WeightHistoryCalendar({
             disabled={year <= history.minYear}
             onClick={() => changeYear(year - 1)}
           >
-            ←
+            <ArrowLeftIcon
+              aria-hidden="true"
+              className="inline-block size-[1em] align-[-0.125em]"
+            />
           </Button>
           <Select
             value={String(year)}
@@ -128,7 +132,10 @@ export const WeightHistoryCalendar = memo(function WeightHistoryCalendar({
             disabled={year >= history.maxYear}
             onClick={() => changeYear(year + 1)}
           >
-            →
+            <ArrowRightIcon
+              aria-hidden="true"
+              className="inline-block size-[1em] align-[-0.125em]"
+            />
           </Button>
         </div>
       </div>

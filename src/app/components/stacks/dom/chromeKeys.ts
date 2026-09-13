@@ -154,9 +154,9 @@ export function shortcutGroups(
   const visitor: ShortcutGroup = {
     title: "Keyboard",
     rows: [
-      { keys: ["←", "→"], does: "Previous or next shelf" },
+      { keys: ["ArrowLeft", "ArrowRight"], does: "Previous or next shelf" },
       { keys: ["A", "D"], does: "Pan the room" },
-      { keys: ["1", "7"], join: "↔", does: "Jump to a shelf" },
+      { keys: ["1", "7"], join: "to", does: "Jump to a shelf" },
       { keys: ["F"], does: "Open or close Field Notes" },
       { keys: ["\\"], does: "Hide or show details" },
       { keys: ["H"], does: "Hide or show the interface" },

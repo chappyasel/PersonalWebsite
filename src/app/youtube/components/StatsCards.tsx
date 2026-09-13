@@ -1,6 +1,7 @@
 "use client";
 
 import type { Icon } from "@phosphor-icons/react";
+import { ArrowDownIcon, ArrowUpIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   ClockIcon,
   SmileyIcon,
@@ -39,10 +40,13 @@ function DeltaLine({
   unit?: string;
 }) {
   if (current === null || prior === null) return null;
-  const arrow = current === prior ? "" : current > prior ? "↑ " : "↓ ";
+  const Arrow = current > prior ? ArrowUpIcon : ArrowDownIcon;
   return (
     <>
-      {arrow}from {prior.toFixed(1)}
+      {current !== prior && (
+        <Arrow aria-hidden="true" className="mr-1 inline-block size-3" />
+      )}
+      from {prior.toFixed(1)}
       {unit} prior 30 days
     </>
   );

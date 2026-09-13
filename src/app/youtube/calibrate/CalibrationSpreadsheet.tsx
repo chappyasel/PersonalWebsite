@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   CheckCircleIcon,
   FloppyDiskIcon,
@@ -81,7 +82,11 @@ export function CalibrationSpreadsheet() {
             href="/youtube"
             className="text-xs text-neutral-500 hover:text-neutral-800"
           >
-            ← Dashboard
+            <ArrowLeftIcon
+              aria-hidden="true"
+              className="inline-block size-[1em] align-[-0.125em]"
+            />{" "}
+            Dashboard
           </Link>
           <h1 className="font-rounded text-2xl font-semibold">
             Score calibration videos

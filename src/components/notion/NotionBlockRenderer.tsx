@@ -4,6 +4,7 @@ import React from "react";
 
 import { anchorSlug } from "~/lib/anchors";
 
+import { ZoomableImage } from "~/components/images/DocumentGallery";
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
 
 import AnchorHeading from "./AnchorHeading";
@@ -183,7 +184,13 @@ export default function NotionBlockRenderer({
         // optimizer served, capped at 18rem tall.
         return (
           <figure className="flex justify-center">
-            <span className="dl-print">
+            <ZoomableImage
+              src={block.src}
+              alt={block.alt}
+              width={width}
+              height={height}
+              className="dl-print"
+            >
               <Image
                 src={block.src}
                 alt={block.alt}
@@ -191,7 +198,7 @@ export default function NotionBlockRenderer({
                 height={300}
                 className={`max-h-72 w-auto${invert}`}
               />
-            </span>
+            </ZoomableImage>
           </figure>
         );
       }
@@ -204,7 +211,13 @@ export default function NotionBlockRenderer({
       const cssWidth = Math.round(Math.min(width / 2, MAX_HEIGHT * aspect));
       return (
         <figure className="flex justify-center">
-          <span className="dl-print max-w-full">
+          <ZoomableImage
+            src={block.src}
+            alt={block.alt}
+            width={width}
+            height={height}
+            className="dl-print max-w-full"
+          >
             <Image
               src={block.src}
               alt={block.alt}
@@ -214,7 +227,7 @@ export default function NotionBlockRenderer({
               className={`h-auto max-w-full${invert}`}
               style={{ width: `min(${cssWidth}px, 100%)` }}
             />
-          </span>
+          </ZoomableImage>
         </figure>
       );
     }
