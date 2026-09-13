@@ -621,7 +621,7 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(hint).toContain("headingFor(note, found)");
   });
 
-  it("keeps the Beacon banner legible on its pale-ink palette", () => {
+  it("keeps the Lights Out banner legible on its pale-ink palette", () => {
     const beaconLettering = source.slice(
       source.indexOf("  beacon: {", source.indexOf("const STAMP_LETTERING")),
       source.indexOf("  alarm: {", source.indexOf("const STAMP_LETTERING")),

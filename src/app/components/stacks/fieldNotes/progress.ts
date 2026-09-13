@@ -89,7 +89,7 @@ export const LONG_HAUL_CARRY_UNITS = 26.2;
  * without demanding the whole collection move. */
 export const PHILATELIST_STAMPS = 5;
 
-/** Local calendar day for The Regular. Local rather than UTC because "come
+/** Local calendar day for Welcome Back. Local rather than UTC because "come
  * back tomorrow" means the visitor's tomorrow. */
 export function fieldNotesLocalDay(date = new Date()) {
   const month = `${date.getMonth() + 1}`.padStart(2, "0");

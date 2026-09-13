@@ -83,7 +83,7 @@ export const FIELD_NOTES = [
   },
   {
     id: "photo-finish",
-    title: "Photo Finish",
+    title: "Clear View",
     rarity: "Common",
     artwork: "camera",
     hidden: false,
@@ -164,7 +164,7 @@ export const FIELD_NOTES = [
   },
   {
     id: "beacon",
-    title: "Beacon",
+    title: "Lights Out",
     rarity: "Common",
     artwork: "beacon",
     hidden: false,
@@ -227,7 +227,7 @@ export const FIELD_NOTES = [
   },
   {
     id: "family-album",
-    title: "Family Album",
+    title: "Life in Pictures",
     rarity: "Rare",
     artwork: "photo",
     hidden: false,
@@ -313,7 +313,7 @@ export const FIELD_NOTES = [
     artwork: "door",
     hidden: false,
     hint: "The doors go more places than you think.",
-    foundCopy: "Followed eight different portals out of the room.",
+    foundCopy: "Followed portals to eight different destinations.",
   },
   {
     id: "long-haul",
@@ -326,7 +326,7 @@ export const FIELD_NOTES = [
   },
   {
     id: "the-regular",
-    title: "The Regular",
+    title: "Welcome Back",
     rarity: "Uncommon",
     artwork: "calendar",
     hidden: false,

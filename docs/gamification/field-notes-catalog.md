@@ -112,7 +112,7 @@ the completed state until the visitor finds the new entry.
    - First hint: Some objects lead beyond the shelf.
    - Notes:
 
-3. [x] **Photo Finish** `◇`
+3. [x] **Clear View** `◇`
 
    - Rarity: Common.
    - Earned by: Hide the entire interface with photo mode. Available on
@@ -177,7 +177,7 @@ the completed state until the visitor finds the new entry.
     - First hint: A working light does not have to stay on.
     - Notes:
 
-12. [ ] **Beacon** `◇`
+12. [ ] **Lights Out** `◇`
 
     - Rarity: Common.
     - Earned by: Switch off the floor lamp near Musings and Talks.
@@ -226,7 +226,7 @@ the completed state until the visitor finds the new entry.
     - First hint: Some covers open without leaving the room.
     - Notes:
 
-19. [ ] **Family Album** `◇`
+19. [ ] **Life in Pictures** `◇`
 
     - Rarity: Rare.
     - Earned by: Inspect a photograph in About, Weightlifting, Systems,
@@ -303,7 +303,7 @@ the completed state until the visitor finds the new entry.
     - First hint: Some props could use a proper walk.
     - Notes:
 
-29. [ ] **The Regular** `◇`
+29. [ ] **Welcome Back** `◇`
 
     - Rarity: Uncommon.
     - Earned by: Return to the room on a later calendar day, measured in the
@@ -429,7 +429,7 @@ the completed state until the visitor finds the new entry.
 
 ## Open editorial questions
 
-- Is `Photo Finish` worth keeping despite being limited to keyboard-capable
+- Is `Clear View` worth keeping despite being limited to keyboard-capable
   devices?
 
 - Should `First Portal` reward ordinary navigation, or should Portals only
