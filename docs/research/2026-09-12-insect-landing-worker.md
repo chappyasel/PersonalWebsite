@@ -1,6 +1,6 @@
 # Insect landing worker
 
-The experimental switch moves landing compilation for both moths and butterflies
+The switch moves landing compilation for both moths and butterflies
 into one shared Web Worker. It defaults on following Chappy's explicit approval
 on 2026-09-13. Ordinary flight, live triangle
 contact resolution, collision-index maintenance, reservation, and Three rendering
@@ -32,7 +32,11 @@ checks its unit
 and root, the registered perch and resolved surface, the surface transform and
 local contact, reservation revision, occupancy, current interaction, and moth
 lighting. A grab invalidates pending work even if it ends between two frames.
-Theme changes and world disposal cancel it too.
+Theme changes and world disposal cancel it too. Butterfly eligibility shares the
+existing caller rules: a stationary held prop can receive a landing, and hovering
+or focusing a prop brought near the camera does not disturb it. Moths retain
+their stricter interaction rule. A grab or release after submission invalidates
+the request, even if the visitor restores the earlier state before the next frame.
 
 Worker snapshots expand collision boxes by 2 mm. Plants sway later in the same
 frame as a request, so exact live-index revision equality rejected even fast,
@@ -70,12 +74,16 @@ the synchronous candidate loop.
 
 Each message has a monotonically increasing generation. Cancellation drops queued
 jobs and invalidates active results. Turning the switch off terminates the worker
-and rejects pending tickets. The last world's disposal releases the worker. An
-idle worker otherwise remains available for later landing attempts.
+and rejects pending tickets. Disposal of the last world that requested a plan
+releases the worker, including theme changes and offscreen moth resets. While
+such owners remain, an idle worker stays available for later landing attempts.
 
-Worker startup exceptions, message errors, runtime errors, and a five-second
-startup/active-job timeout suspend new worker landing attempts until the toggle
-cycles. Insects keep flying. There is no automatic synchronous fallback while the
+The first reply has a 30-second timeout that includes fetching and evaluating the
+worker chunk; later jobs have five seconds. Startup exceptions, message errors,
+runtime errors, and timeouts suspend new attempts for 30 seconds, then allow one
+lazy retry on a subsequent landing attempt. A second failure suspends attempts
+until the toggle cycles. No timer creates a worker. Insects keep flying.
+There is no automatic synchronous fallback while the
 worker switch remains on. Turning it off explicitly restores the synchronous
 baseline. The disabled path creates no worker and makes no worker snapshots or
 messages.
@@ -84,8 +92,10 @@ messages.
 profiling. Main-thread totals cover synchronous compiler time and preparation of
 admitted worker requests. Worker totals cover compilation, dispatch, round trips,
 and successful compilations; pilot totals count adopted and rejected replies.
-These totals do not include adoption validation, battery use, or all main-thread
-scene work. In development, the Routes overlay shows observed accepted worker
+After review, `adoptionMs` and `maxAdoptionMs` also measure main-thread validation
+and reservation work. The earlier captures below predate those counters. No
+counter measures battery use or all main-thread scene work. In development,
+the Routes overlay shows observed accepted worker
 plans. Synthetic route previews require the switch off, so the overlay cannot
 reintroduce synchronous compiler searches during worker-mode frames.
 
@@ -196,11 +206,21 @@ creates no worker or requests. Quality policy stayed unchanged and both themes
 reported no page errors. These checks are in `/tmp/insect-worker-default-ui.json`;
 they test startup and rollback, not a new performance comparison.
 The complete `pnpm verify` gate passes on the default-on release: TypeScript,
-strict repository-wide ESLint, 3,932 tests (21 skipped), search-index freshness,
+strict repository-wide ESLint, 3,938 tests (21 skipped), search-index freshness,
 and meadow geometry checks. The synchronous geometry fixtures explicitly select
 the baseline path; worker lifecycle tests continue to use delayed real compiler
 results. The default-settings assertion and boot rollback test cover the approved
 default and its override.
+
+Claude Code reviewed the default-on release and found that the worker's original
+interaction filter prevented the existing held-prop and near-prop butterfly
+landings. The fix shares the caller's eligibility rules, with regression tests
+that reach rest on both kinds of prop, preserve moth rejection, and reject a
+release/regrab during pending work. Review also prompted the bounded cold-start
+retry and adoption timing described above. Claude's second review found no
+blocking correctness issues. Full validation and the production build passed
+again after those fixes. Landing cadence and light-mode adoption cost remain
+follow-up measurement questions; the tables above were not rerun for these fixes.
 
 No visitor-facing Action, Portal, Artifact, Easter egg, route, or authored scene
 experience was added. Field Notes catalog additions do not apply.

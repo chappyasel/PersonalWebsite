@@ -30,7 +30,8 @@ import {
 } from "./coordinationNetwork";
 import { INSECT_ENVELOPES } from "./insectCollision";
 import {
-  type InsectInteractionState,
+  butterflyPerchCanReceiveLanding,
+  insectInteractionForOwner,
   insectOwnerIsDisturbed,
 } from "./insectDisturbance";
 import {
@@ -1096,41 +1097,6 @@ export function butterflyMayBeginLanding(occupancy: {
   return (
     occupancy.engaged < BUTTERFLY_OCCUPANCY.engaged &&
     occupancy.approaching < BUTTERFLY_OCCUPANCY.approaching
-  );
-}
-
-/** A prop up at the camera (PropApproach) is already in hand: the pointer
- * resting on it is not a reach for it. Hover and focus on the near prop are
- * therefore not disturbances. Otherwise nothing could land on it, and a
- * butterfly already there left the moment the cursor crossed the prop, which
- * up close is nearly always (owner: "the butterfly disappears when it's near
- * the thing"). Presses and drags still count. */
-export function insectInteractionForOwner(
-  ownerId: string | null,
-  interaction: InsectInteractionState,
-): InsectInteractionState {
-  if (!ownerId || nearPropApproach()?.id !== ownerId) return interaction;
-  return {
-    ...interaction,
-    hovered: interaction.hovered === ownerId ? null : interaction.hovered,
-    focusedInteraction:
-      interaction.focusedInteraction === ownerId
-        ? null
-        : interaction.focusedInteraction,
-  };
-}
-
-/** While a visitor carries a prop, that prop is the only useful landing
- * candidate. The shelf-wide drag response rejects every other Perch. */
-export function butterflyPerchCanReceiveLanding(
-  ownerId: string | null,
-  interaction: InsectInteractionState,
-) {
-  if (interaction.dragging)
-    return ownerId !== null && ownerId === interaction.dragging;
-  return !insectOwnerIsDisturbed(
-    ownerId,
-    insectInteractionForOwner(ownerId, interaction),
   );
 }
 
@@ -2687,3 +2653,8 @@ export default function Butterflies({
     />
   );
 }
+
+export {
+  butterflyPerchCanReceiveLanding,
+  insectInteractionForOwner,
+} from "./insectDisturbance";

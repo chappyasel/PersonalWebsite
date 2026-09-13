@@ -47,6 +47,9 @@ export class InsectLandingWorkerClient {
   private sentIndex: InsectCollisionIndex | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private failed = false;
+  private retryAt = Number.POSITIVE_INFINITY;
+  private retried = false;
+  private workerHasReplied = false;
   private enabled = false;
   readonly timings = {
     requests: 0,
@@ -66,9 +69,15 @@ export class InsectLandingWorkerClient {
     this.enabled = enabled;
     this.stop();
     this.failed = false;
+    this.retryAt = Number.POSITIVE_INFINITY;
+    this.retried = false;
   }
 
   canRequest() {
+    if (this.enabled && this.failed && performance.now() >= this.retryAt) {
+      this.failed = false;
+      this.retryAt = Number.POSITIVE_INFINITY;
+    }
     return this.enabled && !this.failed && this.queue.length < 31;
   }
 
@@ -85,9 +94,7 @@ export class InsectLandingWorkerClient {
       },
     };
     if (
-      !this.enabled ||
-      this.failed ||
-      this.queue.length >= 31 ||
+      !this.canRequest() ||
       snapshot.index.boxes.length > 8192 ||
       this.active?.owner === owner ||
       this.queue.some((job) => job.owner === owner)
@@ -130,11 +137,18 @@ export class InsectLandingWorkerClient {
       this.worker.terminate();
     }
     this.worker = null;
+    this.workerHasReplied = false;
     this.sentIndex = null;
   }
 
   private fail = () => {
     this.failed = true;
+    // One lazy retry after a cooldown. Never create workers from a timer or
+    // fall back to a heavy synchronous search in a frame callback.
+    this.retryAt = this.retried
+      ? Number.POSITIVE_INFINITY
+      : performance.now() + 30_000;
+    this.retried = true;
     this.timings.failures++;
     this.stop();
   };
@@ -149,6 +163,7 @@ export class InsectLandingWorkerClient {
         this.worker.onmessage = ({ data }) => {
           const job = this.active;
           if (data.generation !== job?.generation) return;
+          this.workerHasReplied = true;
           if (this.timer) clearTimeout(this.timer);
           this.timer = null;
           job.ticket.result ??= data.result;
@@ -176,8 +191,9 @@ export class InsectLandingWorkerClient {
       } satisfies LandingWorkerRequest);
       this.timings.dispatchMs += performance.now() - started;
       this.sentIndex = index;
-      // Includes startup. A broken worker stays failed until the switch cycles.
-      this.timer = setTimeout(this.fail, 5000);
+      // The first reply includes fetching/evaluating the worker chunk. Give
+      // that cold request more time than an already-running compiler job.
+      this.timer = setTimeout(this.fail, this.workerHasReplied ? 5000 : 30_000);
     } catch {
       this.fail();
     }

@@ -13,5 +13,7 @@ export const insectLandingMetrics = {
     rejected: 0,
     preparationMs: 0,
     maxPreparationMs: 0,
+    adoptionMs: 0,
+    maxAdoptionMs: 0,
   },
 };

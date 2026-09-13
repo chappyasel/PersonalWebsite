@@ -15,7 +15,10 @@ import {
   insectTerminalPoseIsClear,
   reviseInsectCollisionIndex,
 } from "./insectCollision";
-import { insectOwnerIsDisturbed } from "./insectDisturbance";
+import {
+  butterflyPerchCanReceiveLanding,
+  insectOwnerIsDisturbed,
+} from "./insectDisturbance";
 import {
   type InsectFlightVolume,
   createInsectFlightVolume,
@@ -968,6 +971,11 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
     const localNormal = perch.localNormal.clone();
     const reservationRevision = insectPerchReservationRevision(perch);
     const ownerId = insectPerchOwnerId(perch);
+    const draggingAtRequest = useStacks.getState().dragging;
+    const interactionAllowsLanding = () =>
+      this.species === "butterfly"
+        ? butterflyPerchCanReceiveLanding(ownerId, useStacks.getState())
+        : !insectOwnerIsDisturbed(ownerId, useStacks.getState());
     const current = () => {
       if (
         getInsectPerch(perch.id) !== perch ||
@@ -975,7 +983,8 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
         perch.resolvedSurface !== surface ||
         insectPerchReservationRevision(perch) !== reservationRevision ||
         insectPerchOccupant(perch.id) ||
-        insectOwnerIsDisturbed(ownerId, useStacks.getState()) ||
+        useStacks.getState().dragging !== draggingAtRequest ||
+        !interactionAllowsLanding() ||
         (this.species === "moth" &&
           (!insectPerchAcceptsMoth(perch) || !insectPerchMothLightIsOn(perch)))
       )
@@ -1024,6 +1033,7 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
       supportIds: [...(supportGroup ?? [])],
       supportContactRegion,
     });
+    if (ticket.result) return null;
     const pending: PendingInsectLanding = {
       onReady: (callback) => ticket.onReady(callback),
       get result() {
@@ -1111,8 +1121,8 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
     // Catch even a grab/release between two rendered frames.
     this.unsubscribePending = useStacks.subscribe(() => {
       if (
-        useStacks.getState().dragging ||
-        insectOwnerIsDisturbed(ownerId, useStacks.getState())
+        useStacks.getState().dragging !== draggingAtRequest ||
+        !interactionAllowsLanding()
       )
         this.cancelPlanning();
     });

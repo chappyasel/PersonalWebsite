@@ -35,6 +35,7 @@ import {
 } from "./insectPilot";
 import { registerSceneInteraction } from "./interactionRegistry";
 import { registerMeadowLamp } from "./meadowLights";
+import { createPropApproach } from "./propApproachState";
 import { scenePerformanceController } from "./scenePerformance";
 
 /** Delay the transport, then run the real numerical compiler on its cloned
@@ -73,7 +74,12 @@ afterEach(() => {
     .reverse()
     .forEach((fn) => fn());
   scenePerformanceController.update({ insectLandingWorker: false });
-  useStacks.setState({ dragging: null });
+  useStacks.setState({
+    dragging: null,
+    hovered: null,
+    focusedInteraction: null,
+    pressedInteraction: null,
+  });
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -183,7 +189,51 @@ function fixture(species: "moth" | "butterfly", enabled = true) {
   return { pilot, world, land, target, owner, root, litRef, sync };
 }
 
+it("rejects a held-prop release and regrab between frames", () => {
+  const { pilot, land, target } = fixture("butterfly");
+  useStacks.setState({ dragging: "worker:owner" });
+  expect(land()).toBe(true);
+  useStacks.setState({ dragging: null });
+  useStacks.setState({ dragging: "worker:owner" });
+  DelayedWorker.instances[0]!.finish();
+  expect(pilot.phase).toBe("roam");
+  expect(insectPerchOccupant(target.id)).toBeNull();
+});
+
 describe.each(["moth", "butterfly"] as const)("%s worker caller", (species) => {
+  it.each(["held", "near"])(
+    "preserves species eligibility for a stationary %s prop",
+    (interaction) => {
+      const { pilot, world, land, target, sync } = fixture(species);
+      if (interaction === "held") {
+        useStacks.setState({ dragging: "worker:owner" });
+      } else {
+        const approach = createPropApproach("worker:owner");
+        approach.set(true);
+        cleanup.push(() => approach.set(false));
+        useStacks.setState({
+          hovered: "worker:owner",
+          focusedInteraction: "worker:owner",
+        });
+      }
+      expect(land()).toBe(species === "butterfly");
+      if (species === "butterfly") {
+        // Unrelated store notifications while a prop remains held/near must
+        // not cancel a request admitted under that same interaction context.
+        useStacks.setState({ pressedInteraction: null });
+        expect(DelayedWorker.instances[0]!.finish().ok).toBe(true);
+        expect(insectPerchOccupant(target.id)).toBe(pilot.occupantId);
+        for (let frame = 0; frame < 3600 && pilot.phase !== "rest"; frame++)
+          advanceInsectPilot(pilot, 1 / 60, world);
+        expect(pilot.phase).toBe("rest");
+      } else {
+        expect(DelayedWorker.instances).toHaveLength(0);
+        expect(insectPerchOccupant(target.id)).toBeNull();
+      }
+      expect(sync).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not run synchronous synthetic route previews in worker mode", () => {
     const { target } = fixture(species);
     const compile = vi.spyOn(landingCompiler, "compileInsectLandingPlan");
@@ -339,8 +389,10 @@ it("bounds the queue, reuses a collision snapshot and releases the last worker",
   expect(worker.terminate).toHaveBeenCalledOnce();
 });
 
-it("fails closed on worker startup exceptions and timeouts until toggled", () => {
+it("allows a cold start, retries once after cooldown, then suspends until toggled", () => {
   vi.useFakeTimers();
+  let now = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
   const worker = new DelayedWorker();
   const create = vi.fn(() => worker);
   const client = new InsectLandingWorkerClient(create);
@@ -351,14 +403,42 @@ it("fails closed on worker startup exceptions and timeouts until toggled", () =>
   const snapshot = { ...original.snapshot, index: original.index! };
   const ticket = client.request({}, snapshot);
   vi.advanceTimersByTime(5001);
+  expect(ticket.result).toBeNull();
+  now = 30_001;
+  vi.advanceTimersByTime(25_000);
   expect(ticket.result?.ok).toBe(false);
   expect(client.canRequest()).toBe(false);
-  client.setEnabled(false);
-  client.setEnabled(true);
+  expect(create).toHaveBeenCalledOnce();
+  now += 30_001;
+  expect(client.canRequest()).toBe(true);
+  expect(create).toHaveBeenCalledOnce();
   create.mockImplementationOnce(() => {
     throw new Error("startup");
   });
   expect(client.request({}, snapshot).result?.ok).toBe(false);
+  now += 60_000;
   expect(client.canRequest()).toBe(false);
+  expect(create).toHaveBeenCalledTimes(2);
+  client.setEnabled(false);
+  client.setEnabled(true);
+  expect(client.canRequest()).toBe(true);
+  client.setEnabled(false);
+});
+
+it("limits a stalled warm worker job to five seconds", () => {
+  vi.useFakeTimers();
+  const worker = new DelayedWorker();
+  const client = new InsectLandingWorkerClient(() => worker);
+  client.setEnabled(true);
+  const { land } = fixture("butterfly");
+  land();
+  const original = DelayedWorker.instances.at(-1)!.messages[0]!;
+  const snapshot = { ...original.snapshot, index: original.index! };
+  client.request({}, snapshot);
+  worker.finish();
+  const pending = client.request({}, snapshot);
+  vi.advanceTimersByTime(5001);
+  expect(pending.result?.ok).toBe(false);
+  expect(worker.terminate).toHaveBeenCalledOnce();
   client.setEnabled(false);
 });

@@ -934,6 +934,7 @@ function settlePendingInsectLanding(
 ) {
   const pending = pilot.pendingLanding;
   if (pending?.ticket.result) {
+    const started = performance.now();
     pilot.pendingLanding = null;
     const result = pending.ticket.result;
     const validated =
@@ -961,6 +962,12 @@ function settlePendingInsectLanding(
       pilot.event = "approach-blocked";
     }
     pending.ticket.cancel();
+    const elapsed = performance.now() - started;
+    insectLandingMetrics.worker.adoptionMs += elapsed;
+    insectLandingMetrics.worker.maxAdoptionMs = Math.max(
+      insectLandingMetrics.worker.maxAdoptionMs,
+      elapsed,
+    );
   }
 }
 
