@@ -1,0 +1,702 @@
+{
+  "version": 1,
+  "unit": "weightlifting",
+  "label": "dark-desktop",
+  "method": "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained; corner-preserving contour fit",
+  "sourceRevision": "27c0155",
+  "inputArtworkSha256": "176d0ac88a17905e4ea641bd633742f61c010e0e4054f7c73d75007932b0c253",
+  "outputArtworkSha256": "526685d4e0415a205f21e7e0205283c213d5d4777aedc784317b274a1795b8d4",
+  "captureContractSha256": "914e454a6db133beb22017c33030a12bc9e7d2dac7abcf372dcae16f7d26804c",
+  "scale": 4,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "pinboard",
+      "box": [
+        290,
+        213,
+        303,
+        211
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-trophy-side-v8",
+      "box": [
+        304,
+        255,
+        107,
+        128
+      ],
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-trophy-side.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-stage-kneeling-v8",
+      "box": [
+        408,
+        238,
+        58,
+        66
+      ],
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-stage-kneeling.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-stage-side-v8",
+      "box": [
+        461,
+        243,
+        56,
+        66
+      ],
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-stage-side.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-trophy-front-v8",
+      "box": [
+        519,
+        239,
+        57,
+        66
+      ],
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-trophy-front.webp"
+        }
+      ]
+    },
+    {
+      "id": "action-training-figure-aggregate-strength",
+      "box": [
+        409,
+        308,
+        79,
+        51
+      ],
+      "textures": [
+        {
+          "width": 972,
+          "height": 579,
+          "src": "/images/stacks/training-figures/aggregate-strength.png"
+        }
+      ]
+    },
+    {
+      "id": "action-training-figure-big-three",
+      "box": [
+        489,
+        308,
+        79,
+        51
+      ],
+      "textures": [
+        {
+          "width": 964,
+          "height": 568,
+          "src": "/images/stacks/training-figures/big-three.png"
+        }
+      ]
+    },
+    {
+      "id": "action-training-figure-dexa-history",
+      "box": [
+        455,
+        354,
+        69,
+        57
+      ],
+      "textures": [
+        {
+          "width": 2000,
+          "height": 1600,
+          "src": "/images/stacks/training-figures/dexa-lean-mass-vs-bodyweight.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-gym-pose-v8",
+      "box": [
+        248,
+        418,
+        102,
+        12
+      ],
+      "textures": [
+        {
+          "width": 192,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-gym-pose.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-deadlift-v8",
+      "box": [
+        350,
+        418,
+        99,
+        11
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 242,
+          "src": "/images/stacks/v8/256/training-deadlift.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-bench-v8",
+      "box": [
+        457,
+        417,
+        95,
+        11
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 249,
+          "src": "/images/stacks/v8/256/training-bench.webp"
+        }
+      ]
+    },
+    {
+      "id": "artifact-lift-table",
+      "box": [
+        556,
+        417,
+        86,
+        11
+      ],
+      "textures": [
+        {
+          "width": 1275,
+          "height": 1650,
+          "src": "/images/stacks/artifacts/lift-table.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-dumbbell-training-right",
+      "box": [
+        151,
+        361,
+        122,
+        70
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-protein",
+      "box": [
+        599,
+        297,
+        85,
+        128
+      ],
+      "textures": [
+        {
+          "width": 1024,
+          "height": 330,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-gorilla-mode",
+      "box": [
+        644,
+        324,
+        86,
+        105
+      ],
+      "textures": [
+        {
+          "width": 1024,
+          "height": 320,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-pre-x",
+      "box": [
+        689,
+        325,
+        70,
+        100
+      ],
+      "textures": [
+        {
+          "width": 1024,
+          "height": 300,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-shaker-training",
+      "box": [
+        726,
+        292,
+        86,
+        140
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-shaker-training-navy",
+      "box": [
+        759,
+        295,
+        85,
+        134
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-shaker-training-amber",
+      "box": [
+        801,
+        293,
+        85,
+        137
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-photo-training-golf-group-v8",
+      "box": [
+        166,
+        571,
+        116,
+        95
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/training-golf-group.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-golf-flag-v8",
+      "box": [
+        290,
+        559,
+        88,
+        106
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 512,
+          "src": "/images/stacks/v8/512/training-golf-flag.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-training-pickleball-group-v8",
+      "box": [
+        432,
+        567,
+        115,
+        92
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/training-pickleball-group.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-golf-tee-shelf-left",
+      "box": [
+        186,
+        657,
+        42,
+        13
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-golf-tee-shelf-middle",
+      "box": [
+        245,
+        656,
+        41,
+        13
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-golf-tee-shelf-right",
+      "box": [
+        321,
+        653,
+        39,
+        14
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-ball-tennis",
+      "box": [
+        368,
+        620,
+        43,
+        42
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-ball-baseball",
+      "box": [
+        732,
+        612,
+        44,
+        44
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 128,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "golf-ball-shelf-a",
+      "box": [
+        396,
+        624,
+        32,
+        32
+      ],
+      "textures": []
+    },
+    {
+      "id": "golf-ball-shelf-b",
+      "box": [
+        420,
+        618,
+        32,
+        32
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-dumbbell-training-left",
+      "box": [
+        537,
+        574,
+        180,
+        80
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-basketball",
+      "box": [
+        729,
+        522,
+        126,
+        127
+      ],
+      "textures": [
+        {
+          "width": 32,
+          "height": 32,
+          "src": null
+        }
+      ]
+    }
+  ],
+  "details": [
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/pinboard.webp",
+      "file": "details/696c23063f8eff2ae2364ab4c3061f93bcfc75ede7e910e7aa87726aa17a76f8.webp",
+      "sha256": "696c23063f8eff2ae2364ab4c3061f93bcfc75ede7e910e7aa87726aa17a76f8",
+      "bytes": 38484,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-trophy-side-v8.webp",
+      "file": "details/25b1ec4cd533de9953d681a7b854df2f173414681caf3390c2e92e79262a40bd.webp",
+      "sha256": "25b1ec4cd533de9953d681a7b854df2f173414681caf3390c2e92e79262a40bd",
+      "bytes": 11364,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-stage-kneeling-v8.webp",
+      "file": "details/46ca631606dc7c47fa2934d51af700dd40bf9df081c81754d3d5fb41a8a8ddbe.webp",
+      "sha256": "46ca631606dc7c47fa2934d51af700dd40bf9df081c81754d3d5fb41a8a8ddbe",
+      "bytes": 6074,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-stage-side-v8.webp",
+      "file": "details/615702ec9f1eeefae34cf853bc02939ec0b2508ea01661b8fc32f3f0b871deea.webp",
+      "sha256": "615702ec9f1eeefae34cf853bc02939ec0b2508ea01661b8fc32f3f0b871deea",
+      "bytes": 4456,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-trophy-front-v8.webp",
+      "file": "details/908b4a016bae5cf933547c6c27d4b0ad77530057cd294e49fdeea971e575d41c.webp",
+      "sha256": "908b4a016bae5cf933547c6c27d4b0ad77530057cd294e49fdeea971e575d41c",
+      "bytes": 6454,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/action-training-figure-aggregate-strength.webp",
+      "file": "details/70c130a04e783f9d5a408a96cfddadecc928637b1f296907eb96afdab89a2778.webp",
+      "sha256": "70c130a04e783f9d5a408a96cfddadecc928637b1f296907eb96afdab89a2778",
+      "bytes": 3684,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/action-training-figure-big-three.webp",
+      "file": "details/12716004711f7c53595bd76a5168635a6135d844f1b2cbf5977e786fe58fc543.webp",
+      "sha256": "12716004711f7c53595bd76a5168635a6135d844f1b2cbf5977e786fe58fc543",
+      "bytes": 5160,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/action-training-figure-dexa-history.webp",
+      "file": "details/45c696de66e64b05d67c5c226f2c2c76dac15b9746ccf1607fe74731097d2c15.webp",
+      "sha256": "45c696de66e64b05d67c5c226f2c2c76dac15b9746ccf1607fe74731097d2c15",
+      "bytes": 3706,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-gym-pose-v8.webp",
+      "file": "details/fab67a2f03c5368f3d1edfd63ac75346464f8228bd6adbcbe9747cc02509c67d.webp",
+      "sha256": "fab67a2f03c5368f3d1edfd63ac75346464f8228bd6adbcbe9747cc02509c67d",
+      "bytes": 2058,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-deadlift-v8.webp",
+      "file": "details/b40deb2af4b34fdaaaaf58669379ea48e416a6e335d90af1fdd6411e404143ed.webp",
+      "sha256": "b40deb2af4b34fdaaaaf58669379ea48e416a6e335d90af1fdd6411e404143ed",
+      "bytes": 2012,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-bench-v8.webp",
+      "file": "details/dbe7796a289b28db730eefde73f31aecbae31d5803ab6894fb60d81a93f0c90e.webp",
+      "sha256": "dbe7796a289b28db730eefde73f31aecbae31d5803ab6894fb60d81a93f0c90e",
+      "bytes": 1852,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/artifact-lift-table.webp",
+      "file": "details/ce9f818fd774f5a652fd09633edcb222ebcc6c7588b1191d579ba46b4e5b0ccb.webp",
+      "sha256": "ce9f818fd774f5a652fd09633edcb222ebcc6c7588b1191d579ba46b4e5b0ccb",
+      "bytes": 1390,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-dumbbell-training-right.webp",
+      "file": "details/643a03e88beeed3ff44536163dfc550dae72b91b7b135cb909b6d9f050ccb5e5.webp",
+      "sha256": "643a03e88beeed3ff44536163dfc550dae72b91b7b135cb909b6d9f050ccb5e5",
+      "bytes": 2494,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-protein.webp",
+      "file": "details/dccc92ec922a36ca36e508ee78aa4199fdb2a64aba9114439b739554fbb7cdce.webp",
+      "sha256": "dccc92ec922a36ca36e508ee78aa4199fdb2a64aba9114439b739554fbb7cdce",
+      "bytes": 9442,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-gorilla-mode.webp",
+      "file": "details/58879512a28b600ce13a6c5dc81eb35d67f22ccad9391364ab1458899c063ec5.webp",
+      "sha256": "58879512a28b600ce13a6c5dc81eb35d67f22ccad9391364ab1458899c063ec5",
+      "bytes": 9952,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-pre-x.webp",
+      "file": "details/1fcdb022880806abf65712adfb705bcf9f5b10ea97a6881c28f630acfcb80ecd.webp",
+      "sha256": "1fcdb022880806abf65712adfb705bcf9f5b10ea97a6881c28f630acfcb80ecd",
+      "bytes": 6908,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-shaker-training.webp",
+      "file": "details/38b7cdc10c06f4936377265dff78abe4d0bc471b32fe6baa60a300d4ddcc3981.webp",
+      "sha256": "38b7cdc10c06f4936377265dff78abe4d0bc471b32fe6baa60a300d4ddcc3981",
+      "bytes": 7100,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-shaker-training-navy.webp",
+      "file": "details/a08956dab42717326d1e53ba0ec2967ec9130672d0dc3e0fd1a175367831c53e.webp",
+      "sha256": "a08956dab42717326d1e53ba0ec2967ec9130672d0dc3e0fd1a175367831c53e",
+      "bytes": 7678,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-shaker-training-amber.webp",
+      "file": "details/892084a994b778c3bddaed36d9205ba930a5932d7a728ad53dd9b88e950c45f2.webp",
+      "sha256": "892084a994b778c3bddaed36d9205ba930a5932d7a728ad53dd9b88e950c45f2",
+      "bytes": 8276,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-golf-group-v8.webp",
+      "file": "details/388878f533a2c1a198af6d45bf4c1c8c55cf29b0f95578badff3367244e542dd.webp",
+      "sha256": "388878f533a2c1a198af6d45bf4c1c8c55cf29b0f95578badff3367244e542dd",
+      "bytes": 16698,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-golf-flag-v8.webp",
+      "file": "details/699e416468ec2a02fd1103992d811400271f1ced4856bcf38801f46a603f61a6.webp",
+      "sha256": "699e416468ec2a02fd1103992d811400271f1ced4856bcf38801f46a603f61a6",
+      "bytes": 12562,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-photo-training-pickleball-group-v8.webp",
+      "file": "details/cdad3a0697ddf7f9a72d195f9229d36eb3586b297875fb3a059f619cbc851e03.webp",
+      "sha256": "cdad3a0697ddf7f9a72d195f9229d36eb3586b297875fb3a059f619cbc851e03",
+      "bytes": 17206,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-golf-tee-shelf-left.webp",
+      "file": "details/ebd89845401501ab23771e3b766d36f3553cc7f54143801750b1180dbfb41bd8.webp",
+      "sha256": "ebd89845401501ab23771e3b766d36f3553cc7f54143801750b1180dbfb41bd8",
+      "bytes": 972,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-golf-tee-shelf-middle.webp",
+      "file": "details/fbceac067a7f722dbdf47b95d825aaf28ad42b13b643aa9f3564ce28d9681e9a.webp",
+      "sha256": "fbceac067a7f722dbdf47b95d825aaf28ad42b13b643aa9f3564ce28d9681e9a",
+      "bytes": 1080,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-golf-tee-shelf-right.webp",
+      "file": "details/d55849dd346b913f470cab0399173c1a8f6525eeef21e020aa6235c625439e86.webp",
+      "sha256": "d55849dd346b913f470cab0399173c1a8f6525eeef21e020aa6235c625439e86",
+      "bytes": 1142,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-ball-tennis.webp",
+      "file": "details/b739e8bd1818e8f10886f811a802e2ed06c75e0fa9af6ff9d4d34bc828edccd2.webp",
+      "sha256": "b739e8bd1818e8f10886f811a802e2ed06c75e0fa9af6ff9d4d34bc828edccd2",
+      "bytes": 3014,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-ball-baseball.webp",
+      "file": "details/0e36259ac7138819b753214bb3c06f5e97a28f8c1ba1fd86e5d0a7b0f60ad31f.webp",
+      "sha256": "0e36259ac7138819b753214bb3c06f5e97a28f8c1ba1fd86e5d0a7b0f60ad31f",
+      "bytes": 4074,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/golf-ball-shelf-a.webp",
+      "file": "details/791ff4e7a0b135a9aca3340fc0a55c12b341a816988ee88b494c01b2f6990166.webp",
+      "sha256": "791ff4e7a0b135a9aca3340fc0a55c12b341a816988ee88b494c01b2f6990166",
+      "bytes": 1642,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/golf-ball-shelf-b.webp",
+      "file": "details/0764a45f9f887bf7791ba92ebe9fe52cb12f688eff4387e125db2d5858e90783.webp",
+      "sha256": "0764a45f9f887bf7791ba92ebe9fe52cb12f688eff4387e125db2d5858e90783",
+      "bytes": 1420,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-dumbbell-training-left.webp",
+      "file": "details/50113d04832f2f81ee5705b6e5ec702dacd47337c0f81989bf62d6cb0e26210a.webp",
+      "sha256": "50113d04832f2f81ee5705b6e5ec702dacd47337c0f81989bf62d6cb0e26210a",
+      "bytes": 6052,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/weightlifting/dark-desktop/grab-basketball.webp",
+      "file": "details/22b731c01dd25a864ec4c0ccbe94ee7b8b1fc54446733ded557aeb27f91047fc.webp",
+      "sha256": "22b731c01dd25a864ec4c0ccbe94ee7b8b1fc54446733ded557aeb27f91047fc",
+      "bytes": 12138,
+      "mime": "image/webp"
+    }
+  ]
+}

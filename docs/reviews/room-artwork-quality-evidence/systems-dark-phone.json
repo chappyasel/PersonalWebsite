@@ -1,0 +1,815 @@
+{
+  "version": 1,
+  "unit": "systems",
+  "label": "dark-phone",
+  "method": "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained; corner-preserving contour fit",
+  "sourceRevision": "27c0155",
+  "inputArtworkSha256": "3e664abab2b938f0b0802cf4a34cfd8bfec9facb016e8d689990405c660af9d5",
+  "outputArtworkSha256": "37f1fef7bf3df543707b7aa9e194ab16936bdcc4ca07b7425cfef3b4967396b2",
+  "captureContractSha256": "950f42e01f65bb687b90c5b22546a19e2f24be81828ea357dcd6e40953a46376",
+  "scale": 4,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "systems-manual-row",
+      "box": [
+        197,
+        620,
+        87,
+        85
+      ],
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "egg-clock-alarm",
+      "box": [
+        274,
+        659,
+        32,
+        45
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-systems-working-session-v8",
+      "box": [
+        306,
+        654,
+        86,
+        51
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 268,
+          "src": "/images/stacks/v8/512/systems-working-session.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-systems-home-office-v8",
+      "box": [
+        392,
+        650,
+        69,
+        55
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/systems-home-office.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-systems-sf-dusk-v8",
+      "box": [
+        462,
+        650,
+        69,
+        55
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/systems-sf-dusk.webp"
+        }
+      ]
+    },
+    {
+      "id": "link-routineboard",
+      "box": [
+        531,
+        637,
+        52,
+        69
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 358,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-plant-sansevieria",
+      "box": [
+        210,
+        736,
+        44,
+        92
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": "/models/tiny-treats-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-bag-realgood",
+      "box": [
+        265,
+        767,
+        42,
+        61
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 736,
+          "src": "/images/stacks/labels/realgood.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-bag-betaalanine",
+      "box": [
+        315,
+        780,
+        36,
+        48
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 736,
+          "src": "/images/stacks/labels/beta-alanine.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-bag-collagen",
+      "box": [
+        352,
+        777,
+        38,
+        51
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 736,
+          "src": "/images/stacks/labels/collagen.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-bag-creatine",
+      "box": [
+        396,
+        774,
+        39,
+        55
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 736,
+          "src": "/images/stacks/labels/creatine.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-mio-hydrate-0",
+      "box": [
+        259,
+        804,
+        20,
+        26
+      ],
+      "textures": [
+        {
+          "width": 768,
+          "height": 640,
+          "src": "/images/stacks/labels/mio-hydrate.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-mio-lemonade-1",
+      "box": [
+        274,
+        799,
+        23,
+        30
+      ],
+      "textures": [
+        {
+          "width": 768,
+          "height": 640,
+          "src": "/images/stacks/labels/mio-lemonade.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-mio-hydrate-2",
+      "box": [
+        293,
+        804,
+        19,
+        26
+      ],
+      "textures": [
+        {
+          "width": 768,
+          "height": 640,
+          "src": "/images/stacks/labels/mio-hydrate.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-notebook-systems",
+      "box": [
+        310,
+        821,
+        56,
+        14
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-photo-systems-supplements-v8",
+      "box": [
+        439,
+        784,
+        75,
+        44
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 256,
+          "src": "/images/stacks/v8/512/systems-supplements.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-pills-organizer-back-lower",
+      "box": [
+        436,
+        814,
+        70,
+        18
+      ],
+      "textures": [
+        {
+          "width": 896,
+          "height": 152,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-pills-organizer-back-upper",
+      "box": [
+        448,
+        805,
+        72,
+        18
+      ],
+      "textures": [
+        {
+          "width": 896,
+          "height": 152,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-pills-organizer-front-lower",
+      "box": [
+        462,
+        817,
+        72,
+        18
+      ],
+      "textures": [
+        {
+          "width": 896,
+          "height": 152,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-pills-organizer-front-upper",
+      "box": [
+        475,
+        808,
+        73,
+        18
+      ],
+      "textures": [
+        {
+          "width": 896,
+          "height": 152,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-can-diet-dr-pepper",
+      "box": [
+        207,
+        791,
+        27,
+        41
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-can-mtn-dew-zero",
+      "box": [
+        227,
+        792,
+        27,
+        40
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-can-sunkist-zero",
+      "box": [
+        217,
+        758,
+        27,
+        41
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-pills-bottle-0-0",
+      "box": [
+        365,
+        805,
+        18,
+        26
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-1-0",
+      "box": [
+        378,
+        805,
+        23,
+        26
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-1-1",
+      "box": [
+        382,
+        791,
+        16,
+        22
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-2-0",
+      "box": [
+        396,
+        802,
+        20,
+        29
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-3-0",
+      "box": [
+        411,
+        806,
+        18,
+        25
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-4-0",
+      "box": [
+        423,
+        810,
+        16,
+        21
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-5-0",
+      "box": [
+        366,
+        804,
+        21,
+        29
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-5-1",
+      "box": [
+        369,
+        793,
+        15,
+        18
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-6-0",
+      "box": [
+        383,
+        807,
+        18,
+        26
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-7-0",
+      "box": [
+        400,
+        802,
+        17,
+        31
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-8-0",
+      "box": [
+        416,
+        811,
+        16,
+        22
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-9-0",
+      "box": [
+        363,
+        812,
+        16,
+        22
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-10-0",
+      "box": [
+        380,
+        816,
+        15,
+        18
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-11-0",
+      "box": [
+        396,
+        809,
+        18,
+        26
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-pills-bottle-12-0",
+      "box": [
+        416,
+        817,
+        14,
+        18
+      ],
+      "textures": []
+    },
+    {
+      "id": "systems-sun-lamp",
+      "box": [
+        519,
+        750,
+        56,
+        83
+      ],
+      "textures": []
+    }
+  ],
+  "details": [
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/systems-manual-row.webp",
+      "file": "details/c1f32a76db44c172f5a5b15b8772795d6d0151759bcae56566c4454071f8d992.webp",
+      "sha256": "c1f32a76db44c172f5a5b15b8772795d6d0151759bcae56566c4454071f8d992",
+      "bytes": 5962,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/egg-clock-alarm.webp",
+      "file": "details/f6b6d7795fe61b247ab084eed994527ab1f52831550615934aa37fdd8b3e3454.webp",
+      "sha256": "f6b6d7795fe61b247ab084eed994527ab1f52831550615934aa37fdd8b3e3454",
+      "bytes": 6664,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-photo-systems-working-session-v8.webp",
+      "file": "details/e7504d38ea59a099a579966d0ea95fbad23b63eb1e5ad29d5195e2d733e9ff6e.webp",
+      "sha256": "e7504d38ea59a099a579966d0ea95fbad23b63eb1e5ad29d5195e2d733e9ff6e",
+      "bytes": 10788,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-photo-systems-home-office-v8.webp",
+      "file": "details/18d3c109674491265f8521a928404cdfe4c72921cd1c9a030a84c8e1dca25a91.webp",
+      "sha256": "18d3c109674491265f8521a928404cdfe4c72921cd1c9a030a84c8e1dca25a91",
+      "bytes": 7714,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-photo-systems-sf-dusk-v8.webp",
+      "file": "details/3d4274e51da13d63905bb8aa34400d5fc9a841ae42c77a504ce0a57d10483324.webp",
+      "sha256": "3d4274e51da13d63905bb8aa34400d5fc9a841ae42c77a504ce0a57d10483324",
+      "bytes": 6552,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/link-routineboard.webp",
+      "file": "details/76b9698a49cddb75cb7bf65825d542da0b20b02c352344e1f61fcbdaf3c2f9d8.webp",
+      "sha256": "76b9698a49cddb75cb7bf65825d542da0b20b02c352344e1f61fcbdaf3c2f9d8",
+      "bytes": 6476,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-bag-realgood.webp",
+      "file": "details/76e2b9c7ef440f75c6bbd449de1d7c4cc9c997da5f6566a72d2dc7ae64b0aff1.webp",
+      "sha256": "76e2b9c7ef440f75c6bbd449de1d7c4cc9c997da5f6566a72d2dc7ae64b0aff1",
+      "bytes": 6832,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-bag-betaalanine.webp",
+      "file": "details/eeadd3f993b3dd1e6024c01805b1588b0ba2329158a2a91fb16796abacbf96e0.webp",
+      "sha256": "eeadd3f993b3dd1e6024c01805b1588b0ba2329158a2a91fb16796abacbf96e0",
+      "bytes": 5096,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-bag-collagen.webp",
+      "file": "details/722d03621638427ad0afb74741a99cf5c8f2dba727e8d1be13d2f622478c10ae.webp",
+      "sha256": "722d03621638427ad0afb74741a99cf5c8f2dba727e8d1be13d2f622478c10ae",
+      "bytes": 5830,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-bag-creatine.webp",
+      "file": "details/3b5f971c7651dda13cf84b349db4948418ede872c99bb0d5fa446c258cd280e5.webp",
+      "sha256": "3b5f971c7651dda13cf84b349db4948418ede872c99bb0d5fa446c258cd280e5",
+      "bytes": 5836,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-mio-hydrate-0.webp",
+      "file": "details/0f7f491079fba6632da29ef7166936531f76d2786573c57580594cc4401937ba.webp",
+      "sha256": "0f7f491079fba6632da29ef7166936531f76d2786573c57580594cc4401937ba",
+      "bytes": 2570,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-mio-lemonade-1.webp",
+      "file": "details/77fc0616d1edaf8cbfab128499e65ae46e814105eba3e70a2a940b2cf6bb954b.webp",
+      "sha256": "77fc0616d1edaf8cbfab128499e65ae46e814105eba3e70a2a940b2cf6bb954b",
+      "bytes": 2836,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-mio-hydrate-2.webp",
+      "file": "details/052e1e5c76da0244a5bc3af4a0c3d43c207fb02d8de6c94e85c431cbc7e1a178.webp",
+      "sha256": "052e1e5c76da0244a5bc3af4a0c3d43c207fb02d8de6c94e85c431cbc7e1a178",
+      "bytes": 2386,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-notebook-systems.webp",
+      "file": "details/3366adc06e5cd992c9a6541bab0b40c1a238670f50ff79337d47b8c3dac3ecfd.webp",
+      "sha256": "3366adc06e5cd992c9a6541bab0b40c1a238670f50ff79337d47b8c3dac3ecfd",
+      "bytes": 2742,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-photo-systems-supplements-v8.webp",
+      "file": "details/39ceff09e928832f91d045bcdcbc142821e456e4cff1d9c9a72b7c79d373ad15.webp",
+      "sha256": "39ceff09e928832f91d045bcdcbc142821e456e4cff1d9c9a72b7c79d373ad15",
+      "bytes": 6968,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-organizer-back-lower.webp",
+      "file": "details/eba72dad11a134686aae93c9441d75a2a054540d7a827ce1993859bab380295f.webp",
+      "sha256": "eba72dad11a134686aae93c9441d75a2a054540d7a827ce1993859bab380295f",
+      "bytes": 2526,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-organizer-back-upper.webp",
+      "file": "details/06f8fde87509d04b4433e275b71fd9ce87c5c5ce536fa83fc554b90535dcdf9b.webp",
+      "sha256": "06f8fde87509d04b4433e275b71fd9ce87c5c5ce536fa83fc554b90535dcdf9b",
+      "bytes": 2248,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-organizer-front-lower.webp",
+      "file": "details/b48b98e4bd30f63933b48a49510efc4b860114096c68c9cc46ab1b186c080ef5.webp",
+      "sha256": "b48b98e4bd30f63933b48a49510efc4b860114096c68c9cc46ab1b186c080ef5",
+      "bytes": 2386,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-organizer-front-upper.webp",
+      "file": "details/87c98d6a963d48298b27ce8713d21003f579148bd0adcdd88e5513c2941fba28.webp",
+      "sha256": "87c98d6a963d48298b27ce8713d21003f579148bd0adcdd88e5513c2941fba28",
+      "bytes": 1736,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-can-diet-dr-pepper.webp",
+      "file": "details/aeb8428926a9f0898c7147d4d30570728fdb0b036494e9f5bd2117ec53a25a29.webp",
+      "sha256": "aeb8428926a9f0898c7147d4d30570728fdb0b036494e9f5bd2117ec53a25a29",
+      "bytes": 2868,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-can-mtn-dew-zero.webp",
+      "file": "details/b8efb440066828ec74e600c76a4e5a3371454fd12ad02be2d4be9c9cb6b1478b.webp",
+      "sha256": "b8efb440066828ec74e600c76a4e5a3371454fd12ad02be2d4be9c9cb6b1478b",
+      "bytes": 3766,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-can-sunkist-zero.webp",
+      "file": "details/2ccb016da77adb6d5960a2b068f5c266a36ed741d555b18c258405f0f96fe252.webp",
+      "sha256": "2ccb016da77adb6d5960a2b068f5c266a36ed741d555b18c258405f0f96fe252",
+      "bytes": 3294,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-0-0.webp",
+      "file": "details/dbe96438a4a1eebd960a130163b30902173d73299981aa983db2544e936b96b3.webp",
+      "sha256": "dbe96438a4a1eebd960a130163b30902173d73299981aa983db2544e936b96b3",
+      "bytes": 1104,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-1-0.webp",
+      "file": "details/b163531b54f22be7829d000ff95f5c8cdd72edbd4225110b28b1c8903dc90341.webp",
+      "sha256": "b163531b54f22be7829d000ff95f5c8cdd72edbd4225110b28b1c8903dc90341",
+      "bytes": 1102,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-1-1.webp",
+      "file": "details/c26cfa6572231d2bc1ba6b7cf98f935c00516cbd213ea78ecf10c5d0e50f4dba.webp",
+      "sha256": "c26cfa6572231d2bc1ba6b7cf98f935c00516cbd213ea78ecf10c5d0e50f4dba",
+      "bytes": 1198,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-2-0.webp",
+      "file": "details/f118196c74bce6e8ff23b66b69d4913c7dda445f421f86e54cdf0f4beea2c938.webp",
+      "sha256": "f118196c74bce6e8ff23b66b69d4913c7dda445f421f86e54cdf0f4beea2c938",
+      "bytes": 1498,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-3-0.webp",
+      "file": "details/bf7b674415a20e94eca299c9cdcadfca0f50cf581b6054fc237a6bbceb179cee.webp",
+      "sha256": "bf7b674415a20e94eca299c9cdcadfca0f50cf581b6054fc237a6bbceb179cee",
+      "bytes": 974,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-4-0.webp",
+      "file": "details/091cc3171247fa68d9c4c11ec05b6cb3b0ee9abae68600db7b11f57c82f74292.webp",
+      "sha256": "091cc3171247fa68d9c4c11ec05b6cb3b0ee9abae68600db7b11f57c82f74292",
+      "bytes": 826,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-5-0.webp",
+      "file": "details/7151bda8bec64ba7587e677ebfa3a99b3219bd0d26cb64ff99874b6f73383103.webp",
+      "sha256": "7151bda8bec64ba7587e677ebfa3a99b3219bd0d26cb64ff99874b6f73383103",
+      "bytes": 1052,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-5-1.webp",
+      "file": "details/1b98178dd113211ef80a3b1b02db682bdecb3cf1fb549f565d1d278155dc0f60.webp",
+      "sha256": "1b98178dd113211ef80a3b1b02db682bdecb3cf1fb549f565d1d278155dc0f60",
+      "bytes": 1052,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-6-0.webp",
+      "file": "details/5e189ede883f4d1fe838349606ee2c6930b808cc50233ef0d3bdbc0b4b8e3309.webp",
+      "sha256": "5e189ede883f4d1fe838349606ee2c6930b808cc50233ef0d3bdbc0b4b8e3309",
+      "bytes": 1356,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-7-0.webp",
+      "file": "details/a36e85ebcb99ef5790e42dfc345d52afd41b88fb0ec9ba849d575e94f39a2fed.webp",
+      "sha256": "a36e85ebcb99ef5790e42dfc345d52afd41b88fb0ec9ba849d575e94f39a2fed",
+      "bytes": 1084,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-8-0.webp",
+      "file": "details/f87875a2ef639b73453ef3b86941df8e3b35663ffc906eec71e08b6ad479775b.webp",
+      "sha256": "f87875a2ef639b73453ef3b86941df8e3b35663ffc906eec71e08b6ad479775b",
+      "bytes": 958,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-9-0.webp",
+      "file": "details/209dcd771afaa6c7d65484d57163eb27562225570531057d4d8e5d0326d6baa7.webp",
+      "sha256": "209dcd771afaa6c7d65484d57163eb27562225570531057d4d8e5d0326d6baa7",
+      "bytes": 1200,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-10-0.webp",
+      "file": "details/4d754b7584314784780f3f95c0be3a3acf97647afd05ec36f493735dd07144a3.webp",
+      "sha256": "4d754b7584314784780f3f95c0be3a3acf97647afd05ec36f493735dd07144a3",
+      "bytes": 784,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-11-0.webp",
+      "file": "details/6fda0de10bd52c2d3a9fda32ae6ac2100e4d06719d785f2491f51edfa9124dd7.webp",
+      "sha256": "6fda0de10bd52c2d3a9fda32ae6ac2100e4d06719d785f2491f51edfa9124dd7",
+      "bytes": 1010,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/grab-pills-bottle-12-0.webp",
+      "file": "details/e48a868d0a114c7d89c92993905d3c7fda631fdc51587cdc5035637ffbfac729.webp",
+      "sha256": "e48a868d0a114c7d89c92993905d3c7fda631fdc51587cdc5035637ffbfac729",
+      "bytes": 954,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/systems/dark-phone/systems-sun-lamp.webp",
+      "file": "details/8c8c7b34524fb02dc19c5405cc3de4d5518d7f6297fe693fd40829e24c670de4.webp",
+      "sha256": "8c8c7b34524fb02dc19c5405cc3de4d5518d7f6297fe693fd40829e24c670de4",
+      "bytes": 6396,
+      "mime": "image/webp"
+    }
+  ]
+}

@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "unit": "talks",
+  "label": "dark-phone",
+  "method": "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained; corner-preserving contour fit",
+  "sourceRevision": "27c0155",
+  "inputArtworkSha256": "5fa09992acab7d6bdd84b292a1c77b85efd33356425e9d916df125faca7dafdd",
+  "outputArtworkSha256": "182f8d35213ec4d1a6e1a3b23bb76ef8898ce7774bfe78363c2086ed7fbb4cd7",
+  "captureContractSha256": "66018491b3371d2c78188d00111f6deaebc744850ffdbdcbf3118c0e8da5d5d6",
+  "scale": 4,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "restoredWind": 9,
+  "owners": [
+    {
+      "id": "talks-monitor-support",
+      "box": [
+        232,
+        635,
+        19,
+        77
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-photo-talk-ann-interview-v8",
+      "box": [
+        198,
+        617,
+        85,
+        59
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 320,
+          "src": "/images/stacks/v8/512/talk-ann-interview.webp"
+        }
+      ]
+    },
+    {
+      "id": "talks-easel-support",
+      "box": [
+        302,
+        613,
+        95,
+        95
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-talk-dc-policy-v8",
+      "box": [
+        288,
+        603,
+        124,
+        81
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 288,
+          "src": "/images/stacks/v8/512/talk-dc-policy.webp"
+        }
+      ]
+    },
+    {
+      "id": "talks-plinth-support",
+      "box": [
+        425,
+        685,
+        74,
+        20
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-photo-talk-panel-v8",
+      "box": [
+        415,
+        637,
+        93,
+        58
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 288,
+          "src": "/images/stacks/v8/512/talk-panel.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-harmonica-talks",
+      "box": [
+        500,
+        690,
+        62,
+        15
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-plant-talks-top",
+      "box": [
+        547,
+        665,
+        45,
+        39
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-talk-demo-night-v8",
+      "box": [
+        199,
+        748,
+        119,
+        84
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 320,
+          "src": "/images/stacks/v8/512/talk-demo-night.webp"
+        }
+      ]
+    },
+    {
+      "id": "talks-hanging-support",
+      "box": [
+        351,
+        709,
+        90,
+        25
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-photo-talk-consensus-phone-v8",
+      "box": [
+        348,
+        728,
+        96,
+        59
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 288,
+          "src": "/images/stacks/v8/512/talk-consensus-phone.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-sticker-camera-talks-a",
+      "box": [
+        332,
+        799,
+        32,
+        35
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 96,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-sticker-camera-talks-b",
+      "box": [
+        402,
+        797,
+        32,
+        35
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 96,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-microphone",
+      "box": [
+        448,
+        812,
+        73,
+        27
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-plant-talks-pothos",
+      "box": [
+        508,
+        755,
+        64,
+        99
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": "/models/tiny-treats-dark.png"
+        }
+      ]
+    }
+  ],
+  "details": [
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/talks-monitor-support.webp",
+      "file": "details/bacbcc1dc626e02c3f72c364a7379b4815fcbb87612e4356a4146f991afffffa.webp",
+      "sha256": "bacbcc1dc626e02c3f72c364a7379b4815fcbb87612e4356a4146f991afffffa",
+      "bytes": 1770,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-photo-talk-ann-interview-v8.webp",
+      "file": "details/ae08161c654b216018bd58c68ee7758a7ffa7e23a77b2743f3f74ab1635428f0.webp",
+      "sha256": "ae08161c654b216018bd58c68ee7758a7ffa7e23a77b2743f3f74ab1635428f0",
+      "bytes": 13280,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/talks-easel-support.webp",
+      "file": "details/c5a7917811f0445d7c99e8aef984b805e4f3ce83fe3e94e23cd229188d636af9.webp",
+      "sha256": "c5a7917811f0445d7c99e8aef984b805e4f3ce83fe3e94e23cd229188d636af9",
+      "bytes": 11974,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-photo-talk-dc-policy-v8.webp",
+      "file": "details/e7a36057aa41ebe7100eaf6de3203e33357b6442a8bc6349c83d3277623716f3.webp",
+      "sha256": "e7a36057aa41ebe7100eaf6de3203e33357b6442a8bc6349c83d3277623716f3",
+      "bytes": 19328,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/talks-plinth-support.webp",
+      "file": "details/f247a43eb7f66e4dc24a07a23b717eb14a7bcd863f43dc58b3f39807006acac7.webp",
+      "sha256": "f247a43eb7f66e4dc24a07a23b717eb14a7bcd863f43dc58b3f39807006acac7",
+      "bytes": 1564,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-photo-talk-panel-v8.webp",
+      "file": "details/541d13b53f8da1900139a7e729a001cf44e2fbc73a1b898c14ead2dd06355b28.webp",
+      "sha256": "541d13b53f8da1900139a7e729a001cf44e2fbc73a1b898c14ead2dd06355b28",
+      "bytes": 16476,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-harmonica-talks.webp",
+      "file": "details/0071061799c6b7d610d2f27a1c5dd73f7ef790aaa3b41c574c9147a436bd1990.webp",
+      "sha256": "0071061799c6b7d610d2f27a1c5dd73f7ef790aaa3b41c574c9147a436bd1990",
+      "bytes": 2406,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-photo-talk-demo-night-v8.webp",
+      "file": "details/0cf9f3f561add5055adb46c642170bebbf6af7a7899ed6d3e36b2f92e033dd80.webp",
+      "sha256": "0cf9f3f561add5055adb46c642170bebbf6af7a7899ed6d3e36b2f92e033dd80",
+      "bytes": 26706,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/talks-hanging-support.webp",
+      "file": "details/623aeab15a2abaade0bf90bb9a079129f34ded24865163283b084c1208c219de.webp",
+      "sha256": "623aeab15a2abaade0bf90bb9a079129f34ded24865163283b084c1208c219de",
+      "bytes": 1428,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-photo-talk-consensus-phone-v8.webp",
+      "file": "details/7ee7f4fc49e6ee02aa1eb01a6a05a31b3d276f084e7ffaf6e28c5d32677d6070.webp",
+      "sha256": "7ee7f4fc49e6ee02aa1eb01a6a05a31b3d276f084e7ffaf6e28c5d32677d6070",
+      "bytes": 7904,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-sticker-camera-talks-a.webp",
+      "file": "details/b3709c375adcb6cdf2d4eda53f4a3bfc9321a7372dee2d4bd6a0e506876556cc.webp",
+      "sha256": "b3709c375adcb6cdf2d4eda53f4a3bfc9321a7372dee2d4bd6a0e506876556cc",
+      "bytes": 2414,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-sticker-camera-talks-b.webp",
+      "file": "details/0c2b4f5dbfc7e07dacadd97e1bbfc63bb4d1176c56eb7a2e4044319e623fb7b9.webp",
+      "sha256": "0c2b4f5dbfc7e07dacadd97e1bbfc63bb4d1176c56eb7a2e4044319e623fb7b9",
+      "bytes": 2520,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/talks/dark-phone/grab-microphone.webp",
+      "file": "details/dfcc6d9082254c4fd0b4e2133593599dc93bb89da8e924d02122b289be6487ac.webp",
+      "sha256": "dfcc6d9082254c4fd0b4e2133593599dc93bb89da8e924d02122b289be6487ac",
+      "bytes": 3056,
+      "mime": "image/webp"
+    }
+  ]
+}

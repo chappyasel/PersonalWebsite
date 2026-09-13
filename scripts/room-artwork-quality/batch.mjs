@@ -23,14 +23,19 @@ for (const c of cases) {
     "docs/reviews/room-artwork-quality-progress.md",
     `\nCapturing ${name}; log /tmp/room-artwork-quality-${name}.log\n`,
   );
-  const cached=await readFile(`/tmp/room-artwork-quality-captures/${c.unit}/${c.label}/capture.json`,'utf8').then(JSON.parse).catch(()=>null);
-  if(!cached?.readback){
-  await run(
-    "scripts/room-artwork-quality/capture.mjs",
-    [c.unit, c.label],
-    `/tmp/room-artwork-quality-${name}.log`,
-  );
-  }else console.log('REUSE_STRAIGHT_ALPHA',name);
+  const cached = await readFile(
+    `/tmp/room-artwork-quality-captures/${c.unit}/${c.label}/capture.json`,
+    "utf8",
+  )
+    .then(JSON.parse)
+    .catch(() => null);
+  if (!cached?.readback) {
+    await run(
+      "scripts/room-artwork-quality/capture.mjs",
+      [c.unit, c.label],
+      `/tmp/room-artwork-quality-${name}.log`,
+    );
+  } else console.log("REUSE_STRAIGHT_ALPHA", name);
   await run(
     "scripts/room-artwork-quality/package.mjs",
     [c.unit, c.label, "--input", "/tmp/room-artwork-quality-captures"],

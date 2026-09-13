@@ -1,0 +1,490 @@
+{
+  "version": 1,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "scale": 4,
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "grab-plant-musings",
+      "box": [
+        172,
+        390,
+        76,
+        37
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-plant-musings.mask.png",
+        "colour": "grab-plant-musings.colour.png"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": "/models/tiny-treats-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "musings-lamp",
+      "box": [
+        203,
+        226,
+        90,
+        199
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "musings-lamp.mask.png",
+        "colour": "musings-lamp.colour.png"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-headphones",
+      "box": [
+        736,
+        288,
+        97,
+        111
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-headphones.mask.png",
+        "colour": "grab-headphones.colour.png",
+        "detail": "grab-headphones.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-kettle",
+      "box": [
+        323,
+        340,
+        112,
+        86
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-kettle.mask.png",
+        "colour": "grab-kettle.colour.png",
+        "detail": "grab-kettle.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "egg-tea",
+      "box": [
+        337,
+        388,
+        81,
+        40
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "egg-tea.mask.png",
+        "colour": "egg-tea.colour.png",
+        "detail": "egg-tea.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-openbook",
+      "box": [
+        429,
+        395,
+        209,
+        33
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-openbook.mask.png",
+        "colour": "grab-openbook.colour.png",
+        "detail": "grab-openbook.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "musings-book-row",
+      "box": [
+        616,
+        266,
+        242,
+        162
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "musings-book-row.mask.png",
+        "colour": "musings-book-row.colour.png",
+        "detail": "musings-book-row.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-mug",
+      "box": [
+        195,
+        534,
+        63,
+        118
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-mug.mask.png",
+        "colour": "grab-mug.colour.png",
+        "detail": "grab-mug.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-paper-5",
+      "box": [
+        238,
+        629,
+        191,
+        33
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-paper-5.mask.png",
+        "colour": "grab-paper-5.colour.png",
+        "detail": "grab-paper-5.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-5.webp"
+        },
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-4.webp"
+        },
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-3.webp"
+        },
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-2.webp"
+        },
+        {
+          "width": 1224,
+          "height": 1584,
+          "src": "/images/stacks/musings/gpt3-2021-page-1.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-pen-5",
+      "box": [
+        325,
+        636,
+        57,
+        19
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-pen-5.mask.png",
+        "colour": "grab-pen-5.colour.png",
+        "detail": "grab-pen-5.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-trust-essay-musings",
+      "box": [
+        413,
+        502,
+        126,
+        153
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-trust-essay-musings.mask.png",
+        "colour": "grab-trust-essay-musings.colour.png",
+        "detail": "grab-trust-essay-musings.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 1224,
+          "height": 1584,
+          "src": "/images/stacks/musings/trust-2025-cover.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-vineyard-sign",
+      "box": [
+        527,
+        571,
+        62,
+        85
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-vineyard-sign.mask.png",
+        "colour": "grab-vineyard-sign.colour.png",
+        "detail": "grab-vineyard-sign.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 640,
+          "height": 562,
+          "src": "/images/stacks/musings/vineyard-sign.webp"
+        },
+        {
+          "width": 640,
+          "height": 562,
+          "src": "/images/stacks/musings/vineyard-sign.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-vineyard-cutout",
+      "box": [
+        598,
+        576,
+        124,
+        74
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-vineyard-cutout.mask.png",
+        "colour": "grab-vineyard-cutout.colour.png",
+        "detail": "grab-vineyard-cutout.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-systems-lighthouse-v8",
+      "box": [
+        719,
+        563,
+        74,
+        93
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-systems-lighthouse-v8.mask.png",
+        "colour": "grab-photo-systems-lighthouse-v8.colour.png",
+        "detail": "grab-photo-systems-lighthouse-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 410,
+          "height": 512,
+          "src": "/images/stacks/v8/512/systems-lighthouse.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-lighthouse-musings",
+      "box": [
+        776,
+        476,
+        106,
+        203
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-lighthouse-musings.mask.png",
+        "colour": "grab-lighthouse-musings.colour.png",
+        "detail": "grab-lighthouse-musings.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-sticker-vineyard-vines",
+      "box": [
+        711,
+        654,
+        79,
+        14
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-sticker-vineyard-vines.mask.png",
+        "colour": "grab-sticker-vineyard-vines.colour.png",
+        "detail": "grab-sticker-vineyard-vines.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 436,
+          "height": 196,
+          "src": "/images/stacks/vineyard-vines-sticker.svg"
+        }
+      ],
+      "detailPrepared": true
+    }
+  ],
+  "source": "live geometry at saved camera and validated unit-local rest transforms",
+  "contractSha256": "f99829d313ffd80b5e6fbfadc6aecc40903df3bff2739cebacf85d642d2b4d9c",
+  "errors": [],
+  "files": {
+    "grab-plant-musings.mask.png": "931165de44cfc8ddb8620b222339f519ee46a58da2a97e415b213dccfbe225a3",
+    "grab-plant-musings.colour.png": "7628735c963eca5c6f658bfa67847bb47ead6d31e7762bd4269504948a2ad3aa",
+    "musings-lamp.mask.png": "afeb5f1ab21cfe9c933eb2422eea6155213f14af8ab023a40457faa293af6a35",
+    "musings-lamp.colour.png": "87ec450faa5116d7c150a2a993c5461f8e1bc72189c1af3afab3f6ecf44cf3cc",
+    "grab-headphones.mask.png": "acf5040bc643c62da2878255b95d29bfe46b1d9e560b65fc4905bc7a7f1545de",
+    "grab-headphones.colour.png": "2d5589fc123425c7a66f9f5a5fc5cb7edae7b9ac636bad0401e0e1d10864ebcf",
+    "grab-headphones.detail.webp": "e6958339dd198a241825bc75e3a33e0a2553780fa2f174ffa9714857eaa116fc",
+    "grab-kettle.mask.png": "428b31bc334c5ab0aa6dbc42a77d67ef5b4d9cc019555a7cae2dffa7220eb8fb",
+    "grab-kettle.colour.png": "ac99c72999687d62551b35010e08ef0ec8837e3e94fbb4f6bd0a67ae65044816",
+    "grab-kettle.detail.webp": "8ac4df5f8a48865c18b1d819190026d21837f0d0566da81985d99f01f1021579",
+    "egg-tea.mask.png": "69d085ec3e51f96d8c5925f3d21d153b806fa61a2cf7269d3b885c91e836c5d3",
+    "egg-tea.colour.png": "253aaf2edeb36b9051324aa008bf0089ace69179d97430854575f1c0e94253df",
+    "egg-tea.detail.webp": "0fa0c7ce9a12093d5b0868c342baf657b17341c034ada180e3c45b046fad7d64",
+    "grab-openbook.mask.png": "ff132b56075bf4f5a083375dccf14818f4920d9af9737d580c26c733e4aa34da",
+    "grab-openbook.colour.png": "879783c52100b55338bb69d886616a6a95231a9c34fa0c152e7a7f470ff6b315",
+    "grab-openbook.detail.webp": "79c36da14ddc7188716238fc1ff6b212fca49debb9d4d1928aef38b31f6e2602",
+    "musings-book-row.mask.png": "58cb8be64b468fd53f64ffb1846da22c323967305a5cf8ffb641eb016a3b3b7f",
+    "musings-book-row.colour.png": "d4c44036a62e575687eada29baf77ef1356418d245d3da615ca5ec7183d37260",
+    "musings-book-row.detail.webp": "4cef2f36146604509e5e689781ecfe79c5f8ab45219406ab2ecc2e4edb4d3218",
+    "grab-mug.mask.png": "4c4a4786e4505d46d1d260502eaf18b3d1426136e4a046b38b85983376c1c392",
+    "grab-mug.colour.png": "b1e20d3a8d169b42b4c6a587c9e24c1c22e0b532e9169b0e8bc4105b2e09559a",
+    "grab-mug.detail.webp": "1ce20a9117ecd08059f32162b783a59e5d14d4ab95ab82afa9c0577f98ae7e08",
+    "grab-paper-5.mask.png": "16a32b67d5525ed956131370baa313070b8e2046d6f05fc4be71181c8ac81e14",
+    "grab-paper-5.colour.png": "faed3b44e0dcbac6ea9ff1cd68a07b9a68c5a2bf6cad1d2e93b6dae1efc9dada",
+    "grab-paper-5.detail.webp": "06eec3e06c1238199948f1bcbe8e72c872211d2fbb0565f9a3f74ae7058bde58",
+    "grab-pen-5.mask.png": "da2625f79d8607f5a6b32bb8d105daf26aab4bb5bcccdf30582e82aaf2541206",
+    "grab-pen-5.colour.png": "06593f885a305549d8b56b3f7428718d0cbec4f7ebc046c9c48b1b48500f85fa",
+    "grab-pen-5.detail.webp": "abef334657051e80756df5804a65f801d021bbca46d9a7696af7398336492eab",
+    "grab-trust-essay-musings.mask.png": "6e5d79cb22d2b9b74b0305c6aa5f05f00590cfe93d8f137f70eb5551a23559b7",
+    "grab-trust-essay-musings.colour.png": "fe8594ccc63b160897e56fb9921420ece6923cc61a3a64d8f5ed463dee8413a4",
+    "grab-trust-essay-musings.detail.webp": "840b5994fa614c7462d6c8198c3dfef98f79daf75c94258f30a7337e621d67e9",
+    "grab-vineyard-sign.mask.png": "7ea4839fbb3fba056a5a01364c773dd6d3ee437d9d27f60f26ff8e104a4f55ff",
+    "grab-vineyard-sign.colour.png": "4b82bb8954a47d451abba1c1702a85c8ae519f2103119f809764433f5a7d1ae2",
+    "grab-vineyard-sign.detail.webp": "9ba927565fd6fe7dd93aac80364eed6bb626c59d4b374beda5f2b4beb261975b",
+    "grab-vineyard-cutout.mask.png": "7faf4f2f7e0aec2424d2c012515bbe2e599ed324f91499ef722e9138817f540c",
+    "grab-vineyard-cutout.colour.png": "e09ea317e7ffa003908879bff2bbc56a5ae6389c3f6177bb4dae3088dc668dc6",
+    "grab-vineyard-cutout.detail.webp": "8d751231e512377d654389cfa0364c01a15e593e0acf7225f758c088f2f3b00c",
+    "grab-photo-systems-lighthouse-v8.mask.png": "ba192446c4390d9454f80f67187bb868ab8e6e70264e82ab83c202236ff6a13d",
+    "grab-photo-systems-lighthouse-v8.colour.png": "ba248bd8677305b9aa62460a609810b7e94827944d9283bb893732925afa12c1",
+    "grab-photo-systems-lighthouse-v8.detail.webp": "7660ef2e2bc4ed37952dd2b63dc48701d5544ff434afe6e2fd16a3050ad01efb",
+    "grab-lighthouse-musings.mask.png": "54a2600aa94480fbdb8f641b3078b54b73afade9379c806f016c92fce5a9d838",
+    "grab-lighthouse-musings.colour.png": "e18b9adb1c7dbf7c680f64176853ab370f8fb8d87cc2316fe33b5c5982e5b1c4",
+    "grab-lighthouse-musings.detail.webp": "f524b7d6e94d1bd53fc10a843aface4ced3cf79596f67bdf98ad7f776f9654ce",
+    "grab-sticker-vineyard-vines.mask.png": "e420ede586700ad750ec88043ce6a31874544f10323d4d9ce78a9f2918dbcc8e",
+    "grab-sticker-vineyard-vines.colour.png": "b55280f0929395cb5209f18dcf839838f4f021dcd4afeef320b9e503ecd54f16",
+    "grab-sticker-vineyard-vines.detail.webp": "a0766d03bac506876bb269eef7dac5121a44ff2895665d1ab240f45436971e68"
+  }
+}

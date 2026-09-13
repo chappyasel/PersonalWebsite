@@ -1,0 +1,413 @@
+{
+  "version": 1,
+  "unit": "projects",
+  "label": "light-desktop",
+  "method": "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained; corner-preserving contour fit",
+  "sourceRevision": "27c0155",
+  "inputArtworkSha256": "e063c09fa865bfca6d8f1e5114c982c9536afe85f35e7d1a8356ddd63704845a",
+  "outputArtworkSha256": "51fad934655db9a3c9b9a5108444201da51be49fbd0f18ad54a5a101e57056c6",
+  "captureContractSha256": "18f4d25981722287f976ea019adddf5e17d32229e0e0b6acbbad20130c3e316c",
+  "scale": 4,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "lamp",
+      "box": [
+        198,
+        252,
+        65,
+        175
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "action-projects-weightlifting",
+      "box": [
+        272,
+        335,
+        95,
+        92
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-weightlifting-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-weightlifting-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-weightlifting-icon.webp"
+        }
+      ]
+    },
+    {
+      "id": "link-projects-dice-bottom-left",
+      "box": [
+        371,
+        378,
+        52,
+        49
+      ],
+      "textures": []
+    },
+    {
+      "id": "link-projects-dice-bottom-center",
+      "box": [
+        413,
+        377,
+        53,
+        50
+      ],
+      "textures": []
+    },
+    {
+      "id": "link-projects-dice-bottom-right",
+      "box": [
+        457,
+        378,
+        50,
+        48
+      ],
+      "textures": []
+    },
+    {
+      "id": "link-projects-dice-middle-left",
+      "box": [
+        391,
+        335,
+        53,
+        49
+      ],
+      "textures": []
+    },
+    {
+      "id": "link-projects-dice-middle-right",
+      "box": [
+        435,
+        335,
+        51,
+        49
+      ],
+      "textures": []
+    },
+    {
+      "id": "link-projects-dice-top",
+      "box": [
+        412,
+        292,
+        53,
+        50
+      ],
+      "textures": []
+    },
+    {
+      "id": "action-projects-homework",
+      "box": [
+        511,
+        335,
+        91,
+        91
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-homework-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-homework-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-homework-icon.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-projects-wwdc-v8",
+      "box": [
+        639,
+        319,
+        91,
+        107
+      ],
+      "textures": [
+        {
+          "width": 412,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-wwdc.webp"
+        }
+      ]
+    },
+    {
+      "id": "shimmer-apple",
+      "box": [
+        739,
+        358,
+        52,
+        68
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-plant-projects-small",
+      "box": [
+        795,
+        362,
+        60,
+        61
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "trophy",
+      "box": [
+        292,
+        529,
+        81,
+        133
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "photo",
+      "box": [
+        167,
+        562,
+        125,
+        102
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 410,
+          "src": "/images/stacks/v8/512/projects-coding-couch.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-phone-projects",
+      "box": [
+        458,
+        626,
+        81,
+        35
+      ],
+      "textures": [
+        {
+          "width": 1024,
+          "height": 2220,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "arduino",
+      "box": [
+        548,
+        631,
+        63,
+        27
+      ],
+      "textures": [
+        {
+          "width": 32,
+          "height": 4,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "card",
+      "box": [
+        606,
+        596,
+        69,
+        49
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-photo-projects-facebook-v8",
+      "box": [
+        355,
+        570,
+        115,
+        91
+      ],
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/projects-facebook.webp"
+        }
+      ]
+    },
+    {
+      "id": "mac",
+      "box": [
+        685,
+        478,
+        146,
+        176
+      ],
+      "textures": [
+        {
+          "width": 168,
+          "height": 128,
+          "src": null
+        },
+        {
+          "width": 1,
+          "height": 6,
+          "src": null
+        }
+      ]
+    }
+  ],
+  "details": [
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/action-projects-weightlifting.webp",
+      "file": "details/eacc3b90432acf40c28776eecf44547efeb69c4ae6e3bbce2d7e6b653b34180b.webp",
+      "sha256": "eacc3b90432acf40c28776eecf44547efeb69c4ae6e3bbce2d7e6b653b34180b",
+      "bytes": 6654,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/link-projects-dice-bottom-left.webp",
+      "file": "details/917a6fa9c5eab8897b37a64a5bd90f9b5d6cc27dc39e11374472de6ec39bf010.webp",
+      "sha256": "917a6fa9c5eab8897b37a64a5bd90f9b5d6cc27dc39e11374472de6ec39bf010",
+      "bytes": 2006,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/link-projects-dice-bottom-center.webp",
+      "file": "details/c0a851120df1669c60e0eede5656c38e9797e2b376f480440902ac75d104c927.webp",
+      "sha256": "c0a851120df1669c60e0eede5656c38e9797e2b376f480440902ac75d104c927",
+      "bytes": 2104,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/link-projects-dice-bottom-right.webp",
+      "file": "details/2d7e41ad5e9197b986eda18aff6183ab88ecbada0aaa58a7b3cfe8b37e27df4a.webp",
+      "sha256": "2d7e41ad5e9197b986eda18aff6183ab88ecbada0aaa58a7b3cfe8b37e27df4a",
+      "bytes": 1954,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/link-projects-dice-middle-left.webp",
+      "file": "details/cc350319d12d6a8a60011dca79ee96415ff432fad6d10ec7c9d817f3eeaf06ff.webp",
+      "sha256": "cc350319d12d6a8a60011dca79ee96415ff432fad6d10ec7c9d817f3eeaf06ff",
+      "bytes": 2128,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/link-projects-dice-middle-right.webp",
+      "file": "details/d1515fe412c577537461653b131788dbc6b5923d3fa10defab150e97740e7a47.webp",
+      "sha256": "d1515fe412c577537461653b131788dbc6b5923d3fa10defab150e97740e7a47",
+      "bytes": 1966,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/link-projects-dice-top.webp",
+      "file": "details/707fdd97ed22801b3ef38c2f53763ee561fa4560058eca21aa3d7de318b5e1ca.webp",
+      "sha256": "707fdd97ed22801b3ef38c2f53763ee561fa4560058eca21aa3d7de318b5e1ca",
+      "bytes": 1688,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/action-projects-homework.webp",
+      "file": "details/070a4cbad6cd1a31a00959691a2afe7fc96898ebdb6b9002d1038ca0e70b87b6.webp",
+      "sha256": "070a4cbad6cd1a31a00959691a2afe7fc96898ebdb6b9002d1038ca0e70b87b6",
+      "bytes": 4398,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/grab-photo-projects-wwdc-v8.webp",
+      "file": "details/119920aee19e052bcf0fa8dff366070be111617b3e4e7d4d40bc6c2f00b790ab.webp",
+      "sha256": "119920aee19e052bcf0fa8dff366070be111617b3e4e7d4d40bc6c2f00b790ab",
+      "bytes": 14158,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/photo.webp",
+      "file": "details/520e39127be6aabbad91d77ce26b701e1cae492bd11d1da5073648f83ff608f5.webp",
+      "sha256": "520e39127be6aabbad91d77ce26b701e1cae492bd11d1da5073648f83ff608f5",
+      "bytes": 15552,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/grab-phone-projects.webp",
+      "file": "details/ac1fcbca21f29a9b697b4a0ba158294f58a3aba47ca5c096d3fcf9d6fdf4d986.webp",
+      "sha256": "ac1fcbca21f29a9b697b4a0ba158294f58a3aba47ca5c096d3fcf9d6fdf4d986",
+      "bytes": 3732,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/arduino.webp",
+      "file": "details/69ff14eb117ebc688931077da6c6f357610327da2e90e7c1b66d6ae7fbc87547.webp",
+      "sha256": "69ff14eb117ebc688931077da6c6f357610327da2e90e7c1b66d6ae7fbc87547",
+      "bytes": 3600,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/card.webp",
+      "file": "details/fa131b16b5d860a5d4767014f3aa0759fcbab085e3b9f2f980d5b78ca623a174.webp",
+      "sha256": "fa131b16b5d860a5d4767014f3aa0759fcbab085e3b9f2f980d5b78ca623a174",
+      "bytes": 3862,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/grab-photo-projects-facebook-v8.webp",
+      "file": "details/559f4c8043752163c29fc57653583963fb967815b035781186e95514a398fb5d.webp",
+      "sha256": "559f4c8043752163c29fc57653583963fb967815b035781186e95514a398fb5d",
+      "bytes": 9466,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/projects/light-desktop/mac.webp",
+      "file": "details/c2c55d5a059cc52284668fede2fbe1cb63e39dd2b9984b63d649af4b0d2600c5.webp",
+      "sha256": "c2c55d5a059cc52284668fede2fbe1cb63e39dd2b9984b63d649af4b0d2600c5",
+      "bytes": 12758,
+      "mime": "image/webp"
+    }
+  ]
+}

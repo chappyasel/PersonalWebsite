@@ -547,7 +547,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/books/light-desktop/capture.json",
+        "sha256": "a32b78bac2acfadafd24be65edad6fcfc33012c076bec45be5128d3f405ae186"
+      }
     },
     "books/dark-desktop": {
       "approvedSvg": {
@@ -1095,7 +1099,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/books/dark-desktop/capture.json",
+        "sha256": "5892397023041e9ef4805e73640ec9916d635786d5a2ba80d0255f7180145f4f"
+      }
     },
     "books/light-phone": {
       "approvedSvg": {
@@ -1643,7 +1651,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/books/light-phone/capture.json",
+        "sha256": "0abe950ae5e18848ee12d490389e673ec1bd1b90582d82f57567bc18869f4048"
+      }
     },
     "books/dark-phone": {
       "approvedSvg": {
@@ -2191,7 +2203,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/books/dark-phone/capture.json",
+        "sha256": "4595fff43efc77f9e2078b7ea816bd1f29e9011381b52be0f27dc702d4a518a1"
+      }
     },
     "projects/light-desktop": {
       "approvedSvg": {
@@ -2573,7 +2589,8 @@
           ],
           "details": [
             false
-          ]
+          ],
+          "treatmentProvenance": "Approved Projects package.mjs fallback selects trophy facet treatment by owner id for legacy raw captures."
         },
         {
           "id": "photo",
@@ -2674,7 +2691,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/projects/light-desktop/capture.json",
+        "sha256": "7ef266fb3d9fd267acb5173f9067c9fc6ce6f9e6bdf20472ef17eeebe76660b7"
+      }
     },
     "projects/dark-desktop": {
       "approvedSvg": {
@@ -3042,7 +3063,9 @@
           ],
           "details": [
             false
-          ]
+          ],
+          "treatment": "trophy",
+          "treatmentProvenance": "Approved Projects package.mjs fallback selects trophy facet treatment by owner id for legacy raw captures."
         },
         {
           "id": "photo",
@@ -3137,7 +3160,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/projects/dark-desktop/capture.json",
+        "sha256": "dcb34c7ec9ec52b90b058db95bd1f242c2c394b906e9dc864dd78808500d0535"
+      }
     },
     "projects/light-phone": {
       "approvedSvg": {
@@ -3505,7 +3532,9 @@
           ],
           "details": [
             false
-          ]
+          ],
+          "treatment": "trophy",
+          "treatmentProvenance": "Approved Projects package.mjs fallback selects trophy facet treatment by owner id for legacy raw captures."
         },
         {
           "id": "photo",
@@ -3600,7 +3629,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/projects/light-phone/capture.json",
+        "sha256": "798684d92ec3c83e085a659efe936705362ec996288f3e64b8f6af383e09f5b1"
+      }
     },
     "projects/dark-phone": {
       "approvedSvg": {
@@ -3968,7 +4001,9 @@
           ],
           "details": [
             false
-          ]
+          ],
+          "treatment": "trophy",
+          "treatmentProvenance": "Approved Projects package.mjs fallback selects trophy facet treatment by owner id for legacy raw captures."
         },
         {
           "id": "photo",
@@ -4063,7 +4098,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/projects/dark-phone/capture.json",
+        "sha256": "0bde3d97750140dafd06d187b821b34019a501d7c92afa3392162c6889050c39"
+      }
     },
     "systems/light-desktop": {
       "approvedSvg": {
@@ -5026,7 +5065,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/systems/light-desktop/capture.json",
+        "sha256": "c431d033632b61cfc7329a385010acdf7465af900fc9f913491c3c4f8214501a"
+      }
     },
     "systems/dark-desktop": {
       "approvedSvg": {
@@ -5989,7 +6032,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/systems/dark-desktop/capture.json",
+        "sha256": "30a8caec0f31ff152da6629a9bddedf1fc7912f0bd07cb840c14b8bb832abb51"
+      }
     },
     "systems/light-phone": {
       "approvedSvg": {
@@ -6952,7 +6999,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/systems/light-phone/capture.json",
+        "sha256": "98e3e26aa5dbe21840a4a652929e20c1e421c13234ecb71b93f0f843a062dad5"
+      }
     },
     "systems/dark-phone": {
       "approvedSvg": {
@@ -7915,7 +7966,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/systems/dark-phone/capture.json",
+        "sha256": "f342fe9dee7aab10edd17553b98fe425b638a2589677b8aff8a5dd53a301eed5"
+      }
     },
     "weightlifting/light-desktop": {
       "approvedSvg": {
@@ -8420,10 +8475,10 @@
           "id": "grab-shaker-training",
           "treatment": "natural",
           "box": [
-            742,
-            308,
-            54,
-            107
+            726,
+            292,
+            86,
+            139
           ],
           "details": [
             true,
@@ -8441,16 +8496,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-navy",
           "treatment": "natural",
           "box": [
-            775,
-            310,
-            53,
-            103
+            759,
+            294,
+            85,
+            135
           ],
           "details": [
             true,
@@ -8468,16 +8524,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-amber",
           "treatment": "natural",
           "box": [
-            817,
-            309,
-            53,
-            105
+            801,
+            293,
+            85,
+            137
           ],
           "details": [
             true,
@@ -8495,7 +8552,8 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-photo-training-golf-group-v8",
@@ -8661,7 +8719,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/weightlifting/light-desktop/capture.json",
+        "sha256": "0d9e14a4d3f4a50c0bffdff150b356c8928bd1a45f740f3a2c0698229ebe3583"
+      }
     },
     "weightlifting/dark-desktop": {
       "approvedSvg": {
@@ -9166,10 +9228,10 @@
           "id": "grab-shaker-training",
           "treatment": "natural",
           "box": [
-            742,
-            308,
-            54,
-            108
+            726,
+            292,
+            86,
+            140
           ],
           "details": [
             true,
@@ -9187,16 +9249,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-navy",
           "treatment": "natural",
           "box": [
-            775,
-            311,
-            53,
-            102
+            759,
+            295,
+            85,
+            134
           ],
           "details": [
             true,
@@ -9214,16 +9277,19 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha.",
+          "detailScale": 4,
+          "detailScaleReason": "Keep thin source-supported geometry/alpha features that failed3CSSpx fresh-mask gate when downsampled to2x."
         },
         {
           "id": "grab-shaker-training-amber",
           "treatment": "natural",
           "box": [
-            817,
-            309,
-            53,
-            105
+            801,
+            293,
+            85,
+            137
           ],
           "details": [
             true,
@@ -9241,7 +9307,8 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-photo-training-golf-group-v8",
@@ -9407,7 +9474,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/weightlifting/dark-desktop/capture.json",
+        "sha256": "9931e1919c1000be21068e373f88bc9e0f015b983da2e436727e03e2cf7d5ded"
+      }
     },
     "weightlifting/light-phone": {
       "approvedSvg": {
@@ -9912,10 +9983,10 @@
           "id": "grab-shaker-training",
           "treatment": "natural",
           "box": [
-            512,
-            637,
-            33,
-            61
+            496,
+            621,
+            65,
+            93
           ],
           "details": [
             true,
@@ -9933,16 +10004,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-navy",
           "treatment": "natural",
           "box": [
-            529,
-            638,
-            31,
-            60
+            513,
+            622,
+            63,
+            92
           ],
           "details": [
             true,
@@ -9960,16 +10032,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-amber",
           "treatment": "natural",
           "box": [
-            552,
-            638,
-            33,
-            60
+            536,
+            622,
+            65,
+            92
           ],
           "details": [
             true,
@@ -9987,7 +10060,8 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-photo-training-golf-group-v8",
@@ -10153,7 +10227,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/weightlifting/light-phone/capture.json",
+        "sha256": "180f732e0544cbce68741acfc595dc2a3e2568bbc4d61689fe169aa0866e000c"
+      }
     },
     "weightlifting/dark-phone": {
       "approvedSvg": {
@@ -10658,10 +10736,10 @@
           "id": "grab-shaker-training",
           "treatment": "natural",
           "box": [
-            512,
-            637,
-            33,
-            61
+            496,
+            621,
+            65,
+            93
           ],
           "details": [
             true,
@@ -10679,16 +10757,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-navy",
           "treatment": "natural",
           "box": [
-            529,
-            638,
-            31,
-            60
+            513,
+            622,
+            63,
+            92
           ],
           "details": [
             true,
@@ -10706,16 +10785,17 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-shaker-training-amber",
           "treatment": "natural",
           "box": [
-            552,
-            638,
-            33,
-            61
+            536,
+            622,
+            65,
+            93
           ],
           "details": [
             true,
@@ -10733,7 +10813,8 @@
             true,
             true,
             true
-          ]
+          ],
+          "cropPaddingException": "Additional16 source pixels retain full translucent shell: old alpha>=128 crop omitted alpha107 body edges; new mask must have zero border alpha."
         },
         {
           "id": "grab-photo-training-golf-group-v8",
@@ -10899,7 +10980,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/weightlifting/dark-phone/capture.json",
+        "sha256": "141dd862c90c23a298e6190ebf4517a72e838dc0d892733d2da19301ad6c3f89"
+      }
     },
     "musings/light-desktop": {
       "approvedSvg": {
@@ -11316,7 +11401,9 @@
             true,
             true
           ],
-          "cropPaddingException": "Additional16 source pixels reveal thin mounted finial/rails missed by original low-resolution alpha; final fresh-mask gate still applies."
+          "cropPaddingException": "Additional16 source pixels reveal thin mounted finial/rails missed by original low-resolution alpha; final fresh-mask gate still applies.",
+          "detailScale": 4,
+          "detailScaleReason": "Keep thin source-supported geometry/alpha features that failed3CSSpx fresh-mask gate when downsampled to2x."
         },
         {
           "id": "grab-sticker-vineyard-vines",
@@ -11331,7 +11418,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/musings/light-desktop/capture.json",
+        "sha256": "6711984abc7c3ddaee43cc1ae0a123290a5d1a79bcc48834818f32497bbd2869"
+      }
     },
     "musings/dark-desktop": {
       "approvedSvg": {
@@ -11748,7 +11839,9 @@
             true,
             true
           ],
-          "cropPaddingException": "Additional16 source pixels reveal thin mounted finial/rails missed by original low-resolution alpha; final fresh-mask gate still applies."
+          "cropPaddingException": "Additional16 source pixels reveal thin mounted finial/rails missed by original low-resolution alpha; final fresh-mask gate still applies.",
+          "detailScale": 4,
+          "detailScaleReason": "Keep thin source-supported geometry/alpha features that failed3CSSpx fresh-mask gate when downsampled to2x."
         },
         {
           "id": "grab-sticker-vineyard-vines",
@@ -11763,7 +11856,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/musings/dark-desktop/capture.json",
+        "sha256": "ccb78b81d9b106295977e0e1f63e69ec41621c6b5b4eb82d4c47740a3e9078d8"
+      }
     },
     "musings/light-phone": {
       "approvedSvg": {
@@ -12195,7 +12292,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/musings/light-phone/capture.json",
+        "sha256": "4b716a806c6200c131c87fd63a721843391e62a62979adafe4978bff9b623f9c"
+      }
     },
     "musings/dark-phone": {
       "approvedSvg": {
@@ -12627,7 +12728,11 @@
             true
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/musings/dark-phone/capture.json",
+        "sha256": "1084c427d5739d13aace943cc4081af3f980a1eec9ec1856ac52379dc92d495b"
+      }
     },
     "talks/light-desktop": {
       "approvedSvg": {
@@ -13033,7 +13138,11 @@
             false
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/talks/light-desktop/capture.json",
+        "sha256": "0f18cad5832ff052978a46ef2400eb3f13c284bb8f303c389c976bf7650681cb"
+      }
     },
     "talks/dark-desktop": {
       "approvedSvg": {
@@ -13439,7 +13548,11 @@
             false
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/talks/dark-desktop/capture.json",
+        "sha256": "ba08677d1de7f3eb791c1277e9a45e6632e4ce7abe6f472729ce4560a5921bb5"
+      }
     },
     "talks/light-phone": {
       "approvedSvg": {
@@ -13845,7 +13958,11 @@
             false
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/talks/light-phone/capture.json",
+        "sha256": "4666a846180712f36d74f3e80994c5abb4fbebcecf0b083b010245631decd39c"
+      }
     },
     "talks/dark-phone": {
       "approvedSvg": {
@@ -14251,7 +14368,11 @@
             false
           ]
         }
-      ]
+      ],
+      "qualityInput": {
+        "file": "scripts/generate/room-artwork-inputs/quality/talks/dark-phone/capture.json",
+        "sha256": "9c4133dc0f0901868a34675e127b031a8af210d245142650e164f297accd8331"
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import { approvedSnapshot } from "../room-artwork-quality/approved-snapshot.mjs";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
@@ -62,9 +63,7 @@ describe("Books identity migration provenance", () => {
       expect(sha256(JSON.stringify(capture.probes))).toBe(
         "3648e3c1a6fd63153959fa20c554a412f0662024828911e6df39b2a72f1f8a46",
       );
-      expect(
-        sha256(readFileSync(`public/images/stacks/boot/books/${label}.svg`)),
-      ).toBe(svg);
+      expect(sha256(await approvedSnapshot("books", label))).toBe(svg);
     },
   );
 

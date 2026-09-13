@@ -1,3 +1,4 @@
+import { approvedSnapshot } from "../room-artwork-quality/approved-snapshot.mjs";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -46,7 +47,7 @@ function input(label = "light-desktop") {
 describe("archived Systems clock rotations", () => {
   it.each(approved)(
     "reconstructs both hands in $label without changing the approved pose or SVG",
-    ({ label, raw, pose, svg }) => {
+    async ({ label, raw, pose, svg }) => {
       const capture = input(label);
       expect(capture.sourceRevision).toBe(
         "e0becc7d4c4ff87595683ccf85191ee76ff04595",
@@ -59,9 +60,7 @@ describe("archived Systems clock rotations", () => {
         capture.owners.find(({ id }) => id === "egg-clock-alarm")?.poseSha256,
       ).toBe(pose);
       expect(() => verifyCapturedClockRotation(capture)).not.toThrow();
-      expect(
-        sha256(readFileSync(`public/images/stacks/boot/systems/${label}.svg`)),
-      ).toBe(svg);
+      expect(sha256(await approvedSnapshot("systems", label))).toBe(svg);
     },
   );
 

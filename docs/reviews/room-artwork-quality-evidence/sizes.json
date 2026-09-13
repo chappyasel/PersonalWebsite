@@ -1,0 +1,242 @@
+[
+  {
+    "unit": "books",
+    "case": "light-desktop",
+    "owners": 13,
+    "images": 10,
+    "beforeSvgBytes": 70550,
+    "afterSvgBytes": 226863,
+    "beforeGzipBytes": 48143,
+    "afterGzipBytes": 167172
+  },
+  {
+    "unit": "books",
+    "case": "dark-desktop",
+    "owners": 13,
+    "images": 10,
+    "beforeSvgBytes": 70887,
+    "afterSvgBytes": 227512,
+    "beforeGzipBytes": 48475,
+    "afterGzipBytes": 167675
+  },
+  {
+    "unit": "books",
+    "case": "light-phone",
+    "owners": 13,
+    "images": 10,
+    "beforeSvgBytes": 36215,
+    "afterSvgBytes": 176979,
+    "beforeGzipBytes": 22830,
+    "afterGzipBytes": 129338
+  },
+  {
+    "unit": "books",
+    "case": "dark-phone",
+    "owners": 13,
+    "images": 10,
+    "beforeSvgBytes": 36069,
+    "afterSvgBytes": 176115,
+    "beforeGzipBytes": 22723,
+    "afterGzipBytes": 128730
+  },
+  {
+    "unit": "projects",
+    "case": "light-desktop",
+    "owners": 20,
+    "images": 15,
+    "beforeSvgBytes": 83875,
+    "afterSvgBytes": 157404,
+    "beforeGzipBytes": 38131,
+    "afterGzipBytes": 101393
+  },
+  {
+    "unit": "projects",
+    "case": "dark-desktop",
+    "owners": 20,
+    "images": 15,
+    "beforeSvgBytes": 85117,
+    "afterSvgBytes": 158414,
+    "beforeGzipBytes": 38775,
+    "afterGzipBytes": 102245
+  },
+  {
+    "unit": "projects",
+    "case": "light-phone",
+    "owners": 20,
+    "images": 15,
+    "beforeSvgBytes": 48716,
+    "afterSvgBytes": 114481,
+    "beforeGzipBytes": 19404,
+    "afterGzipBytes": 73699
+  },
+  {
+    "unit": "projects",
+    "case": "dark-phone",
+    "owners": 20,
+    "images": 15,
+    "beforeSvgBytes": 48516,
+    "afterSvgBytes": 114975,
+    "beforeGzipBytes": 19284,
+    "afterGzipBytes": 73913
+  },
+  {
+    "unit": "systems",
+    "case": "light-desktop",
+    "owners": 40,
+    "images": 38,
+    "beforeSvgBytes": 111956,
+    "afterSvgBytes": 256512,
+    "beforeGzipBytes": 56691,
+    "afterGzipBytes": 180198
+  },
+  {
+    "unit": "systems",
+    "case": "dark-desktop",
+    "owners": 40,
+    "images": 38,
+    "beforeSvgBytes": 111479,
+    "afterSvgBytes": 251947,
+    "beforeGzipBytes": 56766,
+    "afterGzipBytes": 178163
+  },
+  {
+    "unit": "systems",
+    "case": "light-phone",
+    "owners": 40,
+    "images": 38,
+    "beforeSvgBytes": 65985,
+    "afterSvgBytes": 189486,
+    "beforeGzipBytes": 29107,
+    "afterGzipBytes": 132033
+  },
+  {
+    "unit": "systems",
+    "case": "dark-phone",
+    "owners": 40,
+    "images": 38,
+    "beforeSvgBytes": 65316,
+    "afterSvgBytes": 189666,
+    "beforeGzipBytes": 28947,
+    "afterGzipBytes": 132244
+  },
+  {
+    "unit": "weightlifting",
+    "case": "light-desktop",
+    "owners": 32,
+    "images": 31,
+    "beforeSvgBytes": 88127,
+    "afterSvgBytes": 316582,
+    "beforeGzipBytes": 60364,
+    "afterGzipBytes": 233096
+  },
+  {
+    "unit": "weightlifting",
+    "case": "dark-desktop",
+    "owners": 32,
+    "images": 31,
+    "beforeSvgBytes": 84791,
+    "afterSvgBytes": 298479,
+    "beforeGzipBytes": 57876,
+    "afterGzipBytes": 219426
+  },
+  {
+    "unit": "weightlifting",
+    "case": "light-phone",
+    "owners": 32,
+    "images": 31,
+    "beforeSvgBytes": 44822,
+    "afterSvgBytes": 240681,
+    "beforeGzipBytes": 27661,
+    "afterGzipBytes": 175878
+  },
+  {
+    "unit": "weightlifting",
+    "case": "dark-phone",
+    "owners": 32,
+    "images": 31,
+    "beforeSvgBytes": 43542,
+    "afterSvgBytes": 234925,
+    "beforeGzipBytes": 26740,
+    "afterGzipBytes": 171595
+  },
+  {
+    "unit": "musings",
+    "case": "light-desktop",
+    "owners": 17,
+    "images": 14,
+    "beforeSvgBytes": 66228,
+    "afterSvgBytes": 181850,
+    "beforeGzipBytes": 35199,
+    "afterGzipBytes": 128698
+  },
+  {
+    "unit": "musings",
+    "case": "dark-desktop",
+    "owners": 17,
+    "images": 14,
+    "beforeSvgBytes": 66291,
+    "afterSvgBytes": 183902,
+    "beforeGzipBytes": 35315,
+    "afterGzipBytes": 129466
+  },
+  {
+    "unit": "musings",
+    "case": "light-phone",
+    "owners": 17,
+    "images": 14,
+    "beforeSvgBytes": 36203,
+    "afterSvgBytes": 136703,
+    "beforeGzipBytes": 17375,
+    "afterGzipBytes": 96239
+  },
+  {
+    "unit": "musings",
+    "case": "dark-phone",
+    "owners": 17,
+    "images": 14,
+    "beforeSvgBytes": 35860,
+    "afterSvgBytes": 137289,
+    "beforeGzipBytes": 17459,
+    "afterGzipBytes": 96714
+  },
+  {
+    "unit": "talks",
+    "case": "light-desktop",
+    "owners": 16,
+    "images": 13,
+    "beforeSvgBytes": 110975,
+    "afterSvgBytes": 262313,
+    "beforeGzipBytes": 57093,
+    "afterGzipBytes": 172732
+  },
+  {
+    "unit": "talks",
+    "case": "dark-desktop",
+    "owners": 16,
+    "images": 13,
+    "beforeSvgBytes": 111723,
+    "afterSvgBytes": 262072,
+    "beforeGzipBytes": 56711,
+    "afterGzipBytes": 172718
+  },
+  {
+    "unit": "talks",
+    "case": "light-phone",
+    "owners": 16,
+    "images": 13,
+    "beforeSvgBytes": 56380,
+    "afterSvgBytes": 174965,
+    "beforeGzipBytes": 26581,
+    "afterGzipBytes": 119271
+  },
+  {
+    "unit": "talks",
+    "case": "dark-phone",
+    "owners": 16,
+    "images": 13,
+    "beforeSvgBytes": 56576,
+    "afterSvgBytes": 173249,
+    "beforeGzipBytes": 26174,
+    "afterGzipBytes": 118787
+  }
+]

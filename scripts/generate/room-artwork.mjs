@@ -1,3 +1,4 @@
+import { verifyQualityInputs } from "../room-artwork-quality/verify-inputs.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -90,6 +91,7 @@ export async function generate({ root = ROOT, check = false } = {}) {
   /** @type {typeof import("./room-artwork-inputs/manifest.json")} */
   const manifest = JSON.parse((await read("manifest.json")).toString());
   await verifyDependencies(root, manifest);
+  if (check) await verifyQualityInputs(root);
   const expected = new Map();
   /** @type {Record<string, unknown>} */
   const catalog = {};
@@ -194,6 +196,7 @@ export async function generate({ root = ROOT, check = false } = {}) {
       sourceRevision: manifest.sourceRevision,
       sourceFingerprint: manifest.sourceFingerprint,
       captureClaim: manifest.captureClaim,
+      qualityCaptureRevision: manifest.qualityCaptureRevision,
       cases: sizes,
     }),
   );

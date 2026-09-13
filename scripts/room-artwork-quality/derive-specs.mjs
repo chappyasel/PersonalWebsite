@@ -42,7 +42,15 @@ for (const entry of manifest.cases) {
       throw Error("Inventory mismatch " + owner.id);
     owners.push({
       id: owner.id,
-      treatment: part.treatment,
+      treatment:
+        part.treatment ??
+        {
+          lamp: "silhouette",
+          "shimmer-apple": "metal",
+          trophy: "trophy",
+          card: "card",
+        }[owner.id] ??
+        "natural",
       box: [minX - 3, minY - 3, maxX - minX + 7, maxY - minY + 7],
       details,
     });

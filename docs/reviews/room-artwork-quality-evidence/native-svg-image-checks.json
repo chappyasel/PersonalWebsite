@@ -1,0 +1,150 @@
+{
+  "renderer": "headless Chromium standard img, embedded WebP; no scene/3D page opened",
+  "cases": [
+    {
+      "key": "1/light-desktop",
+      "complete": true,
+      "width": 253,
+      "height": 150
+    },
+    {
+      "key": "1/dark-desktop",
+      "complete": true,
+      "width": 253,
+      "height": 150
+    },
+    {
+      "key": "1/light-phone",
+      "complete": true,
+      "width": 241,
+      "height": 150
+    },
+    {
+      "key": "1/dark-phone",
+      "complete": true,
+      "width": 241,
+      "height": 150
+    },
+    {
+      "key": "4/light-desktop",
+      "complete": true,
+      "width": 242,
+      "height": 150
+    },
+    {
+      "key": "4/dark-desktop",
+      "complete": true,
+      "width": 242,
+      "height": 150
+    },
+    {
+      "key": "4/light-phone",
+      "complete": true,
+      "width": 225,
+      "height": 150
+    },
+    {
+      "key": "4/dark-phone",
+      "complete": true,
+      "width": 225,
+      "height": 150
+    },
+    {
+      "key": "3/light-desktop",
+      "complete": true,
+      "width": 248,
+      "height": 150
+    },
+    {
+      "key": "3/dark-desktop",
+      "complete": true,
+      "width": 248,
+      "height": 150
+    },
+    {
+      "key": "3/light-phone",
+      "complete": true,
+      "width": 236,
+      "height": 150
+    },
+    {
+      "key": "3/dark-phone",
+      "complete": true,
+      "width": 236,
+      "height": 150
+    },
+    {
+      "key": "2/light-desktop",
+      "complete": true,
+      "width": 224,
+      "height": 150
+    },
+    {
+      "key": "2/dark-desktop",
+      "complete": true,
+      "width": 224,
+      "height": 150
+    },
+    {
+      "key": "2/light-phone",
+      "complete": true,
+      "width": 209,
+      "height": 150
+    },
+    {
+      "key": "2/dark-phone",
+      "complete": true,
+      "width": 209,
+      "height": 150
+    },
+    {
+      "key": "5/light-desktop",
+      "complete": true,
+      "width": 223,
+      "height": 150
+    },
+    {
+      "key": "5/dark-desktop",
+      "complete": true,
+      "width": 223,
+      "height": 150
+    },
+    {
+      "key": "5/light-phone",
+      "complete": true,
+      "width": 213,
+      "height": 150
+    },
+    {
+      "key": "5/dark-phone",
+      "complete": true,
+      "width": 213,
+      "height": 150
+    },
+    {
+      "key": "6/light-desktop",
+      "complete": true,
+      "width": 239,
+      "height": 150
+    },
+    {
+      "key": "6/dark-desktop",
+      "complete": true,
+      "width": 239,
+      "height": 150
+    },
+    {
+      "key": "6/light-phone",
+      "complete": true,
+      "width": 223,
+      "height": 150
+    },
+    {
+      "key": "6/dark-phone",
+      "complete": true,
+      "width": 223,
+      "height": 150
+    }
+  ],
+  "errors": []
+}

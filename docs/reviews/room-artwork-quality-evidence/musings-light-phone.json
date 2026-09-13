@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "unit": "musings",
+  "label": "light-phone",
+  "method": "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained; corner-preserving contour fit",
+  "sourceRevision": "27c0155",
+  "inputArtworkSha256": "ebe2e8942cac4e94873234471167f124e2c671488f712a23beec14c4251c5d1d",
+  "outputArtworkSha256": "80af277e30dc6ecbb990460b18e28ed9d4b0bf11dbba6338df9898f599c3fce4",
+  "captureContractSha256": "009a65585692536f2aa8d7f7ed81306f2cfa60685924bb401abd834e19f662aa",
+  "scale": 4,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "grab-plant-musings",
+      "box": [
+        200,
+        682,
+        43,
+        23
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": "/models/tiny-treats-light.png"
+        }
+      ]
+    },
+    {
+      "id": "musings-lamp",
+      "box": [
+        206,
+        591,
+        54,
+        113
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-headphones",
+      "box": [
+        509,
+        627,
+        56,
+        63
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-kettle",
+      "box": [
+        276,
+        654,
+        66,
+        51
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "egg-tea",
+      "box": [
+        294,
+        681,
+        45,
+        25
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-openbook",
+      "box": [
+        339,
+        685,
+        114,
+        20
+      ],
+      "textures": []
+    },
+    {
+      "id": "musings-book-row",
+      "box": [
+        445,
+        615,
+        133,
+        91
+      ],
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-mug",
+      "box": [
+        204,
+        764,
+        35,
+        67
+      ],
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "grab-paper-5",
+      "box": [
+        233,
+        818,
+        100,
+        16
+      ],
+      "textures": [
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-5.webp"
+        },
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-4.webp"
+        },
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-3.webp"
+        },
+        {
+          "width": 612,
+          "height": 792,
+          "src": "/images/stacks/musings/gpt3-2021-page-2.webp"
+        },
+        {
+          "width": 1224,
+          "height": 1584,
+          "src": "/images/stacks/musings/gpt3-2021-page-1.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-pen-5",
+      "box": [
+        277,
+        820,
+        39,
+        11
+      ],
+      "textures": []
+    },
+    {
+      "id": "grab-trust-essay-musings",
+      "box": [
+        327,
+        745,
+        71,
+        87
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 1224,
+          "height": 1584,
+          "src": "/images/stacks/musings/trust-2025-cover.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-vineyard-sign",
+      "box": [
+        391,
+        782,
+        38,
+        50
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 640,
+          "height": 562,
+          "src": "/images/stacks/musings/vineyard-sign.webp"
+        },
+        {
+          "width": 640,
+          "height": 562,
+          "src": "/images/stacks/musings/vineyard-sign.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-vineyard-cutout",
+      "box": [
+        429,
+        787,
+        72,
+        43
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-photo-systems-lighthouse-v8",
+      "box": [
+        498,
+        779,
+        44,
+        53
+      ],
+      "textures": [
+        {
+          "width": 410,
+          "height": 512,
+          "src": "/images/stacks/v8/512/systems-lighthouse.webp"
+        }
+      ]
+    },
+    {
+      "id": "grab-lighthouse-musings",
+      "box": [
+        523,
+        723,
+        76,
+        127
+      ],
+      "textures": [
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "grab-sticker-vineyard-vines",
+      "box": [
+        497,
+        827,
+        45,
+        8
+      ],
+      "textures": [
+        {
+          "width": 436,
+          "height": 196,
+          "src": "/images/stacks/vineyard-vines-sticker.svg"
+        }
+      ]
+    }
+  ],
+  "details": [
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-headphones.webp",
+      "file": "details/8d3207e2ea5f42dbae47f08946ec3f93ed235263aabae304f70e6e9029d5927c.webp",
+      "sha256": "8d3207e2ea5f42dbae47f08946ec3f93ed235263aabae304f70e6e9029d5927c",
+      "bytes": 8630,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-kettle.webp",
+      "file": "details/50eb45c21f0aaa15a45eadea41c4aef6b6fab140471f36d1fc7e2d4961e37a3a.webp",
+      "sha256": "50eb45c21f0aaa15a45eadea41c4aef6b6fab140471f36d1fc7e2d4961e37a3a",
+      "bytes": 5670,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/egg-tea.webp",
+      "file": "details/733a2c2ba4076c2bcc7659721f154c410870731d3c79b2a8c97049d499d77cc5.webp",
+      "sha256": "733a2c2ba4076c2bcc7659721f154c410870731d3c79b2a8c97049d499d77cc5",
+      "bytes": 2390,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-openbook.webp",
+      "file": "details/9b590123d0a4231334d9c2360d0ee23e19540b5878d70c78a2843459fd0c3846.webp",
+      "sha256": "9b590123d0a4231334d9c2360d0ee23e19540b5878d70c78a2843459fd0c3846",
+      "bytes": 4778,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/musings-book-row.webp",
+      "file": "details/6eb96fb4c354774aba5f0b645d7aa245daa215d9866768fd652e945a54a856e5.webp",
+      "sha256": "6eb96fb4c354774aba5f0b645d7aa245daa215d9866768fd652e945a54a856e5",
+      "bytes": 8424,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-mug.webp",
+      "file": "details/f023ae307cfd86086c7e85c0b01e4125eb7a575aa0aebdb4622d85cf3b4bb813.webp",
+      "sha256": "f023ae307cfd86086c7e85c0b01e4125eb7a575aa0aebdb4622d85cf3b4bb813",
+      "bytes": 8820,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-paper-5.webp",
+      "file": "details/bd23f6ead7ab8346df9a49c3a1e405370ad6097fdb5421413fc32577387d0fa5.webp",
+      "sha256": "bd23f6ead7ab8346df9a49c3a1e405370ad6097fdb5421413fc32577387d0fa5",
+      "bytes": 2994,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-pen-5.webp",
+      "file": "details/5b0ede4098e7d0c0747dd485156f928701ee4d5fe3828960fd7e8c10f3c3bda0.webp",
+      "sha256": "5b0ede4098e7d0c0747dd485156f928701ee4d5fe3828960fd7e8c10f3c3bda0",
+      "bytes": 1836,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-trust-essay-musings.webp",
+      "file": "details/93ac23bed5b7ba20039ddae2ef396620b375b03250cee54225befbb5d1cf213f.webp",
+      "sha256": "93ac23bed5b7ba20039ddae2ef396620b375b03250cee54225befbb5d1cf213f",
+      "bytes": 18824,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-vineyard-sign.webp",
+      "file": "details/f2be76c9de56967a8384685b24a76d8c63613311a0982116bdedb9238a67a64f.webp",
+      "sha256": "f2be76c9de56967a8384685b24a76d8c63613311a0982116bdedb9238a67a64f",
+      "bytes": 5160,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-vineyard-cutout.webp",
+      "file": "details/07e0e7b0a5e17a123281622df3e92ed42840ed7cbb128d55c7f46c722f59b103.webp",
+      "sha256": "07e0e7b0a5e17a123281622df3e92ed42840ed7cbb128d55c7f46c722f59b103",
+      "bytes": 7010,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-photo-systems-lighthouse-v8.webp",
+      "file": "details/6a61dde6d32c9a7d0f12c3f39c5dc69e6e242fc2414626bd1a96f7b58629755d.webp",
+      "sha256": "6a61dde6d32c9a7d0f12c3f39c5dc69e6e242fc2414626bd1a96f7b58629755d",
+      "bytes": 5556,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-lighthouse-musings.webp",
+      "file": "details/3ba417724344c02a82b55ea669ccc5b48fef1bb32df838919c584432074a0b36.webp",
+      "sha256": "3ba417724344c02a82b55ea669ccc5b48fef1bb32df838919c584432074a0b36",
+      "bytes": 9756,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/musings/light-phone/grab-sticker-vineyard-vines.webp",
+      "file": "details/a003778be64363feba6c63e1fb022c4159c889210cb8d5fa05f2d90d4b061cf3.webp",
+      "sha256": "a003778be64363feba6c63e1fb022c4159c889210cb8d5fa05f2d90d4b061cf3",
+      "bytes": 1316,
+      "mime": "image/webp"
+    }
+  ]
+}

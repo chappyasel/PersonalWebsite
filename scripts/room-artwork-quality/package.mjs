@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import sharp from "sharp";
 
+import { verifyQualityCapture } from "./capture-contract.mjs";
 import { traceContour } from "./contour.mjs";
 
 const [unit = "projects", label = "light-desktop"] = process.argv.slice(2);
@@ -15,11 +16,21 @@ const source = await readFile(
   `scripts/room-artwork-quality/approved/${unit}-${label}.svg`,
   "utf8",
 );
-const captured = JSON.parse(await readFile(`${folder}/capture.json`, "utf8"));
+const captureBytes = await readFile(`${folder}/capture.json`);
+const captured = JSON.parse(captureBytes);
+if (!captured.readback)
+  throw Error("Capture lacks straight-alpha readback provenance");
 const hash = (b) => createHash("sha256").update(b).digest("hex");
 const specs = JSON.parse(
   await readFile("scripts/room-artwork-quality/capture-specs.json", "utf8"),
 ).cases[`${unit}/${label}`];
+verifyQualityCapture(
+  captured,
+  specs,
+  await readFile(`${root}/${entry.inputCapture}`),
+);
+if (at < 0 && hash(captureBytes) !== specs.qualityInput?.sha256)
+  throw Error("Frozen quality capture changed");
 if (specs.approvedSvg && hash(source) !== specs.approvedSvg.sha256)
   throw Error("Approved template changed");
 if (captured.files)
@@ -142,17 +153,16 @@ for (const owner of captured.owners) {
         throw Error("Expected one detail " + owner.id);
       const old = oldImages[0];
       const [x, y, width, height] = owner.box;
+      const density =
+        specs.owners.find((s) => s.id === owner.id).detailScale ??
+        (label.endsWith("phone") ? 3 : 2);
       let picture = sharp(`${folder}/${owner.images.detail}`);
       if (owner.id === "card")
         picture = picture.modulate({ saturation: 0.5, brightness: 0.83 });
       const bytes = owner.detailPrepared
         ? await readFile(`${folder}/${owner.images.detail}`)
         : await picture
-            .resize(
-              width * (label.endsWith("phone") ? 3 : 2),
-              height * (label.endsWith("phone") ? 3 : 2),
-              { kernel: "lanczos3" },
-            )
+            .resize(width * density, height * density, { kernel: "lanczos3" })
             .webp({ quality: 92, alphaQuality: 100, effort: 6 })
             .toBuffer();
       const sha256 = hash(bytes),
