@@ -224,59 +224,59 @@
     "id": "portrait",
     "title": "Chappy Asel",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [
       {
         "label": "LinkedIn",
         "href": "https://www.linkedin.com/in/chappyasel/"
       }
     ],
-    "body": "Onstage at Consensus 2026 in Miami, making the case that AI agents may become crypto's first real users."
+    "body": "Speaking at a fireside chat on main stage at Consensus 2026 in Miami."
   },
   {
     "id": "about-collective-group-v8",
     "title": "The AI Collective",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [
       {
         "label": "The AI Collective",
         "href": "https://aicollective.com/"
       }
     ],
-    "body": "Kicking off The AI Collective's Bengaluru chapter in March 2025. A San Francisco meetup had somehow turned into this."
+    "body": "Kicking off The AI Collective's Bengaluru chapter in March 2025."
   },
   {
     "id": "about-family-v8",
     "title": "Family Portrait",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "My family on Martha's Vineyard in August 2026. This island has been one of the constants in our lives for nearly three decades."
+    "body": "Family photo on Martha's Vineyard in August 2026."
   },
   {
     "id": "about-speaking-candid-v8",
     "title": "Speaking Candid",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Making the case for trust and community as AI accelerates, during the lead-up to The AI Collective's June 2025 launch."
+    "body": "Filming B-roll during the lead-up to The AI Collective's June 2025 launch."
   },
   {
     "id": "about-delicate-arch-v8",
     "title": "Delicate Arch",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Delicate Arch at sunset in July 2021, during a family trip through Moab."
+    "body": "Delicate Arch in July 2021 during a trip through Moab."
   },
   {
     "id": "about-profile-full-v8",
     "title": "Portrait",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Martha's Vineyard, August 2026. One of the rare times I managed to stand still long enough for a proper portrait."
+    "body": "Martha's Vineyard, August 2026."
   },
   {
     "id": "grab:dumbbell:about",
@@ -405,25 +405,25 @@
     "id": "training-golf-group-v8",
     "title": "Golf Group",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Golf with family and friends, one of the newer additions to our family rotation."
+    "body": "Golf at The Royal and Ancient Chappaquiddick Links with family."
   },
   {
     "id": "training-pickleball-group-v8",
     "title": "Pickleball Group",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Pickleball with the family. We picked it up on a Hilton Head trip and immediately stopped playing tennis."
+    "body": "Pickleball with friends and family."
   },
   {
     "id": "training-golf-flag-v8",
     "title": "On the Green",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "At the Chappaquiddick pin on Martha's Vineyard in August 2025."
+    "body": "Celebrating a hole in one on the first hole at The Royal and Ancient Chappaquiddick Links in August 2025."
   },
   {
     "id": "grab:golf-tee:shelf-left",
@@ -530,15 +530,15 @@
     "id": "training-trophy-side-v8",
     "title": "Boys with Gains Trophy",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "After my first natural bodybuilding show: second in novice bodybuilding and third in physique at Battle of the Bay in October 2022."
+    "body": "After my first natural bodybuilding show: second place in novice bodybuilding at Battle of the Bay in October 2022."
   },
   {
     "id": "training-stage-kneeling-v8",
     "title": "Boys with Gains Stage Portrait",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
     "body": "Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022."
   },
@@ -546,17 +546,17 @@
     "id": "training-stage-side-v8",
     "title": "Boys with Gains on Stage",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "My first natural bodybuilding show, after twelve weeks of the hardest prep I had done."
+    "body": "Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022."
   },
   {
     "id": "training-trophy-front-v8",
     "title": "Boys with Gains Trophy Portrait",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "The hardware from Battle of the Bay: second in novice bodybuilding and third in physique."
+    "body": "After my first natural bodybuilding show: third place in novice physique at Battle of the Bay in October 2022."
   },
   {
     "id": "aggregate-strength",
@@ -613,25 +613,25 @@
     "id": "training-gym-pose-v8",
     "title": "Gym Portrait",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Near the end of my 2025 cut. Bodybuilding has been one of the stranger long-running experiments in my life."
+    "body": "Near the end of my summer 2025 cut at around 10% body fat."
   },
   {
     "id": "training-deadlift-v8",
     "title": "Deadlift",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "One of the deadlift sessions behind the charts on this shelf. I have logged every set since 2018, including the ugly ones."
+    "body": "Deadlifting five plates for the first time in 2026."
   },
   {
     "id": "training-bench-v8",
     "title": "Bench Press",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Benching nearly 500 pounds of estimated one-rep max. The actual rep looked about as graceful as this photo."
+    "body": "Benching four plate for reps in 2025."
   },
   {
     "id": "lift-table",
@@ -887,14 +887,14 @@
     "id": "systems-supplements-v8",
     "title": "Daily Supplements",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [
       {
         "label": "Routine",
         "href": "https://www.chappyasel.com/routine"
       }
     ],
-    "body": "One of the dorkier parts of my routine: twelve supplements in the morning, eight at night, each with an explicit dose and purpose."
+    "body": "My day and night stacks detailed in my core daily routine."
   },
   {
     "id": "grab:pills:organizer:back-lower",
@@ -979,31 +979,31 @@
     "id": "systems-working-session-v8",
     "title": "Working Session",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "A working session with The AI Collective team, turning a wall of ideas into something people could actually use."
+    "body": "A working session with The AI Collective team in 2025."
   },
   {
     "id": "systems-home-office-v8",
     "title": "Home Office",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "My blissful work-from-home setup, complete with a view of Salesforce Tower."
+    "body": "My idealistic WFH setup where I'm writing this now 😄"
   },
   {
     "id": "systems-sf-dusk-v8",
     "title": "San Francisco at Dusk",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Sunset from my 33rd-floor apartment in San Francisco, where many of The AI Collective's dinners and founder gatherings began."
+    "body": "Sunset view from my apartment in San Francisco."
   },
   {
     "id": "systems-lake-v8",
     "title": "At the Lake",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
     "body": "Jumping into Lake Alpine during a 2020 road trip through California."
   },
@@ -1048,9 +1048,9 @@
     "id": "projects-coding-couch-v8",
     "title": "Coding on the Couch",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Building with the team I joined after leaving Apple, July 2024. Three laptops on one couch was a pretty accurate picture of that chapter."
+    "body": "Building with my Cofactory co-founders in 2024."
   },
   {
     "id": "grab:phone:projects",
@@ -1080,9 +1080,9 @@
     "id": "projects-facebook-v8",
     "title": "At Facebook",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "At 1 Hacker Way during my Facebook software engineering internship in February 2020. COVID cut the internship short a few weeks later."
+    "body": "At 1 Hacker Way during my Facebook software engineering internship in February 2020."
   },
   {
     "id": "action:projects:mac",
@@ -1203,7 +1203,7 @@
     "id": "projects-wwdc-v8",
     "title": "WWDC",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
     "body": "Launching App Intents at Apple's WWDC 2022."
   },
@@ -1298,9 +1298,9 @@
     "id": "systems-lighthouse-v8",
     "title": "Lighthouse",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Gay Head Light in Aquinnah, part of the island my family has returned to for nearly three decades."
+    "body": "Flexing in front of the Edgartown lighthouse on Martha's Vineyard."
   },
   {
     "id": "grab:lighthouse:musings",
@@ -1393,15 +1393,15 @@
     "id": "talk-demo-night-v8",
     "title": "Demo Night",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "The AI Collective's first large-scale Demo Night in May 2024. Find the people building interesting things and put them in a room together."
+    "body": "One of The AI Collective's flagship Demo Nights in 2025."
   },
   {
     "id": "talk-consensus-phone-v8",
     "title": "Consensus",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
     "body": "An audience member filming my Consensus 2026 fireside on AI agents and crypto in Miami."
   },
@@ -1441,23 +1441,23 @@
     "id": "talk-ann-interview-v8",
     "title": "Interview with Ann",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Talking about The AI Collective and the optimism at the AI frontier on ANN News in January 2025."
+    "body": "Talking about The AI Collective and the optimism at the AI frontier on ANN News in 2025."
   },
   {
     "id": "talk-dc-policy-v8",
     "title": "DC Policy Talk",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
-    "body": "Talking through what AI acceleration asks of policymakers and the people building the technology in Washington, DC."
+    "body": "Giving a stump speech on AI acceleration to policymakers and technologists in Washington, DC in early 2026."
   },
   {
     "id": "talk-panel-v8",
     "title": "Panel Discussion",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [],
     "body": "Moderating \"The Future of AI Beyond the Chatbot Era\" at Stanford in August 2026."
   },

@@ -198,21 +198,21 @@ describe("Field Notes stamp interactions", () => {
     ).toBe("true");
     expect(
       screen.queryAllByRole("button", {
-        name: "Open Field Notes to view Photo Finish",
+        name: "Open Field Notes to view Clear View",
       }),
     ).toHaveLength(0);
 
     await act(async () => vi.advanceTimersByTime(419));
     expect(
       screen.queryAllByRole("button", {
-        name: "Open Field Notes to view Photo Finish",
+        name: "Open Field Notes to view Clear View",
       }),
     ).toHaveLength(0);
 
     await act(async () => vi.advanceTimersByTime(1));
     expect(
       screen.getAllByRole("button", {
-        name: "Open Field Notes to view Photo Finish",
+        name: "Open Field Notes to view Clear View",
       }).length,
     ).toBeGreaterThan(0);
     expect(trigger.closest("[data-first-reveal]")).toBeNull();
@@ -227,12 +227,12 @@ describe("Field Notes stamp interactions", () => {
     );
 
     fireEvent.mouseEnter(
-      screen.getByRole("button", { name: /Beacon\. Not yet found\./ }),
+      screen.getByRole("button", { name: /Lights Out\. Not yet found\./ }),
     );
 
     await waitFor(() => {
       const tooltipText = screen.getByRole("tooltip").textContent;
-      expect(tooltipText).toContain("Beacon");
+      expect(tooltipText).toContain("Lights Out");
       expect(tooltipText).toContain(
         "Try the tall lamp between Musings and Talks.",
       );
@@ -400,7 +400,7 @@ describe("Field Notes stamp interactions", () => {
     );
 
     const stamp = screen.getByRole("button", {
-      name: /Beacon\. Found\./,
+      name: /Lights Out\. Found\./,
     });
     vi.spyOn(stamp, "getBoundingClientRect").mockReturnValue({
       width: 100,
@@ -491,7 +491,7 @@ describe("Field Notes stamp interactions", () => {
       </TooltipProvider>,
     );
 
-    const stamp = screen.getByRole("button", { name: /Beacon\. Found\./ });
+    const stamp = screen.getByRole("button", { name: /Lights Out\. Found\./ });
     expect(stamp.getAttribute("data-placed")).toBe("true");
 
     act(() => resetFieldNotePlacements());
@@ -522,7 +522,7 @@ describe("Field Notes stamp interactions", () => {
       ".field-notes-book-stage",
     )!;
     const beacon = within(desktopStage)
-      .getAllByRole("button", { name: /Beacon\. Found\./ })
+      .getAllByRole("button", { name: /Lights Out\. Found\./ })
       .find(
         (stamp) =>
           stamp.getAttribute("data-movable") === "true" &&
@@ -578,7 +578,7 @@ describe("Field Notes stamp interactions", () => {
       </TooltipProvider>,
     );
 
-    const stamp = screen.getByRole("button", { name: /Beacon\. Found\./ });
+    const stamp = screen.getByRole("button", { name: /Lights Out\. Found\./ });
     mockDragRects(stamp);
 
     fireEvent(stamp, touchPointer("pointerdown", 3, 180, 120));
@@ -765,7 +765,7 @@ describe("Field Notes stamp interactions", () => {
       ".field-notes-mobile-stage",
     )!;
     const trayStamp = within(stage).getAllByRole("button", {
-      name: /Beacon\. Found\./,
+      name: /Lights Out\. Found\./,
     })[0]!;
 
     fireEvent(trayStamp, touchPointer("pointerdown", 17, 200, 300));
@@ -817,7 +817,7 @@ describe("Field Notes stamp interactions", () => {
     );
 
     const stamp = screen.getByRole("button", {
-      name: /Beacon\. Not yet found\./,
+      name: /Lights Out\. Not yet found\./,
     });
     const event = new MouseEvent("pointerup", { bubbles: true });
     Object.defineProperties(event, {
@@ -827,7 +827,7 @@ describe("Field Notes stamp interactions", () => {
     fireEvent(stamp, event);
 
     await waitFor(() => {
-      expect(screen.getByRole("tooltip").textContent).toContain("Beacon");
+      expect(screen.getByRole("tooltip").textContent).toContain("Lights Out");
     });
   });
 });

@@ -211,51 +211,51 @@ The tall potted plant at the right end of the top shelf.
 
 Title: Chappy Asel
 Status: written
-Audience: internal
+Audience: visitor
 Link: LinkedIn https://www.linkedin.com/in/chappyasel/
 
-Onstage at Consensus 2026 in Miami, making the case that AI agents may become crypto's first real users.
+Speaking at a fireside chat on main stage at Consensus 2026 in Miami.
 
 ## about-collective-group-v8
 
 Title: The AI Collective
 Status: written
-Audience: internal
+Audience: visitor
 Link: The AI Collective https://aicollective.com/
 
-Kicking off The AI Collective's Bengaluru chapter in March 2025. A San Francisco meetup had somehow turned into this.
+Kicking off The AI Collective's Bengaluru chapter in March 2025.
 
 ## about-family-v8
 
 Title: Family Portrait
 Status: written
-Audience: internal
+Audience: visitor
 
-My family on Martha's Vineyard in August 2026. This island has been one of the constants in our lives for nearly three decades.
+Family photo on Martha's Vineyard in August 2026.
 
 ## about-speaking-candid-v8
 
 Title: Speaking Candid
 Status: written
-Audience: internal
+Audience: visitor
 
-Making the case for trust and community as AI accelerates, during the lead-up to The AI Collective's June 2025 launch.
+Filming B-roll during the lead-up to The AI Collective's June 2025 launch.
 
 ## about-delicate-arch-v8
 
 Title: Delicate Arch
 Status: written
-Audience: internal
+Audience: visitor
 
-Delicate Arch at sunset in July 2021, during a family trip through Moab.
+Delicate Arch in July 2021 during a trip through Moab.
 
 ## about-profile-full-v8
 
 Title: Portrait
 Status: written
-Audience: internal
+Audience: visitor
 
-Martha's Vineyard, August 2026. One of the rare times I managed to stand still long enough for a proper portrait.
+Martha's Vineyard, August 2026.
 
 ## grab:dumbbell:about
 
@@ -380,25 +380,25 @@ here needs to open the index.
 
 Title: Golf Group
 Status: written
-Audience: internal
+Audience: visitor
 
-Golf with family and friends, one of the newer additions to our family rotation.
+Golf at The Royal and Ancient Chappaquiddick Links with family.
 
 ## training-pickleball-group-v8
 
 Title: Pickleball Group
 Status: written
-Audience: internal
+Audience: visitor
 
-Pickleball with the family. We picked it up on a Hilton Head trip and immediately stopped playing tennis.
+Pickleball with friends and family.
 
 ## training-golf-flag-v8
 
 Title: On the Green
 Status: written
-Audience: internal
+Audience: visitor
 
-At the Chappaquiddick pin on Martha's Vineyard in August 2025.
+Celebrating a hole in one on the first hole at The Royal and Ancient Chappaquiddick Links in August 2025.
 
 ## grab:golf-tee:shelf-left
 
@@ -498,15 +498,15 @@ tip about.
 
 Title: Boys with Gains Trophy
 Status: written
-Audience: internal
+Audience: visitor
 
-After my first natural bodybuilding show: second in novice bodybuilding and third in physique at Battle of the Bay in October 2022.
+After my first natural bodybuilding show: second place in novice bodybuilding at Battle of the Bay in October 2022.
 
 ## training-stage-kneeling-v8
 
 Title: Boys with Gains Stage Portrait
 Status: written
-Audience: internal
+Audience: visitor
 
 Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022.
 
@@ -514,17 +514,17 @@ Stepping onstage for the first time at Battle of the Bay in Fremont, October 202
 
 Title: Boys with Gains on Stage
 Status: written
-Audience: internal
+Audience: visitor
 
-My first natural bodybuilding show, after twelve weeks of the hardest prep I had done.
+Stepping onstage for the first time at Battle of the Bay in Fremont, October 2022.
 
 ## training-trophy-front-v8
 
 Title: Boys with Gains Trophy Portrait
 Status: written
-Audience: internal
+Audience: visitor
 
-The hardware from Battle of the Bay: second in novice bodybuilding and third in physique.
+After my first natural bodybuilding show: third place in novice physique at Battle of the Bay in October 2022.
 
 ## aggregate-strength
 
@@ -560,25 +560,25 @@ My bodyweight and lean mass across every DEXA scan. It looks like I may be neari
 
 Title: Gym Portrait
 Status: written
-Audience: internal
+Audience: visitor
 
-Near the end of my 2025 cut. Bodybuilding has been one of the stranger long-running experiments in my life.
+Near the end of my summer 2025 cut at around 10% body fat.
 
 ## training-deadlift-v8
 
 Title: Deadlift
 Status: written
-Audience: internal
+Audience: visitor
 
-One of the deadlift sessions behind the charts on this shelf. I have logged every set since 2018, including the ugly ones.
+Deadlifting five plates for the first time in 2026.
 
 ## training-bench-v8
 
 Title: Bench Press
 Status: written
-Audience: internal
+Audience: visitor
 
-Benching nearly 500 pounds of estimated one-rep max. The actual rep looked about as graceful as this photo.
+Benching four plate for reps in 2025.
 
 ## lift-table
 
@@ -808,10 +808,10 @@ print, where the old slate read as a hole in the light.
 
 Title: Daily Supplements
 Status: written
-Audience: internal
+Audience: visitor
 Link: Routine https://www.chappyasel.com/routine
 
-One of the dorkier parts of my routine: twelve supplements in the morning, eight at night, each with an explicit dose and purpose.
+My day and night stacks detailed in my core daily routine.
 
 ## grab:pills:organizer:back-lower
 
@@ -889,31 +889,31 @@ It shows your local time until you click it. Then it winds back to 3:45, which i
 
 Title: Working Session
 Status: written
-Audience: internal
+Audience: visitor
 
-A working session with The AI Collective team, turning a wall of ideas into something people could actually use.
+A working session with The AI Collective team in 2025.
 
 ## systems-home-office-v8
 
 Title: Home Office
 Status: written
-Audience: internal
+Audience: visitor
 
-My blissful work-from-home setup, complete with a view of Salesforce Tower.
+My idealistic WFH setup where I'm writing this now 😄
 
 ## systems-sf-dusk-v8
 
 Title: San Francisco at Dusk
 Status: written
-Audience: internal
+Audience: visitor
 
-Sunset from my 33rd-floor apartment in San Francisco, where many of The AI Collective's dinners and founder gatherings began.
+Sunset view from my apartment in San Francisco.
 
 ## systems-lake-v8
 
 Title: At the Lake
 Status: written
-Audience: internal
+Audience: visitor
 
 Jumping into Lake Alpine during a 2020 road trip through California.
 
@@ -961,9 +961,9 @@ because the acquisition earned it.
 
 Title: Coding on the Couch
 Status: written
-Audience: internal
+Audience: visitor
 
-Building with the team I joined after leaving Apple, July 2024. Three laptops on one couch was a pretty accurate picture of that chapter.
+Building with my Cofactory co-founders in 2024.
 
 ## grab:phone:projects
 
@@ -999,9 +999,9 @@ a 32-colour palette.
 
 Title: At Facebook
 Status: written
-Audience: internal
+Audience: visitor
 
-At 1 Hacker Way during my Facebook software engineering internship in February 2020. COVID cut the internship short a few weeks later.
+At 1 Hacker Way during my Facebook software engineering internship in February 2020.
 
 ## action:projects:mac
 
@@ -1091,7 +1091,7 @@ The homework planner I built in high school. It grew to 338,000 installs, 63,000
 
 Title: WWDC
 Status: written
-Audience: internal
+Audience: visitor
 
 Launching App Intents at Apple's WWDC 2022.
 
@@ -1179,9 +1179,9 @@ Martha's Vineyard in miniature. My family has returned to the island every summe
 
 Title: Lighthouse
 Status: written
-Audience: internal
+Audience: visitor
 
-Gay Head Light in Aquinnah, part of the island my family has returned to for nearly three decades.
+Flexing in front of the Edgartown lighthouse on Martha's Vineyard.
 
 ## grab:lighthouse:musings
 
@@ -1265,15 +1265,15 @@ particular books, so they all open the library.
 
 Title: Demo Night
 Status: written
-Audience: internal
+Audience: visitor
 
-The AI Collective's first large-scale Demo Night in May 2024. Find the people building interesting things and put them in a room together.
+One of The AI Collective's flagship Demo Nights in 2025.
 
 ## talk-consensus-phone-v8
 
 Title: Consensus
 Status: written
-Audience: internal
+Audience: visitor
 
 An audience member filming my Consensus 2026 fireside on AI agents and crypto in Miami.
 
@@ -1316,23 +1316,23 @@ A pothos on the Talks lower shelf.
 
 Title: Interview with Ann
 Status: written
-Audience: internal
+Audience: visitor
 
-Talking about The AI Collective and the optimism at the AI frontier on ANN News in January 2025.
+Talking about The AI Collective and the optimism at the AI frontier on ANN News in 2025.
 
 ## talk-dc-policy-v8
 
 Title: DC Policy Talk
 Status: written
-Audience: internal
+Audience: visitor
 
-Talking through what AI acceleration asks of policymakers and the people building the technology in Washington, DC.
+Giving a stump speech on AI acceleration to policymakers and technologists in Washington, DC in early 2026.
 
 ## talk-panel-v8
 
 Title: Panel Discussion
 Status: written
-Audience: internal
+Audience: visitor
 
 Moderating "The Future of AI Beyond the Chatbot Era" at Stanford in August 2026.
 
