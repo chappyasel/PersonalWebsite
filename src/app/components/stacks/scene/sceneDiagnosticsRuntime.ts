@@ -27,6 +27,7 @@ export type SceneDiagnosticsReloadSeed = Partial<
     | "highResolutionPhotos"
     | "prewarmAllUnitVisuals"
     | "skipDepthOfField"
+    | "insectLandingWorker"
   >
 > &
   Readonly<{ grassDeformation?: boolean }>;
@@ -47,6 +48,9 @@ export function diagnosticReloadSeedFromSearch(
     ...(params.get("hdPhotos") === "0" ? { highResolutionPhotos: false } : {}),
     ...(params.get("prewarmAll") === "0"
       ? { prewarmAllUnitVisuals: false }
+      : {}),
+    ...(["0", "1"].includes(params.get("insectLandingWorker") ?? "")
+      ? { insectLandingWorker: params.get("insectLandingWorker") === "1" }
       : {}),
     ...(params.has("nodof") ? { skipDepthOfField: true } : {}),
     ...(params.has("noaotransparency")

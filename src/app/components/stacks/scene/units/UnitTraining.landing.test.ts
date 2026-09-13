@@ -24,20 +24,30 @@ import {
 } from "../insectPilot";
 import { BUTTERFLY_STEERING_PROFILE } from "../insectSteering";
 import { registerSceneInteraction } from "../interactionRegistry";
+import {
+  DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+  scenePerformanceController,
+} from "../scenePerformance";
 import { unitPose } from "../worldLayout";
 import { MeshoptDecoder } from "meshoptimizer";
 import fs from "node:fs";
 import path from "node:path";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { TRAINING_BARBELL_POSE } from "./UnitTraining";
 
 const releases: Array<() => void> = [];
 const disposables: Array<{ dispose(): void }> = [];
 
+// Exercise the synchronous geometry baseline; delayed worker adoption has its own suite.
+beforeEach(() =>
+  scenePerformanceController.update({ insectLandingWorker: false }),
+);
+
 afterEach(() => {
+  scenePerformanceController.update(DEFAULT_SCENE_PERFORMANCE_SETTINGS);
   for (const release of releases.reverse()) release();
   releases.length = 0;
   for (const disposable of disposables.splice(0)) disposable.dispose();

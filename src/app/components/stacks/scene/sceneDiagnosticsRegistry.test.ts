@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { MeadowDeformationController } from "./meadowDeformation";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import { MEADOW_WIND } from "./meadowMotion";
-import { pointerCameraTiltController } from "./pointerCameraTilt";
 import { photographTreatmentController } from "./photographTreatment";
+import { pointerCameraTiltController } from "./pointerCameraTilt";
 import {
   type DiagnosticRegistryEntry,
   type DiagnosticRegistryStore,
@@ -45,13 +45,37 @@ class NoWorkRenderer {
 }
 
 describe("Scene Diagnostics registry", () => {
+  it("compares insect planning live without changing quality policy", () => {
+    const quality = sceneQualityController.getSnapshot();
+    try {
+      expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS.insectLandingWorker).toBe(true);
+      sceneDiagnosticsRegistry.update("render.insect-landing-worker", true);
+      expect(scenePerformanceController.getSnapshot().insectLandingWorker).toBe(
+        true,
+      );
+      expect(sceneQualityController.getSnapshot()).toBe(quality);
+      sceneDiagnosticsRegistry.update("render.insect-landing-worker", false);
+      expect(scenePerformanceController.getSnapshot().insectLandingWorker).toBe(
+        false,
+      );
+    } finally {
+      scenePerformanceController.update({
+        insectLandingWorker:
+          DEFAULT_SCENE_PERFORMANCE_SETTINGS.insectLandingWorker,
+      });
+    }
+  });
   it("compares book cover shadow treatment live without changing quality policy", () => {
     const quality = sceneQualityController.getSnapshot();
     try {
       sceneDiagnosticsRegistry.update("render.book-cover-shadow-lift", false);
-      expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(false);
+      expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(
+        false,
+      );
       sceneDiagnosticsRegistry.update("render.book-cover-shadow-lift", true);
-      expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(true);
+      expect(photographTreatmentController.getSnapshot().coverShadowLift).toBe(
+        true,
+      );
       expect(sceneQualityController.getSnapshot()).toBe(quality);
     } finally {
       photographTreatmentController.reset();
@@ -406,7 +430,6 @@ describe("Scene Diagnostics registry", () => {
     expect(renderer.clears).toBe(0);
     deformation.dispose();
   });
-
 });
 
 class FakeStore implements DiagnosticRegistryStore {

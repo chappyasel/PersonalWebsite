@@ -153,6 +153,7 @@ export type DiagnosticControlDescriptor = Readonly<{
   help: string;
   inputId?: string;
   ariaKeyShortcuts?: string;
+  booleanPresentation?: "switch";
   valueKind: "boolean" | "enum" | "range";
   allowedValues: DiagnosticAllowedValues;
   defaultValue: DiagnosticControlValue;
@@ -2082,6 +2083,26 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       }),
     optimizationPreset: { optimized: "paper", unoptimized: "native" },
   }),
+  performanceBoolean({
+    id: "render.insect-landing-worker",
+    panel: "render",
+    group: "render.optimizations",
+    label: "Insect landing worker",
+    help: "Plan moth and butterfly landings off the main thread. Failures get one retry after 30 seconds; insects keep roaming meanwhile. Switch off or use ?insectLandingWorker=0 for synchronous planning. Live overrides reset on reload.",
+    key: "insectLandingWorker",
+    booleanPresentation: "switch",
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "One shared worker, bounded numeric snapshots and landing requests.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
   ...(
     [
       [
@@ -2535,6 +2556,7 @@ function publicDescriptor(
     help: descriptor.help,
     inputId: descriptor.inputId,
     ariaKeyShortcuts: descriptor.ariaKeyShortcuts,
+    booleanPresentation: descriptor.booleanPresentation,
     valueKind: descriptor.valueKind,
     allowedValues: descriptor.allowedValues,
     defaultValue: descriptor.defaultValue,
