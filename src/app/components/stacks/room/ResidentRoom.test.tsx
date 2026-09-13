@@ -44,10 +44,28 @@ function Room() {
     return unmounted;
   }, []);
   return (
-    <button onClick={() => setPosition(position + 1)}>
-      {active ? "active" : "paused"} shelf {position}
-    </button>
+    <>
+      {/* The live canvas wrapper explicitly restores visibility after boot. */}
+      <div style={{ position: "fixed", inset: 0, visibility: "visible" }}>
+        <canvas data-testid="room-canvas" />
+      </div>
+      <button onClick={() => setPosition(position + 1)}>
+        {active ? "active" : "paused"} shelf {position}
+      </button>
+    </>
   );
+}
+
+// Check paint suppression, not accessibility: aria-hidden and inert do not
+// stop a canvas from covering a destination page. Visibility can be overridden
+// by a descendant; display and group opacity cannot.
+function canPaint(element: HTMLElement) {
+  if (getComputedStyle(element).visibility === "hidden") return false;
+  for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    const style = getComputedStyle(node);
+    if (style.display === "none" || style.opacity === "0") return false;
+  }
+  return true;
 }
 function App({ home }: { home: boolean }) {
   return (
@@ -58,7 +76,7 @@ function App({ home }: { home: boolean }) {
           <Room />
         </ResidentRoom>
       ) : (
-        <p>Books page</p>
+        <p>Weightlifting page</p>
       )}
     </>
   );
@@ -73,6 +91,21 @@ afterEach(() => {
 });
 
 describe("shared room host", () => {
+  it("hides the frozen canvas after leaving for Weightlifting and restores it on return", () => {
+    const app = render(<App home />);
+    const canvas = screen.getByTestId("room-canvas");
+    expect(canPaint(canvas)).toBe(true);
+
+    app.rerender(<App home={false} />);
+    expect(canPaint(canvas)).toBe(false);
+    expect(unmounted).not.toHaveBeenCalled();
+
+    app.rerender(<App home />);
+    expect(screen.getByTestId("room-canvas")).toBe(canvas);
+    expect(canPaint(canvas)).toBe(true);
+    expect(mounted).toHaveBeenCalledTimes(1);
+  });
+
   it("loads no room on a direct reading-page visit", () => {
     render(<App home={false} />);
     expect(mounted).not.toHaveBeenCalled();

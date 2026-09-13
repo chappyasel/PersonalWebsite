@@ -117,8 +117,10 @@ owns its mounted tree; the homepage supplies that tree only when visited.
 Reading routes never load it speculatively. While parked, its canvas stops
 rendering, audio suspends, scene input listeners detach, and DOM chrome effects
 pause. Returning before the wall-clock deadline keeps the same canvas and
-camera. Expiry, context loss, or disabling residency releases the mounted
-room; a later visit must pass World Boot again. Moving between reading routes
+camera. The parked host uses zero opacity as well as hidden visibility because
+the live canvas and chrome explicitly restore their own visibility. Its layout
+stays measurable for the return transition. Expiry, context loss, or disabling
+residency releases the mounted room; a later visit must pass World Boot again. Moving between reading routes
 does not renew the deadline. The last shelf hash survives expiry within the
 document, with an explicitly requested destination taking precedence.
 The Scene Diagnostics control resets on reload and leaves quality policy alone.
