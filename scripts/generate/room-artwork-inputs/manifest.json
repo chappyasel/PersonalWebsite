@@ -4480,7 +4480,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/eggs.tsx",
-      "sha256": "a09af3dc20ac2c52540646be6aa87891b835033803d3e6eea92c3632846133a7",
+      "sha256": "430579e174b01f0fd937f6102e7b15d5c367db60f66f240c4ec1ecaf0d1a295f",
       "archivedSha256": "7ba63597cb9f63034db991c2f6c97b0c384ca66ffeaf4437cb7f729a7a6a9125"
     },
     {
@@ -5079,7 +5079,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "af1950e7f3e169c0f9c3726746efd52b0cee2ad958dac06b19ef713ddefcdac9",
+  "sourceFingerprint": "e8b94634a38e258289515c3b5efe2b15f33fc2cb4331d8214f616dd19ebda9c4",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5130,6 +5130,18 @@
           "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
           "previousSha256": "67a950194a133c8f2a35f847013d17539d61a1892f97ffd4a45b0a2a1c985b75",
           "sha256": "d71bc259bfbe4c6b25b56e63df5ab6b79d88bbbe99d3d7e3d6c8174cb0f7456a"
+        }
+      ]
+    },
+    {
+      "reason": "Ease live plant sway from the last painted pose after boot or inactivity. The hidden upright pose, scene geometry, rest extraction, and approved drawing inputs are unchanged.",
+      "previousFingerprint": "af1950e7f3e169c0f9c3726746efd52b0cee2ad958dac06b19ef713ddefcdac9",
+      "sourceFingerprint": "e8b94634a38e258289515c3b5efe2b15f33fc2cb4331d8214f616dd19ebda9c4",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/eggs.tsx",
+          "previousSha256": "a09af3dc20ac2c52540646be6aa87891b835033803d3e6eea92c3632846133a7",
+          "sha256": "430579e174b01f0fd937f6102e7b15d5c367db60f66f240c4ec1ecaf0d1a295f"
         }
       ]
     }

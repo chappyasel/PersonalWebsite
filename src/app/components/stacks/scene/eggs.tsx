@@ -909,7 +909,7 @@ export function Sway({
 }) {
   const ref = useRef<THREE.Group>(null);
   const still = useMemo(() => reducedMotion(), []);
-  useUnitFrame(({ clock }) => {
+  useUnitFrame(({ clock }, delta) => {
     const g = ref.current;
     if (!g || still || !nearActive(unitIndex)) return;
     if (!isWorldRevealed()) {
@@ -921,8 +921,23 @@ export function Sway({
     // Two incommensurate rates on each axis, so the path is a slow wander
     // rather than a metronome. The x term is the smaller of the two — a
     // plant nodding toward the viewer reads as a bug.
-    g.rotation.z = amount * (0.72 * Math.sin(t) + 0.28 * Math.sin(t * 1.71));
-    g.rotation.x = amount * 0.45 * Math.sin(t * 0.83 + 1.1);
+    // Approach the wind from the last painted pose. The clock keeps running
+    // during boot and while distant plants are parked; assigning its current
+    // phase directly makes the first visible frame jump. Cap resumed deltas
+    // so a suspended tab cannot skip this easing either.
+    const dt = Math.min(delta, 1 / 30);
+    g.rotation.z = THREE.MathUtils.damp(
+      g.rotation.z,
+      amount * (0.72 * Math.sin(t) + 0.28 * Math.sin(t * 1.71)),
+      3,
+      dt,
+    );
+    g.rotation.x = THREE.MathUtils.damp(
+      g.rotation.x,
+      amount * 0.45 * Math.sin(t * 0.83 + 1.1),
+      3,
+      dt,
+    );
   });
   return (
     <group name={"room-sway"} ref={ref}>
