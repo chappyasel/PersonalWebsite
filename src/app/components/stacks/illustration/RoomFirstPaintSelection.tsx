@@ -4,6 +4,8 @@ import { GOLF_STOP_POSITION, UNITS } from "../data";
 
 import { ROOM_SECTION_PATHNAMES } from "~/lib/site/roomRoutes";
 
+import { startLoadingNotice } from "./startLoadingNotice";
+
 /** Serialize the scene registry across the server/client boundary. The script
  * runs before shelf markup, so hash destinations never paint About first. */
 export function roomFirstPaintSelectionScript(initialUnit: number) {
@@ -20,7 +22,7 @@ export function roomFirstPaintSelectionScript(initialUnit: number) {
       slugs[slug],
     ]),
   );
-  return `try{var roomSlugs=${JSON.stringify({ ...slugs, golf: GOLF_STOP_POSITION })};var roomPaths=${JSON.stringify({ ...paths, "/": 0, "/golf": GOLF_STOP_POSITION })};document.documentElement.setAttribute("data-room-first-unit",String((Object.hasOwn(roomSlugs,location.hash.slice(1))?roomSlugs[location.hash.slice(1)]:undefined)??roomPaths[location.pathname.replace(/\\/+$/,"")||"/"]??${initialUnit}));}catch(e){}`;
+  return `try{var roomSlugs=${JSON.stringify({ ...slugs, golf: GOLF_STOP_POSITION })};var roomPaths=${JSON.stringify({ ...paths, "/": 0, "/golf": GOLF_STOP_POSITION })};document.documentElement.setAttribute("data-room-first-unit",String((Object.hasOwn(roomSlugs,location.hash.slice(1))?roomSlugs[location.hash.slice(1)]:undefined)??roomPaths[location.pathname.replace(/\\/+$/,"")||"/"]??${initialUnit}));(${startLoadingNotice.toString()})();}catch(e){}`;
 }
 
 export function RoomFirstPaintSelection({

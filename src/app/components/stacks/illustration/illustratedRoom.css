@@ -1,13 +1,12 @@
 /* Illustration and live room share one shell and one resident content tree. */
 .room-illustration {
-  /* Matte counterparts of theme.ts's blue sky and olive meadow. */
-  --room-sky-top: #83b2ce;
-  --room-sky-horizon: #c3d6d8;
-  --room-sky-haze: #e3e0c5;
-  --room-cloud: rgb(244 243 231 / 0.5);
-  --room-meadow-far: #bbc9a2;
-  --room-meadow-middle: #aac093;
-  --room-meadow-near: #9bb684;
+  /* Pastel counterparts of theme.ts's blue sky and green meadow. */
+  --room-sky-top: #7eaacd;
+  --room-sky-horizon: #c3dbea;
+  --room-cloud: rgb(231 242 249 / 0.45);
+  --room-meadow-far: #bfd6b5;
+  --room-meadow-middle: #9db993;
+  --room-meadow-near: #809e76;
   --room-illustration-scale: 1.4;
   --room-illustration-stage-left: 0px;
   --room-illustration-stage-right: 0px;
@@ -19,9 +18,9 @@
   --room-illustration-background: linear-gradient(
     180deg,
     var(--room-sky-top),
-    var(--room-sky-horizon) 43%,
-    var(--room-sky-haze) 64%,
-    var(--room-meadow-far) 77%,
+    var(--room-sky-horizon) 48%,
+    var(--room-meadow-far) 65%,
+    var(--room-meadow-middle) 80%,
     var(--room-meadow-near)
   );
   position: absolute;
@@ -32,13 +31,12 @@
   pointer-events: none;
 }
 html.dark .room-illustration {
-  --room-sky-top: #1e2842;
-  --room-sky-horizon: #3a4762;
-  --room-sky-haze: #646153;
-  --room-cloud: rgb(198 196 188 / 0.12);
-  --room-meadow-far: #435944;
-  --room-meadow-middle: #314935;
-  --room-meadow-near: #223b2b;
+  --room-sky-top: #26334d;
+  --room-sky-horizon: #455675;
+  --room-cloud: rgb(171 193 215 / 0.1);
+  --room-meadow-far: #526a58;
+  --room-meadow-middle: #3c5647;
+  --room-meadow-near: #273f33;
 }
 /* The atmosphere stays still while the shelf row scrolls above it. */
 .room-illustration::before,
@@ -195,10 +193,20 @@ html.dark .room-illustration {
   color: hsl(var(--foreground) / 0.82);
   pointer-events: none;
 }
+.room-illustration-status[data-illustration-status="loading"] {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 240ms ease-out;
+}
+html[data-room-loading-visible]
+  .room-illustration-status[data-illustration-status="loading"] {
+  opacity: 1;
+  visibility: visible;
+}
 .room-loading-heading {
   display: block;
   font-family: var(--font-selected), Georgia, serif;
-  font-size: clamp(17px, 1.5vw, 21px);
+  font-size: clamp(15px, 1.3vw, 18px);
   line-height: 1.3;
   letter-spacing: -0.015em;
 }
@@ -215,6 +223,9 @@ html.dark .room-illustration {
   font-size: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
+  .room-illustration-status[data-illustration-status="loading"] {
+    transition: none;
+  }
   .room-illustration-status .stacks-boot-wait-dot {
     animation: none;
     opacity: 1;

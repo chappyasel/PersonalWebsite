@@ -63,5 +63,16 @@ The placement follow-up passed 61 focused tests and all 24 artifact variants
 with 528 owner comparisons. Headless checks measure the wood center in the
 actual inline SVG and confirm the final camera frame remains unchanged.
 
+The loading heading is now 15 to 18 pixels and fades in after one second.
+One document clock serves the parsing-time shell and hydrated status, so the
+delay does not restart. The blue-to-green gradients remove the warm middle
+band in both themes and keep softer versions of the room's colors. Existing
+3D shelf lights and quality-controlled dust remain in place. The illustrated
+opening still hides the old About-only dust layer.
+
+This notice follow-up passed 19 focused tests, typecheck and ESLint. Headless
+light/dark checks confirmed the delay, uninterrupted visibility across
+hydration, and the smaller heading.
+
 No visible browser was opened. This automatic intro does not meet Field
 Notes quality-bar test 2, so it adds no discovery.

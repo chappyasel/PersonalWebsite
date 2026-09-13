@@ -1,5 +1,9 @@
+"use client";
+
 import { BootWaitNotes } from "../dom/BootScreen";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useEffect } from "react";
+
+import { startLoadingNotice } from "./startLoadingNotice";
 
 /** Keep the loading heading still while the existing stage notes rotate. */
 export function IllustrationStatus({
@@ -9,6 +13,9 @@ export function IllustrationStatus({
   loading: boolean;
   firstPaint?: boolean;
 }) {
+  useEffect(() => {
+    if (loading) startLoadingNotice();
+  }, [loading]);
   return (
     <div
       className="room-illustration-status"
