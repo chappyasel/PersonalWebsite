@@ -69,7 +69,7 @@ const OFF_CAMERA_SCENE_INPUTS = new Set([
 
 /** Surfaces the capture removes outright rather than merely hiding.
  *
- * StacksHome sets `display: none` on `.stacks-boot` and `.stacks-flat` under
+ * StacksHome sets `display: none` on `.stacks-boot` and `.room-document` under
  * `html[data-og-capture]`, so neither contributes a pixel or a layout box to
  * the card, and a file whose only job is to render one of them cannot change
  * what is captured. This is deliberately narrower than "hidden": the rest of
@@ -87,7 +87,7 @@ const OFF_CAMERA_SCENE_INPUTS = new Set([
  * is that everything it writes is read only inside `.stacks-boot`, so the
  * capture asserts that separately by scanning the stylesheet. */
 const CAPTURE_REMOVED_INPUTS = new Set([
-  "src/app/components/stacks/FlatHome.tsx",
+  "src/app/components/stacks/illustration/RoomDocument.tsx",
   "src/app/components/stacks/boot/aboutBootStage.ts",
   "src/app/components/stacks/dom/BootScreen.tsx",
   "src/app/components/stacks/dom/bootReadingBooks.ts",

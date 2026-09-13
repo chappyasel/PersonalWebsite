@@ -43,7 +43,9 @@ vi.mock("./dom/ChromeLayer", () => ({ default: () => null }));
 vi.mock("./dom/UnitRail", () => ({ default: () => null }));
 vi.mock("./dom/VisionRideControls", () => ({ default: () => null }));
 vi.mock("./input/ScrollBridges", () => ({ default: () => null }));
-vi.mock("./FlatHome", () => ({ default: () => <div data-testid="flat" /> }));
+vi.mock("./illustration/RoomDocument", () => ({
+  default: () => <div data-testid="document" />,
+}));
 vi.mock("./modal/StacksBookModal", () => ({ default: () => null }));
 vi.mock("./illustration/IllustratedRoom", () => ({
   default: () => <div data-testid="drawing" />,
@@ -107,7 +109,7 @@ it("keeps the actual panel owner mounted with reader state and scroll intact aft
     expect(mocks.mounts).toBe(1);
     expect(useStacks.getState().panelState).toBe("open");
     expect(useStacks.getState().activeUnit).toBe(1);
-    expect(view.queryByTestId("flat")).toBeNull();
+    expect(view.queryByTestId("document")).toBeNull();
     act(() => {
       view
         .getByRole("button", { name: "Continue reading" })

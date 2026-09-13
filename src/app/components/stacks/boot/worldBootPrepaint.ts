@@ -79,13 +79,13 @@ try {
     el.removeAttribute(${q(policy.worldAttribute)});
   }
   if (illustrated) {
-    el.setAttribute(${q(policy.presentationAttribute)}, motionOK && dataOK ? "illustrated" : "document");
+    el.setAttribute(${q(policy.presentationAttribute)}, "illustrated");
   } else {
     el.removeAttribute(${q(policy.presentationAttribute)});
   }
   // The illustrated UI also needs hydration to become usable. Its fail-open
   // backstop applies even if WebGL was unavailable from the start.
-  if (motionOK && dataOK && (ok === "1" || illustrated)) {
+  if (illustrated || (motionOK && dataOK && ok === "1")) {
     if (!${holdBoot}) {
       ${timer} = setTimeout(function () {
         if (${token} !== bootToken) return;
@@ -96,7 +96,7 @@ try {
           el.removeAttribute(${q(policy.worldAttribute)});
           if (illustrated) el.setAttribute(${q(policy.presentationAttribute)}, "document");
           // Tell hydration this load already failed open, so it continues the
-          // flat page instead of starting a second, longer wait over it.
+          // server illustration instead of starting a second, longer wait over it.
           ${outcome} = { token: bootToken, timedOut: true };
         }
       }, ${q(policy.prepaintBackstopMs)});

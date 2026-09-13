@@ -1,12 +1,13 @@
 "use client";
 
-import { UNITS } from "../data";
+import { GOLF_STOP_POSITION, UNITS } from "../data";
 import { BootScreenArtwork } from "../dom/BootScreen";
 import type { BootReadingBook } from "../dom/bootReadingBooks";
 import type { CSSProperties } from "react";
 
 import type { ReadingBookEdgeColor } from "~/lib/books/coverEdgeColor";
 
+import { GolfIllustration } from "./GolfIllustration";
 import { IllustrationFrame } from "./IllustrationFrame";
 import {
   RoomArtworkImage,
@@ -36,6 +37,12 @@ export function IllustrationStage({
   unavailable = false,
   shelfOnly = false,
 }: IllustrationStageProps) {
+  if (unitIndex === GOLF_STOP_POSITION)
+    return (
+      <div className="room-illustration-stage room-golf-stage">
+        <GolfIllustration />
+      </div>
+    );
   const tone = theme === "dark" ? "dark" : "light";
   const desktop = getRoomArtwork(unitIndex, tone, "desktop");
   const phone = getRoomArtwork(unitIndex, tone, "phone");

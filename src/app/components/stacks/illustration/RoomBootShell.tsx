@@ -74,7 +74,7 @@ export default function RoomBootShell({
         data-illustration-loading
         aria-hidden
       >
-        {[0, 1, 2, 3, 4, 5, 6].map((unitIndex) => (
+        {[0, 1, 1.52, 2, 3, 4, 5, 6].map((unitIndex) => (
           <div
             className="room-first-paint-unit"
             data-first-paint-unit={unitIndex}

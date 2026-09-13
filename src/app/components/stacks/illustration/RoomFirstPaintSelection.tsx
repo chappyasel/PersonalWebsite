@@ -38,10 +38,12 @@ export function RoomFirstPaintSelection({
         }}
       />
       <style>
-        {UNITS.map(
-          (_, index) =>
-            `html[data-room-first-unit="${index}"] .room-first-paint-unit[data-first-paint-unit="${index}"]{display:contents}`,
-        ).join("\n")}
+        {[...UNITS.map((_, index) => index), GOLF_STOP_POSITION]
+          .map(
+            (index) =>
+              `html[data-room-first-unit="${index}"] .room-first-paint-unit[data-first-paint-unit="${index}"]{display:contents}`,
+          )
+          .join("\n")}
       </style>
     </>
   );

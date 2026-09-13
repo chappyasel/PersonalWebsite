@@ -307,3 +307,14 @@ html[data-room-loading-visible]
   opacity: 0 !important;
   pointer-events: none;
 }
+
+.room-golf-illustration {
+  width: min(100%, 44rem);
+  max-height: 100%;
+  color: hsl(var(--foreground) / 0.8);
+}
+html.dark .room-golf-illustration {
+  --room-golf-green: #607e63;
+  --room-golf-fringe: #496650;
+  --room-golf-flag: #b18585;
+}

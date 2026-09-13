@@ -11,11 +11,12 @@ const stacksHomeSource = fs.readFileSync(
 );
 
 describe("homepage first paint", () => {
-  it("server-renders the illustrated shell with its real book covers", () => {
-    expect(source).toContain("export default async function RoomHomePage(");
+  it("streams empty wood before data and keeps a native illustrated fallback", () => {
+    expect(source).toContain("export default function RoomHomePage(");
     expect(source).toContain("async function HomePageContent({");
     expect(source).toContain("<RoomBootShell");
-    expect(source).toContain("readingBooks={bootReadingBooks}");
+    expect(source).toContain("<RoomDocument");
+    expect(source).not.toContain("FlatHome");
     expect(source).toContain("readingBookColors={readingBookColors}");
     expect(source).toContain("<React.Suspense fallback={null}>");
     // `indexOf` returns -1 for a needle that is not there, and -1 is less

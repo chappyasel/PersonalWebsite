@@ -219,7 +219,7 @@ it("keeps a failed drawing unregistered and offers explicit retry without owning
   expect(view.queryByRole("dialog")).toBeNull();
 });
 
-it("leaves unsupported Golf unregistered instead of showing a Books drawing", () => {
+it("shows Golf's overview and allows automatic entry without shelf registration", () => {
   useStacks.setState({ golfStop: true });
   const onReady = vi.fn();
   const view = render(
@@ -234,13 +234,11 @@ it("leaves unsupported Golf unregistered instead of showing a Books drawing", ()
       onUnavailable={vi.fn()}
     />,
   );
-  expect(
-    view.getByText(/The illustration is unavailable/).getAttribute("role"),
-  ).toBe("status");
+  expect(view.getByRole("img", { name: "Golf putting green" })).toBeTruthy();
   expect(
     view.container.querySelector("[data-illustration-selected] img"),
   ).toBeNull();
-  expect(onReady).toHaveBeenLastCalledWith(null);
+  expect(onReady).toHaveBeenLastCalledWith("golf-overview:light", false);
 });
 
 it("keeps the loading message readable through dissolve, then retires it with the illustration", async () => {

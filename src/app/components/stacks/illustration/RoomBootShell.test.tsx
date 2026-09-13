@@ -44,7 +44,7 @@ it.each([1, 2, 3, 4, 5, 6])(
     const stage = shell.querySelector<HTMLElement>(
       `[data-first-paint-unit="${unitIndex}"] .room-illustration-stage`,
     )!;
-    expect(shell.querySelectorAll("[data-first-paint-unit]")).toHaveLength(7);
+    expect(shell.querySelectorAll("[data-first-paint-unit]")).toHaveLength(8);
     expect(shell.querySelector("img, picture, link[rel=preload]")).toBeNull();
     expect(shell.querySelector("[data-room-artwork]")).toBeNull();
     for (const theme of ["light", "dark"] as const) {
@@ -116,7 +116,7 @@ it("keeps theme resolution out of the server request and forwards route boot own
   );
   expect(page).not.toContain('from "next/headers"');
   expect(page).not.toContain("cookies()");
-  expect(page).toContain("<StacksHome illustrated={illustrated}");
+  expect(page).toContain("<StacksHome data={data}");
   // data.ts imports client icon contexts and cannot enter the server shell.
   expect(shell).not.toContain('from "../data"');
 });

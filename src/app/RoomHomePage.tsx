@@ -1,3 +1,4 @@
+import Link from "next/link";
 import blogData from "public/data/blog-posts.json";
 import speakingData from "public/data/speaking.json";
 import React from "react";
@@ -24,7 +25,6 @@ import Quotes from "./components/Quotes";
 import Talks from "./components/Talks";
 import Weightlifting from "./components/Weightlifting";
 import BooksBootPrototype from "./components/route-transition-prototype/BooksBootPrototype";
-import FlatHome from "./components/stacks/FlatHome";
 import StacksHome from "./components/stacks/StacksHome";
 import {
   selectHomepageReadingBooks,
@@ -34,6 +34,7 @@ import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepa
 import { type StacksData } from "./components/stacks/data";
 import { BootReadingBooksBridge } from "./components/stacks/dom/BootScreen";
 import RoomBootShell from "./components/stacks/illustration/RoomBootShell";
+import RoomDocument from "./components/stacks/illustration/RoomDocument";
 import { ResidentRoom } from "./components/stacks/room/ResidentRoom";
 import { SitePageCardsProvider } from "~/components/site/SitePageCards";
 
@@ -51,13 +52,9 @@ type HomepageReadingColors = Awaited<ReturnType<typeof readingBookEdgeColors>>;
 
 export default function RoomHomePage({
   initialUnit = 0,
-  illustrated = true,
 }: {
   initialUnit?: number;
-  illustrated?: boolean;
 }) {
-  if (!illustrated)
-    return <ResolvedRoomPage initialUnit={initialUnit} illustrated={false} />;
   // Empty wood has no data dependency. Stream it before book, cover and
   // activity queries; the selected objects arrive with the resident content.
   return (
@@ -70,20 +67,48 @@ export default function RoomHomePage({
         }}
       />
       <RoomBootShell unitIndex={initialUnit} illustrated />
-      <React.Suspense fallback={null}>
-        <ResolvedRoomPage initialUnit={initialUnit} illustrated />
+      <React.Suspense
+        fallback={
+          <RoomDocument
+            initialUnit={initialUnit}
+            slots={{
+              about: <AboutMe />,
+              systems: <PersonalSystems />,
+              talks: <Talks />,
+              blog: <BlogPosts />,
+              projects: <Projects github={null} />,
+              books: (
+                <>
+                  <h1 className="font-serif text-3xl">Book Notes</h1>
+                  <p>
+                    <Link href="/books" prefetch={false}>
+                      Browse the library and reading notes
+                    </Link>
+                  </p>
+                </>
+              ),
+              training: (
+                <>
+                  <h1 className="font-serif text-3xl">Weightlifting</h1>
+                  <p>
+                    <Link href="/weightlifting" prefetch={false}>
+                      Explore training and personal records
+                    </Link>
+                  </p>
+                </>
+              ),
+              quotes: <Quotes />,
+            }}
+          />
+        }
+      >
+        <ResolvedRoomPage initialUnit={initialUnit} />
       </React.Suspense>
     </>
   );
 }
 
-async function ResolvedRoomPage({
-  initialUnit,
-  illustrated,
-}: {
-  initialUnit: number;
-  illustrated: boolean;
-}) {
+async function ResolvedRoomPage({ initialUnit }: { initialUnit: number }) {
   // Abandoned books are hidden by default site-wide: no homepage surface
   // (boot trio, shelf, cover wall, placard) should ever show one.
   const allBooks = (await orEmpty("home:books", getDefaultBooks, [])).filter(
@@ -93,20 +118,8 @@ async function ResolvedRoomPage({
   // Sampling is server-side and time-boxed, avoiding remote-cover CORS work in
   // the client while giving the first SVG the same jacket colors as WebGL.
   const readingBookColors = await readingBookEdgeColors(readingBooks);
-  const bootReadingBooks = toBootReadingBooks(readingBooks);
   return (
     <>
-      {/* The legacy vignette starts with its real jackets. The illustrated
-          shell has already streamed its empty wood while this data resolves. */}
-      {!illustrated && (
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              `document.documentElement.setAttribute("data-room-illustration", ${JSON.stringify(illustrated ? "enabled" : "disabled")});` +
-              worldBootPrepaintScript(),
-          }}
-        />
-      )}
       {process.env.NODE_ENV !== "production" ? (
         <BooksBootPrototype
           featuredBooks={allBooks
@@ -138,17 +151,9 @@ async function ResolvedRoomPage({
             )}
         />
       ) : null}
-      {!illustrated && (
-        <RoomBootShell
-          unitIndex={initialUnit}
-          illustrated={illustrated}
-          readingBooks={bootReadingBooks}
-          readingBookColors={readingBookColors}
-        />
-      )}
       <React.Suspense fallback={null}>
         <HomePageContent
-          illustrated={illustrated}
+          initialUnit={initialUnit}
           allBooks={allBooks}
           readingBooks={readingBooks}
           readingBookColors={readingBookColors}
@@ -165,12 +170,12 @@ async function ResolvedRoomPage({
  * take the other two down with it, and the world still boots.
  */
 async function HomePageContent({
-  illustrated,
+  initialUnit,
   allBooks,
   readingBooks,
   readingBookColors,
 }: {
-  illustrated: boolean;
+  initialUnit: number;
   allBooks: HomepageBooks;
   readingBooks: HomepageReadingBooks;
   readingBookColors: HomepageReadingColors;
@@ -296,14 +301,18 @@ async function HomePageContent({
       />
       {/* The book modal's breadcrumb hovers the library's stats card, the
           same figures the Book Notes placard shows; no second query. */}
-      <ResidentRoom fallback={<FlatHome slots={slots} animated={false} />}>
+      <ResidentRoom
+        fallback={
+          <RoomDocument data={data} slots={slots} initialUnit={initialUnit} />
+        }
+      >
         <SitePageCardsProvider
           cards={{
             books: { stats: bookPlacard.stats, yearly: bookPlacard.yearly },
             weightlifting: null,
           }}
         >
-          <StacksHome illustrated={illustrated} data={data} slots={slots} />
+          <StacksHome data={data} slots={slots} initialUnit={initialUnit} />
         </SitePageCardsProvider>
       </ResidentRoom>
     </>

@@ -93,7 +93,7 @@ describe("route illustration opt-in", () => {
   });
 
   it.each([
-    { label: "Golf's explicit false", illustrated: false },
+    { label: "an explicit legacy diagnostic opt-out", illustrated: false },
     { label: "the default argument", illustrated: undefined },
   ])("clears a stale enabled marker for $label", ({ illustrated }) => {
     document.documentElement.dataset.roomIllustration = "enabled";

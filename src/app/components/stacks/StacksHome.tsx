@@ -2,16 +2,8 @@
 
 // Composition root and mode gate for the homepage 3D scene.
 //
-// Server render and the first client render are always the flat page (no
-// hydration mismatch). What changed in v5 is that the flat page is no longer
-// what you SEE while the world loads: a pre-paint script in page.tsx sets
-// data-world="pending" on <html> when the browser can run the world, CSS
-// hides the flat document and reveals BootScreen during that first paint, and
-// this component takes the attribute over the moment it is alive.
-//
-// The whole of that policy — capability, warm cache, the four reveal gates,
-// the hang backstop, demotion, and route cleanup — lives in ./boot as one
-// state machine. What is left here is the seam: signals in, view out.
+// The server document and interactive room share the illustrated design.
+// Capability, readiness, recovery, and route cleanup live in ./boot.
 import { SceneStartupGate } from "../route-transition-prototype/SceneStartupGate";
 import { useRouteTransitionPrototype } from "../route-transition-prototype/store";
 import { useTheme } from "next-themes";
@@ -32,7 +24,6 @@ import {
 
 import { type HomepageBootOutcome, captureOnce } from "~/lib/analytics";
 
-import FlatHome from "./FlatHome";
 import { useWorldBoot } from "./boot/useWorldBoot";
 import { worldBoot } from "./boot/worldBootSession";
 import { type StacksData, type StacksSlots, UNITS } from "./data";
@@ -42,6 +33,7 @@ import VisionRideControls from "./dom/VisionRideControls";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import IllustratedRoom from "./illustration/IllustratedRoom";
 import { RoomChrome } from "./illustration/RoomChrome";
+import RoomDocument from "./illustration/RoomDocument";
 import "./illustration/illustratedEntrance.css";
 import { useIllustratedEntrance } from "./illustration/useIllustratedEntrance";
 import RoomNavigation, { navigateRoomLink } from "./input/RoomNavigation";
@@ -234,7 +226,7 @@ function useAutomaticPerformanceDiagnostic() {
 }
 
 /** A chunk that fails to load throws during render, which would blank the
- * page. Catch it and fall back to the document — that IS the fallback. */
+ * page. Catch it and keep the illustrated room available. */
 class CanvasBoundary extends Component<
   { onError: () => void; children: React.ReactNode },
   { failed: boolean }
@@ -260,10 +252,12 @@ export default function StacksHome({
   data,
   slots,
   illustrated: illustratedEnabled = true,
+  initialUnit = 0,
 }: {
   data: StacksData;
   slots: StacksSlots;
   illustrated?: boolean;
+  initialUnit?: number;
 }) {
   const roomActive = useRoomActive();
   const boot = useWorldBoot(illustratedEnabled);
@@ -281,9 +275,12 @@ export default function StacksHome({
   const handoff = presentation === "dissolve" || presentation === "travel";
   const roomMounted = worldMounted || presentation !== "document";
   const contentVisible = illustrated || handoff || revealed;
-  const illustrationReady = useCallback((key: string | null) => {
-    worldBoot.send({ type: "illustrationChanged", key });
-  }, []);
+  const illustrationReady = useCallback(
+    (key: string | null, matchRequired = true) => {
+      worldBoot.send({ type: "illustrationChanged", key, matchRequired });
+    },
+    [],
+  );
   const illustrationUnavailable = useCallback(() => {
     const view = worldBoot.getView();
     worldBoot.scope(view.epoch).send({
@@ -887,7 +884,7 @@ export default function StacksHome({
             }
             html[data-og-capture] .stacks-world-curtain,
             html[data-og-capture] .stacks-boot,
-            html[data-og-capture] .stacks-flat { display: none !important; }
+            html[data-og-capture] .room-document { display: none !important; }
           `}</style>
           <Activity mode={roomActive ? "visible" : "hidden"}>
             <RoomNavigation rendererEnabled={presentation === "live"}>
@@ -932,17 +929,10 @@ export default function StacksHome({
         </div>
       )}
       <Activity mode={roomActive ? "visible" : "hidden"}>
-        {boot.flatMounted && (
-          <FlatHome
-            slots={slots}
-            animated={boot.flatAnimated}
-            journeyActive={
-              boot.status === "ineligible" || boot.status === "failed"
-            }
-          />
+        {presentation === "document" && (
+          <RoomDocument data={data} slots={slots} initialUnit={initialUnit} />
         )}
-        {/* Books modal — mounted at the root, outside GrainientBackground's
-          [contain:paint] and the world's transforms, so fixed positioning
+        {/* Books modal — mounted at the root, outside the world's transforms, so fixed positioning
           resolves to the viewport. */}
         <StacksBookModal bookCount={data.bookStats.total} />
         <SceneArtifactInspector />

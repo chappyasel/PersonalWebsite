@@ -72,7 +72,7 @@ export default function IllustratedRoom({
   loading?: boolean;
   entranceSettled?: boolean;
   onRequest3D: () => void;
-  onReady: (key: string | null) => void;
+  onReady: (key: string | null, matchRequired?: boolean) => void;
   onUnavailable: () => void;
 }) {
   const unit = useStacks((state) => state.activeUnit);
@@ -108,6 +108,12 @@ export default function IllustratedRoom({
       container
         ?.querySelectorAll("[data-artwork-key]")
         .forEach((node) => node.removeAttribute("data-room-artwork"));
+      return;
+    }
+    if (golfStop) {
+      const key = `golf-overview:${theme}`;
+      setReady({ revision, key });
+      onReady(key, false);
       return;
     }
     const element = container?.querySelector<SVGSVGElement | HTMLImageElement>(
@@ -187,6 +193,7 @@ export default function IllustratedRoom({
     };
   }, [
     revision,
+    golfStop,
     locationReady,
     unit,
     theme,
@@ -211,10 +218,11 @@ export default function IllustratedRoom({
       entranceSettled
     ) {
       element?.setAttribute("data-room-artwork", "");
-      onReady(readyKey);
+      onReady(readyKey, !golfStop);
     } else element?.removeAttribute("data-room-artwork");
   }, [
     visible,
+    golfStop,
     readyKey,
     moving,
     interactingWithPanel,

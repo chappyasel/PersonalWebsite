@@ -179,7 +179,7 @@ describe("illustrated browser adapter", () => {
       else saveData = true;
       session.request3D();
       expect(session.getView()).toMatchObject({
-        presentation: "document",
+        presentation: "illustrated",
         worldMounted: false,
         canRequest3D: false,
         ineligibility: preference === "motion" ? "reduced_motion" : "save_data",

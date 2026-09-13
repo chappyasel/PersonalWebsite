@@ -365,7 +365,7 @@ try {
   // the grounds that capture mode removes them from the layout entirely. Prove
   // it here, so that exclusion cannot quietly stop being true.
   const removedSurfaces = await page.evaluate(() =>
-    [".stacks-boot", ".stacks-flat"].map((selector) => {
+    [".stacks-boot", ".room-document"].map((selector) => {
       const element = document.querySelector(selector);
       return {
         selector,

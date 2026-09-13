@@ -198,7 +198,12 @@ export type WorldBootEvent =
     }
   /** Reading/navigation is a page fact and survives renderer replacement. */
   | { type: "illustrationInteracted"; at: number }
-  | { type: "illustrationChanged"; at: number; key: string | null }
+  | {
+      type: "illustrationChanged";
+      at: number;
+      key: string | null;
+      matchRequired?: boolean;
+    }
   | { type: "illustrationMotionChanged"; at: number; enabled: boolean }
   /** The boot vignette began a fresh item-by-item pass. Not epoch-scoped: the
    * vignette belongs to the page instance, and it is running before the
@@ -247,7 +252,7 @@ export type WorldBootState = {
   ordinaryIllustrationKey: string | null;
   /** Matching failed for the selected artwork. Cleared when that key changes. */
   matchUnavailable: boolean;
-  /** One explicit retry may enter through the ordinary camera instead. */
+  /** An overview or explicit retry can enter through the ordinary camera. */
   skipIllustrationMatch: boolean;
   interactionHeld: boolean;
   handoffStartedAt: number | null;
@@ -421,7 +426,7 @@ export function isWarmStart(
 }
 
 /** The visitor-policy gate. WebGL is a capability; the other two are choices
- * the visitor has already made, and both mean "give me the document". */
+ * the visitor has already made, and both keep the room in 2D. */
 export function worldEligible({
   webglAvailable,
   prefersReducedMotion,
@@ -824,11 +829,10 @@ export function reduceWorldBoot(
           status: "ineligible",
           ineligibility,
           skipIllustrationMatch: false,
-          // Even a browser without WebGL must recover its semantic document
-          // if the illustrated UI's hydration bundle never arrives.
+          // Any illustrated visit needs native navigation if hydration
+          // never arrives, including preference-based 2D delivery.
           deadline:
             base.illustratedMode &&
-            ineligibility === "webgl_unavailable" &&
             event.origin === "prepaint" &&
             !event.holdBoot
               ? startDeadline(event, policy)
@@ -890,10 +894,15 @@ export function reduceWorldBoot(
       return state;
 
     case "illustrationChanged": {
-      if (state.illustrationKey === event.key) return state;
+      if (
+        state.illustrationKey === event.key &&
+        (event.matchRequired !== false || state.skipIllustrationMatch)
+      )
+        return state;
       const changed = {
         ...state,
         illustrationKey: event.key,
+        skipIllustrationMatch: event.matchRequired === false,
         registeredIllustrationKey: null,
         ordinaryIllustrationKey: null,
         matchUnavailable: false,
@@ -1041,8 +1050,6 @@ export function worldBootView(
   const illustrated =
     state.illustratedMode &&
     !state.prepaintTimedOut &&
-    state.ineligibility !== "reduced_motion" &&
-    state.ineligibility !== "save_data" &&
     state.status !== "unstarted" &&
     state.status !== "exited";
   const presentation: RoomPresentation = revealed

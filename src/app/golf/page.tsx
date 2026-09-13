@@ -17,5 +17,5 @@ export const metadata: Metadata = roomStopMetadata({
 export const viewport: Viewport = roomViewport;
 
 export default function GolfPage() {
-  return <RoomHomePage initialUnit={1.52} illustrated={false} />;
+  return <RoomHomePage initialUnit={1.52} />;
 }

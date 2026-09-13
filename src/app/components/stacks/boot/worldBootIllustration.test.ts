@@ -512,8 +512,8 @@ describe("explicit retry after an artwork mismatch", () => {
   });
 
   it.each([
-    [{ prefersReducedMotion: true }, "document", "reduced_motion"],
-    [{ saveData: true }, "document", "save_data"],
+    [{ prefersReducedMotion: true }, "illustrated", "reduced_motion"],
+    [{ saveData: true }, "illustrated", "save_data"],
     [{ webglAvailable: false }, "illustrated", "webgl_unavailable"],
   ] as const)(
     "still respects capability and preferences on retry %j",
@@ -602,9 +602,36 @@ describe("visitor ownership and renderer replacement", () => {
 });
 
 describe("policy, visibility and diagnostics", () => {
+  it("opens an overview automatically only after the renderer is ready", () => {
+    const overview = run([
+      start(),
+      {
+        type: "illustrationChanged",
+        key: "golf-overview:light",
+        matchRequired: false,
+        at: 10,
+      },
+    ]);
+    expect(view(overview)).toMatchObject({
+      presentation: "illustrated",
+      worldMounted: true,
+      revealed: false,
+    });
+    expect(view(ready(overview, 100))).toMatchObject({
+      presentation: "live",
+      revealed: true,
+    });
+    const shelf = run(
+      [{ type: "illustrationChanged", key: KEY, at: 20 }],
+      overview,
+    );
+    expect(shelf.skipIllustrationMatch).toBe(false);
+    expect(view(ready(shelf, 100)).presentation).toBe("illustrated");
+  });
+
   it.each([
-    [{ prefersReducedMotion: true }, "document", "reduced_motion"],
-    [{ saveData: true }, "document", "save_data"],
+    [{ prefersReducedMotion: true }, "illustrated", "reduced_motion"],
+    [{ saveData: true }, "illustrated", "save_data"],
     [{ webglAvailable: false }, "illustrated", "webgl_unavailable"],
   ] as const)(
     "preserves capability and preference delivery %j",
