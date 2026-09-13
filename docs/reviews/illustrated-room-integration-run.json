@@ -1,6 +1,6 @@
 {
   "objective": "Integrate approved illustrated shelves into automatic production boot and usable WebGL fallback, with a registered dissolve at the ordinary camera pose",
-  "status": "reading_order_color_and_spacing_verified",
+  "status": "approved_foliage_integrated_and_verified",
   "base": "f54e6e2",
   "integrationBranch": "feat/illustrated-room",
   "integrationWorktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-room",
@@ -32,6 +32,14 @@
       "task": "boot-policy",
       "agent": "/root/generalization_final_review",
       "worktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-policy",
+      "status": "completed_and_integrated"
+    },
+    {
+      "task": "plant-leaf-wind",
+      "workspace": "dcd7ec3f-acb8-4fd8-83e9-9404c48fa3ff",
+      "terminal": "915de06e-46bd-401a-b96a-40e40d1f2bdd",
+      "branch": "prototype/plant-leaf-wind",
+      "head": "489ce78",
       "status": "completed_and_integrated"
     }
   ],
@@ -108,5 +116,18 @@
     "talksCases": 4,
     "navigationCases": 3,
     "gestureCases": 2
+  },
+  "plantFoliageIntegration": {
+    "after": "ab7a33f",
+    "sourceHead": "489ce78",
+    "sourceCommits": ["000a999", "19edac8", "489ce78"],
+    "focusedTestsPassed": 495,
+    "entranceCases": 2,
+    "coldLoadCases": 5,
+    "headlessPlantUnits": 5,
+    "headlessPlantModels": 6,
+    "drawingBytes": "unchanged",
+    "preview": "http://localhost:3334/?debug=1&quality=balanced",
+    "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json"
   }
 }

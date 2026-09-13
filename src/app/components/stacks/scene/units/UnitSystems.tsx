@@ -13,7 +13,7 @@ import ModelProp from "../ModelProp";
 import PillBottle from "../PillBottle";
 import PillOrganizer from "../PillOrganizer";
 import SunLamp from "../SunLamp";
-import { EggClock, EggTrigger, Pendulum, Sway } from "../eggs";
+import { EggClock, EggTrigger, Pendulum } from "../eggs";
 import {
   RoutineBoard,
   SODA_CAN_HEIGHT,
@@ -516,10 +516,15 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
               colliderProfile="foliage-base"
               massKg={2.4}
             >
-              <Sway unitIndex={index} amount={0.016} rate={0.31} phase={2.2}>
+              <group name="room-sway">
                 <React.Suspense fallback={null}>
                   <ModelProp
                     url="/models/sansevieria.glb"
+                    plantWind={{
+                      kind: "sansevieria",
+                      unitIndex: index,
+                      hoverKey: "grab:plant:sansevieria",
+                    }}
                     dark={dark}
                     variant="recolor"
                     rotation={[0, 0.4, 0]}
@@ -530,7 +535,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                   <cylinderGeometry args={[0.07, 0.07, 0.0135, 20]} />
                   <meshStandardMaterial color="#3a2b1c" roughness={1} />
                 </mesh>
-              </Sway>
+              </group>
             </Grabbable>
             {/* The daily food system and the supplement stack made physical:
                 one frozen chicken bag beside the plant, three powder pouches

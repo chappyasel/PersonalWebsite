@@ -345,7 +345,11 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
           colliderProfile="foliage-base"
           massKg={1.2}
         >
-          <ShelfSucculent unitIndex={index} dark={dark} />
+          <ShelfSucculent
+            unitIndex={index}
+            dark={dark}
+            hoverKey="grab:plant:musings"
+          />
         </Grabbable>
         {/* The top lamp is the shared measured angle-poise rig: its shade glow,
           hot mouth, spot and local spill all switch together. */}

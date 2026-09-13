@@ -11,7 +11,7 @@ import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
-import { LampSwitch, Sway } from "../eggs";
+import { LampSwitch } from "../eggs";
 import {
   MOTH_LIGHT_PROFILES,
   TALKS_FLOOR_SHADE_RADIUS,
@@ -447,10 +447,15 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               colliderProfile="foliage-base"
               massKg={2.3}
             >
-              <Sway unitIndex={index} amount={0.019} rate={0.31} phase={0.7}>
+              <group name="room-sway">
                 <React.Suspense fallback={null}>
                   <ModelProp
                     url="/models/pothos.glb"
+                    plantWind={{
+                      kind: "pothos",
+                      unitIndex: index,
+                      hoverKey: "grab:plant:talks-pothos",
+                    }}
                     dark={dark}
                     variant="recolor"
                     position={[0, -0.135, 0]}
@@ -458,7 +463,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                     scale={0.62}
                   />
                 </React.Suspense>
-              </Sway>
+              </group>
             </Grabbable>
           </group>
         }
@@ -537,16 +542,21 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           colliderProfile="foliage-base"
           massKg={2.1}
         >
-          <Sway unitIndex={index} amount={0.018} rate={0.36} phase={1.8}>
+          <group name="room-sway">
             <React.Suspense fallback={null}>
               <ModelProp
                 url="/models/potted-plant.glb"
+                plantWind={{
+                  kind: "potted-plant",
+                  unitIndex: index,
+                  hoverKey: "grab:plant:talks-top",
+                }}
                 dark={dark}
                 rotation={[0, -0.42, 0]}
                 scale={0.82}
               />
             </React.Suspense>
-          </Sway>
+          </group>
         </Grabbable>
       </ShelfUnit>
       {/* Floor lamp in the breathing room between Musings and Talks. Its

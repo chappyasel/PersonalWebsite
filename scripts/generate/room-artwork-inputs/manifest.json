@@ -4335,7 +4335,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/ModelProp.tsx",
-      "sha256": "2d9e1eab12a99e3652c522936ecde2a3492d531479d426d019d582eb76881ab1",
+      "sha256": "d33d7383f3918403fdbc607fc9c1b868946beb3a049ed3ed055e3e9697841731",
       "archivedSha256": "2d9e1eab12a99e3652c522936ecde2a3492d531479d426d019d582eb76881ab1"
     },
     {
@@ -4935,7 +4935,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/ShelfSucculent.tsx",
-      "sha256": "0fbc0d677bea42c17a41831cb7f558ae426a5b4da18cd58eadf008182b872315",
+      "sha256": "bc88f8b690d212280c81dbbf2aeddfe06eac287ef29522aee994b9d9ea65b95f",
       "archivedSha256": "0fbc0d677bea42c17a41831cb7f558ae426a5b4da18cd58eadf008182b872315"
     },
     {
@@ -4955,7 +4955,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
-      "sha256": "0bae66d7eee2fb788a2371469525830166e1a0851003f9778e39fec3bde4fd9c",
+      "sha256": "50a5fee43c1570401840abf59c56b2ccecbddd2447f5a3577af09ec98f90cde2",
       "archivedSha256": "d73050d98a7c2420a2f3b21b75d7745e5762c4e9857e9e0ba939e1932c03858c"
     },
     {
@@ -4965,17 +4965,17 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitProjects.tsx",
-      "sha256": "2d266fba88fcae71fd486d614dbfee13d42aa155b22eeb48dadf697812a0bab7",
+      "sha256": "3d47f193da87313faedf959af9f7bf284302501e99be3733f5de1a9ad9962040",
       "archivedSha256": "2d266fba88fcae71fd486d614dbfee13d42aa155b22eeb48dadf697812a0bab7"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitSystems.tsx",
-      "sha256": "9efabc615598e68e201bc5a6c1674cd31444de92190c67f0617e40bd2d9a1c9d",
+      "sha256": "82ee2184aef5a9e834ca9b8a59492ad4f63c42763275c8639bed31bc08a51771",
       "archivedSha256": "29c00b65f7efcdf0a5a989b8158a280270b6bf2d3d939d52493d448f2c83df21"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
-      "sha256": "384734a737b598295f08cb5b7c13f40235726b080674763fc1989b50d49c6019",
+      "sha256": "5eb50a6007502e967b1df7bc93a7a7211c909b1b607914c437b334731d9e3374",
       "archivedSha256": "567752b48fedd6d067c375e7577ae6be581713ee1c5a38ba5d18643834946a69"
     },
     {
@@ -5079,7 +5079,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "e8b94634a38e258289515c3b5efe2b15f33fc2cb4331d8214f616dd19ebda9c4",
+  "sourceFingerprint": "55edbbe5cbbf322103a1d87bf37c6d6a527e575a57fbf51978d0f4a78ed8ab88",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5142,6 +5142,43 @@
           "path": "src/app/components/stacks/scene/eggs.tsx",
           "previousSha256": "a09af3dc20ac2c52540646be6aa87891b835033803d3e6eea92c3632846133a7",
           "sha256": "430579e174b01f0fd937f6102e7b15d5c367db60f66f240c4ec1ecaf0d1a295f"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed integration of approved plant commits 000a999, 19edac8, and 489ce78 into illustrated-room after ab7a33f. Plant Sway wrappers become identically named neutral rest groups; ModelProp adds private foliage buffers whose driver restores exact rest positions through boot, registration, and dissolve. Authored transforms, mesh assets, materials, textures, collider signatures, and all approved drawing inputs are unchanged. Combined real-asset, driver, boot, and illustration tests pass; newer shelf assembly, reveal order, colors, and travel spacing remain intact.",
+      "previousFingerprint": "e8b94634a38e258289515c3b5efe2b15f33fc2cb4331d8214f616dd19ebda9c4",
+      "sourceFingerprint": "55edbbe5cbbf322103a1d87bf37c6d6a527e575a57fbf51978d0f4a78ed8ab88",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/ModelProp.tsx",
+          "previousSha256": "2d9e1eab12a99e3652c522936ecde2a3492d531479d426d019d582eb76881ab1",
+          "sha256": "d33d7383f3918403fdbc607fc9c1b868946beb3a049ed3ed055e3e9697841731"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/ShelfSucculent.tsx",
+          "previousSha256": "0fbc0d677bea42c17a41831cb7f558ae426a5b4da18cd58eadf008182b872315",
+          "sha256": "bc88f8b690d212280c81dbbf2aeddfe06eac287ef29522aee994b9d9ea65b95f"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
+          "previousSha256": "0bae66d7eee2fb788a2371469525830166e1a0851003f9778e39fec3bde4fd9c",
+          "sha256": "50a5fee43c1570401840abf59c56b2ccecbddd2447f5a3577af09ec98f90cde2"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitProjects.tsx",
+          "previousSha256": "2d266fba88fcae71fd486d614dbfee13d42aa155b22eeb48dadf697812a0bab7",
+          "sha256": "3d47f193da87313faedf959af9f7bf284302501e99be3733f5de1a9ad9962040"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitSystems.tsx",
+          "previousSha256": "9efabc615598e68e201bc5a6c1674cd31444de92190c67f0617e40bd2d9a1c9d",
+          "sha256": "82ee2184aef5a9e834ca9b8a59492ad4f63c42763275c8639bed31bc08a51771"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
+          "previousSha256": "384734a737b598295f08cb5b7c13f40235726b080674763fc1989b50d49c6019",
+          "sha256": "5eb50a6007502e967b1df7bc93a7a7211c909b1b607914c437b334731d9e3374"
         }
       ]
     }

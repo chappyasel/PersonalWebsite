@@ -43,6 +43,7 @@ import {
   photographTreatmentController,
 } from "./photographTreatment";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import { plantWindDiagnosticsController } from "./plantWindDiagnostics";
 import {
   POINTER_CAMERA_MODE_DEFAULT,
   POINTER_CAMERA_VALUE_LIMITS,
@@ -1897,6 +1898,29 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
         perFrameWork: false,
       },
     },
+  }),
+  booleanDescriptor({
+    id: "render.plant-leaf-wind",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "Plant foliage wind",
+    help: "Animate leaves on all nine leafy plants, including both tiny succulent bowls. Pots, woody branches, and the cactus stay still. Uses meadow wind speed and power. Uncheck to hold the resting shape; resets on reload.",
+    defaultValue: true,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Private position/normal buffers on nine plants; bounded CPU deformation near the active shelf. No extra draws or textures.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: plantWindDiagnosticsController,
+    read: plantWindDiagnosticsController.getSnapshot,
+    update: (value) =>
+      plantWindDiagnosticsController.setEnabled(Boolean(value)),
   }),
   booleanDescriptor({
     id: "render.lighthouse-beacon",

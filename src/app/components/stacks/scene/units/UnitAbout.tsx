@@ -56,7 +56,7 @@ import {
   ABOUT_GLOBE_STAND_ATLAS,
 } from "../aboutTravel";
 import { proxiedBookCover } from "../bookCoverTexture";
-import { EggLamp, SpinProp, Sway } from "../eggs";
+import { EggLamp, SpinProp } from "../eggs";
 import {
   beginGlobeDrag,
   globeApproach,
@@ -924,7 +924,7 @@ export default function UnitAbout({
           massKg={1.6}
         >
           <group name={aboutLandmarkNodeName("cactus")}>
-            <Sway unitIndex={index} amount={0.014} rate={0.34}>
+            <group name="room-sway">
               <React.Suspense fallback={null}>
                 <ModelProp
                   url="/models/cactus.glb"
@@ -934,7 +934,7 @@ export default function UnitAbout({
                   scale={ABOUT_BOOT_LANDMARKS.cactus.sceneScale}
                 />
               </React.Suspense>
-            </Sway>
+            </group>
           </group>
         </Grabbable>
 
@@ -1069,7 +1069,11 @@ export default function UnitAbout({
           massKg={1.2}
         >
           <group name={aboutLandmarkNodeName("succulent")}>
-            <ShelfSucculent unitIndex={index} dark={dark} />
+            <ShelfSucculent
+              unitIndex={index}
+              dark={dark}
+              hoverKey="grab:plant:about-succulent"
+            />
           </group>
         </Grabbable>
 
@@ -1138,16 +1142,21 @@ export default function UnitAbout({
           massKg={3.1}
         >
           <group name={aboutLandmarkNodeName("large-plant")}>
-            <Sway unitIndex={index} amount={0.02} rate={0.42} phase={1.3}>
+            <group name="room-sway">
               <React.Suspense fallback={null}>
                 <ModelProp
                   url="/models/potted-plant.glb"
+                  plantWind={{
+                    kind: "potted-plant",
+                    unitIndex: index,
+                    hoverKey: "grab:plant:about-large",
+                  }}
                   dark={dark}
                   rotation={[...ABOUT_MODEL_POSES["large-plant"].rotation]}
                   scale={ABOUT_BOOT_LANDMARKS["large-plant"].sceneScale}
                 />
               </React.Suspense>
-            </Sway>
+            </group>
           </group>
         </Grabbable>
       </ShelfUnit>

@@ -1994,5 +1994,160 @@
       "neighborsVisibleAfterPlacement": true,
       "finalBuild": true
     }
+  },
+  "plantFoliageIntegration": {
+    "after": "ab7a33f",
+    "approvedSource": {
+      "branch": "prototype/plant-leaf-wind",
+      "head": "489ce78",
+      "fork": "b61a481",
+      "commits": ["000a999", "19edac8", "489ce78"],
+      "method": "Cumulative source diff; regenerated receipt against combined sources"
+    },
+    "focusedTestsPassed": 495,
+    "testFilesPassed": 27,
+    "typecheck": "passed with Node 24",
+    "targetedEslint": "passed",
+    "productionBuild": "passed, including search and weight-log boundaries",
+    "artworkFreshness": {
+      "cases": 24,
+      "sourceFingerprint": "55edbbe5cbbf322103a1d87bf37c6d6a527e575a57fbf51978d0f4a78ed8ab88",
+      "fullAndShelfSvgBytes": "unchanged",
+      "about": "check:about-boot passed"
+    },
+    "headlessRoom": {
+      "url": "http://localhost:3334/?debug=1&quality=balanced",
+      "passed": true,
+      "units": ["About", "Systems", "Projects", "Musings", "Talks"],
+      "defaultEnabled": true,
+      "checkboxToggle": true,
+      "reloadResets": true,
+      "fixedMonsteraWrapper": true,
+      "errors": []
+    },
+    "headlessLab": {
+      "measurements": [
+        {
+          "enabled": false,
+          "calls": 15,
+          "triangles": 12312,
+          "geometries": 8,
+          "textures": 5,
+          "cpuSubmitMs": {
+            "p50": 0.09999990463256836,
+            "p95": 0.19999992847442627
+          }
+        },
+        {
+          "enabled": true,
+          "calls": 15,
+          "triangles": 12312,
+          "geometries": 14,
+          "textures": 5,
+          "cpuSubmitMs": {
+            "p50": 0.7999999523162842,
+            "p95": 1
+          }
+        },
+        {
+          "enabled": false,
+          "calls": 15,
+          "triangles": 12312,
+          "geometries": 8,
+          "textures": 5,
+          "cpuSubmitMs": {
+            "p50": 0,
+            "p95": 0.10000002384185791
+          }
+        },
+        {
+          "enabled": true,
+          "calls": 15,
+          "triangles": 12312,
+          "geometries": 14,
+          "textures": 5,
+          "cpuSubmitMs": {
+            "p50": 0.7999999523162842,
+            "p95": 1
+          }
+        },
+        {
+          "enabled": false,
+          "calls": 15,
+          "triangles": 12312,
+          "geometries": 8,
+          "textures": 5,
+          "cpuSubmitMs": {
+            "p50": 0,
+            "p95": 0.10000002384185791
+          }
+        }
+      ],
+      "errors": []
+    },
+    "headlessEntrance": [
+      {
+        "name": "entrance-projects-1440",
+        "route": "/projects",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "errors": []
+      },
+      {
+        "name": "entrance-projects-390",
+        "route": "/projects",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-1200x900",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-1024x768",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-2560x1440",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-820x1180",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/#books-1200x900",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      }
+    ],
+    "preview": "http://localhost:3334/?debug=1&quality=balanced",
+    "qualityPolicy": "unchanged",
+    "fieldNotes": "No award: automatic ambient motion fails quality-bar test 2.",
+    "ogFreshness": "Existing stale advisory; no recapture."
   }
 }

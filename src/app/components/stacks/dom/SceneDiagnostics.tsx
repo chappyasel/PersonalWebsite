@@ -1,5 +1,6 @@
 "use client";
 
+import { RouteTransitionPrototypeControl } from "../../route-transition-prototype/Gate";
 import { FIELD_NOTES, type FieldNoteId } from "../fieldNotes/catalog";
 import { resetFieldNotePlacements } from "../fieldNotes/placement";
 import {
@@ -89,7 +90,6 @@ import { createPortal } from "react-dom";
 import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
 
 import { KeycapSequence } from "~/components/ui/keycap";
-import { RouteTransitionPrototypeControl } from "../../route-transition-prototype/Gate";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
@@ -1571,7 +1571,8 @@ export default function SceneDiagnostics({
     photographTreatment.warmthMultiplier !==
       DEFAULT_PHOTOGRAPH_TREATMENT.warmthMultiplier ||
     photographTreatment.contrast !== DEFAULT_PHOTOGRAPH_TREATMENT.contrast ||
-    photographTreatment.coverShadowLift !== DEFAULT_PHOTOGRAPH_TREATMENT.coverShadowLift;
+    photographTreatment.coverShadowLift !==
+      DEFAULT_PHOTOGRAPH_TREATMENT.coverShadowLift;
 
   useEffect(() => {
     if (!automaticReport) return;
