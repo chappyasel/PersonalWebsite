@@ -69,8 +69,10 @@ scrolling, then the drawing dissolves in place over the ready camera. A match
 within 3 CSS pixels is recorded as exact; other finite projection
 residuals use an ordinary fade. The camera stays still through both paths. A
 viewport alignment miss does not discard a working renderer.
-The 2D traverse spaces projected artwork bounds by 48 to 96 CSS pixels,
-preserving each selected shelf's camera frame. Navigation and desktop titles
+The opening centers the visible wood at 55% of viewport height. Desktop 2D
+travel uses the scene's unit intervals at the mean resting camera scale.
+Narrow layouts compact the gap between artwork bounds to 48 to 80 CSS pixels.
+Each selected shelf retains its ordinary camera frame. Navigation and desktop titles
 use the same theme colors before and after the handoff.
 _Avoid_: Centered loader, loading box
 

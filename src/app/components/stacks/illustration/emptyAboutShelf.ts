@@ -104,5 +104,13 @@ export function emptyAboutShelf(
       foot: box(x, s.footWidth, z, s.footDepth, g + s.footHeight, g),
     };
   });
-  return { faces, supports };
+  const ys = faces.flatMap((face) =>
+    [face.top, face.front].flatMap((points) =>
+      points.split(" ").map((point) => Number(point.split(",")[1])),
+    ),
+  );
+  for (const support of supports)
+    for (const part of [support.upright, support.foot])
+      ys.push(part.y, part.y + part.height);
+  return { faces, supports, centerY: (Math.min(...ys) + Math.max(...ys)) / 2 };
 }

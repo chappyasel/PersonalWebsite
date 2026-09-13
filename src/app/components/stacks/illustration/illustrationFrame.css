@@ -3,6 +3,7 @@
   --frame-y: var(--frame-light-desktop-y);
   --frame-width: var(--frame-light-desktop-width);
   --frame-height: var(--frame-light-desktop-height);
+  --frame-wood-center-y: var(--frame-light-desktop-wood-center-y);
   inset: auto;
   left: var(--frame-x, 0px);
   top: var(--frame-y, 0px);
@@ -14,6 +15,7 @@ html.dark .room-illustration-stage[data-rest-frame] {
   --frame-y: var(--frame-dark-desktop-y);
   --frame-width: var(--frame-dark-desktop-width);
   --frame-height: var(--frame-dark-desktop-height);
+  --frame-wood-center-y: var(--frame-dark-desktop-wood-center-y);
 }
 @media (max-width: 1199.999px) and (max-aspect-ratio: 3/4) {
   .room-illustration-stage[data-rest-frame] {
@@ -21,12 +23,14 @@ html.dark .room-illustration-stage[data-rest-frame] {
     --frame-y: var(--frame-light-phone-y);
     --frame-width: var(--frame-light-phone-width);
     --frame-height: var(--frame-light-phone-height);
+    --frame-wood-center-y: var(--frame-light-phone-wood-center-y);
   }
   html.dark .room-illustration-stage[data-rest-frame] {
     --frame-x: var(--frame-dark-phone-x);
     --frame-y: var(--frame-dark-phone-y);
     --frame-width: var(--frame-dark-phone-width);
     --frame-height: var(--frame-dark-phone-height);
+    --frame-wood-center-y: var(--frame-dark-phone-wood-center-y);
   }
 }
 .room-illustration-stage[data-rest-frame] .room-illustration-picture > img,

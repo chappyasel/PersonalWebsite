@@ -52,5 +52,16 @@ content and navigation arrival. All five automatic cold-load 3D entries also
 passed. The production build and boundary checks
 passed before the CSS positioning follow-up.
 
+The opening now centers the visible wood at 55% of viewport height. Generated
+metadata measures alpha bounds from the existing empty shelf SVGs. About uses
+its projected plank and support bounds. The image and registration bytes stay
+unchanged. Desktop traversal uses the scene's 4.4-unit intervals at the mean
+resting camera scale; narrow layouts retain compact gaps. The 2D name has no
+text shadow.
+
+The placement follow-up passed 61 focused tests and all 24 artifact variants
+with 528 owner comparisons. Headless checks measure the wood center in the
+actual inline SVG and confirm the final camera frame remains unchanged.
+
 No visible browser was opened. This automatic intro does not meet Field
 Notes quality-bar test 2, so it adds no discovery.

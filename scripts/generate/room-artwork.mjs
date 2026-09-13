@@ -135,6 +135,27 @@ export async function generate({ root = ROOT, check = false } = {}) {
     shelves[`${entry.index}/${entry.label}`] =
       `data:image/svg+xml;base64,${Buffer.from(shelfSvg).toString("base64")}`;
     const registrationSrc = `/images/stacks/boot/${stem}.registration.json`;
+    // Measure only the approved wood, excluding the SVG's empty prop area.
+    const { data: wood, info } = await sharp(Buffer.from(shelfSvg))
+      .resize(entry.viewBox[2], entry.viewBox[3])
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let firstWoodRow = info.height;
+    let lastWoodRow = -1;
+    for (let y = 0; y < info.height; y++) {
+      for (let x = 0; x < info.width; x++) {
+        if (
+          (wood[(y * info.width + x) * info.channels + info.channels - 1] ??
+            0) >= 128
+        ) {
+          firstWoodRow = Math.min(firstWoodRow, y);
+          lastWoodRow = y;
+          break;
+        }
+      }
+    }
+    if (lastWoodRow < 0) throw new Error(`Empty shelf artwork: ${stem}`);
     const metadata = {
       unit: entry.unit,
       unitIndex: entry.index,
@@ -144,6 +165,7 @@ export async function generate({ root = ROOT, check = false } = {}) {
       shelfSrc,
       viewBox: entry.viewBox,
       drawingWidth: entry.drawingWidth,
+      shelfCenterY: (firstWoodRow + lastWoodRow + 1) / (2 * info.height),
       sourceRevision: manifest.sourceRevision,
       sourceFingerprint: manifest.sourceFingerprint,
       raster: capture.raster,

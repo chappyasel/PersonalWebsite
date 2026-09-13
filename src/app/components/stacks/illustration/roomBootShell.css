@@ -79,7 +79,6 @@ html:has(
     --room-name-left: max(1.75rem, env(safe-area-inset-left, 0px));
     --room-name-top: max(1.25rem, env(safe-area-inset-top, 0px));
     font-size: 1.125rem;
-    text-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
   }
 }
 html.dark .room-first-paint-artwork {

@@ -138,6 +138,17 @@ async function installTrace(page) {
         const shelf = stage?.querySelector(
           '.room-entrance-artwork g[data-part="shelf"], .stacks-boot-supports',
         );
+        const woodBoxes = [
+          ...(stage?.querySelectorAll(
+            '.room-entrance-artwork g[data-part="shelf"], .stacks-boot-supports, .stacks-boot-planks',
+          ) ?? []),
+        ]
+          .map(box)
+          .filter(Boolean);
+        const woodTop = Math.min(...woodBoxes.map((rect) => rect[1]));
+        const woodBottom = Math.max(
+          ...woodBoxes.map((rect) => rect[1] + rect[3]),
+        );
         window.__entryTrace.push({
           at: performance.now(),
           phase: shell.dataset.roomEntrance,
@@ -158,6 +169,8 @@ async function installTrace(page) {
           loadingBox: box(shell.querySelector(".room-illustration-actions")),
           navBox: box(nav),
           nameTransform,
+          nameShadow: name ? getComputedStyle(name).textShadow : null,
+          woodCenterY: woodBoxes.length ? (woodTop + woodBottom) / 2 : null,
           nameIdentity:
             nameTransform !== null &&
             new DOMMatrixReadOnly(nameTransform).isIdentity,
@@ -366,11 +379,22 @@ function assertSequence(trace, unit, width, height) {
     horizontalCenterError <= 1,
     `Initial shelf is not centered horizontally: ${horizontalCenterError}px`,
   );
-  assert.ok(
-    Math.abs(empty.stageBox[1] + empty.stageBox[3] / 2 - height * 0.45) < 0.75,
-    "Initial shelf has the wrong center height",
-  );
+
   const items = trace.filter((frame) => frame.phase === "items");
+  assert.ok(
+    items.some((frame) => frame.woodCenterY !== null),
+    "No visible wood measurement",
+  );
+  for (const frame of items)
+    if (frame.woodCenterY !== null)
+      assert.ok(
+        Math.abs(frame.woodCenterY - height * 0.55) <= 2,
+        `Opening wood center differs from 55%: ${frame.woodCenterY}px`,
+      );
+  assert.ok(
+    trace.every((frame) => frame.nameShadow === "none"),
+    "2D name has a shadow",
+  );
   assert.ok(
     items.some((frame) => frame.animatedItemCount >= 2),
     "No actual WAAPI item animation",

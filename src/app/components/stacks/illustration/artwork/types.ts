@@ -18,6 +18,8 @@ export type RoomArtworkMetadata = Readonly<{
   viewBox: readonly number[];
   /** Shelf bounds width in captured raster pixels, for consistent CSS shelf scale. */
   drawingWidth: number;
+  /** Visible wood center as a fraction of viewBox height, measured from the shelf SVG. */
+  shelfCenterY: number;
   sourceRevision: string;
   sourceFingerprint: string;
   raster: readonly number[];

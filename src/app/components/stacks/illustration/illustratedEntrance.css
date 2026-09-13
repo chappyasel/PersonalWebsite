@@ -97,7 +97,10 @@
   .room-illustration-stage {
   transform: translate(
       calc(50vw - var(--frame-x) - var(--frame-width) / 2),
-      calc(45vh - var(--frame-y) - var(--frame-height) / 2)
+      calc(
+        55vh - var(--frame-y) - var(--frame-height) / 2 +
+          (var(--frame-height) / 2 - var(--frame-wood-center-y)) * 0.78
+      )
     )
     scale(0.78);
   transform-origin: center;

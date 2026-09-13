@@ -2,6 +2,7 @@
 
 import {
   ABOUT_BOOT_STAGE_GEOMETRY,
+  ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY,
   aboutBootStageForViewport,
 } from "../boot/aboutBootStage";
 import { SCENE_TO_BOOT_SVG } from "../dom/bootVignette";
@@ -48,7 +49,7 @@ export function IllustrationFrame({
   );
   const variables: Record<string, string> = {};
   for (const variant of Object.keys(variants))
-    for (const key of ["x", "y", "width", "height"])
+    for (const key of ["x", "y", "width", "height", "wood-center-y"])
       variables[`--frame-${variant}-${key}`] =
         `var(--room-frame-${unitIndex}-${variant}-${key})`;
   useLayoutEffect(() => {
@@ -62,6 +63,19 @@ export function IllustrationFrame({
         ABOUT_BOOT_STAGE_GEOMETRY,
         unitIndex,
       );
+      const about =
+        unitIndex === 0
+          ? emptyAboutShelf(
+              { ...stage.camera!, unitYaw: unitPose(0).rotation[1] },
+              SHELF_PLANKS,
+              SHELF_GEOMETRY,
+              SCENE_TO_BOOT_SVG,
+            )
+          : null;
+      const viewBox = ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY.viewBox;
+      const aboutCenter = about
+        ? (about.centerY / SCENE_TO_BOOT_SVG + viewBox.originY) / viewBox.height
+        : 0.5;
       for (const [variant, source] of Object.entries(variants)) {
         const box = artworkFrame(source, stage, innerWidth, innerHeight);
         for (const key of ["x", "y", "width", "height"] as const)
@@ -69,6 +83,10 @@ export function IllustrationFrame({
             `--room-frame-${unitIndex}-${variant}-${key}`,
             `${box[key]}px`,
           );
+        document.documentElement.style.setProperty(
+          `--room-frame-${unitIndex}-${variant}-wood-center-y`,
+          `${box.height * (source?.shelfCenterY ?? aboutCenter)}px`,
+        );
       }
       const pose = stage.camera!;
       setCamera({
@@ -91,7 +109,12 @@ export function IllustrationFrame({
     // Variant metadata is immutable; viewport changes resolve through update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unitIndex]);
-  const script = `try{var s=(${aboutBootStageForViewport.toString()})(innerWidth,innerHeight,${RAIL_RIGHT_PX_FALLBACK},${JSON.stringify(ABOUT_BOOT_STAGE_GEOMETRY)},${unitIndex});var v=${JSON.stringify(variants)};for(var k in v){var b=(${artworkFrame.toString()})(v[k],s,innerWidth,innerHeight);for(var p of ["x","y","width","height"])document.documentElement.style.setProperty("--room-frame-${unitIndex}-"+k+"-"+p,b[p]+"px");}}catch(e){}`;
+  const aboutScript =
+    unitIndex === 0
+      ? `(${emptyAboutShelf.toString()})({...s.camera,unitYaw:${unitPose(0).rotation[1]}},${JSON.stringify(SHELF_PLANKS)},${JSON.stringify(SHELF_GEOMETRY)},${SCENE_TO_BOOT_SVG})`
+      : "null";
+  const viewBox = ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY.viewBox;
+  const script = `try{var s=(${aboutBootStageForViewport.toString()})(innerWidth,innerHeight,${RAIL_RIGHT_PX_FALLBACK},${JSON.stringify(ABOUT_BOOT_STAGE_GEOMETRY)},${unitIndex});var a=${aboutScript};var c=a?(a.centerY/${SCENE_TO_BOOT_SVG}+${viewBox.originY})/${viewBox.height}:0.5;var v=${JSON.stringify(variants)};for(var k in v){var b=(${artworkFrame.toString()})(v[k],s,innerWidth,innerHeight);for(var p of ["x","y","width","height"])document.documentElement.style.setProperty("--room-frame-${unitIndex}-"+k+"-"+p,b[p]+"px");document.documentElement.style.setProperty("--room-frame-${unitIndex}-"+k+"-wood-center-y",(b.height*(v[k]?.shelfCenterY??c))+"px");}}catch(e){}`;
   return (
     <div
       className="room-illustration-stage"
@@ -104,7 +127,7 @@ export function IllustrationFrame({
           __html:
             script +
             (emptyAbout
-              ? `try{var e=document.currentScript.parentElement;var a=(${emptyAboutShelf.toString()})({...s.camera,unitYaw:${unitPose(0).rotation[1]}},${JSON.stringify(SHELF_PLANKS)},${JSON.stringify(SHELF_GEOMETRY)},${SCENE_TO_BOOT_SVG});for(var f of a.faces){e.querySelector('[data-boot-plank-top][data-shelf-id="'+f.id+'"]').setAttribute("points",f.top);e.querySelector('[data-boot-plank][data-shelf-id="'+f.id+'"]').setAttribute("points",f.front);}for(var b of a.supports)for(var k of ["upright","foot"]){var n=e.querySelector('[data-boot-support-'+k+'="'+b.side+'"]');for(var p in b[k])n.setAttribute(p,b[k][p]);}}catch(e){}`
+              ? `try{var e=document.currentScript.parentElement;for(var f of a.faces){e.querySelector('[data-boot-plank-top][data-shelf-id="'+f.id+'"]').setAttribute("points",f.top);e.querySelector('[data-boot-plank][data-shelf-id="'+f.id+'"]').setAttribute("points",f.front);}for(var b of a.supports)for(var k of ["upright","foot"]){var n=e.querySelector('[data-boot-support-'+k+'="'+b.side+'"]');for(var p in b[k])n.setAttribute(p,b[k][p]);}}catch(e){}`
               : ""),
         }}
       />
