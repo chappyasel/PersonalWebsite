@@ -21,9 +21,6 @@
   --room-entry-nav-opacity: 0;
   --room-entry-nav-offset: 6px;
 }
-.room-first-paint .room-first-paint-name {
-  visibility: hidden;
-}
 /* Keep the centered opening clear while the compact neighbor slots wait at
    their resting positions. They appear with the reader after placement. */
 .room-illustration-stop {
@@ -36,17 +33,6 @@
   )
   .room-illustration-stop:not([data-illustration-selected]) {
   opacity: 0;
-}
-.room-first-paint .room-illustration-actions,
-.stacks-world-shell:is(
-    [data-room-entrance="shelf"],
-    [data-room-entrance="items"]
-  )
-  .room-illustration-actions {
-  left: 50%;
-}
-.stacks-world-shell[data-room-entrance="placing"] .room-illustration-actions {
-  transition: left 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .stacks-world-shell[data-room-entrance]:not([data-room-entrance="complete"])
   [data-stacks-details-toggle-shell] {

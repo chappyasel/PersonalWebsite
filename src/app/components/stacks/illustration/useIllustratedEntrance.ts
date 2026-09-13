@@ -20,6 +20,7 @@ export const ILLUSTRATED_ENTRANCE = {
   maxStaggerMs: 1500,
   placementMs: 620,
   navigationDelayMs: 180,
+  navigationAtMs: 2800,
   navigationMs: 180,
 } as const;
 
@@ -44,6 +45,7 @@ export function useIllustratedEntrance(
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const controller = new AbortController();
     const { signal } = controller;
+    const entranceStartedAt = performance.now();
     const animations = new Set<Animation>();
     let disposeArtwork: (() => void) | undefined;
     let started = false;
@@ -171,7 +173,14 @@ export function useIllustratedEntrance(
       await placement.finished;
       signal.throwIfAborted();
       setPhase("content");
-      await wait(stage, ILLUSTRATED_ENTRANCE.navigationDelayMs);
+      await wait(
+        stage,
+        Math.max(
+          ILLUSTRATED_ENTRANCE.navigationDelayMs,
+          ILLUSTRATED_ENTRANCE.navigationAtMs -
+            (performance.now() - entranceStartedAt),
+        ),
+      );
       setPhase("navigation");
       await wait(stage, ILLUSTRATED_ENTRANCE.navigationMs);
       finish();

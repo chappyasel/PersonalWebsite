@@ -5,22 +5,57 @@
   display: none;
 }
 html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
+  .room-first-paint,
+html[data-room-view="illustrated"]:not(:has([data-illustration-positioned]))
   .room-first-paint {
   display: block;
   visibility: visible;
 }
-.room-first-paint-name {
-  position: absolute;
-  z-index: 1;
-  left: max(1.25rem, env(safe-area-inset-left, 0px));
-  top: max(0.75rem, env(safe-area-inset-top, 0px));
-  display: flex;
-  min-height: 2.5rem;
-  align-items: center;
-  font-family: var(--font-serif), Georgia, serif;
+.room-first-paint-unit {
+  display: none;
+}
+.room-entry-wordmark {
+  --room-name-left: max(1.25rem, env(safe-area-inset-left, 0px));
+  --room-name-top: calc(max(0.75rem, env(safe-area-inset-top, 0px)) + 0.5rem);
+  position: fixed;
+  z-index: 51;
+  left: var(--room-name-left);
+  top: var(--room-name-top);
+  visibility: hidden;
+  pointer-events: none;
+  font-family: var(--font-selected), Georgia, serif;
   font-size: 1rem;
+  line-height: 1.5;
   letter-spacing: -0.025em;
   color: hsl(var(--foreground));
+  white-space: nowrap;
+  transform-origin: left top;
+  animation: room-name-arrive 1500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html:is(
+    [data-room-view="illustrated"],
+    [data-room-view="dissolve"],
+    [data-room-view="travel"]
+  )
+  .room-entry-wordmark {
+  visibility: visible;
+}
+/* One name survives first paint, React hydration, and the 3D dissolve. */
+.room-illustrated-chrome .stacks-wordmark {
+  visibility: hidden;
+}
+@keyframes room-name-arrive {
+  0%,
+  20% {
+    transform: translate(
+        calc(50vw - var(--room-name-left) - 90%),
+        calc(28vh - var(--room-name-top) - 90%)
+      )
+      scale(1.8);
+  }
+  100% {
+    transform: none;
+  }
 }
 .room-first-paint-artwork {
   --room-first-paint-image: var(--room-first-paint-light-desktop-image);
@@ -38,11 +73,11 @@ html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
   background-repeat: no-repeat;
 }
 @media (min-width: 1200px) {
-  .room-first-paint-name {
-    left: max(1.75rem, env(safe-area-inset-left, 0px));
-    top: max(1.25rem, env(safe-area-inset-top, 0px));
-    min-height: 0;
+  .room-entry-wordmark {
+    --room-name-left: max(1.75rem, env(safe-area-inset-left, 0px));
+    --room-name-top: max(1.25rem, env(safe-area-inset-top, 0px));
     font-size: 1.125rem;
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
   }
 }
 html.dark .room-first-paint-artwork {
@@ -86,6 +121,9 @@ html[data-og-capture] .room-first-paint {
   display: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
+  .room-entry-wordmark {
+    animation: none;
+  }
   .room-illustration::before,
   .room-illustration::after,
   .room-illustration-traverse,

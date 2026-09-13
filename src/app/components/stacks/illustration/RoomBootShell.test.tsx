@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 import { IllustrationStage } from "./IllustrationStage";
 import RoomBootShell from "./RoomBootShell";
 import { getRoomArtwork } from "./artwork/getRoomArtwork";
+import shelves from "./artwork/shelves.generated.json";
 
 vi.mock("../dom/BootScreen", () => ({
   default: () => <div data-legacy-boot="" />,
@@ -18,12 +19,29 @@ function markup(element: React.ReactElement) {
   return root;
 }
 
+it("inlines all 24 empty variants without prop textures or a network request", () => {
+  for (const [key, uri] of Object.entries(shelves)) {
+    const [index, variant] = key.split("/");
+    const [theme, viewport] = variant!.split("-");
+    const asset = getRoomArtwork(
+      Number(index),
+      theme as "light" | "dark",
+      viewport as "desktop" | "phone",
+    )!;
+    const svg = Buffer.from(uri.split(",")[1]!, "base64").toString();
+    expect(svg).toBe(readFileSync(`public${asset.shelfSrc}`, "utf8"));
+    expect(svg).not.toMatch(/<image|<script|https?:\/\/(?!www.w3.org)/);
+  }
+});
+
 it.each([1, 2, 3, 4, 5, 6])(
-  "gives shelf %i one background with the same variant sizes as the hydrated artwork",
+  "embeds shelf %i alongside all the other angles with matching hydrated dimensions",
   (unitIndex) => {
     const shell = markup(<RoomBootShell unitIndex={unitIndex} illustrated />);
-    const stage = shell.querySelector<HTMLElement>(".room-illustration-stage")!;
-    expect(shell.querySelectorAll('[role="img"]')).toHaveLength(1);
+    const stage = shell.querySelector<HTMLElement>(
+      `[data-first-paint-unit="${unitIndex}"] .room-illustration-stage`,
+    )!;
+    expect(shell.querySelectorAll("[data-first-paint-unit]")).toHaveLength(7);
     expect(shell.querySelector("img, picture, link[rel=preload]")).toBeNull();
     expect(shell.querySelector("[data-room-artwork]")).toBeNull();
     for (const theme of ["light", "dark"] as const) {
@@ -31,7 +49,7 @@ it.each([1, 2, 3, 4, 5, 6])(
         const asset = getRoomArtwork(unitIndex, theme, viewport)!;
         const prefix = `--room-first-paint-${theme}-${viewport}`;
         expect(stage.style.getPropertyValue(`${prefix}-image`)).toBe(
-          `url("${asset.shelfSrc}")`,
+          `var(--room-shelf-${unitIndex}-${theme}-${viewport})`,
         );
         const hydrated = markup(
           <IllustrationStage
@@ -61,7 +79,7 @@ it.each([1, 2, 3, 4, 5, 6])(
 it("retains About's class-aware SVG and the legacy opt-out", () => {
   const about = markup(<RoomBootShell unitIndex={0} illustrated />);
   expect(about.querySelectorAll("[data-about-artwork]")).toHaveLength(1);
-  expect(about.querySelector(".room-first-paint-artwork")).toBeNull();
+  expect(about.querySelectorAll(".room-first-paint-artwork")).toHaveLength(6);
   const legacy = markup(<RoomBootShell unitIndex={1.52} illustrated={false} />);
   expect(legacy.querySelector("[data-legacy-boot]")).not.toBeNull();
   expect(legacy.querySelector(".room-first-paint")).toBeNull();

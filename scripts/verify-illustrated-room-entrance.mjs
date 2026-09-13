@@ -102,6 +102,15 @@ async function installTrace(page) {
         const emptySource = picture
           ? getComputedStyle(picture).backgroundImage
           : null;
+        const embedded = emptySource?.match(
+          /data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/,
+        )?.[1];
+        const emptySvg = embedded ? atob(embedded) : "";
+        const inlineShelfLabel =
+          emptySvg.includes('data-part="shelf"') &&
+          !/<image|data-part="(?!shelf")/.test(emptySvg)
+            ? emptySvg.match(/aria-label="([^"]+)"/)?.[1]
+            : null;
         const shelf = stage?.querySelector(
           '.room-entrance-artwork g[data-part="shelf"], .stacks-boot-supports',
         );
@@ -148,10 +157,12 @@ async function installTrace(page) {
           staticImageVisible:
             image instanceof HTMLImageElement ? opacity(image) > 0.01 : null,
           emptySource,
+          inlineShelfLabel,
           shelfVisible: shelf
             ? opacity(shelf) > 0.01
             : Boolean(
-                emptySource?.includes(".shelf.svg") && opacity(picture) > 0.01,
+                (inlineShelfLabel || emptySource?.includes(".shelf.svg")) &&
+                  opacity(picture) > 0.01,
               ),
           itemIds: items.map(
             (item, index) =>
@@ -280,8 +291,10 @@ function assertSequence(trace, unit, width, height) {
   assert.ok(empty, "No visible empty shelf frame");
   if (unit !== 0)
     assert.ok(
-      empty.emptySource?.includes(`/${units[unit].asset}/`) &&
-        empty.emptySource.includes(".shelf.svg"),
+      (empty.emptySource?.includes(`/${units[unit].asset}/`) &&
+        empty.emptySource.includes(".shelf.svg")) ||
+        empty.inlineShelfLabel?.toLowerCase() ===
+          `${units[unit].asset} shelf illustration`,
       "Wrong empty shelf artifact",
     );
   assert.ok(empty.stageBox && empty.restBox, "No initial stage box");

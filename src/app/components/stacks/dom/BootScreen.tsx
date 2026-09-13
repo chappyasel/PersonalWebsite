@@ -1348,12 +1348,15 @@ export function BootScreenArtwork({
   motesRef,
   includeStageScript = false,
   camera = ABOUT_BOOT_CAMERA,
+  shelfOnly = false,
 }: BootScreenProps & {
   sceneRef?: RefObject<SVGSVGElement | null>;
   motesRef?: RefObject<HTMLDivElement | null>;
   includeStageScript?: boolean;
   /** The illustrated room supplies its resting viewport camera; legacy boot keeps its authored projection. */
   camera?: AboutBootCamera;
+  /** Empty first paint omits landmarks and cover requests. */
+  shelfOnly?: boolean;
 }) {
   const cadence = ABOUT_BOOT_CADENCE;
   const keyframes = bootCssKeyframes(
@@ -1420,6 +1423,7 @@ export function BootScreenArtwork({
                         )}
                       >
                         <rect
+                          suppressHydrationWarning={shelfOnly}
                           data-boot-support-upright={side}
                           x={bootFixed(
                             projection.upright.x * SCENE_TO_BOOT_SVG,
@@ -1438,6 +1442,7 @@ export function BootScreenArtwork({
                           rx="2"
                         />
                         <rect
+                          suppressHydrationWarning={shelfOnly}
                           data-boot-support-foot={side}
                           x={bootFixed(projection.foot.x * SCENE_TO_BOOT_SVG)}
                           y={bootFixed(
@@ -1472,11 +1477,13 @@ export function BootScreenArtwork({
                         )}
                       >
                         <polygon
+                          suppressHydrationWarning={shelfOnly}
                           data-boot-plank-top=""
                           data-shelf-id={plank.id}
                           points={bootPoints(projection.top)}
                         />
                         <polygon
+                          suppressHydrationWarning={shelfOnly}
                           data-boot-plank=""
                           data-shelf-id={plank.id}
                           data-depth={plank.depth}
@@ -1487,51 +1494,52 @@ export function BootScreenArtwork({
                   })}
                 </g>
                 <g className="stacks-boot-landmarks">
-                  {ABOUT_BOOT_PAINT_COMPOSITION.map(
-                    ({ landmark, cadenceSlot }) => (
-                      <g
-                        className="stacks-boot-item"
-                        data-landmark-id={landmark.id}
-                        data-shelf-id={landmark.shelf}
-                        data-cadence-slot={cadenceSlot}
-                        key={landmark.id}
-                        style={
-                          {
-                            ...("colorProfile" in landmark
-                              ? {
-                                  "--stacks-boot-object-light":
-                                    landmark.colorProfile.light,
-                                  "--stacks-boot-object-dark":
-                                    landmark.colorProfile.dark,
-                                }
-                              : {}),
-                            ...bootPlacementStyle(
-                              [
-                                landmark.x,
-                                SHELF_SURFACE[landmark.shelf],
-                                landmark.z,
-                              ],
-                              camera,
-                            ),
-                          } as BootStyle
-                        }
-                      >
+                  {!shelfOnly &&
+                    ABOUT_BOOT_PAINT_COMPOSITION.map(
+                      ({ landmark, cadenceSlot }) => (
                         <g
-                          className="stacks-boot-item-motion"
-                          style={{
-                            animationName: `stacks-boot-reveal-${cadenceSlot}`,
-                          }}
+                          className="stacks-boot-item"
+                          data-landmark-id={landmark.id}
+                          data-shelf-id={landmark.shelf}
+                          data-cadence-slot={cadenceSlot}
+                          key={landmark.id}
+                          style={
+                            {
+                              ...("colorProfile" in landmark
+                                ? {
+                                    "--stacks-boot-object-light":
+                                      landmark.colorProfile.light,
+                                    "--stacks-boot-object-dark":
+                                      landmark.colorProfile.dark,
+                                  }
+                                : {}),
+                              ...bootPlacementStyle(
+                                [
+                                  landmark.x,
+                                  SHELF_SURFACE[landmark.shelf],
+                                  landmark.z,
+                                ],
+                                camera,
+                              ),
+                            } as BootStyle
+                          }
                         >
-                          <LandmarkGlyph
-                            landmark={landmark}
-                            readingBooks={resolvedReadingBooks}
-                            readingBookColors={resolvedReadingBookColors}
-                            camera={camera}
-                          />
+                          <g
+                            className="stacks-boot-item-motion"
+                            style={{
+                              animationName: `stacks-boot-reveal-${cadenceSlot}`,
+                            }}
+                          >
+                            <LandmarkGlyph
+                              landmark={landmark}
+                              readingBooks={resolvedReadingBooks}
+                              readingBookColors={resolvedReadingBookColors}
+                              camera={camera}
+                            />
+                          </g>
                         </g>
-                      </g>
-                    ),
-                  )}
+                      ),
+                    )}
                 </g>
                 <g
                   className="stacks-boot-item stacks-boot-floor-prop"

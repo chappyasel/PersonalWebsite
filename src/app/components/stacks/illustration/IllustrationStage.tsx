@@ -23,6 +23,7 @@ export type IllustrationStageProps = {
   readingBooks?: BootReadingBook[];
   readingBookColors?: Record<string, ReadingBookEdgeColor>;
   unavailable?: boolean;
+  shelfOnly?: boolean;
 };
 
 /** Shared first-paint/hydrated geometry. Registration markers belong to its client owner. */
@@ -33,6 +34,7 @@ export function IllustrationStage({
   readingBooks,
   readingBookColors,
   unavailable = false,
+  shelfOnly = false,
 }: IllustrationStageProps) {
   const tone = theme === "dark" ? "dark" : "light";
   const desktop = getRoomArtwork(unitIndex, tone, "desktop");
@@ -42,6 +44,7 @@ export function IllustrationStage({
   return (
     <IllustrationFrame
       unitIndex={unitIndex}
+      emptyAbout={shelfOnly && unitIndex === 0}
       style={
         {
           "--room-artwork-desktop-width": `${displayWidth(desktop)}px`,
@@ -53,10 +56,10 @@ export function IllustrationStage({
             ? phone.viewBox[2]! / phone.viewBox[3]!
             : 300 / 230,
           "--room-empty-desktop-image": desktop
-            ? `url("${desktop.shelfSrc}")`
+            ? `var(--room-shelf-${unitIndex}-${tone}-desktop, url("${desktop.shelfSrc}"))`
             : "none",
           "--room-empty-phone-image": phone
-            ? `url("${phone.shelfSrc}")`
+            ? `var(--room-shelf-${unitIndex}-${tone}-phone, url("${phone.shelfSrc}"))`
             : "none",
         } as CSSProperties
       }
@@ -68,6 +71,7 @@ export function IllustrationStage({
               readingBooks={readingBooks}
               readingBookColors={readingBookColors}
               camera={camera}
+              shelfOnly={shelfOnly}
             />
           </div>
         ) : desktop && !unavailable ? (

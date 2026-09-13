@@ -49,12 +49,40 @@ type HomepageBooks = Awaited<ReturnType<typeof getDefaultBooks>>;
 type HomepageReadingBooks = ReturnType<typeof selectHomepageReadingBooks>;
 type HomepageReadingColors = Awaited<ReturnType<typeof readingBookEdgeColors>>;
 
-export default async function RoomHomePage({
+export default function RoomHomePage({
   initialUnit = 0,
   illustrated = true,
 }: {
   initialUnit?: number;
   illustrated?: boolean;
+}) {
+  if (!illustrated)
+    return <ResolvedRoomPage initialUnit={initialUnit} illustrated={false} />;
+  // Empty wood has no data dependency. Stream it before book, cover and
+  // activity queries; the selected objects arrive with the resident content.
+  return (
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            'document.documentElement.setAttribute("data-room-illustration","enabled");' +
+            worldBootPrepaintScript(),
+        }}
+      />
+      <RoomBootShell unitIndex={initialUnit} illustrated />
+      <React.Suspense fallback={null}>
+        <ResolvedRoomPage initialUnit={initialUnit} illustrated />
+      </React.Suspense>
+    </>
+  );
+}
+
+async function ResolvedRoomPage({
+  initialUnit,
+  illustrated,
+}: {
+  initialUnit: number;
+  illustrated: boolean;
 }) {
   // Abandoned books are hidden by default site-wide: no homepage surface
   // (boot trio, shelf, cover wall, placard) should ever show one.
@@ -68,16 +96,17 @@ export default async function RoomHomePage({
   const bootReadingBooks = toBootReadingBooks(readingBooks);
   return (
     <>
-      {/* Book identity is part of the vignette, not late decoration. Resolve
-          the cached book selection before this shell so its first SVG already
-          contains the real jackets; the heavier activity data still streams. */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html:
-            `document.documentElement.setAttribute("data-room-illustration", ${JSON.stringify(illustrated ? "enabled" : "disabled")});` +
-            worldBootPrepaintScript(),
-        }}
-      />
+      {/* The legacy vignette starts with its real jackets. The illustrated
+          shell has already streamed its empty wood while this data resolves. */}
+      {!illustrated && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              `document.documentElement.setAttribute("data-room-illustration", ${JSON.stringify(illustrated ? "enabled" : "disabled")});` +
+              worldBootPrepaintScript(),
+          }}
+        />
+      )}
       {process.env.NODE_ENV !== "production" ? (
         <BooksBootPrototype
           featuredBooks={allBooks
@@ -109,12 +138,14 @@ export default async function RoomHomePage({
             )}
         />
       ) : null}
-      <RoomBootShell
-        unitIndex={initialUnit}
-        illustrated={illustrated}
-        readingBooks={bootReadingBooks}
-        readingBookColors={readingBookColors}
-      />
+      {!illustrated && (
+        <RoomBootShell
+          unitIndex={initialUnit}
+          illustrated={illustrated}
+          readingBooks={bootReadingBooks}
+          readingBookColors={readingBookColors}
+        />
+      )}
       <React.Suspense fallback={null}>
         <HomePageContent
           illustrated={illustrated}

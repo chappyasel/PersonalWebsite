@@ -10,7 +10,6 @@ export function IllustrationStatus({ loading }: { loading: boolean }) {
       aria-atomic="true"
     >
       <span>{loading ? "Loading 3D…" : "2D view"}</span>
-      {loading && <span>You can explore while it loads.</span>}
     </div>
   );
 }

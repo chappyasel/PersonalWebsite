@@ -95,6 +95,8 @@ export async function generate({ root = ROOT, check = false } = {}) {
   const expected = new Map();
   /** @type {Record<string, unknown>} */
   const catalog = {};
+  /** @type {Record<string, string>} */
+  const shelves = {};
   const sizes = [];
   const decodedDetails = new Set();
   for (const entry of manifest.cases) {
@@ -130,6 +132,8 @@ export async function generate({ root = ROOT, check = false } = {}) {
     const src = `/images/stacks/boot/${stem}.svg`;
     const shelfSrc = `/images/stacks/boot/${stem}.shelf.svg`;
     const shelfSvg = extractShelfArtwork(svg);
+    shelves[`${entry.index}/${entry.label}`] =
+      `data:image/svg+xml;base64,${Buffer.from(shelfSvg).toString("base64")}`;
     const registrationSrc = `/images/stacks/boot/${stem}.registration.json`;
     const metadata = {
       unit: entry.unit,
@@ -185,6 +189,10 @@ export async function generate({ root = ROOT, check = false } = {}) {
   }
   if (Object.keys(catalog).length !== 24)
     throw new Error("Expected six shelves and four cases");
+  expected.set(
+    "src/app/components/stacks/illustration/artwork/shelves.generated.json",
+    serialized(shelves),
+  );
   expected.set(
     "src/app/components/stacks/illustration/artwork/catalog.json",
     serialized(catalog),

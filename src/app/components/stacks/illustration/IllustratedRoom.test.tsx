@@ -268,7 +268,7 @@ it("keeps the loading message readable through dissolve, then retires it with th
   await act(async () => Promise.resolve());
   const status = view.getByRole("status", { name: "Room view" });
   expect(status.textContent).toContain("Loading 3D…");
-  expect(status.textContent).toContain("You can explore while it loads.");
+  expect(status.textContent).toBe("Loading 3D…");
   expect(status.getAttribute("aria-atomic")).toBe("true");
   expect(
     view.container.querySelector("[data-illustration-loading]"),

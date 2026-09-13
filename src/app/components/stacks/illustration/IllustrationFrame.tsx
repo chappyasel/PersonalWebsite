@@ -4,7 +4,9 @@ import {
   ABOUT_BOOT_STAGE_GEOMETRY,
   aboutBootStageForViewport,
 } from "../boot/aboutBootStage";
+import { SCENE_TO_BOOT_SVG } from "../dom/bootVignette";
 import type { AboutBootCamera } from "../scene/aboutBootPerspective";
+import { SHELF_GEOMETRY, SHELF_PLANKS } from "../scene/shelfGeometry";
 import { RAIL_RIGHT_PX_FALLBACK, unitPose } from "../scene/worldLayout";
 import { railRightPxRef } from "../store";
 import {
@@ -16,6 +18,7 @@ import {
 
 import { getRoomArtwork } from "./artwork";
 import { artworkFrame } from "./artworkFrame";
+import { emptyAboutShelf } from "./emptyAboutShelf";
 import "./illustrationFrame.css";
 
 /** The same camera math positions the first paint, the hydrated SVG and 3D. */
@@ -23,10 +26,12 @@ export function IllustrationFrame({
   unitIndex,
   children,
   style,
+  emptyAbout = false,
 }: {
   unitIndex: number;
   children: ReactNode | ((camera?: AboutBootCamera) => ReactNode);
   style?: CSSProperties;
+  emptyAbout?: boolean;
 }) {
   const [camera, setCamera] = useState<AboutBootCamera>();
   const variants = Object.fromEntries(
@@ -93,8 +98,16 @@ export function IllustrationFrame({
       data-rest-frame
       style={{ ...style, ...variables } as CSSProperties}
     >
-      <script dangerouslySetInnerHTML={{ __html: script }} />
       {typeof children === "function" ? children(camera) : children}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            script +
+            (emptyAbout
+              ? `try{var e=document.currentScript.parentElement;var a=(${emptyAboutShelf.toString()})({...s.camera,unitYaw:${unitPose(0).rotation[1]}},${JSON.stringify(SHELF_PLANKS)},${JSON.stringify(SHELF_GEOMETRY)},${SCENE_TO_BOOT_SVG});for(var f of a.faces){e.querySelector('[data-boot-plank-top][data-shelf-id="'+f.id+'"]').setAttribute("points",f.top);e.querySelector('[data-boot-plank][data-shelf-id="'+f.id+'"]').setAttribute("points",f.front);}for(var b of a.supports)for(var k of ["upright","foot"]){var n=e.querySelector('[data-boot-support-'+k+'="'+b.side+'"]');for(var p in b[k])n.setAttribute(p,b[k][p]);}}catch(e){}`
+              : ""),
+        }}
+      />
     </div>
   );
 }

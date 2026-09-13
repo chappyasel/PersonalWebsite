@@ -53,7 +53,10 @@ import { PALETTES } from "../theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import BootScreen, { BootReadingBooksBridge } from "./BootScreen";
+import BootScreen, {
+  BootReadingBooksBridge,
+  BootScreenArtwork,
+} from "./BootScreen";
 import {
   BOOT_CADENCE_SETTLE_SECONDS,
   BOOT_DUST_COUNTS,
@@ -100,6 +103,16 @@ function renderBoot(bookCount = 0) {
     />,
   );
 }
+
+it("can paint About's empty wood without requesting any landmark or book cover", () => {
+  const markup = renderToStaticMarkup(
+    <BootScreenArtwork shelfOnly readingBooks={BOOKS.slice()} />,
+  );
+  expect(markup).toContain("data-boot-plank-faces");
+  expect(markup).toContain("data-boot-support-upright");
+  expect(markup).not.toContain("data-landmark-id");
+  expect(markup).not.toContain("<image");
+});
 
 function renderedPlanks(markup: string) {
   return [

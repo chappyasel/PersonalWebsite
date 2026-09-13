@@ -2,6 +2,7 @@
 
 import { toBootReadingBooks } from "../boot/homepageReadingBooks";
 import { GOLF_STOP_POSITION, type StacksData, UNITS } from "../data";
+import { useRoomNavigationReady } from "../input/RoomNavigation";
 import { useStacks } from "../store";
 import { useLayoutEffect, useRef, useState } from "react";
 
@@ -75,6 +76,7 @@ export default function IllustratedRoom({
   onUnavailable: () => void;
 }) {
   const unit = useStacks((state) => state.activeUnit);
+  const locationReady = useRoomNavigationReady();
   const golfStop = useStacks((state) => state.golfStop);
   const interactingWithPanel = useStacks(
     (state) => state.panelState !== "closed" || state.modalOpen,
@@ -100,6 +102,7 @@ export default function IllustratedRoom({
 
   useLayoutEffect(() => {
     onReady(null);
+    if (!locationReady) return;
     const container = root.current;
     if (moving || interactingWithPanel || !entranceSettled) {
       container
@@ -184,6 +187,7 @@ export default function IllustratedRoom({
     };
   }, [
     revision,
+    locationReady,
     unit,
     theme,
     moving,
@@ -240,16 +244,18 @@ export default function IllustratedRoom({
             data-illustration-selected={index === unit ? "" : undefined}
             aria-hidden={index !== unit}
           >
-            {Math.abs(index - unit) <= 1 && (
-              <IllustrationStage
-                unitIndex={index === unit ? drawingUnit : index}
-                theme={theme}
-                viewport={viewport}
-                readingBooks={aboutBooks}
-                readingBookColors={data.readingBookColors}
-                unavailable={index === unit && failedRevision === revision}
-              />
-            )}
+            {locationReady &&
+              (index === unit ||
+                (entranceSettled && Math.abs(index - unit) <= 1)) && (
+                <IllustrationStage
+                  unitIndex={index === unit ? drawingUnit : index}
+                  theme={theme}
+                  viewport={viewport}
+                  readingBooks={aboutBooks}
+                  readingBookColors={data.readingBookColors}
+                  unavailable={index === unit && failedRevision === revision}
+                />
+              )}
           </div>
         ))}
       </IllustratedTraverse>

@@ -7,7 +7,9 @@ import {
   type IllustrationStageProps,
 } from "./IllustrationStage";
 import { IllustrationStatus } from "./IllustrationStatus";
+import { RoomFirstPaintSelection } from "./RoomFirstPaintSelection";
 import { getRoomArtwork } from "./artwork/getRoomArtwork";
+import shelves from "./artwork/shelves.generated.json";
 import "./roomBootShell.css";
 
 type RoomBootShellProps = Pick<
@@ -18,14 +20,15 @@ type RoomBootShellProps = Pick<
 /** CSS reads the theme class established before body content, so the page stays cacheable. */
 function FirstPaintArtwork(props: Omit<RoomBootShellProps, "illustrated">) {
   const fallback = getRoomArtwork(props.unitIndex, "light", "desktop");
-  if (!fallback) return <IllustrationStage {...props} />;
+  if (!fallback) return <IllustrationStage {...props} shelfOnly />;
   const style: Record<string, string> = {};
   for (const theme of ["light", "dark"] as const) {
     for (const viewport of ["desktop", "phone"] as const) {
       const asset =
         getRoomArtwork(props.unitIndex, theme, viewport) ?? fallback;
       const prefix = `--room-first-paint-${theme}-${viewport}`;
-      style[`${prefix}-image`] = `url("${asset.shelfSrc}")`;
+      style[`${prefix}-image`] =
+        `var(--room-shelf-${props.unitIndex}-${theme}-${viewport})`;
       style[`${prefix}-width`] =
         `${(500 * asset.viewBox[2]!) / asset.drawingWidth}px`;
       style[`${prefix}-ratio`] = String(asset.viewBox[2]! / asset.viewBox[3]!);
@@ -58,16 +61,36 @@ export default function RoomBootShell({
       />
     );
   return (
-    <div
-      className="room-first-paint room-illustration"
-      data-illustration-loading
-      aria-hidden
-    >
-      <FirstPaintArtwork {...props} />
-      <span className="room-first-paint-name">Chappy Asel</span>
-      <div className="room-illustration-actions">
-        <IllustrationStatus loading />
+    <>
+      <RoomFirstPaintSelection initialUnit={props.unitIndex} />
+      <style>{`:root{${Object.entries(shelves)
+        .map(
+          ([key, image]) =>
+            `--room-shelf-${key.replace("/", "-")}:url("${image}")`,
+        )
+        .join(";")}}`}</style>
+      <div
+        className="room-first-paint room-illustration"
+        data-illustration-loading
+        aria-hidden
+      >
+        {[0, 1, 2, 3, 4, 5, 6].map((unitIndex) => (
+          <div
+            className="room-first-paint-unit"
+            data-first-paint-unit={unitIndex}
+            key={unitIndex}
+          >
+            <FirstPaintArtwork {...props} unitIndex={unitIndex} />
+          </div>
+        ))}
+        <div className="room-illustration-actions">
+          <IllustrationStatus loading />
+        </div>
       </div>
-    </div>
+      {/* This survives the shell's hydration handoff, so its animation never restarts. */}
+      <span className="room-entry-wordmark" aria-hidden>
+        Chappy Asel
+      </span>
+    </>
   );
 }
