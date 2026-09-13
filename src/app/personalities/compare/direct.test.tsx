@@ -72,7 +72,9 @@ describe("direct analysis views", () => {
       ...person,
       records: [person.records[2]!, person.records[0]!, person.records[1]!],
     };
-    expect(recordsByDate(olderSelected.records).map((r) => r.id)).toEqual(expected);
+    expect(recordsByDate(olderSelected.records).map((r) => r.id)).toEqual(
+      expected,
+    );
     expect(recordFor(olderSelected, "")?.id).toBe("Early");
   });
   it("keeps same-date results in a stable order and handles month-only dates", () => {
@@ -83,9 +85,14 @@ describe("direct analysis views", () => {
       result("older", "2025-07-31", 80),
     ];
     expect(recordsByDate(records).map((r) => r.id)).toEqual([
-      "day", "a", "b", "older",
+      "day",
+      "a",
+      "b",
+      "older",
     ]);
-    expect(recordsByDate([...records].reverse())).toEqual(recordsByDate(records));
+    expect(recordsByDate([...records].reverse())).toEqual(
+      recordsByDate(records),
+    );
   });
   it("compares earliest and latest dated results regardless of selected record order", () => {
     const html = renderToStaticMarkup(
@@ -113,6 +120,27 @@ describe("direct analysis views", () => {
       html.match(/both results on the reference bell curve/g),
     ).toHaveLength(5);
   });
+  it("keeps shared reference metrics and ranks the largest and smallest standardized gaps", () => {
+    const html = renderToStaticMarkup(
+      <DirectCompare
+        data={data}
+        personId="one"
+        onPerson={vi.fn()}
+        onAssessment={vi.fn()}
+        readOnly
+      />,
+    );
+    expect(html).toContain("Biggest gap");
+    expect(html).toContain("Smallest gap");
+    expect(html).toContain("2.78 SD · 40 points");
+    expect(html).toContain("0.00 SD · 0 points");
+    expect(html).toContain("Conscientiousness");
+    expect(html).toContain("99.8");
+    expect(html).toContain("+2.83");
+    expect(html.match(/Est. percentile/g)).toHaveLength(5);
+    expect(html).not.toContain("combobox");
+  });
+
   it("explains when a second compatible profile is missing", () => {
     const html = renderToStaticMarkup(
       <DirectCompare

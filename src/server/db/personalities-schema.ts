@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Facet, Scores } from "~/lib/personalities/data";
+import type { SharedSnapshot } from "~/lib/personalities/sharing";
 
 export const personalitySites = pgTable("personality_sites", {
   id: text("id").primaryKey(),
@@ -115,4 +116,26 @@ export const personalityRateLimits = pgTable(
     expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
   },
   (r) => ({ expiry: index("personality_rate_limit_expiry").on(r.expiresAt) }),
+);
+
+export const personalityShares = pgTable(
+  "personality_shares",
+  {
+    id: text("id").primaryKey(),
+    siteId: text("site_id")
+      .notNull()
+      .references(() => personalitySites.id),
+    tokenHash: text("token_hash").notNull(),
+    snapshot: jsonb("snapshot").$type<SharedSnapshot>().notNull(),
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    expiresAt: bigint("expires_at", { mode: "number" }),
+  },
+  (s) => ({
+    site: index("personality_shares_site").on(s.siteId),
+    token: uniqueIndex("personality_shares_token_hash_key").on(s.tokenHash),
+    snapshotObject: check(
+      "personality_shares_snapshot_object",
+      sql`jsonb_typeof(${s.snapshot}) = 'object'`,
+    ),
+  }),
 );

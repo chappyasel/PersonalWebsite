@@ -4,6 +4,7 @@ import {
 } from "../../../../scripts/lib/personality-migration";
 import { fetchBigFive } from "../bigfive";
 import type { Library } from "../data";
+import type { SharedSnapshot } from "../sharing";
 import postgres from "postgres";
 import {
   afterAll,
@@ -17,6 +18,7 @@ import {
 
 import { handle } from "./api";
 import { digest } from "./security";
+import { getSharePreview } from "./share-preview";
 import { createDatabase } from "./store";
 
 const state = vi.hoisted(() => ({
@@ -120,7 +122,7 @@ describe.skipIf(!url)("personality API with real Postgres", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     session = "";
     state.password = "synthetic-test-password";
-    await sql`TRUNCATE personality_sessions, personality_rate_limits, personality_assessments, personality_people, personality_sites`;
+    await sql`TRUNCATE personality_shares, personality_sessions, personality_rate_limits, personality_assessments, personality_people, personality_sites`;
   });
   afterAll(async () => {
     await state.store?.close();
@@ -131,6 +133,9 @@ describe.skipIf(!url)("personality API with real Postgres", () => {
   it("protects every data and mutation endpoint before authentication", async () => {
     for (const [path, method] of [
       ["data", "GET"],
+      ["shares", "GET"],
+      ["shares", "POST"],
+      ["shares/unknown", "DELETE"],
       ["people", "POST"],
       ["assessments", "POST"],
       ["import-preview", "POST"],
@@ -144,6 +149,285 @@ describe.skipIf(!url)("personality API with real Postgres", () => {
       expect(response.status).toBe(401);
       expect(response.headers.get("cache-control")).toContain("no-store");
     }
+  });
+
+  it("shares only selected fields, freezes snapshots, and revokes capability access", async () => {
+    await login();
+    const personId = await addPerson();
+    const created = await request("assessments", {
+      ...assessment,
+      personId,
+      sourceReference: "private-source",
+      externalResultId: "private-code",
+    });
+    const { id } = (await created.json()) as { id: string };
+    await request("assessments", {
+      ...assessment,
+      personId,
+      takenOn: "2024-01",
+      notes: "UNSELECTED",
+    });
+    const response = await request("shares", {
+      results: [{ assessmentId: id, label: "Friend A" }],
+      includeDates: false,
+      expiresInDays: 30,
+      notes: "NEVER SHARE",
+    });
+    expect(response.status).toBe(201);
+    const share = (await response.json()) as {
+      id: string;
+      url: string;
+      snapshot: unknown;
+    };
+    expect(new URL(share.url).pathname).toBe(
+      `/personalities/shared/${share.id}`,
+    );
+    const previewHeaders = new Headers({ host: new URL(origin).host });
+    expect((await getSharePreview(share.id, previewHeaders))?.snapshot).toEqual(
+      share.snapshot,
+    );
+    expect(
+      await getSharePreview(share.id, new Headers({ host: "wrong.example" })),
+    ).toBeNull();
+    expect(await getSharePreview("unknown", previewHeaders)).toBeNull();
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(await getSharePreview(share.id, previewHeaders)).toBeNull();
+    vi.stubEnv("VERCEL_ENV", "production");
+    const bearer = new URL(share.url).hash.slice(1);
+    const headers = { Authorization: `Bearer ${bearer}` };
+    const read = await request("shared", undefined, { auth: false, headers });
+    expect(read.status).toBe(200);
+    expect(read.headers.get("cache-control")).toContain("no-store");
+    expect(read.headers.get("set-cookie")).toBeNull();
+    const data = (await read.json()) as { snapshot: unknown };
+    expect(data.snapshot).toEqual({
+      version: 1,
+      results: [
+        {
+          label: "Friend A",
+          takenOn: null,
+          dateEstimated: false,
+          testVersion: "ipip-120",
+          scoreKind: "raw",
+          scoreMax: 120,
+          scores,
+        },
+      ],
+    });
+    const stored =
+      await sql`SELECT token_hash,snapshot FROM personality_shares WHERE id=${share.id}`;
+    expect(stored[0]!.token_hash).toBe(digest(bearer));
+    expect(JSON.stringify(stored)).not.toContain(bearer);
+    for (const path of ["data", "shares"])
+      expect(
+        (await request(path, undefined, { auth: false, headers })).status,
+      ).toBe(401);
+    expect((await request("shares", {}, { auth: false, headers })).status).toBe(
+      401,
+    );
+    expect(
+      (
+        await request(
+          `assessments/${id}`,
+          {},
+          { method: "DELETE", auth: false, headers },
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(
+          `shares/${share.id}`,
+          {},
+          { method: "DELETE", auth: false, headers },
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await request("shared", undefined, {
+          auth: false,
+          headers: { Authorization: `Bearer ${bearer.slice(0, -1)}!` },
+        })
+      ).status,
+    ).toBe(404);
+    expect((await request("shared", undefined, { auth: false })).status).toBe(
+      404,
+    );
+    await request(`assessments/${id}`, {}, { method: "DELETE" });
+    expect(
+      (
+        (await (
+          await request("shared", undefined, { auth: false, headers })
+        ).json()) as { snapshot: SharedSnapshot }
+      ).snapshot,
+    ).toEqual(data.snapshot);
+    expect(
+      (await request(`shares/${share.id}`, {}, { method: "DELETE" })).status,
+    ).toBe(200);
+    expect(await getSharePreview(share.id, previewHeaders)).toBeNull();
+    expect(
+      (await request("shared", undefined, { auth: false, headers })).status,
+    ).toBe(404);
+  });
+
+  it("freezes unnamed friend and family dots without identifiers or cross-trait profiles", async () => {
+    await login();
+    const personId = await addPerson();
+    const { id } = (await (
+      await request("assessments", { ...assessment, personId })
+    ).json()) as { id: string };
+    // Another result for the named person must never become an unnamed dot.
+    await request("assessments", {
+      ...assessment,
+      personId,
+      takenOn: "2026-01",
+      scores: { ...scores, Openness: 119 },
+    });
+    for (const [group, openness, conscientiousness] of [
+      ["Friends", 40, 100],
+      ["Family", 100, 40],
+      ["You", 120, 120],
+    ] as const) {
+      const created = await request("people", {
+        name: `SECRET-${group}`,
+        group,
+      });
+      const { id: otherId } = (await created.json()) as { id: string };
+      await request("assessments", {
+        ...assessment,
+        personId: otherId,
+        scores: {
+          ...scores,
+          Openness: openness,
+          Conscientiousness: conscientiousness,
+        },
+        notes: "HIDDEN-NOTES",
+      });
+      await request("assessments", {
+        ...assessment,
+        personId: otherId,
+        takenOn: "2024-01",
+        scores: { ...scores, Openness: 24 },
+      });
+    }
+    // Even a compatible friend in another site must not enter the snapshot.
+    await sql`INSERT INTO personality_sites (id,created_at) VALUES ('other','2025-01-01')`;
+    await sql`INSERT INTO personality_people (id,site_id,name,group_name,created_at) VALUES ('outsider','other','OUTSIDER','Friends','2025-01-01')`;
+    await sql`INSERT INTO personality_assessments (id,person_id,added_at,source,test_version,score_kind,score_max,scores) VALUES ('outside-result','outsider','2026-01-01','manual','ipip-120','raw',120,${JSON.stringify(scores)}::text::jsonb)`;
+    const input = {
+      results: [{ assessmentId: id, label: "Named result" }],
+      includeDates: false,
+      expiresInDays: 30,
+      includeAnonymous: true,
+    };
+    const response = await request("shares", input);
+    expect(response.status).toBe(201);
+    const share = (await response.json()) as {
+      url: string;
+      snapshot: SharedSnapshot;
+    };
+    expect(share.snapshot.anonymous).toEqual({
+      count: 2,
+      scores: {
+        Openness: [40, 100],
+        Conscientiousness: [40, 100],
+        Extraversion: [80, 80],
+        Agreeableness: [90, 90],
+        Neuroticism: [50, 50],
+      },
+    });
+    const headers = {
+      Authorization: `Bearer ${new URL(share.url).hash.slice(1)}`,
+    };
+    const read = (await (
+      await request("shared", undefined, { auth: false, headers })
+    ).json()) as { snapshot: SharedSnapshot };
+    expect(read.snapshot).toEqual(share.snapshot);
+    expect(JSON.stringify(read)).not.toMatch(
+      /SECRET|OUTSIDER|HIDDEN|personId|assessmentId|group/,
+    );
+    await sql`DELETE FROM personality_assessments WHERE person_id<>${personId}`;
+    const frozen = (await (
+      await request("shared", undefined, { auth: false, headers })
+    ).json()) as { snapshot: SharedSnapshot };
+    expect(frozen.snapshot).toEqual(share.snapshot);
+    const disabled = (await (
+      await request("shares", { ...input, includeAnonymous: false })
+    ).json()) as { snapshot: SharedSnapshot };
+    expect(disabled.snapshot.anonymous).toBeUndefined();
+    expect(
+      (await request("shares", { ...input, includeAnonymous: "yes" })).status,
+    ).toBe(400);
+  });
+
+  it("validates subsets and expiry, requires CSRF, and keeps previews disabled", async () => {
+    await login();
+    const personId = await addPerson();
+    const { id } = (await (
+      await request("assessments", { ...assessment, personId })
+    ).json()) as { id: string };
+    const input = {
+      results: [{ assessmentId: id, label: "Alias" }],
+      includeDates: true,
+      expiresInDays: 7,
+    };
+    for (const override of [
+      { results: [] },
+      { results: Array(7).fill(input.results[0]) },
+      { results: [input.results[0], input.results[0]] },
+      { expiresInDays: 1 },
+      { includeDates: "yes" },
+      { results: [{ assessmentId: id, label: "" }] },
+    ]) {
+      expect((await request("shares", { ...input, ...override })).status).toBe(
+        400,
+      );
+    }
+    await sql`INSERT INTO personality_sites (id,created_at) VALUES ('other','2025-01-01')`;
+    await sql`INSERT INTO personality_people (id,site_id,name,group_name,created_at) VALUES ('other-person','other','Other','Friends','2025-01-01')`;
+    await sql`UPDATE personality_assessments SET person_id='other-person' WHERE id=${id}`;
+    expect((await request("shares", input)).status).toBe(404);
+    await sql`UPDATE personality_assessments SET person_id=${personId} WHERE id=${id}`;
+    expect(
+      (
+        await request("shares", input, {
+          headers: { Origin: "https://wrong.example" },
+        })
+      ).status,
+    ).toBe(403);
+    const share = (await (await request("shares", input)).json()) as {
+      id: string;
+      url: string;
+      snapshot: { results: { takenOn: string; dateEstimated: boolean }[] };
+    };
+    expect(share.snapshot.results[0]).toMatchObject({
+      takenOn: assessment.takenOn,
+      dateEstimated: true,
+    });
+    const headers = {
+      Authorization: `Bearer ${new URL(share.url).hash.slice(1)}`,
+    };
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(
+      (await request("shared", undefined, { auth: false, headers })).status,
+    ).toBe(404);
+    vi.stubEnv("VERCEL_ENV", "production");
+    await sql`UPDATE personality_shares SET expires_at=${Date.now() - 1} WHERE id=${share.id}`;
+    expect(
+      (await request("shared", undefined, { auth: false, headers })).status,
+    ).toBe(404);
+    expect(
+      await getSharePreview(
+        share.id,
+        new Headers({ host: new URL(origin).host }),
+      ),
+    ).toBeNull();
+    const forever = await request("shares", { ...input, expiresInDays: null });
+    expect(forever.status).toBe(201);
+    expect(
+      ((await forever.json()) as { expiresAt: number | null }).expiresAt,
+    ).toBeNull();
   });
 
   it("issues HTTPS host-only cookies, persists sessions across connections, and revokes logout", async () => {

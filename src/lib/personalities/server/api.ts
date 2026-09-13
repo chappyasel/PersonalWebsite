@@ -1,6 +1,12 @@
 import { fetchBigFive } from "../bigfive";
 import { type Assessment, type LibraryPerson } from "../data";
 import {
+  type SharedSnapshot,
+  anonymousContext,
+  sharedResult,
+  validateShare,
+} from "../sharing";
+import {
   InputError,
   object,
   optionalText,
@@ -226,7 +232,136 @@ export async function handle(request: Request) {
         "Set-Cookie": cookie(request, value, SESSION_SECONDS),
       });
     }
+    if (path === "/api/shared" && method === "GET") {
+      const bearer = request.headers
+        .get("authorization")
+        ?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
+      if (!bearer)
+        throw new HttpError(404, "This link is unavailable or has expired.");
+      const share = await db()
+        .prepare(
+          "SELECT snapshot,expires_at FROM personality_shares WHERE token_hash=$1 AND (expires_at IS NULL OR expires_at>$2)",
+        )
+        .bind(digest(bearer), Date.now())
+        .first<{ snapshot: SharedSnapshot; expires_at: number | null }>();
+      if (!share)
+        throw new HttpError(404, "This link is unavailable or has expired.");
+      return json({
+        snapshot: share.snapshot,
+        expiresAt: share.expires_at === null ? null : Number(share.expires_at),
+      });
+    }
     const site = await requireSession(request);
+    if (path === "/api/shares" && method === "POST") {
+      const input = validateShare(await body(request));
+      await limited("share-create-" + site, 30, 60);
+      const snapshot: SharedSnapshot = { version: 1, results: [] };
+      const selectedPeople = new Set<string>();
+      for (const selected of input.results) {
+        const row = await db()
+          .prepare(
+            "SELECT a.* FROM personality_assessments a JOIN personality_people p ON p.id=a.person_id WHERE a.id=$1 AND p.site_id=$2",
+          )
+          .bind(selected.assessmentId, site)
+          .first();
+        if (!row)
+          throw new HttpError(404, "A selected result is no longer available.");
+        selectedPeople.add(String(row.person_id));
+        snapshot.results.push(
+          sharedResult(assessment(row), selected.label, input.includeDates),
+        );
+      }
+      if (input.includeAnonymous) {
+        if (
+          !snapshot.results.some(
+            (r) =>
+              r.testVersion === "ipip-120" &&
+              r.scoreKind === "raw" &&
+              r.scoreMax === 120,
+          )
+        )
+          throw new InputError(
+            "Choose an IPIP-120 result to include unnamed comparison dots.",
+          );
+        const rows = await db()
+          .prepare(
+            "SELECT a.*,p.group_name FROM personality_assessments a JOIN personality_people p ON p.id=a.person_id WHERE p.site_id=$1 AND p.group_name IN ('Friends','Family')",
+          )
+          .bind(site)
+          .all();
+        const people = new Map<
+          string,
+          Pick<LibraryPerson, "id" | "group" | "assessments">
+        >();
+        for (const row of rows.results) {
+          const id = String(row.person_id);
+          const person = people.get(id) ?? {
+            id,
+            group: row.group_name as LibraryPerson["group"],
+            assessments: [],
+          };
+          person.assessments.push(assessment(row));
+          people.set(id, person);
+        }
+        snapshot.anonymous = anonymousContext(
+          [...people.values()],
+          selectedPeople,
+        );
+      }
+      const value = token(),
+        id = crypto.randomUUID(),
+        createdAt = Date.now();
+      const expiresAt =
+        input.expiresInDays === null
+          ? null
+          : createdAt + input.expiresInDays * 86400000;
+      await db()
+        .prepare(
+          "INSERT INTO personality_shares (id,site_id,token_hash,snapshot,created_at,expires_at) VALUES ($1,$2,$3,$4::text::jsonb,$5,$6)",
+        )
+        .bind(
+          id,
+          site,
+          digest(value),
+          JSON.stringify(snapshot),
+          createdAt,
+          expiresAt,
+        )
+        .run();
+      return json(
+        {
+          id,
+          url: `${requestOrigin(request)}/personalities/shared/${id}#${value}`,
+          expiresAt,
+          snapshot,
+        },
+        201,
+      );
+    }
+    if (path === "/api/shares" && method === "GET") {
+      const rows = await db()
+        .prepare(
+          "SELECT id,snapshot,created_at,expires_at FROM personality_shares WHERE site_id=$1 ORDER BY created_at DESC",
+        )
+        .bind(site)
+        .all();
+      return json({
+        shares: rows.results.map((row) => ({
+          id: String(row.id),
+          labels: (row.snapshot as SharedSnapshot).results.map((r) => r.label),
+          createdAt: Number(row.created_at),
+          expiresAt: row.expires_at === null ? null : Number(row.expires_at),
+        })),
+      });
+    }
+    const shareMatch = /^\/api\/shares\/([a-zA-Z0-9-]+)$/.exec(path);
+    if (shareMatch && method === "DELETE") {
+      await db()
+        .prepare("DELETE FROM personality_shares WHERE id=$1 AND site_id=$2")
+        .bind(shareMatch[1]!, site)
+        .run();
+      return json({ ok: true });
+    }
     if (path === "/api/logout" && method === "POST") {
       const value = sessionToken(request)!;
       await db()
