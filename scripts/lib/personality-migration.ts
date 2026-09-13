@@ -8,6 +8,7 @@ export const personalityTables = [
   "personality_assessments",
   "personality_sessions",
   "personality_rate_limits",
+  "personality_shares",
 ] as const;
 const columns = {
   personality_sites: ["id", "created_at"],
@@ -53,6 +54,17 @@ export async function applyPersonalitySchema(sql: postgres.Sql) {
   await sql.begin(async (tx) => {
     await tx`SELECT pg_advisory_xact_lock(719202601)`;
     await tx.unsafe(migration).simple();
+    await tx
+      .unsafe(
+        await readFile(
+          new URL(
+            "../../src/server/db/migrations/0020_personality_shares.sql",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      )
+      .simple();
   });
 }
 

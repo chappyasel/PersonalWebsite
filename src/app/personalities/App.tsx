@@ -81,6 +81,8 @@ import {
 } from "~/components/ui/sheet";
 import { Textarea } from "~/components/ui/textarea";
 
+import ShareDialog from "./ShareDialog";
+import { api } from "./api";
 import ChangesView from "./compare/ChangesView";
 import Charts from "./compare/Charts";
 import DirectCompare from "./compare/DirectCompare";
@@ -98,26 +100,6 @@ const viewIcons = {
   history: ClockCounterClockwiseIcon,
 };
 
-async function api<T = unknown>(path: string, body?: unknown, method?: string) {
-  const response = await fetch(`/api/personalities/${path}`, {
-    method: method ?? (body === undefined ? "GET" : "POST"),
-    cache: "no-store",
-    headers:
-      body === undefined
-        ? {}
-        : { "Content-Type": "application/json", "X-Personality-Request": "1" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const value: unknown = await response.json();
-  if (!response.ok) {
-    const error = new Error(
-      (value as { error?: string }).error ?? "Request failed.",
-    ) as Error & { status: number };
-    error.status = response.status;
-    throw error;
-  }
-  return value as T;
-}
 function Pick({
   label,
   value,
@@ -158,6 +140,7 @@ export default function App() {
     params = useSearchParams();
   const pathname = usePathname();
   const view = viewForPath(pathname, params.get("variant")).id;
+  const [shareIds, setShareIds] = useState<string[] | null>(null);
   const [library, setLibrary] = useState<Library | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -300,6 +283,13 @@ export default function App() {
   }
   return (
     <main className={styles["app-shell"]}>
+      {shareIds !== null && (
+        <ShareDialog
+          library={library}
+          initialIds={shareIds}
+          onClose={() => setShareIds(null)}
+        />
+      )}
       <header className={styles["app-header"]}>
         <div>
           <p className={styles.eyebrow}>BIG FIVE</p>
@@ -308,14 +298,27 @@ export default function App() {
             {library.people.length} people · {count} assessments
           </p>
         </div>
-        <Button
-          onClick={() =>
-            library.people.length ? openScore() : setModal("person")
-          }
-          className={styles["add-button"]}
-        >
-          <PlusIcon size={16} weight="bold" aria-hidden="true" /> Add results
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const id = snapshot.people.find((p) => p.id === personId)
+                ?.records[0]?.id;
+              setShareIds(id ? [id] : []);
+            }}
+          >
+            <LinkIcon aria-hidden="true" size={16} />
+            Share results
+          </Button>
+          <Button
+            onClick={() =>
+              library.people.length ? openScore() : setModal("person")
+            }
+            className={styles["add-button"]}
+          >
+            <PlusIcon size={16} weight="bold" aria-hidden="true" /> Add results
+          </Button>
+        </div>
       </header>
       <nav
         aria-label="Personality analysis views"
@@ -408,6 +411,13 @@ export default function App() {
                     </p>
                   </div>
                   <div className={styles.actions}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShareIds([a.id])}
+                    >
+                      <LinkIcon aria-hidden="true" size={16} />
+                      Share result
+                    </Button>
                     {comparable(a) && (
                       <Button
                         variant="outline"
@@ -512,6 +522,7 @@ export default function App() {
         </section>
       ) : view === "compare" ? (
         <DirectCompare
+          onShare={setShareIds}
           data={snapshot}
           personId={personId}
           onPerson={setPersonId}
