@@ -1,0 +1,38 @@
+{
+  "objective": "Usable illustrated2D prototype with honest live3D promotion spike",
+  "status": "completed",
+  "captureSlot": "regular-browser-user-preview",
+  "workers": [
+    {
+      "task": "illustrated-room-promotion",
+      "workspace": "dcdf2843-ff74-4d61-a888-06f71640de44",
+      "terminal": "fe6ed60c-6a3a-4bfe-9a46-40e501b29818",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks",
+      "status": "completed",
+      "host": "local",
+      "dependencies": [],
+      "result": "Talks desktop and Weightlifting phone pass eight-landmark registration and stationary dissolve/camera ordering in diagnostic mode. Policy checks pass with active context-loss and normal-effects limits documented. Source/evidence reviewed; regular browser opened. Production integration remains separate."
+    },
+    {
+      "task": "illustrated-room-content",
+      "workspace": "d760a288-7da4-44c7-b68e-24221f73d16b",
+      "terminal": "c7823c99-5e6e-47ad-98e3-1bd5468c59b8",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry",
+      "status": "completed",
+      "host": "local",
+      "dependencies": [],
+      "result": "Server helper copied and source reviewed. TypeScript/ESLint passed; root WebGL-blocked checks passed 14 shelf/content cases."
+    }
+  ],
+  "ui": {
+    "status": "completed",
+    "url": "http://localhost:3330/admin/room-boot-comparison?variant=illustrated&unit=projects",
+    "checks": "14 WebGL-blocked desktop/phone shelf and content cases, theme, hash navigation, Back, texture/SVG failure, targeted TypeScript and ESLint passed.",
+    "evidence": "docs/reviews/illustrated-room-ui-evidence"
+  },
+  "previewUrls": [
+    "http://localhost:3330/admin/room-boot-comparison?variant=illustrated&unit=projects",
+    "http://localhost:3322/talks?roomIllustration=1&roomIllustrationHold=1"
+  ],
+  "report": "docs/reviews/2026-09-12-illustrated-room-prototype.md"
+}

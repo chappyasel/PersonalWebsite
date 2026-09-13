@@ -1,0 +1,7 @@
+{
+  "readingLatch": true,
+  "resizeCancel": true,
+  "navigationCancel": true,
+  "contextLossCancel": true,
+  "errors": []
+}

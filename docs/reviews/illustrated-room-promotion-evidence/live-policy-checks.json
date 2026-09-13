@@ -1,0 +1,8 @@
+{
+  "readingLatch": true,
+  "resizeCancel": true,
+  "navigationCancel": true,
+  "errors": [],
+  "contextLossEventFrom2D": true,
+  "activeContextLossTransition": "Not measured; handler and cleanup source-reviewed only"
+}

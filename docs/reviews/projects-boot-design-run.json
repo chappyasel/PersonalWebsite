@@ -1,0 +1,72 @@
+{
+  "objective": "Complete Projects boot illustration with About visual language",
+  "status": "completed",
+  "browserPermission": "authorized, persists from user yes and go",
+  "captureSlot": "released",
+  "workers": [
+    {
+      "task": "projects-design-builder",
+      "workspace": "dcdf2843-ff74-4d61-a888-06f71640de44",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks",
+      "branch": "prototype/boot-render-masks",
+      "port": 3322,
+      "status": "completed",
+      "prompt": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks/docs/reviews/projects-boot-design-brief.md",
+      "terminal": "fe6ed60c-6a3a-4bfe-9a46-40e501b29818",
+      "result": {
+        "summary": "Complete 21-part Projects preview in both themes and viewports.",
+        "report": "docs/reviews/projects-boot-design-RESULT.md",
+        "checks": [
+          "TypeScript",
+          "Source and script ESLint",
+          "5 existing capture tests",
+          "Four-case Chromium matrix",
+          "Replay and reduced motion"
+        ],
+        "limits": [
+          "Production 3D handoff not implemented",
+          "Phone opening frustum differs from production camera",
+          "No production transfer or alignment claim"
+        ]
+      }
+    },
+    {
+      "task": "projects-design-reviewer",
+      "workspace": "d760a288-7da4-44c7-b68e-24221f73d16b",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry",
+      "branch": "prototype/boot-geometry",
+      "port": 3321,
+      "status": "completed",
+      "prompt": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry/docs/reviews/projects-boot-design-brief.md",
+      "terminal": "c7823c99-5e6e-47ad-98e3-1bd5468c59b8",
+      "result": {
+        "summary": "Recommend for owner review; no remaining visual blockers.",
+        "report": "docs/reviews/projects-boot-design-review.md",
+        "limits": [
+          "Dark phone foliage contrast and tiny detail",
+          "No live 3D handoff evidence"
+        ]
+      }
+    }
+  ],
+  "previousRun": "docs/reviews/boot-prototype-run.json",
+  "preview": "http://127.0.0.1:3322/admin/projects-boot-prototype?viewport=desktop",
+  "previewWorkspace": "de1f0864-9121-4815-9d7e-65483a061ed8",
+  "previewPane": "pane-fffe6765-60c8-401c-a732-2c70678ce95e",
+  "milestone": "Both completion envelopes checked. Complete preview and final design review ready.",
+  "report": "docs/reviews/2026-09-11-projects-boot-design.md",
+  "coordinatorChecks": {
+    "liveControls": [
+      "Explicit desktop at narrow pane",
+      "About light reference under saved dark preference",
+      "Dark phone case selection"
+    ],
+    "parts": 21,
+    "darkPhoneImagesLoaded": 15,
+    "canvasCount": 0,
+    "replay": "21 animations start; pane timeline stalls at zero, completion verified by worker Chromium matrix",
+    "rootEslint": "passed",
+    "planAndAboutMatchRoot": true,
+    "mergeOrDeployment": false
+  }
+}

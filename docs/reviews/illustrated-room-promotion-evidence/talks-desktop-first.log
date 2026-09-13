@@ -1,0 +1,5 @@
+Opening http://127.0.0.1:3322/talks?roomIllustration=1&roomIllustrationHold=1
+Preparing the live room
+camera look damping unsettled; world not ready
+camera look damping unsettled
+{"phase":"2d","maxResidual":null,"paintedFrames":0,"landmarks":[],"unit":"talks","case":"light-desktop","opacity":"1","viewport":[1440,900],"errors":[],"canvas":1,"finalPhase":"2d"}

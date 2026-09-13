@@ -1,0 +1,54 @@
+[
+  {
+    "unit": "musings",
+    "case": "light-desktop",
+    "items": 17,
+    "decoded": 14,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  },
+  {
+    "unit": "musings",
+    "case": "light-phone",
+    "items": 17,
+    "decoded": 14,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  },
+  {
+    "unit": "musings",
+    "case": "dark-desktop",
+    "items": 17,
+    "decoded": 14,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  },
+  {
+    "unit": "musings",
+    "case": "dark-phone",
+    "items": 17,
+    "decoded": 14,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  }
+]

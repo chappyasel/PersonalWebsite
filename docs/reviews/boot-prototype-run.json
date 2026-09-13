@@ -1,0 +1,46 @@
+{
+  "base": "f54e6e2",
+  "browserPermission": "authorized by user yes",
+  "workers": [
+    {
+      "task": "geometry",
+      "workspace": "d760a288-7da4-44c7-b68e-24221f73d16b",
+      "host": "local",
+      "branch": "prototype/boot-geometry",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry",
+      "port": 3321,
+      "prompt": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry/docs/reviews/boot-prototype-worker-brief.md",
+      "status": "completed",
+      "terminal": "8de9a95f-f0ec-48cb-b1ce-84be8591d41f",
+      "captureStatus": "complete-browser-closed",
+      "report": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-geometry/docs/reviews/boot-prototype-RESULT.md",
+      "agentReportedChecks": "116 tests; TypeScript, ESLint, six optical audits, whitespace and exact-patch reverse checks passed"
+    },
+    {
+      "task": "render-masks",
+      "workspace": "dcdf2843-ff74-4d61-a888-06f71640de44",
+      "host": "local",
+      "branch": "prototype/boot-render-masks",
+      "worktree": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks",
+      "port": 3322,
+      "prompt": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks/docs/reviews/boot-prototype-worker-brief.md",
+      "status": "completed",
+      "terminal": "4f8d7002-2d5a-46c2-810b-64662a076a50",
+      "captureStatus": "complete-browser-closed",
+      "report": "/Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks/docs/reviews/boot-prototype-RESULT.md",
+      "agentReportedChecks": "41 Vitest tests, 3 Node tests, TypeScript and targeted lint passed; all six cases captured with reloads; fixed-camera pixels repeat identically"
+    }
+  ],
+  "comparisonStatus": "Completed: both prototypes and six-case matrices reviewed; live UI verified; revised proposal written; visual direction unapproved",
+  "captureSlot": null,
+  "comparisonPreview": {
+    "url": "http://localhost:3330/admin/boot-comparison",
+    "port": 3330,
+    "workspace": "de1f0864-9121-4815-9d7e-65483a061ed8",
+    "pane": "pane-2cd918c9-3e46-400a-90ab-2439163c280d",
+    "status": "Opened and visually verified; all six comparisons available; TypeScript and lint passed"
+  },
+  "comparisonReport": "docs/reviews/2026-09-11-boot-prototype-comparison.md",
+  "sourceReview": "docs/reviews/2026-09-11-room-boot-per-unit.md",
+  "visualAcceptance": "Not approved; complete composition and per-part treatment proposed before expansion"
+}

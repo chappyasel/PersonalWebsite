@@ -1,0 +1,16 @@
+{
+  "phase": "2d",
+  "maxResidual": null,
+  "paintedFrames": 0,
+  "landmarks": [],
+  "unit": "talks",
+  "case": "light-desktop",
+  "opacity": "1",
+  "viewport": [
+    1440,
+    900
+  ],
+  "errors": [],
+  "canvas": 1,
+  "finalPhase": "2d"
+}

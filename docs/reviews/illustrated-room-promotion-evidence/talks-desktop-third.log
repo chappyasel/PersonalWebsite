@@ -1,0 +1,15 @@
+Opening http://127.0.0.1:3322/talks?harness=1&nomeadow=1&roomIllustration=1&roomIllustrationHold=1
+camera look damping unsettled; asset loader active; empty grab-harmonica-talks; empty grab-microphone; empty grab-plant-talks-pothos · look lag -0.399863 · render 173
+camera look damping unsettled · look lag -0.336794 · render 209
+camera look damping unsettled · look lag 0.083100 · render 1326
+Initial safe fallback; explicitly retrying Enter 3D
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.waitForFunction: Timeout 180000ms exceeded.
+    at /Users/chappyasel/.superset/worktrees/07a1f5cb-07af-473a-b3b5-a07b3f772c20/prototype/boot-render-masks/src/app/components/room-illustration-prototype/inspect.mjs:20:232 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.19.0

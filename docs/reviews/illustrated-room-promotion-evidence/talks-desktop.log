@@ -1,0 +1,10 @@
+Opening http://127.0.0.1:3322/talks?perf-profile=no-composer&harness=1&nomeadow=1&roomIllustration=1&roomIllustrationHold=1
+ordinary aim damping unsettled · aim error -0.363586 · eye/aim -0.363586 · dt 14.371s
+ordinary aim damping unsettled · aim error -0.047792 · eye/aim -0.047792 · dt 0.197s
+{"unit":"talks","name":"talks-desktop","maxResidual":1.0800249583553523e-12,"motionWhileVisible":0,"canvas":1,"errors":[],"finalPhase":"live"}
+{
+  readingLatch: true,
+  resizeCancel: true,
+  navigationCancel: true,
+  contextLossCancel: true
+}

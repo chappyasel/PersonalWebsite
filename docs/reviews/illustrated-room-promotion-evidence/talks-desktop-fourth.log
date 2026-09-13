@@ -1,0 +1,10 @@
+Opening http://127.0.0.1:3322/talks?perf-profile=no-composer&harness=1&nomeadow=1&roomIllustration=1&roomIllustrationHold=1
+camera look damping unsettled · look lag -0.281862 · render 66
+camera look damping unsettled · look lag -0.281862 · render 66
+camera look damping unsettled · look lag 0.088703 · render 119
+Initial safe fallback; explicitly retrying Enter 3D
+camera look damping unsettled · look lag 0.088952 · render 180 waiting
+camera look damping unsettled · look lag 0.088982 · render 228 waiting
+camera look damping unsettled · look lag 0.088982 · render 276 waiting
+FAILURE STATE null
+STATUS null

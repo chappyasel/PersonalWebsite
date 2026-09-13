@@ -1,0 +1,5 @@
+Opening http://127.0.0.1:3322/talks?harness=1&nomeadow=1&roomIllustration=1&roomIllustrationHold=1
+Preparing the live room
+camera look damping unsettled · look lag -0.472274 · render 139
+camera look damping unsettled · look lag 0.083859 · render 1364
+{"phase":"2d","maxResidual":null,"paintedFrames":0,"landmarks":[],"unit":"talks","case":"light-desktop","opacity":"1","viewport":[1440,900],"errors":[],"canvas":1,"finalPhase":"2d"}

@@ -1,0 +1,54 @@
+[
+  {
+    "unit": "systems",
+    "case": "light-desktop",
+    "items": 40,
+    "decoded": 38,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  },
+  {
+    "unit": "systems",
+    "case": "light-phone",
+    "items": 40,
+    "decoded": 38,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  },
+  {
+    "unit": "systems",
+    "case": "dark-desktop",
+    "items": 40,
+    "decoded": 38,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  },
+  {
+    "unit": "systems",
+    "case": "dark-phone",
+    "items": 40,
+    "decoded": 38,
+    "cropped": [],
+    "controlsOutside": [],
+    "canvas": 0,
+    "overflow": false,
+    "visibleGround": 0,
+    "reducedAnimations": 0,
+    "errors": []
+  }
+]

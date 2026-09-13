@@ -1,0 +1,90 @@
+{
+  mode: 'no-gpu',
+  phase: '2d',
+  world: undefined,
+  canvas: 0,
+  webglAttempts: 4,
+  href: 'http://127.0.0.1:3330/admin/room-boot-comparison?variant=illustrated&unit=talks',
+  prototypeEnabled: true,
+  glbRequests: 0,
+  errors: []
+}
+{
+  mode: 'reduced-motion',
+  phase: '2d',
+  world: undefined,
+  canvas: 0,
+  webglAttempts: 0,
+  href: 'http://127.0.0.1:3330/admin/room-boot-comparison?variant=illustrated&unit=talks',
+  prototypeEnabled: true,
+  glbRequests: 0,
+  errors: []
+}
+{
+  mode: 'save-data',
+  phase: '2d',
+  world: undefined,
+  canvas: 0,
+  webglAttempts: 2,
+  href: 'http://127.0.0.1:3330/admin/room-boot-comparison?variant=illustrated&unit=talks',
+  prototypeEnabled: true,
+  glbRequests: 0,
+  errors: []
+}
+{
+  mode: 'off',
+  phase: null,
+  world: undefined,
+  canvas: 0,
+  webglAttempts: 4,
+  href: null,
+  prototypeEnabled: false,
+  glbRequests: 0,
+  errors: []
+}
+[
+  {
+    mode: 'no-gpu',
+    phase: '2d',
+    world: undefined,
+    canvas: 0,
+    webglAttempts: 4,
+    href: 'http://127.0.0.1:3330/admin/room-boot-comparison?variant=illustrated&unit=talks',
+    prototypeEnabled: true,
+    glbRequests: 0,
+    errors: []
+  },
+  {
+    mode: 'reduced-motion',
+    phase: '2d',
+    world: undefined,
+    canvas: 0,
+    webglAttempts: 0,
+    href: 'http://127.0.0.1:3330/admin/room-boot-comparison?variant=illustrated&unit=talks',
+    prototypeEnabled: true,
+    glbRequests: 0,
+    errors: []
+  },
+  {
+    mode: 'save-data',
+    phase: '2d',
+    world: undefined,
+    canvas: 0,
+    webglAttempts: 2,
+    href: 'http://127.0.0.1:3330/admin/room-boot-comparison?variant=illustrated&unit=talks',
+    prototypeEnabled: true,
+    glbRequests: 0,
+    errors: []
+  },
+  {
+    mode: 'off',
+    phase: null,
+    world: undefined,
+    canvas: 0,
+    webglAttempts: 4,
+    href: null,
+    prototypeEnabled: false,
+    glbRequests: 0,
+    errors: []
+  }
+]

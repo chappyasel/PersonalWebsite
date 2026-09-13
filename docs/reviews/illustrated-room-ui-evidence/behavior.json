@@ -1,0 +1,7 @@
+{
+  "embeddedThemeToggle": true,
+  "hashLinkSelectsShelf": true,
+  "browserBackRestoresShelf": true,
+  "initialDetailFailureKeepsContent": true,
+  "svgFailureKeepsContent": true
+}

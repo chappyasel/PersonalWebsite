@@ -1,0 +1,108 @@
+.room-preview {
+  position: fixed;
+  inset: 0;
+  background: #d9d8d3;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+}
+.room-preview.dark {
+  background: #191b1c;
+}
+.room-controls {
+  position: fixed;
+  z-index: 50;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+.room-control-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.room-controls button {
+  height: 30px;
+  padding-inline: 10px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+}
+.room-controls button[data-variant="outline"] {
+  background: hsl(var(--background) / 0.82);
+}
+.room-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-type: inline-size;
+}
+.room-viewport.room-phone {
+  width: min(390px, 100vw);
+  height: min(844px, 100dvh);
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px #8884;
+}
+.room-preview .stacks-boot {
+  position: absolute;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.room-threshold {
+  width: min(92cqw, var(--room-drawing-width));
+}
+.room-drawing svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.room-threshold .stacks-boot-wordmark {
+  margin-top: 28px;
+  font-size: clamp(28.56px, 3.162cqw, 44.88px);
+}
+.room-pending {
+  padding: 80px 20px;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.65;
+}
+.room-prototype-note {
+  position: fixed;
+  z-index: 50;
+  bottom: 10px;
+  right: 16px;
+  margin: 0;
+  font-size: 10px;
+  opacity: 0.55;
+}
+.room-reference .stacks-boot-threshold {
+  width: min(88cqw, 560px);
+  opacity: 1;
+  transform: none;
+}
+.room-reference [data-boot-ground-prop] {
+  display: none;
+}
+/* Keep object placement transforms; freeze only the reveal motion here. */
+.room-reference .stacks-boot-entry,
+.room-reference .stacks-boot-item-motion,
+.room-reference .stacks-boot-wordmark {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+.room-phone .stacks-boot-wait {
+  bottom: 24px;
+}
+@media (max-width: 500px) {
+  .room-prototype-note {
+    bottom: 8px;
+    right: 8px;
+    left: 8px;
+    text-align: center;
+    font-size: 9px;
+  }
+}

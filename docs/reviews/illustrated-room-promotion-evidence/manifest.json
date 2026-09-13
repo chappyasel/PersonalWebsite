@@ -1,0 +1,275 @@
+{
+  "scope": "Bounded development camera-handoff spike. No approved artwork regenerated. Root owns usable 2D UI and regular-browser presentation. This inventory excludes itself.",
+  "browserSlot": "released to root",
+  "source": [
+    {
+      "path": "src/app/components/room-illustration-prototype/Gate.tsx",
+      "bytes": 7929,
+      "sha256": "6fb366d490e913784a2a3817c64ce029fb94e33f0940db2aaf7ceeed1665ef54"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/LiveBridge.tsx",
+      "bytes": 13264,
+      "sha256": "073e41f868ff79fbe3c454421784c12f777484250f5eeb1500ab0f0994718dbc"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/contract.ts",
+      "bytes": 381,
+      "sha256": "19535a267c0a9d5c4b4a8337f562366fe39258cbc3c01626168eca732422175a"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/contracts.json",
+      "bytes": 330081,
+      "sha256": "3b4d98fe5ac76453463f302425828fe852172cc62331c1bf79956712a02a1c79"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/inspect.mjs",
+      "bytes": 6490,
+      "sha256": "bbfff138fad303a6be22fc78b755f74294bf0dd25c8284695f021fbcf69c3b0d"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/policy-inspect.mjs",
+      "bytes": 2991,
+      "sha256": "b2f66e9e35b1fd3b57bea6a9a179035e95626a55093c7885d8b4f5174d6c13ae"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/projection.test.ts",
+      "bytes": 1412,
+      "sha256": "c74ba3c8fae91debcc53a40558a4c6f0f6fb94af714c7f9876d9c56a11aff572"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/projection.ts",
+      "bytes": 1762,
+      "sha256": "b0b7d027fb3e672b8a4446a8204bd227ed28b762e8fa544b32dbe8a7345ad8cf"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/prototype.css",
+      "bytes": 1996,
+      "sha256": "c8d0bd6e94b1917a6627aa114dfa2273ea573210155d007bd8c40feac2baabf2"
+    },
+    {
+      "path": "src/app/components/room-illustration-prototype/store.ts",
+      "bytes": 2087,
+      "sha256": "99fde23ad70f4e9ab7530bfb8c0b75beb7d5b0acb2f4675a03062d97a7f3cf6f"
+    },
+    {
+      "path": "src/app/components/stacks/StacksHome.tsx",
+      "bytes": 34416,
+      "sha256": "354c155d2334e7267fd4563398cb955190b8212e6a2b2abeb04f1c48c99509f7"
+    },
+    {
+      "path": "src/app/components/stacks/scene/Scene.tsx",
+      "bytes": 18134,
+      "sha256": "344cc2b55f5e1b86ba2ae3950aca40fd53a3f9b3fc7ffcda25976baacd01b987"
+    },
+    {
+      "path": "src/app/components/stacks/scene/CameraRig.tsx",
+      "bytes": 64210,
+      "sha256": "5b265dcfbb6611a004d6adbfd9608818d16fecc433b5574c228be5df31fa5b81"
+    },
+    {
+      "path": "src/app/components/stacks/dom/SceneDiagnostics.tsx",
+      "bytes": 86250,
+      "sha256": "de266a9aa681fe2c6f7aab43635f1db36522b38a7ba944b5dd545d3d80aac3a5"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/reviews/illustrated-room-promotion-progress.md",
+      "bytes": 8082,
+      "sha256": "c6a63f2e083a317a10751249f45edbc63d976a02514a4587e20ac9e929b8305a"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-RESULT.md",
+      "bytes": 6160,
+      "sha256": "cb9df6abd1126664f62c4c17bcf310e7e148074ba270b0fc5a9a44e212034ff3"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/lint-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/live-policy-checks-original.json",
+      "bytes": 123,
+      "sha256": "3ac2cbe356b0e3fdbc02b81fe87c4489a8da1eb34728ab3fc20f1219c418efb5"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/live-policy-checks.json",
+      "bytes": 220,
+      "sha256": "4204630fca2aeeb726db7f6bc5083e98e6970dd6489ae2f14cd93ae74bfd0e21"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/policy-checks-first.log",
+      "bytes": 486,
+      "sha256": "b38756cc157cf0ef5abedaf4a3857d7e0f550809eb90f159b80fbf694df394c0"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/policy-checks.json",
+      "bytes": 954,
+      "sha256": "dcec2ede9ec8b198931da8d3d403edbe443622aca6773dcf0a5e8f3138a765e8"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/policy-checks.log",
+      "bytes": 1863,
+      "sha256": "804c221f5dbc9e56408e42a60a9fca41f133b2b9ca069dfc895ba9301de7e92f"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/policy-no-gpu.png",
+      "bytes": 83748,
+      "sha256": "58da51e2b18c7f54a6f9e2150ff641f1bd2027eeb0b5bb33e4d38d23d4233ce8"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/policy-reduced-motion.png",
+      "bytes": 85063,
+      "sha256": "90b9961ea8e74bd59156a03c6ceace3c6ccab1db26f41acb57cf086acf911fc7"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/policy-save-data.png",
+      "bytes": 85063,
+      "sha256": "90b9961ea8e74bd59156a03c6ceace3c6ccab1db26f41acb57cf086acf911fc7"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/preservation.json",
+      "bytes": 78,
+      "sha256": "1c80b412590e65c16bd42e547eb6cb9657653727cd0ab8d2d7bc7ea24809a0da"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/projection-test.log",
+      "bytes": 283,
+      "sha256": "2ec0a0f8a0d0b71778075c2637b48caaea5589336c17791112f43c1266aaabb3"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-cancelled-2d.png",
+      "bytes": 137433,
+      "sha256": "dbf859f14dcee23159d7b291b12b2c52e6cae56ac070b7390aeb73a58c04407a"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-first.json",
+      "bytes": 239,
+      "sha256": "84535c5fbe83f7f53ccce800fb8d5cdb451b958097669c19831dd801f5cd297c"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-first.log",
+      "bytes": 361,
+      "sha256": "207dbc819e063eb078dafe5fe5d838b1e1da3eaeec2cf71d43a4e76b2c94054f"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-fourth.log",
+      "bytes": 621,
+      "sha256": "d068388dcee0b1f4cfe1e285f9f9f8900b80b3a53409427e7d5028bdb98ad70d"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-illustration.png",
+      "bytes": 137191,
+      "sha256": "f1e1e9c6a4033322d9d7717eec717bcec12ae2900f2f9a1209f31ba2eb0fc0d8"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-initial-success-illustration.png",
+      "bytes": 137191,
+      "sha256": "f1e1e9c6a4033322d9d7717eec717bcec12ae2900f2f9a1209f31ba2eb0fc0d8"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-initial-success-live-room.png",
+      "bytes": 645084,
+      "sha256": "7c5b0e29bd4a5d2eb7ac8e4684d20fa1cccc8ceee28a79530aadec81e8f67c93"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-initial-success-matched-live.png",
+      "bytes": 462711,
+      "sha256": "967a520b942ca94de7425e3687efd83567ba8893fffef463d42387d0760e3ab6"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-initial-success.json",
+      "bytes": 2290,
+      "sha256": "eab9d932031020deab7ca8ad63ceb89e1b3aa357a91cd81a7c6b0b95b17e1865"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-initial-success.log",
+      "bytes": 1818,
+      "sha256": "1e402981b48bd2beb17101550587b407c5ca8ee5a660ffab0bd7640e13da2531"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-live-room.png",
+      "bytes": 645739,
+      "sha256": "1a988d32424e9165d2472186d2485050ad078f1d73fdbfd97111cf3cd62dea18"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-matched-live.png",
+      "bytes": 156930,
+      "sha256": "a46cd67cccd56ef54bef87fc3479df6e94ee275248df9be64c65f2ac90d32e78"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-second.json",
+      "bytes": 239,
+      "sha256": "84535c5fbe83f7f53ccce800fb8d5cdb451b958097669c19831dd801f5cd297c"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-second.log",
+      "bytes": 437,
+      "sha256": "e0ed7d52d6f0dc9e35fc663bdbc8aeb603b58b93845cab8dc5d2a255e55a2cd1"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop-third.log",
+      "bytes": 794,
+      "sha256": "dbf41bcf8ef32fdad7e18c5c1dcbb76deb3175d321a4cbbee8dd9d2380d5b5d7"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop.json",
+      "bytes": 31727,
+      "sha256": "c1e0ed9b9ccf29664b8e2ac15d9b4760eeee10f7a6b02de74a59bea9739e0500"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/talks-desktop.log",
+      "bytes": 544,
+      "sha256": "0fdf8d769b4b424fceaf28d6033296f6836f635d357ed2d8d0fbd91ebe0abb21"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/types-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/types-initial.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/weightlifting-phone-illustration.png",
+      "bytes": 79718,
+      "sha256": "cf1147cedbb794222c045fbc3465246cdbf8fe4c95c5c63eca22ffa479dd1fa1"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/weightlifting-phone-live-room.png",
+      "bytes": 157019,
+      "sha256": "385e8fdfbab981323055a6a11733ec22fce82ef66f7be5bfd02122f8eb623ad1"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/weightlifting-phone-matched-live.png",
+      "bytes": 83700,
+      "sha256": "d6a8493fc027771b10dd89f4c391352ace73f48f2b795cfe852f1d5863b1345e"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/weightlifting-phone.json",
+      "bytes": 24433,
+      "sha256": "420642a1013adf987834a2fa56327d4363bfcf8981818850d212631fd5f6def2"
+    },
+    {
+      "path": "docs/reviews/illustrated-room-promotion-evidence/weightlifting-phone.log",
+      "bytes": 12935,
+      "sha256": "26d30b791186142a757d66baa2e4bb934bb83f3583b46ddeee44313c73152713"
+    }
+  ],
+  "verifiedCases": [
+    "talks/light-desktop at 1440x900",
+    "weightlifting/light-phone at 390x844"
+  ],
+  "limitations": [
+    "Successful browser runs used no-composer and nomeadow diagnostics in software WebGL.",
+    "Normal-effects success was not measured.",
+    "Context-loss event was dispatched from 2D; active-state transition source-reviewed only.",
+    "Registration checks mounted landmark correspondence, not pixelwise lit-material or stylized-contour equivalence."
+  ]
+}
