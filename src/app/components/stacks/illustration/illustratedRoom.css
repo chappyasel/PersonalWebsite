@@ -159,14 +159,15 @@ html.dark .room-illustration {
   overflow: visible;
 }
 .room-illustration .stacks-boot-item,
-.room-illustration .stacks-boot-item-motion,
 .room-illustration .stacks-boot-supports,
 .room-illustration .stacks-boot-planks {
   opacity: 1 !important;
   animation: none !important;
 }
 .room-illustration .stacks-boot-item-motion {
-  transform: none !important;
+  opacity: 1;
+  animation: none !important;
+  transform: none;
 }
 .room-illustration .stacks-boot-floor-prop,
 .room-illustration .stacks-boot-wordmark,

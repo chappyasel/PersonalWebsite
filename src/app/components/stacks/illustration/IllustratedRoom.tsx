@@ -58,6 +58,7 @@ export default function IllustratedRoom({
   visible,
   canRequest3D,
   loading = !canRequest3D,
+  entranceSettled = true,
   onRequest3D,
   onReady,
   onUnavailable,
@@ -68,6 +69,7 @@ export default function IllustratedRoom({
   visible: boolean;
   canRequest3D: boolean;
   loading?: boolean;
+  entranceSettled?: boolean;
   onRequest3D: () => void;
   onReady: (key: string | null) => void;
   onUnavailable: () => void;
@@ -99,7 +101,7 @@ export default function IllustratedRoom({
   useLayoutEffect(() => {
     onReady(null);
     const container = root.current;
-    if (moving || interactingWithPanel) {
+    if (moving || interactingWithPanel || !entranceSettled) {
       container
         ?.querySelectorAll("[data-artwork-key]")
         .forEach((node) => node.removeAttribute("data-room-artwork"));
@@ -186,6 +188,7 @@ export default function IllustratedRoom({
     theme,
     moving,
     interactingWithPanel,
+    entranceSettled,
     onReady,
     onUnavailable,
   ]);
@@ -196,11 +199,24 @@ export default function IllustratedRoom({
     const element = root.current?.querySelector(
       "[data-illustration-selected] svg.stacks-boot-scene, [data-illustration-selected] img[data-illustration-image]",
     );
-    if (visible && readyKey && !moving && !interactingWithPanel) {
+    if (
+      visible &&
+      readyKey &&
+      !moving &&
+      !interactingWithPanel &&
+      entranceSettled
+    ) {
       element?.setAttribute("data-room-artwork", "");
       onReady(readyKey);
     } else element?.removeAttribute("data-room-artwork");
-  }, [visible, readyKey, moving, interactingWithPanel, onReady]);
+  }, [
+    visible,
+    readyKey,
+    moving,
+    interactingWithPanel,
+    entranceSettled,
+    onReady,
+  ]);
 
   return (
     <div

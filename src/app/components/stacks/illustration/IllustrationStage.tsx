@@ -52,6 +52,12 @@ export function IllustrationStage({
           "--room-artwork-phone-ratio": phone
             ? phone.viewBox[2]! / phone.viewBox[3]!
             : 300 / 230,
+          "--room-empty-desktop-image": desktop
+            ? `url("${desktop.shelfSrc}")`
+            : "none",
+          "--room-empty-phone-image": phone
+            ? `url("${phone.shelfSrc}")`
+            : "none",
         } as CSSProperties
       }
     >

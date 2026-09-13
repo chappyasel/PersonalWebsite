@@ -13,6 +13,8 @@ export type RoomArtworkMetadata = Readonly<{
   theme: RoomArtworkTheme;
   viewport: RoomArtworkViewport;
   src: string;
+  /** Exact shelf owner from src, with the same viewBox and no props. */
+  shelfSrc: string;
   viewBox: readonly number[];
   /** Shelf bounds width in captured raster pixels, for consistent CSS shelf scale. */
   drawingWidth: number;

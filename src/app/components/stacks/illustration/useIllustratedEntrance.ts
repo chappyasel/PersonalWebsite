@@ -1,72 +1,191 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+
+import {
+  prepareEntranceArtwork,
+  waitForEntranceStage,
+} from "./entranceArtwork";
 
 export type IllustratedEntrancePhase =
   | "shelf"
+  | "items"
+  | "placing"
   | "content"
   | "navigation"
   | "complete";
+export const ILLUSTRATED_ENTRANCE = {
+  assetWaitMs: 2000,
+  emptyMs: 180,
+  itemMs: 320,
+  itemStepMs: 90,
+  maxStaggerMs: 1500,
+  placementMs: 620,
+  navigationDelayMs: 180,
+  navigationMs: 180,
+} as const;
 
-const CONTENT_AT = 180;
-const NAVIGATION_AT = 500;
-const COMPLETE_AT = 740;
-
-/** One entrance per resident room, independent of image loading and boot retries. */
-export function useIllustratedEntrance(enabled: boolean) {
-  const [phase, setPhase] = useState<IllustratedEntrancePhase>(
-    enabled ? "shelf" : "complete",
-  );
-  const startedAt = useRef<number | null>(null);
+/** One assembly per resident room. WebGL readiness never shortens it; input
+ * can settle it immediately without consuming the visitor's gesture. */
+export function useIllustratedEntrance(
+  enabled: boolean,
+  root: RefObject<HTMLElement | null>,
+  identity: string,
+  skip = false,
+) {
+  const [phase, setPhase] = useState<IllustratedEntrancePhase>("shelf");
   const completed = useRef(false);
-
   useLayoutEffect(() => {
-    if (!enabled || completed.current) return;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    startedAt.current ??= performance.now();
-    const elapsed = performance.now() - startedAt.current;
-    if (motion.matches || elapsed >= COMPLETE_AT) {
-      completed.current = true;
-      setPhase("complete");
+    if (!enabled || completed.current || skip) {
+      if (skip) completed.current = true;
+      if (completed.current) setPhase("complete");
       return;
     }
-
-    setPhase(
-      elapsed >= NAVIGATION_AT
-        ? "navigation"
-        : elapsed >= CONTENT_AT
-          ? "content"
-          : "shelf",
-    );
-    const timers: number[] = [];
+    const container = root.current;
+    if (!container) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const controller = new AbortController();
+    const { signal } = controller;
+    const animations = new Set<Animation>();
+    let disposeArtwork: (() => void) | undefined;
+    let started = false;
+    let preparationTimer = 0;
+    let remainingWait: number = ILLUSTRATED_ENTRANCE.assetWaitMs;
+    let waitStarted = performance.now();
     const events = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
-    const stop = () => {
-      timers.forEach(window.clearTimeout);
-      events.forEach((event) =>
-        window.removeEventListener(event, finish, true),
-      );
-      motion.removeEventListener("change", onMotionChange);
-    };
     const finish = () => {
+      if (signal.aborted) return;
       completed.current = true;
-      setPhase("complete");
       stop();
+      setPhase("complete");
     };
     const onMotionChange = () => {
       if (motion.matches) finish();
     };
-    for (const [at, next] of [
-      [CONTENT_AT, "content"],
-      [NAVIGATION_AT, "navigation"],
-    ] as const) {
-      if (at > elapsed)
-        timers.push(window.setTimeout(() => setPhase(next), at - elapsed));
-    }
-    timers.push(window.setTimeout(finish, COMPLETE_AT - elapsed));
+    const armPreparationTimeout = () => {
+      waitStarted = performance.now();
+      preparationTimer = window.setTimeout(finish, Math.max(1, remainingWait));
+    };
+    const onVisibility = () => {
+      for (const animation of animations) {
+        if (document.hidden && animation.playState === "running")
+          animation.pause();
+        else if (!document.hidden && animation.playState === "paused")
+          animation.play();
+      }
+      if (started) return;
+      if (document.hidden) {
+        window.clearTimeout(preparationTimer);
+        remainingWait -= performance.now() - waitStarted;
+      } else armPreparationTimeout();
+    };
+    const stop = () => {
+      controller.abort();
+      window.clearTimeout(preparationTimer);
+      for (const animation of animations) animation.cancel();
+      animations.clear();
+      disposeArtwork?.();
+      events.forEach((event) =>
+        window.removeEventListener(event, finish, true),
+      );
+      window.removeEventListener("resize", finish);
+      window.removeEventListener("popstate", finish);
+      window.removeEventListener("hashchange", finish);
+      document.removeEventListener("visibilitychange", onVisibility);
+      motion.removeEventListener("change", onMotionChange);
+    };
+    const animate = (
+      element: Element,
+      frames: Keyframe[],
+      options: KeyframeAnimationOptions,
+    ) => {
+      const animation = element.animate(frames, options);
+      animations.add(animation);
+      if (document.hidden) animation.pause();
+      return animation;
+    };
+    // Compositor time also orders cards/nav, so hidden tabs pause the whole
+    // sequence instead of consuming it offscreen.
+    const wait = async (element: Element, duration: number) => {
+      const animation = animate(element, [{ opacity: 1 }, { opacity: 1 }], {
+        duration,
+      });
+      await animation.finished;
+      animations.delete(animation);
+      signal.throwIfAborted();
+    };
+    setPhase("shelf");
     events.forEach((event) =>
       window.addEventListener(event, finish, { capture: true, passive: true }),
     );
+    window.addEventListener("resize", finish);
+    window.addEventListener("popstate", finish);
+    window.addEventListener("hashchange", finish);
+    document.addEventListener("visibilitychange", onVisibility);
     motion.addEventListener("change", onMotionChange);
-    return stop;
-  }, [enabled]);
-
-  return phase;
+    if (motion.matches || typeof Element.prototype.animate !== "function") {
+      finish();
+      return stop;
+    }
+    if (!document.hidden) armPreparationTimeout();
+    void (async () => {
+      const stage = await waitForEntranceStage(container, signal);
+      const artwork = await prepareEntranceArtwork(stage, signal);
+      disposeArtwork = artwork.dispose;
+      if (signal.aborted) disposeArtwork();
+      signal.throwIfAborted();
+      window.clearTimeout(preparationTimer);
+      started = true;
+      const count = artwork.items.length;
+      const step = Math.min(
+        ILLUSTRATED_ENTRANCE.itemStepMs,
+        ILLUSTRATED_ENTRANCE.maxStaggerMs / Math.max(1, count - 1),
+      );
+      const reveals = artwork.items.map((item, index) =>
+        animate(
+          item,
+          [
+            { opacity: 0, transform: "translateY(7px) scale(0.96)" },
+            { opacity: 1, transform: "none" },
+          ],
+          {
+            delay: ILLUSTRATED_ENTRANCE.emptyMs + index * step,
+            duration: ILLUSTRATED_ENTRANCE.itemMs,
+            easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+            fill: "both",
+          },
+        ),
+      );
+      setPhase("items");
+      await Promise.all(reveals.map((animation) => animation.finished));
+      signal.throwIfAborted();
+      const initialTransform = getComputedStyle(stage).transform;
+      const placement = animate(
+        stage,
+        [{ transform: initialTransform }, { transform: "none" }],
+        {
+          duration: ILLUSTRATED_ENTRANCE.placementMs,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          fill: "both",
+        },
+      );
+      setPhase("placing");
+      await placement.finished;
+      signal.throwIfAborted();
+      setPhase("content");
+      await wait(stage, ILLUSTRATED_ENTRANCE.navigationDelayMs);
+      setPhase("navigation");
+      await wait(stage, ILLUSTRATED_ENTRANCE.navigationMs);
+      finish();
+    })().catch(() => {
+      // Entrance preparation never covers the usable reader indefinitely.
+      // The ordinary decoder still owns renderer registration and failures.
+      if (!signal.aborted) finish();
+    });
+    return () => {
+      stop();
+      // Shelf/theme changes and resident returns never replay a shown sequence.
+      // Strict Mode's pre-start cleanup can retry.
+      if (started) completed.current = true;
+    };
+  }, [enabled, identity, root, skip]);
+  return !enabled || skip || completed.current ? "complete" : phase;
 }

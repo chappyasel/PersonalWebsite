@@ -166,7 +166,11 @@ export function IllustratedTraverse({
   }, [enabled, locationReady, moving]);
 
   return (
-    <div ref={root} className="room-illustration-traverse">
+    <div
+      ref={root}
+      className="room-illustration-traverse"
+      data-illustration-positioned={locationReady ? "" : undefined}
+    >
       {children}
     </div>
   );

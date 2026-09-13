@@ -1363,5 +1363,416 @@
         "errors": []
       }
     ]
+  },
+  "restoredEntrance": {
+    "after": "b61a481",
+    "headless": true,
+    "sequence": "Empty centered shelf, staggered objects, growth into the resting frame, cards, navigation, then automatic 3D when ready.",
+    "entrance": [
+      {
+        "name": "entrance-about-1440",
+        "route": "/",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          409.6777038574219, 167.08935546875, 620.61181640625,
+          475.79998779296875
+        ],
+        "finalBox": [130.109375, 146.40625, 795.65625, 610],
+        "selectedUnit": 0,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-about-390",
+        "route": "/",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          31.9921875, 254.81961059570312, 326.015625, 249.94125366210938
+        ],
+        "finalBox": [-13.984375, 198.015625, 417.96875, 320.4375],
+        "selectedUnit": 0,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-books-1440",
+        "route": "/#books",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          422.8283996582031, 229.1100616455078, 594.311279296875,
+          351.74346923828125
+        ],
+        "finalBox": [122.9375, 276.296875, 761.9375, 450.953125],
+        "selectedUnit": 1,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-books-390",
+        "route": "/#books",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          35.636932373046875, 280.80474853515625, 318.72747802734375,
+          197.98593139648438
+        ],
+        "finalBox": [-13.640625, 260.328125, 408.625, 253.828125],
+        "selectedUnit": 1,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-training-1440",
+        "route": "/#weightlifting",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          415.0076904296875, 200.6298828125, 609.97216796875, 408.732177734375
+        ],
+        "finalBox": [116.875, 202.109375, 782.015625, 524.015625],
+        "selectedUnit": 2,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-training-390",
+        "route": "/#weightlifting",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          35.243988037109375, 265.0419616699219, 319.5074768066406,
+          229.5028076171875
+        ],
+        "finalBox": [-5.96875, 219.765625, 409.625, 294.234375],
+        "selectedUnit": 2,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-systems-1440",
+        "route": "/#systems",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          422.8262023925781, 225.2078094482422, 594.335693359375,
+          359.55560302734375
+        ],
+        "finalBox": [123.015625, 266.109375, 761.96875, 460.96875],
+        "selectedUnit": 3,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-systems-390",
+        "route": "/#systems",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          35.635772705078125, 278.54876708984375, 318.72747802734375,
+          202.48312377929688
+        ],
+        "finalBox": [-13.640625, 254.515625, 408.625, 259.59375],
+        "selectedUnit": 3,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-projects-1440",
+        "route": "/projects",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          415.03131103515625, 215.84713745117188, 609.9113159179688,
+          378.2634582519531
+        ],
+        "finalBox": [116.953125, 241.203125, 781.9375, 484.953125],
+        "selectedUnit": 4,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-projects-390",
+        "route": "/projects",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          35.257354736328125, 273.2978515625, 319.4831237792969,
+          212.98873901367188
+        ],
+        "finalBox": [-5.953125, 241.03125, 409.59375, 273.0625],
+        "selectedUnit": 4,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-blog-1440",
+        "route": "/musings",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          422.7875671386719, 205.29019165039062, 594.396484375,
+          399.3843688964844
+        ],
+        "finalBox": [122.859375, 214.78125, 762.046875, 512.03125],
+        "selectedUnit": 5,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-blog-390",
+        "route": "/musings",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          35.636688232421875, 267.67010498046875, 318.73968505859375,
+          224.23779296875
+        ],
+        "finalBox": [-13.640625, 226.65625, 408.640625, 287.484375],
+        "selectedUnit": 5,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-talks-1440",
+        "route": "/talks",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          415.385009765625, 213.87307739257812, 609.216552734375,
+          382.2121887207031
+        ],
+        "finalBox": [117.890625, 234.890625, 781.046875, 490.015625],
+        "selectedUnit": 6,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      },
+      {
+        "name": "entrance-talks-390",
+        "route": "/talks",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "emptyBox": [
+          35.258331298828125, 272.17254638671875, 319.4831237792969,
+          215.23126220703125
+        ],
+        "finalBox": [-5.953125, 238.0625, 409.59375, 275.9375],
+        "selectedUnit": 6,
+        "staggeredItems": true,
+        "registeredBeforeComplete": false,
+        "finalTransformIdentity": true,
+        "errors": []
+      }
+    ],
+    "coldLoads": [
+      {
+        "name": "cold-/projects-1200x900",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-1024x768",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-2560x1440",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/projects-820x1180",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      },
+      {
+        "name": "cold-/#books-1200x900",
+        "passed": true,
+        "automaticEntry": true,
+        "errors": []
+      }
+    ],
+    "focusedTestsPassed": 445,
+    "testFilesPassed": 21,
+    "typecheck": "passed",
+    "targetedEslint": "passed",
+    "productionBuild": "Final CSS build passed including search and weight-log boundaries",
+    "artworkFreshness": "About and captured shelf checks passed",
+    "originalSvgBytes": "unchanged",
+    "emptyShelfAssets": 24,
+    "emptyShelfGzipBytes": 23270,
+    "fieldNotes": "Automatic loading fails quality-bar test 2; no award.",
+    "gestures": [
+      {
+        "gesture": "held-touch",
+        "passed": true,
+        "automaticEntryAfterSettling": true,
+        "errors": []
+      },
+      {
+        "gesture": "continuous-wheel",
+        "passed": true,
+        "automaticEntryAfterSettling": true,
+        "errors": []
+      }
+    ],
+    "finalCssSpotChecks": [
+      {
+        "name": "entrance-projects-1440",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "errors": []
+      },
+      {
+        "name": "entrance-projects-390",
+        "passed": true,
+        "phases": [
+          "shelf",
+          "items",
+          "placing",
+          "content",
+          "navigation",
+          "complete"
+        ],
+        "errors": []
+      }
+    ]
   }
 }

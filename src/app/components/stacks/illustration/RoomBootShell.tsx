@@ -25,7 +25,7 @@ function FirstPaintArtwork(props: Omit<RoomBootShellProps, "illustrated">) {
       const asset =
         getRoomArtwork(props.unitIndex, theme, viewport) ?? fallback;
       const prefix = `--room-first-paint-${theme}-${viewport}`;
-      style[`${prefix}-image`] = `url("${asset.src}")`;
+      style[`${prefix}-image`] = `url("${asset.shelfSrc}")`;
       style[`${prefix}-width`] =
         `${(500 * asset.viewBox[2]!) / asset.drawingWidth}px`;
       style[`${prefix}-ratio`] = String(asset.viewBox[2]! / asset.viewBox[3]!);

@@ -8,6 +8,7 @@ import { Matrix4, Vector3 } from "three";
 
 import { verifyCapturedBooksIdentity } from "./room-artwork-books.mjs";
 import { verifyCapturedClockRotation } from "./room-artwork-clock.mjs";
+import { extractShelfArtwork } from "./room-artwork-shelf.mjs";
 
 export const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -125,6 +126,8 @@ export async function generate({ root = ROOT, check = false } = {}) {
     if (partCount !== entry.partCount) throw new Error("Owner count changed");
     const stem = `${entry.unit}/${entry.label}`;
     const src = `/images/stacks/boot/${stem}.svg`;
+    const shelfSrc = `/images/stacks/boot/${stem}.shelf.svg`;
+    const shelfSvg = extractShelfArtwork(svg);
     const registrationSrc = `/images/stacks/boot/${stem}.registration.json`;
     const metadata = {
       unit: entry.unit,
@@ -132,6 +135,7 @@ export async function generate({ root = ROOT, check = false } = {}) {
       theme: entry.label.split("-")[0],
       viewport: entry.label.split("-")[1],
       src,
+      shelfSrc,
       viewBox: entry.viewBox,
       drawingWidth: entry.drawingWidth,
       sourceRevision: manifest.sourceRevision,
@@ -158,6 +162,7 @@ export async function generate({ root = ROOT, check = false } = {}) {
       artworkSha256: sha256(svg),
     };
     expected.set(`${OUTPUT}/${stem}.svg`, svg);
+    expected.set(`${OUTPUT}/${stem}.shelf.svg`, shelfSvg);
     expected.set(
       `${OUTPUT}/${stem}.registration.json`,
       serialized(registration),
@@ -167,6 +172,9 @@ export async function generate({ root = ROOT, check = false } = {}) {
       case: entry.label,
       svgBytes: Buffer.byteLength(svg),
       svgGzipBytes: gzipSync(svg, { level: 9 }).length,
+      shelfBytes: Buffer.byteLength(shelfSvg),
+      shelfGzipBytes: gzipSync(shelfSvg, { level: 9 }).length,
+      shelfSha256: sha256(shelfSvg),
       registrationBytes: Buffer.byteLength(serialized(registration)),
       detailImages: entry.details.length,
       parts: partCount,
@@ -214,6 +222,8 @@ export async function generate({ root = ROOT, check = false } = {}) {
     decodedDetails: decodedDetails.size,
     svgBytes: sizes.reduce((n, s) => n + s.svgBytes, 0),
     svgGzipBytes: sizes.reduce((n, s) => n + s.svgGzipBytes, 0),
+    shelfBytes: sizes.reduce((n, s) => n + s.shelfBytes, 0),
+    shelfGzipBytes: sizes.reduce((n, s) => n + s.shelfGzipBytes, 0),
     registrationBytes: sizes.reduce((n, s) => n + s.registrationBytes, 0),
   };
 }

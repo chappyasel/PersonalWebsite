@@ -141,6 +141,47 @@ it("does not publish stale decode completion after a shelf changes", async () =>
   ).toBe("4");
 });
 
+it("withholds both new and cached registration until the entrance settles, then measures the final box", async () => {
+  const onReady = vi.fn();
+  const props = {
+    data,
+    theme: "light" as const,
+    viewport: "desktop" as const,
+    visible: true,
+    canRequest3D: false,
+    onRequest3D: vi.fn(),
+    onReady,
+    onUnavailable: vi.fn(),
+  };
+  const view = render(<IllustratedRoom {...props} entranceSettled={false} />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(onReady).toHaveBeenLastCalledWith(null);
+  expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
+  expect(props.onUnavailable).not.toHaveBeenCalled();
+  rectangle = { x: 150, y: 240, width: 640, height: 380 };
+  view.rerender(<IllustratedRoom {...props} entranceSettled />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(JSON.parse(onReady.mock.lastCall![0] as string)).toContain(640);
+  expect(view.container.querySelector("img[data-room-artwork]")).not.toBeNull();
+
+  // The second layout effect must not republish the cached key while the
+  // DOM is animated, even if visibility changes before a fresh decode.
+  view.rerender(<IllustratedRoom {...props} entranceSettled={false} />);
+  view.rerender(
+    <IllustratedRoom {...props} entranceSettled={false} visible={false} />,
+  );
+  view.rerender(<IllustratedRoom {...props} entranceSettled={false} visible />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(onReady).toHaveBeenLastCalledWith(null);
+  expect(view.container.querySelector("img[data-room-artwork]")).toBeNull();
+});
+
 it("keeps a failed drawing unregistered and offers explicit retry without owning content", async () => {
   decode.mockRejectedValue(new Error("decode failed"));
   const onReady = vi.fn();

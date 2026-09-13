@@ -1,6 +1,6 @@
 {
   "objective": "Integrate approved illustrated shelves into automatic production boot and usable WebGL fallback, with a registered dissolve at the ordinary camera pose",
-  "status": "first_load_and_entrance_verified",
+  "status": "restored_shelf_assembly_verified",
   "base": "f54e6e2",
   "integrationBranch": "feat/illustrated-room",
   "integrationWorktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-room",
@@ -89,5 +89,16 @@
     "loadingReview": "http://localhost:3334/projects?hold-boot=1",
     "entranceCases": 2,
     "focusedTestsPassed": 354
+  },
+  "restoredEntrance": {
+    "after": "b61a481",
+    "entranceCases": 14,
+    "coldLoadCases": 5,
+    "focusedTestsPassed": 445,
+    "preview": "http://localhost:3334/",
+    "loadingReview": "http://localhost:3334/?hold-boot=1",
+    "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json",
+    "gestureCases": 2,
+    "finalCssSpotChecks": 2
   }
 }

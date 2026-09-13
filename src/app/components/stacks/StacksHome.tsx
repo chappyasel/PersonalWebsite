@@ -330,8 +330,12 @@ export default function StacksHome({
   const settledUnit = useStacks((state) => state.settledUnit);
   const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
+  const entranceUnit = useStacks((state) => state.activeUnit);
   const entrance = useIllustratedEntrance(
     illustratedEnabled && roomMounted && roomActive,
+    worldShellRef,
+    `${entranceUnit}:${theme}:${viewport}`,
+    presentation === "live",
   );
 
   // Bound to this boot's generation. The canvas can lose its context or throw
@@ -896,6 +900,7 @@ export default function StacksHome({
                     visible={illustrated || handoff}
                     canRequest3D={boot.canRequest3D}
                     loading={boot.worldMounted || boot.recoverable}
+                    entranceSettled={entrance === "complete"}
                     onRequest3D={request3D}
                     onReady={illustrationReady}
                     onUnavailable={illustrationUnavailable}

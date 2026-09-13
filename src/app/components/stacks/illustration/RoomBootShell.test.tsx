@@ -31,7 +31,7 @@ it.each([1, 2, 3, 4, 5, 6])(
         const asset = getRoomArtwork(unitIndex, theme, viewport)!;
         const prefix = `--room-first-paint-${theme}-${viewport}`;
         expect(stage.style.getPropertyValue(`${prefix}-image`)).toBe(
-          `url("${asset.src}")`,
+          `url("${asset.shelfSrc}")`,
         );
         const hydrated = markup(
           <IllustrationStage
