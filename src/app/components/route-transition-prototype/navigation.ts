@@ -1,6 +1,19 @@
 // Shared entry for DOM links and scene actions. The request is cancelable:
 // callers keep their existing behavior unless a mounted controller accepts it.
-import { isRoomPathname } from "~/lib/site/roomRoutes";
+import { isRoomPathname, normalizeRoomPathname } from "~/lib/site/roomRoutes";
+
+export function isMusingReadingPath(pathname: string) {
+  return /^\/musings(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)?\/?$/.test(pathname);
+}
+
+/** Articles are separate documents, even though they share one section. */
+export function isMusingPageChange(from: string, to: string) {
+  return (
+    isMusingReadingPath(from) &&
+    isMusingReadingPath(to) &&
+    normalizeRoomPathname(from) !== normalizeRoomPathname(to)
+  );
+}
 
 export const PROTOTYPE_NAVIGATION_EVENT = "route-prototype:navigate";
 export function requestPrototypeNavigation(
@@ -24,6 +37,7 @@ const SECTIONS = [
   "systems",
   "liarsdice",
   "weight-log",
+  "musings",
 ];
 const SUBDOMAINS = ["books", "weightlifting", "manual", "routine"];
 const ROOT_HOSTS = [
@@ -42,6 +56,12 @@ export function prototypeDestination(
   const current = new URL(currentHref);
   const url = new URL(href, current);
   if (!["http:", "https:"].includes(url.protocol)) return null;
+  // RSS is a feed response, not a document the page router can commit.
+  if (
+    url.pathname.startsWith("/musings/") &&
+    !isMusingReadingPath(url.pathname)
+  )
+    return null;
   const onSubdomain = SUBDOMAINS.some((site) =>
     current.hostname.startsWith(`${site}.`),
   );

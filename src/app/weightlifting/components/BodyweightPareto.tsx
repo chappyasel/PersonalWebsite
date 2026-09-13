@@ -1,6 +1,10 @@
 "use client";
 
-import { InfoIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ArrowUpIcon,
+  InfoIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { useMemo } from "react";
 import {
   CartesianGrid,
@@ -172,7 +176,18 @@ export function ParetoChart({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>1RMe (lb)</span>
-            <span>Lighter ← · stronger ↑</span>
+            <span>
+              Lighter{" "}
+              <ArrowLeftIcon
+                aria-hidden="true"
+                className="inline-block size-[1em] align-[-0.125em]"
+              />{" "}
+              · stronger{" "}
+              <ArrowUpIcon
+                aria-hidden="true"
+                className="inline-block size-[1em] align-[-0.125em]"
+              />
+            </span>
           </div>
           <div
             className="overflow-x-auto overscroll-x-contain rounded-lg"

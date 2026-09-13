@@ -10,10 +10,7 @@ const globals = readFileSync(
   "utf8",
 );
 const inspector = readFileSync(
-  new URL(
-    "../../app/components/stacks/modal/SceneArtifactInspector.tsx",
-    import.meta.url,
-  ),
+  new URL("../images/ImageViewerChrome.tsx", import.meta.url),
   "utf8",
 );
 

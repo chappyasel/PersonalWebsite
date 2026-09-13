@@ -48,7 +48,7 @@ describe("homepage 3D traverse order", () => {
     expect(unitIndexFromHash("#musings")).toBe(5);
     expect(unitIndexFromHash("#blog")).toBe(5);
     expect(unitUrl(2)).toBe("/#weightlifting");
-    expect(unitUrl(5)).toBe("/musings");
+    expect(unitUrl(5)).toBe("/#musings");
   });
 
   it("shortens Talks only in the unit rail", () => {
@@ -93,7 +93,7 @@ describe("homepage 3D traverse order", () => {
   it("gives every stop one URL, whatever path the visitor arrived on", () => {
     // Shelves that own a path are that path.
     expect(unitUrl(4)).toBe("/projects");
-    expect(unitUrl(5)).toBe("/musings");
+    expect(unitUrl(5)).toBe("/#musings");
     expect(unitUrl(6)).toBe("/talks");
     // About's stop is the homepage; the pages' shelves hang a hash off it.
     expect(unitUrl(0)).toBe("/");
@@ -115,7 +115,7 @@ describe("homepage 3D traverse order", () => {
 
   it("opens a shelf's own path on that shelf and still reads every alias", () => {
     expect(defaultScenePositionForPathname("/projects")).toBe(4);
-    expect(defaultScenePositionForPathname("/musings/")).toBe(5);
+    expect(initialScenePositionFromLocation("/", "#musings")).toBe(5);
     expect(defaultScenePositionForPathname("/talks")).toBe(6);
     expect(defaultScenePositionForPathname("/about")).toBe(0);
     expect(defaultScenePositionForPathname("/golf")).toBe(GOLF_STOP_POSITION);
@@ -134,7 +134,15 @@ describe("homepage 3D traverse order", () => {
     }
     for (const pathname of ["/", "/golf", "/golf/"])
       expect(isRoomPathname(pathname)).toBe(true);
-    for (const pathname of [...pagePaths, "/liarsdice", "/weight-log", "/dad"])
+    for (const pathname of [
+      ...pagePaths,
+      "/liarsdice",
+      "/weight-log",
+      "/dad",
+      "/musings",
+      "/musings/",
+      "/musings/ai-stack",
+    ])
       expect(isRoomPathname(pathname)).toBe(false);
   });
 });

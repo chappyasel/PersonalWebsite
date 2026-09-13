@@ -53,7 +53,7 @@ describe("compact development HUD presentation", () => {
     ]);
     expect(rowText(base, 0)).toBe("60 FPS · 16.8ms · 2%");
     expect(rowText(base, 1)).toBe("Cine M · 2.53× · 8.2/8.3MP");
-    expect(rowText(base, 2)).toBe("R7↓2s · EF · CF · GPU");
+    expect(rowText(base, 2)).toBe("R7 down 2s · EF · CF · GPU");
     expect(rowText(base, 3)).toBe("B9 · AOM · D.8/1.9");
   });
 
@@ -87,7 +87,7 @@ describe("compact development HUD presentation", () => {
   });
 
   it("shows all three current axes and fades a recent direction after five seconds", () => {
-    expect(rowText(base, 2)).toContain("R7↓2s");
+    expect(rowText(base, 2)).toContain("R7 down 2s");
     expect(
       rowText(
         {
@@ -100,7 +100,7 @@ describe("compact development HUD presentation", () => {
         },
         2,
       ),
-    ).toContain("EF↑5s");
+    ).toContain("EF up 5s");
     expect(
       rowText(
         {

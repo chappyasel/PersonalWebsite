@@ -147,10 +147,10 @@ function recentAxis(
 ): DevHudSegment {
   if (transition?.axis !== axis || transition.ageMs > 5_000)
     return { text: base, tone: "accent", emphasis: true };
-  const arrow = transition.direction === "down" ? "↓" : "↑";
+  const direction = transition.direction === "down" ? "down" : "up";
   const seconds = Math.max(1, Math.ceil(transition.ageMs / 1_000));
   return {
-    text: `${base}${arrow}${seconds}s`,
+    text: `${base} ${direction} ${seconds}s`,
     tone: transition.direction === "down" ? "warning" : "positive",
     emphasis: true,
   };

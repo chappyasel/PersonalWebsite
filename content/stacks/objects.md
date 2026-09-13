@@ -184,7 +184,7 @@ Title: Globe
 Status: written
 Audience: internal
 
-The darker countries are the 25 I have visited. The orange lights map the spread of AI Collective chapters around the world.
+The darker countries are the 25 I have visited. The orange lights map the spread of The AI Collective chapters around the world.
 
 ## grab:plant:about-cactus
 
@@ -218,7 +218,7 @@ Onstage at Consensus 2026 in Miami, making the case that AI agents may become cr
 
 ## about-collective-group-v8
 
-Title: AI Collective
+Title: The AI Collective
 Status: written
 Audience: internal
 Link: The AI Collective https://aicollective.com/
@@ -907,7 +907,7 @@ Title: San Francisco at Dusk
 Status: written
 Audience: internal
 
-Sunset from my 33rd-floor apartment in San Francisco, where many AI Collective dinners and founder gatherings began.
+Sunset from my 33rd-floor apartment in San Francisco, where many of The AI Collective's dinners and founder gatherings began.
 
 ## systems-lake-v8
 
@@ -1135,7 +1135,7 @@ A mug on the Musings top shelf, near the kettle.
 Title: GPT-3 Paper
 Status: written
 Audience: internal
-Link: Medium https://medium.com/@chappyasel
+Link: Musings https://www.chappyasel.com/musings
 
 My 2021 college paper on GPT-3 and the technological singularity. Researching it first pointed me toward community as the missing layer around AI.
 
@@ -1267,7 +1267,7 @@ Title: Demo Night
 Status: written
 Audience: internal
 
-Our first large-scale AI Collective Demo Night in May 2024. Find the people building interesting things and put them in a room together.
+The AI Collective's first large-scale Demo Night in May 2024. Find the people building interesting things and put them in a room together.
 
 ## talk-consensus-phone-v8
 

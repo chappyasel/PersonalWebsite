@@ -1905,7 +1905,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "render",
     group: "render.scene-effects",
     label: "Photo preview blur",
-    help: "Sample the room behind an enlarged photo with the Field Notes blur.",
+    help: "Blur the background behind enlarged photos in the room and document galleries.",
     defaultValue: artifactPreviewVisualEffects.defaultSnapshot.backdropBlur,
     experimental: false,
     productionCost: {

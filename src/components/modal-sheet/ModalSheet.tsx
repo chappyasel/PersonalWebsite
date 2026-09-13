@@ -283,6 +283,7 @@ function PresentedSheet({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (isUniversalSearchOpen()) return;
+      if (document.querySelector(".PhotoView-Portal")) return;
       if (document.querySelector('[data-book-modal-shell="document"]')) return;
       if (event.key === "Escape") closeRef.current();
     };

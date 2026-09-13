@@ -194,7 +194,7 @@
     "status": "written",
     "visitor": false,
     "links": [],
-    "body": "The darker countries are the 25 I have visited. The orange lights map the spread of AI Collective chapters around the world."
+    "body": "The darker countries are the 25 I have visited. The orange lights map the spread of The AI Collective chapters around the world."
   },
   {
     "id": "grab:plant:about-cactus",
@@ -235,7 +235,7 @@
   },
   {
     "id": "about-collective-group-v8",
-    "title": "AI Collective",
+    "title": "The AI Collective",
     "status": "written",
     "visitor": false,
     "links": [
@@ -997,7 +997,7 @@
     "status": "written",
     "visitor": false,
     "links": [],
-    "body": "Sunset from my 33rd-floor apartment in San Francisco, where many AI Collective dinners and founder gatherings began."
+    "body": "Sunset from my 33rd-floor apartment in San Francisco, where many of The AI Collective's dinners and founder gatherings began."
   },
   {
     "id": "systems-lake-v8",
@@ -1251,8 +1251,8 @@
     "visitor": false,
     "links": [
       {
-        "label": "Medium",
-        "href": "https://medium.com/@chappyasel"
+        "label": "Musings",
+        "href": "https://www.chappyasel.com/musings"
       }
     ],
     "body": "My 2021 college paper on GPT-3 and the technological singularity. Researching it first pointed me toward community as the missing layer around AI."
@@ -1395,7 +1395,7 @@
     "status": "written",
     "visitor": false,
     "links": [],
-    "body": "Our first large-scale AI Collective Demo Night in May 2024. Find the people building interesting things and put them in a room together."
+    "body": "The AI Collective's first large-scale Demo Night in May 2024. Find the people building interesting things and put them in a room together."
   },
   {
     "id": "talk-consensus-phone-v8",

@@ -10,6 +10,10 @@ import {
   CaretRightIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import {
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   type CSSProperties,
@@ -239,7 +243,7 @@ type StampLettering = Readonly<{
   style: StampLetteringStyle;
   primary: string | null;
   secondary: string | null;
-  denomination: string | null;
+  denomination: ReactNode;
 }>;
 
 type StampIconTreatment = Readonly<{
@@ -394,7 +398,12 @@ const STAMP_LETTERING = {
     style: "poster",
     primary: "Up & right",
     secondary: "Growth issue",
-    denomination: "↗",
+    denomination: (
+      <ArrowUpRightIcon
+        aria-hidden="true"
+        className="inline-block size-[1em] align-[-0.125em]"
+      />
+    ),
   },
   fireworks: {
     style: "none",
@@ -430,7 +439,16 @@ const STAMP_LETTERING = {
     style: "denomination",
     primary: "About to green",
     secondary: "One long carry",
-    denomination: "A→G",
+    denomination: (
+      <>
+        A
+        <ArrowRightIcon
+          aria-hidden="true"
+          className="inline-block size-[1em] align-[-0.125em]"
+        />
+        G
+      </>
+    ),
   },
   "wrong-sport": {
     style: "banner",

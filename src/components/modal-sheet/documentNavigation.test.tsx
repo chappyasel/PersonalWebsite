@@ -141,6 +141,12 @@ describe("document navigation inside a sheet", () => {
     expect(
       screen.getByRole("link", { name: "Open full page" }).getAttribute("href"),
     ).toBe("/manual");
+    const viewer = document.createElement("div");
+    viewer.className = "PhotoView-Portal";
+    document.body.append(viewer);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(routerBack).not.toHaveBeenCalled();
+    viewer.remove();
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(routerBack).toHaveBeenCalledTimes(1));
     await waitFor(() =>

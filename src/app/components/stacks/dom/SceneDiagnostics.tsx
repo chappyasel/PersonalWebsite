@@ -1,5 +1,6 @@
 "use client";
 
+import { RouteTransitionPrototypeControl } from "../../route-transition-prototype/Gate";
 import { FIELD_NOTES, type FieldNoteId } from "../fieldNotes/catalog";
 import { resetFieldNotePlacements } from "../fieldNotes/placement";
 import {
@@ -82,6 +83,7 @@ import {
 } from "../scene/screenshotMode";
 import { CAMERA } from "../scene/worldLayout";
 import { useStacks } from "../store";
+import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -89,7 +91,6 @@ import { createPortal } from "react-dom";
 import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
 
 import { KeycapSequence } from "~/components/ui/keycap";
-import { RouteTransitionPrototypeControl } from "../../route-transition-prototype/Gate";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
@@ -1571,7 +1572,8 @@ export default function SceneDiagnostics({
     photographTreatment.warmthMultiplier !==
       DEFAULT_PHOTOGRAPH_TREATMENT.warmthMultiplier ||
     photographTreatment.contrast !== DEFAULT_PHOTOGRAPH_TREATMENT.contrast ||
-    photographTreatment.coverShadowLift !== DEFAULT_PHOTOGRAPH_TREATMENT.coverShadowLift;
+    photographTreatment.coverShadowLift !==
+      DEFAULT_PHOTOGRAPH_TREATMENT.coverShadowLift;
 
   useEffect(() => {
     if (!automaticReport) return;
@@ -2423,10 +2425,16 @@ export default function SceneDiagnostics({
               <span aria-hidden="true">·</span>
               <span>right-drag to look</span>
               <span aria-hidden="true">·</span>
-              <KeycapSequence keys={["←", "→", "↑", "↓"]} label="Arrow keys" />
+              <KeycapSequence
+                keys={["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]}
+                label="Arrow keys"
+              />
               <span>move X/Z</span>
               <span aria-hidden="true">·</span>
-              <KeycapSequence keys={["⇞", "⇟"]} label="Page Up or Page Down" />
+              <KeycapSequence
+                keys={["PageUp", "PageDown"]}
+                label="Page Up or Page Down"
+              />
               <span>move Y</span>
               <span aria-hidden="true">·</span>
               <KeycapSequence keys={["W", "A", "S", "D"]} label="W A S D" />
@@ -2508,7 +2516,11 @@ function PhysicsDiagnosticsDetails({
         </span>
         <span>
           {snapshot.rootGeometry.length} roots · release{" "}
-          {snapshot.requestedReleaseSpeed?.toFixed(2) ?? "–"} →{" "}
+          {snapshot.requestedReleaseSpeed?.toFixed(2) ?? "–"}{" "}
+          <ArrowRightIcon
+            aria-hidden="true"
+            className="inline-block size-[1em] align-[-0.125em]"
+          />{" "}
           {snapshot.acceptedReleaseSpeed?.toFixed(2) ?? "–"} · reset{" "}
           {snapshot.visibilityResetState ?? "–"}
         </span>

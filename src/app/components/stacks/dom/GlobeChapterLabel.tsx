@@ -44,8 +44,8 @@ export default function GlobeChapterLabel() {
             : hover.kind === "visited"
               ? globeVisitedPlaceStatus()
               : single
-                ? "AI Collective chapter"
-                : "AI Collective chapters"}
+                ? "The AI Collective chapter"
+                : "The AI Collective chapters"}
         </span>
       </span>
     </div>

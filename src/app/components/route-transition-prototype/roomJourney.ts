@@ -23,6 +23,7 @@ function isRoomDestination(path: string) {
     "systems",
     "liarsdice",
     "weight-log",
+    "musings",
   ].includes(path.split("/")[1] ?? "");
 }
 

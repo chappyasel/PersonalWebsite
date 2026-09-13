@@ -71,7 +71,10 @@ const sources: PublicIndexSourceTexts = {
               {
                 type: "toggle",
                 title: [
-                  { text: ":sunsama:", customEmoji: { name: "sunsama", src: "/e.png" } },
+                  {
+                    text: ":sunsama:",
+                    customEmoji: { name: "sunsama", src: "/e.png" },
+                  },
                   { text: " Sunsama → tasks / calendar" },
                 ],
                 children: [
@@ -221,7 +224,12 @@ describe("createPublicSearchIndex", () => {
           id: "public:systems:at-a-glance",
           source: "systems",
           label: "At a Glance",
-          target: { kind: "site", site: "home", path: "/systems", hash: "at-a-glance" },
+          target: {
+            kind: "site",
+            site: "home",
+            path: "/systems",
+            hash: "at-a-glance",
+          },
           body: "Seven layers.",
         }),
         expect.objectContaining({
@@ -273,5 +281,32 @@ describe("createPublicSearchIndex", () => {
     expect(serialized).not.toMatch(/youtube|youtu\.be/i);
     expect(serialized).not.toContain("YouTube project");
     expect(serialized).not.toContain("Protocol-relative project");
+  });
+});
+
+it("indexes the full Notion essay at its local route with its local cover", () => {
+  const index = createPublicSearchIndex({
+    ...sources,
+    blog: JSON.stringify({
+      items: [
+        {
+          title: "The Apple Way",
+          link: "/musings/apple-way",
+          source: "Musings",
+          description: "A short introduction",
+          searchText: "A distinctive passage deep inside the article.",
+          thumbnail: "/images/musings/cover.webp",
+        },
+      ],
+    }),
+  });
+  const essay = index.documents.find(
+    (document) => document.source === "musing",
+  );
+  expect(essay).toMatchObject({
+    target: { kind: "site", site: "home", path: "/musings/apple-way" },
+    metadata: ["Musings"],
+    body: "A distinctive passage deep inside the article.",
+    image: "/images/musings/cover.webp",
   });
 });
