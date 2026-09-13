@@ -578,7 +578,7 @@ Title: Bench Press
 Status: written
 Audience: visitor
 
-Benching four plate for reps in 2025.
+Benching four plates for reps in 2025.
 
 ## lift-table
 
