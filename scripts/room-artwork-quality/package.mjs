@@ -4,6 +4,7 @@ import sharp from "sharp";
 
 import { verifyQualityCapture } from "./capture-contract.mjs";
 import { traceContour } from "./contour.mjs";
+import { correctShelfFaceOrder } from "./shelf-faces.mjs";
 
 const [unit = "projects", label = "light-desktop"] = process.argv.slice(2);
 const root = "scripts/generate/room-artwork-inputs";
@@ -183,7 +184,7 @@ for (const owner of captured.owners) {
     group[0].slice(0, group[0].indexOf(">") + 1) + body + "</g>",
   );
 }
-let output = source;
+let output = correctShelfFaceOrder(source);
 for (const [old, next] of replacements) output = output.replace(old, next);
 if (
   [...source.matchAll(/data-part="[^"]+"/g)].join() !==
@@ -196,7 +197,7 @@ const receipt = {
   unit,
   label,
   method:
-    "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained; corner-preserving contour fit",
+    "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained with solid plank tops occluding inner end-cap faces; corner-preserving contour fit",
   sourceRevision: "27c0155",
   inputArtworkSha256: hash(source),
   outputArtworkSha256: hash(output),
