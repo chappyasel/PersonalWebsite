@@ -1,0 +1,897 @@
+{
+  "version": 1,
+  "unit": "musings",
+  "label": "dark-desktop",
+  "sourceSvgSha256": "ce9ec8232cf77d6aafc3b1b0d4d1d504b5132f16ab2d69fbeac6890eceb3e2c2",
+  "geometrySha256": "796313b80298400e37664f73ee85a6cb6697ed6c5a95e9c047a0e70ee2e3ddba",
+  "contractSha256": "aa278e1dbc3a0d90baa42e270f8c2a505c938d8aa4f1e6b7843023ce3b281f14",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 2,
+      "heldout": 3,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 20,
+      "heldout": 20,
+      "fill": "#261005",
+      "beforeMAE": 97.68333333333332,
+      "afterMAE": 6.383333333333333
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 994,
+      "heldout": 997,
+      "fill": "#200c03",
+      "beforeMAE": 92.65229020394523,
+      "afterMAE": 10.567368772985635
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 1016,
+      "heldout": 1028,
+      "fill": "#72170d",
+      "beforeMAE": 79.6309987029831,
+      "afterMAE": 35.07522697795068
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 1465,
+      "heldout": 1430,
+      "fill": "#663014",
+      "beforeMAE": 59.64149184149178,
+      "afterMAE": 8.630769230769241
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 54,
+      "heldout": 64,
+      "fill": "#f7b55f",
+      "beforeMAE": 57.34375000000001,
+      "afterMAE": 8.447916666666668
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#534536",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#534536",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 3256,
+      "heldout": 3255,
+      "fill": "#2f1407",
+      "beforeMAE": 67.59457245263678,
+      "afterMAE": 8.22724014336921
+    },
+    {
+      "owner": "shelf",
+      "index": 33,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 34,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 35,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 5443,
+      "heldout": 5445,
+      "fill": "#391b0a",
+      "beforeMAE": 57.27444138353211,
+      "afterMAE": 13.68448117539027
+    },
+    {
+      "owner": "shelf",
+      "index": 36,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 3,
+      "heldout": 6,
+      "fill": "#72170d",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "musings-lamp",
+      "index": 37,
+      "type": "path",
+      "sourceFill": "#b49b73",
+      "samples": 691,
+      "heldout": 738,
+      "fill": "#fcecb8",
+      "beforeMAE": 64.0289069557362,
+      "afterMAE": 27.599819331526646
+    },
+    {
+      "owner": "grab-vineyard-cutout",
+      "index": 38,
+      "type": "image",
+      "samples": 1074,
+      "heldout": 1066,
+      "curves": [
+        {
+          "gain": 1.993917,
+          "gamma": 2.14
+        },
+        {
+          "gain": 1.980536,
+          "gamma": 2.34
+        },
+        {
+          "gain": 2,
+          "gamma": 2.44
+        }
+      ],
+      "sourceSha256": "8d751231e512377d654389cfa0364c01a15e593e0acf7225f758c088f2f3b00c",
+      "beforeMAE": 32.701375859912375,
+      "afterMAE": 3.362101313320836
+    },
+    {
+      "owner": "grab-mug",
+      "index": 39,
+      "type": "image",
+      "samples": 1133,
+      "heldout": 1097,
+      "curves": [
+        {
+          "gain": 0.846264,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.453146,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.964223,
+          "gamma": 2.3
+        }
+      ],
+      "sourceSha256": "1ce20a9117ecd08059f32162b783a59e5d14d4ab95ab82afa9c0577f98ae7e08",
+      "beforeMAE": 35.85718626557289,
+      "afterMAE": 11.276207839562453
+    },
+    {
+      "owner": "grab-paper-5",
+      "index": 40,
+      "type": "image",
+      "samples": 521,
+      "heldout": 520,
+      "curves": [
+        {
+          "gain": 0.988082,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.906836,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.826595,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "06eec3e06c1238199948f1bcbe8e72c872211d2fbb0565f9a3f74ae7058bde58",
+      "beforeMAE": 22.852564102564113,
+      "afterMAE": 3.4775641025640955
+    },
+    {
+      "owner": "grab-kettle",
+      "index": 41,
+      "type": "image",
+      "samples": 1230,
+      "heldout": 1232,
+      "curves": [
+        {
+          "gain": 1.194885,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.030052,
+          "gamma": 0.64
+        },
+        {
+          "gain": 0.951123,
+          "gamma": 1.02
+        }
+      ],
+      "sourceSha256": "8ac4df5f8a48865c18b1d819190026d21837f0d0566da81985d99f01f1021579",
+      "beforeMAE": 43.7443181818182,
+      "afterMAE": 17.093614718614738
+    },
+    {
+      "owner": "grab-openbook",
+      "index": 42,
+      "type": "image",
+      "samples": 1221,
+      "heldout": 1222,
+      "curves": [
+        {
+          "gain": 0.914827,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.680357,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.610263,
+          "gamma": 1.06
+        }
+      ],
+      "sourceSha256": "79c36da14ddc7188716238fc1ff6b212fca49debb9d4d1928aef38b31f6e2602",
+      "beforeMAE": 36.10556464811785,
+      "afterMAE": 19.088379705400982
+    },
+    {
+      "owner": "grab-trust-essay-musings",
+      "index": 43,
+      "type": "image",
+      "samples": 6530,
+      "heldout": 6530,
+      "curves": [
+        {
+          "gain": 1.001226,
+          "gamma": 0.62
+        },
+        {
+          "gain": 0.935005,
+          "gamma": 0.86
+        },
+        {
+          "gain": 0.839644,
+          "gamma": 1.08
+        }
+      ],
+      "sourceSha256": "840b5994fa614c7462d6c8198c3dfef98f79daf75c94258f30a7337e621d67e9",
+      "beforeMAE": 28.570086778969042,
+      "afterMAE": 17.984686064318723
+    },
+    {
+      "owner": "grab-vineyard-sign",
+      "index": 44,
+      "type": "image",
+      "samples": 807,
+      "heldout": 814,
+      "curves": [
+        {
+          "gain": 0.89704,
+          "gamma": 1.52
+        },
+        {
+          "gain": 0.786357,
+          "gamma": 1.24
+        },
+        {
+          "gain": 0.702013,
+          "gamma": 1.2
+        }
+      ],
+      "sourceSha256": "9ba927565fd6fe7dd93aac80364eed6bb626c59d4b374beda5f2b4beb261975b",
+      "beforeMAE": 44.766175266175246,
+      "afterMAE": 17.017608517608508
+    },
+    {
+      "owner": "grab-pen-5",
+      "index": 45,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-systems-lighthouse-v8",
+      "index": 46,
+      "type": "image",
+      "samples": 1993,
+      "heldout": 2010,
+      "curves": [
+        {
+          "gain": 0.910256,
+          "gamma": 1.14
+        },
+        {
+          "gain": 0.843287,
+          "gamma": 1.48
+        },
+        {
+          "gain": 0.732884,
+          "gamma": 1.36
+        }
+      ],
+      "sourceSha256": "7660ef2e2bc4ed37952dd2b63dc48701d5544ff434afe6e2fd16a3050ad01efb",
+      "beforeMAE": 38.44079601990053,
+      "afterMAE": 10.093366500829195
+    },
+    {
+      "owner": "grab-lighthouse-musings",
+      "index": 47,
+      "type": "image",
+      "samples": 1975,
+      "heldout": 2022,
+      "curves": [
+        {
+          "gain": 0.981809,
+          "gamma": 0.98
+        },
+        {
+          "gain": 1.016174,
+          "gamma": 1.54
+        },
+        {
+          "gain": 1.343782,
+          "gamma": 1.98
+        }
+      ],
+      "sourceSha256": "f524b7d6e94d1bd53fc10a843aface4ced3cf79596f67bdf98ad7f776f9654ce",
+      "beforeMAE": 34.79838443785024,
+      "afterMAE": 13.887075502802507
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 48,
+      "type": "path",
+      "sourceFill": "#5a6a38",
+      "samples": 13,
+      "heldout": 11,
+      "fill": "#8f7323",
+      "beforeMAE": 26.515151515151512,
+      "afterMAE": 11.696969696969699
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 49,
+      "type": "path",
+      "sourceFill": "#687b40",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 50,
+      "type": "path",
+      "sourceFill": "#8a5f48",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 51,
+      "type": "path",
+      "sourceFill": "#756541",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 52,
+      "type": "path",
+      "sourceFill": "#b3a68f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 53,
+      "type": "path",
+      "sourceFill": "#b1a58d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 54,
+      "type": "path",
+      "sourceFill": "#836449",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 55,
+      "type": "path",
+      "sourceFill": "#a79a83",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 56,
+      "type": "path",
+      "sourceFill": "#9e977d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 57,
+      "type": "path",
+      "sourceFill": "#b1a48d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 58,
+      "type": "path",
+      "sourceFill": "#9b9479",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 59,
+      "type": "path",
+      "sourceFill": "#687146",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 60,
+      "type": "path",
+      "sourceFill": "#757b55",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 61,
+      "type": "path",
+      "sourceFill": "#afa38c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 62,
+      "type": "path",
+      "sourceFill": "#8b896a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 63,
+      "type": "path",
+      "sourceFill": "#334d68",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 64,
+      "type": "path",
+      "sourceFill": "#848464",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 65,
+      "type": "path",
+      "sourceFill": "#6c754c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 66,
+      "type": "path",
+      "sourceFill": "#9f987e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 67,
+      "type": "path",
+      "sourceFill": "#41565e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-musings",
+      "index": 68,
+      "type": "path",
+      "sourceFill": "#c9bda4",
+      "samples": 345,
+      "heldout": 332,
+      "fill": "#906238",
+      "beforeMAE": 90.50401606425707,
+      "afterMAE": 19.128514056224905
+    },
+    {
+      "owner": "musings-book-row",
+      "index": 69,
+      "type": "image",
+      "samples": 9179,
+      "heldout": 9182,
+      "curves": [
+        {
+          "gain": 1.321042,
+          "gamma": 1.68
+        },
+        {
+          "gain": 1.323409,
+          "gamma": 1.94
+        },
+        {
+          "gain": 1.062077,
+          "gamma": 1.84
+        }
+      ],
+      "sourceSha256": "4cef2f36146604509e5e689781ecfe79c5f8ab45219406ab2ecc2e4edb4d3218",
+      "beforeMAE": 35.6446307993904,
+      "afterMAE": 2.983808901473926
+    },
+    {
+      "owner": "grab-headphones",
+      "index": 70,
+      "type": "image",
+      "samples": 1004,
+      "heldout": 999,
+      "curves": [
+        {
+          "gain": 1.201568,
+          "gamma": 1.42
+        },
+        {
+          "gain": 0.211976,
+          "gamma": 0.92
+        },
+        {
+          "gain": 2,
+          "gamma": 2.02
+        }
+      ],
+      "sourceSha256": "e6958339dd198a241825bc75e3a33e0a2553780fa2f174ffa9714857eaa116fc",
+      "beforeMAE": 18.770770770770763,
+      "afterMAE": 10.626626626626635
+    },
+    {
+      "owner": "egg-tea",
+      "index": 71,
+      "type": "image",
+      "samples": 437,
+      "heldout": 432,
+      "curves": [
+        {
+          "gain": 1.481565,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.737845,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.768373,
+          "gamma": 1.46
+        }
+      ],
+      "sourceSha256": "0fa0c7ce9a12093d5b0868c342baf657b17341c034ada180e3c45b046fad7d64",
+      "beforeMAE": 44.71219135802468,
+      "afterMAE": 25.562500000000014
+    },
+    {
+      "owner": "grab-sticker-vineyard-vines",
+      "index": 72,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 123,
+      "top": 215,
+      "width": 762,
+      "height": 512
+    },
+    "files": {
+      "display-colors/musings/dark-desktop/reference.png": "9725e40b4e2ff50e393b1e0cf3aed9be59ee6c4363c95a543c4d31ca12a6381f",
+      "display-colors/musings/dark-desktop/heldout.png": "63ed66b4febade470ea539a864b6d75dc044c8addf71f94098ff410f2eb5bd46",
+      "display-colors/musings/dark-desktop/provenance.json": "d8b1394ac3ee17dea40e550722b3d998b743cd3d361d111c0655a6b04d18d4b0"
+    }
+  }
+}

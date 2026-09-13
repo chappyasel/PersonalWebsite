@@ -1,0 +1,954 @@
+{
+  "version": 1,
+  "unit": "weightlifting",
+  "label": "light-desktop",
+  "sourceSvgSha256": "9d5741453aaf74ee2048ac9f0a7ec7ea76e243063e876de943b5ca9c2b5fcc75",
+  "geometrySha256": "7ad2a9de21a4b104fc95f652674918ace388d7f3e3a6bfcdb20d08161677167c",
+  "contractSha256": "07e3e279e575daaa71aca6cc1528328ca7af2b2b3cee03a3ced665b389df6377",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 492,
+      "heldout": 470,
+      "fill": "#6f3a0e",
+      "beforeMAE": 75.39078014184408,
+      "afterMAE": 7.244680851063833
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 840,
+      "heldout": 835,
+      "fill": "#683307",
+      "beforeMAE": 78.01516966067862,
+      "afterMAE": 5.967265469061877
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#bea17e",
+      "samples": 1316,
+      "heldout": 1271,
+      "fill": "#c4701f",
+      "beforeMAE": 61.49829530553363,
+      "afterMAE": 22.834251245738308
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#bea17e",
+      "samples": 11,
+      "heldout": 10,
+      "fill": "#955c23",
+      "beforeMAE": 61.70000000000001,
+      "afterMAE": 5.433333333333334
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 1,
+      "heldout": 2,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#b18e65",
+      "samples": 3456,
+      "heldout": 3423,
+      "fill": "#87511c",
+      "beforeMAE": 58.241114032524685,
+      "afterMAE": 5.077417470055464
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 33,
+      "type": "polygon",
+      "sourceFill": "#b18e65",
+      "samples": 5639,
+      "heldout": 5644,
+      "fill": "#915921",
+      "beforeMAE": 50.576541459956765,
+      "afterMAE": 7.61894637373016
+    },
+    {
+      "owner": "shelf",
+      "index": 34,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#683307",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "grab-pre-x",
+      "index": 35,
+      "type": "image",
+      "samples": 864,
+      "heldout": 920,
+      "curves": [
+        {
+          "gain": 0.953081,
+          "gamma": 1.84
+        },
+        {
+          "gain": 0.835445,
+          "gamma": 1.52
+        },
+        {
+          "gain": 0.73611,
+          "gamma": 1.44
+        }
+      ],
+      "sourceSha256": "e9771d34195de54d4799d4f98cbd523d54cc00db8ad3a77020dae4a45775c48c",
+      "beforeMAE": 38.57934782608693,
+      "afterMAE": 15.082246376811591
+    },
+    {
+      "owner": "grab-protein",
+      "index": 36,
+      "type": "image",
+      "samples": 2283,
+      "heldout": 2243,
+      "curves": [
+        {
+          "gain": 1.039196,
+          "gamma": 1.72
+        },
+        {
+          "gain": 0.928702,
+          "gamma": 1.46
+        },
+        {
+          "gain": 0.773368,
+          "gamma": 1.18
+        }
+      ],
+      "sourceSha256": "5756c227374d80afb76f2951dd0e913e8716e3d3353417ba846b9f89c8f83f05",
+      "beforeMAE": 37.463961955714105,
+      "afterMAE": 25.20300193193644
+    },
+    {
+      "owner": "grab-basketball",
+      "index": 37,
+      "type": "image",
+      "samples": 4812,
+      "heldout": 4849,
+      "curves": [
+        {
+          "gain": 1.640664,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.118398,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.317086,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "57b03e6d407d10692361fae9b83f463645d256f16b25f13da92d706dfaab4cf7",
+      "beforeMAE": 32.48800439953256,
+      "afterMAE": 15.76132535918057
+    },
+    {
+      "owner": "grab-dumbbell-training-left",
+      "index": 38,
+      "type": "image",
+      "samples": 1695,
+      "heldout": 1713,
+      "curves": [
+        {
+          "gain": 1.889963,
+          "gamma": 2.6
+        },
+        {
+          "gain": 1.741069,
+          "gamma": 2.6
+        },
+        {
+          "gain": 2,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "b0165e65bca01b48422fe2be85eda4e9354798cce355d7325a4c8149c7b8006b",
+      "beforeMAE": 25.82136602451787,
+      "afterMAE": 18.495816306674733
+    },
+    {
+      "owner": "pinboard",
+      "index": 39,
+      "type": "image",
+      "samples": 9251,
+      "heldout": 9160,
+      "curves": [
+        {
+          "gain": 1.705933,
+          "gamma": 2.04
+        },
+        {
+          "gain": 0.761866,
+          "gamma": 0.84
+        },
+        {
+          "gain": 0.508107,
+          "gamma": 1.22
+        }
+      ],
+      "sourceSha256": "d413baf857d93305394e392e7ca5b2a02dffc354475cdb38f0a533d22ec31e1c",
+      "beforeMAE": 39.60767831149913,
+      "afterMAE": 24.131986899563305
+    },
+    {
+      "owner": "grab-photo-training-trophy-front-v8",
+      "index": 40,
+      "type": "image",
+      "samples": 734,
+      "heldout": 676,
+      "curves": [
+        {
+          "gain": 0.965524,
+          "gamma": 0.7
+        },
+        {
+          "gain": 0.908208,
+          "gamma": 0.98
+        },
+        {
+          "gain": 0.908526,
+          "gamma": 1.38
+        }
+      ],
+      "sourceSha256": "329dd39899cd80430adcbe689b28b71e6cb6fc1e9370e4855c2cf729525279c3",
+      "beforeMAE": 10.161242603550297,
+      "afterMAE": 7.698717948717958
+    },
+    {
+      "owner": "action-training-figure-big-three",
+      "index": 41,
+      "type": "image",
+      "samples": 633,
+      "heldout": 599,
+      "curves": [
+        {
+          "gain": 1.022198,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.939035,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.828857,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "7ce3b93b1a53e74cfe31db504d37d884c1fc5456c6df4fa0ca7dd4a8bf1fac34",
+      "beforeMAE": 18.373400111296608,
+      "afterMAE": 3.969393433500271
+    },
+    {
+      "owner": "grab-photo-training-stage-side-v8",
+      "index": 42,
+      "type": "image",
+      "samples": 716,
+      "heldout": 743,
+      "curves": [
+        {
+          "gain": 1.029652,
+          "gamma": 0.78
+        },
+        {
+          "gain": 0.90167,
+          "gamma": 0.98
+        },
+        {
+          "gain": 1.388726,
+          "gamma": 1.64
+        }
+      ],
+      "sourceSha256": "900886dfb27aaeee322d458dc30567634988177433006793c95a54ec8cef8cfe",
+      "beforeMAE": 8.283983849259753,
+      "afterMAE": 6.5365634813817834
+    },
+    {
+      "owner": "action-training-figure-dexa-history",
+      "index": 43,
+      "type": "image",
+      "samples": 712,
+      "heldout": 725,
+      "curves": [
+        {
+          "gain": 1.045909,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.028729,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.943478,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "feb32e7cab4f81c3ed27bc9d651e75e0447dc47737f768ef07af16aa8af5a9f1",
+      "beforeMAE": 16.888735632183906,
+      "afterMAE": 8.05609195402299
+    },
+    {
+      "owner": "grab-photo-training-stage-kneeling-v8",
+      "index": 44,
+      "type": "image",
+      "samples": 748,
+      "heldout": 740,
+      "curves": [
+        {
+          "gain": 1.062864,
+          "gamma": 1.06
+        },
+        {
+          "gain": 1.128549,
+          "gamma": 1.36
+        },
+        {
+          "gain": 1.939613,
+          "gamma": 2.08
+        }
+      ],
+      "sourceSha256": "e925e60769158ed7e2a9a0f26399308a795e8607a7e436526fbc702c0c88c066",
+      "beforeMAE": 8.9436936936937,
+      "afterMAE": 5.97342342342342
+    },
+    {
+      "owner": "golf-ball-shelf-b",
+      "index": 45,
+      "type": "image",
+      "samples": 34,
+      "heldout": 27,
+      "curves": [
+        {
+          "gain": 0.774726,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.620526,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.512951,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "038ff03bd94ade23a9b91cb6ef3fdbb5cee8bd61422db7c82c7b2f5c5d3d0e7d",
+      "beforeMAE": 48.962962962962955,
+      "afterMAE": 41.5679012345679
+    },
+    {
+      "owner": "grab-shaker-training-navy",
+      "index": 46,
+      "type": "image",
+      "samples": 190,
+      "heldout": 170,
+      "unchanged": "Translucent shell/liquid: final RGB contains the room background"
+    },
+    {
+      "owner": "action-training-figure-aggregate-strength",
+      "index": 47,
+      "type": "image",
+      "samples": 662,
+      "heldout": 669,
+      "curves": [
+        {
+          "gain": 1.00377,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.913812,
+          "gamma": 0.64
+        },
+        {
+          "gain": 0.811538,
+          "gamma": 0.7
+        }
+      ],
+      "sourceSha256": "ce0d62d728595bb791ec436d00b9c3e1e91565904a279649d0103f2bd5a317fc",
+      "beforeMAE": 21.220229197807676,
+      "afterMAE": 4.762830094668662
+    },
+    {
+      "owner": "grab-photo-training-trophy-side-v8",
+      "index": 48,
+      "type": "image",
+      "samples": 4291,
+      "heldout": 4277,
+      "curves": [
+        {
+          "gain": 1.154817,
+          "gamma": 1.32
+        },
+        {
+          "gain": 1.463356,
+          "gamma": 1.78
+        },
+        {
+          "gain": 1.748985,
+          "gamma": 2.16
+        }
+      ],
+      "sourceSha256": "e052c04635821e3c6b499f7b93ef82fb1653b8751d5a316745907b25f0714981",
+      "beforeMAE": 7.204972332631844,
+      "afterMAE": 4.474242069986734
+    },
+    {
+      "owner": "grab-shaker-training-amber",
+      "index": 49,
+      "type": "image",
+      "samples": 222,
+      "heldout": 225,
+      "unchanged": "Translucent shell/liquid: final RGB contains the room background"
+    },
+    {
+      "owner": "golf-ball-shelf-a",
+      "index": 50,
+      "type": "image",
+      "samples": 87,
+      "heldout": 97,
+      "curves": [
+        {
+          "gain": 0.991069,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.871649,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.950783,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "675c77aec92eb9158233eb75212f93ecd0593199a5a492c9bf7433fd5a04635c",
+      "beforeMAE": 45.85910652920964,
+      "afterMAE": 29.64948453608248
+    },
+    {
+      "owner": "grab-ball-baseball",
+      "index": 51,
+      "type": "image",
+      "samples": 381,
+      "heldout": 415,
+      "curves": [
+        {
+          "gain": 0.860789,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.713344,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.62307,
+          "gamma": 0.8
+        }
+      ],
+      "sourceSha256": "a0400ede6817c9e32ae845e731d3030b8d378a1378bc963df33667e62e9e1b01",
+      "beforeMAE": 46.52289156626506,
+      "afterMAE": 25.898795180722896
+    },
+    {
+      "owner": "grab-photo-training-pickleball-group-v8",
+      "index": 52,
+      "type": "image",
+      "samples": 3307,
+      "heldout": 3308,
+      "curves": [
+        {
+          "gain": 1.012257,
+          "gamma": 1.28
+        },
+        {
+          "gain": 0.937615,
+          "gamma": 1.38
+        },
+        {
+          "gain": 0.833524,
+          "gamma": 1.64
+        }
+      ],
+      "sourceSha256": "e321954919706452f19b3801977806600d35e46b46a1cfdc81c8e439c91f1396",
+      "beforeMAE": 28.208786779524335,
+      "afterMAE": 10.26229343006854
+    },
+    {
+      "owner": "grab-ball-tennis",
+      "index": 53,
+      "type": "image",
+      "samples": 340,
+      "heldout": 326,
+      "curves": [
+        {
+          "gain": 1.514516,
+          "gamma": 2.56
+        },
+        {
+          "gain": 0.87279,
+          "gamma": 1.18
+        },
+        {
+          "gain": 0.1,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "3217bbbc0f9a4afcb18bf0e6dd3c1e8565f2a4429db250a9d32786f67f5168ec",
+      "beforeMAE": 40.97750511247444,
+      "afterMAE": 27.96932515337424
+    },
+    {
+      "owner": "grab-shaker-training",
+      "index": 54,
+      "type": "image",
+      "samples": 237,
+      "heldout": 225,
+      "unchanged": "Translucent shell/liquid: final RGB contains the room background"
+    },
+    {
+      "owner": "grab-gorilla-mode",
+      "index": 55,
+      "type": "image",
+      "samples": 3168,
+      "heldout": 3124,
+      "curves": [
+        {
+          "gain": 1.039627,
+          "gamma": 1.96
+        },
+        {
+          "gain": 1.990193,
+          "gamma": 2.54
+        },
+        {
+          "gain": 1.262,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "409ee8ea36abf5fe372c9409b83cabc99f7314719013ca7f03f7da6b030c2d33",
+      "beforeMAE": 22.812846777635517,
+      "afterMAE": 13.461374306444727
+    },
+    {
+      "owner": "artifact-lift-table",
+      "index": 56,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-training-golf-flag-v8",
+      "index": 57,
+      "type": "image",
+      "samples": 3057,
+      "heldout": 3025,
+      "curves": [
+        {
+          "gain": 1.001136,
+          "gamma": 1.18
+        },
+        {
+          "gain": 0.908734,
+          "gamma": 1.24
+        },
+        {
+          "gain": 0.830893,
+          "gamma": 1.32
+        }
+      ],
+      "sourceSha256": "03aac17e6636b5223d3a206d62376a98048a389e2f7b3fcbfa31e787d7c2de7d",
+      "beforeMAE": 27.7534986225895,
+      "afterMAE": 10.074380165289263
+    },
+    {
+      "owner": "grab-photo-training-golf-group-v8",
+      "index": 58,
+      "type": "image",
+      "samples": 3143,
+      "heldout": 3134,
+      "curves": [
+        {
+          "gain": 0.973536,
+          "gamma": 1.46
+        },
+        {
+          "gain": 0.902125,
+          "gamma": 1.56
+        },
+        {
+          "gain": 0.781299,
+          "gamma": 1.68
+        }
+      ],
+      "sourceSha256": "df69d981ed9fc5037dde3604fae28d93d55623a553ebb59955a9514521e7658e",
+      "beforeMAE": 43.430865773239766,
+      "afterMAE": 13.649542650499935
+    },
+    {
+      "owner": "grab-photo-training-bench-v8",
+      "index": 59,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-golf-tee-shelf-right",
+      "index": 60,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-golf-tee-shelf-middle",
+      "index": 61,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-training-deadlift-v8",
+      "index": 62,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-golf-tee-shelf-left",
+      "index": 63,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-training-gym-pose-v8",
+      "index": 64,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-dumbbell-training-right",
+      "index": 65,
+      "type": "image",
+      "samples": 2134,
+      "heldout": 2135,
+      "curves": [
+        {
+          "gain": 2,
+          "gamma": 2.6
+        },
+        {
+          "gain": 1.608653,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.674153,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "7f242a703aa2b8830a898cb6e0e24e5e63bf2137b4ea551c23109ca9aa0c489d",
+      "beforeMAE": 31.333489461358273,
+      "afterMAE": 2.7979703356752057
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 117,
+      "top": 202,
+      "width": 782,
+      "height": 524
+    },
+    "files": {
+      "display-colors/weightlifting/light-desktop/reference.png": "924e2c825816dfd38127ccd1a0ffb6c7ab5690b382cbea0f7dd03502caead51a",
+      "display-colors/weightlifting/light-desktop/heldout.png": "6131b3f43da5219db8061d404fac077c8385f1af772a83d68e07b8a6b769b8b7",
+      "display-colors/weightlifting/light-desktop/provenance.json": "f299408072f2ef36afcf1dda215cf5c5ddbb338417e2ed221147a15ef6bab592"
+    }
+  }
+}

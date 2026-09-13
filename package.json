@@ -76,7 +76,7 @@
     "youtube:evaluate-scores": "tsx ./scripts/evaluate-youtube-scores.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
     "generate:room-artwork": "node scripts/generate/room-artwork.mjs",
-    "check:room-artwork": "node scripts/generate/room-artwork.mjs --check && pnpm check:room-artwork-quality",
+    "check:room-artwork": "node scripts/generate/room-artwork.mjs --check && pnpm check:room-artwork-quality && node scripts/room-artwork-quality/check-display-colors.mjs",
     "check:room-artwork-quality": "tsx scripts/room-artwork-quality/check-live-masks.mjs"
   },
   "dependencies": {

@@ -1,0 +1,1038 @@
+{
+  "version": 1,
+  "unit": "projects",
+  "label": "light-phone",
+  "sourceSvgSha256": "faa611e913bd588e7d3a4af1f94d40ca0e87212a7c7e3b8615e57245d6ad99a0",
+  "geometrySha256": "33294bf18ace9637b031ba5a1c1db5428913cffe4c2a29e296f2d0707438db56",
+  "contractSha256": "7b061cd4aa1ee7728fe055e917e50e57abe56a518ad5f9f9f30a9cecc527591e",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 40,
+      "heldout": 57,
+      "fill": "#855230",
+      "beforeMAE": 52.07602339181286,
+      "afterMAE": 7.906432748538012
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 148,
+      "heldout": 174,
+      "fill": "#8a5025",
+      "beforeMAE": 48.89463601532566,
+      "afterMAE": 10.063218390804595
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#bea17e",
+      "samples": 14,
+      "heldout": 17,
+      "fill": "#ec8a35",
+      "beforeMAE": 50.31372549019608,
+      "afterMAE": 33.803921568627445
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#bea17e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#ec8a35",
+      "inheritedFrom": 21
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#b18e65",
+      "samples": 668,
+      "heldout": 645,
+      "fill": "#925c2e",
+      "beforeMAE": 44.89250645994831,
+      "afterMAE": 3.636692506459946
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#b18e65",
+      "samples": 1129,
+      "heldout": 1144,
+      "fill": "#9d6331",
+      "beforeMAE": 38.0300116550116,
+      "afterMAE": 10.750291375291376
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#9b886b",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#8a5025",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 33,
+      "type": "path",
+      "sourceFill": "#87af64",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 34,
+      "type": "path",
+      "sourceFill": "#5f7a48",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 35,
+      "type": "path",
+      "sourceFill": "#6f8f53",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 36,
+      "type": "path",
+      "sourceFill": "#9c4f38",
+      "samples": 9,
+      "heldout": 41,
+      "fill": "#852e23",
+      "beforeMAE": 22.999999999999996,
+      "afterMAE": 3.4796747967479673
+    },
+    {
+      "owner": "mac",
+      "index": 37,
+      "type": "path",
+      "sourceFill": "#ffffff",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "mac",
+      "index": 38,
+      "type": "path",
+      "sourceFill": "#f6efdf",
+      "samples": 817,
+      "heldout": 824,
+      "fill": "#f5ce9d",
+      "beforeMAE": 34.213187702265344,
+      "afterMAE": 5.5651294498381745
+    },
+    {
+      "owner": "mac",
+      "index": 39,
+      "type": "path",
+      "sourceFill": "#3c3937",
+      "samples": 9,
+      "heldout": 5,
+      "fill": "#342720",
+      "beforeMAE": 15.8,
+      "afterMAE": 3.1999999999999997
+    },
+    {
+      "owner": "mac",
+      "index": 40,
+      "type": "path",
+      "sourceFill": "#3d3937",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "mac",
+      "index": 41,
+      "type": "path",
+      "sourceFill": "#eee8d8",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "mac",
+      "index": 42,
+      "type": "path",
+      "sourceFill": "#d5cfc1",
+      "samples": 193,
+      "heldout": 185,
+      "fill": "#d0a77d",
+      "beforeMAE": 38.11171171171172,
+      "afterMAE": 3.3351351351351344
+    },
+    {
+      "owner": "mac",
+      "index": 43,
+      "type": "image",
+      "samples": 569,
+      "heldout": 560,
+      "sourceSha256": "499af672b475be8d62a8d453cd69bb149af207d3add2ce583bf72cea60649c9d",
+      "beforeMAE": 35.14107142857144,
+      "afterMAE": 37.12083333333332,
+      "unchanged": "Color fit did not improve held-out interiors"
+    },
+    {
+      "owner": "card",
+      "index": 44,
+      "type": "image",
+      "samples": 150,
+      "heldout": 144,
+      "curves": [
+        {
+          "gain": 0.261343,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.191142,
+          "gamma": 0.76
+        },
+        {
+          "gain": 0.119914,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "c2002ae6462a59cb8a0653a642843830f6ab8b7838f4e1f9216b87617696ceee",
+      "beforeMAE": 46.37037037037036,
+      "afterMAE": 9.935185185185185
+    },
+    {
+      "owner": "shimmer-apple",
+      "index": 45,
+      "type": "path",
+      "sourceFill": "url(#apple-metal)",
+      "samples": 133,
+      "heldout": 122,
+      "gradient": {
+        "id": "apple-metal",
+        "before": "<linearGradient id=\"apple-metal\"><stop stop-color=\"#aaa697\"/><stop offset=\".48\" stop-color=\"#e5e1d5\"/><stop offset=\"1\" stop-color=\"#b4ae9d\"/></linearGradient>",
+        "after": "<linearGradient id=\"apple-metal\"><stop stop-color=\"#574434\"/><stop offset=\".48\" stop-color=\"#68513f\"/><stop offset=\"1\" stop-color=\"#5a4635\"/></linearGradient>"
+      },
+      "beforeMAE": 122.22404371584699,
+      "afterMAE": 6.401639344262296
+    },
+    {
+      "owner": "arduino",
+      "index": 46,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-projects-wwdc-v8",
+      "index": 47,
+      "type": "image",
+      "samples": 856,
+      "heldout": 829,
+      "curves": [
+        {
+          "gain": 1.002761,
+          "gamma": 1.02
+        },
+        {
+          "gain": 0.88899,
+          "gamma": 1.04
+        },
+        {
+          "gain": 0.762296,
+          "gamma": 1
+        }
+      ],
+      "sourceSha256": "3cf8f212d2a6a9c218920b35d4c050eb0fbdc76931042abb3fe31a1d28ec6d04",
+      "beforeMAE": 20.518295134700473,
+      "afterMAE": 8.519099316445505
+    },
+    {
+      "owner": "action-projects-homework",
+      "index": 48,
+      "type": "image",
+      "samples": 707,
+      "heldout": 724,
+      "curves": [
+        {
+          "gain": 0.875904,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.756192,
+          "gamma": 0.92
+        },
+        {
+          "gain": 0.705557,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "be3eecea57b03fdaa69acc9ec8f1bb5527a764cd67a9e805a5a87542dc50fb7e",
+      "beforeMAE": 46.88581952117861,
+      "afterMAE": 7.393646408839769
+    },
+    {
+      "owner": "link-projects-dice-bottom-right",
+      "index": 49,
+      "type": "image",
+      "samples": 146,
+      "heldout": 145,
+      "curves": [
+        {
+          "gain": 0.938009,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.915,
+          "gamma": 2.38
+        },
+        {
+          "gain": 0.653971,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "b3ff0067c74721934636839ac4d85eedb81bec61df15403b1b8290eca8165e88",
+      "beforeMAE": 40.59310344827586,
+      "afterMAE": 5.524137931034484
+    },
+    {
+      "owner": "trophy",
+      "index": 50,
+      "type": "path",
+      "sourceFill": "#b29766",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 51,
+      "type": "path",
+      "sourceFill": "#a88e65",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 52,
+      "type": "path",
+      "sourceFill": "#907957",
+      "samples": 0,
+      "heldout": 3,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 53,
+      "type": "path",
+      "sourceFill": "#b3976e",
+      "samples": 17,
+      "heldout": 36,
+      "fill": "#78532d",
+      "beforeMAE": 72.46296296296299,
+      "afterMAE": 10.48148148148148
+    },
+    {
+      "owner": "trophy",
+      "index": 54,
+      "type": "path",
+      "sourceFill": "#bea075",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 55,
+      "type": "path",
+      "sourceFill": "#c2a377",
+      "samples": 0,
+      "heldout": 7,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 56,
+      "type": "path",
+      "sourceFill": "#bb9d73",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 57,
+      "type": "path",
+      "sourceFill": "#ab9069",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 58,
+      "type": "path",
+      "sourceFill": "#b79a70",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 59,
+      "type": "path",
+      "sourceFill": "#ab9068",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 60,
+      "type": "path",
+      "sourceFill": "#9e8560",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 61,
+      "type": "path",
+      "sourceFill": "#a78d66",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 62,
+      "type": "path",
+      "sourceFill": "#af946b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 63,
+      "type": "path",
+      "sourceFill": "#a38963",
+      "samples": 15,
+      "heldout": 7,
+      "fill": "#b77837",
+      "beforeMAE": 32.57142857142858,
+      "afterMAE": 12.333333333333334
+    },
+    {
+      "owner": "trophy",
+      "index": 64,
+      "type": "path",
+      "sourceFill": "#9a815d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 65,
+      "type": "path",
+      "sourceFill": "#957d5a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 66,
+      "type": "path",
+      "sourceFill": "#edc58d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 67,
+      "type": "path",
+      "sourceFill": "#ccab7c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 68,
+      "type": "path",
+      "sourceFill": "#bfa073",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 69,
+      "type": "path",
+      "sourceFill": "#cfad7c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 70,
+      "type": "path",
+      "sourceFill": "#b29c83",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 71,
+      "type": "path",
+      "sourceFill": "#988670",
+      "samples": 19,
+      "heldout": 23,
+      "beforeMAE": 43.07246376811595,
+      "afterMAE": 43.07246376811595,
+      "rejectedMAE": 55.50724637681159,
+      "unchanged": "Rejected color fit that increased error on held-out pixels"
+    },
+    {
+      "owner": "trophy",
+      "index": 72,
+      "type": "path",
+      "sourceFill": "#8a7966",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 73,
+      "type": "path",
+      "sourceFill": "#cec7b8",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 74,
+      "type": "path",
+      "sourceFill": "#7a6b5a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "link-projects-dice-middle-right",
+      "index": 75,
+      "type": "image",
+      "samples": 156,
+      "heldout": 160,
+      "curves": [
+        {
+          "gain": 0.939146,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.845431,
+          "gamma": 1.26
+        },
+        {
+          "gain": 0.858528,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "b4de63197bac8b8f5602c26ec70c83fe19dafc94dd4256afe8d08246ea620c50",
+      "beforeMAE": 39.218749999999986,
+      "afterMAE": 9.116666666666667
+    },
+    {
+      "owner": "link-projects-dice-bottom-center",
+      "index": 76,
+      "type": "image",
+      "samples": 151,
+      "heldout": 148,
+      "curves": [
+        {
+          "gain": 0.997572,
+          "gamma": 2.26
+        },
+        {
+          "gain": 0.792771,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.645662,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "bc22875ce74ec2268d0fbc8e3d980cd9753386854f77456c3e1a4f07ac5ce3ea",
+      "beforeMAE": 42.833333333333314,
+      "afterMAE": 15.090090090090081
+    },
+    {
+      "owner": "lamp",
+      "index": 77,
+      "type": "path",
+      "sourceFill": "#baa077",
+      "samples": 163,
+      "heldout": 136,
+      "fill": "#ffc375",
+      "beforeMAE": 36.21323529411763,
+      "afterMAE": 22.276960784313726
+    },
+    {
+      "owner": "link-projects-dice-top",
+      "index": 78,
+      "type": "image",
+      "samples": 175,
+      "heldout": 183,
+      "curves": [
+        {
+          "gain": 0.952894,
+          "gamma": 1.14
+        },
+        {
+          "gain": 0.890102,
+          "gamma": 2.16
+        },
+        {
+          "gain": 0.643849,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "5b465bfbeb253fd54171627dc8bab7068ee6eb45f7ffcc5bfb8f26fa307d905f",
+      "beforeMAE": 42.24954462659382,
+      "afterMAE": 6.37887067395264
+    },
+    {
+      "owner": "link-projects-dice-middle-left",
+      "index": 79,
+      "type": "image",
+      "samples": 127,
+      "heldout": 124,
+      "curves": [
+        {
+          "gain": 1.021882,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.9216,
+          "gamma": 2.54
+        },
+        {
+          "gain": 0.648421,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "d3f047fa093f11bbab609046d7f74ec40b3f1dc4707d7d81b18de588b6563fc0",
+      "beforeMAE": 40.51075268817204,
+      "afterMAE": 14.513440860215054
+    },
+    {
+      "owner": "link-projects-dice-bottom-left",
+      "index": 80,
+      "type": "image",
+      "samples": 169,
+      "heldout": 161,
+      "curves": [
+        {
+          "gain": 0.942303,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.807632,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.655849,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "b1965d84833e9696e86597c309ac44cb3c0ad54d7b3a02ffe7c4c4f5e1c01a9c",
+      "beforeMAE": 39.72256728778466,
+      "afterMAE": 4.939958592132507
+    },
+    {
+      "owner": "action-projects-weightlifting",
+      "index": 81,
+      "type": "image",
+      "samples": 711,
+      "heldout": 702,
+      "curves": [
+        {
+          "gain": 0.989747,
+          "gamma": 0.88
+        },
+        {
+          "gain": 0.833528,
+          "gamma": 0.88
+        },
+        {
+          "gain": 0.7628,
+          "gamma": 1.06
+        }
+      ],
+      "sourceSha256": "8882c04e16aeb60d4eaec5bb162fc8ecd6c691911d4e703c08376498e8c79a73",
+      "beforeMAE": 27.1747388414055,
+      "afterMAE": 9.676163342830002
+    },
+    {
+      "owner": "grab-phone-projects",
+      "index": 82,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-projects-facebook-v8",
+      "index": 83,
+      "type": "image",
+      "samples": 823,
+      "heldout": 816,
+      "curves": [
+        {
+          "gain": 1.015852,
+          "gamma": 1.46
+        },
+        {
+          "gain": 0.870579,
+          "gamma": 1.38
+        },
+        {
+          "gain": 0.744791,
+          "gamma": 1.2
+        }
+      ],
+      "sourceSha256": "873750d64161ff1d76ae8cb16432dc21f083542b8668b151cdb3dce96f65559d",
+      "beforeMAE": 31.035130718954253,
+      "afterMAE": 10.582107843137262
+    },
+    {
+      "owner": "photo",
+      "index": 84,
+      "type": "path",
+      "sourceFill": "#e6d9c0",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "photo",
+      "index": 85,
+      "type": "path",
+      "sourceFill": "#f4ecdb",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "photo",
+      "index": 86,
+      "type": "image",
+      "samples": 789,
+      "heldout": 789,
+      "curves": [
+        {
+          "gain": 1.008551,
+          "gamma": 1.06
+        },
+        {
+          "gain": 0.915891,
+          "gamma": 1.12
+        },
+        {
+          "gain": 0.812199,
+          "gamma": 1.12
+        }
+      ],
+      "sourceSha256": "e0aef574633ce0026d10cf53dea9043947804b1ecf4986079cce70a63ad7150f",
+      "beforeMAE": 19.064216307562315,
+      "afterMAE": 10.802281368821282
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 181,
+      "top": 595,
+      "width": 426,
+      "height": 284
+    },
+    "files": {
+      "display-colors/projects/light-phone/reference.png": "37476d7256e6af6bcc889fbc1d17464805d2c73a285e6433f6edaa1c9a99a81f",
+      "display-colors/projects/light-phone/heldout.png": "cfe75b27c30b4b4d841bd63eb6865df36d9a8d00e454e761e441bdd771bd87ff",
+      "display-colors/projects/light-phone/provenance.json": "bf8d5710bc8232151f123f46cb0d8396224551e1c3cc611599729c581affc223"
+    }
+  }
+}

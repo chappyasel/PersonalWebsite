@@ -1,0 +1,1049 @@
+{
+  "version": 1,
+  "unit": "projects",
+  "label": "dark-phone",
+  "sourceSvgSha256": "1678bbebe6b55ae5b63bf99fe69f0164a4ea40f8fdd486a6eb0f2a962b040666",
+  "geometrySha256": "b8af5e81e3e10c24b473d857c56227b347672ebded6092d31237c55240ecc496",
+  "contractSha256": "610cb4d835d68e81e02a0d404c90504e5be45792fbbd55deda6b2aa937296327",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 40,
+      "heldout": 56,
+      "fill": "#402516",
+      "beforeMAE": 82.66071428571426,
+      "afterMAE": 11.613095238095239
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 147,
+      "heldout": 176,
+      "fill": "#2a140a",
+      "beforeMAE": 86.57954545454547,
+      "afterMAE": 11.049242424242424
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 14,
+      "heldout": 15,
+      "fill": "#542a16",
+      "beforeMAE": 82.35555555555557,
+      "afterMAE": 14.022222222222224
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#542a16",
+      "inheritedFrom": 21
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 663,
+      "heldout": 660,
+      "fill": "#36190c",
+      "beforeMAE": 58.27474747474752,
+      "afterMAE": 9.558585858585847
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 1126,
+      "heldout": 1149,
+      "fill": "#5a341b",
+      "beforeMAE": 38.740063823614754,
+      "afterMAE": 17.527705250942834
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#2a140a",
+      "inheritedFrom": 16
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 33,
+      "type": "path",
+      "sourceFill": "#80974c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 34,
+      "type": "path",
+      "sourceFill": "#5a6a38",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 35,
+      "type": "path",
+      "sourceFill": "#687b40",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 36,
+      "type": "path",
+      "sourceFill": "#a75531",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "index": 37,
+      "type": "path",
+      "sourceFill": "#8f4a2c",
+      "samples": 9,
+      "heldout": 41,
+      "fill": "#7e2615",
+      "beforeMAE": 26.065040650406505,
+      "afterMAE": 0.8130081300813007
+    },
+    {
+      "owner": "mac",
+      "index": 38,
+      "type": "path",
+      "sourceFill": "#ecdec0",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "mac",
+      "index": 39,
+      "type": "path",
+      "sourceFill": "#c9bda4",
+      "samples": 820,
+      "heldout": 813,
+      "fill": "#d1a26d",
+      "beforeMAE": 29.877408774087712,
+      "afterMAE": 5.526445264452644
+    },
+    {
+      "owner": "mac",
+      "index": 40,
+      "type": "path",
+      "sourceFill": "#3c3937",
+      "samples": 7,
+      "heldout": 5,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "mac",
+      "index": 41,
+      "type": "path",
+      "sourceFill": "#3d3937",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "mac",
+      "index": 42,
+      "type": "path",
+      "sourceFill": "#ada38d",
+      "samples": 202,
+      "heldout": 195,
+      "fill": "#9c724b",
+      "beforeMAE": 43.90256410256409,
+      "afterMAE": 1.8136752136752137
+    },
+    {
+      "owner": "mac",
+      "index": 43,
+      "type": "image",
+      "samples": 583,
+      "heldout": 565,
+      "curves": [
+        {
+          "gain": 2,
+          "gamma": 1.36
+        },
+        {
+          "gain": 2,
+          "gamma": 1.52
+        },
+        {
+          "gain": 2,
+          "gamma": 1.54
+        }
+      ],
+      "sourceSha256": "18892201c9593eeb11f521787be0ed1b9904443538c1ff5d14c84ee37ae2fd89",
+      "beforeMAE": 36.50914454277286,
+      "afterMAE": 30.48495575221244
+    },
+    {
+      "owner": "card",
+      "index": 44,
+      "type": "image",
+      "samples": 158,
+      "heldout": 136,
+      "curves": [
+        {
+          "gain": 0.239346,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.199883,
+          "gamma": 0.98
+        },
+        {
+          "gain": 0.101904,
+          "gamma": 0.9
+        }
+      ],
+      "sourceSha256": "ea6ae8cda5146a3a1531d4d50da11b4734079b95b55720f74311961691d43dad",
+      "beforeMAE": 40.00490196078431,
+      "afterMAE": 8.213235294117652
+    },
+    {
+      "owner": "shimmer-apple",
+      "index": 45,
+      "type": "path",
+      "sourceFill": "url(#apple-metal)",
+      "samples": 131,
+      "heldout": 117,
+      "gradient": {
+        "id": "apple-metal",
+        "before": "<linearGradient id=\"apple-metal\"><stop stop-color=\"#77705f\"/><stop offset=\".48\" stop-color=\"#cdc4af\"/><stop offset=\"1\" stop-color=\"#8e8470\"/></linearGradient>",
+        "after": "<linearGradient id=\"apple-metal\"><stop stop-color=\"#4b362a\"/><stop offset=\".48\" stop-color=\"#674c3c\"/><stop offset=\"1\" stop-color=\"#533c2e\"/></linearGradient>"
+      },
+      "beforeMAE": 89.89173789173785,
+      "afterMAE": 7.361823361823358
+    },
+    {
+      "owner": "arduino",
+      "index": 46,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-projects-wwdc-v8",
+      "index": 47,
+      "type": "image",
+      "samples": 852,
+      "heldout": 825,
+      "curves": [
+        {
+          "gain": 0.99654,
+          "gamma": 0.84
+        },
+        {
+          "gain": 0.888409,
+          "gamma": 1
+        },
+        {
+          "gain": 0.773874,
+          "gamma": 1.12
+        }
+      ],
+      "sourceSha256": "07d6de7dd88b0e77e3125e672cda0dc4a0ae90387b09754ff2b55449795f2bd4",
+      "beforeMAE": 24.232727272727278,
+      "afterMAE": 8.911111111111108
+    },
+    {
+      "owner": "action-projects-homework",
+      "index": 48,
+      "type": "image",
+      "samples": 696,
+      "heldout": 715,
+      "curves": [
+        {
+          "gain": 0.875332,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.759492,
+          "gamma": 1.02
+        },
+        {
+          "gain": 0.693496,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "2cbed371eafe949d211ba5531eef5f7cb3e65b719df532755dccf37659a82776",
+      "beforeMAE": 52.25407925407929,
+      "afterMAE": 9.572960372960386
+    },
+    {
+      "owner": "link-projects-dice-bottom-right",
+      "index": 49,
+      "type": "image",
+      "samples": 146,
+      "heldout": 144,
+      "curves": [
+        {
+          "gain": 0.932389,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.783276,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.622335,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "b2f710e18343f294f9fa7eeea3e368ccc6ede457a550840da90c091c40eb0b35",
+      "beforeMAE": 32.13194444444445,
+      "afterMAE": 7.354166666666665
+    },
+    {
+      "owner": "trophy",
+      "index": 50,
+      "type": "path",
+      "sourceFill": "#907849",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 51,
+      "type": "path",
+      "sourceFill": "#c59f76",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 52,
+      "type": "path",
+      "sourceFill": "#9b7e5a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 53,
+      "type": "path",
+      "sourceFill": "#7f674b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 54,
+      "type": "path",
+      "sourceFill": "#6d5941",
+      "samples": 0,
+      "heldout": 1,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 55,
+      "type": "path",
+      "sourceFill": "#897053",
+      "samples": 17,
+      "heldout": 34,
+      "fill": "#452514",
+      "beforeMAE": 74.14705882352942,
+      "afterMAE": 8.754901960784313
+    },
+    {
+      "owner": "trophy",
+      "index": 56,
+      "type": "path",
+      "sourceFill": "#917758",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 57,
+      "type": "path",
+      "sourceFill": "#94795a",
+      "samples": 0,
+      "heldout": 7,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 58,
+      "type": "path",
+      "sourceFill": "#836b4f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 59,
+      "type": "path",
+      "sourceFill": "#8c7255",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 60,
+      "type": "path",
+      "sourceFill": "#8f7557",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 61,
+      "type": "path",
+      "sourceFill": "#866d51",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 62,
+      "type": "path",
+      "sourceFill": "#836a4f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 63,
+      "type": "path",
+      "sourceFill": "#7c654b",
+      "samples": 17,
+      "heldout": 7,
+      "fill": "#894c24",
+      "beforeMAE": 33.71428571428571,
+      "afterMAE": 12.904761904761907
+    },
+    {
+      "owner": "trophy",
+      "index": 64,
+      "type": "path",
+      "sourceFill": "#786248",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 65,
+      "type": "path",
+      "sourceFill": "#755f46",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 66,
+      "type": "path",
+      "sourceFill": "#907557",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 67,
+      "type": "path",
+      "sourceFill": "#b18f6a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 68,
+      "type": "path",
+      "sourceFill": "#9b7f5d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 69,
+      "type": "path",
+      "sourceFill": "#786249",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 70,
+      "type": "path",
+      "sourceFill": "#836d54",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 71,
+      "type": "path",
+      "sourceFill": "#705e49",
+      "samples": 18,
+      "heldout": 23,
+      "beforeMAE": 38.47826086956522,
+      "afterMAE": 38.47826086956522,
+      "rejectedMAE": 49.07246376811594,
+      "unchanged": "Rejected color fit that increased error on held-out pixels"
+    },
+    {
+      "owner": "trophy",
+      "index": 72,
+      "type": "path",
+      "sourceFill": "#665542",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 73,
+      "type": "path",
+      "sourceFill": "#a99f8a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "trophy",
+      "index": 74,
+      "type": "path",
+      "sourceFill": "#5a4a3a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "link-projects-dice-middle-right",
+      "index": 75,
+      "type": "image",
+      "samples": 156,
+      "heldout": 157,
+      "curves": [
+        {
+          "gain": 1.30649,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.860079,
+          "gamma": 1.02
+        },
+        {
+          "gain": 0.73462,
+          "gamma": 1.16
+        }
+      ],
+      "sourceSha256": "741ecfe07c7f17240bc1f170900e233e8c4644723b4f1757198f005cd4b872b7",
+      "beforeMAE": 31.558386411889604,
+      "afterMAE": 11.509554140127387
+    },
+    {
+      "owner": "link-projects-dice-bottom-center",
+      "index": 76,
+      "type": "image",
+      "samples": 148,
+      "heldout": 146,
+      "curves": [
+        {
+          "gain": 0.91371,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.157121,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.611406,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "639c58f19716a576214fb1c52d1487c808c3d561f33be03a409cea4b2e400972",
+      "beforeMAE": 35.630136986301366,
+      "afterMAE": 14.949771689497704
+    },
+    {
+      "owner": "lamp",
+      "index": 77,
+      "type": "path",
+      "sourceFill": "#b49b73",
+      "samples": 162,
+      "heldout": 137,
+      "fill": "#fcd690",
+      "beforeMAE": 48.30170316301705,
+      "afterMAE": 27.065693430656932
+    },
+    {
+      "owner": "link-projects-dice-top",
+      "index": 78,
+      "type": "image",
+      "samples": 167,
+      "heldout": 166,
+      "curves": [
+        {
+          "gain": 1.115965,
+          "gamma": 1.72
+        },
+        {
+          "gain": 0.788256,
+          "gamma": 0.68
+        },
+        {
+          "gain": 0.784477,
+          "gamma": 1.46
+        }
+      ],
+      "sourceSha256": "6983bad3a8b2454464b9c10fd609affce78b5f8aa07f16941db4b0d31f60e25e",
+      "beforeMAE": 32.77108433734941,
+      "afterMAE": 7.857429718875496
+    },
+    {
+      "owner": "link-projects-dice-middle-left",
+      "index": 79,
+      "type": "image",
+      "samples": 131,
+      "heldout": 127,
+      "curves": [
+        {
+          "gain": 1.071551,
+          "gamma": 1.46
+        },
+        {
+          "gain": 0.778884,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.618953,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "326bbb026f2a2077da23396501a947534f5630b37996eb064b35db0dbcbe6908",
+      "beforeMAE": 33.12598425196849,
+      "afterMAE": 11.887139107611548
+    },
+    {
+      "owner": "link-projects-dice-bottom-left",
+      "index": 80,
+      "type": "image",
+      "samples": 185,
+      "heldout": 177,
+      "curves": [
+        {
+          "gain": 0.946157,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.797857,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.6337,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "f09477090e1a6152b30f277a3104fd117fb719e5ece2b42a415c349330470e80",
+      "beforeMAE": 30.600753295668568,
+      "afterMAE": 7.011299435028253
+    },
+    {
+      "owner": "action-projects-weightlifting",
+      "index": 81,
+      "type": "image",
+      "samples": 711,
+      "heldout": 702,
+      "curves": [
+        {
+          "gain": 1.016447,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.857125,
+          "gamma": 0.72
+        },
+        {
+          "gain": 0.766775,
+          "gamma": 1.12
+        }
+      ],
+      "sourceSha256": "5081f8fec7fc0aa6a69d8b8a2e1881807ee7d24e7bba7e7f41d0dbc8b77f3804",
+      "beforeMAE": 33.58357075023744,
+      "afterMAE": 9.568376068376077
+    },
+    {
+      "owner": "grab-phone-projects",
+      "index": 82,
+      "type": "image",
+      "samples": 1,
+      "heldout": 3,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-projects-facebook-v8",
+      "index": 83,
+      "type": "image",
+      "samples": 814,
+      "heldout": 807,
+      "curves": [
+        {
+          "gain": 1.011055,
+          "gamma": 1.32
+        },
+        {
+          "gain": 0.881747,
+          "gamma": 1.46
+        },
+        {
+          "gain": 0.77407,
+          "gamma": 1.42
+        }
+      ],
+      "sourceSha256": "4f207afae97d930eee29ffa472eeaaf97b39c3daca9e005947ff59ba328179a0",
+      "beforeMAE": 30.658405617513438,
+      "afterMAE": 10.241635687732353
+    },
+    {
+      "owner": "photo",
+      "index": 84,
+      "type": "path",
+      "sourceFill": "#2e261c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "photo",
+      "index": 85,
+      "type": "path",
+      "sourceFill": "#b3a68f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "photo",
+      "index": 86,
+      "type": "image",
+      "samples": 794,
+      "heldout": 805,
+      "curves": [
+        {
+          "gain": 0.99537,
+          "gamma": 0.86
+        },
+        {
+          "gain": 0.931949,
+          "gamma": 1.12
+        },
+        {
+          "gain": 0.857932,
+          "gamma": 1.3
+        }
+      ],
+      "sourceSha256": "faeb3e963cf0286d05f7a20635580e1207872586740341a24e8627fc6f3dd273",
+      "beforeMAE": 22.110973084886123,
+      "afterMAE": 10.985093167701852
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 181,
+      "top": 595,
+      "width": 426,
+      "height": 284
+    },
+    "files": {
+      "display-colors/projects/dark-phone/reference.png": "b3185404384c37291639d1051de9f6b4fa12cb3cd8e3002716f7cbe333009d43",
+      "display-colors/projects/dark-phone/heldout.png": "852712009cc16f457f37ef68baff27f94d294b2d4fd32c75471da030e75dbadf",
+      "display-colors/projects/dark-phone/provenance.json": "02d3b7319090a1aab13fcf88c050e0eab20c52dc8a0ce34f857724cae5678c93"
+    }
+  }
+}

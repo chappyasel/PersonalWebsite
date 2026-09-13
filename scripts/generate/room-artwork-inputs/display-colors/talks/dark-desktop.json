@@ -1,0 +1,1623 @@
+{
+  "version": 1,
+  "unit": "talks",
+  "label": "dark-desktop",
+  "sourceSvgSha256": "bd3fb994b14361a25bed75eb612995bc577ceb9df614adf2639f5a1a2ae44792",
+  "geometrySha256": "588d40cc578860cbb4a075f7cac4abc759fc22fc81d2e70564e3bc519870d43a",
+  "contractSha256": "7a2bfcfa438a433718393ae29153ecbeb2732a267e8752adc89ee2dd478af76f",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 665,
+      "heldout": 635,
+      "fill": "#351c0c",
+      "beforeMAE": 89.05406824146978,
+      "afterMAE": 9.561154855643037
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 462,
+      "heldout": 462,
+      "fill": "#2c1507",
+      "beforeMAE": 90.35425685425676,
+      "afterMAE": 7.260461760461758
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 1449,
+      "heldout": 1404,
+      "fill": "#522812",
+      "beforeMAE": 69.51305792972461,
+      "afterMAE": 4.183048433048441
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 20,
+      "heldout": 8,
+      "fill": "#b68048",
+      "beforeMAE": 22.333333333333336,
+      "afterMAE": 3.25
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 99,
+      "heldout": 62,
+      "fill": "#703413",
+      "beforeMAE": 52.13978494623658,
+      "afterMAE": 0.7526881720430111
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 3249,
+      "heldout": 3210,
+      "fill": "#351707",
+      "beforeMAE": 65.9446521287645,
+      "afterMAE": 4.470924195223332
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 33,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 5374,
+      "heldout": 5356,
+      "fill": "#61371b",
+      "beforeMAE": 38.0585013691809,
+      "afterMAE": 16.63480209111271
+    },
+    {
+      "owner": "shelf",
+      "index": 34,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#351c0c",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "grab-plant-talks-top",
+      "index": 35,
+      "type": "path",
+      "sourceFill": "#80974c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-top",
+      "index": 36,
+      "type": "path",
+      "sourceFill": "#687b40",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-top",
+      "index": 37,
+      "type": "path",
+      "sourceFill": "#5a6a38",
+      "samples": 0,
+      "heldout": 1,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-top",
+      "index": 38,
+      "type": "path",
+      "sourceFill": "#8f4a2c",
+      "samples": 157,
+      "heldout": 150,
+      "fill": "#761d0b",
+      "beforeMAE": 41.74444444444442,
+      "afterMAE": 9.246666666666657
+    },
+    {
+      "owner": "grab-photo-talk-demo-night-v8",
+      "index": 39,
+      "type": "image",
+      "samples": 12688,
+      "heldout": 12694,
+      "curves": [
+        {
+          "gain": 1.163781,
+          "gamma": 0.8
+        },
+        {
+          "gain": 1.060726,
+          "gamma": 0.96
+        },
+        {
+          "gain": 0.994397,
+          "gamma": 1.22
+        }
+      ],
+      "sourceSha256": "f130e68a5275d53709b95fd5115d2b4af10fb1052ad92cc5c2f1ff91e0a751bb",
+      "beforeMAE": 26.311879628170754,
+      "afterMAE": 13.259440155453982
+    },
+    {
+      "owner": "grab-sticker-camera-talks-b",
+      "index": 40,
+      "type": "image",
+      "samples": 304,
+      "heldout": 297,
+      "curves": [
+        {
+          "gain": 1.016764,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.814032,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.756688,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "546baf93e3fd7be4620f2648eba986d30d1f4d23c7c80f2e0221b1ee2daec804",
+      "beforeMAE": 74.49943883277227,
+      "afterMAE": 13.377104377104374
+    },
+    {
+      "owner": "talks-hanging-support",
+      "index": 41,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 42,
+      "type": "path",
+      "sourceFill": "#687b40",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 43,
+      "type": "path",
+      "sourceFill": "#80974c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 44,
+      "type": "path",
+      "sourceFill": "#5a6a38",
+      "samples": 846,
+      "heldout": 672,
+      "fill": "#434b17",
+      "beforeMAE": 33.98412698412696,
+      "afterMAE": 11.15773809523809
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 45,
+      "type": "path",
+      "sourceFill": "#fff1cf",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 46,
+      "type": "path",
+      "sourceFill": "#d2c3a7",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 47,
+      "type": "path",
+      "sourceFill": "#b3a68f",
+      "samples": 1324,
+      "heldout": 1323,
+      "fill": "#a0734b",
+      "beforeMAE": 49.54648526077095,
+      "afterMAE": 19.326782564877817
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 48,
+      "type": "path",
+      "sourceFill": "#ffefcd",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 49,
+      "type": "path",
+      "sourceFill": "#b0a38c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 50,
+      "type": "path",
+      "sourceFill": "#b2a58e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 51,
+      "type": "path",
+      "sourceFill": "#ac9f88",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 52,
+      "type": "path",
+      "sourceFill": "#aea18a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 53,
+      "type": "path",
+      "sourceFill": "#a89a84",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 54,
+      "type": "path",
+      "sourceFill": "#aa9d86",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 55,
+      "type": "path",
+      "sourceFill": "#a69882",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 56,
+      "type": "path",
+      "sourceFill": "#a89b84",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 57,
+      "type": "path",
+      "sourceFill": "#afa28b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 58,
+      "type": "path",
+      "sourceFill": "#b1a48d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 59,
+      "type": "path",
+      "sourceFill": "#a2947e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 60,
+      "type": "path",
+      "sourceFill": "#a49680",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 61,
+      "type": "path",
+      "sourceFill": "#a79982",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 62,
+      "type": "path",
+      "sourceFill": "#a99b84",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 63,
+      "type": "path",
+      "sourceFill": "#ab9d87",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 64,
+      "type": "path",
+      "sourceFill": "#ab9e87",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 65,
+      "type": "path",
+      "sourceFill": "#ac9e88",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 66,
+      "type": "path",
+      "sourceFill": "#ada089",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 67,
+      "type": "path",
+      "sourceFill": "#aea08a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 68,
+      "type": "path",
+      "sourceFill": "#9e8f79",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 69,
+      "type": "path",
+      "sourceFill": "#a0927c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 70,
+      "type": "path",
+      "sourceFill": "#a59780",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 71,
+      "type": "path",
+      "sourceFill": "#a89a83",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 72,
+      "type": "path",
+      "sourceFill": "#a99b85",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 73,
+      "type": "path",
+      "sourceFill": "#aa9c86",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 74,
+      "type": "path",
+      "sourceFill": "#ad9f89",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 75,
+      "type": "path",
+      "sourceFill": "#9c8d77",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 76,
+      "type": "path",
+      "sourceFill": "#a3947e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 77,
+      "type": "path",
+      "sourceFill": "#a4967f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 78,
+      "type": "path",
+      "sourceFill": "#a59781",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 79,
+      "type": "path",
+      "sourceFill": "#a69881",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 80,
+      "type": "path",
+      "sourceFill": "#95856f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 81,
+      "type": "path",
+      "sourceFill": "#978872",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 82,
+      "type": "path",
+      "sourceFill": "#9a8b75",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 83,
+      "type": "path",
+      "sourceFill": "#9e907a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 84,
+      "type": "path",
+      "sourceFill": "#a0917b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 85,
+      "type": "path",
+      "sourceFill": "#a1937d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 86,
+      "type": "path",
+      "sourceFill": "#a3957e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 87,
+      "type": "path",
+      "sourceFill": "#a4957f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 88,
+      "type": "path",
+      "sourceFill": "#a79983",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 89,
+      "type": "path",
+      "sourceFill": "#90806a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 90,
+      "type": "path",
+      "sourceFill": "#93836d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 91,
+      "type": "path",
+      "sourceFill": "#958670",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 92,
+      "type": "path",
+      "sourceFill": "#9d8e78",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 93,
+      "type": "path",
+      "sourceFill": "#9f907a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 94,
+      "type": "path",
+      "sourceFill": "#a1927c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 95,
+      "type": "path",
+      "sourceFill": "#a3957f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 96,
+      "type": "path",
+      "sourceFill": "#8e7d68",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 97,
+      "type": "path",
+      "sourceFill": "#968670",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 98,
+      "type": "path",
+      "sourceFill": "#988973",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 99,
+      "type": "path",
+      "sourceFill": "#998a74",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 100,
+      "type": "path",
+      "sourceFill": "#9b8c76",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 101,
+      "type": "path",
+      "sourceFill": "#9f917b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 102,
+      "type": "path",
+      "sourceFill": "#897762",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 103,
+      "type": "path",
+      "sourceFill": "#8b7a65",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 104,
+      "type": "path",
+      "sourceFill": "#91816b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 105,
+      "type": "path",
+      "sourceFill": "#93836e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 106,
+      "type": "path",
+      "sourceFill": "#94846e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 107,
+      "type": "path",
+      "sourceFill": "#968671",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 108,
+      "type": "path",
+      "sourceFill": "#83715b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 109,
+      "type": "path",
+      "sourceFill": "#86745f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 110,
+      "type": "path",
+      "sourceFill": "#897862",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 111,
+      "type": "path",
+      "sourceFill": "#8c7b65",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 112,
+      "type": "path",
+      "sourceFill": "#8f7f69",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 113,
+      "type": "path",
+      "sourceFill": "#91806b",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 114,
+      "type": "path",
+      "sourceFill": "#92826c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 115,
+      "type": "path",
+      "sourceFill": "#94846f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 116,
+      "type": "path",
+      "sourceFill": "#968771",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 117,
+      "type": "path",
+      "sourceFill": "#84725c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 118,
+      "type": "path",
+      "sourceFill": "#87755f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 119,
+      "type": "path",
+      "sourceFill": "#8a7963",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 120,
+      "type": "path",
+      "sourceFill": "#8c7b66",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 121,
+      "type": "path",
+      "sourceFill": "#7a6650",
+      "samples": 5,
+      "heldout": 9,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 122,
+      "type": "path",
+      "sourceFill": "#7b6751",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 123,
+      "type": "path",
+      "sourceFill": "#7e6b55",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 124,
+      "type": "path",
+      "sourceFill": "#86745e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 125,
+      "type": "path",
+      "sourceFill": "#877660",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 126,
+      "type": "path",
+      "sourceFill": "#887661",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 127,
+      "type": "path",
+      "sourceFill": "#8a7863",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 128,
+      "type": "path",
+      "sourceFill": "#8b7a64",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 129,
+      "type": "path",
+      "sourceFill": "#8d7d67",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 130,
+      "type": "path",
+      "sourceFill": "#92816c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 131,
+      "type": "path",
+      "sourceFill": "#806e58",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 132,
+      "type": "path",
+      "sourceFill": "#82705a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 133,
+      "type": "path",
+      "sourceFill": "#85735d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 134,
+      "type": "path",
+      "sourceFill": "#877560",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 135,
+      "type": "path",
+      "sourceFill": "#8d7c67",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 136,
+      "type": "path",
+      "sourceFill": "#7d6953",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 137,
+      "type": "path",
+      "sourceFill": "#816e59",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 138,
+      "type": "path",
+      "sourceFill": "#826f5a",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 139,
+      "type": "path",
+      "sourceFill": "#83715c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 140,
+      "type": "path",
+      "sourceFill": "#887761",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 141,
+      "type": "path",
+      "sourceFill": "#897863",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 142,
+      "type": "path",
+      "sourceFill": "#7d6a54",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 143,
+      "type": "path",
+      "sourceFill": "#7f6c56",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-talks-pothos",
+      "index": 144,
+      "type": "path",
+      "sourceFill": "#806d57",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-photo-talk-consensus-phone-v8",
+      "index": 145,
+      "type": "image",
+      "samples": 6610,
+      "heldout": 6670,
+      "curves": [
+        {
+          "gain": 1.030257,
+          "gamma": 1.32
+        },
+        {
+          "gain": 0.82447,
+          "gamma": 1.14
+        },
+        {
+          "gain": 0.837086,
+          "gamma": 1.68
+        }
+      ],
+      "sourceSha256": "bd6da5c801d1e98263c317aa71df547f7b959e045b94146e005f70ee357c648f",
+      "beforeMAE": 23.103248375812058,
+      "afterMAE": 7.818040979510241
+    },
+    {
+      "owner": "grab-harmonica-talks",
+      "index": 146,
+      "type": "image",
+      "samples": 331,
+      "heldout": 324,
+      "curves": [
+        {
+          "gain": 1.197161,
+          "gamma": 1.62
+        },
+        {
+          "gain": 1.09074,
+          "gamma": 1.7
+        },
+        {
+          "gain": 0.6214,
+          "gamma": 1.38
+        }
+      ],
+      "sourceSha256": "f4828434c5086fe31e7e1904c1fc6e0a22ceb33f115e4272352e9847cbc4c31e",
+      "beforeMAE": 34.92798353909466,
+      "afterMAE": 11.923868312757198
+    },
+    {
+      "owner": "grab-microphone",
+      "index": 147,
+      "type": "image",
+      "samples": 813,
+      "heldout": 840,
+      "curves": [
+        {
+          "gain": 0.334135,
+          "gamma": 0.7
+        },
+        {
+          "gain": 0.245596,
+          "gamma": 0.78
+        },
+        {
+          "gain": 2,
+          "gamma": 2.18
+        }
+      ],
+      "sourceSha256": "9b2f83fc8949bd9acece8d047635d460c0b9a88ed7ad754e4499cd379b773fca",
+      "beforeMAE": 14.729365079365046,
+      "afterMAE": 5.575793650793679
+    },
+    {
+      "owner": "talks-monitor-support",
+      "index": 148,
+      "type": "image",
+      "samples": 27,
+      "heldout": 31,
+      "curves": [
+        {
+          "gain": 1.140891,
+          "gamma": 1.1
+        },
+        {
+          "gain": 1.483595,
+          "gamma": 2.3
+        },
+        {
+          "gain": 1.100806,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "662cb132db9b04776e686c5bf5f792142f7e269b2b56fe696f562c4703b1487c",
+      "beforeMAE": 38.56989247311828,
+      "afterMAE": 6.322580645161289
+    },
+    {
+      "owner": "talks-easel-support",
+      "index": 149,
+      "type": "image",
+      "samples": 128,
+      "heldout": 99,
+      "sourceSha256": "8d38ec31df84b536a6b8fdf810c2cfce017594d6fcdd3b5c8ca1e5f611e60068",
+      "beforeMAE": 39.898989898989875,
+      "afterMAE": 68.5622895622896,
+      "unchanged": "Color fit did not improve held-out interiors"
+    },
+    {
+      "owner": "talks-plinth-support",
+      "index": 150,
+      "type": "image",
+      "samples": 728,
+      "heldout": 719,
+      "curves": [
+        {
+          "gain": 2,
+          "gamma": 1.88
+        },
+        {
+          "gain": 2,
+          "gamma": 2.14
+        },
+        {
+          "gain": 1.064429,
+          "gamma": 1.64
+        }
+      ],
+      "sourceSha256": "592e930ecf8b59bd7ff1edc1b7612bdfc85ddc841aba85d771d82ca75e64de2a",
+      "beforeMAE": 28.2911451089476,
+      "afterMAE": 7.305516921650436
+    },
+    {
+      "owner": "grab-photo-talk-panel-v8",
+      "index": 151,
+      "type": "image",
+      "samples": 5785,
+      "heldout": 5811,
+      "curves": [
+        {
+          "gain": 0.991431,
+          "gamma": 0.8
+        },
+        {
+          "gain": 0.90223,
+          "gamma": 0.96
+        },
+        {
+          "gain": 0.824924,
+          "gamma": 1.12
+        }
+      ],
+      "sourceSha256": "18ae9eb6056d85062188036e2c69d59e75560744a90f976ee6429f19c6cf4b1d",
+      "beforeMAE": 18.43509436126888,
+      "afterMAE": 9.021568290024678
+    },
+    {
+      "owner": "grab-sticker-camera-talks-a",
+      "index": 152,
+      "type": "image",
+      "samples": 744,
+      "heldout": 753,
+      "curves": [
+        {
+          "gain": 1.056466,
+          "gamma": 1.3
+        },
+        {
+          "gain": 0.901247,
+          "gamma": 1.66
+        },
+        {
+          "gain": 0.748223,
+          "gamma": 2.18
+        }
+      ],
+      "sourceSha256": "2d4b1ba687d1632fdd483fab9ffd32f8ebd7a0f4f1123820928e2640d6962b94",
+      "beforeMAE": 52.90482514386894,
+      "afterMAE": 21.583444001770705
+    },
+    {
+      "owner": "grab-photo-talk-dc-policy-v8",
+      "index": 153,
+      "type": "image",
+      "samples": 13072,
+      "heldout": 13094,
+      "curves": [
+        {
+          "gain": 1.039446,
+          "gamma": 0.88
+        },
+        {
+          "gain": 0.925133,
+          "gamma": 1.08
+        },
+        {
+          "gain": 0.735845,
+          "gamma": 1.1
+        }
+      ],
+      "sourceSha256": "18815050a1f04e2d9c4d75be15b8c57492962ca4684edcd4b0cd4e98b1906ee1",
+      "beforeMAE": 20.66093885240075,
+      "afterMAE": 9.50379308589174
+    },
+    {
+      "owner": "grab-photo-talk-ann-interview-v8",
+      "index": 154,
+      "type": "image",
+      "samples": 6300,
+      "heldout": 6316,
+      "curves": [
+        {
+          "gain": 0.960033,
+          "gamma": 0.74
+        },
+        {
+          "gain": 0.857254,
+          "gamma": 0.96
+        },
+        {
+          "gain": 0.763114,
+          "gamma": 1.1
+        }
+      ],
+      "sourceSha256": "326d97cd49769c47cd8fab28b8d729facfc77c219646b82268964e3aa920a3ba",
+      "beforeMAE": 27.787523749208372,
+      "afterMAE": 12.284515516149463
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 117,
+      "top": 235,
+      "width": 782,
+      "height": 491
+    },
+    "files": {
+      "display-colors/talks/dark-desktop/reference.png": "5b5ea7ed600872cd7fe54f1e67824ca5f4cacbdec28f0cc424601b2740bdfe65",
+      "display-colors/talks/dark-desktop/heldout.png": "080a0853480b4c4fe65669452a9226a594100c78384ab19a18847aa71fa647db",
+      "display-colors/talks/dark-desktop/provenance.json": "3a9e239e15111a02c893b5333e3389b858550bc8ae0ff671efee0d36581227eb"
+    }
+  }
+}

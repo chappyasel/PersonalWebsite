@@ -1,0 +1,1441 @@
+{
+  "version": 1,
+  "unit": "systems",
+  "label": "dark-desktop",
+  "sourceSvgSha256": "2e61bd274d49ed582126c5eedc54517b832578b29f6d87f5e985d86cb653c556",
+  "geometrySha256": "30c568687ede9132a8d8519a3468d33032146a4b754da1a1594e812d189fd18d",
+  "contractSha256": "1b2bd562e4bd923b8669d229d7dfdf7022cb699c7e4f9aa31ac888106e670c01",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 2,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 24,
+      "heldout": 21,
+      "fill": "#120501",
+      "beforeMAE": 105.17460317460319,
+      "afterMAE": 2.174603174603175
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 742,
+      "heldout": 764,
+      "fill": "#120501",
+      "beforeMAE": 104.8141361256544,
+      "afterMAE": 2.3237347294938924
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 468,
+      "heldout": 450,
+      "fill": "#5c5355",
+      "beforeMAE": 29.425925925925913,
+      "afterMAE": 19.95629629629628
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 1386,
+      "heldout": 1369,
+      "fill": "#62402e",
+      "beforeMAE": 57.443145848551175,
+      "afterMAE": 51.592890187484734
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 10,
+      "heldout": 13,
+      "fill": "#6a4326",
+      "beforeMAE": 41.30769230769231,
+      "afterMAE": 6.589743589743588
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#534536",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#534536",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 3281,
+      "heldout": 3279,
+      "fill": "#2f1508",
+      "beforeMAE": 54.1271729185729,
+      "afterMAE": 23.237877401646873
+    },
+    {
+      "owner": "shelf",
+      "index": 33,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 34,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "shelf",
+      "index": 35,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 5437,
+      "heldout": 5442,
+      "fill": "#391c0c",
+      "beforeMAE": 58.21891461472473,
+      "afterMAE": 11.126791620727712
+    },
+    {
+      "owner": "shelf",
+      "index": 36,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#120501",
+      "inheritedFrom": 9
+    },
+    {
+      "owner": "grab-bag-realgood",
+      "index": 37,
+      "type": "image",
+      "samples": 1626,
+      "heldout": 1645,
+      "curves": [
+        {
+          "gain": 1.001975,
+          "gamma": 0.7
+        },
+        {
+          "gain": 0.98535,
+          "gamma": 1.38
+        },
+        {
+          "gain": 0.925637,
+          "gamma": 1.6
+        }
+      ],
+      "sourceSha256": "94dd69e91e9b838d781ac2be9be93392d07a19d02a5b7b4772562ef6ebc8f8fc",
+      "beforeMAE": 24.203647416413325,
+      "afterMAE": 11.751975683890569
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 38,
+      "type": "path",
+      "sourceFill": "#b3a68f",
+      "samples": 8,
+      "heldout": 5,
+      "fill": "#b08358",
+      "beforeMAE": 31.4,
+      "afterMAE": 7.2
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 39,
+      "type": "path",
+      "sourceFill": "#a29a80",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 40,
+      "type": "path",
+      "sourceFill": "#787d58",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 41,
+      "type": "path",
+      "sourceFill": "#5a6a38",
+      "samples": 76,
+      "heldout": 29,
+      "fill": "#292e0c",
+      "beforeMAE": 54.41379310344828,
+      "afterMAE": 4.563218390804597
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 42,
+      "type": "path",
+      "sourceFill": "#8f8c6e",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 43,
+      "type": "path",
+      "sourceFill": "#334d68",
+      "samples": 22,
+      "heldout": 19,
+      "fill": "#091427",
+      "beforeMAE": 47.56140350877194,
+      "afterMAE": 8.824561403508772
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 44,
+      "type": "path",
+      "sourceFill": "#3e5460",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 45,
+      "type": "path",
+      "sourceFill": "#9a9479",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 46,
+      "type": "path",
+      "sourceFill": "#8a8869",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 47,
+      "type": "path",
+      "sourceFill": "#b1a48d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 48,
+      "type": "path",
+      "sourceFill": "#898869",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 49,
+      "type": "path",
+      "sourceFill": "#908d6f",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 50,
+      "type": "path",
+      "sourceFill": "#a89e85",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 51,
+      "type": "path",
+      "sourceFill": "#385065",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 52,
+      "type": "path",
+      "sourceFill": "#495c55",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 53,
+      "type": "path",
+      "sourceFill": "#afa38c",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 54,
+      "type": "path",
+      "sourceFill": "#9f977d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 55,
+      "type": "path",
+      "sourceFill": "#647043",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 56,
+      "type": "path",
+      "sourceFill": "#42575d",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-plant-sansevieria",
+      "index": 57,
+      "type": "path",
+      "sourceFill": "#5c4832",
+      "samples": 49,
+      "heldout": 70,
+      "fill": "#381909",
+      "beforeMAE": 36.633333333333326,
+      "afterMAE": 11.176190476190477
+    },
+    {
+      "owner": "grab-bag-betaalanine",
+      "index": 58,
+      "type": "image",
+      "samples": 1177,
+      "heldout": 1180,
+      "curves": [
+        {
+          "gain": 0.995206,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.974492,
+          "gamma": 1.32
+        },
+        {
+          "gain": 0.891921,
+          "gamma": 1.46
+        }
+      ],
+      "sourceSha256": "82fc2e9aa870fb7ceb7768cd992f04b01e6705be32f5f5dcb8b24f6bd6f6d09a",
+      "beforeMAE": 24.198870056497224,
+      "afterMAE": 11.729378531073449
+    },
+    {
+      "owner": "grab-bag-collagen",
+      "index": 59,
+      "type": "image",
+      "samples": 787,
+      "heldout": 768,
+      "curves": [
+        {
+          "gain": 1.038341,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.037042,
+          "gamma": 1.28
+        },
+        {
+          "gain": 0.980929,
+          "gamma": 1.5
+        }
+      ],
+      "sourceSha256": "4c2d3a065c9acbd403d623bc05daab26c9219fc44d0c5bf82411c06cf24f5fa5",
+      "beforeMAE": 21.62717013888886,
+      "afterMAE": 12.325520833333334
+    },
+    {
+      "owner": "grab-bag-creatine",
+      "index": 60,
+      "type": "image",
+      "samples": 1122,
+      "heldout": 1114,
+      "curves": [
+        {
+          "gain": 1.045351,
+          "gamma": 0.6
+        },
+        {
+          "gain": 1.046885,
+          "gamma": 1.24
+        },
+        {
+          "gain": 0.92201,
+          "gamma": 1.16
+        }
+      ],
+      "sourceSha256": "e8ece6969a9ec28b0c10e7840de9f189910d1afb0475fcfa82e990324005b325",
+      "beforeMAE": 20.498204667863572,
+      "afterMAE": 11.217833632555369
+    },
+    {
+      "owner": "grab-photo-systems-supplements-v8",
+      "index": 61,
+      "type": "image",
+      "samples": 2106,
+      "heldout": 2096,
+      "curves": [
+        {
+          "gain": 1.07191,
+          "gamma": 0.9
+        },
+        {
+          "gain": 1.151956,
+          "gamma": 1.14
+        },
+        {
+          "gain": 1.164597,
+          "gamma": 1.14
+        }
+      ],
+      "sourceSha256": "dd12000bb2b7069652c8316fa89c4ce7951fa35313e3c627719c2648678ad7b4",
+      "beforeMAE": 30.44465648854964,
+      "afterMAE": 27.512086513994884
+    },
+    {
+      "owner": "grab-mio-lemonade-1",
+      "index": 62,
+      "type": "image",
+      "samples": 293,
+      "heldout": 292,
+      "curves": [
+        {
+          "gain": 1.107331,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.656663,
+          "gamma": 0.7
+        },
+        {
+          "gain": 1.219946,
+          "gamma": 2.5
+        }
+      ],
+      "sourceSha256": "379e3bac61d57faa83727f116c70bc5817e05653dad8aad976b7075dbdccd689",
+      "beforeMAE": 36.91666666666669,
+      "afterMAE": 22.849315068493162
+    },
+    {
+      "owner": "systems-manual-row",
+      "index": 63,
+      "type": "image",
+      "samples": 7088,
+      "heldout": 7053,
+      "curves": [
+        {
+          "gain": 1.381719,
+          "gamma": 1.88
+        },
+        {
+          "gain": 1.307197,
+          "gamma": 2.06
+        },
+        {
+          "gain": 0.276312,
+          "gamma": 1.14
+        }
+      ],
+      "sourceSha256": "36f442692d36eac5aa651c6bcda853a8b5918d39cfc07a8178c9582ebd783bb1",
+      "beforeMAE": 39.31891866345276,
+      "afterMAE": 3.758258896923385
+    },
+    {
+      "owner": "grab-pills-bottle-0-0",
+      "index": 64,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-mio-hydrate-0",
+      "index": 65,
+      "type": "image",
+      "samples": 187,
+      "heldout": 208,
+      "curves": [
+        {
+          "gain": 0.312773,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.789885,
+          "gamma": 0.64
+        },
+        {
+          "gain": 0.57969,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "395dd91798cd92f765d2b34f485c7e023070187b1030fec675af51c07c83b70e",
+      "beforeMAE": 33.516025641025664,
+      "afterMAE": 20.5048076923077
+    },
+    {
+      "owner": "grab-mio-hydrate-2",
+      "index": 66,
+      "type": "image",
+      "samples": 164,
+      "heldout": 185,
+      "curves": [
+        {
+          "gain": 1.510672,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.941511,
+          "gamma": 1.34
+        },
+        {
+          "gain": 0.533625,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "c5c95d20174594a0d0d21b3b052b9cc76cac9ec92c884239efc0d8f851e9c1c6",
+      "beforeMAE": 38.97477477477477,
+      "afterMAE": 18.540540540540544
+    },
+    {
+      "owner": "grab-pills-bottle-1-0",
+      "index": 67,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-pills-bottle-1-1",
+      "index": 68,
+      "type": "image",
+      "samples": 101,
+      "heldout": 105,
+      "curves": [
+        {
+          "gain": 0.931092,
+          "gamma": 0.96
+        },
+        {
+          "gain": 0.837476,
+          "gamma": 1.34
+        },
+        {
+          "gain": 0.738136,
+          "gamma": 1.48
+        }
+      ],
+      "sourceSha256": "c8df1ce21eae4d1e2462bcb1d02949c7c20ba2584c94b8155d1090f64855912d",
+      "beforeMAE": 38.79365079365078,
+      "afterMAE": 14.498412698412698
+    },
+    {
+      "owner": "grab-pills-bottle-2-0",
+      "index": 69,
+      "type": "image",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "grab-pills-bottle-3-0",
+      "index": 70,
+      "type": "image",
+      "samples": 30,
+      "heldout": 49,
+      "curves": [
+        {
+          "gain": 0.810616,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.789265,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.746845,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "0d06dba6359adaa62e9b72479b4b80addc58a21eca63652b989d90c6c2c4b39a",
+      "beforeMAE": 41.71428571428572,
+      "afterMAE": 25.462585034013607
+    },
+    {
+      "owner": "grab-pills-bottle-4-0",
+      "index": 71,
+      "type": "image",
+      "samples": 114,
+      "heldout": 82,
+      "curves": [
+        {
+          "gain": 0.895134,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.77087,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.653458,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "417720ca058f15554c87e662be7c167a4f35ce8dc4d79fab41fd91dd86f9b93b",
+      "beforeMAE": 43.516260162601625,
+      "afterMAE": 10.898373983739836
+    },
+    {
+      "owner": "systems-sun-lamp",
+      "index": 72,
+      "type": "image",
+      "samples": 3544,
+      "heldout": 3544,
+      "curves": [
+        {
+          "gain": 1.114028,
+          "gamma": 2.24
+        },
+        {
+          "gain": 1.042426,
+          "gamma": 1.72
+        },
+        {
+          "gain": 0.991328,
+          "gamma": 1.24
+        }
+      ],
+      "sourceSha256": "264b0269b95d4ca787a49f7c945b139a10110b2b56bbd622185f46607e88edab",
+      "beforeMAE": 7.334462001504906,
+      "afterMAE": 2.1127727614747935
+    },
+    {
+      "owner": "grab-pills-organizer-back-upper",
+      "index": 73,
+      "type": "image",
+      "samples": 309,
+      "heldout": 329,
+      "curves": [
+        {
+          "gain": 2,
+          "gamma": 1.1
+        },
+        {
+          "gain": 2,
+          "gamma": 1.16
+        },
+        {
+          "gain": 2,
+          "gamma": 1.22
+        }
+      ],
+      "sourceSha256": "e618febbcfeacd0b4ddfd2f4718ea7d0d1533cbd29ba20b9fae4bb7eb782b27e",
+      "beforeMAE": 50.11144883485311,
+      "afterMAE": 41.487335359675775
+    },
+    {
+      "owner": "grab-pills-organizer-back-lower",
+      "index": 74,
+      "type": "image",
+      "samples": 265,
+      "heldout": 257,
+      "curves": [
+        {
+          "gain": 0.957276,
+          "gamma": 0.68
+        },
+        {
+          "gain": 0.900638,
+          "gamma": 1.16
+        },
+        {
+          "gain": 0.80026,
+          "gamma": 1.24
+        }
+      ],
+      "sourceSha256": "032ab364aa97edc90af7a9b1e7bb1c536e0897f260b356311ebfbe0a9bd046c2",
+      "beforeMAE": 27.476005188067468,
+      "afterMAE": 9.365758754863824
+    },
+    {
+      "owner": "grab-can-diet-dr-pepper",
+      "index": 75,
+      "type": "image",
+      "samples": 769,
+      "heldout": 744,
+      "curves": [
+        {
+          "gain": 0.904332,
+          "gamma": 0.96
+        },
+        {
+          "gain": 0.876083,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.731949,
+          "gamma": 2.04
+        }
+      ],
+      "sourceSha256": "ffdff339842a9c464b4dddf689e0c85031a74342f45b1134db67650edd2d608f",
+      "beforeMAE": 49.95071684587809,
+      "afterMAE": 16.406810035842327
+    },
+    {
+      "owner": "grab-can-mtn-dew-zero",
+      "index": 76,
+      "type": "image",
+      "samples": 853,
+      "heldout": 829,
+      "curves": [
+        {
+          "gain": 1.228268,
+          "gamma": 1.86
+        },
+        {
+          "gain": 1.1258,
+          "gamma": 2.06
+        },
+        {
+          "gain": 0.794585,
+          "gamma": 2.12
+        }
+      ],
+      "sourceSha256": "4e94324f4a6d917d63bc7b823a0ed00697c4f6f7a72db47e57d6513c1481c02f",
+      "beforeMAE": 28.327301970245255,
+      "afterMAE": 16.083634901487724
+    },
+    {
+      "owner": "grab-can-sunkist-zero",
+      "index": 77,
+      "type": "image",
+      "samples": 817,
+      "heldout": 824,
+      "curves": [
+        {
+          "gain": 0.955288,
+          "gamma": 1.32
+        },
+        {
+          "gain": 0.810351,
+          "gamma": 0.76
+        },
+        {
+          "gain": 0.712025,
+          "gamma": 1.24
+        }
+      ],
+      "sourceSha256": "23c669f60af10dce03b0e2c500386a17ba55d23e66df1c7eadece536ed2558cf",
+      "beforeMAE": 44.29166666666667,
+      "afterMAE": 19.568365695792895
+    },
+    {
+      "owner": "grab-notebook-systems",
+      "index": 78,
+      "type": "image",
+      "samples": 141,
+      "heldout": 138,
+      "curves": [
+        {
+          "gain": 0.916699,
+          "gamma": 0.74
+        },
+        {
+          "gain": 1.45773,
+          "gamma": 1.78
+        },
+        {
+          "gain": 0.798983,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "942e77dac9d4ffc73d0398c4e49fb94c90765fe0cc1ef6df01954b2584f6a2ec",
+      "beforeMAE": 10.852657004830911,
+      "afterMAE": 4.958937198067634
+    },
+    {
+      "owner": "grab-pills-bottle-5-0",
+      "index": 79,
+      "type": "image",
+      "samples": 178,
+      "heldout": 168,
+      "curves": [
+        {
+          "gain": 1.005375,
+          "gamma": 1.58
+        },
+        {
+          "gain": 0.890645,
+          "gamma": 1.72
+        },
+        {
+          "gain": 0.767144,
+          "gamma": 1.58
+        }
+      ],
+      "sourceSha256": "7c27107de4d4da230a04255051274b4a353805315d2f829bcb9152898a7e0576",
+      "beforeMAE": 40.34920634920633,
+      "afterMAE": 11.708333333333334
+    },
+    {
+      "owner": "grab-pills-bottle-5-1",
+      "index": 80,
+      "type": "image",
+      "samples": 51,
+      "heldout": 59,
+      "curves": [
+        {
+          "gain": 0.988497,
+          "gamma": 1.64
+        },
+        {
+          "gain": 0.9118,
+          "gamma": 2
+        },
+        {
+          "gain": 0.783642,
+          "gamma": 1.7
+        }
+      ],
+      "sourceSha256": "cc35adba582b408d51412a7767cbf0092219547937e9446ced757a2213ebd886",
+      "beforeMAE": 36.06214689265536,
+      "afterMAE": 17.711864406779664
+    },
+    {
+      "owner": "grab-pills-bottle-6-0",
+      "index": 81,
+      "type": "image",
+      "samples": 118,
+      "heldout": 140,
+      "curves": [
+        {
+          "gain": 0.929028,
+          "gamma": 1.04
+        },
+        {
+          "gain": 0.831493,
+          "gamma": 1.4
+        },
+        {
+          "gain": 0.720404,
+          "gamma": 1.46
+        }
+      ],
+      "sourceSha256": "3711474c271970efd81a1a67b9eccbc1f8cc2168376d5eaffa53832949a5ec02",
+      "beforeMAE": 43.88571428571427,
+      "afterMAE": 11.98809523809524
+    },
+    {
+      "owner": "grab-pills-bottle-7-0",
+      "index": 82,
+      "type": "image",
+      "samples": 124,
+      "heldout": 110,
+      "curves": [
+        {
+          "gain": 1.007131,
+          "gamma": 1.28
+        },
+        {
+          "gain": 0.896387,
+          "gamma": 1.44
+        },
+        {
+          "gain": 0.798954,
+          "gamma": 1.54
+        }
+      ],
+      "sourceSha256": "8d64c704f2b11cef2c8d9102ea12a17c8319d99352b47057810b735600b83f80",
+      "beforeMAE": 37.59090909090909,
+      "afterMAE": 9.442424242424245
+    },
+    {
+      "owner": "grab-pills-bottle-8-0",
+      "index": 83,
+      "type": "image",
+      "samples": 46,
+      "heldout": 37,
+      "curves": [
+        {
+          "gain": 0.905457,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.772867,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.674718,
+          "gamma": 0.92
+        }
+      ],
+      "sourceSha256": "435e6160caeecd71deb594d3f4681fe50e4e0c6c511c8cfbb8be1063f17aeda4",
+      "beforeMAE": 53.74774774774776,
+      "afterMAE": 19.783783783783782
+    },
+    {
+      "owner": "grab-photo-systems-working-session-v8",
+      "index": 84,
+      "type": "image",
+      "samples": 3739,
+      "heldout": 3745,
+      "curves": [
+        {
+          "gain": 0.989808,
+          "gamma": 1.16
+        },
+        {
+          "gain": 0.933334,
+          "gamma": 1.44
+        },
+        {
+          "gain": 0.84045,
+          "gamma": 1.52
+        }
+      ],
+      "sourceSha256": "ab086dfe98c0dc18bfde5a753a2876db4c82ca4d82d30ccbfba9b20af331f62a",
+      "beforeMAE": 29.077525589675165,
+      "afterMAE": 7.506364040943486
+    },
+    {
+      "owner": "grab-pills-bottle-9-0",
+      "index": 85,
+      "type": "image",
+      "samples": 94,
+      "heldout": 141,
+      "curves": [
+        {
+          "gain": 0.952704,
+          "gamma": 1.14
+        },
+        {
+          "gain": 0.863659,
+          "gamma": 1.52
+        },
+        {
+          "gain": 0.740706,
+          "gamma": 1.46
+        }
+      ],
+      "sourceSha256": "bcb823b574524893ac5b0a729d70e439e6f387a2691bbca024e46519611b818a",
+      "beforeMAE": 40.548463356974004,
+      "afterMAE": 11.033096926713947
+    },
+    {
+      "owner": "grab-photo-systems-home-office-v8",
+      "index": 86,
+      "type": "image",
+      "samples": 3376,
+      "heldout": 3415,
+      "curves": [
+        {
+          "gain": 0.900201,
+          "gamma": 0.98
+        },
+        {
+          "gain": 0.815106,
+          "gamma": 1.18
+        },
+        {
+          "gain": 0.732282,
+          "gamma": 1.2
+        }
+      ],
+      "sourceSha256": "6e2175bb6ca6de15c45e291acfd453ab66f2a868a270e4ac05d840684f76a7d9",
+      "beforeMAE": 38.476720351390924,
+      "afterMAE": 7.331185944363106
+    },
+    {
+      "owner": "grab-pills-bottle-10-0",
+      "index": 87,
+      "type": "image",
+      "samples": 63,
+      "heldout": 58,
+      "curves": [
+        {
+          "gain": 0.972484,
+          "gamma": 1.56
+        },
+        {
+          "gain": 0.866008,
+          "gamma": 1.76
+        },
+        {
+          "gain": 0.804829,
+          "gamma": 2.02
+        }
+      ],
+      "sourceSha256": "572ef9d718d2a494299c078d8c02ae7b36f569d3a22ed8801ed8d5751273c28d",
+      "beforeMAE": 42.540229885057485,
+      "afterMAE": 10.64942528735632
+    },
+    {
+      "owner": "grab-pills-bottle-11-0",
+      "index": 88,
+      "type": "image",
+      "samples": 217,
+      "heldout": 219,
+      "curves": [
+        {
+          "gain": 1.041702,
+          "gamma": 2.5
+        },
+        {
+          "gain": 0.936978,
+          "gamma": 2.6
+        },
+        {
+          "gain": 0.804475,
+          "gamma": 1.96
+        }
+      ],
+      "sourceSha256": "8e5e6fb026f1bb291f14b998b896980a3906453b657b56f6f43798e84da523c9",
+      "beforeMAE": 43.4444444444444,
+      "afterMAE": 14.750380517503823
+    },
+    {
+      "owner": "egg-clock-alarm",
+      "index": 89,
+      "type": "image",
+      "samples": 655,
+      "heldout": 725,
+      "curves": [
+        {
+          "gain": 0.898357,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.801201,
+          "gamma": 1.08
+        },
+        {
+          "gain": 0.704438,
+          "gamma": 1.14
+        }
+      ],
+      "sourceSha256": "d558e50b7a336e10af20f8b60212feddd575d00f95500565506065848a8be058",
+      "beforeMAE": 45.34758620689657,
+      "afterMAE": 9.18528735632185
+    },
+    {
+      "owner": "grab-pills-organizer-front-lower",
+      "index": 90,
+      "type": "image",
+      "samples": 531,
+      "heldout": 503,
+      "curves": [
+        {
+          "gain": 1.007488,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.9292,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.916415,
+          "gamma": 0.6
+        }
+      ],
+      "sourceSha256": "bfb6544014606483a6b3f7cafa9674d0cfaf9408584c0995a8ff52527f72cf87",
+      "beforeMAE": 36.85354539430083,
+      "afterMAE": 22.81577203445992
+    },
+    {
+      "owner": "grab-pills-organizer-front-upper",
+      "index": 91,
+      "type": "image",
+      "samples": 680,
+      "heldout": 723,
+      "curves": [
+        {
+          "gain": 1.035707,
+          "gamma": 0.88
+        },
+        {
+          "gain": 1.055487,
+          "gamma": 1.24
+        },
+        {
+          "gain": 1.127251,
+          "gamma": 1.58
+        }
+      ],
+      "sourceSha256": "013686dbabfbb93223ea09b4a065197d89f93a5eb3a85290bb3f4f9df6aa731f",
+      "beforeMAE": 16.364684186260927,
+      "afterMAE": 15.086214845550968
+    },
+    {
+      "owner": "grab-pills-bottle-12-0",
+      "index": 92,
+      "type": "image",
+      "samples": 60,
+      "heldout": 64,
+      "curves": [
+        {
+          "gain": 0.931049,
+          "gamma": 1.04
+        },
+        {
+          "gain": 0.850899,
+          "gamma": 1.52
+        },
+        {
+          "gain": 0.798449,
+          "gamma": 1.82
+        }
+      ],
+      "sourceSha256": "a79e6ce2bdd0bcdfa211e6644575653b443d42834fd7a80099fbed116df040fd",
+      "beforeMAE": 37.39062499999999,
+      "afterMAE": 15.760416666666664
+    },
+    {
+      "owner": "grab-photo-systems-sf-dusk-v8",
+      "index": 93,
+      "type": "image",
+      "samples": 3631,
+      "heldout": 3592,
+      "curves": [
+        {
+          "gain": 1.025869,
+          "gamma": 1.7
+        },
+        {
+          "gain": 0.911391,
+          "gamma": 1.74
+        },
+        {
+          "gain": 0.768491,
+          "gamma": 1.56
+        }
+      ],
+      "sourceSha256": "dd28efc0dba28c408500fdb60bd19f33ee76d08bedaf2ff5f485ffef26373104",
+      "beforeMAE": 40.41907943578328,
+      "afterMAE": 7.980233853006682
+    },
+    {
+      "owner": "link-routineboard",
+      "index": 94,
+      "type": "image",
+      "samples": 3359,
+      "heldout": 3384,
+      "curves": [
+        {
+          "gain": 0.862567,
+          "gamma": 1.72
+        },
+        {
+          "gain": 0.79933,
+          "gamma": 2.26
+        },
+        {
+          "gain": 0.799434,
+          "gamma": 2.36
+        }
+      ],
+      "sourceSha256": "06a097e9256e5c977b38ea198f0eda9e020a238631c68fd4e37d2749d2e9aee2",
+      "beforeMAE": 53.137017336484945,
+      "afterMAE": 10.226556343577643
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 123,
+      "top": 266,
+      "width": 762,
+      "height": 461
+    },
+    "files": {
+      "display-colors/systems/dark-desktop/reference.png": "6dde67a9264017ed7ff71c9ecaef2ffce9a76440c965f5898f21b4cdc65dde8a",
+      "display-colors/systems/dark-desktop/heldout.png": "277a8456aac4c78e09edeaf7b54cec4f5c0bc3266a5032beb1b85381bca6b1c2",
+      "display-colors/systems/dark-desktop/provenance.json": "38c5e03baf8e5acdb9854781e7c7c43b2232289ac3125ce67be4ace9855d3274"
+    }
+  }
+}

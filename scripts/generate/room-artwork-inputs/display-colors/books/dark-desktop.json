@@ -1,0 +1,646 @@
+{
+  "version": 1,
+  "unit": "books",
+  "label": "dark-desktop",
+  "sourceSvgSha256": "fa1e68fb0d4c194c1a5ad38c165585a0d84ba0da8e1d9ff4b817bd96e85d95bc",
+  "geometrySha256": "e99e9511af50a0fbf0f2e030c6ae541c904b114530937f89fb1c769d11d5cb8b",
+  "contractSha256": "6d647272114201cd4b733c0ed00f5055b7db905153a0a1bc54f9e66b85d31839",
+  "reference": "Finished mounted EffectComposer at the immutable rest camera; balanced quality, shipped grade, full viewport and environment",
+  "corrections": [
+    {
+      "owner": "shelf",
+      "index": 1,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 2,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 3,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 4,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 5,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 10,
+      "heldout": 10,
+      "fill": "#0f0301",
+      "beforeMAE": 107.36666666666667,
+      "afterMAE": 0.8333333333333333
+    },
+    {
+      "owner": "shelf",
+      "index": 6,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 7,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 8,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 9,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 398,
+      "heldout": 404,
+      "fill": "#0e0401",
+      "beforeMAE": 106.83910891089099,
+      "afterMAE": 2.007425742574258
+    },
+    {
+      "owner": "shelf",
+      "index": 10,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 11,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 12,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 13,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 14,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 15,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 16,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 17,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 18,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 19,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 20,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 536,
+      "heldout": 488,
+      "fill": "#0e0301",
+      "beforeMAE": 105.85040983606558,
+      "afterMAE": 2.5717213114754105
+    },
+    {
+      "owner": "shelf",
+      "index": 21,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 22,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 23,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 464,
+      "heldout": 460,
+      "fill": "#31170a",
+      "beforeMAE": 88.75362318840574,
+      "afterMAE": 3.785507246376818
+    },
+    {
+      "owner": "shelf",
+      "index": 24,
+      "type": "polygon",
+      "sourceFill": "#8d765e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#31170a",
+      "inheritedFrom": 23
+    },
+    {
+      "owner": "shelf",
+      "index": 25,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 26,
+      "type": "polygon",
+      "sourceFill": "#534536",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "shelf",
+      "index": 27,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 28,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 29,
+      "type": "polygon",
+      "sourceFill": "#534536",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "shelf",
+      "index": 30,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 31,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 32,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 3346,
+      "heldout": 3352,
+      "fill": "#291105",
+      "beforeMAE": 74.5560859188535,
+      "afterMAE": 2.278241845664275
+    },
+    {
+      "owner": "shelf",
+      "index": 33,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 34,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 0,
+      "heldout": 0,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "shelf",
+      "index": 35,
+      "type": "polygon",
+      "sourceFill": "#786048",
+      "samples": 5380,
+      "heldout": 5387,
+      "fill": "#2c1306",
+      "beforeMAE": 72.16756388837373,
+      "afterMAE": 3.4035641358827164
+    },
+    {
+      "owner": "shelf",
+      "index": 36,
+      "type": "polygon",
+      "sourceFill": "#82755e",
+      "samples": 1,
+      "heldout": 6,
+      "fill": "#0e0301",
+      "inheritedFrom": 20
+    },
+    {
+      "owner": "books-packed-lower",
+      "index": 37,
+      "type": "image",
+      "samples": 11729,
+      "heldout": 11633,
+      "curves": [
+        {
+          "gain": 1.146962,
+          "gamma": 1.88
+        },
+        {
+          "gain": 1.022609,
+          "gamma": 2.12
+        },
+        {
+          "gain": 0.764624,
+          "gamma": 1.82
+        }
+      ],
+      "sourceSha256": "b86e3497a9887a7b43915b6eef42441d1db00c2f6b31e00120d22cd3dc4db19e",
+      "beforeMAE": 49.653600389696024,
+      "afterMAE": 8.941087137167223
+    },
+    {
+      "owner": "books-bookend-lower",
+      "index": 38,
+      "type": "path",
+      "sourceFill": "#6b5a47",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "stacks-cover-barking-up-the-wrong-tree",
+      "index": 39,
+      "type": "image",
+      "samples": 4552,
+      "heldout": 4540,
+      "curves": [
+        {
+          "gain": 0.897406,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.768112,
+          "gamma": 1.52
+        },
+        {
+          "gain": 0.684735,
+          "gamma": 1.44
+        }
+      ],
+      "sourceSha256": "1f0bfe92a097118d11f3bdab5922e2a110b0308d3736aaa14b0065840e8449e9",
+      "beforeMAE": 31.93002936857559,
+      "afterMAE": 11.805726872246684
+    },
+    {
+      "owner": "stacks-cover-homo-deus",
+      "index": 40,
+      "type": "image",
+      "samples": 4434,
+      "heldout": 4442,
+      "curves": [
+        {
+          "gain": 1.676155,
+          "gamma": 2.6
+        },
+        {
+          "gain": 1.500346,
+          "gamma": 2.6
+        },
+        {
+          "gain": 1.441304,
+          "gamma": 2.6
+        }
+      ],
+      "sourceSha256": "36c07cff0436321a6e0c2f397fdb558fe27c57a917a0e9ccc5d6b099e47c8a7c",
+      "beforeMAE": 17.186852769022988,
+      "afterMAE": 4.8083445895242365
+    },
+    {
+      "owner": "stacks-cover-life-3-0",
+      "index": 41,
+      "type": "image",
+      "samples": 4943,
+      "heldout": 4894,
+      "curves": [
+        {
+          "gain": 1.331404,
+          "gamma": 1.94
+        },
+        {
+          "gain": 0.985112,
+          "gamma": 1.82
+        },
+        {
+          "gain": 0.927955,
+          "gamma": 1.96
+        }
+      ],
+      "sourceSha256": "2f66c0e05b6bf0561fb78f9aa8db511ec1fbc011fae155d32e4d6970f19db6bf",
+      "beforeMAE": 32.667483994006076,
+      "afterMAE": 5.430867729192206
+    },
+    {
+      "owner": "stacks-cover-thinking-fast-and-slow",
+      "index": 42,
+      "type": "image",
+      "samples": 5090,
+      "heldout": 5070,
+      "curves": [
+        {
+          "gain": 0.892822,
+          "gamma": 0.84
+        },
+        {
+          "gain": 0.792339,
+          "gamma": 1.18
+        },
+        {
+          "gain": 0.734142,
+          "gamma": 1.82
+        }
+      ],
+      "sourceSha256": "9d6b3638c01e5c0ae953007f738bc20433d823e508f59f4284aeb6d53eec9cc3",
+      "beforeMAE": 48.9138724523345,
+      "afterMAE": 4.723208415516157
+    },
+    {
+      "owner": "books-packed-top",
+      "index": 43,
+      "type": "image",
+      "samples": 12725,
+      "heldout": 12718,
+      "curves": [
+        {
+          "gain": 0.986075,
+          "gamma": 1.62
+        },
+        {
+          "gain": 0.911624,
+          "gamma": 1.88
+        },
+        {
+          "gain": 0.784078,
+          "gamma": 1.88
+        }
+      ],
+      "sourceSha256": "def84ca966d203cd936631cfc33788bda6a6d03b192131efd6fd6dc07f1a2b2c",
+      "beforeMAE": 57.004953609058276,
+      "afterMAE": 10.86578078314201
+    },
+    {
+      "owner": "books-bookend-top",
+      "index": 44,
+      "type": "path",
+      "sourceFill": "#6b5a47",
+      "samples": 0,
+      "heldout": 0,
+      "unchanged": "Insufficient opaque interior samples or authored gradient"
+    },
+    {
+      "owner": "stacks-cover-the-art-of-doing-science-and-engineering",
+      "index": 45,
+      "type": "image",
+      "samples": 4806,
+      "heldout": 4820,
+      "curves": [
+        {
+          "gain": 1.276755,
+          "gamma": 1.84
+        },
+        {
+          "gain": 0.98918,
+          "gamma": 1.84
+        },
+        {
+          "gain": 0.783812,
+          "gamma": 1.78
+        }
+      ],
+      "sourceSha256": "0a579f45c25318723f6a1654d96d1e151eb9814672aac4ca8b4e0af1930d9660",
+      "beforeMAE": 47.72392807745536,
+      "afterMAE": 2.502351313969547
+    },
+    {
+      "owner": "stacks-cover-the-12-levers",
+      "index": 46,
+      "type": "image",
+      "samples": 4768,
+      "heldout": 4784,
+      "curves": [
+        {
+          "gain": 0.878951,
+          "gamma": 0.6
+        },
+        {
+          "gain": 0.759293,
+          "gamma": 0.68
+        },
+        {
+          "gain": 0.686447,
+          "gamma": 1.14
+        }
+      ],
+      "sourceSha256": "14216908e27608b8cc295da7c4d890f90156e007b3a0333c73aa048f37b920e9",
+      "beforeMAE": 50.073439241917356,
+      "afterMAE": 6.646599777034502
+    },
+    {
+      "owner": "stacks-cover-superminds",
+      "index": 47,
+      "type": "image",
+      "samples": 4646,
+      "heldout": 4619,
+      "curves": [
+        {
+          "gain": 1.052349,
+          "gamma": 1.48
+        },
+        {
+          "gain": 1.151932,
+          "gamma": 1.86
+        },
+        {
+          "gain": 1.117876,
+          "gamma": 1.94
+        }
+      ],
+      "sourceSha256": "948680788a138608dccc3f28378671fd13e539da677d0ff8a8d93adbc8c90b7c",
+      "beforeMAE": 22.261528469365643,
+      "afterMAE": 8.220105361910887
+    },
+    {
+      "owner": "stacks-cover-bowling-alone",
+      "index": 48,
+      "type": "image",
+      "samples": 4900,
+      "heldout": 4901,
+      "curves": [
+        {
+          "gain": 0.940713,
+          "gamma": 1.32
+        },
+        {
+          "gain": 0.828621,
+          "gamma": 1.52
+        },
+        {
+          "gain": 0.7529,
+          "gamma": 1.76
+        }
+      ],
+      "sourceSha256": "49be13ba1ca909c7ee92e1a8d760d5da4b6ffdb424934fde61cda94c2bec3cfe",
+      "beforeMAE": 44.340542746378354,
+      "afterMAE": 9.711827518193552
+    }
+  ],
+  "evidence": {
+    "crop": {
+      "left": 123,
+      "top": 276,
+      "width": 762,
+      "height": 451
+    },
+    "files": {
+      "display-colors/books/dark-desktop/reference.png": "16d7a88a8c6440ca9f592ca73e74e039188a6277cc8b9a3e4047ff28281080be",
+      "display-colors/books/dark-desktop/heldout.png": "646e098df16271f9d79c6a095147a232639d81ac8cb04a95243cda798d95e658",
+      "display-colors/books/dark-desktop/provenance.json": "b471782281d872a6d5286622dfcffe08cf91ddd7ed1a023274e93f80e95491c2"
+    }
+  }
+}
