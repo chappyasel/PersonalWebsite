@@ -31,11 +31,9 @@ if [[ "$actual_pnpm" != "$expected_pnpm" ]]; then
   exit 1
 fi
 
+# Git lists the primary checkout first, regardless of its current branch.
 main_checkout=$(
-  git worktree list --porcelain | awk '
-    /^worktree / { path = substr($0, 10) }
-    /^branch refs\/heads\/main$/ { print path; exit }
-  '
+  git worktree list --porcelain | awk '/^worktree / && !found { print substr($0, 10); found = 1 }'
 )
 
 if [[ -z "$main_checkout" ]]; then
@@ -43,7 +41,8 @@ if [[ -z "$main_checkout" ]]; then
   exit 1
 fi
 
-for env_name in .env .env.local .env.development.local; do
+env_available=false
+for env_name in .env .env.local .env.development .env.development.local; do
   source_path="$main_checkout/$env_name"
   target_path="$workspace_root/$env_name"
 
@@ -51,10 +50,14 @@ for env_name in .env .env.local .env.development.local; do
     cp -p "$source_path" "$target_path"
     echo "Copied $env_name from the main checkout."
   fi
+
+  if [[ -f "$target_path" ]]; then
+    env_available=true
+  fi
 done
 
-if [[ ! -f "$workspace_root/.env" && ! -f "$workspace_root/.env.local" ]]; then
-  echo "No .env or .env.local file is available after setup." >&2
+if [[ "$env_available" != true ]]; then
+  echo "No development environment file is available after setup. Add .env, .env.local, .env.development, or .env.development.local to this workspace or the main checkout." >&2
   exit 1
 fi
 

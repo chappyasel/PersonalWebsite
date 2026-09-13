@@ -13,7 +13,11 @@ import { DocumentGallery, ZoomableImage } from "./DocumentGallery";
 import { artifactPreviewVisualEffects } from "~/app/components/stacks/scene/artifactPreviewVisualEffects";
 
 beforeEach(() => {
-  vi.stubGlobal("matchMedia", () => ({ matches: true }));
+  vi.stubGlobal("matchMedia", () => ({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
 });
 afterEach(() => {
   cleanup();

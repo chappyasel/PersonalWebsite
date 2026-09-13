@@ -196,7 +196,7 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("createRef<HTMLImageElement>()");
     expect(inspector).toContain('objectFit: "contain"');
     expect(inspector).toContain('"PhotoView__Photo"');
-    expect(inspector).toContain("fitArtifactPreviewToViewport");
+    expect(inspector).toContain("layoutArtifactPreview");
     // The enlarged photo is drawn as the print it is on the shelf: the
     // scene-registered edges around the image, sized off the viewer's box.
     expect(inspector).toContain("useArtifactPreviewFrames");
@@ -208,7 +208,7 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("data-scene-artifact-preview-accent");
     expect(inspector).toContain("data-scene-artifact-preview-well");
     expect(inspector).toContain("opacity: visible ? style.opacity : 0");
-    expect(inspector).toContain("render: ({ attrs }) => (");
+    expect(inspector).toContain("render: ({ attrs, scale }) => (");
     expect(inspector).toContain("<PreviewPrint");
     // The open starts from the print's rendered pose (roll, yaw,
     // perspective), with projected-corner keyframes preserving its plane.
@@ -296,7 +296,6 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain('data-artifact-preview-control="actions"');
     expect(inspector).toContain("order-2 flex self-center");
     expect(inspector).toContain("order-1 flex w-fit max-w-full");
-    expect(inspector.match(/sm:order-none/g)).toHaveLength(2);
     expect(inspector).toContain("data-artifact-preview-scrim");
     expect(inspector).toContain("data-artifact-preview-caption");
     expect(inspector).toContain("useObjectNote");

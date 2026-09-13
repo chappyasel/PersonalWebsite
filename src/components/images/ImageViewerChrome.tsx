@@ -6,8 +6,15 @@ import {
   ArrowUpRightIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useLayoutEffect, useRef } from "react";
 
 import { Button } from "~/components/ui/button";
+
+import {
+  ARTIFACT_PREVIEW_DURATION_MS,
+  ARTIFACT_PREVIEW_EASING,
+} from "~/app/components/stacks/modal/artifactPreviewMotion";
 
 const glassControl =
   "world-glass-control border transition-[background-color,border-color,color,transform] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none";
@@ -23,6 +30,9 @@ export function ImageViewerChrome({
   title,
   caption,
   captionId,
+  contentTop,
+  captionMaxHeight,
+  onMeasure,
   layout = "scene",
   actions = [],
   total,
@@ -34,6 +44,16 @@ export function ImageViewerChrome({
   title?: string;
   caption?: string;
   captionId?: string;
+  /** Viewport position just below the displayed image. When given, the
+   * caption sits there and is measured for the owner; otherwise it joins
+   * the bottom dock. */
+  contentTop?: number;
+  /** Visible cap for the caption; taller captions scroll. */
+  captionMaxHeight?: number;
+  onMeasure?: (measurement: {
+    captionHeight: number;
+    controlsHeight: number;
+  }) => void;
   layout?: "scene" | "document";
   actions?: ImageViewerAction[];
   total: number;
@@ -42,6 +62,45 @@ export function ImageViewerChrome({
   onIndexChange: (index: number) => void;
   onClose: () => void;
 }) {
+  const captionRefs = useRef(new Map<string, HTMLElement>());
+  const captionKey = captionId ?? caption ?? "";
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
+  useLayoutEffect(() => {
+    if (!onMeasure) return;
+    const measure = () =>
+      onMeasure({
+        captionHeight: captionRefs.current.get(captionKey)?.offsetHeight ?? 0,
+        controlsHeight: controlsRef.current?.offsetHeight ?? 0,
+      });
+    measure();
+    const observer = new ResizeObserver(measure);
+    const captionElement = captionRefs.current.get(captionKey);
+    if (captionElement) observer.observe(captionElement);
+    if (controlsRef.current) observer.observe(controlsRef.current);
+    return () => observer.disconnect();
+  }, [caption, captionKey, onMeasure]);
+
+  const captionContent = caption?.trim() ? (
+    <section
+      ref={(element) => {
+        if (element) captionRefs.current.set(captionKey, element);
+        else captionRefs.current.delete(captionKey);
+      }}
+      id={captionId}
+      data-artifact-preview-caption
+      className={
+        layout === "document"
+          ? "order-0 min-w-0 max-w-2xl px-4 text-center"
+          : "order-0 min-w-0 max-w-2xl self-center rounded-xl bg-black/55 px-3 py-2 text-center shadow-lg backdrop-blur-sm"
+      }
+    >
+      <p className="text-pretty text-[13px] leading-relaxed text-white/85 sm:text-sm">
+        {caption}
+      </p>
+    </section>
+  ) : null;
+
   return (
     <div
       data-scene-artifact-inspector
@@ -59,7 +118,48 @@ export function ImageViewerChrome({
         <XIcon aria-hidden size={21} weight="bold" />
       </Button>
 
+      {contentTop !== undefined && (
+        <div
+          className="absolute inset-x-0 flex justify-center px-4"
+          style={{
+            top: contentTop,
+            // The image re-fits on the viewer's clock when the caption
+            // changes; the caption follows on the same one.
+            transition: reducedMotion
+              ? "none"
+              : `top ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`,
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            {captionContent && (
+              <motion.div
+                key={captionKey}
+                className="pointer-events-auto max-w-2xl overflow-y-auto overscroll-contain"
+                initial={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
+                animate={{
+                  opacity: visible ? 1 : 0,
+                  y: visible || reducedMotion ? 0 : 8,
+                }}
+                exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
+                transition={{ duration: reducedMotion ? 0 : 0.24 }}
+                aria-hidden={!visible}
+                inert={!visible}
+                style={{ maxHeight: captionMaxHeight, touchAction: "pan-y" }}
+                // react-photo-view cancels every touchmove at the window
+                // (non-passive, preventDefault) to own the drag. A scroll
+                // inside the caption must not reach it, or a long caption
+                // cannot be scrolled on a phone.
+                onTouchMove={(event) => event.stopPropagation()}
+              >
+                {captionContent}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
       <div
+        ref={controlsRef}
         data-artifact-preview-scrim
         className="absolute inset-x-0 bottom-0 px-[max(16px,env(safe-area-inset-left))] pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-5"
       >
@@ -67,13 +167,37 @@ export function ImageViewerChrome({
           className={
             layout === "document"
               ? "mx-auto flex max-w-2xl flex-col items-center gap-3"
-              : "mx-auto flex max-w-[1500px] flex-col gap-2 sm:flex-row sm:items-center"
+              : "mx-auto flex max-w-2xl flex-col items-center gap-2"
           }
         >
+          {actions.length > 0 && (
+            <div
+              data-artifact-preview-control="actions"
+              className="pointer-events-auto order-1 flex w-fit max-w-full flex-wrap items-center justify-center gap-2 self-center"
+            >
+              {actions.map((action) => {
+                return (
+                  <a
+                    key={`${action.href}:${action.label}`}
+                    href={action.href}
+                    target={action.external ? "_blank" : undefined}
+                    rel={action.external ? "noreferrer" : undefined}
+                    className={`inline-flex min-h-11 max-w-full items-center justify-center gap-1.5 whitespace-normal rounded-full px-5 text-center text-sm font-medium sm:min-h-10 ${glassControl}`}
+                  >
+                    {action.label}
+                    {action.external && (
+                      <ArrowUpRightIcon aria-hidden size={15} weight="bold" />
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+
           {total > 1 && (
             <div
               data-artifact-preview-control="navigation"
-              className={`pointer-events-auto order-2 flex self-center rounded-full ${glassControl} ${layout === "scene" ? "sm:order-none sm:self-auto" : ""}`}
+              className={`pointer-events-auto order-2 flex self-center rounded-full ${glassControl}`}
             >
               <Button
                 variant="ghost"
@@ -104,52 +228,7 @@ export function ImageViewerChrome({
             </div>
           )}
 
-          {caption?.trim() && (
-            <section
-              id={captionId}
-              data-artifact-preview-caption
-              className={
-                layout === "document"
-                  ? "order-0 min-w-0 max-w-2xl px-4 text-center"
-                  : "order-0 min-w-0 max-w-2xl self-center rounded-xl bg-black/55 px-3 py-2 text-center shadow-lg backdrop-blur-sm sm:flex-1 sm:self-auto sm:text-left"
-              }
-            >
-              {title && (
-                <h2 className="font-serif text-lg leading-tight text-white sm:text-xl">
-                  {title}
-                </h2>
-              )}
-              <p
-                className={`${title ? "mt-1" : ""} text-pretty text-[13px] leading-relaxed text-white/85 sm:text-sm`}
-              >
-                {caption}
-              </p>
-            </section>
-          )}
-
-          {actions.length > 0 && (
-            <div
-              data-artifact-preview-control="actions"
-              className="pointer-events-auto order-1 flex w-fit max-w-full items-center justify-center gap-2 self-center sm:order-none sm:ml-auto sm:self-auto"
-            >
-              {actions.map((action) => {
-                return (
-                  <a
-                    key={`${action.href}:${action.label}`}
-                    href={action.href}
-                    target={action.external ? "_blank" : undefined}
-                    rel={action.external ? "noreferrer" : undefined}
-                    className={`inline-flex min-h-11 max-w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-5 text-center text-sm font-medium sm:min-h-10 ${glassControl}`}
-                  >
-                    {action.label}
-                    {action.external && (
-                      <ArrowUpRightIcon aria-hidden size={15} weight="bold" />
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          )}
+          {contentTop === undefined && captionContent}
         </div>
       </div>
     </div>
