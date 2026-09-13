@@ -3,14 +3,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 
+import { bookSlugFromUrl } from "~/lib/books/inlineFacts";
 import { musingEmbed } from "~/lib/musings/embeds";
 import {
   type MusingBlock,
   type MusingText,
   safeMusingLink,
 } from "~/lib/musings/types";
+import { isBareUrl } from "~/lib/site/pages";
 
+import BookLink from "~/components/books/BookLink";
 import { ZoomableImage } from "~/components/images/DocumentGallery";
+import type { BookLookup } from "~/components/notion/types";
 import {
   Accordion,
   AccordionContent,
@@ -20,8 +24,25 @@ import {
 
 import { MediaEmbed } from "./MediaEmbed";
 
-function RichText({ content }: { content: MusingText[] }) {
+function RichText({
+  content,
+  bookLookup,
+}: {
+  content: MusingText[];
+  bookLookup?: BookLookup;
+}) {
   return content.map((run, i) => {
+    const slug = bookSlugFromUrl(run.link ?? run.text);
+    if (slug)
+      return (
+        <BookLink
+          key={i}
+          href={run.link ?? run.text}
+          slug={slug}
+          book={bookLookup?.[slug]}
+          label={isBareUrl(run.text) ? undefined : run.text}
+        />
+      );
     let node: ReactNode = run.text;
     if (run.code) node = <code>{node}</code>;
     if (run.bold) node = <strong>{node}</strong>;
@@ -59,7 +80,13 @@ function importedLinkPreview(content: MusingText[]) {
   return { href, title: title.text, description: description.text };
 }
 
-export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
+export function MusingBody({
+  blocks,
+  bookLookup,
+}: {
+  blocks: MusingBlock[];
+  bookLookup?: BookLookup;
+}) {
   const elements: ReactNode[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i]!;
@@ -83,9 +110,9 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
         >;
         items.push(
           <li key={i}>
-            <RichText content={item.content} />
+            <RichText bookLookup={bookLookup} content={item.content} />
             {item.children?.length ? (
-              <MusingBody blocks={item.children} />
+              <MusingBody bookLookup={bookLookup} blocks={item.children} />
             ) : null}
           </li>,
         );
@@ -129,10 +156,10 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
         elements.push(
           <div key={i}>
             <p>
-              <RichText content={block.content} />
+              <RichText bookLookup={bookLookup} content={block.content} />
             </p>
             {block.children?.length ? (
-              <MusingBody blocks={block.children} />
+              <MusingBody bookLookup={bookLookup} blocks={block.children} />
             ) : null}
           </div>,
         );
@@ -142,10 +169,10 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
         elements.push(
           <blockquote key={i}>
             <p>
-              <RichText content={block.content} />
+              <RichText bookLookup={bookLookup} content={block.content} />
             </p>
             {block.children?.length ? (
-              <MusingBody blocks={block.children} />
+              <MusingBody bookLookup={bookLookup} blocks={block.children} />
             ) : null}
           </blockquote>,
         );
@@ -154,7 +181,7 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
         const Heading = block.level === 2 ? "h2" : "h3";
         elements.push(
           <Heading key={i} id={block.id} className="scroll-mt-8">
-            <RichText content={block.content} />
+            <RichText bookLookup={bookLookup} content={block.content} />
           </Heading>,
         );
         break;
@@ -213,7 +240,10 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
                   </ZoomableImage>
                   {!sharedCaption.length && image.caption.length ? (
                     <figcaption>
-                      <RichText content={image.caption} />
+                      <RichText
+                        bookLookup={bookLookup}
+                        content={image.caption}
+                      />
                     </figcaption>
                   ) : null}
                 </figure>
@@ -221,7 +251,7 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
             </div>
             {sharedCaption.length ? (
               <p className="mt-3 text-center text-sm text-muted-foreground">
-                <RichText content={sharedCaption} />
+                <RichText bookLookup={bookLookup} content={sharedCaption} />
               </p>
             ) : null}
           </div>,
@@ -229,6 +259,21 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
         break;
       }
       case "link": {
+        const bookSlug = bookSlugFromUrl(block.url);
+        if (bookSlug) {
+          const label = block.content.map((run) => run.text).join("");
+          elements.push(
+            <p key={i}>
+              <BookLink
+                href={block.url}
+                slug={bookSlug}
+                book={bookLookup?.[bookSlug]}
+                label={!label || isBareUrl(label) ? undefined : label}
+              />
+            </p>,
+          );
+          break;
+        }
         const embed = musingEmbed(block.url);
         if (embed) {
           elements.push(
@@ -245,7 +290,7 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
           elements.push(
             <p key={i}>
               <Link href={href}>
-                <RichText content={block.content} />{" "}
+                <RichText bookLookup={bookLookup} content={block.content} />{" "}
                 <ArrowUpRightIcon
                   aria-hidden="true"
                   className="inline-block size-[1em] align-[-0.125em]"
@@ -270,10 +315,10 @@ export function MusingBody({ blocks }: { blocks: MusingBlock[] }) {
           <Accordion key={i} type="single" collapsible>
             <AccordionItem value="aside">
               <AccordionTrigger className="text-left text-base">
-                <RichText content={block.content} />
+                <RichText bookLookup={bookLookup} content={block.content} />
               </AccordionTrigger>
               <AccordionContent>
-                <MusingBody blocks={block.children} />
+                <MusingBody bookLookup={bookLookup} blocks={block.children} />
               </AccordionContent>
             </AccordionItem>
           </Accordion>,

@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import {
   type ComponentProps,
@@ -20,6 +21,7 @@ import ModalSheet from "~/components/modal-sheet/ModalSheet";
 
 import BookLink from "./BookLink";
 import { InlineBookPreviewProvider } from "./InlineBookPreviewProvider";
+import { MusingBody } from "~/app/musings/MusingBody";
 
 const { queryBook, routerBack } = vi.hoisted(() => ({
   queryBook: vi.fn(() => ({ data: undefined, isLoading: true, error: null })),
@@ -100,6 +102,61 @@ function clickLink(options: MouseEventInit = {}) {
 }
 
 describe("inline book navigation", () => {
+  it("shows a Musing's book cover and facts and opens its notes over the article", async () => {
+    window.history.replaceState(null, "", "/musings/reads-2024#culture");
+    const view = render(
+      <InlineBookPreviewProvider>
+        <MusingBody
+          bookLookup={{
+            "the-culture-code": {
+              title: "The Culture Code",
+              author: "Daniel Coyle",
+              coverUrl: "/images/test-book.jpg",
+              rating: 5,
+              started: null,
+              finished: "2024-05-01T00:00:00.000Z",
+              abandoned: null,
+              abandonedAtMin: null,
+              audioLengthMin: 360,
+              pageCount: 300,
+              hasNotes: true,
+            },
+          }}
+          blocks={[
+            {
+              type: "paragraph",
+              content: [{ text: "Read my " }],
+              children: [
+                {
+                  type: "quote",
+                  content: [{ text: "full book notes", link: href }],
+                },
+              ],
+            },
+          ]}
+        />
+      </InlineBookPreviewProvider>,
+    );
+    const bookLink = screen.getByRole("link", { name: "full book notes" });
+    expect(bookLink.querySelector("img")).not.toBeNull();
+    fireEvent.focus(bookLink);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(within(tooltip).getByText("Daniel Coyle")).toBeTruthy();
+    expect(within(tooltip).getByLabelText("5 out of 5 stars")).toBeTruthy();
+    fireEvent.click(bookLink);
+    await screen.findByRole("dialog");
+    expect(view.getByText("Read my")).toBeTruthy();
+    expect(queryBook).toHaveBeenCalledWith(
+      { bookId: "the-culture-code" },
+      expect.objectContaining({ enabled: true }),
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(window.location.pathname + window.location.hash).toBe(
+      "/musings/reads-2024#culture",
+    );
+  });
+
   it("opens the existing book dialog over the document and restores it on back/forward", async () => {
     render(
       <InlineBookPreviewProvider>
