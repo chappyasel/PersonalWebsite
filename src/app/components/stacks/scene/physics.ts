@@ -1027,12 +1027,19 @@ export class ScenePhysicsWorld {
       : localVelocity;
     const inwardSpeed = Math.max(0, -velocity.dot(contact.normal));
     if (inwardSpeed === 0) return;
-    const inverseMass =
-      1 / Math.max(handle.body.mass, 1e-6) + 1 / contact.body.mass;
-    const impulse = inwardSpeed / inverseMass;
-    contact.body.velocity.x -= (contact.normal.x * impulse) / contact.body.mass;
-    contact.body.velocity.y -= (contact.normal.y * impulse) / contact.body.mass;
-    contact.body.velocity.z -= (contact.normal.z * impulse) / contact.body.mass;
+    // The hand drives a kinematic body. A light prop must still be able to
+    // shove a heavy neighbor. Match the requested normal speed without
+    // repeatedly accelerating a neighbor that is already moving away.
+    const speedIncrease = Math.max(
+      0,
+      inwardSpeed +
+        contact.body.velocity.x * contact.normal.x +
+        contact.body.velocity.y * contact.normal.y +
+        contact.body.velocity.z * contact.normal.z,
+    );
+    contact.body.velocity.x -= contact.normal.x * speedIncrease;
+    contact.body.velocity.y -= contact.normal.y * speedIncrease;
+    contact.body.velocity.z -= contact.normal.z * speedIncrease;
     contact.body.wakeUp();
     const other = this.handles.find(
       (candidate) => candidate.body === contact.body,
@@ -1047,6 +1054,7 @@ export class ScenePhysicsWorld {
     handle: ShelfHandle,
     desiredPose: HeldPose,
     delta: number,
+    dragPlaneNormal?: THREE.Vector3,
   ): HeldMoveResult {
     const start = handle.accepted ?? {
       position: handle.group.position.clone(),
@@ -1095,6 +1103,12 @@ export class ScenePhysicsWorld {
       };
     }
     const translation = desiredPose.position.clone().sub(start.position);
+    // Use the full frame's hand demand. A collision sweep segment divided
+    // by the whole frame duration made pushes weaker as subdivision grew.
+    const incomingVelocity = translation
+      .clone()
+      .divideScalar(Math.max(delta, 1e-4))
+      .clampLength(0, DEFAULT_MAX_THROW);
     const angle = start.quaternion.angleTo(desiredPose.quaternion);
     const radius = Math.max(handle.body?.boundingRadius ?? 0, 0.01);
     const conservativeStep = Math.max(
@@ -1168,10 +1182,6 @@ export class ScenePhysicsWorld {
           .slerp(candidate.quaternion, low),
       };
       contacts = this.blockingContacts(handle, accepted, candidate);
-      const incomingVelocity = candidate.position
-        .clone()
-        .sub(accepted.position)
-        .divideScalar(Math.max(delta, 1e-4));
       for (const contact of contacts) {
         blockers.add(this.blockerLabel(contact.body));
         const localNormal = this.worldNormalToParent(handle, contact.normal);
@@ -1187,8 +1197,14 @@ export class ScenePhysicsWorld {
       }
       const remainder = candidate.position.clone().sub(accepted.position);
       for (const normal of normals.slice(0, 2)) {
-        const inward = remainder.dot(normal);
-        if (inward < 0) remainder.addScaledVector(normal, -inward);
+        // An angled collider can otherwise turn sideways hand movement into
+        // an unrequested slide behind the shelf. Keep sliding in the carry
+        // plane; depth changes still come from the requested translation.
+        const slideNormal = dragPlaneNormal
+          ? normal.clone().projectOnPlane(dragPlaneNormal).normalize()
+          : normal;
+        const inward = remainder.dot(slideNormal);
+        if (inward < 0) remainder.addScaledVector(slideNormal, -inward);
       }
       if (remainder.lengthSq() > 1e-10) {
         const slidePose = {

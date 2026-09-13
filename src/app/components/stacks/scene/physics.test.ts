@@ -472,7 +472,91 @@ describe("shelf physics lifecycle and carrying", () => {
     expect(result.blockers).toContain("dynamic-blocker");
     expect(result.accepted.position.x).toBeLessThan(0.16);
     expect(blocked.body!.velocity.x).toBeGreaterThan(0);
+    expect(blocked.body!.velocity.length()).toBeLessThanOrEqual(4);
     expect(blocked.phase.current).toBe("sim");
+    // Continued pressure at the same contact must not stack another launch
+    // impulse on every sweep, including a very short render frame.
+    for (let frame = 0; frame < 10; frame++) {
+      prepared.world.moveHeld(
+        moving,
+        {
+          position: new THREE.Vector3(0.5, 0, 0),
+          quaternion: new THREE.Quaternion(),
+        },
+        0.001,
+      );
+    }
+    expect(blocked.body!.velocity.length()).toBeLessThanOrEqual(4);
+  });
+
+  it.each([30, 60, 120])(
+    "carries a light prop through a heavier neighbor at %i Hz",
+    async (fps) => {
+      await warm();
+      const { shelf, prop } = topFixture();
+      const blocker = new THREE.Group();
+      blocker.position.x = 0.34;
+      blocker.add(box([0.2, 0.2, 0.2], [0, 0.1, 0]));
+      shelf.add(blocker);
+      shelf.updateWorldMatrix(true, true);
+      const moving = handle("hand-held", prop);
+      moving.massKg = 0.1;
+      moving.phase.current = "held";
+      const blocked = handle("heavy-neighbor", blocker);
+      blocked.massKg = 5;
+      const prepared = worldFor(prop, [moving, blocked]);
+      expect(prepared.status).toBe("ready");
+      if (prepared.status !== "ready") return;
+      prepared.world.grab(moving);
+      for (let frame = 0; frame < fps; frame++) {
+        const target = new THREE.Vector3(
+          Math.min(0.65, (frame + 1) / fps),
+          0,
+          0,
+        );
+        prepared.world.moveHeld(
+          moving,
+          {
+            position: prop.position
+              .clone()
+              .lerp(target, 1 - Math.exp(-22 / fps)),
+            quaternion: new THREE.Quaternion(),
+          },
+          1 / fps,
+        );
+        prepared.world.tick(1 / fps, frame + 1);
+      }
+      expect(prop.position.x).toBeGreaterThan(0.55);
+      expect(blocker.position.x).toBeGreaterThan(0.7);
+    },
+  );
+
+  it("does not slide a carried prop behind its depth plane at an angled obstacle", async () => {
+    await warm();
+    const { shelf, prop } = topFixture();
+    const wall = box([0.04, 0.45, 0.8], [0.3, 0.225, 0]);
+    wall.rotation.y = -Math.PI / 4;
+    shelf.add(wall);
+    shelf.updateWorldMatrix(true, true);
+    const entry = handle("depth-locked", prop);
+    const prepared = worldFor(prop, [entry]);
+    expect(prepared.status).toBe("ready");
+    if (prepared.status !== "ready") return;
+    prepared.world.grab(entry);
+    for (let frame = 0; frame < 10; frame++) {
+      prepared.world.moveHeld(
+        entry,
+        {
+          position: new THREE.Vector3(0.5, 0.1, 0),
+          quaternion: new THREE.Quaternion(),
+        },
+        1 / 60,
+        new THREE.Vector3(0, 0, 1),
+      );
+    }
+    expect(prop.position.z).toBeCloseTo(0, 8);
+    expect(prop.position.x).toBeLessThan(0.3);
+    expect(prop.position.y).toBeGreaterThan(0.05);
   });
 
   it("releases at the accepted pose and falls monotonically under 9.81 gravity", async () => {

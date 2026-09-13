@@ -14,20 +14,80 @@ html[data-room-view="illustrated"]:not(:has([data-illustration-positioned]))
 .room-first-paint-unit {
   display: none;
 }
-.room-entry-wordmark {
+@property --room-chrome-ink {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f5f5f5;
+}
+@property --room-chrome-shadow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+html[data-room-view] {
   --room-name-left: max(1.25rem, env(safe-area-inset-left, 0px));
-  --room-name-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  --room-name-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  --room-name-size: 1rem;
+  --room-chrome-ink: hsl(var(--foreground));
+  --room-chrome-shadow: transparent;
+  transition:
+    --room-chrome-ink var(--room-dissolve-duration, 160ms) linear,
+    --room-chrome-shadow var(--room-dissolve-duration, 160ms) linear;
+}
+html:not(.dark):is(
+    [data-room-view="dissolve"],
+    [data-room-view="travel"],
+    [data-room-view="live"]
+  ) {
+  --room-chrome-ink: rgb(255 255 255 / 0.94);
+  --room-chrome-shadow: rgb(0 0 0 / 0.28);
+}
+html.dark[data-room-view] {
+  --room-chrome-shadow: rgb(0 0 0 / 0.28);
+}
+/* Both names use the same baseline, including the adjacent 36px Notes button.
+   The hidden shortcut row must not shift the live label on narrow layouts. */
+.room-entry-wordmark,
+.stacks-world-shell[data-illustrated-entry] .room-wordmark-label {
+  font-family: var(--font-selected), Georgia, serif;
+  font-size: var(--room-name-size);
+  font-weight: 400;
+  line-height: 2.25rem;
+  letter-spacing: -0.025em;
+}
+.stacks-world-shell[data-illustrated-entry] .stacks-wordmark {
+  left: var(--room-name-left) !important;
+  top: var(--room-name-top) !important;
+  display: block;
+  min-height: 0;
+}
+html:not(.dark)[data-room-view]
+  .stacks-world-shell[data-illustrated-entry]
+  :is(
+    .stacks-on-background-text,
+    .stacks-rail-icon,
+    [data-stacks-desktop-panel] .placard-section-heading,
+    [data-stacks-desktop-panel] .placard-sections h1
+  ) {
+  color: var(--room-chrome-ink) !important;
+}
+html:not(.dark)[data-room-view]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-on-background-mark {
+  background-color: var(--room-chrome-ink) !important;
+}
+.room-entry-wordmark {
   position: fixed;
   z-index: 51;
   left: var(--room-name-left);
   top: var(--room-name-top);
   visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 360ms ease-in-out,
+    visibility 0s linear 360ms;
   pointer-events: none;
-  font-family: var(--font-selected), Georgia, serif;
-  font-size: 1rem;
-  line-height: 1.5;
-  letter-spacing: -0.025em;
-  color: hsl(var(--foreground));
+  color: var(--room-chrome-ink);
   white-space: nowrap;
   transform-origin: left top;
   transform: translate(
@@ -43,6 +103,22 @@ html:is(
   )
   .room-entry-wordmark {
   visibility: visible;
+  opacity: 1;
+  transition: none;
+}
+html[data-room-view="live"]
+  .stacks-world-shell[data-illustrated-entry]
+  [data-room-scene-chrome]
+  .room-wordmark-label {
+  animation: room-wordmark-handoff 360ms ease-in-out backwards;
+}
+@keyframes room-wordmark-handoff {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: var(--stacks-secondary-chrome-idle-opacity, 1);
+  }
 }
 /* One name survives first paint, React hydration, and the 3D dissolve. */
 .room-illustrated-chrome .stacks-wordmark {
@@ -75,10 +151,35 @@ html:has(
   background-repeat: no-repeat;
 }
 @media (min-width: 1200px) {
-  .room-entry-wordmark {
+  html[data-room-view] {
     --room-name-left: max(1.75rem, env(safe-area-inset-left, 0px));
     --room-name-top: max(1.25rem, env(safe-area-inset-top, 0px));
-    font-size: 1.125rem;
+    --room-name-size: 1.125rem;
+  }
+  .room-entry-wordmark,
+  html[data-room-view]
+    .stacks-world-shell[data-illustrated-entry]
+    :is(
+      .stacks-on-background-text,
+      [data-stacks-desktop-panel] .placard-section-heading,
+      [data-stacks-desktop-panel] .placard-sections h1
+    ) {
+    text-shadow: 0 1px 2px var(--room-chrome-shadow) !important;
+  }
+  html[data-room-view]
+    .stacks-world-shell[data-illustrated-entry]
+    :is(
+      .stacks-rail-icon,
+      .stacks-theme-toggle svg,
+      [data-stacks-desktop-panel] .placard-section-heading svg,
+      [data-stacks-desktop-panel] .placard-sections h1 svg
+    ) {
+    filter: drop-shadow(0 1px 1px var(--room-chrome-shadow)) !important;
+  }
+  html[data-room-view]
+    .stacks-world-shell[data-illustrated-entry]
+    .stacks-on-background-mark {
+    box-shadow: 0 1px 2px var(--room-chrome-shadow) !important;
   }
 }
 html.dark .room-first-paint-artwork {
@@ -113,7 +214,7 @@ html.dark .room-first-paint-artwork {
   .room-illustration
   > .room-illustration-stage {
   opacity: 0;
-  transition: opacity 160ms linear;
+  transition: opacity var(--room-dissolve-duration, 160ms) linear;
 }
 .stacks-world-shell[data-room-presentation="travel"] .room-illustration {
   opacity: 0;
@@ -122,6 +223,16 @@ html[data-og-capture] .room-first-paint {
   display: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
+  html[data-room-view],
+  .room-entry-wordmark {
+    transition: none;
+  }
+  html[data-room-view="live"]
+    .stacks-world-shell[data-illustrated-entry]
+    [data-room-scene-chrome]
+    .room-wordmark-label {
+    animation: none;
+  }
   .room-entry-wordmark {
     transform: none;
   }

@@ -189,8 +189,33 @@ html.dark .room-illustration {
 .room-illustration-status {
   min-width: min(28ch, 88vw);
   text-align: center;
-  color: hsl(var(--foreground) / 0.82);
+  color: color-mix(
+    in srgb,
+    var(--room-chrome-ink, hsl(var(--foreground))) 82%,
+    transparent
+  );
   pointer-events: none;
+}
+/* Keep the notice outside the artwork's instant visibility retirement. Its
+   own exit can finish while the scene already accepts input. */
+.room-illustration-actions[data-illustration-actions-visible] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+.room-illustration-actions[data-illustration-actions-visible="false"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-8px) scale(0.97);
+  transition:
+    opacity 380ms ease-in-out,
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 420ms;
+}
+.room-illustration-actions[data-illustration-actions-visible="false"]
+  .stacks-boot-wait-dot {
+  animation-play-state: paused;
 }
 .room-illustration-status[data-illustration-status="loading"] {
   opacity: 0;
@@ -212,7 +237,11 @@ html[data-room-loading-visible]
 .room-illustration-status .stacks-boot-wait-notes {
   margin-top: 6px;
   height: 18px;
-  color: hsl(var(--foreground) / 0.6);
+  color: color-mix(
+    in srgb,
+    var(--room-chrome-ink, hsl(var(--foreground))) 60%,
+    transparent
+  );
   font-family: var(--font-selected), Georgia, serif;
   font-size: 13px;
   line-height: 18px;
@@ -222,6 +251,10 @@ html[data-room-loading-visible]
   font-size: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
+  .room-illustration-actions[data-illustration-actions-visible="false"] {
+    transition: none;
+    transform: translateX(-50%);
+  }
   .room-illustration-status[data-illustration-status="loading"] {
     transition: none;
   }

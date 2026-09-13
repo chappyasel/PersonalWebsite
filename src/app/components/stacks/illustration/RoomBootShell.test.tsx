@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { WORLD_BOOT_POLICY } from "../boot/worldBootPolicy";
+import ChromeKeyboardHelp from "../dom/ChromeKeyboardHelp";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
@@ -21,6 +23,74 @@ function markup(element: React.ReactElement) {
   root.innerHTML = renderToStaticMarkup(element);
   return root;
 }
+
+it("uses the boot policy's dissolve clock for both artwork and chrome", () => {
+  const shell = markup(<RoomBootShell unitIndex={1} illustrated />);
+  expect(
+    Array.from(
+      shell.querySelectorAll("style"),
+      (style) => style.textContent,
+    ).join("\n"),
+  ).toContain(
+    `--room-dissolve-duration:${WORLD_BOOT_POLICY.illustrationDissolveMs}ms`,
+  );
+  const styles = readFileSync(
+    "src/app/components/stacks/illustration/roomBootShell.css",
+    "utf8",
+  );
+  for (const property of [
+    "opacity",
+    "--room-chrome-ink",
+    "--room-chrome-shadow",
+  ])
+    expect(styles).toContain(
+      `${property} var(--room-dissolve-duration, 160ms) linear`,
+    );
+  expect(styles).toContain("--room-chrome-shadow: transparent;");
+});
+
+it("hands the boot name to a live label with identical text and position metrics", () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync(
+    "src/app/components/stacks/illustration/roomBootShell.css",
+    "utf8",
+  );
+  const root = markup(
+    <>
+      <RoomBootShell unitIndex={1} illustrated />
+      <div className="stacks-world-shell" data-illustrated-entry="">
+        <div className="stacks-wordmark">
+          <ChromeKeyboardHelp
+            open={false}
+            onOpen={() => undefined}
+            tapFirst={false}
+            fieldNotes={<button style={{ height: 36 }}>Field Notes</button>}
+          />
+        </div>
+      </div>
+    </>,
+  );
+  document.head.append(style);
+  document.body.append(root);
+  try {
+    const boot = getComputedStyle(root.querySelector(".room-entry-wordmark")!);
+    const live = getComputedStyle(root.querySelector(".room-wordmark-label")!);
+    const position = getComputedStyle(root.querySelector(".stacks-wordmark")!);
+    for (const property of [
+      "fontFamily",
+      "fontSize",
+      "fontWeight",
+      "lineHeight",
+      "letterSpacing",
+    ] as const)
+      expect(live[property], property).toBe(boot[property]);
+    expect(position.top).toBe(boot.top);
+    expect(position.left).toBe(boot.left);
+  } finally {
+    root.remove();
+    style.remove();
+  }
+});
 
 it("inlines all 24 empty variants without prop textures or a network request", () => {
   for (const [key, uri] of Object.entries(shelves)) {

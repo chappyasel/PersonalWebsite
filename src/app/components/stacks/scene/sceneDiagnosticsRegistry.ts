@@ -1145,6 +1145,20 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       freeRoamDiagnosticsController.setFogEnabled(Boolean(value)),
     disabled: () => !freeRoamDiagnosticsController.getSnapshot().enabled,
   }),
+  booleanDescriptor({
+    id: "camera.free-roam-blur",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Blur in free roam",
+    help: "Retain depth-of-field and tilt-shift blur while the free-roam camera is active.",
+    defaultValue: DEFAULT_FREE_ROAM.blurEnabled,
+    experimental: false,
+    store: freeRoamDiagnosticsController,
+    read: () => freeRoamDiagnosticsController.getSnapshot().blurEnabled,
+    update: (value) =>
+      freeRoamDiagnosticsController.setBlurEnabled(Boolean(value)),
+    disabled: () => !freeRoamDiagnosticsController.getSnapshot().enabled,
+  }),
   mutableDescriptor({
     id: "meadow.wind-strength",
     panel: "simulate",

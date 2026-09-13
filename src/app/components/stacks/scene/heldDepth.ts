@@ -1,14 +1,21 @@
+import type { Vector3 } from "three";
+
+/** A vertical carry plane keeps lifting independent of shelf depth. */
+export function heldDragDirection(viewDirection: Vector3, target: Vector3) {
+  target.set(viewDirection.x, 0, viewDirection.z);
+  if (target.lengthSq() < 1e-8) target.set(0, 0, -1);
+  return target.normalize();
+}
+
 export type HeldDepthBounds = Readonly<{ min: number; max: number }>;
 
-/** Keep a carried prop in front of the camera while still giving the wheel
- * enough range to feel useful. The far allowance is deliberately modest:
- * shelf physics resolves nearby obstacles, but an authored fallback should
- * not be able to bury a prop deep inside the room. */
+/** Pull a prop closer and return it to its pickup depth, without letting a
+ * wheel or pinch bury it behind its original shelf position. */
 export function heldDepthBounds(initialDepth: number): HeldDepthBounds {
   const depth = Math.max(0.1, initialDepth);
   return {
     min: Math.min(depth, Math.max(0.9, depth * 0.28)),
-    max: depth + 1.4,
+    max: depth,
   };
 }
 

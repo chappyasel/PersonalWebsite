@@ -98,6 +98,7 @@ vi.mock("@react-three/postprocessing", async () => {
 });
 
 const { default: Effects } = await import("./Effects");
+const { freeRoamDiagnosticsController } = await import("./freeRoamDiagnostics");
 const { registerCinematicSun } = await import("./cinematicSun");
 const { resolveSceneQualityPlan } = await import("./quality");
 const { DEFAULT_SCENE_COLOR_GRADE, CINEMATIC_PLUS_SCENE_COLOR_GRADE } =
@@ -169,6 +170,7 @@ beforeEach(() => {
   harness.pixelRatio = 1;
   sceneQualityController.resetControls();
   scenePerformanceController.reset();
+  freeRoamDiagnosticsController.reset();
 });
 
 afterEach(() => {
@@ -176,6 +178,7 @@ afterEach(() => {
   sceneQualityController.resetControls();
   scenePerformanceController.reset();
   sceneGradeProfileController.reset();
+  freeRoamDiagnosticsController.reset();
 });
 
 describe("the scene's postprocessing chain", () => {
@@ -199,6 +202,38 @@ describe("the scene's postprocessing chain", () => {
       "SMAA",
     ]);
   });
+
+  it.each([
+    ["current", "DepthOfField"],
+    ["optical-prototype-16", "OpticalBokehPrototype16Effect"],
+    ["optical-prototype", "OpticalBokehPrototype32Effect"],
+    ["optical-prototype-64", "OpticalBokehPrototype64Effect"],
+  ] as const)(
+    "disables %s and tilt shift during free roam unless requested",
+    (model, effect) => {
+      sceneQualityController.setDepthOfFieldModel(model);
+      const authoredPlan = planFor("cinematic");
+      const expectBlur = (enabled: boolean) => {
+        harness.mounted.length = 0;
+        const chain = render();
+        expect(chain.has(effect)).toBe(enabled);
+        expect(chain.has("TiltShift2")).toBe(enabled);
+        expect(planFor("cinematic")).toEqual(authoredPlan);
+      };
+
+      expectBlur(true);
+      freeRoamDiagnosticsController.setEnabled(true);
+      expectBlur(false);
+      freeRoamDiagnosticsController.setBlurEnabled(true);
+      expectBlur(true);
+      freeRoamDiagnosticsController.setBlurEnabled(false);
+      expectBlur(false);
+      freeRoamDiagnosticsController.setEnabled(false);
+      expectBlur(true);
+      freeRoamDiagnosticsController.startFromCurrentPose();
+      expectBlur(false);
+    },
+  );
 
   it("never mounts a disabled composer", () => {
     // A mounted-but-disabled composer pins the renderer to NoToneMapping and

@@ -29,7 +29,7 @@ import {
 
 /** Bump when authored instance positions or sizes change so Fast Refresh
  * rebuilds Meadow's frozen instance buffers on localhost. */
-export const MEADOW_LAYOUT_REVISION = "2026-08-20-wide-tuft-clearance";
+export const MEADOW_LAYOUT_REVISION = "2026-09-13-connected-camera-lawn";
 
 // ---------------------------------------------------------------------------
 // Cameras the field is derived against. Every extent below is a consequence
@@ -134,16 +134,16 @@ export const MEADOW_TERRAIN = {
   segmentsZ: 132,
 } as const;
 
-/** Extra lawn behind the ordinary camera-side grass line. It is below or
- * behind every settled travel frustum, but a hard horizontal fling yaws a
- * bottom corner into this strip. The x span reaches the terrain's own safe
- * border so an almost-sideways ultrawide fling cannot discover a second
- * vegetation edge. */
+/** Camera-side lawn and the shoulders joining it to the traverse meadow.
+ * The old full-width strip left bare wedges beside the narrower main lawn.
+ * The same 3,200 tufts now cover those wedges as well as fast camera turns.
+ * The outer extents still hide the boundary from ultrawide fling views. */
 export const FLING_GRASS_APRON = {
   count: 3200,
   minX: MEADOW_TERRAIN.minX + 0.3,
   maxX: MEADOW_TERRAIN.maxX - 0.3,
-  minZ: VEGETATION_FRONT_Z,
+  /** Overlap the near/midfield handoff at the side gaps. */
+  minZ: -9.2,
   /** Behind the traverse eye (z 5.8), and no deeper than the seated bank's
    * skirt (z 7): tufts past it would stand on the bank's far face and fuzz
    * the crest the seated silhouette check proves. A 3:1 window's fast-fling
@@ -434,7 +434,7 @@ export const GRASS_BANDS = {
    * The band samples depth log-uniformly, so starting 0.25 nearer would
    * have thinned the whole lawn by 9%; the count carries that share. */
   near: { count: 7800, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 15 },
-  /** Camera-side safety grass, normally below/behind the frame. */
+  /** Camera-side safety grass, including the main lawn's side gaps. */
   apron: FLING_GRASS_APRON,
   /** The meadow moment, z −6.8 → −18.2. Its first 2.4 depth units overlap
    * the near lawn, hiding the roots of either tuft LOD at their handoff. */
@@ -1145,6 +1145,26 @@ export function inEastFeather(x: number, z: number): boolean {
   return x >= eastFlankX(z) - EAST_FEATHER.span - 0.5;
 }
 
+/** Join the main lawn inside its side feathers instead of leaving a gap
+ * between a trapezoid and a separate rectangular strip. The middle retains
+ * the camera-side band; only the shoulders extend toward the midfield. */
+export function flingApronMinZ(x: number, westExtension = 0): number {
+  const joinDepth = Math.max(
+    TRAVERSE_MIN_X -
+      westExtension -
+      TRAVERSE_BAND_SLACK +
+      WEST_FEATHER.span +
+      1 -
+      x,
+    x - (TRAVERSE_MAX_X + TRAVERSE_BAND_SLACK - EAST_FEATHER.span - 1),
+  );
+  return clamp(
+    TRAVERSE_EYE.z - joinDepth,
+    FLING_GRASS_APRON.minZ,
+    VEGETATION_FRONT_Z - 0.5,
+  );
+}
+
 /** Broad, low-frequency mowing/growth drifts for the camera-side apron.
  * Keeping the noise wavelength several world units makes the variation read
  * as patches of lawn rather than every tuft receiving an unrelated height. */
@@ -1639,6 +1659,7 @@ export function buildGrassInstances(
   const raw: RawInstance[] = [];
   let i = 0;
   let criticalAnchorIndex = 0;
+  let apronCandidate = 0;
   const criticalAnchorLimit = Math.min(
     Math.round(CRITICAL_GRASS_ANCHOR_COUNT * scale),
     bands[0]!.count,
@@ -1666,12 +1687,30 @@ export function buildGrassInstances(
       let z: number;
       let isCriticalAnchor = false;
       if (band.id === 4) {
-        z =
-          FLING_GRASS_APRON.minZ +
-          rand(i, 46) * (apronMaxZ - FLING_GRASS_APRON.minZ);
-        x =
-          FLING_GRASS_APRON.minX +
-          rand(i, 42) * (FLING_GRASS_APRON.maxX - FLING_GRASS_APRON.minX);
+        // An R2 sequence covers the connected region evenly at every rung.
+        // Reject the already-covered interior, not the side gaps. This runs
+        // only when building the frozen instance buffers.
+        do {
+          apronCandidate += 1;
+          x =
+            FLING_GRASS_APRON.minX +
+            ((0.5 + apronCandidate * 0.7548776662466927) % 1) *
+              (FLING_GRASS_APRON.maxX - FLING_GRASS_APRON.minX);
+          z =
+            FLING_GRASS_APRON.minZ +
+            ((0.5 + apronCandidate * 0.5698402909980532) % 1) *
+              (apronMaxZ - FLING_GRASS_APRON.minZ);
+          // Break up the sequence's diagonal rows without reopening large
+          // random holes. Reject overshoots instead of piling roots onto an
+          // edge where the feather would give them zero height.
+          x += (rand(apronCandidate, 239) - 0.5) * 0.6;
+          z += (rand(apronCandidate, 241) - 0.5) * 0.6;
+        } while (
+          x < FLING_GRASS_APRON.minX ||
+          x > FLING_GRASS_APRON.maxX ||
+          z > apronMaxZ ||
+          z < flingApronMinZ(x, west)
+        );
       } else if (band.id === 2) {
         z = SEAT_Z + d;
         const hw = seatedHalfWidth(z);
@@ -1725,7 +1764,7 @@ export function buildGrassInstances(
       }
       const f =
         band.id === 4
-          ? 1
+          ? smoothstep(FLING_GRASS_APRON.minZ, FLING_GRASS_APRON.minZ + 1.5, z)
           : westFeatherScale(x, z, west) *
             eastFeatherScale(x, z) *
             farFeatherScale(z);
@@ -1765,7 +1804,12 @@ export function buildGrassInstances(
         yaw: rand(i, 43) * Math.PI * 2,
         height: cappedHeight,
         width: renderedWidth,
-        q: isCriticalAnchor ? rand(i, 197) * 0.08 : rand(i, 97),
+        q:
+          band.id === 4
+            ? k / band.count
+            : isCriticalAnchor
+              ? rand(i, 197) * 0.08
+              : rand(i, 97),
         band: band.id,
       });
     }

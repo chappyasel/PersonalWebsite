@@ -77,8 +77,13 @@ extraction camera while live anchors follow the current viewport camera.
 The opening centers the visible wood at 55% of viewport height. Desktop 2D
 travel uses the scene's unit intervals at the mean resting camera scale.
 Narrow layouts compact the gap between artwork bounds to 48 to 80 CSS pixels.
-Each selected shelf retains its ordinary camera frame. Navigation and desktop titles
-use the same theme colors before and after the handoff.
+Each selected shelf retains its ordinary camera frame. Navigation, desktop
+titles, and the name share one ink color that eases from the illustration
+foreground to white during the light-mode handoff. The boot and live names
+share position and text metrics and crossfade in place. Dark text has no
+contact shadow; ink and shadow follow the artwork's dissolve clock. The loading notice
+lives outside the retired drawing so its exit can finish over the live scene;
+its timers stop when that exit starts.
 _Avoid_: Centered loader, loading box
 
 **Reveal Gate** — the four facts that must all hold before the boot screen is
@@ -529,11 +534,25 @@ _Avoid_: Eyeballing gaps from source coordinates
 
 **Weighted dragging** — the shared carry response in which real mass changes
 pointer follow, maximum lift, throw, and tilt. A light keepsake follows quickly;
-a heavy weight lags and stays low. Collision and gravity remain physically
-consistent across both.
+a heavy weight lags and stays low. While held, the hand supplies enough push
+to move heavier neighbors, with a bounded speed and collision checks. Carrying
+uses a vertical plane fixed at pickup so lifting and collision sliding cannot
+send a prop backward. Wheel and pinch can pull it closer and return it to its
+pickup depth. Released props retain their authored mass and gravity.
 
 **Now Strip** — the one-line live readout of present-tense facts (current
 book, last lift, local time). Every value on it must be real.
+
+## Meadow coverage
+
+The camera-side lawn joins the main meadow through both side gaps. Its
+3,200 tufts used to occupy a separate full-width strip at z 4.85 to 6.6.
+`flingApronMinZ` now extends their placement toward the midfield outside the
+traverse lawn, with overlap inside the side feathers. A jittered R2 sequence
+keeps each quality rung spread across that region. Counts, tuft geometry,
+materials, and frame updates stay the same. The meadow placement test checks
+root coverage inside both former gaps at Safety density; the frustum script
+checks the exterior edges and camera views separately.
 
 ## Development layout editor
 

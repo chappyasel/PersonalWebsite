@@ -241,7 +241,7 @@ it("shows Golf's overview and allows automatic entry without shelf registration"
   expect(onReady).toHaveBeenLastCalledWith("golf-overview:light", false);
 });
 
-it("keeps the loading message readable through dissolve, then retires it with the illustration", async () => {
+it("keeps the loading message through dissolve and mounted for its separate exit", async () => {
   const styles = readFileSync(
     "src/app/components/stacks/illustration/roomBootShell.css",
     "utf8",
@@ -289,6 +289,10 @@ it("keeps the loading message readable through dissolve, then retires it with th
   expect(drawing.contains(status)).toBe(false);
   expect(view.getByRole("status", { name: "Room view" })).toBe(status);
   view.rerender(content("live"));
+  // The artwork retires immediately, but the same status node must survive
+  // outside that hidden layer long enough to run its own exit transition.
+  expect(status.isConnected).toBe(true);
+  expect(status.closest(".room-illustration")).toBeNull();
   expect(view.queryByRole("status", { name: "Room view" })).toBeNull();
 });
 

@@ -1,3 +1,4 @@
+import { WORLD_BOOT_POLICY } from "../boot/worldBootPolicy";
 import BootScreen from "../dom/BootScreen";
 import type { CSSProperties } from "react";
 
@@ -63,7 +64,9 @@ export default function RoomBootShell({
   return (
     <>
       <RoomFirstPaintSelection initialUnit={props.unitIndex} />
-      <style>{`:root{${Object.entries(shelves)
+      <style>{`:root{--room-dissolve-duration:${WORLD_BOOT_POLICY.illustrationDissolveMs}ms;${Object.entries(
+        shelves,
+      )
         .map(
           ([key, image]) =>
             `--room-shelf-${key.replace("/", "-")}:url("${image}")`,

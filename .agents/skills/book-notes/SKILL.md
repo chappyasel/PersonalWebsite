@@ -40,7 +40,7 @@ Use this when Chappy asks for a new blank booknotes page with chapter headings /
    - Book Notes database ID: `340ec223-7246-4d89-a44e-8005075bb7c4`
    - Book Notes data source ID: `9d03bfe1-3c22-411e-921a-60f86bd790c4`
    - For books with multiple authors, record only the first-listed author in the `Author` property.
-   - Required properties: `Title` (title), `Author` (rich_text if known), `Publication` (number if known), `Tags` (multi_select if obvious), `Notes?` = false, `Summarized?` = false, `Automated?` = false.
+   - Required properties: `Title` (title), `Author` (rich_text if known), `Publication` (number if known), `Tags` (multi_select if obvious), `Notes?` = true, `Summarized?` = false, `Automated?` = false. A newly created fill-in skeleton already contains a notes structure, so mark `Notes?` checked at creation.
    - Leave `Started` and `Finished` empty unless Chappy explicitly supplies a date. The page will stay Notion-only until one of those fields is set.
    - Leave `Website` empty. The sync fills it once the page enters the mirror.
 4. Page body should match Chappy’s fill-in template:

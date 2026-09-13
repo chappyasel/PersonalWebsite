@@ -45,6 +45,7 @@ describe("free-roam diagnostics", () => {
     expect(controller.getSnapshot()).toEqual({
       enabled: true,
       fogEnabled: false,
+      blurEnabled: false,
       startFromCurrentPose: false,
     });
     expect(listener).toHaveBeenCalledTimes(1);
@@ -56,6 +57,7 @@ describe("free-roam diagnostics", () => {
     expect(controller.getSnapshot()).toEqual({
       enabled: false,
       fogEnabled: false,
+      blurEnabled: false,
       startFromCurrentPose: false,
     });
     expect(listener).toHaveBeenCalledTimes(2);
@@ -72,6 +74,7 @@ describe("free-roam diagnostics", () => {
     expect(controller.getSnapshot()).toEqual({
       enabled: true,
       fogEnabled: false,
+      blurEnabled: false,
       startFromCurrentPose: true,
     });
 
@@ -97,6 +100,7 @@ describe("free-roam diagnostics", () => {
     expect(controller.getSnapshot()).toEqual({
       enabled: false,
       fogEnabled: false,
+      blurEnabled: false,
       startFromCurrentPose: false,
     });
   });
