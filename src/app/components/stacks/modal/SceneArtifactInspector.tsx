@@ -50,7 +50,11 @@ import {
   type ArtifactPreviewDismissPoint,
   artifactPreviewShouldDismissOnRelease,
 } from "./artifactPreviewDismissGesture";
-import { fitArtifactPreviewToViewport } from "./artifactPreviewFit";
+import {
+  type ArtifactPreviewChrome,
+  artifactPreviewStage,
+  layoutArtifactPreview,
+} from "./artifactPreviewFit";
 import {
   type ArtifactPreviewFrame,
   type ArtifactPreviewFrameAccentLayout,
@@ -72,11 +76,48 @@ import {
 } from "./artifactPreviewPose";
 import { modelArtifactPreviewVisible } from "./modelArtifactHandoff";
 
+/** The photo layer is centred in the window by react-photo-view; this
+ * custom property moves it into the image-and-caption stage. It lives on the
+ * root element because the origin `<img>`s (in this tree) and the viewer's
+ * `.PhotoView__PhotoWrap` (portalled to body) both read it, and because it
+ * must be written synchronously from the chrome's layout effect: the viewer
+ * measures the origin rectangle in a passive effect of the same commit, so a
+ * React re-render would arrive too late for the opening morph. */
+const STAGE_OFFSET_PROPERTY = "--stacks-preview-stage-offset";
+
+function writeStageOffset(offsetY: number) {
+  document.documentElement.style.setProperty(
+    STAGE_OFFSET_PROPERTY,
+    `${Math.round(offsetY)}px`,
+  );
+}
+
+/* The wrap's `transform` is inline (the slider's x travel); `translate`
+ * composes with it. The shift only animates once the viewer has settled
+ * (see `data-scene-artifact-preview-settled`), never on the frame the
+ * origin is measured. */
+const STAGE_STYLE = `
+  .stacks-artifact-preview--staged .PhotoView__PhotoWrap {
+    translate: 0 var(${STAGE_OFFSET_PROPERTY}, 0px);
+  }
+  .stacks-artifact-preview--staged .PhotoView__PhotoWrap:has([data-scene-artifact-preview-settled]) {
+    transition: translate ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING};
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stacks-artifact-preview--staged .PhotoView__PhotoWrap:has([data-scene-artifact-preview-settled]) {
+      transition: none;
+    }
+  }
+`;
+
 function PreviewChrome({
   artifact,
   total,
   index,
   visible,
+  contentTop,
+  captionMaxHeight,
+  onMeasure,
   onIndexChange,
   onClose,
 }: {
@@ -84,6 +125,9 @@ function PreviewChrome({
   total: number;
   index: number;
   visible: boolean;
+  contentTop: number;
+  captionMaxHeight: number;
+  onMeasure: (measurement: ArtifactPreviewChrome) => void;
   onIndexChange: (index: number) => void;
   onClose: () => void;
 }) {
@@ -95,6 +139,9 @@ function PreviewChrome({
       title={artifact.title}
       caption={caption}
       captionId={`artifact-caption-${artifact.id}`}
+      contentTop={contentTop}
+      captionMaxHeight={captionMaxHeight}
+      onMeasure={onMeasure}
       total={total}
       index={index}
       visible={visible}
@@ -114,10 +161,16 @@ function ImagePreviewOverlay({
   artifact,
   total,
   preview,
+  contentTop,
+  captionMaxHeight,
+  onMeasure,
 }: {
   artifact: SceneArtifact;
   total: number;
   preview: OverlayRenderProps;
+  contentTop: number;
+  captionMaxHeight: number;
+  onMeasure: (measurement: ArtifactPreviewChrome) => void;
 }) {
   const gesture = useRef<{
     pointerId: number;
@@ -186,7 +239,10 @@ function ImagePreviewOverlay({
       artifact={artifact}
       total={total}
       index={preview.index}
-      visible={preview.overlayVisible}
+      visible={preview.overlayVisible && preview.visible}
+      contentTop={contentTop}
+      captionMaxHeight={captionMaxHeight}
+      onMeasure={onMeasure}
       onIndexChange={preview.onIndexChange}
       onClose={preview.onClose}
     />
@@ -204,6 +260,8 @@ function pixelLength(value: CSSProperties["width"]) {
 
 type PreviewPrintProps = Readonly<{
   attrs: PhotoRenderParams["attrs"];
+  /** The viewer's live zoom factor for this box (`PhotoRenderParams.scale`). */
+  scale: number;
   frame: ArtifactPreviewFrame;
   palette: Palette;
   src: string;
@@ -293,6 +351,7 @@ function PreviewFrameAccents({
  * aspect, and the edges must stay proportional to the print, not the box. */
 function PreviewPrint({
   attrs,
+  scale,
   frame,
   palette,
   src,
@@ -309,6 +368,27 @@ function PreviewPrint({
   const style = attrs.style ?? {};
   const layout = artifactPreviewFrameLayout(frame, pixelLength(style.width));
   const imageSize = `calc(100% - ${layout.imageInset * 2}px)`;
+
+  // The viewer's resting mode (react-photo-view 1.2.7 `easingMode === 4`)
+  // is the only one whose box transition carries `height 0ms`; opening and
+  // closing morph the height on their own clock. At rest the viewer eases
+  // the box's position but snaps its size, so when the caption arrives or
+  // changes and the image re-fits, the print would jump in size and then
+  // drift into place. Ease width and height on the viewer's clock instead.
+  // Only at natural zoom, though: a zoom settles by swapping box size for
+  // transform scale in one render, and that swap must stay instantaneous.
+  const settled =
+    typeof style.transition === "string" &&
+    style.transition.includes("height 0ms");
+  const lastScale = useRef(scale);
+  useEffect(() => {
+    lastScale.current = scale;
+  });
+  const easeSize =
+    settled &&
+    scale === 1 &&
+    lastScale.current === 1 &&
+    !reducedMotionPreferred();
 
   // Spatial rotation. The viewer can only translate and scale its box, so
   // the roll, yaw, and perspective of the rendered print are restored here:
@@ -392,11 +472,17 @@ function PreviewPrint({
         .join(" ")}
       style={{
         ...style,
+        ...(easeSize
+          ? {
+              transition: `${style.transition}, width ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}, height ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`,
+            }
+          : {}),
         position: "relative",
         borderRadius: layout.radius,
         opacity: visible ? style.opacity : 0,
       }}
       data-scene-artifact-preview-image
+      data-scene-artifact-preview-settled={settled ? "" : undefined}
       data-scene-artifact-preview-opening={opening ? "" : undefined}
       data-scene-artifact-preview-closing={closing ? "" : undefined}
     >
@@ -496,6 +582,36 @@ export default function SceneArtifactInspector() {
     () => collection.filter(isSceneImageArtifact),
     [collection],
   );
+  // The chrome measures itself (caption and dock heights) in a layout
+  // effect and reports here. State drives React geometry; the custom
+  // property is written in the same call so the origin rectangle the viewer
+  // is about to measure already reflects the new stage.
+  const [chromeMeasurement, setChromeMeasurement] =
+    useState<ArtifactPreviewChrome>({ captionHeight: 0, controlsHeight: 124 });
+  const measureChrome = useCallback((next: ArtifactPreviewChrome) => {
+    writeStageOffset(
+      artifactPreviewStage(
+        { width: window.innerWidth, height: window.innerHeight },
+        next,
+      ).offsetY,
+    );
+    setChromeMeasurement((previous) =>
+      previous.captionHeight === next.captionHeight &&
+      previous.controlsHeight === next.controlsHeight
+        ? previous
+        : next,
+    );
+  }, []);
+  const stage = artifactPreviewStage(previewViewport, chromeMeasurement);
+  useLayoutEffect(() => {
+    writeStageOffset(stage.offsetY);
+  }, [stage.offsetY]);
+  useEffect(
+    () => () => {
+      document.documentElement.style.removeProperty(STAGE_OFFSET_PROPERTY);
+    },
+    [],
+  );
   const previewOriginSession = readSceneArtifactPreviewOriginSession();
   const previewOriginsValid = sceneArtifactPreviewOriginSessionMatchesViewport(
     previewOriginSession,
@@ -524,81 +640,86 @@ export default function SceneArtifactInspector() {
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
-  const images = useMemo<PhotoSliderItem[]>(
-    () =>
-      imageCollection.map((entry) => {
-        const origin = projectedOrigins.get(entry.id);
-        const returnOrigin = previewOriginsValid
-          ? previewOriginSession?.returnOrigins.get(entry.id)
-          : undefined;
-        const originElement = origin ? originElements.get(entry.id) : undefined;
-        const frame = frames.get(entry.id) ?? BARE_ARTIFACT_PREVIEW_FRAME;
-        const framed = framedArtifactPreviewSize(frame, entry);
-        const fitted = fitArtifactPreviewToViewport(
-          framed,
-          previewViewport.width > 0
-            ? previewViewport
-            : { width: framed.width + 48, height: framed.height + 144 },
-        );
-        const openingPose = origin?.quad
-          ? artifactPreviewPoseTransform(fitted, origin, origin.quad)
-          : null;
-        const openingPoseKeyframes = origin?.quad
-          ? artifactPreviewPoseKeyframes(fitted, origin, origin.quad)
-          : null;
-        const closingPose = origin?.quad
-          ? artifactPreviewPoseTransform(
-              fitted,
-              origin,
-              returnOrigin?.quad ?? origin.quad,
-            )
-          : null;
-        const closingPoseKeyframes = origin?.quad
-          ? artifactPreviewPoseKeyframes(
-              fitted,
-              origin,
-              returnOrigin?.quad ?? origin.quad,
-            )
-          : null;
-        return {
-          key: `${entry.id}:${previewViewport.width}x${previewViewport.height}`,
-          ...fitted,
-          ...(originElement ? { originRef: originElement } : {}),
-          // Supplying `src` makes react-photo-view wait for an image onLoad and
-          // abandon its origin transition after 250 ms. The custom renderer
-          // keeps its geometry ready immediately while the browser decodes.
-          render: ({ attrs }) => (
-            <PreviewPrint
-              attrs={attrs}
-              frame={frame}
-              palette={palette}
-              src={entry.image}
-              previewSrc={frame.previewSrc ?? entry.previewImage ?? entry.image}
-              visible={imagePreviewVisible}
-              opening={imagePreviewOpening}
-              closing={imagePreviewClosing}
-              openingPose={openingPose}
-              closingPose={closingPose}
-              openingPoseKeyframes={openingPoseKeyframes}
-              closingPoseKeyframes={closingPoseKeyframes}
-            />
-          ),
-        };
-      }),
-    [
-      frames,
-      imageCollection,
-      imagePreviewOpening,
-      imagePreviewClosing,
-      imagePreviewVisible,
-      originElements,
-      palette,
-      previewViewport,
-      previewOriginSession,
-      previewOriginsValid,
-      projectedOrigins,
-    ],
-  );
+  const { images, captionTops } = useMemo(() => {
+    const captionTops: number[] = [];
+    const images = imageCollection.map<PhotoSliderItem>((entry) => {
+      const origin = projectedOrigins.get(entry.id);
+      const returnOrigin = previewOriginsValid
+        ? previewOriginSession?.returnOrigins.get(entry.id)
+        : undefined;
+      const originElement = origin ? originElements.get(entry.id) : undefined;
+      const frame = frames.get(entry.id) ?? BARE_ARTIFACT_PREVIEW_FRAME;
+      const framed = framedArtifactPreviewSize(frame, entry);
+      const fitted = layoutArtifactPreview(
+        framed,
+        previewViewport.width > 0
+          ? previewViewport
+          : { width: framed.width + 48, height: framed.height + 144 },
+        chromeMeasurement,
+      );
+      const openingPose = origin?.quad
+        ? artifactPreviewPoseTransform(fitted, origin, origin.quad)
+        : null;
+      const openingPoseKeyframes = origin?.quad
+        ? artifactPreviewPoseKeyframes(fitted, origin, origin.quad)
+        : null;
+      const closingPose = origin?.quad
+        ? artifactPreviewPoseTransform(
+            fitted,
+            origin,
+            returnOrigin?.quad ?? origin.quad,
+          )
+        : null;
+      const closingPoseKeyframes = origin?.quad
+        ? artifactPreviewPoseKeyframes(
+            fitted,
+            origin,
+            returnOrigin?.quad ?? origin.quad,
+          )
+        : null;
+      captionTops.push(fitted.captionTop);
+      return {
+        key: `${entry.id}:${previewViewport.width}x${previewViewport.height}`,
+        width: fitted.width,
+        height: fitted.height,
+        ...(originElement ? { originRef: originElement } : {}),
+        // Supplying `src` makes react-photo-view wait for an image onLoad and
+        // abandon its origin transition after 250 ms. The custom renderer
+        // keeps its geometry ready immediately while the browser decodes.
+        render: ({ attrs, scale }) => (
+          <PreviewPrint
+            attrs={attrs}
+            scale={scale}
+            frame={frame}
+            palette={palette}
+            src={entry.image}
+            previewSrc={frame.previewSrc ?? entry.previewImage ?? entry.image}
+            visible={imagePreviewVisible}
+            opening={imagePreviewOpening}
+            closing={imagePreviewClosing}
+            openingPose={openingPose}
+            closingPose={closingPose}
+            openingPoseKeyframes={openingPoseKeyframes}
+            closingPoseKeyframes={closingPoseKeyframes}
+          />
+        ),
+      };
+    });
+    return { images, captionTops };
+  }, [
+    chromeMeasurement,
+    frames,
+    imageCollection,
+    imagePreviewOpening,
+    imagePreviewClosing,
+    imagePreviewVisible,
+    originElements,
+    palette,
+    previewViewport,
+    previewOriginSession,
+    previewOriginsValid,
+    projectedOrigins,
+  ]);
 
   useEffect(() => {
     const measure = () =>
@@ -623,20 +744,22 @@ export default function SceneArtifactInspector() {
       : undefined;
     // Framed, like the origin: the scene scales the real print by the ratio
     // of these two boxes, and both must measure the same object.
-    const fitted = fitArtifactPreviewToViewport(
+    const fitted = layoutArtifactPreview(
       framedArtifactPreviewSize(
         frames.get(selectedId) ?? BARE_ARTIFACT_PREVIEW_FRAME,
         artifact,
       ),
       previewViewport,
+      chromeMeasurement,
     );
     dispatchHandoff({
       type: "preview-ready",
       target: {
         bounds: {
           left: (previewViewport.width - fitted.width) / 2,
-          top: (previewViewport.height - fitted.height) / 2,
-          ...fitted,
+          top: fitted.top,
+          width: fitted.width,
+          height: fitted.height,
         },
         ...(sourceBounds ? { sourceBounds } : {}),
         cameraRelativeQuaternion: [0, 0, 0, 1],
@@ -644,6 +767,7 @@ export default function SceneArtifactInspector() {
     });
   }, [
     artifact,
+    chromeMeasurement,
     dispatchHandoff,
     frames,
     previewOriginSession,
@@ -665,6 +789,7 @@ export default function SceneArtifactInspector() {
 
   return (
     <>
+      <style>{STAGE_STYLE}</style>
       {imageCollection.map((entry) => {
         const origin = projectedOrigins.get(entry.id);
         const originElement = originElements.get(entry.id);
@@ -682,7 +807,11 @@ export default function SceneArtifactInspector() {
             className="pointer-events-none fixed z-[-1] opacity-0"
             style={{
               left: origin.left,
-              top: origin.top,
+              // The viewer centres in the full window and its photo layer
+              // is shifted into the stage by the same custom property, so
+              // compensating here keeps the opening and closing on the shelf
+              // whatever the stage is when the viewer measures this box.
+              top: `calc(${origin.top}px - var(${STAGE_OFFSET_PROPERTY}, 0px))`,
               width: origin.width,
               height: origin.height,
               objectFit: "contain",
@@ -710,6 +839,7 @@ export default function SceneArtifactInspector() {
           bannerVisible={false}
           className={[
             "stacks-artifact-preview",
+            "stacks-artifact-preview--staged",
             imagePreviewVisible
               ? "stacks-artifact-preview--handoff-visible"
               : null,
@@ -726,6 +856,9 @@ export default function SceneArtifactInspector() {
               artifact={artifact}
               total={imageCollection.length}
               preview={props}
+              captionMaxHeight={stage.captionHeight}
+              onMeasure={measureChrome}
+              contentTop={captionTops[props.index] ?? stage.edge}
             />
           )}
         />
