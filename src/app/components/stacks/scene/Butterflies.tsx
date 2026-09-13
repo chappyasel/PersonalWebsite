@@ -1742,9 +1742,11 @@ function Flight({
     const engagedByUnit = new Array<number>(UNIT_COUNT).fill(0);
     const approachingByUnit = new Array<number>(UNIT_COUNT).fill(0);
     for (const motion of motions.current) {
-      if (!motion.pilot?.reservedPerchId) continue;
+      if (!motion.pilot?.reservedPerchId && !motion.pilot?.pendingLanding)
+        continue;
       engagedByUnit[motion.currentUnit]! += 1;
       if (
+        motion.pilot.pendingLanding ||
         motion.pilot.phase === "approach" ||
         motion.pilot.phase === "hover" ||
         motion.pilot.phase === "touchdown"
@@ -1784,7 +1786,7 @@ function Flight({
         // copy, and nothing downstream may be handed a position to play back.
         const world = new ThreeInsectFlightWorld(occupant, "butterfly");
         motion.world = world;
-        world.setContext(motion.currentUnit, t);
+        world.setContext(motion.currentUnit, t, !dark);
         butterflyStartPosition(motion, i, motion.initial.position);
         motion.initial.velocity.x = 0;
         motion.initial.velocity.y = 0;
@@ -1886,7 +1888,7 @@ function Flight({
       }
 
       const engagedPerch = getInsectPerch(pilot.reservedPerchId);
-      world.setContext(engagedPerch?.unitIndex ?? motion.currentUnit, t);
+      world.setContext(engagedPerch?.unitIndex ?? motion.currentUnit, t, !dark);
 
       const automaticAttempt =
         !diagnostics?.pauseAutomaticLandings &&
@@ -1899,7 +1901,11 @@ function Flight({
         motion.transitTo === null &&
         butterflyIsActiveNeighbor(motion.currentUnit, stacks.activeUnit);
       const forcedAttempt = forceRequested && i === forcedResident;
-      if (pilot.phase === "roam" && (automaticAttempt || forcedAttempt)) {
+      if (
+        pilot.phase === "roam" &&
+        !pilot.pendingLanding &&
+        (automaticAttempt || forcedAttempt)
+      ) {
         const occupancy = {
           engaged: engagedByUnit[motion.currentUnit] ?? 0,
           approaching: approachingByUnit[motion.currentUnit] ?? 0,
@@ -1941,7 +1947,7 @@ function Flight({
             // the same thing: a resident of unit 2 may be planning a landing
             // while the camera sits on unit 1, and planning against the wrong
             // Unit's collision index means planning against no index at all.
-            world.setContext(motion.currentUnit, t);
+            world.setContext(motion.currentUnit, t, !dark);
             for (let offset = 0; offset < candidates.length; offset++) {
               const perch = candidates[(first + offset) % candidates.length]!;
               if (
@@ -2006,7 +2012,7 @@ function Flight({
               started = true;
               if (forcedAttempt)
                 insectDiagnosticsController.update({
-                  forceResult: `Landing Plan engaged: ${perch.id}`,
+                  forceResult: `Landing Plan ${pilot.pendingLanding ? "queued" : "engaged"}: ${perch.id}`,
                 });
               break;
             }
@@ -2204,6 +2210,7 @@ function Flight({
       world.setContext(
         getInsectPerch(pilot.reservedPerchId)?.unitIndex ?? motion.currentUnit,
         t,
+        !dark,
       );
       const phaseBeforeAdvance = pilot.phase;
       advanceInsectPilot(pilot, insectDelta, world);

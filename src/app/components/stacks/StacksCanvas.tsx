@@ -70,6 +70,8 @@ import {
 import { globeChapterHover } from "./scene/globeChapterHover";
 import { globeMarkProbe } from "./scene/globeCloseUpState";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
+import { insectLandingMetrics } from "./scene/insectLandingMetrics";
+import { insectLandingWorker } from "./scene/insectLandingWorker";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
 import type {
@@ -515,6 +517,10 @@ function installDevHooks() {
         visionRideModelStatus,
       } = useStacks.getState();
       return {
+        insectPlanning: {
+          ...insectLandingMetrics,
+          transport: { ...insectLandingWorker.timings },
+        },
         offset: progressRef.current,
         activeUnit,
         // Straight from the boot machine. The scene store used to keep its own

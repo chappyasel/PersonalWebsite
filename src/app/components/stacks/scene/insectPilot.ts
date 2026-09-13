@@ -16,6 +16,7 @@ import {
   type InsectLandingPlanResult,
   compileInsectLandingPlan,
 } from "./insectLanding";
+import { insectLandingMetrics } from "./insectLandingMetrics";
 import type { InsectPerchRejectionCode } from "./insectPerchDiagnostic";
 import {
   type InsectEvasion,
@@ -371,7 +372,24 @@ export const MOTH_PILOT_PROFILE: InsectPilotProfile = {
  * borrowed for the duration of the call; implementations must not retain
  * them.
  */
+export type PendingInsectLanding = {
+  onReady?: (callback: () => void) => void;
+  result: InsectLandingPlanResult | null;
+  cancel: () => void;
+  validate: (
+    position: PilotVector,
+    plan: InsectLandingPlan,
+  ) => InsectLandingPlan | null;
+};
+
 export interface InsectFlightWorld {
+  /** undefined selects the synchronous baseline; null declines this attempt. */
+  requestLandingPlan?(
+    request: Omit<
+      InsectLandingPlanRequest,
+      "sweep" | "foldedSweep" | "collisionRevision"
+    >,
+  ): PendingInsectLanding | null | undefined;
   sampleCruise(
     flightId: number,
     time: number,
@@ -500,6 +518,10 @@ export type InsectPilot = {
   rejoinStartVelocity: PilotVector;
   rejoinDuration: number;
   reservedPerchId: string | null;
+  pendingLanding: {
+    ticket: PendingInsectLanding;
+    target: InsectLandingTarget;
+  } | null;
   landingPlan: InsectLandingPlan | null;
   routeIndex: number;
   routeTargetVelocity: PilotVector;
@@ -772,6 +794,7 @@ export function createInsectPilot(options: InsectPilotOptions): InsectPilot {
     rejoinStartVelocity: vector(),
     rejoinDuration: 0,
     reservedPerchId: null,
+    pendingLanding: null,
     landingPlan: null,
     routeIndex: 1,
     routeTargetVelocity: vector(),
@@ -865,6 +888,82 @@ function compiledLaunchIsClear(
   return world.sweepSphere(endpoint, endpoint, pilot.profile.wingRadius);
 }
 
+function adoptInsectLanding(
+  pilot: InsectPilot,
+  target: InsectLandingTarget,
+  plan: InsectLandingPlan,
+  world: InsectFlightWorld,
+) {
+  copyTarget(pilot, target);
+  const reservation = world.tryReserve(
+    target.id,
+    pilot.occupantId,
+    plan.collisionRevision,
+    target,
+  );
+  if (
+    reservation === false ||
+    (typeof reservation === "object" && !reservation.ok)
+  ) {
+    pilot.rejectionCode =
+      typeof reservation === "object" ? reservation.rejectionCode : "occupied";
+    return false;
+  }
+  pilot.reservedPerchId = target.id;
+  pilot.landingPlan = plan;
+  pilot.routeIndex = 1;
+  pilot.plannedLaunch = false;
+  copy(pilot.stage, plan.approach.at(-1)!);
+  copy(pilot.contact, plan.contact);
+  copy(pilot.normal, plan.normal);
+  copy(pilot.tangent, plan.tangent);
+  copy(pilot.launchTarget, plan.launch.at(-1)!);
+  // A steering resident compiles no rejoin, so there is no target to copy.
+  const plannedRejoin = plan.rejoin.at(-1);
+  if (plannedRejoin) copy(pilot.rejoinTarget, plannedRejoin);
+  copy(pilot.rejoinVelocity, plan.rejoinVelocity);
+  enter(pilot, "approach", "approach-started");
+  return true;
+}
+
+/** Adopt in the worker message task when possible. Waiting for the next frame
+ * lets that frame's prop animation invalidate even sub-millisecond plans. */
+function settlePendingInsectLanding(
+  pilot: InsectPilot,
+  world: InsectFlightWorld,
+) {
+  const pending = pilot.pendingLanding;
+  if (pending?.ticket.result) {
+    pilot.pendingLanding = null;
+    const result = pending.ticket.result;
+    const validated =
+      result.ok && (pilot.phase === "roam" || pilot.phase === "rejoin")
+        ? pending.ticket.validate(pilot.position, result.plan)
+        : null;
+    if (validated) {
+      // Join the first forward waypoint from CURRENT position. Keep position,
+      // velocity and acceleration; the ordinary pilot tracks the connector.
+      const plan = {
+        ...validated,
+        approach: [{ ...pilot.position }, ...validated.approach.slice(1)],
+      };
+      if (adoptInsectLanding(pilot, pending.target, plan, world))
+        insectLandingMetrics.worker.adopted++;
+      else {
+        insectLandingMetrics.worker.rejected++;
+        insectLandingMetrics.worker.invalidReservation++;
+      }
+    } else {
+      insectLandingMetrics.worker.rejected++;
+      pilot.rejectionCode = result.ok
+        ? "stale-collision-revision"
+        : result.rejectionCode;
+      pilot.event = "approach-blocked";
+    }
+    pending.ticket.cancel();
+  }
+}
+
 /** Occasional state command. Frame-by-frame motion belongs to advance. */
 export function commandInsectPilot(
   pilot: InsectPilot,
@@ -873,7 +972,12 @@ export function commandInsectPilot(
 ): boolean {
   pilot.event = "none";
   pilot.rejectionCode = "none";
+  if (command.type === "cancel" || command.type === "depart") {
+    pilot.pendingLanding?.ticket.cancel();
+    pilot.pendingLanding = null;
+  }
   if (command.type === "land") {
+    if (pilot.pendingLanding) return false;
     if (pilot.phase !== "roam" && pilot.phase !== "rejoin") return false;
     copyTarget(pilot, command.target);
     const request = {
@@ -897,6 +1001,25 @@ export function commandInsectPilot(
       variation: command.variation,
       profile: pilot.profile,
     };
+    const pending = world.requestLandingPlan?.(request);
+    if (pending !== undefined) {
+      if (!pending) return false;
+      // The renderer may reuse its target scratch object on its next frame.
+      pilot.pendingLanding = {
+        ticket: pending,
+        target: {
+          ...command.target,
+          point: { ...command.target.point },
+          normal: { ...command.target.normal },
+          tangent: { ...command.target.tangent },
+        },
+      };
+      pending.onReady?.(() => {
+        if (pilot.pendingLanding?.ticket === pending)
+          settlePendingInsectLanding(pilot, world);
+      });
+      return true;
+    }
     const compiled = world.compileLandingPlan
       ? world.compileLandingPlan(request)
       : compileInsectLandingPlan({
@@ -928,37 +1051,7 @@ export function commandInsectPilot(
       pilot.event = "approach-blocked";
       return false;
     }
-    const reservation = world.tryReserve(
-      command.target.id,
-      pilot.occupantId,
-      compiled.plan.collisionRevision,
-      command.target,
-    );
-    if (
-      reservation === false ||
-      (typeof reservation === "object" && !reservation.ok)
-    ) {
-      pilot.rejectionCode =
-        typeof reservation === "object"
-          ? reservation.rejectionCode
-          : "occupied";
-      return false;
-    }
-    pilot.reservedPerchId = command.target.id;
-    pilot.landingPlan = compiled.plan;
-    pilot.routeIndex = 1;
-    pilot.plannedLaunch = false;
-    copy(pilot.stage, compiled.plan.approach.at(-1)!);
-    copy(pilot.contact, compiled.plan.contact);
-    copy(pilot.normal, compiled.plan.normal);
-    copy(pilot.tangent, compiled.plan.tangent);
-    copy(pilot.launchTarget, compiled.plan.launch.at(-1)!);
-    // A steering resident compiles no rejoin, so there is no target to copy.
-    const plannedRejoin = compiled.plan.rejoin.at(-1);
-    if (plannedRejoin) copy(pilot.rejoinTarget, plannedRejoin);
-    copy(pilot.rejoinVelocity, compiled.plan.rejoinVelocity);
-    enter(pilot, "approach", "approach-started");
-    return true;
+    return adoptInsectLanding(pilot, command.target, compiled.plan, world);
   }
 
   if (command.type === "update-perch") {
@@ -2530,6 +2623,7 @@ export function advanceInsectPilot(
   world: InsectFlightWorld,
 ): InsectPilot {
   pilot.event = "none";
+  settlePendingInsectLanding(pilot, world);
   if (!Number.isFinite(delta) || delta <= 0) return pilot;
   // A backgrounded tab must not replay minutes of hidden flight on resume.
   // Twelve fixed steps cover a real 100 ms hitch while keeping frame work

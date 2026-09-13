@@ -911,7 +911,7 @@ function LivingWildlife({
               basis,
             );
             updateMothLampCone(motion.cone, lamp, basis);
-            motion.world.setContext(lampUnitIndex, clockTime);
+            motion.world.setContext(lampUnitIndex, clockTime, dark);
             mothFrame(
               behaviorId,
               t,
@@ -1065,6 +1065,7 @@ function LivingWildlife({
             if (
               pilot?.phase === "roam" &&
               !automaticLandingsPaused &&
+              !pilot.pendingLanding &&
               t >= motion.nextAttemptAt &&
               lampAmount > 0.45
             ) {

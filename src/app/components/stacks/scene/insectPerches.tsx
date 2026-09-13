@@ -63,6 +63,13 @@ export type InsectPerch = {
 const perches = new Map<string, InsectPerch>();
 const lampPerches = new Map<string, InsectPerch>();
 const occupants = new Map<string, string>();
+const reservationRevisions = new WeakMap<InsectPerch, number>();
+export function insectPerchReservationRevision(perch: InsectPerch) {
+  return reservationRevisions.get(perch) ?? 0;
+}
+function reviseReservation(perch: InsectPerch) {
+  reservationRevisions.set(perch, insectPerchReservationRevision(perch) + 1);
+}
 
 /** Register a live authored Perch. Keeping registration behind this small
  * seam lets the runtime lifecycle and deterministic pilot tests exercise the
@@ -96,12 +103,17 @@ export function claimInsectPerch(id: string, occupant: string): boolean {
   if (current && current !== occupant) return false;
   const perch = perches.get(id);
   if (!perch || !resolveInsectPerch(perch).ok) return false;
+  reviseReservation(perch);
   occupants.set(id, occupant);
   return true;
 }
 
 export function releaseInsectPerch(id: string | null, occupant: string) {
-  if (id && occupants.get(id) === occupant) occupants.delete(id);
+  if (id && occupants.get(id) === occupant) {
+    const perch = perches.get(id);
+    if (perch) reviseReservation(perch);
+    occupants.delete(id);
+  }
 }
 
 export function insectPerchOccupant(id: string): string | null {

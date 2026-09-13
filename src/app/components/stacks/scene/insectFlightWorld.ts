@@ -1,3 +1,4 @@
+import { useStacks } from "../store";
 import * as THREE from "three";
 
 import {
@@ -14,6 +15,7 @@ import {
   insectTerminalPoseIsClear,
   reviseInsectCollisionIndex,
 } from "./insectCollision";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   type InsectFlightVolume,
   createInsectFlightVolume,
@@ -25,6 +27,14 @@ import {
   type InsectLandingPlanResult,
   compileInsectLandingPlan,
 } from "./insectLanding";
+import { insectLandingMetrics } from "./insectLandingMetrics";
+import type { LandingRequest } from "./insectLandingSnapshot";
+import {
+  compileLandingSnapshot,
+  createLandingCollisionSnapshot,
+  landingSnapshotContains,
+} from "./insectLandingSnapshot";
+import { insectLandingWorker } from "./insectLandingWorker";
 import {
   type InsectDiagnosticRoute,
   type InsectPerchDiagnostic,
@@ -40,10 +50,12 @@ import {
   insectPerchMothLightIsOn,
   insectPerchOccupant,
   insectPerchOwnerId,
+  insectPerchReservationRevision,
   readInsectPerchWorld,
   releaseInsectPerch,
   resolveInsectPerch,
 } from "./insectPerches";
+import type { PendingInsectLanding } from "./insectPilot";
 import {
   BUTTERFLY_PILOT_PROFILE,
   type InsectFlightWorld,
@@ -53,6 +65,7 @@ import {
 } from "./insectPilot";
 import { sceneInteractionInventory } from "./interactionRegistry";
 import { MEADOW_GROUND_BASE } from "./meadowField";
+import { scenePerformanceController } from "./scenePerformance";
 import { unitPose } from "./worldLayout";
 
 type InsectSpecies = keyof typeof INSECT_ENVELOPES;
@@ -70,6 +83,7 @@ type CollisionCache = {
 
 const ROOTS = new Map<number, THREE.Object3D>();
 const CACHES = new Map<number, CollisionCache>();
+const WORKER_CACHES = new Map<number, InsectCollisionIndex>();
 const BOX = new THREE.Box3();
 const MATRIX = new THREE.Matrix4();
 const POSITION = new THREE.Vector3();
@@ -277,10 +291,12 @@ export function registerInsectCollisionRoot(
   root: THREE.Object3D,
 ) {
   ROOTS.set(unitIndex, root);
+  WORKER_CACHES.delete(unitIndex);
   CACHES.delete(unitIndex);
   return () => {
     if (ROOTS.get(unitIndex) === root) ROOTS.delete(unitIndex);
     CACHES.delete(unitIndex);
+    WORKER_CACHES.delete(unitIndex);
   };
 }
 
@@ -510,6 +526,10 @@ export function previewInsectPerchRoutes(
   species: InsectSpecies,
   now: number,
 ): readonly InsectDiagnosticRoute[] {
+  // Experimental worker mode never runs synthetic compiler searches in the
+  // overlay's frame callback. Display observed routes from accepted replies.
+  if (scenePerformanceController.getSnapshot().insectLandingWorker)
+    return insectDiagnosticsController.routesForDisplay(perchId, now);
   const perch = getInsectPerch(perchId);
   if (!perch) return [];
   if (!prepareInsectLandingTarget(perchId, species, PREVIEW_TARGET)) return [];
@@ -775,7 +795,22 @@ function unitFlightVolume(unitIndex: number) {
 
 export class ThreeInsectFlightWorld implements InsectFlightWorld {
   private unitIndex = -1;
+  private pending: PendingInsectLanding | null = null;
+  private pendingIsCurrent: (() => boolean) | null = null;
+  private unsubscribePending: (() => void) | null = null;
+  private nextWorkerAttemptAt = 0;
+
+  private cancelPlanning() {
+    if (this.pending) insectLandingMetrics.worker.cancelled++;
+    this.pending?.cancel();
+    this.pending = null;
+    this.pendingIsCurrent = null;
+    this.unsubscribePending?.();
+    this.unsubscribePending = null;
+  }
+
   private now = 0;
+  private landingAllowed = true;
   private supportBoxId: string | null = null;
   private supportGroup: ReadonlySet<string> | null = null;
   private supportContactRegion: InsectSupportContactRegion | null = null;
@@ -788,7 +823,14 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
     private readonly cruiseSampler?: CruiseSampler,
   ) {}
 
-  setContext(unitIndex: number, now: number) {
+  setContext(unitIndex: number, now: number, landingAllowed = true) {
+    this.landingAllowed = landingAllowed;
+    if (
+      !landingAllowed ||
+      this.unitIndex !== unitIndex ||
+      (this.pendingIsCurrent && !this.pendingIsCurrent())
+    )
+      this.cancelPlanning();
     this.unitIndex = unitIndex;
     this.now = now;
   }
@@ -888,6 +930,195 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
     );
   }
 
+  requestLandingPlan(
+    request: LandingRequest,
+  ): PendingInsectLanding | null | undefined {
+    if (!scenePerformanceController.getSnapshot().insectLandingWorker)
+      return undefined;
+    if (
+      !this.landingAllowed ||
+      this.now < this.nextWorkerAttemptAt ||
+      !insectLandingWorker.canRequest()
+    )
+      return null;
+    const started = performance.now();
+    this.nextWorkerAttemptAt = this.now + 2.5;
+    this.cancelPlanning();
+    const perch = getInsectPerch(request.perchId);
+    if (perch?.unitIndex !== this.unitIndex) return null;
+    // A cached distance-field index may be 200 ms old. Submit geometry from
+    // this frame, so fast replies can pass the reservation-time refresh.
+    const cache = collisionCache(this.unitIndex, this.now, true);
+    if (!cache || cache.index.boxes.length > 8192) return null;
+    insectDiagnosticsController.clearRoutes(perch.id);
+    if (
+      diagnoseInsectPerch(perch.id, this.species, this.now).status !== "valid"
+    )
+      return null;
+    const surface = perch.resolvedSurface;
+    if (
+      !cache ||
+      !surface ||
+      !readInsectPerchWorld(perch, POSITION, NORMAL, QUATERNION)
+    )
+      return null;
+    const root = cache.root;
+    const matrix = surface.matrixWorld.elements.slice();
+    const localPoint = perch.localPosition.clone();
+    const localNormal = perch.localNormal.clone();
+    const reservationRevision = insectPerchReservationRevision(perch);
+    const ownerId = insectPerchOwnerId(perch);
+    const current = () => {
+      if (
+        getInsectPerch(perch.id) !== perch ||
+        ROOTS.get(perch.unitIndex) !== root ||
+        perch.resolvedSurface !== surface ||
+        insectPerchReservationRevision(perch) !== reservationRevision ||
+        insectPerchOccupant(perch.id) ||
+        insectOwnerIsDisturbed(ownerId, useStacks.getState()) ||
+        (this.species === "moth" &&
+          (!insectPerchAcceptsMoth(perch) || !insectPerchMothLightIsOn(perch)))
+      )
+        return false;
+      if (!readInsectPerchWorld(perch, POSITION, NORMAL, QUATERNION))
+        return false;
+      return (
+        matrix.every(
+          (value, i) =>
+            Math.abs(value - surface.matrixWorld.elements[i]!) < 1e-8,
+        ) &&
+        localPoint.equals(perch.localPosition) &&
+        localNormal.equals(perch.localNormal)
+      );
+    };
+    if (!current()) return null;
+    const supportId = ownerId
+      ? `owner:${ownerId}:mesh:${surface.uuid}`
+      : `mesh:${surface.uuid}`;
+    const supportGroup = insectSupportGroup(
+      cache.index,
+      supportId,
+      request.target.point,
+    );
+    const supportContactRegion = {
+      center: { ...request.target.point },
+      radius: request.profile.wingRadius * SUPPORT_CONTACT_REGION_SCALE,
+    };
+    const copied = structuredClone({
+      ...request,
+      volume: request.volume ?? unitFlightVolume(perch.unitIndex),
+    });
+    let snapshotIndex = WORKER_CACHES.get(this.unitIndex);
+    if (
+      !snapshotIndex ||
+      !landingSnapshotContains(snapshotIndex, cache.index)
+    ) {
+      snapshotIndex = createLandingCollisionSnapshot(cache.index);
+      WORKER_CACHES.set(this.unitIndex, snapshotIndex);
+    }
+    const ticket = insectLandingWorker.request(this, {
+      request: copied,
+      species: this.species,
+      index: snapshotIndex,
+      ground: MEADOW_GROUND_BASE,
+      supportIds: [...(supportGroup ?? [])],
+      supportContactRegion,
+    });
+    const pending: PendingInsectLanding = {
+      onReady: (callback) => ticket.onReady(callback),
+      get result() {
+        return ticket.result;
+      },
+      cancel: () => {
+        ticket.cancel();
+        if (this.pending === pending) {
+          this.pending = null;
+          this.pendingIsCurrent = null;
+          this.unsubscribePending?.();
+          this.unsubscribePending = null;
+        }
+      },
+      validate: (position, plan) => {
+        if (
+          this.pending !== pending ||
+          !scenePerformanceController.getSnapshot().insectLandingWorker ||
+          this.unitIndex !== perch.unitIndex ||
+          !current()
+        ) {
+          insectLandingMetrics.worker.invalidContext++;
+          return null;
+        }
+        const refreshed = collisionCache(this.unitIndex, this.now, true);
+        if (
+          !refreshed ||
+          plan.collisionRevision !== snapshotIndex.revision ||
+          !landingSnapshotContains(snapshotIndex, refreshed.index)
+        ) {
+          insectLandingMetrics.worker.invalidCollision++;
+          return null;
+        }
+        // Reject long queue delays. A short, freshly swept connector is the
+        // only extra route search on main, independent of compiler candidates.
+        const start = copied.start.position;
+        const next = plan.approach[1];
+        const radius = request.profile.wingRadius + INSECT_PLAN_DILATION;
+        const clear = Boolean(
+          next &&
+            Math.hypot(
+              position.x - start.x,
+              position.y - start.y,
+              position.z - start.z,
+            ) <= 0.35 &&
+            position.y - radius >= MEADOW_GROUND_BASE &&
+            next.y - radius >= MEADOW_GROUND_BASE &&
+            insectCorridorIsClear(
+              [position, next],
+              radius,
+              refreshed.index,
+              supportGroup,
+              false,
+              supportContactRegion,
+            ),
+        );
+        if (!clear) insectLandingMetrics.worker.invalidConnector++;
+        if (clear && process.env.NODE_ENV === "development")
+          insectDiagnosticsController.publishRoutes(
+            perch.id,
+            refreshed.index.revision,
+            LANDING_PHASES.map((phase) => ({
+              phase,
+              points: plan[phase],
+              clear: true,
+            })),
+            this.now,
+          );
+        // The conservative snapshot still encloses every live collider. Bind
+        // the certified plan to the exact revision tryReserve will refresh.
+        return clear
+          ? { ...plan, collisionRevision: refreshed.index.revision }
+          : null;
+      },
+    };
+    const preparationMs = performance.now() - started;
+    insectLandingMetrics.worker[this.species]++;
+    insectLandingMetrics.worker.preparationMs += preparationMs;
+    insectLandingMetrics.worker.maxPreparationMs = Math.max(
+      insectLandingMetrics.worker.maxPreparationMs,
+      preparationMs,
+    );
+    this.pending = pending;
+    this.pendingIsCurrent = current;
+    // Catch even a grab/release between two rendered frames.
+    this.unsubscribePending = useStacks.subscribe(() => {
+      if (
+        useStacks.getState().dragging ||
+        insectOwnerIsDisturbed(ownerId, useStacks.getState())
+      )
+        this.cancelPlanning();
+    });
+    return pending;
+  }
+
   compileLandingPlan(
     request: Omit<
       InsectLandingPlanRequest,
@@ -927,99 +1158,32 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
       supportBoxId,
       request.target.point,
     );
-    // Which collider refused the most candidates. The compiler tries well over
-    // a hundred curves and reports only that they all failed, so without a
-    // tally the answer to "why can nothing land here" is a guess.
-    const blockerTally = new Map<string, number>();
-    const blocker: { id: string | null } = { id: null };
-    const tallyBlocker = () => {
-      if (!blocker.id) return;
-      blockerTally.set(blocker.id, (blockerTally.get(blocker.id) ?? 0) + 1);
-    };
-    const compiled = compileInsectLandingPlan({
-      ...request,
-      volume: request.volume ?? unitFlightVolume(perch.unitIndex),
-      collisionRevision: cache.index.revision,
-      foldedSweep: (_phase, from, to) => {
-        const routeRadius = request.profile.wingRadius + INSECT_PLAN_DILATION;
-        if (
-          from.y - routeRadius < MEADOW_GROUND_BASE ||
-          to.y - routeRadius < MEADOW_GROUND_BASE
-        )
-          return false;
-        const folded = insectFoldedCorridorIsClear(
-          [from, to],
-          request.target.normal,
-          request.target.tangent,
-          // Dilated, for the same reason the sphere is: the pilot flies the
-          // hover arc and the touchdown with the folded pose, and it tracks
-          // them rather than replaying them (ADR 0005).
-          INSECT_PLAN_ENVELOPES[this.species],
-          cache.index,
-          supportGroup,
-          supportContactRegion,
-          blocker,
-        );
-        if (!folded) tallyBlocker();
-        return folded;
+    const {
+      result: compiled,
+      worstBlocker,
+      planningMs,
+    } = compileLandingSnapshot({
+      request: {
+        ...request,
+        volume: request.volume ?? unitFlightVolume(perch.unitIndex),
       },
-      sweep: (phase, from, to) => {
-        // Plan dilated, fly exact (ADR 0005). The pilot TRACKS this route with
-        // finite gain and jerk limits rather than replaying it, which is what
-        // keeps the motion from reading as a machine following a spline — and
-        // means it deviates by a centimetre or two. Validating with a slightly
-        // larger radius than the one the pilot is swept against absorbs that
-        // by construction instead of making it fatal.
-        const routeRadius = request.profile.wingRadius + INSECT_PLAN_DILATION;
-        if (
-          from.y - routeRadius < MEADOW_GROUND_BASE ||
-          to.y - routeRadius < MEADOW_GROUND_BASE
-        )
-          return false;
-        // The Arrival Curve spirals inward rather than holding station at a
-        // fixed standoff, so every phase of it ends up close enough to the
-        // reserved support to graze it.
-        //
-        // `approach` used to be excluded on the principle that an insect should
-        // reach open air before being forgiven anything. That principle quietly
-        // made a whole CLASS of Perch unreachable: on a crown — the globe, the
-        // microphone, the collective mark — the prop's own bounding box is
-        // directly under the entire arrival, so the approach slice is inside it
-        // by construction and no bearing, size or tilt can escape. Landings
-        // succeeded only on flat tops, where the box lies below the contact.
-        //
-        // It is still local, not a blanket pass: `supportContactRegion` bounds
-        // the exemption to a wing-radius-and-a-half of the contact, so the far
-        // side of the same prop remains hard, and every other collider always
-        // was.
-        const supportPhase =
-          phase === "approach" ||
-          phase === "hover" ||
-          phase === "touchdown" ||
-          phase === "launch";
-        const clear = insectCorridorIsClear(
-          [from, to],
-          routeRadius,
-          cache.index,
-          supportPhase ? supportGroup : null,
-          false,
-          supportPhase ? supportContactRegion : null,
-          blocker,
-        );
-        if (!clear) tallyBlocker();
-        return clear;
-      },
+      species: this.species,
+      index: cache.index,
+      ground: MEADOW_GROUND_BASE,
+      supportIds: [...(supportGroup ?? [])],
+      supportContactRegion,
     });
-    if (!compiled.ok && blockerTally.size > 0) {
-      let worst: string | null = null;
-      let worstCount = 0;
-      for (const [id, count] of blockerTally)
-        if (count > worstCount) {
-          worst = id;
-          worstCount = count;
-        }
-      insectDiagnosticsController.publishRouteBlocker(request.perchId, worst);
-    }
+    insectLandingMetrics.synchronous.attempts++;
+    insectLandingMetrics.synchronous.planningMs += planningMs;
+    insectLandingMetrics.synchronous.maxPlanningMs = Math.max(
+      insectLandingMetrics.synchronous.maxPlanningMs,
+      planningMs,
+    );
+    if (worstBlocker)
+      insectDiagnosticsController.publishRouteBlocker(
+        request.perchId,
+        worstBlocker,
+      );
     if (process.env.NODE_ENV === "development") {
       if (compiled.ok) {
         insectDiagnosticsController.publishRoutes(
@@ -1208,6 +1372,8 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
   }
 
   dispose() {
+    this.cancelPlanning();
+    insectLandingWorker.release(this);
     if (this.reservedPerchId)
       this.release(this.reservedPerchId, this.occupantId);
   }

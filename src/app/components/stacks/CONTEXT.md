@@ -680,3 +680,13 @@ on the clipboard as JSON, which is what to paste when a look should become
 the shipped print; "Copy grade URL" carries the profile (and, for Custom,
 every slider under `?grade-values=`) so a screenshot setup or a headless
 capture reproduces it.
+
+## Insect landing worker
+
+The experimental Scene console switch under Render → Optimizations moves moth
+and butterfly landing compilation to one shared worker. It defaults off. Flight
+and rendering stay on main. Worker snapshots conservatively enclose small ambient
+collider motion; adoption verifies the live target, snapshot containment, current
+insect connector, and reservation before starting an approach. The
+[implementation and measurements](../../../../docs/research/2026-09-12-insect-landing-worker.md)
+record the cancellation/failure contract and the mixed dark/light results.
