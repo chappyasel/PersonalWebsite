@@ -1023,7 +1023,7 @@
           {
             "text": "Bowling Alone",
             "italic": true,
-            "link": "https://www.notion.so/Bowling-Alone-16ac5ab0d88d80c4817dfcfcecc47e80"
+            "link": "https://books.chappyasel.com/bowling-alone"
           },
           {
             "text": " reminds us, what set Silicon Valley apart during the technological revolution wasn’t its resources but its embrace of community, openness, and knowledge-sharing. Groups like the "
@@ -1157,7 +1157,7 @@
           {
             "text": "The Gutenberg Parenthesis",
             "italic": true,
-            "link": "https://www.notion.so/The-Gutenberg-Parenthesis-16ac5ab0d88d8054a43ce50c22a7c28b"
+            "link": "https://books.chappyasel.com/the-gutenberg-parenthesis"
           },
           {
             "text": ", evolves non-deterministically, shaped by our collective choices. That unpredictability grants us agency! In the end, we’re not passive participants but active authors of the story we’re telling together."
@@ -1188,7 +1188,7 @@
           },
           {
             "text": "the overstory",
-            "link": "https://www.notion.so/Revenge-of-the-Tipping-Point-16ac5ab0d88d80a8aad0c4b05da3d84e"
+            "link": "https://books.chappyasel.com/revenge-of-the-tipping-point"
           },
           {
             "text": "."
@@ -1215,7 +1215,7 @@
       }
     ],
     "text": "\n\nThe heart of AI innovation isn’t found in code — it’s found in conversation. That’s the belief that sparked the GenAI Collective, which started in early 2023 in a small San Francisco apartment. Today, it has grown into the largest AI community in the United States, with chapters in each of top ten AI hubs: Austin, Boston, Chicago, Denver, Los Angeles, Miami, New York City, San Francisco, Seattle, and Washington, DC.\n\nThis year, I had the rare privilege of hosting in-person events in each of these cities, spending up to four days in each exploring their distinct cultures and vibrant AI communities.\n\nUnlike typical networking events, Collective gatherings are designed for meaningful connection. Members participate in intimate ten-person discussion groups, where we have lively and insightful conversations about AI’s most pressing topics.\n\nThrough countless one-on-one and group conversations, I began to see patterns emerge — shared threads and distinct differences. Here are the five key lessons I took away from this extraordinary journey.\n\n1. Was 2024 the Year of AI Agents?\n\n\n\nPundits proclaimed 2024 as the year of agents. But did reality match the hype? The enthusiasm was palpable, and builders rallied. Yet, the year revealed itself as one of infrastructure, not breakthrough applications.\n\nKey developments like OpenAI’s O-class models and scaled inference laid foundational groundwork, advancing to reasoning (level 2) on the path to “Super AI”. Frameworks like AutoGen, AutoGPT, and OpenHands gained traction, while UI/UX challenges for agents persisted. Cognition’s December general availability announcement was a promising milestone, but substantive adoption is still on the horizon.\n\n2024 built the scaffolding. 2025 will be the year of AI agents applied, where we’ll move from theory to practice as agents begin reshaping our workflows — and our workplaces.\n\n2. Community Drives Innovation\n\n\n\nCommunity isn’t a luxury — it’s the foundation of our innovation economy and society. At its core, the Collective is built on three pillars: learn, connect, and elevate.\n\nLearn: The AI landscape evolves daily. Staying ahead demands crowdsourcing insights from the spiky builders exploring the edges of the adjacent possible.\n\nConnect: Forge authentic, one-on-one relationships with fellow AI enthusiasts who share your passion and ambition.\n\nElevate: A strong community doesn’t just benefit individuals — it raises the bar for an entire city’s tech ecosystem, creating opportunities for everyone.\n\nAs Bowling Alone reminds us, what set Silicon Valley apart during the technological revolution wasn’t its resources but its embrace of community, openness, and knowledge-sharing. Groups like the Homebrew Computer Club didn’t just meet — they changed history.\n\n3. San Francisco’s Unique Bubble\n\n\n\nAfter traveling to AI communities across the country, I can confidently say there’s something distinctly different about San Francisco. The city operates in a bubble where audacity and optimism are the norm. I’ve seen how the sheer density of events (100+ every month) creates countless opportunities for knowledge spillover, with casual conversations often sparking transformative ideas.\n\nThis bubble isn’t necessarily better than others, but it has a character all its own. San Francisco’s unique energy is something you feel — an environment that challenges you to think bigger and connect deeper.\n\n4. Every City is Different\n\n\n\nAcross the United States, cities are stitching together a patchwork of AI innovation. Los Angeles channels creativity into consumer applications, Boston pushes the frontiers of biotech, Miami thrives on the pulse of crypto, and Chicago anchors itself in finance and legal tech. These identities color their approach to AI and the dialogues they spark.\n\nCities outside San Francisco often admire its fearless innovation and rapid pace but worry about its insularity. They see a bubble that drives progress but risks neglecting the broader tech ecosystem. Understanding these differences is critical — not just to celebrate local strengths but to foster collaboration that transcends boundaries. In diversity lies the true power of collective innovation.\n\n5. Every City is the Same, Actually\n\n\n\nAmid the diversity of ideas and experiences shared in each 45-minute group conversation, a striking realization emerged: we’re all wrestling with the same existential questions. Is my job secure? Will software engineering remain a durable skill? What advice should I give my high schooler? What does life look like in a post-work world? What does it mean to be human?\n\nThe answers vary, shaped by personal conviction and local context, but the questions themselves are universal. Technology, as Jeff Jarvis explores in The Gutenberg Parenthesis, evolves non-deterministically, shaped by our collective choices. That unpredictability grants us agency! In the end, we’re not passive participants but active authors of the story we’re telling together.\n\nCool takeaways, bro. Why does this matter?\n\nThe fourth pillar of the Collective is empower. By uniting voices across cities and countries, we amplify the voice of the early-stage AI ecosystem into something unified and non-partisan. This voice holds the power to shape norms and influence what Malcolm Gladwell might call the overstory.\n\nAs AI evolves, it challenges us to reflect on what defines us as human. In every conversation, one truth stood out: our similarities far outweigh our differences. We’re just scratching the surface of something truly profound. The power to shape the future lies in the connections we forge now.\n\n",
-    "contentHash": "70e142f8f40664535984a0bd01b2a2d2b387ec5c2c0b54b106df0ded648250c8"
+    "contentHash": "46a08a2e3f006eb3a442b0dc2cff0ae8e089bbcb59ad33b488d80c1b2048fe46"
   },
   {
     "slug": "reads-2024",
@@ -1266,7 +1266,7 @@
           },
           {
             "text": "books.chappyasel.com",
-            "link": "http://books.chappyasel.com/"
+            "link": "https://books.chappyasel.com/"
           },
           {
             "text": ". Let’s jump in!"
@@ -1282,7 +1282,7 @@
           },
           {
             "text": "Nexus",
-            "link": "https://www.notion.so/Nexus-16ac5ab0d88d8099adafcbfbbae06366"
+            "link": "https://books.chappyasel.com/nexus"
           }
         ],
         "id": "1-nexus"
@@ -1328,7 +1328,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Nexus-16ac5ab0d88d8099adafcbfbbae06366"
+            "link": "https://books.chappyasel.com/nexus"
           },
           {
             "text": ")"
@@ -1360,7 +1360,7 @@
           {
             "text": "On The Edge",
             "italic": true,
-            "link": "https://www.notion.so/On-The-Edge-dc038181a2a648e38f0601f12fa57325"
+            "link": "https://books.chappyasel.com/on-the-edge"
           },
           {
             "text": " by Nate Silver (2024), which uses a probability-based approach to illustrate how analytical thinking and continuous feedback loops can cut through biases and improve our collective decision-making."
@@ -1376,7 +1376,7 @@
           },
           {
             "text": "Revenge of the Tipping Point",
-            "link": "https://www.notion.so/Revenge-of-the-Tipping-Point-16ac5ab0d88d80a8aad0c4b05da3d84e"
+            "link": "https://books.chappyasel.com/revenge-of-the-tipping-point"
           }
         ],
         "id": "2-revenge-of-the-tipping-point"
@@ -1422,7 +1422,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Revenge-of-the-Tipping-Point-16ac5ab0d88d80a8aad0c4b05da3d84e"
+            "link": "https://books.chappyasel.com/revenge-of-the-tipping-point"
           },
           {
             "text": ")"
@@ -1454,7 +1454,7 @@
           {
             "text": "The Tipping Point",
             "italic": true,
-            "link": "https://www.notion.so/The-Tipping-Point-12c11aec10294eb383b674a3c256ed97"
+            "link": "https://books.chappyasel.com/the-tipping-point"
           },
           {
             "text": " (2000), provides the foundational ideas on how ideas spread, giving helpful context to appreciate the extended arguments made here."
@@ -1470,7 +1470,7 @@
           },
           {
             "text": "Subprime Attention Crisis",
-            "link": "https://www.notion.so/Subprime-Attention-Crisis-f287ef687d6949229c0781b07db21d72"
+            "link": "https://books.chappyasel.com/subprime-attention-crisis"
           }
         ],
         "id": "3-subprime-attention-crisis"
@@ -1509,7 +1509,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Subprime-Attention-Crisis-f287ef687d6949229c0781b07db21d72"
+            "link": "https://books.chappyasel.com/subprime-attention-crisis"
           },
           {
             "text": ")"
@@ -1541,7 +1541,7 @@
           {
             "text": "Attention Span",
             "italic": true,
-            "link": "https://www.notion.so/Attention-Span-4e4f220e5c5a4686b8a9fdd965a4bff3"
+            "link": "https://books.chappyasel.com/attention-span"
           },
           {
             "text": " by Gloria Mark (2023) offers a complementary view of how these same forces chip away at our capacity to focus, highlighting what’s at stake on a personal level."
@@ -1557,7 +1557,7 @@
           },
           {
             "text": "The Culture Code",
-            "link": "https://www.notion.so/The-Culture-Code-ae82eb7dc0184c89b3230a5eb3181068"
+            "link": "https://books.chappyasel.com/the-culture-code"
           }
         ],
         "id": "4-the-culture-code"
@@ -1603,7 +1603,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/The-Culture-Code-ae82eb7dc0184c89b3230a5eb3181068"
+            "link": "https://books.chappyasel.com/the-culture-code"
           },
           {
             "text": ")"
@@ -1642,7 +1642,7 @@
           {
             "text": "Start With Why",
             "italic": true,
-            "link": "https://www.notion.so/Start-With-Why-0f97c9b13c4642aa90dc0635d3e273ed"
+            "link": "https://books.chappyasel.com/start-with-why"
           },
           {
             "text": " by Simon Sinek (2009), which extends Coyle’s focus on team cohesion by exploring how a clearly articulated “why” helps people rally around a shared mission."
@@ -1658,7 +1658,7 @@
           },
           {
             "text": "Thanks for the Feedback",
-            "link": "https://www.notion.so/Thanks-for-the-Feedback-103c5ab0d88d80868b11f1d76ca5bfd2"
+            "link": "https://books.chappyasel.com/thanks-for-the-feedback"
           }
         ],
         "id": "5-thanks-for-the-feedback"
@@ -1704,7 +1704,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Thanks-for-the-Feedback-103c5ab0d88d80868b11f1d76ca5bfd2"
+            "link": "https://books.chappyasel.com/thanks-for-the-feedback"
           },
           {
             "text": ")"
@@ -1736,7 +1736,7 @@
           {
             "text": "Radical Candor",
             "italic": true,
-            "link": "https://www.notion.so/Radical-Candor-105595b68cbb4cc4965ef475d804ede5"
+            "link": "https://books.chappyasel.com/radical-candor"
           },
           {
             "text": " (2017), my favorite book on giving feedback, is a perfect companion for its practical advice on delivering feedback that is clear, honest, and deeply caring."
@@ -1752,7 +1752,7 @@
           },
           {
             "text": "Leadership BS",
-            "link": "https://www.notion.so/Leadership-BS-303b0f6d6090455b859d8b943072d164"
+            "link": "https://books.chappyasel.com/leadership-bs"
           }
         ],
         "id": "6-leadership-bs"
@@ -1798,7 +1798,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Leadership-BS-303b0f6d6090455b859d8b943072d164"
+            "link": "https://books.chappyasel.com/leadership-bs"
           },
           {
             "text": ")"
@@ -1830,7 +1830,7 @@
           {
             "text": "The 15 Commitments of Conscious Leadership",
             "italic": true,
-            "link": "https://www.notion.so/The-15-Commitments-of-Conscious-Leadership-0a0c59c02c124eddb6b7ccb925eef69c"
+            "link": "https://books.chappyasel.com/the-15-commitments-of-conscious-leadership"
           },
           {
             "text": " by Jim Dethmer (2015) presents an idealistic vision of leadership centered on radical responsibility, emotional intelligence, and integrity. While Pfeffer critiques these aspirational approaches as disconnected from reality, Dethmer’s book stands as a compelling counterargument, showing what leadership could look like if the “ought to be” was achievable."
@@ -1846,7 +1846,7 @@
           },
           {
             "text": "The Runaway Species",
-            "link": "https://www.notion.so/The-Runaway-Species-103c5ab0d88d80c9b0c2d7dfea086fd4"
+            "link": "https://books.chappyasel.com/the-runaway-species"
           }
         ],
         "id": "7-the-runaway-species"
@@ -1885,7 +1885,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/The-Runaway-Species-103c5ab0d88d80c9b0c2d7dfea086fd4"
+            "link": "https://books.chappyasel.com/the-runaway-species"
           },
           {
             "text": ")"
@@ -1924,7 +1924,7 @@
           {
             "text": "Look Again",
             "italic": true,
-            "link": "https://www.notion.so/Look-Again-27c7d0b5e27d4f93b7eaf4823a092dd8"
+            "link": "https://books.chappyasel.com/look-again"
           },
           {
             "text": " by Tali Sharot (2024) for a complementary insight into how altering our mental and physical environments can reignite curiosity. Together, they’ve motivated me to seek novelty in everyday experiences to keep my thinking fresh."
@@ -1940,7 +1940,7 @@
           },
           {
             "text": "Think Again",
-            "link": "https://www.notion.so/Think-Again-16ac5ab0d88d8085a4cce9ece11756f5"
+            "link": "https://books.chappyasel.com/think-again"
           }
         ],
         "id": "8-think-again"
@@ -1986,7 +1986,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Think-Again-16ac5ab0d88d8085a4cce9ece11756f5"
+            "link": "https://books.chappyasel.com/think-again"
           },
           {
             "text": ")"
@@ -2018,7 +2018,7 @@
           {
             "text": "Chatter",
             "italic": true,
-            "link": "https://www.notion.so/Chatter-4a5093757643463bb69ca064165ba73a"
+            "link": "https://books.chappyasel.com/chatter"
           },
           {
             "text": " by Ethan Kross (2021). It’s less directly related, but rethinking and reframing are powerful mental health tools, and this book’s insights on managing internal dialogue were so impactful that I had to include it."
@@ -2034,7 +2034,7 @@
           },
           {
             "text": "Quiet",
-            "link": "https://www.notion.so/Quiet-16ac5ab0d88d8054aafdfd50589a7ee8"
+            "link": "https://books.chappyasel.com/quiet"
           }
         ],
         "id": "9-quiet"
@@ -2073,7 +2073,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Quiet-16ac5ab0d88d8054aafdfd50589a7ee8"
+            "link": "https://books.chappyasel.com/quiet"
           },
           {
             "text": ")"
@@ -2105,7 +2105,7 @@
           {
             "text": "Barking Up the Wrong Tree",
             "italic": true,
-            "link": "https://www.notion.so/Barking-Up-the-Wrong-Tree-1d5a3bd54826492983bc5a16a16513fa"
+            "link": "https://books.chappyasel.com/barking-up-the-wrong-tree"
           },
           {
             "text": " (2017)"
@@ -2128,7 +2128,7 @@
           },
           {
             "text": "Bowling Alone",
-            "link": "https://www.notion.so/Bowling-Alone-16ac5ab0d88d80c4817dfcfcecc47e80"
+            "link": "https://books.chappyasel.com/bowling-alone"
           }
         ],
         "id": "10-bowling-alone"
@@ -2167,7 +2167,7 @@
           },
           {
             "text": "full book notes",
-            "link": "https://www.notion.so/Bowling-Alone-16ac5ab0d88d80c4817dfcfcecc47e80"
+            "link": "https://books.chappyasel.com/bowling-alone"
           },
           {
             "text": ")"
@@ -2199,7 +2199,7 @@
           {
             "text": "The 2-Hour Cocktail Party",
             "italic": true,
-            "link": "https://www.notion.so/The-2-Hour-Cocktail-Party-88fce82c8c2e45a2a1cf3f0384dc911b"
+            "link": "https://books.chappyasel.com/the-2-hour-cocktail-party"
           },
           {
             "text": " (2022) and "
@@ -2207,7 +2207,7 @@
           {
             "text": "The Art of Gathering",
             "italic": true,
-            "link": "https://www.notion.so/The-Art-of-Gathering-81b34bd603ae47b2a4b36b6adb2e0835"
+            "link": "https://books.chappyasel.com/the-art-of-gathering"
           },
           {
             "text": " (2018) both provide practical guides on how to bring people together, offering the hands-on tactics Putnam’s argument begs for."
@@ -2216,7 +2216,7 @@
       }
     ],
     "text": "\n\nIn a world addicted to the junk food of TikTok takes and bite-sized opinions, books stand apart as thoughtful distillations of humanity’s collective wisdom. They help us sharpen our perspectives, make sense of complexity, and uncover enduring value in a chaotic sea of fleeting distractions.\n\nOf the 70+ books I’ve read this year, these ten have stood out to me as uniquely thought-provoking — not because they aligned with my views, but because they challenged me to rethink them. Since I’m hopelessly indecisive when it comes to favorites, I haven’t ranked them. Instead, I’ve paired each with another title that adds nuance, contrast, or a fresh perspective to the conversation!\n\nThis list is simply a fun way for me to share the ideas that resonated with me — and hopefully, they’ll resonate with you, too. I’ve had so many friends ask for book recommendations recently that it felt like the perfect time to pull these together. If you’d like to dive deeper, you can find my detailed notes for each book at books.chappyasel.com. Let’s jump in!\n\n1. Nexus\n\n\n\nNexus: A Brief History of Information Networks from the Stone Age to AI ~ Yuval Noah Harari (2024)\n\nIn summary: Nexus argues that while humans excel at building vast networks of cooperation, we struggle to ensure the information flowing through these networks remains truthful and beneficial. It illustrates how our shared fictions — like religions, corporations, and nations — bind us together yet also create blind spots and biases, a danger amplified by AI-driven technologies. (full book notes)\n\nKey takeaway: I came away with a heightened awareness of how fragile democratic systems can be in a landscape dominated by algorithms and unchecked data collection; genuine truth-seeking requires both transparency and diverse participation.\n\nPair this with: On The Edge by Nate Silver (2024), which uses a probability-based approach to illustrate how analytical thinking and continuous feedback loops can cut through biases and improve our collective decision-making.\n\n2. Revenge of the Tipping Point\n\n\n\nRevenge of the Tipping Point: Overstories, Superspreaders, and the Rise of Social Engineering ~ Malcom Gladwell (2023)\n\nIn summary: Revenge of the Tipping Point investigates the hidden overstories that shape behavior, illustrating how community narratives, regional quirks, and a handful of superspreaders can trigger massive cultural shifts. Gladwell connects everything from healthcare variations to social engineering in elite institutions, showing that subtle changes in context can nudge entire societies past the threshold of transformation. (full book notes)\n\nKey takeaway: This book prompted me to look beyond individual behaviors to the meta-narratives — like our societal mood of pessimism or widespread mistrust — and consider how recognizing and recalibrating these overarching stories could meaningfully alter collective outcomes.\n\nPair this with: Gladwell’s first book, The Tipping Point (2000), provides the foundational ideas on how ideas spread, giving helpful context to appreciate the extended arguments made here.\n\n3. Subprime Attention Crisis\n\n\n\nSubprime Attention Crisis: Advertising and the Time Bomb at the Hear of the Internet ~ Tim Hwang (2020)\n\nIn summary: Hwang argues that much of the digital advertising landscape is built on inflated claims about how effectively ads capture user attention. He draws parallels to the 2008 subprime mortgage crisis, warning that our reliance on a fragile ad market could undermine the entire internet economy. (full book notes)\n\nKey takeaway: What struck me most is how platforms’ ad-driven motives clash with users’ best interests, since maximizing ad engagement doesn’t always align with meaningful or healthy online experiences. This structural misalignment makes the entire system feel even more vulnerable.\n\nPair this with: Attention Span by Gloria Mark (2023) offers a complementary view of how these same forces chip away at our capacity to focus, highlighting what’s at stake on a personal level.\n\n4. The Culture Code\n\n\n\nThe Culture Code: The Secrets of Highly Successful Groups ~ Daniel Coyle (2018)\n\nIn summary: The Culture Code reveals how fostering psychological safety, embracing vulnerability, and creating shared purpose can transform groups into high-performing teams. Coyle’s vivid examples and practical tips illustrate how small, consistent signals of trust and belonging spark remarkable collaboration. (full book notes)\n\nKey takeaway: The Culture Code has cemented its place as my ultimate guide for building unstoppable teams. In a world of quick fixes, Coyle’s refreshingly human playbook shows that authentic trust and psychological safety trump raw talent. It’s become my bible for creating extraordinary cultures.\n\nPair this with: Start With Why by Simon Sinek (2009), which extends Coyle’s focus on team cohesion by exploring how a clearly articulated “why” helps people rally around a shared mission.\n\n5. Thanks for the Feedback\n\n\n\nThanks for the Feedback: The Science and Art of Receiving Feedback Well ~ Douglas Stone and Sheila Heen (2014)\n\nIn summary: Thanks for the Feedback reveals why seemingly simple feedback exchanges can feel so complicated, highlighting how personal history, emotional triggers, and relationship dynamics all play a role. It teaches us to separate intent from impact, invites us to question our assumptions, and gives us a step-by-step approach to productively receiving (and even seeking) critiques. (full book notes)\n\nKey takeaway: This book was a game-changer in helping me recognize why some feedback felt especially triggering — whether due to identity or relationship dynamics — and how to respond more constructively. Feedback is my most valuable asset, and this book equipped me to accept and leverage it to become more resilient and growth-focused.\n\nPair this with: Radical Candor (2017), my favorite book on giving feedback, is a perfect companion for its practical advice on delivering feedback that is clear, honest, and deeply caring.\n\n6. Leadership BS\n\n\n\nLeadership BS: Fixing Workplaces and Careers One Truth at a Time ~ Jeffrey Pfeffer (2015)\n\nIn summary: Leadership BS exposes the uncomfortable truths about leadership, arguing that success often stems from politicking, managing perceptions, and adapting to organizational realities rather than moral integrity or authenticity. Pfeffer critiques the leadership industry for its focus on how leadership ought to be instead of how it actually works. (full book notes)\n\nKey takeaway: Pfeffer’s exploration of how the world actually is versus how the world ought to be made me question whether I’ve been prioritizing idealistic leadership traits over practical strategies that drive results.\n\nPair this with: The 15 Commitments of Conscious Leadership by Jim Dethmer (2015) presents an idealistic vision of leadership centered on radical responsibility, emotional intelligence, and integrity. While Pfeffer critiques these aspirational approaches as disconnected from reality, Dethmer’s book stands as a compelling counterargument, showing what leadership could look like if the “ought to be” was achievable.\n\n7. The Runaway Species\n\n\n\nThe Runaway Species: How Human Creativity Remakes the World ~ David Eagleman and Anthony Brandt (2017)\n\nIn summary: Through the concepts of “bending, breaking, and blending,” Eagleman explores how humans generate novel ideas from familiar concepts. He emphasizes that creativity thrives on social interaction, historical context, and the brain’s inherent drive to save energy while continually pushing boundaries. The book reveals creativity as a malleable skill rather than an elusive trait, supported by both science and practical examples. (full book notes)\n\nKey takeaway: This became my go-to resource on creativity because it backs up grand ideas with concrete research, demonstrating that “being creative” isn’t about a flash of genius but about reworking what we already know. Even after reading The Creative Act, I still return to Eagleman’s framework as my North Star for thinking about innovation.\n\nPair this with: Look Again by Tali Sharot (2024) for a complementary insight into how altering our mental and physical environments can reignite curiosity. Together, they’ve motivated me to seek novelty in everyday experiences to keep my thinking fresh.\n\n8. Think Again\n\n\n\nThink Again: The Power of Knowing What You Don’t Know ~ Adam Grant (2021)\n\nIn summary:Think Again explores the power of reconsidering our opinions, highlighting how flexibility in thought can drive innovation and reduce the friction of dogmatic thinking. Grant emphasizes active open-mindedness, encouraging us to view disagreements as opportunities for growth rather than threats. (full book notes)\n\nKey takeaway: I learned the value of staying open to being proven wrong — it’s a humbling experience that can spark significant personal and professional breakthroughs. I’ve found that actively seeking conversations with those who disagree helps me clarify my own reasoning.\n\nPair this with: Chatter by Ethan Kross (2021). It’s less directly related, but rethinking and reframing are powerful mental health tools, and this book’s insights on managing internal dialogue were so impactful that I had to include it.\n\n9. Quiet\n\n\n\nQuiet: The Power of Introverts in a World That Can’t Stop Talking ~ Susan Cain (2012)\n\nIn summary: Cain contends that a world fixated on extroversion glosses over the power of introspection, depth, and reserved leadership. She shows that “quiet” people have shaped our culture and innovations in profound ways, despite a societal bias toward showier personalities. Through personal stories and scientific research, she advocates leveraging the strengths of all temperaments. (full book notes)\n\nKey takeaway: This book came as a recommendation from ChatGPT when I asked for something to challenge my strongly held belief that extroversion is superior. Although it didn’t succeed in changing my mind, it has certainly added nuance to my commentary on the subject.\n\nPair this with: Barking Up the Wrong Tree (2017), which also highlights how introversion can be a powerful asset for mastery (eg. 96% of Olympians identify as introverts) and investigates the many other components of success. (Side note: it’s one of my all-time favorites!)\n\n10. Bowling Alone\n\n\n\nBowling Alone: The Collapse and Revival of American Community ~ Robert D Putnam (2000)\n\nIn summary: Putnam charts the decline of social capital in America since the 1960s, illustrating how everything from decreased voter turnout to fewer neighborhood get-togethers signals a waning sense of community. He draws on extensive data to show how traditional civic engagement has fallen and why that matters for our democracy, health, and overall well-being. (full book notes)\n\nKey takeaway: It hit home for me that community isn’t a luxury — it’s fundamental to our society. Reading this through the lens of the GenAI Collective reaffirmed my belief in the importance of reintroducing community-building principles in tech and through tech.\n\nPair this with: The 2-Hour Cocktail Party (2022) and The Art of Gathering (2018) both provide practical guides on how to bring people together, offering the hands-on tactics Putnam’s argument begs for.",
-    "contentHash": "899aaafe650be4fbbf1fd152ceba4d5288927fe4bcb9d83e62db9c7a05ed719e"
+    "contentHash": "c0a4d32aa43df4c1cd497138ea4f8e9ed2fc5ef5abebddcbeb342f55f02014ad"
   },
   {
     "slug": "early-stage-venture",
