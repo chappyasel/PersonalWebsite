@@ -49,6 +49,9 @@ export function ResidentRoomHost() {
               position: "fixed",
               inset: 0,
               visibility: "hidden",
+              // Canvas and chrome children set visibility: visible. Group
+              // opacity hides them too, while preserving layout for return.
+              opacity: 0,
               pointerEvents: "none",
             }
       }
