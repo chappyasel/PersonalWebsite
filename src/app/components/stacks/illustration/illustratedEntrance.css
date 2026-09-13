@@ -24,6 +24,19 @@
 .room-first-paint .room-first-paint-name {
   visibility: hidden;
 }
+/* Keep the centered opening clear while the compact neighbor slots wait at
+   their resting positions. They appear with the reader after placement. */
+.room-illustration-stop {
+  transition: opacity 180ms ease-out;
+}
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"],
+    [data-room-entrance="placing"]
+  )
+  .room-illustration-stop:not([data-illustration-selected]) {
+  opacity: 0;
+}
 .room-first-paint .room-illustration-actions,
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
@@ -273,6 +286,7 @@
       .stacks-unit-rail-mobile,
       .stacks-wordmark,
       .stacks-theme-toggle,
+      .room-illustration-stop,
       [data-stacks-desktop-panel] *,
       [data-stacks-sheet-material],
       [data-stacks-mobile-intro="sheet"][data-stacks-panel]

@@ -1774,5 +1774,225 @@
         "errors": []
       }
     ]
+  },
+  "readingOrderAndSpacing": {
+    "after": "2cc3cbb",
+    "before": [
+      {
+        "width": 1440,
+        "stable": false,
+        "spaced": false,
+        "illustrated": {
+          "nav": "rgb(46, 40, 36)",
+          "title": "rgb(46, 40, 36)",
+          "wordmark": "rgb(46, 40, 36)"
+        },
+        "live": {
+          "nav": "rgb(46, 40, 36)",
+          "title": "rgba(255, 255, 255, 0.94)",
+          "wordmark": "rgba(255, 255, 255, 0.94)"
+        },
+        "gaps": [673]
+      },
+      {
+        "width": 390,
+        "stable": false,
+        "spaced": false,
+        "illustrated": {
+          "nav": "rgb(46, 40, 36)",
+          "title": "rgb(46, 40, 36)",
+          "wordmark": "rgb(46, 40, 36)"
+        },
+        "live": {
+          "nav": "rgba(255, 255, 255, 0.94)",
+          "title": "rgb(46, 40, 36)",
+          "wordmark": "rgba(255, 255, 255, 0.94)"
+        },
+        "gaps": [-11]
+      }
+    ],
+    "talks": [
+      {
+        "width": 1440,
+        "theme": "light",
+        "passed": true,
+        "gap": 96,
+        "order": [
+          "grab-photo-talk-ann-interview-v8",
+          "talks-monitor-support",
+          "grab-photo-talk-dc-policy-v8",
+          "talks-easel-support",
+          "grab-photo-talk-panel-v8",
+          "talks-plinth-support",
+          "grab-harmonica-talks",
+          "grab-plant-talks-top",
+          "grab-photo-talk-demo-night-v8",
+          "grab-sticker-camera-talks-a",
+          "grab-photo-talk-consensus-phone-v8",
+          "talks-hanging-support",
+          "grab-sticker-camera-talks-b",
+          "grab-microphone",
+          "grab-plant-talks-pothos"
+        ],
+        "before": {
+          "nav": "rgba(255, 255, 255, 0.94)",
+          "title": "rgba(255, 255, 255, 0.94)",
+          "wordmark": "rgba(255, 255, 255, 0.94)"
+        },
+        "after": {
+          "nav": "rgba(255, 255, 255, 0.94)",
+          "title": "rgba(255, 255, 255, 0.94)",
+          "wordmark": "rgba(255, 255, 255, 0.94)"
+        },
+        "errors": []
+      },
+      {
+        "width": 1440,
+        "theme": "dark",
+        "passed": true,
+        "errors": [],
+        "before": {
+          "nav": "rgb(236, 234, 233)",
+          "title": "rgb(236, 234, 233)",
+          "wordmark": "rgb(236, 234, 233)"
+        },
+        "after": {
+          "nav": "rgb(236, 234, 233)",
+          "title": "rgb(236, 234, 233)",
+          "wordmark": "rgb(236, 234, 233)"
+        },
+        "gap": 96,
+        "sampleTiming": "Colors compared after navigation appeared; the first attempt sampled the hidden rail during initial URL selection."
+      },
+      {
+        "width": 390,
+        "theme": "light",
+        "passed": true,
+        "gap": 47.984375,
+        "order": [
+          "grab-photo-talk-ann-interview-v8",
+          "talks-monitor-support",
+          "grab-photo-talk-dc-policy-v8",
+          "talks-easel-support",
+          "grab-photo-talk-panel-v8",
+          "talks-plinth-support",
+          "grab-harmonica-talks",
+          "grab-plant-talks-top",
+          "grab-photo-talk-demo-night-v8",
+          "grab-sticker-camera-talks-a",
+          "grab-photo-talk-consensus-phone-v8",
+          "talks-hanging-support",
+          "grab-sticker-camera-talks-b",
+          "grab-microphone",
+          "grab-plant-talks-pothos"
+        ],
+        "before": {
+          "nav": "rgba(255, 255, 255, 0.94)",
+          "title": null,
+          "wordmark": "rgba(255, 255, 255, 0.94)"
+        },
+        "after": {
+          "nav": "rgba(255, 255, 255, 0.94)",
+          "title": null,
+          "wordmark": "rgba(255, 255, 255, 0.94)"
+        },
+        "errors": []
+      },
+      {
+        "width": 390,
+        "theme": "dark",
+        "passed": true,
+        "gap": 47.984375,
+        "order": [
+          "grab-photo-talk-ann-interview-v8",
+          "talks-monitor-support",
+          "grab-photo-talk-dc-policy-v8",
+          "talks-easel-support",
+          "grab-photo-talk-panel-v8",
+          "talks-plinth-support",
+          "grab-harmonica-talks",
+          "grab-plant-talks-top",
+          "grab-photo-talk-demo-night-v8",
+          "grab-sticker-camera-talks-a",
+          "grab-photo-talk-consensus-phone-v8",
+          "talks-hanging-support",
+          "grab-sticker-camera-talks-b",
+          "grab-microphone",
+          "grab-plant-talks-pothos"
+        ],
+        "before": {
+          "nav": "rgb(236, 234, 233)",
+          "title": null,
+          "wordmark": "rgb(236, 234, 233)"
+        },
+        "after": {
+          "nav": "rgb(236, 234, 233)",
+          "title": null,
+          "wordmark": "rgb(236, 234, 233)"
+        },
+        "errors": []
+      }
+    ],
+    "navigation": [
+      {
+        "mode": "automatic-navigation",
+        "passed": true,
+        "cameraXRange": null,
+        "url": "/#systems"
+      },
+      {
+        "mode": "fallback-wheel",
+        "passed": true,
+        "before": 3498,
+        "after": 4370,
+        "artwork": {
+          "x": 123.625,
+          "y": 214.78125,
+          "width": 762.046875,
+          "height": 512.03125
+        },
+        "background": "radial-gradient(43% 3.55% at 13% 17.04%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(33% 2.84% at 80% 10.65%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(50% 4.97% at 62% 49.7%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      },
+      {
+        "mode": "fallback-phone",
+        "passed": true,
+        "before": 1829,
+        "after": 2294,
+        "artwork": {
+          "x": -13.546875,
+          "y": 226.65625,
+          "width": 408.640625,
+          "height": 287.484375
+        },
+        "background": "radial-gradient(43% 3.55% at 13% 17.04%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(33% 2.84% at 80% 10.65%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), radial-gradient(50% 4.97% at 62% 49.7%, rgba(244, 243, 231, 0.5), rgba(0, 0, 0, 0) 100%), linear-gradient(rgb(131, 178, 206), rgb(195, 214, 216) 43%, rgb(227, 224, 197) 64%, rgb(187, 201, 162) 77%, rgb(155, 182, 132))"
+      }
+    ],
+    "gestures": [
+      {
+        "gesture": "held-touch",
+        "passed": true,
+        "automaticEntryAfterSettling": true,
+        "errors": []
+      },
+      {
+        "gesture": "continuous-wheel",
+        "passed": true,
+        "automaticEntryAfterSettling": true,
+        "errors": []
+      }
+    ],
+    "focusedTestsPassed": 111,
+    "testFilesPassed": 12,
+    "typecheck": "passed",
+    "targetedLint": "passed",
+    "artworkFreshness": "current; original drawings unchanged",
+    "productionBuild": "Final build passed, including search and weight-log boundaries",
+    "fieldNotes": "Presentation changes fail quality-bar test 2; no award.",
+    "finalBuildNeighbors": {
+      "passed": true,
+      "neighborsHiddenDuringAssembly": true,
+      "neighborsVisibleAfterPlacement": true,
+      "finalBuild": true
+    }
   }
 }

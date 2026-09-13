@@ -1,6 +1,6 @@
 {
   "objective": "Integrate approved illustrated shelves into automatic production boot and usable WebGL fallback, with a registered dissolve at the ordinary camera pose",
-  "status": "restored_shelf_assembly_verified",
+  "status": "reading_order_color_and_spacing_verified",
   "base": "f54e6e2",
   "integrationBranch": "feat/illustrated-room",
   "integrationWorktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-room",
@@ -100,5 +100,13 @@
     "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json",
     "gestureCases": 2,
     "finalCssSpotChecks": 2
+  },
+  "readingOrderAndSpacing": {
+    "after": "2cc3cbb",
+    "preview": "http://localhost:3334/talks",
+    "focusedTestsPassed": 111,
+    "talksCases": 4,
+    "navigationCases": 3,
+    "gestureCases": 2
   }
 }

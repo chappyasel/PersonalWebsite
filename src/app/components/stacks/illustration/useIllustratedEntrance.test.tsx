@@ -310,9 +310,25 @@ it("survives Strict Mode pre-start cleanup and removes all work on unmount", asy
   expect(root.current.querySelector(".room-entrance-artwork")).toBeNull();
 });
 
-it("uses About's existing cadence and child motion groups without fetching another drawing", async () => {
+it("orders About by its visible rows rather than its old cadence, without fetching another drawing", async () => {
   root.current.querySelector(".room-illustration-stage")!.innerHTML =
     '<svg class="stacks-boot-scene"><g class="stacks-boot-landmarks"><g data-cadence-slot="1"><g class="stacks-boot-item-motion"/></g><g data-cadence-slot="0"><g class="stacks-boot-item-motion"/></g></g></svg>';
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      const left = this.parentElement?.dataset.cadenceSlot === "1" ? 10 : 90;
+      return {
+        x: left,
+        y: 0,
+        left,
+        top: 0,
+        right: left + 30,
+        bottom: 40,
+        width: 30,
+        height: 40,
+        toJSON: () => ({}),
+      };
+    },
+  );
   const view = renderHook(() => useIllustratedEntrance(true, root, "about"));
   await prepare();
   expect(view.result.current).toBe("items");
@@ -321,5 +337,48 @@ it("uses About's existing cadence and child motion groups without fetching anoth
     animations.map((animation) =>
       animation.element.parentElement?.getAttribute("data-cadence-slot"),
     ),
-  ).toEqual(["0", "1"]);
+  ).toEqual(["1", "0"]);
+});
+
+it("reveals rows left to right despite different object heights and reversed SVG paint order", async () => {
+  const boxes: Record<string, [number, number, number, number]> = {
+    plant: [10, 70, 40, 30],
+    photo: [220, 10, 80, 90],
+    mac: [10, 200, 100, 100],
+  };
+  vi.mocked(fetch).mockResolvedValue({
+    ok: true,
+    text: async () =>
+      '<svg xmlns="http://www.w3.org/2000/svg"><g data-part="shelf"/><g data-part="mac"/><g data-part="photo"/><g data-part="plant"/></svg>',
+  } as Response);
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      const [x, y, width, height] = boxes[
+        this.getAttribute("data-part") ?? ""
+      ] ?? [0, 0, 0, 0];
+      return {
+        x,
+        y,
+        left: x,
+        top: y,
+        right: x + width,
+        bottom: y + height,
+        width,
+        height,
+        toJSON: () => ({}),
+      };
+    },
+  );
+  renderHook(() => useIllustratedEntrance(true, root, "talks"));
+  await prepare();
+  expect(animations.map((a) => a.element.getAttribute("data-part"))).toEqual([
+    "plant",
+    "photo",
+    "mac",
+  ]);
+  expect(
+    [...root.current.querySelectorAll(".room-entrance-item")].map((item) =>
+      item.getAttribute("data-part"),
+    ),
+  ).toEqual(["mac", "photo", "plant"]);
 });

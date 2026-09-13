@@ -95,11 +95,11 @@ try {
         });
       } else {
         await page.mouse.move(500, 380);
-        await page.mouse.wheel(0, 60);
+        await page.mouse.wheel(0, 20);
         release();
         for (let frame = 0; frame < 7; frame++) {
           await page.waitForTimeout(90);
-          await page.mouse.wheel(0, 60);
+          await page.mouse.wheel(0, 20);
           assert.equal(
             await page.evaluate(
               () => document.documentElement.dataset.roomView,

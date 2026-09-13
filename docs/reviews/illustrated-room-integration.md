@@ -112,3 +112,15 @@ Both registration publishers withhold the artwork key until the entrance complet
 The 445 focused tests cover boot, illustration, About drawing, and artwork generation. TypeScript, targeted ESLint, artifact freshness, and the production build pass. All 14 headless entrance cases pass across seven shelves at desktop and phone sizes. The audit checks the empty shelf, visible item stagger, final placement, delayed controls, URL selection, and registration only after completion. All five normal cold entries reach 3D automatically without JavaScript errors. After the final CSS build, both Projects entrance sizes pass again. Held-touch and continuous-wheel checks keep 2D visible during input and enter 3D automatically after release.
 
 No Field Note is added. This automatic presentation still fails achievement quality-bar test 2 because there is no qualifying visitor action.
+
+## Reading order, color, and spacing after 2cc3cbb
+
+SVG paint order made Talks start at the far-right plant. Entrance timing now follows measured visual rows, left to right and then down, including About. Vertical overlap keeps short and tall neighbors in the same row. The DOM paint order remains unchanged, so overlapping drawings keep their approved appearance.
+
+The illustrated view's foreground override caused navigation and desktop titles to change from gray to white at the handoff. Both views now use ChromeLayer and PlacardLayer's existing theme colors. The same measured colors persist through the live transition.
+
+Viewport-wide stops left 673px between Talks and its neighbor on desktop and overlapped them by 11px on phone. Stop distances now follow the projected artwork bounds, leaving 48px on phone and up to 96px on desktop. The last stop retains enough trailing space to reach its camera frame. Native scrolling, rail commands, and touch settling all use these distances. Neighbor drawings wait until the centered entrance has finished placing the selected shelf.
+
+The 111 illustration tests pass, including visual reveal order, unequal travel distances, and light/dark artwork gaps at phone, desktop, and wide desktop sizes. TypeScript, targeted lint, artwork freshness, and the production build pass. Headless checks confirm ordered Talks reveals, stable colors, and automatic entry in both themes on desktop and phone. Navigation during loading, fallback wheel travel, and native phone swipes pass.
+
+No Field Note is added. Presentation and spacing changes still fail quality-bar test 2.

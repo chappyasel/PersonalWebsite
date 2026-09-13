@@ -61,13 +61,17 @@ _Avoid_: Loading state, world flag
 **Boot Stage** — the illustrated shelf's screen position and scale, derived
 from the ordinary resting camera before first paint and again after hydration.
 The entrance starts with a smaller, centered empty shelf. Its items assemble
-from the approved SVG groups, then the drawing grows into its final camera
+from the approved SVG groups in visual row order, left to right and then down.
+The drawing grows into its final camera
 frame and the content and navigation appear. Input can finish the entrance
 immediately. Registration waits for the final untransformed drawing and settled
 scrolling, then the drawing dissolves in place over the ready camera. A match
 within 3 CSS pixels is recorded as exact; other finite projection
 residuals use an ordinary fade. The camera stays still through both paths. A
 viewport alignment miss does not discard a working renderer.
+The 2D traverse spaces projected artwork bounds by 48 to 96 CSS pixels,
+preserving each selected shelf's camera frame. Navigation and desktop titles
+use the same theme colors before and after the handoff.
 _Avoid_: Centered loader, loading box
 
 **Reveal Gate** — the four facts that must all hold before the boot screen is

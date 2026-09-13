@@ -229,6 +229,8 @@ export default function IllustratedRoom({
       <IllustratedTraverse
         unit={unit}
         enabled={visible}
+        theme={theme}
+        viewport={viewport}
         onMovingChange={setMoving}
       >
         {UNITS.map((entry, index) => (

@@ -141,7 +141,12 @@ try {
             type: "touchEnd",
             touchPoints: [],
           });
-        } else await page.mouse.wheel(0, 1500);
+        } else {
+          const distance = await viewport.evaluate(
+            (node) => node.children[5].offsetLeft - node.children[4].offsetLeft,
+          );
+          await page.mouse.wheel(0, distance);
+        }
         await waitDrawing(page, 5);
         const after = await viewport.evaluate((node) => node.scrollLeft);
         assert.ok(after > before);

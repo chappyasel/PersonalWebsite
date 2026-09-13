@@ -40,7 +40,7 @@ html.dark .room-illustration {
   --room-meadow-middle: #314935;
   --room-meadow-near: #223b2b;
 }
-/* The atmosphere stays still while full-viewport shelf slots scroll above it. */
+/* The atmosphere stays still while the shelf row scrolls above it. */
 .room-illustration::before,
 .room-illustration::after {
   content: "";
@@ -219,45 +219,7 @@ html.dark .room-illustration {
   text-align: center;
   color: hsl(var(--muted-foreground));
 }
-/* Solid theme ink stays legible over the illustration's matte sky and meadow. */
-.stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-on-background-text,
-.stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-on-background-text
-  .stacks-rail-icon,
-.stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-desktop-panel]
-  .placard-sections
-  h1,
-.stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-desktop-panel]
-  .placard-section-heading {
-  color: hsl(var(--foreground)) !important;
-  text-shadow: none !important;
-}
-.stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-on-background-text {
-  --tw-ring-color: hsl(var(--foreground) / 0.45);
-}
-.stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-on-background-text
-  svg,
-.stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-desktop-panel]
-  .placard-sections
-  h1
-  svg,
-.stacks-world-shell[data-room-presentation="illustrated"]
-  [data-stacks-desktop-panel]
-  .placard-section-heading
-  svg {
-  filter: none !important;
-}
-.stacks-world-shell[data-room-presentation="illustrated"]
-  .stacks-on-background-mark {
-  background-color: hsl(var(--foreground) / 0.85) !important;
-  box-shadow: none !important;
-}
+/* ChromeLayer and PlacardLayer own the same ink through 2D and 3D. */
 .stacks-world-shell[data-illustrated-entry] .stacks-reveal,
 .stacks-world-shell[data-illustrated-entry] .stacks-rail-row,
 .stacks-world-shell[data-illustrated-entry] [data-stacks-rail-indicator],

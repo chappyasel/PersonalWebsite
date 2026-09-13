@@ -9,6 +9,29 @@ async function decodeDetails(svg: Element) {
   );
 }
 
+/** Read the unanimated drawing once. Overlapping vertical bounds form a row,
+ * so a tall photo cannot jump ahead of the shorter object to its left.
+ * Sort the animation targets only; SVG paint order must stay unchanged. */
+function orderEntranceItems(items: SVGGElement[]) {
+  const measured = items.map((item) => ({
+    item,
+    box: item.getBoundingClientRect(),
+  }));
+  const rows: { bottom: number; items: typeof measured }[] = [];
+  for (const entry of measured.sort((a, b) => a.box.top - b.box.top)) {
+    const row = rows.at(-1);
+    if (row && entry.box.top <= row.bottom) {
+      row.items.push(entry);
+      row.bottom = Math.max(row.bottom, entry.box.bottom);
+    } else rows.push({ bottom: entry.box.bottom, items: [entry] });
+  }
+  return rows.flatMap((row) =>
+    row.items
+      .sort((a, b) => a.box.left - b.box.left || a.box.top - b.box.top)
+      .map(({ item }) => item),
+  );
+}
+
 /** Borrow the approved drawing for assembly; its settled image stays the
  * registration target. No second set of prop positions or silhouettes. */
 export async function prepareEntranceArtwork(
@@ -23,12 +46,8 @@ export async function prepareEntranceArtwork(
       ...about.querySelectorAll<SVGGElement>(
         ".stacks-boot-landmarks .stacks-boot-item-motion",
       ),
-    ].sort(
-      (a, b) =>
-        Number(a.parentElement?.dataset.cadenceSlot) -
-        Number(b.parentElement?.dataset.cadenceSlot),
-    );
-    return { items, dispose: () => undefined };
+    ];
+    return { items: orderEntranceItems(items), dispose: () => undefined };
   }
   const image = stage.querySelector<HTMLImageElement>(
     "img[data-illustration-image]",
@@ -72,7 +91,7 @@ export async function prepareEntranceArtwork(
   stage.append(overlay);
   stage.dataset.entranceArtwork = "";
   return {
-    items,
+    items: orderEntranceItems(items),
     dispose: () => {
       overlay.remove();
       delete stage.dataset.entranceArtwork;
