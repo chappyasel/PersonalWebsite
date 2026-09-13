@@ -9,10 +9,11 @@
 // the canonical section name; a unit may opt into a shorter navigation-only
 // label without changing the title of the destination it opens.
 import { publishAboutBootStage } from "../boot/aboutBootStage";
-import { GOLF_STOP_POSITION, UNITS, UNIT_COUNT, unitUrl } from "../data";
+import { GOLF_STOP_POSITION, UNITS, UNIT_COUNT } from "../data";
+import { useRoomNavigation } from "../input/RoomNavigation";
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
-import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
+import { railRightPxRef, useStacks } from "../store";
 import {
   animate,
   motion,
@@ -281,40 +282,7 @@ export default function UnitRail() {
     };
   }, []);
 
-  const go = (index: number) => {
-    const { travelTo, panelState, modalOpen } = useStacks.getState();
-    if (!travelTo || modalOpen) return false;
-    useStacks.getState().setFocusedInteraction(null);
-    const pushSectionHistory = () => {
-      window.history.pushState(
-        null,
-        "",
-        unitUrl(index, window.location.search),
-      );
-    };
-    if (panelState === "open" || panelState === "opening") {
-      // The tab is outside the expanded sheet. Collapse first, but do not eat
-      // the navigation the visitor actually requested; the resident target
-      // sheet can arrive while the shared detent settles to peek.
-      closeStacksPanel();
-      travelTo(index);
-      // closeStacksPanel owns a pending history.back(). Pushing the section
-      // hash before that pop commits lets the back operation erase the new
-      // URL. Travel immediately, but publish its hash only after the shared
-      // sheet detent has returned to closed.
-      const unsubscribe = useStacks.subscribe((state) => {
-        if (state.panelState !== "closed") return;
-        unsubscribe();
-        pushSectionHistory();
-      });
-      return true;
-    } else if (panelState === "closing") {
-      return false;
-    }
-    pushSectionHistory();
-    travelTo(index);
-    return true;
-  };
+  const go = useRoomNavigation();
 
   const onRailKeyDown = (
     event: React.KeyboardEvent<HTMLButtonElement>,

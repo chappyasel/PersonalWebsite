@@ -966,7 +966,7 @@ html[data-font="literata"] {
  * flips the attribute to "ready" once the room is on screen, and clears it
  * entirely if the world turns out not to be viable after all.
  */
-html[data-world] .stacks-flat {
+html[data-world] .room-document {
   visibility: hidden;
 }
 html:not([data-world="pending"]):not([data-world="warm"]) .stacks-boot {
@@ -1378,6 +1378,16 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 
 /* The camera looks down at the shelf, so each plank's upper surface shows
    above its front edge as a thin lit strip. */
+.stacks-boot-planks [data-boot-plank-side] {
+  fill: color-mix(in srgb, var(--stacks-boot-wood) 82%, #000);
+}
+.stacks-boot-supports [data-boot-box-face="left"],
+.stacks-boot-supports [data-boot-box-face="right"] {
+  fill: color-mix(in srgb, var(--stacks-boot-strap) 82%, #000);
+}
+.stacks-boot-supports [data-boot-box-face="top"] {
+  fill: color-mix(in srgb, var(--stacks-boot-strap) 88%, #fff);
+}
 .stacks-boot-planks [data-boot-plank-top] {
   fill: color-mix(in srgb, var(--stacks-boot-wood) 84%, #fff);
 }

@@ -1,3 +1,4 @@
+import { worldBoot } from "../boot/worldBootSession";
 import {
   type VisionRideFinishPreview,
   type VisionRideScenePreview,
@@ -42,6 +43,7 @@ import {
   photographTreatmentController,
 } from "./photographTreatment";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import { plantWindDiagnosticsController } from "./plantWindDiagnostics";
 import {
   POINTER_CAMERA_MODE_DEFAULT,
   POINTER_CAMERA_VALUE_LIMITS,
@@ -859,6 +861,27 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       visionRideDiagnosticsController.setFinishPreview(
         value as VisionRideFinishPreview,
       ),
+  }),
+  booleanDescriptor({
+    id: "camera.illustration-handoff",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Illustration handoff",
+    help: "Match the shelf drawing before moving into the room. Turning this off uses the ordinary ready frame.",
+    defaultValue: true,
+    experimental: false,
+    store: { subscribe: (listener) => worldBoot.subscribe(listener) },
+    read: () => worldBoot.getView().motionEnabled,
+    update: (value) => worldBoot.setIllustrationMotionEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One camera and temporary scene transforms during arrival.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
   }),
   booleanDescriptor({
     id: "camera.authored-depth",
@@ -1878,6 +1901,29 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     },
   }),
   booleanDescriptor({
+    id: "render.plant-leaf-wind",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "Plant foliage wind",
+    help: "Animate leaves on all nine leafy plants, including both tiny succulent bowls. Pots, woody branches, and the cactus stay still. Uses meadow wind speed and power. Uncheck to hold the resting shape; resets on reload.",
+    defaultValue: true,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Private position/normal buffers on nine plants; bounded CPU deformation near the active shelf. No extra draws or textures.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: plantWindDiagnosticsController,
+    read: plantWindDiagnosticsController.getSnapshot,
+    update: (value) =>
+      plantWindDiagnosticsController.setEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
     id: "render.lighthouse-beacon",
     panel: "render",
     group: "render.scene-effects",
@@ -2090,7 +2136,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Insect landing worker",
     help: "Plan moth and butterfly landings off the main thread. Failures get one retry after 30 seconds; insects keep roaming meanwhile. Switch off or use ?insectLandingWorker=0 for synchronous planning. Live overrides reset on reload.",
     key: "insectLandingWorker",
-    booleanPresentation: "switch",
     experimental: false,
     productionCost: {
       activeValues: [true],

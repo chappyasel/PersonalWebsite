@@ -7,7 +7,7 @@ import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
 import { roomResidency } from "./roomResidency";
 
-/** The route leases the shared room. Its server-rendered flat document stays
+/** The route leases the shared room. Its server-rendered illustrated document stays
  * crawlable; hydration hands presentation to the persistent layout host. */
 export function ResidentRoom({
   children,

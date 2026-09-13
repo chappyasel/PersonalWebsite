@@ -2,47 +2,57 @@
 
 // Composition root and mode gate for the homepage 3D scene.
 //
-// Server render and the first client render are always the flat page (no
-// hydration mismatch). What changed in v5 is that the flat page is no longer
-// what you SEE while the world loads: a pre-paint script in page.tsx sets
-// data-world="pending" on <html> when the browser can run the world, CSS
-// hides the flat document and reveals BootScreen during that first paint, and
-// this component takes the attribute over the moment it is alive.
-//
-// The whole of that policy — capability, warm cache, the four reveal gates,
-// the hang backstop, demotion, and route cleanup — lives in ./boot as one
-// state machine. What is left here is the seam: signals in, view out.
+// The server document and interactive room share the illustrated design.
+// Capability, readiness, recovery, and route cleanup live in ./boot.
 import { SceneStartupGate } from "../route-transition-prototype/SceneStartupGate";
 import { useRouteTransitionPrototype } from "../route-transition-prototype/store";
+import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import {
   Activity,
   Component,
+  type MouseEvent,
   Profiler,
   type ProfilerOnRenderCallback,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
 } from "react";
 
 import { type HomepageBootOutcome, captureOnce } from "~/lib/analytics";
 
-import FlatHome from "./FlatHome";
 import { useWorldBoot } from "./boot/useWorldBoot";
 import { worldBoot } from "./boot/worldBootSession";
 import { type StacksData, type StacksSlots, UNITS } from "./data";
-import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import VisionRideControls from "./dom/VisionRideControls";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
+import IllustratedRoom from "./illustration/IllustratedRoom";
+import { RoomChrome } from "./illustration/RoomChrome";
+import RoomDocument from "./illustration/RoomDocument";
+import "./illustration/illustratedEntrance.css";
+import { useIllustratedEntrance } from "./illustration/useIllustratedEntrance";
+import RoomNavigation, { navigateRoomLink } from "./input/RoomNavigation";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import { useRoomActive } from "./room/ResidentRoomHost";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
+
+const subscribeViewport = (listener: () => void) => {
+  window.addEventListener("resize", listener);
+  return () => window.removeEventListener("resize", listener);
+};
+const getArtworkViewport = () =>
+  window.innerWidth < 1200 && window.innerWidth / window.innerHeight <= 0.75
+    ? ("phone" as const)
+    : ("desktop" as const);
+const getServerArtworkViewport = () => "desktop" as const;
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
 const SceneArtifactInspector = dynamic(
@@ -216,7 +226,7 @@ function useAutomaticPerformanceDiagnostic() {
 }
 
 /** A chunk that fails to load throws during render, which would blank the
- * page. Catch it and fall back to the document — that IS the fallback. */
+ * page. Catch it and keep the illustrated room available. */
 class CanvasBoundary extends Component<
   { onError: () => void; children: React.ReactNode },
   { failed: boolean }
@@ -241,17 +251,89 @@ class CanvasBoundary extends Component<
 export default function StacksHome({
   data,
   slots,
+  illustrated: illustratedEnabled = true,
+  initialUnit = 0,
 }: {
   data: StacksData;
   slots: StacksSlots;
+  illustrated?: boolean;
+  initialUnit?: number;
 }) {
   const roomActive = useRoomActive();
-  const boot = useWorldBoot();
+  const boot = useWorldBoot(illustratedEnabled);
   useAutomaticPerformanceDiagnostic();
   const { epoch, mode, revealed, worldMounted } = boot;
+  const { resolvedTheme } = useTheme();
+  const theme = resolvedTheme === "dark" ? "dark" : "light";
+  const viewport = useSyncExternalStore(
+    subscribeViewport,
+    getArtworkViewport,
+    getServerArtworkViewport,
+  );
+  const presentation = boot.presentation;
+  const illustrated = presentation === "illustrated";
+  const handoff = presentation === "dissolve" || presentation === "travel";
+  const roomMounted = worldMounted || presentation !== "document";
+  const contentVisible = illustrated || handoff || revealed;
+  const illustrationReady = useCallback(
+    (key: string | null, matchRequired = true) => {
+      worldBoot.send({ type: "illustrationChanged", key, matchRequired });
+    },
+    [],
+  );
+  const illustrationUnavailable = useCallback(() => {
+    const view = worldBoot.getView();
+    worldBoot.scope(view.epoch).send({
+      type: "illustrationUnavailable",
+      key: view.illustrationKey,
+    });
+  }, []);
+  const request3D = useCallback(() => worldBoot.request3D(), []);
+  const followIllustratedSection = useCallback(
+    (event: MouseEvent) => {
+      if (
+        !illustrated ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey
+      )
+        return;
+      const anchor = (event.target as Element).closest?.("a[href]");
+      const href = anchor?.getAttribute("href");
+      if (!href?.startsWith("#")) return;
+      const index = UNITS.findIndex((entry) =>
+        [entry.slug, entry.urlSlug, ...(entry.urlAliases ?? [])].includes(
+          href.slice(1),
+        ),
+      );
+      if (index < 0) return;
+      event.preventDefault();
+      navigateRoomLink(index, false);
+    },
+    [illustrated],
+  );
+  useLayoutEffect(() => {
+    if (!roomActive || !roomMounted || !illustratedEnabled) return;
+    // The reader can take over before image decode. Only scene registration
+    // waits on the drawing, so a stalled cover cannot cover usable content.
+    document.documentElement.dataset.illustratedUi = "ready";
+    return () => {
+      delete document.documentElement.dataset.illustratedUi;
+    };
+  }, [roomActive, roomMounted, illustratedEnabled]);
   const settledUnit = useStacks((state) => state.settledUnit);
   const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
+  const entranceUnit = useStacks((state) => state.activeUnit);
+  const entrance = useIllustratedEntrance(
+    illustratedEnabled && roomMounted && roomActive,
+    worldShellRef,
+    `${entranceUnit}:${theme}:${viewport}`,
+    presentation === "live",
+  );
 
   // Bound to this boot's generation. The canvas can lose its context or throw
   // while it is being torn down for a route change; without the stamp, that
@@ -494,27 +576,46 @@ export default function StacksHome({
 
   return (
     <>
-      {worldMounted && (
+      {roomMounted && (
         <div
           ref={worldShellRef}
+          data-room-presentation={presentation}
+          data-illustrated-entry={illustratedEnabled ? "" : undefined}
+          data-room-entrance={illustratedEnabled ? entrance : undefined}
+          data-boot-status={boot.status}
+          data-boot-wait={boot.waitStage}
+          data-boot-failure={boot.failure ?? undefined}
+          data-boot-ineligibility={boot.ineligibility ?? undefined}
+          data-boot-held={boot.interactionHeld ? "" : undefined}
+          onClickCapture={followIllustratedSection}
           data-load-path={boot.loadPath}
           data-canvas-ready={boot.canvasReady ? "" : undefined}
-          data-revealed={revealed ? "" : undefined}
+          data-revealed={contentVisible ? "" : undefined}
           className={`stacks-world-shell fixed inset-0 z-10 ${
-            revealed ? "pointer-events-auto" : "pointer-events-none"
+            contentVisible ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
-          <CanvasBoundary onError={demote}>
-            <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
-              <SceneStartupGate>
-                <StacksCanvas
-                  data={data}
-                  onReady={reportFirstFrame}
-                  onLost={reportLostContext}
-                />
-              </SceneStartupGate>
-            </Profiler>
-          </CanvasBoundary>
+          {worldMounted && (
+            <CanvasBoundary key={epoch} onError={demote}>
+              <div
+                className="absolute inset-0"
+                style={{
+                  visibility: boot.canvasVisible ? "visible" : "hidden",
+                  pointerEvents: presentation === "live" ? "auto" : "none",
+                }}
+              >
+                <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
+                  <SceneStartupGate>
+                    <StacksCanvas
+                      data={data}
+                      onReady={reportFirstFrame}
+                      onLost={reportLostContext}
+                    />
+                  </SceneStartupGate>
+                </Profiler>
+              </div>
+            </CanvasBoundary>
+          )}
           <style>{`
             /* Keep the desktop chrome's geometry measurable so the capture
                uses the same authored tilt-shift line as the live scene. The
@@ -783,22 +884,42 @@ export default function StacksHome({
             }
             html[data-og-capture] .stacks-world-curtain,
             html[data-og-capture] .stacks-boot,
-            html[data-og-capture] .stacks-flat { display: none !important; }
+            html[data-og-capture] .room-document { display: none !important; }
           `}</style>
           <Activity mode={roomActive ? "visible" : "hidden"}>
-            <div className="stacks-og-ui contents">
-              <UnitRail />
-              <ChromeLayer />
-              <Profiler id="placard" onRender={recordPerformanceCommit}>
-                <PlacardLayer
-                  data={data}
-                  slots={slots}
-                  sceneRevealed={revealed}
+            <RoomNavigation rendererEnabled={presentation === "live"}>
+              {presentation !== "document" &&
+                worldBoot.getState().illustratedMode && (
+                  <IllustratedRoom
+                    data={data}
+                    theme={theme}
+                    viewport={viewport}
+                    visible={illustrated || handoff}
+                    canRequest3D={boot.canRequest3D}
+                    loading={boot.worldMounted || boot.recoverable}
+                    entranceSettled={entrance === "complete"}
+                    onRequest3D={request3D}
+                    onReady={illustrationReady}
+                    onUnavailable={illustrationUnavailable}
+                  />
+                )}
+              <div className="stacks-og-ui contents">
+                <UnitRail />
+                <RoomChrome
+                  illustrated={illustratedEnabled}
+                  live={presentation === "live"}
                 />
-              </Profiler>
-              <ScrollBridges />
-            </div>
-            <VisionRideControls />
+                <Profiler id="placard" onRender={recordPerformanceCommit}>
+                  <PlacardLayer
+                    data={data}
+                    slots={slots}
+                    sceneRevealed={contentVisible}
+                  />
+                </Profiler>
+                {presentation === "live" && <ScrollBridges />}
+              </div>
+              {presentation === "live" && <VisionRideControls />}
+            </RoomNavigation>
           </Activity>
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or
@@ -808,17 +929,10 @@ export default function StacksHome({
         </div>
       )}
       <Activity mode={roomActive ? "visible" : "hidden"}>
-        {boot.flatMounted && (
-          <FlatHome
-            slots={slots}
-            animated={boot.flatAnimated}
-            journeyActive={
-              boot.status === "ineligible" || boot.status === "failed"
-            }
-          />
+        {presentation === "document" && (
+          <RoomDocument data={data} slots={slots} initialUnit={initialUnit} />
         )}
-        {/* Books modal — mounted at the root, outside GrainientBackground's
-          [contain:paint] and the world's transforms, so fixed positioning
+        {/* Books modal — mounted at the root, outside the world's transforms, so fixed positioning
           resolves to the viewport. */}
         <StacksBookModal bookCount={data.bookStats.total} />
         <SceneArtifactInspector />

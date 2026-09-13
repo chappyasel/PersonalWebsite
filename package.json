@@ -30,7 +30,7 @@
     "typegen": "SKIP_ENV_VALIDATION=1 next typegen",
     "typecheck": "pnpm typegen && tsc --noEmit",
     "verify": "node scripts/verify.mjs",
-    "verify:artifacts": "pnpm check:home-og && pnpm check:about-boot && pnpm check:search-index",
+    "verify:artifacts": "pnpm check:home-og && pnpm check:about-boot && pnpm check:search-index && pnpm check:room-artwork",
     "start": "next start",
     "check:node-version": "node scripts/check-node-version.mjs",
     "report:test-source-reads": "node scripts/test-source-reads.mjs",
@@ -78,6 +78,9 @@
     "youtube:score": "tsx ./scripts/score-youtube.ts",
     "youtube:evaluate-scores": "tsx ./scripts/evaluate-youtube-scores.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
+    "generate:room-artwork": "node scripts/generate/room-artwork.mjs",
+    "check:room-artwork": "node scripts/generate/room-artwork.mjs --check && pnpm check:room-artwork-quality",
+    "check:room-artwork-quality": "node --test scripts/room-artwork-quality/shelf-faces.test.mjs && tsx scripts/room-artwork-quality/check-live-masks.mjs",
     "import:medium": "node --env-file=.env --import tsx scripts/musings/import-medium.ts"
   },
   "dependencies": {

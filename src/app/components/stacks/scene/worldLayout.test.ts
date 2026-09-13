@@ -18,7 +18,6 @@ import {
   SHELF_OVERVIEW_MAX_DISTANCE,
   STOP_LATERAL_MAX,
   TRAVEL_LEAD_IN,
-  aboutStopShift,
   apparentHeightScale,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
@@ -251,27 +250,17 @@ describe("About lead-in", () => {
     expect(cameraXForScrollOffset(scrollOffsetForUnit(0))).toBeCloseTo(0, 10);
   });
 
-  it("solves the About REST so the shelf edge clears the rail's widest label", () => {
-    // 2000×1250 with the rail's right edge measured at 198px: the camera
-    // slides right until the projected shelf left edge sits 24px past the
-    // label — about x 0.78. Only unit 0's stop moves.
-    const shift = aboutStopShift(2000, 1250, 198);
-    expect(shift).toBeGreaterThan(0.7);
-    expect(shift).toBeLessThan(0.9);
-    // Wider frames ask for more; the cap keeps the rest left of the unit
-    // boundary midpoint (2.2) so activeUnit can never round to 1 at rest.
-    expect(aboutStopShift(3440, 1440, 198)).toBe(2.0);
-    // Square-ish viewports floor at the authored stop (status quo — the
-    // gap physically cannot fit the rail there).
-    expect(aboutStopShift(1200, 1200, 198)).toBe(0);
-    expect(cameraXForScrollOffset(scrollOffsetForUnit(0, shift))).toBeCloseTo(
-      shift,
-      10,
-    );
-    expect(cameraXForScrollOffset(scrollOffsetForUnit(3, shift))).toBeCloseTo(
-      13.2,
-      10,
-    );
+  it("frames About with the same dock truck as every other stop", () => {
+    for (const [width, height] of [
+      [1440, 900],
+      [2048, 844],
+      [3440, 1440],
+    ]) {
+      const about = cameraCompositionForViewport(width!, height!, 0, 198);
+      const projects = cameraCompositionForViewport(width!, height!, 4, 198);
+      expect(about.lateralOffset).toBe(projects.lateralOffset);
+      expect(about.z).toBe(projects.z);
+    }
   });
 });
 
@@ -380,10 +369,10 @@ describe("desktop stop centring", () => {
       PARALLAX_SWING / 2,
       10,
     );
-    // About is pinned to the rail by its own shift and has more room.
+    // About shares the same framing and yaw as this even shelf.
     expect(
       cameraCompositionForViewport(vw, vh, 0, 198).parallaxDockSwing,
-    ).toBeGreaterThan(composition.parallaxDockSwing);
+    ).toBeCloseTo(composition.parallaxDockSwing, 10);
     // Without a rail (mobile, OG capture) nothing changes: viewport-centred,
     // full swing both ways.
     const bare = cameraCompositionForViewport(390, 844, 2);
@@ -423,7 +412,7 @@ describe("desktop stop centring", () => {
     );
   });
 
-  it("is zero off desktop, bounded, and reaches stops 1..6 only", () => {
+  it("is zero off desktop, bounded, and reaches every desktop stop", () => {
     expect(stopLateralOffset(1199, 800, 179)).toBe(0);
     expect(stopLateralOffset(390, 844, 0)).toBe(0);
     for (const vw of [1200, 1440, 1920, 2560, 3440]) {
@@ -433,14 +422,14 @@ describe("desktop stop centring", () => {
     }
     const shift = stopLateralOffset(2000, 1254, 198);
     expect(cameraCompositionForViewport(2000, 1254, 0, 198).lateralOffset).toBe(
-      0,
+      shift,
     );
     expect(
       cameraCompositionForViewport(2000, 1254, 1, 198).lateralOffset,
     ).toBeCloseTo(shift, 10);
     expect(
       cameraCompositionForViewport(2000, 1254, 0.5, 198).lateralOffset,
-    ).toBeCloseTo(shift / 2, 10);
+    ).toBeCloseTo(shift, 10);
     // No rail measurement (OG capture, mobile): the authored centre line.
     expect(cameraCompositionForViewport(2000, 1254, 3).lateralOffset).toBe(0);
   });

@@ -1,0 +1,98 @@
+{
+  "node": "v24.19.0",
+  "cases": 24,
+  "sourceDependencies": 239,
+  "decodedDetails": 483,
+  "svgBytes": 1636199,
+  "svgGzipBytes": 873824,
+  "registrationBytes": 877843,
+  "idempotent": true,
+  "generatedFiles": 50,
+  "approvedShelfFilesUnchanged": 532,
+  "registrationUnavailable": [],
+  "checks": [
+    "Exact source/input/output SHA-256 checks",
+    "All image details decode through sharp",
+    "SVG markup preserved except byte embedding",
+    "No external SVG image URLs",
+    "Source stale rejection tested in temporary fixture",
+    "SSR media selection tested without browser"
+  ],
+  "limitations": [
+    "No production browser registration check; archive metadata recovery only",
+    "Geometry hashes cover saved path/node/type, not vertex buffers",
+    "Books remote response bytes can change behind unchanged cover URLs",
+    "Initial default tsc lacked Next image type declarations; final check explicitly includes next/image-types/global"
+  ],
+  "adapterNames": {
+    "room-boot:books:packed:lower": [
+      "books"
+    ],
+    "room-boot:books:packed:top": [
+      "books"
+    ],
+    "room-boot:clock-second-hand": [
+      "systems"
+    ],
+    "room-boot:lamp-body:egg:lamp:3": [
+      "systems"
+    ],
+    "room-boot:lamp-body:egg:lamp:5": [
+      "musings"
+    ],
+    "room-boot:musings-book-row": [
+      "musings"
+    ],
+    "room-boot:systems-manual-row": [
+      "systems"
+    ],
+    "room-boot:talks-easel": [
+      "talks"
+    ],
+    "room-boot:talks-hanging": [
+      "talks"
+    ],
+    "room-boot:talks-monitor": [
+      "talks"
+    ],
+    "room-boot:talks-plinth": [
+      "talks"
+    ],
+    "room-boot:training-board": [
+      "weightlifting"
+    ],
+    "shelf-structure:1": [
+      "books"
+    ],
+    "shelf-structure:2": [
+      "weightlifting"
+    ],
+    "shelf-structure:3": [
+      "systems"
+    ],
+    "shelf-structure:4": [
+      "projects"
+    ],
+    "shelf-structure:5": [
+      "musings"
+    ],
+    "shelf-structure:6": [
+      "talks"
+    ]
+  },
+  "targetedTests": 5,
+  "targetedLint": "pass",
+  "typescript": "pass with --types node,next/image-types/global",
+  "browserSlot": "free",
+  "recovery": {
+    "projectsCases": [
+      "dark-desktop",
+      "light-phone",
+      "dark-phone"
+    ],
+    "retainedMaskResidualCssPx": 0,
+    "booksColorOwners": 13,
+    "booksChangedColorChannels": 0,
+    "booksDataSha256": "56d8b48a2065491894ec97743dfa0805ea05d150e25f8aa01f03fd67b39155b3"
+  }
+}

@@ -23,6 +23,7 @@ import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
 import { HOVER_MOTION_SCALE, LIFT_LAMBDA, hingeShift } from "./Lift";
+import { PlantWind, type PlantWindOptions } from "./PlantWindDriver";
 import {
   DESK_LAMP_HEAD_NODE,
   DESK_LAMP_HEAD_PIVOT,
@@ -929,6 +930,7 @@ function HoverFloor({
 export default function ModelProp({
   url,
   dark,
+  plantWind,
   variant = "atlas",
   tints,
   materialProperties,
@@ -948,6 +950,7 @@ export default function ModelProp({
 }: {
   url: string;
   dark: boolean;
+  plantWind?: PlantWindOptions;
   variant?: "atlas" | "tinted" | "recolor";
   /** tinted only: material name → hex color remap. */
   tints?: Record<string, string>;
@@ -1283,12 +1286,15 @@ export default function ModelProp({
     };
   }, [object]);
   const model = (
-    <primitive
-      object={object}
-      position={position}
-      rotation={rotation}
-      scale={scale}
-    />
+    <>
+      <primitive
+        object={object}
+        position={position}
+        rotation={rotation}
+        scale={scale}
+      />
+      {plantWind && <PlantWind object={object} options={plantWind} />}
+    </>
   );
   // Nothing wrapped, nothing subscribed to the frame loop, and the rendered
   // tree is byte-for-byte what it was before this prop existed. `spinPart` is

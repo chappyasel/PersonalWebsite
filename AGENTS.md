@@ -33,6 +33,9 @@ text arrows in JSX.
 
 ## Debug controls
 
+Every boolean control in Scene Diagnostics uses the existing native checkbox
+style, including controls embedded by other components.
+
 When adding an optional visual effect or performance-sensitive rendering path,
 add a live on/off control to the existing Scene Diagnostics panel. A query
 parameter may remain as a reload-time rollback or benchmarking switch, but it

@@ -11,6 +11,7 @@ import { type WorldBootWaitStage } from "../boot/worldBootMachine";
 import { type AboutLandmarkId } from "../scene/aboutBootComposition";
 import {
   ABOUT_BOOT_CAMERA,
+  type AboutBootCamera,
   type AboutBootQuad,
   projectAboutBootPoint,
 } from "../scene/aboutBootPerspective";
@@ -54,8 +55,11 @@ export function bootFixed(value: number, decimals = 3) {
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
-export function bootPlacementStyle(anchor: readonly [number, number, number]) {
-  const placed = projectAboutBootPoint(anchor, ABOUT_BOOT_CAMERA);
+export function bootPlacementStyle(
+  anchor: readonly [number, number, number],
+  camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
+) {
+  const placed = projectAboutBootPoint(anchor, camera);
   const share = bootFixed(1 - placed.scale, 5);
   return {
     transform: `translate(calc(${bootFixed(placed.x * SCENE_TO_BOOT_SVG)}px + var(--stacks-boot-eye-shift, 0) * ${share}px), ${bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}px) scale(${bootFixed(placed.scale, 5)})`,
@@ -78,19 +82,21 @@ export function bootPoints(quad: AboutBootQuad) {
  * the anchor and scaled by its depth ratio, so this is what lands them where
  * the camera draws the books: seen from 1.1 units above the lower plank and
  * a little to their left, not from a level eye at the unit's origin. */
-export function bootReadingProjector(): ReadingBookProjector {
+export function bootReadingProjector(
+  camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
+): ReadingBookProjector {
   const anchor = projectAboutBootPoint(
     [
       ABOUT_LANDMARK_X["reading-stack"],
       SHELF_SURFACE.lower,
       ABOUT_LOWER_LANDMARK_Z["reading-stack"],
     ],
-    ABOUT_BOOT_CAMERA,
+    camera,
   );
   return ([x, y, z]) => {
     const placed = projectAboutBootPoint(
       [x, SHELF_SURFACE.lower + y, z],
-      ABOUT_BOOT_CAMERA,
+      camera,
     );
     return [
       bootFixed((placed.x - anchor.x) / anchor.scale, 6),
@@ -102,8 +108,11 @@ export function bootReadingProjector(): ReadingBookProjector {
 /** The parallax term alone, for drawables that carry their own geometry
  * (a projected polygon, a circle at its canonical centre): they keep their
  * canonical shape and slide by their anchor's share of the eye shift. */
-export function bootParallaxStyle(anchor: readonly [number, number, number]) {
-  const placed = projectAboutBootPoint(anchor, ABOUT_BOOT_CAMERA);
+export function bootParallaxStyle(
+  anchor: readonly [number, number, number],
+  camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
+) {
+  const placed = projectAboutBootPoint(anchor, camera);
   const share = bootFixed(1 - placed.scale, 5);
   return {
     transform: `translate(calc(var(--stacks-boot-eye-shift, 0) * ${share}px))`,

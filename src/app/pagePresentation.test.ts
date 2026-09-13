@@ -1,18 +1,22 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const source = fs.readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+const source = fs.readFileSync(
+  new URL("./RoomHomePage.tsx", import.meta.url),
+  "utf8",
+);
 const stacksHomeSource = fs.readFileSync(
   new URL("./components/stacks/StacksHome.tsx", import.meta.url),
   "utf8",
 );
 
 describe("homepage first paint", () => {
-  it("server-renders the boot vignette with its real book covers", () => {
-    expect(source).toContain("export default async function HomePage()");
+  it("streams empty wood before data and keeps a native illustrated fallback", () => {
+    expect(source).toContain("export default function RoomHomePage(");
     expect(source).toContain("async function HomePageContent({");
-    expect(source).toContain("<BootScreen");
-    expect(source).toContain("readingBooks={bootReadingBooks}");
+    expect(source).toContain("<RoomBootShell");
+    expect(source).toContain("<RoomDocument");
+    expect(source).not.toContain("FlatHome");
     expect(source).toContain("readingBookColors={readingBookColors}");
     expect(source).toContain("<React.Suspense fallback={null}>");
     // `indexOf` returns -1 for a needle that is not there, and -1 is less
@@ -25,21 +29,28 @@ describe("homepage first paint", () => {
     expect(handshake).toBeLessThan(suspense);
   });
 
-  it("keeps one boot-screen owner across the streamed data handoff", () => {
-    expect(source.match(/<BootScreen\b/g)).toHaveLength(1);
-    expect(stacksHomeSource).not.toContain("<BootScreen");
+  it("keeps one initial shell across the streamed data handoff", () => {
+    expect(source.match(/<RoomBootShell\b/g)).toHaveLength(1);
+    expect(stacksHomeSource).not.toContain("<RoomBootShell");
   });
 
   it("keeps the streamed bridge on the same exact book projection", () => {
     expect(source).toContain("<BootReadingBooksBridge");
-    expect(source.indexOf("<BootScreen")).toBeLessThan(
+    expect(source.indexOf("<RoomBootShell")).toBeLessThan(
       source.indexOf("<React.Suspense"),
     );
     expect(source.indexOf("<BootReadingBooksBridge")).toBeGreaterThan(
       source.indexOf("async function HomePageContent({"),
     );
     expect(source).toContain("readingBooks={toBootReadingBooks(readingBooks)}");
-    expect(source).toContain(
+    const books = fs.readFileSync(
+      new URL(
+        "./components/stacks/boot/homepageReadingBooks.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(books).toContain(
       "coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null",
     );
     expect(source).toContain("readingBookColors={readingBookColors}");
@@ -66,9 +77,8 @@ describe("homepage first paint", () => {
     expect(source).toContain(
       'import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";',
     );
-    expect(source).toContain(
-      "dangerouslySetInnerHTML={{ __html: worldBootPrepaintScript() }}",
-    );
+    expect(source).toContain("worldBootPrepaintScript()");
+    expect(source).toContain("data-room-illustration");
     // No hand-typed copy of the handshake constants survives in the route.
     expect(source).not.toContain("data-world");
     expect(source).not.toContain("sessionStorage");

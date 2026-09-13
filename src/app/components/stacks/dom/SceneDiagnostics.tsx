@@ -91,7 +91,6 @@ import { createPortal } from "react-dom";
 import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
 
 import { KeycapSequence } from "~/components/ui/keycap";
-import { Switch } from "~/components/ui/switch";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
@@ -646,27 +645,6 @@ function DiagnosticControl({
   const inputId =
     descriptor.inputId ??
     `stacks-diagnostic-${descriptor.id.replaceAll(".", "-")}`;
-  if (
-    descriptor.valueKind === "boolean" &&
-    descriptor.booleanPresentation === "switch"
-  )
-    return (
-      <label
-        className="stacks-diagnostics-control"
-        htmlFor={inputId}
-        aria-description={descriptor.help}
-      >
-        <Switch
-          id={inputId}
-          checked={Boolean(state.value)}
-          disabled={state.disabled}
-          onCheckedChange={(checked) =>
-            sceneDiagnosticsRegistry.update(descriptor.id, checked)
-          }
-        />
-        {descriptor.label}
-      </label>
-    );
   if (descriptor.valueKind === "boolean")
     return (
       <label

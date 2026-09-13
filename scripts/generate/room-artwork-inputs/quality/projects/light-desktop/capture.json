@@ -1,0 +1,482 @@
+{
+  "version": 1,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "scale": 4,
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "lamp",
+      "box": [
+        198,
+        252,
+        65,
+        175
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "lamp.mask.png",
+        "colour": "lamp.colour.png"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        },
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "action-projects-weightlifting",
+      "box": [
+        272,
+        335,
+        95,
+        92
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "action-projects-weightlifting.mask.png",
+        "colour": "action-projects-weightlifting.colour.png",
+        "detail": "action-projects-weightlifting.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-weightlifting-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-weightlifting-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-weightlifting-icon.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "link-projects-dice-bottom-left",
+      "box": [
+        371,
+        378,
+        52,
+        49
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "link-projects-dice-bottom-left.mask.png",
+        "colour": "link-projects-dice-bottom-left.colour.png",
+        "detail": "link-projects-dice-bottom-left.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "link-projects-dice-bottom-center",
+      "box": [
+        413,
+        377,
+        53,
+        50
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "link-projects-dice-bottom-center.mask.png",
+        "colour": "link-projects-dice-bottom-center.colour.png",
+        "detail": "link-projects-dice-bottom-center.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "link-projects-dice-bottom-right",
+      "box": [
+        457,
+        378,
+        50,
+        48
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "link-projects-dice-bottom-right.mask.png",
+        "colour": "link-projects-dice-bottom-right.colour.png",
+        "detail": "link-projects-dice-bottom-right.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "link-projects-dice-middle-left",
+      "box": [
+        391,
+        335,
+        53,
+        49
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "link-projects-dice-middle-left.mask.png",
+        "colour": "link-projects-dice-middle-left.colour.png",
+        "detail": "link-projects-dice-middle-left.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "link-projects-dice-middle-right",
+      "box": [
+        435,
+        335,
+        51,
+        49
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "link-projects-dice-middle-right.mask.png",
+        "colour": "link-projects-dice-middle-right.colour.png",
+        "detail": "link-projects-dice-middle-right.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "link-projects-dice-top",
+      "box": [
+        412,
+        292,
+        53,
+        50
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "link-projects-dice-top.mask.png",
+        "colour": "link-projects-dice-top.colour.png",
+        "detail": "link-projects-dice-top.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "action-projects-homework",
+      "box": [
+        511,
+        335,
+        91,
+        91
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "action-projects-homework.mask.png",
+        "colour": "action-projects-homework.colour.png",
+        "detail": "action-projects-homework.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-homework-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-homework-icon.webp"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-homework-icon.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-projects-wwdc-v8",
+      "box": [
+        639,
+        319,
+        91,
+        107
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-projects-wwdc-v8.mask.png",
+        "colour": "grab-photo-projects-wwdc-v8.colour.png",
+        "detail": "grab-photo-projects-wwdc-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 412,
+          "height": 512,
+          "src": "/images/stacks/v8/512/projects-wwdc.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "shimmer-apple",
+      "box": [
+        739,
+        358,
+        52,
+        68
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "shimmer-apple.mask.png",
+        "colour": "shimmer-apple.colour.png"
+      },
+      "textures": []
+    },
+    {
+      "id": "grab-plant-projects-small",
+      "box": [
+        795,
+        362,
+        60,
+        61
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-plant-projects-small.mask.png",
+        "colour": "grab-plant-projects-small.colour.png"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "trophy",
+      "box": [
+        292,
+        529,
+        81,
+        133
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "trophy.mask.png",
+        "colour": "trophy.colour.png"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-light.png"
+        }
+      ]
+    },
+    {
+      "id": "photo",
+      "box": [
+        167,
+        562,
+        125,
+        102
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "photo.mask.png",
+        "colour": "photo.colour.png",
+        "detail": "photo.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 512,
+          "height": 410,
+          "src": "/images/stacks/v8/512/projects-coding-couch.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-phone-projects",
+      "box": [
+        458,
+        626,
+        81,
+        35
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-phone-projects.mask.png",
+        "colour": "grab-phone-projects.colour.png",
+        "detail": "grab-phone-projects.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 1024,
+          "height": 2220,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "arduino",
+      "box": [
+        548,
+        631,
+        63,
+        27
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "arduino.mask.png",
+        "colour": "arduino.colour.png",
+        "detail": "arduino.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 32,
+          "height": 4,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "card",
+      "box": [
+        606,
+        596,
+        69,
+        49
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "card.mask.png",
+        "colour": "card.colour.png",
+        "detail": "card.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-projects-facebook-v8",
+      "box": [
+        355,
+        570,
+        115,
+        91
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-projects-facebook-v8.mask.png",
+        "colour": "grab-photo-projects-facebook-v8.colour.png",
+        "detail": "grab-photo-projects-facebook-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/projects-facebook.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "mac",
+      "box": [
+        685,
+        478,
+        146,
+        176
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "mac.mask.png",
+        "colour": "mac.colour.png",
+        "detail": "mac.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 168,
+          "height": 128,
+          "src": null
+        },
+        {
+          "width": 1,
+          "height": 6,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    }
+  ],
+  "source": "live geometry at saved camera and validated unit-local rest transforms",
+  "contractSha256": "ebabd3207946a19f40d48772b3ea03f79ca128de40dedbe04b3253a7a9c25de4",
+  "errors": [],
+  "files": {
+    "lamp.mask.png": "50e8ea3e16ca6438d3c0f18d3b5263597674c6e7b0120da944fcf682e4566b2e",
+    "lamp.colour.png": "39b02e0f16c18b99d01828a60aadf9da44aea3685664313778dd810d6e85fc41",
+    "action-projects-weightlifting.mask.png": "4968502fc58fea6f91e57d0f40d3fc7eaf767553650202b7aae15870be9c7d5a",
+    "action-projects-weightlifting.colour.png": "60c24622fed8a1c10b2c07626711b184fcec0dae47437c564199133502d36ecb",
+    "action-projects-weightlifting.detail.webp": "eacc3b90432acf40c28776eecf44547efeb69c4ae6e3bbce2d7e6b653b34180b",
+    "link-projects-dice-bottom-left.mask.png": "8f57d78ba6ecf9815484cdf4f685bfbc7c5f02ca5a4fcaf5efd44cd5c9ed5251",
+    "link-projects-dice-bottom-left.colour.png": "b6c9200169fa84e67ffc007c4f7fa81c0e5498355ac0d35c3a586622144120eb",
+    "link-projects-dice-bottom-left.detail.webp": "917a6fa9c5eab8897b37a64a5bd90f9b5d6cc27dc39e11374472de6ec39bf010",
+    "link-projects-dice-bottom-center.mask.png": "1205d36cadcbd62f376955619fc0751d861f6c6cde1c9d9c83ae5851ae673863",
+    "link-projects-dice-bottom-center.colour.png": "2d6f809ed94f2cbbd22420d9a943991f267ae615148e79ff3c12e89d59f1d3b6",
+    "link-projects-dice-bottom-center.detail.webp": "c0a851120df1669c60e0eede5656c38e9797e2b376f480440902ac75d104c927",
+    "link-projects-dice-bottom-right.mask.png": "3a2df0eef3bac4199944198bfe3139d71484bb7ed45b59d415d9d573ca990bd1",
+    "link-projects-dice-bottom-right.colour.png": "5a2a8d21f84a4eed0b21dd39ac6b030a807673e2e7f5438dd1c7664b3fbac5c3",
+    "link-projects-dice-bottom-right.detail.webp": "2d7e41ad5e9197b986eda18aff6183ab88ecbada0aaa58a7b3cfe8b37e27df4a",
+    "link-projects-dice-middle-left.mask.png": "d7e9c7fa4cd16135e3dec670a26ab2a58ce903cb376c3f3a9c68bc793cb3a978",
+    "link-projects-dice-middle-left.colour.png": "43abd7c297e42abafb4088b892f272dcdef07a01737150c410230b0daa2c185a",
+    "link-projects-dice-middle-left.detail.webp": "cc350319d12d6a8a60011dca79ee96415ff432fad6d10ec7c9d817f3eeaf06ff",
+    "link-projects-dice-middle-right.mask.png": "91c94ebf29ffc45a6e5faa9911e5108f816918a21a02bfc585c1af2576e007f3",
+    "link-projects-dice-middle-right.colour.png": "f3a0a51ad809ad79ff1d31413503904ead47e01d9e72219c8c8b18fac6e7178a",
+    "link-projects-dice-middle-right.detail.webp": "d1515fe412c577537461653b131788dbc6b5923d3fa10defab150e97740e7a47",
+    "link-projects-dice-top.mask.png": "ad83a92e30478f179a5990cf0d9eb4e7016461b50a51176bb01724c38628edef",
+    "link-projects-dice-top.colour.png": "2d6f809ed94f2cbbd22420d9a943991f267ae615148e79ff3c12e89d59f1d3b6",
+    "link-projects-dice-top.detail.webp": "707fdd97ed22801b3ef38c2f53763ee561fa4560058eca21aa3d7de318b5e1ca",
+    "action-projects-homework.mask.png": "ac742c89e8a907389a6f3f619c501acb6e3a201ed3d087a1c2b2225e42249f91",
+    "action-projects-homework.colour.png": "c86253a2ed75db6b63e4191c4600d4145fa566b240f83f30f61a39a286121395",
+    "action-projects-homework.detail.webp": "070a4cbad6cd1a31a00959691a2afe7fc96898ebdb6b9002d1038ca0e70b87b6",
+    "grab-photo-projects-wwdc-v8.mask.png": "b46faf8941e5fbd7df29bfe2a2f138349de2efdff0aab964f6cc3497f5d6f98d",
+    "grab-photo-projects-wwdc-v8.colour.png": "e11bc710d40605cbe48bfbad431dad5886e8bc53994ba5e17afdd97596886ef0",
+    "grab-photo-projects-wwdc-v8.detail.webp": "119920aee19e052bcf0fa8dff366070be111617b3e4e7d4d40bc6c2f00b790ab",
+    "shimmer-apple.mask.png": "8babfbaa15126b7bf591d5b12449d3e1d344990b8230a003db988aee02dc551d",
+    "shimmer-apple.colour.png": "a0710a9b85ff4094f352f5f2da68f6eeb9e6716decb37747da4a1d4c6289b149",
+    "grab-plant-projects-small.mask.png": "81d7963ace714c7d340f0ff656989cd7a334f4e0493c33eb4a97b01323afba00",
+    "grab-plant-projects-small.colour.png": "6f1b08129623b5e75436539fef9741099d9f694ce0be0f25d934224efcbe4cb1",
+    "trophy.mask.png": "e8244724d06c217a9c4ca311cad0babf1f1caf3b227507e096258b54a9397dab",
+    "trophy.colour.png": "c4d394b9b76dc5c9055cea2e3c8dd931571f0ff434f10d718923989672424d36",
+    "photo.mask.png": "6114a2bdfef786c39bee5f5b9f67428c4fe71fd79fb5aa3b02361b5c51ee4e82",
+    "photo.colour.png": "574c2bc85d44abd3d7a5a2798713ff29b94281747ac11b72766fb428c4d57eb5",
+    "photo.detail.webp": "520e39127be6aabbad91d77ce26b701e1cae492bd11d1da5073648f83ff608f5",
+    "grab-phone-projects.mask.png": "1fbe5947032c9f6e7693ff0aa4609b60436315d07aa3e22ec44aa60e26231818",
+    "grab-phone-projects.colour.png": "aa02d5344fa6479eeb7b7b0357320fd07cc3cafa015a2ffa73684519b7a36db5",
+    "grab-phone-projects.detail.webp": "ac1fcbca21f29a9b697b4a0ba158294f58a3aba47ca5c096d3fcf9d6fdf4d986",
+    "arduino.mask.png": "461e08efb24e1cb0ae6cb1532d159093473f66d61028db4318679f7920a63ec1",
+    "arduino.colour.png": "65951ed927be6803f5be786a623bda5882675963661455df3c08f4b2473b54b6",
+    "arduino.detail.webp": "69ff14eb117ebc688931077da6c6f357610327da2e90e7c1b66d6ae7fbc87547",
+    "card.mask.png": "6ec22f9c5ce4f6ead1addd71b5368308a8fba953130d5c2e58723a3173a65a1c",
+    "card.colour.png": "de56e62a0af2b2f39b50ca19a8669e301ed00f2647ae93d32c3f01add4111619",
+    "card.detail.webp": "fa131b16b5d860a5d4767014f3aa0759fcbab085e3b9f2f980d5b78ca623a174",
+    "grab-photo-projects-facebook-v8.mask.png": "2d6aba2465f4dd95f58a6fae614f49ec1da5aeadcda188b0d706c9423de87009",
+    "grab-photo-projects-facebook-v8.colour.png": "c44794f01c828c58117d49c50e5ad3ffa0608ff653f0c7a530dc383a8cbce91d",
+    "grab-photo-projects-facebook-v8.detail.webp": "559f4c8043752163c29fc57653583963fb967815b035781186e95514a398fb5d",
+    "mac.mask.png": "da6810edeebe04b74d90694cc2e023835ab193701973e9f807286106b016cd00",
+    "mac.colour.png": "2fff371e24a1eaca9e00e077ca235727598b9b45395c96038f9a4c113744250e",
+    "mac.detail.webp": "c2c55d5a059cc52284668fede2fbe1cb63e39dd2b9984b63d649af4b0d2600c5"
+  }
+}

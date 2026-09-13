@@ -1,0 +1,133 @@
+{
+  "objective": "Integrate approved illustrated shelves into automatic production boot and usable WebGL fallback, with a registered dissolve at the ordinary camera pose",
+  "status": "approved_foliage_integrated_and_verified",
+  "base": "f54e6e2",
+  "integrationBranch": "feat/illustrated-room",
+  "integrationWorktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-room",
+  "checkpoints": {
+    "review": "db63222",
+    "geometry": "dd0a306",
+    "foundation": "7483645",
+    "renderer": "e0becc7d4c4ff87595683ccf85191ee76ff04595",
+    "firstIntegration": "46b4953",
+    "automaticEntry": "8d45705",
+    "dissolveInPlace": "b35243d"
+  },
+  "workers": [
+    {
+      "task": "production-illustrated-content",
+      "workspace": "d760a288-7da4-44c7-b68e-24221f73d16b",
+      "terminal": "c7823c99-5e6e-47ad-98e3-1bd5468c59b8",
+      "worktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-content",
+      "status": "completed_and_integrated"
+    },
+    {
+      "task": "production-illustrated-artwork",
+      "workspace": "dcdf2843-ff74-4d61-a888-06f71640de44",
+      "terminal": "fe6ed60c-6a3a-4bfe-9a46-40e501b29818",
+      "worktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-artwork",
+      "status": "completed_and_integrated"
+    },
+    {
+      "task": "boot-policy",
+      "agent": "/root/generalization_final_review",
+      "worktree": "/Users/chappyasel/Desktop/Repos/PersonalWebsite-illustrated-policy",
+      "status": "completed_and_integrated"
+    },
+    {
+      "task": "plant-leaf-wind",
+      "workspace": "dcd7ec3f-acb8-4fd8-83e9-9404c48fa3ff",
+      "terminal": "915de06e-46bd-401a-b96a-40e40d1f2bdd",
+      "branch": "prototype/plant-leaf-wind",
+      "head": "489ce78",
+      "status": "completed_and_integrated"
+    }
+  ],
+  "rootOwnership": [
+    "HomePage and thin route initial selection",
+    "SceneHandoff and CameraRig/Scene integration",
+    "server first paint and presentation CSS",
+    "integration review, checks and final commit"
+  ],
+  "browserSlot": "Headless verification only; reuse the existing regular-browser preview tab",
+  "fieldNotes": "No award. Automatic fallback and handoff fail quality-bar test 2.",
+  "mergedCommits": {
+    "foundation": "7483645",
+    "policy": "678db82",
+    "content": "dbad022",
+    "artwork": "7bda695",
+    "expectedCoordinates": "f64abe6"
+  },
+  "verification": {
+    "developmentCases": 28,
+    "productionCases": 7,
+    "recoveryChecks": 6,
+    "maxResidualCssPx": 0.0015082124068536704,
+    "testFilesPassed": 465,
+    "testsPassed": 3932,
+    "testsSkipped": 8,
+    "build": "passed; room routes remain static",
+    "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json"
+  },
+  "feedbackCheckpoint": {
+    "after": "46b4953",
+    "productionCases": 7,
+    "interactionCases": 3,
+    "aboutGeometryCases": 2,
+    "fullSuiteTestsPassed": 3941,
+    "preview": "http://localhost:3334/projects",
+    "illustratedReview": "http://localhost:3334/projects?hold-boot=1",
+    "recoveryCases": 6
+  },
+  "dissolveCheckpoint": {
+    "after": "8d45705",
+    "productionCases": 14,
+    "recoveryCases": 6,
+    "interactionCases": 3,
+    "fullSuiteTestsPassed": 3969,
+    "preview": "http://localhost:3334/projects",
+    "loadingReview": "http://localhost:3334/projects?hold-boot=1",
+    "tabletLimit": "Saved image views do not yet cover every tablet proportion within 3px.",
+    "gestureCases": 8
+  },
+  "firstLoadCorrection": {
+    "after": "b35243d",
+    "coldLoadCases": 5,
+    "preview": "http://localhost:3334/projects",
+    "loadingReview": "http://localhost:3334/projects?hold-boot=1",
+    "entranceCases": 2,
+    "focusedTestsPassed": 354
+  },
+  "restoredEntrance": {
+    "after": "b61a481",
+    "entranceCases": 14,
+    "coldLoadCases": 5,
+    "focusedTestsPassed": 445,
+    "preview": "http://localhost:3334/",
+    "loadingReview": "http://localhost:3334/?hold-boot=1",
+    "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json",
+    "gestureCases": 2,
+    "finalCssSpotChecks": 2
+  },
+  "readingOrderAndSpacing": {
+    "after": "2cc3cbb",
+    "preview": "http://localhost:3334/talks",
+    "focusedTestsPassed": 111,
+    "talksCases": 4,
+    "navigationCases": 3,
+    "gestureCases": 2
+  },
+  "plantFoliageIntegration": {
+    "after": "ab7a33f",
+    "sourceHead": "489ce78",
+    "sourceCommits": ["000a999", "19edac8", "489ce78"],
+    "focusedTestsPassed": 495,
+    "entranceCases": 2,
+    "coldLoadCases": 5,
+    "headlessPlantUnits": 5,
+    "headlessPlantModels": 6,
+    "drawingBytes": "unchanged",
+    "preview": "http://localhost:3334/?debug=1&quality=balanced",
+    "evidence": "docs/reviews/illustrated-room-integration-evidence/summary.json"
+  }
+}

@@ -124,7 +124,11 @@ export function StaticWorldRoot({
     if (!root.current) return;
     return freezeStaticWorldRoot(root.current, id);
   });
-  return <group ref={root}>{children}</group>;
+  return (
+    <group name={id} ref={root}>
+      {children}
+    </group>
+  );
 }
 
 /** Opt-in diagnostics check. Ordinary development visits pay no sweep; when

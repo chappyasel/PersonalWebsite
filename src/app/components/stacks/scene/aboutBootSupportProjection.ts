@@ -1,8 +1,8 @@
 import {
   ABOUT_BOOT_CAMERA,
-  type AboutBootBoxBounds,
+  type AboutBootBoxProjection,
   type AboutBootCamera,
-  aboutBootBoxBounds,
+  aboutBootBoxProjection,
 } from "./aboutBootPerspective";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { CAMERA } from "./worldLayout";
@@ -34,15 +34,15 @@ export function aboutBootBoxHorizontalBounds(
 }
 
 export type AboutBootShelfSupportProjection = Readonly<{
-  upright: AboutBootBoxBounds;
-  foot: AboutBootBoxBounds;
-  cleat: AboutBootBoxBounds;
+  upright: AboutBootBoxProjection;
+  foot: AboutBootBoxProjection;
+  cleat: AboutBootBoxProjection;
 }>;
 
 /** One side's upright, foot and cleat as the About rest camera sees them:
- * every corner of each box projected (aboutBootPerspective.ts), then the
- * plane-space extremes. The upright runs from the top plank's underside to
- * the ground; the foot and cleat sit on the ground. */
+ * every corner projected, with each visible face preserved. The upright
+ * runs from the top plank's underside to the foot's top surface. The foot
+ * paints first, so the post occludes the rear part of that surface. */
 export function aboutBootShelfSupportProjection(
   side: -1 | 1,
   camera: AboutBootCamera = ABOUT_BOOT_CAMERA,
@@ -54,18 +54,18 @@ export function aboutBootShelfSupportProjection(
   const plankUnderside =
     SHELF_GEOMETRY.top.centerY - SHELF_GEOMETRY.top.thickness / 2;
   return {
-    upright: aboutBootBoxBounds(
+    upright: aboutBootBoxProjection(
       {
         centerX,
         width: support.width,
         centerZ: SHELF_GEOMETRY.strapZ,
         depth: support.width,
         top: plankUnderside,
-        bottom: ground,
+        bottom: ground + support.footHeight,
       },
       camera,
     ),
-    foot: aboutBootBoxBounds(
+    foot: aboutBootBoxProjection(
       {
         centerX,
         width: support.footWidth,
@@ -76,7 +76,7 @@ export function aboutBootShelfSupportProjection(
       },
       camera,
     ),
-    cleat: aboutBootBoxBounds(
+    cleat: aboutBootBoxProjection(
       {
         centerX,
         width: support.cleatWidth,

@@ -37,6 +37,7 @@ import {
 } from "../scene/aboutBootFrameProjection";
 import {
   ABOUT_BOOT_CAMERA,
+  type AboutBootCamera,
   aboutBootPlankProjection,
   projectAboutBootPoint,
 } from "../scene/aboutBootPerspective";
@@ -214,7 +215,11 @@ const getServerBootRevealed = () => SERVER_WORLD_BOOT_VIEW.revealed;
  *
  * The supporting notes stay outside the live region. They rotate often enough
  * to reassure a sighted visitor, but announcing each turn would become noise. */
-function BootWaitNotes() {
+export function BootWaitNotes({
+  active: enabled = true,
+}: {
+  active?: boolean;
+}) {
   const stage = useSyncExternalStore(
     subscribeWorldBoot,
     getWaitStage,
@@ -235,13 +240,13 @@ function BootWaitNotes() {
   // the page, behind a running 3D scene.
   useEffect(() => {
     setTurn(0);
-    if (revealed || BOOT_WAIT_NOTES[stage].length < 2) return;
+    if (!enabled || revealed || BOOT_WAIT_NOTES[stage].length < 2) return;
     const timer = window.setInterval(
       () => setTurn((previous) => previous + 1),
       BOOT_WAIT_NOTE_INTERVAL_MS,
     );
     return () => window.clearInterval(timer);
-  }, [revealed, stage]);
+  }, [enabled, revealed, stage]);
 
   const active = turn % BOOT_WAIT_NOTES[stage].length;
   return (
@@ -658,9 +663,11 @@ function FrameGlyph({ landmark }: { landmark: AboutBootLandmark }) {
 function ReadingStackGlyph({
   books,
   colors,
+  camera,
 }: {
   books: BootReadingBook[];
   colors: Record<string, ReadingBookEdgeColor>;
+  camera: AboutBootCamera;
 }) {
   const visible = books.slice(0, 3);
   const thicknesses = visible.map(
@@ -691,7 +698,7 @@ function ReadingStackGlyph({
           // Every corner through the About rest camera, relative to the
           // stack's anchor (the group this draws in sits there, at the
           // anchor's depth scale), so the fan opens the way the live books do.
-          const project = bootReadingProjector();
+          const project = bootReadingProjector(camera);
           const toBootPoints = (
             points: ReturnType<typeof readingBookCoverPerspectiveElevation>,
           ) =>
@@ -1250,10 +1257,12 @@ function LandmarkGlyph({
   landmark,
   readingBooks,
   readingBookColors,
+  camera,
 }: {
   landmark: AboutBootLandmark;
   readingBooks: BootReadingBook[];
   readingBookColors: Record<string, ReadingBookEdgeColor>;
+  camera: AboutBootCamera;
 }): ReactNode {
   const width = landmark.profile.width * SCENE_TO_BOOT_SVG;
   const height = landmark.profile.height * SCENE_TO_BOOT_SVG;
@@ -1293,7 +1302,11 @@ function LandmarkGlyph({
       return <RoleIconStackGlyph />;
     case "reading-stack":
       return (
-        <ReadingStackGlyph books={readingBooks} colors={readingBookColors} />
+        <ReadingStackGlyph
+          books={readingBooks}
+          colors={readingBookColors}
+          camera={camera}
+        />
       );
     default:
       return assertNever(glyph);
@@ -1338,10 +1351,16 @@ export function BootScreenArtwork({
   sceneRef,
   motesRef,
   includeStageScript = false,
+  camera = ABOUT_BOOT_CAMERA,
+  shelfOnly = false,
 }: BootScreenProps & {
   sceneRef?: RefObject<SVGSVGElement | null>;
   motesRef?: RefObject<HTMLDivElement | null>;
   includeStageScript?: boolean;
+  /** The illustrated room supplies its resting viewport camera; legacy boot keeps its authored projection. */
+  camera?: AboutBootCamera;
+  /** Empty first paint omits landmarks and cover requests. */
+  shelfOnly?: boolean;
 }) {
   const cadence = ABOUT_BOOT_CADENCE;
   const keyframes = bootCssKeyframes(
@@ -1386,54 +1405,47 @@ export function BootScreenArtwork({
               >
                 <g className="stacks-boot-supports">
                   {([-1, 1] as const).map((side) => {
-                    const projection = aboutBootShelfSupportProjection(side);
+                    const projection = aboutBootShelfSupportProjection(
+                      side,
+                      camera,
+                    );
                     return (
                       <g
                         data-boot-support={side}
                         key={side}
-                        style={bootParallaxStyle([
-                          side *
-                            (SHELF_GEOMETRY.width / 2 -
-                              SHELF_GEOMETRY.strapInsetX),
-                          (SHELF_GEOMETRY.groundY +
-                            SHELF_GEOMETRY.top.centerY) /
-                            2,
-                          SHELF_GEOMETRY.strapZ,
-                        ])}
+                        style={bootParallaxStyle(
+                          [
+                            side *
+                              (SHELF_GEOMETRY.width / 2 -
+                                SHELF_GEOMETRY.strapInsetX),
+                            (SHELF_GEOMETRY.groundY +
+                              SHELF_GEOMETRY.top.centerY) /
+                              2,
+                            SHELF_GEOMETRY.strapZ,
+                          ],
+                          camera,
+                        )}
                       >
-                        <rect
-                          data-boot-support-upright={side}
-                          x={bootFixed(
-                            projection.upright.x * SCENE_TO_BOOT_SVG,
-                          )}
-                          y={bootFixed(
-                            -projection.upright.top * SCENE_TO_BOOT_SVG,
-                          )}
-                          width={bootFixed(
-                            projection.upright.width * SCENE_TO_BOOT_SVG,
-                          )}
-                          height={bootFixed(
-                            (projection.upright.top -
-                              projection.upright.bottom) *
-                              SCENE_TO_BOOT_SVG,
-                          )}
-                          rx="2"
-                        />
-                        <rect
-                          data-boot-support-foot={side}
-                          x={bootFixed(projection.foot.x * SCENE_TO_BOOT_SVG)}
-                          y={bootFixed(
-                            -projection.foot.top * SCENE_TO_BOOT_SVG,
-                          )}
-                          width={bootFixed(
-                            projection.foot.width * SCENE_TO_BOOT_SVG,
-                          )}
-                          height={bootFixed(
-                            (projection.foot.top - projection.foot.bottom) *
-                              SCENE_TO_BOOT_SVG,
-                          )}
-                          rx="1.5"
-                        />
+                        {(["foot", "upright"] as const).map((part) => (
+                          <g
+                            key={part}
+                            {...{ [`data-boot-support-${part}`]: side }}
+                          >
+                            {Object.entries(projection[part].faces).map(
+                              ([face, value]) => (
+                                <polygon
+                                  key={face}
+                                  suppressHydrationWarning={shelfOnly}
+                                  data-boot-box-face={face}
+                                  points={bootPoints(value.points)}
+                                  visibility={
+                                    value.visible ? "visible" : "hidden"
+                                  }
+                                />
+                              ),
+                            )}
+                          </g>
+                        ))}
                       </g>
                     );
                   })}
@@ -1443,26 +1455,36 @@ export function BootScreenArtwork({
                     it behind its feet, not the other way round. */}
                 <g className="stacks-boot-planks">
                   {SHELF_PLANKS.map((plank) => {
-                    const projection = aboutBootPlankProjection(
-                      plank,
-                      ABOUT_BOOT_CAMERA,
-                    );
+                    const projection = aboutBootPlankProjection(plank, camera);
                     return (
                       <g
                         data-boot-plank-faces={plank.id}
                         key={plank.id}
-                        style={bootParallaxStyle([
-                          0,
-                          plank.centerY,
-                          plank.centerZ + plank.depth / 2,
-                        ])}
+                        style={bootParallaxStyle(
+                          [0, plank.centerY, plank.centerZ + plank.depth / 2],
+                          camera,
+                        )}
                       >
+                        {(["left", "right"] as const).map((side) => (
+                          <polygon
+                            key={side}
+                            suppressHydrationWarning={shelfOnly}
+                            data-boot-plank-side={side}
+                            data-shelf-id={plank.id}
+                            points={bootPoints(projection[side].points)}
+                            visibility={
+                              projection[side].visible ? "visible" : "hidden"
+                            }
+                          />
+                        ))}
                         <polygon
+                          suppressHydrationWarning={shelfOnly}
                           data-boot-plank-top=""
                           data-shelf-id={plank.id}
                           points={bootPoints(projection.top)}
                         />
                         <polygon
+                          suppressHydrationWarning={shelfOnly}
                           data-boot-plank=""
                           data-shelf-id={plank.id}
                           data-depth={plank.depth}
@@ -1473,107 +1495,127 @@ export function BootScreenArtwork({
                   })}
                 </g>
                 <g className="stacks-boot-landmarks">
-                  {ABOUT_BOOT_PAINT_COMPOSITION.map(
-                    ({ landmark, cadenceSlot }) => (
-                      <g
-                        className="stacks-boot-item"
-                        data-landmark-id={landmark.id}
-                        data-shelf-id={landmark.shelf}
-                        data-cadence-slot={cadenceSlot}
-                        key={landmark.id}
-                        style={
-                          {
-                            ...("colorProfile" in landmark
-                              ? {
-                                  "--stacks-boot-object-light":
-                                    landmark.colorProfile.light,
-                                  "--stacks-boot-object-dark":
-                                    landmark.colorProfile.dark,
-                                }
-                              : {}),
-                            ...bootPlacementStyle([
-                              landmark.x,
-                              SHELF_SURFACE[landmark.shelf],
-                              landmark.z,
-                            ]),
-                          } as BootStyle
-                        }
-                      >
+                  {!shelfOnly &&
+                    ABOUT_BOOT_PAINT_COMPOSITION.map(
+                      ({ landmark, cadenceSlot }) => (
                         <g
-                          className="stacks-boot-item-motion"
-                          style={{
-                            animationName: `stacks-boot-reveal-${cadenceSlot}`,
-                          }}
+                          className="stacks-boot-item"
+                          data-landmark-id={landmark.id}
+                          data-shelf-id={landmark.shelf}
+                          data-cadence-slot={cadenceSlot}
+                          key={landmark.id}
+                          style={
+                            {
+                              ...("colorProfile" in landmark
+                                ? {
+                                    "--stacks-boot-object-light":
+                                      landmark.colorProfile.light,
+                                    "--stacks-boot-object-dark":
+                                      landmark.colorProfile.dark,
+                                  }
+                                : {}),
+                              ...bootPlacementStyle(
+                                [
+                                  landmark.x,
+                                  SHELF_SURFACE[landmark.shelf],
+                                  landmark.z,
+                                ],
+                                camera,
+                              ),
+                            } as BootStyle
+                          }
                         >
-                          <LandmarkGlyph
-                            landmark={landmark}
-                            readingBooks={resolvedReadingBooks}
-                            readingBookColors={resolvedReadingBookColors}
-                          />
+                          <g
+                            className="stacks-boot-item-motion"
+                            style={{
+                              animationName: `stacks-boot-reveal-${cadenceSlot}`,
+                            }}
+                          >
+                            <LandmarkGlyph
+                              landmark={landmark}
+                              readingBooks={resolvedReadingBooks}
+                              readingBookColors={resolvedReadingBookColors}
+                              camera={camera}
+                            />
+                          </g>
                         </g>
-                      </g>
-                    ),
-                  )}
+                      ),
+                    )}
                 </g>
-                <g
-                  className="stacks-boot-item stacks-boot-floor-prop"
-                  data-boot-ground-prop="dumbbell"
-                  style={
-                    {
-                      "--stacks-boot-object-light": "#76716d",
-                      "--stacks-boot-object-dark": "#595653",
-                      ...bootPlacementStyle(ABOUT_MODEL_POSES.dumbbell.base),
-                    } as BootStyle
-                  }
-                >
-                  <ModelSilhouetteGlyph
-                    id="dumbbell"
-                    width={
-                      ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[0] *
-                      SCENE_TO_BOOT_SVG
-                    }
-                    height={
-                      ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[1] *
-                      SCENE_TO_BOOT_SVG
-                    }
-                  />
-                </g>
-                {/* The two golf balls resting on the grass in front of the
-                    shelf, at the live poses UnitAbout seats them at. */}
-                {ABOUT_GOLF_BALLS.map((ball) => {
-                  const placed = projectAboutBootPoint(
-                    [
-                      ball.base[0],
-                      ball.base[1] + GOLF_BALL_RADIUS,
-                      ball.base[2],
-                    ],
-                    ABOUT_BOOT_CAMERA,
-                  );
-                  return (
-                    <circle
-                      className="stacks-boot-item stacks-boot-floor-prop stacks-boot-golf-ball"
-                      data-boot-ground-prop="golf-ball"
-                      data-golf-ball={ball.id}
-                      key={ball.id}
+                {!shelfOnly && (
+                  <g className="stacks-boot-floor-props">
+                    <g
+                      className="stacks-boot-item stacks-boot-floor-prop"
+                      data-boot-ground-prop="dumbbell"
                       style={
                         {
-                          "--stacks-boot-object-light": "#f3efe6",
-                          "--stacks-boot-object-dark": "#cfcac0",
-                          ...bootParallaxStyle([
-                            ball.base[0],
-                            ball.base[1] + GOLF_BALL_RADIUS,
-                            ball.base[2],
-                          ]),
+                          "--stacks-boot-object-light": "#76716d",
+                          "--stacks-boot-object-dark": "#595653",
+                          ...bootPlacementStyle(
+                            ABOUT_MODEL_POSES.dumbbell.base,
+                            camera,
+                          ),
                         } as BootStyle
                       }
-                      cx={bootFixed(placed.x * SCENE_TO_BOOT_SVG)}
-                      cy={bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}
-                      r={bootFixed(
-                        GOLF_BALL_RADIUS * placed.scale * SCENE_TO_BOOT_SVG,
-                      )}
-                    />
-                  );
-                })}
+                    >
+                      <g className="stacks-boot-item-motion">
+                        <ModelSilhouetteGlyph
+                          id="dumbbell"
+                          width={
+                            ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[0] *
+                            SCENE_TO_BOOT_SVG
+                          }
+                          height={
+                            ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[1] *
+                            SCENE_TO_BOOT_SVG
+                          }
+                        />
+                      </g>
+                    </g>
+                    {/* The two golf balls resting on the grass in front of the
+                    shelf, at the live poses UnitAbout seats them at. */}
+                    {ABOUT_GOLF_BALLS.map((ball) => {
+                      const placed = projectAboutBootPoint(
+                        [
+                          ball.base[0],
+                          ball.base[1] + GOLF_BALL_RADIUS,
+                          ball.base[2],
+                        ],
+                        camera,
+                      );
+                      return (
+                        <g className="stacks-boot-item-motion" key={ball.id}>
+                          <circle
+                            className="stacks-boot-item stacks-boot-floor-prop stacks-boot-golf-ball"
+                            data-boot-ground-prop="golf-ball"
+                            data-golf-ball={ball.id}
+                            style={
+                              {
+                                "--stacks-boot-object-light": "#f3efe6",
+                                "--stacks-boot-object-dark": "#cfcac0",
+                                ...bootParallaxStyle(
+                                  [
+                                    ball.base[0],
+                                    ball.base[1] + GOLF_BALL_RADIUS,
+                                    ball.base[2],
+                                  ],
+                                  camera,
+                                ),
+                              } as BootStyle
+                            }
+                            cx={bootFixed(placed.x * SCENE_TO_BOOT_SVG)}
+                            cy={bootFixed(-placed.y * SCENE_TO_BOOT_SVG)}
+                            r={bootFixed(
+                              GOLF_BALL_RADIUS *
+                                placed.scale *
+                                SCENE_TO_BOOT_SVG,
+                            )}
+                          />
+                        </g>
+                      );
+                    })}
+                  </g>
+                )}
               </svg>
               <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
                 {Array.from(

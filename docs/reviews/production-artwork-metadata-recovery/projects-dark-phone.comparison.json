@@ -1,0 +1,184 @@
+{
+  "unit": "projects",
+  "label": "dark-phone",
+  "url": "http://127.0.0.1:3322/projects?harness=1&nomeadow=1&perf-profile=no-composer",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "raster": [
+    780,
+    1688
+  ],
+  "elapsedMs": 33892,
+  "errors": [],
+  "exactSavedCamera": true,
+  "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+  "cssScale": 0.8422535211267606,
+  "toleranceCssPx": 3,
+  "maxCssResidualUpperBound": 0,
+  "compatible": true,
+  "comparisons": [
+    {
+      "owner": "shelf",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "e16e9f0cc2bd9894936e25851b4beabc7e1a3895879b3dbbe0f33daee0f2553f",
+      "newMaskSha256": "e16e9f0cc2bd9894936e25851b4beabc7e1a3895879b3dbbe0f33daee0f2553f"
+    },
+    {
+      "owner": "mac",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "9ade00dc6c0a2ef751135b90659fe981418c00f987b7b0705cb0fa2cdae7159b",
+      "newMaskSha256": "9ade00dc6c0a2ef751135b90659fe981418c00f987b7b0705cb0fa2cdae7159b"
+    },
+    {
+      "owner": "photo",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "6d84d9641ab6d825be0523c533250e53a325e1b48df875b83b829976bc243fc8",
+      "newMaskSha256": "6d84d9641ab6d825be0523c533250e53a325e1b48df875b83b829976bc243fc8"
+    },
+    {
+      "owner": "trophy",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "8837a11bef2407e19ad1392cd66bc815f8ce544e29cee1eb816cae2155baaab1",
+      "newMaskSha256": "8837a11bef2407e19ad1392cd66bc815f8ce544e29cee1eb816cae2155baaab1"
+    },
+    {
+      "owner": "arduino",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "49968af8e366423c1785c7c4ad85a734925091fc2e262044cab7f3d770a4a4d4",
+      "newMaskSha256": "49968af8e366423c1785c7c4ad85a734925091fc2e262044cab7f3d770a4a4d4"
+    },
+    {
+      "owner": "card",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "7eef7d568913effd77d73f6a75795fce519cc46675ad35f7a793b2272f57b219",
+      "newMaskSha256": "7eef7d568913effd77d73f6a75795fce519cc46675ad35f7a793b2272f57b219"
+    },
+    {
+      "owner": "lamp",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "47919e67b4245ad6c7443e0bd703415c1f27b5310a44ca8e9afbad9f287b0e0c",
+      "newMaskSha256": "47919e67b4245ad6c7443e0bd703415c1f27b5310a44ca8e9afbad9f287b0e0c"
+    },
+    {
+      "owner": "action-projects-weightlifting",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "bb38ea49a6903df7038663aa05d9aeaf76e84a77749d8939c85cbe9a0c1369f1",
+      "newMaskSha256": "bb38ea49a6903df7038663aa05d9aeaf76e84a77749d8939c85cbe9a0c1369f1"
+    },
+    {
+      "owner": "link-projects-dice-bottom-left",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "6b838ccba0d60db8e1fcd88858fc49a633b9d2020332c1fd6405b3c95674c1ed",
+      "newMaskSha256": "6b838ccba0d60db8e1fcd88858fc49a633b9d2020332c1fd6405b3c95674c1ed"
+    },
+    {
+      "owner": "link-projects-dice-bottom-center",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "888f72b1cddb8cf3fca588590f1aee5f337d393c34c5de6c387d91485543c10f",
+      "newMaskSha256": "888f72b1cddb8cf3fca588590f1aee5f337d393c34c5de6c387d91485543c10f"
+    },
+    {
+      "owner": "link-projects-dice-bottom-right",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "7c8a218dab8e473f792f6eab78bf417e6905082b676280575f9c28012e4e9795",
+      "newMaskSha256": "7c8a218dab8e473f792f6eab78bf417e6905082b676280575f9c28012e4e9795"
+    },
+    {
+      "owner": "link-projects-dice-middle-left",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "8b44b1652720c33319e60212614381f31d5f5643d34c3c966331f277ad25cecf",
+      "newMaskSha256": "8b44b1652720c33319e60212614381f31d5f5643d34c3c966331f277ad25cecf"
+    },
+    {
+      "owner": "link-projects-dice-middle-right",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "85cf3546b26fedab56607f0cd2f8ef12b272a52e75eb9cb5cc42c63b82fc4d37",
+      "newMaskSha256": "85cf3546b26fedab56607f0cd2f8ef12b272a52e75eb9cb5cc42c63b82fc4d37"
+    },
+    {
+      "owner": "link-projects-dice-top",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "8f696dc2c78dc3c18834c63ff4e8f11403eba1c046ace66c8d4e45d73f9f4c45",
+      "newMaskSha256": "8f696dc2c78dc3c18834c63ff4e8f11403eba1c046ace66c8d4e45d73f9f4c45"
+    },
+    {
+      "owner": "action-projects-homework",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "1e1d20c5d82afd25e15ac37d69eb266a5cb26a1163de531578912598256a4a69",
+      "newMaskSha256": "1e1d20c5d82afd25e15ac37d69eb266a5cb26a1163de531578912598256a4a69"
+    },
+    {
+      "owner": "grab-photo-projects-wwdc-v8",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "5b6d3134164e39cf719bd5ba596024e8e04e2c431dcc87c16dee80d26bc1c786",
+      "newMaskSha256": "5b6d3134164e39cf719bd5ba596024e8e04e2c431dcc87c16dee80d26bc1c786"
+    },
+    {
+      "owner": "shimmer-apple",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "96cb7e0480d307a8ad65b1bef081c098fe6a0a89ead211e5e70d85401ed5afef",
+      "newMaskSha256": "96cb7e0480d307a8ad65b1bef081c098fe6a0a89ead211e5e70d85401ed5afef"
+    },
+    {
+      "owner": "grab-plant-projects-small",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "49c62b2b89cf022e8aeb7d27892923c0c10b875bd6d534fbca45f77f2bdd99ca",
+      "newMaskSha256": "49c62b2b89cf022e8aeb7d27892923c0c10b875bd6d534fbca45f77f2bdd99ca"
+    },
+    {
+      "owner": "grab-phone-projects",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "6e75531dd127ed4c59e5c938e8e67c6a178a5cc3614d14ead2b31e07491d3761",
+      "newMaskSha256": "6e75531dd127ed4c59e5c938e8e67c6a178a5cc3614d14ead2b31e07491d3761"
+    },
+    {
+      "owner": "grab-photo-projects-facebook-v8",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "f7aa2d77cde448d71420ec6809b6b0fe0a52d22c68c9105265712629145be3af",
+      "newMaskSha256": "f7aa2d77cde448d71420ec6809b6b0fe0a52d22c68c9105265712629145be3af"
+    }
+  ],
+  "dataIdentitySha256": null
+}

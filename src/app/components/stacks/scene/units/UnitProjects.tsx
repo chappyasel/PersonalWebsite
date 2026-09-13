@@ -20,7 +20,7 @@ import {
 } from "../aboutCoordinationLayout";
 import { appleApproach, appleTurn } from "../appleApproachState";
 import { APPLE_OUTLINE } from "../appleOutline";
-import { EggLamp, Sway } from "../eggs";
+import { EggLamp } from "../eggs";
 import { homeworkApproach, homeworkTurn } from "../homeworkApproachState";
 import { macApproach } from "../macApproachState";
 import {
@@ -796,16 +796,21 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           colliderProfile="foliage-base"
           massKg={1.4}
         >
-          <Sway unitIndex={index} amount={0.022} rate={0.34} phase={1.8}>
+          <group name="room-sway">
             <React.Suspense fallback={null}>
               <ModelProp
                 url="/models/potted-plant.glb"
+                plantWind={{
+                  kind: "potted-plant",
+                  unitIndex: index,
+                  hoverKey: "grab:plant:projects-small",
+                }}
                 dark={dark}
                 rotation={[0, 0.45, 0]}
                 scale={0.78}
               />
             </React.Suspense>
-          </Sway>
+          </group>
         </Grabbable>
       </ShelfUnit>
       {/* Owner-picked Yucca Plant (Isa Lousberg, CC0), grounded exactly at
@@ -825,6 +830,11 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
         <React.Suspense fallback={null}>
           <ModelProp
             url="/models/yucca-plant.glb"
+            plantWind={{
+              kind: "yucca-plant",
+              unitIndex: index,
+              hoverKey: "grab:plant:projects-yucca",
+            }}
             dark={dark}
             variant="recolor"
             atlasOverride={dark ? YUCCA_ATLAS_DARK : YUCCA_ATLAS_LIGHT}

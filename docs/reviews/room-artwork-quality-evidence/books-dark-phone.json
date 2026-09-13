@@ -1,0 +1,477 @@
+{
+  "version": 1,
+  "unit": "books",
+  "label": "dark-phone",
+  "method": "Fresh 4x owner mask/colour/detail rendering at immutable saved camera; approved palette and exact shelf polygons retained with solid plank tops occluding inner end-cap faces; corner-preserving contour fit",
+  "sourceRevision": "27c0155",
+  "inputArtworkSha256": "2aa0ebf90beaada22613ef19cf5101bb57c590abe90ca06981684aa464294147",
+  "outputArtworkSha256": "d170804ee651c0760ebdc61ab34bbf30ec366aac02a6d2313aed1846644020c9",
+  "captureContractSha256": "74ecc72b90309136a983ab826b01cf2f190ff5ce915ae142cc3dd858f60a6582",
+  "scale": 4,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+      "box": [
+        192,
+        626,
+        59,
+        80
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 568,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "stacks-cover-the-12-levers",
+      "box": [
+        283,
+        627,
+        58,
+        79
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 580,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "stacks-cover-superminds",
+      "box": [
+        373,
+        628,
+        57,
+        78
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 595,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "stacks-cover-bowling-alone",
+      "box": [
+        517,
+        628,
+        58,
+        78
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 591,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "books-packed-top",
+      "box": [
+        200,
+        626,
+        381,
+        79
+      ],
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "books-bookend-top",
+      "box": [
+        195,
+        668,
+        32,
+        37
+      ],
+      "textures": []
+    },
+    {
+      "id": "books-packed-lower",
+      "box": [
+        211,
+        749,
+        365,
+        84
+      ],
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "books-bookend-lower",
+      "box": [
+        205,
+        789,
+        29,
+        40
+      ],
+      "textures": []
+    },
+    {
+      "id": "stacks-cover-barking-up-the-wrong-tree",
+      "box": [
+        207,
+        752,
+        59,
+        80
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 578,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "stacks-cover-homo-deus",
+      "box": [
+        330,
+        756,
+        56,
+        78
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 576,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "stacks-cover-life-3-0",
+      "box": [
+        421,
+        754,
+        60,
+        81
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 580,
+          "src": null
+        }
+      ]
+    },
+    {
+      "id": "stacks-cover-thinking-fast-and-slow",
+      "box": [
+        513,
+        753,
+        61,
+        83
+      ],
+      "textures": [
+        {
+          "width": 384,
+          "height": 571,
+          "src": null
+        }
+      ]
+    }
+  ],
+  "details": [
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-the-art-of-doing-science-and-engineering.webp",
+      "file": "details/54cb65ca3be0c65e21542edb6971e27b739df3964c4747b1dd00bad3b7ecc883.webp",
+      "sha256": "54cb65ca3be0c65e21542edb6971e27b739df3964c4747b1dd00bad3b7ecc883",
+      "bytes": 6062,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-the-12-levers.webp",
+      "file": "details/710e480cf97494612f314648dcc071c42af55c06a6fa433b9b90bdbca324791b.webp",
+      "sha256": "710e480cf97494612f314648dcc071c42af55c06a6fa433b9b90bdbca324791b",
+      "bytes": 9088,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-superminds.webp",
+      "file": "details/bbce1cf8f89e090d0c4b16a0898ab3cf6978daffd926683c3269480ee725b828.webp",
+      "sha256": "bbce1cf8f89e090d0c4b16a0898ab3cf6978daffd926683c3269480ee725b828",
+      "bytes": 11994,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-bowling-alone.webp",
+      "file": "details/47f89a2d7a67ea63c82fd59f599bbe847555794a4c1ed882af17f657a462f4d8.webp",
+      "sha256": "47f89a2d7a67ea63c82fd59f599bbe847555794a4c1ed882af17f657a462f4d8",
+      "bytes": 12116,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/books-packed-top.webp",
+      "file": "details/3d69ecb6dffb84061ddcb838c9ac7b98a6b4de7698f27b6fa8a35dcaa561b70a.webp",
+      "sha256": "3d69ecb6dffb84061ddcb838c9ac7b98a6b4de7698f27b6fa8a35dcaa561b70a",
+      "bytes": 19846,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/books-packed-lower.webp",
+      "file": "details/313da697672d98f116a7773abf8a2a6f1e786439d4e87658e130a0818adc2eb3.webp",
+      "sha256": "313da697672d98f116a7773abf8a2a6f1e786439d4e87658e130a0818adc2eb3",
+      "bytes": 26526,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-barking-up-the-wrong-tree.webp",
+      "file": "details/826564964b54038e2101e988e3cd03087db3c369435e959a282fb4dbbe328077.webp",
+      "sha256": "826564964b54038e2101e988e3cd03087db3c369435e959a282fb4dbbe328077",
+      "bytes": 14660,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-homo-deus.webp",
+      "file": "details/309e759ead96fe42d3e22a639382cbaaaf1b5c090f6cc49cd9e843c52f713fcb.webp",
+      "sha256": "309e759ead96fe42d3e22a639382cbaaaf1b5c090f6cc49cd9e843c52f713fcb",
+      "bytes": 8904,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-life-3-0.webp",
+      "file": "details/21ae60b3ae63ba93245dc706acd7350027c527e55e6cf8e355300dcda76661a8.webp",
+      "sha256": "21ae60b3ae63ba93245dc706acd7350027c527e55e6cf8e355300dcda76661a8",
+      "bytes": 9828,
+      "mime": "image/webp"
+    },
+    {
+      "href": "/room-boot-shelf-prototype/books/dark-phone/stacks-cover-thinking-fast-and-slow.webp",
+      "file": "details/a164ebb2b1519b41d1aaef02a1036db3fc53f2f0accee9e8ce5d3a633a9b731e.webp",
+      "sha256": "a164ebb2b1519b41d1aaef02a1036db3fc53f2f0accee9e8ce5d3a633a9b731e",
+      "bytes": 6820,
+      "mime": "image/webp"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
+import RoomHomePage from "../RoomHomePage";
 import {
   HOMEPAGE_DESCRIPTION,
   roomStopMetadata,
   roomViewport,
 } from "../homeMetadata";
-import HomePage from "../page";
 import { type Metadata, type Viewport } from "next";
 
 // The room, opened on the About shelf. That stop's URL is the homepage itself; this path exists so a link to it unfurls as About.
@@ -21,5 +21,5 @@ export const metadata: Metadata = roomStopMetadata({
 export const viewport: Viewport = roomViewport;
 
 export default function AboutPage() {
-  return <HomePage />;
+  return <RoomHomePage initialUnit={0} />;
 }

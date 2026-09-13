@@ -1,0 +1,791 @@
+{
+  "version": 1,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "scale": 4,
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "pinboard",
+      "box": [
+        290,
+        213,
+        303,
+        211
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "pinboard.mask.png",
+        "colour": "pinboard.colour.png",
+        "detail": "pinboard.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 256,
+          "height": 256,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-trophy-side-v8",
+      "box": [
+        304,
+        255,
+        107,
+        128
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-trophy-side-v8.mask.png",
+        "colour": "grab-photo-training-trophy-side-v8.colour.png",
+        "detail": "grab-photo-training-trophy-side-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-trophy-side.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-stage-kneeling-v8",
+      "box": [
+        408,
+        238,
+        58,
+        66
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-stage-kneeling-v8.mask.png",
+        "colour": "grab-photo-training-stage-kneeling-v8.colour.png",
+        "detail": "grab-photo-training-stage-kneeling-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-stage-kneeling.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-stage-side-v8",
+      "box": [
+        461,
+        243,
+        56,
+        66
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-stage-side-v8.mask.png",
+        "colour": "grab-photo-training-stage-side-v8.colour.png",
+        "detail": "grab-photo-training-stage-side-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-stage-side.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-trophy-front-v8",
+      "box": [
+        519,
+        239,
+        57,
+        66
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-trophy-front-v8.mask.png",
+        "colour": "grab-photo-training-trophy-front-v8.colour.png",
+        "detail": "grab-photo-training-trophy-front-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 205,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-trophy-front.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "action-training-figure-aggregate-strength",
+      "box": [
+        409,
+        308,
+        79,
+        51
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "action-training-figure-aggregate-strength.mask.png",
+        "colour": "action-training-figure-aggregate-strength.colour.png",
+        "detail": "action-training-figure-aggregate-strength.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 972,
+          "height": 579,
+          "src": "/images/stacks/training-figures/aggregate-strength.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "action-training-figure-big-three",
+      "box": [
+        489,
+        308,
+        79,
+        51
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "action-training-figure-big-three.mask.png",
+        "colour": "action-training-figure-big-three.colour.png",
+        "detail": "action-training-figure-big-three.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 964,
+          "height": 568,
+          "src": "/images/stacks/training-figures/big-three.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "action-training-figure-dexa-history",
+      "box": [
+        455,
+        354,
+        69,
+        57
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "action-training-figure-dexa-history.mask.png",
+        "colour": "action-training-figure-dexa-history.colour.png",
+        "detail": "action-training-figure-dexa-history.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 2000,
+          "height": 1600,
+          "src": "/images/stacks/training-figures/dexa-lean-mass-vs-bodyweight.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-gym-pose-v8",
+      "box": [
+        248,
+        418,
+        102,
+        12
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-gym-pose-v8.mask.png",
+        "colour": "grab-photo-training-gym-pose-v8.colour.png",
+        "detail": "grab-photo-training-gym-pose-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 192,
+          "height": 256,
+          "src": "/images/stacks/v8/256/training-gym-pose.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-deadlift-v8",
+      "box": [
+        350,
+        418,
+        99,
+        11
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-deadlift-v8.mask.png",
+        "colour": "grab-photo-training-deadlift-v8.colour.png",
+        "detail": "grab-photo-training-deadlift-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 242,
+          "src": "/images/stacks/v8/256/training-deadlift.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-bench-v8",
+      "box": [
+        457,
+        417,
+        95,
+        11
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-bench-v8.mask.png",
+        "colour": "grab-photo-training-bench-v8.colour.png",
+        "detail": "grab-photo-training-bench-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 249,
+          "src": "/images/stacks/v8/256/training-bench.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "artifact-lift-table",
+      "box": [
+        556,
+        417,
+        86,
+        11
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "artifact-lift-table.mask.png",
+        "colour": "artifact-lift-table.colour.png",
+        "detail": "artifact-lift-table.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 1275,
+          "height": 1650,
+          "src": "/images/stacks/artifacts/lift-table.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-dumbbell-training-right",
+      "box": [
+        151,
+        361,
+        122,
+        70
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-dumbbell-training-right.mask.png",
+        "colour": "grab-dumbbell-training-right.colour.png",
+        "detail": "grab-dumbbell-training-right.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-protein",
+      "box": [
+        599,
+        297,
+        85,
+        128
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-protein.mask.png",
+        "colour": "grab-protein.colour.png",
+        "detail": "grab-protein.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 1024,
+          "height": 330,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-gorilla-mode",
+      "box": [
+        644,
+        324,
+        86,
+        105
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-gorilla-mode.mask.png",
+        "colour": "grab-gorilla-mode.colour.png",
+        "detail": "grab-gorilla-mode.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 1024,
+          "height": 320,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-pre-x",
+      "box": [
+        689,
+        325,
+        70,
+        100
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-pre-x.mask.png",
+        "colour": "grab-pre-x.colour.png",
+        "detail": "grab-pre-x.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 1024,
+          "height": 300,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-shaker-training",
+      "box": [
+        726,
+        292,
+        86,
+        140
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-shaker-training.mask.png",
+        "colour": "grab-shaker-training.colour.png",
+        "detail": "grab-shaker-training.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-shaker-training-navy",
+      "box": [
+        759,
+        295,
+        85,
+        134
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-shaker-training-navy.mask.png",
+        "colour": "grab-shaker-training-navy.colour.png",
+        "detail": "grab-shaker-training-navy.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-shaker-training-amber",
+      "box": [
+        801,
+        293,
+        85,
+        137
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-shaker-training-amber.mask.png",
+        "colour": "grab-shaker-training-amber.colour.png",
+        "detail": "grab-shaker-training-amber.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-golf-group-v8",
+      "box": [
+        166,
+        571,
+        116,
+        95
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-golf-group-v8.mask.png",
+        "colour": "grab-photo-training-golf-group-v8.colour.png",
+        "detail": "grab-photo-training-golf-group-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/training-golf-group.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-golf-flag-v8",
+      "box": [
+        290,
+        559,
+        88,
+        106
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-golf-flag-v8.mask.png",
+        "colour": "grab-photo-training-golf-flag-v8.colour.png",
+        "detail": "grab-photo-training-golf-flag-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 512,
+          "src": "/images/stacks/v8/512/training-golf-flag.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-photo-training-pickleball-group-v8",
+      "box": [
+        432,
+        567,
+        115,
+        92
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-photo-training-pickleball-group-v8.mask.png",
+        "colour": "grab-photo-training-pickleball-group-v8.colour.png",
+        "detail": "grab-photo-training-pickleball-group-v8.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 512,
+          "height": 384,
+          "src": "/images/stacks/v8/512/training-pickleball-group.webp"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-golf-tee-shelf-left",
+      "box": [
+        186,
+        657,
+        42,
+        13
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-golf-tee-shelf-left.mask.png",
+        "colour": "grab-golf-tee-shelf-left.colour.png",
+        "detail": "grab-golf-tee-shelf-left.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-golf-tee-shelf-middle",
+      "box": [
+        245,
+        656,
+        41,
+        13
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-golf-tee-shelf-middle.mask.png",
+        "colour": "grab-golf-tee-shelf-middle.colour.png",
+        "detail": "grab-golf-tee-shelf-middle.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-golf-tee-shelf-right",
+      "box": [
+        321,
+        653,
+        39,
+        14
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-golf-tee-shelf-right.mask.png",
+        "colour": "grab-golf-tee-shelf-right.colour.png",
+        "detail": "grab-golf-tee-shelf-right.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-ball-tennis",
+      "box": [
+        368,
+        620,
+        43,
+        42
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-ball-tennis.mask.png",
+        "colour": "grab-ball-tennis.colour.png",
+        "detail": "grab-ball-tennis.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-ball-baseball",
+      "box": [
+        732,
+        612,
+        44,
+        44
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-ball-baseball.mask.png",
+        "colour": "grab-ball-baseball.colour.png",
+        "detail": "grab-ball-baseball.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 256,
+          "height": 128,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "golf-ball-shelf-a",
+      "box": [
+        396,
+        624,
+        32,
+        32
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "golf-ball-shelf-a.mask.png",
+        "colour": "golf-ball-shelf-a.colour.png",
+        "detail": "golf-ball-shelf-a.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "golf-ball-shelf-b",
+      "box": [
+        420,
+        618,
+        32,
+        32
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "golf-ball-shelf-b.mask.png",
+        "colour": "golf-ball-shelf-b.colour.png",
+        "detail": "golf-ball-shelf-b.detail.webp"
+      },
+      "textures": [],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-dumbbell-training-left",
+      "box": [
+        537,
+        574,
+        180,
+        80
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-dumbbell-training-left.mask.png",
+        "colour": "grab-dumbbell-training-left.colour.png",
+        "detail": "grab-dumbbell-training-left.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 128,
+          "height": 128,
+          "src": "/models/atlas-dark.png"
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "grab-basketball",
+      "box": [
+        729,
+        522,
+        126,
+        127
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "grab-basketball.mask.png",
+        "colour": "grab-basketball.colour.png",
+        "detail": "grab-basketball.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 32,
+          "height": 32,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    }
+  ],
+  "source": "live geometry at saved camera and validated unit-local rest transforms",
+  "contractSha256": "9a3e6be0cb0be0e201890293ff259a7c23b7ae6e1b16773cb97716890bf19faf",
+  "errors": [],
+  "files": {
+    "pinboard.mask.png": "7703923460dde5376eaa67087fb81e7fa13f6484cc1c671632d0572f590d812c",
+    "pinboard.colour.png": "b085d0c90507b3e4a8d72e72df2b4c7b05672a12d06f090b8d04bc0d257279a2",
+    "pinboard.detail.webp": "696c23063f8eff2ae2364ab4c3061f93bcfc75ede7e910e7aa87726aa17a76f8",
+    "grab-photo-training-trophy-side-v8.mask.png": "5f4f640bbea9cbb49cf92a154c86fdda0592cf40df50dc618ceda9a00da874f4",
+    "grab-photo-training-trophy-side-v8.colour.png": "8b05b5516d71886d1ee1756f9947d6b7aa0099b27319cb1a1d11929eea80d1a7",
+    "grab-photo-training-trophy-side-v8.detail.webp": "25b1ec4cd533de9953d681a7b854df2f173414681caf3390c2e92e79262a40bd",
+    "grab-photo-training-stage-kneeling-v8.mask.png": "e9f7ed66b16568b71142c6ef4042655044d736fb374a081e03a66b730f41e405",
+    "grab-photo-training-stage-kneeling-v8.colour.png": "50e743f240750bb04edb5a4bf5d9cf6551205d9baeb26601ff14220473125a10",
+    "grab-photo-training-stage-kneeling-v8.detail.webp": "46ca631606dc7c47fa2934d51af700dd40bf9df081c81754d3d5fb41a8a8ddbe",
+    "grab-photo-training-stage-side-v8.mask.png": "c164f6bcdc9bfc34f865c32d740f7600473e2877007f3ff4e3a35408f9f0470e",
+    "grab-photo-training-stage-side-v8.colour.png": "a16003be08e7a0ca3e748cf931437a06de77b7f318114d87dc4cb471ff9196e1",
+    "grab-photo-training-stage-side-v8.detail.webp": "615702ec9f1eeefae34cf853bc02939ec0b2508ea01661b8fc32f3f0b871deea",
+    "grab-photo-training-trophy-front-v8.mask.png": "2665b065601fe24e515b4c748d00d78f2fc740972a95783891b4b9e668ab2e05",
+    "grab-photo-training-trophy-front-v8.colour.png": "ef57d7f409374dbf4e25e445f920832d5f9bac48c0ea7c1be0d0587230568441",
+    "grab-photo-training-trophy-front-v8.detail.webp": "908b4a016bae5cf933547c6c27d4b0ad77530057cd294e49fdeea971e575d41c",
+    "action-training-figure-aggregate-strength.mask.png": "adc12e09ffac07bbb24ea17a5f980dc43b93d95230d2e43a548cbffa6e24403c",
+    "action-training-figure-aggregate-strength.colour.png": "303dc5e909d59383e94aa37e41c60cba435d41077bd53906f59b4626d376b130",
+    "action-training-figure-aggregate-strength.detail.webp": "70c130a04e783f9d5a408a96cfddadecc928637b1f296907eb96afdab89a2778",
+    "action-training-figure-big-three.mask.png": "0db06a557bdddde471af912b44086bcb8d21c6d359234d44631e84595f8b8e26",
+    "action-training-figure-big-three.colour.png": "303dc5e909d59383e94aa37e41c60cba435d41077bd53906f59b4626d376b130",
+    "action-training-figure-big-three.detail.webp": "12716004711f7c53595bd76a5168635a6135d844f1b2cbf5977e786fe58fc543",
+    "action-training-figure-dexa-history.mask.png": "26294c80458bec71e18a508930e16e23638ad12178d5da0f55fd20f3cda8dd5a",
+    "action-training-figure-dexa-history.colour.png": "acd9f232fd913143496ca9e889fd2f771ab6f070df562a71418cbd7fde1ef544",
+    "action-training-figure-dexa-history.detail.webp": "45c696de66e64b05d67c5c226f2c2c76dac15b9746ccf1607fe74731097d2c15",
+    "grab-photo-training-gym-pose-v8.mask.png": "a17bb9217c2029de503282dbaf09feda5cacd005980438d11dd23234abefe2a3",
+    "grab-photo-training-gym-pose-v8.colour.png": "c7662a027dbc5c8a04e9fe2e74da49d802b2f99f6a18b14f79741fb72c7e428f",
+    "grab-photo-training-gym-pose-v8.detail.webp": "fab67a2f03c5368f3d1edfd63ac75346464f8228bd6adbcbe9747cc02509c67d",
+    "grab-photo-training-deadlift-v8.mask.png": "1cd836b014732e787c8285bc38126d501b3d598da495651993cc0aad19515840",
+    "grab-photo-training-deadlift-v8.colour.png": "120551827a82a55e44ca2b22bcc003b490badc172f879e1a4570c669ea7a0e94",
+    "grab-photo-training-deadlift-v8.detail.webp": "b40deb2af4b34fdaaaaf58669379ea48e416a6e335d90af1fdd6411e404143ed",
+    "grab-photo-training-bench-v8.mask.png": "632cfe1493d437b6c553bbe6848ef37777a78d214ab801082fa0c0e095b1104d",
+    "grab-photo-training-bench-v8.colour.png": "14bd42e93499c44b6156e02d2fa6605cf6f10cafa6826ad4912306d37412e471",
+    "grab-photo-training-bench-v8.detail.webp": "dbe7796a289b28db730eefde73f31aecbae31d5803ab6894fb60d81a93f0c90e",
+    "artifact-lift-table.mask.png": "6ef60ce07bb6abf364738317ffbc1a5058a93c5bc11287ed962b765927c1b477",
+    "artifact-lift-table.colour.png": "45bbe3856b871ad9482c76c3fb0da0836aa1d9a0b7abd55361ea2ac61d7f1e1c",
+    "artifact-lift-table.detail.webp": "ce9f818fd774f5a652fd09633edcb222ebcc6c7588b1191d579ba46b4e5b0ccb",
+    "grab-dumbbell-training-right.mask.png": "df2df5d2379a2b0e9eb7900db0fd470e26cfa197b087609bd9b4af206c0915fe",
+    "grab-dumbbell-training-right.colour.png": "5aa2198d0d0f2f8ecf9801fe94edd7231ec3fc5cbd5c103f5c334ca260f05370",
+    "grab-dumbbell-training-right.detail.webp": "643a03e88beeed3ff44536163dfc550dae72b91b7b135cb909b6d9f050ccb5e5",
+    "grab-protein.mask.png": "6c3c3e6aa546fe1460e74274d97c1ea01e87fed313f169becef812cb471198cc",
+    "grab-protein.colour.png": "62a93443e07059b7c74ccd20a8df1a8cdb7b89f83d2b20c63150ea6bc2464c51",
+    "grab-protein.detail.webp": "dccc92ec922a36ca36e508ee78aa4199fdb2a64aba9114439b739554fbb7cdce",
+    "grab-gorilla-mode.mask.png": "4fbb682c79ab21e3787521b19be57f72d0f2e6a88d8cc675c79fe8bead1200ae",
+    "grab-gorilla-mode.colour.png": "58e22635ca06c67aa131c3ff44a475ea0a4bdba44fac6e5571ddae57b03d1460",
+    "grab-gorilla-mode.detail.webp": "58879512a28b600ce13a6c5dc81eb35d67f22ccad9391364ab1458899c063ec5",
+    "grab-pre-x.mask.png": "904ee9b75f1be3ea48a9e902262598ecba90e51eea959ba82c1ab5eb0f4a1cf5",
+    "grab-pre-x.colour.png": "45e6065742d0dead5ce2879253e3580062a096b3bf4bc7c878acfc6dbdd58f71",
+    "grab-pre-x.detail.webp": "1fcdb022880806abf65712adfb705bcf9f5b10ea97a6881c28f630acfcb80ecd",
+    "grab-shaker-training.mask.png": "23152218b5f3929a17b07c2c289749d2145c1490a44f6060960372b8a6903c19",
+    "grab-shaker-training.colour.png": "452db2943b9f309f029a5dd8ed907d0bff919701a91fb8e95e9ae87bbddf90c6",
+    "grab-shaker-training.detail.webp": "38b7cdc10c06f4936377265dff78abe4d0bc471b32fe6baa60a300d4ddcc3981",
+    "grab-shaker-training-navy.mask.png": "aa5ae4c3fcf44c48bf93c1df6bd1c568b8c342d336b510c508901b86c285ac37",
+    "grab-shaker-training-navy.colour.png": "ff5c56892c74cf49991f621b00409fdfa5c8ba137c5201162a2168de20d2c1f4",
+    "grab-shaker-training-navy.detail.webp": "a08956dab42717326d1e53ba0ec2967ec9130672d0dc3e0fd1a175367831c53e",
+    "grab-shaker-training-amber.mask.png": "e75fefe4658572a289e1dd26f99fe9836d63f24151018adb3c5ead60d2421dbe",
+    "grab-shaker-training-amber.colour.png": "c8ea8a597352a5c60b97c23b41e8b1614a95c4931345d5f57a10a4701f0de050",
+    "grab-shaker-training-amber.detail.webp": "892084a994b778c3bddaed36d9205ba930a5932d7a728ad53dd9b88e950c45f2",
+    "grab-photo-training-golf-group-v8.mask.png": "e052b7b65dc5066c7f6d550762ee83d2b275a1af09c3898b2e52dca2e010dd8e",
+    "grab-photo-training-golf-group-v8.colour.png": "01a1b7957e3abb3a8f1f0608401bf3acd723eccb817965bbb5aa84f912b3eb7c",
+    "grab-photo-training-golf-group-v8.detail.webp": "388878f533a2c1a198af6d45bf4c1c8c55cf29b0f95578badff3367244e542dd",
+    "grab-photo-training-golf-flag-v8.mask.png": "c0146d647864eb5e598ec4a779855386ec41b3269d983d0de9aa07938ae9e82c",
+    "grab-photo-training-golf-flag-v8.colour.png": "c80bd3ae54610d85a1d42f76ba690edb31317b4db9542d312bfaf7e46260639c",
+    "grab-photo-training-golf-flag-v8.detail.webp": "699e416468ec2a02fd1103992d811400271f1ced4856bcf38801f46a603f61a6",
+    "grab-photo-training-pickleball-group-v8.mask.png": "38718c2c4243f1848e4de671b97ea3fba29d495dd5711a367bc505e67edee79d",
+    "grab-photo-training-pickleball-group-v8.colour.png": "12fc93663c39eec1d678baf4354c192bb67edd1fa7ab896486f1020da15d4085",
+    "grab-photo-training-pickleball-group-v8.detail.webp": "cdad3a0697ddf7f9a72d195f9229d36eb3586b297875fb3a059f619cbc851e03",
+    "grab-golf-tee-shelf-left.mask.png": "a55355a9e2aa0dd1724b891b3a969e3155c40e2c8fd84d5c0fb18255b816dd0b",
+    "grab-golf-tee-shelf-left.colour.png": "6868c61f884d11cd3d68a2f848314fd15503ad0b8c9cb11044462c84f2c31045",
+    "grab-golf-tee-shelf-left.detail.webp": "ebd89845401501ab23771e3b766d36f3553cc7f54143801750b1180dbfb41bd8",
+    "grab-golf-tee-shelf-middle.mask.png": "4c3a781789bdaaa94c6935938ebcd2a9edeb33d852074a73adb2f5f2c376f94c",
+    "grab-golf-tee-shelf-middle.colour.png": "0908bef8257fccacc296c031b09a9076ac44a4713563d1c817bdd1cbaeb21abf",
+    "grab-golf-tee-shelf-middle.detail.webp": "fbceac067a7f722dbdf47b95d825aaf28ad42b13b643aa9f3564ce28d9681e9a",
+    "grab-golf-tee-shelf-right.mask.png": "5b0cd4bced728befca8796621e23d77b0c38fa08e6083bd2fb2e0ef44cf995fa",
+    "grab-golf-tee-shelf-right.colour.png": "0da7e2ef1fda948fc9bdeddbb7622c57305171fd15b8f732612e13c720138bad",
+    "grab-golf-tee-shelf-right.detail.webp": "d55849dd346b913f470cab0399173c1a8f6525eeef21e020aa6235c625439e86",
+    "grab-ball-tennis.mask.png": "ed87d3b5edd8710aa7dc6f48a0c5ac8f688751df92337bff5e79b62036dc6c7c",
+    "grab-ball-tennis.colour.png": "61df94901e4b8d30685667e817ecc0dd39079951180a9f212a2c5c5a420cbf15",
+    "grab-ball-tennis.detail.webp": "b739e8bd1818e8f10886f811a802e2ed06c75e0fa9af6ff9d4d34bc828edccd2",
+    "grab-ball-baseball.mask.png": "76a1444f02de4340bb9a93a4d3c1d94cec3042499e14bf77c879fccbf4b015e7",
+    "grab-ball-baseball.colour.png": "2e5ed503b09d0a86fbe378e7e06825aadbb59063eb48a3485acdead4dc97204a",
+    "grab-ball-baseball.detail.webp": "0e36259ac7138819b753214bb3c06f5e97a28f8c1ba1fd86e5d0a7b0f60ad31f",
+    "golf-ball-shelf-a.mask.png": "3c91b9ffbe30ec34a9673e6a19e8035ef83f5cdc4345e83b30243d2184b44a73",
+    "golf-ball-shelf-a.colour.png": "4f551c7e6c885c70757d1be65f8e9bfd7414634a92566ef4bee2f3c53db6a117",
+    "golf-ball-shelf-a.detail.webp": "791ff4e7a0b135a9aca3340fc0a55c12b341a816988ee88b494c01b2f6990166",
+    "golf-ball-shelf-b.mask.png": "036808ce9d3660eef48a030ec56bfe468d53caf7cf9ee6cc41295a42de6b638a",
+    "golf-ball-shelf-b.colour.png": "4f551c7e6c885c70757d1be65f8e9bfd7414634a92566ef4bee2f3c53db6a117",
+    "golf-ball-shelf-b.detail.webp": "0764a45f9f887bf7791ba92ebe9fe52cb12f688eff4387e125db2d5858e90783",
+    "grab-dumbbell-training-left.mask.png": "0efb6027aeef464c692ec118ff8f43842b77185c826c1adb51f7a50fdefa5c3c",
+    "grab-dumbbell-training-left.colour.png": "2e4245773194d64e5f2d718380059829a8116f031725fd23c6bf42960a69e8ef",
+    "grab-dumbbell-training-left.detail.webp": "50113d04832f2f81ee5705b6e5ec702dacd47337c0f81989bf62d6cb0e26210a",
+    "grab-basketball.mask.png": "c24c7288587b9b1a7b769b3c84c3908b43bac265f83c7133a3591c7d11502dfb",
+    "grab-basketball.colour.png": "c89cdd7d60ed832a2ac7b36c3989dde936565182cacc70327ce03556d827287c",
+    "grab-basketball.detail.webp": "22b731c01dd25a864ec4c0ccbe94ee7b8b1fc54446733ded557aeb27f91047fc"
+  }
+}

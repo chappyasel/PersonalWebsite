@@ -1,0 +1,3314 @@
+[
+  {
+    "key": "1/light-desktop",
+    "owners": [
+      {
+        "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 240,
+        "addedPixels": 1
+      },
+      {
+        "id": "stacks-cover-the-12-levers",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 237,
+        "addedPixels": 1
+      },
+      {
+        "id": "stacks-cover-superminds",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 174,
+        "addedPixels": 1
+      },
+      {
+        "id": "stacks-cover-bowling-alone",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 217,
+        "addedPixels": 1
+      },
+      {
+        "id": "books-packed-top",
+        "maxCssPxManhattan": 0.49996468178089964,
+        "lostPixels": 1229,
+        "addedPixels": 60
+      },
+      {
+        "id": "books-bookend-top",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 90,
+        "addedPixels": 175
+      },
+      {
+        "id": "books-packed-lower",
+        "maxCssPxManhattan": 0.49996468178089964,
+        "lostPixels": 1646,
+        "addedPixels": 98
+      },
+      {
+        "id": "books-bookend-lower",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 242,
+        "addedPixels": 80
+      },
+      {
+        "id": "stacks-cover-barking-up-the-wrong-tree",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 197,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-homo-deus",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 209,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-life-3-0",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 212,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-thinking-fast-and-slow",
+        "maxCssPxManhattan": 0.24998234089044982,
+        "lostPixels": 218,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 0.49996468178089964
+  },
+  {
+    "key": "1/dark-desktop",
+    "owners": [
+      {
+        "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 240,
+        "addedPixels": 1
+      },
+      {
+        "id": "stacks-cover-the-12-levers",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 240,
+        "addedPixels": 1
+      },
+      {
+        "id": "stacks-cover-superminds",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 175,
+        "addedPixels": 1
+      },
+      {
+        "id": "stacks-cover-bowling-alone",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 217,
+        "addedPixels": 1
+      },
+      {
+        "id": "books-packed-top",
+        "maxCssPxManhattan": 0.4999656023648809,
+        "lostPixels": 1221,
+        "addedPixels": 60
+      },
+      {
+        "id": "books-bookend-top",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 182,
+        "addedPixels": 107
+      },
+      {
+        "id": "books-packed-lower",
+        "maxCssPxManhattan": 0.4999656023648809,
+        "lostPixels": 1627,
+        "addedPixels": 98
+      },
+      {
+        "id": "books-bookend-lower",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 243,
+        "addedPixels": 85
+      },
+      {
+        "id": "stacks-cover-barking-up-the-wrong-tree",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 196,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-homo-deus",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 216,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-life-3-0",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 211,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-thinking-fast-and-slow",
+        "maxCssPxManhattan": 0.24998280118244046,
+        "lostPixels": 221,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 0.4999656023648809
+  },
+  {
+    "key": "1/light-phone",
+    "owners": [
+      {
+        "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 109,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-the-12-levers",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 123,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-superminds",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 102,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-bowling-alone",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 150,
+        "addedPixels": 0
+      },
+      {
+        "id": "books-packed-top",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 997,
+        "addedPixels": 12
+      },
+      {
+        "id": "books-bookend-top",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 60,
+        "addedPixels": 32
+      },
+      {
+        "id": "books-packed-lower",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 943,
+        "addedPixels": 133
+      },
+      {
+        "id": "books-bookend-lower",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 35,
+        "addedPixels": 96
+      },
+      {
+        "id": "stacks-cover-barking-up-the-wrong-tree",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 166,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-homo-deus",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 107,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-life-3-0",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 181,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-thinking-fast-and-slow",
+        "maxCssPxManhattan": 0.24037100418019428,
+        "lostPixels": 112,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 0.24037100418019428
+  },
+  {
+    "key": "1/dark-phone",
+    "owners": [
+      {
+        "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 109,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-the-12-levers",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 123,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-superminds",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 102,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-bowling-alone",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 147,
+        "addedPixels": 0
+      },
+      {
+        "id": "books-packed-top",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 996,
+        "addedPixels": 12
+      },
+      {
+        "id": "books-bookend-top",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 61,
+        "addedPixels": 32
+      },
+      {
+        "id": "books-packed-lower",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 941,
+        "addedPixels": 137
+      },
+      {
+        "id": "books-bookend-lower",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 36,
+        "addedPixels": 95
+      },
+      {
+        "id": "stacks-cover-barking-up-the-wrong-tree",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 165,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-homo-deus",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 107,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-life-3-0",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 182,
+        "addedPixels": 0
+      },
+      {
+        "id": "stacks-cover-thinking-fast-and-slow",
+        "maxCssPxManhattan": 0.2403709323680549,
+        "lostPixels": 114,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 0.2403709323680549
+  },
+  {
+    "key": "4/light-desktop",
+    "owners": [
+      {
+        "id": "lamp",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 243,
+        "addedPixels": 297
+      },
+      {
+        "id": "action-projects-weightlifting",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 168,
+        "addedPixels": 3
+      },
+      {
+        "id": "link-projects-dice-bottom-left",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 99,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-center",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 81,
+        "addedPixels": 1
+      },
+      {
+        "id": "link-projects-dice-bottom-right",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 83,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-middle-left",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 75,
+        "addedPixels": 1
+      },
+      {
+        "id": "link-projects-dice-middle-right",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 50,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-top",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 78,
+        "addedPixels": 1
+      },
+      {
+        "id": "action-projects-homework",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 143,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-photo-projects-wwdc-v8",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 159,
+        "addedPixels": 0
+      },
+      {
+        "id": "shimmer-apple",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 94,
+        "addedPixels": 181
+      },
+      {
+        "id": "grab-plant-projects-small",
+        "maxCssPxManhattan": 0.4999674986379103,
+        "lostPixels": 442,
+        "addedPixels": 186
+      },
+      {
+        "id": "trophy",
+        "maxCssPxManhattan": 0.7499512479568654,
+        "lostPixels": 1,
+        "addedPixels": 3610
+      },
+      {
+        "id": "photo",
+        "maxCssPxManhattan": 0.4999674986379103,
+        "lostPixels": 1101,
+        "addedPixels": 70
+      },
+      {
+        "id": "grab-phone-projects",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 99,
+        "addedPixels": 15
+      },
+      {
+        "id": "arduino",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 96,
+        "addedPixels": 2
+      },
+      {
+        "id": "card",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 108,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-photo-projects-facebook-v8",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 288,
+        "addedPixels": 0
+      },
+      {
+        "id": "mac",
+        "maxCssPxManhattan": 0.24998374931895515,
+        "lostPixels": 1915,
+        "addedPixels": 82
+      }
+    ],
+    "maxCssPxManhattan": 0.7499512479568654
+  },
+  {
+    "key": "4/dark-desktop",
+    "owners": [
+      {
+        "id": "lamp",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 242,
+        "addedPixels": 273
+      },
+      {
+        "id": "action-projects-weightlifting",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 200,
+        "addedPixels": 1
+      },
+      {
+        "id": "link-projects-dice-bottom-left",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 64,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-center",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 139,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-right",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 67,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-middle-left",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 75,
+        "addedPixels": 1
+      },
+      {
+        "id": "link-projects-dice-middle-right",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 76,
+        "addedPixels": 1
+      },
+      {
+        "id": "link-projects-dice-top",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 140,
+        "addedPixels": 2
+      },
+      {
+        "id": "action-projects-homework",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 161,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-photo-projects-wwdc-v8",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 142,
+        "addedPixels": 0
+      },
+      {
+        "id": "shimmer-apple",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 50,
+        "addedPixels": 163
+      },
+      {
+        "id": "grab-plant-projects-small",
+        "maxCssPxManhattan": 0.7499814591379886,
+        "lostPixels": 458,
+        "addedPixels": 185
+      },
+      {
+        "id": "trophy",
+        "maxCssPxManhattan": 0.7499814591379886,
+        "lostPixels": 0,
+        "addedPixels": 3586
+      },
+      {
+        "id": "photo",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 965,
+        "addedPixels": 141
+      },
+      {
+        "id": "grab-phone-projects",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 108,
+        "addedPixels": 14
+      },
+      {
+        "id": "arduino",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 85,
+        "addedPixels": 4
+      },
+      {
+        "id": "card",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 86,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-photo-projects-facebook-v8",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 238,
+        "addedPixels": 0
+      },
+      {
+        "id": "mac",
+        "maxCssPxManhattan": 0.24999381971266288,
+        "lostPixels": 1392,
+        "addedPixels": 155
+      }
+    ],
+    "maxCssPxManhattan": 0.7499814591379886
+  },
+  {
+    "key": "4/light-phone",
+    "owners": [
+      {
+        "id": "lamp",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 126,
+        "addedPixels": 198
+      },
+      {
+        "id": "action-projects-weightlifting",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 58,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-left",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 45,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-center",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 13,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-right",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 87,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-middle-left",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 33,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-middle-right",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 90,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-top",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 27,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-projects-homework",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 120,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-projects-wwdc-v8",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 57,
+        "addedPixels": 0
+      },
+      {
+        "id": "shimmer-apple",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 124,
+        "addedPixels": 64
+      },
+      {
+        "id": "grab-plant-projects-small",
+        "maxCssPxManhattan": 0.4807528041130963,
+        "lostPixels": 211,
+        "addedPixels": 94
+      },
+      {
+        "id": "trophy",
+        "maxCssPxManhattan": 0.7211292061696444,
+        "lostPixels": 0,
+        "addedPixels": 1747
+      },
+      {
+        "id": "photo",
+        "maxCssPxManhattan": 0.4807528041130963,
+        "lostPixels": 972,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-phone-projects",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 52,
+        "addedPixels": 0
+      },
+      {
+        "id": "arduino",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 40,
+        "addedPixels": 2
+      },
+      {
+        "id": "card",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 87,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-projects-facebook-v8",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 108,
+        "addedPixels": 0
+      },
+      {
+        "id": "mac",
+        "maxCssPxManhattan": 0.24037640205654814,
+        "lostPixels": 1636,
+        "addedPixels": 43
+      }
+    ],
+    "maxCssPxManhattan": 0.7211292061696444
+  },
+  {
+    "key": "4/dark-phone",
+    "owners": [
+      {
+        "id": "lamp",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 132,
+        "addedPixels": 154
+      },
+      {
+        "id": "action-projects-weightlifting",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 76,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-left",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 176,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-center",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 42,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-bottom-right",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 88,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-middle-left",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 29,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-middle-right",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 83,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-projects-dice-top",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 10,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-projects-homework",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 114,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-projects-wwdc-v8",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 56,
+        "addedPixels": 0
+      },
+      {
+        "id": "shimmer-apple",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 99,
+        "addedPixels": 51
+      },
+      {
+        "id": "grab-plant-projects-small",
+        "maxCssPxManhattan": 0.9615106587501555,
+        "lostPixels": 207,
+        "addedPixels": 100
+      },
+      {
+        "id": "trophy",
+        "maxCssPxManhattan": 0.7211329940626167,
+        "lostPixels": 0,
+        "addedPixels": 1682
+      },
+      {
+        "id": "photo",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 1070,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-phone-projects",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 53,
+        "addedPixels": 0
+      },
+      {
+        "id": "arduino",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 40,
+        "addedPixels": 3
+      },
+      {
+        "id": "card",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 86,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-projects-facebook-v8",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 151,
+        "addedPixels": 0
+      },
+      {
+        "id": "mac",
+        "maxCssPxManhattan": 0.24037766468753888,
+        "lostPixels": 1364,
+        "addedPixels": 70
+      }
+    ],
+    "maxCssPxManhattan": 0.9615106587501555
+  },
+  {
+    "key": "3/light-desktop",
+    "owners": [
+      {
+        "id": "systems-manual-row",
+        "maxCssPxManhattan": 0.4999803915161971,
+        "lostPixels": 361,
+        "addedPixels": 3
+      },
+      {
+        "id": "egg-clock-alarm",
+        "maxCssPxManhattan": 1.2499509787904928,
+        "lostPixels": 355,
+        "addedPixels": 33
+      },
+      {
+        "id": "grab-photo-systems-working-session-v8",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 84,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-home-office-v8",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 194,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-sf-dusk-v8",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 150,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-routineboard",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 168,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-plant-sansevieria",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 671,
+        "addedPixels": 387
+      },
+      {
+        "id": "grab-bag-realgood",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 146,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-bag-betaalanine",
+        "maxCssPxManhattan": 0.4999803915161971,
+        "lostPixels": 151,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-bag-collagen",
+        "maxCssPxManhattan": 0.4999803915161971,
+        "lostPixels": 150,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-bag-creatine",
+        "maxCssPxManhattan": 0.7499705872742957,
+        "lostPixels": 215,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-mio-hydrate-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 64,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-mio-lemonade-1",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 67,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-mio-hydrate-2",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 63,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-notebook-systems",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 138,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-photo-systems-supplements-v8",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 122,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-back-lower",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 172,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-organizer-back-upper",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 126,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-lower",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 153,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-upper",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 139,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-can-diet-dr-pepper",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 118,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-can-mtn-dew-zero",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 106,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-can-sunkist-zero",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 88,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-0-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 37,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-1-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 60,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-pills-bottle-1-1",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 63,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-pills-bottle-2-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 34,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-3-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 32,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-pills-bottle-4-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 76,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-5-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 67,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-pills-bottle-5-1",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 44,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-6-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 75,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-7-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 26,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-8-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 52,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-9-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 44,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-10-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 27,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-11-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 43,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-12-0",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 19,
+        "addedPixels": 3
+      },
+      {
+        "id": "systems-sun-lamp",
+        "maxCssPxManhattan": 0.24999019575809855,
+        "lostPixels": 147,
+        "addedPixels": 14
+      }
+    ],
+    "maxCssPxManhattan": 1.2499509787904928
+  },
+  {
+    "key": "3/dark-desktop",
+    "owners": [
+      {
+        "id": "systems-manual-row",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 345,
+        "addedPixels": 0
+      },
+      {
+        "id": "egg-clock-alarm",
+        "maxCssPxManhattan": 1.2500617191226198,
+        "lostPixels": 254,
+        "addedPixels": 20
+      },
+      {
+        "id": "grab-photo-systems-working-session-v8",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 823,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-home-office-v8",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 119,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-sf-dusk-v8",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 115,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-routineboard",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 158,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-plant-sansevieria",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 805,
+        "addedPixels": 275
+      },
+      {
+        "id": "grab-bag-realgood",
+        "maxCssPxManhattan": 0.7500370314735719,
+        "lostPixels": 201,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-bag-betaalanine",
+        "maxCssPxManhattan": 0.500024687649048,
+        "lostPixels": 119,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-bag-collagen",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 148,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-bag-creatine",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 153,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-mio-hydrate-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 71,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-mio-lemonade-1",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 79,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-mio-hydrate-2",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 63,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-notebook-systems",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 153,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-supplements-v8",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 227,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-back-lower",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 186,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-organizer-back-upper",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 127,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-lower",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 155,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-upper",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 112,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-can-diet-dr-pepper",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 115,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-can-mtn-dew-zero",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 96,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-can-sunkist-zero",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 127,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-0-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 60,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-1-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 104,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-pills-bottle-1-1",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 41,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-pills-bottle-2-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 136,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-3-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 42,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-4-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 34,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-5-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 37,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-5-1",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 33,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-6-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 54,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-pills-bottle-7-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 104,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-8-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 24,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-9-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 70,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pills-bottle-10-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 59,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pills-bottle-11-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 86,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-pills-bottle-12-0",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 36,
+        "addedPixels": 0
+      },
+      {
+        "id": "systems-sun-lamp",
+        "maxCssPxManhattan": 0.250012343824524,
+        "lostPixels": 141,
+        "addedPixels": 12
+      }
+    ],
+    "maxCssPxManhattan": 1.2500617191226198
+  },
+  {
+    "key": "3/light-phone",
+    "owners": [
+      {
+        "id": "systems-manual-row",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 118,
+        "addedPixels": 0
+      },
+      {
+        "id": "egg-clock-alarm",
+        "maxCssPxManhattan": 0.9615008519339533,
+        "lostPixels": 142,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-photo-systems-working-session-v8",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 321,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-home-office-v8",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 198,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-sf-dusk-v8",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 238,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-routineboard",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 239,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-plant-sansevieria",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 328,
+        "addedPixels": 167
+      },
+      {
+        "id": "grab-bag-realgood",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 103,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-bag-betaalanine",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 86,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-bag-collagen",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 61,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-bag-creatine",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 55,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-mio-hydrate-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 34,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-mio-lemonade-1",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 50,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-mio-hydrate-2",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 35,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-notebook-systems",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 74,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-supplements-v8",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 12,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-back-lower",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 68,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-back-upper",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 90,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-lower",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 92,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-upper",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 97,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-can-diet-dr-pepper",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 28,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-can-mtn-dew-zero",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 125,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-can-sunkist-zero",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 42,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-0-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 27,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-1-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 28,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-1-1",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 35,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-2-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 13,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-3-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 45,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-4-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 11,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-5-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 22,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-5-1",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 14,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-6-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 11,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-7-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 13,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-8-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 38,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-9-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 41,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-10-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 14,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-11-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 7,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-12-0",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 9,
+        "addedPixels": 0
+      },
+      {
+        "id": "systems-sun-lamp",
+        "maxCssPxManhattan": 0.24037521298348832,
+        "lostPixels": 74,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 0.9615008519339533
+  },
+  {
+    "key": "3/dark-phone",
+    "owners": [
+      {
+        "id": "systems-manual-row",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 116,
+        "addedPixels": 0
+      },
+      {
+        "id": "egg-clock-alarm",
+        "maxCssPxManhattan": 0.9615001017379265,
+        "lostPixels": 140,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-photo-systems-working-session-v8",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 322,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-home-office-v8",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 197,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-sf-dusk-v8",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 222,
+        "addedPixels": 0
+      },
+      {
+        "id": "link-routineboard",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 170,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-plant-sansevieria",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 294,
+        "addedPixels": 169
+      },
+      {
+        "id": "grab-bag-realgood",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 102,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-bag-betaalanine",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 89,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-bag-collagen",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 56,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-bag-creatine",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 56,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-mio-hydrate-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 35,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-mio-lemonade-1",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 46,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-mio-hydrate-2",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 36,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-notebook-systems",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 71,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-systems-supplements-v8",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 52,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-back-lower",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 73,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-back-upper",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 91,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-lower",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 91,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-organizer-front-upper",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 102,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-can-diet-dr-pepper",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 29,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-can-mtn-dew-zero",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 128,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-can-sunkist-zero",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 40,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-0-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 29,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-1-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 29,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-1-1",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 33,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-2-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 14,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-3-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 41,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-4-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 7,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-5-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 22,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-5-1",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 14,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-6-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 10,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-7-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 11,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-8-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 40,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-9-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 39,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-10-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 17,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-11-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 9,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pills-bottle-12-0",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 6,
+        "addedPixels": 0
+      },
+      {
+        "id": "systems-sun-lamp",
+        "maxCssPxManhattan": 0.24037502543448164,
+        "lostPixels": 77,
+        "addedPixels": 1
+      }
+    ],
+    "maxCssPxManhattan": 0.9615001017379265
+  },
+  {
+    "key": "2/light-desktop",
+    "owners": [
+      {
+        "id": "pinboard",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 521,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-photo-training-trophy-side-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 219,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-kneeling-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 132,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-side-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 93,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-trophy-front-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 124,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-aggregate-strength",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 159,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-big-three",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 122,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-dexa-history",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 116,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-gym-pose-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 163,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-deadlift-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 149,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-bench-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 124,
+        "addedPixels": 0
+      },
+      {
+        "id": "artifact-lift-table",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 107,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-right",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 136,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-protein",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 181,
+        "addedPixels": 6
+      },
+      {
+        "id": "grab-gorilla-mode",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 294,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pre-x",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 196,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-shaker-training",
+        "maxCssPxManhattan": 1.0000330642124962,
+        "lostPixels": 196,
+        "addedPixels": 1015
+      },
+      {
+        "id": "grab-shaker-training-navy",
+        "maxCssPxManhattan": 1.5000495963187443,
+        "lostPixels": 190,
+        "addedPixels": 981
+      },
+      {
+        "id": "grab-shaker-training-amber",
+        "maxCssPxManhattan": 2.5000826605312403,
+        "lostPixels": 209,
+        "addedPixels": 926
+      },
+      {
+        "id": "grab-photo-training-golf-group-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 229,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-golf-flag-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 198,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-pickleball-group-v8",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 141,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-left",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 52,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-middle",
+        "maxCssPxManhattan": 0.5000165321062481,
+        "lostPixels": 20,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-golf-tee-shelf-right",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 33,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-ball-tennis",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 72,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-ball-baseball",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 75,
+        "addedPixels": 7
+      },
+      {
+        "id": "golf-ball-shelf-a",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 56,
+        "addedPixels": 1
+      },
+      {
+        "id": "golf-ball-shelf-b",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 49,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-dumbbell-training-left",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 320,
+        "addedPixels": 17
+      },
+      {
+        "id": "grab-basketball",
+        "maxCssPxManhattan": 0.25000826605312404,
+        "lostPixels": 239,
+        "addedPixels": 16
+      }
+    ],
+    "maxCssPxManhattan": 2.5000826605312403
+  },
+  {
+    "key": "2/dark-desktop",
+    "owners": [
+      {
+        "id": "pinboard",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 528,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-photo-training-trophy-side-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 230,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-kneeling-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 127,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-side-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 102,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-trophy-front-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 125,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-aggregate-strength",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 127,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-big-three",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 129,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-dexa-history",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 175,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-gym-pose-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 41,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-deadlift-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 122,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-bench-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 108,
+        "addedPixels": 0
+      },
+      {
+        "id": "artifact-lift-table",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 94,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-right",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 335,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-protein",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 179,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-gorilla-mode",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 186,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pre-x",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 114,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-shaker-training",
+        "maxCssPxManhattan": 1.0000090466698581,
+        "lostPixels": 236,
+        "addedPixels": 988
+      },
+      {
+        "id": "grab-shaker-training-navy",
+        "maxCssPxManhattan": 0,
+        "lostPixels": 0,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-shaker-training-amber",
+        "maxCssPxManhattan": 0.5000045233349291,
+        "lostPixels": 200,
+        "addedPixels": 878
+      },
+      {
+        "id": "grab-photo-training-golf-group-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 220,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-golf-flag-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 228,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-pickleball-group-v8",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 157,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-left",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 57,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-middle",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 17,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-right",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 31,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-ball-tennis",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 77,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-ball-baseball",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 78,
+        "addedPixels": 8
+      },
+      {
+        "id": "golf-ball-shelf-a",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 60,
+        "addedPixels": 1
+      },
+      {
+        "id": "golf-ball-shelf-b",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 47,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-left",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 307,
+        "addedPixels": 23
+      },
+      {
+        "id": "grab-basketball",
+        "maxCssPxManhattan": 0.25000226166746453,
+        "lostPixels": 246,
+        "addedPixels": 10
+      }
+    ],
+    "maxCssPxManhattan": 1.0000090466698581
+  },
+  {
+    "key": "2/light-phone",
+    "owners": [
+      {
+        "id": "pinboard",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 263,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-trophy-side-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 97,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-kneeling-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 73,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-side-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 22,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-trophy-front-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 75,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-aggregate-strength",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 53,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-big-three",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 71,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-dexa-history",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 60,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-gym-pose-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 167,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-deadlift-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 5,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-bench-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 2,
+        "addedPixels": 0
+      },
+      {
+        "id": "artifact-lift-table",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 9,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-right",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 71,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-protein",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 101,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-gorilla-mode",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 117,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pre-x",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 123,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-shaker-training",
+        "maxCssPxManhattan": 2.1635394983006058,
+        "lostPixels": 85,
+        "addedPixels": 302
+      },
+      {
+        "id": "grab-shaker-training-navy",
+        "maxCssPxManhattan": 2.1635394983006058,
+        "lostPixels": 89,
+        "addedPixels": 224
+      },
+      {
+        "id": "grab-shaker-training-amber",
+        "maxCssPxManhattan": 2.1635394983006058,
+        "lostPixels": 91,
+        "addedPixels": 287
+      },
+      {
+        "id": "grab-photo-training-golf-group-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 115,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-golf-flag-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 72,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-pickleball-group-v8",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 33,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-left",
+        "maxCssPxManhattan": 0.48078655517791236,
+        "lostPixels": 22,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-middle",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 21,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-right",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 14,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-ball-tennis",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 47,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-ball-baseball",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 38,
+        "addedPixels": 0
+      },
+      {
+        "id": "golf-ball-shelf-a",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 29,
+        "addedPixels": 0
+      },
+      {
+        "id": "golf-ball-shelf-b",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 25,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-left",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 165,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-basketball",
+        "maxCssPxManhattan": 0.24039327758895618,
+        "lostPixels": 129,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 2.1635394983006058
+  },
+  {
+    "key": "2/dark-phone",
+    "owners": [
+      {
+        "id": "pinboard",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 259,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-trophy-side-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 104,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-kneeling-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 73,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-stage-side-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 31,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-trophy-front-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 79,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-aggregate-strength",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 53,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-big-three",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 71,
+        "addedPixels": 0
+      },
+      {
+        "id": "action-training-figure-dexa-history",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 58,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-gym-pose-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 6,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-deadlift-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 5,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-bench-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 3,
+        "addedPixels": 0
+      },
+      {
+        "id": "artifact-lift-table",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 8,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-right",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 149,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-protein",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 107,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-gorilla-mode",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 134,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pre-x",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 111,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-shaker-training",
+        "maxCssPxManhattan": 2.163536419741806,
+        "lostPixels": 122,
+        "addedPixels": 295
+      },
+      {
+        "id": "grab-shaker-training-navy",
+        "maxCssPxManhattan": 2.163536419741806,
+        "lostPixels": 99,
+        "addedPixels": 325
+      },
+      {
+        "id": "grab-shaker-training-amber",
+        "maxCssPxManhattan": 2.163536419741806,
+        "lostPixels": 87,
+        "addedPixels": 202
+      },
+      {
+        "id": "grab-photo-training-golf-group-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 116,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-golf-flag-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 71,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-training-pickleball-group-v8",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 26,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-left",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 25,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-middle",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 26,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-golf-tee-shelf-right",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 18,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-ball-tennis",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 28,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-ball-baseball",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 42,
+        "addedPixels": 0
+      },
+      {
+        "id": "golf-ball-shelf-a",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 34,
+        "addedPixels": 0
+      },
+      {
+        "id": "golf-ball-shelf-b",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 23,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-dumbbell-training-left",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 155,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-basketball",
+        "maxCssPxManhattan": 0.24039293552686733,
+        "lostPixels": 144,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 2.163536419741806
+  },
+  {
+    "key": "5/light-desktop",
+    "owners": [
+      {
+        "id": "grab-plant-musings",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 242,
+        "addedPixels": 98
+      },
+      {
+        "id": "musings-lamp",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 311,
+        "addedPixels": 404
+      },
+      {
+        "id": "grab-headphones",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 337,
+        "addedPixels": 14
+      },
+      {
+        "id": "grab-kettle",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 245,
+        "addedPixels": 7
+      },
+      {
+        "id": "egg-tea",
+        "maxCssPxManhattan": 0.5000347542439575,
+        "lostPixels": 190,
+        "addedPixels": 6
+      },
+      {
+        "id": "grab-openbook",
+        "maxCssPxManhattan": 0.5000347542439575,
+        "lostPixels": 324,
+        "addedPixels": 28
+      },
+      {
+        "id": "musings-book-row",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 521,
+        "addedPixels": 10
+      },
+      {
+        "id": "grab-mug",
+        "maxCssPxManhattan": 0.7500521313659363,
+        "lostPixels": 354,
+        "addedPixels": 32
+      },
+      {
+        "id": "grab-paper-5",
+        "maxCssPxManhattan": 0.5000347542439575,
+        "lostPixels": 252,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-pen-5",
+        "maxCssPxManhattan": 0.5000347542439575,
+        "lostPixels": 49,
+        "addedPixels": 16
+      },
+      {
+        "id": "grab-trust-essay-musings",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 224,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-vineyard-sign",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 32,
+        "addedPixels": 6
+      },
+      {
+        "id": "grab-vineyard-cutout",
+        "maxCssPxManhattan": 0.7500521313659363,
+        "lostPixels": 286,
+        "addedPixels": 27
+      },
+      {
+        "id": "grab-photo-systems-lighthouse-v8",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 72,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-lighthouse-musings",
+        "maxCssPxManhattan": 0,
+        "lostPixels": 0,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-vineyard-vines",
+        "maxCssPxManhattan": 0.25001737712197875,
+        "lostPixels": 46,
+        "addedPixels": 13
+      }
+    ],
+    "maxCssPxManhattan": 0.7500521313659363
+  },
+  {
+    "key": "5/dark-desktop",
+    "owners": [
+      {
+        "id": "grab-plant-musings",
+        "maxCssPxManhattan": 0.4999777044865496,
+        "lostPixels": 349,
+        "addedPixels": 107
+      },
+      {
+        "id": "musings-lamp",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 415,
+        "addedPixels": 295
+      },
+      {
+        "id": "grab-headphones",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 335,
+        "addedPixels": 18
+      },
+      {
+        "id": "grab-kettle",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 250,
+        "addedPixels": 8
+      },
+      {
+        "id": "egg-tea",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 135,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-openbook",
+        "maxCssPxManhattan": 0.4999777044865496,
+        "lostPixels": 313,
+        "addedPixels": 27
+      },
+      {
+        "id": "musings-book-row",
+        "maxCssPxManhattan": 0.4999777044865496,
+        "lostPixels": 612,
+        "addedPixels": 10
+      },
+      {
+        "id": "grab-mug",
+        "maxCssPxManhattan": 0.9999554089730992,
+        "lostPixels": 351,
+        "addedPixels": 40
+      },
+      {
+        "id": "grab-paper-5",
+        "maxCssPxManhattan": 0.4999777044865496,
+        "lostPixels": 240,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-pen-5",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 50,
+        "addedPixels": 14
+      },
+      {
+        "id": "grab-trust-essay-musings",
+        "maxCssPxManhattan": 0.4999777044865496,
+        "lostPixels": 230,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-vineyard-sign",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 91,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-vineyard-cutout",
+        "maxCssPxManhattan": 0.4999777044865496,
+        "lostPixels": 326,
+        "addedPixels": 41
+      },
+      {
+        "id": "grab-photo-systems-lighthouse-v8",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 170,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-lighthouse-musings",
+        "maxCssPxManhattan": 0,
+        "lostPixels": 0,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-vineyard-vines",
+        "maxCssPxManhattan": 0.2499888522432748,
+        "lostPixels": 42,
+        "addedPixels": 9
+      }
+    ],
+    "maxCssPxManhattan": 0.9999554089730992
+  },
+  {
+    "key": "5/light-phone",
+    "owners": [
+      {
+        "id": "grab-plant-musings",
+        "maxCssPxManhattan": 0.48076120391601074,
+        "lostPixels": 167,
+        "addedPixels": 40
+      },
+      {
+        "id": "musings-lamp",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 202,
+        "addedPixels": 201
+      },
+      {
+        "id": "grab-headphones",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 167,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-kettle",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 114,
+        "addedPixels": 1
+      },
+      {
+        "id": "egg-tea",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 112,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-openbook",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 164,
+        "addedPixels": 5
+      },
+      {
+        "id": "musings-book-row",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 522,
+        "addedPixels": 13
+      },
+      {
+        "id": "grab-mug",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 182,
+        "addedPixels": 7
+      },
+      {
+        "id": "grab-paper-5",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 133,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-pen-5",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 32,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-trust-essay-musings",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 116,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-vineyard-sign",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 11,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-vineyard-cutout",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 162,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-photo-systems-lighthouse-v8",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 94,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-lighthouse-musings",
+        "maxCssPxManhattan": 2.8845672234960644,
+        "lostPixels": 414,
+        "addedPixels": 18
+      },
+      {
+        "id": "grab-sticker-vineyard-vines",
+        "maxCssPxManhattan": 0.24038060195800537,
+        "lostPixels": 22,
+        "addedPixels": 0
+      }
+    ],
+    "maxCssPxManhattan": 2.8845672234960644
+  },
+  {
+    "key": "5/dark-phone",
+    "owners": [
+      {
+        "id": "grab-plant-musings",
+        "maxCssPxManhattan": 0.48076410568448796,
+        "lostPixels": 154,
+        "addedPixels": 54
+      },
+      {
+        "id": "musings-lamp",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 258,
+        "addedPixels": 177
+      },
+      {
+        "id": "grab-headphones",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 157,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-kettle",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 99,
+        "addedPixels": 2
+      },
+      {
+        "id": "egg-tea",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 77,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-openbook",
+        "maxCssPxManhattan": 0.48076410568448796,
+        "lostPixels": 154,
+        "addedPixels": 7
+      },
+      {
+        "id": "musings-book-row",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 365,
+        "addedPixels": 15
+      },
+      {
+        "id": "grab-mug",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 201,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-paper-5",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 102,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-pen-5",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 28,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-trust-essay-musings",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 114,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-vineyard-sign",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 32,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-vineyard-cutout",
+        "maxCssPxManhattan": 0.48076410568448796,
+        "lostPixels": 162,
+        "addedPixels": 8
+      },
+      {
+        "id": "grab-photo-systems-lighthouse-v8",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 72,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-lighthouse-musings",
+        "maxCssPxManhattan": 2.8845846341069277,
+        "lostPixels": 438,
+        "addedPixels": 12
+      },
+      {
+        "id": "grab-sticker-vineyard-vines",
+        "maxCssPxManhattan": 0.24038205284224398,
+        "lostPixels": 23,
+        "addedPixels": 1
+      }
+    ],
+    "maxCssPxManhattan": 2.8845846341069277
+  },
+  {
+    "key": "6/light-desktop",
+    "owners": [
+      {
+        "id": "talks-monitor-support",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 168,
+        "addedPixels": 8
+      },
+      {
+        "id": "grab-photo-talk-ann-interview-v8",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 299,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-easel-support",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 1234,
+        "addedPixels": 17
+      },
+      {
+        "id": "grab-photo-talk-dc-policy-v8",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 796,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-plinth-support",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 103,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-photo-talk-panel-v8",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 265,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-harmonica-talks",
+        "maxCssPxManhattan": 0.5000313536467634,
+        "lostPixels": 204,
+        "addedPixels": 6
+      },
+      {
+        "id": "grab-plant-talks-top",
+        "maxCssPxManhattan": 0.5000313536467634,
+        "lostPixels": 419,
+        "addedPixels": 222
+      },
+      {
+        "id": "grab-photo-talk-demo-night-v8",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 322,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-hanging-support",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 156,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-photo-talk-consensus-phone-v8",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 266,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-sticker-camera-talks-a",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 104,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-camera-talks-b",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 98,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-microphone",
+        "maxCssPxManhattan": 0.2500156768233817,
+        "lostPixels": 159,
+        "addedPixels": 4
+      },
+      {
+        "id": "grab-plant-talks-pothos",
+        "maxCssPxManhattan": 2.0001254145870537,
+        "lostPixels": 2786,
+        "addedPixels": 413
+      }
+    ],
+    "maxCssPxManhattan": 2.0001254145870537
+  },
+  {
+    "key": "6/dark-desktop",
+    "owners": [
+      {
+        "id": "talks-monitor-support",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 168,
+        "addedPixels": 9
+      },
+      {
+        "id": "grab-photo-talk-ann-interview-v8",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 255,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-easel-support",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 1353,
+        "addedPixels": 26
+      },
+      {
+        "id": "grab-photo-talk-dc-policy-v8",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 236,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-plinth-support",
+        "maxCssPxManhattan": 0.4999494556415528,
+        "lostPixels": 53,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-photo-talk-panel-v8",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 260,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-harmonica-talks",
+        "maxCssPxManhattan": 0.4999494556415528,
+        "lostPixels": 56,
+        "addedPixels": 3
+      },
+      {
+        "id": "grab-plant-talks-top",
+        "maxCssPxManhattan": 0.4999494556415528,
+        "lostPixels": 389,
+        "addedPixels": 213
+      },
+      {
+        "id": "grab-photo-talk-demo-night-v8",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 304,
+        "addedPixels": 1
+      },
+      {
+        "id": "talks-hanging-support",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 95,
+        "addedPixels": 6
+      },
+      {
+        "id": "grab-photo-talk-consensus-phone-v8",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 281,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-camera-talks-a",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 85,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-sticker-camera-talks-b",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 86,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-microphone",
+        "maxCssPxManhattan": 0.2499747278207764,
+        "lostPixels": 144,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-plant-talks-pothos",
+        "maxCssPxManhattan": 1.249873639103882,
+        "lostPixels": 2677,
+        "addedPixels": 416
+      }
+    ],
+    "maxCssPxManhattan": 1.249873639103882
+  },
+  {
+    "key": "6/light-phone",
+    "owners": [
+      {
+        "id": "talks-monitor-support",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 77,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-talk-ann-interview-v8",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 100,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-easel-support",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 676,
+        "addedPixels": 6
+      },
+      {
+        "id": "grab-photo-talk-dc-policy-v8",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 5,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-plinth-support",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 36,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-photo-talk-panel-v8",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 159,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-harmonica-talks",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 176,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-plant-talks-top",
+        "maxCssPxManhattan": 0.4807468130724285,
+        "lostPixels": 144,
+        "addedPixels": 123
+      },
+      {
+        "id": "grab-photo-talk-demo-night-v8",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 153,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-hanging-support",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 147,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-photo-talk-consensus-phone-v8",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 87,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-camera-talks-a",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 36,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-camera-talks-b",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 32,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-microphone",
+        "maxCssPxManhattan": 0.24037340653621425,
+        "lostPixels": 74,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-plant-talks-pothos",
+        "maxCssPxManhattan": 1.2018670326810712,
+        "lostPixels": 1306,
+        "addedPixels": 212
+      }
+    ],
+    "maxCssPxManhattan": 1.2018670326810712
+  },
+  {
+    "key": "6/dark-phone",
+    "owners": [
+      {
+        "id": "talks-monitor-support",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 60,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-photo-talk-ann-interview-v8",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 100,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-easel-support",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 700,
+        "addedPixels": 5
+      },
+      {
+        "id": "grab-photo-talk-dc-policy-v8",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 6,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-plinth-support",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 37,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-photo-talk-panel-v8",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 155,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-harmonica-talks",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 171,
+        "addedPixels": 2
+      },
+      {
+        "id": "grab-plant-talks-top",
+        "maxCssPxManhattan": 0.4807493881968176,
+        "lostPixels": 159,
+        "addedPixels": 150
+      },
+      {
+        "id": "grab-photo-talk-demo-night-v8",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 143,
+        "addedPixels": 0
+      },
+      {
+        "id": "talks-hanging-support",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 160,
+        "addedPixels": 1
+      },
+      {
+        "id": "grab-photo-talk-consensus-phone-v8",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 106,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-camera-talks-a",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 36,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-sticker-camera-talks-b",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 30,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-microphone",
+        "maxCssPxManhattan": 0.2403746940984088,
+        "lostPixels": 82,
+        "addedPixels": 0
+      },
+      {
+        "id": "grab-plant-talks-pothos",
+        "maxCssPxManhattan": 0.9614987763936352,
+        "lostPixels": 1152,
+        "addedPixels": 241
+      }
+    ],
+    "maxCssPxManhattan": 0.9614987763936352
+  }
+]

@@ -125,6 +125,13 @@ export function EggTrigger({
   return (
     <group
       ref={root}
+      name={
+        hoverKey === "egg:lamp:4"
+          ? "room-boot:lamp-body:egg:lamp:4"
+          : /^egg:lamp:[35]$/.test(hoverKey)
+            ? `room-boot:lamp-body:${hoverKey}`
+            : undefined
+      }
       onClick={(e: ThreeEvent<MouseEvent>) => {
         if ((e as unknown as { pointerType?: string }).pointerType === "touch")
           return;
@@ -305,7 +312,7 @@ export function LampSwitch({
         {children}
       </EggTrigger>
       {/* Sibling of the trigger, never a child — see the note above. */}
-      <group>{rig}</group>
+      <group name={`room-boot:lamp-light-rig:${hoverKey}`}>{rig}</group>
     </group>
   );
 }
@@ -860,7 +867,11 @@ function SecondHand({
     );
   });
   return (
-    <group ref={ref} position={[0, 0, 0.0016]}>
+    <group
+      name={"room-boot:clock-second-hand"}
+      ref={ref}
+      position={[0, 0, 0.0016]}
+    >
       {/* Offset by half its length so the hand pivots at the dial centre,
           with a short counterweight past it — the detail that stops it
           reading as a spinning stick. */}
@@ -898,7 +909,7 @@ export function Sway({
 }) {
   const ref = useRef<THREE.Group>(null);
   const still = useMemo(() => reducedMotion(), []);
-  useUnitFrame(({ clock }) => {
+  useUnitFrame(({ clock }, delta) => {
     const g = ref.current;
     if (!g || still || !nearActive(unitIndex)) return;
     if (!isWorldRevealed()) {
@@ -910,10 +921,29 @@ export function Sway({
     // Two incommensurate rates on each axis, so the path is a slow wander
     // rather than a metronome. The x term is the smaller of the two — a
     // plant nodding toward the viewer reads as a bug.
-    g.rotation.z = amount * (0.72 * Math.sin(t) + 0.28 * Math.sin(t * 1.71));
-    g.rotation.x = amount * 0.45 * Math.sin(t * 0.83 + 1.1);
+    // Approach the wind from the last painted pose. The clock keeps running
+    // during boot and while distant plants are parked; assigning its current
+    // phase directly makes the first visible frame jump. Cap resumed deltas
+    // so a suspended tab cannot skip this easing either.
+    const dt = Math.min(delta, 1 / 30);
+    g.rotation.z = THREE.MathUtils.damp(
+      g.rotation.z,
+      amount * (0.72 * Math.sin(t) + 0.28 * Math.sin(t * 1.71)),
+      3,
+      dt,
+    );
+    g.rotation.x = THREE.MathUtils.damp(
+      g.rotation.x,
+      amount * 0.45 * Math.sin(t * 0.83 + 1.1),
+      3,
+      dt,
+    );
   });
-  return <group ref={ref}>{children}</group>;
+  return (
+    <group name={"room-sway"} ref={ref}>
+      {children}
+    </group>
+  );
 }
 
 // --- Pendulum ----------------------------------------------------------

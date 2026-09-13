@@ -1,0 +1,90 @@
+[
+  {
+    "unit": "projects",
+    "label": "dark-desktop",
+    "url": "http://127.0.0.1:3322/projects?harness=1&nomeadow=1&perf-profile=no-composer",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "raster": [
+      1440,
+      900
+    ],
+    "elapsedMs": 80017,
+    "errors": [],
+    "exactSavedCamera": true,
+    "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+    "cssScale": 0.6631299734748011,
+    "toleranceCssPx": 3,
+    "maxCssResidualUpperBound": 0,
+    "compatible": true,
+    "dataIdentitySha256": null
+  },
+  {
+    "unit": "projects",
+    "label": "light-phone",
+    "url": "http://127.0.0.1:3322/projects?harness=1&nomeadow=1&perf-profile=no-composer",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "raster": [
+      780,
+      1688
+    ],
+    "elapsedMs": 60878,
+    "errors": [],
+    "exactSavedCamera": true,
+    "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+    "cssScale": 0.8422535211267606,
+    "toleranceCssPx": 3,
+    "maxCssResidualUpperBound": 0,
+    "compatible": true,
+    "dataIdentitySha256": null
+  },
+  {
+    "unit": "projects",
+    "label": "dark-phone",
+    "url": "http://127.0.0.1:3322/projects?harness=1&nomeadow=1&perf-profile=no-composer",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "raster": [
+      780,
+      1688
+    ],
+    "elapsedMs": 33892,
+    "errors": [],
+    "exactSavedCamera": true,
+    "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+    "cssScale": 0.8422535211267606,
+    "toleranceCssPx": 3,
+    "maxCssResidualUpperBound": 0,
+    "compatible": true,
+    "dataIdentitySha256": null
+  },
+  {
+    "unit": "books",
+    "label": "light-desktop",
+    "url": "http://127.0.0.1:3322/?harness=1&nomeadow=1&perf-profile=no-composer#books",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "raster": [
+      1440,
+      900
+    ],
+    "elapsedMs": 44911,
+    "errors": [],
+    "exactSavedCamera": true,
+    "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+    "cssScale": 0.6811989100817438,
+    "toleranceCssPx": 3,
+    "maxCssResidualUpperBound": 0,
+    "compatible": true,
+    "dataIdentitySha256": "9fd5f5d568da662835975a290a5676effaec64f33c2886b947690420c6fb3750"
+  }
+]

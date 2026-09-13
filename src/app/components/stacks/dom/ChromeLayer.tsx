@@ -261,7 +261,7 @@ export default function ChromeLayer() {
       <style>{`
         :root {
           --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1);
-          --stacks-mobile-top-strip-start: max(0.75rem, env(safe-area-inset-top, 0px));
+          --stacks-mobile-top-strip-start: env(safe-area-inset-top, 0px);
           --stacks-mobile-top-strip-height: 2.5rem;
         }
         .stacks-scroll { scrollbar-width: none; }

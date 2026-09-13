@@ -11,7 +11,7 @@ import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
-import { LampSwitch, Sway } from "../eggs";
+import { LampSwitch } from "../eggs";
 import {
   MOTH_LIGHT_PROFILES,
   TALKS_FLOOR_SHADE_RADIUS,
@@ -371,18 +371,20 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                 textured={textured}
               />
             </TalkPhoto>
-            <TalkHangingWires />
-            <TalkPhoto
-              unitIndex={index}
-              palette={palette}
-              id="talk-consensus-phone-v8"
-            >
-              <TalkHungBoard
-                src="/images/stacks/v8/talk-consensus-phone.webp"
+            <group name={"room-boot:talks-hanging"}>
+              <TalkHangingWires />
+              <TalkPhoto
+                unitIndex={index}
                 palette={palette}
-                textured={textured}
-              />
-            </TalkPhoto>
+                id="talk-consensus-phone-v8"
+              >
+                <TalkHungBoard
+                  src="/images/stacks/v8/talk-consensus-phone.webp"
+                  palette={palette}
+                  textured={textured}
+                />
+              </TalkPhoto>
+            </group>
 
             {/* Two Sticker Cameras, on the wood under the hung board. The
                 one shelf in the room where a camera is not decoration: it is
@@ -445,10 +447,15 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               colliderProfile="foliage-base"
               massKg={2.3}
             >
-              <Sway unitIndex={index} amount={0.019} rate={0.31} phase={0.7}>
+              <group name="room-sway">
                 <React.Suspense fallback={null}>
                   <ModelProp
                     url="/models/pothos.glb"
+                    plantWind={{
+                      kind: "pothos",
+                      unitIndex: index,
+                      hoverKey: "grab:plant:talks-pothos",
+                    }}
                     dark={dark}
                     variant="recolor"
                     position={[0, -0.135, 0]}
@@ -456,7 +463,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                     scale={0.62}
                   />
                 </React.Suspense>
-              </Sway>
+              </group>
             </Grabbable>
           </group>
         }
@@ -465,33 +472,39 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
             carried out on a clamped monitor arm, the formal frame standing
             on an ornate easel, and the deckled print gripped in a stone
             plinth. All five photographs retain the raw file's own ratio. */}
-        <TalkMonitorArm palette={palette} />
-        <TalkPhoto
-          unitIndex={index}
-          palette={palette}
-          id="talk-ann-interview-v8"
-        >
-          <TalkBezelPanel
-            src="/images/stacks/v8/talk-ann-interview.webp"
-            textured={textured}
-          />
-        </TalkPhoto>
-        <TalkTableEasel palette={palette} />
-        <TalkPhoto unitIndex={index} palette={palette} id="talk-dc-policy-v8">
-          <TalkEaselFrame
-            src="/images/stacks/v8/talk-dc-policy.webp"
+        <group name={"room-boot:talks-monitor"}>
+          <TalkMonitorArm palette={palette} />
+          <TalkPhoto
+            unitIndex={index}
             palette={palette}
-            textured={textured}
-          />
-        </TalkPhoto>
-        <TalkStonePlinth />
-        <TalkPhoto unitIndex={index} palette={palette} id="talk-panel-v8">
-          <TalkDeckledPrint
-            src="/images/stacks/v8/talk-panel.webp"
-            palette={palette}
-            textured={textured}
-          />
-        </TalkPhoto>
+            id="talk-ann-interview-v8"
+          >
+            <TalkBezelPanel
+              src="/images/stacks/v8/talk-ann-interview.webp"
+              textured={textured}
+            />
+          </TalkPhoto>
+        </group>
+        <group name={"room-boot:talks-easel"}>
+          <TalkTableEasel palette={palette} />
+          <TalkPhoto unitIndex={index} palette={palette} id="talk-dc-policy-v8">
+            <TalkEaselFrame
+              src="/images/stacks/v8/talk-dc-policy.webp"
+              palette={palette}
+              textured={textured}
+            />
+          </TalkPhoto>
+        </group>
+        <group name={"room-boot:talks-plinth"}>
+          <TalkStonePlinth />
+          <TalkPhoto unitIndex={index} palette={palette} id="talk-panel-v8">
+            <TalkDeckledPrint
+              src="/images/stacks/v8/talk-panel.webp"
+              palette={palette}
+              textured={textured}
+            />
+          </TalkPhoto>
+        </group>
 
         {/* The requested harmonica takes the microphone's old upper-shelf
             position. Its source is already horizontal and bottom-normalized. */}
@@ -529,16 +542,21 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           colliderProfile="foliage-base"
           massKg={2.1}
         >
-          <Sway unitIndex={index} amount={0.018} rate={0.36} phase={1.8}>
+          <group name="room-sway">
             <React.Suspense fallback={null}>
               <ModelProp
                 url="/models/potted-plant.glb"
+                plantWind={{
+                  kind: "potted-plant",
+                  unitIndex: index,
+                  hoverKey: "grab:plant:talks-top",
+                }}
                 dark={dark}
                 rotation={[0, -0.42, 0]}
                 scale={0.82}
               />
             </React.Suspense>
-          </Sway>
+          </group>
         </Grabbable>
       </ShelfUnit>
       {/* Floor lamp in the breathing room between Musings and Talks. Its
@@ -552,6 +570,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           metre-wide transparent quad and inside the trigger it becomes an
           invisible hit box over half the unit. */}
       <group
+        name={"room-boot:talks-floor-lamp"}
         ref={lampRootRef}
         position={[-2.12, -1.115, 0.06]}
         rotation={[0, 0.45, 0]}

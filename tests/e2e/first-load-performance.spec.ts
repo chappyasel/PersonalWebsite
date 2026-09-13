@@ -4,9 +4,7 @@ type PerfWindow = typeof window & {
   __coldLoadMetrics?: { lcp: number; cls: number };
 };
 
-async function installWebVitalsObserver(
-  page: import("@playwright/test").Page,
-) {
+async function installWebVitalsObserver(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
     const metrics = { lcp: 0, cls: 0 };
     (window as PerfWindow).__coldLoadMetrics = metrics;
@@ -65,60 +63,52 @@ test("applies a stored font before the app hydrates", async ({ page }) => {
   expect(bodyFont).toContain("ui-sans-serif");
 });
 
-test("keeps below-fold homepage media deferred", async ({ page }) => {
-  // This assertion covers FlatHome's viewport deferral. The WebGL homepage
-  // owns resident scene placards instead, so select the flat path explicitly
-  // rather than depending on how quickly the immersive world boots.
+test("keeps unselected room drawings deferred", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const requestedImages: string[] = [];
   page.on("request", (request) => {
-    const url = request.url();
-    if (request.resourceType() === "image") requestedImages.push(url);
+    if (request.resourceType() === "image") requestedImages.push(request.url());
   });
-
-  await page.goto("/");
-  await page.waitForTimeout(100);
-
-  const decodedRequests = requestedImages.map((url) => decodeURIComponent(url));
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(
+    page.locator('[data-room-artwork][data-artwork-key][data-unit="0"]'),
+  ).toBeVisible();
   expect(
-    decodedRequests.some(
-      (url) =>
-        url.includes("cdn-images-1.medium.com") ||
-        url.includes("/images/projects/") ||
-        url.includes("books.google.com"),
+    requestedImages.some((url) =>
+      /\/images\/stacks\/boot\/(projects|musings|talks)\//.test(url),
     ),
   ).toBe(false);
-  await expect(page.locator("[data-homepage-carousel]")).toHaveCount(0);
-  await expect(page.locator("[data-homepage-lifting]")).toHaveCount(0);
+  await expect(
+    page.locator(".stacks-flat, .stacks-canvas-shell canvas"),
+  ).toHaveCount(0);
 });
 
-test("positions deferred carousel images for fill layout", async ({ page }) => {
-  // This assertion covers FlatHome's deferred carousel. On a WebGL-capable
-  // runner the immersive world intentionally hides that document, so select
-  // the supported reduced-motion path explicitly instead of racing the boot.
+test("opens Book Notes directly in the illustrated room", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const imageWarnings: string[] = [];
   page.on("console", (message) => {
     if (
       message.type() === "warning" &&
       message.text().includes('has "fill" and parent element with invalid')
-    ) {
+    )
       imageWarnings.push(message.text());
-    }
   });
-
-  await page.goto("/");
-  await page
-    .getByRole("heading", { name: "Book Notes" })
-    .scrollIntoViewIfNeeded();
-  await expect(page.locator("[data-homepage-carousel]")).toBeVisible();
-
-  const parentPositions = await page
-    .locator("[data-homepage-carousel] img")
-    .evaluateAll((images) =>
-      images.map((image) => getComputedStyle(image.parentElement!).position),
-    );
-  expect(new Set(parentPositions)).toEqual(new Set(["relative"]));
+  await page.goto("/#books", { waitUntil: "domcontentloaded" });
+  const drawing = page.locator(
+    'img[data-room-artwork][data-artwork-key][data-unit="1"]',
+  );
+  await expect(drawing).toBeVisible();
+  expect(
+    await drawing.evaluate(
+      (image) =>
+        image instanceof HTMLImageElement &&
+        image.naturalWidth > 0 &&
+        image.getBoundingClientRect().width > 0,
+    ),
+  ).toBe(true);
+  await expect(
+    page.locator(".stacks-flat, .stacks-canvas-shell canvas"),
+  ).toHaveCount(0);
   expect(imageWarnings).toEqual([]);
 });
 
@@ -223,9 +213,7 @@ test("delivers book analytics after deferred initialization", async ({
       window as typeof window & { __capturedAnalytics?: string[] }
     ).__capturedAnalytics = captured;
     window.addEventListener("chappy:analytics-captured", (event) => {
-      captured.push(
-        (event as CustomEvent<{ event: string }>).detail.event,
-      );
+      captured.push((event as CustomEvent<{ event: string }>).detail.event);
     });
   });
   await page.goto("/books");
@@ -235,9 +223,8 @@ test("delivers book analytics after deferred initialization", async ({
     .poll(() =>
       page.evaluate(
         () =>
-          (
-            window as typeof window & { __capturedAnalytics?: string[] }
-          ).__capturedAnalytics ?? [],
+          (window as typeof window & { __capturedAnalytics?: string[] })
+            .__capturedAnalytics ?? [],
       ),
     )
     .toContain("book_viewed");

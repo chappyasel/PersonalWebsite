@@ -1,0 +1,185 @@
+/* Native fragment navigation keeps the illustrated room readable even when
+   inline scripts or the application bundle cannot execute. */
+.room-document.room-illustration {
+  position: relative;
+  min-height: 100svh;
+  overflow: visible;
+  pointer-events: auto;
+  font-family: var(--font-selected), Georgia, serif;
+}
+.room-document::before,
+.room-document::after {
+  position: fixed;
+}
+html:is(
+    [data-world],
+    [data-room-view="illustrated"],
+    [data-room-view="dissolve"],
+    [data-room-view="travel"],
+    [data-room-view="live"]
+  )
+  .room-document,
+html[data-og-capture] .room-document {
+  display: none;
+}
+.room-document-name {
+  position: relative;
+  z-index: 1;
+  display: block;
+  padding: max(1.25rem, env(safe-area-inset-top)) 1.5rem 0.75rem;
+  font-size: 1.125rem;
+  letter-spacing: -0.025em;
+}
+.room-document-nav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0 1rem 0.75rem;
+}
+.room-document-nav > a {
+  flex-shrink: 0;
+}
+.room-document-section {
+  display: none;
+  position: relative;
+  z-index: 1;
+  scroll-margin-top: 7rem;
+}
+.room-document-section[data-document-default] {
+  display: grid;
+}
+.room-document:has(
+    .room-document-section:target,
+    .room-document-section :target
+  )
+  .room-document-section {
+  display: none;
+}
+.room-document:has(
+    .room-document-section:target,
+    .room-document-section :target
+  )
+  .room-document-section:is(:target, :has(:target)) {
+  display: grid;
+}
+.room-document-artwork {
+  position: relative;
+  height: min(48svh, 34rem);
+}
+.room-document .room-illustration-stage[data-rest-frame] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  padding: 1rem;
+}
+.room-document .room-illustration-picture > img,
+.room-document .room-illustration-about {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.room-document .stacks-boot-scene {
+  height: 100%;
+}
+.room-document-content {
+  padding: 1.5rem;
+  border-radius: 1.75rem 1.75rem 0 0;
+  background: hsl(var(--background) / 0.86);
+}
+.room-document-content > * + * {
+  margin-top: 2rem;
+}
+@media (min-width: 1200px) {
+  .room-document-section {
+    grid-template-columns: minmax(0, 1fr) minmax(27rem, 38vw);
+    align-items: start;
+    gap: 2rem;
+    padding: 1rem 2rem 2rem 7rem;
+  }
+  .room-document-artwork {
+    position: sticky;
+    top: 7rem;
+    height: calc(100svh - 10rem);
+  }
+  .room-document-content {
+    border-radius: 1.75rem;
+  }
+}
+/* Intersection-driven card entrances have no observer without JavaScript. */
+.room-document-content :is([class*="intersect:"], [class*="motion-"]) {
+  animation: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* Custom properties stay inert for hidden sections. Only the chosen drawing
+   downloads, using the established theme class when scripts are available. */
+.room-document-drawing {
+  --document-art-light: var(--document-art-light-desktop);
+  --document-art-dark: var(--document-art-dark-desktop);
+  height: 100%;
+  background: var(--document-art-light) center / contain no-repeat;
+}
+html.dark .room-document-drawing {
+  background-image: var(--document-art-dark);
+}
+@media (max-width: 1199.999px) and (max-aspect-ratio: 3/4) {
+  .room-document-drawing {
+    --document-art-light: var(--document-art-light-phone);
+    --document-art-dark: var(--document-art-dark-phone);
+  }
+}
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark) .room-document {
+    --background: 20 14% 4%;
+    --foreground: 24 8% 92%;
+    --card: 20 14% 4%;
+    --card-foreground: 24 8% 92%;
+    --muted-foreground: 24 6% 82%;
+    --room-sky-top: #26334d;
+    --room-sky-horizon: #455675;
+    --room-cloud: rgb(171 193 215 / 0.1);
+    --room-meadow-far: #526a58;
+    --room-meadow-middle: #3c5647;
+    --room-meadow-near: #273f33;
+    color: hsl(var(--foreground));
+  }
+  html:not(.light):not(.dark) .room-document-drawing {
+    background-image: var(--document-art-dark);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark) .room-document .stacks-boot {
+    --stacks-boot-wood: var(--stacks-boot-wood-dark);
+    --stacks-boot-wood-edge: var(--stacks-boot-wood-edge-dark);
+    --stacks-boot-sky: var(--stacks-boot-sky-dark);
+    --stacks-boot-haze: var(--stacks-boot-haze-dark);
+    --stacks-boot-meadow: var(--stacks-boot-meadow-dark);
+    --stacks-boot-glow: var(--stacks-boot-glow-dark);
+    --stacks-boot-dust: var(--stacks-boot-dust-dark);
+    --stacks-boot-dust-halo: var(--stacks-boot-dust-halo-dark);
+    --stacks-boot-strap: var(--stacks-boot-strap-dark);
+    --stacks-boot-frame: var(--stacks-boot-frame-dark);
+    --stacks-boot-page: var(--stacks-boot-page-dark);
+    --stacks-boot-metal: var(--stacks-boot-metal-dark);
+    --stacks-boot-ink: var(--stacks-boot-ink-dark);
+    --stacks-boot-leaf: var(--stacks-boot-leaf-dark);
+    --stacks-boot-pot: var(--stacks-boot-pot-dark);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--stacks-boot-sky) 46%, hsl(var(--background))) 0%,
+      color-mix(in srgb, var(--stacks-boot-haze) 26%, hsl(var(--background)))
+        43%,
+      color-mix(in srgb, var(--stacks-boot-meadow) 24%, hsl(var(--background)))
+        72%,
+      color-mix(in srgb, var(--stacks-boot-wood) 20%, hsl(var(--background)))
+        100%
+    );
+  }
+}

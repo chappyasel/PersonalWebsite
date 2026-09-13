@@ -16,17 +16,16 @@
 // first paint and the hydrated updates cannot drift; `aboutBootStage.test.ts`
 // proves the projection against the live camera helpers over a viewport
 // matrix and the layout against the boot CSS.
-import { GOLF_PATHNAME, GOLF_STOP_POSITION, UNITS, UNIT_COUNT } from "../data";
+import { GOLF_PATHNAME, GOLF_STOP_POSITION, UNITS } from "../data";
 import { SCENE_TO_BOOT_SVG } from "../dom/bootVignette";
 import { MOBILE_SHEET_PEEK } from "../dom/mobileSheetGeometry";
+import { ABOUT_BOOT_CAMERA } from "../scene/aboutBootPerspective";
 import {
   cameraDepthDiagnosticsController,
   cameraDepthEffectEnabled,
 } from "../scene/cameraDepthDiagnostics";
 import { SHELF_GEOMETRY } from "../scene/shelfGeometry";
 import {
-  ABOUT_SHELF_LEFT,
-  ABOUT_STOP_MAX_SHIFT,
   CAMERA,
   CAMERA_DEPTH_KNOTS,
   CAMERA_DEPTH_MAX_EYE_HEIGHT,
@@ -47,7 +46,6 @@ import {
   STACKS_DESKTOP_MIN_WIDTH,
   STOP_LATERAL_MAX,
   TABLET_PORTRAIT_ASPECT,
-  TRAVEL_LEAD_IN,
   UNIT_SPACING,
   unitPose,
 } from "../scene/worldLayout";
@@ -61,10 +59,15 @@ export type AboutBootStage = {
   originY: number;
   /** CSS px spanned by one scene unit on the shelf's centre plane. */
   unitPx: number;
-  /** Where the eye stands, world x: the About shift plus its share of the
-   * dock truck. The drawables are projected for the canonical desktop eye,
-   * and `eyeShift` in the layout carries the difference to them. */
+  /** The resting eye's lateral truck. `eyeShift` carries its difference
+   * from the authored silhouette camera to legacy projected drawables. */
   eyeX: number;
+  camera?: {
+    eye: [number, number, number];
+    aim: [number, number, number];
+    fov: number;
+    imageShiftUp: number;
+  };
 };
 
 /** CSS custom properties the stage is published through. The boot CSS reads
@@ -161,12 +164,8 @@ export type AboutBootStageGeometry = {
   lookY: number;
   lookZOffset: number;
   unitOneZ: number;
-  unitCount: number;
   unitSpacing: number;
-  travelLeadIn: number;
-  shelfLeft: { x: number; z: number };
   railShelfMarginPx: number;
-  maxShift: number;
   /** The desktop reading dock's two clamps, for the lateral truck the
    * stops make to sit in the gap beside it (`desktopStopFraming`). */
   dock: {
@@ -224,12 +223,8 @@ export const ABOUT_BOOT_STAGE_GEOMETRY: AboutBootStageGeometry = {
   lookY: CAMERA_LOOK_Y,
   lookZOffset: CAMERA_LOOK_Z_OFFSET,
   unitOneZ: unitPose(1).position[2],
-  unitCount: UNIT_COUNT,
   unitSpacing: UNIT_SPACING,
-  travelLeadIn: TRAVEL_LEAD_IN,
-  shelfLeft: { ...ABOUT_SHELF_LEFT },
   railShelfMarginPx: RAIL_SHELF_MARGIN_PX,
-  maxShift: ABOUT_STOP_MAX_SHIFT,
   dock: { ...DESKTOP_DOCK_GEOMETRY },
   dockShelfMarginPx: DOCK_SHELF_MARGIN_PX,
   stopLateralMax: STOP_LATERAL_MAX,
@@ -252,23 +247,9 @@ export const ABOUT_BOOT_STAGE_GEOMETRY: AboutBootStageGeometry = {
   peek: { ...MOBILE_SHEET_PEEK },
 };
 
-/** The camera's About rest pose for a viewport, projected to the screen.
- *
- * Mirrors, in order: `cameraForAspect`, `aboutStopShift`, the scroll offset
- * the About stop rests at, `cameraCompositionForViewport` between units 0 and
- * 1 WITH the rail (so the desktop stops' lateral truck, lerped by the shift's
- * blend), `cameraDepthOffsetsForViewport` on the first knot span at the
- * shipped default, CameraRig's authored-pitch look target, the resident Peek
- * Sheet's frustum offset, and a `lookAt` projection of unit 0's origin. The
- * reference plane is the shelf's centre (unit-local z = 0): the planks' front
- * edges sit nearer the camera and the wall frames farther, so this is where
- * a flat elevation fits best.
- *
- * Two of those went missing once and cost 46 px and 7 px at 2056×1290: the
- * truck arrived after this function was written, and the depth offsets were
- * later put behind a console toggle that ships off. The reference test now
- * builds the composition with the rail and the depth at the default, so the
- * next such drift fails there rather than on the first live frame.
+/** A shelf's rest pose projected to the screen. Mirrors the shared camera
+ * composition, depth offsets, authored pitch and mobile sheet frustum offset.
+ * All desktop stops use the same lateral truck beside the reading dock.
  *
  * SELF-CONTAINED BY CONTRACT: parameters and `Math` only. Its source text is
  * shipped as the pre-paint script, where no module scope exists. */
@@ -277,6 +258,7 @@ export function aboutBootStageForViewport(
   vh: number,
   railRightPx: number,
   g: AboutBootStageGeometry,
+  unitIndex = 0,
 ): AboutBootStage {
   const clamp = (value: number, low: number, high: number) =>
     Math.min(high, Math.max(low, value));
@@ -305,34 +287,10 @@ export function aboutBootStageForViewport(
     };
   }
 
-  // aboutStopShift, desktop only: the camera slides right until the shelf's
-  // left edge clears the rail by the authored margin.
-  let shift = 0;
-  if (!narrow) {
-    const tanH = Math.tan(radians(cam.fov / 2)) * aspect;
-    const frac = (railRightPx + g.railShelfMarginPx) / vw;
-    const camX =
-      g.shelfLeft.x - (frac - 0.5) * (cam.z - g.shelfLeft.z) * 2 * tanH;
-    shift = clamp(camX, 0, g.maxShift);
-  }
-
-  // The stop's scroll offset, read back as scene position between units 0
-  // and 1. The shift drags the composition a little toward unit 1's depth.
-  const travelX = (g.unitCount - 1) * g.unitSpacing;
-  const travelRange = travelX + g.travelLeadIn;
-  const offset = (shift + g.travelLeadIn) / travelRange;
-  const travelled = clamp(
-    (offset * travelRange - g.travelLeadIn) / travelX,
-    0,
-    1,
-  );
-  const scenePosition = travelled * (g.unitCount - 1);
-  const blend = clamp(scenePosition, 0, 1);
-
-  // desktopStopFraming's lateral truck: stops 1..6 slide the eye and the aim
-  // together so the shelf sits in the gap between the rail and the dock.
-  // About itself does not truck, but the composition is lerped toward unit
-  // 1 by the shift's own blend, so the About rest carries that share of it.
+  // All shelves rest at their authored scroll stop. Desktop composition
+  // applies the same lateral truck to the eye and aim, including About.
+  const shift = 0;
+  const blend = unitIndex === 0 ? 0 : 1;
   let lateral = 0;
   if (!narrow) {
     const tanH = Math.tan(radians(cam.fov / 2)) * aspect;
@@ -365,10 +323,10 @@ export function aboutBootStageForViewport(
       0,
       g.stopLateralMax,
     );
-    lateral = lateralOffset * blend;
+    lateral = lateralOffset;
   }
 
-  // cameraCompositionForViewport, lerped between stop 0 and stop 1.
+  // cameraCompositionForViewport at the selected stop.
   let overview = cam.z;
   if (portrait) {
     const halfHorizontalFov =
@@ -381,7 +339,8 @@ export function aboutBootStageForViewport(
   }
   const stopY = portrait ? 0.25 : cam.y;
   const fov = portrait ? g.portraitFov : cam.fov;
-  const unitZ = g.unitOneZ * blend;
+  const originZ = unitIndex % 2 === 0 ? 0 : g.unitOneZ;
+  const unitZ = unitIndex === 0 ? g.unitOneZ * blend : originZ;
   const camZ = unitZ + overview;
   const lookZ = unitZ + g.lookZOffset;
 
@@ -447,8 +406,8 @@ export function aboutBootStageForViewport(
   const length = Math.hypot(dy, dz);
   const zy = dy / length;
   const zz = dz / length;
-  const depth = eyeY * zy + camZ * zz;
-  const up = -eyeY * zz + camZ * zy;
+  const depth = eyeY * zy + (camZ - originZ) * zz;
+  const up = -eyeY * zz + (camZ - originZ) * zy;
   const focal = safeHeight / 2 / Math.tan(radians(fov / 2));
   const unitPx = focal / depth;
   return {
@@ -456,6 +415,12 @@ export function aboutBootStageForViewport(
     eyeX: shift + lateral,
     originY: safeHeight / 2 - up * unitPx - imageShiftUp,
     unitPx,
+    camera: {
+      eye: [unitIndex * g.unitSpacing + shift + lateral, eyeY, camZ],
+      aim: [unitIndex * g.unitSpacing + shift + lateral, lookY, lookZ],
+      fov,
+      imageShiftUp,
+    },
   };
 }
 
@@ -509,15 +474,8 @@ export const ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY: AboutBootStageLayoutGeometry = {
   wordmarkGapMin: 8,
   wordmarkFont: { min: 28.56, perViewportWidth: 0.03162, max: 44.88 },
   waitStrip: 72,
-  // The same canonical desktop pose ABOUT_BOOT_CAMERA stands at
-  // (scene/aboutBootPerspective.ts), read off this module's own maths so
-  // the pre-paint script and the drawables can never disagree about it.
-  canonicalEyeX: aboutBootStageForViewport(
-    1440,
-    900,
-    RAIL_RIGHT_PX_FALLBACK,
-    ABOUT_BOOT_STAGE_GEOMETRY,
-  ).eyeX,
+  // The original silhouette extraction eye, independent of live framing.
+  canonicalEyeX: ABOUT_BOOT_CAMERA.eye[0],
   sceneToSvg: SCENE_TO_BOOT_SVG,
 };
 

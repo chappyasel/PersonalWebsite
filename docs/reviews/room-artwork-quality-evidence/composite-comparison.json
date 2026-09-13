@@ -1,0 +1,2782 @@
+[
+  {
+    "key": "1/light-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 0.5,
+    "changedMaskPixels": 1839,
+    "unionPixels": 826776,
+    "beforeSvgBytes": 70550,
+    "afterSvgBytes": 226863,
+    "beforeGzip": 48143,
+    "afterGzip": 167172,
+    "images": [
+      {
+        "pixelWidth": 1284,
+        "svgWidth": 642,
+        "bytes": 33128
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 19138
+      },
+      {
+        "pixelWidth": 192,
+        "svgWidth": 96,
+        "bytes": 10696
+      },
+      {
+        "pixelWidth": 208,
+        "svgWidth": 104,
+        "bytes": 12864
+      },
+      {
+        "pixelWidth": 210,
+        "svgWidth": 105,
+        "bytes": 9158
+      },
+      {
+        "pixelWidth": 1366,
+        "svgWidth": 683,
+        "bytes": 25532
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 6018
+      },
+      {
+        "pixelWidth": 206,
+        "svgWidth": 103,
+        "bytes": 13050
+      },
+      {
+        "pixelWidth": 202,
+        "svgWidth": 101,
+        "bytes": 17608
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 16698
+      }
+    ]
+  },
+  {
+    "key": "1/dark-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 0.5,
+    "changedMaskPixels": 1846,
+    "unionPixels": 826768,
+    "beforeSvgBytes": 70887,
+    "afterSvgBytes": 227512,
+    "beforeGzip": 48475,
+    "afterGzip": 167675,
+    "images": [
+      {
+        "pixelWidth": 1284,
+        "svgWidth": 642,
+        "bytes": 33452
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 18998
+      },
+      {
+        "pixelWidth": 192,
+        "svgWidth": 96,
+        "bytes": 10644
+      },
+      {
+        "pixelWidth": 208,
+        "svgWidth": 104,
+        "bytes": 12854
+      },
+      {
+        "pixelWidth": 210,
+        "svgWidth": 105,
+        "bytes": 9132
+      },
+      {
+        "pixelWidth": 1366,
+        "svgWidth": 683,
+        "bytes": 25806
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 5920
+      },
+      {
+        "pixelWidth": 206,
+        "svgWidth": 103,
+        "bytes": 13354
+      },
+      {
+        "pixelWidth": 202,
+        "svgWidth": 101,
+        "bytes": 17504
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 16672
+      }
+    ]
+  },
+  {
+    "key": "1/light-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1,
+    "changedMaskPixels": 754,
+    "unionPixels": 220032,
+    "beforeSvgBytes": 36215,
+    "afterSvgBytes": 176979,
+    "beforeGzip": 22830,
+    "afterGzip": 129338,
+    "images": [
+      {
+        "pixelWidth": 1095,
+        "svgWidth": 365,
+        "bytes": 27038
+      },
+      {
+        "pixelWidth": 177,
+        "svgWidth": 59,
+        "bytes": 14792
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 8788
+      },
+      {
+        "pixelWidth": 180,
+        "svgWidth": 60,
+        "bytes": 9908
+      },
+      {
+        "pixelWidth": 183,
+        "svgWidth": 61,
+        "bytes": 6800
+      },
+      {
+        "pixelWidth": 1143,
+        "svgWidth": 381,
+        "bytes": 19934
+      },
+      {
+        "pixelWidth": 177,
+        "svgWidth": 59,
+        "bytes": 6134
+      },
+      {
+        "pixelWidth": 174,
+        "svgWidth": 58,
+        "bytes": 8850
+      },
+      {
+        "pixelWidth": 171,
+        "svgWidth": 57,
+        "bytes": 12062
+      },
+      {
+        "pixelWidth": 174,
+        "svgWidth": 58,
+        "bytes": 12142
+      }
+    ]
+  },
+  {
+    "key": "1/dark-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1,
+    "changedMaskPixels": 753,
+    "unionPixels": 220032,
+    "beforeSvgBytes": 36069,
+    "afterSvgBytes": 176115,
+    "beforeGzip": 22723,
+    "afterGzip": 128730,
+    "images": [
+      {
+        "pixelWidth": 1095,
+        "svgWidth": 365,
+        "bytes": 26526
+      },
+      {
+        "pixelWidth": 177,
+        "svgWidth": 59,
+        "bytes": 14660
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 8904
+      },
+      {
+        "pixelWidth": 180,
+        "svgWidth": 60,
+        "bytes": 9828
+      },
+      {
+        "pixelWidth": 183,
+        "svgWidth": 61,
+        "bytes": 6820
+      },
+      {
+        "pixelWidth": 1143,
+        "svgWidth": 381,
+        "bytes": 19846
+      },
+      {
+        "pixelWidth": 177,
+        "svgWidth": 59,
+        "bytes": 6062
+      },
+      {
+        "pixelWidth": 174,
+        "svgWidth": 58,
+        "bytes": 9088
+      },
+      {
+        "pixelWidth": 171,
+        "svgWidth": 57,
+        "bytes": 11994
+      },
+      {
+        "pixelWidth": 174,
+        "svgWidth": 58,
+        "bytes": 12116
+      }
+    ]
+  },
+  {
+    "key": "4/light-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 2,
+    "changedMaskPixels": 4475,
+    "unionPixels": 544389,
+    "beforeSvgBytes": 83875,
+    "afterSvgBytes": 157404,
+    "beforeGzip": 38131,
+    "afterGzip": 101393,
+    "images": [
+      {
+        "pixelWidth": 292,
+        "svgWidth": 146,
+        "bytes": 12758
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 69,
+        "bytes": 3862
+      },
+      {
+        "pixelWidth": 126,
+        "svgWidth": 63,
+        "bytes": 3600
+      },
+      {
+        "pixelWidth": 182,
+        "svgWidth": 91,
+        "bytes": 14158
+      },
+      {
+        "pixelWidth": 182,
+        "svgWidth": 91,
+        "bytes": 4398
+      },
+      {
+        "pixelWidth": 100,
+        "svgWidth": 50,
+        "bytes": 1954
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 2104
+      },
+      {
+        "pixelWidth": 102,
+        "svgWidth": 51,
+        "bytes": 1966
+      },
+      {
+        "pixelWidth": 104,
+        "svgWidth": 52,
+        "bytes": 2006
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 2128
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 1688
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 81,
+        "bytes": 3732
+      },
+      {
+        "pixelWidth": 190,
+        "svgWidth": 95,
+        "bytes": 6654
+      },
+      {
+        "pixelWidth": 230,
+        "svgWidth": 115,
+        "bytes": 9466
+      },
+      {
+        "pixelWidth": 250,
+        "svgWidth": 125,
+        "bytes": 15552
+      }
+    ]
+  },
+  {
+    "key": "4/dark-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 2,
+    "changedMaskPixels": 4759,
+    "unionPixels": 545201,
+    "beforeSvgBytes": 85117,
+    "afterSvgBytes": 158414,
+    "beforeGzip": 38775,
+    "afterGzip": 102245,
+    "images": [
+      {
+        "pixelWidth": 290,
+        "svgWidth": 145,
+        "bytes": 12724
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 69,
+        "bytes": 3822
+      },
+      {
+        "pixelWidth": 124,
+        "svgWidth": 62,
+        "bytes": 3588
+      },
+      {
+        "pixelWidth": 180,
+        "svgWidth": 90,
+        "bytes": 14056
+      },
+      {
+        "pixelWidth": 182,
+        "svgWidth": 91,
+        "bytes": 4428
+      },
+      {
+        "pixelWidth": 100,
+        "svgWidth": 50,
+        "bytes": 1876
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 2320
+      },
+      {
+        "pixelWidth": 102,
+        "svgWidth": 51,
+        "bytes": 2042
+      },
+      {
+        "pixelWidth": 104,
+        "svgWidth": 52,
+        "bytes": 2172
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 2242
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 1838
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 81,
+        "bytes": 3556
+      },
+      {
+        "pixelWidth": 190,
+        "svgWidth": 95,
+        "bytes": 6744
+      },
+      {
+        "pixelWidth": 230,
+        "svgWidth": 115,
+        "bytes": 9302
+      },
+      {
+        "pixelWidth": 250,
+        "svgWidth": 125,
+        "bytes": 15730
+      }
+    ]
+  },
+  {
+    "key": "4/light-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1.5,
+    "changedMaskPixels": 2134,
+    "unionPixels": 145832,
+    "beforeSvgBytes": 48716,
+    "afterSvgBytes": 114481,
+    "beforeGzip": 19404,
+    "afterGzip": 73699,
+    "images": [
+      {
+        "pixelWidth": 246,
+        "svgWidth": 82,
+        "bytes": 9994
+      },
+      {
+        "pixelWidth": 126,
+        "svgWidth": 42,
+        "bytes": 3688
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 38,
+        "bytes": 2776
+      },
+      {
+        "pixelWidth": 156,
+        "svgWidth": 52,
+        "bytes": 10028
+      },
+      {
+        "pixelWidth": 156,
+        "svgWidth": 52,
+        "bytes": 3558
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 1126
+      },
+      {
+        "pixelWidth": 93,
+        "svgWidth": 31,
+        "bytes": 1424
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 30,
+        "bytes": 1412
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 30,
+        "bytes": 968
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 30,
+        "bytes": 1614
+      },
+      {
+        "pixelWidth": 93,
+        "svgWidth": 31,
+        "bytes": 1246
+      },
+      {
+        "pixelWidth": 159,
+        "svgWidth": 53,
+        "bytes": 4986
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 54,
+        "bytes": 3346
+      },
+      {
+        "pixelWidth": 201,
+        "svgWidth": 67,
+        "bytes": 6726
+      },
+      {
+        "pixelWidth": 201,
+        "svgWidth": 67,
+        "bytes": 10466
+      }
+    ]
+  },
+  {
+    "key": "4/dark-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1.5,
+    "changedMaskPixels": 2139,
+    "unionPixels": 145974,
+    "beforeSvgBytes": 48516,
+    "afterSvgBytes": 114975,
+    "beforeGzip": 19284,
+    "afterGzip": 73913,
+    "images": [
+      {
+        "pixelWidth": 246,
+        "svgWidth": 82,
+        "bytes": 10042
+      },
+      {
+        "pixelWidth": 126,
+        "svgWidth": 42,
+        "bytes": 3746
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 38,
+        "bytes": 2778
+      },
+      {
+        "pixelWidth": 156,
+        "svgWidth": 52,
+        "bytes": 10078
+      },
+      {
+        "pixelWidth": 156,
+        "svgWidth": 52,
+        "bytes": 3558
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 1136
+      },
+      {
+        "pixelWidth": 93,
+        "svgWidth": 31,
+        "bytes": 1454
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 30,
+        "bytes": 1626
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 30,
+        "bytes": 1010
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 30,
+        "bytes": 1682
+      },
+      {
+        "pixelWidth": 93,
+        "svgWidth": 31,
+        "bytes": 1272
+      },
+      {
+        "pixelWidth": 159,
+        "svgWidth": 53,
+        "bytes": 5094
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 54,
+        "bytes": 3326
+      },
+      {
+        "pixelWidth": 201,
+        "svgWidth": 67,
+        "bytes": 6826
+      },
+      {
+        "pixelWidth": 201,
+        "svgWidth": 67,
+        "bytes": 10356
+      }
+    ]
+  },
+  {
+    "key": "3/light-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1,
+    "changedMaskPixels": 2394,
+    "unionPixels": 629090,
+    "beforeSvgBytes": 111956,
+    "afterSvgBytes": 256512,
+    "beforeGzip": 56691,
+    "afterGzip": 180198,
+    "images": [
+      {
+        "pixelWidth": 154,
+        "svgWidth": 77,
+        "bytes": 9062
+      },
+      {
+        "pixelWidth": 122,
+        "svgWidth": 61,
+        "bytes": 6480
+      },
+      {
+        "pixelWidth": 130,
+        "svgWidth": 65,
+        "bytes": 7504
+      },
+      {
+        "pixelWidth": 134,
+        "svgWidth": 67,
+        "bytes": 7776
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 9214
+      },
+      {
+        "pixelWidth": 70,
+        "svgWidth": 35,
+        "bytes": 3442
+      },
+      {
+        "pixelWidth": 320,
+        "svgWidth": 160,
+        "bytes": 8658
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 27,
+        "bytes": 1518
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 3010
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 30,
+        "bytes": 2840
+      },
+      {
+        "pixelWidth": 72,
+        "svgWidth": 36,
+        "bytes": 1434
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 24,
+        "bytes": 1476
+      },
+      {
+        "pixelWidth": 62,
+        "svgWidth": 31,
+        "bytes": 2076
+      },
+      {
+        "pixelWidth": 56,
+        "svgWidth": 28,
+        "bytes": 1522
+      },
+      {
+        "pixelWidth": 46,
+        "svgWidth": 23,
+        "bytes": 992
+      },
+      {
+        "pixelWidth": 188,
+        "svgWidth": 94,
+        "bytes": 6818
+      },
+      {
+        "pixelWidth": 246,
+        "svgWidth": 123,
+        "bytes": 3044
+      },
+      {
+        "pixelWidth": 246,
+        "svgWidth": 123,
+        "bytes": 3074
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 45,
+        "bytes": 4420
+      },
+      {
+        "pixelWidth": 92,
+        "svgWidth": 46,
+        "bytes": 5414
+      },
+      {
+        "pixelWidth": 92,
+        "svgWidth": 46,
+        "bytes": 4874
+      },
+      {
+        "pixelWidth": 214,
+        "svgWidth": 107,
+        "bytes": 3852
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 1796
+      },
+      {
+        "pixelWidth": 42,
+        "svgWidth": 21,
+        "bytes": 1374
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 27,
+        "bytes": 1908
+      },
+      {
+        "pixelWidth": 52,
+        "svgWidth": 26,
+        "bytes": 1532
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 24,
+        "bytes": 1408
+      },
+      {
+        "pixelWidth": 306,
+        "svgWidth": 153,
+        "bytes": 16250
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 24,
+        "bytes": 1632
+      },
+      {
+        "pixelWidth": 238,
+        "svgWidth": 119,
+        "bytes": 11262
+      },
+      {
+        "pixelWidth": 44,
+        "svgWidth": 22,
+        "bytes": 1022
+      },
+      {
+        "pixelWidth": 56,
+        "svgWidth": 28,
+        "bytes": 1274
+      },
+      {
+        "pixelWidth": 112,
+        "svgWidth": 56,
+        "bytes": 7710
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 3000
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 2628
+      },
+      {
+        "pixelWidth": 44,
+        "svgWidth": 22,
+        "bytes": 1390
+      },
+      {
+        "pixelWidth": 236,
+        "svgWidth": 118,
+        "bytes": 9712
+      },
+      {
+        "pixelWidth": 182,
+        "svgWidth": 91,
+        "bytes": 8742
+      }
+    ]
+  },
+  {
+    "key": "3/dark-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1.5,
+    "changedMaskPixels": 2562,
+    "unionPixels": 630935,
+    "beforeSvgBytes": 111479,
+    "afterSvgBytes": 251947,
+    "beforeGzip": 56766,
+    "afterGzip": 178163,
+    "images": [
+      {
+        "pixelWidth": 154,
+        "svgWidth": 77,
+        "bytes": 9016
+      },
+      {
+        "pixelWidth": 122,
+        "svgWidth": 61,
+        "bytes": 6592
+      },
+      {
+        "pixelWidth": 132,
+        "svgWidth": 66,
+        "bytes": 7540
+      },
+      {
+        "pixelWidth": 134,
+        "svgWidth": 67,
+        "bytes": 7842
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 9428
+      },
+      {
+        "pixelWidth": 70,
+        "svgWidth": 35,
+        "bytes": 3468
+      },
+      {
+        "pixelWidth": 320,
+        "svgWidth": 160,
+        "bytes": 7982
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 27,
+        "bytes": 1438
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 3012
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 30,
+        "bytes": 2776
+      },
+      {
+        "pixelWidth": 70,
+        "svgWidth": 35,
+        "bytes": 1550
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 24,
+        "bytes": 1516
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 1988
+      },
+      {
+        "pixelWidth": 56,
+        "svgWidth": 28,
+        "bytes": 1498
+      },
+      {
+        "pixelWidth": 46,
+        "svgWidth": 23,
+        "bytes": 1020
+      },
+      {
+        "pixelWidth": 188,
+        "svgWidth": 94,
+        "bytes": 6788
+      },
+      {
+        "pixelWidth": 246,
+        "svgWidth": 123,
+        "bytes": 3052
+      },
+      {
+        "pixelWidth": 246,
+        "svgWidth": 123,
+        "bytes": 3384
+      },
+      {
+        "pixelWidth": 92,
+        "svgWidth": 46,
+        "bytes": 4392
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 45,
+        "bytes": 5598
+      },
+      {
+        "pixelWidth": 90,
+        "svgWidth": 45,
+        "bytes": 4866
+      },
+      {
+        "pixelWidth": 214,
+        "svgWidth": 107,
+        "bytes": 3732
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 1808
+      },
+      {
+        "pixelWidth": 44,
+        "svgWidth": 22,
+        "bytes": 1342
+      },
+      {
+        "pixelWidth": 56,
+        "svgWidth": 28,
+        "bytes": 1894
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 27,
+        "bytes": 1504
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 24,
+        "bytes": 1268
+      },
+      {
+        "pixelWidth": 308,
+        "svgWidth": 154,
+        "bytes": 16244
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 24,
+        "bytes": 1618
+      },
+      {
+        "pixelWidth": 238,
+        "svgWidth": 119,
+        "bytes": 11296
+      },
+      {
+        "pixelWidth": 44,
+        "svgWidth": 22,
+        "bytes": 952
+      },
+      {
+        "pixelWidth": 56,
+        "svgWidth": 28,
+        "bytes": 1250
+      },
+      {
+        "pixelWidth": 112,
+        "svgWidth": 56,
+        "bytes": 7722
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 3164
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 2660
+      },
+      {
+        "pixelWidth": 44,
+        "svgWidth": 22,
+        "bytes": 1406
+      },
+      {
+        "pixelWidth": 236,
+        "svgWidth": 118,
+        "bytes": 9408
+      },
+      {
+        "pixelWidth": 182,
+        "svgWidth": 91,
+        "bytes": 7946
+      }
+    ]
+  },
+  {
+    "key": "3/light-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 2,
+    "changedMaskPixels": 914,
+    "unionPixels": 168316,
+    "beforeSvgBytes": 65985,
+    "afterSvgBytes": 189486,
+    "beforeGzip": 29107,
+    "afterGzip": 132033,
+    "images": [
+      {
+        "pixelWidth": 126,
+        "svgWidth": 42,
+        "bytes": 6838
+      },
+      {
+        "pixelWidth": 108,
+        "svgWidth": 36,
+        "bytes": 5220
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 38,
+        "bytes": 5744
+      },
+      {
+        "pixelWidth": 117,
+        "svgWidth": 39,
+        "bytes": 5884
+      },
+      {
+        "pixelWidth": 225,
+        "svgWidth": 75,
+        "bytes": 6914
+      },
+      {
+        "pixelWidth": 69,
+        "svgWidth": 23,
+        "bytes": 2824
+      },
+      {
+        "pixelWidth": 261,
+        "svgWidth": 87,
+        "bytes": 5972
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 1098
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 20,
+        "bytes": 2602
+      },
+      {
+        "pixelWidth": 57,
+        "svgWidth": 19,
+        "bytes": 2412
+      },
+      {
+        "pixelWidth": 69,
+        "svgWidth": 23,
+        "bytes": 1114
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 1142
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 20,
+        "bytes": 1442
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 942
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 856
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 6308
+      },
+      {
+        "pixelWidth": 216,
+        "svgWidth": 72,
+        "bytes": 2212
+      },
+      {
+        "pixelWidth": 210,
+        "svgWidth": 70,
+        "bytes": 2508
+      },
+      {
+        "pixelWidth": 81,
+        "svgWidth": 27,
+        "bytes": 2896
+      },
+      {
+        "pixelWidth": 81,
+        "svgWidth": 27,
+        "bytes": 3230
+      },
+      {
+        "pixelWidth": 81,
+        "svgWidth": 27,
+        "bytes": 3766
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 2788
+      },
+      {
+        "pixelWidth": 63,
+        "svgWidth": 21,
+        "bytes": 1062
+      },
+      {
+        "pixelWidth": 45,
+        "svgWidth": 15,
+        "bytes": 1050
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 1416
+      },
+      {
+        "pixelWidth": 51,
+        "svgWidth": 17,
+        "bytes": 942
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 964
+      },
+      {
+        "pixelWidth": 258,
+        "svgWidth": 86,
+        "bytes": 10828
+      },
+      {
+        "pixelWidth": 207,
+        "svgWidth": 69,
+        "bytes": 7686
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 1244
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 6610
+      },
+      {
+        "pixelWidth": 45,
+        "svgWidth": 15,
+        "bytes": 806
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 1030
+      },
+      {
+        "pixelWidth": 216,
+        "svgWidth": 72,
+        "bytes": 2342
+      },
+      {
+        "pixelWidth": 219,
+        "svgWidth": 73,
+        "bytes": 1764
+      },
+      {
+        "pixelWidth": 42,
+        "svgWidth": 14,
+        "bytes": 886
+      },
+      {
+        "pixelWidth": 207,
+        "svgWidth": 69,
+        "bytes": 6408
+      },
+      {
+        "pixelWidth": 156,
+        "svgWidth": 52,
+        "bytes": 6768
+      }
+    ]
+  },
+  {
+    "key": "3/dark-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 2,
+    "changedMaskPixels": 959,
+    "unionPixels": 168312,
+    "beforeSvgBytes": 65316,
+    "afterSvgBytes": 189666,
+    "beforeGzip": 28947,
+    "afterGzip": 132244,
+    "images": [
+      {
+        "pixelWidth": 126,
+        "svgWidth": 42,
+        "bytes": 6832
+      },
+      {
+        "pixelWidth": 108,
+        "svgWidth": 36,
+        "bytes": 5096
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 38,
+        "bytes": 5830
+      },
+      {
+        "pixelWidth": 117,
+        "svgWidth": 39,
+        "bytes": 5836
+      },
+      {
+        "pixelWidth": 225,
+        "svgWidth": 75,
+        "bytes": 6968
+      },
+      {
+        "pixelWidth": 69,
+        "svgWidth": 23,
+        "bytes": 2836
+      },
+      {
+        "pixelWidth": 261,
+        "svgWidth": 87,
+        "bytes": 5962
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 1104
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 20,
+        "bytes": 2570
+      },
+      {
+        "pixelWidth": 57,
+        "svgWidth": 19,
+        "bytes": 2386
+      },
+      {
+        "pixelWidth": 69,
+        "svgWidth": 23,
+        "bytes": 1102
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 1198
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 20,
+        "bytes": 1498
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 974
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 826
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 6396
+      },
+      {
+        "pixelWidth": 216,
+        "svgWidth": 72,
+        "bytes": 2248
+      },
+      {
+        "pixelWidth": 210,
+        "svgWidth": 70,
+        "bytes": 2526
+      },
+      {
+        "pixelWidth": 81,
+        "svgWidth": 27,
+        "bytes": 2868
+      },
+      {
+        "pixelWidth": 81,
+        "svgWidth": 27,
+        "bytes": 3294
+      },
+      {
+        "pixelWidth": 81,
+        "svgWidth": 27,
+        "bytes": 3766
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 2742
+      },
+      {
+        "pixelWidth": 63,
+        "svgWidth": 21,
+        "bytes": 1052
+      },
+      {
+        "pixelWidth": 45,
+        "svgWidth": 15,
+        "bytes": 1052
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 1356
+      },
+      {
+        "pixelWidth": 51,
+        "svgWidth": 17,
+        "bytes": 1084
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 958
+      },
+      {
+        "pixelWidth": 258,
+        "svgWidth": 86,
+        "bytes": 10788
+      },
+      {
+        "pixelWidth": 207,
+        "svgWidth": 69,
+        "bytes": 7714
+      },
+      {
+        "pixelWidth": 48,
+        "svgWidth": 16,
+        "bytes": 1200
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 6664
+      },
+      {
+        "pixelWidth": 45,
+        "svgWidth": 15,
+        "bytes": 784
+      },
+      {
+        "pixelWidth": 54,
+        "svgWidth": 18,
+        "bytes": 1010
+      },
+      {
+        "pixelWidth": 216,
+        "svgWidth": 72,
+        "bytes": 2386
+      },
+      {
+        "pixelWidth": 219,
+        "svgWidth": 73,
+        "bytes": 1736
+      },
+      {
+        "pixelWidth": 42,
+        "svgWidth": 14,
+        "bytes": 954
+      },
+      {
+        "pixelWidth": 207,
+        "svgWidth": 69,
+        "bytes": 6552
+      },
+      {
+        "pixelWidth": 156,
+        "svgWidth": 52,
+        "bytes": 6476
+      }
+    ]
+  },
+  {
+    "key": "2/light-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 4.5,
+    "changedMaskPixels": 3633,
+    "unionPixels": 714690,
+    "beforeSvgBytes": 88127,
+    "afterSvgBytes": 316582,
+    "beforeGzip": 60364,
+    "afterGzip": 233096,
+    "images": [
+      {
+        "pixelWidth": 140,
+        "svgWidth": 70,
+        "bytes": 7042
+      },
+      {
+        "pixelWidth": 170,
+        "svgWidth": 85,
+        "bytes": 9360
+      },
+      {
+        "pixelWidth": 252,
+        "svgWidth": 126,
+        "bytes": 12638
+      },
+      {
+        "pixelWidth": 360,
+        "svgWidth": 180,
+        "bytes": 6666
+      },
+      {
+        "pixelWidth": 604,
+        "svgWidth": 302,
+        "bytes": 54294
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 57,
+        "bytes": 5944
+      },
+      {
+        "pixelWidth": 158,
+        "svgWidth": 79,
+        "bytes": 5198
+      },
+      {
+        "pixelWidth": 112,
+        "svgWidth": 56,
+        "bytes": 4198
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 69,
+        "bytes": 3624
+      },
+      {
+        "pixelWidth": 116,
+        "svgWidth": 58,
+        "bytes": 5448
+      },
+      {
+        "pixelWidth": 66,
+        "svgWidth": 33,
+        "bytes": 1530
+      },
+      {
+        "pixelWidth": 170,
+        "svgWidth": 85,
+        "bytes": 7792
+      },
+      {
+        "pixelWidth": 158,
+        "svgWidth": 79,
+        "bytes": 3650
+      },
+      {
+        "pixelWidth": 214,
+        "svgWidth": 107,
+        "bytes": 10776
+      },
+      {
+        "pixelWidth": 170,
+        "svgWidth": 85,
+        "bytes": 7978
+      },
+      {
+        "pixelWidth": 66,
+        "svgWidth": 33,
+        "bytes": 1706
+      },
+      {
+        "pixelWidth": 88,
+        "svgWidth": 44,
+        "bytes": 4058
+      },
+      {
+        "pixelWidth": 232,
+        "svgWidth": 116,
+        "bytes": 17194
+      },
+      {
+        "pixelWidth": 86,
+        "svgWidth": 43,
+        "bytes": 3016
+      },
+      {
+        "pixelWidth": 172,
+        "svgWidth": 86,
+        "bytes": 6468
+      },
+      {
+        "pixelWidth": 172,
+        "svgWidth": 86,
+        "bytes": 9894
+      },
+      {
+        "pixelWidth": 172,
+        "svgWidth": 86,
+        "bytes": 1044
+      },
+      {
+        "pixelWidth": 178,
+        "svgWidth": 89,
+        "bytes": 12726
+      },
+      {
+        "pixelWidth": 230,
+        "svgWidth": 115,
+        "bytes": 16656
+      },
+      {
+        "pixelWidth": 190,
+        "svgWidth": 95,
+        "bytes": 1534
+      },
+      {
+        "pixelWidth": 80,
+        "svgWidth": 40,
+        "bytes": 1144
+      },
+      {
+        "pixelWidth": 80,
+        "svgWidth": 40,
+        "bytes": 978
+      },
+      {
+        "pixelWidth": 198,
+        "svgWidth": 99,
+        "bytes": 1678
+      },
+      {
+        "pixelWidth": 84,
+        "svgWidth": 42,
+        "bytes": 982
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 1596
+      },
+      {
+        "pixelWidth": 244,
+        "svgWidth": 122,
+        "bytes": 3318
+      }
+    ]
+  },
+  {
+    "key": "2/dark-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 4.5,
+    "changedMaskPixels": 3415,
+    "unionPixels": 717747,
+    "beforeSvgBytes": 84791,
+    "afterSvgBytes": 298479,
+    "beforeGzip": 57876,
+    "afterGzip": 219426,
+    "images": [
+      {
+        "pixelWidth": 140,
+        "svgWidth": 70,
+        "bytes": 6908
+      },
+      {
+        "pixelWidth": 170,
+        "svgWidth": 85,
+        "bytes": 9442
+      },
+      {
+        "pixelWidth": 252,
+        "svgWidth": 126,
+        "bytes": 12138
+      },
+      {
+        "pixelWidth": 360,
+        "svgWidth": 180,
+        "bytes": 6052
+      },
+      {
+        "pixelWidth": 606,
+        "svgWidth": 303,
+        "bytes": 38484
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 57,
+        "bytes": 6454
+      },
+      {
+        "pixelWidth": 158,
+        "svgWidth": 79,
+        "bytes": 5160
+      },
+      {
+        "pixelWidth": 112,
+        "svgWidth": 56,
+        "bytes": 4456
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 69,
+        "bytes": 3706
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 1420
+      },
+      {
+        "pixelWidth": 116,
+        "svgWidth": 58,
+        "bytes": 6074
+      },
+      {
+        "pixelWidth": 340,
+        "svgWidth": 85,
+        "bytes": 7678
+      },
+      {
+        "pixelWidth": 158,
+        "svgWidth": 79,
+        "bytes": 3684
+      },
+      {
+        "pixelWidth": 214,
+        "svgWidth": 107,
+        "bytes": 11364
+      },
+      {
+        "pixelWidth": 64,
+        "svgWidth": 32,
+        "bytes": 1642
+      },
+      {
+        "pixelWidth": 170,
+        "svgWidth": 85,
+        "bytes": 8276
+      },
+      {
+        "pixelWidth": 88,
+        "svgWidth": 44,
+        "bytes": 4074
+      },
+      {
+        "pixelWidth": 230,
+        "svgWidth": 115,
+        "bytes": 17206
+      },
+      {
+        "pixelWidth": 86,
+        "svgWidth": 43,
+        "bytes": 3014
+      },
+      {
+        "pixelWidth": 172,
+        "svgWidth": 86,
+        "bytes": 7100
+      },
+      {
+        "pixelWidth": 172,
+        "svgWidth": 86,
+        "bytes": 9952
+      },
+      {
+        "pixelWidth": 172,
+        "svgWidth": 86,
+        "bytes": 1390
+      },
+      {
+        "pixelWidth": 176,
+        "svgWidth": 88,
+        "bytes": 12562
+      },
+      {
+        "pixelWidth": 232,
+        "svgWidth": 116,
+        "bytes": 16698
+      },
+      {
+        "pixelWidth": 190,
+        "svgWidth": 95,
+        "bytes": 1852
+      },
+      {
+        "pixelWidth": 78,
+        "svgWidth": 39,
+        "bytes": 1142
+      },
+      {
+        "pixelWidth": 82,
+        "svgWidth": 41,
+        "bytes": 1080
+      },
+      {
+        "pixelWidth": 198,
+        "svgWidth": 99,
+        "bytes": 2012
+      },
+      {
+        "pixelWidth": 84,
+        "svgWidth": 42,
+        "bytes": 972
+      },
+      {
+        "pixelWidth": 204,
+        "svgWidth": 102,
+        "bytes": 2058
+      },
+      {
+        "pixelWidth": 244,
+        "svgWidth": 122,
+        "bytes": 2494
+      }
+    ]
+  },
+  {
+    "key": "2/light-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 6.5,
+    "changedMaskPixels": 1477,
+    "unionPixels": 194370,
+    "beforeSvgBytes": 44822,
+    "afterSvgBytes": 240681,
+    "beforeGzip": 27661,
+    "afterGzip": 175878,
+    "images": [
+      {
+        "pixelWidth": 126,
+        "svgWidth": 42,
+        "bytes": 4982
+      },
+      {
+        "pixelWidth": 153,
+        "svgWidth": 51,
+        "bytes": 7216
+      },
+      {
+        "pixelWidth": 222,
+        "svgWidth": 74,
+        "bytes": 10642
+      },
+      {
+        "pixelWidth": 504,
+        "svgWidth": 168,
+        "bytes": 40840
+      },
+      {
+        "pixelWidth": 102,
+        "svgWidth": 34,
+        "bytes": 4684
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 46,
+        "bytes": 3914
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 2818
+      },
+      {
+        "pixelWidth": 318,
+        "svgWidth": 106,
+        "bytes": 6424
+      },
+      {
+        "pixelWidth": 105,
+        "svgWidth": 35,
+        "bytes": 4474
+      },
+      {
+        "pixelWidth": 123,
+        "svgWidth": 41,
+        "bytes": 2710
+      },
+      {
+        "pixelWidth": 189,
+        "svgWidth": 63,
+        "bytes": 6214
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 46,
+        "bytes": 2726
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 20,
+        "bytes": 1256
+      },
+      {
+        "pixelWidth": 180,
+        "svgWidth": 60,
+        "bytes": 7822
+      },
+      {
+        "pixelWidth": 195,
+        "svgWidth": 65,
+        "bytes": 6584
+      },
+      {
+        "pixelWidth": 63,
+        "svgWidth": 21,
+        "bytes": 1334
+      },
+      {
+        "pixelWidth": 84,
+        "svgWidth": 28,
+        "bytes": 3050
+      },
+      {
+        "pixelWidth": 192,
+        "svgWidth": 64,
+        "bytes": 11844
+      },
+      {
+        "pixelWidth": 195,
+        "svgWidth": 65,
+        "bytes": 5490
+      },
+      {
+        "pixelWidth": 150,
+        "svgWidth": 50,
+        "bytes": 6766
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 54,
+        "bytes": 706
+      },
+      {
+        "pixelWidth": 78,
+        "svgWidth": 26,
+        "bytes": 2402
+      },
+      {
+        "pixelWidth": 147,
+        "svgWidth": 49,
+        "bytes": 8466
+      },
+      {
+        "pixelWidth": 201,
+        "svgWidth": 67,
+        "bytes": 11690
+      },
+      {
+        "pixelWidth": 159,
+        "svgWidth": 53,
+        "bytes": 1068
+      },
+      {
+        "pixelWidth": 72,
+        "svgWidth": 24,
+        "bytes": 970
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 988
+      },
+      {
+        "pixelWidth": 69,
+        "svgWidth": 23,
+        "bytes": 1006
+      },
+      {
+        "pixelWidth": 72,
+        "svgWidth": 24,
+        "bytes": 892
+      },
+      {
+        "pixelWidth": 141,
+        "svgWidth": 47,
+        "bytes": 1008
+      },
+      {
+        "pixelWidth": 174,
+        "svgWidth": 58,
+        "bytes": 2450
+      }
+    ]
+  },
+  {
+    "key": "2/dark-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 6.5,
+    "changedMaskPixels": 1442,
+    "unionPixels": 194376,
+    "beforeSvgBytes": 43542,
+    "afterSvgBytes": 234925,
+    "beforeGzip": 26740,
+    "afterGzip": 171595,
+    "images": [
+      {
+        "pixelWidth": 126,
+        "svgWidth": 42,
+        "bytes": 4986
+      },
+      {
+        "pixelWidth": 153,
+        "svgWidth": 51,
+        "bytes": 7190
+      },
+      {
+        "pixelWidth": 222,
+        "svgWidth": 74,
+        "bytes": 10650
+      },
+      {
+        "pixelWidth": 504,
+        "svgWidth": 168,
+        "bytes": 33048
+      },
+      {
+        "pixelWidth": 102,
+        "svgWidth": 34,
+        "bytes": 5044
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 46,
+        "bytes": 3930
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 3124
+      },
+      {
+        "pixelWidth": 318,
+        "svgWidth": 106,
+        "bytes": 5688
+      },
+      {
+        "pixelWidth": 105,
+        "svgWidth": 35,
+        "bytes": 5048
+      },
+      {
+        "pixelWidth": 123,
+        "svgWidth": 41,
+        "bytes": 2850
+      },
+      {
+        "pixelWidth": 189,
+        "svgWidth": 63,
+        "bytes": 6696
+      },
+      {
+        "pixelWidth": 138,
+        "svgWidth": 46,
+        "bytes": 2806
+      },
+      {
+        "pixelWidth": 60,
+        "svgWidth": 20,
+        "bytes": 1276
+      },
+      {
+        "pixelWidth": 180,
+        "svgWidth": 60,
+        "bytes": 8172
+      },
+      {
+        "pixelWidth": 195,
+        "svgWidth": 65,
+        "bytes": 6972
+      },
+      {
+        "pixelWidth": 63,
+        "svgWidth": 21,
+        "bytes": 1392
+      },
+      {
+        "pixelWidth": 84,
+        "svgWidth": 28,
+        "bytes": 3092
+      },
+      {
+        "pixelWidth": 192,
+        "svgWidth": 64,
+        "bytes": 11860
+      },
+      {
+        "pixelWidth": 195,
+        "svgWidth": 65,
+        "bytes": 6020
+      },
+      {
+        "pixelWidth": 150,
+        "svgWidth": 50,
+        "bytes": 6974
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 54,
+        "bytes": 1060
+      },
+      {
+        "pixelWidth": 78,
+        "svgWidth": 26,
+        "bytes": 2456
+      },
+      {
+        "pixelWidth": 147,
+        "svgWidth": 49,
+        "bytes": 8432
+      },
+      {
+        "pixelWidth": 201,
+        "svgWidth": 67,
+        "bytes": 12022
+      },
+      {
+        "pixelWidth": 159,
+        "svgWidth": 53,
+        "bytes": 1028
+      },
+      {
+        "pixelWidth": 72,
+        "svgWidth": 24,
+        "bytes": 1084
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 1332
+      },
+      {
+        "pixelWidth": 69,
+        "svgWidth": 23,
+        "bytes": 1062
+      },
+      {
+        "pixelWidth": 72,
+        "svgWidth": 24,
+        "bytes": 926
+      },
+      {
+        "pixelWidth": 141,
+        "svgWidth": 47,
+        "bytes": 910
+      },
+      {
+        "pixelWidth": 174,
+        "svgWidth": 58,
+        "bytes": 2002
+      }
+    ]
+  },
+  {
+    "key": "5/light-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 6,
+    "changedMaskPixels": 3011,
+    "unionPixels": 529804,
+    "beforeSvgBytes": 66228,
+    "afterSvgBytes": 181850,
+    "beforeGzip": 35199,
+    "afterGzip": 128698,
+    "images": [
+      {
+        "pixelWidth": 248,
+        "svgWidth": 124,
+        "bytes": 8770
+      },
+      {
+        "pixelWidth": 128,
+        "svgWidth": 64,
+        "bytes": 10636
+      },
+      {
+        "pixelWidth": 380,
+        "svgWidth": 190,
+        "bytes": 6088
+      },
+      {
+        "pixelWidth": 224,
+        "svgWidth": 112,
+        "bytes": 6854
+      },
+      {
+        "pixelWidth": 252,
+        "svgWidth": 126,
+        "bytes": 26644
+      },
+      {
+        "pixelWidth": 418,
+        "svgWidth": 209,
+        "bytes": 6540
+      },
+      {
+        "pixelWidth": 124,
+        "svgWidth": 62,
+        "bytes": 7264
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 57,
+        "bytes": 1862
+      },
+      {
+        "pixelWidth": 148,
+        "svgWidth": 74,
+        "bytes": 7630
+      },
+      {
+        "pixelWidth": 420,
+        "svgWidth": 105,
+        "bytes": 13340
+      },
+      {
+        "pixelWidth": 484,
+        "svgWidth": 242,
+        "bytes": 10700
+      },
+      {
+        "pixelWidth": 194,
+        "svgWidth": 97,
+        "bytes": 9596
+      },
+      {
+        "pixelWidth": 160,
+        "svgWidth": 80,
+        "bytes": 3416
+      },
+      {
+        "pixelWidth": 158,
+        "svgWidth": 79,
+        "bytes": 2466
+      }
+    ]
+  },
+  {
+    "key": "5/dark-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 8,
+    "changedMaskPixels": 2982,
+    "unionPixels": 525990,
+    "beforeSvgBytes": 66291,
+    "afterSvgBytes": 183902,
+    "beforeGzip": 35315,
+    "afterGzip": 129466,
+    "images": [
+      {
+        "pixelWidth": 248,
+        "svgWidth": 124,
+        "bytes": 8402
+      },
+      {
+        "pixelWidth": 126,
+        "svgWidth": 63,
+        "bytes": 10236
+      },
+      {
+        "pixelWidth": 382,
+        "svgWidth": 191,
+        "bytes": 6830
+      },
+      {
+        "pixelWidth": 224,
+        "svgWidth": 112,
+        "bytes": 6794
+      },
+      {
+        "pixelWidth": 418,
+        "svgWidth": 209,
+        "bytes": 7246
+      },
+      {
+        "pixelWidth": 252,
+        "svgWidth": 126,
+        "bytes": 27426
+      },
+      {
+        "pixelWidth": 124,
+        "svgWidth": 62,
+        "bytes": 7330
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 57,
+        "bytes": 1888
+      },
+      {
+        "pixelWidth": 148,
+        "svgWidth": 74,
+        "bytes": 7752
+      },
+      {
+        "pixelWidth": 424,
+        "svgWidth": 106,
+        "bytes": 11664
+      },
+      {
+        "pixelWidth": 484,
+        "svgWidth": 242,
+        "bytes": 9786
+      },
+      {
+        "pixelWidth": 194,
+        "svgWidth": 97,
+        "bytes": 9430
+      },
+      {
+        "pixelWidth": 162,
+        "svgWidth": 81,
+        "bytes": 4126
+      },
+      {
+        "pixelWidth": 158,
+        "svgWidth": 79,
+        "bytes": 2490
+      }
+    ]
+  },
+  {
+    "key": "5/light-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 2.5,
+    "changedMaskPixels": 1328,
+    "unionPixels": 140533,
+    "beforeSvgBytes": 36203,
+    "afterSvgBytes": 136703,
+    "beforeGzip": 17375,
+    "afterGzip": 96239,
+    "images": [
+      {
+        "pixelWidth": 216,
+        "svgWidth": 72,
+        "bytes": 7010
+      },
+      {
+        "pixelWidth": 105,
+        "svgWidth": 35,
+        "bytes": 8820
+      },
+      {
+        "pixelWidth": 300,
+        "svgWidth": 100,
+        "bytes": 2994
+      },
+      {
+        "pixelWidth": 198,
+        "svgWidth": 66,
+        "bytes": 5670
+      },
+      {
+        "pixelWidth": 342,
+        "svgWidth": 114,
+        "bytes": 4778
+      },
+      {
+        "pixelWidth": 213,
+        "svgWidth": 71,
+        "bytes": 18824
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 38,
+        "bytes": 5160
+      },
+      {
+        "pixelWidth": 117,
+        "svgWidth": 39,
+        "bytes": 1836
+      },
+      {
+        "pixelWidth": 132,
+        "svgWidth": 44,
+        "bytes": 5556
+      },
+      {
+        "pixelWidth": 228,
+        "svgWidth": 76,
+        "bytes": 9756
+      },
+      {
+        "pixelWidth": 399,
+        "svgWidth": 133,
+        "bytes": 8424
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 8630
+      },
+      {
+        "pixelWidth": 135,
+        "svgWidth": 45,
+        "bytes": 2390
+      },
+      {
+        "pixelWidth": 135,
+        "svgWidth": 45,
+        "bytes": 1316
+      }
+    ]
+  },
+  {
+    "key": "5/dark-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 3,
+    "changedMaskPixels": 1344,
+    "unionPixels": 140628,
+    "beforeSvgBytes": 35860,
+    "afterSvgBytes": 137289,
+    "beforeGzip": 17459,
+    "afterGzip": 96714,
+    "images": [
+      {
+        "pixelWidth": 216,
+        "svgWidth": 72,
+        "bytes": 6840
+      },
+      {
+        "pixelWidth": 105,
+        "svgWidth": 35,
+        "bytes": 8792
+      },
+      {
+        "pixelWidth": 297,
+        "svgWidth": 99,
+        "bytes": 3668
+      },
+      {
+        "pixelWidth": 198,
+        "svgWidth": 66,
+        "bytes": 5738
+      },
+      {
+        "pixelWidth": 342,
+        "svgWidth": 114,
+        "bytes": 5264
+      },
+      {
+        "pixelWidth": 213,
+        "svgWidth": 71,
+        "bytes": 18874
+      },
+      {
+        "pixelWidth": 114,
+        "svgWidth": 38,
+        "bytes": 5216
+      },
+      {
+        "pixelWidth": 117,
+        "svgWidth": 39,
+        "bytes": 1766
+      },
+      {
+        "pixelWidth": 132,
+        "svgWidth": 44,
+        "bytes": 5764
+      },
+      {
+        "pixelWidth": 228,
+        "svgWidth": 76,
+        "bytes": 8836
+      },
+      {
+        "pixelWidth": 399,
+        "svgWidth": 133,
+        "bytes": 8178
+      },
+      {
+        "pixelWidth": 168,
+        "svgWidth": 56,
+        "bytes": 8184
+      },
+      {
+        "pixelWidth": 135,
+        "svgWidth": 45,
+        "bytes": 3140
+      },
+      {
+        "pixelWidth": 135,
+        "svgWidth": 45,
+        "bytes": 1248
+      }
+    ]
+  },
+  {
+    "key": "6/light-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1,
+    "changedMaskPixels": 3836,
+    "unionPixels": 686046,
+    "beforeSvgBytes": 110975,
+    "afterSvgBytes": 262313,
+    "beforeGzip": 57093,
+    "afterGzip": 172732,
+    "images": [
+      {
+        "pixelWidth": 446,
+        "svgWidth": 223,
+        "bytes": 40002
+      },
+      {
+        "pixelWidth": 104,
+        "svgWidth": 52,
+        "bytes": 3362
+      },
+      {
+        "pixelWidth": 312,
+        "svgWidth": 156,
+        "bytes": 2322
+      },
+      {
+        "pixelWidth": 338,
+        "svgWidth": 169,
+        "bytes": 10620
+      },
+      {
+        "pixelWidth": 214,
+        "svgWidth": 107,
+        "bytes": 2914
+      },
+      {
+        "pixelWidth": 252,
+        "svgWidth": 126,
+        "bytes": 3300
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 4638
+      },
+      {
+        "pixelWidth": 342,
+        "svgWidth": 171,
+        "bytes": 17400
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 1658
+      },
+      {
+        "pixelWidth": 324,
+        "svgWidth": 162,
+        "bytes": 19630
+      },
+      {
+        "pixelWidth": 104,
+        "svgWidth": 52,
+        "bytes": 3480
+      },
+      {
+        "pixelWidth": 448,
+        "svgWidth": 224,
+        "bytes": 27552
+      },
+      {
+        "pixelWidth": 316,
+        "svgWidth": 158,
+        "bytes": 19386
+      }
+    ]
+  },
+  {
+    "key": "6/dark-desktop",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 1,
+    "changedMaskPixels": 3624,
+    "unionPixels": 682454,
+    "beforeSvgBytes": 111723,
+    "afterSvgBytes": 262072,
+    "beforeGzip": 56711,
+    "afterGzip": 172718,
+    "images": [
+      {
+        "pixelWidth": 448,
+        "svgWidth": 224,
+        "bytes": 39866
+      },
+      {
+        "pixelWidth": 104,
+        "svgWidth": 52,
+        "bytes": 3276
+      },
+      {
+        "pixelWidth": 314,
+        "svgWidth": 157,
+        "bytes": 2166
+      },
+      {
+        "pixelWidth": 338,
+        "svgWidth": 169,
+        "bytes": 10962
+      },
+      {
+        "pixelWidth": 214,
+        "svgWidth": 107,
+        "bytes": 2858
+      },
+      {
+        "pixelWidth": 254,
+        "svgWidth": 127,
+        "bytes": 3304
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 4326
+      },
+      {
+        "pixelWidth": 342,
+        "svgWidth": 171,
+        "bytes": 16060
+      },
+      {
+        "pixelWidth": 256,
+        "svgWidth": 128,
+        "bytes": 1478
+      },
+      {
+        "pixelWidth": 324,
+        "svgWidth": 162,
+        "bytes": 20764
+      },
+      {
+        "pixelWidth": 106,
+        "svgWidth": 53,
+        "bytes": 3468
+      },
+      {
+        "pixelWidth": 448,
+        "svgWidth": 224,
+        "bytes": 28656
+      },
+      {
+        "pixelWidth": 316,
+        "svgWidth": 158,
+        "bytes": 19418
+      }
+    ]
+  },
+  {
+    "key": "6/light-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 8,
+    "changedMaskPixels": 1675,
+    "unionPixels": 183684,
+    "beforeSvgBytes": 56380,
+    "afterSvgBytes": 174965,
+    "beforeGzip": 26581,
+    "afterGzip": 119271,
+    "images": [
+      {
+        "pixelWidth": 357,
+        "svgWidth": 119,
+        "bytes": 27694
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 2534
+      },
+      {
+        "pixelWidth": 270,
+        "svgWidth": 90,
+        "bytes": 1416
+      },
+      {
+        "pixelWidth": 186,
+        "svgWidth": 62,
+        "bytes": 2282
+      },
+      {
+        "pixelWidth": 288,
+        "svgWidth": 96,
+        "bytes": 8002
+      },
+      {
+        "pixelWidth": 57,
+        "svgWidth": 19,
+        "bytes": 2014
+      },
+      {
+        "pixelWidth": 285,
+        "svgWidth": 95,
+        "bytes": 12248
+      },
+      {
+        "pixelWidth": 222,
+        "svgWidth": 74,
+        "bytes": 1498
+      },
+      {
+        "pixelWidth": 279,
+        "svgWidth": 93,
+        "bytes": 15554
+      },
+      {
+        "pixelWidth": 219,
+        "svgWidth": 73,
+        "bytes": 3170
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 2370
+      },
+      {
+        "pixelWidth": 372,
+        "svgWidth": 124,
+        "bytes": 19220
+      },
+      {
+        "pixelWidth": 255,
+        "svgWidth": 85,
+        "bytes": 13214
+      }
+    ]
+  },
+  {
+    "key": "6/dark-phone",
+    "placementUnchanged": true,
+    "ownerOrderUnchanged": true,
+    "captureIdentityUnchanged": true,
+    "maxCssPxManhattan": 8,
+    "changedMaskPixels": 1593,
+    "unionPixels": 183682,
+    "beforeSvgBytes": 56576,
+    "afterSvgBytes": 173249,
+    "beforeGzip": 26174,
+    "afterGzip": 118787,
+    "images": [
+      {
+        "pixelWidth": 357,
+        "svgWidth": 119,
+        "bytes": 26706
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 2520
+      },
+      {
+        "pixelWidth": 270,
+        "svgWidth": 90,
+        "bytes": 1428
+      },
+      {
+        "pixelWidth": 186,
+        "svgWidth": 62,
+        "bytes": 2406
+      },
+      {
+        "pixelWidth": 288,
+        "svgWidth": 96,
+        "bytes": 7904
+      },
+      {
+        "pixelWidth": 57,
+        "svgWidth": 19,
+        "bytes": 1770
+      },
+      {
+        "pixelWidth": 285,
+        "svgWidth": 95,
+        "bytes": 11974
+      },
+      {
+        "pixelWidth": 222,
+        "svgWidth": 74,
+        "bytes": 1564
+      },
+      {
+        "pixelWidth": 279,
+        "svgWidth": 93,
+        "bytes": 16476
+      },
+      {
+        "pixelWidth": 219,
+        "svgWidth": 73,
+        "bytes": 3056
+      },
+      {
+        "pixelWidth": 96,
+        "svgWidth": 32,
+        "bytes": 2414
+      },
+      {
+        "pixelWidth": 372,
+        "svgWidth": 124,
+        "bytes": 19328
+      },
+      {
+        "pixelWidth": 255,
+        "svgWidth": 85,
+        "bytes": 13280
+      }
+    ]
+  }
+]

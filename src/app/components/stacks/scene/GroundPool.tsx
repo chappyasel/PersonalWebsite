@@ -58,6 +58,7 @@ function PoolQuad({
   const fade = usePostfxFade();
   return (
     <mesh
+      name="room-boot:contact-pool"
       rotation-x={-Math.PI / 2}
       position={position}
       scale={[scale[0], scale[1], 1]}

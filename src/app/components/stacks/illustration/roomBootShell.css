@@ -1,0 +1,134 @@
+.room-first-paint {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+}
+html[data-room-view="illustrated"]:not([data-illustrated-ui="ready"])
+  .room-first-paint,
+html[data-room-view="illustrated"]:not(:has([data-illustration-positioned]))
+  .room-first-paint {
+  display: block;
+  visibility: visible;
+}
+.room-first-paint-unit {
+  display: none;
+}
+.room-entry-wordmark {
+  --room-name-left: max(1.25rem, env(safe-area-inset-left, 0px));
+  --room-name-top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  position: fixed;
+  z-index: 51;
+  left: var(--room-name-left);
+  top: var(--room-name-top);
+  visibility: hidden;
+  pointer-events: none;
+  font-family: var(--font-selected), Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: -0.025em;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  transform-origin: left top;
+  transform: translate(
+      calc(50vw - var(--room-name-left) - 90%),
+      calc(20vh - var(--room-name-top) - 90%)
+    )
+    scale(1.8);
+}
+html:is(
+    [data-room-view="illustrated"],
+    [data-room-view="dissolve"],
+    [data-room-view="travel"]
+  )
+  .room-entry-wordmark {
+  visibility: visible;
+}
+/* One name survives first paint, React hydration, and the 3D dissolve. */
+.room-illustrated-chrome .stacks-wordmark {
+  visibility: hidden;
+}
+/* The compositor moves the persistent name; these are its final base styles
+   after completion or an input/reduced-motion skip. */
+html:has(
+    .stacks-world-shell:is(
+        [data-room-entrance="placing"],
+        [data-room-entrance="complete"]
+      )
+  )
+  .room-entry-wordmark {
+  transform: none;
+}
+.room-first-paint-artwork {
+  --room-first-paint-image: var(--room-first-paint-light-desktop-image);
+  --room-first-paint-width: var(--room-first-paint-light-desktop-width);
+  --room-first-paint-ratio: var(--room-first-paint-light-desktop-ratio);
+  width: min(
+    98cqw,
+    calc(var(--room-first-paint-width) * var(--room-illustration-scale)),
+    calc(100cqh * var(--room-first-paint-ratio))
+  );
+  aspect-ratio: var(--room-first-paint-ratio);
+  background-image: var(--room-first-paint-image);
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+@media (min-width: 1200px) {
+  .room-entry-wordmark {
+    --room-name-left: max(1.75rem, env(safe-area-inset-left, 0px));
+    --room-name-top: max(1.25rem, env(safe-area-inset-top, 0px));
+    font-size: 1.125rem;
+  }
+}
+html.dark .room-first-paint-artwork {
+  --room-first-paint-image: var(--room-first-paint-dark-desktop-image);
+  --room-first-paint-width: var(--room-first-paint-dark-desktop-width);
+  --room-first-paint-ratio: var(--room-first-paint-dark-desktop-ratio);
+}
+@media (max-width: 1199.999px) and (max-aspect-ratio: 3/4) {
+  .room-first-paint-artwork {
+    --room-first-paint-image: var(--room-first-paint-light-phone-image);
+    --room-first-paint-width: var(--room-first-paint-light-phone-width);
+    --room-first-paint-ratio: var(--room-first-paint-light-phone-ratio);
+  }
+  html.dark .room-first-paint-artwork {
+    --room-first-paint-image: var(--room-first-paint-dark-phone-image);
+    --room-first-paint-width: var(--room-first-paint-dark-phone-width);
+    --room-first-paint-ratio: var(--room-first-paint-dark-phone-ratio);
+  }
+}
+.stacks-world-shell[data-room-presentation="illustrated"] .room-illustration,
+.stacks-world-shell[data-room-presentation="dissolve"] .room-illustration {
+  opacity: 1;
+}
+/* Fade the drawing and its atmosphere without fading the loading message. */
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration::before,
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration::after,
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration-traverse,
+.stacks-world-shell[data-room-presentation="dissolve"]
+  .room-illustration
+  > .room-illustration-stage {
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+.stacks-world-shell[data-room-presentation="travel"] .room-illustration {
+  opacity: 0;
+}
+html[data-og-capture] .room-first-paint {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-entry-wordmark {
+    transform: none;
+  }
+  .room-illustration::before,
+  .room-illustration::after,
+  .room-illustration-traverse,
+  .room-illustration-stage {
+    transition: none !important;
+  }
+}

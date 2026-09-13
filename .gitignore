@@ -63,6 +63,8 @@ npm-debug.log*
 # favicon preview sheets (pnpm preview:favicons)
 /favicon-previews
 
+# Local browser frames and full traces; the compact review summary is committed.
+/docs/reviews/illustrated-room-integration-evidence/raw/
 # Private personality records, credentials, and local database
 /data/personalities/
 

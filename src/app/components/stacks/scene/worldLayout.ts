@@ -75,9 +75,9 @@ export function cameraXForScrollOffset(offset: number) {
   return offset * TRAVEL_RANGE_X - TRAVEL_LEAD_IN;
 }
 
-export function scrollOffsetForUnit(unit: number, aboutShift = 0) {
+export function scrollOffsetForUnit(unit: number) {
   if (TRAVEL_RANGE_X === 0) return 0;
-  const stopX = unit * UNIT_SPACING + (unit === 0 ? aboutShift : 0);
+  const stopX = unit * UNIT_SPACING;
   return (stopX + TRAVEL_LEAD_IN) / TRAVEL_RANGE_X;
 }
 
@@ -317,10 +317,8 @@ export type CameraComposition = {
   z: number;
   fov: number;
   /** Lateral truck in world units: the eye AND the look target both move
-   * by this, so the frame slides without yawing. On desktop stops 1..6 it
-   * is `stopLateralOffset`, which centres the shelf in the clear gap
-   * between the rail and the reading dock; About keeps its own solve
-   * (`aboutStopShift`, applied through the scroll stop) and stays at 0. */
+   * by this, so the frame slides without yawing. Every desktop stop uses
+   * the same solve to centre the shelf between the rail and reading dock. */
   lateralOffset: number;
   /** Where the pointer parallax reads as neutral, in NDC x. The gap's
    * midpoint on desktop (a mouse resting over the shelf gives the composed
@@ -383,7 +381,7 @@ function lerpComposition(
  * back in world Z, so their camera and look target move back with them rather
  * than making those shelves appear smaller. Travel interpolates between the
  * adjacent stop compositions. With `railRightPx` (the live rail measurement,
- * desktop only; callers omit it under OG capture) stops 1..6 truck sideways
+ * desktop only; callers omit it under OG capture) all stops truck sideways
  * so the shelf sits in the gap beside the dock instead of half behind it. */
 export function cameraCompositionForViewport(
   width: number,
@@ -406,7 +404,7 @@ export function cameraCompositionForViewport(
       y: portrait ? 0.25 : fallback.y,
       z: unitZ + overviewDistance,
       fov: portrait ? PORTRAIT_FOV : fallback.fov,
-      lateralOffset: unit === 0 || !framing ? 0 : framing.lateralOffset,
+      lateralOffset: framing ? framing.lateralOffset : 0,
       parallaxCentre: framing ? framing.gapCentreNdc : 0,
       parallaxDockSwing: framing
         ? unit === 0
@@ -455,14 +453,6 @@ export function depthOfFieldTargetForUnit(unit: number) {
   ] as const;
 }
 
-// Left edge of unit 0's shelf in world space: (−width/2, 0) through the
-// unit's +0.10 yaw. The one scene anchor the About stop is solved against.
-const aboutYaw = unitPose(0).rotation[1];
-export const ABOUT_SHELF_LEFT = {
-  x: (-SHELF_GEOMETRY.width / 2) * Math.cos(aboutYaw),
-  z: (SHELF_GEOMETRY.width / 2) * Math.sin(aboutYaw),
-} as const;
-
 /** Clear air between the rail's widest label and the projected shelf edge. */
 export const RAIL_SHELF_MARGIN_PX = 24;
 /** The desktop rail's right edge before UnitRail has measured it: 28px of
@@ -470,38 +460,6 @@ export const RAIL_SHELF_MARGIN_PX = 24;
  * pre-paint boot stage both solve against this, so a measurement that lands
  * close to it moves nothing visibly. */
 export const RAIL_RIGHT_PX_FALLBACK = 179;
-/** Maximum lateral camera displacement at the About stop. */
-export const ABOUT_STOP_MAX_SHIFT = 2;
-
-/** How far right of unit 0's shelf the ABOUT STOP rests — the "move the
- * initial scene" fix (owner round 2, item 8, refined at review). The nav
- * does not move; the resting camera slides right until the About shelf's
- * projected LEFT edge sits RAIL_SHELF_MARGIN_PX right of the rail's widest
- * row ("Featured Talks", measured live by UnitRail into railRightPxRef) —
- * the nav lands in the couch–shelf gap with a constant margin at every
- * desktop viewport, and the couch (which needs far less) clears the frame
- * as a side effect. Solved from the same projection the placard peek uses:
- *   frac = 0.5 + ((worldX − camX)/(camZ − worldZ)) · 0.5/tan(hHalf).
- * The cap keeps the stop well left of the unit-boundary midpoint (2.2), so
- * activeUnit can never round to 1 at rest; the floor keeps square-ish
- * viewports on the authored stop (where the gap cannot fit the rail —
- * status quo). Mobile chrome has no left rail; callers pass the shift only
- * on ≥1200px viewports. */
-export function aboutStopShift(
-  vw: number,
-  vh: number,
-  railRightPx: number,
-): number {
-  const aspect = vw / vh;
-  const cam = cameraForAspect(aspect);
-  const vHalf = ((cam.fov / 2) * Math.PI) / 180;
-  const tanH = Math.tan(vHalf) * aspect;
-  const frac = (railRightPx + RAIL_SHELF_MARGIN_PX) / vw;
-  const camX =
-    ABOUT_SHELF_LEFT.x - (frac - 0.5) * (cam.z - ABOUT_SHELF_LEFT.z) * 2 * tanH;
-  return Math.min(ABOUT_STOP_MAX_SHIFT, Math.max(0, camX));
-}
-
 /** The desktop reading dock's left edge in CSS px, from the same two clamps
  * PlacardLayer gives the dock (`--pw` and its gutter), at the 16px root
  * size. A formula rather than a measurement because the dock is a pure
@@ -527,15 +485,18 @@ export function desktopDockLeftPx(vw: number): number {
   );
   const gutter = Math.min(
     d.gutterMaxRem * rem,
-    Math.max(d.gutterMinRem * rem, d.gutterBaseRem * rem + d.gutterFraction * vw),
+    Math.max(
+      d.gutterMinRem * rem,
+      d.gutterBaseRem * rem + d.gutterFraction * vw,
+    ),
   );
   return vw - width - gutter;
 }
 
-/** Maximum lateral truck at stops 1..6, in world units. Roughly 0.5-0.9 is
+/** Maximum lateral truck at desktop stops, in world units. Roughly 0.5-0.9 is
  * what the solve wants at every desktop width (a square 1200 window asks
  * for 1.08); the cap only guards the arithmetic against a rail measurement
- * gone wrong. Unlike About's shift this never moves a scroll stop, so
+ * gone wrong. This never moves a scroll stop, so
  * activeUnit rounding is not a constraint here. */
 export const STOP_LATERAL_MAX = 1.2;
 /** Clear air between the shelf's projected right edge and the dock's glass
@@ -556,7 +517,7 @@ export type DesktopStopFraming = Readonly<{
   gapCentreNdc: number;
   /** The look target's full dock-side swing for stops 1..6, world units. */
   dockSwing: number;
-  /** The same for About, whose stop `aboutStopShift` pins to the rail. */
+  /** The same for About, with its own shelf yaw. */
   aboutDockSwing: number;
 }>;
 
@@ -715,14 +676,14 @@ function solveDesktopStopFraming(
     Math.max(0, (vw / 2 - centrePx) / pxPerWorld),
   );
   const landedRight = vw / 2 - lateralOffset * pxPerWorld + halfShelfPx;
-  // About's stop is a scroll shift solved elsewhere; its shelf's left edge
-  // projects from that shift the same way aboutStopShift derived it.
-  const aboutShift = aboutStopShift(vw, vh, railRightPx);
   const aboutLeft =
     vw *
     (0.5 +
-      (ABOUT_SHELF_LEFT.x - aboutShift) /
-        ((cam.z - ABOUT_SHELF_LEFT.z) * 2 * tanH));
+      Math.min(
+        ...ABOUT_SHELF_CORNERS.flat().map(
+          ([x, z]) => (x - lateralOffset) / ((cam.z - z) * 2 * tanH),
+        ),
+      ));
   // The look target sits CAMERA_LOOK_Z_OFFSET behind the shelf plane, so a
   // look offset moves the shelf by cam.z / (cam.z - offset) of itself.
   const lookPerShelfWorld = (cam.z - CAMERA_LOOK_Z_OFFSET) / cam.z;
@@ -755,7 +716,7 @@ function solveDesktopStopFraming(
       lateralOffset,
       STOP_SHELF_CORNERS,
     ),
-    aboutDockSwing: dockSwingFor(aboutLeft, aboutShift, ABOUT_SHELF_CORNERS),
+    aboutDockSwing: dockSwingFor(aboutLeft, lateralOffset, ABOUT_SHELF_CORNERS),
   };
 }
 

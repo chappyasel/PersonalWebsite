@@ -30,9 +30,9 @@ import {
 } from "./shelfDepthOfField";
 import { SHELF_PLANKS } from "./shelfGeometry";
 import {
-  ABOUT_STOP_MAX_SHIFT,
   CAMERA,
   RAIL_RIGHT_PX_FALLBACK,
+  STOP_LATERAL_MAX,
   UNIT_SPACING,
   cameraCompositionForViewport,
   depthOfFieldTargetForUnit,
@@ -67,9 +67,9 @@ describe("shelf depth-of-field focus band", () => {
     for (let unit = 0; unit < 7; unit += 1) {
       const pose = unitPose(unit);
       const focusTarget = depthOfFieldTargetForUnit(unit);
-      // About can shift two units right to clear the desktop rail. Test both
-      // extremes because the DoF surface is radial around the live camera.
-      const cameraShifts = unit === 0 ? [0, ABOUT_STOP_MAX_SHIFT] : [0];
+      // Exercise both ends of the desktop truck's safety range because
+      // the DoF surface is radial around the live camera.
+      const cameraShifts = unit === 0 ? [0, STOP_LATERAL_MAX] : [0];
       for (const cameraShift of cameraShifts) {
         const camera = [
           pose.position[0] + cameraShift,
@@ -365,7 +365,13 @@ describe("golf focus pull", () => {
     // the optical lens's near strength is exactly zero.
     const fairway = trainingWorldPoint(-1.55, -0.9, -8);
     const crestGrass = trainingWorldPoint(-1.55, -0.9, -12);
-    for (const point of [teedBall, clubGrip, tuning.target, fairway, crestGrass])
+    for (const point of [
+      teedBall,
+      clubGrip,
+      tuning.target,
+      fairway,
+      crestGrass,
+    ])
       expect(blurAt(point, 1)).toBeLessThan(0.02);
     expect(tuning.golf.nearStrength).toBe(0);
     // The sharp band ends at the green's front fringe.

@@ -31,6 +31,8 @@ export function worldBootPrepaintScript(
   return `
 try {
   var el = document.documentElement;
+  var illustrated = el.getAttribute(${q(policy.illustrationAttribute)}) === "enabled" &&
+    !new URLSearchParams(location.search).has(${q(policy.ogCaptureParam)});
   // The automated OG renderer asks for the same live scene with its DOM
   // controls removed. Set this during parsing so not even the first paint can
   // leak homepage chrome into the capture.
@@ -73,24 +75,38 @@ try {
       if (age >= 0 && age < ${q(policy.warmTtlMs)}) warm = true;
     } catch (_) {}
     el.setAttribute(${q(policy.worldAttribute)}, warm ? "warm" : "pending");
-    // Fail open. If the bundle never boots, the flat page is hidden behind a
-    // loading screen nothing else will ever retire.
+  } else {
+    el.removeAttribute(${q(policy.worldAttribute)});
+  }
+  if (illustrated) {
+    el.setAttribute(${q(policy.presentationAttribute)}, "illustrated");
+  } else {
+    el.removeAttribute(${q(policy.presentationAttribute)});
+  }
+  // The illustrated UI also needs hydration to become usable. Its fail-open
+  // backstop applies even if WebGL was unavailable from the start.
+  if (illustrated || (motionOK && dataOK && ok === "1")) {
     if (!${holdBoot}) {
       ${timer} = setTimeout(function () {
         if (${token} !== bootToken) return;
         ${timer} = 0;
         var w = el.getAttribute(${q(policy.worldAttribute)});
-        if (w === "pending" || w === "warm") {
+        if (w === "pending" || w === "warm" ||
+            (illustrated && w !== "ready" && el.getAttribute(${q(policy.presentationAttribute)}) === "illustrated")) {
           el.removeAttribute(${q(policy.worldAttribute)});
+          if (illustrated) el.setAttribute(${q(policy.presentationAttribute)}, "document");
           // Tell hydration this load already failed open, so it continues the
-          // flat page instead of starting a second, longer wait over it.
+          // server illustration instead of starting a second, longer wait over it.
           ${outcome} = { token: bootToken, timedOut: true };
         }
       }, ${q(policy.prepaintBackstopMs)});
     }
-  } else {
-    el.removeAttribute(${q(policy.worldAttribute)});
   }
-} catch (_) {}
+} catch (_) {
+  try {
+    document.documentElement.removeAttribute(${q(policy.worldAttribute)});
+    if (illustrated) document.documentElement.setAttribute(${q(policy.presentationAttribute)}, "document");
+  } catch (_) {}
+}
 `;
 }

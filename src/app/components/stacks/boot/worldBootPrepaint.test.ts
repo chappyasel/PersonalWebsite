@@ -33,6 +33,7 @@ type Env = {
   now: number;
   search: string;
   storageThrows: boolean;
+  illustratedMode: boolean;
 };
 
 const BASE: Env = {
@@ -44,6 +45,7 @@ const BASE: Env = {
   now: 1_000_000,
   search: "",
   storageThrows: false,
+  illustratedMode: false,
 };
 
 type Timer = { fn: () => void; delayMs: number; id: number };
@@ -71,6 +73,7 @@ function fakeStorage(seed: Record<string, string>, throws: boolean) {
 function harness(overrides: Partial<Env> = {}) {
   const env = { ...BASE, ...overrides };
   const attributes = new Map<string, string>();
+  if (env.illustratedMode) attributes.set(P.illustrationAttribute, "enabled");
   const el = {
     setAttribute: (name: string, value: string) => attributes.set(name, value),
     getAttribute: (name: string) => attributes.get(name) ?? null,
@@ -124,6 +127,7 @@ function harness(overrides: Partial<Env> = {}) {
     cleared,
     capabilityWritten: () => session.map.get(P.webglCapabilityKey) ?? null,
     phase: () => el.getAttribute(P.worldAttribute),
+    presentation: () => el.getAttribute(P.presentationAttribute),
     ogCapture: () => el.getAttribute(P.ogCaptureAttribute) !== null,
     outcome: () => win[P.prepaintOutcomeGlobal] as PrepaintOutcome | undefined,
     token: () => win[P.prepaintTokenGlobal] as number | undefined,
@@ -184,6 +188,7 @@ function machineFor(env: Partial<Env> = {}) {
       prefersReducedMotion: merged.reducedMotion,
       saveData: merged.saveData,
       ogCapture: new URLSearchParams(merged.search).has(P.ogCaptureParam),
+      illustratedMode: merged.illustratedMode,
       holdBoot: new URLSearchParams(merged.search).has(P.holdBootParam),
       warm: {
         source: "warmRecord",
@@ -250,6 +255,33 @@ const MATRIX: [string, Partial<Env>][] = [
 ];
 
 describe("pre-paint adapter", () => {
+  it.each(MATRIX)(
+    "matches illustrated delivery and timeout policy on %s",
+    (_label, env) => {
+      const options = { ...env, illustratedMode: true };
+      const script = harness(options).run();
+      const { state, view } = machineFor(options);
+      expect(script.phase()).toBe(view.documentPhase);
+      expect(script.presentation()).toBe(
+        view.ogCapture ? null : view.presentation,
+      );
+      expect(script.timers).toHaveLength(state.deadline ? 1 : 0);
+      if (state.deadline) {
+        script.fire();
+        const failed = worldBootView(
+          reduceWorldBoot(state, {
+            type: "tick",
+            at: state.deadline.at,
+          }),
+        );
+        expect(script.phase()).toBe(failed.documentPhase);
+        expect(script.presentation()).toBe(
+          failed.ogCapture ? null : failed.presentation,
+        );
+      }
+    },
+  );
+
   it.each(MATRIX)("agrees with the machine on %s", (_label, env) => {
     const script = harness(env).run();
     const { view } = machineFor(env);
@@ -381,6 +413,8 @@ describe("generated constants", () => {
     const script = worldBootPrepaintScript({
       ...P,
       worldAttribute: "data-test-world",
+      illustrationAttribute: "data-test-illustration",
+      presentationAttribute: "data-test-presentation",
       warmKey: "test-warm",
       webglCapabilityKey: "test-webgl",
       prepaintBackstopMs: 1234,
@@ -393,6 +427,8 @@ describe("generated constants", () => {
     });
     for (const literal of [
       "data-test-world",
+      "data-test-illustration",
+      "data-test-presentation",
       "test-warm",
       "test-webgl",
       "1234",

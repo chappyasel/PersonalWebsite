@@ -9,6 +9,7 @@ import {
   type UnitSlug,
   unitUrl,
 } from "../data";
+import SceneHandoff from "../illustration/SceneHandoff";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -38,7 +39,6 @@ import {
 import SceneEnvironment from "./SceneEnvironment";
 import TouchFocusTarget from "./TouchFocusTarget";
 import { proxiedBookCover } from "./bookCoverTexture";
-import { Sway } from "./eggs";
 import { registerInsectCollisionRoot } from "./insectFlightWorld";
 import { UnitInsectPerches } from "./insectPerches";
 import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
@@ -140,7 +140,11 @@ function CollisionIndexedUnit({
     };
   }, [index, physicsScene]);
   return (
-    <group ref={root} {...unitPoseForCapture(index, headOnCapture)}>
+    <group
+      name={`room-unit:${index}`}
+      ref={root}
+      {...unitPoseForCapture(index, headOnCapture)}
+    >
       <UnitActivityProvider index={index}>{children}</UnitActivityProvider>
     </group>
   );
@@ -339,19 +343,19 @@ const SceneContent = memo(function SceneContent({
               position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
               rotation={[0, -0.25, 0]}
             >
-              {/* Position outside Sway: its rotation now happens at the pot's local
-              floor contact instead of orbiting the whole plant around world 0.
-              FootPool stays fixed under that same contact point. */}
+              {/* Keep the approved rest hierarchy; only the foliage deforms.
+                  The planter and FootPool retain their floor contact. */}
               <TouchFocusTarget
                 id="focus:monstera:about-books"
                 unitIndex={0}
                 activeUnitIndexes={MONSTERA_ACTIVE_UNITS}
               >
-                <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
+                <group name="room-sway">
                   <group name="stacks-monstera-sway-body">
                     <Suspense fallback={null}>
                       <ModelProp
                         url="/models/monstera.glb"
+                        plantWind={{ kind: "monstera", unitIndex: 0 }}
                         dark={dark}
                         variant="recolor"
                         atlasOverride={
@@ -371,7 +375,7 @@ const SceneContent = memo(function SceneContent({
                       />
                     </Suspense>
                   </group>
-                </Sway>
+                </group>
               </TouchFocusTarget>
             </group>
           </SharedPhysicsRoot>
@@ -481,6 +485,7 @@ function Scene({
         />
         <PhysicsSceneFrameDriver />
       </PhysicsSceneProvider>
+      <SceneHandoff data={data} />
       {process.env.NODE_ENV === "development" && diagnosticsRequested ? (
         <>
           <InsectPerchDiagnostics />

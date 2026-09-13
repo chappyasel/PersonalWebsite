@@ -1,0 +1,199 @@
+{
+  "cases": 24,
+  "owners": 528,
+  "imageBytes": 4407023,
+  "results": [
+    {
+      "key": "books/dark-desktop",
+      "owners": 12,
+      "imageCount": 34,
+      "imageBytes": 239156,
+      "maskPixels": 3976644,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "books/dark-phone",
+      "owners": 12,
+      "imageCount": 34,
+      "imageBytes": 160230,
+      "maskPixels": 1163421,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "books/light-desktop",
+      "owners": 12,
+      "imageCount": 34,
+      "imageBytes": 238734,
+      "maskPixels": 3976637,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "books/light-phone",
+      "owners": 12,
+      "imageCount": 34,
+      "imageBytes": 160829,
+      "maskPixels": 1163414,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "musings/dark-desktop",
+      "owners": 16,
+      "imageCount": 46,
+      "imageBytes": 182296,
+      "maskPixels": 1378659,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "musings/dark-phone",
+      "owners": 16,
+      "imageCount": 46,
+      "imageBytes": 121268,
+      "maskPixels": 405883,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "musings/light-desktop",
+      "owners": 16,
+      "imageCount": 46,
+      "imageBytes": 182907,
+      "maskPixels": 1382570,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "musings/light-phone",
+      "owners": 16,
+      "imageCount": 46,
+      "imageBytes": 120882,
+      "maskPixels": 405876,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "projects/dark-desktop",
+      "owners": 19,
+      "imageCount": 53,
+      "imageBytes": 145032,
+      "maskPixels": 1479076,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "projects/dark-phone",
+      "owners": 19,
+      "imageCount": 53,
+      "imageBytes": 93134,
+      "maskPixels": 442335,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "projects/light-desktop",
+      "owners": 19,
+      "imageCount": 53,
+      "imageBytes": 144654,
+      "maskPixels": 1479624,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "projects/light-phone",
+      "owners": 19,
+      "imageCount": 53,
+      "imageBytes": 92481,
+      "maskPixels": 442309,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "systems/dark-desktop",
+      "owners": 39,
+      "imageCount": 116,
+      "imageBytes": 246057,
+      "maskPixels": 2133658,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "systems/dark-phone",
+      "owners": 39,
+      "imageCount": 116,
+      "imageBytes": 165243,
+      "maskPixels": 641357,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "systems/light-desktop",
+      "owners": 39,
+      "imageCount": 116,
+      "imageBytes": 247198,
+      "maskPixels": 2134280,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "systems/light-phone",
+      "owners": 39,
+      "imageCount": 116,
+      "imageBytes": 165284,
+      "maskPixels": 641308,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "talks/dark-desktop",
+      "owners": 15,
+      "imageCount": 43,
+      "imageBytes": 218057,
+      "maskPixels": 2074179,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "talks/dark-phone",
+      "owners": 15,
+      "imageCount": 43,
+      "imageBytes": 139183,
+      "maskPixels": 620383,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "talks/light-desktop",
+      "owners": 15,
+      "imageCount": 43,
+      "imageBytes": 217273,
+      "maskPixels": 2074914,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "talks/light-phone",
+      "owners": 15,
+      "imageCount": 43,
+      "imageBytes": 139392,
+      "maskPixels": 620472,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "weightlifting/dark-desktop",
+      "owners": 31,
+      "imageCount": 93,
+      "imageBytes": 282534,
+      "maskPixels": 2831236,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "weightlifting/dark-phone",
+      "owners": 31,
+      "imageCount": 93,
+      "imageBytes": 202437,
+      "maskPixels": 853681,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "weightlifting/light-desktop",
+      "owners": 31,
+      "imageCount": 93,
+      "imageBytes": 296019,
+      "maskPixels": 2828340,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    },
+    {
+      "key": "weightlifting/light-phone",
+      "owners": 31,
+      "imageCount": 93,
+      "imageBytes": 206743,
+      "maskPixels": 853558,
+      "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)"
+    }
+  ]
+}

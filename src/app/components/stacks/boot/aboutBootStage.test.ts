@@ -7,11 +7,13 @@ import {
   mobileSheetCameraCoverage,
   mobileSheetPeekHeight,
 } from "../dom/mobileSheetGeometry";
-import { ABOUT_BOOT_CAMERA } from "../scene/aboutBootPerspective";
+import {
+  ABOUT_BOOT_CAMERA,
+  aboutBootRestCamera,
+} from "../scene/aboutBootPerspective";
 import {
   RAIL_RIGHT_PX_FALLBACK,
   STACKS_DESKTOP_MIN_WIDTH,
-  aboutStopShift,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
   scrollOffsetForUnit,
@@ -39,13 +41,9 @@ import {
  * the way the frame loop assembles it (no pointer, no idle bob, no zoom), then
  * a textbook lookAt projection of unit 0's origin. */
 function referenceStage(vw: number, vh: number, railRightPx: number) {
-  const shift =
-    vw < STACKS_DESKTOP_MIN_WIDTH ? 0 : aboutStopShift(vw, vh, railRightPx);
-  const offset = scrollOffsetForUnit(0, shift);
+  const offset = scrollOffsetForUnit(0);
   const scenePosition = unitProgressForScrollOffset(offset) * (UNIT_COUNT - 1);
-  // With the rail, as the rig passes it: the composition then carries the
-  // lateral truck the desktop stops make beside the dock, lerped toward unit
-  // 1 by the About shift's own blend.
+  // With the same rail and dock composition the rig uses at every stop.
   const composition = cameraCompositionForViewport(
     vw,
     vh,
@@ -75,7 +73,7 @@ function referenceStage(vw: number, vh: number, railRightPx: number) {
       : 0;
   const imageShiftUp = (vh * coverage) / 2;
 
-  const eyeX = shift + composition.lateralOffset;
+  const eyeX = composition.lateralOffset;
   const eye = [eyeX, eyeY, composition.z];
   const target = [eyeX, lookY, composition.lookZ];
   const sub = (a: number[], b: number[]) => a.map((v, i) => v - b[i]!);
@@ -152,23 +150,19 @@ describe("aboutBootStageForViewport", () => {
   });
 
   it("lands on the shelf the live camera rendered at 1440×900", () => {
-    // Measured from the running scene on 2026-09-07 with the rail at 179px
-    // and the pointer at its rest: camera rest at x 0.7241 (the About shift
-    // plus its share of the dock truck), z 5.7228; unit 0's origin projected
-    // to (528, 433) through `__stacks.project`, and a scene unit spanned
-    // 265px on the shelf's centre plane. Before the truck and the depth
-    // default were mirrored here the stage sat 28px right and 4px low of it.
+    // The rest stop uses the dock composition directly, without blending
+    // toward Books. Keep a numeric framing pin as well as the matrix test.
     const stage = aboutBootStageForViewport(
       1440,
       900,
       179,
       ABOUT_BOOT_STAGE_GEOMETRY,
     );
-    expect(stage.originX).toBeGreaterThan(525);
-    expect(stage.originX).toBeLessThan(531);
+    expect(stage.originX).toBeGreaterThan(518);
+    expect(stage.originX).toBeLessThan(524);
     expect(stage.originY).toBeGreaterThan(430);
     expect(stage.originY).toBeLessThan(437);
-    expect(stage.unitPx).toBeGreaterThan(262);
+    expect(stage.unitPx).toBeGreaterThan(260);
     expect(stage.unitPx).toBeLessThan(268);
   });
 
@@ -180,8 +174,10 @@ describe("aboutBootStageForViewport", () => {
       ABOUT_BOOT_STAGE_GEOMETRY,
     );
     // The same eye the projector every drawable uses stands at.
-    expect(canonical.eyeX).toBeCloseTo(ABOUT_BOOT_CAMERA.eye[0], 9);
-    expect(ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY.canonicalEyeX).toBe(canonical.eyeX);
+    expect(canonical.eyeX).toBeCloseTo(aboutBootRestCamera().eye[0], 9);
+    expect(ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY.canonicalEyeX).toBe(
+      ABOUT_BOOT_CAMERA.eye[0],
+    );
     expect(
       aboutBootStageLayout(
         1440,
@@ -189,19 +185,22 @@ describe("aboutBootStageForViewport", () => {
         canonical,
         ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY,
       ).eyeShift,
-    ).toBeCloseTo(0, 9);
-    // Wider windows stand the eye farther right; the shift is in SVG units.
+    ).toBeCloseTo((canonical.eyeX - ABOUT_BOOT_CAMERA.eye[0]) * 100, 9);
+    // The shift is relative to the authored art camera, in SVG units.
     const wide = aboutBootStageForViewport(
       2056,
       1290,
       179,
       ABOUT_BOOT_STAGE_GEOMETRY,
     );
-    expect(wide.eyeX).toBeCloseTo(0.9526, 3);
+    expect(wide.eyeX).toBeCloseTo(
+      aboutBootRestCamera(2056, 1290, 179).eye[0],
+      9,
+    );
     expect(
       aboutBootStageLayout(2056, 1290, wide, ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY)
         .eyeShift,
-    ).toBeCloseTo((wide.eyeX - canonical.eyeX) * 100, 9);
+    ).toBeCloseTo((wide.eyeX - ABOUT_BOOT_CAMERA.eye[0]) * 100, 9);
     // No shift, and no eye at all, below the desktop seam.
     const narrow = aboutBootStageForViewport(
       390,
@@ -544,7 +543,7 @@ describe("aboutBootStageScript", () => {
   it("carries the geometry it was generated with", () => {
     const script = aboutBootStageScript({
       ...ABOUT_BOOT_STAGE_GEOMETRY,
-      railShelfMarginPx: 200,
+      dockShelfMarginPx: 200,
     });
     const { properties } = run(1440, 900, script);
     const shifted = aboutBootStageLayout(
@@ -552,7 +551,7 @@ describe("aboutBootStageScript", () => {
       900,
       aboutBootStageForViewport(1440, 900, RAIL_RIGHT_PX_FALLBACK, {
         ...ABOUT_BOOT_STAGE_GEOMETRY,
-        railShelfMarginPx: 200,
+        dockShelfMarginPx: 200,
       }),
       ABOUT_BOOT_STAGE_LAYOUT_GEOMETRY,
     );

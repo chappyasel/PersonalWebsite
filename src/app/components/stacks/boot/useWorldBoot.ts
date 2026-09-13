@@ -23,7 +23,7 @@ const getServerSnapshot = () => SERVER_WORLD_BOOT_VIEW;
  * The first client render deliberately matches the server: the flat document,
  * with the handshake unclaimed. The boot starts in an effect, one commit
  * later, so hydration never has to reconcile a world that was not there. */
-export function useWorldBoot(): WorldBootView {
+export function useWorldBoot(illustrated = false): WorldBootView {
   const roomActive = useRoomActive();
   const view = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
@@ -31,6 +31,10 @@ export function useWorldBoot(): WorldBootView {
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
     // scripts) — the boot screen still comes up rather than the document.
+    // SPA route changes do not execute the server's parse-time script.
+    document.documentElement.dataset.roomIllustration = illustrated
+      ? "enabled"
+      : "disabled";
     const scope = worldBoot.start("hydrate");
     // React owns failure recovery from here: the error boundary and the hang
     // backstop replace the parse-time timer.
@@ -42,7 +46,7 @@ export function useWorldBoot(): WorldBootView {
       // gone, and must not take the live one down with it.
       scope.send({ type: "exit" });
     };
-  }, []);
+  }, [illustrated]);
 
   // Tab visibility, published once at mount and on every change. The machine
   // freezes its deadlines while the document is hidden; without this a tab
@@ -72,6 +76,9 @@ export function useWorldBoot(): WorldBootView {
       if (document.hidden || timer !== null) return;
       timer = window.setTimeout(() => {
         timer = null;
+        // A reader can claim the illustration after this timer was armed,
+        // before React has committed the effect cleanup. Re-read the policy.
+        if (document.hidden || !worldBoot.getView().recoverable) return;
         worldBoot.start("hydrate");
       }, WORLD_BOOT_POLICY.contextLossRestartDelayMs);
     };
@@ -88,11 +95,25 @@ export function useWorldBoot(): WorldBootView {
   const { deadlineAt } = view;
   useEffect(() => {
     if (deadlineAt === null) return;
-    const timer = window.setTimeout(
-      () => worldBoot.send({ type: "tick" }),
-      Math.max(0, deadlineAt - performance.now()),
-    );
-    return () => window.clearTimeout(timer);
+    let timer: number | null = null;
+    const checkDeadline = () => {
+      const remaining = deadlineAt - performance.now();
+      if (remaining > 0) {
+        // Timer delays use whole milliseconds; the boot clock does not.
+        // An early tick leaves the deadline unchanged, so React would never
+        // rearm this effect. Check the clock again until the deadline is due.
+        timer = window.setTimeout(
+          checkDeadline,
+          Math.max(1, Math.ceil(remaining)),
+        );
+        return;
+      }
+      worldBoot.send({ type: "tick" });
+    };
+    checkDeadline();
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, [deadlineAt]);
 
   // The reveal gate closes on a quiet window rather than an event, so it has

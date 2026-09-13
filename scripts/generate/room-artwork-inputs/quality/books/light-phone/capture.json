@@ -1,0 +1,517 @@
+{
+  "version": 1,
+  "readback": "bottom-up premultiplied RGBA explicitly unpremultiplied before Canvas ImageData (archive capture.ts contract)",
+  "scale": 4,
+  "restoredWind": 7,
+  "owners": [
+    {
+      "id": "stacks-cover-the-art-of-doing-science-and-engineering",
+      "box": [
+        192,
+        626,
+        59,
+        80
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-the-art-of-doing-science-and-engineering.mask.png",
+        "colour": "stacks-cover-the-art-of-doing-science-and-engineering.colour.png",
+        "detail": "stacks-cover-the-art-of-doing-science-and-engineering.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 568,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "stacks-cover-the-12-levers",
+      "box": [
+        283,
+        627,
+        58,
+        79
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-the-12-levers.mask.png",
+        "colour": "stacks-cover-the-12-levers.colour.png",
+        "detail": "stacks-cover-the-12-levers.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 580,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "stacks-cover-superminds",
+      "box": [
+        373,
+        628,
+        57,
+        78
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-superminds.mask.png",
+        "colour": "stacks-cover-superminds.colour.png",
+        "detail": "stacks-cover-superminds.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 595,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "stacks-cover-bowling-alone",
+      "box": [
+        517,
+        628,
+        58,
+        78
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-bowling-alone.mask.png",
+        "colour": "stacks-cover-bowling-alone.colour.png",
+        "detail": "stacks-cover-bowling-alone.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 591,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "books-packed-top",
+      "box": [
+        200,
+        626,
+        381,
+        79
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "books-packed-top.mask.png",
+        "colour": "books-packed-top.colour.png",
+        "detail": "books-packed-top.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "books-bookend-top",
+      "box": [
+        195,
+        668,
+        32,
+        37
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "books-bookend-top.mask.png",
+        "colour": "books-bookend-top.colour.png"
+      },
+      "textures": []
+    },
+    {
+      "id": "books-packed-lower",
+      "box": [
+        211,
+        749,
+        365,
+        84
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "books-packed-lower.mask.png",
+        "colour": "books-packed-lower.colour.png",
+        "detail": "books-packed-lower.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        },
+        {
+          "width": 64,
+          "height": 256,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "books-bookend-lower",
+      "box": [
+        205,
+        789,
+        29,
+        40
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "books-bookend-lower.mask.png",
+        "colour": "books-bookend-lower.colour.png"
+      },
+      "textures": []
+    },
+    {
+      "id": "stacks-cover-barking-up-the-wrong-tree",
+      "box": [
+        207,
+        752,
+        59,
+        80
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-barking-up-the-wrong-tree.mask.png",
+        "colour": "stacks-cover-barking-up-the-wrong-tree.colour.png",
+        "detail": "stacks-cover-barking-up-the-wrong-tree.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 578,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "stacks-cover-homo-deus",
+      "box": [
+        330,
+        756,
+        56,
+        78
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-homo-deus.mask.png",
+        "colour": "stacks-cover-homo-deus.colour.png",
+        "detail": "stacks-cover-homo-deus.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 576,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "stacks-cover-life-3-0",
+      "box": [
+        421,
+        754,
+        60,
+        81
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-life-3-0.mask.png",
+        "colour": "stacks-cover-life-3-0.colour.png",
+        "detail": "stacks-cover-life-3-0.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 580,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    },
+    {
+      "id": "stacks-cover-thinking-fast-and-slow",
+      "box": [
+        513,
+        753,
+        61,
+        83
+      ],
+      "scale": 4,
+      "images": {
+        "mask": "stacks-cover-thinking-fast-and-slow.mask.png",
+        "colour": "stacks-cover-thinking-fast-and-slow.colour.png",
+        "detail": "stacks-cover-thinking-fast-and-slow.detail.webp"
+      },
+      "textures": [
+        {
+          "width": 384,
+          "height": 571,
+          "src": null
+        }
+      ],
+      "detailPrepared": true
+    }
+  ],
+  "source": "live geometry at saved camera and validated unit-local rest transforms",
+  "contractSha256": "3140cac80d993a555d15c82df7f8c7f5231f035ce0f0389c221b5aa1fe626426",
+  "errors": [],
+  "files": {
+    "stacks-cover-the-art-of-doing-science-and-engineering.mask.png": "2b6d65fa507b9ef4def0608e4687b7201cf91277093e2d483a1640d0c4c8a9f0",
+    "stacks-cover-the-art-of-doing-science-and-engineering.colour.png": "c26b44cab71a5c9003956f257ded9fd12c20c02f295a3cdce2d4404f8710b269",
+    "stacks-cover-the-art-of-doing-science-and-engineering.detail.webp": "8d8d01798c2de7a20428d2e916f2acd17f7b18d62ecd01dfd7a3ee2dacff2104",
+    "stacks-cover-the-12-levers.mask.png": "c7c790d196193c0e17266981a349b6c0a3f0dbf31087aa05bc592ff9010c9e4a",
+    "stacks-cover-the-12-levers.colour.png": "541d2b291b11b328aca1aaa08f0910776ff1062b5b1364c9c5eead447fe7a875",
+    "stacks-cover-the-12-levers.detail.webp": "d85b9d33de3cbe9349e0b28f56569fac5dc35c6e5faff0fc842e6091143e5e44",
+    "stacks-cover-superminds.mask.png": "32257b927a722b63646615c9fb57df895eb593a69b8fde7dde4090a4054d5972",
+    "stacks-cover-superminds.colour.png": "5ec4980401512cbf77eb397b891bb09f7b2e5df100418654a5292f33519bf9d7",
+    "stacks-cover-superminds.detail.webp": "7300343e1d438a44440cb9934155c2c1065baf7531521928267476e01d0f2857",
+    "stacks-cover-bowling-alone.mask.png": "17c36c268e93a122d93dabc1023e2e85c4dd6c05773e15c7bb9dd0382c600c73",
+    "stacks-cover-bowling-alone.colour.png": "59899cdbb37dca2308c4aa0279663fcc86436ba9fbe460413090b3cd5572f2c8",
+    "stacks-cover-bowling-alone.detail.webp": "599e464ba86a538c522cb249147ee9a4ef2558eb20c598af3ba5ec0794026407",
+    "books-packed-top.mask.png": "6d739a66c03c7938c1d1ea07570d5f3de879d1e82e8faa4bd3280ed3e70af8de",
+    "books-packed-top.colour.png": "bf8956df03203aaa9bdd12dd52e857fc1a8997feb55495bfd674142441adff8b",
+    "books-packed-top.detail.webp": "94b1042cb0077dcfb33b77bff5fefafaaa385b268c460644764cbc70fcc267c1",
+    "books-bookend-top.mask.png": "a861f7a8914ecea9482af382203b833a834b80677078eeae5fa2aa1b3556039e",
+    "books-bookend-top.colour.png": "cf9cfa9edee4d5c3ad5355737bb655abc628784697aa95b4e299cffe1666ebb5",
+    "books-packed-lower.mask.png": "9c9a05be9b8948d4a7a64b179b4ae6837561b3cffa9deec71ae0fd3eebf9a35c",
+    "books-packed-lower.colour.png": "c8e809d869d9bbe8c90131ae3ae4dd668fde0de09dd548d8b7838142d216c0b6",
+    "books-packed-lower.detail.webp": "31315f8dafcc450a3d934d155a2a2905ea250b270d09e6deb5dfd3b335e0b44b",
+    "books-bookend-lower.mask.png": "7c5a84241f23b188ec70d34fe2317183d052d87b2218bf2312ef98cab1ad9a99",
+    "books-bookend-lower.colour.png": "c951cdbe32f31b40d71ac7303156e45e95ad41a0082aa4791d19195b9257822a",
+    "stacks-cover-barking-up-the-wrong-tree.mask.png": "4092f4a5c762c69c787d917ad93d73c39e42274108331e3a53b0406862af942b",
+    "stacks-cover-barking-up-the-wrong-tree.colour.png": "c26b44cab71a5c9003956f257ded9fd12c20c02f295a3cdce2d4404f8710b269",
+    "stacks-cover-barking-up-the-wrong-tree.detail.webp": "b0c3e75de3464f95b77e2413e696def2fc999f45f3b3c13b8f3e656c8e1b851d",
+    "stacks-cover-homo-deus.mask.png": "0a1f295b005b5b1c060889558dbde56e6586b0523ff4643095cfb54ba653c751",
+    "stacks-cover-homo-deus.colour.png": "2084f2abd6b0d23b5d6b5f56ea47b750f817bf90ec6f6ed86e2cfda8569f23b1",
+    "stacks-cover-homo-deus.detail.webp": "8b2055c14c17d0dea550de2ba4de5a659e8a15ed52f7450ad90095b942f8b606",
+    "stacks-cover-life-3-0.mask.png": "739674e23f0d436d92811090d170c5c4eacf0fdfd65ff5b24328fe968b50f85f",
+    "stacks-cover-life-3-0.colour.png": "7dd3df99ff0e0eada9c400d6ce25ff18fe3782c7c0eebadc28d817c9c1d2e531",
+    "stacks-cover-life-3-0.detail.webp": "b44fe51263b5ef278888474ac7d5cc5f48b0dbdc8430b050172c8b28974055f7",
+    "stacks-cover-thinking-fast-and-slow.mask.png": "4b88f54f6cd6520f8e44d1728fe2bec47d27c27e88e82948e1b44810feaa5c9e",
+    "stacks-cover-thinking-fast-and-slow.colour.png": "874b762d9a8c62ec345c41340ee0d3c14afdd1bbe88496ac74d0f533c724fc11",
+    "stacks-cover-thinking-fast-and-slow.detail.webp": "098f1252cff19bea338a130273a5eba9ddf49721c6b1e8c3098d17b9786318b1"
+  }
+}

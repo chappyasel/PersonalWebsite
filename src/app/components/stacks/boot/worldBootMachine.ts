@@ -32,6 +32,13 @@ import { WORLD_BOOT_POLICY, type WorldBootPolicy } from "./worldBootPolicy";
  * document is the homepage. */
 export type WorldPhase = "pending" | "warm" | "ready";
 
+export type RoomPresentation =
+  | "document"
+  | "illustrated"
+  | "dissolve"
+  | "travel"
+  | "live";
+
 export type WorldBootStatus =
   /** No capability decision yet. What the server rendered: the flat page. */
   | "unstarted"
@@ -40,6 +47,12 @@ export type WorldBootStatus =
   | "ineligible"
   /** The boot screen is up and the world is loading behind it. */
   | "booting"
+  /** Usable 2D view after cancellation or an explicit choice to keep reading. */
+  | "illustrated"
+  /** The registered camera stays still while the illustration fades. */
+  | "dissolving"
+  /** The illustration is gone; the renderer confirms its ordinary rest frame. */
+  | "travelling"
   /** Every reveal gate is open. The world is on screen and the flat document
    * is still mounted underneath for the cross-fade. */
   | "revealing"
@@ -65,7 +78,9 @@ export type WorldBootIneligibility =
 export type WorldBootDeadline =
   | "prepaintBackstop"
   | "hangBackstop"
-  | "flatRetire";
+  | "flatRetire"
+  | "illustrationDissolve"
+  | "illustrationHandoff";
 
 export type LoadPath = "cold" | "warm";
 
@@ -134,6 +149,10 @@ export type WorldBootEvent =
       prefersReducedMotion: boolean;
       saveData: boolean;
       ogCapture: boolean;
+      /** New first-view presentation. Legacy callers and OG retain their path. */
+      illustratedMode?: boolean;
+      /** A deliberate retry may release a reader's hold, but not preferences. */
+      explicitRequest?: boolean;
       /** A URL-scoped presentation aid. It deliberately disables both the
        * reveal gate and hang deadline while leaving the world free to load. */
       holdBoot?: boolean;
@@ -154,6 +173,38 @@ export type WorldBootEvent =
   | { type: "meadowReady"; at: number; epoch: number }
   /** A live diagnostics off-to-on remount invalidated the old buffers. */
   | { type: "meadowPending"; at: number; epoch: number }
+  /** The scene adapter observed at least two rendered matching frames. */
+  | { type: "illustrationRegistered"; at: number; epoch: number; key: string }
+  /** Two ordinary resting frames painted even though the image cannot align. */
+  | {
+      type: "illustrationOrdinaryPainted";
+      at: number;
+      epoch: number;
+      key: string;
+    }
+  /** The ordinary room pose has painted after the dissolve. */
+  | {
+      type: "illustrationTravelCompleted";
+      at: number;
+      epoch: number;
+      key: string;
+    }
+  /** Decode can fail before a drawing has published its first geometry key. */
+  | {
+      type: "illustrationUnavailable";
+      at: number;
+      epoch: number;
+      key: string | null;
+    }
+  /** Reading/navigation is a page fact and survives renderer replacement. */
+  | { type: "illustrationInteracted"; at: number }
+  | {
+      type: "illustrationChanged";
+      at: number;
+      key: string | null;
+      matchRequired?: boolean;
+    }
+  | { type: "illustrationMotionChanged"; at: number; enabled: boolean }
   /** The boot vignette began a fresh item-by-item pass. Not epoch-scoped: the
    * vignette belongs to the page instance, and it is running before the
    * world's owner has streamed in. */
@@ -194,6 +245,21 @@ export type WorldBootState = {
   loadPath: LoadPath;
   ogCapture: boolean;
   holdBoot: boolean;
+  illustratedMode: boolean;
+  illustrationKey: string | null;
+  registeredIllustrationKey: string | null;
+  /** A ready resting view can fade in without claiming an exact image match. */
+  ordinaryIllustrationKey: string | null;
+  /** Matching failed for the selected artwork. Cleared when that key changes. */
+  matchUnavailable: boolean;
+  /** An overview or explicit retry can enter through the ordinary camera. */
+  skipIllustrationMatch: boolean;
+  interactionHeld: boolean;
+  handoffStartedAt: number | null;
+  /** Session-only diagnostics setting. It never changes eligibility. */
+  motionEnabled: boolean;
+  /** A fail-open document must stay readable through delayed hydration. */
+  prepaintTimedOut: boolean;
   failure: WorldBootFailure | null;
   ineligibility: WorldBootIneligibility | null;
   /** Monotonic time when this machine generation began. */
@@ -228,6 +294,14 @@ export type WorldBootState = {
 
 /** Everything an adapter needs to know, and nothing about how it renders. */
 export type WorldBootView = {
+  presentation: RoomPresentation;
+  illustrationKey: string | null;
+  interactionHeld: boolean;
+  handoffStartedAt: number | null;
+  motionEnabled: boolean;
+  canRequest3D: boolean;
+  /** Readiness stays false until the ordinary rest frame has painted. */
+  canvasVisible: boolean;
   /** The generation a producer mounting right now must stamp its signals
    * with. */
   epoch: number;
@@ -278,6 +352,16 @@ export function initialWorldBootState(): WorldBootState {
     loadPath: "cold",
     ogCapture: false,
     holdBoot: false,
+    illustratedMode: false,
+    illustrationKey: null,
+    registeredIllustrationKey: null,
+    ordinaryIllustrationKey: null,
+    matchUnavailable: false,
+    skipIllustrationMatch: false,
+    interactionHeld: false,
+    handoffStartedAt: null,
+    motionEnabled: true,
+    prepaintTimedOut: false,
     failure: null,
     ineligibility: null,
     startedAt: null,
@@ -342,7 +426,7 @@ export function isWarmStart(
 }
 
 /** The visitor-policy gate. WebGL is a capability; the other two are choices
- * the visitor has already made, and both mean "give me the document". */
+ * the visitor has already made, and both keep the room in 2D. */
 export function worldEligible({
   webglAvailable,
   prefersReducedMotion,
@@ -458,7 +542,105 @@ function giveUp(
   state: WorldBootState,
   failure: WorldBootFailure,
 ): WorldBootState {
-  return { ...state, status: "failed", failure, deadline: null };
+  return {
+    ...state,
+    status: "failed",
+    failure,
+    deadline: null,
+    registeredIllustrationKey: null,
+    ordinaryIllustrationKey: null,
+    handoffStartedAt: null,
+    skipIllustrationMatch: false,
+    prepaintTimedOut:
+      state.prepaintTimedOut ||
+      (state.origin === "prepaint" && failure === "hang"),
+  };
+}
+
+function retainIllustration(state: WorldBootState): WorldBootState {
+  return {
+    ...state,
+    status: "illustrated",
+    deadline: null,
+    registeredIllustrationKey: null,
+    ordinaryIllustrationKey: null,
+    handoffStartedAt: null,
+    skipIllustrationMatch: false,
+  };
+}
+
+function illustrationFramePainted(state: WorldBootState): boolean {
+  return (
+    state.illustrationKey !== null &&
+    (state.registeredIllustrationKey === state.illustrationKey ||
+      state.ordinaryIllustrationKey === state.illustrationKey)
+  );
+}
+
+function illustrationHandoffActive(state: WorldBootState): boolean {
+  return state.status === "dissolving" || state.status === "travelling";
+}
+
+/** Timers can finish the dissolve; only a matching painted frame can finish promotion. */
+function settleIllustrated(
+  state: WorldBootState,
+  at: number,
+  policy: WorldBootPolicy,
+): WorldBootState {
+  if (state.hiddenSince !== null || state.holdBoot) return state;
+  if (state.status === "booting") {
+    if (state.interactionHeld) return retainIllustration(state);
+    const roomReady = worldGatesOpen(state, at, policy);
+    const staged = latchWaitStage(
+      roomReady && state.worldReadyAt === null
+        ? { ...state, worldReadyAt: at }
+        : state,
+    );
+    if (roomReady) {
+      if (!staged.motionEnabled || staged.skipIllustrationMatch) {
+        return {
+          ...staged,
+          status: "live",
+          deadline: null,
+          skipIllustrationMatch: false,
+        };
+      }
+      if (illustrationFramePainted(staged)) {
+        return {
+          ...staged,
+          status: "dissolving",
+          handoffStartedAt: at,
+          deadline: {
+            kind: "illustrationDissolve",
+            at: at + policy.illustrationTravelDelayMs,
+          },
+        };
+      }
+    }
+    // A painted scene is not proof of a registered scene. Keep the original
+    // hang budget until registration too, then use the presentation backstop.
+    return deadlineDue(staged, at) ? giveUp(staged, "hang") : staged;
+  }
+  if (
+    state.status === "dissolving" &&
+    deadlineDue(state, at) === "illustrationDissolve"
+  ) {
+    return {
+      ...state,
+      status: "travelling",
+      deadline: {
+        kind: "illustrationHandoff",
+        at: at + policy.illustrationHandoffTimeoutMs,
+      },
+    };
+  }
+  if (
+    deadlineDue(state, at) &&
+    (state.status === "travelling" || state.status === "ineligible")
+  ) {
+    return giveUp(state, "hang");
+  }
+  return state;
 }
 
 /** Deadline and reveal arbitration, applied after every event so the machine
@@ -473,6 +655,7 @@ function settle(
   at: number,
   policy: WorldBootPolicy,
 ): WorldBootState {
+  if (state.illustratedMode) return settleIllustrated(state, at, policy);
   if (state.status === "booting") {
     if (state.holdBoot) return state;
     const staged = latchWaitStage(state);
@@ -549,6 +732,8 @@ function applyVisibility(
     hiddenSince: null,
     worldReadyAt:
       state.worldReadyAt === null ? null : state.worldReadyAt + elapsed,
+    handoffStartedAt:
+      state.handoffStartedAt === null ? null : state.handoffStartedAt + elapsed,
     deadline: state.deadline
       ? { ...state.deadline, at: state.deadline.at + elapsed }
       : null,
@@ -567,14 +752,26 @@ export function reduceWorldBoot(
   // the reveal gate on a canvas that has not painted.
   if ("epoch" in event && event.epoch !== state.epoch) return state;
 
+  // The old About animation may still complete while its page unmounts. It
+  // has no authority over the illustrated path's registration or sequence.
+  if (state.illustratedMode && isVignetteSignal(event)) return state;
+
+  const illustrationPageSignal =
+    event.type === "illustrationInteracted" ||
+    event.type === "illustrationChanged" ||
+    event.type === "illustrationMotionChanged";
+
   // Once the world has been given up on or the route has been left, the rest
   // of the signals from a tearing-down scene would only churn subscribers.
   if (
-    (state.status === "failed" || state.status === "exited") &&
+    (state.status === "failed" ||
+      state.status === "exited" ||
+      state.status === "illustrated") &&
     event.type !== "start" &&
     event.type !== "exit" &&
     event.type !== "visibility" &&
-    !isVignetteSignal(event)
+    !isVignetteSignal(event) &&
+    !(illustrationPageSignal && state.status !== "exited")
   ) {
     return state;
   }
@@ -582,12 +779,28 @@ export function reduceWorldBoot(
   switch (event.type) {
     case "start": {
       const fresh = initialWorldBootState();
+      const sameVisit = state.status !== "exited";
+      const illustratedMode =
+        (event.illustratedMode ?? false) && !event.ogCapture;
       const base: WorldBootState = {
         ...fresh,
         epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
         holdBoot: event.holdBoot ?? false,
+        illustratedMode,
+        illustrationKey: sameVisit ? state.illustrationKey : null,
+        matchUnavailable: sameVisit && state.matchUnavailable,
+        skipIllustrationMatch:
+          illustratedMode &&
+          event.explicitRequest === true &&
+          (state.matchUnavailable || state.illustrationKey === null),
+        interactionHeld:
+          sameVisit && !event.explicitRequest && state.interactionHeld,
+        motionEnabled: state.motionEnabled,
+        prepaintTimedOut:
+          event.prepaintTimedOut ||
+          (sameVisit && !event.explicitRequest && state.prepaintTimedOut),
         startedAt: event.journeyStartedAt ?? event.at,
         // The vignette runs in the initial entry bundle and can finish its
         // pass before the streamed homepage data resolves and the world's
@@ -611,13 +824,37 @@ export function reduceWorldBoot(
         saveData: event.saveData,
       });
       if (ineligibility) {
-        return { ...base, status: "ineligible", ineligibility };
+        return {
+          ...base,
+          status: "ineligible",
+          ineligibility,
+          skipIllustrationMatch: false,
+          // Any illustrated visit needs native navigation if hydration
+          // never arrives, including preference-based 2D delivery.
+          deadline:
+            base.illustratedMode &&
+            event.origin === "prepaint" &&
+            !event.holdBoot
+              ? startDeadline(event, policy)
+              : null,
+        };
       }
       // The pre-paint backstop already handed this visitor the document. Do
       // not put the boot screen back over it and start a second, longer wait
       // — hydration that late is the same hang, seen from further along.
-      if (event.prepaintTimedOut) {
-        return { ...base, status: "failed", failure: "hang" };
+      if (base.prepaintTimedOut) {
+        return {
+          ...base,
+          status: "failed",
+          failure: "hang",
+          skipIllustrationMatch: false,
+        };
+      }
+      if (base.illustratedMode && base.interactionHeld) {
+        return {
+          ...retainIllustration(base),
+          contextLossRecoveries: state.contextLossRecoveries,
+        };
       }
       return settle(
         {
@@ -641,7 +878,111 @@ export function reduceWorldBoot(
         status: "exited",
         deadline: null,
         bootVignetteReady: false,
+        interactionHeld: false,
+        illustrationKey: null,
+        registeredIllustrationKey: null,
+        ordinaryIllustrationKey: null,
+        matchUnavailable: false,
+        skipIllustrationMatch: false,
+        handoffStartedAt: null,
+        prepaintTimedOut: false,
       };
+
+    // The reader remains mounted through promotion. Ordinary input is not an
+    // opt-out from WebGL; only a changed drawing invalidates the camera match.
+    case "illustrationInteracted":
+      return state;
+
+    case "illustrationChanged": {
+      if (
+        state.illustrationKey === event.key &&
+        (event.matchRequired !== false || state.skipIllustrationMatch)
+      )
+        return state;
+      const changed = {
+        ...state,
+        illustrationKey: event.key,
+        skipIllustrationMatch: event.matchRequired === false,
+        registeredIllustrationKey: null,
+        ordinaryIllustrationKey: null,
+        matchUnavailable: false,
+      };
+      return state.illustratedMode && illustrationHandoffActive(state)
+        ? {
+            ...changed,
+            status: "booting",
+            handoffStartedAt: null,
+            deadline: {
+              kind: "hangBackstop",
+              at: event.at + policy.hangBackstopMs,
+            },
+          }
+        : changed;
+    }
+
+    case "illustrationMotionChanged": {
+      if (state.motionEnabled === event.enabled) return state;
+      const changed = {
+        ...state,
+        motionEnabled: event.enabled,
+        registeredIllustrationKey: null,
+        ordinaryIllustrationKey: null,
+      };
+      if (state.illustratedMode && illustrationHandoffActive(state)) {
+        return settle(
+          { ...changed, status: "booting", handoffStartedAt: null },
+          event.at,
+          policy,
+        );
+      }
+      return settle(changed, event.at, policy);
+    }
+
+    case "illustrationRegistered":
+    case "illustrationOrdinaryPainted":
+      if (
+        !state.illustratedMode ||
+        !state.motionEnabled ||
+        state.skipIllustrationMatch ||
+        state.status !== "booting" ||
+        event.key !== state.illustrationKey
+      )
+        return state;
+      return settle(
+        {
+          ...state,
+          registeredIllustrationKey:
+            event.type === "illustrationRegistered" ? event.key : null,
+          ordinaryIllustrationKey:
+            event.type === "illustrationOrdinaryPainted" ? event.key : null,
+          matchUnavailable: event.type === "illustrationOrdinaryPainted",
+        },
+        event.at,
+        policy,
+      );
+
+    case "illustrationTravelCompleted":
+      if (
+        !state.illustratedMode ||
+        state.status !== "travelling" ||
+        state.hiddenSince !== null ||
+        !worldGatesOpen(state, event.at, policy) ||
+        event.key !== state.illustrationKey ||
+        !illustrationFramePainted(state)
+      )
+        return state;
+      return { ...state, status: "live", deadline: null };
+
+    case "illustrationUnavailable":
+      if (
+        !state.illustratedMode ||
+        !state.motionEnabled ||
+        state.skipIllustrationMatch ||
+        event.key !== state.illustrationKey ||
+        !(state.status === "booting" || illustrationHandoffActive(state))
+      )
+        return state;
+      return retainIllustration({ ...state, matchUnavailable: true });
 
     case "runtimeError":
       return giveUp(state, "runtimeError");
@@ -698,9 +1039,46 @@ export function worldBootView(
   state: WorldBootState,
   policy: WorldBootPolicy = WORLD_BOOT_POLICY,
 ): WorldBootView {
-  const revealed = state.status === "revealing" || state.status === "live";
-  const worldMounted = state.status === "booting" || revealed;
+  const revealed =
+    state.status === "live" ||
+    (!state.illustratedMode && state.status === "revealing");
+  const worldMounted =
+    state.status === "booting" ||
+    state.status === "revealing" ||
+    illustrationHandoffActive(state) ||
+    state.status === "live";
+  const illustrated =
+    state.illustratedMode &&
+    !state.prepaintTimedOut &&
+    state.status !== "unstarted" &&
+    state.status !== "exited";
+  const presentation: RoomPresentation = revealed
+    ? "live"
+    : !illustrated
+      ? "document"
+      : state.status === "dissolving"
+        ? "dissolve"
+        : state.status === "travelling"
+          ? "travel"
+          : "illustrated";
   return {
+    presentation,
+    illustrationKey: state.illustrationKey,
+    interactionHeld: state.interactionHeld,
+    handoffStartedAt: state.handoffStartedAt,
+    motionEnabled: state.motionEnabled && !state.skipIllustrationMatch,
+    canRequest3D:
+      state.illustratedMode &&
+      !worldMounted &&
+      state.status !== "unstarted" &&
+      state.status !== "exited" &&
+      state.ineligibility !== "reduced_motion" &&
+      state.ineligibility !== "save_data" &&
+      !(
+        state.failure === "contextLost" &&
+        state.contextLossRecoveries >= policy.contextLossRecoveries
+      ),
+    canvasVisible: revealed || illustrationHandoffActive(state),
     epoch: state.epoch,
     status: state.status,
     documentPhase: !worldMounted
@@ -723,6 +1101,7 @@ export function worldBootView(
     awaitingReveal:
       state.status === "booting" && state.firstFrame && !state.holdBoot,
     awaitingVignette:
+      !state.illustratedMode &&
       state.status === "booting" &&
       state.worldReadyAt !== null &&
       !state.bootVignetteReady,
@@ -736,6 +1115,7 @@ export function worldBootView(
     recoverable:
       state.status === "failed" &&
       state.failure === "contextLost" &&
+      (!state.illustratedMode || !state.interactionHeld) &&
       state.contextLossRecoveries < policy.contextLossRecoveries,
   };
 }

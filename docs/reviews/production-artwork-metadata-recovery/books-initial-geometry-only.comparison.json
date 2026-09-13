@@ -1,0 +1,128 @@
+{
+  "unit": "books",
+  "label": "light-desktop",
+  "url": "http://127.0.0.1:3322/?harness=1&nomeadow=1&perf-profile=no-composer#books",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "raster": [
+    1440,
+    900
+  ],
+  "elapsedMs": 44911,
+  "errors": [],
+  "exactSavedCamera": true,
+  "comparisonMethod": "Symmetric maximum Manhattan distance between retained binary owner masks; conservative upper bound on Euclidean residual at reported CSS scale.",
+  "cssScale": 0.6811989100817438,
+  "toleranceCssPx": 3,
+  "maxCssResidualUpperBound": 0,
+  "compatible": true,
+  "comparisons": [
+    {
+      "owner": "shelf",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "b23fe7f9450e36b7151c0852cd32a01432d48f6a6625d99a57dc607e1b9ece1b",
+      "newMaskSha256": "b23fe7f9450e36b7151c0852cd32a01432d48f6a6625d99a57dc607e1b9ece1b"
+    },
+    {
+      "owner": "stacks-cover-the-art-of-doing-science-and-engineering",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "857f4b71242dcd8e2023f6334fcad8c33108c46c73e13382ae9ee74b3364bfff",
+      "newMaskSha256": "857f4b71242dcd8e2023f6334fcad8c33108c46c73e13382ae9ee74b3364bfff"
+    },
+    {
+      "owner": "stacks-cover-the-12-levers",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "ab1f67cd650e7391caf9487c7e9ca1a6afcac077c874162861e4539c745ba50a",
+      "newMaskSha256": "ab1f67cd650e7391caf9487c7e9ca1a6afcac077c874162861e4539c745ba50a"
+    },
+    {
+      "owner": "stacks-cover-superminds",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "ecd325ee14ed5c641c3e5225f5aab83e9c6bd7dc36ff442a667463c2d910ff43",
+      "newMaskSha256": "ecd325ee14ed5c641c3e5225f5aab83e9c6bd7dc36ff442a667463c2d910ff43"
+    },
+    {
+      "owner": "stacks-cover-bowling-alone",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "58d138001516f2692d436462f0ab9c7dcb07465203dfc1baf32c1e7a966ea6cb",
+      "newMaskSha256": "58d138001516f2692d436462f0ab9c7dcb07465203dfc1baf32c1e7a966ea6cb"
+    },
+    {
+      "owner": "books-packed-top",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "24e982f6d311e61dff8d521e84dbc86c5ec3ae37dddd8bb8d32f77d47f1f74ee",
+      "newMaskSha256": "24e982f6d311e61dff8d521e84dbc86c5ec3ae37dddd8bb8d32f77d47f1f74ee"
+    },
+    {
+      "owner": "books-bookend-top",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "f5061a6c6f98050545e936c28cc7a122d2b6a69529361768b6eab5a9b96d44fc",
+      "newMaskSha256": "f5061a6c6f98050545e936c28cc7a122d2b6a69529361768b6eab5a9b96d44fc"
+    },
+    {
+      "owner": "books-packed-lower",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "b12e09b79f46a2943a6e177783c1ac9ff0aae3d3e86705f91e07404f67f77a12",
+      "newMaskSha256": "b12e09b79f46a2943a6e177783c1ac9ff0aae3d3e86705f91e07404f67f77a12"
+    },
+    {
+      "owner": "books-bookend-lower",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "3784c2c74b1b4f017a6d24fd003df52dd46980494ecb82e88a10dd1206aeba5e",
+      "newMaskSha256": "3784c2c74b1b4f017a6d24fd003df52dd46980494ecb82e88a10dd1206aeba5e"
+    },
+    {
+      "owner": "stacks-cover-barking-up-the-wrong-tree",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "0e0afc3967050550b15accc8470a09dffbd4b50c601015b53f1fed259e3fbf78",
+      "newMaskSha256": "0e0afc3967050550b15accc8470a09dffbd4b50c601015b53f1fed259e3fbf78"
+    },
+    {
+      "owner": "stacks-cover-homo-deus",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "5a9ca909ae6fca2f79ab036b8d967b4de9a0e3f0f45b9cbfc0c9f11f950b2fed",
+      "newMaskSha256": "5a9ca909ae6fca2f79ab036b8d967b4de9a0e3f0f45b9cbfc0c9f11f950b2fed"
+    },
+    {
+      "owner": "stacks-cover-life-3-0",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "cd3596b441ac21af6469fbc9a4e8badd0791c4cdbc59b7af0c65169041a4466f",
+      "newMaskSha256": "cd3596b441ac21af6469fbc9a4e8badd0791c4cdbc59b7af0c65169041a4466f"
+    },
+    {
+      "owner": "stacks-cover-thinking-fast-and-slow",
+      "iou": 1,
+      "maxManhattanRasterResidual": 0,
+      "maxCssResidualUpperBound": 0,
+      "oldMaskSha256": "52161d28f09065288157346b894386580fe0aab19826a89e719a8164a72bbb77",
+      "newMaskSha256": "52161d28f09065288157346b894386580fe0aab19826a89e719a8164a72bbb77"
+    }
+  ],
+  "dataIdentitySha256": "9fd5f5d568da662835975a290a5676effaec64f33c2886b947690420c6fb3750"
+}

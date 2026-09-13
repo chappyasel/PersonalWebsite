@@ -1,0 +1,288 @@
+/* Assembly is a 2D entrance. Only the final, untransformed box may register
+   against the ready room. Input settles this sequence immediately. */
+.stacks-world-shell[data-room-entrance] {
+  --room-entry-content-opacity: 1;
+  --room-entry-content-offset: 0px;
+  --room-entry-nav-opacity: 1;
+  --room-entry-nav-offset: 0px;
+}
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  ) {
+  --room-entry-content-opacity: 0;
+  --room-entry-content-offset: 12px;
+}
+.stacks-world-shell[data-room-entrance="shelf"],
+.stacks-world-shell[data-room-entrance="items"] {
+  --room-entry-nav-opacity: 0;
+  --room-entry-nav-offset: 6px;
+}
+/* Keep the centered opening clear while the compact neighbor slots wait at
+   their resting positions. They appear when placement finishes. */
+.room-illustration-stop {
+  transition: opacity 180ms ease-out;
+}
+/* URL resolution can promote a hidden neighbor during hydration. Its empty
+   shelf must replace the first-paint shell at full opacity in that frame. */
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"],
+    [data-room-entrance="placing"]
+  )
+  .room-illustration-stop[data-illustration-selected] {
+  transition: none;
+}
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"],
+    [data-room-entrance="placing"]
+  )
+  .room-illustration-stop:not([data-illustration-selected]) {
+  opacity: 0;
+}
+.stacks-world-shell[data-room-entrance]:not([data-room-entrance="complete"])
+  [data-stacks-details-toggle-shell] {
+  opacity: var(--room-entry-nav-opacity) !important;
+  transition: opacity 180ms ease-out;
+}
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  )
+  [data-stacks-details-toggle-shell] {
+  visibility: hidden;
+}
+/* A tap that skips assembly must not activate an invisible card or control. */
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  )
+  :is([data-stacks-desktop-panel], [data-stacks-mobile-intro="sheet"]),
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  )
+  :is([data-stacks-desktop-panel], [data-stacks-mobile-intro="sheet"])
+  *,
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  )
+  :is(
+    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-mobile,
+    .stacks-wordmark,
+    .stacks-theme-toggle
+  ),
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  )
+  :is(
+    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-mobile,
+    .stacks-wordmark,
+    .stacks-theme-toggle
+  )
+  * {
+  pointer-events: none !important;
+}
+.room-first-paint .room-illustration-stage,
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"]
+  )
+  [data-illustration-selected]
+  .room-illustration-stage {
+  transform: translate(
+      calc(50vw - var(--frame-x) - var(--frame-width) / 2),
+      calc(
+        55vh - var(--frame-y) - var(--frame-height) / 2 +
+          (var(--frame-height) / 2 - var(--frame-wood-center-y)) * 0.78
+      )
+    )
+    scale(0.78);
+  transform-origin: center;
+}
+.room-first-paint :is(.stacks-boot-landmarks, .stacks-boot-floor-props),
+.stacks-world-shell[data-room-entrance="shelf"]
+  [data-illustration-selected]
+  :is(.stacks-boot-landmarks, .stacks-boot-floor-props) {
+  visibility: hidden;
+}
+.room-illustration-stage {
+  --room-empty-image: var(--room-empty-desktop-image);
+}
+@media (max-width: 1199.999px) and (max-aspect-ratio: 3/4) {
+  .room-illustration-stage {
+    --room-empty-image: var(--room-empty-phone-image);
+  }
+}
+.stacks-world-shell[data-room-entrance="shelf"]
+  [data-illustration-selected]
+  .room-illustration-picture {
+  background: var(--room-empty-image) center / contain no-repeat;
+}
+.stacks-world-shell[data-room-entrance="shelf"]
+  [data-illustration-selected]
+  img[data-illustration-image],
+.room-illustration-stage[data-entrance-artwork] img[data-illustration-image] {
+  visibility: hidden;
+}
+.room-entrance-artwork {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.room-entrance-artwork > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.room-entrance-item,
+.room-illustration .stacks-boot-item-motion {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+.room-illustrated-chrome .stacks-wordmark,
+.room-illustrated-chrome .stacks-theme-toggle {
+  top: env(safe-area-inset-top, 0px);
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+}
+.room-illustrated-chrome .stacks-wordmark {
+  left: max(1.25rem, env(safe-area-inset-left, 0px));
+}
+.room-illustrated-chrome .stacks-theme-toggle {
+  right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+/* Disable the live boot's delayed card and shortcut animations on this path. */
+.stacks-world-shell[data-illustrated-entry] .stacks-wordmark-shortcuts,
+.stacks-world-shell[data-illustrated-entry]
+  [data-stacks-desktop-panel]
+  :is(
+    [data-placard-surface],
+    .placard-section-heading,
+    .placard-sections h1,
+    :has(> [data-placard-surface]) > :not([data-placard-surface])
+  ) {
+  animation: none !important;
+}
+
+.stacks-world-shell:is(
+    [data-room-entrance="shelf"],
+    [data-room-entrance="items"],
+    [data-room-entrance="placing"]
+  )
+  :is(
+    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-mobile,
+    .stacks-wordmark,
+    .stacks-theme-toggle
+  ) {
+  opacity: var(--room-entry-nav-opacity) !important;
+  translate: 0 var(--room-entry-nav-offset);
+  transition: none;
+}
+.stacks-world-shell[data-room-entrance="placing"]
+  :is(
+    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-mobile,
+    .stacks-wordmark,
+    .stacks-theme-toggle
+  ) {
+  transition:
+    opacity 500ms ease-out,
+    translate 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Busy first frames can shorten the arrival. Finish without a second transition. */
+.stacks-world-shell:where([data-room-entrance="complete"])
+  :is(
+    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-mobile,
+    .stacks-wordmark,
+    .stacks-theme-toggle
+  ) {
+  transition-duration: 0s;
+  transition-delay: 0s;
+}
+
+@media (min-width: 1200px) {
+  .room-illustrated-chrome .stacks-wordmark {
+    top: max(1.25rem, env(safe-area-inset-top, 0px));
+    left: max(1.75rem, env(safe-area-inset-left, 0px));
+    min-height: 0;
+  }
+  .room-illustrated-chrome .stacks-theme-toggle {
+    top: auto;
+    right: auto;
+    bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+    left: max(2rem, env(safe-area-inset-left, 0px));
+  }
+  /* Fade each card's material and text together without fading the dock. */
+  .stacks-world-shell[data-room-entrance]:not([data-room-entrance="complete"])
+    [data-stacks-desktop-panel]
+    :is(
+      [data-placard-surface],
+      .placard-section-heading,
+      .placard-sections h1,
+      :has(> [data-placard-surface]) > :not([data-placard-surface])
+    ) {
+    opacity: calc(
+      var(--stacks-panel-opacity) * var(--room-entry-content-opacity)
+    ) !important;
+    translate: 0 var(--room-entry-content-offset) !important;
+    transition:
+      opacity 450ms ease-out,
+      translate 650ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+}
+@media (max-width: 1199px) {
+  .stacks-world-shell:is(
+      [data-room-entrance="shelf"],
+      [data-room-entrance="items"]
+    ) {
+    --room-entry-content-offset: 48px;
+  }
+  /* Material and content remain separate so native sheet glass keeps sampling. */
+  .stacks-world-shell[data-room-entrance]:not([data-room-entrance="complete"])
+    :is(
+      [data-stacks-sheet-material],
+      [data-stacks-mobile-intro="sheet"][data-stacks-panel]
+    ) {
+    opacity: var(--room-entry-content-opacity) !important;
+    translate: 0 var(--room-entry-content-offset) !important;
+    transition:
+      opacity 450ms ease-out,
+      translate 650ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-first-paint .room-illustration-stage,
+  .stacks-world-shell[data-room-entrance] .room-illustration-stage {
+    transform: none !important;
+  }
+  .stacks-world-shell[data-room-entrance] {
+    --room-entry-content-opacity: 1;
+    --room-entry-content-offset: 0px;
+    --room-entry-nav-opacity: 1;
+    --room-entry-nav-offset: 0px;
+  }
+  .stacks-world-shell[data-room-entrance]
+    :is(
+      .stacks-unit-rail-desktop,
+      .stacks-unit-rail-mobile,
+      .stacks-wordmark,
+      .stacks-theme-toggle,
+      .room-illustration-stop,
+      [data-stacks-desktop-panel] *,
+      [data-stacks-sheet-material],
+      [data-stacks-mobile-intro="sheet"][data-stacks-panel]
+    ) {
+    transition: none !important;
+  }
+}

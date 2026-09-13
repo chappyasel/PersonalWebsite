@@ -58,16 +58,27 @@ first paint, before React exists, and it is the single published answer to
 "which homepage is on screen".
 _Avoid_: Loading state, world flag
 
-**Boot Stage** — where the boot vignette's bookcase stands on screen. It opens
-in its centred box, as it always has. When the URL opens the world on About,
-it then glides onto the live shelf at unit 0's origin and scale. The pre-paint
-script derives both values from the camera's About rest pose for the current
-viewport. The glide begins when the room is ready or the last reveal object
-lands, whichever happens first. The vignette pass completes only after the
-glide lands, so the handoff dissolves in place. A section hash or pathname that
-opens on another stop leaves the boot stage centred and completes without a
-glide. The same URL predicate and projection run before paint and after
-hydration.
+**Boot Stage** — the illustrated shelf's screen position and scale, derived
+from the ordinary resting camera before first paint and again after hydration.
+The entrance starts with a smaller, centered empty shelf. Its items assemble
+from the approved SVG groups in visual row order, left to right and then down.
+The drawing grows into its final camera
+frame and the content and navigation appear. Input can finish the entrance
+immediately. Registration waits for the final untransformed drawing and settled
+scrolling, then the drawing dissolves in place over the ready camera. A match
+within 3 CSS pixels is recorded as exact; other finite projection
+residuals use an ordinary fade. The camera stays still through both paths. A
+viewport alignment miss does not discard a working renderer.
+About rests at semantic stop zero and uses the same desktop rail/dock truck
+as the other shelves. Its SVG planks include visible end caps; uprights and
+feet use projected box faces rather than bounding rectangles. First paint and
+hydration share that geometry. Existing silhouettes keep their authored
+extraction camera while live anchors follow the current viewport camera.
+The opening centers the visible wood at 55% of viewport height. Desktop 2D
+travel uses the scene's unit intervals at the mean resting camera scale.
+Narrow layouts compact the gap between artwork bounds to 48 to 80 CSS pixels.
+Each selected shelf retains its ordinary camera frame. Navigation and desktop titles
+use the same theme colors before and after the handoff.
 _Avoid_: Centered loader, loading box
 
 **Reveal Gate** — the four facts that must all hold before the boot screen is
@@ -590,7 +601,7 @@ On, it makes every unit except About cold through the residency controller
 (`sceneUnitActivityController.setSoloUnit`), so the shelf stands alone; the
 per-unit ground pools follow the same answer. It hides the interface with the
 H key's attribute, but silently, and owns only the hide it introduced, the
-same contract free roam uses. The About stop drops its rail shift and the
+same contract free roam uses. Capture drops the desktop rail/dock truck and
 pointer parallax reads a centred pointer, so the shelf rests on the middle of
 the viewport whatever the window's aspect. The dolly is added AFTER the
 visitor zoom clamp, because that clamp is a floor of 0.75 and a 4:1 banner

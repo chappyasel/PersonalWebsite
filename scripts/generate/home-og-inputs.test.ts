@@ -216,7 +216,7 @@ describe("homeOgChangedInputs", () => {
 });
 
 describe("capture-removed inputs", () => {
-  // The boot screen and the flat page are display:none during capture, so the
+  // The boot screen and the native room document are display:none during capture, so the
   // manifest stops watching the files that only render them. home-og-scene.mjs
   // asserts that at capture time, which is what keeps this honest.
   it("stops watching the surfaces the capture removes", async () => {
@@ -228,7 +228,7 @@ describe("capture-removed inputs", () => {
     );
     await writeFixtureFile(
       root,
-      "src/app/components/stacks/FlatHome.tsx",
+      "src/app/components/stacks/illustration/RoomDocument.tsx",
       "flat\n",
     );
     await writeFixtureFile(
@@ -240,7 +240,9 @@ describe("capture-removed inputs", () => {
     const { files } = await homeOgInputManifest({ root });
 
     expect(files).not.toContain("src/app/components/stacks/dom/BootScreen.tsx");
-    expect(files).not.toContain("src/app/components/stacks/FlatHome.tsx");
+    expect(files).not.toContain(
+      "src/app/components/stacks/illustration/RoomDocument.tsx",
+    );
     // Everything else the homepage renders is only visibility:hidden, and the
     // rail's measured width still moves the camera's About stop.
     expect(files).toContain("src/app/components/stacks/dom/ChromeLayer.tsx");

@@ -11,7 +11,7 @@
 // would mean the code gate could never go green on a correct branch.
 // `.github/workflows/refresh-home-og.yml` remains the precise signal for it.
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -58,6 +58,18 @@ const STEPS = [
     detail: "unit suite, Playwright specs excluded",
     command: binary("vitest"),
     args: ["run", "--exclude", "tests/e2e/**"],
+  },
+  {
+    name: "artwork unit tests",
+    detail: "Node test runner for deterministic image and contour checks",
+    command: process.execPath,
+    args: [
+      "--test",
+      ...readdirSync(path.join(root, "scripts/room-artwork-quality"))
+        .filter((name) => name.endsWith(".test.mjs"))
+        .sort()
+        .map((name) => `scripts/room-artwork-quality/${name}`),
+    ],
   },
   {
     name: "search index",

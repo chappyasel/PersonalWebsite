@@ -1,0 +1,319 @@
+/* Illustration and live room share one shell and one resident content tree. */
+.room-illustration {
+  /* Pastel counterparts of theme.ts's blue sky and green meadow. */
+  --room-sky-top: #7eaacd;
+  --room-sky-horizon: #c3dbea;
+  --room-cloud: rgb(231 242 249 / 0.45);
+  --room-meadow-far: #bfd6b5;
+  --room-meadow-middle: #9db993;
+  --room-meadow-near: #809e76;
+  --room-illustration-scale: 1.4;
+  --room-illustration-stage-left: 0px;
+  --room-illustration-stage-right: 0px;
+  --room-illustration-stage-top: calc(env(safe-area-inset-top, 0px) + 7rem);
+  --room-illustration-sheet-peek: clamp(10.5rem, 30%, 17.5rem);
+  --room-illustration-stage-bottom: calc(
+    var(--room-illustration-sheet-peek) + 3rem
+  );
+  --room-illustration-background: linear-gradient(
+    180deg,
+    var(--room-sky-top),
+    var(--room-sky-horizon) 48%,
+    var(--room-meadow-far) 65%,
+    var(--room-meadow-middle) 80%,
+    var(--room-meadow-near)
+  );
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.dark .room-illustration {
+  --room-sky-top: #26334d;
+  --room-sky-horizon: #455675;
+  --room-cloud: rgb(171 193 215 / 0.1);
+  --room-meadow-far: #526a58;
+  --room-meadow-middle: #3c5647;
+  --room-meadow-near: #273f33;
+}
+/* The atmosphere stays still while the shelf row scrolls above it. */
+.room-illustration::before,
+.room-illustration::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+.room-illustration::before {
+  inset: 0;
+  background: radial-gradient(
+      ellipse 43% 3.55% at 13% 17.04%,
+      var(--room-cloud),
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 33% 2.84% at 80% 10.65%,
+      var(--room-cloud),
+      transparent 100%
+    ),
+    radial-gradient(
+      ellipse 50% 4.97% at 62% 49.7%,
+      var(--room-cloud),
+      transparent 100%
+    ),
+    var(--room-illustration-background);
+}
+.room-illustration::after {
+  inset: 56% -3% -1px;
+  border-radius: 52% 48% 0 0 / 6% 8% 0 0;
+  /* Sparse foreground blades sit below the broad, untextured meadow bands. */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 120' fill='none' stroke-linecap='round'%3E%3Cg stroke='%23273216' stroke-opacity='.18' stroke-width='1.3'%3E%3Cpath d='M12 120Q16 103 8 94M15 120Q19 110 28 105M61 120Q60 97 51 86M64 120Q68 109 76 103M102 120Q108 103 103 97M137 120Q141 92 133 81M141 120Q148 104 155 101M188 120Q181 105 180 94M191 120Q195 104 205 97M225 120Q226 99 220 91'/%3E%3C/g%3E%3Cg stroke='%23f4f3e7' stroke-opacity='.13'%3E%3Cpath d='M39 120Q38 104 33 99M82 120Q87 108 90 104M116 120Q121 108 118 96M168 120Q171 107 179 102M210 120Q216 110 218 105'/%3E%3C/g%3E%3C/svg%3E")
+      left bottom / 240px 120px repeat-x,
+    radial-gradient(
+      ellipse 85% 85% at 11% 112%,
+      var(--room-meadow-near) 69%,
+      transparent 69.4%
+    ),
+    radial-gradient(
+      ellipse 100% 90% at 97% 96%,
+      var(--room-meadow-middle) 67%,
+      transparent 67.4%
+    ),
+    linear-gradient(var(--room-meadow-far), var(--room-meadow-middle));
+}
+.room-illustration[data-illustration-visible] {
+  visibility: visible;
+}
+.room-illustration[data-illustration-loading]::before {
+  background: var(--room-illustration-background);
+}
+.room-illustration[data-illustration-loading]::after {
+  opacity: 0;
+}
+.room-illustration-stage {
+  position: absolute;
+  z-index: 1;
+  inset: var(--room-illustration-stage-top) var(--room-illustration-stage-right)
+    var(--room-illustration-stage-bottom) var(--room-illustration-stage-left);
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+.room-illustration-picture {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.room-illustration-picture > img {
+  --room-artwork-width: var(--room-artwork-desktop-width, 500px);
+  --room-artwork-ratio: var(--room-artwork-desktop-ratio, 1.6);
+  display: block;
+  width: min(
+    98cqw,
+    calc(var(--room-artwork-width) * var(--room-illustration-scale)),
+    calc(100cqh * var(--room-artwork-ratio))
+  );
+  height: auto;
+}
+@media (max-width: 599px) {
+  .room-illustration-picture > img {
+    --room-artwork-width: var(--room-artwork-phone-width, 500px);
+    --room-artwork-ratio: var(--room-artwork-phone-ratio, 1.6);
+  }
+}
+.room-illustration-about {
+  width: min(98cqw, 700px, calc(100cqh * 300 / 230));
+}
+.room-illustration .stacks-boot {
+  --stacks-boot-eye-shift: 0 !important;
+  position: static !important;
+  display: block !important;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  background: none !important;
+  opacity: 1 !important;
+  visibility: inherit !important;
+  pointer-events: none;
+}
+.room-illustration .stacks-boot-threshold,
+.room-illustration .stacks-boot-entry,
+.room-illustration .stacks-boot-scene-stage {
+  position: static !important;
+  width: 100% !important;
+  height: auto !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+.room-illustration .stacks-boot-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.room-illustration .stacks-boot-item,
+.room-illustration .stacks-boot-supports,
+.room-illustration .stacks-boot-planks {
+  opacity: 1 !important;
+  animation: none !important;
+}
+.room-illustration .stacks-boot-item-motion {
+  opacity: 1;
+  animation: none !important;
+  transform: none;
+}
+.room-illustration .stacks-boot-wordmark,
+.room-illustration .stacks-boot-wait,
+.room-illustration .stacks-boot-motes,
+.room-illustration .stacks-boot-scene-stage::before {
+  display: none !important;
+}
+.room-illustration-actions {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.room-illustration-status {
+  min-width: min(28ch, 88vw);
+  text-align: center;
+  color: hsl(var(--foreground) / 0.82);
+  pointer-events: none;
+}
+.room-illustration-status[data-illustration-status="loading"] {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 240ms ease-out;
+}
+html[data-room-loading-visible]
+  .room-illustration-status[data-illustration-status="loading"] {
+  opacity: 1;
+  visibility: visible;
+}
+.room-loading-heading {
+  display: block;
+  font-family: var(--font-selected), Georgia, serif;
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+.room-illustration-status .stacks-boot-wait-notes {
+  margin-top: 6px;
+  height: 18px;
+  color: hsl(var(--foreground) / 0.6);
+  font-family: var(--font-selected), Georgia, serif;
+  font-size: 13px;
+  line-height: 18px;
+}
+.room-illustration-status[data-illustration-status="fallback"] {
+  min-width: 0;
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-illustration-status[data-illustration-status="loading"] {
+    transition: none;
+  }
+  .room-illustration-status .stacks-boot-wait-dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+.room-illustration-unavailable {
+  max-width: 28ch;
+  padding: 1rem;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+/* ChromeLayer and PlacardLayer own the same ink through 2D and 3D. */
+.stacks-world-shell[data-illustrated-entry] .stacks-reveal,
+.stacks-world-shell[data-illustrated-entry] .stacks-rail-row,
+.stacks-world-shell[data-illustrated-entry] [data-stacks-rail-indicator],
+.stacks-world-shell[data-illustrated-entry] .stacks-unit-rail-desktop,
+.stacks-world-shell[data-illustrated-entry] .stacks-unit-rail-mobile,
+.stacks-world-shell[data-illustrated-entry] [data-stacks-desktop-dock],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-details-toggle-shell],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-sheet-material],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-panel] {
+  animation: none !important;
+}
+/* Settle entrance children while retaining their containers' placement. */
+.stacks-world-shell[data-illustrated-entry] .stacks-reveal,
+.stacks-world-shell[data-illustrated-entry] .stacks-rail-row {
+  opacity: 1 !important;
+  transform: none !important;
+}
+.stacks-world-shell[data-illustrated-entry] .stacks-reveal {
+  filter: none !important;
+}
+.stacks-world-shell[data-illustrated-entry] [data-stacks-rail-indicator] {
+  transform: none !important;
+  scale: 1 !important;
+}
+.stacks-world-shell[data-room-presentation="illustrated"] .stacks-world-curtain,
+.stacks-world-shell[data-room-presentation="dissolve"] .stacks-world-curtain,
+.stacks-world-shell[data-room-presentation="travel"] .stacks-world-curtain {
+  display: none;
+}
+@media (min-width: 1200px) {
+  .room-illustration {
+    --room-illustration-stage-top: 5rem;
+    --room-illustration-stage-bottom: 5rem;
+    --room-illustration-stage-left: 12rem;
+    /* Match PlacardLayer's dock width and gutter, with a shelf-side gap. */
+    --room-illustration-stage-right: calc(
+      clamp(27rem, 22.5vw + 13rem, 40rem) + clamp(1.25rem, 0.6rem + 1.1vw, 2rem) +
+        1rem
+    );
+  }
+  .room-illustration-actions {
+    top: max(1.5rem, env(safe-area-inset-top, 0px));
+    left: 50%;
+  }
+}
+@media (max-width: 1199px) and (max-height: 599px) and (orientation: landscape) {
+  .room-illustration {
+    --room-illustration-sheet-peek: 4rem;
+  }
+}
+
+/* About's SVG has visible descendants; retire the whole compositing layer. */
+.stacks-world-shell .room-illustration:not([data-illustration-visible]) {
+  opacity: 0 !important;
+}
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-intro] {
+  animation: none !important;
+  translate: 0 0 !important;
+}
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-intro="header"],
+.stacks-world-shell[data-illustrated-entry] [data-stacks-mobile-intro="body"] {
+  opacity: 1 !important;
+}
+/* Resident sheets keep their measurements; only the selected title can paint. */
+.stacks-world-shell[data-illustrated-entry]
+  [data-stacks-mobile-panel]:not([data-stacks-panel]) {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.room-golf-illustration {
+  width: min(100%, 44rem);
+  max-height: 100%;
+  color: hsl(var(--foreground) / 0.8);
+}
+html.dark .room-golf-illustration {
+  --room-golf-green: #607e63;
+  --room-golf-fringe: #496650;
+  --room-golf-flag: #b18585;
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "unit": "projects",
+    "id": "grab-photo-projects-wwdc-v8",
+    "displayDensity": 2,
+    "quality": 92,
+    "variants": [
+      {
+        "density": 2,
+        "bytes": 14158
+      },
+      {
+        "density": 4,
+        "bytes": 39470
+      }
+    ]
+  },
+  {
+    "unit": "projects",
+    "id": "mac",
+    "displayDensity": 2,
+    "quality": 92,
+    "variants": [
+      {
+        "density": 2,
+        "bytes": 12758
+      },
+      {
+        "density": 4,
+        "bytes": 29744
+      }
+    ]
+  },
+  {
+    "unit": "talks",
+    "id": "grab-photo-talk-demo-night-v8",
+    "displayDensity": 2,
+    "quality": 92,
+    "variants": [
+      {
+        "density": 2,
+        "bytes": 40002
+      },
+      {
+        "density": 4,
+        "bytes": 80278
+      }
+    ]
+  }
+]

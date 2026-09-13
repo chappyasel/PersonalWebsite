@@ -1,8 +1,5 @@
 "use client";
 
-import { roomWindowEvents, roomDocumentEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 // Drives the camera from the drei scroll offset, publishes per-frame progress
 // to the transient ref, flips activeUnit only on unit-boundary crosses, and
 // registers the scroll element with the store for the DOM bridges.
@@ -13,6 +10,10 @@ import {
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
 } from "../data";
+import {
+  handoffCamera,
+  illustrationOwnsCamera,
+} from "../illustration/handoffCamera";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { presentationProfileForViewport } from "../mobile/presentation";
@@ -106,7 +107,6 @@ import {
   CAMERA_LOOK_X_MAX_LAG,
   RAIL_RIGHT_PX_FALLBACK,
   STACKS_DESKTOP_MIN_WIDTH,
-  aboutStopShift,
   cameraCompositionForViewport,
   cameraDepthOffsetsForViewport,
   cameraForAspect,
@@ -123,6 +123,10 @@ import {
   scrollOffsetForUnit,
   unitProgressForScrollOffset,
 } from "./worldLayout";
+import {
+  roomDocumentEvents,
+  roomWindowEvents,
+} from "~/app/components/stacks/room/roomEvents";
 
 /** Field of view while seated. Travel runs a narrow 33 so one shelf unit
  * fills the frame; a horizon needs more room than a bookcase does. */
@@ -203,31 +207,8 @@ export const cameraTravelDiagnostics = {
   lookLagX: 0,
 };
 
-/** The About stop's rest shift ("move the initial scene", round 2): solved
- * so the projected shelf edge clears the rail's measured widest row. Read
- * from the live window and railRightPxRef each call rather than captured —
- * the scroll-element effect outlives resizes and font swaps. Mobile chrome
- * has no left rail, so below the desktop seam the stop stays on the
- * shelf's centre line. RAIL_RIGHT_PX_FALLBACK stands in until UnitRail's
- * first measurement lands (its layout effect runs before this frame in
- * practice). */
-function currentAboutShift(): number {
-  if (typeof window === "undefined") return 0;
-  if (captureHeadOnFromSearch(window.location.search)) return 0;
-  // Screenshot mode hides the rail, so there is nothing to clear: the
-  // shelf rests on its own centre line like the OG capture.
-  if (screenshotModeController.getSnapshot().enabled) return 0;
-  if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return 0;
-  return aboutStopShift(
-    window.innerWidth,
-    window.innerHeight,
-    railRightPxRef.current || RAIL_RIGHT_PX_FALLBACK,
-  );
-}
-
-/** The rail measurement the other stops' lateral truck is solved against
- * (`stopLateralOffset`), under the same gates as the About shift: none
- * under OG capture, none below the desktop seam. */
+/** Live rail measurement for desktop composition, omitted when capture
+ * mode hides the chrome and the shelf should be centered in the viewport. */
 function currentRailRightPx(): number | undefined {
   if (typeof window === "undefined") return undefined;
   if (captureHeadOnFromSearch(window.location.search)) return undefined;
@@ -415,7 +396,7 @@ export default function CameraRig() {
     const scrollTarget = (scroll as unknown as { scroll: { current: number } })
       .scroll;
     const clampedOffset = (unit: number) =>
-      Math.min(1, Math.max(0, scrollOffsetForUnit(unit, currentAboutShift())));
+      Math.min(1, Math.max(0, scrollOffsetForUnit(unit)));
     // Start on About's true stop, leaving a real native-scroll lead-in to its
     // left for the complete chair. ScrollControls can mount before its pages
     // have layout, when max === 0; writing scrollLeft then is silently lost
@@ -728,6 +709,29 @@ export default function CameraRig() {
     }
     wasFreeRoaming.current = false;
 
+    const bootView = worldBoot.getView();
+    // DOM navigation owns the current stop while the renderer is hidden.
+    // Adopt it before computing the ordinary camera, including explicit
+    // retries that skip illustration matching. Waiting until `live` makes
+    // the transition travel to About and then jump back to the chosen shelf.
+    if (worldBoot.getState().illustratedMode && !bootView.revealed) {
+      const selected = useStacks.getState();
+      const position = selected.golfStop
+        ? GOLF_STOP_POSITION
+        : selected.activeUnit;
+      const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(position)));
+      const el = scroll.el;
+      const max = el.scrollWidth - el.clientWidth;
+      if (el.isConnected && max > 0) {
+        initialAboutPending.current = false;
+        if (Math.abs(el.scrollLeft - offset * max) > 0.5)
+          el.scrollLeft = offset * max;
+        (scroll as unknown as { scroll: { current: number } }).scroll.current =
+          offset;
+        scroll.offset = offset;
+      }
+    }
+
     // Drei installs its horizontal listener over multiple effects and ignores
     // the first native scroll event. On a narrow/touch viewport its event
     // connection is not observable through the same object identity as on
@@ -747,10 +751,7 @@ export default function CameraRig() {
         const el = scroll.el;
         const max = el.scrollWidth - el.clientWidth;
         if (el.isConnected && max > 0) {
-          const offset = Math.min(
-            1,
-            Math.max(0, scrollOffsetForUnit(0, currentAboutShift())),
-          );
+          const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(0)));
           el.scrollLeft = offset * max;
           const target = (scroll as unknown as { scroll: { current: number } })
             .scroll;
@@ -775,7 +776,7 @@ export default function CameraRig() {
     const frame = delta > 0.05 ? 0.05 : delta;
     // Behind the boot screen the damps take the hidden step instead, so the
     // room is already at rest when the vignette lifts (HIDDEN_SETTLE_SECONDS).
-    const bootView = worldBoot.getView();
+    const illustrationOwnsPose = illustrationOwnsCamera(bootView);
     const dt = bootView.revealed ? frame : HIDDEN_SETTLE_SECONDS;
     // A gizmo drag must not also steer the camera: while the layout editor
     // owns the pointer, the parallax reads a centred pointer instead.
@@ -809,17 +810,20 @@ export default function CameraRig() {
     // orbit, the head turn, the cup pivot and the seated sway all arrive
     // together.
     pointerArrival.current = advancePointerArrival(pointerArrival.current, {
-      revealed: bootView.revealed,
+      revealed: bootView.revealed && !illustrationOwnsPose,
       pointerSeen: pointer.x !== 0 || pointer.y !== 0,
       frameSeconds: frame,
     });
     const pointerWeight = pointerArrivalWeight(pointerArrival.current);
-    const pointerX = neutralPointer
-      ? 0
-      : pointerFromRest(pointer.x, composition.parallaxCentre, pointerWeight);
-    const pointerY = neutralPointer
-      ? 0
-      : pointerFromRest(pointer.y, 0, pointerWeight);
+    const pointerX = illustrationOwnsPose
+      ? composition.parallaxCentre
+      : neutralPointer
+        ? 0
+        : pointerFromRest(pointer.x, composition.parallaxCentre, pointerWeight);
+    const pointerY =
+      neutralPointer || illustrationOwnsPose
+        ? 0
+        : pointerFromRest(pointer.y, 0, pointerWeight);
     // The eye stands this far right of the scroll position at desktop stops
     // so the shelf clears the dock; the look target rides the same offset
     // below, so this is a truck, not a yaw.
@@ -865,6 +869,7 @@ export default function CameraRig() {
     );
     const focusEnabled = Boolean(
       focusSpec &&
+        !illustrationOwnsPose &&
         !golfControlFocused &&
         !state.dragging &&
         !focusBlockedByTravel &&
@@ -971,7 +976,8 @@ export default function CameraRig() {
     const baselineEyeY =
       captureCameraY === null
         ? cameraY +
-          (pointerY * 0.08 * pointerMode.truck + Math.sin(t * 0.4) * 0.03) *
+          (pointerY * 0.08 * pointerMode.truck +
+            (illustrationOwnsPose ? 0 : Math.sin(t * 0.4) * 0.03)) *
             calm
         : cameraY;
     const baselineLookY =
@@ -1514,10 +1520,27 @@ export default function CameraRig() {
       (camera as THREE.PerspectiveCamera).fov = fov;
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
+    if (illustrationOwnsPose) {
+      const selected = useStacks.getState();
+      const selectedPosition = selected.golfStop
+        ? GOLF_STOP_POSITION
+        : selected.activeUnit;
+      handoffCamera.targetX = targetX;
+      handoffCamera.scenePosition = selectedPosition;
+      // About has a rail-clearance offset within its stop. Compare the real
+      // scroll target to that authored rest position, not integer progress.
+      handoffCamera.scrollError =
+        offset - scrollOffsetForUnit(selectedPosition);
+      handoffCamera.aimError = look.current.x - restingAimX;
+      handoffCamera.frame++;
+    }
     cameraTravelDiagnostics.targetX = targetX;
     cameraTravelDiagnostics.lookX = look.current.x;
     cameraTravelDiagnostics.lookLagX = look.current.x - eyeX;
 
+    // The illustrated navigation owns selection until promotion finishes.
+    // Preparing the hidden camera must not change an open DOM content panel.
+    if (illustrationOwnsPose) return;
     const movement = Math.abs(scenePosition - previousScenePosition.current);
     previousScenePosition.current = scenePosition;
     if (
