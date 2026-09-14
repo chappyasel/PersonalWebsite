@@ -6,6 +6,7 @@ import {
   type StacksData,
   initialScenePositionFromLocation,
 } from "../data";
+import { BootLoadingStatus } from "../dom/BootLoadingStatus";
 import { useRoomNavigationReady } from "../input/RoomNavigation";
 import { useStacks } from "../store";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -317,13 +318,9 @@ export default function IllustratedRoom({
         inert={!visible}
       >
         {loading && (
-          <span
-            className="room-loading-status"
-            role="status"
-            aria-label="Room view"
-          >
-            Loading 3D…
-          </span>
+          <div className="room-loading-status">
+            <BootLoadingStatus active={visible} ariaLabel="Room view" />
+          </div>
         )}
         {!loading && canRequest3D && (
           <Button variant="ghost" size="sm" onClick={onRequest3D}>

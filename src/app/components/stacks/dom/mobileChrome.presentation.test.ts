@@ -8,6 +8,7 @@ const chromeSource = read("./ChromeLayer.tsx");
 const helpSource = read("./ChromeKeyboardHelp.tsx");
 const fieldNotesSource = read("../fieldNotes/FieldNotesChrome.tsx");
 const railSource = read("./UnitRail.tsx");
+const sharedStyles = read("../../../../styles/globals.css");
 
 describe("mobile chrome presentation", () => {
   it("centers the wordmark and scene controls on one shared top strip", () => {
@@ -21,18 +22,18 @@ describe("mobile chrome presentation", () => {
     );
   });
 
-  it("dims only tap-first secondary chrome while leaving section navigation full strength", () => {
-    expect(chromeSource).toContain(
+  it("shares subdued header opacity across viewport and input profiles", () => {
+    expect(sharedStyles).toContain(
       "--stacks-secondary-chrome-idle-opacity: 0.6;",
     );
-    expect(chromeSource).toContain(
-      "opacity: var(--stacks-secondary-chrome-idle-opacity, 1);",
+    expect(sharedStyles).toContain(
+      "opacity: var(--stacks-secondary-chrome-idle-opacity);",
     );
     expect(chromeSource).toContain("data-tap-first={tapFirst || undefined}");
     expect(chromeSource).toContain("stacks-mobile-secondary-chrome");
     expect(helpSource).toContain("stacks-mobile-secondary-chrome");
     expect(fieldNotesSource).toContain("stacks-mobile-secondary-chrome");
-    expect(chromeSource).toMatch(
+    expect(sharedStyles).toMatch(
       /\.stacks-mobile-secondary-chrome:(?:focus-visible|active)[\s\S]*?opacity: 1;/,
     );
     expect(railSource).not.toContain("stacks-mobile-secondary-chrome");

@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Header ink stays subdued in the entry drawing and the live room, at every width. */
+:root {
+  --stacks-secondary-chrome-idle-opacity: 0.6;
+}
+.stacks-mobile-secondary-chrome {
+  opacity: var(--stacks-secondary-chrome-idle-opacity);
+  transition: opacity 160ms ease-out;
+}
+.stacks-mobile-secondary-chrome:focus-visible,
+.stacks-mobile-secondary-chrome:active {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .stacks-mobile-secondary-chrome:is(button, a):hover {
+    opacity: 1;
+  }
+}
+
 /* Tilt is reserved for real navigation surfaces. Give keyboard users the
    same perimeter cue the spring gives pointer users without requiring every
    card implementation to repeat focus-ring classes. */

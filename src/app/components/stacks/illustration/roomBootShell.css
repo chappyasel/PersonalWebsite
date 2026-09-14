@@ -121,13 +121,8 @@ html:is(
   )
   .room-entry-wordmark {
   visibility: visible;
-  opacity: var(--room-entry-name-opacity, 1);
+  opacity: var(--stacks-secondary-chrome-idle-opacity, 0.6);
   transition: none;
-}
-@media (width < 1200px) and (hover: none) and (pointer: coarse) {
-  .room-entry-wordmark {
-    --room-entry-name-opacity: 0.6;
-  }
 }
 html[data-room-view="live"]
   .stacks-world-shell[data-illustrated-entry]

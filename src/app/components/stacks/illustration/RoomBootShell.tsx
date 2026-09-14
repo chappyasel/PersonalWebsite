@@ -1,4 +1,5 @@
 import { WORLD_BOOT_POLICY } from "../boot/worldBootPolicy";
+import { BootLoadingStatus } from "../dom/BootLoadingStatus";
 import BootScreen from "../dom/BootScreen";
 import type { CSSProperties } from "react";
 
@@ -87,13 +88,9 @@ export default function RoomBootShell({
         ))}
       </div>
       <div className="room-first-paint-status">
-        <span
-          className="room-loading-status"
-          role="status"
-          aria-label="Room view"
-        >
-          Loading 3D…
-        </span>
+        <div className="room-loading-status">
+          <BootLoadingStatus active={false} ariaLabel="Room view" />
+        </div>
       </div>
       {/* This survives the shell's hydration handoff, so its animation never restarts. */}
       <span className="room-entry-wordmark" aria-hidden>

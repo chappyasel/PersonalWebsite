@@ -262,8 +262,13 @@ it.each([true, false])(
     );
     await act(async () => Promise.resolve());
     const status = view.queryByRole("status", { name: "Room view" });
-    if (loading) expect(status?.textContent).toBe("Loading 3D…");
-    else expect(status).toBeNull();
+    if (loading) {
+      expect(status?.textContent).toBe("Loading the 3D room...");
+      expect(status?.querySelectorAll(".stacks-boot-wait-dot")).toHaveLength(3);
+      expect(
+        view.container.querySelector('[data-boot-note="active"]'),
+      ).not.toBeNull();
+    } else expect(status).toBeNull();
   },
 );
 

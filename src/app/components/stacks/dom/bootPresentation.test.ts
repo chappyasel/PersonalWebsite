@@ -11,6 +11,10 @@ const component = fs.readFileSync(
   new URL("./BootScreen.tsx", import.meta.url),
   "utf8",
 );
+const loadingComponent = fs.readFileSync(
+  new URL("./BootLoadingStatus.tsx", import.meta.url),
+  "utf8",
+);
 
 function rule(selector: string) {
   const found = css.indexOf(`\n${selector}`);
@@ -180,7 +184,7 @@ describe("boot presentation", () => {
   it("gives the 3D loading label more weight than the supporting notes", () => {
     const label = rule(".stacks-boot-wait-label {");
 
-    expect(component).toContain("Loading the 3D room");
+    expect(loadingComponent).toContain("Loading the 3D room");
     expect(label).toContain("font-size: clamp(15px, 1.35vw, 17px)");
     expect(label).toContain("font-weight: 500");
     expect(css).toContain("@keyframes stacks-boot-wait-dot");

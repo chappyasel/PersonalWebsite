@@ -84,10 +84,11 @@ share position and text metrics and crossfade in place. Dark text has no
 contact shadow; ink and shadow follow the artwork's dissolve clock. Manual
 2D/3D switches use matching 420 ms fades. The return to 3D waits for two fresh
 rendered frames, then fades over the ordinary camera without registering
-the artwork again. While 3D is loading, a polite "Loading 3D…" status sits
-below the mobile navigation and above the shelves, including before hydration.
-Settled 2D and live 3D have no loading label. Mobile entry and illustrated chrome
-use the same 60% idle opacity as the live name, theme, and sound controls.
+the artwork again. While 3D is loading, the shared "Loading the 3D room" status
+uses animated dots and rotating notes from the current wait stage, including
+before hydration. It sits above the mobile navigation and at the top center
+on desktop. Settled 2D and live 3D have no loading label. Entry, illustrated,
+and live header controls share 60% idle opacity at every viewport width.
 Saved artwork alignment has a 1200 ms budget once the scene and selected camera
 are ready. Missing metadata, stale geometry, and saved mesh paths that never
 mount use the ordinary-camera fade after two fresh painted frames. They cannot

@@ -12,11 +12,7 @@ import {
   setAboutBootStagePhase,
 } from "../boot/aboutBootStage";
 import { isBootingPhase } from "../boot/worldBootMachine";
-import {
-  SERVER_WORLD_BOOT_VIEW,
-  documentWorldPhase,
-  worldBoot,
-} from "../boot/worldBootSession";
+import { documentWorldPhase, worldBoot } from "../boot/worldBootSession";
 import {
   ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
@@ -106,10 +102,10 @@ import {
   type RefObject,
   useEffect,
   useRef,
-  useState,
   useSyncExternalStore,
 } from "react";
 
+import { BootLoadingStatus } from "./BootLoadingStatus";
 import {
   type BootReadingBook,
   getBootReadingBooks,
@@ -124,9 +120,6 @@ import {
   BOOT_DUST_SPAWN_DELAY_MS,
   BOOT_DUST_SPAWN_WINDOW_MS,
   BOOT_FRAME_PHOTOS,
-  BOOT_WAIT_NOTES,
-  BOOT_WAIT_NOTE_INTERVAL_MS,
-  BOOT_WAIT_NOTE_LINES,
   type BootFramePhoto,
   SCENE_TO_BOOT_SVG,
   bootCadence,
@@ -200,71 +193,6 @@ export function BootReadingBooksBridge({
 }
 
 type BootStyle = CSSProperties & Record<`--stacks-boot-${string}`, string>;
-
-const subscribeWorldBoot = (listener: () => void) =>
-  worldBoot.subscribe(listener);
-const getWaitStage = () => worldBoot.getView().waitStage;
-const getServerWaitStage = () => SERVER_WORLD_BOOT_VIEW.waitStage;
-const getBootRevealed = () => worldBoot.getView().revealed;
-const getServerBootRevealed = () => SERVER_WORLD_BOOT_VIEW.revealed;
-
-/** The wait strip's supporting line. Its own component so that a stage
- * change re-renders one span and not the whole vignette: the reveal animations
- * are adopted compositor timelines held by ref, and there is no reason to walk
- * two thousand nodes of SVG to swap five words.
- *
- * The supporting notes stay outside the live region. They rotate often enough
- * to reassure a sighted visitor, but announcing each turn would become noise. */
-export function BootWaitNotes({
-  active: enabled = true,
-}: {
-  active?: boolean;
-}) {
-  const stage = useSyncExternalStore(
-    subscribeWorldBoot,
-    getWaitStage,
-    getServerWaitStage,
-  );
-  const revealed = useSyncExternalStore(
-    subscribeWorldBoot,
-    getBootRevealed,
-    getServerBootRevealed,
-  );
-  const [turn, setTurn] = useState(0);
-
-  // The turn resets with the gate, so every stage opens on its first line
-  // rather than wherever the previous stage's rotation happened to leave off.
-  // A gate holding one line needs no timer at all, and neither does a boot
-  // screen the world has already replaced: the strip is only hidden by CSS, so
-  // without the reveal check this would re-render it every 2.4s for the life of
-  // the page, behind a running 3D scene.
-  useEffect(() => {
-    setTurn(0);
-    if (!enabled || revealed || BOOT_WAIT_NOTES[stage].length < 2) return;
-    const timer = window.setInterval(
-      () => setTurn((previous) => previous + 1),
-      BOOT_WAIT_NOTE_INTERVAL_MS,
-    );
-    return () => window.clearInterval(timer);
-  }, [enabled, revealed, stage]);
-
-  const active = turn % BOOT_WAIT_NOTES[stage].length;
-  return (
-    <div className="stacks-boot-wait-notes">
-      {BOOT_WAIT_NOTE_LINES.map((line) => (
-        <span
-          className="stacks-boot-wait-note"
-          data-boot-note={
-            line.stage === stage && line.index === active ? "active" : "waiting"
-          }
-          key={line.text}
-        >
-          {line.text}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function useBootMotion(
   sceneRef: RefObject<SVGSVGElement | null>,
@@ -1109,7 +1037,10 @@ function RoleIconStackGlyph() {
     const topY = -(dy * SCENE_TO_BOOT_SVG + size);
     // The live slab carries its artwork across the bevel. Fill the same
     // silhouette here so the fallback color cannot become a visible border.
-    const facePath = projectIconOutlineSvg(size, body.radius * SCENE_TO_BOOT_SVG);
+    const facePath = projectIconOutlineSvg(
+      size,
+      body.radius * SCENE_TO_BOOT_SVG,
+    );
     const faceTransform = `translate(${centerX} ${topY + size / 2}) scale(${projectedBodyWidth / size} 1)`;
     const clipId = `stacks-boot-role-clip-${role.id}`;
     return (
@@ -1632,29 +1563,7 @@ export function BootScreenArtwork({
           </p>
         </div>
         <div className="stacks-boot-wait" data-boot-wait="">
-          <p
-            className="stacks-boot-wait-label"
-            role="status"
-            aria-live="polite"
-          >
-            Loading the 3D room
-            <span className="stacks-boot-wait-dots" aria-hidden>
-              {[0, 1, 2].map((dot) => (
-                <span
-                  className="stacks-boot-wait-dot"
-                  key={dot}
-                  style={
-                    {
-                      "--stacks-boot-dot-delay": `${dot * 0.18}s`,
-                    } as BootStyle
-                  }
-                >
-                  .
-                </span>
-              ))}
-            </span>
-          </p>
-          <div aria-hidden>{includeStageScript ? <BootWaitNotes /> : null}</div>
+          <BootLoadingStatus notes={includeStageScript} />
         </div>
       </div>
     </>

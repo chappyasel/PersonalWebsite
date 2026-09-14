@@ -317,17 +317,6 @@ export default function ChromeLayer() {
             display: flex;
             align-items: center;
           }
-          .stacks-wordmark[data-tap-first],
-          .stacks-theme-toggle[data-tap-first] {
-            --stacks-secondary-chrome-idle-opacity: 0.6;
-          }
-          .stacks-mobile-secondary-chrome {
-            opacity: var(--stacks-secondary-chrome-idle-opacity, 1);
-          }
-          .stacks-mobile-secondary-chrome:focus-visible,
-          .stacks-mobile-secondary-chrome:active {
-            opacity: 1;
-          }
           .stacks-wordmark .stacks-on-background-text,
           .stacks-unit-rail-mobile .stacks-on-background-text,
           .stacks-theme-toggle .stacks-on-background-text {

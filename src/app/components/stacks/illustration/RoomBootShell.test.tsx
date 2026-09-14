@@ -11,9 +11,6 @@ import { getRoomArtwork } from "./artwork/getRoomArtwork";
 import shelves from "./artwork/shelves.generated.json";
 
 vi.mock("../dom/BootScreen", () => ({
-  BootWaitNotes: () => (
-    <div className="stacks-boot-wait-notes">Setting out the books.</div>
-  ),
   default: () => <div data-legacy-boot="" />,
   BootScreenArtwork: () => <svg data-about-artwork="" />,
 }));
@@ -40,7 +37,13 @@ it("shows the server loading status only until hydration owns an active 3D load"
   document.body.append(root);
   try {
     const status = root.querySelector(".room-first-paint-status")!;
-    expect(status.textContent).toBe("Loading 3D…");
+    expect(status.querySelector('[role="status"]')?.textContent).toBe(
+      "Loading the 3D room...",
+    );
+    expect(status.querySelectorAll(".stacks-boot-wait-dot")).toHaveLength(3);
+    expect(status.querySelector('[data-boot-note="active"]')?.textContent).toBe(
+      "Waiting for first light.",
+    );
     html.setAttribute("data-room-view", "illustrated");
     html.removeAttribute("data-illustrated-ui");
     for (const phase of ["pending", "warm"]) {
