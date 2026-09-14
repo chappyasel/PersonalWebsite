@@ -1,7 +1,9 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import {
   type ComponentType,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -115,6 +117,41 @@ export function openUniversalSearch() {
   window.dispatchEvent(new CustomEvent(OPEN_UNIVERSAL_SEARCH_EVENT));
 }
 
+function setSearchRequest(open: boolean) {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has("search") === open) return;
+  if (open) url.search += `${url.search ? "&" : "?"}search`;
+  else url.searchParams.delete("search");
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
+/** Only the URL observer needs a client-rendered Suspense boundary. Keep
+ * keyboard and scene launchers mounted independently of route query state. */
+function SearchUrlTrigger({
+  open,
+  onOpen,
+  onClose,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  const params = useSearchParams();
+  const requested = params?.has("search") ?? false;
+  const previous = useRef(false);
+  useEffect(() => {
+    if (previous.current === requested) return;
+    previous.current = requested;
+    if (requested && !open) onOpen();
+    else if (!requested && open) onClose();
+  }, [requested, open, onOpen, onClose]);
+  return null;
+}
+
 export function UniversalSearchController({
   enabled = true,
   loadPalette = loadDefaultPalette,
@@ -143,6 +180,7 @@ export function UniversalSearchController({
         if (palettePromiseRef.current !== pending) return;
         palettePromiseRef.current = null;
         setOpen(false);
+        setSearchRequest(false);
         document.documentElement.removeAttribute(
           UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
         );
@@ -156,6 +194,7 @@ export function UniversalSearchController({
 
   const closePalette = useCallback(() => {
     setOpen(false);
+    setSearchRequest(false);
     document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
     // With a mounted dialog, restoration happens in restoreFocusAfterClose
     // once Radix's focus trap tears down — restoring here would bounce off
@@ -184,6 +223,7 @@ export function UniversalSearchController({
       UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
       "true",
     );
+    setSearchRequest(true);
     setOpen(true);
     void ensurePalette();
   }, [ensurePalette]);
@@ -226,12 +266,23 @@ export function UniversalSearchController({
     [],
   );
 
-  if (!enabled || !Palette) return null;
+  if (!enabled) return null;
   return (
-    <Palette
-      open={open}
-      onOpenChange={(next) => (next ? showPalette() : closePalette())}
-      onCloseAutoFocus={restoreFocusAfterClose}
-    />
+    <>
+      <Suspense fallback={null}>
+        <SearchUrlTrigger
+          open={open}
+          onOpen={showPalette}
+          onClose={closePalette}
+        />
+      </Suspense>
+      {Palette && (
+        <Palette
+          open={open}
+          onOpenChange={(next) => (next ? showPalette() : closePalette())}
+          onCloseAutoFocus={restoreFocusAfterClose}
+        />
+      )}
+    </>
   );
 }

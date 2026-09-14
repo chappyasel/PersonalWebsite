@@ -39,10 +39,10 @@ export function Keycap({
     <kbd
       className={cn(
         "inline-flex h-[1.05rem] shrink-0 -translate-y-px items-center justify-center rounded-[3px] border p-0 font-serif text-[8px] font-bold leading-none",
-        // Flat pages get a flat cap; the 3D world's root marker upgrades it
-        // to the physical key that matches the scene's material language.
-        "border-border bg-secondary/80 text-muted-foreground shadow-[0_1px_0_rgb(0_0_0_/_0.06)] dark:shadow-[0_1px_0_rgb(0_0_0_/_0.4)]",
-        "[html[data-world]_&]:border-stone-500/55 [html[data-world]_&]:bg-gradient-to-b [html[data-world]_&]:from-stone-50 [html[data-world]_&]:via-stone-100 [html[data-world]_&]:to-stone-300 [html[data-world]_&]:text-stone-900 [html[data-world]_&]:shadow-[0_1.5px_0_#78716c,0_2.5px_3px_rgb(0_0_0_/_0.3),inset_0_1px_0_rgb(255_255_255_/_0.95),inset_0_-1px_0_rgb(120_113_108_/_0.2)]",
+        // Keep shortcut hints flat and subdued on both pages and room glass.
+        "border-border bg-secondary/80 text-muted-foreground shadow-[0_1px_0_rgb(0_0_0_/_0.06)] dark:border-neutral-600/80 dark:bg-neutral-800 dark:text-neutral-200 dark:shadow-[0_1px_0_rgb(0_0_0_/_0.4)]",
+        "[html[data-world]_&]:border-stone-400/65 [html[data-world]_&]:bg-stone-100 [html[data-world]_&]:text-stone-800 [html[data-world]_&]:shadow-[0_1px_0_rgb(0_0_0_/_0.1)]",
+        "[html.dark[data-world]_&]:border-neutral-600/80 [html.dark[data-world]_&]:bg-neutral-800 [html.dark[data-world]_&]:text-neutral-200 [html.dark[data-world]_&]:shadow-[0_1px_0_rgb(0_0_0_/_0.3)]",
         width === "key" ? "w-[1.05rem]" : "w-auto min-w-[1.05rem] px-1",
         className,
       )}

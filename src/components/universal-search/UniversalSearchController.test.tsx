@@ -21,9 +21,14 @@ import {
   type UniversalSearchPaletteDependencies,
 } from "./UniversalSearchPalette";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
 });
 
 function FakePalette({ open, onOpenChange }: UniversalSearchPaletteProps) {
@@ -85,7 +90,136 @@ function deferredPalette() {
 }
 
 describe("UniversalSearchController", () => {
+  it.each(["/?search", "/books?tags=Psychology&search", "/?search#books"])(
+    "opens search on arrival at %s and preserves the page when dismissed",
+    async (href) => {
+      const state = { __NA: true, room: "books" };
+      window.history.replaceState(state, "", href);
+      const historyLength = window.history.length;
+      render(
+        <UniversalSearchController
+          loadPalette={async () => ({ UniversalSearchPalette: FakePalette })}
+          schedulePreload={() => () => undefined}
+        />,
+      );
+      expect(await screen.findByRole("dialog")).toBeTruthy();
+      expect(window.location.search).toContain("search");
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      const expected = new URL(href, window.location.origin);
+      expected.searchParams.delete("search");
+      expect(window.location.href).toBe(expected.href);
+      expect(window.history.state).toEqual(state);
+      expect(window.history.length).toBe(historyLength);
+    },
+  );
+
+  it.each(["Command-K", "Control-K", "search button"])(
+    "synchronizes the URL for %s without adding history entries",
+    async (opener) => {
+      const state = { __NA: true, room: "books" };
+      window.history.replaceState(state, "", "/?theme=dark#books");
+      const historyLength = window.history.length;
+      render(
+        <UniversalSearchController
+          loadPalette={async () => ({ UniversalSearchPalette: FakePalette })}
+          schedulePreload={() => () => undefined}
+        />,
+      );
+      if (opener === "search button") {
+        await act(async () => {
+          window.dispatchEvent(new CustomEvent(OPEN_UNIVERSAL_SEARCH_EVENT));
+        });
+      } else {
+        fireEvent.keyDown(document, {
+          key: "k",
+          metaKey: opener === "Command-K",
+          ctrlKey: opener === "Control-K",
+        });
+      }
+      expect(await screen.findByRole("dialog")).toBeTruthy();
+      expect(window.location.search).toBe("?theme=dark&search");
+      expect(window.location.hash).toBe("#books");
+      expect(window.history.state).toEqual(state);
+      expect(window.history.length).toBe(historyLength);
+      // Repeated requests must neither duplicate the flag nor push history.
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent(OPEN_UNIVERSAL_SEARCH_EVENT));
+      });
+      expect(window.location.search).toBe("?theme=dark&search");
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(window.location.search).toBe("?theme=dark");
+      expect(window.location.hash).toBe("#books");
+      expect(window.history.state).toEqual(state);
+      expect(window.history.length).toBe(historyLength);
+    },
+  );
+
+  it("responds to client route changes and history without reopening on rerender", async () => {
+    const loadPalette = async () => ({ UniversalSearchPalette: FakePalette });
+    const schedulePreload = () => () => undefined;
+    const view = render(
+      <UniversalSearchController
+        loadPalette={loadPalette}
+        schedulePreload={schedulePreload}
+      />,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    window.history.pushState({ __NA: true }, "", "/books?search");
+    view.rerender(
+      <UniversalSearchController
+        loadPalette={loadPalette}
+        schedulePreload={schedulePreload}
+      />,
+    );
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    window.history.replaceState({ __NA: true }, "", "/books");
+    view.rerender(
+      <UniversalSearchController
+        loadPalette={loadPalette}
+        schedulePreload={schedulePreload}
+      />,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    window.history.pushState({ __NA: true }, "", "/books?search");
+    view.rerender(
+      <UniversalSearchController
+        loadPalette={loadPalette}
+        schedulePreload={schedulePreload}
+      />,
+    );
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    view.rerender(
+      <UniversalSearchController
+        loadPalette={loadPalette}
+        schedulePreload={schedulePreload}
+      />,
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("can dismiss a URL request before the palette chunk resolves", async () => {
+    window.history.replaceState(null, "", "/?search#books");
+    const palette = deferredPalette();
+    render(
+      <UniversalSearchController
+        loadPalette={palette.load}
+        schedulePreload={() => () => undefined}
+      />,
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    await act(async () =>
+      palette.resolve({ UniversalSearchPalette: FakePalette }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(window.location.hash).toBe("#books");
+    expect(window.location.search).toBe("");
+  });
+
   it("does not preload or register open shortcuts while disabled", () => {
+    window.history.replaceState(null, "", "/?search");
     const loadPalette = vi.fn(async () => ({
       UniversalSearchPalette: FakePalette,
     }));

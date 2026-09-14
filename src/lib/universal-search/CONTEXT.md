@@ -4,6 +4,15 @@ Universal Search gives visitors one keyboard-first way to find destinations, con
 
 Touch devices show destinations and content with a close button. They omit site actions, keyboard hints, and command wording. The search input uses 16px text, and the palette fades without scaling.
 
+Append `?search` to any page URL to open the Command palette on arrival. Use
+`&search` when the URL already has query parameters. For example, `/?search`,
+`/books?tags=Psychology&search`, or `/?search#books`. The trigger works on initial
+loads and client navigation. Opening from a keyboard shortcut or search button
+also adds the flag; closing removes it. Both use history replacement, preserving
+the route, filters, shelf hash, and existing history state without adding Back
+button entries.
+The URL flag opens the existing palette; it does not supply a search query.
+
 ## Language
 
 **Command palette**:
