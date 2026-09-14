@@ -154,15 +154,8 @@ html.dark .room-illustration {
 @media (width < 1200px) {
   .room-first-paint-status,
   .room-illustration-actions:has(.room-loading-status) {
-    top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
-  }
-  /* Reserve a row for the loader between the header and section navigation. */
-  .stacks-world-shell:has(
-      .room-illustration-actions[data-illustration-actions-visible="true"]
-        .room-loading-status
-    )
-    .stacks-unit-rail-mobile {
-    top: calc(env(safe-area-inset-top, 0px) + 6.5rem);
+    /* Fit above the existing rail without moving it during the handoff. */
+    top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
   }
 }
 /* The recovery action can finish fading after the drawing retires. */

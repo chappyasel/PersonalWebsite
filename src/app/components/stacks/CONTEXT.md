@@ -87,7 +87,8 @@ rendered frames, then fades over the ordinary camera without registering
 the artwork again. While 3D is loading, the shared "Loading the 3D room" status
 uses animated dots and rotating notes from the current wait stage, including
 before hydration. It sits above the mobile navigation and at the top center
-on desktop. Settled 2D and live 3D have no loading label. Entry, illustrated,
+on desktop. Loading never changes the navigation's position. Settled 2D and
+live 3D have no loading label. Entry, illustrated,
 and live header controls share 60% idle opacity at every viewport width.
 Saved artwork alignment has a 1200 ms budget once the scene and selected camera
 are ready. Missing metadata, stale geometry, and saved mesh paths that never
