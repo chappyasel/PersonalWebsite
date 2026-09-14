@@ -1,0 +1,14 @@
+.quotes {
+  color: white;
+  text-shadow:
+    0 1px 3px rgb(0 0 0 / 0.65),
+    0 2px 12px rgb(0 0 0 / 0.4);
+}
+
+:global([data-stacks-mobile-panel]) .quotes {
+  text-shadow: none;
+}
+
+:global(html:not(.dark) [data-stacks-mobile-panel]) .quotes {
+  color: hsl(var(--foreground));
+}

@@ -28,6 +28,33 @@ const lint = (code) =>
 
 describe("Phosphor icon policy", () => {
   it.each([
+    'const icon = <StarIcon weight="fill" />;',
+    'const icon = <StarIcon weight={"fill"} />;',
+    'const icon = <StarIcon weight={selected ? "fill" : "bold"} />;',
+    'const props = { weight: "fill" };',
+    'const props = { "weight": selected ? "fill" : "regular" };',
+    'const weight = selected ? "fill" : "bold";',
+    'function icon(weight: IconWeight = "fill") {}',
+    'phosphorPaths(StarIcon, "fill");',
+  ])("rejects filled icon weights: %s", (code) => {
+    expect(
+      lint(code).some((issue) => issue.ruleId === "no-restricted-syntax"),
+    ).toBe(true);
+  });
+
+  it("allows outlined icons and SVG or canvas drawing fills", () => {
+    expect(
+      lint(`
+      const icon = <StarIcon weight="bold" />;
+      const props = { weight: selected ? "bold" : "regular" };
+      const path = <path fill="currentColor" />;
+      const mode = { kind: "fill" };
+      context.fill();
+    `),
+    ).toEqual([]);
+  });
+
+  it.each([
     "const link = <a>Read more ↗</a>",
     "const link = <a>&rarr;</a>",
     "const link = <a>&#8594;</a>",

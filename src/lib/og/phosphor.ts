@@ -70,7 +70,7 @@ export function phosphorSvg(
  */
 export function phosphorPaths(
   Glyph: Icon,
-  weight: IconWeight = "fill",
+  weight: IconWeight = "bold",
 ): { viewBoxSize: number; markup: string } {
   const svg = phosphorSvg(Glyph, { size: 256, weight });
   const props = svg.props as { viewBox?: string; children?: ReactNode };

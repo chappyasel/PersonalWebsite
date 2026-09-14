@@ -248,7 +248,7 @@ type StampLettering = Readonly<{
 }>;
 
 type StampIconTreatment = Readonly<{
-  weight: "thin" | "light" | "regular" | "bold" | "fill" | "duotone";
+  weight: "thin" | "light" | "regular" | "bold" | "duotone";
   scale: number;
   x: number;
   y: number;
@@ -522,7 +522,7 @@ const STAMP_ICON_TREATMENTS = {
     rotate: -8,
     echo: true,
   },
-  tour: { weight: "fill", scale: 1.08, x: -8, y: 5, rotate: -8, echo: false },
+  tour: { weight: "bold", scale: 1.08, x: -8, y: 5, rotate: -8, echo: false },
   portal: { weight: "bold", scale: 0.9, x: -5, y: 2, rotate: 0, echo: true },
   camera: {
     weight: "duotone",
@@ -532,7 +532,7 @@ const STAMP_ICON_TREATMENTS = {
     rotate: 3,
     echo: false,
   },
-  hand: { weight: "fill", scale: 1.12, x: 0, y: -2, rotate: -7, echo: false },
+  hand: { weight: "bold", scale: 1.12, x: 0, y: -2, rotate: -7, echo: false },
   room: { weight: "duotone", scale: 0.98, x: -4, y: 4, rotate: 8, echo: true },
   rearrange: {
     weight: "bold",
@@ -542,7 +542,7 @@ const STAMP_ICON_TREATMENTS = {
     rotate: -4,
     echo: true,
   },
-  barbell: { weight: "fill", scale: 1.2, x: 0, y: 8, rotate: -5, echo: false },
+  barbell: { weight: "bold", scale: 1.2, x: 0, y: 8, rotate: -5, echo: false },
   globe: { weight: "thin", scale: 1.16, x: 0, y: 9, rotate: 7, echo: true },
   atlas: {
     weight: "duotone",
@@ -552,7 +552,7 @@ const STAMP_ICON_TREATMENTS = {
     rotate: -5,
     echo: false,
   },
-  chapter: { weight: "fill", scale: 1.04, x: 2, y: 6, rotate: 4, echo: false },
+  chapter: { weight: "bold", scale: 1.04, x: 2, y: 6, rotate: 4, echo: false },
   console: { weight: "bold", scale: 1, x: 0, y: 3, rotate: -3, echo: false },
   "close-up": {
     weight: "light",
@@ -571,12 +571,12 @@ const STAMP_ICON_TREATMENTS = {
     echo: false,
   },
   ripple: { weight: "bold", scale: 1.22, x: 0, y: -1, rotate: -9, echo: true },
-  lamp: { weight: "fill", scale: 0.96, x: 7, y: 5, rotate: 4, echo: false },
+  lamp: { weight: "bold", scale: 0.96, x: 7, y: 5, rotate: 4, echo: false },
   beacon: { weight: "light", scale: 1.16, x: 1, y: -3, rotate: -2, echo: true },
   alarm: { weight: "bold", scale: 0.84, x: -8, y: 9, rotate: 6, echo: false },
   clock: { weight: "thin", scale: 1.14, x: 5, y: 0, rotate: -8, echo: true },
   tea: { weight: "duotone", scale: 1.06, x: -6, y: 4, rotate: 5, echo: false },
-  shaker: { weight: "fill", scale: 0.88, x: 0, y: 8, rotate: -10, echo: true },
+  shaker: { weight: "bold", scale: 0.88, x: 0, y: 8, rotate: -10, echo: true },
   pixel: { weight: "regular", scale: 1.18, x: 7, y: 5, rotate: 2, echo: false },
   book: { weight: "light", scale: 1.04, x: -3, y: -1, rotate: -6, echo: true },
   photo: {
@@ -596,7 +596,7 @@ const STAMP_ICON_TREATMENTS = {
     rotate: 11,
     echo: true,
   },
-  crown: { weight: "fill", scale: 1.06, x: 0, y: 0, rotate: -5, echo: false },
+  crown: { weight: "bold", scale: 1.06, x: 0, y: 0, rotate: -5, echo: false },
   building: {
     weight: "regular",
     scale: 0.9,
@@ -650,7 +650,7 @@ const STAMP_ICON_TREATMENTS = {
     echo: false,
   },
   vision: {
-    weight: "fill",
+    weight: "bold",
     scale: 1,
     x: 0,
     y: 0,
@@ -666,7 +666,7 @@ const STAMP_ICON_TREATMENTS = {
     echo: false,
   },
   journal: {
-    weight: "fill",
+    weight: "bold",
     scale: 1.02,
     x: 0,
     y: -2,

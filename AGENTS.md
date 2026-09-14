@@ -31,6 +31,13 @@ names for icon-only controls. Preserve arrow notation in authored content,
 code examples, parsers, and logs. ESLint enforces icon imports and rejects
 text arrows in JSX.
 
+Never use Phosphor's `fill` weight except for the video play arrow in
+`src/app/components/TalkCard.tsx`. This restriction includes selected states,
+ratings, Field Notes, favicons, and social images. Use outlined weights
+such as `regular` or `bold`. Keep the desktop navigation's side pill as its
+selection marker; do not add a background highlight or switch to filled icons.
+ESLint rejects filled icon weights; the Talks play arrow has a local exception.
+
 ## Debug controls
 
 Every boolean control in Scene Diagnostics uses the existing native checkbox

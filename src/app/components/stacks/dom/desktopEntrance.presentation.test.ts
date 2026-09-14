@@ -62,7 +62,7 @@ describe("desktop first-load entrance", () => {
 
   it("keeps reduced motion in the final readable state", () => {
     expect(railSource).toContain(".stacks-unit-rail-desktop .stacks-rail-row");
-    expect(railSource).toContain("scale: 1;");
+    expect(railSource).toContain("transform: none;");
     expect(placardSource).toContain(
       "[data-stacks-desktop-panel][data-stacks-initial-panel]",
     );

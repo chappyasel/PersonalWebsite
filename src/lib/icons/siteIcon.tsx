@@ -133,7 +133,7 @@ export async function siteIconImage(
         >
           {phosphorSvg(spec.glyph, {
             size: glyphSize,
-            weight: frame >= SITE_ICON_SIZES.app ? "duotone" : "fill",
+            weight: frame >= SITE_ICON_SIZES.app ? "duotone" : "bold",
             color,
           })}
         </div>

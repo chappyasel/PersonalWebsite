@@ -97,7 +97,8 @@ describe("Field Notes stamp tooltip presentation", () => {
       (match) => match[1],
     );
     expect(iconWeights).toHaveLength(40);
-    expect(new Set(iconWeights).size).toBe(6);
+    expect(new Set(iconWeights).size).toBe(5);
+    expect(iconWeights).not.toContain("fill");
     expect(iconBlock).toContain("scale: 1.34");
     expect(iconBlock.match(/echo: true/g)).toHaveLength(17);
     expect(source).toContain("FieldNoteAccentIcon");

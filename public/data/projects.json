@@ -6,14 +6,14 @@
       "image": "/images/stacks/v8/512/projects-weightlifting-icon.webp",
       "meta": "iOS · on the App Store since 2017",
       "languages": ["Swift", "SwiftUI", "Objective-C"],
-      "description": "The workout log I have kept on the App Store since 2017 and still use for every session. It tracks sets, estimates one-rep maxes, and turns progress into levels, achievements, and a leaderboard. Every number in the Weightlifting section of this site comes out of it."
+      "description": "A workout log with sets, one-rep max estimates, levels, and achievements. Its data powers the training stats on this site."
     },
     {
       "name": "Homework App",
       "image": "/images/stacks/v8/512/projects-homework-icon.webp",
       "meta": "iOS · acquired by Haystack AI in 2019",
       "languages": ["Objective-C"],
-      "description": "Built in high school to keep track of my own assignments. It grew into the #1 homework app on the App Store, with 338k installs and 63k monthly users, and Haystack AI acquired it in 2019."
+      "description": "A high school project that became the #1 homework app on the App Store, with 338k installs and 63k monthly users."
     },
     {
       "name": "meta-kb",
@@ -22,7 +22,7 @@
       "meta": "Open source · 2026",
       "repo": "chappyasel/meta-kb",
       "languages": ["TypeScript", "Bun"],
-      "description": "A wiki about LLM agent infrastructure that an LLM compiles from 126 raw sources and then audits against them. Each pass extracts atomic claims, checks every one against its cited source, and rewrites its own prompts from what failed. Three rounds took claim accuracy from 64% to 80%. Fork it and point it at any topic."
+      "description": "An AI-written wiki on LLM agents that checks its claims against 126 sources. Three audit rounds raised claim accuracy from 64% to 80%."
     },
     {
       "name": "This website",
@@ -31,7 +31,7 @@
       "meta": "Web · open source",
       "repo": "chappyasel/PersonalWebsite",
       "languages": ["TypeScript", "Next.js", "tRPC", "three.js"],
-      "description": "The site you are reading, as a public repo. Next.js and tRPC over Postgres, with a three.js room for a homepage. Book notes sync from Notion, training data from Weightlifting App, and the YouTube diet from Takeout exports. Most other sections are JSON files."
+      "description": "A Next.js site with a three.js room to explore. Book notes sync from Notion, workouts from Weightlifting App, and YouTube history from Takeout."
     },
     {
       "name": "Liar's Dice",
@@ -39,7 +39,20 @@
       "image": "/images/projects/liars-dice-tile.webp",
       "meta": "Web · on this site",
       "languages": ["React", "TypeScript"],
-      "description": "A calculator for Liar's Dice. Enter your hand, the dice on the table, and the current bid, and it gives the probability of every possible call so you can decide whether to raise or challenge. The odds are exact. Reading the other players is still on you."
+      "description": "Exact odds for every possible bid, based on your hand and the dice on the table. Use them to decide whether to raise or challenge."
     }
-  ]
+  ],
+  "repoDescriptions": {
+    "chappyasel/WebExperiments_Backend": "An earlier portfolio and the backends for Weightlifting App and fantasy football projects.",
+    "chappyasel/RotoworldML_Python": "A Keras model that evaluates NBA players using Rotoworld news articles.",
+    "chappyasel/OrangeTwist_Web": "The Orange Twist Jewelry website, built with shared HTML templates and JSON content.",
+    "chappyasel/FantasyBasketball_iOS": "NBA player tracking and fantasy basketball metrics using ESPN, Rotoworld, and NBA data.",
+    "chappyasel/BaseballGame_iOS": "An MLB player database with player and team rankings from Baseball Reference data.",
+    "chappyasel/DungeonMaster_iOS": "A SpriteKit dungeon crawler with procedural levels and A* pathfinding.",
+    "chappyasel/RemoteNotifications_MacOS": "A server that watches online events and sends Apple push notifications through AWS.",
+    "chappyasel/RemoteNotifications_iOS": "An iOS client for testing push notifications with custom triggers.",
+    "chappyasel/thePlug_iOS": "An AWS login and email verification prototype for social apps.",
+    "chappyasel/MessageBoard_iOS": "Shared message boards with customizable text and instant syncing through Parse.",
+    "chappyasel/thePlug_Backend": "An AWS backend for login and email verification in social apps."
+  }
 }

@@ -136,7 +136,7 @@ function ContributionCalendar({
                       <p className="font-semibold leading-none">
                         {dateLabel(day.date)}
                       </p>
-                      <p className="text-muted-foreground">{dayCaption(day)}</p>
+                      <p className="opacity-75">{dayCaption(day)}</p>
                     </div>
                   </TooltipContent>
                 </Tooltip>

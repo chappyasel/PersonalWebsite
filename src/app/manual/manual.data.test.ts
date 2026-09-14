@@ -77,7 +77,11 @@ describe("manual.json snapshot", () => {
       markup.indexOf('data-systems-layer-index=""'),
     );
     for (const section of data.sections) {
-      expect(card, section.title).toContain(section.title.replace(/&/g, "&amp;"));
+      const title =
+        section.id === "personality-strengths-blind-spots"
+          ? "Personality & Strengths"
+          : section.title;
+      expect(card, section.title).toContain(title.replace(/&/g, "&amp;"));
     }
   });
 });

@@ -11,14 +11,10 @@ export type SystemsLayerRow = {
   number: number | null;
   title: string;
   icon: string;
-  /** The layer's own line from the doc's At a Glance list. */
-  blurb: string;
 };
 
 /**
- * The systems doc's card: the seven layers as a stack, each with its glyph
- * and the one line the doc's At a Glance gives it. Read from the synced
- * snapshot by PersonalSystems, so the card is the doc's own summary.
+ * The seven layer titles come from the synced document snapshot.
  */
 export default function SystemsOverview({
   updated,
@@ -35,32 +31,24 @@ export default function SystemsOverview({
       sky="night"
       updated={updated}
       description="The seven layers I use to run my life, from who I am and where I am headed down to the tools that make it automatic. The manual above and the routine below are two of its parts."
-      cta="Read the full systems doc"
     >
-      <ol data-systems-layer-index="" className="mt-4">
-        {layers.map((layer, index) => (
+      <ol
+        data-systems-layer-index=""
+        className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2"
+      >
+        {layers.map((layer) => (
           <li
             key={layer.id}
-            className="grid grid-cols-[1.25rem_auto_1fr] items-baseline gap-x-2.5 border-b border-foreground/10 py-2.5 text-sm leading-snug last:border-b-0"
+            className="flex items-center gap-2 text-xs leading-snug"
           >
-            <span className="font-mono text-[0.68rem] tabular-nums text-muted-foreground/70">
-              {String(layer.number ?? index + 1).padStart(2, "0")}
-            </span>
             <SectionIcon
               id={layer.id}
               emoji={layer.icon}
               size={15}
-              className="shrink-0 translate-y-0.5"
+              className="shrink-0"
             />
-            <span>
-              <span className="font-medium text-foreground/90">
-                {layer.title}
-              </span>
-              {layer.blurb && (
-                <span className="block text-[0.8125rem] leading-snug text-muted-foreground">
-                  {layer.blurb}
-                </span>
-              )}
+            <span className="font-medium text-foreground/90">
+              {layer.title}
             </span>
           </li>
         ))}

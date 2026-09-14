@@ -16,9 +16,9 @@ import {
 } from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
-  type SpringOptions,
   motion,
   useMotionValue,
+  useReducedMotion,
   useSpring,
 } from "framer-motion";
 import Image from "next/image";
@@ -38,6 +38,12 @@ import { api } from "~/trpc/react";
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
+
+import {
+  cardInteractionSpring,
+  cardPressedScale,
+  cardTiltSpring,
+} from "~/app/components/tiltCardMotion";
 
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import { cn } from "@/src/lib/util";
@@ -127,12 +133,6 @@ const sizeStyles = {
   },
 } as const;
 
-const springValues: SpringOptions = {
-  damping: 25,
-  stiffness: 120,
-  mass: 1,
-};
-
 const hoverScale = {
   XS: 1.2, // Largest scale for extra small books
   S: 1.15, // Larger scale for small books
@@ -169,6 +169,7 @@ export const BookCard = memo(function BookCard({
   const actions = useModalActions();
   const { openModal } = actions;
   const cardRef = useRef<HTMLButtonElement>(null);
+  const reduceMotion = useReducedMotion();
   useIntersectionMotion(cardRef);
   const searchParams = useSearchParams();
   const bookPath = useBookPath();
@@ -204,9 +205,9 @@ export const BookCard = memo(function BookCard({
   }, [keyboardCopyTrigger, isKeyboardFocused]);
 
   // Motion values for 3D tilt effect (only used on non-touch devices)
-  const rotateX = useSpring(useMotionValue(0), springValues);
-  const rotateY = useSpring(useMotionValue(0), springValues);
-  const scale = useSpring(1, springValues);
+  const rotateX = useSpring(useMotionValue(0), cardTiltSpring);
+  const rotateY = useSpring(useMotionValue(0), cardTiltSpring);
+  const scale = useSpring(1, cardInteractionSpring);
 
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
@@ -275,7 +276,7 @@ export const BookCard = memo(function BookCard({
     setIsHoveringCopyZone(isInCopyZone(e));
 
     // Skip 3D tilt calculations on touch devices (reduces GPU load)
-    if (isTouchDevice || !cardRef.current) return;
+    if (isTouchDevice || reduceMotion || !cardRef.current) return;
 
     const rect = cardRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width / 2;
@@ -292,7 +293,7 @@ export const BookCard = memo(function BookCard({
     // Track hover for keyboard navigation starting position
     onHover?.(book.id);
     // Skip scale animation on touch devices
-    if (!isTouchDevice) {
+    if (!isTouchDevice && !reduceMotion) {
       scale.set(hoverScale[size]);
     }
     // Prefetch book data with notes on hover for faster modal load
@@ -349,7 +350,8 @@ export const BookCard = memo(function BookCard({
                 transform: "translateZ(0)",
               }
         }
-        whileTap={{ scale: 0.95 }}
+        whileTap={reduceMotion ? undefined : { scale: cardPressedScale }}
+        transition={{ type: "spring", ...cardInteractionSpring }}
       >
         {/* Cover container with shadow and rounded corners */}
         <div
@@ -548,7 +550,7 @@ export const BookCard = memo(function BookCard({
                   {Array.from({ length: 5 }).map((_, i) => (
                     <StarIcon
                       key={i}
-                      weight={i < book.rating! ? "fill" : "duotone"}
+                      weight={i < book.rating! ? "bold" : "duotone"}
                       className={`${styles.star} ${i < book.rating! ? "text-yellow-400" : "text-white/30"}`}
                     />
                   ))}

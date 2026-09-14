@@ -417,7 +417,7 @@ describe("systems.json snapshot", () => {
     }
   });
 
-  it("feeds the homepage card its seven layers and their At a Glance lines", () => {
+  it("feeds the homepage card its seven layer titles", () => {
     const markup = renderToStaticMarkup(createElement(PersonalSystems));
     const card = markup.slice(
       markup.indexOf('data-systems-layer-index=""'),
@@ -426,10 +426,6 @@ describe("systems.json snapshot", () => {
     for (const layer of layers) {
       expect(card, layer.title).toContain(layer.title.replace(/&/g, "&amp;"));
     }
-    // One line per layer from At a Glance, first letter up, hook dropped.
-    expect(card).toContain(
-      "Who I am, what I believe, and the cues to make it automatic.",
-    );
     expect(card).not.toContain("Read more");
   });
 });

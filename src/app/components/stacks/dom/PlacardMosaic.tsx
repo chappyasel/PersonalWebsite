@@ -48,10 +48,10 @@ export function mosaicDateLabel(key: string) {
 }
 
 /**
- * The year-at-a-glance grid the Weightlifting and Projects placards share:
+ * The year-at-a-glance grid for the Projects placard:
  * one cell per day in four 13-week bands, a tooltip on each. Callers decide
  * what a day means (its colour, its opacity, its caption); this only lays
- * the days out and keeps the two placards' grids identical.
+ * the days out. Weightlifting uses named calendar months instead.
  */
 export function PlacardMosaic({
   cells,

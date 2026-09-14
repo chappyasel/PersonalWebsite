@@ -20,7 +20,9 @@ import {
   buildGitHubPlacard,
 } from "~/lib/github/placard";
 import { type GitHubActivity } from "~/lib/github/types";
-import { cn, getTimeAgo } from "~/lib/util";
+import { getTimeAgo } from "~/lib/util";
+
+import { Card, CardContent } from "~/components/ui/card";
 
 import GitHubActivityCard from "./GitHubActivityCard";
 import TiltCard from "./TiltCard";
@@ -38,6 +40,7 @@ type Project = {
 };
 
 const PROJECTS: Project[] = data.projects;
+const REPO_DESCRIPTIONS: Record<string, string> = data.repoDescriptions;
 
 /**
  * Every project gets the same square tile, app icon or not, so the five
@@ -61,7 +64,7 @@ export default function Projects({
 }) {
   const placard = github ? buildGitHubPlacard(github) : null;
   return (
-    <section className="flex w-full flex-wrap items-center justify-around gap-4">
+    <section className="placard-card-stack flex w-full flex-wrap items-center justify-around gap-4">
       <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground md:gap-3 md:text-3xl">
         <CodeIcon weight="regular" className="size-7 shrink-0 md:size-8" />
         Projects
@@ -105,14 +108,14 @@ function ProjectItem({ project }: { project: Project }) {
         </div>
       ) : null}
       <div
-        className="relative flex min-w-0 flex-1 flex-col justify-start pt-4 sm:pl-6 sm:pt-0"
+        className="relative flex min-w-0 flex-1 flex-col justify-start pl-4 sm:pl-6"
         style={{ transform: "translateZ(20px)" }}
       >
         <h3 className="text-lg font-semibold md:text-xl">{project.name}</h3>
         <p className="text-xs font-semibold text-muted-foreground">
           {project.meta}
         </p>
-        <p className="mt-1 text-sm">{project.description}</p>
+        <p className="mt-1 line-clamp-4 text-sm">{project.description}</p>
       </div>
     </>
   );
@@ -126,13 +129,13 @@ function ProjectItem({ project }: { project: Project }) {
         <Link
           href={project.link}
           target="_blank"
-          className="group relative flex w-full flex-col p-5 [transform-style:preserve-3d] sm:flex-row sm:p-6"
+          className="group relative flex w-full flex-row p-5 [transform-style:preserve-3d] sm:p-6"
         >
           {content}
         </Link>
       ) : (
         <div
-          className="relative flex w-full flex-col p-5 [transform-style:preserve-3d] sm:flex-row sm:p-6"
+          className="relative flex w-full flex-row p-5 [transform-style:preserve-3d] sm:p-6"
           data-project-unavailable=""
         >
           {content}
@@ -142,33 +145,27 @@ function ProjectItem({ project }: { project: Project }) {
   );
 }
 
-/**
- * One repository the way GitHub draws a pinned one: name, description, the
- * language with its swatch, and when it last moved where GitHub would put
- * the star and fork counts. A repository with no description shows its
- * latest commit headline instead, so nothing is a blank tile. A fork gets
- * the fork glyph GitHub gives it, since its description is the upstream's.
- */
-function RepoTile({ repo }: { repo: GitHubPlacardRepo }) {
-  const blurb = repo.description ?? repo.lastCommit?.headline ?? null;
+/** Full-width rows keep repository names and summaries readable. */
+function RepoItem({ repo }: { repo: GitHubPlacardRepo }) {
+  const blurb = REPO_DESCRIPTIONS[repo.nameWithOwner] ?? repo.description;
   return (
     <li className="min-w-0">
       <Link
         href={repo.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex h-full flex-col gap-1.5 rounded-2xl border border-foreground/10 p-3 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+        className="group/repo pointer-events-auto -mx-2 flex min-w-0 flex-col gap-1 rounded-xl p-2 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
       >
-        <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-foreground">
+        <span className="flex min-w-0 items-start gap-2 text-base font-semibold text-foreground">
           {repo.isFork ? (
             <GitForkIcon
               role="img"
               aria-label="Fork"
               weight="bold"
-              className="size-3.5 shrink-0 text-muted-foreground"
+              className="mt-1 size-4 shrink-0 text-muted-foreground"
             />
           ) : null}
-          <span className="truncate">
+          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
             {repo.organization ? (
               <span className="font-normal text-muted-foreground">
                 {repo.organization}/
@@ -176,80 +173,79 @@ function RepoTile({ repo }: { repo: GitHubPlacardRepo }) {
             ) : null}
             {repo.name}
           </span>
+          <ArrowUpRightIcon
+            aria-hidden
+            weight="bold"
+            className="mt-1 size-4 shrink-0 text-muted-foreground transition-colors group-hover/repo:text-foreground"
+          />
         </span>
         {blurb ? (
-          <p className="line-clamp-2 text-xs leading-snug text-muted-foreground">
-            {blurb}
-          </p>
+          <p className="text-sm [overflow-wrap:anywhere]">{blurb}</p>
         ) : null}
-        <span className="mt-auto flex items-center justify-between gap-3 pt-1 text-xs text-muted-foreground">
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-muted-foreground opacity-60">
           {repo.language ? (
-            <span className="flex min-w-0 items-center gap-1.5">
+            <span className="flex items-center gap-1.5">
               <span
                 aria-hidden
-                className={cn(
-                  "size-2.5 shrink-0 rounded-full",
-                  !repo.languageColor && "bg-foreground/30",
-                )}
+                className="size-2.5 shrink-0 rounded-full bg-foreground/30"
                 style={
                   repo.languageColor
                     ? { backgroundColor: repo.languageColor }
                     : undefined
                 }
               />
-              <span className="truncate">{repo.language}</span>
+              {repo.language}
             </span>
-          ) : (
-            <span />
-          )}
-          <span className="shrink-0">Updated {getTimeAgo(repo.pushedAt)}</span>
+          ) : null}
+          <span className="ml-auto text-right">
+            Updated {getTimeAgo(repo.pushedAt)}
+          </span>
         </span>
       </Link>
     </li>
   );
 }
 
-/**
- * Every repository, after the projects, as two columns of tiles in GitHub's
- * pinned style: all of his public ones plus the organization ones he
- * committed to this year, newest push first (see `buildGitHubPlacard`).
- * The old cards were screenshots of file listings from 2017.
- */
+/** The ten most recently updated repositories, newest first. */
 function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
   return (
-    <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
-      <div className="group relative flex w-full flex-col p-5 [transform-style:preserve-3d] sm:p-6">
+    <TiltCard interactive className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+      <Card className="group relative flex w-full flex-col rounded-3xl border-0 bg-transparent p-5 text-foreground shadow-none [transform-style:preserve-3d] sm:p-6">
         <div
           data-placard-background=""
           data-placard-surface=""
           className={CARD_SURFACE}
         />
-        <div
-          className="relative flex flex-col"
+        <Link
+          href={placard.profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open Chappy's GitHub profile"
+          className="absolute inset-0 rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+        />
+        <CardContent
+          // Empty space falls through to the profile link; repository rows
+          // restore pointer events so each remains an independent link.
+          className="pointer-events-none relative flex min-w-0 flex-col p-0"
           style={{ transform: "translateZ(20px)" }}
         >
           <div className="flex items-center justify-between gap-3">
             <h3 className="flex items-center gap-2 text-lg font-semibold md:text-xl">
-              <GithubLogoIcon weight="duotone" className="size-5 shrink-0" />
-              Public Repos
+              <GithubLogoIcon
+                aria-hidden
+                weight="regular"
+                className="size-5 shrink-0"
+              />
+              Recent Public Repos
             </h3>
-            <Link
-              href={placard.repositoriesUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
-            >
-              Github
-              <ArrowUpRightIcon weight="bold" className="size-3.5" />
-            </Link>
           </div>
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-            {placard.repos.map((repo) => (
-              <RepoTile key={repo.nameWithOwner} repo={repo} />
+          <ul className="mt-2 divide-y divide-foreground/[0.06]">
+            {placard.repos.slice(0, 10).map((repo) => (
+              <RepoItem key={repo.nameWithOwner} repo={repo} />
             ))}
           </ul>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </TiltCard>
   );
 }

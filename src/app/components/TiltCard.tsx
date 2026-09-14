@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type SpringOptions,
   motion,
   useMotionValue,
   useReducedMotion,
@@ -11,7 +10,13 @@ import { useRef } from "react";
 
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
-import { tiltCardHoverEnabled } from "./tiltCardMotion";
+import {
+  cardHoverLift,
+  cardInteractionSpring,
+  cardPressedScale,
+  cardTiltSpring,
+  tiltCardHoverEnabled,
+} from "./tiltCardMotion";
 import { cn } from "@/src/lib/util";
 
 type TiltCardProps = {
@@ -22,30 +27,12 @@ type TiltCardProps = {
   hoverScale?: number;
 };
 
-const springValues: SpringOptions = {
-  damping: 19,
-  stiffness: 92,
-  mass: 1.05,
-};
-
-// One quick, lightly underdamped spring drives every direct interaction:
-// desktop hover/lift and touch or mouse press/release. The higher stiffness
-// gives it the immediate response of Apple's controls; the modest overshoot
-// keeps the return alive without making a reading card feel rubbery.
-const hoverSpringValues: SpringOptions = {
-  damping: 22,
-  stiffness: 360,
-  mass: 0.72,
-};
-
-const pressedScale = 0.97;
-
 export default function TiltCard({
   children,
   className,
   interactive = false,
   tiltAmplitude = 4,
-  hoverScale = 1.02,
+  hoverScale = 1.025,
 }: TiltCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useIntersectionMotion(
@@ -54,10 +41,10 @@ export default function TiltCard({
   );
   const reduceMotion = useReducedMotion();
 
-  const rotateX = useSpring(useMotionValue(0), springValues);
-  const rotateY = useSpring(useMotionValue(0), springValues);
-  const scale = useSpring(1, hoverSpringValues);
-  const lift = useSpring(0, hoverSpringValues);
+  const rotateX = useSpring(useMotionValue(0), cardTiltSpring);
+  const rotateY = useSpring(useMotionValue(0), cardTiltSpring);
+  const scale = useSpring(1, cardInteractionSpring);
+  const lift = useSpring(0, cardInteractionSpring);
 
   const supportsHover = () =>
     tiltCardHoverEnabled(
@@ -78,7 +65,7 @@ export default function TiltCard({
   const handleMouseEnter = () => {
     if (!interactive || !supportsHover()) return;
     scale.set(hoverScale);
-    lift.set(-2);
+    lift.set(cardHoverLift);
   };
 
   const handleMouseLeave = () => {
@@ -92,15 +79,16 @@ export default function TiltCard({
     if (!interactive || reduceMotion || !e.isPrimary || e.button !== 0) {
       return;
     }
-    scale.set(pressedScale);
+    scale.set(cardPressedScale);
     lift.set(0);
   };
 
   const settleAfterPress = () => {
+    if (!interactive || reduceMotion) return;
     const stillHovered =
       supportsHover() && containerRef.current?.matches(":hover");
     scale.set(stillHovered ? hoverScale : 1);
-    lift.set(stillHovered ? -2 : 0);
+    lift.set(stillHovered ? cardHoverLift : 0);
   };
 
   return (

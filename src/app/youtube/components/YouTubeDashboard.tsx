@@ -118,7 +118,7 @@ export function YouTubeDashboard() {
                   >
                     <YoutubeLogo
                       className="h-7 w-7 text-red-600 md:h-9 md:w-9"
-                      weight="fill"
+                      weight="bold"
                     />
                   </motion.div>
                 )}

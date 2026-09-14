@@ -6,7 +6,12 @@ import { useState } from "react";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { cn } from "~/lib/util";
 
-import { tooltipSurfaceClassName } from "~/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 export type PlacardYearDatum = {
   year: number;
@@ -133,109 +138,110 @@ function PlacardYearBars({
   size?: PlacardSize;
 }) {
   const tapFirst = useTapFirstCapability();
-  const [touchedYear, setTouchedYear] = useState<number | null>(null);
+  const [openYear, setOpenYear] = useState<number | null>(null);
   const max = Math.max(
     1,
     ...years.map((year) => year.value + year.projectedRemainder),
   );
 
   return (
-    <div
-      data-year-bars=""
-      data-mobile-compact={compactMobile ? "" : undefined}
-      className={cn(
-        "flex items-end gap-1.5",
-        // The placard's bar height follows the card's inline size (the grid
-        // above is the query container), so the bars grow with the column
-        // they sit in instead of holding 46px in a 530px card. The mobile
-        // sheet overrides both the variable and the height in PlacardLayer.
-        size === "card"
-          ? "h-[46px]"
-          : "h-[calc(var(--placard-year-bar-max)+1rem)] [--placard-year-bar-max:clamp(46px,12cqw,64px)]",
-      )}
-      style={
-        size === "card"
-          ? ({
-              "--placard-year-bar-max": "32px",
-            } as unknown as React.CSSProperties)
-          : undefined
-      }
-      role="img"
-      aria-label={years
-        .map((year) => `${year.year}: ${year.value} ${unit}`)
-        .join(", ")}
-    >
-      {years.map((year) => {
-        const total = year.value + year.projectedRemainder;
-        const actualHeight = Math.max(2 / 46, year.value / max);
-        const projectedHeight = year.projectedRemainder / max;
+    <TooltipProvider delayDuration={150}>
+      <div
+        data-year-bars=""
+        data-mobile-compact={compactMobile ? "" : undefined}
+        className={cn(
+          "flex items-end gap-1.5",
+          // The placard's bar height follows the card's inline size (the grid
+          // above is the query container), so the bars grow with the column
+          // they sit in instead of holding 46px in a 530px card. The mobile
+          // sheet overrides both the variable and the height in PlacardLayer.
+          size === "card"
+            ? "h-[46px]"
+            : "h-[calc(var(--placard-year-bar-max)+1rem)] [--placard-year-bar-max:clamp(46px,12cqw,64px)]",
+        )}
+        style={
+          size === "card"
+            ? ({
+                "--placard-year-bar-max": "32px",
+              } as unknown as React.CSSProperties)
+            : undefined
+        }
+        role="group"
+        aria-label={years
+          .map((year) => `${year.year}: ${year.value} ${unit}`)
+          .join(", ")}
+      >
+        {years.map((year) => {
+          const total = year.value + year.projectedRemainder;
+          const actualHeight = Math.max(2 / 46, year.value / max);
+          const projectedHeight = year.projectedRemainder / max;
 
-        return (
-          <div
-            key={year.year}
-            tabIndex={0}
-            aria-label={`${year.year}: ${year.value} ${unit}`}
-            onPointerUp={(event) => {
-              if (event.pointerType !== "touch") return;
-              event.preventDefault();
-              event.stopPropagation();
-              setTouchedYear((current) =>
-                current === year.year ? null : year.year,
-              );
-            }}
-            onClick={(event) => {
-              if (tapFirst) {
-                event.preventDefault();
-                event.stopPropagation();
+          return (
+            <Tooltip
+              key={year.year}
+              allowTapFirst
+              open={openYear === year.year}
+              onOpenChange={(open) =>
+                setOpenYear((current) =>
+                  open ? year.year : current === year.year ? null : current,
+                )
               }
-            }}
-            onBlur={() => setTouchedYear(null)}
-            className="group/year relative flex min-w-0 flex-1 flex-col items-center justify-end"
-          >
-            <div
-              role="tooltip"
-              className={cn(
-                tooltipSurfaceClassName,
-                "pointer-events-none absolute bottom-[calc(100%+0.4rem)] left-1/2 z-[100] w-max -translate-x-1/2 translate-y-1 text-center text-[10px] leading-tight opacity-0 transition-[opacity,transform] duration-150 group-hover/year:translate-y-0 group-hover/year:opacity-100 group-focus/year:translate-y-0 group-focus/year:opacity-100",
-                touchedYear === year.year && "translate-y-0 opacity-100",
-              )}
             >
-              <span className="block text-muted-foreground">{year.year}</span>
-              <strong className="font-semibold tabular-nums">
-                {year.value} {unit}
-              </strong>
-              {year.projectedRemainder > 0 ? (
-                <span className="block text-muted-foreground">
-                  ~{Math.round(total)} projected
-                </span>
-              ) : null}
-            </div>
-            <div
-              className="flex w-full flex-col justify-end overflow-hidden rounded-t-[3px]"
-              style={{ maxWidth: years.length === 1 ? 64 : undefined }}
-            >
-              {projectedHeight > 0 ? (
+              <TooltipTrigger asChild>
                 <div
-                  className="border border-dashed border-foreground/35 bg-foreground/[0.06]"
-                  style={{
-                    height: `calc(var(--placard-year-bar-max, 46px) * ${projectedHeight})`,
+                  tabIndex={0}
+                  aria-label={`${year.year}: ${year.value} ${unit}`}
+                  onPointerUp={(event) => {
+                    if (event.pointerType === "touch") event.stopPropagation();
                   }}
-                />
-              ) : null}
-              <div
-                className="bg-foreground/75"
-                style={{
-                  height: `calc(var(--placard-year-bar-max, 46px) * ${actualHeight})`,
-                }}
-              />
-            </div>
-            <span className="mt-1.5 text-[10px] tabular-nums text-muted-foreground">
-              &apos;{String(year.year).slice(2)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
+                  onClick={(event) => {
+                    if (tapFirst) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }
+                  }}
+                  className="relative flex min-w-0 flex-1 flex-col items-center justify-end"
+                >
+                  <div
+                    className="flex w-full flex-col justify-end overflow-hidden rounded-t-[3px]"
+                    style={{ maxWidth: years.length === 1 ? 64 : undefined }}
+                  >
+                    {projectedHeight > 0 ? (
+                      <div
+                        className="border border-dashed border-foreground/35 bg-foreground/[0.06]"
+                        style={{
+                          height: `calc(var(--placard-year-bar-max, 46px) * ${projectedHeight})`,
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="bg-foreground/75"
+                      style={{
+                        height: `calc(var(--placard-year-bar-max, 46px) * ${actualHeight})`,
+                      }}
+                    />
+                  </div>
+                  <span className="mt-1.5 text-[10px] tabular-nums text-muted-foreground">
+                    &apos;{String(year.year).slice(2)}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={6} className="text-center">
+                <span className="block opacity-75">{year.year}</span>
+                <strong className="font-semibold tabular-nums">
+                  {year.value} {unit}
+                </strong>
+                {year.projectedRemainder > 0 ? (
+                  <span className="block opacity-75">
+                    ~{Math.round(total)} projected
+                  </span>
+                ) : null}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 }
 

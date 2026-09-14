@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import "server-only";
 
 import { effectiveDaysInYear } from "~/lib/stats/yoy";
+import { activityCalendarBounds } from "~/lib/weightlifting/activityCalendar";
 import {
   WEIGHTLIFTING_ACTIVITY_TAG,
   WEIGHTLIFTING_REVALIDATE,
@@ -13,6 +14,7 @@ import { wlExercises, wlSets, wlWorkouts } from "~/server/db/schema";
 
 export const getCachedActivityMosaic = unstable_cache(
   async (months: number) => {
+    const { startDate, endDate } = activityCalendarBounds(months);
     const rows = await db.execute<{
       start_date: string;
       end_date: string;
@@ -25,13 +27,8 @@ export const getCachedActivityMosaic = unstable_cache(
     }>(sql`
       WITH bounds AS (
         SELECT
-          DATE(MAX(${wlWorkouts.date})) AS end_day,
-          (
-            DATE(MAX(${wlWorkouts.date})) -
-            (${months}::int || ' months')::interval +
-            interval '1 day'
-          )::date AS start_day
-        FROM ${wlWorkouts}
+          ${endDate}::date AS end_day,
+          ${startDate}::date AS start_day
       ),
       workouts_by_day AS (
         SELECT
@@ -91,8 +88,6 @@ export const getCachedActivityMosaic = unstable_cache(
       ORDER BY w.day
     `);
 
-    const startDate = rows[0]?.start_date ?? null;
-    const endDate = rows[0]?.end_date ?? null;
     const days = rows.map((row) => ({
       date: row.date,
       workoutCount: Number(row.workout_count),
@@ -122,7 +117,7 @@ export const getCachedActivityMosaic = unstable_cache(
         null,
     };
   },
-  ["weightlifting-activity-mosaic"],
+  ["weightlifting-activity-calendar-v2"],
   {
     revalidate: WEIGHTLIFTING_REVALIDATE,
     tags: [WEIGHTLIFTING_TAG, WEIGHTLIFTING_ACTIVITY_TAG],
@@ -195,6 +190,7 @@ export const getCachedWeightliftingPlacard = unstable_cache(
         best_one_rm: number | null;
         reps: number | null;
         weight: number | null;
+        achieved_date: string | null;
       }>(sql`
         WITH target_lifts(key, label, exercise_name, lift_order) AS (
           VALUES
@@ -209,17 +205,21 @@ export const getCachedWeightliftingPlacard = unstable_cache(
           record.category,
           record.best_one_rm,
           record.reps,
-          record.weight
+          record.weight,
+          record.achieved_date
         FROM target_lifts target
         LEFT JOIN LATERAL (
           SELECT
             ${wlExercises.category} AS category,
             ${wlSets.oneRM} AS best_one_rm,
             ${wlSets.reps} AS reps,
-            ${wlSets.weight} AS weight
+            ${wlSets.weight} AS weight,
+            TO_CHAR(${wlWorkouts.date} AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS achieved_date
           FROM ${wlSets}
           INNER JOIN ${wlExercises}
             ON ${wlExercises.id} = ${wlSets.exerciseId}
+          INNER JOIN ${wlWorkouts}
+            ON ${wlWorkouts.id} = ${wlExercises.workoutId}
           WHERE ${wlSets.oneRM} IS NOT NULL
             AND CASE
               WHEN ${wlExercises.iteration} IS NOT NULL
@@ -227,7 +227,7 @@ export const getCachedWeightliftingPlacard = unstable_cache(
               THEN ${wlExercises.iteration} || ' ' || ${wlExercises.name}
               ELSE ${wlExercises.name}
             END = target.exercise_name
-          ORDER BY ${wlSets.oneRM} DESC
+          ORDER BY ${wlSets.oneRM} DESC, ${wlWorkouts.date} ASC, ${wlSets.id} ASC
           LIMIT 1
         ) record ON true
         ORDER BY target.lift_order
@@ -273,16 +273,21 @@ export const getCachedWeightliftingPlacard = unstable_cache(
           record.best_one_rm === null ? null : Number(record.best_one_rm),
         reps: record.reps === null ? null : Number(record.reps),
         weight: record.weight === null ? null : Number(record.weight),
+        achievedDate: record.achieved_date,
       })),
     };
   },
-  ["weightlifting-homepage-placard"],
+  ["weightlifting-homepage-placard-v2"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
-export type ActivityMosaicData = Awaited<
-  ReturnType<typeof getCachedActivityMosaic>
->;
+export type ActivityMosaicData = Omit<
+  Awaited<ReturnType<typeof getCachedActivityMosaic>>,
+  "startDate" | "endDate"
+> & {
+  startDate: string | null;
+  endDate: string | null;
+};
 export type WeightliftingStatsData = Awaited<
   ReturnType<typeof getCachedWeightliftingStats>
 >;
@@ -292,9 +297,9 @@ export type WeightliftingPlacardData = Awaited<
 
 /**
  * Neutral values for callers that would rather render without training data
- * than fail. Both mirror what the queries return against an empty database,
- * so the placard and mosaic take their own no-data paths instead of meeting a
- * shape they were never typed for. They are typed against the query returns,
+ * than fail. Null activity dates distinguish unavailable history from a
+ * successful query with no workouts in its calendar range.
+ * They are typed against the query returns,
  * so a column added above breaks these until they are updated too.
  */
 export function emptyActivityMosaic(months: number): ActivityMosaicData {

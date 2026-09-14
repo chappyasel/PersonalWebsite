@@ -1,0 +1,42 @@
+.list {
+  container: cover-cards / inline-size;
+}
+
+.card {
+  flex-direction: column;
+  border-radius: var(--cover-card-radius, 1.5rem);
+}
+
+.media {
+  /* Keep the surface's one-pixel border visible around the cover. */
+  width: calc(100% - 2px);
+  margin: 1px 1px 0;
+  overflow: hidden;
+  border-top-left-radius: calc(var(--cover-card-radius, 1.5rem) - 1px);
+  border-top-right-radius: calc(var(--cover-card-radius, 1.5rem) - 1px);
+}
+
+.body {
+  padding: 1.25rem;
+}
+
+/* Every card fills the list. Use that width, including in the desktop dock,
+   to decide when the image and text have room to sit beside each other. */
+@container cover-cards (min-width: 36rem) {
+  .card {
+    flex-direction: row;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .media {
+    width: calc((100% - 1.5rem) / 2);
+    margin: 0;
+    border-radius: 1rem;
+    box-shadow: 0 4px 15px 1px rgb(0 0 0 / 0.07);
+  }
+
+  .body {
+    padding: 0;
+  }
+}

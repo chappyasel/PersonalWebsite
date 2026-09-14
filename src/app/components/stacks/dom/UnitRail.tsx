@@ -21,13 +21,7 @@ import {
   useReducedMotion,
   useTransform,
 } from "framer-motion";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
@@ -47,21 +41,6 @@ const MOBILE_STEP_REM = 2.75;
 const INDICATOR_LENGTH_REM = 1.25;
 const INDICATOR_THICKNESS_REM = 0.25;
 const GOLF_BALL_DIAMETER_REM = 0.75;
-
-function subscribeToRailLocation(onChange: () => void) {
-  const unsubscribe = useStacks.subscribe(onChange);
-  window.addEventListener("hashchange", onChange);
-  window.addEventListener("popstate", onChange);
-  return () => {
-    unsubscribe();
-    window.removeEventListener("hashchange", onChange);
-    window.removeEventListener("popstate", onChange);
-  };
-}
-
-function currentRailHash() {
-  return window.location.hash;
-}
 
 /** Move the two ends of an indicator separately. The end facing the
  * destination gets there first, stretching the mark along its rail; the other
@@ -151,7 +130,8 @@ function ElasticDesktopIndicator({
       aria-hidden
       data-stacks-rail-indicator="desktop"
       data-stacks-golf-ball={golfBall || undefined}
-      className="stacks-on-background-mark pointer-events-none absolute rounded-full bg-foreground/85"
+      className="stacks-on-background-mark pointer-events-none absolute z-10 rounded-full bg-foreground/85"
+      initial={false}
       animate={{
         left: `${(INDICATOR_THICKNESS_REM - crossSize) / 2}rem`,
         width: `${crossSize}rem`,
@@ -164,6 +144,9 @@ function ElasticDesktopIndicator({
       style={{
         top,
         height,
+        // The empty span must have a width before Motion starts. Otherwise
+        // it can collapse to zero while resolving its first animation.
+        width: `${crossSize}rem`,
       }}
     />
   );
@@ -193,6 +176,7 @@ function ElasticMobileIndicator({
       data-stacks-rail-indicator="mobile"
       data-stacks-golf-ball={golfBall || undefined}
       className="stacks-on-background-mark pointer-events-none absolute rounded-full bg-foreground/85"
+      initial={false}
       animate={{
         bottom: `${0.25 - (crossSize - INDICATOR_THICKNESS_REM) / 2}em`,
         height: `${crossSize}em`,
@@ -205,6 +189,7 @@ function ElasticMobileIndicator({
       style={{
         left,
         width,
+        height: `${crossSize}em`,
       }}
     />
   );
@@ -215,13 +200,10 @@ export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const golfFocused = useStacks((s) => s.golfFocused);
   const unitMapPreview = useStacks((s) => s.unitMapPreview);
-  const currentHash = useSyncExternalStore(
-    subscribeToRailLocation,
-    currentRailHash,
-    () => "",
-  );
   const displayedUnit = unitMapPreview ?? activeUnit;
-  const showGolfBall = currentHash === "#golf" && unitMapPreview === null;
+  // Golf mode can engage without URL travel, and its canonical URL is /golf.
+  // Follow the same live state as the club, balls, and section selection.
+  const showGolfBall = golfFocused && unitMapPreview === null;
   const [initialActiveUnit] = useState(activeUnit);
   const railRef = useRef<HTMLElement>(null);
   const mobileRailRef = useRef<HTMLElement>(null);
@@ -384,7 +366,10 @@ export default function UnitRail() {
             transform: translateX(-8px);
           }
           .stacks-unit-rail-desktop [data-stacks-rail-indicator="desktop"] {
-            scale: 1 0;
+            /* The compiled illustrated-entry reset owns transform. Using
+               individual scale here leaves the pill collapsed when that
+               entry path cancels the entrance animation. */
+            transform: scaleY(0);
             transform-origin: center;
           }
           .stacks-world-shell[data-revealed]
@@ -427,8 +412,8 @@ export default function UnitRail() {
           to { opacity: 1; transform: translateX(0); }
         }
         @keyframes stacks-desktop-rail-indicator-in {
-          from { scale: 1 0; }
-          to { scale: 1 1; }
+          from { transform: scaleY(0); }
+          to { transform: scaleY(1); }
         }
         /* Inactive glyphs and labels share one ink strength. The glyph still
            steps back in scale, while the full-strength icon and moving thumb
@@ -533,7 +518,7 @@ export default function UnitRail() {
           .stacks-world-shell[data-revealed]
             .stacks-unit-rail-desktop
             [data-stacks-rail-indicator="desktop"] {
-            scale: 1;
+            transform: none;
             animation: none;
           }
           .stacks-rail-tooltip {

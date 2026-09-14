@@ -180,6 +180,10 @@ function useScrollEdges(
 
 /** How far mobile sheet content dissolves at each scroll edge. */
 const TOP_FADE_PX = 18;
+// Extend the mobile scrollport into the header's lower edge. Matching inner
+// padding preserves the first card's position while leaving room for its
+// spring lift, scale overshoot and shadow at scrollTop 0.
+const MOBILE_CARD_BLEED_PX = 24;
 
 /** Home/End belong to the section whose scroller owns focus, not the room
  * behind it. Keeping this on the scroller also means nested links can use the
@@ -249,29 +253,20 @@ const Panel = memo(function Panel({
         // bridge and the scroll-isolation gate both look up the ACTIVE
         // scroller by this attribute pair.
         aria-hidden={!active}
-        // Absolute padding, not the 12vh this used to be. Viewport-relative
-        // padding on a scroller is dead scroll range that grows with the
-        // window: at 952px tall, 12vh was 114px at each end — 24% of a
-        // viewport height of empty scrolling, and 30% on Projects, which
-        // also carries a heading above its first card. It never showed at
-        // 1440x900 because it is height-relative, not width-relative.
-        //
-        // 64px was still too much. Padding lands in scrollHeight, so it is
-        // scroll range containing nothing: measured 128px of empty travel on
-        // EVERY scrollable unit, which is 31% of the total range on Systems
-        // at a 683px-tall window. Forty pixels keeps the first and last cards
-        // comfortably inset while halving that dead range.
+        // Eighty pixels at each end lowers the initial header position and
+        // gives the first and last cards more room at the scroll boundaries.
+        // Keep this fixed rather than growing it with the viewport height.
         //
         // Native desktop overscroll is safe now that each card's material and
         // content live in the same composited surface: they rubber-band as one
         // instead of exposing lag between a scroller and a mirrored backing.
         // Scroll chaining is already handled a layer up — ScrollBridges' wheel
         // listener bails on targets inside [data-stacks-scrollable].
-        className="stacks-scroll placard-scroll relative h-full overflow-y-auto px-8 py-10"
+        className="stacks-scroll placard-scroll relative h-full overflow-y-auto px-8 py-20"
       >
-        {/* Short placards stay optically centred; letting a two-line card sit
-            pinned to the top would make every short unit look top-heavy. */}
-        <div className="flex min-h-full flex-col justify-center">
+        {/* Keep short placards centred, with one pixel of overflow so native
+            desktop rubber-banding also works when all the content fits. */}
+        <div className="flex min-h-[calc(100%+1px)] flex-col justify-center">
           {mounted ? children : null}
         </div>
       </div>
@@ -742,15 +737,15 @@ function BookLedger({
   );
 }
 
-/** Three peer surfaces: analytics first, the active reading ledger second,
- * then the subject map as a broader view of the library. The animated shelf
+/** Separate cards for analytics, current reading, recent reading, and subjects.
+ * The current reading card appears only when books are in progress. The animated shelf
  * remains on the flat fallback; the 3D home uses its added vertical room for
  * information instead of repeating the shelf. */
 function BooksPlacard({ data }: { data: StacksData }) {
   const href = booksHref();
   const { bookPlacard } = data;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="placard-card-stack flex flex-col gap-4">
       <PlacardLinkCard
         href={href}
         label="Browse Book Notes reading stats"
@@ -759,25 +754,26 @@ function BooksPlacard({ data }: { data: StacksData }) {
       >
         <BookStatsCard data={bookPlacard} />
       </PlacardLinkCard>
-      <PlacardNestedLinkCard href={href} label="Browse all Book Notes" newTab>
-        {bookPlacard.current.length > 0 ? (
-          <>
-            <PlacardCardHeading icon={BookOpenTextIcon}>
-              Currently reading
-            </PlacardCardHeading>
-            <BookLedger books={bookPlacard.current} />
-            <PlacardCardHeading
-              icon={ClockCounterClockwiseIcon}
-              className="mt-8"
-            >
-              Recently read
-            </PlacardCardHeading>
-          </>
-        ) : (
-          <PlacardCardHeading icon={ClockCounterClockwiseIcon}>
-            Recently read
+      {bookPlacard.current.length > 0 ? (
+        <PlacardNestedLinkCard
+          href={href}
+          label="Browse Book Notes for currently reading books"
+          newTab
+        >
+          <PlacardCardHeading icon={BookOpenTextIcon}>
+            Currently reading
           </PlacardCardHeading>
-        )}
+          <BookLedger books={bookPlacard.current} />
+        </PlacardNestedLinkCard>
+      ) : null}
+      <PlacardNestedLinkCard
+        href={href}
+        label="Browse Book Notes for recently read books"
+        newTab
+      >
+        <PlacardCardHeading icon={ClockCounterClockwiseIcon}>
+          Recently read
+        </PlacardCardHeading>
         <BookLedger books={bookPlacard.recent} recent />
       </PlacardNestedLinkCard>
       <PlacardNestedLinkCard href={href} label="Browse books by subject" newTab>
@@ -1028,7 +1024,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       const padding =
         Number.parseFloat(style.paddingTop) +
         Number.parseFloat(style.paddingBottom);
-      const next = Math.ceil(sheetHeaderPx + content.scrollHeight + padding);
+      const next = Math.ceil(
+        sheetHeaderPx + content.scrollHeight + padding - MOBILE_CARD_BLEED_PX,
+      );
       setNaturalHeight((previous) =>
         Math.abs(previous - next) < SHEET_HEIGHT_EPSILON_PX ? previous : next,
       );
@@ -1582,12 +1580,11 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       return bottom - top;
     };
     const update = () => {
-      // The scroller's pt-3 is inside the peek window, so it consumes visible
-      // height before the first content pixel. Ignoring it let marginally
-      // clipped placards report that they fit, suppressing both the dissolve
-      // and every gesture path that relies on `peekOverflows`.
+      // The bleed padding sits above the body window. Subtract only padding
+      // inside that window so the extra hover room cannot change peek fit.
       const paddingTop = Number.parseFloat(getComputedStyle(el).paddingTop);
-      const available = peek - sheetHeaderPx - paddingTop;
+      const available =
+        peek - sheetHeaderPx - (paddingTop - MOBILE_CARD_BLEED_PX);
       setPeekOverflows(contentOf() > available + 4);
     };
     update();
@@ -1995,7 +1992,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   // preview without adding a caption or chevron, and disappears entirely for
   // short placards that already fit.
   const sheetMask = expanded
-    ? `linear-gradient(to bottom, rgb(0 0 0 / ${1 - edges.topFadeStrength}) 0, black ${TOP_FADE_PX}px)`
+    ? `linear-gradient(to bottom, rgb(0 0 0 / ${1 - edges.topFadeStrength}) 0, rgb(0 0 0 / ${1 - edges.topFadeStrength}) ${MOBILE_CARD_BLEED_PX}px, black ${MOBILE_CARD_BLEED_PX + TOP_FADE_PX}px)`
     : peekOverflows
       ? "linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%)"
       : undefined;
@@ -2219,14 +2216,16 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 // Expanded content scrolls natively until a downward pull
                 // begins at scrollTop 0. The gesture arbiter then hands that
                 // boundary pull to the sheet so it can collapse toward peek.
-                className={`stacks-scroll placard-scroll h-full px-5 pb-6 pt-0 font-serif text-foreground ${
+                className={`stacks-scroll placard-scroll absolute inset-x-0 bottom-0 px-5 pb-6 font-serif text-foreground ${
                   expanded ? "overflow-y-auto" : "overflow-hidden"
                 }`}
-                style={
-                  sheetMask
-                    ? { maskImage: sheetMask, WebkitMaskImage: sheetMask }
-                    : undefined
-                }
+                style={{
+                  top: -MOBILE_CARD_BLEED_PX,
+                  paddingTop: MOBILE_CARD_BLEED_PX,
+                  scrollPaddingTop: MOBILE_CARD_BLEED_PX + TOP_FADE_PX,
+                  maskImage: sheetMask,
+                  WebkitMaskImage: sheetMask,
+                }}
               >
                 {/* Short placards sit centred once the sheet is at full height,
                 which is the same thing the desktop dock does and for the same
@@ -2466,7 +2465,7 @@ export default function PlacardLayer({
         // shared sections all render their h1 on the scene and the card below
         // it, and Books was the only one wearing its title inside the frame.
         //
-        // Each of the three peer cards is a link, so its authored shadow and
+        // Each peer card is a link, so its authored shadow and
         // focus state stay attached to the same native surface as its content.
         // Nothing inside is separately interactive, so the anchors do not
         // swallow nested controls.
@@ -2477,7 +2476,7 @@ export default function PlacardLayer({
         // quietly fails the second — the title stays dead, which is exactly the
         // part of "anywhere" a person aims at. The h2 remains the semantic
         // section heading; the anchor is its interactive text, not its replacement.
-        <div className="flex flex-col gap-3">
+        <div className="placard-card-stack flex flex-col gap-3">
           <h2 className="placard-section-heading w-fit text-xl font-semibold text-foreground">
             <Link
               href={booksHref()}
@@ -2498,11 +2497,9 @@ export default function PlacardLayer({
       projects: <div className="placard-sections">{slots.projects}</div>,
       blog: <div className="placard-sections">{slots.blog}</div>,
       systems: (
-        <div className="placard-sections flex flex-col gap-4">
+        <div className="placard-sections placard-card-stack flex flex-col gap-4">
           {slots.systems}
-          {/* The quotes are the third Systems card, built from the Manual and
-            Routine surface, so the shared card rules dress it on every
-            layout and the 16px card rhythm continues below Routine. */}
+          {/* Quotes sit below the document cards as ordinary reading text. */}
           <div className="stacks-quotes">{slots.quotes}</div>
         </div>
       ),
@@ -2530,6 +2527,11 @@ export default function PlacardLayer({
            backdrop-filter on the content element itself. Native scrolling
            therefore composites each card as one inseparable surface. */
         @media (min-width: 1200px) {
+          /* One gap for peer cards and the title above them: 16px + 30%.
+             Explicit stack classes leave each card's internal spacing alone. */
+          [data-stacks-desktop-panel] .placard-card-stack {
+            gap: 1.3rem;
+          }
           /* Restore the material strength of the former desktop plates on the
              native surfaces. The explicit marker excludes nested language
              pills, so only the card-sized glass receives the wide scene blur.
@@ -2882,13 +2884,13 @@ export default function PlacardLayer({
               padding: 0.625rem;
             }
           }
-          [data-stacks-mobile-panel] [data-placard-media] {
+          [data-stacks-mobile-panel] [data-placard-media]:not([data-placard-media="card-cover"]) {
             aspect-ratio: 16 / 9;
             height: auto !important;
             overflow: hidden;
             border-radius: 1rem;
           }
-          [data-stacks-mobile-panel] [data-placard-media] > img {
+          [data-stacks-mobile-panel] [data-placard-media]:not([data-placard-media="card-cover"]) > img {
             width: 100% !important;
             height: 100% !important;
             object-fit: cover;
@@ -2963,8 +2965,11 @@ export default function PlacardLayer({
             -webkit-user-select: none !important;
             user-select: none !important;
           }
+          .placard-scroll {
+            --cover-card-radius: 1.25rem;
+          }
           .placard-scroll [class*="backdrop-blur"] {
-            border-radius: 1.25rem !important;
+            border-radius: var(--cover-card-radius) !important;
           }
           .placard-scroll [class*="backdrop-blur"] {
             background-color: hsl(var(--muted) / 0.20) !important;

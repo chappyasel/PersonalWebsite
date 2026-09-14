@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { lookupInlineBooks } from "~/lib/books/inlineLookup";
 import { getMusing, musings } from "~/lib/musings/content";
 import { musingMetadata, musingStructuredData } from "~/lib/musings/metadata";
+import { musingReadingMinutes } from "~/lib/musings/readingTime";
 
 import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyFooter from "~/components/daylight/SkyFooter";
@@ -45,10 +46,7 @@ export default async function MusingPage({
     `musings:${slug}:books`,
     article.blocks,
   );
-  const minutes = Math.max(
-    1,
-    Math.ceil(article.text.split(/\s+/).length / 230),
-  );
+  const minutes = musingReadingMinutes({ searchText: article.text });
   const index = musings.findIndex((entry) => entry.slug === slug);
   const newer = musings[index - 1];
   const older = musings[index + 1];

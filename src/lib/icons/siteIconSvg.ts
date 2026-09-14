@@ -115,7 +115,7 @@ function skylineMarkup(): string {
 
 /** The sky card with a glyph over it: the day by day, the night by night. */
 export function siteIconSvg(spec: GlyphIconSpec, scope: string): string {
-  const paths = phosphorPaths(spec.glyph, "fill");
+  const paths = phosphorPaths(spec.glyph, "bold");
   const glyphSize = F * SKY_CARD.glyph.size;
   const glyphOffset = F * SKY_CARD.glyph.offset;
   const scale = glyphSize / paths.viewBoxSize;

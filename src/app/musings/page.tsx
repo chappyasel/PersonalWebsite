@@ -1,4 +1,4 @@
-import { PenNibIcon, RssIcon } from "@phosphor-icons/react/dist/ssr";
+import { ClockIcon, PenNibIcon, RssIcon } from "@phosphor-icons/react/dist/ssr";
 import { ArrowUpRightIcon as ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -6,6 +6,7 @@ import Link from "next/link";
 import posts from "public/data/blog-posts.json";
 
 import { getTimeAgo } from "~/lib/util";
+import { musingReadingMinutes } from "~/lib/musings/readingTime";
 
 import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyFooter from "~/components/daylight/SkyFooter";
@@ -55,6 +56,7 @@ export default function MusingsPage() {
           <ol aria-label="Essays" className="space-y-5">
             {posts.items.map((post) => {
               const external = !post.link.startsWith("/");
+              const minutes = musingReadingMinutes(post);
               const publishedAt = post.pubDate.includes("T")
                 ? post.pubDate
                 : `${post.pubDate.replace(" ", "T")}Z`;
@@ -90,7 +92,7 @@ export default function MusingsPage() {
                               width={post.thumbnailWidth}
                               height={post.thumbnailHeight}
                               sizes="(max-width: 640px) calc(100vw - 4.5rem), 176px"
-                              className="aspect-[16/10] w-full rounded-2xl bg-muted object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
+                              className="aspect-[2/1] h-auto w-full rounded-2xl bg-muted object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
                             />
                           </div>
                         ) : null}
@@ -124,6 +126,12 @@ export default function MusingsPage() {
                           <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                             {post.description}
                           </p>
+                          {minutes !== null && (
+                            <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground opacity-60">
+                              <ClockIcon aria-hidden className="size-3" />
+                              {minutes} min read
+                            </p>
+                          )}
                         </div>
                       </CardContent>
                     </Link>

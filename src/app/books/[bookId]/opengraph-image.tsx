@@ -408,7 +408,7 @@ export default async function Image({
                       {i < book.rating!
                         ? phosphorSvg(StarIcon, {
                             size: 40,
-                            weight: "fill",
+                            weight: "bold",
                             color: "rgb(250, 204, 21)",
                           })
                         : phosphorSvg(StarIcon, {
