@@ -152,6 +152,7 @@ export function YouTubeDashboard() {
       <CollapsibleSection
         icon={<ListBulletsIcon className="h-5 w-5" weight="bold" />}
         title="Top Channels"
+        defaultOpen={false}
       >
         <TopChannels />
       </CollapsibleSection>
@@ -160,6 +161,7 @@ export function YouTubeDashboard() {
       <CollapsibleSection
         icon={<ChartBarIcon className="h-5 w-5" weight="bold" />}
         title="Learning × Positivity"
+        defaultOpen={false}
       >
         <LearningPositivityMatrix />
       </CollapsibleSection>

@@ -317,6 +317,8 @@ export function WatchTimeChart() {
             tick={{ fontSize: 11 }}
           />
           <YAxis
+            domain={groupBy === "day" ? [0, 5] : [0, "auto"]}
+            allowDataOverflow={groupBy === "day"}
             tickLine={false}
             axisLine={false}
             width={38}
