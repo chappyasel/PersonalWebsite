@@ -291,7 +291,9 @@
               "type": "image",
               "src": "/images/manual/2f9c5ab0-d88d-8094-ba03-d33cc6ee12e0.png",
               "alt": "Image",
-              "invert": true
+              "invert": true,
+              "width": 1553,
+              "height": 190
             },
             {
               "type": "numbered_list",

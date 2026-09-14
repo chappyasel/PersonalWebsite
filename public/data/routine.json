@@ -1527,7 +1527,9 @@
           "type": "image",
           "src": "/images/routine/17ac5ab0-d88d-808b-86f7-f9e0b30c93c6.jpeg",
           "alt": "Image",
-          "invert": true
+          "invert": true,
+          "width": 1036,
+          "height": 573
         },
         {
           "type": "paragraph",
@@ -1653,7 +1655,9 @@
         {
           "type": "image",
           "src": "/images/routine/151c5ab0-d88d-8070-b619-ec55068c1b1c.png",
-          "alt": "Image"
+          "alt": "Image",
+          "width": 1036,
+          "height": 1830
         }
       ]
     },
@@ -1701,7 +1705,9 @@
         {
           "type": "image",
           "src": "/images/routine/17ac5ab0-d88d-8054-889d-e66122844e83.png",
-          "alt": "Image"
+          "alt": "Image",
+          "width": 1024,
+          "height": 511
         },
         {
           "type": "table",
@@ -2142,7 +2148,9 @@
           "type": "image",
           "src": "/images/routine/17ac5ab0-d88d-80a3-8f55-fee0874432ac.jpeg",
           "alt": "Image",
-          "invert": true
+          "invert": true,
+          "width": 1919,
+          "height": 1312
         },
         {
           "type": "paragraph",

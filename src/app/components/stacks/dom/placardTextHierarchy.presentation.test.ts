@@ -20,12 +20,13 @@ describe("placard text hierarchy", () => {
     expect(placard).not.toContain("font-serif text-muted-foreground");
   });
 
-  it("keeps genuine metadata muted without additional opacity dilution", () => {
+  it("keeps dates and durations equally faint while preserving readable card text", () => {
     expect(placard).not.toContain("text-muted-foreground/70");
     expect(placard).not.toContain("text-muted-foreground/50");
-    expect(blogPosts).toContain(
-      '<p className="text-xs font-semibold text-muted-foreground">',
-    );
+    for (const card of [blogPosts, talkCard]) {
+      expect(card).toContain("text-xs text-muted-foreground opacity-60");
+      expect(card).toContain('className="mt-1 line-clamp-2 text-sm"');
+    }
     expect(talkCard).toContain("text-xs font-semibold text-muted-foreground");
     expect(talkCard).not.toContain("text-foreground opacity-70");
   });

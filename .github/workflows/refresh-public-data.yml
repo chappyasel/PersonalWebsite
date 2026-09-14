@@ -1,0 +1,83 @@
+name: Refresh public website data
+
+on:
+  schedule:
+    - cron: "17 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-public-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the published source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Refresh public snapshots
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.WEBSITE_REFRESH_TOKEN }}
+        run: node scripts/refresh-public-data.mjs
+
+      - name: Validate refreshed data
+        run: |
+          pnpm exec vitest run scripts/refresh-public-data.test.mjs scripts/musings/sync.test.ts src/lib/musings/content.test.ts src/lib/github/snapshot.test.ts src/lib/github/placard.test.ts src/lib/universal-search/public-index-generation.test.ts
+          pnpm check:search-index
+          git diff --check
+
+      - name: Open or update the data refresh PR
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ secrets.WEBSITE_REFRESH_TOKEN }}
+          branch: automation/public-data-refresh
+          base: main
+          title: Refresh public website data
+          commit-message: Refresh public website data
+          body: |
+            Refreshes GitHub activity, published Musings, the Manual, Routine and Systems documents, AI Collective chapters, and the derived search index.
+
+            This PR updates on the daily schedule. Review the content and merge when ready; the workflow never merges or deploys it.
+
+            Validation includes the refresh failure checks, Musings publishing filters, GitHub snapshot checks, and search index freshness. Full repository checks run on this PR.
+          add-paths: |
+            public/data/github.json
+            public/data/manual.json
+            public/data/routine.json
+            public/data/systems.json
+            public/data/blog-posts.json
+            public/data/universal-search-index.json
+            content/musings/articles.json
+            public/images/manual
+            public/images/routine
+            public/images/systems
+            public/images/musings
+            public/images/notion-emoji
+            src/app/components/stacks/scene/aicChapters.ts
+
+      - name: Report a failed refresh
+        if: failure()
+        run: echo "::error::Public data refresh failed. No partial refresh was submitted. Inspect the first failed step and rerun the workflow."

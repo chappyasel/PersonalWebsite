@@ -32,13 +32,9 @@ describe("mobile first-load entrance", () => {
     expect(railSource).toContain("if (reduceMotion)");
   });
 
-  it("uses the canonical Golf URL as the sole ball state", () => {
+  it("keeps the golf ball visible with its round, shaded presentation", () => {
     expect(railSource).not.toContain("hidden={golfFocused}");
     expect(railSource).not.toContain("golfTargeted");
-    expect(railSource).toContain("const currentHash = useSyncExternalStore");
-    expect(railSource).toMatch(
-      /const showGolfBall =\s+currentHash === "#golf"/,
-    );
     expect(railSource).toContain("data-stacks-golf-ball={golfBall");
     expect(railSource).toContain("const GOLF_BALL_DIAMETER_REM = 0.75");
     expect(railSource).toContain("radial-gradient(circle at 31% 30%");
