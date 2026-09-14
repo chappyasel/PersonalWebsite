@@ -15,8 +15,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 
-import { clampPortalLabelX, clampPortalLabelY } from "./portalLabelPlacement";
 import { fitPortalLabelText } from "./fitPortalLabelText";
+import { clampPortalLabelX, clampPortalLabelY } from "./portalLabelPlacement";
 
 const INITIAL_DWELL_MS = 350;
 const TRANSITION_MS = 320;
@@ -151,8 +151,7 @@ export default function PortalLabel() {
       // Keep the current camera focus until the stationary release transfers
       // selection. Clearing it during another prop's press reverses the zoom
       // for the duration of the click, then reverses it again on release.
-      if (state.focusedInteraction && !spec)
-        state.setFocusedInteraction(null);
+      if (state.focusedInteraction && !spec) state.setFocusedInteraction(null);
     };
     const escape = (event: KeyboardEvent) => {
       if (
@@ -263,13 +262,21 @@ export default function PortalLabel() {
         : INITIAL_DWELL_MS;
     hadPortal.current = true;
     const timeout = window.setTimeout(() => {
+      const portalAction =
+        activation.kind === "portal"
+          ? (activation.actionLabel ?? "View site")
+          : null;
       const next =
         activation.kind === "portal"
           ? {
               id: spec.id,
               label: activation.label.replace(/\s*↗\s*$/, ""),
               detail: activation.detail ?? [],
-              action: activation.actionLabel ?? "View site",
+              action:
+                portalAction === "View site" &&
+                activation.detail?.some((line) => line.trim())
+                  ? null
+                  : portalAction,
               arrow: activation.external
                 ? ("external" as const)
                 : ("internal" as const),
@@ -411,6 +418,8 @@ export default function PortalLabel() {
   }, [focused, setLabelVisible, shown]);
 
   if (!shown) return null;
+  const maxWidthClass =
+    shown.id === "grab:tj-medallion:about" ? "max-w-[280px]" : "max-w-[240px]";
   return (
     <div
       ref={node}
@@ -427,7 +436,7 @@ export default function PortalLabel() {
           "--portal-label-opacity": visible ? "1" : "0",
         } as React.CSSProperties
       }
-      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} field-notes-glass-tooltip fixed z-30 w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 backdrop-blur-xl backdrop-saturate-150`}
+      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} field-notes-glass-tooltip fixed z-30 w-max ${maxWidthClass} rounded-2xl border px-3.5 py-2.5 backdrop-blur-xl backdrop-saturate-150`}
     >
       <style>{`
         [data-portal-tether] { opacity: 0; }
@@ -450,7 +459,7 @@ export default function PortalLabel() {
         onClick={() => {
           if (focused === shown.id) runSceneInteractionActivation(shown.id);
         }}
-        className={`relative flex h-auto min-h-0 max-w-[240px] items-center justify-center gap-2 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left font-serif text-[14px] font-normal leading-[1.25] text-inherit hover:bg-transparent hover:text-inherit disabled:opacity-100 [&_svg]:size-[1em] ${
+        className={`relative flex h-auto min-h-0 ${maxWidthClass} items-center justify-center gap-2 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left font-serif text-[14px] font-normal leading-[1.25] text-inherit hover:bg-transparent hover:text-inherit disabled:opacity-100 [&_svg]:size-[1em] ${
           focused
             ? "after:absolute after:left-1/2 after:top-1/2 after:h-12 after:w-full after:min-w-12 after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']"
             : ""
@@ -460,7 +469,10 @@ export default function PortalLabel() {
             the visible glass inherit that height. */}
         {/* Keep the text together and center one action icon beside the full
             block, including wrapped titles, details, and local action text. */}
-        <span data-portal-text="" className="flex min-w-0 flex-initial flex-col">
+        <span
+          data-portal-text=""
+          className="flex min-w-0 flex-initial flex-col"
+        >
           <span className="min-w-0 whitespace-normal break-words text-[15px] font-semibold">
             {shown.label}
           </span>

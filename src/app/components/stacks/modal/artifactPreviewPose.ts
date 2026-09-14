@@ -165,6 +165,7 @@ export function artifactPreviewPoseKeyframes(
   box: ArtifactPreviewBox,
   quad: ArtifactPreviewQuad,
   samples = 24,
+  targetBox?: ArtifactPreviewBox,
 ): readonly ArtifactPreviewPoseKeyframe[] | null {
   const pose = artifactPreviewPoseTransform(element, box, quad);
   if (!pose) return null;
@@ -173,17 +174,42 @@ export function artifactPreviewPoseKeyframes(
   // almost flat on a shelf, so its height is not the identity endpoint for
   // the full-aspect element. Using that height held the photo squashed until
   // the final identity keyframe snapped it upright.
-  const targetHeight = element.height * (box.width / element.width);
+  const destination = targetBox ?? {
+    ...box,
+    height: element.height * (box.width / element.width),
+  };
   const target: ArtifactPreviewQuad = [
-    [box.left, box.top],
-    [box.left + box.width, box.top],
-    [box.left + box.width, box.top + targetHeight],
-    [box.left, box.top + targetHeight],
+    [destination.left, destination.top],
+    [destination.left + destination.width, destination.top],
+    [
+      destination.left + destination.width,
+      destination.top + destination.height,
+    ],
+    [destination.left, destination.top + destination.height],
   ];
   const count = Math.max(2, Math.round(samples));
 
   return Array.from({ length: count + 1 }, (_, index) => {
-    const offset = index / count;
+    const fraction = index / count;
+    const zoom = destination.width / box.width;
+    // Keep consecutive viewer scales close, even when its fitted source box
+    // is tiny. Uniform time samples leave a large interpolation error in the
+    // first gap of a 100x enlargement, making the photo pulse in width.
+    const offset =
+      index === count
+        ? 1
+        : Math.abs(zoom - 1) < 0.01
+          ? fraction
+          : Math.expm1(Math.log(zoom) * fraction) / (zoom - 1);
+    // Solve in screen space, then remove the viewer's CURRENT transform.
+    // Interpolating only the shelf correction multiplies it by the growing
+    // outer box and can enlarge a flat print far beyond the viewport.
+    const movingBox: ArtifactPreviewBox = {
+      left: box.left + (destination.left - box.left) * offset,
+      top: box.top + (destination.top - box.top) * offset,
+      width: box.width + (destination.width - box.width) * offset,
+      height: box.height + (destination.height - box.height) * offset,
+    };
     const projected = quad.map(([x, y], corner) => {
       const [targetX, targetY] = target[corner]!;
       return [
@@ -196,7 +222,7 @@ export function artifactPreviewPoseKeyframes(
       transform:
         index === count
           ? IDENTITY_MATRIX_3D
-          : (artifactPreviewPoseMatrix(element, box, projected, false) ??
+          : (artifactPreviewPoseMatrix(element, movingBox, projected, false) ??
             IDENTITY_MATRIX_3D),
     };
   });

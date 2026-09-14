@@ -16,6 +16,14 @@ and tracks its Identity Prop through each Portrait Composition. Overlapping
 Halos resolve through visible proximity and authored interaction priority;
 Touch Focus makes the result reversible before any action commits.
 
+Touch bounds use visible prop meshes in their current pose, excluding shadows,
+hidden children, and pointer helpers. Halos expand small targets toward 48 CSS
+pixels, then clip at screen gutters and the sheet without shifting toward the
+visible area. An object hidden below the sheet has no exposed target. Once both
+projected dimensions reach 48 pixels, an actual mesh hit is required; empty
+space inside a large object's bounding rectangle remains available to dismiss
+selection or start a swipe.
+
 A normally released or browser-cancelled carry clears Touch Focus. The moved
 prop keeps its Touch Halo at its rendered position, and its next quick release
 establishes a new Focus Lean there instead of being mistaken for a second-tap
@@ -37,7 +45,11 @@ when the press is marked. The camera's touch parallax starts moving the moment
 a finger is down; a per-frame sample read a miss by release and the tap
 dismissed the globe. The press-time mark stays the label until the next press,
 a turn, or the globe going back, which is also the right model for a screen
-without hover.
+without hover. A completed first tap selects that mark; only a later tap on
+that same mark opens its chapter. Hover alone never authorizes navigation.
+Changing marks, clearing the label, or turning the globe clears the chapter
+selection. The globe on the shelf also previews on first touch before the
+second touch brings it closer.
 
 The World reserves two-finger pinch from native viewport zoom. A pinch that
 begins on exposed background adjusts visitor-camera framing; once a Movable

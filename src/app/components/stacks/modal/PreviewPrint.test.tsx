@@ -26,7 +26,13 @@ function printProps(size = { width: 350, height: 240 }) {
     [110, 361],
   ] as const;
   return {
-    attrs: { style: size },
+    attrs: {
+      style: {
+        ...size,
+        transition:
+          "transform 420ms cubic-bezier(0.4, 0, 0.2, 1), height 210ms cubic-bezier(0.4, 0, 0.2, 1)",
+      },
+    },
     size,
     scale: 1,
     frame: BARE_ARTIFACT_PREVIEW_FRAME,
@@ -64,6 +70,16 @@ afterEach(() => {
 });
 
 describe("preview print entrance", () => {
+  it("starts the tilt in the viewer's moving commit, without a separate frame delay", async () => {
+    const props = printProps();
+    const { rerender } = render(
+      <PreviewPrint {...props} attrs={{ style: props.size }} />,
+    );
+    await act(() => vi.advanceTimersByTime(500));
+    expect(animate).not.toHaveBeenCalled();
+    rerender(<PreviewPrint {...props} />);
+    expect(animate).toHaveBeenCalledOnce();
+  });
   it("does not reapply the shelf pose after the viewer has enlarged the print", async () => {
     const { rerender } = render(<PreviewPrint {...printProps()} />);
     await act(() => vi.advanceTimersByTime(48));
@@ -121,12 +137,10 @@ describe("preview print entrance", () => {
     rerender(<PreviewPrint {...resized} opening={false} closing />);
     expect(animate).toHaveBeenCalledTimes(2);
     expect(animate).toHaveBeenLastCalledWith(
-      [...resized.closingPoseKeyframes!]
-        .reverse()
-        .map((frame, index, frames) => ({
-          transform: frame.transform,
-          offset: index / (frames.length - 1),
-        })),
+      [...resized.closingPoseKeyframes!].reverse().map((frame) => ({
+        transform: frame.transform,
+        offset: 1 - frame.offset,
+      })),
       expect.any(Object),
     );
     rerender(<PreviewPrint {...resized} />);
@@ -136,7 +150,8 @@ describe("preview print entrance", () => {
   });
 
   it("clears the initial pose if opening ends before the first animation frame", async () => {
-    const props = printProps();
+    const moving = printProps();
+    const props = { ...moving, attrs: { style: moving.size } };
     const { container, rerender } = render(<PreviewPrint {...props} />);
     const photo = container.querySelector<HTMLElement>(
       "[data-scene-artifact-preview-image]",

@@ -4769,7 +4769,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/interactionProjection.ts",
-      "sha256": "e8baad4ae8954fe9e5493000a82ded1a4e6b87518619c42ef16ae414f47def65",
+      "sha256": "3fde914d3c7b5074a8d59b7090bd36cb612d86176b35217ec285f60c8a83ae7c",
       "archivedSha256": "e8baad4ae8954fe9e5493000a82ded1a4e6b87518619c42ef16ae414f47def65"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "a479fba652e93cd11984f2299935522e13b04bfffbd9e74641139878da12ca95",
+  "sourceFingerprint": "1b46ea57025566baac56cd26657c203b95728193464a739be23c3c3ebd9361a8",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5540,6 +5540,18 @@
           "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
           "previousSha256": "d71bc259bfbe4c6b25b56e63df5ab6b79d88bbbe99d3d7e3d6c8174cb0f7456a",
           "sha256": "0873c30d4f00c1149a87b12371e25e592c7f7a8ebb665561cfe38bef0fa39d26"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed touch hit testing and bounds filtering in interactionProjection.ts. Rendered geometry, authored poses, materials, and approved drawing inputs are unchanged.",
+      "previousFingerprint": "a479fba652e93cd11984f2299935522e13b04bfffbd9e74641139878da12ca95",
+      "sourceFingerprint": "1b46ea57025566baac56cd26657c203b95728193464a739be23c3c3ebd9361a8",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/interactionProjection.ts",
+          "previousSha256": "e8baad4ae8954fe9e5493000a82ded1a4e6b87518619c42ef16ae414f47def65",
+          "sha256": "3fde914d3c7b5074a8d59b7090bd36cb612d86176b35217ec285f60c8a83ae7c"
         }
       ]
     }

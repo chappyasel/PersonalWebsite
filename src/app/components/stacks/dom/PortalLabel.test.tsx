@@ -118,9 +118,41 @@ it.each([
   render(<PortalLabel />);
   select();
   expect(screen.getByText(target.label)).toBeTruthy();
-  expect(document.querySelector("[data-portal-action]")?.textContent).toBe(action);
+  expect(document.querySelector("[data-portal-action]")?.textContent).toBe(
+    action,
+  );
   expect(run).not.toHaveBeenCalled();
 });
+
+it.each([
+  [undefined, null],
+  ["View site", null],
+  ["Read article", "Read article"],
+] as const)(
+  "omits redundant View site copy but retains specific actions: %s",
+  (actionLabel, expected) => {
+    release();
+    release = registerSceneInteraction({
+      id: "test:link",
+      root: new Group(),
+      activeUnits: [0],
+      activation: {
+        kind: "portal",
+        label: "Organization",
+        detail: ["Former engineer"],
+        actionLabel,
+        external: true,
+        run,
+      },
+    });
+    render(<PortalLabel />);
+    select();
+    expect(
+      document.querySelector("[data-portal-action]")?.textContent ?? null,
+    ).toBe(expected);
+    expect(screen.getByText("Former engineer")).toBeTruthy();
+  },
+);
 
 it("compresses the selected object on mouse press and releases without activating", () => {
   render(<PortalLabel />);
@@ -162,7 +194,9 @@ it("keeps the selected preview visible while hover transfers or leaves the world
   expect(label.style.getPropertyValue("--portal-label-opacity")).toBe("1");
   act(() => useStacks.getState().setHovered(null));
   settle();
-  expect(screen.getByRole("button", { name: "Destination View site" })).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Destination View site" }),
+  ).toBeTruthy();
   expect(run).not.toHaveBeenCalled();
 });
 

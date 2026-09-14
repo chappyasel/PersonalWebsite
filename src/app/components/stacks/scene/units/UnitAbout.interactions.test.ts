@@ -50,8 +50,8 @@ describe("About shelf throwable props", () => {
     const end = source.indexOf('id="portrait"', start);
     const globe = source.slice(start, end);
 
-    expect(globe).toContain('hovered?.kind === "chapter"');
-    expect(globe).toContain("openGlobeChapter(hovered.chapters, open, index)");
+    expect(globe).toContain("onTap={() => tapGlobe(open, index)}");
+    expect(globe).toContain("activateOnFirstTouch={globeNear}");
     expect(globe).not.toContain("globeApproach.dismiss()");
   });
 

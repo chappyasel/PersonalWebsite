@@ -383,6 +383,11 @@ export function PreviewPrint({
   const settled =
     typeof style.transition === "string" &&
     style.transition.includes("height 0ms");
+  // react-photo-view publishes its moving phase in this same render as the
+  // outer box's CSS transition. A separate pair of rAFs can start hundreds
+  // of milliseconds later on a busy phone, leaving the shelf correction
+  // applied to an already enlarged box.
+  const viewerMoving = typeof style.transition === "string" && !settled;
   const lastScale = useRef(scale);
   useEffect(() => {
     lastScale.current = scale;
@@ -429,8 +434,20 @@ export function PreviewPrint({
     const poseKeyframes = closing ? closingPoseKeyframes : openingPoseKeyframes;
     if (!node || !pose || reducedMotionPreferred()) return;
     if (!opening && !closing) return;
+    if (settled && !closing) return;
     node.style.transformOrigin = "0 0";
     let animation: Animation | null = null;
+    const clearPose = () => {
+      // WebKit otherwise starts a CSS transition from the inline shelf pose
+      // when the filled WAAPI animation is removed. Flush the neutral pose
+      // with transitions disabled before restoring the viewer's transitions.
+      const transition = node.style.transition;
+      node.style.transition = "none";
+      node.style.transform = "";
+      animation?.cancel();
+      node.getBoundingClientRect();
+      node.style.transition = transition;
+    };
     const animatePose = (frames: readonly ArtifactPreviewPoseKeyframe[]) => {
       if (typeof node.animate !== "function") return false;
       animation = node.animate([...frames], {
@@ -444,48 +461,24 @@ export function PreviewPrint({
       node.style.transition = "none";
       node.style.transform = "";
       if (poseKeyframes) {
-        const reversed = [...poseKeyframes]
-          .reverse()
-          .map((frame, index, frames) => ({
-            transform: frame.transform,
-            offset: index / (frames.length - 1),
-          }));
-        if (animatePose(reversed))
-          return () => {
-            node.style.transform = "";
-            animation?.cancel();
-          };
+        const reversed = [...poseKeyframes].reverse().map((frame) => ({
+          transform: frame.transform,
+          offset: 1 - frame.offset,
+        }));
+        if (animatePose(reversed)) return clearPose;
       }
       node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
       node.style.transform = pose;
-      return () => {
-        node.style.transform = "";
-      };
+      return clearPose;
     }
     node.style.transition = "none";
     node.style.transform = pose;
-    let release = 0;
-    const settle = requestAnimationFrame(() => {
-      release = requestAnimationFrame(() => {
-        if (poseKeyframes && animatePose(poseKeyframes)) return;
-        node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
-        node.style.transform = "";
-      });
-    });
-    return () => {
-      cancelAnimationFrame(settle);
-      cancelAnimationFrame(release);
-      if (animation) {
-        // WAAPI sits above the inline start pose while it runs. Commit the
-        // flush endpoint before canceling it, or removing the finished
-        // animation exposes `pose` again for one settled frame.
-        node.style.transform = "";
-        animation.cancel();
-      } else {
-        node.style.transform = "";
-      }
-    };
-  }, [closing, opening]);
+    if (!viewerMoving) return clearPose;
+    if (poseKeyframes && animatePose(poseKeyframes)) return clearPose;
+    node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
+    node.style.transform = "";
+    return clearPose;
+  }, [closing, opening, settled, viewerMoving]);
 
   return (
     <div
@@ -694,8 +687,20 @@ export default function SceneArtifactInspector() {
       const openingPose = origin?.quad
         ? artifactPreviewPoseTransform(fitted, origin, origin.quad)
         : null;
+      const targetBox = {
+        left: (previewViewport.width - fitted.width) / 2,
+        top: fitted.top,
+        width: fitted.width,
+        height: fitted.height,
+      };
       const openingPoseKeyframes = origin?.quad
-        ? artifactPreviewPoseKeyframes(fitted, origin, origin.quad)
+        ? artifactPreviewPoseKeyframes(
+            fitted,
+            origin,
+            origin.quad,
+            24,
+            targetBox,
+          )
         : null;
       const closingPose = origin?.quad
         ? artifactPreviewPoseTransform(
@@ -709,6 +714,8 @@ export default function SceneArtifactInspector() {
             fitted,
             origin,
             returnOrigin?.quad ?? origin.quad,
+            24,
+            targetBox,
           )
         : null;
       captionTops.push(fitted.captionTop);

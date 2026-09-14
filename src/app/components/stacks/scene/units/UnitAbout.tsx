@@ -60,9 +60,8 @@ import { EggLamp, SpinProp } from "../eggs";
 import {
   beginGlobeDrag,
   globeApproach,
-  globeChapterHover,
   globeSpin,
-  openGlobeChapter,
+  tapGlobe,
 } from "../globeCloseUpState";
 import { GolfBallProp } from "../golf/GolfBallProp";
 import { ABOUT_GOLF_BALLS } from "../golf/aboutGolfBalls";
@@ -860,22 +859,12 @@ export default function UnitAbout({
           // Only the way up needs a label: once the globe is near, the
           // interface has stepped aside. Outside presses put it back.
           actionLabel="Closer look"
-          activateOnFirstTouch
+          activateOnFirstTouch={globeNear}
           // Up close, a press on the globe is a turn, not a carry: the
           // carrier goes tap-only and the drag threshold hands the pointer
           // to beginGlobeDrag instead.
           draggable={!globeNear}
-          onTap={() => {
-            if (!globeApproach.near) {
-              globeApproach.approach();
-              return;
-            }
-            // On touch this is the mark sampled when the press landed, not
-            // whatever is under the finger now (see GlobeCloseUp).
-            const hovered = globeChapterHover.current;
-            if (hovered?.kind === "chapter")
-              openGlobeChapter(hovered.chapters, open, index);
-          }}
+          onTap={() => tapGlobe(open, index)}
           onDragIntent={(_origin, event) => {
             if (globeApproach.near) beginGlobeDrag(event?.pointerId, event);
           }}

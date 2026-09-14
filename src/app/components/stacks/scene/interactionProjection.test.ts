@@ -5,6 +5,7 @@ import {
   MeshBasicMaterial,
   PerspectiveCamera,
   SphereGeometry,
+  Sprite,
   Vector3,
 } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -48,6 +49,38 @@ function target(z: number) {
 describe("scene interaction projection", () => {
   afterEach(() => setInteractionProjectionContext(null, null));
 
+  it("measures touch targets from visible meshes, excluding shadows and hidden helpers", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+    const root = new Group();
+    root.add(new Mesh(new SphereGeometry(0.1), new MeshBasicMaterial()));
+    const shadow = new Sprite();
+    shadow.scale.setScalar(10);
+    root.add(shadow);
+    const hidden = new Group();
+    hidden.visible = false;
+    hidden.add(new Mesh(new BoxGeometry(20, 20, 0.1), new MeshBasicMaterial()));
+    root.add(hidden);
+    const release = registerSceneInteraction({
+      id: "test:touch-shadows",
+      root,
+      activeUnits: [0],
+    });
+    try {
+      const bounds = projectedInteractionBounds({ x: 60, y: 50 }).find(
+        (b) => b.id === "test:touch-shadows",
+      )!;
+      expect(bounds.right - bounds.left).toBeLessThan(10);
+      expect(bounds.exactHit).toBe(false);
+    } finally {
+      release();
+    }
+  });
+
   it("anchors an empty linked carrier to its own world origin", () => {
     const camera = new PerspectiveCamera(50, 1, 0.1, 100);
     camera.position.z = 5;
@@ -76,6 +109,33 @@ describe("scene interaction projection", () => {
     expect(projected!.y).toBeLessThan(50);
     expect(projected!.behind).toBe(false);
     release();
+  });
+
+  it("uses the current child pose for touch after an earlier label projection", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+    const root = new Group();
+    const prop = new Mesh(new SphereGeometry(0.1), new MeshBasicMaterial());
+    root.add(prop);
+    const release = registerSceneInteraction({
+      id: "test:moving-child",
+      root,
+      activeUnits: [0],
+      activation: { kind: "action", title: "Prop", label: "Closer look", run: () => undefined },
+    });
+    try {
+      expect(projectPortal("test:moving-child")?.x).toBe(50);
+      prop.position.x = 1;
+      const bounds = projectedInteractionBounds({ x: 71.5, y: 50 }).find((b) => b.id === "test:moving-child")!;
+      expect(bounds.left).toBeGreaterThan(65);
+      expect(bounds.exactHit).toBe(true);
+    } finally {
+      release();
+    }
   });
 
   it("uses authored projection bounds instead of a wide-line shader quad", () => {

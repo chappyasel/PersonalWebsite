@@ -32,17 +32,66 @@ function rotatedBoxQuad(angle: number): ArtifactPreviewQuad {
 /** Apply the matrix3d string as the 2D homography it encodes, then the
  * viewer's own start-box transform (translate + uniform scale about the
  * top-left corner) — the exact composition the browser performs. */
-function throughViewer(transform: string, x: number, y: number) {
+function throughViewer(
+  transform: string,
+  x: number,
+  y: number,
+  box = BOX,
+  element = ELEMENT,
+) {
   const values = transform.slice("matrix3d(".length, -1).split(",").map(Number);
   const [a, d, , g, b, e, , h, , , , , c, f, , i] = values;
   const w = g! * x + h! * y + i!;
   const localX = (a! * x + b! * y + c!) / w;
   const localY = (d! * x + e! * y + f!) / w;
-  const scale = BOX.width / ELEMENT.width;
-  return [BOX.left + localX * scale, BOX.top + localY * scale];
+  const scale = box.width / element.width;
+  return [box.left + localX * scale, box.top + localY * scale];
 }
 
 describe("artifact preview pose", () => {
+  it("keeps the composed flight bounded as the viewer enlarges a shelf-flat origin", () => {
+    const element = { width: 342, height: 224 };
+    // The real origin session fits the image aspect INSIDE the nearly-flat
+    // projected bounds, so its box is much narrower than the visible quad.
+    const box = { left: 309, top: 281, width: 3.42, height: 2.24 };
+    const quad: ArtifactPreviewQuad = [
+      [283, 280],
+      [338, 281],
+      [339, 283],
+      [282, 282],
+    ];
+    const target = { left: 24, top: 170, ...element };
+    const frames = artifactPreviewPoseKeyframes(
+      element,
+      box,
+      quad,
+      24,
+      target,
+    )!;
+    for (const frame of frames) {
+      const p = frame.offset;
+      const movingBox = {
+        left: box.left + (target.left - box.left) * p,
+        top: box.top + (target.top - box.top) * p,
+        width: box.width + (target.width - box.width) * p,
+        height: box.height + (target.height - box.height) * p,
+      };
+      const tl = throughViewer(frame.transform, 0, 0, movingBox, element);
+      const br = throughViewer(
+        frame.transform,
+        element.width,
+        element.height,
+        movingBox,
+        element,
+      );
+      expect(tl[0]).toBeCloseTo(quad[0][0] + (target.left - quad[0][0]) * p, 5);
+      expect(br[0]).toBeCloseTo(
+        quad[2][0] + (target.left + target.width - quad[2][0]) * p,
+        5,
+      );
+      expect(br[0]! - tl[0]!).toBeLessThanOrEqual(element.width + 0.01);
+    }
+  });
   it("treats the axis-aligned box itself as a no-op", () => {
     expect(
       artifactPreviewPoseTransform(

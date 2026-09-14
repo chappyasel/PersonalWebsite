@@ -20,25 +20,24 @@ export function expandAndClipTouchHalo(
   bounds: ProjectedInteractionBounds,
   viewport: { width: number; height: number; sheetTop: number },
 ): ProjectedInteractionBounds | null {
+  const visibleBottom = Math.min(viewport.height, viewport.sheetTop);
+  // A hidden object must not borrow touch space from above the sheet or
+  // inside the screen. Clip its halo in place instead of translating it.
+  if (
+    bounds.right <= TOUCH_EDGE_GUTTER_PX ||
+    bounds.left >= viewport.width - TOUCH_EDGE_GUTTER_PX ||
+    bounds.bottom <= TOUCH_EDGE_GUTTER_PX ||
+    bounds.top >= visibleBottom
+  )
+    return null;
   const cx = (bounds.left + bounds.right) / 2;
   const cy = (bounds.top + bounds.bottom) / 2;
   const width = Math.max(TOUCH_HALO_MIN_PX, bounds.right - bounds.left);
   const height = Math.max(TOUCH_HALO_MIN_PX, bounds.bottom - bounds.top);
-  const availableWidth = viewport.width - TOUCH_EDGE_GUTTER_PX * 2;
-  const availableHeight = viewport.sheetTop - TOUCH_EDGE_GUTTER_PX;
-  if (availableWidth <= 0 || availableHeight <= 0) return null;
-  const clippedWidth = Math.min(width, availableWidth);
-  const clippedHeight = Math.min(height, availableHeight);
-  const left = Math.min(
-    viewport.width - TOUCH_EDGE_GUTTER_PX - clippedWidth,
-    Math.max(TOUCH_EDGE_GUTTER_PX, cx - clippedWidth / 2),
-  );
-  const right = left + clippedWidth;
-  const top = Math.min(
-    viewport.sheetTop - clippedHeight,
-    Math.max(TOUCH_EDGE_GUTTER_PX, cy - clippedHeight / 2),
-  );
-  const bottom = top + clippedHeight;
+  const left = Math.max(TOUCH_EDGE_GUTTER_PX, cx - width / 2);
+  const right = Math.min(viewport.width - TOUCH_EDGE_GUTTER_PX, cx + width / 2);
+  const top = Math.max(TOUCH_EDGE_GUTTER_PX, cy - height / 2);
+  const bottom = Math.min(visibleBottom, cy + height / 2);
   if (right <= left || bottom <= top) return null;
   return {
     ...bounds,
@@ -77,6 +76,14 @@ export function resolveTouchHalo(
   return (
     bounds
       .filter((b) => x >= b.left && x <= b.right && y >= b.top && y <= b.bottom)
+      .filter((b) => {
+        // Large props are already easy to hit. A ray miss inside their
+        // rectangular bounds is background, including gaps around a dumbbell.
+        if (b.exactHit !== false) return true;
+        const width = (b.visualRight ?? b.right) - (b.visualLeft ?? b.left);
+        const height = (b.visualBottom ?? b.bottom) - (b.visualTop ?? b.top);
+        return width < TOUCH_HALO_MIN_PX || height < TOUCH_HALO_MIN_PX;
+      })
       .sort((a, b) => {
         if (Boolean(a.exactHit) !== Boolean(b.exactHit))
           return a.exactHit ? -1 : 1;

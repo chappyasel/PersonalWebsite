@@ -24,6 +24,11 @@ export type GlobeChapterHover =
   | (GlobeHoverPosition & Readonly<{ kind: "lived"; place: LivedPlace }>);
 
 let hover: GlobeChapterHover | null = null;
+let touchSelection: string | null = null;
+
+function markerKey(mark: GlobeChapterHover | null) {
+  return mark ? `${mark.kind}:${mark.index}` : null;
+}
 const listeners = new Set<() => void>();
 
 export const globeChapterHover = {
@@ -31,6 +36,7 @@ export const globeChapterHover = {
     return hover;
   },
   set(next: GlobeChapterHover | null) {
+    if (!next || markerKey(next) !== markerKey(hover)) touchSelection = null;
     if (next === hover) return;
     if (
       next &&
@@ -42,6 +48,14 @@ export const globeChapterHover = {
       return;
     hover = next;
     for (const listener of listeners) listener();
+  },
+  /** Hover alone never authorizes touch navigation. Only a completed tap does. */
+  selectForTouch() {
+    const key = markerKey(hover);
+    if (!key) return false;
+    if (touchSelection === key) return true;
+    touchSelection = key;
+    return false;
   },
   // An arrow, not a method: useSyncExternalStore takes it unbound.
   subscribe: (listener: () => void) => {
@@ -60,12 +74,27 @@ export function useGlobeChapterHover(): GlobeChapterHover | null {
   );
 }
 
-/** Label copy for a mark: up to three names, then a count. */
+const CHAPTER_TIER_RANK: Readonly<Record<string, number>> = {
+  Diamond: 4,
+  Platinum: 3,
+  Gold: 2,
+  Silver: 1,
+};
+
+/** Public tiers stand in for size because the chapter feed has no member counts.
+ * Equal or missing tiers keep the feed's alphabetical order. */
 export function globeChapterLabel(chapters: readonly AicChapter[]): string {
-  const names = chapters.map((chapter) => chapter.name);
-  const shown = names.slice(0, 3);
-  const more = names.length - shown.length;
-  return more > 0 ? `${shown.join(", ")} and ${more} more` : shown.join(", ");
+  let lead: AicChapter | undefined;
+  let rank = -1;
+  for (const chapter of chapters) {
+    const nextRank = CHAPTER_TIER_RANK[chapter.tier ?? ""] ?? 0;
+    if (nextRank > rank) {
+      lead = chapter;
+      rank = nextRank;
+    }
+  }
+  if (!lead) return "";
+  return lead.emoji ? `${lead.emoji} ${lead.name}` : lead.name;
 }
 
 export function globeLivedPlaceStatus(place: LivedPlace): string {

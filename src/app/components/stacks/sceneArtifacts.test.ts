@@ -213,12 +213,12 @@ describe("Scene artifact inspector", () => {
     // The open starts from the print's rendered pose (roll, yaw,
     // perspective), with projected-corner keyframes preserving its plane.
     expect(inspector).toContain("artifactPreviewPoseTransform(fitted, origin,");
-    expect(inspector).toContain("artifactPreviewPoseKeyframes(fitted, origin,");
+    expect(inspector).toMatch(/artifactPreviewPoseKeyframes\(\s*fitted,\s*origin,/);
     expect(inspector).toContain("previewOriginSession?.returnOrigins.get(");
     expect(inspector).toContain("closingPoseKeyframes={closingPoseKeyframes}");
     expect(inspector).toContain("node.animate([...frames]");
     expect(inspector).toMatch(
-      /node\.style\.transform = "";\s*animation\.cancel\(\);/m,
+      /node\.style\.transform = "";\s*animation\?\.cancel\(\);/m,
     );
     expect(globalStyles).toContain("[data-scene-artifact-preview-edge]");
     expect(globalStyles).toContain(

@@ -21,6 +21,8 @@ export type VisitedPlace = GlobeMarker &
     country: string;
     /** Visitor-facing name for the point marker. */
     name: string;
+    /** Country flag displayed beside the visitor-facing name. */
+    flag: string;
     /** Only one part of a multi-part country was visited: the generator fills
      * the ring containing this point and leaves the rest of the country as
      * ordinary land. */
@@ -39,36 +41,59 @@ export type VisitedPlace = GlobeMarker &
 export const VISITED_PLACES: readonly VisitedPlace[] = [
   {
     country: "United States of America",
+    flag: "🇺🇸",
     name: "United States",
     lat: 39.8283,
     lon: -98.5795,
   },
-  { country: "Canada", name: "Canada", lat: 56.1304, lon: -106.3468 },
+  {
+    country: "Canada",
+    flag: "🇨🇦",
+    name: "Canada",
+    lat: 56.1304,
+    lon: -106.3468,
+  },
   {
     country: "Dominican Rep.",
+    flag: "🇩🇴",
     name: "Dominican Republic",
     lat: 18.7357,
     lon: -70.1627,
   },
-  { country: "Haiti", name: "Haiti", lat: 18.9712, lon: -72.2852 },
-  { country: "Barbados", name: "Barbados", lat: 13.1939, lon: -59.5432 },
+  { country: "Haiti", flag: "🇭🇹", name: "Haiti", lat: 18.9712, lon: -72.2852 },
+  {
+    country: "Barbados",
+    flag: "🇧🇧",
+    name: "Barbados",
+    lat: 13.1939,
+    lon: -59.5432,
+  },
   {
     country: "Costa Rica",
+    flag: "🇨🇷",
     name: "Costa Rica",
     lat: 9.7489,
     lon: -83.7534,
   },
   {
     country: "South Africa",
+    flag: "🇿🇦",
     name: "South Africa",
     lat: -30.5595,
     lon: 22.9375,
   },
-  { country: "Iceland", name: "Iceland", lat: 64.9631, lon: -19.0208 },
+  {
+    country: "Iceland",
+    flag: "🇮🇸",
+    name: "Iceland",
+    lat: 64.9631,
+    lon: -19.0208,
+  },
   // Natural Earth keeps the Canaries inside Spain and French Guiana, Réunion
   // and the Antilles inside France. Mainland plus the near islands only.
   {
     country: "Spain",
+    flag: "🇪🇸",
     name: "Spain",
     lat: 40.4637,
     lon: -3.7492,
@@ -76,33 +101,90 @@ export const VISITED_PLACES: readonly VisitedPlace[] = [
   },
   {
     country: "France",
+    flag: "🇫🇷",
     name: "France",
     lat: 46.2276,
     lon: 2.2137,
     within: { lon: [-6, 10], lat: [41, 52] },
   },
-  { country: "Italy", name: "Italy", lat: 41.8719, lon: 12.5674 },
-  { country: "Greece", name: "Greece", lat: 39.0742, lon: 21.8243 },
-  { country: "Hungary", name: "Hungary", lat: 47.1625, lon: 19.5033 },
-  { country: "Czechia", name: "Czechia", lat: 49.8175, lon: 15.473 },
-  { country: "Austria", name: "Austria", lat: 47.5162, lon: 14.5501 },
-  { country: "Germany", name: "Germany", lat: 51.1657, lon: 10.4515 },
-  { country: "India", name: "India", lat: 20.5937, lon: 78.9629 },
-  { country: "China", name: "China", lat: 35.8617, lon: 104.1954 },
+  { country: "Italy", flag: "🇮🇹", name: "Italy", lat: 41.8719, lon: 12.5674 },
+  { country: "Greece", flag: "🇬🇷", name: "Greece", lat: 39.0742, lon: 21.8243 },
+  {
+    country: "Hungary",
+    flag: "🇭🇺",
+    name: "Hungary",
+    lat: 47.1625,
+    lon: 19.5033,
+  },
+  {
+    country: "Czechia",
+    flag: "🇨🇿",
+    name: "Czechia",
+    lat: 49.8175,
+    lon: 15.473,
+  },
+  {
+    country: "Austria",
+    flag: "🇦🇹",
+    name: "Austria",
+    lat: 47.5162,
+    lon: 14.5501,
+  },
+  {
+    country: "Germany",
+    flag: "🇩🇪",
+    name: "Germany",
+    lat: 51.1657,
+    lon: 10.4515,
+  },
+  { country: "India", flag: "🇮🇳", name: "India", lat: 20.5937, lon: 78.9629 },
+  { country: "China", flag: "🇨🇳", name: "China", lat: 35.8617, lon: 104.1954 },
   {
     country: "South Korea",
+    flag: "🇰🇷",
     name: "South Korea",
     lat: 35.9078,
     lon: 127.7669,
   },
-  { country: "Taiwan", name: "Taiwan", lat: 23.6978, lon: 120.9605 },
-  { country: "Malaysia", name: "Malaysia", lat: 4.2105, lon: 101.9758 },
-  { country: "Vietnam", name: "Vietnam", lat: 14.0583, lon: 108.2772 },
-  { country: "Cambodia", name: "Cambodia", lat: 12.5657, lon: 104.991 },
-  { country: "Thailand", name: "Thailand", lat: 15.87, lon: 100.9925 },
+  {
+    country: "Taiwan",
+    flag: "🇹🇼",
+    name: "Taiwan",
+    lat: 23.6978,
+    lon: 120.9605,
+  },
+  {
+    country: "Malaysia",
+    flag: "🇲🇾",
+    name: "Malaysia",
+    lat: 4.2105,
+    lon: 101.9758,
+  },
+  {
+    country: "Vietnam",
+    flag: "🇻🇳",
+    name: "Vietnam",
+    lat: 14.0583,
+    lon: 108.2772,
+  },
+  {
+    country: "Cambodia",
+    flag: "🇰🇭",
+    name: "Cambodia",
+    lat: 12.5657,
+    lon: 104.991,
+  },
+  {
+    country: "Thailand",
+    flag: "🇹🇭",
+    name: "Thailand",
+    lat: 15.87,
+    lon: 100.9925,
+  },
   // The island, not the archipelago.
   {
     country: "Indonesia",
+    flag: "🇮🇩",
     name: "Bali, Indonesia",
     lat: -8.4095,
     lon: 115.1889,

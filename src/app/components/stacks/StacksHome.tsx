@@ -658,7 +658,8 @@ export default function StacksHome({
                 translate 420ms cubic-bezier(0.16, 1, 0.3, 1) var(--stacks-chrome-return-delay, 0ms),
                 filter 280ms ease-out var(--stacks-chrome-return-delay, 0ms);
             }
-            [data-stacks-portal-label] {
+            [data-stacks-portal-label],
+            [data-stacks-globe-label] {
               opacity: var(--portal-label-opacity, 0);
               translate: 0 0;
               transition:
@@ -853,6 +854,7 @@ export default function StacksHome({
               [data-stacks-mobile-panel],
               [data-stacks-mobile-panel-dim],
               [data-stacks-portal-label],
+              [data-stacks-globe-label],
               .stacks-chrome-vignette {
                 transition-duration: 1ms !important;
                 transition-delay: 0ms !important;

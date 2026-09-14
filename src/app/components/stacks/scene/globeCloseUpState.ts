@@ -8,6 +8,7 @@
 // label subscribes to.
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { roomWindowEvents } from "../room/roomEvents";
+import { touchWorldRef } from "../store";
 
 import {
   LIVED_PLACES,
@@ -146,6 +147,25 @@ export function openGlobeChapter(
     portalId: GLOBE_CHAPTER_PORTAL_ID,
     unitIndex,
   });
+}
+
+/** A stationary release on the globe carrier. */
+export function tapGlobe(
+  open: (target: PropTarget, context: PortalAnalyticsContext) => void,
+  unitIndex: number,
+) {
+  if (!globeApproach.near) {
+    globeApproach.approach();
+    return;
+  }
+  if (
+    touchWorldRef.interactionPointerType === "touch" &&
+    !globeChapterHover.selectForTouch()
+  )
+    return;
+  const hovered = globeChapterHover.current;
+  if (hovered?.kind === "chapter")
+    openGlobeChapter(hovered.chapters, open, unitIndex);
 }
 
 /**

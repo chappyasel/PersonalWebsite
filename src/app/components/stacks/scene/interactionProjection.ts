@@ -37,6 +37,16 @@ function isEffectivelyVisible(root: THREE.Object3D) {
   return true;
 }
 
+/** Shadows, invisible pick helpers, and shader backing geometry are not the
+ * object a visitor sees. Use the same exclusions for bounds and exact hits. */
+function isTouchMesh(node: THREE.Object3D) {
+  return (
+    (node as THREE.Mesh).isMesh &&
+    node.userData.physicsIgnore !== true &&
+    isEffectivelyVisible(node)
+  );
+}
+
 function descendantCount(root: THREE.Object3D) {
   let count = 0;
   root.traverse(() => count++);
@@ -45,7 +55,10 @@ function descendantCount(root: THREE.Object3D) {
 
 /** Measure once in the interaction root's own coordinates. Moving a
  * Grabbable then changes only root.matrixWorld; its visual box stays valid. */
-function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
+function rootLocalBounds(
+  spec: ReturnType<typeof getSceneInteraction>,
+  live = false,
+) {
   if (!spec) return null;
   if (spec.projectedLocalBounds)
     return new Box3(
@@ -57,11 +70,13 @@ function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
   // A prop whose children travel (the Mac's approach) invalidates the box
   // every frame without changing its descendant count, so it opts out of
   // the cache and pays for the traversal instead.
-  const cached = spec.liveBounds ? undefined : localBoundsCache.get(spec.root);
+  const cached =
+    live || spec.liveBounds ? undefined : localBoundsCache.get(spec.root);
   if (cached?.descendants === descendants) return cached.bounds;
   rootInverse.copy(spec.root.matrixWorld).invert();
   const bounds = new Box3().makeEmpty();
   spec.root.traverse((node) => {
+    if (!isTouchMesh(node)) return;
     const geometry = (node as THREE.Mesh).geometry;
     if (!geometry) return;
     if (!geometry.boundingBox) geometry.computeBoundingBox();
@@ -75,7 +90,7 @@ function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
   });
   if (bounds.isEmpty())
     bounds.setFromCenterAndSize(new Vector3(), new Vector3(0.01, 0.01, 0.01));
-  if (!spec.liveBounds)
+  if (!live && !spec.liveBounds)
     localBoundsCache.set(spec.root, { descendants, bounds });
   return bounds;
 }
@@ -93,6 +108,8 @@ export function projectedInteractionBounds(pointer?: {
   const specs = sceneInteractionInventory().filter(
     (spec) => spec.touchable !== false && isEffectivelyVisible(spec.root),
   );
+  // Exact picking and projected bounds must sample the same current pose.
+  for (const spec of specs) spec.root.updateWorldMatrix(true, true);
   let exactId: string | null = null;
   if (pointer && rect.width > 0 && rect.height > 0) {
     pointerNdc.set(
@@ -106,6 +123,7 @@ export function projectedInteractionBounds(pointer?: {
       specs.map((s) => s.root),
       true,
     )) {
+      if (!isTouchMesh(hit.object)) continue;
       for (
         let node: THREE.Object3D | null = hit.object;
         node;
@@ -122,7 +140,9 @@ export function projectedInteractionBounds(pointer?: {
   }
   const results: ProjectedInteractionBounds[] = [];
   for (const spec of specs) {
-    const bounds = rootLocalBounds(spec);
+    // Touch is sampled at contact time, so include the current child pose
+    // instead of a box cached before the prop tilted or moved closer.
+    const bounds = rootLocalBounds(spec, true);
     if (!bounds) continue;
     spec.root.updateWorldMatrix(true, false);
     let left = Infinity;
