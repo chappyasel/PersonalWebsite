@@ -11,6 +11,9 @@ export type RoomArtworkImageProps = Omit<
   theme?: RoomArtworkTheme | "system";
   viewport?: RoomArtworkViewport | "responsive";
   pictureClassName?: string;
+  /** The shelf being looked at. Offscreen shelves stay mounted so travel never
+   * remounts the row, but they queue behind the active one. */
+  active?: boolean;
 };
 
 /** No client hooks, artwork imports or WebGL dependency. The browser chooses one source. */
@@ -20,6 +23,7 @@ export function RoomArtworkImage({
   viewport = "responsive",
   pictureClassName,
   alt = "",
+  active = true,
   ...imageProps
 }: RoomArtworkImageProps) {
   const fallback = getRoomArtwork(
@@ -59,6 +63,8 @@ export function RoomArtworkImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         decoding="async"
+        loading={active ? "eager" : "lazy"}
+        fetchPriority={active ? "high" : "low"}
         {...imageProps}
         src={fallback.src}
         width={fallback.viewBox[2]}

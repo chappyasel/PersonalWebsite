@@ -17,6 +17,27 @@ describe("room artwork SSR contract", () => {
     );
     expect(html).not.toContain("<script");
   });
+  it("fetches the shelf in view first and defers the ones travel keeps mounted", () => {
+    const active = renderToStaticMarkup(
+      <RoomArtworkImage unitIndex={6} alt="Talks" />,
+    );
+    // React spells the prop as it is written; HTML attribute names are
+    // case-insensitive, so the browser still reads `fetchpriority`.
+    expect(active).toContain('loading="eager"');
+    expect(active).toContain('fetchPriority="high"');
+    const offscreen = renderToStaticMarkup(
+      <RoomArtworkImage unitIndex={6} alt="Talks" active={false} />,
+    );
+    expect(offscreen).toContain('loading="lazy"');
+    expect(offscreen).toContain('fetchPriority="low"');
+    // A hoisted preload would undo the deferral. React withholds one for a
+    // lazy image, and withholds it inside <picture> either way.
+    expect(offscreen).not.toContain("rel=\"preload\"");
+    expect(active).not.toContain("rel=\"preload\"");
+    // Both states decode off the main thread; only the queue position differs.
+    for (const html of [active, offscreen])
+      expect(html).toContain('decoding="async"');
+  });
   it("honors explicit theme/size and leaves About and fractional destinations to their owners", () => {
     const html = renderToStaticMarkup(
       <RoomArtworkImage

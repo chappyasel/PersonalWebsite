@@ -424,6 +424,57 @@ See [the mobile quality implementation log](2026-08-20-mobile-quality-recovery-i
   diagnostic evidence so a future support report can distinguish a suspended
   page from a failed meadow retry.
 
+### 2026-09-14: Room boot hot path, unverified
+
+Two changes on `perf/room-boot-hot-path`. Both are structural and were reasoned
+from the source, not from a browser profile. Nothing here is a measured gain,
+and neither change touches World Boot state, quality policy, scene effects, or
+the set of assets the room requests.
+
+**The pre-paint geometry script is now opt-in.** `IllustrationFrame` computes
+its frame variables twice: once as an inline script, which the server shell
+needs because no React has run there, and once in a layout effect, which is
+what a hydrated frame actually uses. Both paths ran unconditionally, so every
+hydrated frame also built and mounted an inline script that never executes. A
+client-created `<script>` node inserted through `dangerouslySetInnerHTML` does
+not run, so the hydrated copy was inert.
+
+`IllustrationFrame` and `IllustrationStage` take an explicit `prepaint` prop.
+`RoomBootShell` passes it, so first paint and About's plank/support face
+patching are unchanged; `IllustratedRoom` does not, so the hydrated row stops
+carrying it. Measured statically off the rendered markup, the script is 14,150
+raw bytes for About's frame and 14,502 for a shelf frame (about 4.3 to 4.7 KB
+gzip each). `IllustratedRoom` mounts seven frames, so roughly 100 KB of inert
+inline script leaves the hydrated room. The string is also rebuilt on every
+frame render, since it is assembled from `Function.prototype.toString` and
+`JSON.stringify` at render time.
+
+Hypothesis: this removes main-thread string construction and DOM text on the
+hydration path. It does not change what the server sends, so it cannot affect
+first paint, and it is not a candidate explanation for the 10-second M2 boot.
+The relevant open question is whether it shows up in the long-task totals
+recorded after the boot screen dissolves.
+
+**Shelf images declare a fetch priority.** `IllustratedRoom` keeps every shelf
+mounted so lateral travel stays native and never remounts the row. Each mounted
+shelf's `<img>` therefore competed equally for bandwidth and decode. The active
+shelf now renders `loading="eager"` with `fetchPriority="high"`; the mounted
+offscreen shelves render `loading="lazy"` with `fetchPriority="low"`. Only the
+two attributes change, so travel patches them in place and no shelf refetches.
+React withholds its hoisted image preload for a lazy image, and withholds it
+inside `<picture>` either way, so nothing reinstates the deferred requests.
+
+Hypothesis: on a constrained link this reorders the shelf requests rather than
+reducing them; total asset bytes are unchanged. The M2 report's asset batch
+reopening at 3,096 ms and completing at 7,411 ms is the evidence this would
+speak to, but that batch has not been attributed to shelf artwork, so treat the
+connection as unproven. A run of rows G and H before and after is what would
+settle it.
+
+Neither change has been run against a browser. Both need row A as a baseline
+and a repeat of the affected production run before anything here is called a
+result.
+
 ## Work queue
 
 | Priority | Idea                                               | Status                         | Evidence required before shipping                                                                                                                               |
