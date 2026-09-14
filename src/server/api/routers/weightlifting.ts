@@ -23,6 +23,10 @@ import {
   wlWorkouts,
 } from "~/server/db/schema";
 import {
+  getCachedExerciseDirectory,
+  getCachedExerciseOccurrences,
+} from "~/server/queries/exerciseDirectory";
+import {
   getCachedActivityMosaic,
   getCachedWeightliftingStats,
 } from "~/server/queries/weightlifting";
@@ -313,9 +317,34 @@ const getCachedTrainingRows = unstable_cache(
 );
 
 export const weightliftingRouter = createTRPCRouter({
+  getExerciseDirectory: publicProcedure.query(() =>
+    getCachedExerciseDirectory(),
+  ),
+  getExerciseOccurrences: publicProcedure
+    .input(
+      z.object({
+        displayName: z.string().min(1).max(511),
+        offset: z.number().int().min(0).default(0),
+        allVariants: z.boolean().default(false),
+      }),
+    )
+    .query(({ input }) =>
+      getCachedExerciseOccurrences(
+        input.displayName,
+        input.offset,
+        input.allVariants,
+      ),
+    ),
   getBodyweightPareto: publicProcedure
-    .input(z.object({ displayName: z.string().min(1).max(511) }))
-    .query(({ input }) => getCachedWeightliftingPareto(input.displayName)),
+    .input(
+      z.object({
+        displayName: z.string().min(1).max(511),
+        allVariants: z.boolean().default(false),
+      }),
+    )
+    .query(({ input }) =>
+      getCachedWeightliftingPareto(input.displayName, input.allVariants),
+    ),
   /** Paginated workout list with date range filter */
   getWorkouts: publicProcedure
     .input(

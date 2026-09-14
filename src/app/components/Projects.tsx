@@ -154,7 +154,7 @@ function RepoItem({ repo }: { repo: GitHubPlacardRepo }) {
         href={repo.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group/repo pointer-events-auto -mx-2 flex min-w-0 flex-col gap-1 rounded-xl p-2 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+        className="group/repo pointer-events-auto -mx-2 flex min-w-0 flex-col gap-1 rounded-xl p-2 transition-colors duration-200 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
       >
         <span className="flex min-w-0 items-start gap-2 text-base font-semibold text-foreground">
           {repo.isFork ? (

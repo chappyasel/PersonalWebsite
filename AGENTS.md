@@ -31,12 +31,13 @@ names for icon-only controls. Preserve arrow notation in authored content,
 code examples, parsers, and logs. ESLint enforces icon imports and rejects
 text arrows in JSX.
 
-Never use Phosphor's `fill` weight except for the video play arrow in
-`src/app/components/TalkCard.tsx`. This restriction includes selected states,
-ratings, Field Notes, favicons, and social images. Use outlined weights
-such as `regular` or `bold`. Keep the desktop navigation's side pill as its
-selection marker; do not add a background highlight or switch to filled icons.
-ESLint rejects filled icon weights; the Talks play arrow has a local exception.
+Use outlined Phosphor weights for navigation. Keep the desktop navigation's
+side pill as its selection marker; do not add a background highlight or switch
+its icons to filled weights. ESLint enforces this for `UnitRail.tsx`.
+
+Filled icons are appropriate for earned rating stars, video play controls,
+brand logos, and saved or selected control states. Preserve intentional icon
+treatments elsewhere; do not apply a site-wide fill-to-outline replacement.
 
 ## Debug controls
 

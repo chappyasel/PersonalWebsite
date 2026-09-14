@@ -2,6 +2,7 @@
 
 import { wlSearchParams } from "../lib/searchParams";
 import {
+  BarbellIcon,
   CalendarDotsIcon,
   ChartBarIcon,
   ChartLineUpIcon,
@@ -18,6 +19,7 @@ import { devBaseUrl } from "~/lib/util";
 
 import { CollapsibleSection } from "~/components/ui/collapsible-section";
 
+import { AllExercises } from "./AllExercises";
 import { PersonalRecords } from "./PersonalRecords";
 import { StrengthProgressionChart } from "./StrengthProgressionChart";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
@@ -140,6 +142,13 @@ export function WeightliftingDashboard() {
         title="All Workouts"
       >
         <YearCalendar />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        icon={<BarbellIcon aria-hidden className="h-5 w-5" />}
+        title="All Exercises"
+      >
+        <AllExercises />
       </CollapsibleSection>
     </div>
   );

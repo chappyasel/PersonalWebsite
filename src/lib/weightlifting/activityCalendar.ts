@@ -28,11 +28,10 @@ export function activityCalendarMonths(endDate: string, count: number) {
     const offset = (first.getUTCDay() + 6) % 7;
     return {
       key: first.toISOString().slice(0, 7),
-      label: first.toLocaleDateString("en-US", {
+      label: `${first.toLocaleDateString("en-US", {
         month: "short",
-        year: "numeric",
         timeZone: "UTC",
-      }),
+      })} '${String(year).slice(-2)}`,
       fullLabel: first.toLocaleDateString("en-US", {
         month: "long",
         year: "numeric",

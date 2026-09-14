@@ -3,6 +3,10 @@ import { join } from "path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
 import rawData from "~~/data/systems.json";
 
 import { bookSlugFromUrl } from "~/lib/books/inlineFacts";

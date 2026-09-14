@@ -13,7 +13,10 @@ const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
 const LINK_LAUNCHERS = [
+  "../../app/components/Weightlifting.tsx",
   "../../app/components/DocCard.tsx",
+  "../../app/components/BlogPosts.tsx",
+  "../../app/musings/page.tsx",
   "../../app/weightlifting/components/PersonalRecords.tsx",
   "../../app/weightlifting/components/WorkoutPreview.tsx",
 ];

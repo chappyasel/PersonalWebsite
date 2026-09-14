@@ -2479,11 +2479,9 @@ export default function FieldNotesChrome() {
       document.documentElement.setAttribute("data-field-notes-open", "");
       return;
     }
-    const timeout = window.setTimeout(
-      () => document.documentElement.removeAttribute("data-field-notes-open"),
-      300,
-    );
-    return () => window.clearTimeout(timeout);
+    // Return the room's controls as the album closes, matching books and
+    // document sheets instead of waiting for a separate exit timeout.
+    document.documentElement.removeAttribute("data-field-notes-open");
   }, [open]);
   useEffect(
     () => () =>

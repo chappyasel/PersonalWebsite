@@ -23,6 +23,7 @@ import {
   type ModalOrigin,
   originEntrance,
   originExit,
+  peekModalOrigin,
   takeModalOrigin,
 } from "~/lib/originFlight";
 import { closeOverlayChrome, openOverlayChrome } from "~/lib/overlayChrome";
@@ -99,6 +100,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   // Documents use the same external-library links and origin flight as Stacks.
   const fromStacks = presentation !== undefined;
   const onCloseStart = presentation?.onCloseStart;
+  const launchOrigin = fromStacks && isModalOpen ? peekModalOrigin() : null;
 
   const bookId = selectedBookId ?? "";
 
@@ -202,6 +204,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       if (!isModalOpen || isClosingRef.current) return;
       isClosingRef.current = true;
       onCloseStart?.();
+      releaseOverlayChrome();
       (document.activeElement as HTMLElement)?.blur();
       const origin = stacksOriginRef.current;
       const shell = shellRef.current;
@@ -542,7 +545,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
           {/* Backdrop */}
           <motion.div
             ref={backdropRef}
-            className={`fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60 ${expanded ? "pointer-events-none" : ""}`}
+            className={`fixed inset-0 z-50 bg-stone-900/70 dark:bg-black/70 ${expanded ? "pointer-events-none" : ""}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -560,7 +563,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
             onPointerDown={armDismiss}
             onClick={dismissIfArmed}
           >
-            <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
+            <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
               <motion.div
                 ref={shellRef}
                 role="dialog"
@@ -570,12 +573,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 tabIndex={-1}
                 data-book-modal-shell={presentation?.source}
-                className={`relative w-full max-w-4xl outline-none ${fullHeight ? "h-full" : ""}`}
+                className={`relative w-full max-w-5xl outline-none ${fullHeight ? "h-full" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={
-                  fromStacks && !reduceMotion
-                    ? { opacity: 0, scale: 0.965, y: 14 }
-                    : { opacity: 1, scale: 1, y: 0 }
+                  launchOrigin || reduceMotion
+                    ? false
+                    : fromStacks
+                      ? { opacity: 0, scale: 0.965, y: 14 }
+                      : { opacity: 1, scale: 1, y: 0 }
                 }
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={
@@ -599,7 +604,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     Framer to morph from a source that does not exist. */}
                 <motion.div
                   layoutId={fromStacks ? undefined : `book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
@@ -607,7 +612,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 {/* Actual content - fades in on top */}
                 <motion.div
                   className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
-                  initial={{ opacity: 0 }}
+                  initial={fromStacks ? false : { opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{

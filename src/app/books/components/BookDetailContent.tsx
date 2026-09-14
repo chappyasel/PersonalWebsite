@@ -1366,7 +1366,7 @@ export function BookDetailContent({
                           <StarIcon
                             key={i}
                             size={20}
-                            weight={i < book.rating! ? "bold" : "duotone"}
+                            weight={i < book.rating! ? "fill" : "duotone"}
                             className={
                               i < book.rating!
                                 ? "text-yellow-400"
@@ -1541,7 +1541,7 @@ export function BookDetailContent({
                   <StarIcon
                     key={i}
                     size={20}
-                    weight={i < book.rating! ? "bold" : "duotone"}
+                    weight={i < book.rating! ? "fill" : "duotone"}
                     className={
                       i < book.rating!
                         ? "text-yellow-400"

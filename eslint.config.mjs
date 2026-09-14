@@ -3,7 +3,7 @@ import drizzle from "eslint-plugin-drizzle";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
-export default defineConfig([
+const config = defineConfig([
   ...nextVitals,
   ...tseslint.configs.recommendedTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -48,12 +48,6 @@ export default defineConfig([
       ],
       "no-restricted-syntax": [
         "error",
-        {
-          selector:
-            "JSXAttribute[name.name='weight'] Literal[value='fill'], Property[key.name='weight'] Literal[value='fill'], Property[key.value='weight'] Literal[value='fill'], AssignmentPattern[left.name='weight'] Literal[value='fill'], VariableDeclarator[id.name='weight'] Literal[value='fill'], CallExpression[callee.name=/^phosphor(Svg|Paths)$/] > Literal[value='fill']",
-          message:
-            "Filled icons are banned. Use an outlined Phosphor weight such as regular or bold, including for selected states.",
-        },
         {
           selector:
             "JSXText[value=/[\\u2190-\\u21ff\\u27f0-\\u27ff\\u2900-\\u297f\\u2b05-\\u2b07➔➜➝➞➤➧‹›«»]|->|<-/u], JSXExpressionContainer Literal[value=/[\\u2190-\\u21ff\\u27f0-\\u27ff\\u2900-\\u297f\\u2b05-\\u2b07➔➜➝➞➤➧‹›«»]|->|<-/u]",
@@ -122,6 +116,28 @@ export default defineConfig([
     files: ["**/*.mjs"],
     linterOptions: {
       reportUnusedDisableDirectives: false,
+    },
+  },
+]);
+
+const interfaceSyntaxRules = config.find(
+  (entry) => entry.rules?.["no-restricted-imports"],
+).rules["no-restricted-syntax"];
+
+export default defineConfig([
+  ...config,
+  {
+    name: "outlined-navigation-icons",
+    files: ["src/app/components/stacks/dom/UnitRail.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        ...interfaceSyntaxRules,
+        {
+          selector:
+            "JSXAttribute[name.name='weight'] Literal[value='fill'], Property[key.name='weight'] Literal[value='fill'], Property[key.value='weight'] Literal[value='fill'], AssignmentPattern[left.name='weight'] Literal[value='fill'], VariableDeclarator[id.name='weight'] Literal[value='fill'], CallExpression[callee.name=/^phosphor(Svg|Paths)$/] > Literal[value='fill']",
+          message: "Keep navigation icons outlined; the side pill marks selection.",
+        },
+      ],
     },
   },
 ]);

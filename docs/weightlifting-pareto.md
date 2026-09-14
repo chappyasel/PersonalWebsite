@@ -16,6 +16,8 @@ The lifting tables contain no bodyweight column. Bodyweight already has producti
 
 The query caches each exact exercise display name for five minutes and shares the existing weightlifting invalidation tag. A lifting sync invalidates it. A bodyweight upload becomes visible on a subsequent request after cache expiry; the first expired read can serve the previous result while Next.js refreshes it. The displayed analysis timestamp identifies that generation. The browser query also has a five-minute stale time and refetches through normal query mount/focus behavior.
 
+Server failures log `[weightlifting-pareto]` with a fixed stage of `weight_log`, `lifting`, or `analysis`, and a safe reason such as `snapshot_missing`, `access_denied`, or `snapshot_invalid`. Unknown source failures use `source_failed`; analysis failures use `analysis_failed`. Logs omit raw exceptions, provider messages, query inputs, and measurements. The public error stays generic. If a local snapshot is missing, run `pnpm restore:weight-log`; Superset workspace setup also restores it automatically. See [local setup](weight-log.md#local-workspace-setup).
+
 ## Refresh command
 
 From this workspace, with the existing server environment in `.env` and `WEIGHT_WORKBOOK` pointing to the workbook outside the repository:

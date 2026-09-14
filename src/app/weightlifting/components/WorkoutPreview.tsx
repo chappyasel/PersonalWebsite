@@ -15,10 +15,10 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import { recordModalOrigin } from "~/lib/originFlight";
-
-import SheetLink from "~/components/modal-sheet/SheetLink";
+import { partitionWorkoutSupersets } from "~/lib/weightlifting/workoutGroups";
 import { type RouterOutputs, api } from "~/trpc/react";
 
+import SheetLink from "~/components/modal-sheet/SheetLink";
 import { Spinner } from "~/components/ui/spinner";
 
 import { QueryErrorFallback } from "./QueryErrorFallback";
@@ -26,33 +26,6 @@ import { QueryErrorFallback } from "./QueryErrorFallback";
 type WorkoutPreviewData =
   RouterOutputs["weightlifting"]["getWorkoutPreview"][number];
 type Exercise = WorkoutPreviewData["exercises"][number];
-
-/**
- * Partition a workout's exercises into consecutive runs sharing a superset
- * group (already parsed server-side to exercise-order groups). Groups with
- * fewer than 2 members are dropped; runs that end up with a single exercise
- * render as normal cards.
- */
-function partitionSupersets(workout: WorkoutPreviewData) {
-  const groupByOrder = new Map<number, number>();
-  workout.supersets.forEach((orders, groupIndex) => {
-    const valid = orders.filter((n) => Number.isInteger(n) && n >= 0);
-    if (valid.length < 2) return;
-    for (const order of valid) groupByOrder.set(order, groupIndex);
-  });
-
-  const runs: { groupId: number | null; exercises: Exercise[] }[] = [];
-  for (const exercise of workout.exercises) {
-    const groupId = groupByOrder.get(exercise.order) ?? null;
-    const last = runs[runs.length - 1];
-    if (last && groupId !== null && last.groupId === groupId) {
-      last.exercises.push(exercise);
-    } else {
-      runs.push({ groupId, exercises: [exercise] });
-    }
-  }
-  return runs;
-}
 
 /**
  * One exercise row inside a card, mirroring ExercisesCellChildView: name in
@@ -208,7 +181,7 @@ export function WorkoutPreview({ target }: { target: WorkoutPreviewTarget }) {
                 single card, color blocks tiling the right edge
                 (ExercisesTableViewCell) */}
             <div className="space-y-2">
-              {partitionSupersets(workout).map((run, i) => (
+              {partitionWorkoutSupersets(workout).map((run, i) => (
                 <div
                   key={i}
                   className="overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-800"

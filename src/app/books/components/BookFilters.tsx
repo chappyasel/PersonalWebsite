@@ -360,7 +360,7 @@ export function BookFilters({
                 >
                   <StarIcon
                     size={20}
-                    weight={isHighlighted ? "bold" : "duotone"}
+                    weight={isHighlighted ? "fill" : "duotone"}
                     className={
                       isHighlighted
                         ? "text-yellow-400"

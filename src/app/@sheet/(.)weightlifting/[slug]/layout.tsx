@@ -1,4 +1,4 @@
-import { WeightliftingSheet } from "../WeightliftingSheet";
+import { WeightliftingSheet } from "~/app/weightlifting/@sheet/WeightliftingSheet";
 
 // The sheet chrome lives in the segment LAYOUT so it mounts the instant the
 // navigation starts — loading.tsx streams a skeleton inside it while the

@@ -8,6 +8,7 @@ const placard = read("./PlacardLayer.tsx");
 const placardStatsCard = read("./PlacardStatsCard.tsx");
 const blogPosts = read("../../BlogPosts.tsx");
 const talkCard = read("../../TalkCard.tsx");
+const subjectCards = read("./BookSubjectCards.tsx");
 
 describe("placard text hierarchy", () => {
   it("defaults readable content to foreground instead of treating every card as metadata", () => {
@@ -34,20 +35,12 @@ describe("placard text hierarchy", () => {
   it("stabilizes text contrast over every photographed backdrop", () => {
     expect(placardStatsCard.match(/bg-muted\/90/g)).toHaveLength(2);
     expect(placardStatsCard).not.toContain("bg-muted/40");
-    expect(placard).toContain(
-      'className="mt-1 block text-[9px] font-medium uppercase leading-none tracking-[0.08em] text-muted-foreground"',
-    );
-    expect(placard).not.toContain("tracking-[0.08em] opacity-60");
   });
 
-  it("gives the subject library an opaque, light theme surface", () => {
-    expect(placard).toContain("Books by subject");
+  it("keeps subject text theme-aware over tinted glass", () => {
+    expect(placard).toContain("Favorite subjects");
     expect(placard).not.toContain("Library by subject");
-    expect(placard).toContain(
-      "backgroundColor: `color-mix(in srgb, hsl(var(--card)) 86%, ${colors.fg} 14%)`",
-    );
-    expect(placard).not.toContain(
-      "backgroundColor: `color-mix(in srgb, ${colors.fg} 14%, transparent)`",
-    );
+    expect(subjectCards).toContain("${colors.bg} 65%, transparent");
+    expect(subjectCards).toContain("text-foreground");
   });
 });

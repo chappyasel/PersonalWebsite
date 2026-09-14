@@ -1,9 +1,7 @@
 import { ImageResponse } from "next/og";
 
-import {
-  getCachedExerciseDetail,
-  getCachedExerciseIndex,
-} from "~/server/queries/weightliftingExercise";
+import { resolveExercise } from "~/server/queries/resolveExercise";
+import { getCachedExerciseDetail } from "~/server/queries/weightliftingExercise";
 
 import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 
@@ -29,10 +27,14 @@ export default async function Image({
 }) {
   const { slug } = await params;
   try {
-    const index = await getCachedExerciseIndex();
-    const entry = index.find((e) => e.slug === slug);
-    const detail = entry
-      ? await getCachedExerciseDetail(entry.displayName)
+    const resolved = await resolveExercise(slug);
+    const detail = resolved
+      ? await getCachedExerciseDetail(
+          resolved.allVariants
+            ? resolved.entry.name
+            : resolved.entry.displayName,
+          resolved.allVariants,
+        )
       : null;
     const fontBold = await loadGeorgiaProBold();
 

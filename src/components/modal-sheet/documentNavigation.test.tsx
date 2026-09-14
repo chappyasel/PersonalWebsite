@@ -18,10 +18,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SiteLink from "~/components/site/SiteLink";
 
+import SheetLink from "./SheetLink";
 import SheetLayout from "~/app/@sheet/layout";
 
-const { navigation, scenePresence, takeOrigin, routerBack } = vi.hoisted(
-  () => ({
+const { navigation, scenePresence, takeOrigin, routerBack, routerPrefetch } =
+  vi.hoisted(() => ({
     navigation: {
       segment: "(.)systems",
       replace: undefined as boolean | undefined,
@@ -30,11 +31,12 @@ const { navigation, scenePresence, takeOrigin, routerBack } = vi.hoisted(
     scenePresence: vi.fn(),
     takeOrigin: vi.fn(() => ({ l: 10, t: 20, w: 100, h: 100 })),
     routerBack: vi.fn(() => window.history.back()),
-  }),
-);
+    routerPrefetch: vi.fn(),
+  }));
 vi.mock("next/navigation", () => ({
+  usePathname: () => window.location.pathname,
   useSelectedLayoutSegment: () => navigation.segment,
-  useRouter: () => ({ back: routerBack }),
+  useRouter: () => ({ back: routerBack, prefetch: routerPrefetch }),
 }));
 vi.mock("next/link", () => ({
   default: ({
@@ -83,9 +85,11 @@ vi.mock("~/app/components/stacks/store", () => ({
   useStacks: { getState: () => ({ setModalOpen: scenePresence }) },
 }));
 vi.mock("~/lib/originFlight", () => ({
+  peekModalOrigin: () => ({ l: 10, t: 20, w: 100, h: 100 }),
   takeModalOrigin: takeOrigin,
   originEntrance: vi.fn(),
   originExit: vi.fn(() => false),
+  recordModalOrigin: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -108,6 +112,38 @@ afterEach(() => {
 });
 
 describe("document navigation inside a sheet", () => {
+  it("keeps one shell and launch origin while browsing musings", async () => {
+    navigation.segment = "(.)musings";
+    window.history.replaceState(null, "", "/musings/first-essay");
+    const view = render(
+      <SheetLayout>
+        <SheetLink href="/musings/second-essay">Older essay</SheetLink>
+      </SheetLayout>,
+    );
+    const shell = screen.getByRole("dialog", { name: "Musings" });
+    const scroller = shell.querySelector<HTMLElement>("[data-modal-scroller]")!;
+    scroller.scrollTop = 720;
+    fireEvent.click(screen.getByRole("link", { name: "Older essay" }));
+    expect(navigation.replace).toBe(true);
+    expect(navigation.prefetch).toBe(true);
+    view.rerender(
+      <SheetLayout>
+        <p>Second essay</p>
+      </SheetLayout>,
+    );
+    expect(screen.getByRole("dialog")).toBe(shell);
+    expect(scroller.scrollTop).toBe(0);
+    expect(takeOrigin).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("link", { name: "Open full page" }).getAttribute("href"),
+    ).toBe("/musings/second-essay");
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(routerBack).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(window.location.pathname + window.location.hash).toBe("/#systems"),
+    );
+  });
+
   it("reuses the shell and launch origin, then closes directly to the scene", async () => {
     const view = render(
       <SheetLayout>
@@ -180,6 +216,40 @@ describe("document navigation inside a sheet", () => {
     render(<SheetLayout>{null}</SheetLayout>);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it.each(["/systems", "/musings", "/musings/first-essay"])(
+    "prefetches %s on hover and keyboard focus without navigating",
+    (href) => {
+      const onMouseEnter = vi.fn();
+      const onFocus = vi.fn();
+      render(
+        <SheetLink href={href} onMouseEnter={onMouseEnter} onFocus={onFocus}>
+          Read
+        </SheetLink>,
+      );
+      const link = screen.getByRole("link");
+      fireEvent.mouseEnter(link);
+      expect(routerPrefetch).toHaveBeenCalledWith(href);
+      expect(onMouseEnter).toHaveBeenCalledOnce();
+      routerPrefetch.mockClear();
+      fireEvent.focus(link);
+      expect(routerPrefetch).toHaveBeenCalledWith(href);
+      expect(onFocus).toHaveBeenCalledOnce();
+      expect(window.location.pathname).toBe("/systems");
+    },
+  );
+
+  it.each([
+    { href: "/systems", prefetch: false },
+    { href: "https://example.com/article" },
+    { href: "/musings", target: "_blank" },
+  ])("does not prefetch an opted-out or external destination: %j", (props) => {
+    render(<SheetLink {...props}>Read</SheetLink>);
+    const link = screen.getByRole("link");
+    fireEvent.mouseEnter(link);
+    fireEvent.focus(link);
+    expect(routerPrefetch).not.toHaveBeenCalled();
+  });
 });
 
 it("keeps the current document and scroll position while the next document suspends", async () => {
@@ -223,3 +293,46 @@ it("keeps the current document and scroll position while the next document suspe
   expect(scroller.scrollTop).toBe(0);
   expect(takeOrigin).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  ["systems", "Personal Systems"],
+  ["manual", "Personal Operating Manual"],
+  ["routine", "Core Daily Routine"],
+  ["musings", "Musings"],
+])(
+  "opens the %s sheet while its first document is still loading",
+  async (route, label) => {
+    navigation.segment = `(.)${route}`;
+    history.replaceState(null, "", `/${route}`);
+    let resolve!: (value: string) => void;
+    const ready = new Promise<string>((done) => {
+      resolve = done;
+    });
+    function PendingDocument() {
+      return <p>{use(ready)}</p>;
+    }
+    await act(async () => {
+      render(
+        <Suspense fallback={<p>Waiting for the sheet</p>}>
+          <SheetLayout>
+            <PendingDocument />
+          </SheetLayout>
+        </Suspense>,
+      );
+    });
+    const shell = screen.getByRole("dialog", { name: label });
+    expect(
+      screen.getByRole("status", { name: `Loading ${label}` }),
+    ).toBeDefined();
+    expect(shell.querySelector("[data-daylight-hero]")).not.toBeNull();
+    expect(shell.querySelector(".dl-horizon")).not.toBeNull();
+    expect(screen.queryByText(`Loading ${label}…`)).toBeNull();
+    expect(screen.getByRole("button", { name: "Close" })).toBeDefined();
+    expect(screen.queryByText("Waiting for the sheet")).toBeNull();
+    await act(async () => resolve(`${label} content`));
+    expect(screen.getByText(`${label} content`)).toBeDefined();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("dialog")).toBe(shell);
+    expect(takeOrigin).toHaveBeenCalledTimes(1);
+  },
+);

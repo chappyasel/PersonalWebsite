@@ -48,17 +48,15 @@ function useActiveSection(items: TOCItem[]) {
 }
 
 /**
- * In-flow rail from lg up. It is the first grid item of a .dl-columns row
- * (daylight.css), which gives it its width and gap and keeps the content
- * column centred on the viewport whenever the rail fits beside it; below lg
- * the rail is hidden and the column stands alone.
+ * The full-page rail appears only when daylight.css can fit it beside a
+ * centred reading column. Sheets and narrower pages hide it.
  */
 export function DaylightTOCSidebar({ items }: { items: TOCItem[] }) {
   const { activeId, scrollTo } = useActiveSection(items);
 
   return (
     <nav
-      className="dl-toc sticky top-12 hidden h-fit self-start lg:block"
+      className="dl-toc sticky top-12 h-fit self-start"
       aria-label="Sections"
     >
       <p className="mb-3 py-[0.3rem] text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">

@@ -6,7 +6,11 @@ import type { Attempt } from "./analysis";
 /** Never select only PRs, session maxima, or observations above the display floor. */
 export async function loadParetoAttempts<
   Schema extends Record<string, unknown>,
->(db: PostgresJsDatabase<Schema>, displayName: string) {
+>(
+  db: PostgresJsDatabase<Schema>,
+  displayName: string,
+  allVariants?: boolean,
+) {
   return db.transaction(
     async (tx) => {
       const rows = await tx.execute<Attempt>(sql`
@@ -15,8 +19,12 @@ export async function loadParetoAttempts<
       FROM wl_sets s JOIN wl_exercises e ON e.id = s.exercise_id
       JOIN wl_workouts w ON w.id = e.workout_id
       WHERE e.style = 'reps_weight' AND s.one_rm > 0
-        AND CASE WHEN COALESCE(e.iteration, '') = '' THEN e.name
-          ELSE e.iteration || ' ' || e.name END = ${displayName}
+        AND ${
+          allVariants
+            ? sql`e.name`
+            : sql`CASE WHEN COALESCE(e.iteration, '') = '' THEN e.name
+          ELSE e.iteration || ' ' || e.name END`
+        } = ${displayName}
       ORDER BY w.date, e.exercise_order, s.set_order, s.id
     `);
       const sync = await tx.execute<{ date: string | null }>(sql`

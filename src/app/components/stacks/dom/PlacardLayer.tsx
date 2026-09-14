@@ -40,6 +40,7 @@ import {
   CaretUpIcon,
   ClockCounterClockwiseIcon,
   TagIcon,
+  StarIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -65,9 +66,7 @@ import licenses from "~~/models/LICENSES.json";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
-import { getTagColor, getTagIcon } from "~/lib/books/tagColors";
 import type {
-  HomepageBookPlacard,
   HomepageBookPreview,
 } from "~/lib/books/types";
 import { useBookNotesActionLabel } from "~/lib/books/useBookNotesActionLabel";
@@ -76,6 +75,8 @@ import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { devSubdomainUrl } from "~/lib/util";
 
 import { Keycap } from "~/components/ui/keycap";
+
+import { BookSubjectCards } from "./BookSubjectCards";
 
 import {
   PlacardCardHeading,
@@ -88,6 +89,7 @@ import {
   chromeKeyIntent,
 } from "./chromeKeys";
 import { readFocusMode, writeFocusMode } from "./focusMode";
+import { useDesktopDetailsBoundary } from "./useDesktopDetailsBoundary";
 import {
   MOBILE_SHEET_HORIZONTAL_DOMINANCE,
   MOBILE_SHEET_TITLE_CLAMP,
@@ -392,6 +394,8 @@ type PlacardBodies = Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
  * then removes it from backdrop compositing until it is active again. */
 const DesktopUnitPanel = memo(function DesktopUnitPanel({
   active,
+  interactive,
+  returning,
   initial,
   mounted,
   label,
@@ -402,6 +406,8 @@ const DesktopUnitPanel = memo(function DesktopUnitPanel({
   children,
 }: {
   active: boolean;
+  interactive: boolean;
+  returning: boolean;
   initial: boolean;
   mounted: boolean;
   label: string;
@@ -412,7 +418,7 @@ const DesktopUnitPanel = memo(function DesktopUnitPanel({
   children: React.ReactNode;
 }) {
   const duration = active ? SWAP_IN_MS : SWAP_OUT_MS;
-  const delay = active ? SWAP_OUT_MS : 0;
+  const delay = active && !returning ? SWAP_OUT_MS : 0;
   const visibilityDelay = active ? 0 : SWAP_OUT_MS;
   return (
     <div
@@ -444,7 +450,7 @@ const DesktopUnitPanel = memo(function DesktopUnitPanel({
         } as React.CSSProperties
       }
     >
-      <Panel active={active} mounted={mounted} label={label}>
+      <Panel active={active && interactive} mounted={mounted} label={label}>
         {children}
       </Panel>
     </div>
@@ -462,14 +468,14 @@ const DesktopUnitPanel = memo(function DesktopUnitPanel({
  * cut every card off from the scene it needs to blur. */
 function DesktopPanel({
   activeUnit,
-  modalOpen,
-  detailsHidden,
+  interactive,
+  returning,
   bodies,
   preparedUnits,
 }: {
   activeUnit: number;
-  modalOpen: boolean;
-  detailsHidden: boolean;
+  interactive: boolean;
+  returning: boolean;
   bodies: PlacardBodies;
   preparedUnits: ReadonlySet<number>;
 }) {
@@ -487,12 +493,16 @@ function DesktopPanel({
   return (
     <>
       {UNITS.map((unit, index) => {
-        const active = index === activeUnit && !modalOpen && !detailsHidden;
+        // Hiding the dock moves this whole document offscreen. Keep its
+        // content visible throughout the slide; only section travel fades it.
+        const active = index === activeUnit;
         const side = index < activeUnit ? -1 : index > activeUnit ? 1 : 0;
         return (
           <DesktopUnitPanel
             key={unit.slug}
             active={active}
+            interactive={interactive}
+            returning={returning}
             initial={index === initialActiveUnit}
             mounted={index === activeUnit || preparedUnits.has(index)}
             label={unit.label}
@@ -559,86 +569,26 @@ function bookNotesHref(bookId: string) {
   return `${booksHref()}${getBookPath(bookId)}`;
 }
 
-function subjectBooksHref(subject: string) {
-  const query = new URLSearchParams({ tags: subject });
-  return `${booksHref()}/?${query.toString()}`;
-}
-
-const SUBJECT_PLACEMENTS = [
-  "book-subject-feature",
-  "book-subject-feature",
-  "book-subject-standard",
-  "book-subject-standard",
-  "book-subject-standard",
-  "book-subject-compact",
-  "book-subject-compact",
-  "book-subject-compact",
-] as const;
-
-function BookSubjectLandscape({
-  subjects,
-}: {
-  subjects: HomepageBookPlacard["subjects"];
-}) {
-  return (
-    <div className="book-subjects-container">
-      <div className="book-subjects-grid">
-        {subjects.map((subject, index) => {
-          const colors = getTagColor(subject.name);
-          const Icon = getTagIcon(subject.name);
-          const compact = index >= 5;
-          return (
-            <Link
-              key={subject.name}
-              href={subjectBooksHref(subject.name)}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Browse ${subject.name} books`}
-              className={`${SUBJECT_PLACEMENTS[index] ?? "book-subject-standard"} flex min-w-0 overflow-hidden rounded-xl border text-left transition-[transform,box-shadow] duration-200 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${compact ? "p-2" : "p-3"}`}
-              style={{
-                backgroundColor: `color-mix(in srgb, hsl(var(--card)) 86%, ${colors.fg} 14%)`,
-                borderColor: `color-mix(in srgb, ${colors.fg} 32%, transparent)`,
-                boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.38), inset 0 -1px 0 color-mix(in srgb, ${colors.fg} 10%, transparent), 0 7px 16px -12px rgb(0 0 0 / 0.34)`,
-                backdropFilter: "blur(18px) saturate(1.25)",
-                WebkitBackdropFilter: "blur(18px) saturate(1.25)",
-                color: "hsl(var(--foreground))",
-              }}
-            >
-              <div className="flex min-w-0 items-start gap-2">
-                <Icon
-                  className="size-4 shrink-0"
-                  weight="bold"
-                  style={{ color: colors.fg }}
-                />
-                <div className="min-w-0">
-                  <span className="line-clamp-2 font-serif text-xs font-medium leading-[1.15]">
-                    {subject.name}
-                  </span>
-                  <span className="mt-1 block text-[9px] font-medium uppercase leading-none tracking-[0.08em] text-muted-foreground">
-                    {subject.count} books
-                  </span>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function BookStars({ rating }: { rating: number }) {
   return (
-    <span aria-label={`${rating} out of 5 stars`} className="tracking-[0.08em]">
-      <span aria-hidden>{"★".repeat(rating)}</span>
-      <span aria-hidden className="text-foreground/15">
-        {"★".repeat(5 - rating)}
-      </span>
+    <span
+      role="img"
+      aria-label={`${rating} out of 5 stars`}
+      className="inline-flex gap-0.5"
+    >
+      {Array.from({ length: 5 }, (_, index) => (
+        <StarIcon
+          key={index}
+          aria-hidden
+          weight={index < rating ? "fill" : "duotone"}
+          className={`size-3 ${index < rating ? "text-amber-600 dark:text-amber-400" : "text-foreground/15"}`}
+        />
+      ))}
     </span>
   );
 }
 
-function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
+export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
   const bookNotesActionLabel = useBookNotesActionLabel();
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const dates = book.finished
@@ -649,26 +599,36 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
       : null;
   const length = formatLength(book.audioLengthMin, book.pageCount);
   return (
-    <div className="book-preview-row grid grid-cols-[76px_1fr] gap-4 rounded-lg">
-      <button
-        type="button"
-        aria-label={`${bookNotesActionLabel} for ${book.title} by ${book.author}`}
-        onMouseEnter={() => requestBookPrefetch(book.id)}
-        onFocus={() => requestBookPrefetch(book.id)}
-        onPointerDown={() => requestBookPrefetch(book.id)}
-        onClick={(event) => {
-          requestBookPrefetch(book.id);
-          recordModalOrigin(event.currentTarget.getBoundingClientRect());
-          useStacks.getState().setPendingBookId(book.id);
-        }}
-        className="book-preview-cover relative aspect-[2/3] overflow-hidden rounded-[4px] bg-foreground/5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+    <Link
+      href={bookNotesHref(book.id)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${bookNotesActionLabel} for ${book.title} by ${book.author}`}
+      onMouseEnter={() => requestBookPrefetch(book.id)}
+      onFocus={() => requestBookPrefetch(book.id)}
+      onPointerDown={() => requestBookPrefetch(book.id)}
+      onClick={(event) => {
+        if (
+          event.defaultPrevented || event.button !== 0 || event.metaKey ||
+          event.ctrlKey || event.shiftKey || event.altKey
+        ) return;
+        event.preventDefault();
+        requestBookPrefetch(book.id);
+        const cover = event.currentTarget.querySelector(".book-preview-cover");
+        recordModalOrigin((cover ?? event.currentTarget).getBoundingClientRect());
+        useStacks.getState().setPendingBookId(book.id);
+      }}
+      className="book-preview-row -mx-2 grid h-full grid-cols-[64px_1fr] items-center gap-4 rounded-xl px-2 text-left transition-colors duration-200 hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+    >
+      <div
+        className="book-preview-cover relative aspect-[2/3] w-full overflow-hidden rounded-[4px] bg-foreground/5"
       >
         {coverUrl ? (
           <Image
             src={coverUrl}
             alt=""
             fill
-            sizes="(max-width: 1199px) 68px, 76px"
+            sizes="(max-width: 1199px) 68px, 64px"
             className="object-cover"
           />
         ) : (
@@ -678,14 +638,8 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
             </span>
           </div>
         )}
-      </button>
-      <Link
-        href={bookNotesHref(book.id)}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`View book notes for ${book.title} by ${book.author}`}
-        className="min-w-0 self-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
-      >
+      </div>
+      <div className="min-w-0 self-center">
         <p className="book-preview-title line-clamp-1 font-serif text-[17px] font-medium leading-[1.2] text-foreground">
           {book.title}
         </p>
@@ -707,8 +661,8 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
             {dates}
           </p>
         ) : null}
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
 }
 
@@ -760,7 +714,10 @@ function BooksPlacard({ data }: { data: StacksData }) {
           label="Browse Book Notes for currently reading books"
           newTab
         >
-          <PlacardCardHeading icon={BookOpenTextIcon}>
+          <PlacardCardHeading
+            icon={BookOpenTextIcon}
+            className="mb-1 min-[1200px]:mb-0.5"
+          >
             Currently reading
           </PlacardCardHeading>
           <BookLedger books={bookPlacard.current} />
@@ -771,14 +728,17 @@ function BooksPlacard({ data }: { data: StacksData }) {
         label="Browse Book Notes for recently read books"
         newTab
       >
-        <PlacardCardHeading icon={ClockCounterClockwiseIcon}>
+        <PlacardCardHeading
+          icon={ClockCounterClockwiseIcon}
+          className="mb-1 min-[1200px]:mb-0.5"
+        >
           Recently read
         </PlacardCardHeading>
         <BookLedger books={bookPlacard.recent} recent />
       </PlacardNestedLinkCard>
-      <PlacardNestedLinkCard href={href} label="Browse books by subject" newTab>
-        <PlacardCardHeading icon={TagIcon}>Books by subject</PlacardCardHeading>
-        <BookSubjectLandscape subjects={bookPlacard.subjects} />
+      <PlacardNestedLinkCard href={href} label="Browse favorite book subjects" newTab>
+        <PlacardCardHeading icon={TagIcon}>Favorite subjects</PlacardCardHeading>
+        <BookSubjectCards subjects={bookPlacard.subjects} libraryHref={href} />
       </PlacardNestedLinkCard>
     </div>
   );
@@ -2301,6 +2261,7 @@ export default function PlacardLayer({
   const golfFocused = useStacks((s) => s.golfFocused);
   const preparedUnits = usePreparedUnitSet(activeUnit, sceneRevealed);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const bookModalReturning = useStacks((s) => s.bookModalReturning);
   const mobileDismissed = useStacks((s) => s.sheetDismissed);
   const reduceMotion = useStacksReducedMotion();
   const performanceSettings = useScenePerformanceSettings();
@@ -2345,44 +2306,7 @@ export default function PlacardLayer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  useLayoutEffect(() => {
-    const dock = desktopDockRef.current;
-    const publish = useStacks.getState().setDesktopDetailsLeftPx;
-    if (!dock || detailsHidden || modalOpen || golfFocused) {
-      publish(null);
-      return;
-    }
-
-    const measure = () => {
-      const scroller = dock.querySelector<HTMLElement>(
-        "[data-stacks-desktop-panel][data-stacks-active] .placard-scroll",
-      );
-      if (!scroller) {
-        publish(null);
-        return;
-      }
-      const paddingLeft = Number.parseFloat(
-        window.getComputedStyle(scroller).paddingLeft,
-      );
-      publish(
-        scroller.getBoundingClientRect().left +
-          (Number.isFinite(paddingLeft) ? paddingLeft : 0),
-      );
-    };
-
-    measure();
-    const resizeObserver = new ResizeObserver(measure);
-    resizeObserver.observe(dock);
-    window.addEventListener("resize", measure);
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", measure);
-      publish(null);
-    };
-    // Every resident desktop scroller shares the same dock geometry and px-8
-    // inset, so changing the active document cannot change this coordinate.
-    // Re-measuring it at every unit crossing only forces layout during travel.
-  }, [detailsHidden, golfFocused, modalOpen]);
+  useDesktopDetailsBoundary(desktopDockRef, detailsHidden || golfFocused);
   // Resident cards own content, measurement and scroll position. Their
   // three-position sheet pose remains one global preference, so dismissing
   // Book Notes and travelling to Weightlifting yields a Weightlifting chip,
@@ -2760,22 +2684,21 @@ export default function PlacardLayer({
         /* Book Notes lives in two very different shells: the full-width
            mobile sheet and the much narrower desktop dock. Viewport media
            queries cannot describe either one's usable card width, so the
-           ledger and subject map make their own inline size available to
+           ledger makes its own inline size available to
            container queries. Once the ledger has 25rem of actual content,
            stacking rating, length, and dates gives two compact rows enough
            room without shrinking the type back to the old 8–9px scale. */
-        .book-ledger-container,
-        .book-subjects-container { container-type: inline-size; }
+        .book-ledger-container { container-type: inline-size; }
         .book-ledger-grid {
+          --book-ledger-row-padding: 0.625rem;
           display: grid;
           grid-template-columns: minmax(0, 1fr);
-          row-gap: 1.75rem;
         }
-        .book-subjects-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          grid-auto-rows: minmax(5.5rem, auto);
-          gap: 0.5rem;
+        .book-preview-row {
+          padding-block: var(--book-ledger-row-padding);
+        }
+        .book-ledger-grid > div:nth-child(n + 2) {
+          border-top: 1px solid hsl(var(--foreground) / 0.06);
         }
         .book-preview-cover {
           transform: perspective(700px) rotateY(-3deg) translateZ(0);
@@ -2796,6 +2719,9 @@ export default function PlacardLayer({
             grid-template-columns: repeat(2, minmax(0, 1fr));
             column-gap: 1.5rem;
           }
+          .book-ledger-grid > div:nth-child(2) {
+            border-top: 0;
+          }
           .book-preview-row {
             grid-template-columns: 64px minmax(0, 1fr);
             gap: 0.875rem;
@@ -2805,16 +2731,6 @@ export default function PlacardLayer({
         }
         @container (max-width: 24.999rem) {
           .book-recent-overflow { display: none; }
-        }
-        @container (min-width: 18rem) {
-          .book-subjects-grid {
-            height: 16.75rem;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
-            grid-template-rows: repeat(4, minmax(0, 1fr)) minmax(3.75rem, auto);
-          }
-          .book-subject-feature { grid-column: span 3; grid-row: span 2; }
-          .book-subject-standard { grid-column: span 2; grid-row: span 2; }
-          .book-subject-compact { grid-column: span 2; }
         }
         .placard-sections section { margin-top: 0; }
         .placard-sections .mt-20 { margin-top: 0; }
@@ -2852,7 +2768,14 @@ export default function PlacardLayer({
         .placard-scroll .placard-sections .sm\\:text-3xl,
         .placard-scroll .placard-sections .md\\:text-3xl { font-size: calc(var(--ps) * 1.286); line-height: 1.333; }
         .placard-scroll .placard-sections .text-lg { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
-        .placard-scroll .placard-sections h3 { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
+        .placard-scroll .placard-sections h3,
+        .placard-scroll [data-placard-card-heading] { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
+        @media (min-width: 1200px) {
+          :is([data-stacks-desktop-panel="books"], [data-stacks-desktop-panel="training"], [data-stacks-desktop-panel="projects"]) .placard-scroll .placard-sections h3,
+          :is([data-stacks-desktop-panel="books"], [data-stacks-desktop-panel="training"], [data-stacks-desktop-panel="projects"]) .placard-scroll [data-placard-card-heading] {
+            font-size: calc(var(--ps) * 1.286);
+          }
+        }
         /* Mobile's sheet is the single backdrop-sampling surface. Its cards
            keep a stronger translucent fill for separation, but do not stack
            another expensive blur on top of the sheet. Desktop is deliberately
@@ -2860,29 +2783,23 @@ export default function PlacardLayer({
         @media (width < 1200px) {
           /* Shared page cards use the same 20px inset as the mobile sheet. */
           .placard-scroll a.p-5 { padding: 1.25rem !important; }
+          [data-stacks-mobile-panel] .placard-sections [data-featured-record-text] {
+            font-size: var(--ps);
+          }
           [data-stacks-mobile-panel] .book-ledger-grid {
-            row-gap: 1.25rem;
+            --book-ledger-row-padding: 0.5rem;
           }
           [data-stacks-mobile-panel] .book-preview-row {
             grid-template-columns: 68px minmax(0, 1fr);
             gap: 0.75rem;
           }
+          @container (max-width: 24.999rem) {
+            [data-stacks-mobile-panel] .book-preview-row {
+              grid-template-columns: 60px minmax(0, 1fr);
+            }
+          }
           [data-stacks-mobile-panel] .book-preview-title {
             font-size: 0.9375rem;
-          }
-          /* The desktop mosaic is 268px tall because its reading column is
-             wide enough to support that height. On a phone, keeping the same
-             fixed height stretched every tile vertically. Scale the height
-             with the mosaic's own width, then stop at the desktop height. */
-          @container (min-width: 18rem) {
-            [data-stacks-mobile-panel] .book-subjects-grid {
-              height: clamp(11.5rem, 64cqi, 16.75rem);
-              gap: 0.375rem;
-            }
-            [data-stacks-mobile-panel] .book-subject-feature,
-            [data-stacks-mobile-panel] .book-subject-standard {
-              padding: 0.625rem;
-            }
           }
           [data-stacks-mobile-panel] [data-placard-media]:not([data-placard-media="card-cover"]) {
             aspect-ratio: 16 / 9;
@@ -3228,13 +3145,10 @@ export default function PlacardLayer({
         id="stacks-desktop-details"
         data-stacks-desktop-dock
         data-hidden={detailsHidden ? "true" : "false"}
+        data-retracted={detailsHidden || golfFocused || undefined}
         aria-hidden={detailsHidden || modalOpen || golfFocused}
         inert={detailsHidden || modalOpen || golfFocused}
-        className={`absolute bottom-0 top-0 z-20 hidden transition-[opacity,transform] duration-200 min-[1200px]:block ${
-          modalOpen || detailsHidden || golfFocused
-            ? "pointer-events-none translate-x-[calc(100%+2rem)] opacity-0"
-            : ""
-        }`}
+        className="absolute bottom-0 top-0 z-20 hidden min-[1200px]:block"
         style={
           {
             pointerEvents: "none",
@@ -3243,14 +3157,15 @@ export default function PlacardLayer({
             // The gutter is a clamp for the same reason the width is: it
             // was right-5 stepping to lg:right-8, so the whole column
             // jumped 12px sideways at 1024 while you were resizing.
-            right: "clamp(1.25rem, 0.6rem + 1.1vw, 2rem)",
+            "--stacks-details-gutter": "clamp(1.25rem, 0.6rem + 1.1vw, 2rem)",
+            right: "var(--stacks-details-gutter)",
           } as React.CSSProperties
         }
       >
         <DesktopPanel
           activeUnit={activeUnit}
-          modalOpen={modalOpen}
-          detailsHidden={detailsHidden || golfFocused}
+          interactive={!detailsHidden && !modalOpen && !golfFocused}
+          returning={bookModalReturning}
           bodies={bodies}
           preparedUnits={preparedUnits}
         />
@@ -3260,9 +3175,9 @@ export default function PlacardLayer({
           nesting it under the scaling button left the text behind it sharp. */}
       <div
         data-stacks-details-toggle-shell=""
-        className={`group absolute right-1.5 z-30 hidden size-11 min-[1200px]:block ${
-          golfFocused ? "pointer-events-none opacity-0" : ""
-        }`}
+        data-retracted={golfFocused || undefined}
+        inert={golfFocused}
+        className="group absolute right-1.5 z-30 hidden size-11 min-[1200px]:block"
         style={{ top: "calc(50% - 1.375rem)" }}
       >
         {!coarseTouchCapability && (

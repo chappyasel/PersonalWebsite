@@ -44,7 +44,7 @@ export function YouTubePasswordGate() {
       >
         <YoutubeLogo
           className="mx-auto mb-6 h-10 w-10 text-red-600"
-          weight="bold"
+          weight="fill"
         />
         <h1 className="mb-2 font-rounded text-2xl font-semibold text-foreground">
           YouTube Watch History

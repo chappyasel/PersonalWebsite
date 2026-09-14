@@ -22,12 +22,14 @@ export function VariationPicker({
   currentSlug,
   baseName,
   color,
+  allVariantsSlug,
 }: {
   title: string;
   variants: { slug: string; displayName: string }[];
   currentSlug: string;
   baseName: string;
   color: string;
+  allVariantsSlug: string;
 }) {
   const [open, setOpen] = useState(false);
   // In the intercepted sheet a soft nav swaps the exercise inside the same
@@ -35,6 +37,7 @@ export function VariationPicker({
   // over this full page, so it hard-navigates instead.
   const inSheet = useContext(InModalSheetContext);
   const wlPath = useWlPath();
+  const Nav = inSheet ? Link : "a";
 
   return (
     <MotionConfig reducedMotion="user">
@@ -78,6 +81,19 @@ export function VariationPicker({
                   Select a Variation
                 </div>
                 <ul className="max-h-72 divide-y divide-neutral-100 overflow-y-auto dark:divide-neutral-700/60">
+                  <li>
+                    <Nav
+                      href={wlPath(`/${allVariantsSlug}`)}
+                      {...(inSheet ? { replace: true } : {})}
+                      onClick={() => setOpen(false)}
+                      aria-current={
+                        currentSlug === allVariantsSlug ? "page" : undefined
+                      }
+                      className={`block px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700/60 ${currentSlug === allVariantsSlug ? "bg-neutral-50 dark:bg-neutral-700/40" : ""}`}
+                    >
+                      All variants
+                    </Nav>
+                  </li>
                   {variants.map((variant) => {
                     const iteration = variant.displayName.endsWith(baseName)
                       ? variant.displayName
@@ -88,7 +104,6 @@ export function VariationPicker({
                           .trim()
                       : "";
                     const isCurrent = variant.slug === currentSlug;
-                    const Nav = inSheet ? Link : "a";
                     return (
                       <li key={variant.slug}>
                         {/* replace, not push: a variation swap is the same
@@ -98,6 +113,7 @@ export function VariationPicker({
                         <Nav
                           href={wlPath(`/${variant.slug}`)}
                           {...(inSheet ? { replace: true } : {})}
+                          aria-current={isCurrent ? "page" : undefined}
                           onClick={() => setOpen(false)}
                           className={`block px-4 py-2.5 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700/60 ${
                             isCurrent

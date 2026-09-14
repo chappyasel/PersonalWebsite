@@ -19,6 +19,8 @@ export function ExerciseHeader({
   variants,
   currentSlug,
   baseName,
+  allVariantsSlug,
+  allVariants = false,
 }: {
   displayName: string;
   category: string;
@@ -30,6 +32,8 @@ export function ExerciseHeader({
   variants: { slug: string; displayName: string }[];
   currentSlug: string;
   baseName: string;
+  allVariantsSlug: string;
+  allVariants?: boolean;
 }) {
   return (
     // In the sheet the corner cluster (expand + close) occupies the top
@@ -45,11 +49,17 @@ export function ExerciseHeader({
           currentSlug={currentSlug}
           baseName={baseName}
           color={color}
+          allVariantsSlug={allVariantsSlug}
         />
       ) : (
         <h1 className="font-rounded text-2xl font-semibold text-foreground md:text-4xl">
           {displayName}
         </h1>
+      )}
+      {allVariants && (
+        <p className="text-sm font-medium text-muted-foreground">
+          All variants
+        </p>
       )}
       <p className="text-sm text-neutral-500 dark:text-neutral-400">
         <span

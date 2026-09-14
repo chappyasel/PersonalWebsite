@@ -7,7 +7,10 @@ const rules = config.find(
   (entry) => entry.rules?.["no-restricted-imports"],
 ).rules;
 const linter = new Linter();
-const lint = (code) =>
+const navigationPolicy = config.find(
+  (entry) => entry.name === "outlined-navigation-icons",
+);
+const lint = (code, filename = "src/example.tsx") =>
   linter.verify(
     code,
     [
@@ -22,8 +25,9 @@ const lint = (code) =>
           "no-restricted-imports": rules["no-restricted-imports"],
         },
       },
+      navigationPolicy,
     ],
-    { filename: "src/example.tsx" },
+    { filename },
   );
 
 describe("Phosphor icon policy", () => {
@@ -36,9 +40,12 @@ describe("Phosphor icon policy", () => {
     'const weight = selected ? "fill" : "bold";',
     'function icon(weight: IconWeight = "fill") {}',
     'phosphorPaths(StarIcon, "fill");',
-  ])("rejects filled icon weights: %s", (code) => {
+  ])("allows functional fills while keeping navigation outlined: %s", (code) => {
+    expect(lint(code)).toEqual([]);
     expect(
-      lint(code).some((issue) => issue.ruleId === "no-restricted-syntax"),
+      lint(code, "src/app/components/stacks/dom/UnitRail.tsx").some(
+        (issue) => issue.ruleId === "no-restricted-syntax",
+      ),
     ).toBe(true);
   });
 

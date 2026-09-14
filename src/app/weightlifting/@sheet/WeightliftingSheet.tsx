@@ -5,6 +5,8 @@ import { type ReactNode } from "react";
 
 import ModalSheet from "~/components/modal-sheet/ModalSheet";
 
+import { useStacks } from "~/app/components/stacks/store";
+
 /** The shared sheet chrome with a host-aware expand target: the interceptor
  * layouts are server components and cannot know which host they are on, so
  * they pass the subpath and this wrapper resolves it in the browser (a
@@ -26,6 +28,7 @@ export function WeightliftingSheet({
       label={label}
       variant={variant}
       expandHref={wlPath(expandSubpath)}
+      onPresenceChange={(present) => useStacks.getState().setModalOpen(present)}
     >
       {children}
     </ModalSheet>

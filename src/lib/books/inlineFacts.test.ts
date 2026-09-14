@@ -52,7 +52,7 @@ describe("inlineBookFacts", () => {
     expect(
       inlineBookFacts(entry({ started: MAR_12, finished: MAR_18 })),
     ).toEqual({
-      reading: "Read March 12th - 18th '25",
+      reading: "Read Mar 12th - 18th '25",
       kind: "finished",
       length: null,
     });
@@ -72,7 +72,7 @@ describe("inlineBookFacts", () => {
 
   it("falls back to the finish date alone when the start is unknown", () => {
     expect(inlineBookFacts(entry({ finished: MAR_18 })).reading).toBe(
-      "Read March 18th '25",
+      "Read Mar 18th '25",
     );
   });
 
@@ -83,20 +83,20 @@ describe("inlineBookFacts", () => {
       ).reading,
     ).toBe("Abandoned at 40%");
     expect(inlineBookFacts(entry({ abandoned: MAR_18 })).reading).toBe(
-      "Abandoned March 18th '25",
+      "Abandoned Mar 18th '25",
     );
   });
 
   it("treats a started, unfinished book as in progress", () => {
     expect(inlineBookFacts(entry({ started: MAR_12 })).reading).toBe(
-      "Reading since March 12th '25",
+      "Reading since Mar 12th '25",
     );
   });
 
   it("lets finished win over a stray abandoned date, and says nothing with no dates", () => {
     expect(
       inlineBookFacts(entry({ finished: MAR_18, abandoned: MAR_12 })).reading,
-    ).toBe("Read March 18th '25");
+    ).toBe("Read Mar 18th '25");
     expect(inlineBookFacts(entry()).reading).toBeNull();
   });
 

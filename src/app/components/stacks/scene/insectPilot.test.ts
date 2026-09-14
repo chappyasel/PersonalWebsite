@@ -1567,6 +1567,55 @@ describe("Escape", () => {
 });
 
 describe("landing over a support that is really there", () => {
+  it.each([30, 60, 120])(
+    "leaves a moving perch instead of flapping in place at %i Hz",
+    (hz) => {
+      const world = new PrimitiveFlightWorld();
+      const value = createInsectPilot({
+        occupantId: "butterfly:trapped",
+        flightId: 0,
+        seed: 41,
+        initialTime: 0,
+        initial: initialSample(world),
+        profile: BUTTERFLY_PILOT_PROFILE,
+        roam: {
+          profile: BUTTERFLY_STEERING_PROFILE,
+          containment: createInsectFlightVolumeContainment(ORIGIN_VOLUME),
+          volume: ORIGIN_VOLUME,
+          transit: null,
+          evade: null,
+        },
+      });
+      expect(
+        commandInsectPilot(
+          value,
+          { type: "land", target: landingTarget() },
+          world,
+        ),
+      ).toBe(true);
+      advanceUntil(value, world, "touchdown");
+      const start = { ...value.position };
+      // A perch circles faster than the acceleration-limited pilot can follow.
+      // The body settles near the centre but never reaches the moving contact.
+      for (let frame = 0; frame < hz * 8; frame++) {
+        const target = landingTarget();
+        target.point.x += 0.03 * Math.cos((frame / hz) * Math.PI * 6);
+        target.point.z += 0.03 * Math.sin((frame / hz) * Math.PI * 6);
+        commandInsectPilot(value, { type: "update-perch", target }, world);
+        advanceInsectPilot(value, 1 / hz, world);
+      }
+      expect(value.phase).toBe("roam");
+      expect(world.reservations.size).toBe(0);
+      expect(
+        Math.hypot(
+          value.position.x - start.x,
+          value.position.y - start.y,
+          value.position.z - start.z,
+        ),
+      ).toBeGreaterThan(0.06);
+    },
+  );
+
   it("reaches rest instead of bailing out of the inspection hover", () => {
     const world = new SupportedFlightWorld();
     const value = pilot(world, 5);

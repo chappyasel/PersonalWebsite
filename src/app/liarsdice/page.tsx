@@ -149,7 +149,7 @@ function LiarsDiceContent() {
                 >
                   <DiceOneIcon
                     className="h-4 w-4"
-                    weight={input.countOnes ? "bold" : "regular"}
+                    weight={input.countOnes ? "fill" : "regular"}
                   />
                 </button>
               </TooltipTrigger>

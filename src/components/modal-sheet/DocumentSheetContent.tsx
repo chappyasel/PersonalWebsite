@@ -2,8 +2,8 @@
 
 import { type ReactNode, useLayoutEffect, useRef } from "react";
 
-/** Keyed by document inside the persistent sheet. With no per-route loading
- * fallback, React keeps the previous document visible until this one commits. */
+/** Keyed by document inside the sheet's persistent Suspense boundary, which
+ * keeps the previous document visible until this one commits. */
 export default function DocumentSheetContent({
   children,
 }: {

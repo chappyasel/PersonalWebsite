@@ -8,6 +8,24 @@ The full-history calendar shows all 12 months of a selected year, with Monday-fi
 
 Main-chart data lines use phase colors, with solid weekly averages, long-dashed seven-day trends, dotted twelve-month averages, short-dashed targets, dotted original targets, and longer-dashed future plans. Body-fat estimates use dash-dot lines between scans, dotted lines after the latest scan, and round dots for future values. Global set-point guides stay neutral. Continuous lines change color at dated phase boundaries; when phase templates overlap, the latest start takes precedence. Dates without an assigned phase are gray. Each phase's separate weekly and target lines keep its own color. SVG gradients use the resolved time axis so cropping, resizing, flat lines, and sparse data retain the same phase boundaries.
 
+## Local workspace setup
+
+Superset setup restores the ignored encrypted snapshot after installing dependencies. It validates existing local files, otherwise copies from the main checkout or downloads the current private S3 snapshot. Files are decrypted and schema-checked in memory before creation, with private file permissions. Setup fails if restoration fails.
+
+To repair a checkout manually:
+
+```sh
+pnpm restore:weight-log
+```
+
+To prefer another local checkout over S3 when the snapshot is missing:
+
+```sh
+pnpm restore:weight-log --source-root "$MAIN_CHECKOUT"
+```
+
+The command loads development environment files in Next.js precedence order. It never overwrites existing files, uploads data, or prints measurements or credentials. A missing `history-context.enc` companion is copied from the source checkout when available, otherwise reconstructed from the snapshot's historical context. Existing corrupt files cause an error and must be repaired or moved aside explicitly before retrying. Repeated setup validates the local snapshot; it does not refresh it from S3.
+
 ## Refreshing the snapshot
 
 Run from the website repository. The importer writes sensitive JSON to stdout, so always pipe it directly into the encryptor. The source workbook stays outside the repository.

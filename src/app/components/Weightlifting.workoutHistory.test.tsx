@@ -10,6 +10,10 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import Weightlifting from "./Weightlifting";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
+
 vi.mock("./TiltCard", () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
@@ -38,6 +42,7 @@ const activity = {
   topCategory: "Cardio",
 };
 const data = {
+  latestWorkout: null,
   stats: {
     totalWorkouts: 1,
     totalSets: 3,
@@ -73,9 +78,10 @@ it("titles a record with its exercise name and shows when it was achieved", () =
   const name = screen.getByText("Flat Barbell Bench Press");
   expect(name.tagName).toBe("STRONG");
   const exerciseLink = name.closest("a");
-  expect(exerciseLink?.getAttribute("href")).toMatch(
-    /\/flat-barbell-bench-press$/,
+  expect(exerciseLink?.getAttribute("href")).toBe(
+    "/weightlifting/flat-barbell-bench-press",
   );
+  expect(exerciseLink?.getAttribute("data-route-transition")).toBe("preserve");
   expect(exerciseLink?.parentElement?.closest("a")).toBeNull();
   expect(screen.queryByText("Bench")).toBeNull();
   expect(name.nextElementSibling?.textContent).toBe("Sep 1, 2026");
@@ -93,7 +99,7 @@ it("shows twelve named calendar months with real weekday positions and leap days
   expect(months[0]?.getAttribute("aria-label")).toBe("April 2023");
   expect(months.at(-1)?.getAttribute("aria-label")).toBe("March 2024");
   const february = screen.getByRole("group", { name: "February 2024" });
-  expect(within(february).getByText("Feb 2024")).toBeTruthy();
+  expect(within(february).getByText("Feb '24")).toBeTruthy();
   expect(
     within(february).queryAllByText(
       /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/,
@@ -144,4 +150,67 @@ it("distinguishes unavailable history from a calendar with no workouts", () => {
   );
   expect(screen.getByText("Workout history is unavailable.")).toBeTruthy();
   expect(screen.queryAllByRole("group", { name: /20\d\d$/ })).toHaveLength(0);
+});
+
+it("keeps the parked latest-workout card hidden even when data is available", () => {
+  render(
+    <Weightlifting
+      activity={activity}
+      data={{
+        ...data,
+        latestWorkout: {
+          uuid: "latest-session",
+          name: "Morning Workout",
+          date: "2026-09-13",
+          durationSeconds: 4500,
+          setCount: 18,
+          volume: 24000,
+          categories: ["Chest", "Triceps"],
+          supersets: [[0, 1]],
+          exercises: [
+            {
+              order: 0,
+              displayName: "Flat Barbell Bench Press",
+              category: "Chest",
+              style: "reps_weight",
+              sets: [
+                {
+                  reps: 10,
+                  weight: 185,
+                  volume: 1850,
+                  durationSeconds: null,
+                  distance: null,
+                  calories: null,
+                  custom: null,
+                },
+              ],
+            },
+            {
+              order: 1,
+              displayName: "Triceps Extensions",
+              category: "Triceps",
+              style: "reps_weight",
+              sets: [
+                {
+                  reps: 12,
+                  weight: 55,
+                  volume: 660,
+                  durationSeconds: null,
+                  distance: null,
+                  calories: null,
+                  custom: null,
+                },
+              ],
+            },
+          ],
+        },
+      }}
+    />,
+  );
+  expect(
+    screen.queryByRole("link", {
+      name: "View last workout: Morning Workout, 2026-09-13",
+    }),
+  ).toBeNull();
+  expect(screen.queryByText("Last workout")).toBeNull();
 });

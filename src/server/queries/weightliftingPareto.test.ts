@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCachedWeightliftingPareto } from "./weightliftingPareto";
 
@@ -12,7 +12,44 @@ vi.mock("~/lib/weightlifting/pareto/database", () => ({
 }));
 
 describe("weightlifting Pareto server boundary", () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+  afterEach(() => vi.restoreAllMocks());
+  it.each([
+    ["ENOENT", "snapshot_missing"],
+    ["AccessDenied", "access_denied"],
+    ["sensitive provider code", "source_failed"],
+  ])(
+    "logs only a safe reason for weight-log failure %s",
+    async (code, reason) => {
+      mocks.weights.mockRejectedValue(
+        Object.assign(new Error("sensitive storage path and credential"), {
+          code,
+        }),
+      );
+      mocks.lifting.mockResolvedValue({ attempts: [], liftingSyncedAt: null });
+      await expect(
+        getCachedWeightliftingPareto("Flat Barbell Bench Press"),
+      ).rejects.toThrow("Bodyweight analysis is temporarily unavailable");
+      expect(console.error).toHaveBeenCalledExactlyOnceWith(
+        "[weightlifting-pareto]",
+        { stage: "weight_log", reason },
+      );
+    },
+  );
+  it("identifies a lifting failure without logging database details", async () => {
+    mocks.weights.mockResolvedValue({ weeks: [] });
+    mocks.lifting.mockRejectedValue(new Error("private database connection"));
+    await expect(
+      getCachedWeightliftingPareto("Flat Barbell Bench Press"),
+    ).rejects.toThrow("Bodyweight analysis is temporarily unavailable");
+    expect(console.error).toHaveBeenCalledExactlyOnceWith(
+      "[weightlifting-pareto]",
+      { stage: "lifting", reason: "source_failed" },
+    );
+  });
   it.each([
     "Flat Barbell Bench Press",
     "Incline Barbell Bench Press",
@@ -44,7 +81,7 @@ describe("weightlifting Pareto server boundary", () => {
         liftingSyncedAt: null,
       });
       const payload = await getCachedWeightliftingPareto(displayName);
-      expect(mocks.lifting).toHaveBeenCalledWith({}, displayName);
+      expect(mocks.lifting).toHaveBeenCalledWith({}, displayName, false);
       expect(payload.displayFloor).toBe(
         displayName === "Flat Barbell Bench Press" ? 300 : 0,
       );
@@ -77,5 +114,9 @@ describe("weightlifting Pareto server boundary", () => {
     await expect(
       getCachedWeightliftingPareto("Flat Barbell Bench Press"),
     ).rejects.toThrow("temporarily unavailable");
+    expect(console.error).toHaveBeenCalledExactlyOnceWith(
+      "[weightlifting-pareto]",
+      { stage: "analysis", reason: "analysis_failed" },
+    );
   });
 });

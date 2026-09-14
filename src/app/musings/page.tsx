@@ -1,18 +1,17 @@
-import { ClockIcon, PenNibIcon, RssIcon } from "@phosphor-icons/react/dist/ssr";
+import { ClockIcon } from "@phosphor-icons/react/dist/ssr";
 import { ArrowUpRightIcon as ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import posts from "public/data/blog-posts.json";
 
-import { getTimeAgo } from "~/lib/util";
 import { musingReadingMinutes } from "~/lib/musings/readingTime";
+import { getTimeAgo } from "~/lib/util";
 
-import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyFooter from "~/components/daylight/SkyFooter";
-import SkyHero from "~/components/daylight/SkyHero";
+import SheetLink from "~/components/modal-sheet/SheetLink";
 import { Card, CardContent } from "~/components/ui/card";
 
+import MusingsHero from "./MusingsHero";
 import TiltCard from "~/app/components/TiltCard";
 
 export const revalidate = 86400;
@@ -35,22 +34,7 @@ export const metadata: Metadata = {
 export default function MusingsPage() {
   return (
     <main className="relative">
-      <SkyHero>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <PenNibIcon size={28} weight="duotone" className="shrink-0" />
-            <h1 className="dl-hero-title">Musings</h1>
-          </div>
-          <DaylightHeroMeta backHref="/">
-            <a
-              href="/musings/feed.xml"
-              className="flex items-center gap-1.5 transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
-            >
-              <RssIcon size={12} aria-hidden /> RSS feed
-            </a>
-          </DaylightHeroMeta>
-        </div>
-      </SkyHero>
+      <MusingsHero />
       <div className="dl-columns mt-8 px-4 pb-16">
         <div className="dl-column">
           <ol aria-label="Essays" className="space-y-5">
@@ -70,7 +54,7 @@ export default function MusingsPage() {
                     interactive
                     className="relative w-full focus-within:z-10 hover:z-10"
                   >
-                    <Link
+                    <SheetLink
                       href={post.link}
                       target={external ? "_blank" : undefined}
                       rel={external ? "noopener noreferrer" : undefined}
@@ -134,7 +118,7 @@ export default function MusingsPage() {
                           )}
                         </div>
                       </CardContent>
-                    </Link>
+                    </SheetLink>
                   </TiltCard>
                 </li>
               );

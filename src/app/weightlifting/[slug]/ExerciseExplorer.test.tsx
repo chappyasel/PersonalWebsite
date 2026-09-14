@@ -46,6 +46,7 @@ describe("exercise Show More analysis", () => {
     expect(mocks.chart).toHaveBeenCalledWith({
       displayName: "Incline Barbell Bench Press",
       color: "#039BE5",
+      allVariants: false,
     });
     const showLess = screen.getByRole("button", { name: "Show Less" });
     expect(showLess.getAttribute("aria-expanded")).toBe("true");

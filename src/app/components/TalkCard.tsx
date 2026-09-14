@@ -86,7 +86,6 @@ export default function TalkCard({ talk }: { talk: Talk }) {
                   "blur(10px) saturate(0.8) brightness(0.78)",
               }}
             >
-              {/* eslint-disable-next-line no-restricted-syntax -- The Talks play control intentionally uses a filled triangle. */}
               <PlayIcon aria-hidden weight="fill" className="size-6" />
             </span>
           </div>

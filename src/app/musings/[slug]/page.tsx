@@ -1,7 +1,6 @@
 import { MusingBody } from "../MusingBody";
+import MusingHero from "../MusingHero";
 import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
-import { RssIcon } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { lookupInlineBooks } from "~/lib/books/inlineLookup";
@@ -9,10 +8,9 @@ import { getMusing, musings } from "~/lib/musings/content";
 import { musingMetadata, musingStructuredData } from "~/lib/musings/metadata";
 import { musingReadingMinutes } from "~/lib/musings/readingTime";
 
-import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyFooter from "~/components/daylight/SkyFooter";
-import SkyHero from "~/components/daylight/SkyHero";
 import { DocumentGallery } from "~/components/images/DocumentGallery";
+import SheetLink from "~/components/modal-sheet/SheetLink";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -28,12 +26,6 @@ export async function generateMetadata({
   if (!article) notFound();
   return musingMetadata(article);
 }
-const date = (value: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    dateStyle: "long",
-    timeZone: "UTC",
-  }).format(new Date(value));
-
 export default async function MusingPage({
   params,
 }: {
@@ -52,50 +44,7 @@ export default async function MusingPage({
   const older = musings[index + 1];
   return (
     <main className="relative">
-      <SkyHero>
-        <div className="space-y-3">
-          <h1 className="dl-hero-title">{article.title}</h1>
-          <p className="text-sm leading-relaxed opacity-80">
-            {article.author.trim() &&
-            article.author.trim() !== "Chappy Asel" ? (
-              <>{article.author} · </>
-            ) : null}
-            <time dateTime={article.publishedAt}>
-              {date(article.publishedAt)}
-            </time>{" "}
-            · {minutes} min read
-          </p>
-          {article.updatedAt.slice(0, 10) !==
-          article.publishedAt.slice(0, 10) ? (
-            <p className="text-xs opacity-70">
-              Updated{" "}
-              <time dateTime={article.updatedAt}>
-                {date(article.updatedAt)}
-              </time>
-            </p>
-          ) : null}
-          <DaylightHeroMeta
-            backHref="/musings"
-            backLabel="Back to Musings"
-            additionalLinks={
-              <Link
-                href="/"
-                prefetch={false}
-                className="transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
-              >
-                chappyasel.com
-              </Link>
-            }
-          >
-            <a
-              href="/musings/feed.xml"
-              className="flex items-center gap-1.5 transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
-            >
-              <RssIcon size={12} aria-hidden /> RSS feed
-            </a>
-          </DaylightHeroMeta>
-        </div>
-      </SkyHero>
+      <MusingHero article={{ ...article, minutes }} />
       <div className="dl-columns mt-8 px-4 pb-16">
         <div className="dl-column">
           <DocumentGallery key={slug}>
@@ -107,7 +56,7 @@ export default async function MusingPage({
                 <nav aria-label="Article navigation">
                   <div className="mb-6 grid gap-6 sm:grid-cols-2">
                     {newer ? (
-                      <Link
+                      <SheetLink
                         href={`/musings/${newer.slug}`}
                         rel="prev"
                         className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -122,12 +71,12 @@ export default async function MusingPage({
                         <span className="mt-1 block font-serif text-lg text-foreground hover:underline">
                           {newer.title}
                         </span>
-                      </Link>
+                      </SheetLink>
                     ) : (
                       <div />
                     )}
                     {older ? (
-                      <Link
+                      <SheetLink
                         href={`/musings/${older.slug}`}
                         rel="next"
                         className="rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-right"
@@ -142,15 +91,15 @@ export default async function MusingPage({
                         <span className="mt-1 block font-serif text-lg text-foreground hover:underline">
                           {older.title}
                         </span>
-                      </Link>
+                      </SheetLink>
                     ) : null}
                   </div>
-                  <Link
+                  <SheetLink
                     href="/musings"
                     className="underline underline-offset-4"
                   >
                     All musings
-                  </Link>
+                  </SheetLink>
                 </nav>
               </footer>
             </article>

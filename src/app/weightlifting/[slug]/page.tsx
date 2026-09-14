@@ -34,11 +34,17 @@ export async function generateMetadata({
   // a 200 with 404 UI injected mid-stream.
   if (!resolved) notFound();
 
-  const detail = await getCachedExerciseDetail(resolved.entry.displayName);
-  const title = `${resolved.entry.displayName} ~ Chappy's Weightlifting`;
+  const displayName = resolved.allVariants
+    ? resolved.entry.name
+    : resolved.entry.displayName;
+  const detail = await getCachedExerciseDetail(
+    displayName,
+    resolved.allVariants,
+  );
+  const title = `${displayName} ~ Chappy's Weightlifting`;
   const description = detail
-    ? `${Math.round(resolved.entry.bestOneRM)} lbs best est. 1RM across ${detail.totalSets.toLocaleString()} logged sets`
-    : `${Math.round(resolved.entry.bestOneRM)} lbs best est. 1RM`;
+    ? `${detail.instanceCount.toLocaleString()} instances and ${detail.totalSets.toLocaleString()} logged sets${resolved.allVariants ? " across all variants" : ""}${detail.best ? ` · ${Math.round(detail.best.oneRM)} lbs best est. 1RM` : ""}`
+    : `Workout history for ${displayName}`;
   return {
     title,
     description,

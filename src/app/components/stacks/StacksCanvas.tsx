@@ -55,6 +55,8 @@ import {
 import { useRoomActive } from "./room/ResidentRoomHost";
 import { roomResidency } from "./room/roomResidency";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
+import { repaintFrozenScene } from "./scene/sceneClock";
+import SceneClockBoundary from "./scene/SceneClockBoundary";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
 import SceneLayoutEditorGizmo from "./scene/SceneLayoutEditorGizmo";
@@ -235,6 +237,7 @@ function scenePointerEvents(coarseTouch: boolean) {
 function FrozenResizeRepaint({ frozen }: { frozen: boolean }) {
   const size = useThree((s) => s.size);
   const advance = useThree((s) => s.advance);
+  const clock = useThree((s) => s.clock);
   const first = useRef(true);
   useEffect(() => {
     if (!frozen) {
@@ -246,9 +249,11 @@ function FrozenResizeRepaint({ frozen }: { frozen: boolean }) {
       first.current = false;
       return;
     }
-    const frame = requestAnimationFrame(() => advance(performance.now()));
+    const frame = requestAnimationFrame(() =>
+      repaintFrozenScene({ advance, clock }),
+    );
     return () => cancelAnimationFrame(frame);
-  }, [frozen, size, advance]);
+  }, [frozen, size, advance, clock]);
   return null;
 }
 
@@ -2548,13 +2553,9 @@ export default function StacksCanvas({
   const router = useRouter();
   const onOpenUrl = useCallback(
     (url: string) => {
-      // The two document pages open as intercepted sheets over the live
-      // world (src/app/@sheet) — the scene stays booted underneath and the
-      // back gesture lands right back in it. Local article links use page
-      // transitions; external destinations open a new tab. The sheet pops from a small rect at the pointer
-      // (a door is shader geometry with no DOM box); on a phone-sized
-      // viewport openSheetRoute loads the full page instead.
-      if (url === "/routine" || url === "/manual") {
+      // Documents and essays share the sheet and return to the live scene.
+      // Scene objects use a pointer rect; phones load the full page.
+      if (/^\/(?:(routine|manual|systems)$|musings(?:\/|$))/.test(url)) {
         recordModalOriginAtPointer();
         openSheetRoute(url, router);
         return;
@@ -2698,6 +2699,7 @@ export default function StacksCanvas({
           retireReadyFrames.current = () => cancelAnimationFrame(outerFrame);
         }}
       >
+        <SceneClockBoundary />
         <Exposure dark={dark} />
         {postfx && (
           <ContextSafeEffects

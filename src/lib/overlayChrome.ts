@@ -8,7 +8,8 @@
  * `StacksHome` keys the whole recede choreography off them. Modals were never
  * in that list, so the rail, the name, the theme toggle and the placard dock
  * all stayed lit behind the card. This is the third signal, folded into the
- * same rules and the same timings.
+ * same rules and the same timings. The desktop details sidebar slides
+ * offscreen while its content stays opaque and mounted.
  *
  * It is a counter rather than a boolean because a book note modal can be open
  * over the world while a sheet is mounted on top of it (a book link inside the

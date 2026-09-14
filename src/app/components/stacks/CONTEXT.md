@@ -153,6 +153,17 @@ residency releases the mounted room; a later visit must pass World Boot again. M
 does not renew the deadline. The last shelf hash survives expiry within the
 document, with an explicitly requested destination taking precedence.
 The Scene Diagnostics control resets on reload and leaves quality policy alone.
+`scene/sceneClock.ts` preserves elapsed animation time when a modal or parked
+route stops the renderer. R3F otherwise resets its clock on every frameloop
+change, which restarts cloud positions and other time-driven effects. Frozen
+resize repaints use that same elapsed time in seconds and a zero frame delta.
+Pausing also clears queued invalidations. Otherwise R3F can render one last
+automatic frame in manual mode and mistake its millisecond timestamp for
+elapsed seconds, jumping the sky as a modal finishes opening.
+`SceneClockBoundary` attaches this protection to an already-running canvas too.
+Modal visibility does not change the desktop tilt-shift boundary.
+`dom/useDesktopDetailsBoundary.ts` measures the dock's resting layout through
+its slide animation; explicit sidebar dismissal still changes the framing.
 _Avoid_: Permanent background rendering, cached screenshot, bypassing reveal gates
 
 **Demotion** — giving the world up after it was already promised, because of a

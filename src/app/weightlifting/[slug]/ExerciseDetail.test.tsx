@@ -4,6 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ExerciseDetail } from "./ExerciseDetail";
 
 const mocks = vi.hoisted(() => ({ index: vi.fn(), detail: vi.fn() }));
+vi.mock("server-only", () => ({}));
+vi.mock("~/server/queries/exerciseDirectory", () => ({
+  getCachedExerciseDirectory: mocks.index,
+  getFreshExerciseDirectory: mocks.index,
+  exerciseHistorySlug: (name: string) => `exercise~${name}`,
+}));
+vi.mock("../components/ExerciseHistory", () => ({
+  ExerciseHistory: () => <p>Generic history</p>,
+}));
 vi.mock("~/server/queries/weightliftingExercise", () => ({
   getCachedExerciseIndex: mocks.index,
   getFreshExerciseIndex: mocks.index,
@@ -28,6 +37,9 @@ function exercise(displayName: string) {
       displayName,
       name: "Barbell Bench Press",
       category: "Chest",
+      style: "reps_weight",
+      allVariantsSlug: "all~bench",
+      instanceCount: 10,
       setCount: 20,
       bestOneRM: 400,
     },
@@ -64,4 +76,13 @@ describe("exercise detail Pareto integration", () => {
     );
     expect(html).toContain("Exercise history");
   });
+});
+
+it("combines the base exercise across variants using the same modal explorer", async () => {
+  exercise("Flat Barbell Bench Press");
+  const html = renderToStaticMarkup(
+    await ExerciseDetail({ slug: "all~bench" }),
+  );
+  expect(mocks.detail).toHaveBeenCalledWith("Barbell Bench Press", true);
+  expect(html).toContain("with expandable Barbell Bench Press analysis");
 });

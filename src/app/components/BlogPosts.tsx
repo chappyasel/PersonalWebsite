@@ -1,11 +1,12 @@
 import { ClockIcon, PenNibIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
-import Link from "next/link";
 import data from "public/data/blog-posts.json";
 import React from "react";
 
-import { getTimeAgo } from "~/lib/util";
 import { musingReadingMinutes } from "~/lib/musings/readingTime";
+import { getTimeAgo } from "~/lib/util";
+
+import SheetLink from "~/components/modal-sheet/SheetLink";
 
 import styles from "./CoverCard.module.css";
 import TiltCard from "./TiltCard";
@@ -47,7 +48,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
       interactive
       className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
     >
-      <Link
+      <SheetLink
         href={post.link}
         target={post.link.startsWith("/") ? undefined : "_blank"}
         className={`${styles.card} group relative flex w-full [transform-style:preserve-3d]`}
@@ -90,7 +91,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
             <span className="ml-auto">{getTimeAgo(post.pubDate)}</span>
           </div>
         </div>
-      </Link>
+      </SheetLink>
     </TiltCard>
   );
 }

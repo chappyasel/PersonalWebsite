@@ -9,8 +9,11 @@ import {
   WEIGHTLIFTING_REVALIDATE,
   WEIGHTLIFTING_TAG,
 } from "~/lib/weightlifting/cache";
+import { HOME_LAST_WORKOUT_ENABLED } from "~/lib/weightlifting/features";
 import { db } from "~/server/db";
 import { wlExercises, wlSets, wlWorkouts } from "~/server/db/schema";
+
+import { getCachedLatestWorkout } from "./latestWorkout";
 
 export const getCachedActivityMosaic = unstable_cache(
   async (months: number) => {
@@ -163,13 +166,13 @@ export const getCachedWeightliftingStats = unstable_cache(
 );
 
 /**
- * The homepage placard intentionally carries only the three records it shows
- * and one count per year. The full exercise history remains on the dedicated
- * weightlifting route.
+ * The homepage carries the latest session summary, three lift records, and
+ * yearly counts. Full exercise history stays on the weightlifting route.
  */
 export const getCachedWeightliftingPlacard = unstable_cache(
   async () => {
-    const [stats, yearlyRows, recordRows] = await Promise.all([
+    const [latestWorkout, stats, yearlyRows, recordRows] = await Promise.all([
+      HOME_LAST_WORKOUT_ENABLED ? getCachedLatestWorkout() : null,
       getCachedWeightliftingStats(),
       db.execute<{
         year: number;
@@ -252,6 +255,7 @@ export const getCachedWeightliftingPlacard = unstable_cache(
         : 0;
 
     return {
+      latestWorkout,
       stats,
       yearly: Array.from(
         { length: Math.max(1, currentYear - firstYear + 1) },
@@ -277,7 +281,7 @@ export const getCachedWeightliftingPlacard = unstable_cache(
       })),
     };
   },
-  ["weightlifting-homepage-placard-v2"],
+  ["weightlifting-homepage-placard-v5"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
@@ -316,6 +320,7 @@ export function emptyActivityMosaic(months: number): ActivityMosaicData {
 }
 
 export const EMPTY_WEIGHTLIFTING_PLACARD: WeightliftingPlacardData = {
+  latestWorkout: null,
   stats: {
     totalWorkouts: 0,
     totalSets: 0,

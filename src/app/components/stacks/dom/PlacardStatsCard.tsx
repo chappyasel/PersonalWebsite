@@ -400,8 +400,11 @@ export function PlacardCardHeading({
     <div
       className={cn("mb-4 flex items-center justify-between gap-3", className)}
     >
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <Icon className="size-4 shrink-0" weight="duotone" />
+      <h3
+        data-placard-card-heading=""
+        className="flex items-center gap-2 text-base font-semibold text-foreground"
+      >
+        <Icon aria-hidden className="size-5 shrink-0" weight="duotone" />
         {children}
       </h3>
       {detail ? (

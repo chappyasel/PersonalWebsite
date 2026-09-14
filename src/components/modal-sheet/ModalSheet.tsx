@@ -16,6 +16,7 @@ import {
 import {
   originEntrance,
   originExit,
+  peekModalOrigin,
   takeModalOrigin,
 } from "~/lib/originFlight";
 import { closeOverlayChrome, openOverlayChrome } from "~/lib/overlayChrome";
@@ -130,12 +131,12 @@ function PresentedSheet({
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const presenceRef = useRef(onPresenceChange);
   presenceRef.current = onPresenceChange;
-  // Where the click came from, when the launcher recorded it. Intercepted
-  // routes only ever mount on client navigations, so reading storage in the
-  // initializer is safe.
+  // Read without consuming: a suspended render can discard this state and
+  // retry. Keep the launcher available until the shell actually commits.
   const [origin] = useState(() =>
-    typeof window === "undefined" ? null : takeModalOrigin(),
+    typeof window === "undefined" ? null : peekModalOrigin(),
   );
+  const originConsumedRef = useRef(false);
 
   // The iOS-pop expand: the card's real box springs out to the viewport —
   // content reflowing live, so by the end the card IS the full page's
@@ -276,6 +277,10 @@ function PresentedSheet({
   useLayoutEffect(() => {
     const shell = shellRef.current;
     if (!shell || !origin) return;
+    if (!originConsumedRef.current) {
+      takeModalOrigin();
+      originConsumedRef.current = true;
+    }
     originEntrance(shell, origin);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

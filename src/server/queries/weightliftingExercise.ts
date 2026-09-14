@@ -105,6 +105,7 @@ export type ExerciseSet = {
 };
 
 export type ExerciseInstance = {
+  displayName?: string;
   /** YYYY-MM-DD, UTC */
   date: string;
   /** Full workout start "YYYY-MM-DDTHH:MI", UTC — orders same-day sessions */
@@ -134,7 +135,9 @@ export type ExerciseDetail = {
 
 const loadExerciseDetail = async (
   displayName: string,
+  allVariants?: boolean,
 ): Promise<ExerciseDetail | null> => {
+  const selector = allVariants ? sql`e.name` : DISPLAY_NAME_SQL;
   // One repeatable-read transaction: sync fully replaces the tables in its
   // own transaction, so three independent statements could otherwise read
   // different data generations and cache the mismatch for six hours
@@ -160,7 +163,7 @@ const loadExerciseDetail = async (
           FROM wl_exercises e
           INNER JOIN wl_workouts w ON e.workout_id = w.id
           LEFT JOIN wl_sets s ON s.exercise_id = e.id
-          WHERE ${DISPLAY_NAME_SQL} = ${displayName}
+          WHERE ${selector} = ${displayName}
         `),
         tx.execute<{
           weight: number;
@@ -173,12 +176,13 @@ const loadExerciseDetail = async (
           FROM wl_sets s
           INNER JOIN wl_exercises e ON s.exercise_id = e.id
           INNER JOIN wl_workouts w ON e.workout_id = w.id
-          WHERE ${DISPLAY_NAME_SQL} = ${displayName}
+          WHERE ${selector} = ${displayName}
             AND s.one_rm IS NOT NULL AND s.one_rm > 0
           ORDER BY s.one_rm DESC, w.date DESC
           LIMIT 1
         `),
         tx.execute<{
+          display_name: string;
           exercise_id: number;
           set_id: number | null;
           date: string;
@@ -191,6 +195,7 @@ const loadExerciseDetail = async (
           volume: number | string | null;
         }>(sql`
           SELECT
+            ${DISPLAY_NAME_SQL} AS display_name,
             e.id AS exercise_id,
             s.id AS set_id,
             TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
@@ -201,7 +206,7 @@ const loadExerciseDetail = async (
           FROM wl_exercises e
           INNER JOIN wl_workouts w ON e.workout_id = w.id
           LEFT JOIN wl_sets s ON s.exercise_id = e.id
-          WHERE ${DISPLAY_NAME_SQL} = ${displayName}
+          WHERE ${selector} = ${displayName}
           ORDER BY w.date, e.id, s.set_order
         `),
       ]),
@@ -217,6 +222,7 @@ const loadExerciseDetail = async (
     if (row.exercise_id !== currentId) {
       currentId = row.exercise_id;
       instances.push({
+        displayName: row.display_name,
         date: row.date,
         ts: row.ts,
         workoutName: row.workout_name ?? "",
@@ -258,6 +264,6 @@ const loadExerciseDetail = async (
 
 export const getCachedExerciseDetail = unstable_cache(
   loadExerciseDetail,
-  ["wl-exercise-detail"],
+  ["wl-exercise-detail-v2"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );

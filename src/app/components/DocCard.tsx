@@ -3,8 +3,6 @@
 import type { Icon } from "@phosphor-icons/react";
 import type { CSSProperties, ReactNode } from "react";
 
-import { recordModalOrigin } from "~/lib/originFlight";
-
 import SheetLink from "~/components/modal-sheet/SheetLink";
 
 import TiltCard from "./TiltCard";
@@ -141,9 +139,6 @@ export default function DocCard({
         data-placard-link=""
         data-doc-card={sky}
         className="group relative block w-full"
-        onClick={(event) =>
-          recordModalOrigin(event.currentTarget.getBoundingClientRect())
-        }
       >
         <div
           data-placard-background=""

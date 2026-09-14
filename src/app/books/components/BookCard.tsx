@@ -550,7 +550,7 @@ export const BookCard = memo(function BookCard({
                   {Array.from({ length: 5 }).map((_, i) => (
                     <StarIcon
                       key={i}
-                      weight={i < book.rating! ? "bold" : "duotone"}
+                      weight={i < book.rating! ? "fill" : "duotone"}
                       className={`${styles.star} ${i < book.rating! ? "text-yellow-400" : "text-white/30"}`}
                     />
                   ))}

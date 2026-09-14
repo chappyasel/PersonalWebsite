@@ -9,9 +9,11 @@ import {
 import { BootLoadingStatus } from "../dom/BootLoadingStatus";
 import { useRoomNavigationReady } from "../input/RoomNavigation";
 import { useStacks } from "../store";
+import { ArrowClockwise, WarningCircle } from "@phosphor-icons/react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
+import { Card } from "~/components/ui/card";
 
 import { IllustratedTraverse } from "./IllustratedTraverse";
 import { IllustrationStage } from "./IllustrationStage";
@@ -323,9 +325,27 @@ export default function IllustratedRoom({
           </div>
         )}
         {!loading && canRequest3D && (
-          <Button variant="ghost" size="sm" onClick={onRequest3D}>
-            Retry 3D
-          </Button>
+          <Card className="room-illustration-error">
+            <div className="room-illustration-error-message" role="alert">
+              <WarningCircle
+                className="room-illustration-error-icon"
+                size={24}
+                aria-hidden="true"
+              />
+              <div>
+                <p className="room-illustration-error-title">
+                  3D view unavailable
+                </p>
+                <p className="room-illustration-error-description">
+                  You can still browse in 2D.
+                </p>
+              </div>
+            </div>
+            <Button className="room-illustration-retry" onClick={onRequest3D}>
+              <ArrowClockwise aria-hidden="true" />
+              Retry 3D
+            </Button>
+          </Card>
         )}
       </div>
     </>

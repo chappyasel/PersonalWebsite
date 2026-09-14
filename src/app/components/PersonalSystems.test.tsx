@@ -2,6 +2,10 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: vi.fn() }),
+}));
+
 import PersonalSystems from "./PersonalSystems";
 import { UNITS } from "./stacks/data";
 

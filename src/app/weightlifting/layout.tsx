@@ -50,10 +50,9 @@ export default function WeightliftingLayout({
   children: React.ReactNode;
   sheet: React.ReactNode;
 }) {
-  // `sheet` is the intercepted-route slot: an exercise page opened from
-  // inside the app renders as a modal sheet over the launcher instead of
-  // replacing it. Hard loads fall through to the slot's default (null) and
-  // the real full page.
+  // This slot presents workout previews. Exercise sheets live in the root
+  // slot so they can also open over the homepage. Hard loads render the
+  // full page and leave both slots empty.
   return (
     <TRPCReactProvider>
       <NuqsAdapter>

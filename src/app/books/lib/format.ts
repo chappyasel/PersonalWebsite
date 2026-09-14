@@ -4,16 +4,11 @@
 const BOOK_DATE_TIME_ZONE = "America/Los_Angeles";
 
 function getBookDateParts(date: Date): {
-  monthLong: string;
   monthShort: string;
   day: number;
   yearShort: string;
 } {
   return {
-    monthLong: date.toLocaleDateString("en-US", {
-      month: "long",
-      timeZone: BOOK_DATE_TIME_ZONE,
-    }),
     monthShort: date.toLocaleDateString("en-US", {
       month: "short",
       timeZone: BOOK_DATE_TIME_ZONE,
@@ -62,16 +57,16 @@ export function getOrdinalSuffix(n: number): string {
 }
 
 /**
- * Format a single date as "March 18th '25"
+ * Format a single date as "Mar 18th '25"
  */
 export function formatSingleReadDate(date: string): string {
-  const { monthLong, day, yearShort } = getBookDateParts(new Date(date));
-  return `${monthLong} ${day}${getOrdinalSuffix(day)} '${yearShort}`;
+  const { monthShort, day, yearShort } = getBookDateParts(new Date(date));
+  return `${monthShort} ${day}${getOrdinalSuffix(day)} '${yearShort}`;
 }
 
 /**
  * Format read dates into a unified display string
- * Same month: "March 12th - 18th '25" (full month name, always spaces)
+ * Same month: "Mar 12th - 18th '25"
  * Different months: "Mar 12th - Apr 3rd '25" (short month names)
  */
 export function formatReadDates(
@@ -87,8 +82,7 @@ export function formatReadDates(
   const end = getBookDateParts(endDate);
 
   if (start.monthShort === end.monthShort) {
-    // Same month: use full month name "March 12th - 18th '25"
-    return `${start.monthLong} ${start.day}${getOrdinalSuffix(start.day)} - ${end.day}${getOrdinalSuffix(end.day)} '${end.yearShort}`;
+    return `${start.monthShort} ${start.day}${getOrdinalSuffix(start.day)} - ${end.day}${getOrdinalSuffix(end.day)} '${end.yearShort}`;
   } else {
     // Different months: use short names "Mar 12th - Apr 3rd '25"
     return `${start.monthShort} ${start.day}${getOrdinalSuffix(start.day)} - ${end.monthShort} ${end.day}${getOrdinalSuffix(end.day)} '${end.yearShort}`;

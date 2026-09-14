@@ -76,17 +76,27 @@ export function recordModalOrigin(rect: {
   }
 }
 
-export function takeModalOrigin(): ModalOrigin | null {
+/** Render may be retried or abandoned. Only consume the origin after commit. */
+export function peekModalOrigin(): ModalOrigin | null {
   try {
     const raw = sessionStorage.getItem(KEY);
     if (!raw) return null;
-    sessionStorage.removeItem(KEY);
     const origin = JSON.parse(raw) as ModalOrigin & { ts: number };
     if (Date.now() - origin.ts > FRESH_MS) return null;
     return origin;
   } catch {
     return null;
   }
+}
+
+export function takeModalOrigin(): ModalOrigin | null {
+  const origin = peekModalOrigin();
+  try {
+    sessionStorage.removeItem(KEY);
+  } catch {
+    // Storage may be blocked.
+  }
+  return origin;
 }
 
 function flightDelta(shell: HTMLElement, origin: ModalOrigin) {

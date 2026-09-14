@@ -63,4 +63,6 @@ fi
 
 corepack pnpm install --frozen-lockfile
 
+corepack pnpm restore:weight-log --source-root "$main_checkout"
+
 echo "Superset setup complete with Node $(node --version) and pnpm $actual_pnpm."

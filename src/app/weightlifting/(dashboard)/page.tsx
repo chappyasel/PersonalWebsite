@@ -26,6 +26,9 @@ export default async function WeightliftingPage({
     void api.weightlifting.getStrengthProgression.prefetch({ exercises });
   }
 
+  // Render the directory controls and first rows in the initial page.
+  await api.weightlifting.getExerciseDirectory.prefetch();
+
   return (
     <HydrateClient>
       <WeightliftingDashboard />

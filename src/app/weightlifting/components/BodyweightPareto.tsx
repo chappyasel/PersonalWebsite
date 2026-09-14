@@ -317,12 +317,14 @@ export function ParetoChart({
 export function BodyweightPareto({
   displayName,
   color,
+  allVariants = false,
 }: {
   displayName: string;
   color: string;
+  allVariants?: boolean;
 }) {
   const query = api.weightlifting.getBodyweightPareto.useQuery(
-    { displayName },
+    { displayName, allVariants },
     { staleTime: 300_000, retry: 1 },
   );
   return (
@@ -350,7 +352,7 @@ export function BodyweightPareto({
         <ParetoChart key={displayName} data={query.data} color={color} />
       ) : (
         <p className="text-[13px] text-muted-foreground">
-          No valid recorded 1RMe attempts for this variation yet.
+          No valid recorded 1RMe attempts for this selection yet.
         </p>
       )}
     </div>

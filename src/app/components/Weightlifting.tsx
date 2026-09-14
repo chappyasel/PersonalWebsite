@@ -1,5 +1,6 @@
 "use client";
 
+import { LastWorkoutContent } from "../weightlifting/components/LastWorkoutContent";
 import { exerciseSlug } from "../weightlifting/lib/exerciseSlug";
 import { categoryColor } from "../weightlifting/lib/utils";
 import {
@@ -7,16 +8,17 @@ import {
   CalendarDotsIcon,
   TrophyIcon,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import { useMemo } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 import { activityCalendarMonths } from "~/lib/weightlifting/activityCalendar";
+import { HOME_LAST_WORKOUT_ENABLED } from "~/lib/weightlifting/features";
 import type {
   ActivityMosaicData,
   WeightliftingPlacardData,
 } from "~/server/queries/weightlifting";
 
+import SheetLink from "~/components/modal-sheet/SheetLink";
 import { Button } from "~/components/ui/button";
 import { IntersectionMotion } from "~/components/ui/intersection-motion";
 import {
@@ -89,7 +91,7 @@ function WorkoutHistoryCalendar({ data }: { data: ActivityMosaicData }) {
               role="group"
               aria-label={month.fullLabel}
             >
-              <h4 className="text-center text-[10px] font-medium leading-none text-muted-foreground">
+              <h4 className="text-center text-[11px] font-bold leading-none text-foreground/80">
                 {month.label}
               </h4>
               <div className={styles.days}>
@@ -119,13 +121,15 @@ function WorkoutHistoryCalendar({ data }: { data: ActivityMosaicData }) {
                           data-date={day.key}
                           aria-label={`${label}: ${detail}`}
                           tabIndex={active ? 0 : -1}
-                          className={`relative grid size-full grid-cols-1 grid-rows-[7px_6px] gap-px rounded-full p-0 font-sans text-[7px] tabular-nums leading-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${future ? "text-muted-foreground/40" : "text-foreground"} ${active ? "transition-transform duration-200 hover:scale-125 motion-reduce:transform-none" : ""}`}
+                          className={`relative grid size-full grid-cols-1 grid-rows-[7px_4.8px] gap-px rounded-full p-0 font-serif text-[7px] tabular-nums leading-none hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${future ? "text-muted-foreground/40" : "text-foreground"} ${active ? "transition-transform duration-200 hover:scale-125 motion-reduce:transform-none" : ""}`}
                           style={{ gridColumn: day.column, gridRow: day.row }}
                         >
-                          <span aria-hidden>{day.day}</span>
+                          <span aria-hidden className="opacity-60">
+                            {day.day}
+                          </span>
                           <span
                             aria-hidden
-                            className="h-[6px] w-full rounded-full"
+                            className="h-[4.8px] w-full rounded-full"
                             style={{
                               background:
                                 active && workout
@@ -214,13 +218,7 @@ function WorkoutHistoryCalendar({ data }: { data: ActivityMosaicData }) {
   );
 }
 
-function FeaturedRecords({
-  data,
-  href,
-}: {
-  data: WeightliftingPlacardData;
-  href: string;
-}) {
+function FeaturedRecords({ data }: { data: WeightliftingPlacardData }) {
   return (
     <div>
       <PlacardCardHeading
@@ -232,10 +230,10 @@ function FeaturedRecords({
       </PlacardCardHeading>
       <div className="-mb-2 divide-y divide-foreground/10">
         {data.records.map((record) => (
-          <Link
+          <SheetLink
             key={record.key}
-            href={`${href}/${exerciseSlug(record.exerciseName)}`}
-            className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-3.5 transition-colors last:pb-2 hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+            href={`/weightlifting/${exerciseSlug(record.exerciseName)}`}
+            className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-3.5 transition-colors duration-200 last:pb-2 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
           >
             <div className="flex min-w-0 items-center gap-3">
               <span
@@ -247,7 +245,10 @@ function FeaturedRecords({
                 }}
               />
               <div className="min-w-0">
-                <strong className="block font-serif text-lg font-medium leading-tight text-foreground">
+                <strong
+                  data-featured-record-text=""
+                  className="block font-serif text-lg font-medium leading-tight text-foreground"
+                >
                   {record.exerciseName}
                 </strong>
                 <span className="block truncate text-xs text-muted-foreground">
@@ -269,7 +270,10 @@ function FeaturedRecords({
               </div>
             </div>
             <div className="text-right tabular-nums">
-              <strong className="block text-lg font-semibold leading-tight text-foreground">
+              <strong
+                data-featured-record-text=""
+                className="block text-lg font-semibold leading-tight text-foreground"
+              >
                 {record.bestOneRM === null
                   ? "—"
                   : `${Math.round(record.bestOneRM)} lbs`}
@@ -280,7 +284,7 @@ function FeaturedRecords({
                 </span>
               ) : null}
             </div>
-          </Link>
+          </SheetLink>
         ))}
       </div>
     </div>
@@ -316,14 +320,22 @@ export default function Weightlifting({
         >
           <WorkoutStatsCard data={data} />
         </PlacardLinkCard>
+        {HOME_LAST_WORKOUT_ENABLED && data.latestWorkout && (
+          <PlacardLinkCard
+            href={`${href}/workout/${encodeURIComponent(data.latestWorkout.uuid)}`}
+            label={`View last workout: ${data.latestWorkout.name}, ${data.latestWorkout.date}`}
+          >
+            <LastWorkoutContent workout={data.latestWorkout} />
+          </PlacardLinkCard>
+        )}
         <PlacardNestedLinkCard href={href} label="Browse featured lift records">
-          <FeaturedRecords data={data} href={href} />
+          <FeaturedRecords data={data} />
         </PlacardNestedLinkCard>
         <PlacardNestedLinkCard
           href={href}
           label="Browse the full workout history"
         >
-          <PlacardCardHeading icon={CalendarDotsIcon} detail="Last 12 months">
+          <PlacardCardHeading icon={CalendarDotsIcon} detail="Last 12 mo">
             Workout history
           </PlacardCardHeading>
           <WorkoutHistoryCalendar data={activity} />

@@ -292,10 +292,12 @@ export function ExerciseExplorer({
   instances,
   color,
   displayName,
+  allVariants = false,
 }: {
   instances: ExerciseInstance[];
   color: string;
   displayName: string;
+  allVariants?: boolean;
 }) {
   const router = useRouter();
   const wlPath = useWlPath();
@@ -695,6 +697,7 @@ export function ExerciseExplorer({
                     <BodyweightPareto
                       key={displayName}
                       displayName={displayName}
+                      allVariants={allVariants}
                       color={color}
                     />
                   </Card>
@@ -937,6 +940,11 @@ export function ExerciseExplorer({
                         )}
                       </p>
                     </div>
+                    {allVariants && (
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">
+                        {instance.displayName}
+                      </p>
+                    )}
                     {instance.sets.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {instance.sets.map((set, setIndex) => (

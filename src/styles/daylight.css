@@ -1391,27 +1391,20 @@
 
 /*
  * One column geometry for the hero copy, the hero panels, and the body.
- * Below lg the column is a centred block of --dl-column plus its 1rem side
- * padding. From lg up it is the middle track of a three-track grid: the TOC
- * rail sits at the end of the first track and the third mirrors it, so the
- * column stays centred on the viewport whenever the rail fits beside it. The
- * rail track never shrinks below the rail plus its gap, so on a narrow
- * desktop (1024-1250px) the column slides right instead of squeezing.
- *
- * The flex row this replaces held the column to 34rem on every screen wide
- * enough to show its centring spacer: a 64rem container could not hold the
- * rail, a 45rem column, and a 14rem spacer at once, and the column was the
- * only one of the three allowed to shrink.
+ * The reading column stays centred at every width. Show the rail only when
+ * the viewport fits the 45rem column, two equal 16.5rem side tracks, and
+ * 2rem of outer padding. Sheets keep the single column regardless of the
+ * viewport width; expanding a sheet restores the full-page layout.
  */
 .dl-columns {
   max-width: calc(var(--dl-column) + 2rem);
   margin-inline: auto;
 }
-@media (min-width: 1024px) {
+@media (min-width: 80rem) {
   .dl-columns {
     display: grid;
     grid-template-columns:
-      minmax(calc(var(--dl-rail) + var(--dl-rail-gap)), 1fr)
+      minmax(0, 1fr)
       minmax(0, var(--dl-column))
       minmax(0, 1fr);
     max-width: none;
@@ -1421,6 +1414,7 @@
     min-width: 0;
   }
   .dl-columns > .dl-toc {
+    display: block;
     grid-column: 1;
     width: var(--dl-rail);
     justify-self: end;
@@ -1434,6 +1428,7 @@
    the nav is `sticky` (a positioned element already), and a `relative` in
    this file loads after the utilities and would silently un-stick it. */
 .dl-toc {
+  display: none;
   padding-left: 0.875rem;
 }
 .dl-toc::before {
@@ -1590,6 +1585,15 @@ body:has(.daylight-root) {
 }
 
 /* ============ Intercepted-route sheet ============ */
+
+.dl-sheet .dl-columns {
+  display: block;
+  max-width: calc(var(--dl-column) + 2rem);
+}
+
+.dl-sheet .dl-toc {
+  display: none;
+}
 
 /* The sheet card is Tailwind-built in DaylightSheet, book-modal style; the
    one thing the stylesheet owns is that the page's own theme toggle (on the

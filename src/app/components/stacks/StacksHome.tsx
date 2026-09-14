@@ -668,8 +668,6 @@ export default function StacksHome({
                 translate 420ms cubic-bezier(0.16, 1, 0.3, 1),
                 filter 280ms ease-out;
             }
-            [data-stacks-desktop-dock],
-            [data-stacks-details-toggle-shell],
             [data-stacks-sheet-material],
             [data-stacks-mobile-panel] {
               opacity: 1;
@@ -678,11 +676,20 @@ export default function StacksHome({
                 opacity 280ms ease-out 20ms,
                 translate 420ms cubic-bezier(0.16, 1, 0.3, 1) 20ms;
             }
+            /* The desktop sidebar keeps its glass and text opaque while it
+               slides beyond the edge, just as it does in golf mode. One
+               translate owns every hide reason so overlapping overlays
+               cannot add a second slide or restart a content fade. */
+            [data-stacks-desktop-dock],
+            [data-stacks-details-toggle-shell] {
+              translate: 0 0;
+              transition: translate 360ms cubic-bezier(0.4, 0, 0.2, 1);
+            }
             [data-stacks-desktop-dock] {
-              transition:
-                opacity 280ms ease-out 20ms,
-                translate 420ms cubic-bezier(0.16, 1, 0.3, 1) 20ms,
-                transform 200ms ease;
+              --stacks-sidebar-exit: calc(100% + var(--stacks-details-gutter) + 1rem);
+            }
+            [data-stacks-details-toggle-shell] {
+              --stacks-sidebar-exit: calc(100% + 2rem);
             }
             [data-stacks-mobile-panel-dim] {
               transition: opacity 220ms ease-out 20ms;
@@ -739,19 +746,11 @@ export default function StacksHome({
               transition-duration: 180ms, 230ms, 180ms;
               transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
             }
-            html[data-field-notes-open] [data-stacks-desktop-dock],
-            html[data-field-notes-open] [data-stacks-details-toggle-shell],
-            html[data-overlay-open] [data-stacks-desktop-dock],
-            html[data-prop-focus] [data-stacks-desktop-dock],
-            html[data-overlay-open] [data-stacks-details-toggle-shell],
-            html[data-prop-focus] [data-stacks-details-toggle-shell],
-            html:has(.PhotoView-Portal) [data-stacks-desktop-dock],
-            html:has(.PhotoView-Portal) [data-stacks-details-toggle-shell] {
-              opacity: 0;
-              translate: 26px 0;
-              transition-delay: 0ms;
-              transition-duration: 180ms, 240ms;
-              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1);
+            [data-stacks-desktop-dock][data-retracted],
+            [data-stacks-details-toggle-shell][data-retracted],
+            html:is([data-field-notes-open], [data-overlay-open], [data-prop-focus], :has(.PhotoView-Portal:not(.PhotoView-Slider__willClose)))
+              :is([data-stacks-desktop-dock], [data-stacks-details-toggle-shell]) {
+              translate: var(--stacks-sidebar-exit) 0;
             }
             html[data-field-notes-open] [data-stacks-sheet-material],
             html[data-field-notes-open] [data-stacks-mobile-panel],
@@ -863,8 +862,6 @@ export default function StacksHome({
               html[data-field-notes-open] .stacks-theme-toggle,
               html[data-field-notes-open] .stacks-unit-rail-desktop,
               html[data-field-notes-open] .stacks-unit-rail-mobile,
-              html[data-field-notes-open] [data-stacks-desktop-dock],
-              html[data-field-notes-open] [data-stacks-details-toggle-shell],
               html[data-field-notes-open] [data-stacks-sheet-material],
               html[data-field-notes-open] [data-stacks-mobile-panel],
               html[data-field-notes-open] [data-stacks-portal-label],
@@ -876,10 +873,6 @@ export default function StacksHome({
               html[data-prop-focus] .stacks-unit-rail-desktop,
               html[data-overlay-open] .stacks-unit-rail-mobile,
               html[data-prop-focus] .stacks-unit-rail-mobile,
-              html[data-overlay-open] [data-stacks-desktop-dock],
-              html[data-prop-focus] [data-stacks-desktop-dock],
-              html[data-overlay-open] [data-stacks-details-toggle-shell],
-              html[data-prop-focus] [data-stacks-details-toggle-shell],
               html[data-overlay-open] [data-stacks-sheet-material],
               html[data-prop-focus] [data-stacks-sheet-material],
               html[data-overlay-open] [data-stacks-mobile-panel],
@@ -890,8 +883,6 @@ export default function StacksHome({
               html:has(.PhotoView-Portal) .stacks-theme-toggle,
               html:has(.PhotoView-Portal) .stacks-unit-rail-desktop,
               html:has(.PhotoView-Portal) .stacks-unit-rail-mobile,
-              html:has(.PhotoView-Portal) [data-stacks-desktop-dock],
-              html:has(.PhotoView-Portal) [data-stacks-details-toggle-shell],
               html:has(.PhotoView-Portal) [data-stacks-sheet-material],
               html:has(.PhotoView-Portal) [data-stacks-mobile-panel],
               html:has(.PhotoView-Portal) [data-stacks-portal-label] {

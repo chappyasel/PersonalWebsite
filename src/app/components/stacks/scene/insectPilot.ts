@@ -25,6 +25,7 @@ import {
   advanceInsectSteering,
   createInsectSteeringState,
   integrateInsectRoam,
+  nudgeInsectSteering,
 } from "./insectSteering";
 
 const TAU = Math.PI * 2;
@@ -70,6 +71,13 @@ const ESCAPE_DISTANCE = 0.25;
 const ESCAPE_REDIRECT_SECONDS = 1.5;
 /** Give up on the corridor entirely and let go of the Perch. */
 const ESCAPE_RELEASE_SECONDS = 3;
+// A moving target or tiny accepted slides can prevent a landing forever without
+// tripping the consecutive-refusal counter. Measure displacement in simulation
+// time, independent of the velocity the collision-constrained pilot reports.
+const FLIGHT_PROGRESS_DISTANCE = 0.06;
+const FLIGHT_PROGRESS_SECONDS = 1.5;
+const LANDING_PROGRESS_DISTANCE = 0.015;
+const LANDING_PROGRESS_SECONDS = 2.5;
 
 export type InsectPilotPhase =
   | "roam"
@@ -497,6 +505,9 @@ export type InsectPilot = {
   cruiseTime: number;
   phaseAge: number;
   accumulator: number;
+  progressPosition: PilotVector;
+  progressTime: number;
+  progressPhase: InsectPilotPhase;
   position: PilotVector;
   velocity: PilotVector;
   acceleration: PilotVector;
@@ -773,6 +784,9 @@ export function createInsectPilot(options: InsectPilotOptions): InsectPilot {
     cruiseTime: options.initialTime,
     phaseAge: 0,
     accumulator: 0,
+    progressPosition: { ...options.initial.position },
+    progressTime: options.initialTime,
+    progressPhase: "roam",
     position: vector(),
     velocity: vector(),
     acceleration: vector(),
@@ -2619,6 +2633,48 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
   advanceFlap(pilot, FIXED_STEP);
 }
 
+function recoverFlightWithoutProgress(
+  pilot: InsectPilot,
+  world: InsectFlightWorld,
+) {
+  const roaming = pilot.phase === "roam" && pilot.steering !== null;
+  const landing =
+    pilot.phase === "approach" ||
+    pilot.phase === "hover" ||
+    pilot.phase === "touchdown";
+  const moved = distance(pilot.position, pilot.progressPosition);
+  if (
+    (!roaming && !landing) ||
+    pilot.phase !== pilot.progressPhase ||
+    moved >= (roaming ? FLIGHT_PROGRESS_DISTANCE : LANDING_PROGRESS_DISTANCE)
+  ) {
+    copy(pilot.progressPosition, pilot.position);
+    pilot.progressTime = pilot.time;
+    pilot.progressPhase = pilot.phase;
+    return;
+  }
+  if (
+    pilot.time - pilot.progressTime <
+    (roaming ? FLIGHT_PROGRESS_SECONDS : LANDING_PROGRESS_SECONDS)
+  )
+    return;
+
+  if (roaming && pilot.steering) {
+    nudgeInsectSteering(pilot.steering, pilot.collisionDirection);
+    pilot.velocity.x += pilot.collisionDirection.x * 0.34;
+    pilot.velocity.y += pilot.collisionDirection.y * 0.34;
+    pilot.velocity.z += pilot.collisionDirection.z * 0.34;
+    clampMagnitude(pilot.velocity, pilot.profile.maxSpeed);
+  } else {
+    // Keep the support reservation while taking off. Releasing it here can
+    // trap the insect inside the support's open-wing collision envelope.
+    commandInsectPilot(pilot, { type: "depart", cause: "calm" }, world);
+  }
+  copy(pilot.progressPosition, pilot.position);
+  pilot.progressTime = pilot.time;
+  pilot.progressPhase = pilot.phase;
+}
+
 /**
  * Advance by wall-clock delta using deterministic 120 Hz fixed substeps.
  * Returns the same state object for renderer convenience; no per-frame object
@@ -2638,6 +2694,7 @@ export function advanceInsectPilot(
   pilot.accumulator += Math.min(delta, MAX_FRAME_DELTA);
   while (pilot.accumulator + EPSILON >= FIXED_STEP) {
     advanceFixed(pilot, world);
+    recoverFlightWithoutProgress(pilot, world);
     pilot.accumulator -= FIXED_STEP;
   }
   if (pilot.accumulator < 0 && pilot.accumulator > -EPSILON)
