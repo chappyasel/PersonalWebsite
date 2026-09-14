@@ -123,6 +123,8 @@ it.each([
   ["/musings/ai-stack", "/musings/apple-way", false],
   ["/musings/ai-stack", "/musings", false],
   ["/musings", "/musings/ai-stack", true],
+  ["/books/behave", "/books", false],
+  ["/books/behave", "/books", true],
 ] as const)(
   "animates the reading route %s to %s, reduced motion %s",
   async (from, to, reduced) => {
@@ -156,6 +158,8 @@ it.each([
 it.each([
   ["/musings/ai-stack", "/musings"],
   ["/musings", "/musings/ai-stack"],
+  ["/books/behave", "/books"],
+  ["/books", "/books/behave"],
   ["/books", "/weightlifting"],
   ["/books/behave", "/books"],
   ["/personalities/history", "/personalities"],
@@ -663,3 +667,58 @@ it("dismisses an expanded Systems document through its existing sheet without pu
     window.removeEventListener("popstate", restore);
   }
 });
+
+it.each(["localhost", "books.localhost"])(
+  "animates a direct book close on %s without a prior history entry",
+  async (hostname) => {
+    const onBooksHost = hostname.startsWith("books.");
+    navigation.pathname = onBooksHost ? "/behave" : "/books/behave";
+    vi.stubGlobal(
+      "location",
+      new URL(`http://${hostname}${navigation.pathname}`),
+    );
+    const view = render(<RouteTransitionPrototype />);
+    await act(async () => {
+      expect(requestPrototypeNavigation(".")).toBe(true);
+    });
+    expect(navigation.router.push).toHaveBeenCalledWith(
+      onBooksHost ? "/" : "/books/",
+    );
+    expect(vi.spyOn(document, "startViewTransition")).toHaveBeenCalledTimes(1);
+    expect(document.documentElement.dataset.routeDirection).toBe("forward");
+    // The subdomain root must not start a return to the 3D room.
+    expect(document.documentElement.dataset.routeReturn).toBeUndefined();
+    navigation.pathname = onBooksHost ? "/" : "/books";
+    await act(async () => view.rerender(<RouteTransitionPrototype />));
+    await act(async () => finish());
+    expect(document.documentElement.dataset.routePrototype).toBeUndefined();
+  },
+);
+
+it.each([false, true])(
+  "leaves modal-owned book history alone, forward %s",
+  async (forward) => {
+    navigation.pathname = forward ? "/books" : "/books/behave";
+    const view = render(
+      <>
+        <RouteTransitionPrototype />
+        {!forward && <div role="dialog" aria-label="Book details" />}
+      </>,
+    );
+    const state = { __NA: true, ...(forward ? { bookModal: true } : {}) };
+    history.replaceState(state, "", forward ? "/books/behave" : "/books");
+    const restore = vi.fn();
+    window.addEventListener("popstate", restore);
+    try {
+      await act(async () =>
+        window.dispatchEvent(new PopStateEvent("popstate", { state })),
+      );
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(vi.spyOn(document, "startViewTransition")).not.toHaveBeenCalled();
+      expect(navigation.router.push).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("popstate", restore);
+      view.unmount();
+    }
+  },
+);

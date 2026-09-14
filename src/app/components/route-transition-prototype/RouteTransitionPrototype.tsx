@@ -27,6 +27,7 @@ import {
   isMusingReadingPath,
   isTransitionPageChange,
   prototypeDestination,
+  transitionPathname,
 } from "./navigation";
 import {
   type OriginRect,
@@ -63,7 +64,9 @@ const DESTINATIONS = [
 // stops never reads as a route change.
 const section = (path: string) =>
   isRoomPathname(path) ? "" : (path.split("/")[1] ?? "");
-const isRoom = (url: URL) => isRoomPathname(url.pathname);
+const destinationPath = (url: URL) =>
+  transitionPathname(url.pathname, url.hostname);
+const isRoom = (url: URL) => isRoomPathname(destinationPath(url));
 const sameTransitionPage = (from: string, to: string) =>
   !isTransitionPageChange(from, to);
 
@@ -115,7 +118,8 @@ function localDestination(link: HTMLElement): URL | null {
 
 export default function RouteTransitionPrototype() {
   const router = useRouter();
-  const pathname = usePathname();
+  const routePathname = usePathname();
+  const pathname = transitionPathname(routePathname, location.hostname);
   const variant = useRouteTransitionPrototype((state) =>
     process.env.NODE_ENV === "production" ? "origin" : state.variant,
   );
@@ -144,7 +148,11 @@ export default function RouteTransitionPrototype() {
 
   useEffect(() => {
     setSupported(typeof document.startViewTransition === "function");
-    if (!isMusingReadingPath(location.pathname)) {
+    const initialPath = transitionPathname(
+      location.pathname,
+      location.hostname,
+    );
+    if (!isMusingReadingPath(initialPath) && section(initialPath) !== "books") {
       for (const [path] of DESTINATIONS) router.prefetch(path);
     }
     return () => {
@@ -194,13 +202,13 @@ export default function RouteTransitionPrototype() {
       "bookModal" in state &&
       state.bookModal === true
     ) &&
-    isTransitionPageChange(pathname, url.pathname) &&
-    (reverseRoom || roomDirection(pathname, url.pathname) === null);
+    isTransitionPageChange(pathname, destinationPath(url)) &&
+    (reverseRoom || roomDirection(pathname, destinationPath(url)) === null);
   historyNavigate.current = (url, state, restore) =>
     navigate(url, null, undefined, {
       restore,
       journey:
-        roomDirection(pathname, url.pathname) === "return"
+        roomDirection(pathname, destinationPath(url)) === "return"
           ? currentJourney.current
           : readRoomJourney(state),
     });
@@ -211,13 +219,14 @@ export default function RouteTransitionPrototype() {
     source?: HTMLElement | string,
     traversal?: { restore: () => void; journey: RoomJourney | null },
   ) {
-    if (active.current || sameTransitionPage(pathname, url.pathname)) return;
+    if (active.current || sameTransitionPage(pathname, destinationPath(url)))
+      return;
     const controller = new AbortController();
     const { signal } = controller;
     active.current = controller;
     const direction =
       variant === "origin" && reverseRoom
-        ? roomDirection(pathname, url.pathname)
+        ? roomDirection(pathname, destinationPath(url))
         : null;
     const room = roomResidency.getSnapshot();
     const warmReturn = direction === "return" && roomResidency.hasReadyRoom();
@@ -236,7 +245,7 @@ export default function RouteTransitionPrototype() {
       );
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const speed = 1;
-    setTarget(isRoom(url) ? "Home" : section(url.pathname));
+    setTarget(isRoom(url) ? "Home" : section(destinationPath(url)));
     setPhase("preparing");
     if (variant === "bookshelf" && isRoom(url)) {
       url.hash = "books";
@@ -268,7 +277,7 @@ export default function RouteTransitionPrototype() {
     const commit = async () => {
       if (signal.aborted || navigationIssued) return;
       const committed = new Promise<void>((resolve) => {
-        pending.current = { path: url.pathname, resolve };
+        pending.current = { path: destinationPath(url), resolve };
       });
       navigationIssued = true;
       if (traversal) traversal.restore();
@@ -323,7 +332,7 @@ export default function RouteTransitionPrototype() {
       } else if (
         variant === "bookshelf" &&
         booksShelf.current &&
-        (url.pathname === "/books" || isRoom(url))
+        (destinationPath(url) === "/books" || isRoom(url))
       ) {
         await booksShelf.current.transition(
           isRoom(url),
@@ -433,10 +442,10 @@ export default function RouteTransitionPrototype() {
   useEffect(() => {
     const follow = (link: HTMLElement, event: Event) => {
       const url = localDestination(link);
-      if (!url || sameTransitionPage(pathname, url.pathname)) return;
+      if (!url || sameTransitionPage(pathname, destinationPath(url))) return;
       // A sheet's own Back link and inner controls keep its history entry.
       if (
-        section(pathname) === section(url.pathname) &&
+        section(pathname) === section(destinationPath(url)) &&
         document.querySelector('[data-presented-sheet], [role="dialog"]')
       )
         return;
@@ -445,7 +454,7 @@ export default function RouteTransitionPrototype() {
       if (
         prefersFullPage() &&
         /^\/(manual|routine|systems|musings|books\/|weightlifting\/)/.test(
-          url.pathname,
+          destinationPath(url),
         )
       ) {
         navigateFullDocument(url.href, { source: link });
@@ -498,7 +507,7 @@ export default function RouteTransitionPrototype() {
       )
         return;
       const url = prototypeDestination(request.href, location.href);
-      if (!url || sameTransitionPage(pathname, url.pathname)) return;
+      if (!url || sameTransitionPage(pathname, destinationPath(url))) return;
       const origin =
         variant === "origin" &&
         "sourceId" in request &&

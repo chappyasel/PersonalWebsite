@@ -1,8 +1,22 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { isMusingPageChange, prototypeDestination } from "./navigation";
+import {
+  isMusingPageChange,
+  prototypeDestination,
+  transitionPathname,
+} from "./navigation";
 
 afterEach(() => vi.unstubAllEnvs());
+it.each([
+  ["/", "books.chappyasel.com", "/books"],
+  ["/behave", "books.chappyasel.com", "/books/behave"],
+  ["/books/behave", "books.chappyasel.com", "/books/behave"],
+  ["/books/behave", "chappyasel.com", "/books/behave"],
+  ["/", "chappyasel.com", "/"],
+  ["/squat/", "weightlifting.chappyasel.com", "/weightlifting/squat"],
+])("classifies %s on %s as %s", (path, host, expected) => {
+  expect(transitionPathname(path, host)).toBe(expected);
+});
 it("distinguishes reading documents without treating feeds or the same pathname as a page change", () => {
   expect(isMusingPageChange("/musings", "/musings/ai-stack")).toBe(true);
   expect(isMusingPageChange("/musings/ai-stack", "/musings/apple-way")).toBe(

@@ -230,10 +230,10 @@ describe("BookDetailContent note availability", () => {
     // React reuses the node and Framer's imperative styles from the compact
     // column (visibility hidden, opacity 0) survive onto the wide one.
     expect(detailSource).toMatch(
-      /key="wide"[\s\S]*?className="relative min-w-0 flex-1 overflow-visible pr-12"/,
+      /key="wide"[\s\S]*?"relative min-w-0 flex-1 overflow-visible"/,
     );
     expect(detailSource).toMatch(
-      /key="compact"[\s\S]*?className="flex min-w-0 flex-1 flex-col gap-0 pr-24"/,
+      /key="compact"[\s\S]*?"flex min-w-0 flex-1 flex-col gap-0"/,
     );
   });
 

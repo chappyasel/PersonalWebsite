@@ -2,7 +2,7 @@
 
 import { BookDetailContent } from "../components/BookDetailContent";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   getBookShareUrl,
@@ -25,6 +25,10 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
+  const handleClose = useCallback(() => {
+    const href = getBooksPath();
+    if (!requestPrototypeNavigation(href)) router.push(href);
+  }, [router]);
 
   // Same directory-relative shape as the breadcrumb, so it resolves on both
   // hosts. This page is prerendered, so it cannot read the query the way the
@@ -37,12 +41,12 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
       if (isUniversalSearchOpen()) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        if (!requestPrototypeNavigation("/books")) router.push("/books");
+        handleClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [router]);
+  }, [handleClose]);
 
   // Handle share button click
   const handleShare = async () => {
@@ -67,6 +71,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
             copied={copied}
             bookId={bookId}
             bookshelfBookCount={bookshelfBookCount}
+            onClose={handleClose}
             tagHref={tagHref}
           />
         </div>

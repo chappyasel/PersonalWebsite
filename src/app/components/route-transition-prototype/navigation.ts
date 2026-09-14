@@ -62,6 +62,16 @@ export function isTransitionPageChange(from: string, to: string) {
   );
 }
 const SUBDOMAINS = ["books", "weightlifting", "manual", "routine"];
+
+/** Classify a subdomain's short URL without changing the URL sent to Next. */
+export function transitionPathname(pathname: string, hostname: string) {
+  const path = normalizeRoomPathname(pathname);
+  const site = SUBDOMAINS.find((value) => hostname.startsWith(`${value}.`));
+  return site && path !== `/${site}` && !path.startsWith(`/${site}/`)
+    ? `/${site}${path === "/" ? "" : path}`
+    : path;
+}
+
 const ROOT_HOSTS = [
   "localhost",
   "127.0.0.1",
@@ -116,12 +126,7 @@ export function prototypeDestination(
     }
   }
   if (url.origin !== current.origin) return null;
-  const path =
-    onSubdomain &&
-    !url.pathname.startsWith(`/${onSubdomain}/`) &&
-    url.pathname !== `/${onSubdomain}`
-      ? `/${onSubdomain}${url.pathname === "/" ? "" : url.pathname}`
-      : url.pathname;
+  const path = transitionPathname(url.pathname, url.hostname);
   if (!isTransitionPage(path)) return null;
   return url;
 }

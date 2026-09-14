@@ -798,6 +798,10 @@ export function BookDetailContent({
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const notice = selectBookNotice(book);
+  const showExpandControl = isModal && !expanded;
+  const controlCount = Number(showExpandControl) + Number(Boolean(onClose));
+  const controlPadding =
+    controlCount === 2 ? "pr-24" : controlCount === 1 ? "pr-12" : undefined;
 
   // The analytics interface deduplicates Strict Mode remounts and modal/page
   // coexistence for this book during the current document lifecycle.
@@ -1233,11 +1237,10 @@ export function BookDetailContent({
         )}
         {/* Keep the side inset close to the header's vertical inset. */}
         <div className="relative mx-auto w-full max-w-4xl">
-          {/* Modal-only action buttons — the same cluster, in the same
-              material, as every other presented document (SheetControls). */}
-          {isModal && (
+          {/* Reserve title space only for the controls shown in this view. */}
+          {controlCount > 0 && (
             <SheetControlCluster className="absolute right-6 top-0.5 z-10 xs:right-14 sm:top-2 lg:top-[10px]">
-              {!expanded && (
+              {showExpandControl && (
                 <SheetExpandControl
                   href={modalBookHref ?? bookPath(bookId)}
                   onClick={onExpand}
@@ -1293,7 +1296,10 @@ export function BookDetailContent({
                 // wrote to it imperatively (the compact column's visibility
                 // and opacity), which would leave this column invisible.
                 key="wide"
-                className="relative min-w-0 flex-1 overflow-visible pr-12"
+                className={cn(
+                  "relative min-w-0 flex-1 overflow-visible",
+                  controlPadding,
+                )}
               >
                 <div className="relative">
                   {showBreadcrumb && (
@@ -1315,10 +1321,7 @@ export function BookDetailContent({
                       WebkitBoxOrient: "vertical",
                       overflow: "hidden",
                     }}
-                    className={cn(
-                      "font-semibold leading-[1.125] text-foreground",
-                      isModal && "mr-12",
-                    )}
+                    className="font-semibold leading-[1.125] text-foreground"
                   >
                     {book.title}
                   </motion.h2>
@@ -1447,7 +1450,10 @@ export function BookDetailContent({
               /* Mobile: Simple compact title/author that fades in */
               <motion.div
                 key="compact"
-                className="flex min-w-0 flex-1 flex-col gap-0 pr-24"
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col gap-0",
+                  controlPadding,
+                )}
                 style={{
                   opacity: compactHeaderOpacity,
                   visibility: compactHeaderVisibility,

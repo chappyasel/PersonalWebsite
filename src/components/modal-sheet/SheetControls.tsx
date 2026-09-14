@@ -114,7 +114,7 @@ export function SheetCloseControl({
         className={cn(BASE, sizing(size))}
         aria-label={label}
       >
-        <XIcon size={iconSize(size)} weight="bold" />
+        <XIcon aria-hidden size={iconSize(size)} weight="bold" />
       </button>
     </Labelled>
   );
