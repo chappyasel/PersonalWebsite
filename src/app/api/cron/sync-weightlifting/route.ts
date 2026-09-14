@@ -5,7 +5,10 @@ import {
   WEIGHTLIFTING_ACTIVITY_TAG,
   WEIGHTLIFTING_TAG,
 } from "~/lib/weightlifting/cache";
-import { syncWeightlifting } from "~/lib/weightlifting/sync";
+import {
+  WorkoutSyncBusyError,
+  syncWeightlifting,
+} from "~/lib/weightlifting/sync";
 
 import { env } from "~/env";
 
@@ -16,14 +19,14 @@ function verifyAuth(request: NextRequest): boolean {
   return authHeader === `Bearer ${env.CRON_SECRET}`;
 }
 
-async function handleSync(source: "cron" | "manual") {
+async function handleSync(source: "cron" | "manual" | "s3") {
   console.log(`${source} triggered: syncing weightlifting data...`);
   const result = await syncWeightlifting(source);
 
   // Purge cached queries when data changed so the dashboard and homepage
-  // mosaic refresh immediately. Manual syncs always revalidate: they're a
-  // human asking for fresh state.
-  if (!result.skipped || source === "manual") {
+  // mosaic refresh. Webhook retries also revalidate in case a previous
+  // invocation committed its import but failed during cache invalidation.
+  if (!result.skipped || source !== "cron") {
     console.log("Data changed — revalidating weightlifting caches");
     revalidateTag(WEIGHTLIFTING_TAG, "max");
     revalidateTag(WEIGHTLIFTING_ACTIVITY_TAG, "max");
@@ -44,6 +47,12 @@ export async function GET(request: NextRequest) {
   try {
     return await handleSync("cron");
   } catch (error) {
+    if (error instanceof WorkoutSyncBusyError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 503, headers: { "Retry-After": "30" } },
+      );
+    }
     console.error("Cron sync failed:", error);
     return NextResponse.json(
       {
@@ -61,8 +70,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    return await handleSync("manual");
+    return await handleSync(
+      request.headers.get("x-workout-sync-source") === "s3" ? "s3" : "manual",
+    );
   } catch (error) {
+    if (error instanceof WorkoutSyncBusyError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 503, headers: { "Retry-After": "30" } },
+      );
+    }
     console.error("Webhook sync failed:", error);
     return NextResponse.json(
       {
