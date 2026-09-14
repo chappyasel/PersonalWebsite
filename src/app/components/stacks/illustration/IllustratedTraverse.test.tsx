@@ -364,3 +364,51 @@ it("lets wheel travel settle between shelves", () => {
   expect(row.scrollLeft).toBe(4250);
   expect(moving).toHaveBeenLastCalledWith(false);
 });
+
+it("moves fetch priority to the shelf in view without remounting the row", () => {
+  Object.defineProperty(HTMLImageElement.prototype, "decode", {
+    configurable: true,
+    value: vi.fn(() => Promise.resolve()),
+  });
+  const mounted = render(
+    <RoomNavigation rendererEnabled={false}>
+      <IllustratedRoom
+        data={
+          { readingBooks: [], readingBookColors: {} } as unknown as StacksData
+        }
+        theme="light"
+        viewport="desktop"
+        visible
+        canRequest3D={false}
+        onRequest3D={vi.fn()}
+        onReady={vi.fn()}
+        onUnavailable={vi.fn()}
+      />
+    </RoomNavigation>,
+  );
+  const imageAt = (position: number) =>
+    mounted.container.querySelector<HTMLImageElement>(
+      `[data-illustration-position="${position}"] [data-illustration-image]`,
+    );
+  // Hydration resolves "/" to About, which owns no artwork image.
+  for (const position of [1, 2, 3, 4, 5, 6])
+    expect(imageAt(position)?.getAttribute("loading")).toBe("lazy");
+  act(() => navigateRoom(4, { rendererEnabled: false }));
+  // Every other shelf stays mounted so travel stays native.
+  expect(imageAt(4)?.getAttribute("loading")).toBe("eager");
+  expect(imageAt(4)?.getAttribute("fetchpriority")).toBe("high");
+  for (const offscreen of [1, 2, 3, 5, 6]) {
+    expect(imageAt(offscreen)?.getAttribute("loading")).toBe("lazy");
+    expect(imageAt(offscreen)?.getAttribute("fetchpriority")).toBe("low");
+  }
+  const arriving = imageAt(5);
+  const leaving = imageAt(4);
+  act(() => navigateRoom(5, { rendererEnabled: false }));
+  // Same elements: priority is patched in place, so no shelf refetches.
+  expect(imageAt(5)).toBe(arriving);
+  expect(imageAt(4)).toBe(leaving);
+  expect(imageAt(5)?.getAttribute("loading")).toBe("eager");
+  expect(imageAt(5)?.getAttribute("fetchpriority")).toBe("high");
+  expect(imageAt(4)?.getAttribute("loading")).toBe("lazy");
+  expect(imageAt(4)?.getAttribute("fetchpriority")).toBe("low");
+});

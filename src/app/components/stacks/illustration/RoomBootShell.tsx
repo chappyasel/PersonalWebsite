@@ -21,7 +21,7 @@ type RoomBootShellProps = Pick<
 /** CSS reads the theme class established before body content, so the page stays cacheable. */
 function FirstPaintArtwork(props: Omit<RoomBootShellProps, "illustrated">) {
   const fallback = getRoomArtwork(props.unitIndex, "light", "desktop");
-  if (!fallback) return <IllustrationStage {...props} shelfOnly />;
+  if (!fallback) return <IllustrationStage {...props} shelfOnly prepaint />;
   const style: Record<string, string> = {};
   for (const theme of ["light", "dark"] as const) {
     for (const viewport of ["desktop", "phone"] as const) {
@@ -38,6 +38,7 @@ function FirstPaintArtwork(props: Omit<RoomBootShellProps, "illustrated">) {
   return (
     <IllustrationFrame
       unitIndex={props.unitIndex}
+      prepaint
       style={style as CSSProperties}
     >
       <div

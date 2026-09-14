@@ -25,6 +25,11 @@ export type IllustrationStageProps = {
   readingBookColors?: Record<string, ReadingBookEdgeColor>;
   unavailable?: boolean;
   shelfOnly?: boolean;
+  /** Emit the pre-paint geometry script. First-paint shell frames only. */
+  prepaint?: boolean;
+  /** The shelf the visitor is looking at. Offscreen shelves stay mounted for
+   * travel, so they yield their image bandwidth and decode budget instead. */
+  active?: boolean;
 };
 
 /** Shared first-paint/hydrated geometry. Registration markers belong to its client owner. */
@@ -36,6 +41,8 @@ export function IllustrationStage({
   readingBookColors,
   unavailable = false,
   shelfOnly = false,
+  prepaint = false,
+  active = true,
 }: IllustrationStageProps) {
   if (unitIndex === GOLF_STOP_POSITION)
     return (
@@ -52,6 +59,7 @@ export function IllustrationStage({
     <IllustrationFrame
       unitIndex={unitIndex}
       emptyAbout={shelfOnly && unitIndex === 0}
+      prepaint={prepaint}
       style={
         {
           "--room-artwork-desktop-width": `${displayWidth(desktop)}px`,
@@ -86,6 +94,7 @@ export function IllustrationStage({
             unitIndex={unitIndex}
             theme={theme}
             viewport={viewport}
+            active={active}
             data-illustration-image=""
             pictureClassName="room-illustration-picture"
             alt={`${UNITS[unitIndex]?.label ?? "Room"} shelf illustration`}

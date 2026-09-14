@@ -299,6 +299,9 @@ export default function IllustratedRoom({
                 (position === drawingUnit || entranceSettled) && (
                   <IllustrationStage
                     unitIndex={position}
+                    // Offscreen shelves stay mounted so travel never remounts
+                    // the row; only their fetch priority yields.
+                    active={position === drawingUnit}
                     theme={theme}
                     viewport={viewport}
                     readingBooks={aboutBooks}

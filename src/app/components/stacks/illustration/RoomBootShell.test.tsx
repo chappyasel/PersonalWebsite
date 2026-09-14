@@ -192,6 +192,45 @@ it.each([1, 2, 3, 4, 5, 6])(
   },
 );
 
+it("keeps the pre-paint geometry in the server shell and drops it once hydrated", () => {
+  const shell = markup(<RoomBootShell unitIndex={4} illustrated />);
+  // Nothing has run React yet in the shell, so the frames carry their geometry
+  // as source. Golf owns its own stage and never takes a frame.
+  const scripts = Array.from(
+    shell.querySelectorAll(".room-illustration-stage script"),
+    (script) => script.textContent ?? "",
+  );
+  expect(scripts).toHaveLength(7);
+  for (const script of scripts)
+    expect(script).toContain("--room-frame-");
+  // The unit selection script still runs ahead of any shelf markup.
+  expect(shell.querySelector("script")?.textContent).toContain(
+    "data-room-first-unit",
+  );
+  // About's frame additionally patches its plank and support faces in place.
+  const about = shell.querySelector(
+    '[data-first-paint-unit="0"] .room-illustration-stage script',
+  )!.textContent!;
+  expect(about).toContain("data-boot-plank-top");
+  expect(about).toContain("data-boot-plank-side");
+  expect(about).toContain("data-boot-support-");
+
+  // The hydrated stage computes the same variables in its layout effect, so
+  // shipping the source a second time buys nothing.
+  for (const unitIndex of [0, 4])
+    expect(
+      markup(<IllustrationStage unitIndex={unitIndex} />).querySelector(
+        "script",
+      ),
+    ).toBeNull();
+  // Face patching belongs to the script, and follows it out of the hydrated tree.
+  expect(
+    markup(<IllustrationStage unitIndex={0} shelfOnly />).querySelector(
+      "script",
+    ),
+  ).toBeNull();
+});
+
 it("retains About's class-aware SVG and the legacy opt-out", () => {
   const about = markup(<RoomBootShell unitIndex={0} illustrated />);
   expect(about.querySelectorAll("[data-about-artwork]")).toHaveLength(1);
