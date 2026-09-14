@@ -28,7 +28,7 @@ export const globeSpin = createSpinHandle((turn) => {
   if (tallyGlobeHandLap(turn))
     recordFieldNoteEvent({ type: "globe-turned-by-hand" });
 });
-/** Extra pitch the drag gives the near globe, radians, read by PropApproach. */
+/** Opening pitch plus drag adjustments, radians, read by PropApproach. */
 export const globeTilt = { current: 0 };
 
 /** The near globe turns by dragging; only chapter marks open a link. */
@@ -62,6 +62,8 @@ export const GLOBE_DRAG_RADIANS_PER_PX = (Math.PI * 2) / GLOBE_DRAG_PX_PER_LAP;
 /** Gentle vertical input. Positive pitch reveals the northern hemisphere;
  * looking up underneath the globe only needs a small amount of travel. */
 export const GLOBE_TILT_RADIANS_PER_PX = 0.002;
+/** Open looking down toward the northern hemisphere, where most marks sit. */
+export const GLOBE_TILT_DEFAULT = (28 * Math.PI) / 180;
 export const GLOBE_TILT_DOWN_LIMIT = 0.6;
 export const GLOBE_TILT_UP_LIMIT = 0.12;
 export const GLOBE_TILT_LAMBDA = 6;

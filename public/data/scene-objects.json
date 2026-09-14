@@ -637,14 +637,14 @@
     "id": "lift-table",
     "title": "Lift Table",
     "status": "written",
-    "visitor": false,
+    "visitor": true,
     "links": [
       {
         "label": "PDF",
         "href": "https://www.chappyasel.com/documents/lift-table.pdf"
       }
     ],
-    "body": "The first lifting chart I put together, before the analysis became a small research project of its own."
+    "body": "My first lift table that I made back in high school that inspired Weightlifting App"
   },
   {
     "id": "grab:dumbbell:training:right",

@@ -89,6 +89,8 @@ function TrainingPhoto({
       shape="box"
       massKg={0.45}
       hoverTiltAngle={hingeOnHover ? Math.PI / 3 : undefined}
+      hoverLift={hingeOnHover ? 0.025 : undefined}
+      stableHoverTarget={hingeOnHover}
       artifact={id}
     >
       <HeldFacing
@@ -728,6 +730,8 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           physics={false}
           draggable={false}
           hoverTiltAngle={Math.PI / 3}
+          hoverLift={0.025}
+          stableHoverTarget
         >
           <HeldFacing
             hoverKey="artifact:lift-table"

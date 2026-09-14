@@ -10,6 +10,7 @@ import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffec
 import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
 import { backgroundBookTreatment } from "./backgroundBookTreatment";
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
+import { selectionCameraPitchController } from "./cameraZoom";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import { golfFocusPullConsoleController } from "./golfFocusPullConsole";
@@ -1117,6 +1118,19 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     store: pointerCameraTiltController,
     read: () => pointerCameraTiltController.getSnapshot().enabled,
     update: (value) => pointerCameraTiltController.setEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "camera.selection-pitch",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Selection downward pitch",
+    help: "Tilt down three degrees when selecting an object. Scrolling restores the normal camera pitch.",
+    defaultValue: true,
+    experimental: false,
+    store: selectionCameraPitchController,
+    read: () => selectionCameraPitchController.getSnapshot().enabled,
+    update: (value) =>
+      selectionCameraPitchController.setEnabled(Boolean(value)),
   }),
   booleanDescriptor({
     id: "camera.free-roam",

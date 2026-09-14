@@ -1,5 +1,11 @@
 import { WORLD_ZOOM_MIN } from "../mobile/travel";
 
+import { createPointerCameraTiltController } from "./pointerCameraTilt";
+
+export const SELECTION_CAMERA_PITCH_DEGREES = 3;
+export const selectionCameraPitchController =
+  createPointerCameraTiltController();
+
 export const MIN_CAMERA_TARGET_DISTANCE = 3.8;
 export const TAP_FOCUS_ZOOM_MULTIPLIER = 1.44;
 /** Portrait Composition can focus either shelf, so its target needs enough
@@ -31,26 +37,27 @@ export function cameraTravelState({
   scenePosition,
   previousScenePosition,
   alternateStop,
+  touchInteraction = false,
 }: {
   scenePosition: number;
   previousScenePosition: number;
   alternateStop: number;
+  touchInteraction?: boolean;
 }) {
   const distanceFromAuthoredStop = Math.min(
     Math.abs(scenePosition - Math.round(scenePosition)),
     Math.abs(scenePosition - alternateStop),
   );
-  const traveling =
-    distanceFromAuthoredStop > 0.015 ||
-    Math.abs(scenePosition - previousScenePosition) > 0.000_02;
+  const moving = Math.abs(scenePosition - previousScenePosition) > 0.000_02;
+  const awayFromStop = distanceFromAuthoredStop > 0.015;
+  const traveling = moving || (touchInteraction && awayFromStop);
 
   return {
     traveling,
-    // Drei's damping keeps changing the position for roughly half a second
-    // after the shelf looks settled. Keep travel cleanup active during that
-    // tail, but let an intentional object tap focus once the camera is within
-    // the authored stop's visual tolerance.
-    focusBlockedByTravel: distanceFromAuthoredStop > 0.015,
+    // Touch snaps to authored stops. A desktop wheel can stop anywhere, so
+    // being between shelves must not block selection once motion settles.
+    // Near a stop, allow focus during the small remaining damping tail.
+    focusBlockedByTravel: awayFromStop && (touchInteraction || moving),
   };
 }
 
@@ -58,9 +65,8 @@ export function cameraTravelTransition(
   wasBlockingTravel: boolean,
   travel: ReturnType<typeof cameraTravelState>,
 ) {
-  // Residual damping can briefly speed up again as the native scroll element
-  // and Drei converge on the same stop. Only leaving the authored stop's
-  // visual tolerance should dismiss an intentional object focus.
+  // Only entering blocked travel dismisses focus. Small damping tails near
+  // a stop, and stationary desktop positions between stops, remain selectable.
   const blockingTravel = travel.focusBlockedByTravel;
   return {
     resetFocus: blockingTravel && !wasBlockingTravel,
@@ -90,9 +96,8 @@ export function interactionZoomTarget({
   if (traveling || blocked) return 0;
 
   const focusZoom = Math.min(4.5, Math.max(0.7, distance - 5.6));
-  // `focused` is persistent state created only by the coarse-touch arbiter.
-  // Treat it as stronger evidence than the last observed pointer type, which
-  // Safari can replace after the tap while the Focus Lean remains active.
+  // Selection zoom is shared by mouse and touch. Hover and carrying retain
+  // their input-specific camera behavior below.
   if (focused) return focusZoom * TAP_FOCUS_ZOOM_MULTIPLIER;
   if (!touchInteraction) return 0;
   if (dragging) return Math.min(3.2, focusZoom * 0.8);

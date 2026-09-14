@@ -36,12 +36,14 @@ import {
   cameraDepthEffectEnabled,
 } from "./cameraDepthDiagnostics";
 import {
+  SELECTION_CAMERA_PITCH_DEGREES,
   cameraTravelState,
   cameraTravelTransition,
   clampCameraZoom,
   interactionFocusYOffset,
   interactionZoomTarget,
   isGolfControlInteraction,
+  selectionCameraPitchController,
 } from "./cameraZoom";
 import {
   freeRoamDiagnosticsController,
@@ -868,6 +870,7 @@ export default function CameraRig() {
       scenePosition,
       previousScenePosition: previousScenePosition.current,
       alternateStop: GOLF_STOP_POSITION,
+      touchInteraction: touchWorldRef.interactionPointerType === "touch",
     });
     const { focusBlockedByTravel } = travel;
     const travelTransition = cameraTravelTransition(
@@ -1213,9 +1216,16 @@ export default function CameraRig() {
     skyPointerTurn.current =
       ((pointerYaw.current + headYaw.current) * Math.PI) / 180 +
       Math.atan2(pointerSwing.current, Math.abs(look.current.z - baseZ));
+    const selectionPitch =
+      !screenshot.enabled &&
+      !ogCapture &&
+      !(reducedMotionQuery?.matches ?? false) &&
+      selectionCameraPitchController.getSnapshot().enabled
+        ? focusAmount.current * SELECTION_CAMERA_PITCH_DEGREES
+        : 0;
     const tiltRadians = screenshot.enabled
       ? screenshotTiltRadians(screenshot.tilt)
-      : (pointerTilt.current * Math.PI) / 180;
+      : ((pointerTilt.current + selectionPitch) * Math.PI) / 180;
     if (tiltRadians !== 0) {
       authoredEyeY = eyeYForTiltAroundTarget({
         eyeY: authoredEyeY,

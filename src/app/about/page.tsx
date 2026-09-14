@@ -1,3 +1,4 @@
+import HomeStructuredData from "../HomeStructuredData";
 import RoomHomePage from "../RoomHomePage";
 import {
   HOMEPAGE_DESCRIPTION,
@@ -21,5 +22,10 @@ export const metadata: Metadata = roomStopMetadata({
 export const viewport: Viewport = roomViewport;
 
 export default function AboutPage() {
-  return <RoomHomePage initialUnit={0} />;
+  return (
+    <>
+      <HomeStructuredData />
+      <RoomHomePage initialUnit={0} />
+    </>
+  );
 }

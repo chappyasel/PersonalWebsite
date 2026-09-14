@@ -15,7 +15,7 @@ export function propReactionsSuppressed() {
   return reactionsSuppressed;
 }
 
-/** A prop gives the same held reaction to fine-pointer hover and Touch Focus.
+/** A prop gives the same held reaction to hover and persistent selection.
  * A new press belongs to the Pickup Cue, and carrying owns the prop's motion. */
 export function propReactionIsEngaged(
   state: PropReactionInteractionState,

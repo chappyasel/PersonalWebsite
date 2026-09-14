@@ -1,9 +1,53 @@
 // @vitest-environment jsdom
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
+import { type ReactNode, Suspense } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
 
 import RoomDocument from "./RoomDocument";
+
+it("renders caller-owned section slots without React key warnings", async () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  // Streamed RSC slots use lazy nodes. Their element can resolve after JSX
+  // has validated the parent's static children, during reconciliation.
+  const content = <p>Training content</p>;
+  const training = {
+    $$typeof: Symbol.for("react.lazy"),
+    _payload: { status: "pending" },
+    _store: { validated: 0 },
+    _init: () => content,
+  } as unknown as ReactNode;
+  function HomePageContent() {
+    const slots = {
+      training,
+      about: <p>About content</p>,
+      quotes: <p>A quote</p>,
+    };
+    return <RoomDocument slots={slots} />;
+  }
+  try {
+    await act(async () => {
+      render(
+        <Suspense>
+          <HomePageContent />
+        </Suspense>,
+      );
+    });
+    expect(screen.getByText("Training content")).toBeTruthy();
+    expect(screen.getByText("A quote")).toBeTruthy();
+    expect(
+      error.mock.calls.filter((args) =>
+        args.some(
+          (arg) => typeof arg === "string" && arg.includes('unique "key"'),
+        ),
+      ),
+    ).toEqual([]);
+  } finally {
+    cleanup();
+    error.mockRestore();
+  }
+});
 
 vi.mock("./IllustrationStage", () => ({
   IllustrationStage: ({ unitIndex }: { unitIndex: number }) => (

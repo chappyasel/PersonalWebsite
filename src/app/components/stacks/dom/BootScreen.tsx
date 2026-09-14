@@ -1105,20 +1105,12 @@ function RoleIconStackGlyph() {
       (Math.abs(Math.cos(role.yaw)) * body.size +
         Math.abs(Math.sin(role.yaw)) * body.depth) *
       SCENE_TO_BOOT_SVG;
-    const faceSize = body.size - body.faceInset * 2;
-    const projectedFaceWidth =
-      Math.abs(Math.cos(role.yaw)) * faceSize * SCENE_TO_BOOT_SVG;
-    const faceShiftX =
-      Math.sin(role.yaw) * (body.depth / 2) * SCENE_TO_BOOT_SVG;
     const centerX = dx * SCENE_TO_BOOT_SVG;
     const topY = -(dy * SCENE_TO_BOOT_SVG + size);
-    const faceTop = topY + body.faceInset * SCENE_TO_BOOT_SVG;
-    const faceHeight = faceSize * SCENE_TO_BOOT_SVG;
-    const faceRadius =
-      Math.max(body.fallbackFaceRadius, body.radius - body.faceInset) *
-      SCENE_TO_BOOT_SVG;
-    const facePath = projectIconOutlineSvg(faceHeight, faceRadius);
-    const faceTransform = `translate(${centerX + faceShiftX} ${faceTop + faceHeight / 2}) scale(${projectedFaceWidth / faceHeight} 1)`;
+    // The live slab carries its artwork across the bevel. Fill the same
+    // silhouette here so the fallback color cannot become a visible border.
+    const facePath = projectIconOutlineSvg(size, body.radius * SCENE_TO_BOOT_SVG);
+    const faceTransform = `translate(${centerX} ${topY + size / 2}) scale(${projectedBodyWidth / size} 1)`;
     const clipId = `stacks-boot-role-clip-${role.id}`;
     return (
       <g
@@ -1137,8 +1129,8 @@ function RoleIconStackGlyph() {
         </clipPath>
         <path
           className="stacks-boot-role-icon-body"
-          d={projectIconOutlineSvg(size, body.radius * SCENE_TO_BOOT_SVG)}
-          transform={`translate(${centerX} ${topY + size / 2}) scale(${projectedBodyWidth / size} 1)`}
+          d={facePath}
+          transform={faceTransform}
         />
         <path
           className="stacks-boot-role-icon"
@@ -1150,10 +1142,10 @@ function RoleIconStackGlyph() {
           clipPath={`url(#${clipId})`}
           data-boot-role-artwork={role.id}
           href={role.artwork}
-          x={centerX + faceShiftX - projectedFaceWidth / 2}
-          y={faceTop}
-          width={projectedFaceWidth}
-          height={faceHeight}
+          x={centerX - projectedBodyWidth / 2}
+          y={topY}
+          width={projectedBodyWidth}
+          height={size}
           preserveAspectRatio="xMidYMid slice"
         />
       </g>

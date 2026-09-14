@@ -82,7 +82,7 @@ describe("Grabbable tap/carry arbitration", () => {
     const up = source.slice(upStart, cancelStart);
     const registration = source.slice(registrationStart, registrationEnd);
 
-    expect(up).toContain("runSceneInteractionActivation(hoverKey)");
+    expect(up).toContain("selectOrActivateSceneInteraction(hoverKey)");
     expect(registration).toContain("run: runStationaryActivation");
   });
 
@@ -95,8 +95,8 @@ describe("Grabbable tap/carry arbitration", () => {
     const cancelStart = source.indexOf("const onGrabCancel", upStart);
     const up = source.slice(upStart, cancelStart);
 
-    expect(up).toContain(
-      "if (!runSceneInteractionActivation(hoverKey)) runStationaryActivation();",
+    expect(up).toMatch(
+      /if \(!selectOrActivateSceneInteraction\(hoverKey\)\)\s+runStationaryActivation\(\);/,
     );
   });
 

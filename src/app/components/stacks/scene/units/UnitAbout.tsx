@@ -109,6 +109,8 @@ import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
 const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3;
 const ABOUT_TOP_PHOTO_HOVER_LIFT = 0.025;
+const ABOUT_ROLE_HOVER_ANGLE = -Math.PI / 6;
+const ABOUT_ROLE_HOVER_LIFT = 0.03;
 /** Screenshot mode's Macintosh, standing where the large portrait does. The
  * same depth the Projects shelf gives it: the front face lands inside the
  * plank's lip and the back hangs past the rear edge, out of a front camera's
@@ -303,6 +305,7 @@ function LoosePhoto({
       shadeWidth={Math.max(0.28, width * 1.18)}
       hoverTiltAngle={hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_ANGLE : undefined}
       hoverLift={hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_LIFT : undefined}
+      stableHoverTarget={hingeOnHover}
       shape="box"
       massKg={0.48}
       artifact={id}
@@ -440,14 +443,13 @@ function ReadingStack({
 }
 
 const READING_HOVER_OFFSETS = [
-  [-0.085, 0.032, 0.07],
+  [0, 0.12, 0],
   [0.12, 0.055, 0.14],
   [0.085, 0.032, 0.07],
 ] as const;
 
-/** The shared hinged nod makes this tightly fanned trio swing through its
- * neighbors. Instead, each jacket eases into its own clear lane: the outer
- * books peel away from the stack and the middle book comes straight forward. */
+/** The first book lifts vertically to avoid the app icons in front.
+ * The other books slide away from the fan without swinging through it. */
 function ReadingBookHover({
   hoverKey,
   index,
@@ -667,8 +669,9 @@ export default function UnitAbout({
               onTap={() => void activateVisionRide()}
               onHoverIntent={() => void preloadVisionRide()}
               actionLabel="Put on Apple Vision Pro"
-              portalLabel="Apple Vision Pro"
-              portalDetail={["Former AR/VR Software Engineer"]}
+              previewBeforeActivation
+              portalLabel="Apple"
+              portalDetail={["Former AI/ML, AR/VR Software Engineer"]}
             >
               <VisionRideSource>
                 <group name={aboutLandmarkNodeName("vision-pro")}>
@@ -704,6 +707,9 @@ export default function UnitAbout({
                     portalDetail={role.portalDetail}
                     size={ABOUT_ROLE_ICON_SIZE}
                     massKg={0.08}
+                    hoverTiltAngle={ABOUT_ROLE_HOVER_ANGLE}
+                    // Only the top row has room to lift out of the stack.
+                    hoverLift={role.row === 1 ? ABOUT_ROLE_HOVER_LIFT : 0}
                   />
                 );
               })}
@@ -724,7 +730,7 @@ export default function UnitAbout({
               sceneImpulseReaction="knockdown"
               href="https://aicollective.com/"
               portalLabel="The AI Collective"
-              portalDetail={["Co-founder"]}
+              portalDetail={["Founder & Chairman"]}
             >
               <React.Suspense fallback={null}>
                 <group
@@ -798,7 +804,7 @@ export default function UnitAbout({
                   ABOUT_LOWER_LANDMARK_Z["tj-medallion"],
                 ]}
                 href="https://tjhsst.fcps.edu/"
-                portalLabel="TJHSST"
+                portalLabel="Thomas Jefferson High School for Science & Technology"
                 portalDetail={[
                   "Class of 2017",
                   "Alumni Director, TJ Partnership Fund board",

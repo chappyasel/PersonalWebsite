@@ -584,10 +584,10 @@ Benching four plates for reps in 2025.
 
 Title: Lift Table
 Status: written
-Audience: internal
+Audience: visitor
 Link: PDF https://www.chappyasel.com/documents/lift-table.pdf
 
-The first lifting chart I put together, before the analysis became a small research project of its own.
+My first lift table that I made back in high school that inspired Weightlifting App
 
 ## grab:dumbbell:training:right
 

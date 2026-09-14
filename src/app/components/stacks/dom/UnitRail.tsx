@@ -740,7 +740,7 @@ export default function UnitRail() {
                   <span
                     id={`stacks-rail-tooltip-${unit.slug}`}
                     role="tooltip"
-                    className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-40 rounded-md border px-2.5 py-1.5 font-serif text-xs leading-none backdrop-blur-xl backdrop-saturate-150"
+                    className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 font-serif text-[15px] font-semibold leading-[1.25] backdrop-blur-xl backdrop-saturate-150"
                   >
                     {railLabel}
                   </span>

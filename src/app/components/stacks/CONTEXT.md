@@ -431,8 +431,9 @@ _Avoid_: Link, linked prop, clickable object
 
 **Portal Label** — the compact outcome label a Portal or explicit local action
 reveals when a visitor dwells with a fine pointer or establishes Touch Focus.
-Navigation labels name the destination; local-action labels name what the
-stationary activation does. Under Touch Focus the label is also a large,
+Each label names its destination or object, then states the action on a separate
+line, such as "View site", "Read article", or "Closer look". Optional context
+appears between the title and action. Under Touch Focus the label is also a large,
 explicit activation target. It appears adjacent to the focused prop and offset
 from the contact; when that would collide with chrome, the Peek Sheet, or a
 viewport edge, it docks above the Peek Sheet with a short visual tether to its

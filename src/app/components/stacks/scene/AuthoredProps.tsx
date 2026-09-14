@@ -276,7 +276,7 @@ export function TJMedallionProp({
   dark,
   base,
   href,
-  portalLabel = "Visit TJHSST",
+  portalLabel = "TJHSST",
   portalDetail,
   name,
   scale,

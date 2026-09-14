@@ -160,9 +160,10 @@ type StacksState = {
    * freeze while a prop is in hand, or dragging one sideways scrolls the
    * whole room out from under it. */
   dragging: string | null;
-  /** Coarse-pointer arbitration is discrete. Coordinates and progress remain
-   * in touchWorldRef so one finger move cannot fan out through React. */
+  /** Persistent selection shared by mouse and touch. Hover alone never sets it. */
   focusedInteraction: string | null;
+  /** Selection time guards against activating through a rapid double gesture. */
+  focusedInteractionAt: number;
   pressedInteraction: string | null;
   visionRidePhase: VisionRidePhase;
   visionRideReady: boolean;
@@ -276,6 +277,7 @@ export const useStacks = create<StacksState>((set) => ({
   hovered: null,
   dragging: null,
   focusedInteraction: null,
+  focusedInteractionAt: 0,
   pressedInteraction: null,
   visionRidePhase: "idle",
   visionRideReady: false,
@@ -437,7 +439,12 @@ export const useStacks = create<StacksState>((set) => ({
           : hovered,
     }),
   setDragging: (dragging) => set({ dragging }),
-  setFocusedInteraction: (focusedInteraction) => set({ focusedInteraction }),
+  setFocusedInteraction: (focusedInteraction) =>
+    set((state) =>
+      state.focusedInteraction === focusedInteraction
+        ? state
+        : { focusedInteraction, focusedInteractionAt: performance.now() },
+    ),
   setPressedInteraction: (pressedInteraction) => set({ pressedInteraction }),
   armVisionRideModifier: (modifier) =>
     set((state) => {

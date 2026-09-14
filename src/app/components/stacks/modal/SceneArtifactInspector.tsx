@@ -52,6 +52,7 @@ import {
 } from "./artifactPreviewDismissGesture";
 import {
   type ArtifactPreviewChrome,
+  type ArtifactPreviewSize,
   artifactPreviewStage,
   layoutArtifactPreview,
 } from "./artifactPreviewFit";
@@ -260,6 +261,7 @@ function pixelLength(value: CSSProperties["width"]) {
 
 type PreviewPrintProps = Readonly<{
   attrs: PhotoRenderParams["attrs"];
+  size: ArtifactPreviewSize;
   /** The viewer's live zoom factor for this box (`PhotoRenderParams.scale`). */
   scale: number;
   frame: ArtifactPreviewFrame;
@@ -349,8 +351,9 @@ function PreviewFrameAccents({
  * drag handlers). The edges are laid out from that box's WIDTH alone because
  * the viewer animates height separately while it morphs from the scene's
  * aspect, and the edges must stay proportional to the print, not the box. */
-function PreviewPrint({
+export function PreviewPrint({
   attrs,
+  size,
   scale,
   frame,
   palette,
@@ -390,6 +393,24 @@ function PreviewPrint({
     lastScale.current === 1 &&
     !reducedMotionPreferred();
 
+  // Measurements and frame registrations rebuild the pose arrays during a
+  // flight. Keep the latest geometry for the next phase without restarting
+  // this phase against a viewer box that has already moved and enlarged.
+  const poses = useRef({
+    openingPose,
+    closingPose,
+    openingPoseKeyframes,
+    closingPoseKeyframes,
+  });
+  useLayoutEffect(() => {
+    poses.current = {
+      openingPose,
+      closingPose,
+      openingPoseKeyframes,
+      closingPoseKeyframes,
+    };
+  }, [openingPose, closingPose, openingPoseKeyframes, closingPoseKeyframes]);
+
   // Spatial rotation. The viewer can only translate and scale its box, so
   // the roll, yaw, and perspective of the rendered print are restored here:
   // the element opens under the captured pose matrix and eases to identity
@@ -398,6 +419,12 @@ function PreviewPrint({
   // painted frame.
   useLayoutEffect(() => {
     const node = element.current;
+    const {
+      openingPose,
+      closingPose,
+      openingPoseKeyframes,
+      closingPoseKeyframes,
+    } = poses.current;
     const pose = closing ? closingPose : openingPose;
     const poseKeyframes = closing ? closingPoseKeyframes : openingPoseKeyframes;
     if (!node || !pose || reducedMotionPreferred()) return;
@@ -423,11 +450,17 @@ function PreviewPrint({
             transform: frame.transform,
             offset: index / (frames.length - 1),
           }));
-        if (animatePose(reversed)) return () => animation?.cancel();
+        if (animatePose(reversed))
+          return () => {
+            node.style.transform = "";
+            animation?.cancel();
+          };
       }
       node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
       node.style.transform = pose;
-      return;
+      return () => {
+        node.style.transform = "";
+      };
     }
     node.style.transition = "none";
     node.style.transform = pose;
@@ -448,16 +481,11 @@ function PreviewPrint({
         // animation exposes `pose` again for one settled frame.
         node.style.transform = "";
         animation.cancel();
+      } else {
+        node.style.transform = "";
       }
     };
-  }, [
-    closing,
-    closingPose,
-    closingPoseKeyframes,
-    opening,
-    openingPose,
-    openingPoseKeyframes,
-  ]);
+  }, [closing, opening]);
 
   return (
     <div
@@ -472,6 +500,12 @@ function PreviewPrint({
         .join(" ")}
       style={{
         ...style,
+        // The homography already maps the full photo onto its shelf quad.
+        // react-photo-view also morphs height to the origin's bounding aspect;
+        // applying both would squash the photo twice, on different clocks.
+        ...(openingPose || closingPose
+          ? { height: pixelLength(style.width) * (size.height / size.width) }
+          : {}),
         ...(easeSize
           ? {
               transition: `${style.transition}, width ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}, height ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`,
@@ -689,6 +723,7 @@ export default function SceneArtifactInspector() {
         render: ({ attrs, scale }) => (
           <PreviewPrint
             attrs={attrs}
+            size={fitted}
             scale={scale}
             frame={frame}
             palette={palette}

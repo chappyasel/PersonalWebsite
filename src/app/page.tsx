@@ -1,5 +1,6 @@
 import { type Metadata, type Viewport } from "next";
 
+import HomeStructuredData from "./HomeStructuredData";
 import RoomHomePage from "./RoomHomePage";
 import { homepageMetadata, roomViewport } from "./homeMetadata";
 
@@ -8,5 +9,10 @@ export const metadata: Metadata = homepageMetadata;
 export const viewport: Viewport = roomViewport;
 
 export default function HomePage() {
-  return <RoomHomePage initialUnit={0} />;
+  return (
+    <>
+      <HomeStructuredData />
+      <RoomHomePage initialUnit={0} />
+    </>
+  );
 }

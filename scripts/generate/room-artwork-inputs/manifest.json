@@ -4434,7 +4434,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/AuthoredProps.tsx",
-      "sha256": "e22a4f1ad45e676e30939cf80ae9d55f11b155cd7fcda0b6b202792d88aa4a20",
+      "sha256": "c77bdaf008f89bd7b3b46d2e4a568cd2332133b68c129e3afc8ad92994767ccf",
       "archivedSha256": "e22a4f1ad45e676e30939cf80ae9d55f11b155cd7fcda0b6b202792d88aa4a20"
     },
     {
@@ -4444,7 +4444,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/Grabbable.tsx",
-      "sha256": "7117212035b865dcdc2d025f6257d6f2b3ac71debe8eedfedbefdb0b3097d241",
+      "sha256": "58275cc4c2023e6adce74b3ab0660757ca1ef690b1cc269810c7e491558d148a",
       "archivedSha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79"
     },
     {
@@ -4554,7 +4554,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/aboutRoleIcons.ts",
-      "sha256": "8c7924f7658ab0e93ad88eb87696935242b143beea066e9a2cc77e376da4e426",
+      "sha256": "92e0499245c88e211c224665892d4948e0b3b2b5494042259295a76438f5a570",
       "archivedSha256": "8c7924f7658ab0e93ad88eb87696935242b143beea066e9a2cc77e376da4e426"
     },
     {
@@ -4774,7 +4774,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/interactionRegistry.ts",
-      "sha256": "56e401f157ddd50b3a3936551f8d9b6a5e51e629ebdba4cfa8f88e783fa3c557",
+      "sha256": "8d313d37b8258cbeac36cd5e64d5d80824ffcb402d5a04ce98a84d9f01b7e9da",
       "archivedSha256": "07cc279c15b37b44133dee7ea8b40d69120c868274b663982efb319c3e037fda"
     },
     {
@@ -4794,7 +4794,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/links.tsx",
-      "sha256": "4cb9dad797f27204446be0a79296c9b1128feb002748b352398aba136811d0a3",
+      "sha256": "04ae6eb42f9ab858ce0be6a0fa6200269ea14e2501c2d9234846a16066278baa",
       "archivedSha256": "df03324ca87983cea079cc0ffd9faab90e9f18869438655f1263501ec5d10894"
     },
     {
@@ -4844,7 +4844,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/objects.tsx",
-      "sha256": "55940e70b733614dcbee2608934669d14dd5692c3907a6efe5753c9f315c422f",
+      "sha256": "2107659030450cedb7978fb978a540266bbc6e21bf8004896a07b93133e0cd19",
       "archivedSha256": "03d77434b40fa153548e452a1b5ddb22badbd198cef92591e48a7930a1991846"
     },
     {
@@ -4919,7 +4919,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/primitives.tsx",
-      "sha256": "8bd6fe1015963fa693af43dcef961c62e2278f115e086a0ae984b11186e5bf57",
+      "sha256": "a3f4f9f7d032dab6e0fe5f9f8f8733ca43158254e83b107d9cb2cecb92599fb7",
       "archivedSha256": "8bd6fe1015963fa693af43dcef961c62e2278f115e086a0ae984b11186e5bf57"
     },
     {
@@ -4954,7 +4954,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/reactionEngagement.ts",
-      "sha256": "1ce8fff360b2718f83057df31a3d2ff0af07d114e569d727eb81fdbe192130aa",
+      "sha256": "e4c9b639ed2298ffaf53fd49beb2337ee31b393a087bbc8ad751072de9ab739f",
       "archivedSha256": "1ce8fff360b2718f83057df31a3d2ff0af07d114e569d727eb81fdbe192130aa"
     },
     {
@@ -5069,7 +5069,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/ProjectArtifacts.tsx",
-      "sha256": "52f295fb5826075596e5ace24222d050eb0a544b3ca2d2500189d94952c48afb",
+      "sha256": "189d02a077708acb0aa07ee8e4b6bc3d8ab9b51d959f604087eaae915a99c6b5",
       "archivedSha256": "52f295fb5826075596e5ace24222d050eb0a544b3ca2d2500189d94952c48afb"
     },
     {
@@ -5094,12 +5094,12 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/TrustEssay.tsx",
-      "sha256": "3d54bfa11b54616f55d5a7105964b64c61f63830139b429c0eb6a410b72ccfd8",
+      "sha256": "f4be1518994f6272a4b066543b72903ea665ce9159d998a30d277a29e33e0f3c",
       "archivedSha256": "3d54bfa11b54616f55d5a7105964b64c61f63830139b429c0eb6a410b72ccfd8"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
-      "sha256": "50a5fee43c1570401840abf59c56b2ccecbddd2447f5a3577af09ec98f90cde2",
+      "sha256": "58360b6e6703e796a105c0aa8e962b48396ed712d970d312952526130819864b",
       "archivedSha256": "d73050d98a7c2420a2f3b21b75d7745e5762c4e9857e9e0ba939e1932c03858c"
     },
     {
@@ -5114,7 +5114,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitSystems.tsx",
-      "sha256": "82ee2184aef5a9e834ca9b8a59492ad4f63c42763275c8639bed31bc08a51771",
+      "sha256": "21816c44737b30a3484fea5d1183127e5570edfe46763054eab32a9e64b724c5",
       "archivedSha256": "29c00b65f7efcdf0a5a989b8158a280270b6bf2d3d939d52493d448f2c83df21"
     },
     {
@@ -5124,7 +5124,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
-      "sha256": "d71bc259bfbe4c6b25b56e63df5ab6b79d88bbbe99d3d7e3d6c8174cb0f7456a",
+      "sha256": "0873c30d4f00c1149a87b12371e25e592c7f7a8ebb665561cfe38bef0fa39d26",
       "archivedSha256": "08921e1ae90613c729dfbda650ddc1ed6caafafed13e1c0d0075138daede0b2d"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "2cfc21c61db71740aaa12488915f34623f6d620645adfc9af98f87818e24f3cc",
+  "sourceFingerprint": "a479fba652e93cd11984f2299935522e13b04bfffbd9e74641139878da12ca95",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5468,6 +5468,78 @@
           "path": "src/app/components/stacks/scene/spinHandle.ts",
           "previousSha256": "534f2557e13fe225921fa685429f2186c1aec4ed0246028b6dcfc1a3d826542f",
           "sha256": "66ad0c2614480214febc252b3c89864802d7a2d1b03a42f29bb188e902c86376"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed all 13 changed dependencies in docs/reviews/2026-09-13-shelf-selection-release.md. Label and navigation metadata, selected motion, and raycast-only hover support preserve captured rest geometry and transforms. Systems document spines change live cloth colors and destinations; the approved illustrated snapshot retains its previous colors. No claim of material-color equivalence or fresh capture. Approved drawings and capture inputs remain intact.",
+      "previousFingerprint": "2cfc21c61db71740aaa12488915f34623f6d620645adfc9af98f87818e24f3cc",
+      "sourceFingerprint": "a479fba652e93cd11984f2299935522e13b04bfffbd9e74641139878da12ca95",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/AuthoredProps.tsx",
+          "previousSha256": "e22a4f1ad45e676e30939cf80ae9d55f11b155cd7fcda0b6b202792d88aa4a20",
+          "sha256": "c77bdaf008f89bd7b3b46d2e4a568cd2332133b68c129e3afc8ad92994767ccf"
+        },
+        {
+          "path": "src/app/components/stacks/scene/Grabbable.tsx",
+          "previousSha256": "7117212035b865dcdc2d025f6257d6f2b3ac71debe8eedfedbefdb0b3097d241",
+          "sha256": "58275cc4c2023e6adce74b3ab0660757ca1ef690b1cc269810c7e491558d148a"
+        },
+        {
+          "path": "src/app/components/stacks/scene/aboutRoleIcons.ts",
+          "previousSha256": "8c7924f7658ab0e93ad88eb87696935242b143beea066e9a2cc77e376da4e426",
+          "sha256": "92e0499245c88e211c224665892d4948e0b3b2b5494042259295a76438f5a570"
+        },
+        {
+          "path": "src/app/components/stacks/scene/interactionRegistry.ts",
+          "previousSha256": "56e401f157ddd50b3a3936551f8d9b6a5e51e629ebdba4cfa8f88e783fa3c557",
+          "sha256": "8d313d37b8258cbeac36cd5e64d5d80824ffcb402d5a04ce98a84d9f01b7e9da"
+        },
+        {
+          "path": "src/app/components/stacks/scene/links.tsx",
+          "previousSha256": "4cb9dad797f27204446be0a79296c9b1128feb002748b352398aba136811d0a3",
+          "sha256": "04ae6eb42f9ab858ce0be6a0fa6200269ea14e2501c2d9234846a16066278baa"
+        },
+        {
+          "path": "src/app/components/stacks/scene/objects.tsx",
+          "previousSha256": "55940e70b733614dcbee2608934669d14dd5692c3907a6efe5753c9f315c422f",
+          "sha256": "2107659030450cedb7978fb978a540266bbc6e21bf8004896a07b93133e0cd19"
+        },
+        {
+          "path": "src/app/components/stacks/scene/primitives.tsx",
+          "previousSha256": "8bd6fe1015963fa693af43dcef961c62e2278f115e086a0ae984b11186e5bf57",
+          "sha256": "a3f4f9f7d032dab6e0fe5f9f8f8733ca43158254e83b107d9cb2cecb92599fb7"
+        },
+        {
+          "path": "src/app/components/stacks/scene/reactionEngagement.ts",
+          "previousSha256": "1ce8fff360b2718f83057df31a3d2ff0af07d114e569d727eb81fdbe192130aa",
+          "sha256": "e4c9b639ed2298ffaf53fd49beb2337ee31b393a087bbc8ad751072de9ab739f"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/ProjectArtifacts.tsx",
+          "previousSha256": "52f295fb5826075596e5ace24222d050eb0a544b3ca2d2500189d94952c48afb",
+          "sha256": "189d02a077708acb0aa07ee8e4b6bc3d8ab9b51d959f604087eaae915a99c6b5"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/TrustEssay.tsx",
+          "previousSha256": "3d54bfa11b54616f55d5a7105964b64c61f63830139b429c0eb6a410b72ccfd8",
+          "sha256": "f4be1518994f6272a4b066543b72903ea665ce9159d998a30d277a29e33e0f3c"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
+          "previousSha256": "50a5fee43c1570401840abf59c56b2ccecbddd2447f5a3577af09ec98f90cde2",
+          "sha256": "58360b6e6703e796a105c0aa8e962b48396ed712d970d312952526130819864b"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitSystems.tsx",
+          "previousSha256": "82ee2184aef5a9e834ca9b8a59492ad4f63c42763275c8639bed31bc08a51771",
+          "sha256": "21816c44737b30a3484fea5d1183127e5570edfe46763054eab32a9e64b724c5"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
+          "previousSha256": "d71bc259bfbe4c6b25b56e63df5ab6b79d88bbbe99d3d7e3d6c8174cb0f7456a",
+          "sha256": "0873c30d4f00c1149a87b12371e25e592c7f7a8ebb665561cfe38bef0fa39d26"
         }
       ]
     }

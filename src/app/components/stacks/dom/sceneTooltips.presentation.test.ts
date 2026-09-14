@@ -88,7 +88,8 @@ describe("tooltip presentation", () => {
       "field-notes-trigger-title field-notes-hand field-notes-strong",
     );
     expect(details).toContain("text-[11px] font-medium tracking-[0.01em]");
-    expect(objects).toContain("text-[13px] leading-[1.25]");
+    expect(objects).toContain("text-[14px]");
+    expect(objects).toContain("leading-[1.25]");
   });
 
   it("sizes focused one-line portal labels to their content", () => {

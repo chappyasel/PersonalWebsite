@@ -1,5 +1,5 @@
 // The Role Icons: four app-icon billets on the About lower shelf, one per
-// organization Chappy currently works with, stacked two by two beside the
+// organization Chappy has worked with, stacked two by two beside the
 // Vision Pro the way the Projects dice pile beside the Project Icons. Each is
 // a Portal to that organization. Client-safe, dependency-free: the boot SVG,
 // the live unit, and the layout tests all read this one list.
@@ -77,7 +77,7 @@ export const ABOUT_ROLES: readonly AboutRole[] = [
     name: "Susa Ventures",
     href: "https://susaventures.com/",
     portalLabel: "Susa Ventures",
-    portalDetail: ["Venture Fellow"],
+    portalDetail: ["Former Venture Fellow"],
     // Susa's sage (their own theme accent) under the gorilla in their paper.
     artwork: "/images/stacks/v8/512/about-susa-icon.webp",
     fallbackColor: "#607771",

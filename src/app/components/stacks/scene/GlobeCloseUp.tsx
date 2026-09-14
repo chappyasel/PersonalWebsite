@@ -18,6 +18,7 @@ import {
   GLOBE_APPROACH_FILL,
   GLOBE_APPROACH_HEIGHT,
   GLOBE_APPROACH_WIDTH,
+  GLOBE_TILT_DEFAULT,
   GLOBE_TILT_LAMBDA,
   cancelGlobeDrag,
   globeApproach,
@@ -50,9 +51,9 @@ export default function GlobeCloseUp({
 
   useEffect(() => {
     globeSpin.setCalm(near);
+    globeTilt.current = near ? GLOBE_TILT_DEFAULT : 0;
     if (near) resetGlobeHandLap();
     else {
-      globeTilt.current = 0;
       globeChapterHover.set(null);
     }
     return () => {

@@ -169,11 +169,16 @@ export function artifactPreviewPoseKeyframes(
   const pose = artifactPreviewPoseTransform(element, box, quad);
   if (!pose) return null;
 
+  // The viewer scales uniformly by width. Its source bounding box can be
+  // almost flat on a shelf, so its height is not the identity endpoint for
+  // the full-aspect element. Using that height held the photo squashed until
+  // the final identity keyframe snapped it upright.
+  const targetHeight = element.height * (box.width / element.width);
   const target: ArtifactPreviewQuad = [
     [box.left, box.top],
     [box.left + box.width, box.top],
-    [box.left + box.width, box.top + box.height],
-    [box.left, box.top + box.height],
+    [box.left + box.width, box.top + targetHeight],
+    [box.left, box.top + targetHeight],
   ];
   const count = Math.max(2, Math.round(samples));
 

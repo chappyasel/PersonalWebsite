@@ -141,6 +141,30 @@ describe("artifact preview pose", () => {
     expect(frames.at(-2)!.transform).not.toBe(frames.at(-1)!.transform);
   });
 
+  it("approaches the natural photo aspect smoothly from a shelf-flat origin", () => {
+    const element = { width: 350, height: 240 };
+    const box = { left: 110, top: 340, width: 120, height: 24 };
+    const quad: ArtifactPreviewQuad = [
+      [120, 340],
+      [220, 342],
+      [230, 364],
+      [110, 361],
+    ];
+    const frames = artifactPreviewPoseKeyframes(element, box, quad, 1000)!;
+    const matrix = frames
+      .at(-2)!
+      .transform.slice("matrix3d(".length, -1)
+      .split(",")
+      .map(Number);
+    const x = element.width;
+    const y = element.height;
+    const w = matrix[3]! * x + matrix[7]! * y + matrix[15]!;
+    const projectedY = (matrix[1]! * x + matrix[5]! * y + matrix[13]!) / w;
+    // The last sampled corner must approach the identity endpoint without
+    // suddenly tripling the photo's height on the final frame.
+    expect(Math.abs(projectedY - y)).toBeLessThan(1);
+  });
+
   it("refuses degenerate and flipped quads", () => {
     const flipped: ArtifactPreviewQuad = [
       [210, 40],

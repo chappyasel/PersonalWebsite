@@ -28,6 +28,7 @@ export type HomepagePortalDestination =
   | "weightlifting"
   | "liarsdice"
   | "manual"
+  | "systems"
   | "routine"
   | "blog"
   | "external";

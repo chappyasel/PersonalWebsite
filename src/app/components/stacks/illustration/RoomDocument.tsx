@@ -8,7 +8,7 @@ import {
   UNITS,
 } from "../data";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { type CSSProperties, Fragment } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
@@ -113,8 +113,12 @@ export default function RoomDocument({
             <DocumentArtwork unitIndex={section.index} data={data} />
           </div>
           <div className="room-document-content">
-            {section.content}
-            {section.slug === "about" && slots.quotes}
+            {/* Streamed slots can resolve after React validates these siblings.
+                Keep their identity on a local wrapper, not the server child. */}
+            <Fragment key="content">{section.content}</Fragment>
+            {section.slug === "about" && (
+              <Fragment key="quotes">{slots.quotes}</Fragment>
+            )}
           </div>
         </section>
       ))}

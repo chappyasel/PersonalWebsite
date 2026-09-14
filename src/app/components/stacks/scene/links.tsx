@@ -49,6 +49,7 @@ import {
   destinationFor,
   registerSceneInteraction,
 } from "./interactionRegistry";
+import { selectOrActivateSceneInteraction } from "./interactionSelection";
 import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 /** The portals the shelf world can open. Books and Weightlifting live on their
@@ -57,10 +58,10 @@ import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
  * routes; "blog" opens the lightweight Musings index. */
 export type { PropDestination } from "./interactionRegistry";
 
-/** The two documents with an intercepted sheet (src/app/@sheet): they pop
+/** The documents with an intercepted sheet (src/app/@sheet): they pop
  * from the pointer over the live world, or load as their own page when the
  * viewport is too small for a sheet. */
-const SHEET: PropDestination[] = ["manual", "routine"];
+const SHEET: PropDestination[] = ["manual", "systems", "routine"];
 
 /** Where a prop leads: one of the site's own portals, or an arbitrary URL for
  * the photographs whose source post is known. Exactly one of the two — a prop
@@ -72,6 +73,7 @@ export type PropTarget =
       href: string;
       /** Arbitrary URLs cannot infer honest outcome copy. */
       label: string;
+      actionLabel?: string;
       external?: boolean;
     };
 
@@ -89,6 +91,7 @@ function portalFor(target: PropTarget, run: () => void): PortalSpec {
     return {
       kind: "portal",
       label: target.label,
+      actionLabel: target.actionLabel,
       href: target.href,
       external: target.external ?? true,
       run,
@@ -172,34 +175,50 @@ const portals = new Map<string, { unitIndex: number; open: () => void }>();
 
 /** Pointerdown position, so a drag across a prop is not a click on it. The
  * same 6px gate r3f's own `event.delta` uses. */
-const down = { x: 0, y: 0, ok: false, touchPortal: null as string | null };
+const down = {
+  x: 0,
+  y: 0,
+  ok: false,
+  pointerId: -1,
+  key: null as string | null,
+};
 const DRAG_PX = 6;
-
-/** When the window path last opened something. r3f's `click` is dispatched
- * from the DOM click event, which fires AFTER pointerup — so by the time the
- * scene handler runs, the portal may already be open, and its only remaining
- * job is to stop the tap reaching the unit travel plane behind it. */
-let opened = 0;
-
-/** True while a scene handler should defer to the open that just happened. */
-function justOpened(): boolean {
-  return performance.now() - opened < 400;
-}
 
 function onWindowDown(e: PointerEvent) {
   if (e.pointerType === "touch") {
     down.ok = false;
-    down.touchPortal = null;
+    down.key = null;
     return;
   }
   down.x = e.clientX;
   down.y = e.clientY;
   down.ok = e.isPrimary && e.button === 0;
-  down.touchPortal = null;
+  down.pointerId = e.pointerId;
+  const state = useStacks.getState();
+  down.key = state.hovered;
+  if (
+    !state.scrollEl ||
+    !(e.target instanceof Node) ||
+    !state.scrollEl.contains(e.target)
+  )
+    down.ok = false;
+}
+
+function onWindowMove(e: PointerEvent) {
+  if (
+    e.pointerId === down.pointerId &&
+    Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX
+  )
+    down.ok = false;
+}
+
+function onWindowCancel() {
+  down.ok = false;
 }
 
 function onWindowUp(e: PointerEvent) {
   if (e.pointerType === "touch") return;
+  if (e.pointerId !== down.pointerId || e.button !== 0) return;
   if (!down.ok) return;
   down.ok = false;
   if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
@@ -215,11 +234,10 @@ function onWindowUp(e: PointerEvent) {
   const el = s.scrollEl;
   if (el && e.target instanceof Node && !el.contains(e.target)) return;
   const key = s.hovered;
-  down.touchPortal = null;
+  if (key !== down.key) return;
   const portal = key ? portals.get(key) : undefined;
   if (!portal) return;
-  opened = performance.now();
-  portal.open();
+  if (key) selectOrActivateSceneInteraction(key);
 }
 
 let listenerOwners = 0;
@@ -228,13 +246,19 @@ function retainWindowListeners() {
   listenerOwners += 1;
   if (listenerOwners === 1) {
     roomWindowEvents.addEventListener("pointerdown", onWindowDown);
+    roomWindowEvents.addEventListener("pointermove", onWindowMove);
     roomWindowEvents.addEventListener("pointerup", onWindowUp);
+    roomWindowEvents.addEventListener("pointercancel", onWindowCancel);
+    roomWindowEvents.addEventListener("blur", onWindowCancel);
   }
   return () => {
     listenerOwners = Math.max(0, listenerOwners - 1);
     if (listenerOwners !== 0) return;
     roomWindowEvents.removeEventListener("pointerdown", onWindowDown);
+    roomWindowEvents.removeEventListener("pointermove", onWindowMove);
     roomWindowEvents.removeEventListener("pointerup", onWindowUp);
+    roomWindowEvents.removeEventListener("pointercancel", onWindowCancel);
+    roomWindowEvents.removeEventListener("blur", onWindowCancel);
     down.ok = false;
   };
 }
@@ -319,10 +343,9 @@ function HoverShell({
               // Swallow it either way, so the tap cannot ALSO reach the unit
               // travel plane behind the prop…
               e.stopPropagation();
-              // …but the window pointerup above has usually already opened
-              // the portal by now, and opening it twice is two tabs.
-              if (justOpened()) return;
-              onSelect();
+              // The window gesture owns selection and activation. This later
+              // synthetic click must never count as the second click or revive
+              // a cancelled drag.
             }
           : undefined
       }

@@ -28,7 +28,7 @@ export function RoomChrome({
       {!sceneControlsVisible && (
         <div className="room-illustrated-chrome contents">
           <div className="stacks-wordmark pointer-events-none absolute z-20">
-            <span className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
+            <span className="room-wordmark-label stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
               Chappy Asel
             </span>
           </div>

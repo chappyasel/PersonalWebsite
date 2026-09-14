@@ -14,6 +14,7 @@ import PillBottle from "../PillBottle";
 import PillOrganizer from "../PillOrganizer";
 import SunLamp from "../SunLamp";
 import { EggClock, EggTrigger, Pendulum } from "../eggs";
+import type { PropDestination } from "../links";
 import {
   RoutineBoard,
   SODA_CAN_HEIGHT,
@@ -58,6 +59,17 @@ const NUDGE_TOP = Math.atan(NUDGE_RATE / NUDGE_DECAY) / NUDGE_RATE;
 const NUDGE_AMP =
   NUDGE_PEAK /
   (Math.exp(-NUDGE_DECAY * NUDGE_TOP) * Math.sin(NUDGE_RATE * NUDGE_TOP));
+
+// Match the cards' blue, indigo, and peach in two worn cloth variations.
+// The second set shifts toward slate, mauve, and clay.
+const SYSTEM_DOCUMENTS = [
+  { to: "manual", color: "#738591" },
+  { to: "systems", color: "#73778d" },
+  { to: "routine", color: "#af947d" },
+  { to: "manual", color: "#637c82" },
+  { to: "systems", color: "#82778b" },
+  { to: "routine", color: "#a08278" },
+] as const satisfies readonly { to: PropDestination; color: string }[];
 
 /** Named so pointer tests can read the case motion from the scene graph. */
 export const CLOCK_CASE_NODE = "stacks-clock-case";
@@ -497,7 +509,14 @@ function FloorClock({ unitIndex, dark }: { unitIndex: number; dark: boolean }) {
 
 export default function UnitSystems({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
-  const manualRow = useMemo(() => packRow(0.58, [], palette, 68), [palette]);
+  const documentRow = useMemo(
+    () =>
+      packRow(0.58, [], palette, 68).map((item, slot) => ({
+        ...item,
+        ...SYSTEM_DOCUMENTS[slot % SYSTEM_DOCUMENTS.length]!,
+      })),
+    [palette],
+  );
 
   return (
     <group>
@@ -714,9 +733,10 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           position={[-1.14, 0, -0.08]}
         >
           <BookRowMesh
-            items={manualRow}
+            items={documentRow}
             palette={palette}
             salt={68}
+            subdued
             linkUnit={index}
             to="manual"
             grabbableVolumes

@@ -22,10 +22,8 @@ import {
 } from "../mobile/travel";
 import { isHittableBall, tapHittableBall } from "../scene/golf/hittableBalls";
 import { projectedInteractionBounds } from "../scene/interactionProjection";
-import {
-  getSceneInteraction,
-  runSceneInteractionActivation,
-} from "../scene/interactionRegistry";
+import { getSceneInteraction } from "../scene/interactionRegistry";
+import { activateTouchSceneInteraction } from "../scene/interactionSelection";
 import { isSeated, leaveSeat } from "../scene/seated";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { progressRef, touchWorldRef, useStacks } from "../store";
@@ -263,7 +261,7 @@ export default function TouchInteractionLayer() {
             // degrades to Touch Focus, so a shelf ball still answers its
             // first touch instead of going dead.
             if (
-              !runSceneInteractionActivation(effect.interactionId) &&
+              !activateTouchSceneInteraction(effect.interactionId) &&
               !tapHittableBall(effect.interactionId)
             ) {
               store.setFocusedInteraction(effect.interactionId);

@@ -31,12 +31,14 @@ describe("kinetic snapping", () => {
       scenePosition: 2.25,
       previousScenePosition: 2.25,
       alternateStop: 1.65,
+      touchInteraction: true,
     });
     const destination = nearestAuthoredStop(2.25, 7);
     const settled = cameraTravelState({
       scenePosition: destination,
       previousScenePosition: destination,
       alternateStop: 1.65,
+      touchInteraction: true,
     });
 
     expect(stranded.focusBlockedByTravel).toBe(true);
@@ -57,6 +59,7 @@ describe("kinetic snapping", () => {
       scenePosition: 1.2861,
       previousScenePosition: 1.2861,
       alternateStop: 1.65,
+      touchInteraction: true,
     });
 
     expect(captured.focusBlockedByTravel).toBe(true);

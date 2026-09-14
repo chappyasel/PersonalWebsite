@@ -148,6 +148,7 @@ describe("About shelf throwable props", () => {
     expect(loosePhoto).toContain(
       "hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_LIFT : undefined",
     );
+    expect(loosePhoto).toContain("stableHoverTarget={hingeOnHover}");
     expect(source).toContain("const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3");
     expect(source).toContain("const ABOUT_TOP_PHOTO_HOVER_LIFT = 0.025");
     expect(topShelf.match(/hingeOnHover/g)).toHaveLength(3);

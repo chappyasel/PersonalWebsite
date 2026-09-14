@@ -65,7 +65,7 @@ describe("coarse-pointer ownership", () => {
 
   it("routes touch through one arbiter instead of legacy activators", () => {
     expect(touchLayer).toContain("reduceTouchGesture");
-    expect(touchLayer).toContain("runSceneInteractionActivation");
+    expect(touchLayer).toContain("activateTouchSceneInteraction");
     expect(touchLayer).toContain(
       'touchWorldRef.interactionPointerType = "touch"',
     );
@@ -114,7 +114,9 @@ describe("coarse-pointer ownership", () => {
     expect(globeCloseUp).toContain(
       'if (touchWorldRef.interactionPointerType !== "touch") return pointer;',
     );
-    expect(globeCloseUp).toContain("raycaster.setFromCamera(pointerNdc(), camera);");
+    expect(globeCloseUp).toContain(
+      "raycaster.setFromCamera(pointerNdc(), camera);",
+    );
     expect(globeCloseUp).toMatch(
       /useFrame\(\(\) => \{\s*if \(touchWorldRef\.interactionPointerType !== "touch"\) sampleMarks\(\);/,
     );
@@ -170,7 +172,7 @@ describe("coarse-pointer ownership", () => {
       "activatable: Boolean(spec.activation) || isHittableBall(hit.id)",
     );
     expect(touchLayer).toMatch(
-      /!runSceneInteractionActivation\(effect\.interactionId\) &&\s*!tapHittableBall\(effect\.interactionId\)/,
+      /!activateTouchSceneInteraction\(effect\.interactionId\) &&\s*!tapHittableBall\(effect\.interactionId\)/,
     );
   });
 

@@ -14,8 +14,7 @@ import {
 
 describe("scene interaction registry", () => {
   it("derives route labels, hrefs, and external treatment together", () => {
-    // Labels name the destination only; the Portal Label's icon carries the
-    // "this goes somewhere", so no "Open" / "Visit" verbs.
+    // Titles name the destination; action wording belongs on its own line.
     expect(destinationFor("books").label).toBe("Chappy's Book Notes");
     expect(destinationFor("weightlifting").label).toBe(
       "Chappy's Weightlifting",

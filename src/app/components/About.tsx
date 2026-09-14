@@ -167,7 +167,7 @@ export default async function AboutMe() {
       >
         <Image
           src={image}
-          alt="Profile picture"
+          alt="Chappy Asel speaking onstage in a blue jacket"
           width={400}
           height={400}
           preload

@@ -130,6 +130,20 @@ html[data-room-view="live"]
 .room-illustrated-chrome .stacks-wordmark {
   visibility: hidden;
 }
+/* Settled 2D uses the name inside the scene so the sheet and its dim cover it. */
+.stacks-world-shell[data-room-presentation="illustrated"][data-room-entrance="complete"]
+  .room-illustrated-chrome
+  .stacks-wordmark {
+  visibility: visible;
+}
+html:has(
+    .stacks-world-shell[data-room-presentation="illustrated"][data-room-entrance="complete"]
+  )
+  .room-entry-wordmark {
+  visibility: hidden;
+  opacity: 0;
+  transition: none;
+}
 /* The compositor moves the persistent name; these are its final base styles
    after completion or an input/reduced-motion skip. */
 html:has(

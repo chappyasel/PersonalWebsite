@@ -108,8 +108,8 @@ import {
   massClassFor,
   projectSceneInteractionRect,
   registerSceneInteraction,
-  runSceneInteractionActivation,
 } from "./interactionRegistry";
+import { selectOrActivateSceneInteraction } from "./interactionSelection";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
 import type {
@@ -132,6 +132,7 @@ import {
   recordArchetype,
 } from "./reactionArchetype";
 import { propReactionIsEngaged } from "./reactionEngagement";
+import { createRestingHoverRaycast } from "./restingHoverTarget";
 import {
   applySceneImpulseKick,
   createSceneImpulseMotion,
@@ -392,6 +393,14 @@ function onEventDown(event: PointerEvent) {
   // an activation through independently ordered window listeners.
   if (event.pointerType === "touch") return;
   if (activeEventEntry) return;
+  const state = useStacks.getState();
+  if (
+    state.modalOpen ||
+    state.panelState !== "closed" ||
+    !(event.target instanceof Node) ||
+    !state.scrollEl?.contains(event.target)
+  )
+    return;
   const entry = entryForDown(event);
   if (!entry?.down(event, event.pointerType === "touch")) return;
   activeEventEntry = entry;
@@ -635,6 +644,7 @@ export default function Grabbable({
   signature,
   hoverTiltAngle,
   hoverLift = 0,
+  stableHoverTarget = false,
   hoverSlide = false,
   tiltWhileHeld = true,
   heldFacingRotation,
@@ -653,6 +663,7 @@ export default function Grabbable({
   actionLabel,
   artifact,
   activateOnFirstTouch = false,
+  previewBeforeActivation = false,
   external = true,
   onTap,
   onHoverIntent,
@@ -702,14 +713,16 @@ export default function Grabbable({
    * nod. Two effects at once is the thing ADR 0020 exists to remove.
    */
   signature?: string;
-  /** Exact hover opening angle. The sign follows the live camera so the
-   * camera-nearest support edge remains the hinge. Leave unset for the shared
-   * camera-facing nod. */
+  /** Exact hover opening angle relative to the camera side. Positive tips
+   * forward; negative tilts the face upward from the rear support edge.
+   * Leave unset for the shared camera-facing nod. */
   hoverTiltAngle?: number;
   /** Raise the prop while its hover tilt opens. This is for loose, face-up
    * objects that need to clear the surface around them instead of trading a
    * blocked tilt for the shared forward slide. */
   hoverLift?: number;
+  /** Preserve the resting footprint while a loose photo tilts open. */
+  stableHoverTarget?: boolean;
   /** Always answer a hover with the forward slide, never a tilt. For a volume
    * lying in a stack: the clearance measure sees only the row's own boards,
    * so the top book tipped up into the headphones and the phone resting on
@@ -764,6 +777,7 @@ export default function Grabbable({
   /** Optional lines under the Portal Label's title, for what the object stands
    * for (a role, a year) rather than where it goes. One string per line. */
   portalDetail?: string | readonly string[];
+  /** Outcome line for a destination or local action, below portalLabel. */
   actionLabel?: string;
   /** Inspectable scene object. The catalog owns its identity, caption, touch
    * policy, reader media, and outbound actions. Mutually exclusive with
@@ -772,6 +786,7 @@ export default function Grabbable({
   /** Run a stationary coarse-pointer tap immediately instead of requiring a
    * focus tap first. Use for anchored controls whose only job is activation. */
   activateOnFirstTouch?: boolean;
+  previewBeforeActivation?: boolean;
   external?: boolean;
   /** Local action for a press that never became a carry. Stateful objects
    * such as featured covers use this instead of pretending to be a route. */
@@ -1004,6 +1019,18 @@ export default function Grabbable({
   const swayTwist = useRef(0);
   const shade = useRef<THREE.Sprite>(null);
   const phase = useRef<Phase>("rest");
+  const restingHoverRaycast = useMemo(
+    () =>
+      stableHoverTarget
+        ? createRestingHoverRaycast(
+            () => nod.current,
+            () =>
+              phase.current === "rest" && artifactHandoffTravel.current === 0,
+            () => useStacks.getState().hovered === hoverKey,
+          )
+        : undefined,
+    [stableHoverTarget, hoverKey],
+  );
   const velocity = useMemo(() => new THREE.Vector3(), []);
   const step = useMemo(() => new THREE.Vector3(), []);
   const plane = useMemo(() => new THREE.Plane(), []);
@@ -1307,6 +1334,7 @@ export default function Grabbable({
 
       const store = useStacks.getState();
       if (store.visionRidePhase !== "idle") return;
+      if (event.pointerType !== "touch") store.setFocusedInteraction(null);
       authoredParked.current = false;
       authoredOffscreenFor.current = 0;
       velocity.set(0, 0, 0);
@@ -1567,7 +1595,13 @@ export default function Grabbable({
   const onGrabUp = useCallback(
     (event: PointerEvent): boolean => {
       if (event.pointerId !== pointerId.current) return false;
-      const tapped = gesture.current?.moved === false;
+      const current = gesture.current;
+      const tapped =
+        current?.moved === false &&
+        Math.hypot(event.clientX - current.x, event.clientY - current.y) <=
+          TAP_PX &&
+        event.target instanceof Node &&
+        useStacks.getState().scrollEl?.contains(event.target);
       const wasTapOnly = tapOnly.current;
       gesture.current = null;
       tapOnly.current = false;
@@ -1587,7 +1621,8 @@ export default function Grabbable({
       // fall back there or teed balls stop answering taps.
       if (tapped) {
         recordTap(hoverKey);
-        if (!runSceneInteractionActivation(hoverKey)) runStationaryActivation();
+        if (!selectOrActivateSceneInteraction(hoverKey))
+          runStationaryActivation();
       }
       return true;
     },
@@ -1661,6 +1696,7 @@ export default function Grabbable({
             ? ({
                 kind: "portal",
                 label: portalLabel,
+                actionLabel,
                 detail:
                   portalDetail === undefined
                     ? undefined
@@ -1691,6 +1727,7 @@ export default function Grabbable({
       root,
       activeUnits: [unitIndex],
       activateOnFirstTouch: Boolean(artifactEntry) || activateOnFirstTouch,
+      previewBeforeActivation,
       projectedLocalBounds,
       liveBounds,
       movable: draggable
@@ -1736,6 +1773,7 @@ export default function Grabbable({
     });
   }, [
     activateOnFirstTouch,
+    previewBeforeActivation,
     actionLabel,
     artifact,
     artifactEntry,
@@ -2546,7 +2584,6 @@ export default function Grabbable({
       const pressed =
         interactionState.pressedInteraction === hoverKey &&
         nearPropApproach()?.id !== hoverKey;
-      const focused = interactionState.focusedInteraction === hoverKey;
       // Nor a nod: the approach wrapper resolves its near pose into this nod
       // group's frame one frame behind whatever the spring did, so a lean
       // that toggles with the hover at the near prop's edge showed up as the
@@ -2621,7 +2658,8 @@ export default function Grabbable({
               // comes back out.
               Math.sign(bandMotion.lean) *
               cameraSideHoverTilt(nodCameraDirection, Math.abs(bandMotion.lean))
-            : cameraSideHoverTilt(nodCameraDirection, hoverTiltAngle);
+            : Math.sign(hoverTiltAngle) *
+              cameraSideHoverTilt(nodCameraDirection, Math.abs(hoverTiltAngle));
         // A lean is only safe DOWNWARD, where hingeShift pins the contact
         // edge. Nothing was watching the rising end of the arc, and the props
         // that stack have no room there: a book in a horizontal row carries
@@ -2658,7 +2696,7 @@ export default function Grabbable({
       n.rotation.x = swaySpring.angle * swayLean.current;
       n.rotation.y = swaySpring.angle * swayTwist.current;
       nodAngle.current = n.rotation.x;
-      const targetScale = pressed ? 0.965 : focused ? 1.015 : 1;
+      const targetScale = pressed ? 0.965 : 1;
       const scale = pressed
         ? targetScale
         : THREE.MathUtils.damp(n.scale.x, targetScale, LIFT_LAMBDA, delta);
@@ -2785,6 +2823,13 @@ export default function Grabbable({
             stops moving, so a screenshot cannot tell you it happened. */}
         <group ref={resetVisual} name={`reset-reveal:${hoverKey}`}>
           <group ref={impulse} name={`impulse:${hoverKey}`}>
+            {stableHoverTarget && (
+              <group
+                name={`interaction-hit:resting:${hoverKey}`}
+                userData={{ physicsIgnore: true }}
+                raycast={restingHoverRaycast}
+              />
+            )}
             <group ref={nod} name={`nod:${hoverKey}`}>
               {/* The physical form underneath registers its edges against this
                 artifact so the fullscreen preview can draw the same print. */}

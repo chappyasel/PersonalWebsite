@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   MIN_CAMERA_TARGET_DISTANCE,
   PORTRAIT_TOUCH_FOCUS_Y_LIMIT,
+  SELECTION_CAMERA_PITCH_DEGREES,
   TAP_FOCUS_ZOOM_MULTIPLIER,
   cameraTravelState,
   cameraTravelTransition,
@@ -12,6 +13,7 @@ import {
   interactionZoomTarget,
   isGolfControlInteraction,
 } from "./cameraZoom";
+import { eyeYForTiltAroundTarget } from "./pointerCameraTilt";
 import { SHELF_SURFACE } from "./shelfGeometry";
 
 const state = {
@@ -30,6 +32,27 @@ const cameraRigSource = fs.readFileSync(
 );
 
 describe("interaction camera zoom", () => {
+  it("pitches selection down three degrees around an unchanged target", () => {
+    const eyeY = 0.25;
+    const lookY = -0.08;
+    const distance = 6;
+    const pitch = (SELECTION_CAMERA_PITCH_DEGREES * Math.PI) / 180;
+    const raisedEye = eyeYForTiltAroundTarget({
+      eyeY,
+      lookY,
+      horizontalDistance: distance,
+      tiltRadians: pitch,
+    });
+    expect(Math.atan2(lookY - raisedEye, distance)).toBeCloseTo(
+      Math.atan2(lookY - eyeY, distance) - Math.PI / 60,
+    );
+    expect(cameraRigSource).toContain(
+      "focusAmount.current * SELECTION_CAMERA_PITCH_DEGREES",
+    );
+    expect(cameraRigSource).toContain(
+      "selectionCameraPitchController.getSnapshot().enabled",
+    );
+  });
   it("aims a portrait Touch Focus far enough down to keep a lower-shelf globe in frame", () => {
     const baselineLookY = -0.08;
     const coordinationScale = 1.386;
@@ -86,6 +109,28 @@ describe("interaction camera zoom", () => {
     expect(cameraTravelTransition(true, travel).resetFocus).toBe(false);
   });
 
+  it("zooms a newly selected object after scrolling stops between shelves", () => {
+    const scrolling = cameraTravelState({
+      scenePosition: 2.2,
+      previousScenePosition: 2.1,
+      alternateStop: 1.52,
+    });
+    expect(cameraTravelTransition(false, scrolling).resetFocus).toBe(true);
+    const stopped = cameraTravelState({
+      scenePosition: 2.2,
+      previousScenePosition: 2.2,
+      alternateStop: 1.52,
+    });
+    expect(
+      interactionZoomTarget({
+        ...state,
+        focused: true,
+        touchInteraction: false,
+        traveling: stopped.focusBlockedByTravel,
+      }),
+    ).toBeGreaterThan(0);
+  });
+
   it.each([1, 2, 3, 4, 5, 6])(
     "allows object focus during the damping tail at shelf %i",
     (shelf) => {
@@ -115,14 +160,14 @@ describe("interaction camera zoom", () => {
     });
   });
 
-  it("keeps touch focus zoom after pointer classification becomes stale", () => {
+  it("gives desktop selection the same zoom as touch while keeping hover quiet", () => {
     expect(
       interactionZoomTarget({
         ...state,
         focused: true,
         touchInteraction: false,
       }),
-    ).toBeGreaterThan(0);
+    ).toBe(interactionZoomTarget({ ...state, focused: true }));
     expect(
       interactionZoomTarget({
         ...state,
@@ -130,6 +175,11 @@ describe("interaction camera zoom", () => {
         touchInteraction: false,
       }),
     ).toBe(0);
+    const focusGate = cameraRigSource.slice(
+      cameraRigSource.indexOf("const focusEnabled ="),
+      cameraRigSource.indexOf("let desiredFocusX ="),
+    );
+    expect(focusGate).not.toContain("interactionPointerType");
   });
 
   it("identifies Golf controls that use the authored Golf camera", () => {

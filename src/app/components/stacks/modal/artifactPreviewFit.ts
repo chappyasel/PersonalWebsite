@@ -35,9 +35,17 @@ export function artifactPreviewStage(
   viewport: ImagePreviewSize,
   chrome: ArtifactPreviewChrome,
 ) {
+  // Grow the margins only when both dimensions have room, so phones and
+  // short landscape windows retain their existing image space.
+  const edge =
+    STAGE_EDGE +
+    Math.min(
+      Math.max(0, viewport.width - 1280) * 0.1,
+      Math.max(0, viewport.height - 800) * 0.2,
+    );
   const available = Math.max(
     1,
-    viewport.height - chrome.controlsHeight - STAGE_EDGE * 2,
+    viewport.height - chrome.controlsHeight - edge * 2,
   );
   const captionHeight = Math.min(
     chrome.captionHeight,
@@ -45,7 +53,7 @@ export function artifactPreviewStage(
   );
   const captionGap = captionHeight > 0 ? CAPTION_GAP : 0;
   return {
-    edge: STAGE_EDGE,
+    edge,
     available,
     captionHeight,
     captionGap,

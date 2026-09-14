@@ -86,6 +86,8 @@ export type RowItem =
       h: number;
       color: string;
       book?: SpineBookRef;
+      /** A document this spine opens instead of the row's default destination. */
+      to?: PropDestination;
     }
   | {
       kind: "flat";
@@ -124,6 +126,7 @@ export type RowItem =
       h: number;
       color: string;
       book?: SpineBookRef;
+      to?: PropDestination;
     }
   /** A face-out book. Everything past `key` is POSE, and every one of them
    * defaults to the old dead-upright cover, so a caller that only knows where
@@ -1620,8 +1623,7 @@ export function BookRowMesh({
   /** Unit index — set it and every non-cover book in the row becomes a portal
    * into the library. */
   linkUnit?: number;
-  /** Where those portals lead. The library for a row of books; Systems' row is
-   * the operating manual, and points at that instead. */
+  /** Default destination, overridden by individual document spines. */
   to?: PropDestination;
   /** Opt-in for curated face-out books: carry on drag, keep the existing
    * per-book modal on a tap. Packed spines remain structural shelf rows. */
@@ -1684,7 +1686,7 @@ export function BookRowMesh({
           <ShelfBook
             key={i}
             linkUnit={linkUnit}
-            to={to}
+            to={item.to ?? to}
             hoverKey={bookRowHoverKey(linkUnit, salt, i)}
             // The roll turns the box about its own centre, so its lowest
             // corner is at −[(h/2)·cos θ + (w/2)·|sin θ|], not −h/2. An earlier
@@ -1758,7 +1760,7 @@ export function BookRowMesh({
           <ShelfBook
             key={i}
             linkUnit={linkUnit}
-            to={to}
+            to={item.to ?? to}
             hoverKey={bookRowHoverKey(linkUnit, salt, i)}
             base={[
               item.x,

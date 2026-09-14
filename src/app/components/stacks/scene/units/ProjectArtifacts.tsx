@@ -278,6 +278,8 @@ export function ProjectIcon({
   portalDetail,
   size = PROJECT_ARTIFACT_DIMENSIONS.icon,
   massKg = 0.62,
+  hoverTiltAngle,
+  hoverLift,
   artifact,
   approach,
   turn,
@@ -299,6 +301,9 @@ export function ProjectIcon({
   size?: number;
   /** Real mass; a half-edge tile is an eighth of the volume. */
   massKg?: number;
+  /** Override the shared hover motion for smaller shelf tiles. */
+  hoverTiltAngle?: number;
+  hoverLift?: number;
   artifact?: SceneArtifactId;
   /** A tap flies the tile up to the camera and a second press anywhere puts
    * it back, the same PropApproach the Mac and the globe use. The controller
@@ -334,6 +339,8 @@ export function ProjectIcon({
       shadeWidth={iconSize * 1.08}
       shape="box"
       massKg={massKg}
+      hoverTiltAngle={hoverTiltAngle}
+      hoverLift={hoverLift}
       metal
       href={href}
       portalLabel={portalLabel}

@@ -7,6 +7,7 @@ import { useOpenTarget } from "./links";
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   transition: vi.fn(() => false),
+  sheet: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("../../route-transition-prototype/navigation", () => ({
@@ -18,6 +19,9 @@ vi.mock("~/lib/analytics", () => ({
 }));
 vi.mock("../fieldNotes/progress", () => ({ recordFieldNoteEvent: vi.fn() }));
 vi.mock("./Lift", () => ({ default: () => null }));
+vi.mock("~/components/modal-sheet/sheetRoute", () => ({
+  openSheetRoute: mocks.sheet,
+}));
 
 afterEach(() => {
   cleanup();
@@ -27,6 +31,20 @@ afterEach(() => {
 const context = { portalId: "grab:paper:5", unitIndex: 5 };
 
 describe("shelf reading navigation", () => {
+  it.each(["manual", "systems", "routine"] as const)(
+    "opens the %s document through its intercepted sheet",
+    (to) => {
+      const openTab = vi.spyOn(window, "open").mockReturnValue(null);
+      const { result } = renderHook(() => useOpenTarget());
+      result.current({ to }, context);
+      expect(mocks.sheet).toHaveBeenCalledWith(`/${to}`, {
+        push: mocks.push,
+      });
+      expect(mocks.transition).not.toHaveBeenCalled();
+      expect(openTab).not.toHaveBeenCalled();
+    },
+  );
+
   it("opens the Musings index in place through the page transition", () => {
     const openTab = vi.spyOn(window, "open").mockReturnValue(null);
     const { result } = renderHook(() => useOpenTarget());

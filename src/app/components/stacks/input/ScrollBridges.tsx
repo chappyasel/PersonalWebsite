@@ -22,7 +22,7 @@ import { authoredTravelStops } from "../mobile/travel";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
-import { closeStacksPanel, useStacks } from "../store";
+import { closeStacksPanel, touchWorldRef, useStacks } from "../store";
 import { useEffect } from "react";
 
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
@@ -110,6 +110,15 @@ export default function ScrollBridges() {
   useEffect(() => {
     if (!scrollEl) return;
 
+    const resetSelection = () => {
+      const state = useStacks.getState();
+      state.setFocusedInteraction(null);
+      state.setPressedInteraction(null);
+      state.setHovered(null);
+      touchWorldRef.zoomOffset = 0;
+    };
+    let lastScrollLeft = scrollEl.scrollLeft;
+
     let scrollRange = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth);
     let preservedOffset =
       scrollRange > 0 ? scrollEl.scrollLeft / scrollRange : 0;
@@ -144,6 +153,7 @@ export default function ScrollBridges() {
       );
       if (action === "blocked") return;
       if (isBrowserZoomWheel(e)) return;
+      if (e.deltaX !== 0 || e.deltaY !== 0) resetSelection();
       reconcileScrollRange();
       e.preventDefault();
       e.stopPropagation();
@@ -155,6 +165,9 @@ export default function ScrollBridges() {
       const dominant =
         Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       scrollEl.scrollLeft += wheelDeltaPx(e, dominant);
+      // This wheel already dismissed selection. Its queued native scroll
+      // event must not dismiss an object selected after the wheel finished.
+      lastScrollLeft = scrollEl.scrollLeft;
     };
     window.addEventListener("wheel", onWheel, {
       passive: false,
@@ -222,6 +235,10 @@ export default function ScrollBridges() {
         coarseTravel = false;
     };
     const onScroll = () => {
+      if (scrollEl.scrollLeft !== lastScrollLeft) {
+        lastScrollLeft = scrollEl.scrollLeft;
+        resetSelection();
+      }
       reconcileScrollRange();
       if (!coarseTravel) return;
       const bounds = touchSwipeScrollBounds({
@@ -297,6 +314,7 @@ export default function ScrollBridges() {
         !freeRoamDiagnosticsController.getSnapshot().enabled
       ) {
         e.preventDefault();
+        resetSelection();
         panKeys.add(panDirection < 0 ? "a" : "d");
         if (!panFrame) panFrame = requestAnimationFrame(panWorld);
         return;
@@ -313,12 +331,14 @@ export default function ScrollBridges() {
         !freeRoamDiagnosticsController.getSnapshot().enabled
       ) {
         e.preventDefault();
+        resetSelection();
         state.travelTo?.(unit);
         return;
       }
       const step = worldNavigationStep(e.key);
       if (step === null) return;
       e.preventDefault();
+      resetSelection();
       const destination = state.golfFocused
         ? step < 0
           ? 1

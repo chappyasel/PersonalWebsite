@@ -936,7 +936,8 @@ export function NotebookLean({
               massKg={0.45}
               onTap={key ? () => onNotebookClick?.(key) : undefined}
               href={key}
-              portalLabel={key ? "Read this musing" : undefined}
+              portalLabel={key ? "Musing" : undefined}
+              actionLabel={key ? "Read article" : undefined}
               to={key ? undefined : "blog"}
               external={key ? !key.startsWith("/") : false}
             >

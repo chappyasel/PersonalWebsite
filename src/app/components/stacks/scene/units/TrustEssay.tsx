@@ -68,7 +68,8 @@ export function TrustEssay({
       shape="box"
       massKg={0.2}
       href={TRUST_ESSAY_HREF}
-      portalLabel="Read Trust in the Age of Acceleration"
+      portalLabel="Trust in the Age of Acceleration"
+      actionLabel="Read article"
       external
     >
       {/* Carried, the cover turns square to the camera like the sticker and

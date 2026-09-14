@@ -2,7 +2,35 @@ import type { Metadata, Viewport } from "next";
 
 export const HOMEPAGE_TITLE = "Chappy Asel";
 export const HOMEPAGE_DESCRIPTION =
-  "Chappy Asel is a technologist and community builder who founded The AI Collective. His work spans AI, relationships, books, and human agency.";
+  "Chappy Asel is a serial entrepreneur, engineer, and investor focused on AI. Founder of The AI Collective. Previously at Apple.";
+
+const HOMEPAGE_URL = "https://www.chappyasel.com/";
+const PROFILE_IMAGE_URL = `${HOMEPAGE_URL}images/about/profile.jpg`;
+
+// Google can choose a thumbnail from any image in the homepage's article
+// list. Identify the portrait explicitly as the page's preferred image.
+// https://developers.google.com/search/docs/appearance/google-images
+export const homepageStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": `${HOMEPAGE_URL}#webpage`,
+  url: HOMEPAGE_URL,
+  name: HOMEPAGE_TITLE,
+  description: HOMEPAGE_DESCRIPTION,
+  primaryImageOfPage: PROFILE_IMAGE_URL,
+  mainEntity: {
+    "@type": "Person",
+    "@id": `${HOMEPAGE_URL}#person`,
+    name: HOMEPAGE_TITLE,
+    url: HOMEPAGE_URL,
+    description: HOMEPAGE_DESCRIPTION,
+    image: PROFILE_IMAGE_URL,
+    sameAs: [
+      "https://www.linkedin.com/in/chappyasel/",
+      "https://x.com/chappyasel",
+    ],
+  },
+};
 
 export const homepageMetadata: Metadata = {
   title: HOMEPAGE_TITLE,

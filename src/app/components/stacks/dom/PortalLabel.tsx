@@ -1,5 +1,7 @@
 "use client";
 
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
+import { roomWindowEvents } from "../room/roomEvents";
 import {
   getSceneInteraction,
   portalLabelActivation,
@@ -7,11 +9,14 @@ import {
   runSceneInteractionActivation,
   subscribeSceneInteractions,
 } from "../scene/interactionRegistry";
-import { progressRef, useStacks } from "../store";
+import { progressRef, touchWorldRef, useStacks } from "../store";
 import { ArrowSquareOutIcon, ArrowsOutIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "~/components/ui/button";
+
 import { clampPortalLabelX, clampPortalLabelY } from "./portalLabelPlacement";
+import { fitPortalLabelText } from "./fitPortalLabelText";
 
 const INITIAL_DWELL_MS = 350;
 const TRANSITION_MS = 320;
@@ -25,18 +30,22 @@ const SWITCH_DWELL_MS = TRANSITION_MS + 20;
 const EXIT_MS = TRANSITION_MS + 100;
 
 function isFinePointer() {
+  // A touchscreen laptop can report a coarse primary pointer while a mouse
+  // is in use. The latest input takes precedence over device capability.
+  if (touchWorldRef.interactionPointerType !== "unknown")
+    return touchWorldRef.interactionPointerType !== "touch";
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 /** What the label would show for an activation, flattened for comparison. */
 function activationLabelKey(
   activation:
-    | { kind: string; label: string; title?: string }
+    | { kind: string; label: string; title?: string; actionLabel?: string }
     | null
     | undefined,
 ) {
   if (!activation) return "";
-  return `${activation.kind}:${activation.label}:${activation.title ?? ""}`;
+  return `${activation.kind}:${activation.label}:${activation.title ?? ""}:${activation.actionLabel ?? ""}`;
 }
 
 export default function PortalLabel() {
@@ -45,17 +54,16 @@ export default function PortalLabel() {
   const dragging = useStacks((s) => s.dragging);
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
+  const interactionId = focused ?? hovered;
   const [shown, setShown] = useState<{
     id: string;
     /** Title line: the destination of a Portal, or the object of an action. */
     label: string;
     detail: readonly string[];
-    /** Verb line for a local action that also has a title. */
+    /** Outcome line below the destination or object title. */
     action: string | null;
-    /** Title-line glyph: square-out for a Portal off the site, arrows-out for
-     * one on it or for a bare-verb action; null when the verb line below
-     * carries the arrows-out icon. */
-    arrow: "external" | "internal" | "action" | null;
+    /** Side icon: square-out for external portals, arrows-out otherwise. */
+    arrow: "external" | "internal" | "action";
   } | null>(null);
   const [visible, setVisible] = useState(false);
   const visibleRef = useRef(false);
@@ -65,7 +73,6 @@ export default function PortalLabel() {
   }, []);
   const shownRef = useRef<typeof shown>(null);
   const node = useRef<HTMLDivElement>(null);
-  const pointer = useRef({ x: 0, y: 0 });
   const hadPortal = useRef(false);
   const eligibleRef = useRef(false);
   const desiredIdRef = useRef<string | null>(null);
@@ -94,6 +101,96 @@ export default function PortalLabel() {
   const enterFrame = useRef<number | null>(null);
   const positionedId = useRef<string | null>(null);
 
+  useEffect(() => {
+    let press: { pointerId: number; x: number; y: number; id: string } | null =
+      null;
+    const releasePress = () => {
+      if (!press) return;
+      const state = useStacks.getState();
+      if (state.pressedInteraction === press.id)
+        state.setPressedInteraction(null);
+      press = null;
+    };
+    const finishPress = (event: PointerEvent) => {
+      if (event.pointerId === press?.pointerId) releasePress();
+    };
+    const movePress = (event: PointerEvent) => {
+      if (
+        event.pointerId === press?.pointerId &&
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) > 6
+      )
+        releasePress();
+    };
+    const dismiss = (event: PointerEvent) => {
+      if (
+        event.pointerType === "touch" ||
+        !event.isPrimary ||
+        event.button !== 0
+      )
+        return;
+      const state = useStacks.getState();
+      if (
+        state.modalOpen ||
+        state.panelState !== "closed" ||
+        state.dragging ||
+        state.visionRidePhase !== "idle" ||
+        !(event.target instanceof Node) ||
+        !state.scrollEl?.contains(event.target)
+      )
+        return;
+      const spec = getSceneInteraction(state.hovered);
+      if (spec) {
+        press = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          id: spec.id,
+        };
+        state.setPressedInteraction(spec.id);
+      }
+      // Keep the current camera focus until the stationary release transfers
+      // selection. Clearing it during another prop's press reverses the zoom
+      // for the duration of the click, then reverses it again on release.
+      if (state.focusedInteraction && !spec)
+        state.setFocusedInteraction(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        isEditableShortcutTarget(event.target)
+      )
+        return;
+      const state = useStacks.getState();
+      if (
+        !state.focusedInteraction ||
+        state.modalOpen ||
+        state.panelState !== "closed"
+      )
+        return;
+      event.preventDefault();
+      state.setFocusedInteraction(null);
+      state.setHovered(null);
+    };
+    roomWindowEvents.addEventListener("pointerdown", dismiss);
+    roomWindowEvents.addEventListener("pointermove", movePress);
+    roomWindowEvents.addEventListener("pointerup", finishPress);
+    roomWindowEvents.addEventListener("pointercancel", finishPress);
+    roomWindowEvents.addEventListener("lostpointercapture", finishPress);
+    roomWindowEvents.addEventListener("blur", releasePress);
+    roomWindowEvents.addEventListener("keydown", escape);
+    return () => {
+      roomWindowEvents.removeEventListener("pointerdown", dismiss);
+      roomWindowEvents.removeEventListener("pointermove", movePress);
+      roomWindowEvents.removeEventListener("pointerup", finishPress);
+      roomWindowEvents.removeEventListener("pointercancel", finishPress);
+      roomWindowEvents.removeEventListener("lostpointercapture", finishPress);
+      roomWindowEvents.removeEventListener("blur", releasePress);
+      releasePress();
+      roomWindowEvents.removeEventListener("keydown", escape);
+    };
+  }, []);
+
   useEffect(
     () => () => {
       if (exitTimer.current !== null) window.clearTimeout(exitTimer.current);
@@ -103,7 +200,6 @@ export default function PortalLabel() {
   );
 
   useEffect(() => {
-    pointer.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const track = (event: PointerEvent) => {
       const state = useStacks.getState();
       const scrollEl = state.scrollEl;
@@ -119,14 +215,12 @@ export default function PortalLabel() {
         if (state.hovered) state.setHovered(null);
         return;
       }
-      pointer.current = { x: event.clientX, y: event.clientY };
     };
     window.addEventListener("pointermove", track, { passive: true });
     return () => window.removeEventListener("pointermove", track);
   }, []);
 
   useEffect(() => {
-    const interactionId = focused ?? hovered;
     const spec = getSceneInteraction(interactionId);
     const activation = portalLabelActivation(spec);
     resolvedLabelRef.current = activationLabelKey(activation);
@@ -175,7 +269,7 @@ export default function PortalLabel() {
               id: spec.id,
               label: activation.label.replace(/\s*↗\s*$/, ""),
               detail: activation.detail ?? [],
-              action: null,
+              action: activation.actionLabel ?? "View site",
               arrow: activation.external
                 ? ("external" as const)
                 : ("internal" as const),
@@ -185,9 +279,7 @@ export default function PortalLabel() {
               label: activation.title ?? activation.label,
               detail: activation.detail ?? [],
               action: activation.title ? activation.label : null,
-              // A bare verb ("Hit golf ball") is its own title, so the →
-              // sits on that line; with a title the verb line carries it.
-              arrow: activation.title ? null : ("action" as const),
+              arrow: "action" as const,
             };
       positionedId.current = null;
       setLabelVisible(false);
@@ -198,7 +290,7 @@ export default function PortalLabel() {
   }, [
     dragging,
     focused,
-    hovered,
+    interactionId,
     modalOpen,
     panelState,
     registryVersion,
@@ -208,6 +300,7 @@ export default function PortalLabel() {
   useEffect(() => {
     if (!shown) return;
     let frame = 0;
+    let fittedText = false;
     let previousProgress = progressRef.current;
     const place = () => {
       if (Math.abs(progressRef.current - previousProgress) > 0.000_002) {
@@ -229,16 +322,31 @@ export default function PortalLabel() {
       const element = node.current;
       const projected = projectPortal(shown.id);
       if (element) {
-        // Projection normally resolves from the object's geometry or carrier
-        // origin. Pointer position remains an emergency fallback only when the
-        // scene has not installed its projection context yet.
-        let objectAnchored = false;
-        let anchor = pointer.current;
-        if (projected && !projected.behind) {
-          objectAnchored = true;
-          anchor = projected;
+        // An unavailable or hidden object has no label position. Never turn
+        // a selected object's label into a cursor tooltip while it recovers.
+        if (
+          !projected ||
+          projected.behind ||
+          !Number.isFinite(projected.x) ||
+          !Number.isFinite(projected.y)
+        ) {
+          if (enterFrame.current !== null) {
+            cancelAnimationFrame(enterFrame.current);
+            enterFrame.current = null;
+          }
+          positionedId.current = null;
+          element.style.visibility = "hidden";
+          if (visibleRef.current) setLabelVisible(false);
+          frame = requestAnimationFrame(place);
+          return;
         }
-        element.dataset.anchorSource = objectAnchored ? "object" : "pointer";
+        if (!fittedText) {
+          const text = element.querySelector<HTMLElement>("[data-portal-text]");
+          if (text) fitPortalLabelText(text);
+          fittedText = true;
+        }
+        const anchor = projected;
+        element.dataset.anchorSource = "object";
         const dock = document.querySelector<HTMLElement>(
           '[data-stacks-desktop-dock]:not([data-hidden="true"])',
         );
@@ -307,6 +415,7 @@ export default function PortalLabel() {
     <div
       ref={node}
       data-stacks-portal-label
+      inert={!visible}
       style={
         {
           left: "var(--portal-label-x, -10000px)",
@@ -318,7 +427,7 @@ export default function PortalLabel() {
           "--portal-label-opacity": visible ? "1" : "0",
         } as React.CSSProperties
       }
-      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} field-notes-glass-tooltip fixed z-30 w-max max-w-[240px] rounded-lg border px-2.5 py-1.5 backdrop-blur-xl backdrop-saturate-150`}
+      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} field-notes-glass-tooltip fixed z-30 w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 backdrop-blur-xl backdrop-saturate-150`}
     >
       <style>{`
         [data-portal-tether] { opacity: 0; }
@@ -332,15 +441,16 @@ export default function PortalLabel() {
       {/* `left` and `top` own the live screen position. `transform` only owns
           entrance motion, so projection updates cannot become transition
           endpoints. The glass remains on this same compositing node. */}
-      <button
+      <Button
         type="button"
-        disabled={!focused}
+        variant="ghost"
+        disabled={!visible || focused !== shown.id}
         role={focused ? undefined : "status"}
         aria-live={focused ? undefined : "polite"}
         onClick={() => {
           if (focused === shown.id) runSceneInteractionActivation(shown.id);
         }}
-        className={`relative flex min-h-0 max-w-[240px] items-center justify-center border-0 bg-transparent p-0 text-left text-[13px] leading-[1.25] ${
+        className={`relative flex h-auto min-h-0 max-w-[240px] items-center justify-center gap-2 whitespace-normal rounded-none border-0 bg-transparent p-0 text-left font-serif text-[14px] font-normal leading-[1.25] text-inherit hover:bg-transparent hover:text-inherit disabled:opacity-100 [&_svg]:size-[1em] ${
           focused
             ? "after:absolute after:left-1/2 after:top-1/2 after:h-12 after:w-full after:min-w-12 after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']"
             : ""
@@ -348,74 +458,38 @@ export default function PortalLabel() {
       >
         {/* Keep the focused label's hit area at least 48px tall without making
             the visible glass inherit that height. */}
-        {/* Title line, then one line per detail, then the verb line of a
-            local action. A Portal's title names where it goes, so its icon sits
-            on that line (square-out off-site, arrows-out on-site) and is the
-            whole "this is a link" signal; details describe the object and
-            never wrap around the glyph. An action wears an arrows-out icon on
-            its last line (or on its only line when it is a bare verb). A plain
-            one-line label renders exactly as before. */}
-        <span className="flex min-w-0 flex-col">
-          <span className="flex min-w-0 items-start gap-1">
-            <span
-              className={`min-w-0 whitespace-normal break-words ${
-                shown.detail.length || shown.action ? "font-medium" : ""
-              }`}
-            >
-              {shown.label}
-            </span>
-            {shown.arrow === "external" ? (
-              <ArrowSquareOutIcon
-                aria-hidden="true"
-                className="mt-px shrink-0"
-                size={13}
-                weight="bold"
-              />
-            ) : shown.arrow === "internal" ? (
-              <ArrowsOutIcon
-                aria-hidden="true"
-                className="mt-px shrink-0"
-                size={13}
-                weight="bold"
-              />
-            ) : shown.arrow === "action" ? (
-              <ArrowsOutIcon
-                aria-hidden="true"
-                className="mt-px shrink-0"
-                size={13}
-                weight="bold"
-              />
-            ) : null}
+        {/* Keep the text together and center one action icon beside the full
+            block, including wrapped titles, details, and local action text. */}
+        <span data-portal-text="" className="flex min-w-0 flex-initial flex-col">
+          <span className="min-w-0 whitespace-normal break-words text-[15px] font-semibold">
+            {shown.label}
           </span>
           {shown.detail.map((line) => (
             <span
               key={line}
               data-portal-detail=""
-              className="mt-0.5 min-w-0 whitespace-normal break-words text-[12px] leading-[1.3] text-white/60"
+              className="mt-0.5 min-w-0 whitespace-normal break-words text-[13px] leading-[1.3] text-white/60"
             >
               {line}
             </span>
           ))}
           {shown.action ? (
-            // Keep the action indicator on the verb line when a separate
-            // title and detail describe the object above it.
             <span
               data-portal-action=""
-              className="mt-1 flex min-w-0 items-start gap-1 text-[12px] leading-[1.3]"
+              className="mt-1 min-w-0 whitespace-normal break-words text-[13px] leading-[1.3]"
             >
-              <span className="min-w-0 whitespace-normal break-words">
-                {shown.action}
-              </span>
-              <ArrowsOutIcon
-                aria-hidden="true"
-                className="mt-px shrink-0"
-                size={12}
-                weight="bold"
-              />
+              {shown.action}
             </span>
           ) : null}
         </span>
-      </button>
+        <span className="flex shrink-0 items-center self-center text-[15px]">
+          {shown.arrow === "external" ? (
+            <ArrowSquareOutIcon aria-hidden="true" size={15} weight="bold" />
+          ) : (
+            <ArrowsOutIcon aria-hidden="true" size={15} weight="bold" />
+          )}
+        </span>
+      </Button>
     </div>
   );
 }

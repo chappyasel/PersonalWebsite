@@ -18,6 +18,8 @@ export type PortalSpec = {
   kind: "portal";
   /** The title line: where the Portal goes, or what the object is. */
   label: string;
+  /** The outcome shown below the destination title, such as "Read article". */
+  actionLabel?: string;
   /** Optional lines under the title: what the object stands for (a role, a
    * year). Each entry is its own line in the Portal Label; the title alone
    * still names the destination. */
@@ -90,6 +92,8 @@ export type SceneInteractionSpec = {
   touchable?: boolean;
   /** Skip Touch Focus and run this interaction on the first stationary tap. */
   activateOnFirstTouch?: boolean;
+  /** Require a selected preview on desktop too, for immersive local actions. */
+  previewBeforeActivation?: boolean;
   root: THREE.Object3D;
   activeUnits: number[];
   touchPriority?: number;
@@ -114,15 +118,17 @@ export type PropDestination =
   | "weightlifting"
   | "liarsdice"
   | "manual"
+  | "systems"
   | "routine"
   | "blog";
 
-type Destination = Pick<PortalSpec, "label" | "external"> & { href: string };
+type Destination = Pick<PortalSpec, "label" | "external"> & {
+  href: string;
+  actionLabel: string;
+};
 
-/** One destination table owns route hrefs, wording, and external treatment.
- * A Portal Label names the destination and nothing else: the label's arrow (→
- * inside the site, ↗ out of it) already says it goes somewhere, so "Open" and
- * "Visit" were filler (owner, 2026-08-22). */
+/** One table owns destination titles, action wording, hrefs, and external
+ * treatment. The title names the destination; a second line states the action. */
 export function destinationFor(to: PropDestination): Destination {
   const prod = process.env.NODE_ENV === "production";
   switch (to) {
@@ -130,6 +136,7 @@ export function destinationFor(to: PropDestination): Destination {
       return {
         href: prod ? "https://books.chappyasel.com" : devSubdomainUrl("books"),
         label: "Chappy's Book Notes",
+        actionLabel: "Browse book notes",
         external: false,
       };
     case "weightlifting":
@@ -138,30 +145,42 @@ export function destinationFor(to: PropDestination): Destination {
           ? "https://weightlifting.chappyasel.com"
           : devSubdomainUrl("weightlifting"),
         label: "Chappy's Weightlifting",
+        actionLabel: "View site",
         external: false,
       };
     case "liarsdice":
       return {
         href: "/liarsdice",
         label: "Liar's Dice",
+        actionLabel: "Play game",
         external: false,
       };
     case "manual":
       return {
         href: "/manual",
         label: "Personal Manual",
+        actionLabel: "Read manual",
+        external: false,
+      };
+    case "systems":
+      return {
+        href: "/systems",
+        label: "Personal Systems",
+        actionLabel: "Read article",
         external: false,
       };
     case "routine":
       return {
         href: "/routine",
         label: "Core Daily Routine",
+        actionLabel: "Read routine",
         external: false,
       };
     case "blog":
       return {
         href: "/musings",
         label: "Musings",
+        actionLabel: "Browse articles",
         external: false,
       };
   }
@@ -232,6 +251,7 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
     showLabel: all.every((part) => part.showLabel !== false),
     touchable: all.some((part) => part.touchable !== false),
     activateOnFirstTouch: all.some((part) => part.activateOnFirstTouch),
+    previewBeforeActivation: all.some((part) => part.previewBeforeActivation),
     // A carrier owns projection and touch hit-testing when a nested trigger
     // contributes activation separately (the alarm clock is the canonical
     // movable + egg case).

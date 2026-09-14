@@ -393,7 +393,8 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
           shadeColor={palette.shadow}
           shadeWidth={0.46}
           href="https://soundcloud.com/chappyasel"
-          portalLabel="Listen to Chappy on SoundCloud"
+          portalLabel="Chappy's Music"
+          actionLabel="Listen on SoundCloud"
           external
         >
           <React.Suspense fallback={null}>
