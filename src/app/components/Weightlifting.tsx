@@ -75,7 +75,7 @@ function WorkoutHistoryCalendar({ data }: { data: ActivityMosaicData }) {
   );
   if (!data.endDate) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="homepage-card-body text-muted-foreground">
         Workout history is unavailable.
       </p>
     );
@@ -247,11 +247,11 @@ function FeaturedRecords({ data }: { data: WeightliftingPlacardData }) {
               <div className="min-w-0">
                 <strong
                   data-featured-record-text=""
-                  className="block font-serif text-lg font-medium leading-tight text-foreground"
+                  className="block font-serif homepage-card-body font-semibold text-foreground"
                 >
                   {record.exerciseName}
                 </strong>
-                <span className="block truncate text-xs text-muted-foreground">
+                <span className="block truncate homepage-card-meta text-muted-foreground">
                   {record.achievedDate ? (
                     <time dateTime={record.achievedDate}>
                       {new Date(
@@ -272,14 +272,14 @@ function FeaturedRecords({ data }: { data: WeightliftingPlacardData }) {
             <div className="text-right tabular-nums">
               <strong
                 data-featured-record-text=""
-                className="block text-lg font-semibold leading-tight text-foreground"
+                className="block homepage-card-body font-semibold text-foreground"
               >
                 {record.bestOneRM === null
                   ? "—"
                   : `${Math.round(record.bestOneRM)} lbs`}
               </strong>
               {record.reps !== null && record.weight !== null ? (
-                <span className="block text-xs text-muted-foreground">
+                <span className="block homepage-card-meta text-muted-foreground">
                   {record.reps} × {record.weight}
                 </span>
               ) : null}

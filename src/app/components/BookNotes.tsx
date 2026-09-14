@@ -51,19 +51,19 @@ export default function BookNotes({
           <div className="h-[320px]">
             <DeferredBookCarousel books={books} />
           </div>
-          <div className="flex flex-col items-center px-8 pb-5 pt-3">
+          <div className="homepage-card-content flex flex-col items-center">
             <div className="mb-3 h-px w-2/3 bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
             <div className="flex w-full justify-around gap-1">
               <div className="flex flex-col items-center gap-0.5">
                 <StatValue value={stats.total.toString()} />
-                <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
+                <span className="flex items-center gap-1 homepage-card-meta text-muted-foreground">
                   <BookOpenIcon className="size-3.5 sm:size-4" weight="bold" />
                   Books
                 </span>
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
                 <StatValue value={stats.perYear?.toFixed(1) ?? "—"} />
-                <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
+                <span className="flex items-center gap-1 homepage-card-meta text-muted-foreground">
                   <CalendarBlankIcon
                     className="size-3.5 sm:size-4"
                     weight="bold"
@@ -75,14 +75,14 @@ export default function BookNotes({
                 <StatValue
                   value={stats.avgDays ? `${stats.avgDays.toFixed(1)}d` : "—"}
                 />
-                <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
+                <span className="flex items-center gap-1 homepage-card-meta text-muted-foreground">
                   <ClockIcon className="size-3.5 sm:size-4" weight="bold" />
                   Avg Read
                 </span>
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
                 <StatValue value={stats.pagesPerDay?.toFixed(1) ?? "—"} />
-                <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
+                <span className="flex items-center gap-1 homepage-card-meta text-muted-foreground">
                   <BookOpenTextIcon
                     className="size-3.5 sm:size-4"
                     weight="bold"

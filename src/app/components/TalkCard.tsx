@@ -67,6 +67,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
 
         <div
           data-placard-media="card-cover"
+          data-placard-media-highlight=""
           className={`${styles.media} relative aspect-video shrink-0 self-start bg-muted`}
         >
           <Image
@@ -95,19 +96,19 @@ export default function TalkCard({ talk }: { talk: Talk }) {
           className={`${styles.body} relative flex min-w-0 flex-1 flex-col`}
           style={{ transform: "translateZ(20px)" }}
         >
-          <p className="mb-1 text-xs font-semibold text-muted-foreground">
+          <p className="mb-1 homepage-card-meta font-semibold text-muted-foreground">
             {talk.venue}
           </p>
 
-          <h3 className="text-lg font-semibold md:text-xl">
+          <h3 className="homepage-card-title font-semibold">
             {talk.title}
           </h3>
 
-          <p className="mt-1 line-clamp-2 text-sm">
+          <p className="mt-1 line-clamp-2 homepage-card-body">
             {talk.excerpt}
           </p>
 
-          <div className="mt-auto flex flex-wrap items-center gap-3 pt-3 text-xs text-muted-foreground opacity-60">
+          <div className="mt-auto flex flex-wrap items-center gap-3 pt-3 homepage-card-meta text-muted-foreground opacity-60">
             <span className="flex items-center gap-1.5">
               <ClockIcon aria-hidden className="size-3" />
               {talk.duration}

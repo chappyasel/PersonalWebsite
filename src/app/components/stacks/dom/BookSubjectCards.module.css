@@ -1,16 +1,16 @@
 .container {
   --subject-sheen: rgb(255 255 255 / 0.24);
-  --subject-edge: rgb(255 255 255 / 0.48);
-  --subject-edge-bottom: rgb(255 255 255 / 0.1);
-  --subject-edge-hover: rgb(255 255 255 / 0.65);
+  --subject-edge: rgb(255 255 255 / 0.72);
+  --subject-edge-bottom: rgb(255 255 255 / 0.14);
+  --subject-edge-hover: rgb(255 255 255 / 0.8);
   container-type: inline-size;
 }
 
 :global(.dark) .container {
-  --subject-sheen: transparent;
-  --subject-edge: rgb(255 255 255 / 0.1);
-  --subject-edge-bottom: rgb(255 255 255 / 0.03);
-  --subject-edge-hover: rgb(255 255 255 / 0.18);
+  --subject-sheen: rgb(255 255 255 / 0.055);
+  --subject-edge: rgb(255 255 255 / 0.28);
+  --subject-edge-bottom: rgb(255 255 255 / 0.04);
+  --subject-edge-hover: rgb(255 255 255 / 0.36);
 }
 
 .grid {
@@ -53,9 +53,10 @@
   );
   backdrop-filter: blur(14px) saturate(1.2);
   -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  /* Carry the placard highlights around the corners of each tinted tile. */
   box-shadow:
-    inset 0 1px 0 var(--subject-edge),
-    inset 0 -1px 0 var(--subject-edge-bottom),
+    inset 1px 1px 0 var(--subject-edge),
+    inset -1px -1px 0 var(--subject-edge-bottom),
     0 4px 12px -8px rgb(0 0 0 / 0.28);
   transition: box-shadow 200ms ease-out;
 }
@@ -87,7 +88,8 @@
 }
 
 .count > span {
-  font-size: 0.625rem;
+  font-size: var(--homepage-card-meta-size, 0.75rem);
+  line-height: 1.333;
   font-weight: 400;
   color: hsl(var(--muted-foreground));
 }
@@ -97,9 +99,9 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 0.8125rem;
+  font-size: var(--homepage-card-body-size, 0.875rem);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -110,7 +112,8 @@
 
 .link:focus-visible .card {
   box-shadow:
-    inset 0 1px 0 var(--subject-edge-hover),
+    inset 1px 1px 0 var(--subject-edge-hover),
+    inset -1px -1px 0 var(--subject-edge-bottom),
     0 5px 14px -7px rgb(0 0 0 / 0.3);
 }
 
@@ -130,20 +133,18 @@
   .card {
     padding: 0.875rem;
   }
-  .title {
-    font-size: 0.9375rem;
-  }
 }
 
 @media (hover: hover) and (pointer: fine) {
   .link:hover {
     z-index: 1;
-    transform: translateY(-2px);
+    transform: scale(1.025);
   }
 
   .link:hover .card {
     box-shadow:
-      inset 0 1px 0 var(--subject-edge-hover),
+      inset 1px 1px 0 var(--subject-edge-hover),
+      inset -1px -1px 0 var(--subject-edge-bottom),
       0 5px 14px -7px rgb(0 0 0 / 0.3);
   }
 }

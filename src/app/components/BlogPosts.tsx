@@ -61,6 +61,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
         />
         <div
           data-placard-media="card-cover"
+          data-placard-media-highlight=""
           className={`${styles.media} relative shrink-0 self-start`}
         >
           {post.thumbnail ? (
@@ -79,9 +80,9 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           className={`${styles.body} relative flex min-w-0 flex-1 flex-col justify-start`}
           style={{ transform: "translateZ(20px)" }}
         >
-          <h3 className="text-lg font-semibold md:text-xl">{post.title}</h3>
-          <p className="mt-1 line-clamp-2 text-sm">{post.description}</p>
-          <div className="mt-auto flex flex-wrap items-center gap-3 pt-3 text-xs text-muted-foreground opacity-60">
+          <h3 className="homepage-card-title font-semibold">{post.title}</h3>
+          <p className="mt-1 line-clamp-2 homepage-card-body">{post.description}</p>
+          <div className="mt-auto flex flex-wrap items-center gap-3 pt-3 homepage-card-meta text-muted-foreground opacity-60">
             {minutes !== null && (
               <span className="flex items-center gap-1.5">
                 <ClockIcon aria-hidden className="size-3" />

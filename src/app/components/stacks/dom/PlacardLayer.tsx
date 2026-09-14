@@ -22,6 +22,7 @@ import {
   STACKS_DESKTOP_QUERY,
   STACKS_MOBILE_QUERY,
 } from "../scene/worldLayout";
+import { bookLengthFraction } from "../scene/units/featuredBookGeometry";
 import {
   closeStacksPanel,
   openStacksPanel,
@@ -53,6 +54,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import {
+  type CSSProperties,
   memo,
   useCallback,
   useEffect,
@@ -76,6 +78,7 @@ import { devSubdomainUrl } from "~/lib/util";
 
 import { Keycap } from "~/components/ui/keycap";
 
+import { BookCoverSizeGroup } from "./BookCoverSizeGroup";
 import { BookSubjectCards } from "./BookSubjectCards";
 
 import {
@@ -528,11 +531,13 @@ function DesktopPanel({
  * native scrolling can never move the copy independently from its glass. */
 function PlacardCard({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      data-placard-surface=""
-      className="rounded-3xl border border-foreground/[0.06] bg-muted/40 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
-    >
-      {children}
+    <div className="homepage-card-container w-full">
+      <div
+        data-placard-surface=""
+        className="homepage-card-content rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]"
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -618,17 +623,21 @@ export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
         recordModalOrigin((cover ?? event.currentTarget).getBoundingClientRect());
         useStacks.getState().setPendingBookId(book.id);
       }}
-      className="book-preview-row -mx-2 grid h-full grid-cols-[64px_1fr] items-center gap-4 rounded-xl px-2 text-left transition-colors duration-200 hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+      className="book-preview-row -mx-2 grid h-full items-start gap-4 rounded-xl px-2 text-left transition-colors duration-200 hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
     >
       <div
-        className="book-preview-cover relative aspect-[2/3] w-full overflow-hidden rounded-[4px] bg-foreground/5"
+        data-placard-media-highlight=""
+        className="book-preview-cover relative aspect-[2/3] h-[var(--book-preview-cover-size)] w-full overflow-hidden rounded-[4px] bg-foreground/5"
+        style={{
+          "--book-preview-thickness": `${3.5 + 2 * bookLengthFraction(book.pageCount, book.audioLengthMin)}px`,
+        } as CSSProperties}
       >
         {coverUrl ? (
           <Image
             src={coverUrl}
             alt=""
             fill
-            sizes="(max-width: 1199px) 68px, 64px"
+            sizes="96px"
             className="object-cover"
           />
         ) : (
@@ -639,25 +648,25 @@ export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
           </div>
         )}
       </div>
-      <div className="min-w-0 self-center">
-        <p className="book-preview-title line-clamp-1 font-serif text-[17px] font-medium leading-[1.2] text-foreground">
+      <div data-book-preview-details="" className="min-w-0 self-start">
+        <p className="book-preview-title line-clamp-1 font-serif homepage-card-body font-semibold text-foreground">
           {book.title}
         </p>
-        <p className="mt-0.5 truncate text-xs leading-tight text-muted-foreground">
+        <p className="mt-px truncate homepage-card-meta text-muted-foreground">
           {book.author}
         </p>
         {book.rating !== null ? (
-          <div className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
+          <div className="mt-1 homepage-card-meta text-muted-foreground">
             <BookStars rating={book.rating} />
           </div>
         ) : null}
         {length ? (
-          <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+          <p className="book-preview-detail mt-0.5 line-clamp-1 text-muted-foreground">
             {length}
           </p>
         ) : null}
         {dates ? (
-          <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-muted-foreground">
+          <p className="book-preview-detail mt-0.5 line-clamp-1 text-muted-foreground">
             {dates}
           </p>
         ) : null}
@@ -699,7 +708,7 @@ function BooksPlacard({ data }: { data: StacksData }) {
   const href = booksHref();
   const { bookPlacard } = data;
   return (
-    <div className="placard-card-stack flex flex-col gap-4">
+    <BookCoverSizeGroup>
       <PlacardLinkCard
         href={href}
         label="Browse Book Notes reading stats"
@@ -740,7 +749,7 @@ function BooksPlacard({ data }: { data: StacksData }) {
         <PlacardCardHeading icon={TagIcon}>Favorite subjects</PlacardCardHeading>
         <BookSubjectCards subjects={bookPlacard.subjects} libraryHref={href} />
       </PlacardNestedLinkCard>
-    </div>
+    </BookCoverSizeGroup>
   );
 }
 
@@ -2320,7 +2329,7 @@ export default function PlacardLayer({
       about: (
         <PlacardCard>
           <div className="flex items-start justify-between">
-            <div className="text-sm leading-6">{slots.aboutIntro}</div>
+            <div className="homepage-card-body">{slots.aboutIntro}</div>
           </div>
           <div className="flex flex-col items-center gap-2 pt-4">
             {slots.contact}
@@ -2630,9 +2639,8 @@ export default function PlacardLayer({
         }
         .dark .stacks-sheet {
           box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.28),
-            inset 1px 0 0 rgb(255 255 255 / 0.08),
-            inset -1px 0 0 rgb(255 255 255 / 0.08),
+            inset 1px 1px 0 rgb(255 255 255 / 0.28),
+            inset -1px 0 0 rgb(255 255 255 / 0.04),
             0 -2px 7px rgb(0 0 0 / 0.28),
             0 -18px 42px -22px rgb(0 0 0 / 0.82) !important;
         }
@@ -2650,31 +2658,15 @@ export default function PlacardLayer({
             0 3px 7px rgb(0 0 0 / 0.34),
             0 14px 32px -18px rgb(0 0 0 / 0.78) !important;
         }
-        /* ── Type ─────────────────────────────────────────────────────
-           One number scales the whole reading column. The panel's width is
-           a clamp of the viewport (see --pw on the dock), and --ps is
-           derived from --pw rather than from the viewport again, so the
-           column and the type in it cannot scale apart, and neither of them
-           steps: the placard used to jump 432 → 496px at the xl breakpoint
-           and take its type across unchanged, which is the visible pop
-           while resizing.
-
-           14.0px at 1280 (the width the scene is composed against), 13.1px
-           at the narrowest dock and 16.0px at the widest. Mobile starts at
-           14px on a phone and reaches 16px as the sheet approaches its 700px
-           cap, instead of leaving tablet-sized sheets at phone scale. */
+        /* Section headings and copy outside cards follow the panel width.
+           Card text uses the shared homepage-card typography classes. */
         .placard-scroll {
           --ps: clamp(0.875rem, calc(0.718rem + 0.645vw), 1rem);
         }
         @media (min-width: 1200px) {
           .placard-scroll { --ps: calc(0.4375rem + var(--pw, 31rem) * 0.0141); }
         }
-        /* Every rem-sized Tailwind step in here becomes a multiple of --ps.
-           The multipliers ARE Tailwind's own ratios against its 14px step,
-           so at --ps: 0.875rem this map is a no-op — mobile renders exactly
-           what it rendered before. Line heights go unitless for the same
-           reason they have to: a fixed rem leading under a scaled font
-           closes up as the column widens. */
+        /* Preserve the panel scale for remaining utility-sized text. */
         .placard-scroll .text-xs { font-size: calc(var(--ps) * 0.857); line-height: 1.333; }
         .placard-scroll .text-sm { font-size: var(--ps); line-height: 1.5; }
         .placard-scroll .text-base { font-size: calc(var(--ps) * 1.143); line-height: 1.5; }
@@ -2704,15 +2696,22 @@ export default function PlacardLayer({
           transform: perspective(700px) rotateY(-3deg) translateZ(0);
           transform-origin: left center;
           box-shadow:
-            1px 0 0 rgb(255 255 255 / 0.22),
+            calc(var(--book-preview-thickness) / 2) 0 0 rgb(255 255 255 / 0.22),
             0 5px 20px 2px rgb(0 0 0 / 0.16);
           transition: transform 240ms ease, box-shadow 240ms ease;
         }
-        .book-preview-row:hover .book-preview-cover {
-          transform: perspective(700px) rotateY(-5deg) scale(1.025) translateZ(4px);
+        .book-preview-row:hover .book-preview-cover,
+        .book-preview-row:focus-visible .book-preview-cover {
+          transform: perspective(700px) rotateY(-10deg) scale(1.025) translateZ(4px);
           box-shadow:
-            2px 0 0 rgb(255 255 255 / 0.26),
+            var(--book-preview-thickness) 0 0 rgb(255 255 255 / 0.26),
             0 9px 25px 1px rgb(0 0 0 / 0.22);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .book-preview-row .book-preview-cover {
+            transform: none;
+            transition: none;
+          }
         }
         @container (min-width: 25rem) {
           .book-ledger-grid {
@@ -2723,10 +2722,8 @@ export default function PlacardLayer({
             border-top: 0;
           }
           .book-preview-row {
-            grid-template-columns: 64px minmax(0, 1fr);
             gap: 0.875rem;
           }
-          .book-preview-title { font-size: 0.9375rem; }
           .book-recent-overflow { display: block; }
         }
         @container (max-width: 24.999rem) {
@@ -2767,39 +2764,16 @@ export default function PlacardLayer({
         .placard-scroll .placard-sections .text-2xl,
         .placard-scroll .placard-sections .sm\\:text-3xl,
         .placard-scroll .placard-sections .md\\:text-3xl { font-size: calc(var(--ps) * 1.286); line-height: 1.333; }
-        .placard-scroll .placard-sections .text-lg { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
-        .placard-scroll .placard-sections h3,
-        .placard-scroll [data-placard-card-heading] { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
-        @media (min-width: 1200px) {
-          :is([data-stacks-desktop-panel="books"], [data-stacks-desktop-panel="training"], [data-stacks-desktop-panel="projects"]) .placard-scroll .placard-sections h3,
-          :is([data-stacks-desktop-panel="books"], [data-stacks-desktop-panel="training"], [data-stacks-desktop-panel="projects"]) .placard-scroll [data-placard-card-heading] {
-            font-size: calc(var(--ps) * 1.286);
-          }
-        }
         /* Mobile's sheet is the single backdrop-sampling surface. Its cards
            keep a stronger translucent fill for separation, but do not stack
            another expensive blur on top of the sheet. Desktop is deliberately
            excluded: there each card owns and moves with its native glass. */
         @media (width < 1200px) {
-          /* Shared page cards use the same 20px inset as the mobile sheet. */
-          .placard-scroll a.p-5 { padding: 1.25rem !important; }
-          [data-stacks-mobile-panel] .placard-sections [data-featured-record-text] {
-            font-size: var(--ps);
-          }
           [data-stacks-mobile-panel] .book-ledger-grid {
             --book-ledger-row-padding: 0.5rem;
           }
           [data-stacks-mobile-panel] .book-preview-row {
-            grid-template-columns: 68px minmax(0, 1fr);
             gap: 0.75rem;
-          }
-          @container (max-width: 24.999rem) {
-            [data-stacks-mobile-panel] .book-preview-row {
-              grid-template-columns: 60px minmax(0, 1fr);
-            }
-          }
-          [data-stacks-mobile-panel] .book-preview-title {
-            font-size: 0.9375rem;
           }
           [data-stacks-mobile-panel] [data-placard-media]:not([data-placard-media="card-cover"]) {
             aspect-ratio: 16 / 9;
@@ -2812,14 +2786,8 @@ export default function PlacardLayer({
             height: 100% !important;
             object-fit: cover;
           }
-          [data-stacks-mobile-panel] [data-mobile-compact-card] > [data-placard-surface] {
-            padding: 1rem !important;
-          }
-          /* The sheet swaps the card's three type sizes (PlacardStatsCard
-             derives margins and icons from them). 17cqw of the card is
-             12vw of a phone (a 390px viewport leaves a 276px card once the
-             sheet and card insets are paid), so phones render the headline
-             they rendered before; the stat values only grow past a phone. */
+          /* Scale the headline and stats with the card's content width,
+             while keeping their minimum sizes readable on phones. */
           [data-stacks-mobile-panel] [data-mobile-compact-stats] {
             grid-template-columns: minmax(0, 1fr) auto;
             --placard-headline: clamp(2.75rem, 17cqw, 4.5rem);
@@ -2903,16 +2871,6 @@ export default function PlacardLayer({
           .dark .placard-scroll [class*="backdrop-blur"] {
             background-color: rgb(0 0 0 / 0.42) !important;
           }
-          /* sm: padding belongs to the shared full-page layout. The sheet is
-             still a narrow reading column at 640–1199px, so keep every card
-             on the same 20px inset as About and Books. */
-          .placard-scroll .sm\\:p-6 { padding: 1.25rem !important; }
-          .placard-scroll .sm\\:px-6 {
-            padding-left: 1.25rem !important;
-            padding-right: 1.25rem !important;
-          }
-          .placard-scroll .sm\\:pb-6,
-          .placard-scroll .sm\\:pb-4 { padding-bottom: 1.25rem !important; }
           /* The sheet runs to the physical bottom of the screen, so the last
              line of a fully expanded placard would otherwise sit under the
              home indicator. Only the sheet's scroller — the desktop dock has
@@ -2954,29 +2912,7 @@ export default function PlacardLayer({
             filter: none !important;
           }
         }
-        /* AIC's best glass detail is its inset highlight: the top edge catches
-           light while a small, diffuse shadow separates the surface from the
-           scene. Apply that material language to every placard card. Linked
-           cards lift slightly, gain edge definition, and change tint so their
-           clickability is visible before the copy has to explain it. */
-        .placard-scroll [data-placard-surface] {
-          border-color: rgb(87 83 78 / 0.18) !important;
-          box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.72),
-            inset 0 -1px 0 rgb(255 255 255 / 0.14),
-            0 1px 2px rgb(28 25 23 / 0.10),
-            0 12px 30px -20px rgb(28 25 23 / 0.40) !important;
-          transition-property: background-color, border-color, box-shadow;
-          transition-duration: 200ms;
-          transition-timing-function: ease-out;
-        }
-        .dark .placard-scroll [data-placard-surface] {
-          border-color: rgb(255 255 255 / 0.22) !important;
-          box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.28),
-            inset 0 -1px 0 rgb(255 255 255 / 0.08),
-            0 14px 34px -18px rgb(0 0 0 / 0.86) !important;
-        }
+        /* Hover tint follows the scene background; edges are shared in globals.css. */
         html:not(.dark) .placard-scroll [data-placard-link]:hover [data-placard-surface],
         html:not(.dark) .placard-scroll [data-placard-link]:focus-visible [data-placard-surface],
         html:not(.dark) .placard-scroll a:hover [data-placard-surface],
@@ -2984,12 +2920,6 @@ export default function PlacardLayer({
         html:not(.dark) .placard-scroll a:focus-visible [data-placard-surface],
         html:not(.dark) .placard-scroll a[data-placard-surface]:focus-visible {
           background-color: rgb(235 232 225 / 0.44) !important;
-          border-color: rgb(87 83 78 / 0.28) !important;
-          box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.80),
-            inset 0 -1px 0 rgb(255 255 255 / 0.16),
-            0 2px 5px rgb(28 25 23 / 0.12),
-            0 18px 36px -20px rgb(28 25 23 / 0.52) !important;
         }
         .dark .placard-scroll [data-placard-link]:hover [data-placard-surface],
         .dark .placard-scroll [data-placard-link]:focus-visible [data-placard-surface],
@@ -2998,11 +2928,6 @@ export default function PlacardLayer({
         .dark .placard-scroll a:focus-visible [data-placard-surface],
         .dark .placard-scroll a[data-placard-surface]:focus-visible {
           background-color: rgb(255 255 255 / 0.05) !important;
-          border-color: rgb(255 255 255 / 0.25) !important;
-          box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.28),
-            inset 0 -1px 0 rgb(255 255 255 / 0.08),
-            0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
         }
         @media (min-width: 1200px) {
           html:not(.dark) [data-stacks-desktop-panel] [data-placard-link]:hover [data-placard-surface],

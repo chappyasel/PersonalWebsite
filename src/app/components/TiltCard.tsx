@@ -11,7 +11,6 @@ import { useRef } from "react";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
 import {
-  cardHoverLift,
   cardInteractionSpring,
   cardPressedScale,
   cardTiltSpring,
@@ -44,7 +43,6 @@ export default function TiltCard({
   const rotateX = useSpring(useMotionValue(0), cardTiltSpring);
   const rotateY = useSpring(useMotionValue(0), cardTiltSpring);
   const scale = useSpring(1, cardInteractionSpring);
-  const lift = useSpring(0, cardInteractionSpring);
 
   const supportsHover = () =>
     tiltCardHoverEnabled(
@@ -65,12 +63,10 @@ export default function TiltCard({
   const handleMouseEnter = () => {
     if (!interactive || !supportsHover()) return;
     scale.set(hoverScale);
-    lift.set(cardHoverLift);
   };
 
   const handleMouseLeave = () => {
     scale.set(1);
-    lift.set(0);
     rotateX.set(0);
     rotateY.set(0);
   };
@@ -80,7 +76,6 @@ export default function TiltCard({
       return;
     }
     scale.set(cardPressedScale);
-    lift.set(0);
   };
 
   const settleAfterPress = () => {
@@ -88,7 +83,6 @@ export default function TiltCard({
     const stillHovered =
       supportsHover() && containerRef.current?.matches(":hover");
     scale.set(stillHovered ? hoverScale : 1);
-    lift.set(stillHovered ? cardHoverLift : 0);
   };
 
   return (
@@ -102,7 +96,7 @@ export default function TiltCard({
       // to report a hydration mismatch. The event handlers above are the
       // motion gate, so the values remain exactly 0/0/1 when motion is reduced.
       className={cn(
-        "[perspective:800px]",
+        "homepage-card-container [perspective:800px]",
         interactive && "cursor-pointer",
         className,
       )}
@@ -117,7 +111,6 @@ export default function TiltCard({
         data-tilt-motion=""
         className="[transform-style:preserve-3d]"
         style={{
-          y: lift,
           rotateX,
           rotateY,
           scale,

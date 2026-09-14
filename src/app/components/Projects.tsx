@@ -95,7 +95,8 @@ function ProjectItem({ project }: { project: Project }) {
       />
       {tile ? (
         <div
-          className="relative size-24 shrink-0 sm:size-28"
+          data-placard-media-highlight=""
+          className="relative size-24 shrink-0 rounded-[22%] sm:size-28"
           style={{ transform: "translateZ(30px)" }}
         >
           <Image
@@ -108,14 +109,14 @@ function ProjectItem({ project }: { project: Project }) {
         </div>
       ) : null}
       <div
-        className="relative flex min-w-0 flex-1 flex-col justify-start pl-4 sm:pl-6"
+        className={`relative flex min-w-0 flex-1 flex-col justify-start ${tile ? "pl-[var(--homepage-card-padding)]" : ""}`}
         style={{ transform: "translateZ(20px)" }}
       >
-        <h3 className="text-lg font-semibold md:text-xl">{project.name}</h3>
-        <p className="text-xs font-semibold text-muted-foreground">
+        <h3 className="homepage-card-title font-semibold">{project.name}</h3>
+        <p className="homepage-card-meta font-semibold text-muted-foreground">
           {project.meta}
         </p>
-        <p className="mt-1 line-clamp-4 text-sm">{project.description}</p>
+        <p className="mt-1 line-clamp-4 homepage-card-body">{project.description}</p>
       </div>
     </>
   );
@@ -129,13 +130,13 @@ function ProjectItem({ project }: { project: Project }) {
         <Link
           href={project.link}
           target="_blank"
-          className="group relative flex w-full flex-row p-5 [transform-style:preserve-3d] sm:p-6"
+          className="homepage-card-content group relative flex w-full flex-row [transform-style:preserve-3d]"
         >
           {content}
         </Link>
       ) : (
         <div
-          className="relative flex w-full flex-row p-5 [transform-style:preserve-3d] sm:p-6"
+          className="homepage-card-content relative flex w-full flex-row [transform-style:preserve-3d]"
           data-project-unavailable=""
         >
           {content}
@@ -156,7 +157,7 @@ function RepoItem({ repo }: { repo: GitHubPlacardRepo }) {
         rel="noopener noreferrer"
         className="group/repo pointer-events-auto -mx-2 flex min-w-0 flex-col gap-1 rounded-xl p-2 transition-colors duration-200 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
       >
-        <span className="flex min-w-0 items-start gap-2 text-base font-semibold text-foreground">
+        <span className="flex min-w-0 items-start gap-2 homepage-card-body font-semibold text-foreground">
           {repo.isFork ? (
             <GitForkIcon
               role="img"
@@ -180,9 +181,9 @@ function RepoItem({ repo }: { repo: GitHubPlacardRepo }) {
           />
         </span>
         {blurb ? (
-          <p className="text-sm [overflow-wrap:anywhere]">{blurb}</p>
+          <p className="homepage-card-body [overflow-wrap:anywhere]">{blurb}</p>
         ) : null}
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-muted-foreground opacity-60">
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 homepage-card-meta text-muted-foreground opacity-60">
           {repo.language ? (
             <span className="flex items-center gap-1.5">
               <span
@@ -210,7 +211,7 @@ function RepoItem({ repo }: { repo: GitHubPlacardRepo }) {
 function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
   return (
     <TiltCard interactive className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
-      <Card className="group relative flex w-full flex-col rounded-3xl border-0 bg-transparent p-5 text-foreground shadow-none [transform-style:preserve-3d] sm:p-6">
+      <Card className="homepage-card-content group relative flex w-full flex-col rounded-3xl border-0 bg-transparent text-foreground shadow-none [transform-style:preserve-3d]">
         <div
           data-placard-background=""
           data-placard-surface=""
@@ -230,7 +231,7 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
           style={{ transform: "translateZ(20px)" }}
         >
           <div className="flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 text-lg font-semibold md:text-xl">
+            <h3 className="flex items-center gap-2 homepage-card-title font-semibold">
               <GithubLogoIcon
                 aria-hidden
                 weight="regular"

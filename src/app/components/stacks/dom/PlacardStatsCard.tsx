@@ -54,7 +54,7 @@ export function PlacardLinkCard({
       >
         <div
           data-placard-surface=""
-          className="rounded-3xl border border-foreground/[0.06] bg-muted/90 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
+          className="homepage-card-content rounded-3xl border border-foreground/[0.06] bg-muted/90 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]"
         >
           {children}
         </div>
@@ -117,7 +117,7 @@ export function PlacardNestedLinkCard({
       >
         <div
           data-placard-surface=""
-          className="rounded-3xl border border-foreground/[0.06] bg-muted/90 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
+          className="homepage-card-content rounded-3xl border border-foreground/[0.06] bg-muted/90 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]"
         >
           {children}
         </div>
@@ -221,7 +221,7 @@ function PlacardYearBars({
                       }}
                     />
                   </div>
-                  <span className="mt-1.5 text-[10px] tabular-nums text-muted-foreground">
+                  <span className="mt-1.5 text-[length:var(--placard-label)] leading-none tabular-nums text-muted-foreground">
                     &apos;{String(year.year).slice(2)}
                   </span>
                 </div>
@@ -317,7 +317,7 @@ export function PlacardStatsCard({
         // silently rendered at 1.5 line-height.
         card
           ? "grid-cols-[minmax(0,1.25fr)_minmax(6rem,.75fr)] [--placard-headline:2.75rem] [--placard-label:10px] [--placard-stat:1.25rem]"
-          : "grid-cols-[minmax(0,1fr)_auto] [--placard-headline:clamp(3.25rem,21cqw,7rem)] [--placard-label:clamp(11px,2.75cqw,16px)] [--placard-stat:clamp(1.65rem,6cqw,2.25rem)] [container-type:inline-size]",
+          : "grid-cols-[minmax(0,1fr)_auto] [--placard-headline:clamp(3.25rem,21cqw,7rem)] [--placard-label:var(--homepage-card-meta-size,0.75rem)] [--placard-stat:clamp(1.65rem,6cqw,2.25rem)] [container-type:inline-size]",
       )}
     >
       <div
@@ -402,13 +402,13 @@ export function PlacardCardHeading({
     >
       <h3
         data-placard-card-heading=""
-        className="flex items-center gap-2 text-base font-semibold text-foreground"
+        className="flex items-center gap-2 homepage-card-title font-semibold text-foreground"
       >
         <Icon aria-hidden className="size-5 shrink-0" weight="duotone" />
         {children}
       </h3>
       {detail ? (
-        <span className="whitespace-nowrap text-xs text-muted-foreground">
+        <span className="whitespace-nowrap homepage-card-meta text-muted-foreground">
           {detail}
         </span>
       ) : null}

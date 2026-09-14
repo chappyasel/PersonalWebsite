@@ -2,6 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Measure each card before padding, independently of viewport and layout. */
+.homepage-card-container {
+  container: homepage-card / inline-size;
+}
+.homepage-card-container > * {
+  --homepage-card-padding: 1rem;
+  --homepage-card-title-size: 1rem;
+  --homepage-card-body-size: 0.875rem;
+  --homepage-card-meta-size: 0.75rem;
+
+  font-size: var(--homepage-card-body-size);
+  line-height: 1.5;
+}
+@container homepage-card (min-width: 400px) {
+  .homepage-card-container > * {
+    --homepage-card-padding: 1.25rem;
+    --homepage-card-title-size: 1.125rem;
+    --homepage-card-body-size: 0.9375rem;
+    --homepage-card-meta-size: 0.8125rem;
+
+  }
+}
+@container homepage-card (min-width: 600px) {
+  .homepage-card-container > * {
+    --homepage-card-padding: 1.5rem;
+    --homepage-card-title-size: 1.25rem;
+    --homepage-card-body-size: 1rem;
+    --homepage-card-meta-size: 0.875rem;
+
+  }
+}
+@layer components {
+  .homepage-card-content {
+    padding: var(--homepage-card-padding, 1rem);
+  }
+  .homepage-card-title {
+    font-size: var(--homepage-card-title-size, 1rem);
+    line-height: 1.4;
+  }
+  .homepage-card-body {
+    font-size: var(--homepage-card-body-size, 0.875rem);
+    line-height: 1.5;
+  }
+  .homepage-card-section-label {
+    font-size: calc(var(--homepage-card-body-size, 0.875rem) - 0.0625rem);
+    line-height: 1.4;
+  }
+  .homepage-card-meta {
+    font-size: var(--homepage-card-meta-size, 0.75rem);
+    line-height: 1.333;
+  }
+  .book-preview-row {
+    /* Before measurement, use a full entry's line heights and row gaps:
+       title, author, stars, length, and a single date line. */
+    --book-preview-cover-fallback: calc(
+      var(--homepage-card-body-size, 0.875rem) * 1.5 +
+      var(--homepage-card-meta-size, 0.75rem) * 2.666 +
+      (var(--homepage-card-meta-size, 0.75rem) - 0.0625rem) * 2.666 +
+      0.5625rem
+    );
+    --book-preview-cover-size: var(--book-preview-cover-height, var(--book-preview-cover-fallback));
+    grid-template-columns: calc(var(--book-preview-cover-size) * 2 / 3) minmax(0, 1fr);
+  }
+  /* Book length and reading dates sit one pixel below the author label. */
+  .book-preview-detail {
+    font-size: calc(var(--homepage-card-meta-size, 0.75rem) - 0.0625rem);
+    line-height: 1.333;
+  }
+}
+
+/* Homepage cards share corner highlights in the scene and flat layout.
+   Scene-specific fills and backdrop filters stay with the placards. */
+[data-placard-surface] {
+  border-color: rgb(87 83 78 / 0.18) !important;
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.72),
+    inset -1px -1px 0 rgb(255 255 255 / 0.14),
+    0 1px 2px rgb(28 25 23 / 0.10),
+    0 12px 30px -20px rgb(28 25 23 / 0.40) !important;
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+}
+.dark [data-placard-surface] {
+  border-color: rgb(255 255 255 / 0.22) !important;
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.28),
+    inset -1px -1px 0 rgb(255 255 255 / 0.04),
+    0 14px 34px -18px rgb(0 0 0 / 0.86) !important;
+}
+html:not(.dark) [data-placard-link]:hover [data-placard-surface],
+html:not(.dark) [data-placard-link]:focus-visible [data-placard-surface],
+html:not(.dark) a:hover [data-placard-surface],
+html:not(.dark) a[data-placard-surface]:hover,
+html:not(.dark) a:focus-visible [data-placard-surface],
+html:not(.dark) a[data-placard-surface]:focus-visible {
+  border-color: rgb(87 83 78 / 0.28) !important;
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.80),
+    inset -1px -1px 0 rgb(255 255 255 / 0.16),
+    0 2px 5px rgb(28 25 23 / 0.12),
+    0 18px 36px -20px rgb(28 25 23 / 0.52) !important;
+}
+.dark [data-placard-link]:hover [data-placard-surface],
+.dark [data-placard-link]:focus-visible [data-placard-surface],
+.dark a:hover [data-placard-surface],
+.dark a[data-placard-surface]:hover,
+.dark a:focus-visible [data-placard-surface],
+.dark a[data-placard-surface]:focus-visible {
+  border-color: rgb(255 255 255 / 0.25) !important;
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.28),
+    inset -1px -1px 0 rgb(255 255 255 / 0.04),
+    0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
+}
+
+/* Paint above the artwork so opaque images cannot hide their glass edges. */
+[data-placard-media-highlight]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.72),
+    inset -1px -1px 0 rgb(255 255 255 / 0.14);
+}
+.dark [data-placard-media-highlight]::after {
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.28),
+    inset -1px -1px 0 rgb(255 255 255 / 0.04);
+}
+
 /* Header ink stays subdued in the entry drawing and the live room, at every width. */
 :root {
   --stacks-secondary-chrome-idle-opacity: 0.6;

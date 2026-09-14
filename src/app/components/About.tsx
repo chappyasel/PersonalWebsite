@@ -152,65 +152,67 @@ export function AboutIntro() {
 
 export default async function AboutMe() {
   return (
-    <IntersectionMotion
-      data-placard-surface=""
-      className="relative mt-6 w-full gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 md:mt-28"
-    >
-      <div className="absolute right-4 top-4 opacity-70">
-        <ThemeToggle />
-      </div>
-      <Link
-        href="https://www.linkedin.com/in/chappyasel/"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Open Chappy's LinkedIn"
+    <div className="homepage-card-container mt-6 w-full md:mt-28">
+      <IntersectionMotion
+        data-placard-surface=""
+        className="homepage-card-content relative w-full gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 homepage-card-body shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
       >
-        <Image
-          src={image}
-          alt="Chappy Asel speaking onstage in a blue jacket"
-          width={400}
-          height={400}
-          preload
-          className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
-        />
-      </Link>
-      <Greeting />
-      <Bio className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline" />
-      <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground">
-        <ContactButtons />
-        {/* <p className="flex flex-row gap-2">
-          <Link
-            href="mailto:chappyasel@gmail.com"
-            className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
-          >
-            chappyasel [at] gmail.com
-          </Link>
-          {" • "}
-          <Link
-            href="mailto:chappy@aicollective.com"
-            className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
-          >
-            chappy [at] aicollective.com
-          </Link>
-        </p> */}
-        {/* <div className="flex flex-row gap-2">
-          <Link
-            href="/documents/Gabriel 'Chappy' Asel CV.pdf"
-            target="_blank"
-            className="transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
-          >
-            resume
-          </Link>
-          {" • "}
-          <Link
-            href="/documents/Gabriel 'Chappy' Asel CV.pdf"
-            target="_blank"
-            className="transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
-          >
-            curriculum vitae
-          </Link>
-        </div> */}
-      </div>
-    </IntersectionMotion>
+        <div className="absolute right-4 top-4 opacity-70">
+          <ThemeToggle />
+        </div>
+        <Link
+          href="https://www.linkedin.com/in/chappyasel/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open Chappy's LinkedIn"
+        >
+          <Image
+            src={image}
+            alt="Chappy Asel speaking onstage in a blue jacket"
+            width={400}
+            height={400}
+            preload
+            className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+          />
+        </Link>
+        <Greeting />
+        <Bio className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline" />
+        <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground">
+          <ContactButtons />
+          {/* <p className="flex flex-row gap-2">
+            <Link
+              href="mailto:chappyasel@gmail.com"
+              className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
+            >
+              chappyasel [at] gmail.com
+            </Link>
+            {" • "}
+            <Link
+              href="mailto:chappy@aicollective.com"
+              className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
+            >
+              chappy [at] aicollective.com
+            </Link>
+          </p> */}
+          {/* <div className="flex flex-row gap-2">
+            <Link
+              href="/documents/Gabriel 'Chappy' Asel CV.pdf"
+              target="_blank"
+              className="transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
+            >
+              resume
+            </Link>
+            {" • "}
+            <Link
+              href="/documents/Gabriel 'Chappy' Asel CV.pdf"
+              target="_blank"
+              className="transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
+            >
+              curriculum vitae
+            </Link>
+          </div> */}
+        </div>
+      </IntersectionMotion>
+    </div>
   );
 }

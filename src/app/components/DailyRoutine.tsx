@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 
-import DocCard from "./DocCard";
+import DocCard, { DocSectionLabel } from "./DocCard";
 
 export type RoutineMarker = { time: string; label: string; isAM: boolean };
 
@@ -69,11 +69,11 @@ export default function DailyRoutine({
               className={`mb-2 size-4 rounded-full border-2 bg-transparent ${isAM ? "border-yellow-700 dark:border-amber-400" : "border-indigo-600 dark:border-indigo-400"}`}
             />
             <span
-              className={`font-mono text-[0.7rem] font-semibold tabular-nums sm:text-xs ${isAM ? "text-yellow-700 dark:text-amber-400" : "text-indigo-600 dark:text-indigo-400"}`}
+              className={`font-mono homepage-card-meta font-semibold tabular-nums ${isAM ? "text-yellow-700 dark:text-amber-400" : "text-indigo-600 dark:text-indigo-400"}`}
             >
               {time}
             </span>
-            <span className="mt-1 text-xs font-medium text-muted-foreground">
+            <span className="mt-1 homepage-card-meta font-medium text-foreground">
               {label}
             </span>
           </div>
@@ -87,12 +87,12 @@ export default function DailyRoutine({
         {routineSections.map((section) => (
           <li
             key={section.id}
-            className="flex items-center gap-1.5 text-xs leading-snug"
+            className="homepage-card-section-label flex min-w-0 items-center gap-1.5"
           >
             <SectionIcon id={section.id} size={15} className="shrink-0" />
-            <span className="font-medium text-foreground/90">
+            <DocSectionLabel>
               {section.label}
-            </span>
+            </DocSectionLabel>
           </li>
         ))}
       </ol>

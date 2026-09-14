@@ -1,6 +1,6 @@
 import type { SpringOptions } from "framer-motion";
 
-// Scale and lift overshoot once before settling. Tilt follows the pointer
+// Scale overshoots once before settling. Tilt follows the pointer
 // with more damping so moving across a card does not keep it wobbling.
 export const cardInteractionSpring: SpringOptions = {
   damping: 15,
@@ -18,7 +18,6 @@ export const cardTiltSpring: SpringOptions = {
 };
 
 export const cardPressedScale = 0.975;
-export const cardHoverLift = -3;
 
 export function tiltCardHoverEnabled(
   reduceMotion: boolean,

@@ -4,8 +4,27 @@ import type { Icon } from "@phosphor-icons/react";
 import type { CSSProperties, ReactNode } from "react";
 
 import SheetLink from "~/components/modal-sheet/SheetLink";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 import TiltCard from "./TiltCard";
+
+export function DocSectionLabel({ children }: { children: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="min-w-0 truncate font-medium text-foreground">
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{children}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 /**
  * The hour each document's cover keeps. The routine is a 3:45 wake-up, so
@@ -171,10 +190,10 @@ export default function DocCard({
               </svg>
             </div>
             <div
-              className="relative px-4 pb-4 pt-4 sm:px-5 sm:pt-5"
+              className="homepage-card-content relative"
               style={{ textShadow: "0 1px 12px rgb(0 0 0 / 0.35)" }}
             >
-              <h2 className="flex items-center gap-2 text-lg font-semibold md:text-xl">
+              <h2 className="flex items-center gap-2 homepage-card-title font-semibold">
                 <Glyph
                   aria-hidden
                   weight="duotone"
@@ -182,13 +201,13 @@ export default function DocCard({
                 />
                 {title}
               </h2>
-              <p className="mt-2 text-sm leading-relaxed">{description}</p>
+              <p className="mt-2 homepage-card-body">{description}</p>
             </div>
           </div>
 
-          <div className="relative px-4 py-3 sm:px-5 sm:py-4">
-            {children}
-            <p className="mt-3 text-right text-xs text-muted-foreground opacity-60">
+          <div className="homepage-card-content relative text-foreground">
+            <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+            <p className="mt-3 text-right homepage-card-meta text-muted-foreground opacity-60">
               Last updated {updated}
             </p>
           </div>

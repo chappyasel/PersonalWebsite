@@ -4,7 +4,7 @@ import { BookOpenTextIcon } from "@phosphor-icons/react";
 
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 
-import DocCard from "./DocCard";
+import DocCard, { DocSectionLabel } from "./DocCard";
 
 export type ManualSectionRow = { id: string; title: string; icon: string };
 
@@ -31,12 +31,12 @@ export default function PersonalManual({
     >
       <ol
         data-manual-section-index=""
-        className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2"
+        className="grid grid-cols-2 gap-x-4 gap-y-2"
       >
         {sections.map((section) => (
           <li
             key={section.id}
-            className="flex items-center gap-2 text-xs leading-snug"
+            className="homepage-card-section-label flex min-w-0 items-center gap-2"
           >
             <SectionIcon
               id={section.id}
@@ -44,11 +44,11 @@ export default function PersonalManual({
               size={15}
               className="shrink-0"
             />
-            <span className="font-medium text-foreground/90">
+            <DocSectionLabel>
               {section.id === "personality-strengths-blind-spots"
                 ? "Personality & Strengths"
                 : section.title}
-            </span>
+            </DocSectionLabel>
           </li>
         ))}
       </ol>

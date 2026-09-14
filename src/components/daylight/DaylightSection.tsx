@@ -72,7 +72,7 @@ export default function DaylightSection({
       <div
         data-dl-collapse
         data-open={open}
-        className="duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] grid grid-rows-[0fr] transition-[grid-template-rows] data-[open=true]:grid-rows-[1fr]"
+        className="grid grid-rows-[0fr] transition-[grid-template-rows] [transition-duration:240ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">{children}</div>
       </div>

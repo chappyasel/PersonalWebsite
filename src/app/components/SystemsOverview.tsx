@@ -4,7 +4,7 @@ import { GearIcon } from "@phosphor-icons/react";
 
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 
-import DocCard from "./DocCard";
+import DocCard, { DocSectionLabel } from "./DocCard";
 
 export type SystemsLayerRow = {
   id: string;
@@ -34,12 +34,12 @@ export default function SystemsOverview({
     >
       <ol
         data-systems-layer-index=""
-        className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2"
+        className="grid grid-cols-2 gap-x-4 gap-y-2"
       >
         {layers.map((layer) => (
           <li
             key={layer.id}
-            className="flex items-center gap-2 text-xs leading-snug"
+            className="homepage-card-section-label flex min-w-0 items-center gap-2"
           >
             <SectionIcon
               id={layer.id}
@@ -47,9 +47,9 @@ export default function SystemsOverview({
               size={15}
               className="shrink-0"
             />
-            <span className="font-medium text-foreground/90">
+            <DocSectionLabel>
               {layer.title}
-            </span>
+            </DocSectionLabel>
           </li>
         ))}
       </ol>

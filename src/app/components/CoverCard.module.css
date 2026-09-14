@@ -8,16 +8,21 @@
 }
 
 .media {
-  /* Keep the surface's one-pixel border visible around the cover. */
-  width: calc(100% - 2px);
-  margin: 1px 1px 0;
+  /* Leave room for both the border and the inset glass highlight. */
+  width: calc(100% - 4px);
+  margin: 2px 2px 0;
   overflow: hidden;
-  border-top-left-radius: calc(var(--cover-card-radius, 1.5rem) - 1px);
-  border-top-right-radius: calc(var(--cover-card-radius, 1.5rem) - 1px);
+  border-top-left-radius: calc(var(--cover-card-radius, 1.5rem) - 2px);
+  border-top-right-radius: calc(var(--cover-card-radius, 1.5rem) - 2px);
+}
+
+.media::after {
+  /* Full-width covers already sit inside the card's highlighted edge. */
+  display: none;
 }
 
 .body {
-  padding: 1.25rem;
+  padding: var(--homepage-card-padding);
 }
 
 /* Every card fills the list. Use that width, including in the desktop dock,
@@ -25,15 +30,19 @@
 @container cover-cards (min-width: 36rem) {
   .card {
     flex-direction: row;
-    gap: 1.5rem;
-    padding: 1.5rem;
+    gap: var(--homepage-card-padding);
+    padding: var(--homepage-card-padding);
   }
 
   .media {
-    width: calc((100% - 1.5rem) / 2);
+    width: calc((100% - var(--homepage-card-padding)) / 2);
     margin: 0;
     border-radius: 1rem;
     box-shadow: 0 4px 15px 1px rgb(0 0 0 / 0.07);
+  }
+
+  .media::after {
+    display: block;
   }
 
   .body {
