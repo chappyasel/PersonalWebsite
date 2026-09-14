@@ -10,6 +10,7 @@ import {
 import { WORLD_BOOT_POLICY as P } from "../boot/worldBootPolicy";
 import type { WorldBootScopedSignal } from "../boot/worldBootSession";
 import type { StacksData } from "../data";
+import { useStacks } from "../store";
 import { act, cleanup, render } from "@testing-library/react";
 import {
   BoxGeometry,
@@ -25,6 +26,7 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import SceneHandoff from "./SceneHandoff";
+import { getRoomArtwork } from "./artwork";
 import { handoffCamera } from "./handoffCamera";
 import { illustrationInteraction } from "./illustrationInteraction";
 import type * as RegistrationModule from "./registration";
@@ -494,26 +496,91 @@ it("retries an unfinished prop mount at the existing pace before registering its
   expect(harness.view.presentation).toBe("dissolve");
 });
 
-it("keeps the overall boot deadline when a prop never mounts", async () => {
+it("fades the ready room when a saved prop never mounts instead of waiting for the boot deadline", async () => {
   harness.register.mockRejectedValue(
     new ShelfNotMountedError("Missing saved mesh: prop"),
   );
   render(<SceneHandoff data={data} />);
-  const deadline = harness.view.deadlineAt!;
   await frame();
   await frame(harness.now + 250);
   expect(harness.register).toHaveBeenCalledTimes(2);
-  expect(harness.view.deadlineAt).toBe(deadline);
-  act(() => dispatch({ type: "tick", at: deadline }));
+  await frame(harness.now + 1200);
+  paint();
+  await frame(harness.now + 16);
+  paint();
   expect(harness.view).toMatchObject({
-    status: "failed",
-    failure: "hang",
-    presentation: "illustrated",
-    worldMounted: false,
+    presentation: "dissolve",
+    worldMounted: true,
     revealed: false,
   });
   expect(signals("illustrationUnavailable")).toEqual([]);
 });
+
+it.each([
+  "pending metadata",
+  "failed metadata",
+  "stale geometry",
+  "missing saved mesh",
+])(
+  "opens 3D on the selected mobile shelf despite %s, without returning to About",
+  async (failure) => {
+    vi.stubGlobal("innerWidth", 390);
+    vi.stubGlobal("innerHeight", 844);
+    const asset = getRoomArtwork(4, "light", "phone")!;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        failure === "pending metadata"
+          ? new Promise(() => undefined)
+          : Promise.resolve({
+              ok: failure !== "failed metadata",
+              json: async () => ({
+                index: 4,
+                sourceFingerprint: asset.sourceFingerprint,
+              }),
+            }),
+      ),
+    );
+    if (failure === "stale geometry")
+      harness.register.mockRejectedValue(
+        new Error("Saved mesh identity changed: prop"),
+      );
+    if (failure === "missing saved mesh")
+      harness.register.mockRejectedValue(
+        new ShelfNotMountedError("Missing saved mesh: prop"),
+      );
+    const previous = useStacks.getState().activeUnit;
+    useStacks.setState({ activeUnit: 4 });
+    artwork.dataset.unit = "4";
+    handoffCamera.scenePosition = 4;
+    harness.three.scene.getObjectByName("room-unit:0")!.name = "room-unit:4";
+    try {
+      render(<SceneHandoff data={data} />);
+      await frame();
+      await frame(harness.now + P.illustrationMatchTimeoutMs);
+      paint();
+      await frame(harness.now + 16);
+      paint();
+      expect(harness.view.presentation).toBe("dissolve");
+      act(() =>
+        dispatch({
+          type: "tick",
+          at: harness.view.handoffStartedAt! + P.illustrationTravelDelayMs,
+        }),
+      );
+      await frame();
+      paint();
+      expect(harness.view).toMatchObject({
+        presentation: "live",
+        revealed: true,
+      });
+      expect(useStacks.getState().activeUnit).toBe(4);
+      expect(signals("illustrationUnavailable")).toEqual([]);
+    } finally {
+      useStacks.setState({ activeUnit: previous });
+    }
+  },
+);
 
 it("automatically fades the ordinary view when a valid shelf cannot align at this size", async () => {
   const residuals = Array.from({ length: 8 }, (_, i) => ({
@@ -551,18 +618,20 @@ it("automatically fades the ordinary view when a valid shelf cannot align at thi
 });
 
 it.each(["Saved mesh identity changed: prop"])(
-  "immediately retains the illustration for a fatal registration failure: %s",
+  "fades the ordinary room when the saved drawing is stale: %s",
   async (message) => {
     harness.register.mockRejectedValue(new Error(message));
     render(<SceneHandoff data={data} />);
     await frame();
     expect(harness.register).toHaveBeenCalledOnce();
-    expect(signals("illustrationUnavailable")).toEqual([
-      { type: "illustrationUnavailable", key: KEY, epoch: 1, at: harness.now },
-    ]);
+    await frame();
+    paint();
+    await frame(harness.now + 16);
+    paint();
+    expect(signals("illustrationUnavailable")).toEqual([]);
     expect(harness.view).toMatchObject({
-      status: "illustrated",
-      worldMounted: false,
+      presentation: "dissolve",
+      worldMounted: true,
       revealed: false,
     });
     expect(state.matchUnavailable).toBe(true);

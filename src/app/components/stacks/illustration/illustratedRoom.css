@@ -128,18 +128,27 @@ html.dark .room-illustration {
 .room-illustration .stacks-boot-scene-stage::before {
   display: none !important;
 }
-.room-illustration-actions {
+.room-illustration-actions,
+.room-first-paint-status {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  top: calc(env(safe-area-inset-top, 0px) + 6.5rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 35;
   pointer-events: auto;
-  display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   white-space: nowrap;
+}
+.room-illustration-actions {
+  display: flex;
+}
+.room-loading-status {
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+  color: var(--room-chrome-ink, hsl(var(--foreground)));
+  pointer-events: none;
 }
 /* The recovery action can finish fading after the drawing retires. */
 .room-illustration-actions[data-illustration-actions-visible] {
@@ -210,7 +219,8 @@ html.dark .room-illustration {
         1rem
     );
   }
-  .room-illustration-actions {
+  .room-illustration-actions,
+  .room-first-paint-status {
     top: max(1.5rem, env(safe-area-inset-top, 0px));
     left: 50%;
   }

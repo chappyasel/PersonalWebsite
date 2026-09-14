@@ -24,6 +24,47 @@ function markup(element: React.ReactElement) {
   return root;
 }
 
+it("shows the server loading status only until hydration owns an active 3D load", () => {
+  const root = markup(<RoomBootShell unitIndex={4} illustrated />);
+  const style = document.createElement("style");
+  // Exercise either bundle order: generic action styling must not unhide it.
+  style.textContent = ["roomBootShell.css", "illustratedRoom.css"]
+    .map((file) =>
+      readFileSync(`src/app/components/stacks/illustration/${file}`, "utf8"),
+    )
+    .join("\n");
+  const html = document.documentElement;
+  const attributes = ["data-room-view", "data-world", "data-illustrated-ui"];
+  const previous = attributes.map((name) => html.getAttribute(name));
+  document.head.append(style);
+  document.body.append(root);
+  try {
+    const status = root.querySelector(".room-first-paint-status")!;
+    expect(status.textContent).toBe("Loading 3D…");
+    html.setAttribute("data-room-view", "illustrated");
+    html.removeAttribute("data-illustrated-ui");
+    for (const phase of ["pending", "warm"]) {
+      html.setAttribute("data-world", phase);
+      expect(getComputedStyle(status).display).toBe("flex");
+    }
+    html.setAttribute("data-illustrated-ui", "ready");
+    expect(getComputedStyle(status).display).toBe("none");
+    html.removeAttribute("data-illustrated-ui");
+    html.removeAttribute("data-world");
+    expect(getComputedStyle(status).display).toBe("none");
+    html.setAttribute("data-room-view", "live");
+    expect(getComputedStyle(status).display).toBe("none");
+  } finally {
+    root.remove();
+    style.remove();
+    attributes.forEach((name, index) => {
+      const value = previous[index];
+      if (value == null) html.removeAttribute(name);
+      else html.setAttribute(name, value);
+    });
+  }
+});
+
 it("uses the boot policy's dissolve clock for both artwork and chrome", () => {
   const shell = markup(<RoomBootShell unitIndex={1} illustrated />);
   expect(

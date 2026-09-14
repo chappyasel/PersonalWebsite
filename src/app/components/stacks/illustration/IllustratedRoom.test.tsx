@@ -245,13 +245,13 @@ it.each(["/golf", "/#golf"])(
 );
 
 it.each([true, false])(
-  "has no top-of-screen view status when loading is %s",
+  "announces 3D loading only while a load is active: %s",
   async (loading) => {
     const view = render(
       <IllustratedRoom
         data={data}
         theme="light"
-        viewport="desktop"
+        viewport="phone"
         visible
         canRequest3D={false}
         loading={loading}
@@ -261,7 +261,9 @@ it.each([true, false])(
       />,
     );
     await act(async () => Promise.resolve());
-    expect(view.queryByRole("status", { name: "Room view" })).toBeNull();
+    const status = view.queryByRole("status", { name: "Room view" });
+    if (loading) expect(status?.textContent).toBe("Loading 3D…");
+    else expect(status).toBeNull();
   },
 );
 

@@ -496,6 +496,11 @@ html[data-font="literata"] {
   --font-selected: var(--font-literata);
 }
 
+/* The homepage keeps serif type even when another route saved system type. */
+html[data-font="system"]:is([data-world], [data-room-illustration="enabled"]) {
+  --font-selected: "Georgia Pro";
+}
+
 /* Book marquee animations */
 @keyframes marquee-left {
   0% {
@@ -1191,7 +1196,7 @@ html[data-boot-stage="start"] .stacks-boot-wordmark {
 
 .stacks-boot-wait-label {
   margin: 0;
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-selected), Georgia, serif;
   font-size: clamp(15px, 1.35vw, 17px);
   font-weight: 500;
   line-height: 1;

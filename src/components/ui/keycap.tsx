@@ -38,7 +38,7 @@ export function Keycap({
   return (
     <kbd
       className={cn(
-        "inline-flex h-[1.05rem] shrink-0 -translate-y-px items-center justify-center rounded-[3px] border p-0 font-sans text-[8px] font-bold leading-none",
+        "inline-flex h-[1.05rem] shrink-0 -translate-y-px items-center justify-center rounded-[3px] border p-0 font-serif text-[8px] font-bold leading-none",
         // Flat pages get a flat cap; the 3D world's root marker upgrades it
         // to the physical key that matches the scene's material language.
         "border-border bg-secondary/80 text-muted-foreground shadow-[0_1px_0_rgb(0_0_0_/_0.06)] dark:shadow-[0_1px_0_rgb(0_0_0_/_0.4)]",

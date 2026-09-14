@@ -205,7 +205,7 @@ export default function DocCard({
                 <Glyph weight="duotone" className="size-5 shrink-0" />
                 {title}
               </h2>
-              <p className="mt-1 font-sans text-xs opacity-80">
+              <p className="mt-1 font-serif text-xs opacity-80">
                 Last updated {updated}
               </p>
             </div>

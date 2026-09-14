@@ -94,7 +94,7 @@ function dayLetterTexture(variant: PillOrganizerVariant): THREE.CanvasTexture {
   ctx.fillStyle = VARIANTS[variant].ink;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = "700 66px 'Helvetica Neue', Arial, sans-serif";
+  ctx.font = "700 66px Georgia, serif";
   DAYS.forEach((day, i) => {
     ctx.fillText(day, ((i + 0.5) / 7) * w, h / 2 + 2);
   });

@@ -1,5 +1,6 @@
 "use client";
 
+import { WORLD_BOOT_POLICY } from "../boot/worldBootPolicy";
 import { worldBoot } from "../boot/worldBootSession";
 import type { StacksData } from "../data";
 import { useStacks } from "../store";
@@ -135,6 +136,9 @@ function ActiveSceneHandoff({
   const scope = useRef(worldBoot.scope()).current;
   const run = useRef({
     target: null as Target | null,
+    targetLoaded: false,
+    targetFailed: false,
+    matchStartedAt: null as number | null,
     shelf: null as RegisteredShelf | null,
     preparing: false,
     ordinaryOnly: false,
@@ -177,6 +181,9 @@ function ActiveSceneHandoff({
     const r = run.current;
     restore();
     r.target = null;
+    r.targetLoaded = false;
+    r.targetFailed = false;
+    r.matchStartedAt = null;
     r.shelf = null;
     r.painted = 0;
     r.armed = false;
@@ -218,6 +225,7 @@ function ActiveSceneHandoff({
         viewport: canvasBox,
         source: null,
       };
+      r.target = target;
       const load = async () => {
         if (unit !== 0) {
           const asset = getRoomArtwork(
@@ -249,12 +257,12 @@ function ActiveSceneHandoff({
             byte.toString(16).padStart(2, "0"),
           ).join("");
         }
-        if (!controller.signal.aborted) r.target = target;
+        if (!controller.signal.aborted) r.targetLoaded = true;
       };
       void load().catch((error: unknown) => {
         if (controller.signal.aborted) return;
         r.lastError = String(error);
-        scope.send({ type: "illustrationUnavailable", key: illustrationKey });
+        r.targetFailed = true;
       });
     };
     // R3F can mount this effect while its canvas is still detached or zero-sized.
@@ -372,17 +380,43 @@ function ActiveSceneHandoff({
     )
       return;
     const now = performance.now();
+    const prepareOrdinary = (residuals: RegisteredShelf["residuals"] = []) => {
+      r.shelf = {
+        world: camera.matrixWorld.clone(),
+        projection: camera.projectionMatrix.clone(),
+        meshes: new Map(),
+        residuals,
+      };
+      r.shelf.world.decompose(r.startPosition, r.startQuaternion, r.startScale);
+      r.ordinaryOnly = true;
+      r.nodes = [];
+      r.pendingMesh = "";
+      r.painted = 0;
+    };
     if (!r.shelf) {
       if (
-        r.preparing ||
-        now - r.lastAttempt < 250 ||
         !current.canvasReady ||
         current.waitStage !== "opening" ||
+        !scene.getObjectByName(`room-unit:${target.unit}`) ||
         Math.abs(handoffCamera.scenePosition - target.unit) > 0.0005 ||
         Math.abs(handoffCamera.scrollError) > 0.00001 ||
         Math.abs(handoffCamera.aimError) > 0.0005
-      )
+      ) {
+        r.matchStartedAt = null;
         return;
+      }
+      r.matchStartedAt ??= now;
+      if (
+        r.targetFailed ||
+        now - r.matchStartedAt >= WORLD_BOOT_POLICY.illustrationMatchTimeoutMs
+      ) {
+        // Saved artwork is optional. Its metadata, hashes, and old mesh paths
+        // must never strand a ready room on one particular shelf.
+        prepareOrdinary();
+      }
+    }
+    if (!r.shelf) {
+      if (!r.targetLoaded || r.preparing || now - r.lastAttempt < 250) return;
       r.lastAttempt = now;
       const unit = scene.getObjectByName(`room-unit:${target.unit}`);
       if (!unit) return;
@@ -393,6 +427,7 @@ function ActiveSceneHandoff({
       const prepare = (shelf: RegisteredShelf, ordinaryOnly = false) => {
         if (
           r.target !== target ||
+          r.shelf !== null ||
           worldBoot.getView().illustrationKey !== target.key
         )
           return;
@@ -428,25 +463,10 @@ function ActiveSceneHandoff({
         )
         .then((shelf) => prepare(shelf))
         .catch((error: unknown) => {
-          if (r.target !== target) return;
+          if (r.target !== target || r.shelf !== null) return;
           if (error instanceof ShelfNotMountedError) {
-            // Nested Suspense can commit a prop after LoadingManager reports
-            // an idle network. Keep the drawing until its actual mesh mounts.
+            // Allow late Suspense mounts within the bounded alignment window.
             r.pendingMesh = error.message;
-            return;
-          }
-          if (error instanceof ShelfAlignmentError) {
-            // A projection mismatch is not a renderer failure. Keep the
-            // ordinary camera still and prove two painted frames before fading.
-            prepare(
-              {
-                world: restCamera.matrixWorld.clone(),
-                projection: restCamera.projectionMatrix.clone(),
-                meshes: new Map(),
-                residuals: error.residuals,
-              },
-              true,
-            );
             return;
           }
           r.lastError = String(error);
@@ -459,7 +479,17 @@ function ActiveSceneHandoff({
               box: target.box,
             };
           }
-          scope.send({ type: "illustrationUnavailable", key: target.key });
+          // The saved drawing may be stale even though the live scene is valid.
+          prepare(
+            {
+              world: restCamera.matrixWorld.clone(),
+              projection: restCamera.projectionMatrix.clone(),
+              meshes: new Map(),
+              residuals:
+                error instanceof ShelfAlignmentError ? error.residuals : [],
+            },
+            true,
+          );
         })
         .finally(() => {
           if (r.target === target) r.preparing = false;

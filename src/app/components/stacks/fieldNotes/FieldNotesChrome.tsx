@@ -888,7 +888,7 @@ function StampPaper({ note }: { note: FieldNoteDefinition }) {
           <span
             aria-hidden
             data-lettering={lettering.style}
-            className="field-notes-stamp-lettering absolute inset-0 z-[2] font-sans uppercase leading-none"
+            className="field-notes-stamp-lettering absolute inset-0 z-[2] font-serif uppercase leading-none"
           >
             {lettering.primary && (
               <span className="field-notes-stamp-primary">
@@ -2160,7 +2160,7 @@ function CollectionGlyph({
     >
       <span className="field-notes-collection-book-icon absolute grid place-items-center">
         <BookIcon className="stacks-rail-icon" size={22} weight="bold" />
-        <span className="field-notes-book-count pointer-events-none absolute font-sans font-extrabold tabular-nums">
+        <span className="field-notes-book-count pointer-events-none absolute font-serif font-extrabold tabular-nums">
           {foundCount}
         </span>
       </span>
@@ -2972,7 +2972,7 @@ export default function FieldNotesChrome() {
           line-height: 1;
         }
         .field-notes-stamp-lettering[data-lettering="micro"] {
-          font-family: "Arial Narrow", "Helvetica Neue", sans-serif;
+          font-family: var(--font-selected), Georgia, serif;
         }
         .field-notes-stamp-lettering[data-lettering="micro"] .field-notes-stamp-primary {
           bottom: 4px;
@@ -2999,7 +2999,7 @@ export default function FieldNotesChrome() {
           bottom: 4px;
           left: 4px;
           max-width: calc(100% - 8px);
-          font-family: "Arial Narrow", sans-serif;
+          font-family: var(--font-selected), Georgia, serif;
           font-size: clamp(6px, 8cqi, 8px);
           font-weight: 900;
           letter-spacing: .04em;
@@ -3028,7 +3028,7 @@ export default function FieldNotesChrome() {
           right: 3px;
           left: 3px;
           text-align: center;
-          font-family: Impact, "Arial Black", sans-serif;
+          font-family: var(--font-selected), Georgia, serif;
           font-size: clamp(8px, 12cqi, 12px);
           letter-spacing: -.015em;
         }
@@ -3053,7 +3053,7 @@ export default function FieldNotesChrome() {
           top: 4px;
           right: 3px;
           max-height: calc(100% - 8px);
-          font-family: "Arial Narrow", sans-serif;
+          font-family: var(--font-selected), Georgia, serif;
           font-size: clamp(5px, 7cqi, 7px);
           font-weight: 900;
           letter-spacing: .05em;
@@ -3105,7 +3105,7 @@ export default function FieldNotesChrome() {
         .field-notes-stamp-lettering[data-lettering="split"] .field-notes-stamp-primary {
           bottom: 4px;
           left: 4px;
-          font-family: "Arial Narrow", sans-serif;
+          font-family: var(--font-selected), Georgia, serif;
           font-size: clamp(6px, 8cqi, 8px);
           font-weight: 900;
         }
@@ -3135,7 +3135,7 @@ export default function FieldNotesChrome() {
           color: var(--stamp-label);
           background: color-mix(in srgb, var(--stamp-ink) 58%, #24170f 42%);
           text-align: center;
-          font-family: "Arial Narrow", sans-serif;
+          font-family: var(--font-selected), Georgia, serif;
           font-size: clamp(6px, 9cqi, 9px);
           font-weight: 900;
           letter-spacing: .05em;

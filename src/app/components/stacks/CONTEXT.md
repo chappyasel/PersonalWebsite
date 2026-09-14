@@ -84,7 +84,15 @@ share position and text metrics and crossfade in place. Dark text has no
 contact shadow; ink and shadow follow the artwork's dissolve clock. Manual
 2D/3D switches use matching 420 ms fades. The return to 3D waits for two fresh
 rendered frames, then fades over the ordinary camera without registering
-the artwork again. The room has no loading or view label at the top.
+the artwork again. While 3D is loading, a polite "Loading 3D…" status sits
+below the mobile navigation and above the shelves, including before hydration.
+Settled 2D and live 3D have no loading label. Mobile entry and illustrated chrome
+use the same 60% idle opacity as the live name, theme, and sound controls.
+Saved artwork alignment has a 1200 ms budget once the scene and selected camera
+are ready. Missing metadata, stale geometry, and saved mesh paths that never
+mount use the ordinary-camera fade after two fresh painted frames. They cannot
+discard a working renderer or require a return to About. Actual world readiness
+gates still govern the reveal.
 Settled 2D keeps the boot gradient without cloud shapes or foreground grass.
 The full shelf row stays mounted after the entrance so distant nav jumps can
 scroll through the intervening shelves. Mobile sheet coverage also drives the

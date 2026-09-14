@@ -1288,20 +1288,20 @@ function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
     ctx.ellipse(30, -40, 9, 4, -0.6, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#f47b20";
-    ctx.font = "italic 800 20px Arial, sans-serif";
+    ctx.font = "italic 800 20px Georgia, serif";
     ctx.fillText("Orange", 46, 30);
     ctx.restore();
     ctx.fillStyle = "#1d4f9c";
     ctx.fillRect(x, 160, 256, 34);
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffffff";
-    ctx.font = "800 22px Arial, sans-serif";
+    ctx.font = "800 22px Georgia, serif";
     ctx.fillText("ZERO SUGAR", x + 128, 185);
     ctx.fillStyle = "#f47b20";
-    ctx.font = "800 17px Arial, sans-serif";
+    ctx.font = "800 17px Georgia, serif";
     ctx.fillText("ORANGE SODA", x + 128, 218);
     ctx.fillStyle = "#6b6b6b";
-    ctx.font = "700 13px Arial, sans-serif";
+    ctx.font = "700 13px Georgia, serif";
     ctx.fillText("12 FL OZ", x + 128, 240);
   };
   const drawDew = (x: number) => {
@@ -1330,7 +1330,7 @@ function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
     ctx.rotate(-0.14);
     ctx.textAlign = "center";
     ctx.fillStyle = "#f2f4ee";
-    ctx.font = "italic 900 22px Arial, sans-serif";
+    ctx.font = "italic 900 22px Georgia, serif";
     ctx.fillText("ZERO SUGAR", 0, -66);
     ctx.fillStyle = "#47a935";
     ctx.beginPath();
@@ -1341,9 +1341,9 @@ function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = "#ffffff";
-    ctx.font = "italic 900 28px Arial, sans-serif";
+    ctx.font = "italic 900 28px Georgia, serif";
     ctx.fillText("MOUNTAIN", 0, -22);
-    ctx.font = "italic 900 66px Arial, sans-serif";
+    ctx.font = "italic 900 66px Georgia, serif";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 8;
@@ -1353,7 +1353,7 @@ function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
     ctx.restore();
     ctx.textAlign = "center";
     ctx.fillStyle = "#d9e0cf";
-    ctx.font = "700 12px Arial, sans-serif";
+    ctx.font = "700 12px Georgia, serif";
     ctx.fillText("ZERO SUGAR DEW", x + 128, 232);
   };
 

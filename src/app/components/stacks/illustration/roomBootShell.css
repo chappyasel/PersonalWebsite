@@ -14,6 +14,18 @@ html[data-room-view="illustrated"]:not(:has([data-illustration-positioned]))
 .room-first-paint-unit {
   display: none;
 }
+.room-first-paint-status {
+  display: none;
+}
+html[data-room-view="illustrated"]:is(
+    [data-world="pending"],
+    [data-world="warm"]
+  ):not([data-illustrated-ui="ready"])
+  .room-first-paint-status {
+  display: flex;
+  position: fixed;
+  z-index: 51;
+}
 @property --room-chrome-ink {
   syntax: "<color>";
   inherits: true;
@@ -109,8 +121,13 @@ html:is(
   )
   .room-entry-wordmark {
   visibility: visible;
-  opacity: 1;
+  opacity: var(--room-entry-name-opacity, 1);
   transition: none;
+}
+@media (width < 1200px) and (hover: none) and (pointer: coarse) {
+  .room-entry-wordmark {
+    --room-entry-name-opacity: 0.6;
+  }
 }
 html[data-room-view="live"]
   .stacks-world-shell[data-illustrated-entry]

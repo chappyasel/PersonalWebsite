@@ -4494,7 +4494,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/PillOrganizer.tsx",
-      "sha256": "6e3f849686ff567abc45dcb992f99e8966fc1be3011f40ab4b8890ab7c2687aa",
+      "sha256": "f667123690457a564298ce5abbc811d7183a7a6cb1ba5be30c3b4d1cacbe85ac",
       "archivedSha256": "6e3f849686ff567abc45dcb992f99e8966fc1be3011f40ab4b8890ab7c2687aa"
     },
     {
@@ -4844,7 +4844,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/objects.tsx",
-      "sha256": "2107659030450cedb7978fb978a540266bbc6e21bf8004896a07b93133e0cd19",
+      "sha256": "5cd1546cc767719e78e921602112aaaada88c89edcc70e2a11f498d9f933a710",
       "archivedSha256": "03d77434b40fa153548e452a1b5ddb22badbd198cef92591e48a7930a1991846"
     },
     {
@@ -5184,7 +5184,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/trainingTubs.tsx",
-      "sha256": "c51d8e92b1f415f067ba8bf99140f5aa5887761118ca622da7adaff4b4fe8013",
+      "sha256": "cd08d3f37ee0b3a1db446a1bd8c2374198c5a6728abbf1c4233238aaa61312d4",
       "archivedSha256": "c51d8e92b1f415f067ba8bf99140f5aa5887761118ca622da7adaff4b4fe8013"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "1b46ea57025566baac56cd26657c203b95728193464a739be23c3c3ebd9361a8",
+  "sourceFingerprint": "b406b30b649520198f9c1e12376c65f581f7ebeb33b2c5ee1cd01a016915269c",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5552,6 +5552,28 @@
           "path": "src/app/components/stacks/scene/interactionProjection.ts",
           "previousSha256": "e8baad4ae8954fe9e5493000a82ded1a4e6b87518619c42ef16ae414f47def65",
           "sha256": "3fde914d3c7b5074a8d59b7090bd36cb612d86176b35217ec285f60c8a83ae7c"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed canvas font substitutions in docs/reviews/2026-09-13-mobile-loading-release.md. Only ctx.font strings change in PillOrganizer.tsx, objects.tsx, and trainingTubs.tsx; mesh geometry, rest poses, capture cameras, and registration identities are unchanged. Live texture lettering changes to Georgia. Approved 2D drawings retain their captured lettering. No claim of texture equivalence or fresh capture; approved drawing and capture inputs remain intact.",
+      "previousFingerprint": "1b46ea57025566baac56cd26657c203b95728193464a739be23c3c3ebd9361a8",
+      "sourceFingerprint": "b406b30b649520198f9c1e12376c65f581f7ebeb33b2c5ee1cd01a016915269c",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/PillOrganizer.tsx",
+          "previousSha256": "6e3f849686ff567abc45dcb992f99e8966fc1be3011f40ab4b8890ab7c2687aa",
+          "sha256": "f667123690457a564298ce5abbc811d7183a7a6cb1ba5be30c3b4d1cacbe85ac"
+        },
+        {
+          "path": "src/app/components/stacks/scene/objects.tsx",
+          "previousSha256": "2107659030450cedb7978fb978a540266bbc6e21bf8004896a07b93133e0cd19",
+          "sha256": "5cd1546cc767719e78e921602112aaaada88c89edcc70e2a11f498d9f933a710"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/trainingTubs.tsx",
+          "previousSha256": "c51d8e92b1f415f067ba8bf99140f5aa5887761118ca622da7adaff4b4fe8013",
+          "sha256": "cd08d3f37ee0b3a1db446a1bd8c2374198c5a6728abbf1c4233238aaa61312d4"
         }
       ]
     }

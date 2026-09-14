@@ -925,7 +925,7 @@ export default function StacksHome({
                     transitionId={dimensionTravel.revision}
                     canRequest3D={boot.canRequest3D && !boot.interactionHeld}
                     loading={
-                      (boot.worldMounted && boot.status !== "flattening") ||
+                      boot.status === "booting" ||
                       boot.recoverable
                     }
                     entranceSettled={entrance === "complete"}

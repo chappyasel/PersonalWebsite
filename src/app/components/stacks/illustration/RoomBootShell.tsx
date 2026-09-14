@@ -86,6 +86,15 @@ export default function RoomBootShell({
           </div>
         ))}
       </div>
+      <div className="room-first-paint-status">
+        <span
+          className="room-loading-status"
+          role="status"
+          aria-label="Room view"
+        >
+          Loading 3D…
+        </span>
+      </div>
       {/* This survives the shell's hydration handoff, so its animation never restarts. */}
       <span className="room-entry-wordmark" aria-hidden>
         Chappy Asel

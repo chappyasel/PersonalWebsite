@@ -74,10 +74,10 @@ function drawFactsBlock(
   ctx.strokeRect(x, y, 190, 222);
   ctx.fillStyle = ink;
   ctx.textAlign = "left";
-  ctx.font = "900 15px Arial, sans-serif";
+  ctx.font = "900 15px Georgia, serif";
   ctx.fillText("Supplement Facts", x + 10, y + 22);
   ctx.fillStyle = rule;
-  ctx.font = "700 9px Arial, sans-serif";
+  ctx.font = "700 9px Georgia, serif";
   ctx.fillText("Serving size 1 scoop", x + 10, y + 38);
   ctx.fillRect(x + 10, y + 44, 170, 3);
   for (let i = 0; i < 11; i++) {
@@ -170,13 +170,13 @@ function gorillaModeLabelTexture(): THREE.CanvasTexture {
 
   ctx.textAlign = "center";
   ctx.lineJoin = "round";
-  ctx.font = "italic 900 66px Arial, sans-serif";
+  ctx.font = "italic 900 66px Georgia, serif";
   ctx.strokeStyle = "#3a1a05";
   ctx.lineWidth = 6;
   ctx.strokeText("GORILLA", cx, 196);
   ctx.fillStyle = orange(140, 196);
   ctx.fillText("GORILLA", cx, 196);
-  ctx.font = "italic 900 52px Arial, sans-serif";
+  ctx.font = "italic 900 52px Georgia, serif";
   ctx.strokeStyle = "#2b2b2e";
   ctx.lineWidth = 5;
   ctx.strokeText("MODE", cx, 244);
@@ -188,11 +188,11 @@ function gorillaModeLabelTexture(): THREE.CanvasTexture {
   ctx.fillStyle = orange(250, 268);
   ctx.fillRect(cx - 150, 250, 300, 18);
   ctx.fillStyle = "#111111";
-  ctx.font = "900 13px Arial, sans-serif";
+  ctx.font = "900 13px Georgia, serif";
   ctx.fillText("PRE-WORKOUT FORMULA", cx, 264);
   // Flavour line with a watermelon wedge, flat side up.
   ctx.fillStyle = "#ff3d7f";
-  ctx.font = "italic 900 22px Arial, sans-serif";
+  ctx.font = "italic 900 22px Georgia, serif";
   ctx.fillText("WATERMELON", cx + 14, 292);
   ctx.save();
   ctx.translate(cx - 94, 278);
@@ -218,17 +218,17 @@ function gorillaModeLabelTexture(): THREE.CanvasTexture {
   }
   ctx.restore();
   ctx.fillStyle = "#e5e7eb";
-  ctx.font = "700 11px Arial, sans-serif";
+  ctx.font = "700 11px Georgia, serif";
   ctx.textAlign = "left";
   ctx.fillText("40 SERVINGS", cx - 250, 294);
 
   drawFactsBlock(ctx, 70, 44, "#f4f4f5", "#a1a1aa");
   // And the wordmark once more, small, on the far side.
   ctx.textAlign = "center";
-  ctx.font = "italic 900 28px Arial, sans-serif";
+  ctx.font = "italic 900 28px Georgia, serif";
   ctx.fillStyle = orange(150, 176);
   ctx.fillText("GORILLA", 880, 176);
-  ctx.font = "italic 900 22px Arial, sans-serif";
+  ctx.font = "italic 900 22px Georgia, serif";
   ctx.fillStyle = "#d4d4d8";
   ctx.fillText("MODE", 880, 200);
   return finishLabel("gorilla-mode", canvas);
@@ -287,19 +287,19 @@ function preXLabelTexture(): THREE.CanvasTexture {
 
   ctx.textAlign = "center";
   ctx.fillStyle = BLUE;
-  ctx.font = "900 34px Arial, sans-serif";
+  ctx.font = "900 34px Georgia, serif";
   ctx.fillText("nutricost", cx, 52);
-  ctx.font = "600 12px Arial, sans-serif";
+  ctx.font = "600 12px Georgia, serif";
   ctx.fillText("P E R F O R M A N C E", cx, 70);
   ctx.fillStyle = INK;
   ctx.save();
   ctx.translate(cx, 158);
   ctx.scale(1.08, 1);
-  ctx.font = "900 98px Arial, sans-serif";
+  ctx.font = "900 98px Georgia, serif";
   ctx.fillText("PRE-X", 0, 0);
   ctx.restore();
   ctx.fillStyle = BLUE;
-  ctx.font = "900 17px Arial, sans-serif";
+  ctx.font = "900 17px Georgia, serif";
   ctx.fillText("XTREME PRE-WORKOUT COMPLEX", cx, 184);
   // Three stats with rules between them.
   const stats = [
@@ -309,9 +309,9 @@ function preXLabelTexture(): THREE.CanvasTexture {
   ] as const;
   for (const [big, small, dx] of stats) {
     ctx.fillStyle = INK;
-    ctx.font = "900 26px Arial, sans-serif";
+    ctx.font = "900 26px Georgia, serif";
     ctx.fillText(big, cx + dx, 218);
-    ctx.font = "700 8px Arial, sans-serif";
+    ctx.font = "700 8px Georgia, serif";
     ctx.fillText(small, cx + dx, 230);
   }
   ctx.fillStyle = INK;
@@ -319,18 +319,18 @@ function preXLabelTexture(): THREE.CanvasTexture {
   ctx.fillRect(cx + 54, 200, 2, 32);
   ctx.textAlign = "left";
   ctx.fillStyle = "#ffffff";
-  ctx.font = "900 19px Arial, sans-serif";
+  ctx.font = "900 19px Georgia, serif";
   ctx.fillText("BLUE RASPBERRY", cx - 300, 272);
-  ctx.font = "700 8px Arial, sans-serif";
+  ctx.font = "700 8px Georgia, serif";
   ctx.fillText("NET WT 35.6 OZ (2.2 LB) (996 G)", cx - 300, 288);
 
   drawFactsBlock(ctx, 70, 16, INK, "#6b7280");
   ctx.textAlign = "center";
   ctx.fillStyle = BLUE;
-  ctx.font = "900 26px Arial, sans-serif";
+  ctx.font = "900 26px Georgia, serif";
   ctx.fillText("nutricost", 880, 130);
   ctx.fillStyle = INK;
-  ctx.font = "900 40px Arial, sans-serif";
+  ctx.font = "900 40px Georgia, serif";
   ctx.fillText("PRE-X", 880, 176);
   return finishLabel("pre-x", canvas);
 }
@@ -400,7 +400,7 @@ function proteinLabelTexture(): THREE.CanvasTexture {
 
   ctx.textAlign = "center";
   ctx.fillStyle = BLUE;
-  ctx.font = "900 40px Arial, sans-serif";
+  ctx.font = "900 40px Georgia, serif";
   ctx.fillText("nutricost", cx - 40, 58);
   ctx.strokeStyle = ORANGE;
   ctx.lineWidth = 4;
@@ -409,7 +409,7 @@ function proteinLabelTexture(): THREE.CanvasTexture {
   ctx.stroke();
   ctx.textAlign = "left";
   ctx.fillStyle = INK;
-  ctx.font = "900 54px Arial, sans-serif";
+  ctx.font = "900 54px Georgia, serif";
   ctx.fillText("Whey Protein", cx - 300, 128);
   ctx.fillText("Isolate", cx - 300, 184);
   const stats = [
@@ -419,18 +419,18 @@ function proteinLabelTexture(): THREE.CanvasTexture {
   ] as const;
   for (const [big, small, dx] of stats) {
     ctx.fillStyle = INK;
-    ctx.font = "900 28px Arial, sans-serif";
+    ctx.font = "900 28px Georgia, serif";
     ctx.fillText(big, cx - 300 + dx, 224);
-    ctx.font = "700 9px Arial, sans-serif";
+    ctx.font = "700 9px Georgia, serif";
     ctx.fillText(small, cx - 300 + dx, 238);
   }
   ctx.fillStyle = "#9ca3af";
   ctx.fillRect(cx - 185, 200, 2, 40);
   ctx.fillRect(cx - 95, 200, 2, 40);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "900 20px Arial, sans-serif";
+  ctx.font = "900 20px Georgia, serif";
   ctx.fillText("CHOCOLATE PB", cx - 310, 288);
-  ctx.font = "700 9px Arial, sans-serif";
+  ctx.font = "700 9px Georgia, serif";
   ctx.fillText("NET WT. 5 LB (2,268 G)", cx - 310, 310);
   // Quality roundels on the blue panel.
   for (const [rx, ry] of [
@@ -451,10 +451,10 @@ function proteinLabelTexture(): THREE.CanvasTexture {
   drawFactsBlock(ctx, 70, 30, INK, "#6b7280");
   ctx.textAlign = "center";
   ctx.fillStyle = BLUE;
-  ctx.font = "900 28px Arial, sans-serif";
+  ctx.font = "900 28px Georgia, serif";
   ctx.fillText("nutricost", 880, 150);
   ctx.fillStyle = INK;
-  ctx.font = "900 24px Arial, sans-serif";
+  ctx.font = "900 24px Georgia, serif";
   ctx.fillText("Whey Protein", 880, 186);
   ctx.fillText("Isolate", 880, 214);
   return finishLabel("protein", canvas);

@@ -66,7 +66,7 @@ export default function IllustratedRoom({
   transitionPosition = null,
   transitionId = 0,
   canRequest3D,
-  loading = !canRequest3D,
+  loading = false,
   entranceSettled = true,
   onRequest3D,
   onReady,
@@ -316,7 +316,16 @@ export default function IllustratedRoom({
         aria-hidden={!visible}
         inert={!visible}
       >
-        {canRequest3D && (
+        {loading && (
+          <span
+            className="room-loading-status"
+            role="status"
+            aria-label="Room view"
+          >
+            Loading 3D…
+          </span>
+        )}
+        {!loading && canRequest3D && (
           <Button variant="ghost" size="sm" onClick={onRequest3D}>
             Retry 3D
           </Button>

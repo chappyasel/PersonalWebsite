@@ -79,6 +79,8 @@ export type WorldBootPolicy = {
   illustrationCacheMs: number;
   illustrationDissolveMs: number;
   illustrationTravelDelayMs: number;
+  /** Optional drawing alignment may only delay a ready, settled room this long. */
+  illustrationMatchTimeoutMs: number;
   /** A missing camera completion signal returns the usable illustration. */
   illustrationHandoffTimeoutMs: number;
   /** Window globals the pre-paint script uses to hand its backstop timer to
@@ -115,6 +117,7 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   illustrationCacheMs: 30_000,
   illustrationDissolveMs: 160,
   illustrationTravelDelayMs: 180,
+  illustrationMatchTimeoutMs: 1200,
   illustrationHandoffTimeoutMs: 3000,
   prepaintTimerGlobal: "__stacksWorldBootTimer",
   prepaintTokenGlobal: "__stacksWorldBootToken",

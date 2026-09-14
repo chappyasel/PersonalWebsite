@@ -454,7 +454,7 @@ function SearchResultRow({
         {result.excerpt && (
           <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
             {isNoteMatch && (
-              <span className="mr-1.5 font-sans text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">
+              <span className="mr-1.5 font-serif text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">
                 In notes
               </span>
             )}
@@ -1061,7 +1061,7 @@ export function UniversalSearchPaletteContent({
                   </div>
                 )}
             </Command.List>
-            <div className="flex items-center justify-between border-t border-border/70 px-4 py-1.5 font-sans text-[11px] text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-border/70 px-4 py-1.5 font-serif text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <KeycapSequence
                   keys={["ArrowUp", "ArrowDown"]}
