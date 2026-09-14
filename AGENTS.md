@@ -4,7 +4,7 @@
 
 Implement requested website features in this existing Personal Website repository, using its Next.js app and existing components. Extend an existing prototype here when promoting it to a route. Do not create a separate repository, scaffold another application, or switch hosting/database providers unless Chappy explicitly requests that change.
 
-Run and review work on localhost by default. Approval of a feature, schema, or implementation plan does not authorize deployment, publishing, or uploading personal data to a hosted service. Deployment requires an explicit request naming the intended environment. Do not select a publishing skill merely because the task mentions a website.
+Run and review work on localhost by default. When Chappy asks to ship or deploy, use the existing production workflow unless he specifies another environment. Pushing `main` deploys to Vercel Production; no separate environment confirmation is needed. Do not select a publishing skill merely because the task mentions a website.
 
 Reuse the standard site password configuration for new private sections. Do not generate a separate password or add another sign-in provider unless requested.
 
