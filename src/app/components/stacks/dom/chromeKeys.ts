@@ -1,6 +1,6 @@
 /**
  * Keyboard for the interface over the room. One place for the keys so the
- * sheet (`?`) and the handlers cannot drift apart.
+ * tooltip (`?`) and the handlers cannot drift apart.
  *
  *  - `\`  "Hide details" / "Show details": the same switch as the arrow at the
  *         right edge of the desktop reading column (focus mode, remembered for
@@ -12,10 +12,10 @@
  *         for screenshots and for looking at the scene on its own. Escape
  *         brings it back. The games' photo-mode key. Not Tab: a web page
  *         cannot take Tab without breaking keyboard focus.
- *  - `?`  the shortcut sheet, where every web app with shortcuts keeps it.
+ *  - `?`  the shortcut tooltip, also available on the name.
  *  - `M`  mutes or unmutes the scene through the resident sound control.
  *  - `F`  Field Notes. Handled where the collection's open state lives
- *         (fieldNotes/shortcut.ts), listed here so the sheet stays honest.
+ *         (fieldNotes/shortcut.ts), listed here alongside the other shortcuts.
  *  - `1–7` jump straight to a shelf, in the rail's order. Handled with the
  *         other travel keys in ScrollBridges.
  *
@@ -144,7 +144,7 @@ export type ShortcutGroup = Readonly<{
   rows: readonly ShortcutRow[];
 }>;
 
-/** What the sheet shows. Owner keys only in development, where they work;
+/** What the tooltip shows. Owner keys only in development, where they work;
  * the screenshot keys only while that mode is on, which is the only time
  * they do anything. */
 export function shortcutGroups(
@@ -154,6 +154,7 @@ export function shortcutGroups(
   const visitor: ShortcutGroup = {
     title: "Keyboard",
     rows: [
+      { keys: ["Cmd/Ctrl", "K"], does: "Search the site" },
       { keys: ["ArrowLeft", "ArrowRight"], does: "Previous or next shelf" },
       { keys: ["A", "D"], does: "Pan the room" },
       { keys: ["1", "7"], join: "to", does: "Jump to a shelf" },
@@ -162,7 +163,7 @@ export function shortcutGroups(
       { keys: ["\\"], does: "Hide or show details" },
       { keys: ["H"], does: "Hide or show the interface" },
       { keys: ["M"], does: "Mute or unmute scene sound" },
-      { keys: ["?"], does: "This sheet" },
+      { keys: ["?"], does: "Show keyboard shortcuts" },
       { keys: ["Esc"], does: "Close" },
     ],
   };

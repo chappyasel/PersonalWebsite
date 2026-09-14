@@ -2,6 +2,8 @@
 
 Universal Search gives visitors one keyboard-first way to find destinations, content, and site actions from any route without weakening existing access boundaries.
 
+Touch devices show destinations and content with a close button. They omit site actions, keyboard hints, and command wording. The search input uses 16px text, and the palette fades without scaling.
+
 ## Language
 
 **Command palette**:

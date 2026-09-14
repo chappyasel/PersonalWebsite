@@ -32,10 +32,10 @@ export function BookSubjectCards({
               className={styles.link}
             >
               <Card
-                className={`${styles.card} text-foreground`}
+                data-placard-media-highlight="raised"
+                className={`${styles.card} border-0 text-foreground`}
                 style={{
                   backgroundColor: `color-mix(in srgb, ${colors.bg} 65%, transparent)`,
-                  borderColor: colors.border,
                 }}
               >
                 <div className={styles.top}>

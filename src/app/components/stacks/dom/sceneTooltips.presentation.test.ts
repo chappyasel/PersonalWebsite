@@ -34,16 +34,16 @@ describe("tooltip presentation", () => {
     // transform collapse the pair to the prefixed declaration and Chrome
     // loses the blur.
     expect(surface).not.toContain("-webkit-backdrop-filter");
-    expect(surface).toContain("0 8px 24px rgb(0 0 0 / 0.2)");
+    expect(surface).toContain("box-shadow: var(--stacks-tooltip-shadow)");
     expect(primitive).toContain(
-      '"field-notes-glass-tooltip rounded-md border px-3 py-1.5 font-serif text-xs"',
+      '"field-notes-glass-tooltip home-control-tooltip rounded-md border px-3 py-1.5 font-serif text-xs"',
     );
     expect(fieldNotes).toContain(
       'className="field-notes-glass-tooltip field-notes-trigger-tooltip z-[2200]',
     );
-    expect(sound).toContain("<TooltipContent>");
+    expect(sound).toContain('<TooltipContent align={tooltipAlign}>');
     expect(details).toContain(
-      'className="field-notes-glass-tooltip pointer-events-none',
+      'className={`${tooltipSurfaceClassName} pointer-events-none',
     );
     expect(objects).toContain("field-notes-glass-tooltip fixed z-30");
     expect(rail).toContain(
@@ -87,7 +87,7 @@ describe("tooltip presentation", () => {
     expect(fieldNotes).toContain(
       "field-notes-trigger-title field-notes-hand field-notes-strong",
     );
-    expect(details).toContain("text-[11px] font-medium tracking-[0.01em]");
+    expect(details).toContain('import { tooltipSurfaceClassName } from "~/components/ui/tooltip"');
     expect(objects).toContain("text-[14px]");
     expect(objects).toContain("leading-[1.25]");
   });

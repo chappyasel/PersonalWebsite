@@ -9,7 +9,7 @@ import {
 import { BootLoadingStatus } from "../dom/BootLoadingStatus";
 import { useRoomNavigationReady } from "../input/RoomNavigation";
 import { useStacks } from "../store";
-import { ArrowClockwise, WarningCircle } from "@phosphor-icons/react";
+import { ArrowClockwise, WarningCircle, X } from "@phosphor-icons/react";
 import { useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -328,29 +328,59 @@ export default function IllustratedRoom({
           </div>
         )}
         {!loading && canRequest3D && (
-          <Card className="room-illustration-error">
-            <div className="room-illustration-error-message" role="alert">
-              <WarningCircle
-                className="room-illustration-error-icon"
-                size={24}
-                aria-hidden="true"
-              />
-              <div>
-                <p className="room-illustration-error-title">
-                  3D view unavailable
-                </p>
-                <p className="room-illustration-error-description">
-                  You can still browse in 2D.
-                </p>
-              </div>
-            </div>
-            <Button className="room-illustration-retry" onClick={onRequest3D}>
-              <ArrowClockwise aria-hidden="true" />
-              Retry 3D
-            </Button>
-          </Card>
+          <RoomRecoveryNotice onRequest3D={onRequest3D} />
         )}
       </div>
     </>
+  );
+}
+
+// Mount once per failure so dismissal survives browsing, but a new attempt
+// can show its own recovery notice if it fails.
+function RoomRecoveryNotice({ onRequest3D }: { onRequest3D: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+
+  return (
+    <Card
+      className="room-illustration-error font-serif"
+      data-home-glass="floating"
+    >
+      <div className="room-illustration-error-content">
+        <div className="room-illustration-error-message" role="alert">
+          <WarningCircle
+            className="room-illustration-error-icon"
+            size={28}
+            weight="bold"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="room-illustration-error-title">3D view unavailable</p>
+            <p className="room-illustration-error-description">
+              You can still browse in 2D.
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="room-illustration-retry"
+          onClick={onRequest3D}
+        >
+          <ArrowClockwise weight="bold" aria-hidden="true" />
+          Retry 3D
+        </Button>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="room-illustration-dismiss"
+        aria-label="Dismiss 3D notice"
+        onClick={() => setDismissed(true)}
+      >
+        <X weight="bold" aria-hidden="true" />
+      </Button>
+    </Card>
   );
 }

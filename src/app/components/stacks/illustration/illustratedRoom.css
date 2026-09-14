@@ -145,63 +145,81 @@ html.dark .room-illustration {
   display: flex;
 }
 .room-illustration-error {
+  position: relative;
+  width: 18rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 1rem;
+  /* Keep the floating tooltip material when 3D's data-world is absent. */
+  background-color: rgb(24 32 36 / 0.38);
+  color: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow:
+    0 5px 12px -3px rgb(0 0 0 / 0.16),
+    0 14px 36px -6px rgb(0 0 0 / 0.3);
+  text-align: center;
+  white-space: normal;
+}
+.room-illustration-error-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 1rem;
-  width: max-content;
-  max-width: calc(100vw - 2rem);
-  padding: 0.875rem;
-  border-color: #fca5a5;
-  background-color: #fff7f7;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
-  white-space: normal;
+  padding: 0.75rem;
 }
 .room-illustration-error-message {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.625rem;
   min-width: 0;
 }
 .room-illustration-error-icon {
   flex-shrink: 0;
-  color: #b91c1c;
+  color: #fca5a5;
 }
 .room-illustration-error-title {
-  color: #991b1b;
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.4;
 }
 .room-illustration-error-description {
-  margin-top: 0.125rem;
-  color: #7f1d1d;
+  margin-top: 0.25rem;
   font-size: 0.75rem;
   line-height: 1.5;
+  opacity: 0.8;
 }
 .room-illustration-retry {
   min-height: 2.75rem;
-  flex-shrink: 0;
+  min-width: 9rem;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 0.625rem;
+  background-color: rgb(255 255 255 / 0.92);
+  color: rgb(24 32 36);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
 }
-html.dark .room-illustration-error {
-  border-color: #914444;
-  background-color: #301d20;
+.room-illustration-retry:is(:hover, :focus-visible) {
+  background-color: white;
+  color: rgb(24 32 36);
 }
-html.dark .room-illustration-error-icon,
-html.dark .room-illustration-error-title {
-  color: #fca5a5;
+.room-illustration-dismiss {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  color: inherit;
 }
-html.dark .room-illustration-error-description {
-  color: #fecaca;
+.room-illustration-error
+  :is(.room-illustration-retry, .room-illustration-dismiss) {
+  --ring: 0 0% 100%;
 }
-@media (max-width: 599px) {
-  .room-illustration-error {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    width: 19rem;
-  }
-  .room-illustration-retry {
-    width: 100%;
-  }
+.room-illustration-dismiss:is(:hover, :focus-visible) {
+  background-color: rgb(255 255 255 / 0.12);
+  color: inherit;
 }
 .room-loading-status {
   width: min(18rem, calc(100vw - 2rem));

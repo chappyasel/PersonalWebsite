@@ -4,13 +4,15 @@ import {
   type MotionStyle,
   motion,
   useMotionValue,
+  useReducedMotion,
   useSpring,
 } from "framer-motion";
 import Image from "next/image";
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { HomepageBookCover } from "~/lib/books/types";
+import { useDesktopReducedMotion } from "~/lib/desktopMotionPreference";
 
 import {
   Tooltip,
@@ -144,6 +146,9 @@ const ROTATE_AMPLITUDE = 12;
 const SPRING_CONFIG = { stiffness: 200, damping: 20, mass: 0.5 };
 
 function BookCover({ book }: { book: HomepageBookCover }) {
+  const desktopReduceMotion = useDesktopReducedMotion();
+  const systemReduceMotion = useReducedMotion();
+  const reduceMotion = desktopReduceMotion || Boolean(systemReduceMotion);
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -152,8 +157,16 @@ function BookCover({ book }: { book: HomepageBookCover }) {
   const rotateX = useSpring(rawRotateX, SPRING_CONFIG);
   const rotateY = useSpring(rawRotateY, SPRING_CONFIG);
 
+  useEffect(() => {
+    if (!reduceMotion) return;
+    rawRotateX.set(0);
+    rawRotateY.set(0);
+    rotateX.jump(0);
+    rotateY.jump(0);
+  }, [reduceMotion, rawRotateX, rawRotateY, rotateX, rotateY]);
+
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!cardRef.current) return;
+    if (reduceMotion || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width / 2;
     const offsetY = e.clientY - rect.top - rect.height / 2;
@@ -184,7 +197,8 @@ function BookCover({ book }: { book: HomepageBookCover }) {
           style={{ transformStyle: "preserve-3d" }}
         >
           <motion.div
-            className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 [transform-style:preserve-3d] hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
+            data-placard-media-highlight="raised"
+            className="h-full w-full overflow-hidden rounded-lg transition-shadow duration-300 [transform-style:preserve-3d]"
             style={motionStyle}
           >
             <div className="relative aspect-[2/3] h-full w-full">

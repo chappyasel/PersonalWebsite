@@ -436,7 +436,11 @@ resident Peek Sheet; it is not the default presentation of the Placard.
 the fallback for reduced motion or missing WebGL, and what search engines see.
 
 **Rail** — the persistent labeled list of all units; the map of the traverse
-and the way to jump.
+and the way to jump. Desktop Tab order follows the header controls, every
+Rail button from top to bottom, the bottom-left utilities, then the Placard.
+Tab and Shift+Tab move focus without traveling. Enter, Space, and the Rail's
+arrow shortcuts activate navigation. The selected Unit does not change which
+desktop buttons can receive Tab focus. Mobile keeps its selected-unit Tab stop.
 
 **Mobile Rail** — seven permanently visible Unit buttons. Tapping a glyph
 travels directly to that Unit. Sliding horizontally across the row previews

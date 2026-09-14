@@ -25,6 +25,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
+import { ChromeSearchButton } from "./ChromeSearchButton";
 import { MOBILE_RAIL_FONT_CLAMP } from "./mobileSheetGeometry";
 
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
@@ -284,7 +285,7 @@ export default function UnitRail() {
     if (next === null) return;
     event.preventDefault();
     // Keep the window-level world bridge from handling the same arrow a
-    // second time. The rail owns both travel and its roving focus position.
+    // second time. The rail owns travel and focus for its arrow shortcuts.
     event.stopPropagation();
     if (go(next)) requestAnimationFrame(() => refs.current[next]?.focus());
   };
@@ -533,7 +534,7 @@ export default function UnitRail() {
         className="stacks-unit-rail-desktop pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1200px]:left-7 min-[1200px]:block"
       >
         <div
-          className="relative flex flex-col"
+          className="stacks-hud-drift relative flex flex-col"
           style={
             {
               "--stacks-desktop-indicator-delay": `${initialActiveUnit * 40}ms`,
@@ -564,7 +565,6 @@ export default function UnitRail() {
                 onKeyDown={(event) =>
                   onRailKeyDown(event, i, desktopButtonRefs)
                 }
-                tabIndex={current ? 0 : -1}
                 aria-current={active ? "page" : undefined}
                 data-active={active || undefined}
                 // The desktop rail uses a larger mark and label but a tighter
@@ -604,135 +604,145 @@ export default function UnitRail() {
         className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-30 flex justify-center min-[1200px]:hidden"
       >
         <div
-          className="pointer-events-auto relative flex"
-          // The row's font-size grows 1x to 1.2x with the viewport on the
-          // sheet title's curve (mobileSheetGeometry); the buttons, glyphs
-          // and indicator below are all in em of it. The scrub math reads
-          // the buttons' rects, so it needs no unit.
+          className="pointer-events-auto flex"
+          // Fit search plus seven sections without overflowing narrow phones.
           style={{
-            touchAction: "pan-y pinch-zoom",
-            fontSize: MOBILE_RAIL_FONT_CLAMP,
-          }}
-          onPointerDown={(event) => {
-            if (event.pointerType !== "touch") return;
-            suppressNextMobileClick.current = false;
-            mobileScrub.current = {
-              pointerId: event.pointerId,
-              startX: event.clientX,
-              startY: event.clientY,
-              target: activeUnit,
-              active: false,
-              cancelled: false,
-            };
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            const scrub = mobileScrub.current;
-            if (scrub?.pointerId !== event.pointerId) return;
-            if (scrub.cancelled) return;
-
-            if (!scrub.active) {
-              const dx = event.clientX - scrub.startX;
-              const dy = event.clientY - scrub.startY;
-              if (Math.hypot(dx, dy) < TOUCH_SLOP_PX) return;
-              if (Math.abs(dx) <= Math.abs(dy) * TOUCH_HORIZONTAL_DOMINANCE) {
-                scrub.cancelled = true;
-                suppressNextMobileClick.current = true;
-                useStacks.getState().setUnitMapPreview(null);
-                return;
-              }
-              scrub.active = true;
-              suppressNextMobileClick.current = true;
-            }
-
-            event.preventDefault();
-            const rect = event.currentTarget.getBoundingClientRect();
-            const fraction = Math.min(
-              1,
-              Math.max(0, (event.clientX - rect.left) / rect.width),
-            );
-            const preview = Math.round(fraction * (UNIT_COUNT - 1));
-            if (preview === scrub.target) return;
-            scrub.target = preview;
-            useStacks.getState().setUnitMapPreview(preview);
-            haptic(6);
-          }}
-          onPointerUp={(event) => {
-            const scrub = mobileScrub.current;
-            if (scrub?.pointerId !== event.pointerId) return;
-            mobileScrub.current = null;
-            useStacks.getState().setUnitMapPreview(null);
-            if (scrub.active && scrub.target !== activeUnit) go(scrub.target);
-            if (scrub.active || scrub.cancelled) {
-              requestAnimationFrame(() => {
-                suppressNextMobileClick.current = false;
-              });
-            }
-          }}
-          onPointerCancel={(event) => {
-            if (mobileScrub.current?.pointerId !== event.pointerId) return;
-            mobileScrub.current = null;
-            suppressNextMobileClick.current = false;
-            useStacks.getState().setUnitMapPreview(null);
+            fontSize: `min(${MOBILE_RAIL_FONT_CLAMP}, calc((100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 1rem) / ${MOBILE_STEP_REM * (UNIT_COUNT + 1)}))`,
           }}
         >
-          <ElasticMobileIndicator
-            displayedUnit={showGolfBall ? GOLF_STOP_POSITION : displayedUnit}
-            golfBall={showGolfBall}
-          />
-          {UNITS.map((unit, i) => {
-            const Icon = unit.icon;
-            const current = i === activeUnit;
-            const selected = i === displayedUnit;
-            const active = !golfFocused && selected;
-            const railLabel = unit.railLabel ?? unit.label;
-            return (
-              <button
-                key={unit.slug}
-                ref={(element) => {
-                  mobileButtonRefs.current[i] = element;
-                }}
-                type="button"
-                aria-label={railLabel}
-                aria-describedby={
-                  tapFirst ? undefined : `stacks-rail-tooltip-${unit.slug}`
+          <ChromeSearchButton mobile />
+          <div
+            className="pointer-events-auto relative flex"
+            // The row's font-size grows 1x to 1.2x with the viewport on the
+            // sheet title's curve (mobileSheetGeometry); the buttons, glyphs
+            // and indicator below are all in em of it. The scrub math reads
+            // the buttons' rects, so it needs no unit.
+            style={{
+              touchAction: "pan-y pinch-zoom",
+            }}
+            onPointerDown={(event) => {
+              if (event.pointerType !== "touch") return;
+              suppressNextMobileClick.current = false;
+              mobileScrub.current = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                target: activeUnit,
+                active: false,
+                cancelled: false,
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const scrub = mobileScrub.current;
+              if (scrub?.pointerId !== event.pointerId) return;
+              if (scrub.cancelled) return;
+
+              if (!scrub.active) {
+                const dx = event.clientX - scrub.startX;
+                const dy = event.clientY - scrub.startY;
+                if (Math.hypot(dx, dy) < TOUCH_SLOP_PX) return;
+                if (Math.abs(dx) <= Math.abs(dy) * TOUCH_HORIZONTAL_DOMINANCE) {
+                  scrub.cancelled = true;
+                  suppressNextMobileClick.current = true;
+                  useStacks.getState().setUnitMapPreview(null);
+                  return;
                 }
-                aria-current={!golfFocused && current ? "page" : undefined}
-                tabIndex={current ? 0 : -1}
-                data-active={active || undefined}
-                onClick={() => {
-                  if (suppressNextMobileClick.current) {
-                    suppressNextMobileClick.current = false;
-                    return;
+                scrub.active = true;
+                suppressNextMobileClick.current = true;
+              }
+
+              event.preventDefault();
+              const rect = event.currentTarget.getBoundingClientRect();
+              const fraction = Math.min(
+                1,
+                Math.max(0, (event.clientX - rect.left) / rect.width),
+              );
+              const preview = Math.round(fraction * (UNIT_COUNT - 1));
+              if (preview === scrub.target) return;
+              scrub.target = preview;
+              useStacks.getState().setUnitMapPreview(preview);
+              haptic(6);
+            }}
+            onPointerUp={(event) => {
+              const scrub = mobileScrub.current;
+              if (scrub?.pointerId !== event.pointerId) return;
+              mobileScrub.current = null;
+              useStacks.getState().setUnitMapPreview(null);
+              if (scrub.active && scrub.target !== activeUnit) go(scrub.target);
+              if (scrub.active || scrub.cancelled) {
+                requestAnimationFrame(() => {
+                  suppressNextMobileClick.current = false;
+                });
+              }
+            }}
+            onPointerCancel={(event) => {
+              if (mobileScrub.current?.pointerId !== event.pointerId) return;
+              mobileScrub.current = null;
+              suppressNextMobileClick.current = false;
+              useStacks.getState().setUnitMapPreview(null);
+            }}
+          >
+            <ElasticMobileIndicator
+              displayedUnit={showGolfBall ? GOLF_STOP_POSITION : displayedUnit}
+              golfBall={showGolfBall}
+            />
+            {UNITS.map((unit, i) => {
+              const Icon = unit.icon;
+              const current = i === activeUnit;
+              const selected = i === displayedUnit;
+              const active = !golfFocused && selected;
+              const railLabel = unit.railLabel ?? unit.label;
+              return (
+                <button
+                  key={unit.slug}
+                  ref={(element) => {
+                    mobileButtonRefs.current[i] = element;
+                  }}
+                  type="button"
+                  aria-label={railLabel}
+                  aria-describedby={
+                    tapFirst ? undefined : `stacks-rail-tooltip-${unit.slug}`
                   }
-                  go(i);
-                }}
-                onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}
-                className="stacks-on-background-text stacks-rail-row relative flex h-[3em] items-center justify-center rounded-xl pb-[0.25em] text-foreground"
-                style={
-                  {
-                    width: `${MOBILE_STEP_REM}em`,
-                    "--stacks-mobile-rail-delay": `${Math.abs(i - activeUnit) * 30}ms`,
-                  } as React.CSSProperties
-                }
-              >
-                <Icon
-                  aria-hidden
-                  weight="bold"
-                  className="stacks-rail-icon size-[1.375em] shrink-0"
-                />
-                {!tapFirst && (
-                  <span
-                    id={`stacks-rail-tooltip-${unit.slug}`}
-                    role="tooltip"
-                    className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 font-serif text-[15px] font-semibold leading-[1.25] backdrop-blur-xl backdrop-saturate-150"
-                  >
-                    {railLabel}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                  aria-current={!golfFocused && current ? "page" : undefined}
+                  tabIndex={current ? 0 : -1}
+                  data-active={active || undefined}
+                  onClick={() => {
+                    if (suppressNextMobileClick.current) {
+                      suppressNextMobileClick.current = false;
+                      return;
+                    }
+                    go(i);
+                  }}
+                  onKeyDown={(event) =>
+                    onRailKeyDown(event, i, mobileButtonRefs)
+                  }
+                  className="stacks-on-background-text stacks-rail-row relative flex h-[3em] items-center justify-center rounded-xl pb-[0.25em] text-foreground"
+                  style={
+                    {
+                      width: `${MOBILE_STEP_REM}em`,
+                      "--stacks-mobile-rail-delay": `${Math.abs(i - activeUnit) * 30}ms`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <Icon
+                    aria-hidden
+                    weight="bold"
+                    className="stacks-rail-icon size-[1.375em] shrink-0"
+                  />
+                  {!tapFirst && (
+                    <span
+                      id={`stacks-rail-tooltip-${unit.slug}`}
+                      role="tooltip"
+                      className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-[240px] rounded-2xl border px-3.5 py-2.5 font-serif text-[15px] font-semibold leading-[1.25] backdrop-blur-xl backdrop-saturate-150"
+                    >
+                      {railLabel}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </nav>
     </>

@@ -1,4 +1,5 @@
-import ChromeLayer from "../dom/ChromeLayer";
+import ChromeLayer, { ChromeSceneControls } from "../dom/ChromeLayer";
+import { useSceneControlTooltipAlign } from "../dom/useSceneControlTooltipAlign";
 
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
@@ -9,13 +10,16 @@ export function RoomChrome({
   illustrated,
   live,
   keepControls = false,
+  children,
 }: {
   illustrated: boolean;
   live: boolean;
   /** Manual 2D keeps help, Field Notes, and diagnostics reachable. */
   keepControls?: boolean;
+  children?: React.ReactNode;
 }) {
   const tapFirst = useTapFirstCapability();
+  const tooltipAlign = useSceneControlTooltipAlign();
   const sceneControlsVisible = !illustrated || live || keepControls;
   return (
     <>
@@ -38,11 +42,25 @@ export function RoomChrome({
               Chappy Asel
             </span>
           </div>
+        </div>
+      )}
+      {children}
+      <div
+        data-room-scene-chrome=""
+        className={sceneControlsVisible ? "contents" : "hidden"}
+        hidden={!sceneControlsVisible}
+        inert={!sceneControlsVisible}
+        aria-hidden={!sceneControlsVisible}
+      >
+        <ChromeSceneControls />
+      </div>
+      {!sceneControlsVisible && (
+        <div className="room-illustrated-chrome contents">
           <div
             data-tap-first={tapFirst || undefined}
             className="stacks-theme-toggle pointer-events-auto absolute z-30"
           >
-            <ThemeToggle className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
+            <ThemeToggle tooltipAlign={tooltipAlign} className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
           </div>
         </div>
       )}

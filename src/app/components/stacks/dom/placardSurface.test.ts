@@ -53,7 +53,6 @@ const PAPER_SURFACES = [
   '[data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface]',
   '[data-stacks-glass-mode="paper"] .stacks-sheet',
   '[data-stacks-glass-mode="paper"] .stacks-chip',
-  '[data-stacks-glass-mode="paper"] .stacks-keyboard-sheet',
 ];
 
 const declarationsFor = (selector: string) => {

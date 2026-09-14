@@ -72,24 +72,78 @@
   }
 }
 
+/* Shared desktop columns also position the name before scene hydration. */
+:root {
+  --stacks-desktop-rail-left: max(1.75rem, env(safe-area-inset-left, 0px));
+  --stacks-desktop-content-left: calc(var(--stacks-desktop-rail-left) + 1rem);
+}
+
 /* Homepage cards share corner highlights in the scene and flat layout.
    Scene-specific fills and backdrop filters stay with the placards. */
+:where([data-placard-surface], [data-placard-media-highlight], html[data-world] .field-notes-glass-tooltip, html[data-world] .stacks-glass-tooltip, html[data-world] [data-home-glass]) {
+  /* Anchor the edge when blur is disabled; explicit absolute layers win. */
+  position: relative;
+}
+[data-placard-surface],
+[data-placard-media-highlight],
+html[data-world] [data-home-glass],
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html[data-world] .field-notes-stamp-tooltip {
+  --placard-edge-blend: soft-light;
+  --placard-edge-width: 2px;
+  --placard-edge-top: rgb(255 255 255 / 0.78);
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.28);
+  /* The lower edge shades pale artwork in light mode and catches a faint
+     reflection in dark mode, independently of the top-left color blend. */
+  --placard-edge-bottom: rgb(0 0 0 / 0.18);
+  --placard-media-shadow:
+    0 2px 3px -1px rgb(0 0 0 / 0.20),
+    2px 6px 12px -4px rgb(0 0 0 / 0.24);
+  isolation: isolate;
+}
+.dark [data-placard-surface],
+.dark [data-placard-media-highlight],
+html.dark[data-world] [data-home-glass],
+html.dark[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip) {
+  --placard-edge-top: rgb(255 255 255 / 0.24);
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.09);
+  --placard-edge-bottom: rgb(255 255 255 / 0.09);
+  --placard-media-shadow:
+    0 2px 3px -1px rgb(0 0 0 / 0.40),
+    2px 6px 12px -4px rgb(0 0 0 / 0.50);
+}
+.dark [data-placard-media-highlight]:has(img) {
+  /* Image edges need a little more reflection than the blurred card fill.
+     Subject tiles keep the base treatment because they contain no image. */
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.12);
+}
+html:not(.dark) [data-placard-media="card-cover"] {
+  /* Soft light barely lifts dark artwork beside pale glass. Color dodge
+     amplifies each image channel; a gray source avoids white's full clip. */
+  --placard-edge-blend: color-dodge;
+  --placard-edge-top: rgb(204 204 204 / 0.44);
+}
+/* Raised media and subject tiles share the contact shadow and softer shadow
+   down and right. Full-width artwork instead joins the card's perimeter. */
+[data-placard-media-highlight="raised"] {
+  box-shadow: var(--placard-media-shadow);
+}
+html:not(.dark) a:is(:hover, :focus-visible) [data-placard-media-highlight="raised"] {
+  --placard-edge-top: rgb(255 255 255 / 0.88);
+}
 [data-placard-surface] {
-  border-color: rgb(87 83 78 / 0.18) !important;
+  /* The highlight owns the perimeter. A separate border both draws a
+     second outline and offsets that layer from the card's outer radius. */
+  border: 0 !important;
   box-shadow:
-    inset 1px 1px 0 rgb(255 255 255 / 0.72),
-    inset -1px -1px 0 rgb(255 255 255 / 0.14),
     0 1px 2px rgb(28 25 23 / 0.10),
     0 12px 30px -20px rgb(28 25 23 / 0.40) !important;
-  transition-property: background-color, border-color, box-shadow;
+  transition-property: background-color, box-shadow;
   transition-duration: 200ms;
   transition-timing-function: ease-out;
 }
 .dark [data-placard-surface] {
-  border-color: rgb(255 255 255 / 0.22) !important;
   box-shadow:
-    inset 1px 1px 0 rgb(255 255 255 / 0.28),
-    inset -1px -1px 0 rgb(255 255 255 / 0.04),
     0 14px 34px -18px rgb(0 0 0 / 0.86) !important;
 }
 html:not(.dark) [data-placard-link]:hover [data-placard-surface],
@@ -98,10 +152,8 @@ html:not(.dark) a:hover [data-placard-surface],
 html:not(.dark) a[data-placard-surface]:hover,
 html:not(.dark) a:focus-visible [data-placard-surface],
 html:not(.dark) a[data-placard-surface]:focus-visible {
-  border-color: rgb(87 83 78 / 0.28) !important;
+  --placard-edge-top: rgb(255 255 255 / 0.88);
   box-shadow:
-    inset 1px 1px 0 rgb(255 255 255 / 0.80),
-    inset -1px -1px 0 rgb(255 255 255 / 0.16),
     0 2px 5px rgb(28 25 23 / 0.12),
     0 18px 36px -20px rgb(28 25 23 / 0.52) !important;
 }
@@ -111,29 +163,50 @@ html:not(.dark) a[data-placard-surface]:focus-visible {
 .dark a[data-placard-surface]:hover,
 .dark a:focus-visible [data-placard-surface],
 .dark a[data-placard-surface]:focus-visible {
-  border-color: rgb(255 255 255 / 0.25) !important;
   box-shadow:
-    inset 1px 1px 0 rgb(255 255 255 / 0.28),
-    inset -1px -1px 0 rgb(255 255 255 / 0.04),
     0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
 }
 
-/* Paint above the artwork so opaque images cannot hide their glass edges. */
-[data-placard-media-highlight]::after {
+/* Brighten the top-left colors, then add the white reflection and a subtler
+   bottom-right edge. Both layers occupy the same 2px edge, including where
+   a full-width cover joins the body. Isolation keeps adjacent cards out of
+   the color blend. */
+[data-placard-surface]::before,
+[data-placard-media-highlight]::before,
+[data-placard-surface]::after,
+[data-placard-media-highlight]::after,
+html[data-world] [data-home-glass]::before,
+html[data-world] [data-home-glass]::after,
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
+html[data-world] [data-tooltip-paper-edge]::before,
+html[data-world] [data-tooltip-paper-edge]::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   border-radius: inherit;
-  box-shadow:
-    inset 1px 1px 0 rgb(255 255 255 / 0.72),
-    inset -1px -1px 0 rgb(255 255 255 / 0.14);
+  transition: box-shadow 200ms ease-out;
 }
-.dark [data-placard-media-highlight]::after {
+[data-placard-surface]::after,
+[data-placard-media-highlight]::after,
+html[data-world] [data-home-glass]::after,
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
+html[data-world] [data-tooltip-paper-edge]::after {
+  mix-blend-mode: var(--placard-edge-blend);
   box-shadow:
-    inset 1px 1px 0 rgb(255 255 255 / 0.28),
-    inset -1px -1px 0 rgb(255 255 255 / 0.04);
+    inset var(--placard-edge-width) var(--placard-edge-width) 0 var(--placard-edge-top);
+}
+[data-placard-surface]::before,
+[data-placard-media-highlight]::before,
+html[data-world] [data-home-glass]::before,
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
+html[data-world] [data-tooltip-paper-edge]::before {
+  z-index: 2;
+  box-shadow:
+    inset var(--placard-edge-width) var(--placard-edge-width) 0 var(--placard-edge-reflection-top),
+    inset calc(-1 * var(--placard-edge-width)) var(--placard-edge-bottom-y, calc(-1 * var(--placard-edge-width))) 0 var(--placard-edge-bottom);
 }
 
 /* Header ink stays subdued in the entry drawing and the live room, at every width. */
@@ -189,19 +262,6 @@ html:not(.dark) a[data-placard-surface]:focus-visible {
     0 6px 16px -12px rgb(0 0 0 / 0.72);
 }
 
-/* The shortcut sheet is portaled outside the scene chrome's compositor tree,
-   so this filter samples the room itself. It blurs only what sits directly
-   behind the card; the rest of the room remains sharp. */
-.stacks-keyboard-sheet {
-  background-color: rgb(255 255 255 / 0.18);
-  backdrop-filter: blur(80px) saturate(0.28) brightness(1.4);
-}
-
-.dark .stacks-keyboard-sheet {
-  background-color: rgb(0 0 0 / 0.05);
-  backdrop-filter: blur(80px) saturate(0.22) brightness(0.6);
-}
-
 /* Tooltips are dual-material like the Keycap: flat pages (Books,
    Weightlifting, Manual, Routine) get an opaque popover card in theme
    tokens, and the homepage's 3D world — marked by data-world on the root —
@@ -218,15 +278,12 @@ html:not(.dark) a[data-placard-surface]:focus-visible {
 /* The glass needs its blur here rather than in caller utilities so flat
    pages never pay for a backdrop-filter they can't see. Do not add a manual
    -webkit copy (see .stacks-glass-tooltip above). */
-html[data-world] .field-notes-glass-tooltip {
+html[data-world] .field-notes-glass-tooltip,
+html[data-world] [data-home-glass="floating"] {
   border-color: rgb(255 255 255 / 0.24);
   background-color: rgb(24 32 36 / 0.38);
   color: rgb(255 255 255 / 0.96);
   backdrop-filter: blur(24px) saturate(1.5);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.16),
-    inset 0 -1px 0 rgb(255 255 255 / 0.05),
-    0 8px 24px rgb(0 0 0 / 0.2);
 }
 
 /* A presented surface (a routine/manual/systems sheet, a book note modal)
@@ -240,6 +297,66 @@ html[data-world][data-overlay-open] .field-notes-glass-tooltip {
   color: hsl(var(--popover-foreground));
   backdrop-filter: none;
   box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.18);
+}
+
+/* Scale the card treatment to small labels without changing their ink,
+   fill, blur, or positioning. Reading-overlay tooltips keep their flat card.
+   Stamp hints keep the light paper palette even in the dark room, with a
+   separate edge node so their stitched ::after decoration stays intact. */
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html[data-world] [data-home-glass="floating"],
+html[data-world] .field-notes-stamp-tooltip {
+  --stacks-tooltip-shadow:
+    0 5px 12px -3px rgb(0 0 0 / 0.16),
+    0 14px 36px -6px rgb(0 0 0 / 0.30);
+  border: 0;
+  box-shadow: var(--stacks-tooltip-shadow);
+}
+html.dark[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html.dark[data-world] [data-home-glass="floating"] {
+  --stacks-tooltip-shadow:
+    0 5px 12px -3px rgb(0 0 0 / 0.26),
+    0 14px 36px -6px rgb(0 0 0 / 0.55);
+}
+
+html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html[data-world] [data-home-glass="floating"],
+html[data-world] .field-notes-stamp-tooltip {
+  --placard-edge-width: 1px;
+}
+
+/* Match compact hints to the room and globe labels' spacing and curvature.
+   Their smaller bodies need less edge contrast; reference labels stay as-is. */
+html[data-world]:not([data-overlay-open]) .home-control-tooltip,
+html[data-world] [data-home-glass="floating"] {
+  --placard-edge-top: rgb(255 255 255 / 0.585);
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.21);
+  --placard-edge-bottom: rgb(0 0 0 / 0.135);
+  border-radius: 1rem;
+}
+html.dark[data-world]:not([data-overlay-open]) .home-control-tooltip,
+html.dark[data-world] [data-home-glass="floating"] {
+  --placard-edge-top: rgb(255 255 255 / 0.18);
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.0675);
+  --placard-edge-bottom: rgb(255 255 255 / 0.0675);
+}
+html[data-world]:not([data-overlay-open]) .home-control-tooltip {
+  padding: 0.625rem 0.875rem;
+}
+html[data-world] [data-home-glass="floating"] {
+  padding: 0.5rem;
+}
+html[data-world] [data-home-glass="floating"] [role="radio"] {
+  padding-inline: 0.375rem;
+  border-radius: 0.625rem;
+}
+
+/* Menu rows use a translucent highlight over the same glass as tooltips. */
+html[data-world] [data-home-glass="floating"] [role="radio"]:is(:hover, :focus-visible) {
+  background-color: rgb(255 255 255 / 0.12);
+}
+html[data-world] [data-home-glass] {
+  border: 0;
 }
 
 @font-face {
@@ -416,6 +533,14 @@ html[data-world].dark .sheet-control:hover {
   color: rgb(255 255 255 / 0.88);
 }
 
+/* These controls sit close to their image or document. Keep the authored
+   fills and filters, and replace the old border/inset pair with shared edges. */
+html[data-world] [data-home-glass="control"],
+html.dark[data-world] [data-home-glass="control"] {
+  --placard-edge-width: 1px;
+  box-shadow: var(--placard-media-shadow);
+}
+
 @layer base {
   :root {
     /* The daylight section accents (see daylight.css): ochre and dusk slate
@@ -543,6 +668,10 @@ html[data-world].dark .sheet-control:hover {
 }
 
 @layer base {
+  html[data-desktop-reduced-motion] [data-homepage-carousel] * {
+    animation-play-state: paused !important;
+  }
+
   html {
     @apply bg-background;
     min-height: 100%;

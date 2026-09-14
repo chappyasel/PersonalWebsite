@@ -84,6 +84,7 @@ export function SheetExpandControl({
     <Labelled label={label}>
       <a
         href={href}
+        data-home-glass="control"
         data-route-transition="preserve"
         onClick={onClick}
         className={cn(BASE, sizing(size))}
@@ -108,6 +109,7 @@ export function SheetCloseControl({
     <Labelled label={label}>
       <button
         type="button"
+        data-home-glass="control"
         onClick={onClick}
         className={cn(BASE, sizing(size))}
         aria-label={label}

@@ -16,12 +16,12 @@ const canvas = fs.readFileSync(
 
 describe("scene sound control", () => {
   it("shares the theme button treatment and reverses only its mobile order", () => {
-    expect(chrome).toContain('className="stacks-scene-controls"');
+    expect(chrome).toMatch(/className="stacks-scene-controls(?: [^"]*)?"/);
     expect(chrome).toContain("<ThemeToggle");
     expect(chrome).toContain(
       'className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full',
     );
-    expect(chrome).toContain("<SoundToggle className=");
+    expect(chrome).toContain("<SoundToggle tooltipAlign={tooltipAlign}");
     expect(chrome).toContain("flex-direction: row-reverse");
     expect(chrome).toContain("flex-direction: row;");
     expect(toggle).toContain(

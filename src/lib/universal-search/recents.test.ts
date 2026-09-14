@@ -55,15 +55,21 @@ describe("Universal Search Recent results", () => {
     for (let index = 0; index < 10; index += 1) {
       recordRecentResult(storage, result(String(index)), index);
     }
-    recordRecentResult(storage, result("4"), 20);
+    recordRecentResult(storage, result("8"), 20);
 
     const recents = readRecentResults(storage);
-    expect(recents).toHaveLength(8);
+    expect(recents.map((recent) => recent.id)).toEqual([
+      "8",
+      "9",
+      "7",
+      "6",
+      "5",
+    ]);
     expect(recents[0]).toEqual({
-      id: "4",
+      id: "8",
       kind: "destination",
-      label: "Result 4",
-      href: "/result/4",
+      label: "Result 8",
+      href: "/result/8",
       selectedAt: 20,
     });
     expect(recents.some((recent) => "excerpt" in recent)).toBe(false);

@@ -184,7 +184,7 @@ html:has(
 }
 @media (min-width: 1200px) {
   html[data-room-view] {
-    --room-name-left: max(1.75rem, env(safe-area-inset-left, 0px));
+    --room-name-left: var(--stacks-desktop-content-left);
     --room-name-top: max(1.25rem, env(safe-area-inset-top, 0px));
     --room-name-size: 1.125rem;
   }

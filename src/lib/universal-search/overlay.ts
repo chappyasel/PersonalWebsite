@@ -4,6 +4,7 @@ export const UNIVERSAL_SEARCH_OPEN_ATTRIBUTE = "data-universal-search-open";
  * The root marker the controller stamps while the palette is up. The Stacks
  * scene's wheel and navigation-key bridges, the Books dialogs, and the
  * Weightlifting modal all yield their global listeners while it is present.
+ * The scene also pauses rendering and pointer tracking until it clears.
  * Focus containment itself belongs to the palette's Radix Dialog, not to
  * anything reading this marker.
  */

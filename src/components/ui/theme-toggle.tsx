@@ -42,8 +42,10 @@ const LONG_PRESS_MS = 500;
 export function ThemeToggle({
   className,
   compact = false,
+  tooltipAlign = "start",
 }: {
   className?: string;
+  tooltipAlign?: "start" | "end";
   /** Caption-line size: a 20px hit area and a 12px glyph, for a toggle that
    * sits inside a line of small text rather than in a page corner. */
   compact?: boolean;
@@ -143,9 +145,9 @@ export function ThemeToggle({
               </button>
             </TooltipTrigger>
           </PopoverAnchor>
-          <TooltipContent>
-            <p className="text-center">
-              <span className="flex items-center justify-center gap-1.5">
+          <TooltipContent align={tooltipAlign}>
+            <p className="text-left">
+              <span className="flex items-center gap-1.5">
                 <span>Switch to {THEME_LABEL[nextVisibleTheme]}</span>
                 <KeycapSequence
                   keys={["⌘", "⌥", "L"]}
@@ -157,7 +159,7 @@ export function ThemeToggle({
           </TooltipContent>
         </Tooltip>
 
-        <PopoverContent align="end" className="w-40 p-1">
+        <PopoverContent align="end" data-home-glass="floating" className="w-40 p-1">
           <div aria-label="Theme preference" role="radiogroup">
             {THEME_ORDER.map((choice) => {
               const ChoiceIcon = THEME_ICON[choice];

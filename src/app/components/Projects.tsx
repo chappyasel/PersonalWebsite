@@ -95,12 +95,12 @@ function ProjectItem({ project }: { project: Project }) {
       />
       {tile ? (
         <div
-          data-placard-media-highlight=""
+          data-placard-media-highlight="raised"
           className="relative size-24 shrink-0 rounded-[22%] sm:size-28"
           style={{ transform: "translateZ(30px)" }}
         >
           <Image
-            className="size-full rounded-[22%] object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
+            className="size-full rounded-[22%] object-cover"
             src={tile}
             alt={project.name}
             sizes="112px"

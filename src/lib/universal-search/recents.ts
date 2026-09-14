@@ -1,7 +1,7 @@
 import type { SearchResult, SearchResultKind } from "./types";
 
 export const RECENT_RESULTS_STORAGE_KEY = "universal-search-recents:v1";
-export const RECENT_RESULTS_LIMIT = 8;
+export const RECENT_RESULTS_LIMIT = 5;
 
 export type RecentResult = {
   id: string;

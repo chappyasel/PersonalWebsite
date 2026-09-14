@@ -46,8 +46,8 @@ describe("interaction camera zoom", () => {
     expect(Math.atan2(lookY - raisedEye, distance)).toBeCloseTo(
       Math.atan2(lookY - eyeY, distance) - Math.PI / 60,
     );
-    expect(cameraRigSource).toContain(
-      "focusAmount.current * SELECTION_CAMERA_PITCH_DEGREES",
+    expect(cameraRigSource).toMatch(
+      /focusAmount\.current\s*\*\s*SELECTION_CAMERA_PITCH_DEGREES\s*\*\s*ambientMotion\.current/,
     );
     expect(cameraRigSource).toContain(
       "selectionCameraPitchController.getSnapshot().enabled",

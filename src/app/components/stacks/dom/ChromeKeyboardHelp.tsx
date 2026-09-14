@@ -1,53 +1,58 @@
-import { Keycap } from "~/components/ui/keycap";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+
+import { ChromeShortcutList } from "./ChromeKeyboard";
+import { ChromeSearchButton } from "./ChromeSearchButton";
 
 const labelClassName =
   "room-wordmark-label stacks-mobile-secondary-chrome stacks-on-background-text whitespace-nowrap rounded-sm font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg";
 
 export default function ChromeKeyboardHelp({
   open,
-  onOpen,
+  onOpenChange,
   tapFirst,
   fieldNotes,
 }: {
   open: boolean;
-  onOpen: () => void;
+  onOpenChange: (open: boolean) => void;
   tapFirst: boolean;
   fieldNotes: React.ReactNode;
 }) {
   return (
     <div>
-      <div className="flex items-center gap-0.5">
+      <div className="grid grid-cols-[auto_auto] items-center gap-x-0.5">
         {tapFirst ? (
           <span className={labelClassName}>Chappy Asel</span>
         ) : (
-          <button
-            type="button"
-            aria-label="Open keyboard shortcuts"
-            aria-controls="stacks-keyboard-shortcuts"
-            aria-expanded={open}
-            onClick={onOpen}
-            className={`${labelClassName} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
-          >
-            Chappy Asel
-          </button>
+          <TooltipProvider delayDuration={260}>
+            <Tooltip open={open} onOpenChange={onOpenChange}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Chappy Asel, keyboard shortcuts"
+                  className={`${labelClassName} text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
+                >
+                  Chappy Asel
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                align="start"
+                sideOffset={8}
+                className="max-h-[var(--radix-tooltip-content-available-height)] overflow-y-auto"
+              >
+                <ChromeShortcutList />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         {fieldNotes}
+        <ChromeSearchButton />
       </div>
-      {!tapFirst && (
-        <div className="stacks-wordmark-shortcuts stacks-on-background-text mt-1 flex items-center gap-1.5 whitespace-nowrap font-serif text-[10px] tracking-[0.01em]">
-          <button
-            type="button"
-            aria-label="Open keyboard shortcuts"
-            aria-controls="stacks-keyboard-shortcuts"
-            aria-expanded={open}
-            onClick={onOpen}
-            className="flex items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-          >
-            <Keycap aria-hidden="true">?</Keycap>
-            <span>Shortcuts</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -31,6 +31,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
+import { desktopMotionPreference } from "~/lib/desktopMotionPreference";
+
 import {
   cameraDepthDiagnosticsController,
   cameraDepthEffectEnabled,
@@ -230,6 +232,7 @@ export default function CameraRig() {
   const prevGolfFocused = useRef(false);
   // 0→1 while the mobile panel is open: dolly toward the unit, kill the bob.
   const lean = useRef(0);
+  const ambientMotion = useRef(1);
   // Damped copy of the sheet's screen coverage, driving the frustum offset.
   const framing = useRef(0);
   const focusAmount = useRef(0);
@@ -792,6 +795,19 @@ export default function CameraRig() {
     // room is already at rest when the vignette lifts (HIDDEN_SETTLE_SECONDS).
     const illustrationOwnsPose = illustrationOwnsCamera(bootView);
     const dt = bootView.revealed ? frame : HIDDEN_SETTLE_SECONDS;
+    // Ease the visitor's preference into the existing pose. Navigation keeps
+    // its scroll damping; decorative motion settles instead of snapping off.
+    const motionTarget = desktopMotionPreference.getSnapshot() ? 0 : 1;
+    if (ambientMotion.current !== motionTarget) {
+      ambientMotion.current = THREE.MathUtils.damp(
+        ambientMotion.current,
+        motionTarget,
+        6,
+        dt,
+      );
+      if (Math.abs(ambientMotion.current - motionTarget) < 0.001)
+        ambientMotion.current = motionTarget;
+    }
     // A gizmo drag must not also steer the camera: while the layout editor
     // owns the pointer, the parallax reads a centred pointer instead.
     const layoutGesture =
@@ -833,6 +849,7 @@ export default function CameraRig() {
     // shares the reduction and its existing damping handles selection changes.
     const pointerWeight =
       pointerArrivalWeight(pointerArrival.current) *
+      ambientMotion.current *
       (nearPropApproach() ? 0.5 : 1);
     const pointerX = illustrationOwnsPose
       ? composition.parallaxCentre
@@ -997,7 +1014,9 @@ export default function CameraRig() {
       captureCameraY === null
         ? cameraY +
           (pointerY * 0.08 * pointerMode.truck +
-            (illustrationOwnsPose ? 0 : Math.sin(t * 0.4) * 0.03)) *
+            (illustrationOwnsPose
+              ? 0
+              : Math.sin(t * 0.4) * 0.03 * ambientMotion.current)) *
             calm
         : cameraY;
     const baselineLookY =
@@ -1058,7 +1077,8 @@ export default function CameraRig() {
     // swept the frustum clean off the original meadow envelope ("I can see
     // behind the grass"). Keep the authored six-unit cap: the camera-side
     // grass apron is now verified against this full tilt, so coverage fixes
-    // the corners without flattening the motion.
+    // the corners without flattening the motion. Keep this travel momentum
+    // in reduced-motion mode too; only decorative pointer motion settles.
     look.current.x = THREE.MathUtils.clamp(
       look.current.x,
       targetX - CAMERA_LOOK_X_MAX_LAG,
@@ -1125,7 +1145,7 @@ export default function CameraRig() {
     let authoredEyeY = baseY.current;
     let authoredLookY = look.current.y;
     if (cameraDepth.eyeHeight !== 0 || cameraDepth.pitchRadians !== 0) {
-      authoredEyeY += cameraDepth.eyeHeight;
+      authoredEyeY += cameraDepth.eyeHeight * ambientMotion.current;
       const horizontalDistance = Math.hypot(
         look.current.x - eyeX,
         look.current.z - baseZ,
@@ -1134,7 +1154,8 @@ export default function CameraRig() {
         look.current.y - baseY.current,
         horizontalDistance,
       );
-      const authoredPitch = baselinePitch - cameraDepth.pitchRadians;
+      const authoredPitch =
+        baselinePitch - cameraDepth.pitchRadians * ambientMotion.current;
       authoredLookY =
         authoredEyeY + Math.tan(authoredPitch) * horizontalDistance;
     }
@@ -1221,7 +1242,9 @@ export default function CameraRig() {
       !ogCapture &&
       !(reducedMotionQuery?.matches ?? false) &&
       selectionCameraPitchController.getSnapshot().enabled
-        ? focusAmount.current * SELECTION_CAMERA_PITCH_DEGREES
+        ? focusAmount.current *
+          SELECTION_CAMERA_PITCH_DEGREES *
+          ambientMotion.current
         : 0;
     const tiltRadians = screenshot.enabled
       ? screenshotTiltRadians(screenshot.tilt)
@@ -1439,7 +1462,9 @@ export default function CameraRig() {
       );
       seatEye.current.set(
         ex,
-        ey + Math.sin(t * 0.33) * 0.012 + seatPointer.current.y * 0.04,
+        ey +
+          Math.sin(t * 0.33) * 0.012 * ambientMotion.current +
+          seatPointer.current.y * 0.04,
         ez,
       );
       // You walk over to the chair, then you turn round and sit in it. Those

@@ -7,6 +7,7 @@ import Link from "next/link";
 import React from "react";
 
 import styles from "./CoverCard.module.css";
+import talkStyles from "./TalkCard.module.css";
 import TiltCard from "./TiltCard";
 
 export type Talk = {
@@ -80,14 +81,15 @@ export default function TalkCard({ talk }: { talk: Talk }) {
           <div className="absolute inset-0 bg-black/10 transition-colors duration-300 group-hover:bg-black/20" />
           <div className="absolute inset-0 flex items-center justify-center">
             <span
-              className="talk-play-control flex size-14 items-center justify-center rounded-full bg-black/40 text-white shadow-[0_4px_18px_rgba(0,0,0,0.22)] ring-1 ring-white/15 transition-transform duration-300 ease-out group-hover:scale-110"
-              style={{
-                backdropFilter: "blur(10px) saturate(0.8) brightness(0.78)",
-                WebkitBackdropFilter:
-                  "blur(10px) saturate(0.8) brightness(0.78)",
-              }}
+              data-home-glass="control"
+              data-placard-media-highlight=""
+              className={`${talkStyles.playControl} talk-play-control flex size-14 items-center justify-center rounded-full transition-[background-color,transform] duration-300 ease-out group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100 motion-reduce:group-focus-visible:scale-100`}
             >
-              <PlayIcon aria-hidden weight="fill" className="size-6" />
+              <PlayIcon
+                aria-hidden
+                weight="fill"
+                className="size-6 text-white"
+              />
             </span>
           </div>
         </div>

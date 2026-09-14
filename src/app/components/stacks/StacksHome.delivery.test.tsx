@@ -43,7 +43,10 @@ vi.mock(import("./room/ResidentRoomHost"), async (importOriginal) => ({
   ...(await importOriginal()),
   useRoomActive: () => true,
 }));
-vi.mock("./dom/ChromeLayer", () => ({ default: () => null }));
+vi.mock("./dom/ChromeLayer", () => ({
+  default: () => null,
+  ChromeSceneControls: () => null,
+}));
 vi.mock("./dom/UnitRail", () => ({ default: () => null }));
 vi.mock("./dom/VisionRideControls", () => ({ default: () => null }));
 vi.mock("./input/ScrollBridges", () => ({ default: () => null }));

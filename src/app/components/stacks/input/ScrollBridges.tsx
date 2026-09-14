@@ -202,6 +202,7 @@ export default function ScrollBridges() {
         state.visionRidePhase !== "idle"
       )
         return;
+      if (isUniversalSearchOpen()) return;
       const destination = touchSwipeDestination({
         startScrollLeft: coarseStartScrollLeft,
         endScrollLeft: scrollEl.scrollLeft,

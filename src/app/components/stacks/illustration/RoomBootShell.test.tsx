@@ -106,7 +106,7 @@ it("hands the boot name to a live label with identical text and position metrics
         <div className="stacks-wordmark">
           <ChromeKeyboardHelp
             open={false}
-            onOpen={() => undefined}
+            onOpenChange={() => undefined}
             tapFirst={false}
             fieldNotes={<button style={{ height: 36 }}>Field Notes</button>}
           />

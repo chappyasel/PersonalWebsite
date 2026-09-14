@@ -824,6 +824,11 @@ function StampHint({
         }}
         className="field-notes-paper-slip field-notes-stamp-tooltip relative w-56 overflow-hidden px-4 pr-11 text-left animate-in fade-in-0 zoom-in-95 data-[side=bottom]:origin-top data-[side=top]:origin-bottom data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 motion-reduce:animate-none"
       >
+        <span
+          aria-hidden
+          data-tooltip-paper-edge=""
+          className="pointer-events-none absolute inset-0 rounded-[inherit]"
+        />
         <p className="field-notes-hand field-notes-strong text-lg text-[#362518]">
           {headingFor(note, found)}
         </p>
@@ -2209,7 +2214,7 @@ function FieldNotesTrigger({
             aria-label={`Open Field Notes, ${status}`}
             aria-keyshortcuts="F"
             onClick={openFieldNotes}
-            className={`field-notes-trigger stacks-mobile-secondary-chrome stacks-on-background-text pointer-events-auto grid size-9 place-items-center rounded-full text-foreground transition-[color,transform,background-color] hover:bg-foreground/[0.09] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:scale-95 active:bg-foreground/[0.14] motion-reduce:transition-none ${collecting ? "bg-foreground/[0.07] text-foreground" : "text-foreground/75"}`}
+            className={`field-notes-trigger stacks-mobile-secondary-chrome stacks-on-background-text pointer-events-auto relative -top-px left-[6px] grid size-9 place-items-center rounded-full text-foreground transition-[color,transform,background-color] hover:bg-foreground/[0.09] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:scale-95 active:bg-foreground/[0.14] motion-reduce:transition-none ${collecting ? "bg-foreground/[0.07] text-foreground" : "text-foreground/75"}`}
           >
             <CollectionGlyph
               key={awardId ?? "idle"}
@@ -2221,6 +2226,7 @@ function FieldNotesTrigger({
         </TooltipTrigger>
         <TooltipContent
           side="bottom"
+          align="start"
           sideOffset={8}
           className="field-notes-glass-tooltip field-notes-trigger-tooltip z-[2200] px-3 py-2"
         >

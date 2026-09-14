@@ -22,7 +22,13 @@ import {
 
 export { SCENE_SOUND_STORAGE_KEY } from "../scene/sceneVisitStorage";
 
-export function SoundToggle({ className }: { className?: string }) {
+export function SoundToggle({
+  className,
+  tooltipAlign = "start",
+}: {
+  className?: string;
+  tooltipAlign?: "start" | "end";
+}) {
   const [audio, setAudio] = useState(sceneAudio.snapshot);
   const [mounted, setMounted] = useState(false);
 
@@ -117,7 +123,7 @@ export function SoundToggle({ className }: { className?: string }) {
             <Icon className="h-4 w-4" weight="bold" />
           </button>
         </TooltipTrigger>
-        <TooltipContent>
+        <TooltipContent align={tooltipAlign}>
           <p className="flex items-center gap-1.5">
             <span>{action}</span>
             <Keycap aria-hidden="true">M</Keycap>

@@ -20,6 +20,7 @@ import {
   TextTIcon,
   TrashIcon,
   UserIcon,
+  XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
@@ -83,8 +84,10 @@ import {
   useProgressiveSearch,
 } from "~/lib/universal-search/useProgressiveSearch";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { cn } from "~/lib/util";
 
+import { Button } from "~/components/ui/button";
 import { Keycap, KeycapSequence } from "~/components/ui/keycap";
 
 import type { UniversalSearchPaletteProps } from "./UniversalSearchController";
@@ -127,11 +130,8 @@ type RankedCommandEntry = CommandEntry & {
   score: number;
 };
 
-/** Translucent selection with an inset ring, after the AIC palette's
- * tint-plus-ring treatment. Built on the primary token so it carries the
- * site's own neutral warmth in both themes instead of a browner accent. */
-const ROW_SELECTED =
-  "data-[selected=true]:bg-primary/10 data-[selected=true]:ring-1 data-[selected=true]:ring-inset data-[selected=true]:ring-primary/15";
+/** A soft tint marks mouse and keyboard selection in both themes. */
+const ROW_SELECTED = "data-[selected=true]:bg-primary/5";
 
 /** Every row's picture column: one 28px slot. A page's tile fills it, a
  * glyph sits centred in it, a book cover matches its width. One slot, one
@@ -139,9 +139,15 @@ const ROW_SELECTED =
 const ICON_SLOT = "flex size-7 shrink-0 items-center justify-center";
 
 /** A glyph centred in the slot, coloured like the row's text state. */
-function SlotGlyph({ icon: IconComponent }: { icon: Icon }) {
+function SlotGlyph({
+  icon: IconComponent,
+  className,
+}: {
+  icon: Icon;
+  className?: string;
+}) {
   return (
-    <span aria-hidden className={ICON_SLOT}>
+    <span aria-hidden className={cn(ICON_SLOT, className)}>
       <IconComponent
         className="size-[18px] text-muted-foreground group-data-[selected=true]:text-foreground"
         weight="regular"
@@ -230,7 +236,7 @@ function PageRow({
       value={entry.id}
       onSelect={onSelect}
       className={cn(
-        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none",
+        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1.5 text-sm outline-none",
         ROW_SELECTED,
       )}
     >
@@ -285,7 +291,7 @@ function CommandRow({
       value={entry.id}
       onSelect={onSelect}
       className={cn(
-        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none",
+        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1.5 text-sm outline-none",
         "data-[selected=true]:text-foreground",
         ROW_SELECTED,
       )}
@@ -308,11 +314,11 @@ function RecentRow({
       value={`recent:${recent.id}`}
       onSelect={onSelect}
       className={cn(
-        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none",
+        "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1 text-sm outline-none",
         ROW_SELECTED,
       )}
     >
-      <SlotGlyph icon={ClockIcon} />
+      <SlotGlyph icon={ClockIcon} className="h-5" />
       <span className="min-w-0 flex-1 truncate">{recent.label}</span>
     </Command.Item>
   );
@@ -428,7 +434,7 @@ function SearchResultRow({
       value={result.id}
       onSelect={onSelect}
       className={cn(
-        "group flex cursor-default select-none items-start gap-3 rounded-lg px-3 py-2 text-sm outline-none",
+        "group flex cursor-default select-none items-start gap-3 rounded-lg px-3 py-1.5 text-sm outline-none",
         ROW_SELECTED,
       )}
     >
@@ -568,6 +574,7 @@ export function UniversalSearchPaletteContent({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const tapFirst = useTapFirstCapability();
   const [recents, setRecents] = useState<RecentResult[]>(() =>
     readRecentResults(dependencies.storage),
   );
@@ -620,9 +627,11 @@ export function UniversalSearchPaletteContent({
     : COMMAND_ENTRIES.filter(
         (entry) => entry.kind === "destination" && entry.promoted,
       );
-  const actions = normalizedQuery
-    ? matchingEntries.filter((entry) => entry.kind === "action")
-    : COMMAND_ENTRIES.filter((entry) => entry.kind === "action");
+  const actions = tapFirst
+    ? []
+    : normalizedQuery
+      ? matchingEntries.filter((entry) => entry.kind === "action")
+      : COMMAND_ENTRIES.filter((entry) => entry.kind === "action");
 
   const handleProviderSettled = useCallback(
     (settlement: ProgressiveProviderSettlement) => {
@@ -873,6 +882,7 @@ export function UniversalSearchPaletteContent({
         />
         <Dialog.Content
           data-universal-search-material=""
+          data-home-glass={onWorldScene ? "panel" : undefined}
           aria-describedby={undefined}
           onCloseAutoFocus={(event) => {
             // Radix's modal default would focus a Dialog.Trigger we don't
@@ -907,9 +917,9 @@ export function UniversalSearchPaletteContent({
             !visualEffects.backdropBlur
               ? "border-border/80 bg-background shadow-2xl"
               : onWorldScene
-                ? "border-stone-600/20 bg-[rgb(242_239_233_/_0.5)] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.78),inset_0_-1px_0_rgb(255_255_255_/_0.14),0_24px_80px_-24px_rgb(28_25_23_/_0.55)] [backdrop-filter:blur(80px)_saturate(0.42)_brightness(1.5)] dark:border-white/20 dark:bg-[rgb(0_0_0_/_0.32)] dark:shadow-[inset_0_1px_0_rgb(255_255_255_/_0.28),inset_0_-1px_0_rgb(255_255_255_/_0.08),0_24px_80px_-20px_rgb(0_0_0_/_0.88)] dark:[backdrop-filter:blur(80px)_saturate(0.34)_brightness(0.52)]"
+                ? "bg-[rgb(242_239_233_/_0.5)] [backdrop-filter:blur(80px)_saturate(0.42)_brightness(1.5)] dark:bg-[rgb(0_0_0_/_0.32)] dark:[backdrop-filter:blur(80px)_saturate(0.34)_brightness(0.52)]"
                 : "border-border/70 bg-background/85 shadow-2xl [backdrop-filter:blur(24px)_saturate(1.05)] dark:bg-background/80",
-            "motion-safe:duration-150 motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:zoom-in-95",
+            "motion-safe:data-[state=open]:[animation-duration:220ms] motion-safe:data-[state=closed]:[animation-duration:150ms] motion-safe:ease-out motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:slide-in-from-top-2 motion-safe:data-[state=closed]:slide-out-to-top-1",
           )}
         >
           <Dialog.Title className="sr-only">Universal Search</Dialog.Title>
@@ -944,16 +954,31 @@ export function UniversalSearchPaletteContent({
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="Search Chappy's site or type a command"
-                className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+                placeholder={
+                  tapFirst ? "Search..." : "Search or type a command..."
+                }
+                className="h-12 w-full min-w-0 bg-transparent text-[16px] outline-none placeholder:text-muted-foreground"
               />
-              <Keycap width="fit" className="hidden sm:inline-flex">
-                esc
-              </Keycap>
+              {tapFirst ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 rounded-full"
+                  aria-label="Close search"
+                  onClick={() => onOpenChange(false)}
+                >
+                  <XIcon aria-hidden />
+                </Button>
+              ) : (
+                <Keycap width="fit" className="hidden sm:inline-flex">
+                  esc
+                </Keycap>
+              )}
             </div>
             <Command.List
               data-stacks-scrollable=""
-              className="max-h-[min(62vh,32rem)] overflow-y-auto overscroll-contain px-1 py-1"
+              className="max-h-[min(70dvh,40rem,calc(100dvh-7rem))] overflow-y-auto overscroll-contain px-1 py-1 sm:max-h-[min(70dvh,40rem,calc(84dvh-6rem))] min-[1200px]:max-h-[min(74dvh,46rem,calc(84dvh-6rem))]"
             >
               {!normalizedQuery && recents.length > 0 && (
                 <ResultGroup heading="Recent">
@@ -1061,19 +1086,21 @@ export function UniversalSearchPaletteContent({
                   </div>
                 )}
             </Command.List>
-            <div className="flex items-center justify-between border-t border-border/70 px-4 py-1.5 font-serif text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <KeycapSequence
-                  keys={["ArrowUp", "ArrowDown"]}
-                  label="Up and down arrows"
-                />
-                Navigate
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Keycap aria-hidden="true">Enter</Keycap>
-                Open
-              </span>
-            </div>
+            {!tapFirst && (
+              <div className="flex items-center justify-between border-t border-border/70 px-4 py-3 font-serif text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <KeycapSequence
+                    keys={["ArrowUp", "ArrowDown"]}
+                    label="Up and down arrows"
+                  />
+                  Navigate
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <Keycap aria-hidden="true">Enter</Keycap>
+                  Open
+                </span>
+              </div>
+            )}
           </Command>
         </Dialog.Content>
       </Dialog.Portal>

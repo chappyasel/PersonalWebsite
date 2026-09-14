@@ -6,11 +6,15 @@ import {
   useReducedMotion,
   useSpring,
 } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+
+import { useDesktopReducedMotion } from "~/lib/desktopMotionPreference";
 
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
 import {
+  CARD_MAX_TILT_DEG,
+  cardHoverTilt,
   cardInteractionSpring,
   cardPressedScale,
   cardTiltSpring,
@@ -30,7 +34,7 @@ export default function TiltCard({
   children,
   className,
   interactive = false,
-  tiltAmplitude = 4,
+  tiltAmplitude = CARD_MAX_TILT_DEG,
   hoverScale = 1.025,
 }: TiltCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,26 +42,51 @@ export default function TiltCard({
     containerRef,
     className?.includes("intersect:") ?? false,
   );
-  const reduceMotion = useReducedMotion();
+  const systemReduceMotion = useReducedMotion();
+  const desktopReduceMotion = useDesktopReducedMotion();
+  const reduceMotion = Boolean(systemReduceMotion) || desktopReduceMotion;
 
   const rotateX = useSpring(useMotionValue(0), cardTiltSpring);
   const rotateY = useSpring(useMotionValue(0), cardTiltSpring);
   const scale = useSpring(1, cardInteractionSpring);
 
+  useEffect(() => {
+    if (!reduceMotion) return;
+    rotateX.jump(0);
+    rotateY.jump(0);
+  }, [reduceMotion, rotateX, rotateY]);
+
+  useEffect(() => {
+    if (systemReduceMotion) scale.jump(1);
+  }, [systemReduceMotion, scale]);
+
   const supportsHover = () =>
     tiltCardHoverEnabled(
-      Boolean(reduceMotion),
+      Boolean(systemReduceMotion),
       typeof window !== "undefined" &&
         window.matchMedia("(hover: hover) and (pointer: fine)").matches,
     );
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!interactive || !supportsHover() || !containerRef.current) return;
+    if (
+      !interactive ||
+      reduceMotion ||
+      !supportsHover() ||
+      !containerRef.current
+    )
+      return;
     const rect = containerRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width / 2;
     const offsetY = e.clientY - rect.top - rect.height / 2;
-    rotateX.set((offsetY / (rect.height / 2)) * -tiltAmplitude);
-    rotateY.set((offsetX / (rect.width / 2)) * tiltAmplitude);
+    const tilt = cardHoverTilt(
+      offsetX,
+      offsetY,
+      rect.width,
+      rect.height,
+      tiltAmplitude,
+    );
+    rotateX.set(tilt.rotateX);
+    rotateY.set(tilt.rotateY);
   };
 
   const handleMouseEnter = () => {
@@ -72,14 +101,14 @@ export default function TiltCard({
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!interactive || reduceMotion || !e.isPrimary || e.button !== 0) {
+    if (!interactive || systemReduceMotion || !e.isPrimary || e.button !== 0) {
       return;
     }
     scale.set(cardPressedScale);
   };
 
   const settleAfterPress = () => {
-    if (!interactive || reduceMotion) return;
+    if (!interactive || systemReduceMotion) return;
     const stillHovered =
       supportsHover() && containerRef.current?.matches(":hover");
     scale.set(stillHovered ? hoverScale : 1);
@@ -94,9 +123,10 @@ export default function TiltCard({
       // well. useReducedMotion resolves differently on the server and client;
       // branching the authored attributes on it caused every flat-page card
       // to report a hydration mismatch. The event handlers above are the
-      // motion gate, so the values remain exactly 0/0/1 when motion is reduced.
+      // motion gate, so values stay 0/0/1 for the system's reduced-motion
+      // preference. The site's gentler mode keeps hover/press scaling.
       className={cn(
-        "homepage-card-container [perspective:800px]",
+        "homepage-card-container",
         interactive && "cursor-pointer",
         className,
       )}
@@ -111,6 +141,9 @@ export default function TiltCard({
         data-tilt-motion=""
         className="[transform-style:preserve-3d]"
         style={{
+          // Project the whole card as one surface. Sidebar glass deliberately
+          // flattens descendants, so parent CSS perspective is unavailable.
+          transformPerspective: 800,
           rotateX,
           rotateY,
           scale,

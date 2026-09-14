@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
+import UnitRail from "../dom/UnitRail";
+import { useStacks } from "../store";
 import { cleanup, render } from "@testing-library/react";
+import Link from "next/link";
+import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { RoomChrome } from "./RoomChrome";
@@ -10,15 +14,26 @@ vi.mock("~/components/ui/theme-toggle", () => ({
 vi.mock("../dom/ChromeLayer", () => ({
   default: () => (
     <div>
-      <button>Field Notes</button>
-      <button>Mute</button>
-      <button>Scene Diagnostics</button>
       <button>Open keyboard shortcuts</button>
+      <button>Field Notes</button>
+      <button>Search the site</button>
+      <button>Scene Diagnostics</button>
+    </div>
+  ),
+  ChromeSceneControls: () => (
+    <div>
       <button>Change theme</button>
+      <button>Mute</button>
     </div>
   ),
 }));
-afterEach(cleanup);
+vi.mock("../input/RoomNavigation", () => ({
+  useRoomNavigation: () => () => true,
+}));
+afterEach(() => {
+  cleanup();
+  useStacks.setState(useStacks.getInitialState());
+});
 
 it("keeps theme selection while holding scene controls until actual live presentation", () => {
   const view = render(<RoomChrome illustrated live={false} />);
@@ -69,4 +84,63 @@ it("keeps help and diagnostics available after deliberately choosing 2D", () => 
     view.getByRole("button", { name: "Scene Diagnostics" }),
   ).not.toBeNull();
   expect(view.queryByText("Chappy Asel")).toBeNull();
+});
+
+it("tabs from the header through the desktop rail, utilities, and content, in both directions", async () => {
+  const user = userEvent.setup();
+  const view = render(
+    <>
+      <style>{`.stacks-unit-rail-mobile { display: none; }`}</style>
+      <RoomChrome illustrated live>
+        <UnitRail />
+      </RoomChrome>
+      <Link href="/books">Read more</Link>
+    </>,
+  );
+  const labels = [
+    "Open keyboard shortcuts",
+    "Field Notes",
+    "Search the site",
+    "Scene Diagnostics",
+    "About",
+    "Book Notes",
+    "Weightlifting",
+    "Systems",
+    "Projects",
+    "Musings",
+    "Talks",
+    "Change theme",
+    "Mute",
+    "Read more",
+  ];
+  const controls = labels.map((name) =>
+    view.getByRole(name === "Read more" ? "link" : "button", { name }),
+  );
+  for (const control of controls) {
+    await user.tab();
+    expect(document.activeElement).toBe(control);
+  }
+  for (const control of controls.slice(0, -1).reverse()) {
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(control);
+  }
+});
+
+it("keeps the rail mounted and focus intact when scene controls become available", () => {
+  const view = render(
+    <RoomChrome illustrated live={false}>
+      <UnitRail />
+    </RoomChrome>,
+  );
+  const rail = view.container.querySelector(".stacks-unit-rail-desktop")!;
+  const about = rail.querySelector("button")!;
+  about.focus();
+  expect(rail.closest("[inert]")).toBeNull();
+  view.rerender(
+    <RoomChrome illustrated live>
+      <UnitRail />
+    </RoomChrome>,
+  );
+  expect(view.container.querySelector(".stacks-unit-rail-desktop")).toBe(rail);
+  expect(document.activeElement).toBe(about);
 });

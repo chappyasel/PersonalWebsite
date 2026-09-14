@@ -31,8 +31,9 @@ test("keeps the mobile sheet highly transparent in both themes", async ({
         alpha: hasAlpha ? Number(channels.at(-1)) : 1,
         backgroundColor: style.backgroundColor,
         backdropFilter: style.backdropFilter,
-        borderColor: style.borderTopColor,
+        borderWidth: style.borderTopWidth,
         boxShadow: style.boxShadow,
+        edgeShadow: getComputedStyle(element, "::before").boxShadow,
       };
     });
 
@@ -45,8 +46,8 @@ test("keeps the mobile sheet highly transparent in both themes", async ({
     expect(material.backdropFilter).toContain(
       theme === "light" ? "brightness(1.18)" : "brightness(0.94)",
     );
-    expect(material.borderColor).not.toBe("rgba(0, 0, 0, 0)");
-    expect(material.boxShadow).toContain("inset");
+    expect(material.borderWidth).toBe("0px");
+    expect(material.edgeShadow).toContain("inset");
     expect(material.boxShadow).not.toBe("none");
 
     const headingColors = await page
@@ -80,14 +81,16 @@ test("keeps the mobile sheet highly transparent in both themes", async ({
       return {
         backgroundColor: style.backgroundColor,
         backdropFilter: style.backdropFilter,
-        borderColor: style.borderTopColor,
+        borderWidth: style.borderTopWidth,
         boxShadow: style.boxShadow,
+        edgeShadow: getComputedStyle(element, "::before").boxShadow,
       };
     });
     expect(chipMaterial.backgroundColor).toBe(material.backgroundColor);
     expect(chipMaterial.backdropFilter).toBe(material.backdropFilter);
-    expect(chipMaterial.borderColor).toBe(material.borderColor);
-    expect(chipMaterial.boxShadow).toContain("inset");
+    expect(chipMaterial.borderWidth).toBe("0px");
+    expect(chipMaterial.edgeShadow).toContain("inset");
+    expect(chipMaterial.boxShadow).not.toBe("none");
     await context.close();
   }
 });

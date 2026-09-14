@@ -113,6 +113,7 @@ export function ImageViewerChrome({
         onClick={onClose}
         aria-label={title ? `Close ${title} preview` : "Close image preview"}
         data-artifact-preview-control="close"
+        data-home-glass="control"
         className={`pointer-events-auto absolute right-[max(14px,env(safe-area-inset-right))] top-[max(14px,env(safe-area-inset-top))] grid size-11 place-items-center rounded-full p-0 sm:size-10 ${glassControl}`}
       >
         <XIcon aria-hidden size={21} weight="bold" />
@@ -179,6 +180,7 @@ export function ImageViewerChrome({
                 return (
                   <a
                     key={`${action.href}:${action.label}`}
+                    data-home-glass="control"
                     href={action.href}
                     target={action.external ? "_blank" : undefined}
                     rel={action.external ? "noreferrer" : undefined}
@@ -197,6 +199,7 @@ export function ImageViewerChrome({
           {total > 1 && (
             <div
               data-artifact-preview-control="navigation"
+              data-home-glass="control"
               className={`pointer-events-auto order-2 flex self-center rounded-full ${glassControl}`}
             >
               <Button

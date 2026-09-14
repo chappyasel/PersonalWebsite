@@ -230,61 +230,62 @@ function FeaturedRecords({ data }: { data: WeightliftingPlacardData }) {
       </PlacardCardHeading>
       <div className="-mb-2 divide-y divide-foreground/10">
         {data.records.map((record) => (
-          <SheetLink
-            key={record.key}
-            href={`/weightlifting/${exerciseSlug(record.exerciseName)}`}
-            className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-3.5 transition-colors duration-200 last:pb-2 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              <span
-                className="size-2.5 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: record.category
-                    ? categoryColor(record.category)
-                    : "hsl(var(--foreground))",
-                }}
-              />
-              <div className="min-w-0">
+          <div key={record.key} className="group/record">
+            <SheetLink
+              href={`/weightlifting/${exerciseSlug(record.exerciseName)}`}
+              className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-2 py-3.5 transition-colors duration-200 group-last/record:pb-2 hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor: record.category
+                      ? categoryColor(record.category)
+                      : "hsl(var(--foreground))",
+                  }}
+                />
+                <div className="min-w-0">
+                  <strong
+                    data-featured-record-text=""
+                    className="block font-serif homepage-card-body font-semibold text-foreground"
+                  >
+                    {record.exerciseName}
+                  </strong>
+                  <span className="block truncate homepage-card-meta text-muted-foreground">
+                    {record.achievedDate ? (
+                      <time dateTime={record.achievedDate}>
+                        {new Date(
+                          `${record.achievedDate}T00:00:00Z`,
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        })}
+                      </time>
+                    ) : (
+                      "No record yet"
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right tabular-nums">
                 <strong
                   data-featured-record-text=""
-                  className="block font-serif homepage-card-body font-semibold text-foreground"
+                  className="block homepage-card-body font-semibold text-foreground"
                 >
-                  {record.exerciseName}
+                  {record.bestOneRM === null
+                    ? "—"
+                    : `${Math.round(record.bestOneRM)} lbs`}
                 </strong>
-                <span className="block truncate homepage-card-meta text-muted-foreground">
-                  {record.achievedDate ? (
-                    <time dateTime={record.achievedDate}>
-                      {new Date(
-                        `${record.achievedDate}T00:00:00Z`,
-                      ).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        timeZone: "UTC",
-                      })}
-                    </time>
-                  ) : (
-                    "No record yet"
-                  )}
-                </span>
+                {record.reps !== null && record.weight !== null ? (
+                  <span className="block homepage-card-meta text-muted-foreground">
+                    {record.reps} × {record.weight}
+                  </span>
+                ) : null}
               </div>
-            </div>
-            <div className="text-right tabular-nums">
-              <strong
-                data-featured-record-text=""
-                className="block homepage-card-body font-semibold text-foreground"
-              >
-                {record.bestOneRM === null
-                  ? "—"
-                  : `${Math.round(record.bestOneRM)} lbs`}
-              </strong>
-              {record.reps !== null && record.weight !== null ? (
-                <span className="block homepage-card-meta text-muted-foreground">
-                  {record.reps} × {record.weight}
-                </span>
-              ) : null}
-            </div>
-          </SheetLink>
+            </SheetLink>
+          </div>
         ))}
       </div>
     </div>

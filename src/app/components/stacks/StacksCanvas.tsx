@@ -30,6 +30,7 @@ import {
 import type * as THREE from "three";
 
 import { recordModalOriginAtPointer } from "~/lib/originFlight";
+import { useUniversalSearchOpen } from "~/lib/universal-search/useUniversalSearchOpen";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
@@ -1692,14 +1693,16 @@ export default function StacksCanvas({
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
   const performanceSettings = useScenePerformanceSettings();
-  // Book inspection freezes the room. Photo inspection leaves it alive
-  // behind the same translucent treatment as Field Notes.
+  // Search and book inspection freeze the room. Photo inspection leaves it
+  // alive behind the same translucent treatment as Field Notes.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const searchOpen = useUniversalSearchOpen();
   const visionRidePhase = useStacks((s) => s.visionRidePhase);
   const roomMounted = visionRideRoomMounted(visionRidePhase);
   const artifactHandoff = useStacks((s) => s.modelArtifactHandoff);
-  const freezeRoom = !roomActive || (modalOpen && artifactHandoff === null);
+  const freezeRoom =
+    !roomActive || searchOpen || (modalOpen && artifactHandoff === null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   // Two things `onCreated` leaves running after it returns: the pair of queued
   // frames that report the first paint, and the context-loss listener. Both
@@ -2614,8 +2617,8 @@ export default function StacksCanvas({
       <Canvas
         events={pointerEvents}
         shadows="soft"
-        // Books freeze immediately. Models freeze after the real shelf object
-        // reaches the camera. Photos keep the room alive throughout.
+        // Search and books freeze immediately. Models freeze after the real
+        // shelf object reaches the camera. Photos keep the room alive throughout.
         frameloop={freezeRoom ? "never" : "always"}
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={dpr}

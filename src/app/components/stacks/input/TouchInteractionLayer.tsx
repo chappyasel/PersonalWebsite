@@ -8,6 +8,7 @@ import {
   reduceTouchGesture,
 } from "../mobile/gesture";
 import { expandAndClipTouchHalo, resolveTouchHalo } from "../mobile/halos";
+import { listenForLeftEdgeSearch } from "../mobile/leftEdgeSearch";
 import { haptic } from "../mobile/liveness";
 import {
   touchSwipeDestination,
@@ -28,6 +29,10 @@ import { isSeated, leaveSeat } from "../scene/seated";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { progressRef, touchWorldRef, useStacks } from "../store";
 import { useEffect, useRef } from "react";
+
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+
+import { openUniversalSearch } from "~/components/universal-search/UniversalSearchController";
 
 function activeSheetTop() {
   const sheet = document.querySelector<HTMLElement>(
@@ -407,6 +412,39 @@ export default function TouchInteractionLayer() {
         .filter((bounds) => bounds !== null);
       return resolveTouchHalo(x, y, bounds);
     };
+    const canSearchFromEdge = () => {
+      const state = useStacks.getState();
+      const element = state.scrollEl;
+      return Boolean(
+        element &&
+          state.activeUnit === 0 &&
+          !state.dragging &&
+          !state.modalOpen &&
+          state.panelState === "closed" &&
+          state.visionRidePhase === "idle" &&
+          !isSeated() &&
+          !isUniversalSearchOpen() &&
+          element.scrollLeft <=
+            scrollOffsetForUnit(0) *
+              Math.max(1, element.scrollWidth - element.clientWidth) +
+              2,
+      );
+    };
+    const stopEdgeSearch = listenForLeftEdgeSearch({
+      target: window,
+      viewportWidth: () => window.innerWidth,
+      canStart: (touch, target) =>
+        canSearchFromEdge() &&
+        backgroundGesture.current?.mode === "pending" &&
+        exposedWorldContact(target, touch.clientY) &&
+        !touchHitAt(touch.clientX, touch.clientY),
+      canFinish: canSearchFromEdge,
+      openSearch: () => {
+        stopInertia("cleanup");
+        haptic(12);
+        openUniversalSearch();
+      },
+    });
     const publishWake = (event: PointerEvent) => {
       touchWorldRef.pointerX =
         (event.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
@@ -681,6 +719,7 @@ export default function TouchInteractionLayer() {
         state.setFocusedInteraction(null);
     });
     return () => {
+      stopEdgeSearch();
       clearPickup();
       finishDepthGesture();
       finishWorldPinch();

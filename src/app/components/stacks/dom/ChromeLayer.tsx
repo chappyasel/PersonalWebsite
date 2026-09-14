@@ -29,7 +29,9 @@ import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ChromeKeyboard from "./ChromeKeyboard";
 import ChromeKeyboardHelp from "./ChromeKeyboardHelp";
+import { useSceneControlTooltipAlign } from "./useSceneControlTooltipAlign";
 import GlobeChapterLabel from "./GlobeChapterLabel";
+import { MotionToggle } from "./MotionToggle";
 import PortalLabel from "./PortalLabel";
 import PropCaption from "./PropCaption";
 import { createFreeRoamChromeVisibility } from "./chromeKeys";
@@ -269,23 +271,6 @@ export default function ChromeLayer() {
         .stacks-wordmark {
           left: max(1.25rem, env(safe-area-inset-left, 0px));
         }
-        .stacks-wordmark-shortcuts {
-          opacity: 0;
-          transform: translateY(-3px);
-          transition:
-            opacity 180ms var(--stacks-ease),
-            transform 180ms var(--stacks-ease);
-        }
-        .stacks-world-shell[data-load-path="cold"][data-revealed]
-          .stacks-wordmark-shortcuts {
-          animation: stacks-wordmark-shortcuts-intro 4.2s var(--stacks-ease) 1.1s both;
-        }
-        .stacks-wordmark:hover .stacks-wordmark-shortcuts,
-        .stacks-wordmark:focus-within .stacks-wordmark-shortcuts {
-          animation: none;
-          opacity: 1;
-          transform: translateY(0);
-        }
         .stacks-theme-toggle {
           right: max(1rem, env(safe-area-inset-right, 0px));
         }
@@ -345,13 +330,16 @@ export default function ChromeLayer() {
           .stacks-unit-rail-desktop .stacks-on-background-mark {
             box-shadow: 0 1px 2px rgb(0 0 0 / 0.28) !important;
           }
+          .stacks-unit-rail-desktop {
+            left: var(--stacks-desktop-rail-left);
+          }
           .stacks-wordmark {
-            left: max(1.75rem, env(safe-area-inset-left, 0px));
+            left: var(--stacks-desktop-content-left);
             top: max(1.25rem, env(safe-area-inset-top, 0px));
           }
           .stacks-theme-toggle {
             bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
-            left: max(2rem, env(safe-area-inset-left, 0px));
+            left: calc(var(--stacks-desktop-content-left) + 11px - 1.25rem);
             right: auto;
             top: auto;
           }
@@ -402,10 +390,6 @@ export default function ChromeLayer() {
           from { opacity: 0; filter: blur(14px); transform: translateY(12px); }
           to { opacity: 1; filter: blur(0); transform: translateY(0); }
         }
-        @keyframes stacks-wordmark-shortcuts-intro {
-          0%, 100% { opacity: 0; transform: translateY(-3px); }
-          14%, 72% { opacity: 1; transform: translateY(0); }
-        }
         @media (prefers-reduced-motion: reduce) {
           .stacks-reveal,
           .stacks-world-shell[data-revealed] .stacks-reveal {
@@ -414,10 +398,7 @@ export default function ChromeLayer() {
             filter: none;
             transform: none;
           }
-          .stacks-world-shell[data-load-path="cold"][data-revealed]
-            .stacks-wordmark-shortcuts {
-            animation: none;
-          }
+
         }
       `}</style>
       {/* Composer-off fallback vignette. Black in BOTH themes (round 3: the
@@ -430,11 +411,11 @@ export default function ChromeLayer() {
         className="stacks-wordmark pointer-events-auto absolute z-20"
         data-tap-first={tapFirst || undefined}
       >
-        <div className="flex items-start gap-2.5">
-          <ChromeReveal index={0}>
+        <div className="flex items-start gap-[18px]">
+          <ChromeReveal index={0} className="stacks-hud-drift">
             <ChromeKeyboardHelp
               open={keyboardOpen}
-              onOpen={() => setKeyboardOpen(true)}
+              onOpenChange={setKeyboardOpen}
               tapFirst={tapFirst}
               fieldNotes={<FieldNotesChrome />}
             />
@@ -442,47 +423,31 @@ export default function ChromeLayer() {
           <SceneDiagnosticsLoader />
         </div>
       </div>
-      {/* Theme toggle — fixed chrome, not buried in the About placard (audit
-          §1.6). z-30 clears the placard dock (z-20); the mobile panel (z-40)
-          still covers it while open. No island: over a rendered scene a
-          floating panel is one more thing to look at, so the control is just
-          the glyph until you reach for it (owner call at browse) — the round
-          hover/press wash is the whole affordance.
-
-          MOBILE: the wordmark and these 40px controls share one top-strip
-          start and height, so their visual centers cannot drift apart. The
-          name owns the left and the controls own the right. Nothing else may
-          be placed there. The unit row takes its own centred row below 56px
-          (see UnitRail).
-
-          DESKTOP: bottom-left, because top-right is the placard's. The dock
-          runs `inset-y-0 right-5` and is 27–31rem wide, so a control in that
-          corner is a glyph sitting on the reading column — the owner's "it
-          intersects with the content". The bottom of the left gutter is the
-          one edge with nothing in it: the rail is vertically centred (7 rows
-          of 40px = 280px, so it ends 140px above the middle) and the bottom
-          fade is pointer-events-none.
-
-          left-6 / lg:left-8 rather than the rail's own left-5 / lg:left-7 is
-          optical, not sloppy: this is a 40px box around a 16px glyph, so its
-          centre is 20px in, while the rail's icons start after a 16px thumb
-          lane and centre 24px in from the nav's edge. Adding 4px to the box
-          puts the two centres on the same vertical line (44px at md, 52px at
-          lg), which is what "aligned" means here.
-
-          In DEV ONLY there is also a round "N" Next.js dev-tools button in
-          this corner, at roughly 25–55px x, 846–876px y on a 900px window. It
-          is not ours, it does not ship, and nothing here is laid out around
-          it — but it does sit on top of this glyph in a dev screenshot. */}
-      <div
-        className="stacks-theme-toggle pointer-events-auto absolute z-30"
-        data-tap-first={tapFirst || undefined}
-      >
-        <ChromeReveal index={2} className="stacks-scene-controls">
-          <ThemeToggle className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
-          <SoundToggle className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
-        </ChromeReveal>
-      </div>
     </>
+  );
+}
+
+/** Bottom-left desktop controls follow the section rail in document order. */
+export function ChromeSceneControls() {
+  const tapFirst = useTapFirstCapability();
+  const tooltipAlign = useSceneControlTooltipAlign();
+  return (
+    <div
+      className="stacks-theme-toggle pointer-events-auto absolute z-30"
+      data-tap-first={tapFirst || undefined}
+    >
+      <ChromeReveal
+        index={2}
+        className="stacks-scene-controls stacks-hud-drift"
+      >
+        <ThemeToggle tooltipAlign={tooltipAlign}
+          className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]"
+        />
+        <SoundToggle tooltipAlign={tooltipAlign}
+          className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]"
+        />
+        <MotionToggle />
+      </ChromeReveal>
+    </div>
   );
 }

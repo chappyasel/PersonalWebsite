@@ -926,12 +926,13 @@ export default function StacksHome({
                   />
                 )}
               <div className="stacks-og-ui contents">
-                <UnitRail />
                 <RoomChrome
                   illustrated={illustratedEnabled}
                   live={presentation === "live"}
                   keepControls={boot.interactionHeld}
-                />
+                >
+                  <UnitRail />
+                </RoomChrome>
                 <Profiler id="placard" onRender={recordPerformanceCommit}>
                   <PlacardLayer
                     data={data}

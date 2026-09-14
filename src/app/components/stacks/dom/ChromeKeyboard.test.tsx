@@ -1,83 +1,38 @@
 // @vitest-environment jsdom
-import { scenePerformanceController } from "../scene/scenePerformance";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ChromeKeyboard from "./ChromeKeyboard";
-
-vi.mock("framer-motion", () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-  motion: {
-    div: ({
-      children,
-      initial,
-      animate,
-      exit,
-      transition: _transition,
-      ...props
-    }: React.ComponentPropsWithoutRef<"div"> & {
-      initial?: unknown;
-      animate?: unknown;
-      exit?: unknown;
-      transition?: unknown;
-    }) => (
-      <div
-        data-motion-initial={JSON.stringify(initial)}
-        data-motion-animate={JSON.stringify(animate)}
-        data-motion-exit={JSON.stringify(exit)}
-        {...props}
-      >
-        {children}
-      </div>
-    ),
-  },
-  useReducedMotion: () => false,
-}));
-
-vi.mock("~/lib/useTapFirstCapability", () => ({
-  useTapFirstCapability: () => false,
-}));
+import { chromeHidden, setChromeHidden } from "./chromeKeys";
 
 afterEach(() => {
   cleanup();
-  scenePerformanceController.reset();
+  setChromeHidden(false);
 });
 
 describe("ChromeKeyboard", () => {
-  it("keeps the backdrop-filter surface outside the scene chrome compositor", () => {
+  it("opens shortcut help with ? without mounting an overlay", () => {
+    const onOpenChange = vi.fn();
     const { container } = render(
-      <div data-test-scene-chrome style={{ filter: "blur(0px)" }}>
-        <ChromeKeyboard open onOpenChange={vi.fn()} />
-      </div>,
+      <ChromeKeyboard open={false} onOpenChange={onOpenChange} />,
     );
-
-    const dialog = screen.getByRole("dialog", { name: "Keyboard shortcuts" });
-
-    expect(container.querySelector("[role=dialog]")).toBeNull();
-    expect(dialog.closest("[data-test-scene-chrome]")).toBeNull();
-    expect(document.body.contains(dialog)).toBe(true);
-    expect(dialog.getAttribute("data-motion-initial")).toContain('"opacity":0');
-    expect(dialog.getAttribute("data-motion-animate")).toContain('"opacity":1');
-    expect(dialog.getAttribute("data-motion-exit")).toContain('"opacity":0');
-    expect(
-      dialog
-        .closest("[data-stacks-glass-mode]")
-        ?.getAttribute("data-stacks-glass-mode"),
-    ).toBe("native");
+    fireEvent.keyDown(window, { key: "?" });
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+    expect(container.childElementCount).toBe(0);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("follows the live placard-material diagnostic", () => {
-    render(<ChromeKeyboard open onOpenChange={vi.fn()} />);
-
-    act(() => {
-      scenePerformanceController.update({ placardGlassMode: "paper" });
-    });
-
-    expect(
-      screen
-        .getByRole("dialog", { name: "Keyboard shortcuts" })
-        .closest("[data-stacks-glass-mode]")
-        ?.getAttribute("data-stacks-glass-mode"),
-    ).toBe("paper");
+  it("dismisses help with Escape and retains the hide/show shortcuts", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <ChromeKeyboard open onOpenChange={onOpenChange} />,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    rerender(<ChromeKeyboard open={false} onOpenChange={onOpenChange} />);
+    fireEvent.keyDown(window, { key: "h" });
+    expect(chromeHidden()).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(chromeHidden()).toBe(false);
   });
 });

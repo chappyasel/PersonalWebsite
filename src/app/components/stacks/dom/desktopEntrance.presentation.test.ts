@@ -14,6 +14,25 @@ const placardSource = readFileSync(
   "utf8",
 );
 
+describe("desktop quotes transitions", () => {
+  const rules = [...placardSource.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+
+  it.each([
+    ["section swaps", "opacity: var(--stacks-panel-opacity);"],
+    ["first entrance", "animation: stacks-desktop-placard-card-in 480ms"],
+    ["warm entrance", "animation-duration: 320ms;"],
+    ["reduced-motion swaps", "transition: none !important;"],
+    ["reduced-motion entrance", "opacity: var(--stacks-panel-opacity) !important;"],
+  ])("includes the quotes in %s", (_name, declaration) => {
+    const matchingRules = rules.filter(([, , body]) => body!.includes(declaration));
+    expect(
+      matchingRules.some(([, selector]) =>
+        /\[data-stacks-desktop-panel\][^,{}]*\.stacks-quotes/.test(selector!),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("desktop first-load entrance", () => {
   it("establishes the name before the navigation and utility controls", () => {
     expect(chromeSource).toContain('"--stacks-reveal-delay"');

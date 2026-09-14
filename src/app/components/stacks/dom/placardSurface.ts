@@ -18,15 +18,13 @@
 export const PLACARD_PAPER_SURFACE_CSS = `
         [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
         [data-stacks-glass-mode="paper"] .stacks-sheet,
-        [data-stacks-glass-mode="paper"] .stacks-chip,
-        [data-stacks-glass-mode="paper"] .stacks-keyboard-sheet {
+        [data-stacks-glass-mode="paper"] .stacks-chip {
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
         }
         [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
         [data-stacks-glass-mode="paper"] .stacks-sheet,
-        [data-stacks-glass-mode="paper"] .stacks-chip,
-        [data-stacks-glass-mode="paper"] .stacks-keyboard-sheet {
+        [data-stacks-glass-mode="paper"] .stacks-chip {
           --sheet-fill: rgb(244 241 233);
           background-color: var(--sheet-fill) !important;
           background-image:
@@ -36,8 +34,7 @@ export const PLACARD_PAPER_SURFACE_CSS = `
         }
         .dark [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
         .dark [data-stacks-glass-mode="paper"] .stacks-sheet,
-        .dark [data-stacks-glass-mode="paper"] .stacks-chip,
-        .dark [data-stacks-glass-mode="paper"] .stacks-keyboard-sheet {
+        .dark [data-stacks-glass-mode="paper"] .stacks-chip {
           --sheet-fill: rgb(35 33 30);
           background-image:
             linear-gradient(180deg, rgb(255 255 255 / 0.055), transparent 22%),

@@ -27,6 +27,7 @@ import {
   GOLF_SUSPENSE_CONSOLE_DEFAULT,
   golfSuspenseConsoleController,
 } from "./golfSuspenseConsole";
+import { hudCameraDriftController } from "./hudCameraDriftControl";
 import { insectDiagnosticsController } from "./insectPerchDiagnostic";
 import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnostics";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
@@ -1131,6 +1132,50 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     read: () => selectionCameraPitchController.getSnapshot().enabled,
     update: (value) =>
       selectionCameraPitchController.setEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "camera.hud-drift",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "HUD travel drift",
+    help: "Shift the full desktop HUD against sideways travel between sections, with a gentle speed curve up to 20px, then ease back to centre. Mouse look does not move it. Disabled for reduced motion.",
+    defaultValue: true,
+    experimental: false,
+    store: hudCameraDriftController,
+    read: () => hudCameraDriftController.getSnapshot().enabled,
+    update: (value) => hudCameraDriftController.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "One frame callback updates the HUD translation when it changes.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "camera.hud-mouse-drift",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "HUD mouse drift",
+    help: "Move the desktop HUD gently against the mouse, up to 12px horizontally and vertically. Fades during section travel. Disabled for reduced motion; reload restores the enabled default.",
+    defaultValue: true,
+    experimental: false,
+    store: hudCameraDriftController,
+    read: () => hudCameraDriftController.getSnapshot().mouseEnabled,
+    update: (value) => hudCameraDriftController.setMouseEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Shares the travel frame callback and writes one combined offset to cached HUD elements.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
   }),
   booleanDescriptor({
     id: "camera.free-roam",

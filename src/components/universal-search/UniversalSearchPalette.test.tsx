@@ -13,6 +13,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { recordRecentResult } from "~/lib/universal-search/recents";
 import type { SearchResult } from "~/lib/universal-search/types";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
+import { TAP_FIRST_POINTER_QUERY } from "~/lib/useTapFirstCapability";
 
 import {
   UniversalSearchPaletteContent,
@@ -61,6 +62,46 @@ function dependencies(
 }
 
 describe("UniversalSearchPalette", () => {
+  it("shows touch search without keyboard hints or command actions", async () => {
+    const matchMedia = window.matchMedia;
+    window.matchMedia = vi.fn((query: string) => ({
+      matches: query === TAP_FIRST_POINTER_QUERY,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }));
+    try {
+      const onOpenChange = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={onOpenChange}
+          dependencies={dependencies()}
+        />,
+      );
+      const input = screen.getByRole("combobox", { name: "Universal Search" });
+      expect(input.getAttribute("placeholder")).toBe("Search...");
+      expect(screen.queryByText("Actions")).toBeNull();
+      expect(screen.queryByText("Navigate")).toBeNull();
+      expect(document.querySelector("kbd")).toBeNull();
+      expect(screen.getByRole("option", { name: "Home" })).toBeTruthy();
+      await user.type(input, "Set theme to Dark");
+      expect(
+        screen.queryByRole("option", { name: "Set theme to Dark" }),
+      ).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Close search" }));
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    } finally {
+      cleanup();
+      window.matchMedia = matchMedia;
+    }
+  });
+
   it("autofocuses a native input and accepts ordinary typing", async () => {
     const user = userEvent.setup();
     render(
@@ -82,6 +123,7 @@ describe("UniversalSearchPalette", () => {
     // plain frosted, not the scene's heavy placard glass.
     expect(dialog.className).toContain("blur(24px)");
     expect(dialog.className).not.toContain("blur(80px)");
+    expect(dialog.hasAttribute("data-home-glass")).toBe(false);
     // Closing must animate out, not vanish: Radix waits for the
     // data-state=closed animation before unmounting.
     expect(dialog.className).toContain("data-[state=closed]:animate-out");
@@ -177,6 +219,8 @@ describe("UniversalSearchPalette", () => {
       const dialog = screen.getByRole("dialog", { name: "Universal Search" });
       const overlay = document.querySelector("[data-universal-search-overlay]");
       expect(dialog.className).toContain("blur(80px)");
+      expect(dialog.getAttribute("data-home-glass")).toBe("panel");
+      expect(dialog.className).not.toContain("inset_0_");
       expect(overlay?.className).toContain("backdrop-blur-[10px]");
     } finally {
       document.documentElement.removeAttribute("data-world");
@@ -388,9 +432,7 @@ describe("UniversalSearchPalette", () => {
       "The seven layers of personal systems I use to run my life",
     );
     expect(
-      first
-        ?.querySelector("img[data-search-page-tile]")
-        ?.getAttribute("src"),
+      first?.querySelector("img[data-search-page-tile]")?.getAttribute("src"),
     ).toBe("https://www.chappyasel.com/systems/tab-icon");
     // The homepage section that only mentions it comes after, undressed.
     expect(second?.textContent).toBe("Personal Systems section");
@@ -412,9 +454,7 @@ describe("UniversalSearchPalette", () => {
 
     const tiles = screen
       .getAllByRole("option")
-      .map((option) =>
-        option.querySelector("img[data-search-page-tile]"),
-      )
+      .map((option) => option.querySelector("img[data-search-page-tile]"))
       .filter((tile) => tile !== null);
     // The route lives on the section's own host: the subdomain proxy only
     // knows the bare path there.
@@ -475,7 +515,9 @@ describe("UniversalSearchPalette", () => {
       expect(screen.getAllByRole("option", { name: /^Book \d$/ })).toHaveLength(
         10,
       );
-      expect(screen.queryByRole("option", { name: /^Show \d+ more$/ })).toBeNull();
+      expect(
+        screen.queryByRole("option", { name: /^Show \d+ more$/ }),
+      ).toBeNull();
       // The highlight lands on the first revealed row, not back at the top,
       // and the arrows carry on through the revealed rows.
       expect(selected()).toBe("Book 6");

@@ -10,6 +10,7 @@ import {
   unitUrl,
 } from "../data";
 import SceneHandoff from "../illustration/SceneHandoff";
+import ScenePointerTracking from "../input/ScenePointerTracking";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -28,6 +29,7 @@ import type * as THREE from "three";
 import ArrivalBeats from "./ArrivalBeats";
 import CameraRig from "./CameraRig";
 import GroundPool, { FootPool } from "./GroundPool";
+import HudCameraDrift from "./HudCameraDrift";
 import InsectPerchDiagnostics from "./InsectPerchDiagnostics";
 import ModelProp, { preloadModels } from "./ModelProp";
 import PhysicsDiagnosticsOverlay from "./PhysicsDiagnosticsOverlay";
@@ -464,6 +466,8 @@ function Scene({
           environment and interactive content must read the camera after it
           has moved for this frame. */}
       <CameraRig />
+      <ScenePointerTracking />
+      <HudCameraDrift />
       <SceneUnitActivityDriver />
       <ArrivalBeats />
       <PhysicsSceneProvider>

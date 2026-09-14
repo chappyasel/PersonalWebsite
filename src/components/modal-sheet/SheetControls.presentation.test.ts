@@ -27,11 +27,13 @@ describe("sheet control presentation", () => {
 
   it("shares the homepage edge treatment with the artifact controls", () => {
     expect(globals).toContain(
-      ".world-glass-control,\nhtml[data-world] .sheet-control",
+      'html[data-world] [data-home-glass]::before',
     );
-    expect(inspector).toContain("world-glass-control border");
-    expect(globals).toContain("inset 0 1px 0 var(--world-control-edge-top)");
-    expect(globals).not.toContain(".world-glass-control::before");
+    expect(controls).toContain('data-home-glass="control"');
+    expect(inspector).toContain('data-home-glass="control"');
+    expect(rule('html.dark[data-world] [data-home-glass="control"]')).toContain(
+      "box-shadow: var(--placard-media-shadow)",
+    );
     expect(rule(".sheet-control")).not.toContain("inset");
   });
 });

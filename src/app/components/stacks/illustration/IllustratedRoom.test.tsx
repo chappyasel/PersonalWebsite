@@ -217,6 +217,40 @@ it("keeps a failed drawing unregistered and offers explicit retry without owning
   expect(view.queryByRole("dialog")).toBeNull();
 });
 
+it("dismisses the recovery notice through browsing and offers it again after a new attempt", async () => {
+  const props = {
+    data,
+    theme: "light" as const,
+    viewport: "phone" as const,
+    visible: true,
+    canRequest3D: true,
+    onRequest3D: vi.fn(),
+    onReady: vi.fn(),
+    onUnavailable: vi.fn(),
+  };
+  const view = render(<IllustratedRoom {...props} />);
+  await act(async () => Promise.resolve());
+  expect(view.getByRole("alert").textContent).toContain("3D view unavailable");
+  act(() => view.getByRole("button", { name: "Dismiss 3D notice" }).click());
+  expect(view.queryByRole("alert")).toBeNull();
+  expect(view.queryByRole("button", { name: "Retry 3D" })).toBeNull();
+  expect(props.onRequest3D).not.toHaveBeenCalled();
+  expect(view.container.querySelector("img[data-room-artwork]")).not.toBeNull();
+
+  act(() => useStacks.setState({ activeUnit: 4 }));
+  view.rerender(<IllustratedRoom {...props} theme="dark" />);
+  await act(async () => Promise.resolve());
+  expect(view.queryByRole("alert")).toBeNull();
+  expect(view.container.querySelector("img[data-room-artwork]")).not.toBeNull();
+
+  view.rerender(<IllustratedRoom {...props} loading canRequest3D={false} />);
+  await act(async () => Promise.resolve());
+  view.rerender(<IllustratedRoom {...props} />);
+  expect(view.getByRole("alert")).toBeTruthy();
+  act(() => view.getByRole("button", { name: "Retry 3D" }).click());
+  expect(props.onRequest3D).toHaveBeenCalledOnce();
+});
+
 it.each(["/golf", "/#golf"])(
   "shows the abstract marker only for an initial %s URL",
   (url) => {

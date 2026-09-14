@@ -18,11 +18,11 @@ import {
   isSceneTraveling,
   useScenePerformanceSettings,
 } from "../scene/scenePerformance";
+import { bookLengthFraction } from "../scene/units/featuredBookGeometry";
 import {
   STACKS_DESKTOP_QUERY,
   STACKS_MOBILE_QUERY,
 } from "../scene/worldLayout";
-import { bookLengthFraction } from "../scene/units/featuredBookGeometry";
 import {
   closeStacksPanel,
   openStacksPanel,
@@ -40,8 +40,8 @@ import {
   CaretRightIcon,
   CaretUpIcon,
   ClockCounterClockwiseIcon,
-  TagIcon,
   StarIcon,
+  TagIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -68,19 +68,17 @@ import licenses from "~~/models/LICENSES.json";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
-import type {
-  HomepageBookPreview,
-} from "~/lib/books/types";
+import type { HomepageBookPreview } from "~/lib/books/types";
 import { useBookNotesActionLabel } from "~/lib/books/useBookNotesActionLabel";
 import { recordModalOrigin } from "~/lib/originFlight";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { devSubdomainUrl } from "~/lib/util";
 
 import { Keycap } from "~/components/ui/keycap";
+import { tooltipSurfaceClassName } from "~/components/ui/tooltip";
 
 import { BookCoverSizeGroup } from "./BookCoverSizeGroup";
 import { BookSubjectCards } from "./BookSubjectCards";
-
 import {
   PlacardCardHeading,
   PlacardLinkCard,
@@ -91,8 +89,8 @@ import {
   chromeKeyEventFrom,
   chromeKeyIntent,
 } from "./chromeKeys";
+import { desktopScrollViewportStyle } from "./desktopScrollViewport";
 import { readFocusMode, writeFocusMode } from "./focusMode";
-import { useDesktopDetailsBoundary } from "./useDesktopDetailsBoundary";
 import {
   MOBILE_SHEET_HORIZONTAL_DOMINANCE,
   MOBILE_SHEET_TITLE_CLAMP,
@@ -121,6 +119,7 @@ import { nextPlacardToPrepare } from "./placardResidency";
 import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
 import { pressLandsInRoom } from "./roomPress";
 import { BookStatsCard } from "./statsCards";
+import { useDesktopDetailsBoundary } from "./useDesktopDetailsBoundary";
 import {
   formatLength,
   formatReadDates,
@@ -268,6 +267,7 @@ const Panel = memo(function Panel({
         // Scroll chaining is already handled a layer up — ScrollBridges' wheel
         // listener bails on targets inside [data-stacks-scrollable].
         className="stacks-scroll placard-scroll relative h-full overflow-y-auto px-8 py-20"
+        style={desktopScrollViewportStyle}
       >
         {/* Keep short placards centred, with one pixel of overflow so native
             desktop rubber-banding also works when all the content fits. */}
@@ -614,23 +614,32 @@ export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
       onPointerDown={() => requestBookPrefetch(book.id)}
       onClick={(event) => {
         if (
-          event.defaultPrevented || event.button !== 0 || event.metaKey ||
-          event.ctrlKey || event.shiftKey || event.altKey
-        ) return;
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        )
+          return;
         event.preventDefault();
         requestBookPrefetch(book.id);
         const cover = event.currentTarget.querySelector(".book-preview-cover");
-        recordModalOrigin((cover ?? event.currentTarget).getBoundingClientRect());
+        recordModalOrigin(
+          (cover ?? event.currentTarget).getBoundingClientRect(),
+        );
         useStacks.getState().setPendingBookId(book.id);
       }}
       className="book-preview-row -mx-2 grid h-full items-start gap-4 rounded-xl px-2 text-left transition-colors duration-200 hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
     >
       <div
-        data-placard-media-highlight=""
+        data-placard-media-highlight="raised"
         className="book-preview-cover relative aspect-[2/3] h-[var(--book-preview-cover-size)] w-full overflow-hidden rounded-[4px] bg-foreground/5"
-        style={{
-          "--book-preview-thickness": `${3.5 + 2 * bookLengthFraction(book.pageCount, book.audioLengthMin)}px`,
-        } as CSSProperties}
+        style={
+          {
+            "--book-preview-thickness": `${3.5 + 2 * bookLengthFraction(book.pageCount, book.audioLengthMin)}px`,
+          } as CSSProperties
+        }
       >
         {coverUrl ? (
           <Image
@@ -649,14 +658,14 @@ export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
         )}
       </div>
       <div data-book-preview-details="" className="min-w-0 self-start">
-        <p className="book-preview-title line-clamp-1 font-serif homepage-card-body font-semibold text-foreground">
+        <p className="book-preview-title homepage-card-body line-clamp-1 font-serif font-semibold text-foreground">
           {book.title}
         </p>
-        <p className="mt-px truncate homepage-card-meta text-muted-foreground">
+        <p className="homepage-card-meta mt-px truncate text-muted-foreground">
           {book.author}
         </p>
         {book.rating !== null ? (
-          <div className="mt-1 homepage-card-meta text-muted-foreground">
+          <div className="homepage-card-meta mt-1 text-muted-foreground">
             <BookStars rating={book.rating} />
           </div>
         ) : null}
@@ -745,8 +754,14 @@ function BooksPlacard({ data }: { data: StacksData }) {
         </PlacardCardHeading>
         <BookLedger books={bookPlacard.recent} recent />
       </PlacardNestedLinkCard>
-      <PlacardNestedLinkCard href={href} label="Browse favorite book subjects" newTab>
-        <PlacardCardHeading icon={TagIcon}>Favorite subjects</PlacardCardHeading>
+      <PlacardNestedLinkCard
+        href={href}
+        label="Browse favorite book subjects"
+        newTab
+      >
+        <PlacardCardHeading icon={TagIcon}>
+          Favorite subjects
+        </PlacardCardHeading>
         <BookSubjectCards subjects={bookPlacard.subjects} libraryHref={href} />
       </PlacardNestedLinkCard>
     </BookCoverSizeGroup>
@@ -1514,9 +1529,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     return () => mo.disconnect();
   }, [shownSlug, title]);
 
-  // Only fade the peek window's bottom edge if the placard actually
-  // continues past it — the same rule the scroll edges follow, and the
-  // reason a two-line placard would get no phantom dissolve.
+  // Track whether content extends past peek for the sheet's gesture handling.
   const [peekOverflows, setPeekOverflows] = useState(true);
   useEffect(() => {
     const el = scrollRef.current;
@@ -1955,16 +1968,10 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     swipeToAdjacentUnit,
   ]);
 
-  // Expanded reading keeps the existing scrolled-away top dissolve. Peek gets
-  // a much shallower bottom dissolve only when the document actually
-  // continues below the detent. That makes the visible slice read as a
-  // preview without adding a caption or chevron, and disappears entirely for
-  // short placards that already fit.
+  // Only expanded reading fades content that has scrolled past the top edge.
   const sheetMask = expanded
     ? `linear-gradient(to bottom, rgb(0 0 0 / ${1 - edges.topFadeStrength}) 0, rgb(0 0 0 / ${1 - edges.topFadeStrength}) ${MOBILE_CARD_BLEED_PX}px, black ${MOBILE_CARD_BLEED_PX + TOP_FADE_PX}px)`
-    : peekOverflows
-      ? "linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%)"
-      : undefined;
+    : undefined;
 
   // One frame of nothing rather than one frame of a full-screen sheet: the
   // detents are derived from a measured viewport, and before that measurement
@@ -2001,6 +2008,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         aria-hidden
         data-stacks-sheet-material=""
         data-stacks-mobile-intro="sheet"
+        data-home-glass="sheet"
         data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
         data-stacks-panel-unit={shownSlug}
         style={{
@@ -2009,7 +2017,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           height: requestedHeight + materialOverscan,
           maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem + ${materialOverscan}px)`,
         }}
-        className={`stacks-sheet pointer-events-none fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] overflow-hidden rounded-t-3xl border-x border-t border-foreground/[0.07] shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
+        className={`stacks-sheet pointer-events-none fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] overflow-hidden rounded-t-3xl shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
           active && !sheetParked ? "visible" : "invisible"
         }`}
       ></motion.div>
@@ -2226,6 +2234,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         ref={chipRef}
         type="button"
         data-stacks-chip={active && chipActive ? "" : undefined}
+        data-home-glass="pill"
         data-swap-direction={side < 0 ? "previous" : "next"}
         onClick={restoreFromChip}
         inert={!active || !chipActive}
@@ -2497,18 +2506,17 @@ export default function PlacardLayer({
         .stacks-chip {
           --sheet-fill: rgb(255 255 255 / 0.16);
           background-color: var(--sheet-fill);
-          border-color: rgb(87 83 78 / 0.18) !important;
           backdrop-filter: blur(42px) saturate(0.28) brightness(1.18);
           -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.18);
         }
         .stacks-sheet {
           --sheet-fill: rgb(255 255 255 / 0.28);
+          --placard-edge-bottom-y: 0px;
+          /* The sheet is anchored below the viewport, so its soft shadow
+             falls upward into the room rather than below the panel. */
           box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.72),
-            inset 1px 0 0 rgb(255 255 255 / 0.12),
-            inset -1px 0 0 rgb(255 255 255 / 0.12),
-            0 -2px 6px rgb(28 25 23 / 0.08),
-            0 -18px 40px -24px rgb(28 25 23 / 0.42) !important;
+            0 -5px 12px -3px rgb(0 0 0 / 0.16),
+            0 -14px 36px -6px rgb(0 0 0 / 0.30) !important;
         }
         html:not(.dark) .stacks-sheet[data-sheet="expanded"] {
           --sheet-fill: rgb(255 255 255 / 0.36);
@@ -2590,11 +2598,7 @@ export default function PlacardLayer({
           to { opacity: 1; translate: 0 0; }
         }
         .stacks-chip {
-          box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.72),
-            inset 0 -1px 0 rgb(255 255 255 / 0.14),
-            0 2px 5px rgb(28 25 23 / 0.10),
-            0 12px 30px -18px rgb(28 25 23 / 0.38) !important;
+          box-shadow: var(--placard-media-shadow) !important;
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
@@ -2604,6 +2608,7 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel] [data-placard-surface],
           [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
           [data-stacks-desktop-panel] .placard-section-heading,
+          [data-stacks-desktop-panel] .stacks-quotes,
           [data-stacks-desktop-panel] .placard-sections h1 {
             transition: none !important;
           }
@@ -2622,6 +2627,8 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel][data-stacks-initial-panel]
             .placard-sections h1,
           [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .stacks-quotes,
+          [data-stacks-desktop-panel][data-stacks-initial-panel]
             [data-placard-surface],
           [data-stacks-desktop-panel][data-stacks-initial-panel]
             :has(> [data-placard-surface]) > :not([data-placard-surface]) {
@@ -2633,16 +2640,13 @@ export default function PlacardLayer({
         .dark .stacks-sheet,
         .dark .stacks-chip {
           --sheet-fill: rgb(0 0 0 / 0);
-          border-color: rgb(255 255 255 / 0.22) !important;
           backdrop-filter: blur(32px) saturate(0.45) brightness(0.94);
           -webkit-backdrop-filter: blur(32px) saturate(0.45) brightness(0.94);
         }
         .dark .stacks-sheet {
           box-shadow:
-            inset 1px 1px 0 rgb(255 255 255 / 0.28),
-            inset -1px 0 0 rgb(255 255 255 / 0.04),
-            0 -2px 7px rgb(0 0 0 / 0.28),
-            0 -18px 42px -22px rgb(0 0 0 / 0.82) !important;
+            0 -5px 12px -3px rgb(0 0 0 / 0.26),
+            0 -14px 36px -6px rgb(0 0 0 / 0.55) !important;
         }
         .dark .stacks-chip {
           /* Same bottom-edge problem at night: the clear fill over the dark
@@ -2652,11 +2656,6 @@ export default function PlacardLayer({
           --sheet-fill: rgb(255 255 255 / 0.06);
           backdrop-filter: blur(32px) saturate(0.45) brightness(1.05);
           -webkit-backdrop-filter: blur(32px) saturate(0.45) brightness(1.05);
-          box-shadow:
-            inset 0 1px 0 rgb(255 255 255 / 0.28),
-            inset 0 -1px 0 rgb(255 255 255 / 0.08),
-            0 3px 7px rgb(0 0 0 / 0.34),
-            0 14px 32px -18px rgb(0 0 0 / 0.78) !important;
         }
         /* Section headings and copy outside cards follow the panel width.
            Card text uses the shared homepage-card typography classes. */
@@ -2692,12 +2691,12 @@ export default function PlacardLayer({
         .book-ledger-grid > div:nth-child(n + 2) {
           border-top: 1px solid hsl(var(--foreground) / 0.06);
         }
-        .book-preview-cover {
+        .book-preview-cover[data-placard-media-highlight] {
           transform: perspective(700px) rotateY(-3deg) translateZ(0);
           transform-origin: left center;
           box-shadow:
             calc(var(--book-preview-thickness) / 2) 0 0 rgb(255 255 255 / 0.22),
-            0 5px 20px 2px rgb(0 0 0 / 0.16);
+            var(--placard-media-shadow);
           transition: transform 240ms ease, box-shadow 240ms ease;
         }
         .book-preview-row:hover .book-preview-cover,
@@ -2705,7 +2704,7 @@ export default function PlacardLayer({
           transform: perspective(700px) rotateY(-10deg) scale(1.025) translateZ(4px);
           box-shadow:
             var(--book-preview-thickness) 0 0 rgb(255 255 255 / 0.26),
-            0 9px 25px 1px rgb(0 0 0 / 0.22);
+            var(--placard-media-shadow);
         }
         @media (prefers-reduced-motion: reduce) {
           .book-preview-row .book-preview-cover {
@@ -2972,6 +2971,7 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel] [data-placard-surface],
           [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
           [data-stacks-desktop-panel] .placard-section-heading,
+          [data-stacks-desktop-panel] .stacks-quotes,
           [data-stacks-desktop-panel] .placard-sections h1 {
             opacity: var(--stacks-panel-opacity);
             transition-property: opacity;
@@ -3002,6 +3002,9 @@ export default function PlacardLayer({
           }
           .stacks-world-shell[data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .stacks-quotes,
+          .stacks-world-shell[data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
             [data-placard-surface],
           .stacks-world-shell[data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
@@ -3018,6 +3021,9 @@ export default function PlacardLayer({
             animation-duration: 280ms;
             animation-delay: 280ms;
           }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .stacks-quotes,
           .stacks-world-shell[data-load-path="warm"][data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
             [data-placard-surface],
@@ -3109,13 +3115,21 @@ export default function PlacardLayer({
           <span
             id="stacks-details-tooltip"
             role="tooltip"
-            className="field-notes-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] opacity-0 backdrop-blur-xl backdrop-saturate-150 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
+            className={`${tooltipSurfaceClassName} pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 overflow-hidden font-normal opacity-0 backdrop-blur-xl backdrop-saturate-150 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none`}
           >
-            <span className="relative block h-5 w-[6.8rem] overflow-hidden whitespace-nowrap text-center leading-5">
-              <AnimatePresence initial={false} mode="popLayout">
+            <span className="grid whitespace-nowrap">
+              {/* Reserve the longer label's natural width during the swap. */}
+              <span
+                aria-hidden="true"
+                className="invisible col-start-1 row-start-1 flex items-center gap-1.5"
+              >
+                <span>Show details</span>
+                <Keycap>{"\\"}</Keycap>
+              </span>
+              <AnimatePresence initial={false}>
                 <motion.span
                   key={detailsHidden ? "show" : "hide"}
-                  className="absolute inset-0 flex items-center justify-center gap-1.5"
+                  className="col-start-1 row-start-1 flex items-center gap-1.5"
                   initial={{ opacity: 0, y: detailsHidden ? 5 : -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: detailsHidden ? -5 : 5 }}

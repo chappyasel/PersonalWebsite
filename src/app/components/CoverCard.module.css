@@ -8,17 +8,13 @@
 }
 
 .media {
-  /* Leave room for both the border and the inset glass highlight. */
-  width: calc(100% - 4px);
-  margin: 2px 2px 0;
+  /* Full-width artwork meets the card perimeter. Its edge blends with the
+     image, then continues along the background beside the text below. */
+  --placard-edge-bottom-y: 0px;
+  width: 100%;
   overflow: hidden;
-  border-top-left-radius: calc(var(--cover-card-radius, 1.5rem) - 2px);
-  border-top-right-radius: calc(var(--cover-card-radius, 1.5rem) - 2px);
-}
-
-.media::after {
-  /* Full-width covers already sit inside the card's highlighted edge. */
-  display: none;
+  border-top-left-radius: var(--cover-card-radius, 1.5rem);
+  border-top-right-radius: var(--cover-card-radius, 1.5rem);
 }
 
 .body {
@@ -35,14 +31,11 @@
   }
 
   .media {
+    /* An inset thumbnail has its own complete perimeter. */
+    --placard-edge-bottom-y: calc(-1 * var(--placard-edge-width));
     width: calc((100% - var(--homepage-card-padding)) / 2);
-    margin: 0;
     border-radius: 1rem;
-    box-shadow: 0 4px 15px 1px rgb(0 0 0 / 0.07);
-  }
-
-  .media::after {
-    display: block;
+    box-shadow: var(--placard-media-shadow);
   }
 
   .body {
