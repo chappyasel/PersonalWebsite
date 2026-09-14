@@ -17,6 +17,18 @@ const Prototype = dynamic(() => import("./RouteTransitionPrototype"), {
 export function RouteTransitionPrototypeGate() {
   const enabled = useRouteTransitionPrototype((state) => state.enabled);
   useEffect(() => {
+    document.documentElement.dataset.pageTransitions = enabled ? "on" : "off";
+    const sheet = document.querySelector<HTMLStyleElement>(
+      "#document-transitions",
+    )?.sheet;
+    if (sheet) sheet.disabled = !enabled;
+    if (!enabled) delete document.documentElement.dataset.routeDocument;
+    return () => {
+      delete document.documentElement.dataset.pageTransitions;
+      if (sheet) sheet.disabled = false;
+    };
+  }, [enabled]);
+  useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     const params = new URLSearchParams(window.location.search);
     const variant =

@@ -13,6 +13,7 @@ import { GOLF_STOP_POSITION, UNITS, UNIT_COUNT } from "../data";
 import { useRoomNavigation } from "../input/RoomNavigation";
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
+import { HUD_MOBILE_TRAVEL_MAX_PX } from "../scene/hudCameraDriftControl";
 import { railRightPxRef, useStacks } from "../store";
 import {
   animate,
@@ -604,10 +605,10 @@ export default function UnitRail() {
         className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-30 flex justify-center min-[1200px]:hidden"
       >
         <div
-          className="pointer-events-auto flex"
-          // Fit search plus seven sections without overflowing narrow phones.
+          className="stacks-mobile-hud-drift pointer-events-auto flex"
+          // Reserve the drift range plus 2px at each edge on narrow phones.
           style={{
-            fontSize: `min(${MOBILE_RAIL_FONT_CLAMP}, calc((100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 1rem) / ${MOBILE_STEP_REM * (UNIT_COUNT + 1)}))`,
+            fontSize: `min(${MOBILE_RAIL_FONT_CLAMP}, calc((100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - ${2 * (HUD_MOBILE_TRAVEL_MAX_PX + 2)}px) / ${MOBILE_STEP_REM * (UNIT_COUNT + 1)}))`,
           }}
         >
           <ChromeSearchButton mobile />

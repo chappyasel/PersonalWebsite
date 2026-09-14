@@ -2,6 +2,7 @@
 
 import { worldBoot } from "../boot/worldBootSession";
 import { UNIT_COUNT } from "../data";
+import { roomWindowEvents } from "../room/roomEvents";
 import { progressRef, useStacks } from "../store";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
@@ -10,6 +11,7 @@ import { useDesktopReducedMotion } from "~/lib/desktopMotionPreference";
 
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import {
+  HUD_MOBILE_TRAVEL_MAX_PX,
   HUD_MOUSE_MAX_PX,
   HUD_TRAVEL_MAX_PX,
   advanceHudCameraDrift,
@@ -19,7 +21,10 @@ import { screenshotModeController } from "./screenshotMode";
 import { STACKS_DESKTOP_MIN_WIDTH, ogCaptureFromSearch } from "./worldLayout";
 
 const MEDIA_QUERY = `(min-width: ${STACKS_DESKTOP_MIN_WIDTH}px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)`;
-const serverEligible = () => false;
+const MOBILE_MEDIA_QUERY = `(width < ${STACKS_DESKTOP_MIN_WIDTH}px) and (prefers-reduced-motion: no-preference)`;
+const serverProfile = () => "off" as const;
+const MOBILE_HUD_TARGETS =
+  ".stacks-mobile-hud-drift, [data-stacks-mobile-sheet-drift]";
 const SIDEBAR_TARGETS =
   "[data-stacks-desktop-dock], [data-stacks-details-toggle-shell]";
 type HudTarget = { property: "translate" | "transform"; original: string };
@@ -48,21 +53,74 @@ function writeOffset(
           : `translate(${x}px, ${y}px)`
         : `${x}px ${y === 0 ? "0" : `${y}px`}`;
 }
-const isEligible = () => window.matchMedia(MEDIA_QUERY).matches;
+const getProfile = () =>
+  window.matchMedia(MEDIA_QUERY).matches
+    ? "desktop"
+    : window.matchMedia(MOBILE_MEDIA_QUERY).matches
+      ? "mobile"
+      : "off";
 function subscribeMedia(listener: () => void) {
-  const query = window.matchMedia(MEDIA_QUERY);
-  query.addEventListener("change", listener);
-  return () => query.removeEventListener("change", listener);
+  const queries = [MEDIA_QUERY, MOBILE_MEDIA_QUERY].map((query) =>
+    window.matchMedia(query),
+  );
+  for (const query of queries) query.addEventListener("change", listener);
+  return () => {
+    for (const query of queries) query.removeEventListener("change", listener);
+  };
 }
 
 /** Read the current frame's eased section travel after CameraRig publishes it. */
-function DriftFrame() {
+function DriftFrame({ mobile }: { mobile: boolean }) {
   const canvas = useThree((state) => state.gl.domElement);
   const targets = useRef(new Map<HTMLElement, HudTarget>());
   const previousProgress = useRef<number | null>(null);
   const offset = useRef(0);
   const mouseOffset = useRef({ x: 0, y: 0 });
   const renderedOffset = useRef({ x: 0, y: 0 });
+  const heldPointers = useRef(new Set<number>());
+
+  useEffect(() => {
+    if (!mobile) return;
+    const shell = canvas.closest(".stacks-world-shell");
+    const held = heldPointers.current;
+    const press = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        shell?.contains(event.target) &&
+        event.target.closest(MOBILE_HUD_TARGETS)
+      )
+        held.add(event.pointerId);
+    };
+    const release = (event: PointerEvent) => held.delete(event.pointerId);
+    const clear = () => held.clear();
+    // Capture observes a press before rail scrubbing takes pointer capture.
+    // Coordinates stay frozen under the finger; native clicks/gestures pass through.
+    roomWindowEvents.addEventListener("pointerdown", press, {
+      capture: true,
+      passive: true,
+    });
+    roomWindowEvents.addEventListener("pointerup", release, {
+      capture: true,
+      passive: true,
+    });
+    roomWindowEvents.addEventListener("pointercancel", release, {
+      capture: true,
+      passive: true,
+    });
+    roomWindowEvents.addEventListener("lostpointercapture", release, {
+      capture: true,
+      passive: true,
+    });
+    roomWindowEvents.addEventListener("blur", clear);
+    return () => {
+      roomWindowEvents.removeEventListener("pointerdown", press, true);
+      roomWindowEvents.removeEventListener("pointerup", release, true);
+      roomWindowEvents.removeEventListener("pointercancel", release, true);
+      roomWindowEvents.removeEventListener("lostpointercapture", release, true);
+      roomWindowEvents.removeEventListener("blur", clear);
+      held.clear();
+    };
+  }, [canvas, mobile]);
 
   useEffect(() => {
     const shell = canvas.closest<HTMLElement>(".stacks-world-shell");
@@ -81,7 +139,9 @@ function DriftFrame() {
           elements.delete(element);
         }
       }
-      for (const element of shell.querySelectorAll<HTMLElement>(HUD_TARGETS)) {
+      for (const element of shell.querySelectorAll<HTMLElement>(
+        mobile ? MOBILE_HUD_TARGETS : HUD_TARGETS,
+      )) {
         if (elements.has(element)) continue;
         // The sidebar's translate has a 360ms CSS hide/show transition.
         // Its transform is independent and unanimated, so frame updates land
@@ -119,7 +179,7 @@ function DriftFrame() {
       for (const [element, target] of elements) writeOffset(element, target, 0);
       elements.clear();
     };
-  }, [canvas]);
+  }, [canvas, mobile]);
 
   useFrame((scene, delta) => {
     const settings = hudCameraDriftController.getSnapshot();
@@ -140,12 +200,19 @@ function DriftFrame() {
         ? ((progress - previous) * (UNIT_COUNT - 1)) / delta
         : 0;
     previousProgress.current = travelActive ? progress : null;
+    // Rebase progress while held so releasing cannot accumulate a travel kick.
+    if (mobile && travelActive && heldPointers.current.size > 0) return;
     offset.current = travelActive
-      ? advanceHudCameraDrift(offset.current, velocity, delta)
+      ? advanceHudCameraDrift(
+          offset.current,
+          velocity,
+          delta,
+          mobile ? HUD_MOBILE_TRAVEL_MAX_PX : HUD_TRAVEL_MAX_PX,
+        )
       : 0;
     let combinedX = offset.current;
     let combinedY = 0;
-    if (active && settings.mouseEnabled) {
+    if (!mobile && active && settings.mouseEnabled) {
       // Read the existing pointer once, without another listener, React state
       // update, animation loop, or inherited CSS property.
       const x = -Math.max(-1, Math.min(1, scene.pointer.x)) * HUD_MOUSE_MAX_PX;
@@ -185,14 +252,16 @@ function DriftFrame() {
   return null;
 }
 
-function EligibleDrift() {
-  const eligible = useSyncExternalStore(
+function EligibleDrift({ travelEnabled }: { travelEnabled: boolean }) {
+  const profile = useSyncExternalStore(
     subscribeMedia,
-    isEligible,
-    serverEligible,
+    getProfile,
+    serverProfile,
   );
-  return eligible && !ogCaptureFromSearch(window.location.search) ? (
-    <DriftFrame />
+  return profile !== "off" &&
+    (profile !== "mobile" || travelEnabled) &&
+    !ogCaptureFromSearch(window.location.search) ? (
+    <DriftFrame key={profile} mobile={profile === "mobile"} />
   ) : null;
 }
 
@@ -204,5 +273,7 @@ export default function HudCameraDrift() {
     hudCameraDriftController.getSnapshot,
   );
   // No frame subscription or DOM work while the effect is off.
-  return !reducedMotion && (enabled || mouseEnabled) ? <EligibleDrift /> : null;
+  return !reducedMotion && (enabled || mouseEnabled) ? (
+    <EligibleDrift travelEnabled={enabled} />
+  ) : null;
 }

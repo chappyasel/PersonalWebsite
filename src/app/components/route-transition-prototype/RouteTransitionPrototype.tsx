@@ -17,12 +17,15 @@ import { flushSync } from "react-dom";
 
 import { isRoomPathname } from "~/lib/site/roomRoutes";
 
+import { prefersFullPage } from "~/components/modal-sheet/sheetRoute";
+
 import { type BooksShelfPrototypeHandle } from "./BooksShelfPrototype";
+import { navigateFullDocument } from "./documentNavigation";
 import { installHistoryTransition } from "./historyTransition";
 import {
   PROTOTYPE_NAVIGATION_EVENT,
-  isMusingPageChange,
   isMusingReadingPath,
+  isTransitionPageChange,
   prototypeDestination,
 } from "./navigation";
 import {
@@ -62,7 +65,7 @@ const section = (path: string) =>
   isRoomPathname(path) ? "" : (path.split("/")[1] ?? "");
 const isRoom = (url: URL) => isRoomPathname(url.pathname);
 const sameTransitionPage = (from: string, to: string) =>
-  section(from) === section(to) && !isMusingPageChange(from, to);
+  !isTransitionPageChange(from, to);
 
 function pause(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve) => {
@@ -101,7 +104,12 @@ function localDestination(link: HTMLElement): URL | null {
   const target = link.getAttribute("target") ?? link.dataset.placardTarget;
   // Only the known local portal mapping overrides a link's authored new-tab
   // target. Ordinary same-origin new-tab links remain ordinary new-tab links.
-  if (target && target !== "_self" && original.href === url.href) return null;
+  if (
+    target &&
+    target !== "_self" &&
+    (original.href === url.href || original.pathname !== "/")
+  )
+    return null;
   return url;
 }
 
@@ -117,7 +125,9 @@ export default function RouteTransitionPrototype() {
   const historyNavigate = useRef<
     (url: URL, state: unknown, restore: () => void) => Promise<void>
   >(async () => undefined);
-  const historyAccepts = useRef<(url: URL) => boolean>(() => false);
+  const historyAccepts = useRef<(url: URL, state: unknown) => boolean>(
+    () => false,
+  );
   const [phase, setPhase] = useState("idle");
   const [target, setTarget] = useState("");
   const [supported, setSupported] = useState(false);
@@ -148,7 +158,7 @@ export default function RouteTransitionPrototype() {
   useEffect(
     () =>
       installHistoryTransition({
-        accepts: (url) => historyAccepts.current(url),
+        accepts: (url, state) => historyAccepts.current(url, state),
         transition: (url, state, restore) =>
           historyNavigate.current(url, state, restore),
         cancel: () => {
@@ -173,13 +183,19 @@ export default function RouteTransitionPrototype() {
     }
   }, [pathname]);
 
-  historyAccepts.current = (url) =>
+  historyAccepts.current = (url, state) =>
     variant === "origin" &&
     // An intercepted sheet owns its history entry even after expansion.
     // Its own exit (or native Back) must not trigger a second page capture.
-    !document.querySelector("[data-presented-sheet]") &&
-    ((reverseRoom && roomDirection(pathname, url.pathname) !== null) ||
-      isMusingPageChange(pathname, url.pathname));
+    !document.querySelector('[data-presented-sheet], [role="dialog"]') &&
+    !(
+      state &&
+      typeof state === "object" &&
+      "bookModal" in state &&
+      state.bookModal === true
+    ) &&
+    isTransitionPageChange(pathname, url.pathname) &&
+    (reverseRoom || roomDirection(pathname, url.pathname) === null);
   historyNavigate.current = (url, state, restore) =>
     navigate(url, null, undefined, {
       restore,
@@ -418,8 +434,23 @@ export default function RouteTransitionPrototype() {
     const follow = (link: HTMLElement, event: Event) => {
       const url = localDestination(link);
       if (!url || sameTransitionPage(pathname, url.pathname)) return;
+      // A sheet's own Back link and inner controls keep its history entry.
+      if (
+        section(pathname) === section(url.pathname) &&
+        document.querySelector('[data-presented-sheet], [role="dialog"]')
+      )
+        return;
       event.preventDefault();
       event.stopPropagation();
+      if (
+        prefersFullPage() &&
+        /^\/(manual|routine|systems|musings|books\/|weightlifting\/)/.test(
+          url.pathname,
+        )
+      ) {
+        navigateFullDocument(url.href, { source: link });
+        return;
+      }
       void navigate(url, link.getBoundingClientRect(), link);
     };
     const click = (event: MouseEvent) => {

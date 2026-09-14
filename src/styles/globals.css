@@ -91,6 +91,7 @@ html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stack
 html[data-world] .field-notes-stamp-tooltip {
   --placard-edge-blend: soft-light;
   --placard-edge-width: 2px;
+  --placard-edge-softness: 0px;
   --placard-edge-top: rgb(255 255 255 / 0.78);
   --placard-edge-reflection-top: rgb(255 255 255 / 0.28);
   /* The lower edge shades pale artwork in light mode and catches a faint
@@ -196,7 +197,7 @@ html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stack
 html[data-world] [data-tooltip-paper-edge]::after {
   mix-blend-mode: var(--placard-edge-blend);
   box-shadow:
-    inset var(--placard-edge-width) var(--placard-edge-width) 0 var(--placard-edge-top);
+    inset var(--placard-edge-width) var(--placard-edge-width) var(--placard-edge-softness, 0px) var(--placard-edge-top);
 }
 [data-placard-surface]::before,
 [data-placard-media-highlight]::before,
@@ -205,8 +206,80 @@ html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stack
 html[data-world] [data-tooltip-paper-edge]::before {
   z-index: 2;
   box-shadow:
-    inset var(--placard-edge-width) var(--placard-edge-width) 0 var(--placard-edge-reflection-top),
-    inset calc(-1 * var(--placard-edge-width)) var(--placard-edge-bottom-y, calc(-1 * var(--placard-edge-width))) 0 var(--placard-edge-bottom);
+    inset var(--placard-edge-width) var(--placard-edge-width) var(--placard-edge-softness, 0px) var(--placard-edge-reflection-top),
+    inset calc(-1 * var(--placard-edge-width)) var(--placard-edge-bottom-y, calc(-1 * var(--placard-edge-width))) var(--placard-edge-softness, 0px) var(--placard-edge-bottom);
+}
+
+/* Large reading panels use a softly rounded bevel with less contrast than
+   their corner controls. Keep it above sticky headers as content scrolls. */
+html[data-world] [data-home-glass="modal"] {
+  --placard-edge-width: 2px;
+  --placard-edge-softness: 1.5px;
+  --placard-edge-top: rgb(255 255 255 / 0.42);
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.14);
+  --placard-edge-bottom: rgb(0 0 0 / 0.09);
+}
+html.dark[data-world] [data-home-glass="modal"] {
+  --placard-edge-top: rgb(255 255 255 / 0.14);
+  --placard-edge-reflection-top: rgb(255 255 255 / 0.045);
+  --placard-edge-bottom: rgb(255 255 255 / 0.045);
+}
+html[data-world] [data-home-glass="modal"]::after {
+  z-index: 30;
+}
+html[data-world] [data-home-glass="modal"]::before {
+  z-index: 31;
+}
+
+/* Keep the search panel's continuous perimeter quieter than the card edges. */
+html[data-world] [data-universal-search-material][data-home-glass]::before,
+html[data-world] [data-universal-search-material][data-home-glass]::after {
+  opacity: 0.5;
+}
+
+/* Inset the search dividers beyond the 2px outer edge to avoid stacking
+   reflections at their ends. Match the panel's softened highlight strength. */
+html[data-world] [data-search-glass-divider] {
+  position: relative;
+  border-color: transparent;
+}
+html[data-world] [data-search-glass-divider]::before,
+html[data-world] [data-search-glass-divider]::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+html[data-world] [data-search-glass-divider="bottom"]::before,
+html[data-world] [data-search-glass-divider="bottom"]::after {
+  bottom: -1px;
+}
+html[data-world] [data-search-glass-divider="top"]::before,
+html[data-world] [data-search-glass-divider="top"]::after {
+  top: -1px;
+}
+html[data-world] [data-search-glass-divider]::after {
+  z-index: 1;
+  mix-blend-mode: var(--placard-edge-blend);
+  background: linear-gradient(90deg, var(--placard-edge-top), transparent);
+}
+html[data-world] [data-search-glass-divider]::before {
+  z-index: 2;
+  background: linear-gradient(90deg, var(--placard-edge-reflection-top), var(--placard-edge-bottom));
+}
+
+/* Mobile light glass stacks a sheet and card reflections over one backdrop.
+   Soften both highlight layers, including media edges and hover highlights. */
+@media (width < 1200px) {
+  html[data-world]:not(.dark) [data-home-glass="sheet"]::before,
+  html[data-world]:not(.dark) [data-home-glass="sheet"]::after,
+  html[data-world]:not(.dark) [data-stacks-mobile-panel] :is([data-placard-surface], [data-placard-media-highlight])::before,
+  html[data-world]:not(.dark) [data-stacks-mobile-panel] :is([data-placard-surface], [data-placard-media-highlight])::after {
+    opacity: 0.5;
+  }
 }
 
 /* Header ink stays subdued in the entry drawing and the live room, at every width. */
@@ -538,7 +611,37 @@ html[data-world].dark .sheet-control:hover {
 html[data-world] [data-home-glass="control"],
 html.dark[data-world] [data-home-glass="control"] {
   --placard-edge-width: 1px;
+  --placard-edge-softness: 0px;
   box-shadow: var(--placard-media-shadow);
+}
+
+/* Modal controls sit close to the panel, with a restrained rim and shadow. */
+html[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"] {
+  --placard-media-shadow:
+    0 1px 2px rgb(0 0 0 / 0.10),
+    0 3px 8px -3px rgb(0 0 0 / 0.12);
+}
+html.dark[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"] {
+  --placard-media-shadow:
+    0 1px 2px rgb(0 0 0 / 0.20),
+    0 3px 8px -3px rgb(0 0 0 / 0.24);
+}
+html[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"]::before,
+html[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"]::after {
+  opacity: 0.6;
+}
+html[data-world] .sheet-control[data-home-glass="control"] {
+  --world-control-fill: rgb(255 255 255 / 0.38);
+}
+html[data-world] .sheet-control[data-home-glass="control"]:hover {
+  --world-control-fill: rgb(255 255 255 / 0.5);
+}
+html.dark[data-world] .sheet-control[data-home-glass="control"] {
+  --world-control-fill: rgb(0 0 0 / 0.035);
+  backdrop-filter: blur(32px) saturate(0.42) brightness(0.94);
+}
+html.dark[data-world] .sheet-control[data-home-glass="control"]:hover {
+  --world-control-fill: rgb(0 0 0 / 0.02);
 }
 
 @layer base {

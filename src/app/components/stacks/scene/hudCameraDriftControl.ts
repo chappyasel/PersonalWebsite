@@ -1,4 +1,5 @@
 export const HUD_TRAVEL_MAX_PX = 20;
+export const HUD_MOBILE_TRAVEL_MAX_PX = 20;
 export const HUD_MOUSE_MAX_PX = 12;
 
 const DEFAULT: Readonly<{ enabled: boolean; mouseEnabled: boolean }> =
@@ -35,6 +36,7 @@ export function advanceHudCameraDrift(
   currentPx: number,
   sectionsPerSecond: number,
   deltaSeconds: number,
+  maxPx = HUD_TRAVEL_MAX_PX,
 ): number {
   if (currentPx === 0 && sectionsPerSecond === 0) return 0;
   if (
@@ -50,12 +52,12 @@ export function advanceHudCameraDrift(
   // Speed across a pause is stale. Settle gently until the next fresh sample;
   // DriftFrame still rebases its progress sample on every frame.
   const velocity = deltaSeconds > 0.1 ? 0 : sectionsPerSecond;
-  // Smoothstep gives slow travel a soft onset and reaches the 20px limit
+  // Smoothstep gives slow travel a soft onset and reaches the travel limit
   // with zero slope, avoiding a hard change when a fast swipe hits the cap.
   // Two sections per second reaches full strength; one reaches half.
   const speed = Math.min(1, Math.abs(velocity) / 2);
   const strength = speed * speed * (3 - 2 * speed);
-  const target = -Math.sign(velocity) * HUD_TRAVEL_MAX_PX * strength;
+  const target = -Math.sign(velocity) * maxPx * strength;
   const next =
     currentPx + (target - currentPx) * (1 - Math.exp(-8 * stepSeconds));
   return Math.abs(next) < 0.05 ? 0 : next;

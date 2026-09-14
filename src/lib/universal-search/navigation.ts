@@ -61,6 +61,8 @@ export function navigateUniversalSearchResult(
      * fragment changed. The room treats it like a hashchange. */
     notifyExplicitDestination?: () => void;
     softNavigate?: (path: string) => void;
+    /** Page jumps retain full-page presentation and the site transition. */
+    navigatePage?: (href: string) => void;
   } = {
     location: window.location,
     notifySameDocument: () =>
@@ -81,6 +83,10 @@ export function navigateUniversalSearchResult(
       host.notifyExplicitDestination?.();
     }
     host.notifySameDocument();
+    return;
+  }
+  if (host.navigatePage) {
+    host.navigatePage(href);
     return;
   }
   if (host.softNavigate && canSoftNavigate(host.location.href, href)) {

@@ -59,8 +59,9 @@ A small head script registers the history listener before Next hydrates. The
 controller binds to it when loaded and holds Next's restore until the old
 snapshot exists, then replays the original state exactly once. It never adds an entry or
 calls history.go. A newer traversal cancels the previous pass. Disabling the
-controller releases a held restore. Same-section changes, book detail routes,
-and modal history retain their own behavior. A bounded in-memory record
+controller releases a held restore. Other full-page Back and Forward navigation uses the signature reveal too,
+including separate documents within one section. Presented sheets and book-modal
+history keep their own transitions. A bounded in-memory record
 restores each page visit's scroll position after the delayed route commit.
 The departing room ignores history events and URL mirroring once the URL
 belongs to another page. This adapter depends on Next's
@@ -101,9 +102,11 @@ rapid repeat clicks cannot start overlapping passes.
 
 ## Navigation coverage
 
-Ordinary same-origin links between Home, Books, Weightlifting, Systems, Manual,
-Routine, and Liar's Dice participate. Same-section navigation keeps its existing
-behavior, including book-to-book modals and in-page links.
+Ordinary same-origin links between the room, Books, Weightlifting, Systems,
+Manual, Routine, Musings, Liar's Dice, Weight Log, Dad, Personalities, YouTube,
+and Site Index participate. Separate full-page documents within one section
+also use the signature. Room travel, hashes, filters, and modal-owned navigation
+keep their existing behavior.
 
 On the main local host, normal clicks on the Books and Weightlifting site
 portals use `/books` and `/weightlifting` in the same tab. This includes linked
@@ -113,8 +116,8 @@ Individual book links, nested controls, modified clicks, and unrelated external
 links retain their normal behavior.
 
 `SheetLink` and `SheetExpandControl` declare that their existing transitions
-should be preserved. The shutter controller leaves them alone, including the
-small-viewport full-page behavior of document launchers. This pass does not add
+should be preserved. The page controller leaves their desktop presentation alone. On small
+viewports, document launchers use the full-document signature described below. This pass does not add
 modal-state restoration. Expanding a Systems, Manual, or Routine sheet keeps
 the same intercepted presentation and history entry. Its visible return link
 uses the sheet's own source collapse and one history Back. A mounted sheet,
@@ -147,7 +150,38 @@ external prop links keep their existing behavior.
 
 Existing standalone subdomain tabs should be reloaded once to enter the shared
 app. Browser history animation covers room round trips.
-Other imperative controllers such as universal search keep their own behavior.
+Universal Search sends page results through the full-document signature. Room
+stops and anchor results keep their existing in-document navigation. Imperative
+Personalities navigation and Escape from a full book page request the shared
+page controller, with ordinary routing as the disabled fallback.
+
+## Full-page transitions on phones and in search
+
+Viewports narrower than 640px or shorter than 500px still open documents,
+workouts, exercises, and book notes as full pages. `navigateFullDocument`
+records the launch bounds, then loads the real document. It preserves replace
+versus push behavior and normalizes known Books, Weightlifting, Manual, and
+Routine links onto the current main-site origin, including deep book links.
+Modified clicks and explicit new-tab document links retain browser behavior.
+
+The root layout loads the transition CSS and a head script before hydration.
+[Cross-document View Transitions](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API/Using)
+use the existing 620ms source zoom keyframes. The outgoing `pageswap` event
+also prepares Back and Forward, and `pagereveal` applies the incoming animation,
+including when the browser restores a cached document. These history transitions
+use the standard centered source when no launcher is available.
+
+Without native document snapshots, the incoming page uses the same clip reveal.
+The clip accounts for the full height of a scrolling document. Book pages render
+visible content on the server so a separate entrance fade cannot leave their
+incoming snapshot empty. A tab-scoped handoff expires after 30 seconds and stores
+only URLs, timing, enabled state, and animation geometry. Blocked storage leaves
+navigation intact. External pages, feeds, assets, and room-to-room moves are
+excluded. A first visit without an eligible preceding navigation does not animate.
+
+The existing Scene Diagnostics page-animation switch also disables native
+document capture and fallback reveals. Reduced motion bypasses both. These paths
+have no independent effect switch or production quality setting.
 
 ## Other comparisons
 

@@ -1,3 +1,6 @@
+import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
+import type { OriginRect } from "~/app/components/route-transition-prototype/originZoom";
+
 // The routes with a `(.)` interceptor under an @sheet slot — the manual, the
 // routine and the systems documents on the homepage host, an exercise or a
 // workout on the weightlifting host — present two ways. A soft navigation
@@ -38,11 +41,13 @@ export function prefersFullPage(): boolean {
  */
 export function loadFullPageOnSmallViewport(
   href: string,
-  { replace = false }: { replace?: boolean } = {},
+  {
+    replace = false,
+    source,
+  }: { replace?: boolean; source?: HTMLElement | OriginRect | null } = {},
 ): boolean {
   if (!prefersFullPage()) return false;
-  if (replace) window.location.replace(href);
-  else window.location.assign(href);
+  navigateFullDocument(href, { replace, source });
   return true;
 }
 

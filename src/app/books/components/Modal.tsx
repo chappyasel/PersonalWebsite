@@ -338,11 +338,17 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     // The shell has no paint of its own — the rounded corners live on its
     // two child layers (background + content), so they unround themselves.
     for (const layer of shell.querySelectorAll<HTMLElement>(":scope > div")) {
-      layer.animate([{ borderRadius: "1rem" }, { borderRadius: "0rem" }], {
-        duration: 420,
-        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-        fill: "forwards",
-      });
+      layer.animate(
+        [
+          { borderRadius: getComputedStyle(layer).borderRadius },
+          { borderRadius: "0rem" },
+        ],
+        {
+          duration: 420,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+          fill: "forwards",
+        },
+      );
     }
     const flight = shell.animate(
       [
@@ -573,7 +579,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 tabIndex={-1}
                 data-book-modal-shell={presentation?.source}
-                className={`relative w-full max-w-5xl outline-none ${fullHeight ? "h-full" : ""}`}
+                className={`relative w-full max-w-4xl outline-none ${fullHeight ? "h-full" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={
                   launchOrigin || reduceMotion
@@ -604,14 +610,15 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     Framer to morph from a source that does not exist. */}
                 <motion.div
                   layoutId={fromStacks ? undefined : `book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`absolute inset-0 rounded-3xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
                 />
                 {/* Actual content - fades in on top */}
                 <motion.div
-                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
+                  data-home-glass="modal"
+                  className={`relative overflow-hidden rounded-3xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
                   initial={fromStacks ? false : { opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}

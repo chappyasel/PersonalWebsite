@@ -24,6 +24,7 @@ const runtime = vi.hoisted(() => ({
   progress: { current: 0 },
   pointer: { x: 0, y: 0 },
   eligible: true,
+  mobile: false,
   mediaListeners: new Set<() => void>(),
 }));
 vi.mock("@react-three/fiber", async () => {
@@ -65,11 +66,15 @@ beforeEach(() => {
   runtime.pointer.x = 0;
   runtime.pointer.y = 0;
   runtime.eligible = true;
+  runtime.mobile = false;
   hudCameraDriftController.setEnabled(true);
   hudCameraDriftController.setMouseEnabled(false);
-  vi.stubGlobal("matchMedia", () => ({
+  vi.stubGlobal("matchMedia", (query: string) => ({
     get matches() {
-      return runtime.eligible;
+      return (
+        runtime.eligible &&
+        (query.startsWith("(width <") ? runtime.mobile : !runtime.mobile)
+      );
     },
     addEventListener: (_: string, callback: () => void) =>
       runtime.mediaListeners.add(callback),
@@ -102,7 +107,7 @@ function mount() {
   const shell = document.createElement("div");
   shell.className = "stacks-world-shell";
   shell.innerHTML =
-    '<canvas></canvas><nav class="stacks-hud-drift"></nav><aside data-stacks-desktop-dock></aside><div data-stacks-details-toggle-shell></div>';
+    '<canvas></canvas><nav class="stacks-hud-drift"></nav><aside data-stacks-desktop-dock></aside><div data-stacks-details-toggle-shell></div><div class="stacks-mobile-hud-drift"><button>Section</button></div><div class="stacks-mobile-hud-drift" data-test-mobile-controls><button>Sound</button></div><div data-stacks-mobile-sheet-drift><div data-stacks-sheet-material style="translate: 0 24px"></div></div><div data-stacks-mobile-sheet-drift><section data-stacks-mobile-panel style="transform: translateY(100px)"><div class="placard-scroll">Reading sheet</div></section></div>';
   document.body.append(shell);
   runtime.canvas = shell.querySelector("canvas");
   render(<HudCameraDrift />);
@@ -110,6 +115,13 @@ function mount() {
     shell,
     hud: shell.querySelector("nav")!,
     dock: shell.querySelector("aside")!,
+    mobileHud: shell.querySelector<HTMLElement>(".stacks-mobile-hud-drift")!,
+    mobileControls: shell.querySelector<HTMLElement>(
+      "[data-test-mobile-controls]",
+    )!,
+    mobileSheet: shell.querySelector<HTMLElement>(
+      "[data-stacks-mobile-panel]",
+    )!,
     toggle: shell.querySelector<HTMLElement>(
       "[data-stacks-details-toggle-shell]",
     )!,
@@ -124,6 +136,106 @@ function frame(progress: number, pointerX = 0, delta = 1 / 60, pointerY = 0) {
       callback({ pointer: runtime.pointer }, delta);
   });
 }
+
+it("moves mobile chrome and both sheet layers together within 20px without changing sheet gestures", () => {
+  runtime.mobile = true;
+  hudCameraDriftController.setMouseEnabled(true);
+  const { shell, hud, dock, mobileHud, mobileControls, mobileSheet } = mount();
+  const sheetCarriers = [
+    ...shell.querySelectorAll<HTMLElement>("[data-stacks-mobile-sheet-drift]"),
+  ];
+  const material = shell.querySelector<HTMLElement>(
+    "[data-stacks-sheet-material]",
+  )!;
+  const query = vi.spyOn(shell, "querySelectorAll");
+  const bounds = vi.spyOn(mobileHud, "getBoundingClientRect");
+  frame(0);
+  for (let i = 1; i <= 90; i++) {
+    frame(i / 180, 1, 1 / 60, -1);
+    const [x, y] = mobileHud.style.translate.split(" ").map(Number.parseFloat);
+    expect(Math.abs(x!)).toBeLessThanOrEqual(20);
+    expect(y).toBe(0);
+    expect(mobileControls.style.translate).toBe(mobileHud.style.translate);
+    for (const carrier of sheetCarriers)
+      expect(carrier.style.translate).toBe(mobileHud.style.translate);
+  }
+  expect(mobileHud.style.translate).toBe("-20px 0");
+  expect(hud.style.translate).toBe("");
+  expect(dock.style.transform).toBe("");
+  expect(mobileSheet.style.transform).toBe("translateY(100px)");
+  expect(material.style.translate).toBe("0 24px");
+  expect(mobileSheet.firstElementChild!.getAttribute("style")).toBeNull();
+  expect(query).not.toHaveBeenCalled();
+  expect(bounds).not.toHaveBeenCalled();
+  for (let i = 0; i < 120; i++) frame(0.5, -1, 1 / 60, 1);
+  expect(mobileHud.style.translate).toBe("");
+  for (const carrier of sheetCarriers) expect(carrier.style.translate).toBe("");
+  const write = vi.spyOn(mobileHud.style, "translate", "set");
+  for (let i = 0; i < 20; i++) frame(0.5, i / 20);
+  expect(write).not.toHaveBeenCalled();
+  act(() => hudCameraDriftController.setEnabled(false));
+  // Desktop mouse drift stays enabled, but must not leave a mobile frame running.
+  expect(runtime.frames.size).toBe(0);
+});
+
+it.each(["pointerup", "pointercancel", "lostpointercapture"])(
+  "holds moving mobile targets under the finger and resumes smoothly after %s",
+  (releaseType) => {
+    runtime.mobile = true;
+    const { mobileHud, mobileSheet } = mount();
+    // A press in the sheet pauses the same motion as a navigation press.
+    const button =
+      releaseType === "pointerup"
+        ? mobileSheet.firstElementChild!
+        : mobileHud.querySelector("button")!;
+    const pointerEvent = (type: string, id: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, { pointerId: id, pointerType: "touch" });
+      button.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    };
+    frame(0);
+    for (let i = 1; i <= 20; i++) frame(i / 300);
+    const held = mobileHud.style.translate;
+    pointerEvent("pointerdown", 1);
+    pointerEvent("pointerdown", 2);
+    for (let i = 21; i <= 60; i++) frame(i / 300);
+    expect(mobileHud.style.translate).toBe(held);
+    pointerEvent(releaseType, 1);
+    frame(0.3);
+    expect(mobileHud.style.translate).toBe(held);
+    pointerEvent(releaseType, 2);
+    frame(0.3);
+    expect(
+      Math.abs(parseFloat(mobileHud.style.translate) - parseFloat(held)),
+    ).toBeLessThan(2);
+    for (let i = 0; i < 120; i++) frame(0.3);
+    expect(mobileHud.style.translate).toBe("");
+  },
+);
+
+it("restores mobile targets on resize and removes all work for system reduced motion", () => {
+  runtime.mobile = true;
+  const { mobileHud, hud } = mount();
+  frame(0);
+  frame(0.01);
+  expect(mobileHud.style.translate).not.toBe("");
+  act(() => {
+    runtime.mobile = false;
+    for (const callback of runtime.mediaListeners) callback();
+  });
+  expect(mobileHud.style.translate).toBe("");
+  frame(0.01);
+  frame(0.02);
+  expect(hud.style.translate).not.toBe("");
+  act(() => {
+    runtime.mobile = true;
+    runtime.eligible = false;
+    for (const callback of runtime.mediaListeners) callback();
+  });
+  expect(hud.style.translate).toBe("");
+  expect(runtime.frames.size).toBe(0);
+});
 
 it("does no style work for mouse movement when mouse drift is disabled", () => {
   const { shell, hud } = mount();

@@ -412,7 +412,7 @@ export default function ChromeLayer() {
         data-tap-first={tapFirst || undefined}
       >
         <div className="flex items-start gap-[18px]">
-          <ChromeReveal index={0} className="stacks-hud-drift">
+          <ChromeReveal index={0} className="stacks-hud-drift stacks-mobile-hud-drift">
             <ChromeKeyboardHelp
               open={keyboardOpen}
               onOpenChange={setKeyboardOpen}
@@ -438,7 +438,7 @@ export function ChromeSceneControls() {
     >
       <ChromeReveal
         index={2}
-        className="stacks-scene-controls stacks-hud-drift"
+        className="stacks-scene-controls stacks-hud-drift stacks-mobile-hud-drift"
       >
         <ThemeToggle tooltipAlign={tooltipAlign}
           className="stacks-on-background-text stacks-mobile-secondary-chrome !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]"

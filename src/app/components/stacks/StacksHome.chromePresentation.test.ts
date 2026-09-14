@@ -50,7 +50,7 @@ describe("presentation chrome choreography", () => {
 
   it("holds the light sheet above its dimmed room without bleaching its cards", () => {
     expect(placardSource).toContain(
-      ".stacks-sheet {\n          --sheet-fill: rgb(255 255 255 / 0.28);",
+      "--sheet-fill: rgb(255 255 255 / var(--sheet-white-fill, 0.28));",
     );
     expect(placardSource).toContain(
       "background-color: rgb(244 241 234 / 0.34) !important;",
@@ -58,11 +58,13 @@ describe("presentation chrome choreography", () => {
     expect(placardSource).toContain(
       'data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}',
     );
+    expect(placardSource).toContain('"--sheet-white-fill": sheetWhiteFill,');
     expect(placardSource).toContain(
-      'html:not(.dark) .stacks-sheet[data-sheet="expanded"]',
+      '"--sheet-light-brightness": sheetLightBrightness,',
     );
-    expect(placardSource).toContain("--sheet-fill: rgb(255 255 255 / 0.36);");
-    expect(placardSource).toContain("brightness(1.24)");
+    expect(placardSource).toContain(
+      "brightness(var(--sheet-light-brightness, 1.18))",
+    );
   });
 
   it("grows mobile placard type from phone to tablet scale", () => {

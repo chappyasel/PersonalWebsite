@@ -7,6 +7,24 @@ import {
 } from "./navigation";
 
 describe("Universal Search navigation", () => {
+  it("uses the signature page loader for results while preserving room travel", () => {
+    const navigatePage = vi.fn();
+    const assign = vi.fn();
+    const pushSameDocument = vi.fn();
+    const host = {
+      location: { href: "https://www.chappyasel.com/", assign },
+      notifySameDocument: vi.fn(),
+      pushSameDocument,
+      navigatePage,
+    };
+    navigateUniversalSearchResult("/musings/essay", host);
+    expect(navigatePage).toHaveBeenCalledWith("/musings/essay");
+    expect(assign).not.toHaveBeenCalled();
+    navigatePage.mockClear();
+    navigateUniversalSearchResult("/projects", host);
+    expect(navigatePage).not.toHaveBeenCalled();
+    expect(pushSameDocument).toHaveBeenCalledWith("/projects");
+  });
   it("recognizes fragment-only homepage navigation", () => {
     expect(
       isSameDocumentNavigation(

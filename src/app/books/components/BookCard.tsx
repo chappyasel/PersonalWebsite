@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
+  type SpringOptions,
   motion,
   useMotionValue,
   useReducedMotion,
@@ -39,14 +40,12 @@ import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute
 import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
+import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
+import { cn } from "@/src/lib/util";
 import {
   cardInteractionSpring,
   cardPressedScale,
-  cardTiltSpring,
 } from "~/app/components/tiltCardMotion";
-
-import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
-import { cn } from "@/src/lib/util";
 
 type BookCardProps = {
   book: Book;
@@ -133,6 +132,13 @@ const sizeStyles = {
   },
 } as const;
 
+// Keep the original smooth pickup and return independent of other cards.
+const bookHoverSpring: SpringOptions = {
+  damping: 25,
+  stiffness: 120,
+  mass: 1,
+};
+
 const hoverScale = {
   XS: 1.2, // Largest scale for extra small books
   S: 1.15, // Larger scale for small books
@@ -205,9 +211,9 @@ export const BookCard = memo(function BookCard({
   }, [keyboardCopyTrigger, isKeyboardFocused]);
 
   // Motion values for 3D tilt effect (only used on non-touch devices)
-  const rotateX = useSpring(useMotionValue(0), cardTiltSpring);
-  const rotateY = useSpring(useMotionValue(0), cardTiltSpring);
-  const scale = useSpring(1, cardInteractionSpring);
+  const rotateX = useSpring(useMotionValue(0), bookHoverSpring);
+  const rotateY = useSpring(useMotionValue(0), bookHoverSpring);
+  const scale = useSpring(1, bookHoverSpring);
 
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
@@ -264,7 +270,8 @@ export const BookCard = memo(function BookCard({
     cardRef.current?.blur();
     // On a phone the book is its own page, not a modal over the shelf
     // (components/modal-sheet/sheetRoute).
-    if (loadFullPageOnSmallViewport(bookUrl)) return;
+    if (loadFullPageOnSmallViewport(bookUrl, { source: cardRef.current }))
+      return;
     // Open modal instantly via state (XS maps to S for modal)
     openModal(book, size === "XS" ? "S" : size);
     // Update URL without triggering Next.js navigation

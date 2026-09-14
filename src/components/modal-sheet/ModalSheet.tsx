@@ -191,7 +191,7 @@ function PresentedSheet({
           left: `${rect.left}px`,
           width: `${rect.width}px`,
           height: `${rect.height}px`,
-          borderRadius: "1rem",
+          borderRadius: getComputedStyle(shell).borderRadius,
         },
         {
           top: "0px",
@@ -404,12 +404,13 @@ function PresentedSheet({
             >
               <motion.div
                 ref={shellRef}
+                data-home-glass="modal"
                 role="dialog"
                 aria-modal="true"
                 aria-label={label}
                 tabIndex={-1}
                 className={cn(
-                  "relative w-full overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] outline-none",
+                  "relative w-full overflow-hidden rounded-3xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] outline-none",
                   isCard
                     ? "flex max-h-full max-w-[27.5rem] flex-col"
                     : "h-full max-w-5xl",

@@ -7,7 +7,7 @@ export function installHistoryTransition({
   transition,
   cancel,
 }: {
-  accepts: (url: URL) => boolean;
+  accepts: (url: URL, state: unknown) => boolean;
   transition: (url: URL, state: unknown, restore: () => void) => Promise<void>;
   cancel: () => void;
 }) {
@@ -27,7 +27,7 @@ export function installHistoryTransition({
       typeof state !== "object" ||
       !("__NA" in state) ||
       state.__NA !== true ||
-      !accepts(url)
+      !accepts(url, state)
     )
       return;
     event.stopImmediatePropagation();

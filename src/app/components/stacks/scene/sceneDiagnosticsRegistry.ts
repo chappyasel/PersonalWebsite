@@ -1138,7 +1138,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "simulate",
     group: "simulate.camera",
     label: "HUD travel drift",
-    help: "Shift the full desktop HUD against sideways travel between sections, with a gentle speed curve up to 20px, then ease back to centre. Mouse look does not move it. Disabled for reduced motion.",
+    help: "Shift the HUD up to 20px against section travel, then ease back to centre. Mobile navigation, chrome, and bottom-sheet glass and content move horizontally together, pausing during touch interaction. Disabled for reduced motion.",
     defaultValue: true,
     experimental: false,
     store: hudCameraDriftController,

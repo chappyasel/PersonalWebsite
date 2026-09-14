@@ -88,6 +88,7 @@ import Charts from "./compare/Charts";
 import DirectCompare from "./compare/DirectCompare";
 import type { Snapshot } from "./compare/model";
 import styles from "./personalities.module.css";
+import { requestPrototypeNavigation } from "~/app/components/route-transition-prototype/navigation";
 
 const viewIcons = {
   A: StackIcon,
@@ -424,7 +425,8 @@ export default function App() {
                         onClick={() => {
                           setSelected((s) => ({ ...s, [person.id]: a.id }));
                           setChartFocus(person.id);
-                          router.push("/personalities");
+                          if (!requestPrototypeNavigation("/personalities"))
+                            router.push("/personalities");
                         }}
                       >
                         <ChartLineIcon size={16} aria-hidden="true" />
@@ -739,7 +741,12 @@ export default function App() {
                                 await api("import-score", { personId, code });
                                 await refresh();
                                 setModal(null);
-                                router.push("/personalities/history");
+                                if (
+                                  !requestPrototypeNavigation(
+                                    "/personalities/history",
+                                  )
+                                )
+                                  router.push("/personalities/history");
                               })
                             }
                           >
@@ -777,7 +784,12 @@ export default function App() {
                           });
                           await refresh();
                           setModal(null);
-                          router.push("/personalities/history");
+                          if (
+                            !requestPrototypeNavigation(
+                              "/personalities/history",
+                            )
+                          )
+                            router.push("/personalities/history");
                         });
                       }}
                     >

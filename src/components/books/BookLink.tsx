@@ -23,6 +23,7 @@ import {
 } from "~/components/ui/tooltip";
 
 import { useInlineBookPreview } from "./InlineBookPreviewProvider";
+import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
 
 /**
  * The one way to link a book from running text.
@@ -61,16 +62,20 @@ export default function BookLink({
       data-route-transition="preserve"
       onClick={(event) => {
         if (
-          !openBook ||
           event.defaultPrevented ||
           event.button !== 0 ||
           event.metaKey ||
           event.ctrlKey ||
           event.shiftKey ||
-          event.altKey ||
-          prefersFullPage()
+          event.altKey
         )
           return;
+        if (prefersFullPage()) {
+          event.preventDefault();
+          navigateFullDocument(href, { source: event.currentTarget });
+          return;
+        }
+        if (!openBook) return;
         event.preventDefault();
         openBook(slug, event.currentTarget.getBoundingClientRect());
       }}

@@ -26,7 +26,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
 import { useTheme } from "next-themes";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -91,6 +90,7 @@ import { Button } from "~/components/ui/button";
 import { Keycap, KeycapSequence } from "~/components/ui/keycap";
 
 import type { UniversalSearchPaletteProps } from "./UniversalSearchController";
+import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
 
 const ICONS: Record<CommandIconKey, Icon> = {
   house: HouseIcon,
@@ -913,13 +913,13 @@ export function UniversalSearchPaletteContent({
             // Top-anchored like the AIC palettes: the input and the top of
             // the results stay at a fixed Y while the panel grows downward,
             // so loading/settling never moves what the visitor is reading.
-            "fixed left-1/2 top-4 z-[1001] w-[min(36rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border text-foreground outline-none [translate:-50%_0] sm:top-[16vh]",
+            "fixed left-1/2 top-4 z-[1001] w-[min(36rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border text-foreground outline-none [translate:-50%_0] sm:top-[16vh]",
             !visualEffects.backdropBlur
               ? "border-border/80 bg-background shadow-2xl"
               : onWorldScene
                 ? "bg-[rgb(242_239_233_/_0.5)] [backdrop-filter:blur(80px)_saturate(0.42)_brightness(1.5)] dark:bg-[rgb(0_0_0_/_0.32)] dark:[backdrop-filter:blur(80px)_saturate(0.34)_brightness(0.52)]"
                 : "border-border/70 bg-background/85 shadow-2xl [backdrop-filter:blur(24px)_saturate(1.05)] dark:bg-background/80",
-            "motion-safe:data-[state=open]:[animation-duration:220ms] motion-safe:data-[state=closed]:[animation-duration:150ms] motion-safe:ease-out motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:slide-in-from-top-2 motion-safe:data-[state=closed]:slide-out-to-top-1",
+            "motion-safe:ease-out motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=closed]:slide-out-to-top-1 motion-safe:data-[state=open]:slide-in-from-top-2 motion-safe:data-[state=closed]:[animation-duration:150ms] motion-safe:data-[state=open]:[animation-duration:220ms]",
           )}
         >
           <Dialog.Title className="sr-only">Universal Search</Dialog.Title>
@@ -939,7 +939,14 @@ export function UniversalSearchPaletteContent({
             value={selectedValue}
             onValueChange={setSelectedValue}
           >
-            <div className="flex items-center gap-3 border-b border-border/70 px-4">
+            <div
+              data-search-glass-divider={
+                onWorldScene && visualEffects.backdropBlur
+                  ? "bottom"
+                  : undefined
+              }
+              className="flex items-center gap-3 border-b border-border/70 px-5 pb-0.5 pt-1.5"
+            >
               <MagnifyingGlassIcon
                 aria-hidden
                 className="size-5 shrink-0 text-muted-foreground"
@@ -978,7 +985,7 @@ export function UniversalSearchPaletteContent({
             </div>
             <Command.List
               data-stacks-scrollable=""
-              className="max-h-[min(70dvh,40rem,calc(100dvh-7rem))] overflow-y-auto overscroll-contain px-1 py-1 sm:max-h-[min(70dvh,40rem,calc(84dvh-6rem))] min-[1200px]:max-h-[min(74dvh,46rem,calc(84dvh-6rem))]"
+              className="max-h-[min(70dvh,40rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain px-1 py-1 sm:max-h-[min(70dvh,40rem,calc(84dvh-7rem))] min-[1200px]:max-h-[min(74dvh,46rem,calc(84dvh-7rem))]"
             >
               {!normalizedQuery && recents.length > 0 && (
                 <ResultGroup heading="Recent">
@@ -1087,7 +1094,12 @@ export function UniversalSearchPaletteContent({
                 )}
             </Command.List>
             {!tapFirst && (
-              <div className="flex items-center justify-between border-t border-border/70 px-4 py-3 font-serif text-[11px] text-muted-foreground">
+              <div
+                data-search-glass-divider={
+                  onWorldScene && visualEffects.backdropBlur ? "top" : undefined
+                }
+                className="flex items-center justify-between border-t border-border/70 px-5 py-3.5 font-serif text-[11px] text-muted-foreground [&>span]:relative [&>span]:-top-px"
+              >
                 <span className="inline-flex items-center gap-2">
                   <KeycapSequence
                     keys={["ArrowUp", "ArrowDown"]}
@@ -1111,7 +1123,6 @@ export function UniversalSearchPaletteContent({
 export function UniversalSearchPalette(props: UniversalSearchPaletteProps) {
   const { setTheme } = useTheme();
   const { setFont } = useFont();
-  const router = useRouter();
   const dependencies = useMemo<UniversalSearchPaletteDependencies>(
     () => ({
       storage: window.localStorage,
@@ -1124,8 +1135,12 @@ export function UniversalSearchPalette(props: UniversalSearchPaletteProps) {
           pushSameDocument: (path) => window.history.pushState(null, "", path),
           notifyExplicitDestination: () =>
             window.dispatchEvent(new HashChangeEvent("hashchange")),
-          // Same-origin jumps on interceptor-free hosts stay in-app.
-          softNavigate: (path) => router.push(path),
+          navigatePage: (href) =>
+            navigateFullDocument(href, {
+              source: document.querySelector<HTMLElement>(
+                '[cmdk-item][data-selected="true"]',
+              ),
+            }),
         }),
       setTheme: (theme) => setTheme(theme),
       setFont,
@@ -1137,7 +1152,7 @@ export function UniversalSearchPalette(props: UniversalSearchPaletteProps) {
         }),
       searchServer: queryServerSearch,
     }),
-    [router, setFont, setTheme],
+    [setFont, setTheme],
   );
 
   return (

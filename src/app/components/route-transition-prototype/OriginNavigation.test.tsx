@@ -128,7 +128,9 @@ it.each([
   async (from, to, reduced) => {
     navigation.pathname = from;
     history.replaceState({ __NA: true }, "", from);
-    vi.stubGlobal("matchMedia", () => ({ matches: reduced }));
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)" && reduced,
+    }));
     const page = () => (
       <>
         <RouteTransitionPrototype />
@@ -154,6 +156,10 @@ it.each([
 it.each([
   ["/musings/ai-stack", "/musings"],
   ["/musings", "/musings/ai-stack"],
+  ["/books", "/weightlifting"],
+  ["/books/behave", "/books"],
+  ["/personalities/history", "/personalities"],
+  ["/youtube", "/site-index"],
 ] as const)(
   "animates browser traversal from %s to %s without pushing history",
   async (from, to) => {
@@ -404,7 +410,9 @@ it.each([
 ] as const)(
   "restores browser Back from %s without pushing, reduced motion %s",
   async (path, reduced) => {
-    vi.stubGlobal("matchMedia", () => ({ matches: reduced }));
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)" && reduced,
+    }));
     navigation.pathname = path;
     const view = render(<PageUnderTest />);
     const restore = vi.fn(() => {

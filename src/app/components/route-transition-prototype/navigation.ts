@@ -29,7 +29,7 @@ export function requestPrototypeNavigation(
   );
 }
 
-const SECTIONS = [
+export const TRANSITION_SECTIONS = [
   "books",
   "weightlifting",
   "manual",
@@ -38,7 +38,29 @@ const SECTIONS = [
   "liarsdice",
   "weight-log",
   "musings",
+  "dad",
+  "personalities",
+  "youtube",
+  "site-index",
 ];
+
+export function isTransitionPage(pathname: string) {
+  if (/\.[^/]+$/.test(pathname) || /\/(api|icon|tab-icon)(\/|$)/.test(pathname))
+    return false;
+  return (
+    isRoomPathname(pathname) ||
+    TRANSITION_SECTIONS.includes(pathname.split("/")[1] ?? "")
+  );
+}
+
+export function isTransitionPageChange(from: string, to: string) {
+  return (
+    isTransitionPage(from) &&
+    isTransitionPage(to) &&
+    normalizeRoomPathname(from) !== normalizeRoomPathname(to) &&
+    !(isRoomPathname(from) && isRoomPathname(to))
+  );
+}
 const SUBDOMAINS = ["books", "weightlifting", "manual", "routine"];
 const ROOT_HOSTS = [
   "localhost",
@@ -62,7 +84,7 @@ export function prototypeDestination(
     !isMusingReadingPath(url.pathname)
   )
     return null;
-  const onSubdomain = SUBDOMAINS.some((site) =>
+  const onSubdomain = SUBDOMAINS.find((site) =>
     current.hostname.startsWith(`${site}.`),
   );
   // The controller stays mounted on the main local origin, including when a
@@ -75,24 +97,31 @@ export function prototypeDestination(
         : [`${site}.localhost`, `${site}.chappyasel.com`]
       ).includes(url.hostname),
     );
-    if (portal && url.pathname === "/")
-      return new URL(`/${portal}${url.search}${url.hash}`, current.origin);
+    if (portal) {
+      const path =
+        url.pathname === `/${portal}` || url.pathname.startsWith(`/${portal}/`)
+          ? url.pathname
+          : `/${portal}${url.pathname === "/" ? "" : url.pathname}`;
+      if (isTransitionPage(path))
+        return new URL(`${path}${url.search}${url.hash}`, current.origin);
+    }
     if (
       (production
         ? ["chappyasel.com", "www.chappyasel.com"]
         : ROOT_HOSTS
       ).includes(url.hostname) &&
-      (isRoomPathname(url.pathname) ||
-        SECTIONS.includes(url.pathname.split("/")[1] ?? ""))
+      isTransitionPage(url.pathname)
     ) {
       return new URL(url.pathname + url.search + url.hash, current.origin);
     }
   }
   if (url.origin !== current.origin) return null;
-  if (
-    !isRoomPathname(url.pathname) &&
-    !SECTIONS.includes(url.pathname.split("/")[1] ?? "")
-  )
-    return null;
+  const path =
+    onSubdomain &&
+    !url.pathname.startsWith(`/${onSubdomain}/`) &&
+    url.pathname !== `/${onSubdomain}`
+      ? `/${onSubdomain}${url.pathname === "/" ? "" : url.pathname}`
+      : url.pathname;
+  if (!isTransitionPage(path)) return null;
   return url;
 }

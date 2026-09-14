@@ -46,10 +46,12 @@ import {
 } from "@phosphor-icons/react";
 import {
   AnimatePresence,
+  type MotionStyle,
   animate,
   motion,
   useMotionValue,
   useReducedMotion,
+  useTransform,
 } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -1064,6 +1066,14 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   const y = useMotionValue(
     typeof window === "undefined" ? 0 : window.innerHeight,
   );
+  // End the filtered material at the viewport. Extending its blur below the
+  // room can pull the pale page background into the visible bottom edge.
+  // Keep the same moving top and safe-area cap as the content frame, including
+  // upward overdrag, while the material's bottom stays fixed on screen.
+  const visibleMaterialHeight = useTransform(
+    () =>
+      `max(0px, calc(min(${requestedHeight}px, 100dvh - env(safe-area-inset-top, 0px) - 1.25rem) - ${y.get()}px))`,
+  );
   // A dismissed sheet still has to stay mounted: its content is the source
   // for the animated chip label, and reopening should return to the same
   // physical sheet rather than construct a new one at the bottom edge. Keep
@@ -1199,6 +1209,22 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   // finishes it, so the dim inherits both by being a function of position.
   const peekRestY = mobileSheetRestY("peek", renderedHeight, peek);
   const dimOpacity = useMotionValue(0);
+  // The glass samples the dimmed room. Divide its resting brightness by
+  // the light remaining under the 30% light / 10% dark scrim so expansion
+  // does not darken the sheet. Use the scrim's motion value through dragging
+  // and settling, including a cancelled drag back to peek.
+  const sheetLightBrightness = useTransform(
+    dimOpacity,
+    (progress) => 1.18 / (1 - 0.3 * progress),
+  );
+  const sheetDarkBrightness = useTransform(
+    dimOpacity,
+    (progress) => 0.94 / (1 - 0.1 * progress),
+  );
+  const sheetWhiteFill = useTransform(
+    dimOpacity,
+    (progress) => 0.28 + 0.08 * progress,
+  );
   useEffect(() => {
     const update = () => {
       dimOpacity.set(
@@ -2003,28 +2029,40 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           the room until that opacity reached exactly one, so the blur popped
           in on the final frame. The resident material switches immediately
           between identical aligned surfaces while only their contents fade. */}
-      <motion.div
-        ref={materialRef}
-        aria-hidden
-        data-stacks-sheet-material=""
-        data-stacks-mobile-intro="sheet"
-        data-home-glass="sheet"
-        data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
-        data-stacks-panel-unit={shownSlug}
-        style={{
-          y,
-          bottom: -materialOverscan,
-          height: requestedHeight + materialOverscan,
-          maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem + ${materialOverscan}px)`,
-        }}
-        className={`stacks-sheet pointer-events-none fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] overflow-hidden rounded-t-3xl shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
-          active && !sheetParked ? "visible" : "invisible"
-        }`}
-      ></motion.div>
+      {/* Drift belongs to viewport-sized carriers, separate from the sheet's
+          gesture transforms and CSS overlay transitions. Keep the glass's
+          carrier opaque so it can continue sampling the room behind it. */}
+      <div
+        data-stacks-mobile-sheet-drift=""
+        className="pointer-events-none fixed inset-0 z-40"
+      >
+        <motion.div
+          ref={materialRef}
+          aria-hidden
+          data-stacks-sheet-material=""
+          data-stacks-mobile-intro="sheet"
+          data-home-glass="sheet"
+          data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
+          data-stacks-panel-unit={shownSlug}
+          style={
+            {
+              bottom: 0,
+              height: visibleMaterialHeight,
+              "--sheet-light-brightness": sheetLightBrightness,
+              "--sheet-dark-brightness": sheetDarkBrightness,
+              "--sheet-white-fill": sheetWhiteFill,
+            } as MotionStyle
+          }
+          className={`stacks-sheet pointer-events-none fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] overflow-hidden rounded-t-3xl shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
+            active && !sheetParked ? "visible" : "invisible"
+          }`}
+        ></motion.div>
+      </div>
       {/* Section opacity belongs to content alone. This layer intentionally
           contains no backdrop-filter, so its crossfade cannot interrupt the
           continuously rendered glass above. */}
       <motion.div
+        data-stacks-mobile-sheet-drift=""
         aria-hidden={!active}
         animate={{ opacity: active ? 1 : 0 }}
         transition={{ duration: reduceMotion ? 0 : active ? 0.22 : 0.12 }}
@@ -2510,18 +2548,15 @@ export default function PlacardLayer({
           -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.18);
         }
         .stacks-sheet {
-          --sheet-fill: rgb(255 255 255 / 0.28);
+          --sheet-fill: rgb(255 255 255 / var(--sheet-white-fill, 0.28));
           --placard-edge-bottom-y: 0px;
+          backdrop-filter: blur(42px) saturate(0.28) brightness(var(--sheet-light-brightness, 1.18));
+          -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(var(--sheet-light-brightness, 1.18));
           /* The sheet is anchored below the viewport, so its soft shadow
              falls upward into the room rather than below the panel. */
           box-shadow:
             0 -5px 12px -3px rgb(0 0 0 / 0.16),
             0 -14px 36px -6px rgb(0 0 0 / 0.30) !important;
-        }
-        html:not(.dark) .stacks-sheet[data-sheet="expanded"] {
-          --sheet-fill: rgb(255 255 255 / 0.36);
-          backdrop-filter: blur(42px) saturate(0.28) brightness(1.24);
-          -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.24);
         }
         /* The chip stands alone on the vignetted meadow at the bottom edge,
            where the ground behind it measures about 8% luminance, so the
@@ -2644,6 +2679,8 @@ export default function PlacardLayer({
           -webkit-backdrop-filter: blur(32px) saturate(0.45) brightness(0.94);
         }
         .dark .stacks-sheet {
+          backdrop-filter: blur(32px) saturate(0.45) brightness(var(--sheet-dark-brightness, 0.94));
+          -webkit-backdrop-filter: blur(32px) saturate(0.45) brightness(var(--sheet-dark-brightness, 0.94));
           box-shadow:
             0 -5px 12px -3px rgb(0 0 0 / 0.26),
             0 -14px 36px -6px rgb(0 0 0 / 0.55) !important;

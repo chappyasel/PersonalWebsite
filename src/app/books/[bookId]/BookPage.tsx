@@ -1,7 +1,6 @@
 "use client";
 
 import { BookDetailContent } from "../components/BookDetailContent";
-import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -13,6 +12,8 @@ import {
 import type { BaseBook } from "~/lib/books/types";
 import { copyTextToClipboard } from "~/lib/clipboard";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+
+import { requestPrototypeNavigation } from "~/app/components/route-transition-prototype/navigation";
 
 type BookPageProps = {
   bookId: string;
@@ -36,7 +37,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
       if (isUniversalSearchOpen()) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        router.push("/books");
+        if (!requestPrototypeNavigation("/books")) router.push("/books");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -54,12 +55,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
 
   return (
     <div className="-m-6 min-h-[100dvh] bg-background md:-m-8">
-      <motion.div
-        className="flex min-h-[100dvh] flex-col"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+      <div className="flex min-h-[100dvh] flex-col">
         {/* Content Container */}
         <div className="flex min-h-[100dvh] flex-col bg-background">
           <BookDetailContent
@@ -74,7 +70,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
             tagHref={tagHref}
           />
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

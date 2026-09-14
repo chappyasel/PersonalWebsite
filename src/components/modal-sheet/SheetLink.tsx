@@ -9,6 +9,7 @@ import { recordModalOrigin } from "~/lib/originFlight";
 import { DocumentSheetNavigationContext } from "./DocumentSheetNavigation";
 import { InModalSheetContext } from "./ModalSheet";
 import { prefersFullPage } from "./sheetRoute";
+import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
 
 type SheetLinkProps = Omit<
   ComponentProps<typeof Link>,
@@ -75,7 +76,7 @@ export default function SheetLink({ href, ...props }: SheetLinkProps) {
           return;
         }
         event.preventDefault();
-        window.location.assign(href);
+        navigateFullDocument(href, { source: source.current });
       }}
     />
   );

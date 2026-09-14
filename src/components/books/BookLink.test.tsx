@@ -21,6 +21,7 @@ import ModalSheet from "~/components/modal-sheet/ModalSheet";
 
 import BookLink from "./BookLink";
 import { InlineBookPreviewProvider } from "./InlineBookPreviewProvider";
+import * as documentNavigation from "~/app/components/route-transition-prototype/documentNavigation";
 import { MusingBody } from "~/app/musings/MusingBody";
 
 const { queryBook, routerBack } = vi.hoisted(() => ({
@@ -229,11 +230,17 @@ describe("inline book navigation", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("keeps small viewports on the full-page link", () => {
+  it("uses the signature full-page loader on small viewports", () => {
+    const navigate = vi
+      .spyOn(documentNavigation, "navigateFullDocument")
+      .mockImplementation(() => undefined);
     vi.stubGlobal("matchMedia", () => ({ matches: true }));
     render(<InlineBookPreviewProvider>{link}</InlineBookPreviewProvider>);
     expect(screen.getByRole("link").getAttribute("href")).toBe(href);
-    expect(clickLink()).toBe(false);
+    expect(clickLink()).toBe(true);
+    expect(navigate).toHaveBeenCalledWith(href, {
+      source: screen.getByRole("link"),
+    });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

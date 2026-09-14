@@ -7,7 +7,9 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import AnalyticsRouteTracker from "./components/AnalyticsRouteTracker";
 import { RouteTransitionPrototypeGate } from "./components/route-transition-prototype/Gate";
+import { documentTransitionBootstrapScript } from "./components/route-transition-prototype/documentBootstrap";
 import { booksHistoryBootstrapScript } from "./components/route-transition-prototype/historyBootstrap";
+import "./components/route-transition-prototype/prototype.css";
 import { ResidentRoomHost } from "./components/stacks/room/ResidentRoomHost";
 import { InlineBookPreviewProvider } from "~/components/books/InlineBookPreviewProvider";
 import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController";
@@ -117,6 +119,17 @@ export default function RootLayout({
         />
         <script dangerouslySetInnerHTML={{ __html: fontPreferenceScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <style
+          id="document-transitions"
+          media="(prefers-reduced-motion: no-preference)"
+        >
+          {"@view-transition { navigation: auto; }"}
+        </style>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: documentTransitionBootstrapScript,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{ __html: booksHistoryBootstrapScript }}
         />

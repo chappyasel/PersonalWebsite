@@ -100,14 +100,26 @@ html[data-route-direction="back"] {
   --route-out-angle: 12deg;
   --route-in-angle: -12deg;
 }
-html[data-route-prototype]::view-transition {
+html:is(
+    [data-route-prototype],
+    [data-route-document="native"]
+  )::view-transition {
   background: hsl(var(--background));
 }
-html[data-route-prototype]::view-transition-group(root) {
+html:is(
+    [data-route-prototype],
+    [data-route-document="native"]
+  )::view-transition-group(root) {
   animation: none;
 }
-html[data-route-prototype]::view-transition-old(root),
-html[data-route-prototype]::view-transition-new(root) {
+html:is(
+    [data-route-prototype],
+    [data-route-document="native"]
+  )::view-transition-old(root),
+html:is(
+    [data-route-prototype],
+    [data-route-document="native"]
+  )::view-transition-new(root) {
   mix-blend-mode: normal;
   animation-duration: var(--route-prototype-duration, 900ms);
   animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
@@ -178,23 +190,41 @@ html[data-route-prototype="cards"]::view-transition-new(root) {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-route-prototype]::view-transition-old(root),
-  html[data-route-prototype]::view-transition-new(root) {
+  html:is(
+      [data-route-prototype],
+      [data-route-document="native"]
+    )::view-transition-old(root),
+  html:is(
+      [data-route-prototype],
+      [data-route-document="native"]
+    )::view-transition-new(root) {
     animation: none;
   }
 }
 
 /* Push gently toward the source while opening a full-resolution destination.
    Expanding the clip avoids magnifying a tiny patch of the outgoing bitmap. */
-html[data-route-prototype="origin"]::view-transition-old(root),
-html[data-route-prototype="origin"]::view-transition-new(root) {
+html:is(
+    [data-route-prototype="origin"],
+    [data-route-document="native"]
+  )::view-transition-old(root),
+html:is(
+    [data-route-prototype="origin"],
+    [data-route-document="native"]
+  )::view-transition-new(root) {
   transform-origin: 0 0;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
-html[data-route-prototype="origin"]::view-transition-old(root) {
+html:is(
+    [data-route-prototype="origin"],
+    [data-route-document="native"]
+  )::view-transition-old(root) {
   animation-name: route-origin-out;
 }
-html[data-route-prototype="origin"]::view-transition-new(root) {
+html:is(
+    [data-route-prototype="origin"],
+    [data-route-document="native"]
+  )::view-transition-new(root) {
   animation-name: route-origin-in;
   transform: none;
 }
@@ -319,6 +349,31 @@ html[data-sheet-navigation]::view-transition-new(sheet-document) {
 @media (prefers-reduced-motion: reduce) {
   html[data-sheet-navigation]::view-transition-old(sheet-document),
   html[data-sheet-navigation]::view-transition-new(sheet-document) {
+    animation: none;
+  }
+}
+
+/* Full document loads retain phone reading layouts and search semantics. */
+html[data-route-document] {
+  --route-prototype-duration: 620ms;
+  --route-origin-clip: var(
+    --document-origin-clip,
+    inset(42% 40% 42% 40% round 16px)
+  );
+  --route-origin-zoom: var(
+    --document-origin-zoom,
+    translate(-10vw, -10vh) scale(1.2)
+  );
+}
+html[data-route-document="fallback"] > body {
+  --route-origin-clip: var(
+    --document-fallback-clip,
+    inset(42vh 40vw calc(100% - 58vh) 40vw round 16px)
+  );
+  animation: route-origin-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-route-document="fallback"] > body {
     animation: none;
   }
 }

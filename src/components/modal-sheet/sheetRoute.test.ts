@@ -10,8 +10,15 @@ import {
 function stubViewport(matches: boolean) {
   const assign = vi.fn();
   const replace = vi.fn();
-  const matchMedia = vi.fn(() => ({ matches }));
-  vi.stubGlobal("window", { matchMedia, location: { assign, replace } });
+  const matchMedia = vi.fn((query: string) => ({
+    matches: query === FULL_PAGE_QUERY && matches,
+  }));
+  vi.stubGlobal("window", {
+    matchMedia,
+    innerWidth: 390,
+    innerHeight: 844,
+    location: { href: "http://localhost/", assign, replace },
+  });
   return { assign, replace, matchMedia };
 }
 
@@ -59,7 +66,9 @@ describe("sheet route", () => {
     const push = vi.fn();
     openSheetRoute("/weightlifting/workout/2026-09-08", { push });
     expect(matchMedia).toHaveBeenCalledWith(FULL_PAGE_QUERY);
-    expect(assign).toHaveBeenCalledWith("/weightlifting/workout/2026-09-08");
+    expect(assign).toHaveBeenCalledWith(
+      "http://localhost/weightlifting/workout/2026-09-08",
+    );
     expect(push).not.toHaveBeenCalled();
   });
 });

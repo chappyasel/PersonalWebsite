@@ -41,7 +41,7 @@ it.each([
   [
     "http://books.localhost:3001/superminds",
     "http://localhost:3001/",
-    undefined,
+    "http://localhost:3001/books/superminds",
   ],
 ])("resolves %s from %s", (href, from, expected) => {
   vi.stubEnv("NODE_ENV", "development");
