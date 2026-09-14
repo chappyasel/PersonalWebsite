@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const PUBLIC_DATA_GENERATORS = [
-  "scripts/generate/github-activity.ts",
   "scripts/generate/manual.ts",
   "scripts/generate/routine.ts",
   "scripts/generate/systems.ts",
@@ -16,13 +15,20 @@ export const PUBLIC_DATA_GENERATORS = [
   "scripts/generate/universal-search-index.ts",
 ];
 
-/** Refresh only public snapshots. Publishing is a separate PR-only workflow. */
+/**
+ * Refresh only public snapshots. Publishing is a separate PR-only workflow.
+ *
+ * The GitHub placard is deliberately absent: production reads GitHub live on
+ * its own daily cache, so refreshing `public/data/github.json` here changed a
+ * file every single day and opened a pull request for a fallback nobody was
+ * reading. Run `pnpm generate:github` when that fallback looks stale.
+ */
 export function refreshPublicData({
   cwd = root,
   env = process.env,
   run = execFileSync,
 } = {}) {
-  for (const name of ["NOTION_API_KEY", "GITHUB_TOKEN"]) {
+  for (const name of ["NOTION_API_KEY"]) {
     if (!env[name]?.trim())
       throw new Error(`${name} is required for public data refresh`);
   }

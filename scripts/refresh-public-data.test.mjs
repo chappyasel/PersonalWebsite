@@ -5,7 +5,7 @@ import {
   refreshPublicData,
 } from "./refresh-public-data.mjs";
 
-const env = { NOTION_API_KEY: "test-notion", GITHUB_TOKEN: "test-github" };
+const env = { NOTION_API_KEY: "test-notion" };
 afterEach(() => vi.restoreAllMocks());
 
 describe("public data refresh", () => {
@@ -19,6 +19,12 @@ describe("public data refresh", () => {
     }
   });
 
+  it("leaves the GitHub fallback to production's own live refresh", () => {
+    expect(PUBLIC_DATA_GENERATORS).not.toContain(
+      "scripts/generate/github-activity.ts",
+    );
+  });
+
   it("stops on an upstream failure instead of building a mixed search index", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     const run = vi.fn().mockImplementation((_node, args) => {
@@ -26,8 +32,10 @@ describe("public data refresh", () => {
         throw new Error("Notion unavailable");
     });
     expect(() => refreshPublicData({ env, run })).toThrow("Notion unavailable");
+    const stopped =
+      PUBLIC_DATA_GENERATORS.indexOf("scripts/generate/routine.ts") + 1;
     expect(run.mock.calls.map((call) => call[1].at(-1))).toEqual(
-      PUBLIC_DATA_GENERATORS.slice(0, 3),
+      PUBLIC_DATA_GENERATORS.slice(0, stopped),
     );
   });
 
@@ -43,7 +51,6 @@ describe("public data refresh", () => {
       expect(node).toBe(process.execPath);
       expect(args.slice(0, 2)).toEqual(["--import", "tsx"]);
       expect(JSON.stringify(args)).not.toContain("test-notion");
-      expect(JSON.stringify(args)).not.toContain("test-github");
       expect(options).toMatchObject({
         cwd: "/workspace",
         env,

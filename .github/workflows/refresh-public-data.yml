@@ -40,12 +40,11 @@ jobs:
       - name: Refresh public snapshots
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.WEBSITE_REFRESH_TOKEN }}
         run: node scripts/refresh-public-data.mjs
 
       - name: Validate refreshed data
         run: |
-          pnpm exec vitest run scripts/refresh-public-data.test.mjs scripts/musings/sync.test.ts src/lib/musings/content.test.ts src/lib/github/snapshot.test.ts src/lib/github/placard.test.ts src/lib/universal-search/public-index-generation.test.ts
+          pnpm exec vitest run scripts/refresh-public-data.test.mjs scripts/musings/sync.test.ts src/lib/musings/content.test.ts src/lib/universal-search/public-index-generation.test.ts
           pnpm check:search-index
           git diff --check
 
@@ -58,13 +57,12 @@ jobs:
           title: Refresh public website data
           commit-message: Refresh public website data
           body: |
-            Refreshes GitHub activity, published Musings, the Manual, Routine and Systems documents, AI Collective chapters, and the derived search index.
+            Refreshes published Musings, the Manual, Routine and Systems documents, AI Collective chapters, and the derived search index.
 
-            This PR updates on the daily schedule. Review the content and merge when ready; the workflow never merges or deploys it.
+            The schedule runs daily but only opens this PR when one of those sources actually changed, so its arrival means there is something to read. Review the content and merge when ready; the workflow never merges or deploys it. GitHub activity is not here: production refreshes the placard live on its own daily cache.
 
-            Validation includes the refresh failure checks, Musings publishing filters, GitHub snapshot checks, and search index freshness. Full repository checks run on this PR.
+            Validation includes the refresh failure checks, Musings publishing filters, and search index freshness. Full repository checks run on this PR.
           add-paths: |
-            public/data/github.json
             public/data/manual.json
             public/data/routine.json
             public/data/systems.json
