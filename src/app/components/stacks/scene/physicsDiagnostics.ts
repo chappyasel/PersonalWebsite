@@ -22,6 +22,7 @@ export type PhysicsRuntimeSettings = {
   heldCollisionProbes: boolean;
   generatedStatics: boolean;
   visibilityResets: boolean;
+  resetReveals: boolean;
 };
 
 export type PhysicsTiming = {
@@ -104,6 +105,7 @@ const INITIAL: PhysicsDiagnosticsSnapshot = {
     heldCollisionProbes: true,
     generatedStatics: true,
     visibilityResets: true,
+    resetReveals: true,
   },
   timing: {
     frameMs: 0,

@@ -104,7 +104,7 @@ export type SceneInteractionSpec = {
    * cannot be carried (the near globe turns under the finger). The coarse
    * touch arbiter hands such a contact here instead of starting World travel
    * or cancelling it; the prop then owns the pointer stream until release. */
-  dragIntent?: () => void;
+  dragIntent?: (event?: PointerEvent) => void;
   activation?: PortalSpec | ActionSpec | EggSpec | ArtifactSpec;
   hover?: HoverResponseSpec;
 };

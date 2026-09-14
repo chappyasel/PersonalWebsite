@@ -1,4 +1,3 @@
-import { roomWindowEvents } from "../room/roomEvents";
 // The About globe up close: its approach controller, the hand that turns it,
 // the tilt a drag gives it, and which map mark the pointer is over.
 //
@@ -8,6 +7,7 @@ import { roomWindowEvents } from "../room/roomEvents";
 // layer. None of it goes through React state except the hover, which the
 // label subscribes to.
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
+import { roomWindowEvents } from "../room/roomEvents";
 
 import {
   LIVED_PLACES,
@@ -24,9 +24,20 @@ import { createSpinHandle } from "./spinHandle";
 
 // Keyed by the carrier's hover key: while the globe is up, only it may hover.
 export const globeApproach = createPropApproach("egg:globe");
-export const globeSpin = createSpinHandle();
+export const globeSpin = createSpinHandle((turn) => {
+  if (tallyGlobeHandLap(turn))
+    recordFieldNoteEvent({ type: "globe-turned-by-hand" });
+});
 /** Extra pitch the drag gives the near globe, radians, read by PropApproach. */
 export const globeTilt = { current: 0 };
+
+/** The near globe turns by dragging; only chapter marks open a link. */
+export function globeCursor(hovered: string | null) {
+  if (!globeApproach.near) return undefined;
+  if (globeSpin.state.held) return "grabbing";
+  if (hovered !== globeApproach.id) return undefined;
+  return globeChapterHover.current?.kind === "chapter" ? "pointer" : "grab";
+}
 /**
  * Cast at the published touch point right now and set the hover from it.
  * GlobeCloseUp installs it while the globe is near; it is the same sampler
@@ -45,15 +56,15 @@ export const GLOBE_APPROACH_HEIGHT = 0.71;
  * read, it is looked around, and the marks are small. */
 export const GLOBE_APPROACH_FILL = 0.68;
 
-/** One lap of the ball per this many pixels of drag. */
-export const GLOBE_DRAG_PX_PER_LAP = 420;
+/** Drag sensitivity before momentum and friction are applied. */
+export const GLOBE_DRAG_PX_PER_LAP = 900;
 export const GLOBE_DRAG_RADIANS_PER_PX = (Math.PI * 2) / GLOBE_DRAG_PX_PER_LAP;
-/** Pitch per pixel of vertical drag, and how far it may go: 0.6 rad shows
- * the poles without turning the globe over. */
-export const GLOBE_TILT_RADIANS_PER_PX = 0.006;
-export const GLOBE_TILT_LIMIT = 0.6;
-/** Release speed above this keeps the ball turning; below, it just stops. */
-export const GLOBE_FLING_MIN = 0.4;
+/** Gentle vertical input. Positive pitch reveals the northern hemisphere;
+ * looking up underneath the globe only needs a small amount of travel. */
+export const GLOBE_TILT_RADIANS_PER_PX = 0.002;
+export const GLOBE_TILT_DOWN_LIMIT = 0.6;
+export const GLOBE_TILT_UP_LIMIT = 0.12;
+export const GLOBE_TILT_LAMBDA = 6;
 /** A full lap turned by hand while up close earns Global Perspective. */
 export const GLOBE_HAND_LAP = Math.PI * 2;
 /** Where a chapter mark leads. The site's chapter pages are keyed by the
@@ -136,9 +147,8 @@ export function openGlobeChapter(
 }
 
 /**
- * Turn a drag into a turn. Pure, so the gesture can be tested without a
- * pointer: given the pixels moved since the last sample and the seconds
- * between, the radians to add and the pitch to set.
+ * Convert pointer displacement into spin input and a bounded pitch target.
+ * The spin handle applies the input as force on its next frame.
  */
 export function globeDragStep({
   dx,
@@ -152,8 +162,8 @@ export function globeDragStep({
   return {
     turn: dx * GLOBE_DRAG_RADIANS_PER_PX,
     tilt: Math.max(
-      -GLOBE_TILT_LIMIT,
-      Math.min(GLOBE_TILT_LIMIT, tilt + dy * GLOBE_TILT_RADIANS_PER_PX),
+      -GLOBE_TILT_UP_LIMIT,
+      Math.min(GLOBE_TILT_DOWN_LIMIT, tilt + dy * GLOBE_TILT_RADIANS_PER_PX),
     ),
   };
 }
@@ -178,7 +188,12 @@ export function tallyGlobeHandLap(radians: number): boolean {
   return true;
 }
 
-type DragSample = { x: number; y: number; time: number };
+type DragSample = { x: number; y: number };
+let cancelActiveDrag: (() => void) | null = null;
+
+export function cancelGlobeDrag() {
+  cancelActiveDrag?.();
+}
 
 /**
  * Begin turning the near globe by hand. Called by the carrier when a press on
@@ -186,45 +201,58 @@ type DragSample = { x: number; y: number; time: number };
  * itself is tap-only then, so nothing is carried. Listens on window until
  * the pointer lifts, which is also when the Grabbable ends its own gesture.
  */
-export function beginGlobeDrag(pointerId?: number) {
+export function beginGlobeDrag(
+  pointerId?: number,
+  start?: Pick<PointerEvent, "clientX" | "clientY">,
+) {
   if (typeof window === "undefined") return;
+  cancelGlobeDrag();
   globeSpin.setHeld(true);
-  // The ball is about to turn under the hand. On touch the label names the
-  // mark the press landed on and would otherwise stay pinned to a pixel the
-  // mark has left; a fine pointer re-samples next frame anyway.
   globeChapterHover.set(null);
-  let last: DragSample | null = null;
-  let velocity = 0;
+  let activePointer = pointerId;
+  let last: DragSample | null = start
+    ? { x: start.clientX, y: start.clientY }
+    : null;
   const onMove = (event: PointerEvent) => {
-    if (pointerId !== undefined && event.pointerId !== pointerId) return;
-    const time = event.timeStamp;
+    activePointer ??= event.pointerId;
+    if (event.pointerId !== activePointer) return;
     if (last) {
       const dx = event.clientX - last.x;
       const dy = event.clientY - last.y;
-      const seconds = Math.max(1e-3, (time - last.time) / 1000);
       const step = globeDragStep({ dx, dy, tilt: globeTilt.current });
       globeSpin.turn(step.turn);
       globeTilt.current = step.tilt;
-      // Blend toward the latest speed so a pause before release still
-      // reads as a stop rather than a fling.
-      velocity = velocity * 0.6 + (step.turn / seconds) * 0.4;
-      if (tallyGlobeHandLap(step.turn))
-        recordFieldNoteEvent({ type: "globe-turned-by-hand" });
     }
-    last = { x: event.clientX, y: event.clientY, time };
+    last = { x: event.clientX, y: event.clientY };
   };
-  const end = (event: PointerEvent) => {
-    if (pointerId !== undefined && event.pointerId !== pointerId) return;
+  const cleanup = () => {
     roomWindowEvents.removeEventListener("pointermove", onMove);
     roomWindowEvents.removeEventListener("pointerup", end);
-    roomWindowEvents.removeEventListener("pointercancel", end);
+    roomWindowEvents.removeEventListener("pointercancel", cancelPointer);
+    roomWindowEvents.removeEventListener("blur", cancel);
     globeSpin.setHeld(false);
-    // A drag that ended more than a beat ago has no speed left to give.
-    const stale = last ? event.timeStamp - last.time > 120 : true;
-    const fling = !stale && Math.abs(velocity) >= GLOBE_FLING_MIN;
-    globeSpin.fling(fling ? velocity : 0);
+    if (cancelActiveDrag === cancel) cancelActiveDrag = null;
   };
+  const cancel = () => {
+    cleanup();
+    globeSpin.state.pending = 0;
+    globeSpin.state.velocity = 0;
+  };
+  const cancelPointer = (event: PointerEvent) => {
+    if (activePointer !== undefined && event.pointerId !== activePointer)
+      return;
+    cancel();
+  };
+  const end = (event: PointerEvent) => {
+    if (activePointer !== undefined && event.pointerId !== activePointer)
+      return;
+    // Release keeps the frame integrator's current speed. A stationary hold
+    // already slows it down, so no last-event velocity estimate is needed.
+    cleanup();
+  };
+  cancelActiveDrag = cancel;
   roomWindowEvents.addEventListener("pointermove", onMove);
   roomWindowEvents.addEventListener("pointerup", end);
-  roomWindowEvents.addEventListener("pointercancel", end);
+  roomWindowEvents.addEventListener("pointercancel", cancelPointer);
+  roomWindowEvents.addEventListener("blur", cancel);
 }

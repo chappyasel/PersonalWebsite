@@ -852,7 +852,7 @@ export default function UnitAbout({
           signature="spin"
           portalLabel="Globe"
           // Only the way up needs a label: once the globe is near, the
-          // interface has stepped aside and a press anywhere puts it back.
+          // interface has stepped aside. Outside presses put it back.
           actionLabel="Closer look"
           activateOnFirstTouch
           // Up close, a press on the globe is a turn, not a carry: the
@@ -869,10 +869,9 @@ export default function UnitAbout({
             const hovered = globeChapterHover.current;
             if (hovered?.kind === "chapter")
               openGlobeChapter(hovered.chapters, open, index);
-            else if (!hovered) globeApproach.dismiss();
           }}
-          onDragIntent={() => {
-            if (globeApproach.near) beginGlobeDrag();
+          onDragIntent={(_origin, event) => {
+            if (globeApproach.near) beginGlobeDrag(event?.pointerId, event);
           }}
           // The globe leaves its carrier when it approaches; the label and
           // touch hit-test must follow the ball, not the empty shelf spot.
@@ -884,6 +883,7 @@ export default function UnitAbout({
                 unitIndex={index}
                 hoverKey="egg:globe"
                 idleRate={0.11}
+                calmRate={0.045}
                 handle={globeSpin}
                 fixedAngle={
                   screenshot.enabled ? ABOUT_GLOBE_SCREENSHOT_SPIN_Y : undefined

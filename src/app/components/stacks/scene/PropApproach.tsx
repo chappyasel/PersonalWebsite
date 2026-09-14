@@ -13,8 +13,8 @@
 // The near pose sits on the camera's optical axis, so it stays centred in the
 // view however the camera parallaxes with the pointer (an earlier version
 // aimed through the shelf's column and ended up cut off at the edge of a
-// wide window). The pointer still moves it, within reason: a few percent of
-// the frame and a few degrees of turn toward the cursor, damped.
+// wide window). A small, damped offset and tilt follow the cursor at one fifth
+// of their original strength. Hand gestures still turn the prop freely.
 //
 // Written for the Projects Mac (MacApproach.tsx is that prop's name for it);
 // the About globe was the second prop to fly and the Homework icon the third.
@@ -32,7 +32,6 @@ import * as THREE from "three";
 
 import { focusPull } from "./focusPull";
 import {
-  PROP_APPROACH_FOLLOW,
   PROP_APPROACH_LAMBDA,
   PROP_TURN_FLING_DECAY,
   PROP_TURN_HOME_DECAY,
@@ -53,6 +52,10 @@ const ORIGIN = new THREE.Vector3();
 /** Ease rate for the extra pitch, per second: quick enough to feel attached
  * to the drag, slow enough not to jitter with it. */
 const TILT_LAMBDA = 12;
+/** One fifth of the original cursor follow. Position uses half-frame fractions;
+ * rotation uses radians. */
+const POINTER_FOLLOW = { x: 0.012, y: 0.008, yaw: 0.012, pitch: 0.007 };
+const POINTER_FOLLOW_LAMBDA = 4;
 
 export default function PropApproach({
   controller,
@@ -64,6 +67,7 @@ export default function PropApproach({
   facePitch = 0,
   keepPressesOnProp = false,
   tilt,
+  tiltLambda = TILT_LAMBDA,
   turn,
   innerRef,
   children,
@@ -89,6 +93,8 @@ export default function PropApproach({
   /** Extra pitch about the camera's right axis, in radians, read every
    * frame and eased; written by a gesture on the prop. */
   tilt?: { current: number };
+  /** Ease rate for the extra pitch, per second. Lower values settle gently. */
+  tiltLambda?: number;
   /** A whole-prop turn by hand (beginPropTurn): yaw about the camera's up
    * axis and pitch about its right axis, read every frame and eased, with
    * the release's fling integrated here and everything levelled on the way
@@ -108,6 +114,7 @@ export default function PropApproach({
   const turnYawEased = useRef(0);
   const turnPitchEased = useRef(0);
   const turnWasNear = useRef(false);
+  const follow = useRef({ x: 0, y: 0 });
   const get = useThree((state) => state.get);
   const still = useMemo(
     () =>
@@ -125,7 +132,6 @@ export default function PropApproach({
     () => new THREE.Quaternion().setFromEuler(new THREE.Euler(facePitch, 0, 0)),
     [facePitch],
   );
-  const follow = useRef({ x: 0, y: 0 });
   const scratch = useMemo(
     () => ({
       cameraPosition: new THREE.Vector3(),
@@ -138,8 +144,8 @@ export default function PropApproach({
       local: new THREE.Vector3(),
       parentQuaternion: new THREE.Quaternion(),
       nearQuaternion: new THREE.Quaternion(),
-      followQuaternion: new THREE.Quaternion(),
-      followEuler: new THREE.Euler(),
+      gestureQuaternion: new THREE.Quaternion(),
+      gestureEuler: new THREE.Euler(),
       raycaster: new THREE.Raycaster(),
       ndc: new THREE.Vector2(),
     }),
@@ -258,7 +264,7 @@ export default function PropApproach({
     const tiltGoal = goal === 1 && tilt ? tilt.current : 0;
     tiltEased.current = still
       ? tiltGoal
-      : THREE.MathUtils.damp(tiltEased.current, tiltGoal, TILT_LAMBDA, delta);
+      : THREE.MathUtils.damp(tiltEased.current, tiltGoal, tiltLambda, delta);
     // The hand turn: coast after a release, then ease the drawn pose after
     // the commanded one. Going home levels it, so the prop lands square.
     if (turn) {
@@ -322,6 +328,8 @@ export default function PropApproach({
         tiltEased.current = 0;
         turnYawEased.current = 0;
         turnPitchEased.current = 0;
+        follow.current.x = 0;
+        follow.current.y = 0;
         if (turn) resetPropTurn(turn);
         if (tilt) tilt.current = 0;
         node.position.copy(ORIGIN);
@@ -345,8 +353,8 @@ export default function PropApproach({
       local,
       parentQuaternion,
       nearQuaternion,
-      followQuaternion,
-      followEuler,
+      gestureQuaternion,
+      gestureEuler,
     } = scratch;
     camera.getWorldPosition(cameraPosition);
     camera.getWorldQuaternion(cameraQuaternion);
@@ -363,30 +371,35 @@ export default function PropApproach({
       width,
       fill,
     });
-    // The pointer, damped, so the prop drifts after the cursor instead of
-    // twitching with it.
-    const ease = 1 - Math.exp(-4 * delta);
-    follow.current.x += (pointer.x - follow.current.x) * ease;
-    follow.current.y += (pointer.y - follow.current.y) * ease;
+    // Keep the cursor response small and eased, with no passive movement
+    // when reduced motion is requested.
+    follow.current.x = still
+      ? 0
+      : THREE.MathUtils.damp(
+          follow.current.x,
+          pointer.x,
+          POINTER_FOLLOW_LAMBDA,
+          delta,
+        );
+    follow.current.y = still
+      ? 0
+      : THREE.MathUtils.damp(
+          follow.current.y,
+          pointer.y,
+          POINTER_FOLLOW_LAMBDA,
+          delta,
+        );
     const halfHeight = distance * Math.tan((fov * Math.PI) / 360);
-    const halfWidth = halfHeight * aspect;
-    // Down the optical axis, nudged after the pointer; the group's origin is
-    // the prop's foot, so the body is centred rather than the base.
     centre
       .copy(cameraPosition)
       .addScaledVector(forward, distance)
       .addScaledVector(
         right,
-        follow.current.x * PROP_APPROACH_FOLLOW.x * halfWidth,
+        follow.current.x * POINTER_FOLLOW.x * halfHeight * aspect,
       )
-      .addScaledVector(
-        up,
-        follow.current.y * PROP_APPROACH_FOLLOW.y * halfHeight,
-      );
+      .addScaledVector(up, follow.current.y * POINTER_FOLLOW.y * halfHeight);
     world.copy(centre).addScaledVector(up, -height / 2);
-    // Where the foot lands on screen, for the caption under the prop. From
-    // the un-nudged pose, so the caption holds still while the prop drifts
-    // after the pointer.
+    // Keep the caption at the neutral foot position while the prop moves.
     controller.frame.bottom =
       size.top +
       size.height *
@@ -403,22 +416,21 @@ export default function PropApproach({
     local.copy(world);
     parent.worldToLocal(local);
     // The model's front faces +Z, so a world orientation equal to the
-    // camera's turns the prop square to the viewer; the extra pitch brings a
-    // leaning face square instead, the follow turns the prop a few degrees
-    // toward the cursor, and the gesture's tilt tips it further.
-    followEuler.set(
-      -follow.current.y * PROP_APPROACH_FOLLOW.pitch +
-        tiltEased.current +
-        turnPitchEased.current,
-      follow.current.x * PROP_APPROACH_FOLLOW.yaw + turnYawEased.current,
+    // camera's turns the prop square to the viewer. The extra pitch squares
+    // a leaning face. Subtle cursor tilt combines with deliberate hand turns.
+    gestureEuler.set(
+      tiltEased.current +
+        turnPitchEased.current -
+        follow.current.y * POINTER_FOLLOW.pitch,
+      turnYawEased.current + follow.current.x * POINTER_FOLLOW.yaw,
       0,
     );
-    followQuaternion.setFromEuler(followEuler);
+    gestureQuaternion.setFromEuler(gestureEuler);
     nearQuaternion
       .copy(parentQuaternion)
       .invert()
       .multiply(cameraQuaternion)
-      .multiply(followQuaternion)
+      .multiply(gestureQuaternion)
       .multiply(facePitchQuaternion);
 
     node.position.copy(local).multiplyScalar(t);

@@ -30,8 +30,8 @@ export type GlobeMarkerLayer = Readonly<{
   color: string;
   /** Multiplier on the standard dot radius. */
   radiusScale?: number;
-  /** Ball-radius multiplier for the dot centres. */
-  lift?: number;
+  /** Lived places use a solid toy house; other markers remain round. */
+  shape?: "sphere" | "house";
   /** Emissive intensity used only in the dark theme. */
   nightEmissive?: number;
 }>;
@@ -55,23 +55,39 @@ export type GlobeMarkerCluster = Readonly<{
 export const GLOBE_MARKS_NAME = "globe-marks";
 /** Visited-country pins sit between chapters and lived places. */
 export const GLOBE_VISITED_MARKS_NAME = "globe-visited-marks";
-/** The lived-place layer stays separate so hover can tell red personal pins
- * from orange chapter pins, including where both occupy the same city. */
+/** The lived-place layer stays separate so hover can identify the houses,
+ * including where they share a city with a chapter. */
 export const GLOBE_LIVED_MARKS_NAME = "globe-lived-marks";
 
+/** Pick from the live subtree, not cached meshes from a previous model.
+ * The nearest surface still wins so far-side pins cannot show through Earth. */
+export function pickGlobeMarker(
+  root: THREE.Object3D,
+  raycaster: THREE.Raycaster,
+) {
+  const hit = raycaster.intersectObject(root, true)[0];
+  if (hit?.instanceId === undefined || hit.instanceId === null) return null;
+  const kind =
+    hit.object.name === GLOBE_MARKS_NAME
+      ? "chapter"
+      : hit.object.name === GLOBE_VISITED_MARKS_NAME
+        ? "visited"
+        : hit.object.name === GLOBE_LIVED_MARKS_NAME
+          ? "lived"
+          : null;
+  return kind ? { kind, index: hit.instanceId, point: hit.point } : null;
+}
+
 /** Marks closer than this, in degrees of arc, merge into one. About 55 km:
- * the Bay Area's dozen chapters become a single heavier mark instead of a
+ * the Bay Area's dozen chapters become a single mark instead of a
  * blob of overlapping dots. */
 export const GLOBE_MARKER_MERGE_DEGREES = 0.5;
 /** Mark radius as a fraction of the ball's radius. At the docked camera the
  * ball is about 140 CSS px tall, so 0.03 is a 4 px dot; the first cut at
  * 0.018 was 2.5 px and vanished into the coastlines. */
 export const GLOBE_MARKER_RADIUS = 0.03;
-/** A merged mark grows by the cube root of its count, up to this. */
-export const GLOBE_MARKER_MAX_GROWTH = 1.7;
-/** Marks sit this far proud of the surface so they read as dots on the map
- * rather than beads buried in it. */
-export const GLOBE_MARKER_LIFT = 1.01;
+/** Embed the bottom of each sphere slightly so it meets the map face. */
+const GLOBE_MARKER_EMBED = 0.2;
 /** At night the shelf is lit by the lamp alone and an unlit dot on the far
  * side of the ball goes black; a little emissive keeps them readable without
  * asking the bloom to smear them. */
@@ -580,6 +596,107 @@ export function trimGlobeAxlePins(
   return true;
 }
 
+/** Resolve a geographic point through the same UV triangles as the map.
+ * A radial point on an ideal sphere floats above the flat rendered facets
+ * and can miss a coastline because the texture interpolates across a face. */
+function globeMapAnchor(
+  geometry: THREE.BufferGeometry,
+  lat: number,
+  lon: number,
+  position: THREE.Vector3,
+  normal: THREE.Vector3,
+) {
+  const vertices = geometry.getAttribute("position");
+  const uv = geometry.getAttribute("uv");
+  const indices = geometry.getIndex()!;
+  const u = ((((lon + 180) % 360) + 360) % 360) / 360;
+  const v = THREE.MathUtils.clamp((lat + 90) / 180, 0, 1);
+  // Longitude converges at either pole, including between the UV fan's tips.
+  if (v === 0 || v === 1) {
+    for (let i = 0; i < uv.count; i++) {
+      if (uv.getY(i) !== v) continue;
+      position.fromBufferAttribute(vertices, i);
+      normal.copy(position).normalize();
+      return;
+    }
+  }
+  const textureFace = new THREE.Triangle();
+  const face = new THREE.Triangle();
+  const point = new THREE.Vector3();
+  const weights = new THREE.Vector3();
+  for (let triangle = 0; triangle < indices.count; triangle += 3) {
+    const a = indices.getX(triangle);
+    const b = indices.getX(triangle + 1);
+    const c = indices.getX(triangle + 2);
+    textureFace.a.set(uv.getX(a), uv.getY(a), 0);
+    textureFace.b.set(uv.getX(b), uv.getY(b), 0);
+    textureFace.c.set(uv.getX(c), uv.getY(c), 0);
+    for (const wrap of [0, -1, 1]) {
+      point.set(u + wrap, v, 0);
+      if (!textureFace.getBarycoord(point, weights)) continue;
+      if (Math.min(weights.x, weights.y, weights.z) < -1e-7) continue;
+      face.a.fromBufferAttribute(vertices, a);
+      face.b.fromBufferAttribute(vertices, b);
+      face.c.fromBufferAttribute(vertices, c);
+      position
+        .copy(face.a)
+        .multiplyScalar(weights.x)
+        .addScaledVector(face.b, weights.y)
+        .addScaledVector(face.c, weights.z);
+      face.getNormal(normal);
+      return;
+    }
+  }
+  throw new Error(`No globe map face for ${lat}, ${lon}`);
+}
+
+/** Signed tetrahedra give the volume of either closed marker mesh. */
+function markerVolume(geometry: THREE.BufferGeometry) {
+  const vertices = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const count = index?.count ?? vertices.count;
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  let volume = 0;
+  for (let i = 0; i < count; i += 3) {
+    a.fromBufferAttribute(vertices, index ? index.getX(i) : i);
+    b.fromBufferAttribute(vertices, index ? index.getX(i + 1) : i + 1);
+    c.fromBufferAttribute(vertices, index ? index.getX(i + 2) : i + 2);
+    volume += a.dot(b.cross(c)) / 6;
+  }
+  return Math.abs(volume);
+}
+
+function globeMarkerGeometry(
+  radius: number,
+  house: boolean,
+): THREE.BufferGeometry {
+  const sphere = new THREE.SphereGeometry(radius, 8, 6);
+  if (!house) return sphere;
+  // A solid Monopoly-style piece: a square body and a pitched roof, with
+  // flat faces that keep the silhouette legible at this small size.
+  const outline = new THREE.Shape();
+  outline.moveTo(-0.65, 0);
+  outline.lineTo(0.65, 0);
+  outline.lineTo(0.65, 0.8);
+  outline.lineTo(0, 1.3);
+  outline.lineTo(-0.65, 0.8);
+  outline.closePath();
+  const geometry = new THREE.ExtrudeGeometry(outline, {
+    depth: 1,
+    steps: 1,
+    bevelEnabled: false,
+  });
+  geometry.translate(0, 0, -0.5);
+  // Keep the volume hierarchy meaningful when the marker shape changes.
+  const scale = Math.cbrt(markerVolume(sphere) / markerVolume(geometry));
+  geometry.scale(scale, scale, scale);
+  geometry.translate(0, -radius * 0.05, 0);
+  sphere.dispose();
+  return geometry;
+}
+
 export type GlobeBallDressing = Readonly<{
   map: THREE.Texture;
   markerLayers?: readonly GlobeMarkerLayer[];
@@ -633,8 +750,6 @@ export function dressGlobeBall(
   const octants = partitionTrianglesByOctant(sphere, all, ORIGIN, IDENTITY).map(
     (triangles) => extractTriangles(sphere, triangles),
   );
-  sphere.dispose();
-
   // Flat shading reads the facet normals off screen-space derivatives, so
   // the smooth normals the sphere carries are ignored and every facet is one
   // plane of light, the way the atlas props are lit.
@@ -659,16 +774,15 @@ export function dressGlobeBall(
   for (const layer of markerLayers ?? []) {
     if (layer.markers.length === 0) continue;
     const clusters = mergeGlobeMarkers(layer.markers);
-    const dot = new THREE.SphereGeometry(
-      radius * GLOBE_MARKER_RADIUS * (layer.radiusScale ?? 1),
-      8,
-      6,
-    );
+    const dotRadius = radius * GLOBE_MARKER_RADIUS * (layer.radiusScale ?? 1);
+    const house = layer.shape === "house";
+    const dot = globeMarkerGeometry(dotRadius, house);
     dot.userData.owned = true;
     const dotMaterial = new THREE.MeshStandardMaterial({
       color: layer.color,
       metalness: 0,
       roughness: 0.5,
+      flatShading: house,
       emissive: layer.color,
       emissiveIntensity: dark
         ? (layer.nightEmissive ?? GLOBE_MARKER_NIGHT_EMISSIVE)
@@ -678,18 +792,19 @@ export function dressGlobeBall(
     marks.name = layer.name;
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
-    const scale = new THREE.Vector3();
+    const scale = new THREE.Vector3(1, 1, 1);
+    const normal = new THREE.Vector3();
+    const orientation = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
     clusters.forEach((cluster, index) => {
-      globeSurfacePoint(
-        cluster.lat,
-        cluster.lon,
-        radius * (layer.lift ?? GLOBE_MARKER_LIFT),
-        position,
-      ).applyQuaternion(frame);
-      scale.setScalar(
-        Math.min(GLOBE_MARKER_MAX_GROWTH, Math.cbrt(cluster.count)),
-      );
-      matrix.compose(position, IDENTITY, scale);
+      globeMapAnchor(sphere, cluster.lat, cluster.lon, position, normal);
+      orientation.setFromUnitVectors(up, normal);
+      // Keep the sphere round and mostly above the map, with its bottom
+      // embedded in the actual face so no gap opens beneath it.
+      if (!house)
+        position.addScaledVector(normal, dotRadius * (1 - GLOBE_MARKER_EMBED));
+      // Cluster count changes the label and destination, never the size.
+      matrix.compose(position, orientation, scale);
       marks.setMatrixAt(index, matrix);
     });
     marks.instanceMatrix.needsUpdate = true;
@@ -702,5 +817,6 @@ export function dressGlobeBall(
     marks.computeBoundingSphere();
     spin.add(marks);
   }
+  sphere.dispose();
   return true;
 }

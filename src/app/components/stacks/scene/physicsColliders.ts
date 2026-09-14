@@ -88,6 +88,37 @@ function ignored(object: THREE.Object3D) {
   );
 }
 
+/** A sphere is measured from vertices, never from rotated box corners. Those
+ * corners surround empty space and inflate even a perfectly round ball. */
+export function extractColliderSphere(root: THREE.Object3D) {
+  root.updateWorldMatrix(true, true);
+  const rootInverse = root.matrixWorld.clone().invert();
+  const bounds = new THREE.Box3();
+  const point = new THREE.Vector3();
+  const transform = new THREE.Matrix4();
+  const visit = (
+    object: THREE.Object3D,
+    consume: (point: THREE.Vector3) => void,
+  ) => {
+    if (ignored(object)) return;
+    const mesh = object as THREE.Mesh;
+    const vertices = mesh.isMesh
+      ? mesh.geometry?.attributes.position
+      : undefined;
+    if (vertices) {
+      transform.multiplyMatrices(rootInverse, mesh.matrixWorld);
+      for (let i = 0; i < vertices.count; i++)
+        consume(point.fromBufferAttribute(vertices, i).applyMatrix4(transform));
+    }
+    for (const child of object.children) visit(child, consume);
+  };
+  visit(root, (point) => bounds.expandByPoint(point));
+  if (bounds.isEmpty()) return null;
+  const center = bounds.getCenter(new THREE.Vector3());
+  const extent = bounds.getSize(new THREE.Vector3());
+  return new THREE.Sphere(center, Math.min(extent.x, extent.y, extent.z) / 2);
+}
+
 function boxCorners(box: OrientedBoxCollider, out: THREE.Box3) {
   out.makeEmpty();
   for (const x of [-1, 1])
@@ -121,8 +152,9 @@ function orientationFrameBounds(box: OrientedBoxCollider) {
   );
 }
 
-/** Merge only boxes whose axes agree. This closes tiny seams in a stack while
- * retaining the authored rotation that an AABB would erase. */
+/** Merge matching faces or contained boxes. Touching alone is insufficient:
+ * joining an upright to its wider foot fills the air beside the entire post,
+ * and joining frame members fills the opening between them. */
 export function mergeOrientedBoxes(boxes: OrientedBoxCollider[]) {
   const pad = new THREE.Vector3(MERGE_GAP, MERGE_GAP, MERGE_GAP);
   for (let changed = true; changed; ) {
@@ -135,6 +167,13 @@ export function mergeOrientedBoxes(boxes: OrientedBoxCollider[]) {
         const af = orientationFrameBounds(a);
         const bf = orientationFrameBounds(b);
         if (!af.clone().expandByVector(pad).intersectsBox(bf)) continue;
+        const matchingAxes = (["x", "y", "z"] as const).filter(
+          (axis) =>
+            Math.abs(af.min[axis] - bf.min[axis]) <= COLLIDER_EXTENT_EPSILON &&
+            Math.abs(af.max[axis] - bf.max[axis]) <= COLLIDER_EXTENT_EPSILON,
+        ).length;
+        if (!af.containsBox(bf) && !bf.containsBox(af) && matchingAxes < 2)
+          continue;
         af.union(bf);
         const mergedCentre = af.getCenter(new THREE.Vector3());
         const mergedHalf = af.getSize(new THREE.Vector3()).multiplyScalar(0.5);

@@ -52,7 +52,7 @@ describe("About shelf throwable props", () => {
 
     expect(globe).toContain('hovered?.kind === "chapter"');
     expect(globe).toContain("openGlobeChapter(hovered.chapters, open, index)");
-    expect(globe).toContain("else if (!hovered) globeApproach.dismiss()");
+    expect(globe).not.toContain("globeApproach.dismiss()");
   });
 
   it("keeps two movable golf balls on About in every rendering mode", () => {

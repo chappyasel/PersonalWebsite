@@ -4444,7 +4444,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/Grabbable.tsx",
-      "sha256": "de0cadf07433f482c41d60f6d39a3990cfc15ddd4ada6d7af74a28b2dd059857",
+      "sha256": "7117212035b865dcdc2d025f6257d6f2b3ac71debe8eedfedbefdb0b3097d241",
       "archivedSha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79"
     },
     {
@@ -4499,7 +4499,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/PropApproach.tsx",
-      "sha256": "77302e1571c2a579dfaaa5850b78d4ed85f40151a8f41c4043839d6be5a647e4",
+      "sha256": "16c1a57b0cbd734cbadaf3b74f421d60069e187f9512b647f3f395f622148dc8",
       "archivedSha256": "77302e1571c2a579dfaaa5850b78d4ed85f40151a8f41c4043839d6be5a647e4"
     },
     {
@@ -4624,7 +4624,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/eggs.tsx",
-      "sha256": "430579e174b01f0fd937f6102e7b15d5c367db60f66f240c4ec1ecaf0d1a295f",
+      "sha256": "bfdc3160028eacafab6793a42920d5f319d3d4100dfa7333c6678cd7eea79d15",
       "archivedSha256": "7ba63597cb9f63034db991c2f6c97b0c384ca66ffeaf4437cb7f729a7a6a9125"
     },
     {
@@ -4639,7 +4639,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/globeBall.ts",
-      "sha256": "b5fd23ff3f4c7b62d9d3ed3c99d6e7755beadc156a008a5cfaa3f1e5a2aa73ad",
+      "sha256": "73b0805f968a1ad0ea5e43403cbabc298db923bcfe1ddec3b58a9175acd6f839",
       "archivedSha256": "b5fd23ff3f4c7b62d9d3ed3c99d6e7755beadc156a008a5cfaa3f1e5a2aa73ad"
     },
     {
@@ -4774,7 +4774,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/interactionRegistry.ts",
-      "sha256": "cf8ed58d8b4e9242810f5ec46fb7d6dffe4cb0928575ac376aa1b242963d9898",
+      "sha256": "56e401f157ddd50b3a3936551f8d9b6a5e51e629ebdba4cfa8f88e783fa3c557",
       "archivedSha256": "07cc279c15b37b44133dee7ea8b40d69120c868274b663982efb319c3e037fda"
     },
     {
@@ -4804,7 +4804,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/macApproachState.ts",
-      "sha256": "89d556539b68c4136801f96a6f6edbf604722b08460417f10c21df5104b8b335",
+      "sha256": "f245f46dc7d41d3477f701b2180e5ae1e2b40d5d6a4e5d9fab445ebe0b721d70",
       "archivedSha256": "89d556539b68c4136801f96a6f6edbf604722b08460417f10c21df5104b8b335"
     },
     {
@@ -4889,17 +4889,17 @@
     },
     {
       "path": "src/app/components/stacks/scene/physics.ts",
-      "sha256": "114e3c87ab38c617f9108e98804c800316c8765f7e9b01d66a61e26e2626fa87",
+      "sha256": "3e64b2f2883b0f0b3eee009674fec0c327677f5096da920b632c58002ae0a237",
       "archivedSha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089"
     },
     {
       "path": "src/app/components/stacks/scene/physicsColliders.ts",
-      "sha256": "b19d21b21b8377daff0a57c50ec910be6c234ca202356e40480ee32b33646930",
+      "sha256": "d8d3c0a6cf35d8be44cf9aba754ed0d67befb83815d6f93afe510706a588fe7d",
       "archivedSha256": "b19d21b21b8377daff0a57c50ec910be6c234ca202356e40480ee32b33646930"
     },
     {
       "path": "src/app/components/stacks/scene/physicsDiagnostics.ts",
-      "sha256": "b3fca36c025a75d9403589c09b512ce838a1f2261884705d924a0bcf238f01a4",
+      "sha256": "30c99ba8c9dbf985c3c580dc710c1f84be1cfb46e2d96d7ca509defe15909724",
       "archivedSha256": "b3fca36c025a75d9403589c09b512ce838a1f2261884705d924a0bcf238f01a4"
     },
     {
@@ -4909,7 +4909,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/pointerCameraTilt.ts",
-      "sha256": "e1068b2d3beb64eb61a867c8f41718a394169eef03897f0fff8b6081b6f05572",
+      "sha256": "975e959fba7bb895d04c553bd139d810dbfad3d7fb28835dbb212beca5a15d8a",
       "archivedSha256": "e1068b2d3beb64eb61a867c8f41718a394169eef03897f0fff8b6081b6f05572"
     },
     {
@@ -4934,7 +4934,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/propApproachState.ts",
-      "sha256": "8f5b0057acccada52296f175b614d45079ca62067660dbc285d019fc897fe596",
+      "sha256": "1f0fe30842f39a6929fdce216053de47a3dafb2bbb473813c6da9f6e3db64abf",
       "archivedSha256": "8f5b0057acccada52296f175b614d45079ca62067660dbc285d019fc897fe596"
     },
     {
@@ -5024,7 +5024,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/spinHandle.ts",
-      "sha256": "534f2557e13fe225921fa685429f2186c1aec4ed0246028b6dcfc1a3d826542f",
+      "sha256": "66ad0c2614480214febc252b3c89864802d7a2d1b03a42f29bb188e902c86376",
       "archivedSha256": "534f2557e13fe225921fa685429f2186c1aec4ed0246028b6dcfc1a3d826542f"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "de4f59454c8324eb765461c10eb453e9a5a44b9f0ea564ff3e920eb84e51dabf",
+  "sourceFingerprint": "2cfc21c61db71740aaa12488915f34623f6d620645adfc9af98f87818e24f3cc",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5401,6 +5401,73 @@
           "path": "src/app/components/stacks/scene/physics.ts",
           "previousSha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089",
           "sha256": "114e3c87ab38c617f9108e98804c800316c8765f7e9b01d66a61e26e2626fa87"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed all pending scene interaction changes in docs/reviews/2026-09-13-scene-interaction-release.md. Globe geometry and markers belong to About, which is excluded from the 24 captured drawings. Selected-prop motion, cursor handling, collider extraction, and reset effects preserve the six captured shelves at rest. The added reset wrapper is neutral outside recovery. Approved SVGs, raster details, capture inputs, and saved cameras remain unchanged; this is source reconciliation, not a fresh capture.",
+      "previousFingerprint": "de4f59454c8324eb765461c10eb453e9a5a44b9f0ea564ff3e920eb84e51dabf",
+      "sourceFingerprint": "2cfc21c61db71740aaa12488915f34623f6d620645adfc9af98f87818e24f3cc",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/Grabbable.tsx",
+          "previousSha256": "de0cadf07433f482c41d60f6d39a3990cfc15ddd4ada6d7af74a28b2dd059857",
+          "sha256": "7117212035b865dcdc2d025f6257d6f2b3ac71debe8eedfedbefdb0b3097d241"
+        },
+        {
+          "path": "src/app/components/stacks/scene/PropApproach.tsx",
+          "previousSha256": "77302e1571c2a579dfaaa5850b78d4ed85f40151a8f41c4043839d6be5a647e4",
+          "sha256": "16c1a57b0cbd734cbadaf3b74f421d60069e187f9512b647f3f395f622148dc8"
+        },
+        {
+          "path": "src/app/components/stacks/scene/eggs.tsx",
+          "previousSha256": "430579e174b01f0fd937f6102e7b15d5c367db60f66f240c4ec1ecaf0d1a295f",
+          "sha256": "bfdc3160028eacafab6793a42920d5f319d3d4100dfa7333c6678cd7eea79d15"
+        },
+        {
+          "path": "src/app/components/stacks/scene/globeBall.ts",
+          "previousSha256": "b5fd23ff3f4c7b62d9d3ed3c99d6e7755beadc156a008a5cfaa3f1e5a2aa73ad",
+          "sha256": "73b0805f968a1ad0ea5e43403cbabc298db923bcfe1ddec3b58a9175acd6f839"
+        },
+        {
+          "path": "src/app/components/stacks/scene/interactionRegistry.ts",
+          "previousSha256": "cf8ed58d8b4e9242810f5ec46fb7d6dffe4cb0928575ac376aa1b242963d9898",
+          "sha256": "56e401f157ddd50b3a3936551f8d9b6a5e51e629ebdba4cfa8f88e783fa3c557"
+        },
+        {
+          "path": "src/app/components/stacks/scene/macApproachState.ts",
+          "previousSha256": "89d556539b68c4136801f96a6f6edbf604722b08460417f10c21df5104b8b335",
+          "sha256": "f245f46dc7d41d3477f701b2180e5ae1e2b40d5d6a4e5d9fab445ebe0b721d70"
+        },
+        {
+          "path": "src/app/components/stacks/scene/physics.ts",
+          "previousSha256": "114e3c87ab38c617f9108e98804c800316c8765f7e9b01d66a61e26e2626fa87",
+          "sha256": "3e64b2f2883b0f0b3eee009674fec0c327677f5096da920b632c58002ae0a237"
+        },
+        {
+          "path": "src/app/components/stacks/scene/physicsColliders.ts",
+          "previousSha256": "b19d21b21b8377daff0a57c50ec910be6c234ca202356e40480ee32b33646930",
+          "sha256": "d8d3c0a6cf35d8be44cf9aba754ed0d67befb83815d6f93afe510706a588fe7d"
+        },
+        {
+          "path": "src/app/components/stacks/scene/physicsDiagnostics.ts",
+          "previousSha256": "b3fca36c025a75d9403589c09b512ce838a1f2261884705d924a0bcf238f01a4",
+          "sha256": "30c99ba8c9dbf985c3c580dc710c1f84be1cfb46e2d96d7ca509defe15909724"
+        },
+        {
+          "path": "src/app/components/stacks/scene/pointerCameraTilt.ts",
+          "previousSha256": "e1068b2d3beb64eb61a867c8f41718a394169eef03897f0fff8b6081b6f05572",
+          "sha256": "975e959fba7bb895d04c553bd139d810dbfad3d7fb28835dbb212beca5a15d8a"
+        },
+        {
+          "path": "src/app/components/stacks/scene/propApproachState.ts",
+          "previousSha256": "8f5b0057acccada52296f175b614d45079ca62067660dbc285d019fc897fe596",
+          "sha256": "1f0fe30842f39a6929fdce216053de47a3dafb2bbb473813c6da9f6e3db64abf"
+        },
+        {
+          "path": "src/app/components/stacks/scene/spinHandle.ts",
+          "previousSha256": "534f2557e13fe225921fa685429f2186c1aec4ed0246028b6dcfc1a3d826542f",
+          "sha256": "66ad0c2614480214febc252b3c89864802d7a2d1b03a42f29bb188e902c86376"
         }
       ]
     }

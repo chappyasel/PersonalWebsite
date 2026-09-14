@@ -469,14 +469,12 @@ export function EggLamp({
  * globe does. The damp in and out is what keeps it from being a jump cut.
  */
 const HOVER_SPIN_GAIN = 8;
-/** How fast a released hand's speed bleeds off, per second: a flick coasts
- * for about a second and settles rather than spinning on. */
-const SPIN_FLING_DECAY = 3;
 
 export function SpinProp({
   unitIndex,
   hoverKey,
   idleRate = 0,
+  calmRate = 0,
   handle,
   fixedAngle,
   trigger = true,
@@ -486,8 +484,10 @@ export function SpinProp({
   hoverKey: string;
   /** Radians per second of unprompted rotation. */
   idleRate?: number;
-  /** A hand on the prop (spinHandle.ts): while held the prop follows it
-   * 1:1, after release it coasts, and while calm it does not drift. */
+  /** Slow ambient rotation while the prop is enlarged. */
+  calmRate?: number;
+  /** A hand on the prop (spinHandle.ts): dragging applies momentum,
+   * release coasts, and calm uses the slower ambient rate. */
   handle?: SpinHandle;
   /** Pin the spun node to this yaw and suppress every spin path. */
   fixedAngle?: number;
@@ -552,30 +552,10 @@ export function SpinProp({
     // for a prop whose whole character is that it revolves, the state that
     // reads is the rate. Parking it at some angle instead would stop the one
     // thing it does. Eased in and out so it does not snap to a new speed.
-    // The hand, when there is one. Queued radians land on the target at
-    // once; a release's speed bleeds off over about a second; while held or
-    // calm the prop neither drifts nor answers hover, because the person is
-    // turning it themselves or reading it.
     const hand = handle?.state;
     const held = hand?.held ?? false;
     const calm = hand?.calm ?? false;
     const step = Math.min(delta, 1 / 30);
-    if (hand) {
-      if (hand.pending !== 0) {
-        target.current += hand.pending;
-        hand.pending = 0;
-      }
-      if (!held && hand.velocity !== 0) {
-        target.current += hand.velocity * step;
-        hand.velocity = THREE.MathUtils.damp(
-          hand.velocity,
-          0,
-          SPIN_FLING_DECAY,
-          delta,
-        );
-        if (Math.abs(hand.velocity) < 1e-3) hand.velocity = 0;
-      }
-    }
     const wantsHover =
       !still &&
       !held &&
@@ -587,6 +567,19 @@ export function SpinProp({
           ? 1
           : 0
         : THREE.MathUtils.damp(hoverSpin.current, wantsHover ? 1 : 0, 3, delta);
+    if (handle) {
+      const ambientRate =
+        !still && nearActive(unitIndex)
+          ? calm
+            ? calmRate
+            : idleRate * (1 + hoverSpin.current * HOVER_SPIN_GAIN)
+          : 0;
+      g.rotation.y += handle.step(delta, ambientRate);
+      // Keep the click target at the drawn angle so no latent turn can snap
+      // into view when gesture ownership changes.
+      target.current = g.rotation.y;
+      return;
+    }
     // Advance the target rather than the rotation, so a click's extra lap
     // rides on top of the drift instead of fighting it — and don't advance
     // it at all off-screen, or coming back would spin up the difference in
@@ -595,11 +588,6 @@ export function SpinProp({
       target.current +=
         idleRate * (1 + hoverSpin.current * HOVER_SPIN_GAIN) * step;
     } else if (g.rotation.y === target.current) return;
-    if (held) {
-      // A hand is exact: no damping between the finger and the ball.
-      g.rotation.y = target.current;
-      return;
-    }
     const next = THREE.MathUtils.damp(g.rotation.y, target.current, 1.4, delta);
     g.rotation.y =
       Math.abs(next - target.current) < 1e-3 ? target.current : next;

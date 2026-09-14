@@ -2,26 +2,24 @@
 
 // The About globe's close-up: PropApproach bound to the globe, plus the two
 // things a globe needs that a Mac did not. While the globe is up, the ball's
-// own drift and hover rate stand down (a drag turns it instead, through
-// globeSpin), and the pointer is raycast against the chapter marks every
+// drift slows and pauses over a mark, while a drag adds momentum through
+// globeSpin. The pointer is raycast against the chapter marks every
 // frame so the chrome layer can name the one under it. Chapter marks open
-// their chapter; the green visited-country and red lived-place marks are
+// their chapter; the green visited-country marks and white lived-place houses are
 // labels only.
+import { touchWorldRef, useStacks } from "../store";
 import { useFrame, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { touchWorldRef, useStacks } from "../store";
 import PropApproach from "./PropApproach";
-import {
-  GLOBE_LIVED_MARKS_NAME,
-  GLOBE_MARKS_NAME,
-  GLOBE_VISITED_MARKS_NAME,
-} from "./globeBall";
+import { pickGlobeMarker } from "./globeBall";
 import {
   GLOBE_APPROACH_FILL,
   GLOBE_APPROACH_HEIGHT,
   GLOBE_APPROACH_WIDTH,
+  GLOBE_TILT_LAMBDA,
+  cancelGlobeDrag,
   globeApproach,
   globeChapterClusters,
   globeChapterHover,
@@ -49,9 +47,6 @@ export default function GlobeCloseUp({
   const get = useThree((state) => state.get);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const projected = useMemo(() => new THREE.Vector3(), []);
-  const chapterMarks = useRef<THREE.InstancedMesh | null>(null);
-  const visitedMarks = useRef<THREE.InstancedMesh | null>(null);
-  const livedMarks = useRef<THREE.InstancedMesh | null>(null);
 
   useEffect(() => {
     globeSpin.setCalm(near);
@@ -61,6 +56,7 @@ export default function GlobeCloseUp({
       globeChapterHover.set(null);
     }
     return () => {
+      cancelGlobeDrag();
       globeSpin.setCalm(false);
       globeChapterHover.set(null);
     };
@@ -87,47 +83,10 @@ export default function GlobeCloseUp({
   const sampleMarks = useCallback(() => {
     const node = group.current;
     if (!near || !node) return;
-    // The ball is rebuilt on a theme flip, so the cached mesh can go stale.
-    let chapters = chapterMarks.current;
-    if (!chapters?.parent) {
-      chapters =
-        (node.getObjectByName(GLOBE_MARKS_NAME) as
-          | THREE.InstancedMesh
-          | undefined) ?? null;
-      chapterMarks.current = chapters;
-    }
-    let lived = livedMarks.current;
-    if (!lived?.parent) {
-      lived =
-        (node.getObjectByName(GLOBE_LIVED_MARKS_NAME) as
-          | THREE.InstancedMesh
-          | undefined) ?? null;
-      livedMarks.current = lived;
-    }
-    let visited = visitedMarks.current;
-    if (!visited?.parent) {
-      visited =
-        (node.getObjectByName(GLOBE_VISITED_MARKS_NAME) as
-          | THREE.InstancedMesh
-          | undefined) ?? null;
-      visitedMarks.current = visited;
-    }
-    if (!chapters && !visited && !lived) {
-      globeChapterHover.set(null);
-      return;
-    }
     const { camera, gl } = get();
     raycaster.setFromCamera(pointerNdc(), camera);
-    // The whole subtree, nearest first: a mark on the far side is behind
-    // the ball and must not light up through it.
-    const hit = raycaster.intersectObject(node, true)[0];
-    if (
-      (hit?.object !== chapters &&
-        hit?.object !== visited &&
-        hit?.object !== lived) ||
-      hit.instanceId === undefined ||
-      hit.instanceId === null
-    ) {
+    const hit = pickGlobeMarker(node, raycaster);
+    if (!hit) {
       globeChapterHover.set(null);
       return;
     }
@@ -137,32 +96,30 @@ export default function GlobeCloseUp({
       x: rect.left + ((projected.x + 1) / 2) * rect.width,
       y: rect.top + ((1 - projected.y) / 2) * rect.height,
     };
-    if (hit.object === lived) {
-      const place = globeLivedPlaceClusters()[hit.instanceId];
+    if (hit.kind === "lived") {
+      const place = globeLivedPlaceClusters()[hit.index];
+      globeChapterHover.set(
+        place ? { kind: "lived", index: hit.index, place, ...position } : null,
+      );
+      return;
+    }
+    if (hit.kind === "visited") {
+      const place = globeVisitedPlaceClusters()[hit.index];
       globeChapterHover.set(
         place
-          ? { kind: "lived", index: hit.instanceId, place, ...position }
+          ? { kind: "visited", index: hit.index, place, ...position }
           : null,
       );
       return;
     }
-    if (hit.object === visited) {
-      const place = globeVisitedPlaceClusters()[hit.instanceId];
-      globeChapterHover.set(
-        place
-          ? { kind: "visited", index: hit.instanceId, place, ...position }
-          : null,
-      );
-      return;
-    }
-    const cluster = globeChapterClusters()[hit.instanceId];
+    const cluster = globeChapterClusters()[hit.index];
     if (!cluster) {
       globeChapterHover.set(null);
       return;
     }
     globeChapterHover.set({
       kind: "chapter",
-      index: hit.instanceId,
+      index: hit.index,
       chapters: cluster.chapters,
       ...position,
     });
@@ -177,8 +134,8 @@ export default function GlobeCloseUp({
   // globe going back, which is also the right label model for a screen
   // with no hover: the mark you touched stays named.
   useFrame(() => {
-    if (touchWorldRef.interactionPointerType === "touch") return;
-    sampleMarks();
+    if (touchWorldRef.interactionPointerType !== "touch") sampleMarks();
+    globeSpin.state.paused = near && globeChapterHover.current !== null;
   });
 
   useEffect(() => {
@@ -210,6 +167,7 @@ export default function GlobeCloseUp({
       fill={GLOBE_APPROACH_FILL}
       keepPressesOnProp
       tilt={globeTilt}
+      tiltLambda={GLOBE_TILT_LAMBDA}
       innerRef={group}
     >
       {children}

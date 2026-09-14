@@ -25,6 +25,7 @@ import {
   MAX_STATIC_COLLIDER_SHAPES,
   type OrientedBoxCollider,
   extractColliderBoxes,
+  extractColliderSphere,
   extractDynamicColliderBoxes,
 } from "./physicsColliders";
 import {
@@ -159,6 +160,7 @@ export type ShelfHandle = {
   acceptedVelocity?: THREE.Vector3;
   gestureGeometryRevision?: string;
   offscreenFor?: number;
+  onReset?: (reveal: boolean) => void;
   settledFor?: number;
   meadowImpactListener?: (event: { contact?: CANNON.ContactEquation }) => void;
   meadowFootprint?: number;
@@ -758,7 +760,12 @@ export class ScenePhysicsWorld {
       handle.shape === "sphere" ||
       (handle.shape !== "box" &&
         Math.max(...span) / Math.max(Math.min(...span), 1e-6) < SPHERICITY);
-    const radius = Math.min(halfSize.x, halfSize.y, halfSize.z);
+    const sphere = round
+      ? extractColliderSphere(handle.hullRoot ?? handle.group)
+      : null;
+    if (sphere) centre.copy(sphere.center);
+    const radius =
+      sphere?.radius ?? Math.min(halfSize.x, halfSize.y, halfSize.z);
     const com = centre.clone();
     if (!round) com.y = box.min.y + (box.max.y - box.min.y) * COM_FRACTION;
     const volume = extraction.boxes.reduce(
@@ -824,6 +831,7 @@ export class ScenePhysicsWorld {
   }
 
   drop(handle: ShelfHandle) {
+    handle.onReset?.(false);
     const at = this.handles.indexOf(handle);
     if (at >= 0) this.handles.splice(at, 1);
     if (handle.world !== this) return;
@@ -901,6 +909,7 @@ export class ScenePhysicsWorld {
   grab(handle: ShelfHandle): boolean {
     const body = handle.body;
     if (!body || !handle.com || !handle.prev) return false;
+    handle.onReset?.(false);
     handle.parked = false;
     handle.offscreenFor = 0;
     handle.settledFor = 0;
@@ -1543,6 +1552,19 @@ export class ScenePhysicsWorld {
     }
   }
 
+  private resetHome(handle: ShelfHandle, camera?: THREE.Camera) {
+    this.park(handle, true);
+    handle.phase.current = "rest";
+    // Test the destination after parking. A prop may leave the camera while
+    // its home on the shelf is still plainly visible.
+    handle.onReset?.(
+      physicsDiagnosticsController.getSnapshot().runtime.resetReveals &&
+        !!camera &&
+        !!handle.body &&
+        this.visible(handle.body, camera, 0),
+    );
+  }
+
   tick(delta: number, stamp: number, camera?: THREE.Camera) {
     if (stamp === this.stamp) return;
     this.stamp = stamp;
@@ -1606,8 +1628,7 @@ export class ScenePhysicsWorld {
         if (body.sleepState !== sleeping)
           this.promoteSettledBodyToSleep(handle, body, delta);
         if (this.escaped(body)) {
-          this.park(handle, true);
-          handle.phase.current = "rest";
+          this.resetHome(handle, camera);
           continue;
         }
         this.pull(handle);
@@ -1620,8 +1641,7 @@ export class ScenePhysicsWorld {
         } else {
           handle.offscreenFor = (handle.offscreenFor ?? 0) + delta;
           if (handle.offscreenFor >= OFFSCREEN_RESET_SECONDS) {
-            this.park(handle, true);
-            handle.phase.current = "rest";
+            this.resetHome(handle, camera);
           }
         }
         continue;
@@ -1759,7 +1779,7 @@ export class ScenePhysicsWorld {
     }
   }
 
-  private visible(body: CANNON.Body, camera: THREE.Camera) {
+  private visible(body: CANNON.Body, camera: THREE.Camera, padding = 0.15) {
     camera.updateWorldMatrix(true, false);
     const frustum = new THREE.Frustum().setFromProjectionMatrix(
       matrixScratch.multiplyMatrices(
@@ -1774,7 +1794,7 @@ export class ScenePhysicsWorld {
     );
     const cameraPosition = camera.getWorldPosition(new THREE.Vector3());
     const margin =
-      body.boundingRadius + cameraPosition.distanceTo(point) * 0.15;
+      body.boundingRadius + cameraPosition.distanceTo(point) * padding;
     return frustum.planes.every(
       (plane) => plane.distanceToPoint(point) >= -margin,
     );

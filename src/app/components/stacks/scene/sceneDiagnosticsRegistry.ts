@@ -925,7 +925,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     "orbitPitch",
     "camera.pointer-orbit-pitch",
     "Pointer orbit pitch",
-    "Degrees the eye orbits the shelf vertically at the top and bottom of the viewport.",
+    "Downward orbit in degrees at the top of the viewport. The upward orbit at the bottom is 1.75 times this value, giving 4° down and 7° up by default.",
     { step: 0.5, decimals: 1, unit: "°" },
   ),
   pointerCameraDial(
@@ -1297,6 +1297,12 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
         "physics.motion",
         "Run off-screen resets",
         "visibilityResets",
+      ],
+      [
+        "physics.reset-reveals",
+        "physics.motion",
+        "Fade and scale visible resets",
+        "resetReveals",
       ],
       [
         "physics.held-collision-probes",

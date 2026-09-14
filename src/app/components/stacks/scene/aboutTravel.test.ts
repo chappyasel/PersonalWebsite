@@ -22,7 +22,7 @@ import {
 } from "./globeChapterHover";
 
 describe("About globe personal places", () => {
-  it("keeps the five authored places in the red marker layer", () => {
+  it("keeps the five authored places in the white house layer", () => {
     expect(LIVED_PLACES.map((place) => place.id)).toEqual([
       "san-francisco",
       "seattle",
@@ -48,7 +48,8 @@ describe("About globe personal places", () => {
     const lived = ABOUT_GLOBE_MAP.markerLayers?.[2];
     expect(lived?.markers).toBe(LIVED_PLACES);
     expect(lived?.color).toBe(ABOUT_GLOBE_LIVED_MARKER_COLOR);
-    expect(lived?.lift).toBeGreaterThan(1.01);
+    expect(lived?.shape).toBe("house");
+    expect((lived!.radiusScale! / visited!.radiusScale!) ** 3).toBeCloseTo(1.2);
   });
 
   it("uses present-tense copy only for San Francisco", () => {

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PhysicsSceneScope } from "./PhysicsSceneProvider";
 import {
@@ -255,6 +255,68 @@ describe("shelf physics lifecycle and carrying", () => {
     prepared.world.release(entry, pinned.acceptedVelocity);
     expect(Math.abs(entry.body!.velocity.x)).toBeLessThan(0.01);
   });
+
+  it.each(["box", "sphere"] as const)(
+    "carries a %s left past the shelf post when its rear edge clears the wood",
+    async (shape) => {
+      await warm();
+      const root = new THREE.Group();
+      const { support, groundY, strapZ, strapInsetX, width, lower } =
+        SHELF_GEOMETRY;
+      const postX = width / 2 - strapInsetX;
+      root.add(
+        box(
+          [support.width, -groundY, support.width],
+          [postX, groundY / 2, strapZ],
+        ),
+        box(
+          [support.footWidth, support.footHeight, support.footDepth],
+          [postX, groundY + 0.025, strapZ],
+        ),
+        box(
+          [support.cleatWidth, support.cleatHeight, support.cleatDepth],
+          [postX, lower.centerY - 0.0575, strapZ],
+        ),
+      );
+      const prop = new THREE.Group();
+      const radius = 0.1;
+      prop.add(
+        shape === "sphere"
+          ? new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 8))
+          : box([radius * 2, radius * 2, radius * 2], [0, 0, 0]),
+      );
+      // Clear the upright by 5 mm. Its wider foot and cleat are below us.
+      prop.position.set(
+        postX + 0.3,
+        -0.5,
+        strapZ + support.width / 2 + radius + 0.005,
+      );
+      root.add(prop);
+      root.updateWorldMatrix(true, true);
+      const entry = handle(`post-clearance:${shape}`, prop, "lower");
+      entry.shape = shape;
+      const prepared = worldFor(prop, [entry]);
+      expect(prepared.status).toBe("ready");
+      if (prepared.status !== "ready") return;
+      expect(prepared.world.grab(entry)).toBe(true);
+      const desired = {
+        position: prop.position.clone().setX(postX - 0.3),
+        quaternion: new THREE.Quaternion(),
+      };
+      const blockers = new Set<string>();
+      for (let frame = 0; frame < 60; frame++) {
+        const result = prepared.world.moveHeld(
+          entry,
+          desired,
+          1 / 60,
+          new THREE.Vector3(0, 0, 1),
+        );
+        result.blockers.forEach((blocker) => blockers.add(blocker));
+      }
+      expect([...blockers]).toEqual([]);
+      expect(prop.position.x).toBeCloseTo(desired.position.x, 5);
+    },
+  );
 
   it("can isolate held collision probing without disabling the solver", async () => {
     await warm();
@@ -1485,6 +1547,59 @@ describe("scene-wide physics world", () => {
     for (let frame = 95; frame < 125; frame++)
       prepared.world.tick(1 / 60, frame + 1, camera);
     expect(entry.phase.current).toBe("sim");
+  });
+
+  it.each(["escaped", "offscreen"] as const)(
+    "reveals %s resets only when their home position is on camera",
+    async (reason) => {
+      await warm();
+      for (const visibleHome of [true, false]) {
+        const { prop } = topFixture();
+        const entry = handle(`reset-reveal:${reason}:${visibleHome}`, prop);
+        entry.onReset = vi.fn();
+        const prepared = worldFor(prop, [entry]);
+        expect(prepared.status).toBe("ready");
+        if (prepared.status !== "ready") return;
+        const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+        const x = visibleHome ? 0 : -10;
+        camera.position.set(x, 0, 5);
+        camera.lookAt(x, 0, 0);
+        camera.updateProjectionMatrix();
+        entry.phase.current = "sim";
+        entry.parked = false;
+        entry.body!.position.x = reason === "escaped" ? 20 : 5;
+        entry.body!.sleep();
+        for (let frame = 0; frame < 65; frame++)
+          prepared.world.tick(1 / 60, frame + 1, camera);
+        expect(entry.group.position.toArray()).toEqual(entry.base.toArray());
+        expect(entry.onReset).toHaveBeenCalledExactlyOnceWith(visibleHome);
+        prepared.world.grab(entry);
+        expect(entry.onReset).toHaveBeenLastCalledWith(false);
+      }
+    },
+  );
+
+  it("skips reset reveals when the live diagnostics control is off", async () => {
+    await warm();
+    const { prop } = topFixture();
+    const entry = handle("reset-reveal:disabled", prop);
+    entry.onReset = vi.fn();
+    const prepared = worldFor(prop, [entry]);
+    if (prepared.status !== "ready") throw new Error("world not ready");
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    physicsDiagnosticsController.update({
+      runtime: {
+        ...physicsDiagnosticsController.getSnapshot().runtime,
+        resetReveals: false,
+      },
+    });
+    entry.phase.current = "sim";
+    entry.parked = false;
+    entry.body!.position.x = 20;
+    prepared.world.tick(1 / 60, 1, camera);
+    expect(entry.onReset).toHaveBeenCalledExactlyOnceWith(false);
   });
 
   it("parks a supported low-motion prop that Cannon keeps awake off-screen", async () => {

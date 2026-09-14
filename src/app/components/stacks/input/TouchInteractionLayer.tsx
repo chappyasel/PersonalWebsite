@@ -244,7 +244,7 @@ export default function TouchInteractionLayer() {
             // so it cannot become a pickup mid-drag.
             clearPickup();
             store.setPressedInteraction(null);
-            spec?.dragIntent?.();
+            spec?.dragIntent?.(event);
             break;
           case "focus":
             clearPickup();

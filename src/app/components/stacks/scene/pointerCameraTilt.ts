@@ -1,4 +1,6 @@
 export const POINTER_CAMERA_TILT_MAX_DEGREES = 2;
+export const POINTER_CAMERA_ORBIT_DOWN_DEGREES = 4;
+export const POINTER_CAMERA_ORBIT_UP_DEGREES = 7;
 export const POINTER_CAMERA_YAW_MAX_DEGREES = 3;
 
 export type PointerCameraTiltState = Readonly<{
@@ -9,14 +11,18 @@ const POINTER_CAMERA_TILT_DEFAULT: PointerCameraTiltState = Object.freeze({
   enabled: true,
 });
 
-/** Map the full pointer height to a two-degree pitch in either direction.
+/** Map the full pointer height to pitch, with separate down and up limits.
  * Positive pointer Y is the top of the viewport, where the camera looks down. */
 export function pointerCameraTiltDegrees(
   pointerY: number,
   maxDegrees = POINTER_CAMERA_TILT_MAX_DEGREES,
+  maxUpDegrees = maxDegrees,
 ) {
   const finitePointerY = Number.isFinite(pointerY) ? pointerY : 0;
-  return Math.min(1, Math.max(-1, finitePointerY)) * maxDegrees;
+  return (
+    Math.min(1, Math.max(-1, finitePointerY)) *
+    (finitePointerY < 0 ? maxUpDegrees : maxDegrees)
+  );
 }
 
 /** Map the pointer's run to either side of `centre` onto a three-degree yaw.

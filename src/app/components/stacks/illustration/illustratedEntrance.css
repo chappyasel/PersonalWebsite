@@ -199,8 +199,11 @@
     opacity 500ms ease-out,
     translate 650ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-/* Busy first frames can shorten the arrival. Finish without a second transition. */
-.stacks-world-shell:where([data-room-entrance="complete"])
+/* Finish a skipped arrival immediately while the illustration owns the screen.
+   Release this override for the live room's overlay return transitions. */
+.stacks-world-shell:where(
+    [data-room-entrance="complete"][data-room-presentation="illustrated"]
+  )
   :is(
     .stacks-unit-rail-desktop,
     .stacks-unit-rail-mobile,

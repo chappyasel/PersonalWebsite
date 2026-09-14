@@ -1,15 +1,18 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
+import { ABOUT_GLOBE_MAP } from "./aboutTravel";
 import {
-  GLOBE_MARKER_MAX_GROWTH,
+  GLOBE_LIVED_MARKS_NAME,
   GLOBE_MARKER_NIGHT_EMISSIVE,
   GLOBE_MARKS_NAME,
+  GLOBE_VISITED_MARKS_NAME,
   closeGlobeBase,
   dressGlobeBall,
   globeBallRadius,
   globeSurfacePoint,
   mergeGlobeMarkers,
+  pickGlobeMarker,
   slimGlobeStand,
   trimGlobeAxlePins,
 } from "./globeBall";
@@ -174,65 +177,212 @@ describe("dressGlobeBall", () => {
     }
   });
 
-  it("stands the marks just proud of the surface where the texture puts the city", () => {
+  it.each([false, true])(
+    "attaches every authored marker to the faceted map with reversed axle %s",
+    (axleDown) => {
+      const { spin } = fakeSplit(axleDown);
+      dressGlobeBall(spin, { map, markerLayers: ABOUT_GLOBE_MAP.markerLayers });
+      spin.removeFromParent();
+      spin.updateMatrixWorld(true);
+      const faces = spin.children.filter(
+        (child) =>
+          child instanceof THREE.Mesh &&
+          !(child instanceof THREE.InstancedMesh),
+      );
+      const raycaster = new THREE.Raycaster();
+      const matrix = new THREE.Matrix4();
+      const position = new THREE.Vector3();
+      const direction = new THREE.Vector3();
+      const floating: string[] = [];
+      for (const marks of spin.children) {
+        if (!(marks instanceof THREE.InstancedMesh)) continue;
+        const clusters = mergeGlobeMarkers(
+          ABOUT_GLOBE_MAP.markerLayers!.find(
+            (layer) => layer.name === marks.name,
+          )!.markers,
+        );
+        const markerGeometry = marks.geometry as THREE.BufferGeometry;
+        markerGeometry.computeBoundingBox();
+        const baseY = markerGeometry.boundingBox!.min.y;
+        for (let index = 0; index < marks.count; index++) {
+          marks.getMatrixAt(index, matrix);
+          position.setFromMatrixPosition(matrix);
+          direction.set(0, 1, 0).transformDirection(matrix);
+          raycaster.set(
+            position.clone().addScaledVector(direction, RADIUS),
+            direction.clone().negate(),
+          );
+          const hit = raycaster.intersectObjects(faces, false)[0]!;
+          expect(hit.uv!.x).toBeCloseTo((clusters[index]!.lon + 180) / 360, 5);
+          expect(hit.uv!.y).toBeCloseTo((clusters[index]!.lat + 90) / 180, 5);
+          const distance = position.distanceTo(hit.point);
+          if (marks.name === GLOBE_LIVED_MARKS_NAME) {
+            expect(distance).toBeLessThan(1e-6);
+          } else expect(distance).toBeGreaterThan(-baseY * 0.7);
+          if (distance >= -baseY) floating.push(`${marks.name}[${index}]`);
+        }
+      }
+      expect(
+        floating,
+        "Every marker must intersect the actual map face",
+      ).toEqual([]);
+    },
+  );
+
+  it("seats a round sphere on the exact textured city location", () => {
     const { spin } = fakeSplit();
     dressGlobeBall(spin, {
       map,
       markerLayers: [layer([{ lat: 51.51, lon: -0.13 }])],
     });
-    const marks = spin.children.find(
-      (child): child is THREE.InstancedMesh =>
-        child instanceof THREE.InstancedMesh,
-    )!;
+    spin.updateMatrixWorld(true);
+    const marks = spin.getObjectByName(GLOBE_MARKS_NAME) as THREE.InstancedMesh;
     const matrix = new THREE.Matrix4();
     marks.getMatrixAt(0, matrix);
     const position = new THREE.Vector3().setFromMatrixPosition(matrix);
-    const expected = globeSurfacePoint(51.51, -0.13, RADIUS);
-    expect(position.length()).toBeGreaterThan(RADIUS);
-    expect(position.length()).toBeLessThan(RADIUS * 1.03);
-    expect(position.clone().normalize().dot(expected.normalize())).toBeCloseTo(
-      1,
-      6,
+    const normal = new THREE.Vector3(0, 1, 0).transformDirection(matrix);
+    const raycaster = new THREE.Raycaster(
+      position.clone().addScaledVector(normal, RADIUS),
+      normal.clone().negate(),
     );
+    const faces = spin.children.filter(
+      (child) =>
+        child instanceof THREE.Mesh && !(child instanceof THREE.InstancedMesh),
+    );
+    const hit = raycaster.intersectObjects(faces, false)[0]!;
+    const dotRadius = (marks.geometry as THREE.SphereGeometry).parameters
+      .radius;
+    expect(position.distanceTo(hit.point)).toBeLessThan(dotRadius);
+    expect(position.distanceTo(hit.point)).toBeGreaterThan(dotRadius * 0.7);
+    expect(hit.uv!.x).toBeCloseTo((-0.13 + 180) / 360, 6);
+    expect(hit.uv!.y).toBeCloseTo((51.51 + 90) / 180, 6);
+    const scale = new THREE.Vector3();
+    const orientation = new THREE.Quaternion();
+    matrix.decompose(new THREE.Vector3(), orientation, scale);
+    expect(scale.y).toBeCloseTo(1, 6);
+    expect(scale.z).toBeCloseTo(1, 6);
+    expect(
+      new THREE.Vector3(0, 1, 0)
+        .applyQuaternion(orientation)
+        .dot(hit.face!.normal),
+    ).toBeCloseTo(1, 6);
   });
 
-  it("renders independently styled marker layers at their own lift", () => {
+  it("uses uniform chapter pins and the requested volume hierarchy", () => {
     const { spin } = fakeSplit();
     dressGlobeBall(spin, {
       map,
       dark: true,
-      markerLayers: [
-        layer([{ lat: 37.77, lon: -122.42 }]),
-        {
-          name: "globe-lived-marks",
-          markers: [{ lat: 47.61, lon: -122.33 }],
-          color: "#d62828",
-          radiusScale: 1.15,
-          lift: 1.035,
-          nightEmissive: 0.12,
-        },
-      ],
+      markerLayers: ABOUT_GLOBE_MAP.markerLayers,
     });
-
-    const chapters = spin.getObjectByName(GLOBE_MARKS_NAME) as
-      | THREE.InstancedMesh
-      | undefined;
-    const lived = spin.getObjectByName("globe-lived-marks") as
-      | THREE.InstancedMesh
-      | undefined;
-    expect(chapters?.count).toBe(1);
-    expect(lived?.count).toBe(1);
-    expect(
-      (lived?.material as THREE.MeshStandardMaterial).color.getHexString(),
-    ).toBe("d62828");
-    expect(
-      (lived?.material as THREE.MeshStandardMaterial).emissiveIntensity,
-    ).toBe(0.12);
+    const layers = ABOUT_GLOBE_MAP.markerLayers!;
+    const volume = (name: string) => {
+      const marks = spin.getObjectByName(name) as THREE.InstancedMesh;
+      const vertices = marks.geometry.getAttribute("position");
+      const indices = marks.geometry.getIndex();
+      const count = indices?.count ?? vertices.count;
+      const triangle = new THREE.Triangle();
+      let signedVolume = 0;
+      for (let i = 0; i < count; i += 3) {
+        triangle.a.fromBufferAttribute(vertices, indices ? indices.getX(i) : i);
+        triangle.b.fromBufferAttribute(
+          vertices,
+          indices ? indices.getX(i + 1) : i + 1,
+        );
+        triangle.c.fromBufferAttribute(
+          vertices,
+          indices ? indices.getX(i + 2) : i + 2,
+        );
+        signedVolume +=
+          triangle.a.dot(triangle.b.clone().cross(triangle.c)) / 6;
+      }
+      const matrix = new THREE.Matrix4();
+      marks.getMatrixAt(0, matrix);
+      return Math.abs(signedVolume * matrix.determinant());
+    };
+    const baseline = volume(layers[1]!.name);
+    expect(volume(layers[0]!.name) / baseline).toBeCloseTo(0.5, 5);
+    expect(volume(layers[2]!.name) / baseline).toBeCloseTo(1.2, 5);
+    const chapters = spin.getObjectByName(
+      GLOBE_MARKS_NAME,
+    ) as THREE.InstancedMesh;
     const matrix = new THREE.Matrix4();
-    lived!.getMatrixAt(0, matrix);
-    expect(
-      new THREE.Vector3().setFromMatrixPosition(matrix).length(),
-    ).toBeCloseTo(RADIUS * 1.035, 6);
+    for (let i = 0; i < chapters.count; i++) {
+      chapters.getMatrixAt(i, matrix);
+      expect(matrix.determinant()).toBeCloseTo(1, 6);
+    }
+    for (const layer of layers) {
+      const marks = spin.getObjectByName(layer.name) as THREE.InstancedMesh;
+      const material = marks.material as THREE.MeshStandardMaterial;
+      expect(material.color.getHexString()).toBe(
+        new THREE.Color(layer.color).getHexString(),
+      );
+      expect(material.emissiveIntensity).toBe(
+        layer.nightEmissive ?? GLOBE_MARKER_NIGHT_EMISSIVE,
+      );
+    }
+  });
+
+  it.each([
+    [GLOBE_MARKS_NAME, "chapter"],
+    [GLOBE_VISITED_MARKS_NAME, "visited"],
+    [GLOBE_LIVED_MARKS_NAME, "lived"],
+  ])(
+    "picks visible %s markers after repeated model replacements",
+    (name, kind) => {
+      const root = new THREE.Group();
+      const raycaster = new THREE.Raycaster();
+      let previous: THREE.Group | null = null;
+      for (let rebuild = 0; rebuild < 3; rebuild++) {
+        const { spin } = fakeSplit();
+        dressGlobeBall(spin, {
+          map,
+          markerLayers: [
+            {
+              ...layer([{ lat: 10, lon: 20 }]),
+              name,
+              shape: name === GLOBE_LIVED_MARKS_NAME ? "house" : "sphere",
+            },
+          ],
+        });
+        if (previous) {
+          root.remove(previous);
+          // Detached models still own their children. A parent check alone
+          // cannot establish that an old marker belongs to the live globe.
+          expect(previous.getObjectByName(name)!.parent).toBe(previous);
+        }
+        root.add(spin);
+        root.updateMatrixWorld(true);
+        const marks = spin.getObjectByName(name) as THREE.InstancedMesh;
+        const matrix = new THREE.Matrix4();
+        marks.getMatrixAt(0, matrix);
+        const position = new THREE.Vector3().setFromMatrixPosition(matrix);
+        const normal = new THREE.Vector3(0, 1, 0).transformDirection(matrix);
+        raycaster.set(
+          position.clone().addScaledVector(normal, RADIUS),
+          normal.negate(),
+        );
+        expect(pickGlobeMarker(root, raycaster)).toMatchObject({
+          kind,
+          index: 0,
+        });
+        previous = spin;
+      }
+    },
+  );
+
+  it("does not select a far-side pin through the map", () => {
+    const { spin } = fakeSplit();
+    dressGlobeBall(spin, {
+      map,
+      markerLayers: [layer([{ lat: 0, lon: 180 }])],
+    });
+    spin.updateMatrixWorld(true);
+    const raycaster = new THREE.Raycaster(
+      new THREE.Vector3(RADIUS * 2, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+    );
+    expect(pickGlobeMarker(spin, raycaster)).toBeNull();
   });
 
   it("keeps night marks dimmer without making day marks emissive", () => {
@@ -281,7 +431,7 @@ describe("dressGlobeBall", () => {
     expect(world(inverted.spin).y).toBeGreaterThan(0);
   });
 
-  it("caps how much a merged mark grows", () => {
+  it("keeps merged markers the same size as individual markers", () => {
     const { spin } = fakeSplit();
     dressGlobeBall(spin, {
       map,
@@ -301,7 +451,9 @@ describe("dressGlobeBall", () => {
     const matrix = new THREE.Matrix4();
     marks.getMatrixAt(0, matrix);
     const scale = new THREE.Vector3().setFromMatrixScale(matrix);
-    expect(scale.x).toBeCloseTo(GLOBE_MARKER_MAX_GROWTH, 6);
+    expect(scale.x).toBeCloseTo(1, 6);
+    expect(scale.y).toBeCloseTo(1, 6);
+    expect(scale.z).toBeCloseTo(1, 6);
   });
 
   it("leaves a spin node with no slices alone", () => {

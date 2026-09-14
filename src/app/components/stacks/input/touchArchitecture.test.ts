@@ -97,7 +97,7 @@ describe("coarse-pointer ownership", () => {
       "dragIntent: Boolean(spec.dragIntent) && !spec.movableController",
     );
     expect(touchLayer).toMatch(
-      /case "drag-intent":[\s\S]*?clearPickup\(\);[\s\S]*?spec\?\.dragIntent\?\.\(\);/,
+      /case "drag-intent":[\s\S]*?clearPickup\(\);[\s\S]*?spec\?\.dragIntent\?\.\(event\);/,
     );
   });
 
@@ -116,7 +116,7 @@ describe("coarse-pointer ownership", () => {
     );
     expect(globeCloseUp).toContain("raycaster.setFromCamera(pointerNdc(), camera);");
     expect(globeCloseUp).toMatch(
-      /useFrame\(\(\) => \{\s*if \(touchWorldRef\.interactionPointerType === "touch"\) return;\s*sampleMarks\(\);/,
+      /useFrame\(\(\) => \{\s*if \(touchWorldRef\.interactionPointerType !== "touch"\) sampleMarks\(\);/,
     );
     expect(globeCloseUp).toMatch(
       /state\.pressedInteraction === hoverKey &&\s*previous\.pressedInteraction !== hoverKey &&\s*touchWorldRef\.interactionPointerType === "touch"\s*\)\s*sampleMarks\(\);/,

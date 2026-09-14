@@ -1,37 +1,43 @@
-// A hand on a SpinProp.
-//
-// SpinProp turns its prop on its own (a drift, a hover rate, a lap per
-// click). Up close, the globe is turned by dragging it, and for that the
-// prop needs a way to be told "follow this hand exactly, then let go with
-// this much speed". This is that handle: a mutable record the drag writes
-// and SpinProp reads once per frame, never through React state.
+// The globe's angular velocity lives here across hover, dragging and release.
+// Pointer samples apply force; only the frame step advances the visible angle.
 
 export type SpinHandleState = {
-  /** While held the prop follows `pending` 1:1 and its own drift pauses. */
   held: boolean;
-  /** Radians queued since the last frame. SpinProp drains it. */
+  /** Drag input queued since the last frame, in radians. */
   pending: number;
-  /** Radians per second left over after a release, bleeding off. */
+  /** Current angular velocity, in radians per second. */
   velocity: number;
-  /** The prop is being looked at up close: no drift, no hover rate. */
+  /** Up close, hand momentum settles before the slow ambient drift resumes. */
   calm: boolean;
+  /** Keep a hovered map mark still enough to read and click. */
+  paused: boolean;
 };
+
+const HAND_GAIN = 3;
+const HELD_DRAG = 4;
+const COAST_DRAG = 1.8;
+export const SPIN_MAX_HAND_SPEED = 2.5;
 
 export type SpinHandle = Readonly<{
   state: SpinHandleState;
   turn(radians: number): void;
   setHeld(held: boolean): void;
-  fling(radiansPerSecond: number): void;
   setCalm(calm: boolean): void;
+  /** Advance motion and return the angle to add this frame. */
+  step(seconds: number, ambientRate: number): number;
 }>;
 
-export function createSpinHandle(): SpinHandle {
+export function createSpinHandle(
+  onHandTurn?: (radians: number) => void,
+): SpinHandle {
   const state: SpinHandleState = {
     held: false,
     pending: 0,
     velocity: 0,
     calm: false,
+    paused: false,
   };
+  let handDriven = false;
   return {
     state,
     turn(radians) {
@@ -39,17 +45,53 @@ export function createSpinHandle(): SpinHandle {
     },
     setHeld(held) {
       state.held = held;
-      if (held) state.velocity = 0;
-    },
-    fling(radiansPerSecond) {
-      state.velocity = Number.isFinite(radiansPerSecond) ? radiansPerSecond : 0;
+      if (held) handDriven = true;
     },
     setCalm(calm) {
       state.calm = calm;
       if (!calm) {
         state.held = false;
-        state.velocity = 0;
+        state.pending = 0;
+        state.paused = false;
+        handDriven = false;
       }
+    },
+    step(seconds, ambientRate) {
+      if (!Number.isFinite(seconds) || seconds <= 0) return 0;
+      // Ignore time spent suspended, while retaining ordinary 30/60/120 Hz timing.
+      const dt = Math.min(seconds, 1 / 15);
+      const drag = state.held ? HELD_DRAG : state.calm ? COAST_DRAG : 1.4;
+      const inputRate = (state.pending * HAND_GAIN) / (dt * drag);
+      state.pending = 0;
+      const manual = state.held || state.calm;
+      const target =
+        state.held || state.paused || (state.calm && handDriven)
+          ? inputRate
+          : ambientRate;
+      // Exact integration of a constant force with drag. Cap actual speed,
+      // not input force: coalesced pointer samples must retain their weight.
+      const decay = Math.exp(-drag * dt);
+      const nextVelocity = target + (state.velocity - target) * decay;
+      let turn = target * dt + ((state.velocity - target) * (1 - decay)) / drag;
+      if (manual && Math.abs(nextVelocity) > SPIN_MAX_HAND_SPEED) {
+        const limit = Math.sign(nextVelocity) * SPIN_MAX_HAND_SPEED;
+        const timeToLimit = Math.max(
+          0,
+          -Math.log((limit - target) / (state.velocity - target)) / drag,
+        );
+        turn =
+          target * timeToLimit +
+          ((state.velocity - target) * (1 - Math.exp(-drag * timeToLimit))) /
+            drag +
+          limit * (dt - timeToLimit);
+        state.velocity = limit;
+      } else state.velocity = nextVelocity;
+      if (handDriven && state.calm && turn !== 0) onHandTurn?.(turn);
+      // Stop crediting hand motion before natural drift takes over. Waiting
+      // for the coast also avoids reversing a leftward flick prematurely.
+      if (!state.held && handDriven && Math.abs(state.velocity) < 0.02)
+        handDriven = false;
+      return turn;
     },
   };
 }

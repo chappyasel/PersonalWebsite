@@ -125,6 +125,7 @@ import type {
 import type { DynamicColliderProfile } from "./physicsColliders";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
 import { nearPropApproach } from "./propApproachState";
+import { beginPropResetReveal } from "./propResetReveal";
 import {
   archetypeFor,
   bandMotionFor,
@@ -795,6 +796,7 @@ export default function Grabbable({
    * shelf prop. */
   onDragIntent?: (
     origin: Readonly<{ x: number; y: number; z: number }>,
+    event?: PointerEvent,
   ) => void;
   /** A few hero props can enter the real rigid-body world when a scene
    * shockwave reaches them. Everyone else keeps the short authored nudge. */
@@ -861,6 +863,10 @@ export default function Grabbable({
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
+  const resetVisual = useRef<THREE.Group>(null);
+  const resetReveal = useRef<ReturnType<typeof beginPropResetReveal> | null>(
+    null,
+  );
   const artifactHandoffId = useRef<SceneArtifactId | null>(null);
   const artifactHandoffTravel = useRef(0);
   const artifactHandoffTravelGoal = useRef(0);
@@ -1042,12 +1048,15 @@ export default function Grabbable({
   /** The one-shot drag response, shared by both pointer paths: the fine
    * pointer's move handler below, and the coarse touch arbiter through the
    * registry entry (a touch never reaches these r3f handlers). */
-  const fireDragIntent = useCallback(() => {
-    const g = group.current;
-    if (!g || !onDragIntentRef.current) return;
-    g.getWorldPosition(world);
-    onDragIntentRef.current({ x: world.x, y: world.y, z: world.z });
-  }, [world]);
+  const fireDragIntent = useCallback(
+    (event?: PointerEvent) => {
+      const g = group.current;
+      if (!g || !onDragIntentRef.current) return;
+      g.getWorldPosition(world);
+      onDragIntentRef.current({ x: world.x, y: world.y, z: world.z }, event);
+    },
+    [world],
+  );
   const hasDragIntent = Boolean(onDragIntent);
   const open = useOpenTarget();
   /** The shared record this prop's rigid body hangs off. Null until mount,
@@ -1154,6 +1163,13 @@ export default function Grabbable({
       physicsEnabled,
       physicsActivation: detachesFromMount ? "detach" : undefined,
       physicsActivated: !detachesFromMount,
+      onReset: (reveal) => {
+        resetReveal.current?.finish();
+        resetReveal.current =
+          reveal && resetVisual.current
+            ? beginPropResetReveal(resetVisual.current, still)
+            : null;
+      },
     };
     handle.current = entry;
     diagnosticsScope = physicsScene;
@@ -1492,7 +1508,7 @@ export default function Grabbable({
           TAP_PX
       ) {
         current.moved = true;
-        fireDragIntent();
+        fireDragIntent(event);
         if (!tapOnly.current) beginCarry(event);
       }
       if (!tapOnly.current && phase.current === "held") track(event);
@@ -1819,6 +1835,15 @@ export default function Grabbable({
     // fling the prop to infinity on return.
     const delta = Math.min(rawDelta, 1 / 30);
     const entry = handle.current;
+    if (resetReveal.current) {
+      if (
+        phase.current !== "rest" ||
+        !physicsDiagnosticsController.getSnapshot().runtime.resetReveals
+      ) {
+        resetReveal.current.finish();
+        resetReveal.current = null;
+      } else if (resetReveal.current.advance(delta)) resetReveal.current = null;
+    }
     if (entry) entry.base.set(base[0], base[1], base[2]);
     const layoutPosition =
       process.env.NODE_ENV === "development"
@@ -2676,6 +2701,8 @@ export default function Grabbable({
       const w = shadeWidth * (1 + spreadT * 0.7);
       s.scale.set(w, w * 0.32, 1);
       s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
+      if (resetReveal.current)
+        s.material.opacity *= resetReveal.current.opacity;
       if (artifactHandoffId.current)
         s.material.opacity *= 1 - artifactHandoffTravel.current;
     }
@@ -2756,13 +2783,15 @@ export default function Grabbable({
         {/* Named for the same reason Lift's group and SPIN_NODE are: the nod
             is a few degrees on ONE object in a scene where the camera never
             stops moving, so a screenshot cannot tell you it happened. */}
-        <group ref={impulse} name={`impulse:${hoverKey}`}>
-          <group ref={nod} name={`nod:${hoverKey}`}>
-            {/* The physical form underneath registers its edges against this
+        <group ref={resetVisual} name={`reset-reveal:${hoverKey}`}>
+          <group ref={impulse} name={`impulse:${hoverKey}`}>
+            <group ref={nod} name={`nod:${hoverKey}`}>
+              {/* The physical form underneath registers its edges against this
                 artifact so the fullscreen preview can draw the same print. */}
-            <SceneArtifactIdContext.Provider value={artifact ?? null}>
-              {children}
-            </SceneArtifactIdContext.Provider>
+              <SceneArtifactIdContext.Provider value={artifact ?? null}>
+                {children}
+              </SceneArtifactIdContext.Provider>
+            </group>
           </group>
         </group>
       </group>

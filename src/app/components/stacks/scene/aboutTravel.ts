@@ -161,8 +161,8 @@ export const LIVED_PLACES: readonly LivedPlace[] = [
   },
 ];
 
-/** A cartographic red, lifted above the chapter marks where the two overlap. */
-export const ABOUT_GLOBE_LIVED_MARKER_COLOR = "#d62828";
+/** White houses distinguish lived places from the round map markers. */
+export const ABOUT_GLOBE_LIVED_MARKER_COLOR = "#ffffff";
 
 /** Pins the screenshot globe on the Atlantic. Combined with the model's
  * authored -0.7 yaw, this puts roughly 44° W at the centre and keeps the
@@ -184,7 +184,8 @@ export const ABOUT_GLOBE_STAND_ATLAS = {
   },
 } as const;
 
-/** One module-level object on purpose: it lands in ModelProp's memo deps, and
+/** Marker volume is relative to visited places: chapters 0.5, lived 1.2.
+ * One module-level object on purpose: it lands in ModelProp's memo deps, and
  * an inline literal at the call site would rebuild the model on every parent
  * render. */
 export const ABOUT_GLOBE_MAP: SpinPartMap = {
@@ -195,21 +196,21 @@ export const ABOUT_GLOBE_MAP: SpinPartMap = {
       name: GLOBE_MARKS_NAME,
       markers: AIC_CHAPTERS,
       color: ABOUT_GLOBE_MARKER_COLOR,
+      radiusScale: 1.05 * Math.cbrt(0.5),
     },
     {
       name: GLOBE_VISITED_MARKS_NAME,
       markers: VISITED_PLACES,
       color: ABOUT_GLOBE_VISITED_MARKER_COLOR,
       radiusScale: 1.05,
-      lift: 1.025,
       nightEmissive: 0.04,
     },
     {
       name: GLOBE_LIVED_MARKS_NAME,
       markers: LIVED_PLACES,
       color: ABOUT_GLOBE_LIVED_MARKER_COLOR,
-      radiusScale: 1.15,
-      lift: 1.035,
+      shape: "house",
+      radiusScale: 1.05 * Math.cbrt(1.2),
       nightEmissive: 0.06,
     },
   ],

@@ -561,6 +561,18 @@ uses a vertical plane fixed at pickup so lifting and collision sliding cannot
 send a prop backward. Wheel and pinch can pull it closer and return it to its
 pickup depth. Released props retain their authored mass and gravity.
 
+Sphere colliders measure the model's vertices in its resting frame. Rotated
+bounding-box corners can inflate a ball and block gaps it visibly clears.
+Static boxes merge only across matching faces or when one contains the other,
+so a post's foot cannot widen the whole post or fill an opening in a frame.
+
+Automatic physics resets check whether the home position is on camera. Visible
+returns fade in over 0.32 seconds while scaling from 82% to full size; reduced
+motion uses a 0.18-second fade with no scaling. Off-camera returns are immediate.
+Grabbing a returning prop ends the reveal. Scene Diagnostics can disable reset
+reveals live, and that override resets on reload. These recovery effects award
+no Field Note because returning a lost prop is not a meaningful discovery.
+
 **Now Strip** — the one-line live readout of present-tense facts (current
 book, last lift, local time). Every value on it must be real.
 

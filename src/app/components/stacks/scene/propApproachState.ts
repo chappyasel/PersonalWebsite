@@ -19,15 +19,6 @@ export const PROP_APPROACH_MIN_DISTANCE = 1.2;
 export const PROP_APPROACH_RELEASE_TRAVEL = 0.1;
 /** Exponential ease rate for the flight, per second. */
 export const PROP_APPROACH_LAMBDA = 7;
-/** How far the near prop follows the pointer, as fractions of the half frame
- * at its distance, and how far it turns toward it, in radians. Enough to
- * feel held rather than pinned, not enough to leave the centre. */
-export const PROP_APPROACH_FOLLOW = {
-  x: 0.06,
-  y: 0.04,
-  yaw: 0.06,
-  pitch: 0.035,
-} as const;
 /** A press anywhere puts the prop back. The same press then reaches the
  * Grabbable as a tap on the prop, whose activation must not bring it straight
  * back; a dismissal this recent makes `approach()` a no-op. */
@@ -57,7 +48,7 @@ export type PropApproach = Readonly<{
   progress: { current: number };
   /** Where the near pose puts the prop on screen, written each frame by the
    * wrapper while the prop is up: the viewport y, in CSS pixels, of the
-   * prop's foot, before the pointer follow and any hand turn. The caption
+   * prop's foot, before any hand turn. The caption
    * sits just under it (dom/PropCaption.tsx). */
   frame: { bottom: number };
 }>;

@@ -57,6 +57,7 @@ import {
   freeRoamTranslation,
   shouldWriteFreeRoamPose,
 } from "./freeRoamMotion";
+import { globeCursor } from "./globeCloseUpState";
 import { GOLF_CUP_WORLD_CENTER } from "./golf/golfCourse";
 import { golfSuspense, golfSuspenseFovScale } from "./golf/golfSuspense";
 import {
@@ -84,6 +85,8 @@ import {
 } from "./pointerArrival";
 import { pointerCameraModeController } from "./pointerCameraMode";
 import {
+  POINTER_CAMERA_ORBIT_DOWN_DEGREES,
+  POINTER_CAMERA_ORBIT_UP_DEGREES,
   aimForHeadTurn,
   eyeXZForYawAroundTarget,
   eyeYForTiltAroundTarget,
@@ -502,19 +505,6 @@ export default function CameraRig() {
       el.scrollLeft = offset * max;
       scrollTarget.current = offset;
     });
-    // Pointer cursor for hoverable scene objects — the scroll el owns events.
-    const unsubscribeCursor = useStacks.subscribe((s) => {
-      const cursor = cursorForInteraction(s.hovered, s.dragging);
-      // Legacy eggs remain pointer claimants while the registry migration is
-      // completed; inert scenery keeps the ordinary canvas cursor.
-      el.style.cursor =
-        cursor ||
-        (s.hovered &&
-        !s.hovered.startsWith(INERT_HOVER) &&
-        (s.hovered.startsWith("egg:") || s.hovered.startsWith("sky:"))
-          ? "pointer"
-          : "");
-    });
     return () => {
       cancelInitialSync("cleanup");
       el.removeEventListener("pointerdown", cancelFromPointer);
@@ -527,7 +517,6 @@ export default function CameraRig() {
       roomWindowEvents.removeEventListener("pointermove", recordPointerType, {
         capture: true,
       });
-      unsubscribeCursor();
       const cleanup = useStacks.getState();
       cleanup.setScrollEl(null);
       cleanup.setJumpTo(null);
@@ -637,6 +626,23 @@ export default function CameraRig() {
   }, [camera, freeRoamEnabled, freeRoamStorage, scroll.el]);
 
   useFrame(({ camera, pointer, clock }, delta) => {
+    // A rotating globe can move a dot under a stationary pointer without
+    // changing the store's hovered prop. Resolve its cursor every frame.
+    const interaction = useStacks.getState();
+    const cursor =
+      globeCursor(interaction.hovered) ??
+      cursorForInteraction(interaction.hovered, interaction.dragging);
+    const nextCursor =
+      cursor ||
+      (interaction.hovered &&
+      !interaction.hovered.startsWith(INERT_HOVER) &&
+      (interaction.hovered.startsWith("egg:") ||
+        interaction.hovered.startsWith("sky:"))
+        ? "pointer"
+        : "");
+    if (scroll.el.style.cursor !== nextCursor)
+      scroll.el.style.cursor = nextCursor;
+
     const lockFrame = sceneArtifactCameraLockFrame(
       artifactCameraLock.current,
       useStacks.getState().modelArtifactHandoff?.phase ?? null,
@@ -820,7 +826,12 @@ export default function CameraRig() {
       pointerSeen: pointer.x !== 0 || pointer.y !== 0,
       frameSeconds: frame,
     });
-    const pointerWeight = pointerArrivalWeight(pointerArrival.current);
+    // The room reacts at half strength while a prop is up close.
+    // Scale from the existing neutral so every pointer-driven camera motion
+    // shares the reduction and its existing damping handles selection changes.
+    const pointerWeight =
+      pointerArrivalWeight(pointerArrival.current) *
+      (nearPropApproach() ? 0.5 : 1);
     const pointerX = illustrationOwnsPose
       ? composition.parallaxCentre
       : neutralPointer
@@ -1134,7 +1145,13 @@ export default function CameraRig() {
     if (pointerTiltEnabled) {
       pointerTilt.current = THREE.MathUtils.damp(
         pointerTilt.current,
-        pointerCameraTiltDegrees(pointerY, pointerMode.orbitPitch) * calm,
+        pointerCameraTiltDegrees(
+          pointerY,
+          pointerMode.orbitPitch,
+          pointerMode.orbitPitch *
+            (POINTER_CAMERA_ORBIT_UP_DEGREES /
+              POINTER_CAMERA_ORBIT_DOWN_DEGREES),
+        ) * calm,
         LOOK_Y_LAMBDA,
         dt,
       );

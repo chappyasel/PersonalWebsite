@@ -53,6 +53,7 @@ describe("physics diagnostics", () => {
       heldCollisionProbes: true,
       generatedStatics: true,
       visibilityResets: true,
+      resetReveals: true,
     });
     controller.update({
       runtime: {

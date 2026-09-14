@@ -163,6 +163,32 @@ describe("physics collider extraction", () => {
     expect(extractColliderBoxes(root).boxes).toHaveLength(2);
   });
 
+  it("preserves the empty space above a wider post foot", () => {
+    const root = new THREE.Group();
+    root.add(mesh([0.07, 1, 0.07], [0, 0.5, 0]));
+    root.add(mesh([0.12, 0.05, 0.12], [0, 0.025, 0]));
+
+    expect(extractColliderBoxes(root).boxes).toHaveLength(2);
+  });
+
+  it("does not fill the opening between touching frame members", () => {
+    const root = new THREE.Group();
+    root.add(mesh([0.1, 1, 0.1], [-0.45, 0, 0]));
+    root.add(mesh([0.1, 1, 0.1], [0.45, 0, 0]));
+    root.add(mesh([1, 0.1, 0.1], [0, 0.45, 0]));
+
+    expect(extractColliderBoxes(root).boxes).toHaveLength(3);
+  });
+
+  it("still merges contained boxes and matching faces across tiny seams", () => {
+    const root = new THREE.Group();
+    root.add(mesh([0.2, 0.2, 0.2], [0, 0, 0]));
+    root.add(mesh([0.05, 0.05, 0.05], [0, 0, 0]));
+    root.add(mesh([0.2, 0.2, 0.2], [0.21, 0, 0]));
+
+    expect(extractColliderBoxes(root).boxes).toHaveLength(1);
+  });
+
   it("keeps disconnected dynamic parts granular instead of filling their gaps", () => {
     const root = new THREE.Group();
     for (let index = 0; index < 9; index++)

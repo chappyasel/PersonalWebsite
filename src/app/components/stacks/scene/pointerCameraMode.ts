@@ -1,4 +1,5 @@
 import {
+  POINTER_CAMERA_ORBIT_DOWN_DEGREES,
   POINTER_CAMERA_TILT_MAX_DEGREES,
   POINTER_CAMERA_YAW_MAX_DEGREES,
 } from "./pointerCameraTilt";
@@ -11,7 +12,8 @@ import {
  *             of pointer Y, with the aim lifting 0.12), 1 = as shipped.
  * - `orbitPitch` / `orbitYaw`   degrees the EYE orbits around the aim at the
  *             viewport's edges (pointerCameraTilt); the shelf stays centred
- *             and the viewpoint changes.
+ *             and the viewpoint changes. Orbit pitch sets the down limit;
+ *             the up limit scales by 7/4.
  * - `headPitch` / `headYaw`   degrees the AIM swings about a stationary eye,
  *             a pure head turn; the shelf slides in the frame with the rest
  *             of the world.
@@ -49,7 +51,7 @@ export const POINTER_CAMERA_PRESETS: Readonly<
   }),
   orbit: Object.freeze({
     truck: 1,
-    orbitPitch: POINTER_CAMERA_TILT_MAX_DEGREES,
+    orbitPitch: POINTER_CAMERA_ORBIT_DOWN_DEGREES,
     orbitYaw: POINTER_CAMERA_YAW_MAX_DEGREES,
     headPitch: 0,
     headYaw: 0,

@@ -97,6 +97,12 @@ describe("pointer camera tilt", () => {
   it("takes a custom maximum for either mapping", () => {
     expect(pointerCameraTiltDegrees(1, 0)).toBe(0);
     expect(pointerCameraTiltDegrees(-0.5, 4)).toBe(-2);
+    expect(pointerCameraTiltDegrees(1, 4, 7)).toBe(4);
+    expect(pointerCameraTiltDegrees(-1, 4, 7)).toBe(-7);
+    expect(pointerCameraTiltDegrees(0, 4, 7)).toBe(0);
+    expect(pointerCameraTiltDegrees(0.5, 4, 7)).toBe(2);
+    expect(pointerCameraTiltDegrees(-0.5, 4, 7)).toBe(-3.5);
+    expect(pointerCameraTiltDegrees(-4, 4, 7)).toBe(-7);
     expect(pointerCameraYawDegrees(1, 0, 0)).toBe(0);
     expect(pointerCameraYawDegrees(-1, 0, 10)).toBe(-10);
   });

@@ -8,6 +8,7 @@ import {
   pointerCameraPresetForValues,
 } from "./pointerCameraMode";
 import {
+  POINTER_CAMERA_ORBIT_DOWN_DEGREES,
   POINTER_CAMERA_TILT_MAX_DEGREES,
   POINTER_CAMERA_YAW_MAX_DEGREES,
 } from "./pointerCameraTilt";
@@ -17,7 +18,7 @@ describe("pointer camera mode", () => {
     expect(POINTER_CAMERA_MODE_DEFAULT.preset).toBe("orbit");
     expect(POINTER_CAMERA_PRESETS.orbit).toEqual({
       truck: 1,
-      orbitPitch: POINTER_CAMERA_TILT_MAX_DEGREES,
+      orbitPitch: POINTER_CAMERA_ORBIT_DOWN_DEGREES,
       orbitYaw: POINTER_CAMERA_YAW_MAX_DEGREES,
       headPitch: 0,
       headYaw: 0,
