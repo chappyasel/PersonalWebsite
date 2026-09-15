@@ -579,6 +579,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 tabIndex={-1}
                 data-book-modal-shell={presentation?.source}
+                data-book-font-scope
                 className={`relative w-full max-w-4xl outline-none ${fullHeight ? "h-full" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={

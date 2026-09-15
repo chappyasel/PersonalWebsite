@@ -43,9 +43,11 @@ export function ThemeToggle({
   className,
   compact = false,
   tooltipAlign = "start",
+  menuVariant = "default",
 }: {
   className?: string;
   tooltipAlign?: "start" | "end";
+  menuVariant?: "default" | "books";
   /** Caption-line size: a 20px hit area and a 12px glyph, for a toggle that
    * sits inside a line of small text rather than in a page corner. */
   compact?: boolean;
@@ -139,6 +141,7 @@ export function ThemeToggle({
                 data-theme-toggle
               >
                 <VisibleIcon
+                  aria-hidden
                   className={compact ? "h-3 w-3" : "h-4 w-4"}
                   weight="bold"
                 />
@@ -159,7 +162,16 @@ export function ThemeToggle({
           </TooltipContent>
         </Tooltip>
 
-        <PopoverContent align="end" data-home-glass="floating" className="w-40 p-1">
+        <PopoverContent
+          align={menuVariant === "books" ? "start" : "end"}
+          data-home-glass={menuVariant === "books" ? undefined : "floating"}
+          data-book-font-scope={menuVariant === "books" ? true : undefined}
+          className={cn(
+            "w-40 p-1",
+            menuVariant === "books" &&
+              "w-32 rounded-md border-border shadow-md",
+          )}
+        >
           <div aria-label="Theme preference" role="radiogroup">
             {THEME_ORDER.map((choice) => {
               const ChoiceIcon = THEME_ICON[choice];
@@ -174,11 +186,27 @@ export function ThemeToggle({
                     setTheme(choice);
                     setOptionsOpen(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:bg-accent",
+                    menuVariant === "books" && "rounded-sm py-1.5",
+                    menuVariant === "books" &&
+                      selected &&
+                      "bg-accent text-accent-foreground",
+                  )}
                 >
-                  <ChoiceIcon className="h-4 w-4" weight="bold" />
+                  <ChoiceIcon
+                    aria-hidden
+                    className="h-4 w-4 shrink-0"
+                    weight="bold"
+                  />
                   <span className="flex-1">{THEME_LABEL[choice]}</span>
-                  {selected && <CheckIcon className="h-4 w-4" weight="bold" />}
+                  {selected && (
+                    <CheckIcon
+                      aria-hidden
+                      className="h-4 w-4 shrink-0"
+                      weight="bold"
+                    />
+                  )}
                 </button>
               );
             })}

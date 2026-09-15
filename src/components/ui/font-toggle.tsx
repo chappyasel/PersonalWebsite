@@ -3,6 +3,7 @@
 import { TextAaIcon } from "@phosphor-icons/react";
 
 import { type FontOption, useFont } from "~/lib/font-provider";
+import { cn } from "~/lib/utils";
 
 import {
   Select,
@@ -23,11 +24,13 @@ const fontOptions: { value: FontOption; label: string; className: string }[] = [
   { value: "literata", label: "Literata", className: "font-literata" },
 ];
 
-export function FontToggle() {
+export function FontToggle({ className }: { className?: string }) {
   const { font, setFont, mounted } = useFont();
 
   if (!mounted) {
-    return <div className="h-[34px] w-[46px] rounded-md bg-transparent" />;
+    return (
+      <div className={cn("size-10 rounded-md bg-transparent", className)} />
+    );
   }
 
   return (
@@ -39,10 +42,13 @@ export function FontToggle() {
         >
           <TooltipTrigger asChild>
             <SelectTrigger
-              className="flex size-10 items-center justify-center rounded-md border-none bg-transparent p-0 text-sm text-muted-foreground shadow-none transition-all hover:bg-secondary/80 hover:text-foreground [&>svg:last-child]:hidden"
-              aria-label="Select font"
+              className={cn(
+                "flex size-10 items-center justify-center rounded-md border-none bg-transparent p-0 text-sm text-muted-foreground shadow-none transition-all hover:bg-secondary/80 hover:text-foreground [&>svg:last-child]:hidden",
+                className,
+              )}
+              aria-label="Select book font"
             >
-              <TextAaIcon className="h-4 w-4" weight="bold" />
+              <TextAaIcon aria-hidden className="h-4 w-4" weight="bold" />
             </SelectTrigger>
           </TooltipTrigger>
           <SelectContent>
@@ -51,6 +57,7 @@ export function FontToggle() {
                 key={option.value}
                 value={option.value}
                 className={option.className}
+                indicatorWeight="bold"
               >
                 {option.label}
               </SelectItem>
@@ -58,7 +65,7 @@ export function FontToggle() {
           </SelectContent>
         </Select>
         <TooltipContent>
-          <p>Change font</p>
+          <p>Change book font</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

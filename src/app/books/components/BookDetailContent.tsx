@@ -3,7 +3,6 @@
 import { useBookPath } from "../hooks/useBookPath";
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
 import {
-  ArrowSquareOutIcon,
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
@@ -68,6 +67,8 @@ import {
 import SitePageHoverCard from "~/components/site/SitePageHoverCard";
 import { Button } from "~/components/ui/button";
 import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
+import { FontToggle } from "~/components/ui/font-toggle";
+import { ThemeToggle } from "~/components/ui/theme-toggle";
 import {
   Tooltip,
   TooltipContent,
@@ -694,6 +695,44 @@ function BookFacts({ book }: { book: BookDetailBook }) {
   );
 }
 
+function BookExternalLinkButton({
+  href,
+  label,
+  children,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-8 shrink-0 p-0 text-muted-foreground/70 hover:text-foreground"
+            asChild
+          >
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={label}
+              onClick={onClick}
+            >
+              {children}
+            </a>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 function CopyLinkButton({
   copied,
   onClick,
@@ -702,43 +741,119 @@ function CopyLinkButton({
   onClick: () => void;
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={cn(
-        "gap-1.5 px-2 transition-colors duration-200 sm:gap-2 sm:px-3",
-        copied
-          ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
-          : "text-muted-foreground/70 hover:text-foreground",
-      )}
-      aria-label={copied ? "Link copied" : "Copy link"}
-      onClick={onClick}
-    >
-      <span aria-hidden="true" className="relative size-3.5 shrink-0">
-        <AnimatePresence initial={false} mode="wait">
-          <motion.span
-            key={copied ? "check" : "link"}
-            className="absolute inset-0 flex items-center justify-center"
-            initial={{ opacity: 0, scale: 0.55, rotate: -14 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            exit={{ opacity: 0, scale: 0.7, rotate: 10 }}
-            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {copied ? (
-              <CheckIcon size={14} weight="bold" />
-            ) : (
-              <LinkIcon size={14} weight="bold" />
+    <TooltipProvider>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "size-8 shrink-0 p-0 transition-colors duration-200",
+              copied
+                ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
+                : "text-muted-foreground/70 hover:text-foreground",
             )}
-          </motion.span>
-        </AnimatePresence>
-      </span>
-      <span
-        aria-live="polite"
-        className="inline-block text-left sm:min-w-[4.25rem]"
+            aria-label={copied ? "Link copied" : "Copy link"}
+            onClick={onClick}
+          >
+            <span aria-hidden="true" className="relative size-4 shrink-0">
+              <AnimatePresence initial={false} mode="wait">
+                <motion.span
+                  key={copied ? "check" : "link"}
+                  className="absolute inset-0 flex items-center justify-center"
+                  initial={{ opacity: 0, scale: 0.55, rotate: -14 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  exit={{ opacity: 0, scale: 0.7, rotate: 10 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {copied ? (
+                    <CheckIcon size={14} weight="bold" />
+                  ) : (
+                    <LinkIcon size={14} weight="bold" />
+                  )}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            <span aria-live="polite" className="sr-only">
+              {copied ? "Copied" : "Copy link"}
+            </span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{copied ? "Link copied" : "Copy link"}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function BrandIcon({ brand }: { brand: "audible" | "notion" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="block size-4 shrink-0 bg-current"
+      style={{
+        maskImage: `url('/images/brands/${brand}.svg')`,
+        maskSize: "contain",
+        maskRepeat: "no-repeat",
+        maskPosition: "center",
+      }}
+    />
+  );
+}
+
+function BookActions({
+  copied,
+  audibleUrl,
+  notionUrl,
+  onShare,
+  onAudibleClick,
+  onNotionClick,
+}: {
+  copied: boolean;
+  audibleUrl: string | null;
+  notionUrl: string;
+  onShare: () => void;
+  onAudibleClick: () => void;
+  onNotionClick: () => void;
+}) {
+  return (
+    <div className="-ml-2 flex flex-nowrap items-center gap-2">
+      <div
+        role="group"
+        aria-label="Reading settings"
+        className="flex items-center"
       >
-        {copied ? "Copied" : "Copy link"}
+        <ThemeToggle
+          menuVariant="books"
+          className="size-8 shrink-0 text-muted-foreground/70"
+        />
+        <FontToggle className="size-8 shrink-0 text-muted-foreground/70" />
+      </div>
+      <span
+        aria-hidden="true"
+        className="text-xs leading-none text-muted-foreground/40"
+      >
+        •
       </span>
-    </Button>
+      <div role="group" aria-label="Book actions" className="flex items-center">
+        <CopyLinkButton copied={copied} onClick={onShare} />
+        {audibleUrl && (
+          <BookExternalLinkButton
+            href={audibleUrl}
+            label="Listen on Audible"
+            onClick={onAudibleClick}
+          >
+            <BrandIcon brand="audible" />
+          </BookExternalLinkButton>
+        )}
+        <BookExternalLinkButton
+          href={notionUrl}
+          label="View in Notion"
+          onClick={onNotionClick}
+        >
+          <BrandIcon brand="notion" />
+        </BookExternalLinkButton>
+      </div>
+    </div>
   );
 }
 
@@ -1185,6 +1300,7 @@ export function BookDetailContent({
   return (
     <div
       ref={contentRef}
+      data-book-font-scope
       className={cn(
         "relative",
         isModal
@@ -1399,49 +1515,14 @@ export function BookDetailContent({
                         visibility: actionsVisibility,
                       }}
                     >
-                      <div
-                        role="group"
-                        aria-label="Book actions"
-                        className="-ml-3 flex flex-wrap items-center gap-0"
-                      >
-                        <CopyLinkButton copied={copied} onClick={handleShare} />
-
-                        {book.audibleUrl && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground/70 hover:text-foreground"
-                            asChild
-                          >
-                            <a
-                              href={book.audibleUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={handleAudibleClick}
-                            >
-                              <HeadphonesIcon size={14} weight="bold" />
-                              <span>Listen on Audible</span>
-                            </a>
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-muted-foreground/70 hover:text-foreground"
-                          asChild
-                        >
-                          <a
-                            href={book.notionUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={handleNotionClick}
-                          >
-                            <ArrowSquareOutIcon size={14} weight="bold" />
-                            <span>View in Notion</span>
-                          </a>
-                        </Button>
-                      </div>
+                      <BookActions
+                        copied={copied}
+                        audibleUrl={book.audibleUrl}
+                        notionUrl={book.notionUrl}
+                        onShare={handleShare}
+                        onAudibleClick={handleAudibleClick}
+                        onNotionClick={handleNotionClick}
+                      />
                     </motion.div>
                   </motion.div>
                 </div>
@@ -1582,52 +1663,14 @@ export function BookDetailContent({
                 visibility: mobileActionsVisibility,
               }}
             >
-              <div
-                role="group"
-                aria-label="Book actions"
-                className="-ml-2 flex flex-nowrap items-center gap-0"
-              >
-                <CopyLinkButton copied={copied} onClick={handleShare} />
-
-                {book.audibleUrl && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 px-2 text-muted-foreground/70 hover:text-foreground sm:gap-2 sm:px-3"
-                    asChild
-                  >
-                    <a
-                      href={book.audibleUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleAudibleClick}
-                    >
-                      <HeadphonesIcon size={14} weight="bold" />
-                      <span className="sm:hidden">Audible</span>
-                      <span className="hidden sm:inline">
-                        Listen on Audible
-                      </span>
-                    </a>
-                  </Button>
-                )}
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 px-2 text-muted-foreground/70 hover:text-foreground sm:gap-2 sm:px-3"
-                  asChild
-                >
-                  <a
-                    href={book.notionUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={handleNotionClick}
-                  >
-                    <ArrowSquareOutIcon size={14} weight="bold" />
-                    <span>View in Notion</span>
-                  </a>
-                </Button>
-              </div>
+              <BookActions
+                copied={copied}
+                audibleUrl={book.audibleUrl}
+                notionUrl={book.notionUrl}
+                onShare={handleShare}
+                onAudibleClick={handleAudibleClick}
+                onNotionClick={handleNotionClick}
+              />
             </motion.div>
           </div>
         </div>

@@ -30,7 +30,8 @@ type BooksPageClientProps = {
 };
 
 const BooksShelfLibraryPreview = dynamic(
-  () => import("../components/route-transition-prototype/BooksShelfLibraryPreview"),
+  () =>
+    import("../components/route-transition-prototype/BooksShelfLibraryPreview"),
   { ssr: false },
 );
 
@@ -152,7 +153,7 @@ export default function BooksPageClient({
             >
               <ChartBarIcon className="size-4" weight="bold" />
             </ReadingStatsPopover>
-            <ThemeToggle />
+            <ThemeToggle menuVariant="books" />
             <FontToggle />
             <BookSize />
             <ZoomOutButton

@@ -867,22 +867,19 @@ html.dark[data-world] .sheet-control[data-home-glass="control"]:hover {
   }
 }
 
-html[data-font="georgia"] {
+/* Reading preferences apply to Books pages and book modals only. */
+[data-book-font-scope] {
   --font-selected: "Georgia Pro";
+  font-family: var(--font-selected), Georgia, serif;
 }
 
-html[data-font="system"] {
-  --font-selected: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+html[data-book-font="system"] [data-book-font-scope] {
+  --font-selected: -apple-system, ui-sans-serif, system-ui, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
 }
 
-html[data-font="literata"] {
+html[data-book-font="literata"] [data-book-font-scope] {
   --font-selected: var(--font-literata);
-}
-
-/* The homepage keeps serif type even when another route saved system type. */
-html[data-font="system"]:is([data-world], [data-room-illustration="enabled"]) {
-  --font-selected: "Georgia Pro";
 }
 
 /* Book marquee animations */

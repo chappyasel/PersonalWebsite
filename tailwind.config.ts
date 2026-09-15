@@ -27,6 +27,7 @@ export default {
                     ...fontFamily.serif
                 ],
 			system: [
+                    '-apple-system',
                     ...fontFamily.sans
                 ],
 			literata: [

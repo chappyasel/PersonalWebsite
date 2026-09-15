@@ -50,17 +50,23 @@ test("advertises the public homepage OG image", async ({ page, request }) => {
   expect(image.headers()["content-type"]).toBe("image/png");
 });
 
-test("applies a stored font before the app hydrates", async ({ page }) => {
+test("applies a stored book font before the app hydrates", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("font-preference", "system");
   });
   await page.goto("/books", { waitUntil: "domcontentloaded" });
 
-  await expect(page.locator("html")).toHaveAttribute("data-font", "system");
+  await expect(page.locator("html")).toHaveAttribute("data-book-font", "system");
+  const bookFont = await page
+    .locator("[data-book-font-scope]")
+    .first()
+    .evaluate((books) => getComputedStyle(books).fontFamily);
+  expect(bookFont).toMatch(/^-apple-system,/);
   const bodyFont = await page
     .locator("body")
     .evaluate((body) => getComputedStyle(body).fontFamily);
-  expect(bodyFont).toContain("ui-sans-serif");
+  expect(bodyFont).toContain("Georgia Pro");
+  expect(bodyFont).not.toContain("-apple-system");
 });
 
 test("keeps unselected room drawings deferred", async ({ page }) => {

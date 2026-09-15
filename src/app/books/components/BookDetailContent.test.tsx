@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { BaseBook } from "~/lib/books/types";
+import { FontProvider } from "~/lib/font-provider";
 
 import { BookDetailContent, underHeader } from "./BookDetailContent";
 
@@ -41,14 +42,16 @@ const CURRENT_BOOK_WITHOUT_NOTES: BaseBook = {
 
 function renderCurrentBook(isModal: boolean, copied = false) {
   return renderToStaticMarkup(
-    <BookDetailContent
-      book={CURRENT_BOOK_WITHOUT_NOTES}
-      isLoadingNotes={false}
-      onShare={vi.fn()}
-      copied={copied}
-      bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
-      isModal={isModal}
-    />,
+    <FontProvider>
+      <BookDetailContent
+        book={CURRENT_BOOK_WITHOUT_NOTES}
+        isLoadingNotes={false}
+        onShare={vi.fn()}
+        copied={copied}
+        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+        isModal={isModal}
+      />
+    </FontProvider>,
   );
 }
 
@@ -94,14 +97,16 @@ describe("BookDetailContent note availability", () => {
 
   it("keeps the standalone breadcrumb in the same visual order as the external one", () => {
     const markup = renderToStaticMarkup(
-      <BookDetailContent
-        book={CURRENT_BOOK_WITHOUT_NOTES}
-        isLoadingNotes={false}
-        onShare={vi.fn()}
-        copied={false}
-        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
-        bookshelfBookCount={322}
-      />,
+      <FontProvider>
+        <BookDetailContent
+          book={CURRENT_BOOK_WITHOUT_NOTES}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+          bookshelfBookCount={322}
+        />
+      </FontProvider>,
     );
 
     expect(markup).toMatch(
@@ -126,13 +131,15 @@ describe("BookDetailContent note availability", () => {
   it("separates quiet fact labels from readable values in both layouts", () => {
     const markup = renderCurrentBook(false);
     const ratedMarkup = renderToStaticMarkup(
-      <BookDetailContent
-        book={{ ...CURRENT_BOOK_WITHOUT_NOTES, rating: 4 }}
-        isLoadingNotes={false}
-        onShare={vi.fn()}
-        copied={false}
-        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
-      />,
+      <FontProvider>
+        <BookDetailContent
+          book={{ ...CURRENT_BOOK_WITHOUT_NOTES, rating: 4 }}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+        />
+      </FontProvider>,
     );
 
     expect(detailSource.match(/<BookFacts book=\{book\} \/>/g)).toHaveLength(2);
@@ -290,32 +297,36 @@ describe("BookDetailContent note availability", () => {
 
     expect(markup).toContain('aria-label="Link copied"');
     expect(markup).toContain("bg-emerald-500/10");
-    expect(markup).toContain("sm:min-w-[4.25rem]");
+    expect(markup).toContain('aria-live="polite" class="sr-only"');
     expect(markup).toContain(">Copied</span>");
     expect(detailSource).toContain('<CheckIcon size={14} weight="bold" />');
   });
 
   it("keeps all mobile actions on one compact row", () => {
     const markup = renderToStaticMarkup(
-      <BookDetailContent
-        book={{
-          ...CURRENT_BOOK_WITHOUT_NOTES,
-          audibleUrl: "https://www.audible.com/example",
-        }}
-        isLoadingNotes={false}
-        onShare={vi.fn()}
-        copied={false}
-        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
-      />,
+      <FontProvider>
+        <BookDetailContent
+          book={{
+            ...CURRENT_BOOK_WITHOUT_NOTES,
+            audibleUrl: "https://www.audible.com/example",
+          }}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+        />
+      </FontProvider>,
     );
 
     expect(markup).toContain("flex-nowrap");
-    expect(markup).toContain('<span class="sm:hidden">Audible</span>');
-    expect(markup).toContain(
-      '<span class="hidden sm:inline">Listen on Audible</span>',
-    );
-    expect(markup).toContain("px-2");
-    expect(markup).toContain("sm:px-3");
+    expect(markup).toContain('aria-label="Reading settings"');
+    expect(markup).toContain("•</span>");
+    expect(markup).toContain('aria-label="Listen on Audible"');
+    expect(markup).toContain('href="https://www.audible.com/example"');
+    expect(markup).toContain("/images/brands/audible.svg");
+    expect(markup).toContain("/images/brands/notion.svg");
+    expect(markup).not.toContain(">Listen on Audible</span>");
+    expect(markup).toContain('aria-label="View in Notion"');
   });
 
   it.each([
@@ -344,15 +355,17 @@ describe("BookDetailContent note availability", () => {
         "<details><summary>Spoilers</summary>\n\nHidden line\n\n</details>",
     };
     const markup = renderToStaticMarkup(
-      <BookDetailContent
-        book={withNotes}
-        fullBook={withNotes}
-        isLoadingNotes={false}
-        onShare={vi.fn()}
-        copied={false}
-        bookId={withNotes.id}
-        isModal
-      />,
+      <FontProvider>
+        <BookDetailContent
+          book={withNotes}
+          fullBook={withNotes}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={withNotes.id}
+          isModal
+        />
+      </FontProvider>,
     );
 
     expect(markup).toContain("Spoilers");
@@ -365,14 +378,16 @@ describe("BookDetailContent note availability", () => {
 
   it("keeps the partial-notes copy when a current book has notes", () => {
     const markup = renderToStaticMarkup(
-      <BookDetailContent
-        book={{ ...CURRENT_BOOK_WITHOUT_NOTES, hasNotes: true }}
-        isLoadingNotes={false}
-        onShare={vi.fn()}
-        copied={false}
-        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
-        isModal
-      />,
+      <FontProvider>
+        <BookDetailContent
+          book={{ ...CURRENT_BOOK_WITHOUT_NOTES, hasNotes: true }}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+          isModal
+        />
+      </FontProvider>,
     );
 
     expect(markup).toContain("Whatever notes are here are partial.");
@@ -381,17 +396,19 @@ describe("BookDetailContent note availability", () => {
 
   it("describes no notes as an intentional choice on a completed book", () => {
     const markup = renderToStaticMarkup(
-      <BookDetailContent
-        book={{
-          ...CURRENT_BOOK_WITHOUT_NOTES,
-          finished: "2026-08-22",
-        }}
-        isLoadingNotes={false}
-        onShare={vi.fn()}
-        copied={false}
-        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
-        isModal
-      />,
+      <FontProvider>
+        <BookDetailContent
+          book={{
+            ...CURRENT_BOOK_WITHOUT_NOTES,
+            finished: "2026-08-22",
+          }}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+          isModal
+        />
+      </FontProvider>,
     );
 
     expect(markup).toContain("No notes for this one");

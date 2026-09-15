@@ -27,12 +27,12 @@ const literata = Literata({
 const fontPreferenceScript = `
 try {
   var font = localStorage.getItem("font-preference");
-  document.documentElement.dataset.font =
+  document.documentElement.dataset.bookFont =
     font === "system" || font === "literata" || font === "georgia"
       ? font
       : "georgia";
 } catch (_) {
-  document.documentElement.dataset.font = "georgia";
+  document.documentElement.dataset.bookFont = "georgia";
 }
 `;
 
@@ -99,7 +99,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={literata.variable}
-      data-font="georgia"
+      data-book-font="georgia"
     >
       <head>
         <link rel="stylesheet" href="https://use.typekit.net/uvz5cfn.css" />

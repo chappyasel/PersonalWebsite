@@ -18,14 +18,17 @@ interface FontContextType {
 
 const FontContext = createContext<FontContextType | undefined>(undefined);
 
+// Keep the existing key so returning readers retain their book font.
 const FONT_STORAGE_KEY = "font-preference";
 const DEFAULT_FONT: FontOption = "georgia";
 const VALID_FONTS: FontOption[] = ["georgia", "system", "literata"];
 
+// Shared state for the library and book modals. CSS applies it only inside
+// data-book-font-scope containers, including modals outside the Books route.
 export function FontProvider({ children }: { children: React.ReactNode }) {
   const [font, setFontState] = useState<FontOption>(() => {
     if (typeof document === "undefined") return DEFAULT_FONT;
-    const prepaintFont = document.documentElement.dataset.font as
+    const prepaintFont = document.documentElement.dataset.bookFont as
       | FontOption
       | undefined;
     return prepaintFont && VALID_FONTS.includes(prepaintFont)
@@ -38,14 +41,14 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem(FONT_STORAGE_KEY) as FontOption | null;
     if (stored && VALID_FONTS.includes(stored)) {
       setFontState(stored);
-      document.documentElement.dataset.font = stored;
+      document.documentElement.dataset.bookFont = stored;
     }
     setMounted(true);
   }, []);
 
   const setFont = useCallback((newFont: FontOption) => {
     setFontState(newFont);
-    document.documentElement.dataset.font = newFont;
+    document.documentElement.dataset.bookFont = newFont;
     localStorage.setItem(FONT_STORAGE_KEY, newFont);
   }, []);
 

@@ -10,6 +10,7 @@ import { type ComponentProps, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BaseBook } from "~/lib/books/types";
+import { FontProvider } from "~/lib/font-provider";
 
 import { BookDetailContent } from "./BookDetailContent";
 
@@ -100,15 +101,17 @@ function detail(
   overrides: Partial<ComponentProps<typeof BookDetailContent>> = {},
 ) {
   return (
-    <BookDetailContent
-      book={book}
-      fullBook={book}
-      isLoadingNotes={false}
-      onShare={vi.fn()}
-      copied={false}
-      bookId={book.id}
-      {...overrides}
-    />
+    <FontProvider>
+      <BookDetailContent
+        book={book}
+        fullBook={book}
+        isLoadingNotes={false}
+        onShare={vi.fn()}
+        copied={false}
+        bookId={book.id}
+        {...overrides}
+      />
+    </FontProvider>
   );
 }
 
