@@ -100,9 +100,17 @@ settle read them as one and knocked the ramp down between every pair of
 samples — the same total suppression as the first bug, now hidden behind a
 test that only ever drove a constant target.
 
-The settle now reads how long the brush has gone undriven. A cold review
-caught both, and the second one is the more useful lesson: **a constant input
-cannot find an input-cadence bug.** The regression drives the real damp
+The settle now reads how long the brush has gone undriven, with a 250ms grace
+window. That window is a policy rather than a proof: it covers every cadence
+the regression drives, but it cannot bound every input gap a browser can
+produce, and a gesture whose samples fall more than 250ms apart will still
+have its ramp cut. Nor is it free — released from full hover strength the
+decay needs about 1.6 seconds to reach the epsilon anyway, but a brush
+released while already under the epsilon holds the shader's interaction block
+open for up to the width of the window.
+
+A cold review caught both bugs, and the second one is the more useful lesson:
+**a constant input cannot find an input-cadence bug.** The regression drives the real damp
 arithmetic at a real cadence and asserts the shipped rule changes not one
 frame of a live gesture — `toBe` against the same drive with no settle at all
 — across 60Hz under 120Hz, the alternating pattern at 240Hz, and a 15Hz

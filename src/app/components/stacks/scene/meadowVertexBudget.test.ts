@@ -190,16 +190,30 @@ describe("meadow brush settles only when the gesture is actually idle", () => {
     expect(bare).toBeGreaterThan(0);
   });
 
-  it("costs nothing to wait out the grace window", () => {
-    // The release decay needs far longer to reach the epsilon than the grace
-    // window lasts, so waiting for genuine idle does not keep the expensive
-    // shader path alive any longer than the decay already does.
+  it("bounds what the grace window costs rather than claiming it is free", () => {
+    // Released from full hover strength the window adds nothing: the decay
+    // needs far longer than 250ms to reach the epsilon by itself.
     const toEpsilon =
       Math.log(MEADOW_POKE.hoverStrength / MEADOW_BRUSH_IDLE_EPSILON) /
       MEADOW_POKE.grassReleaseLambda;
     expect(MEADOW_BRUSH_IDLE_GRACE_SECONDS).toBeLessThan(toEpsilon / 4);
-    // And it is comfortably longer than the gap between samples of any
-    // pointer a browser actually delivers.
+    // The case that does cost is a brush released while ALREADY under the
+    // epsilon — a very light touch. It keeps the shader's interaction block
+    // open for the width of the window and no longer.
+    expect(
+      meadowSettledBrushStrength(
+        MEADOW_BRUSH_IDLE_EPSILON / 2,
+        MEADOW_BRUSH_IDLE_GRACE_SECONDS - 1e-9,
+      ),
+    ).toBeGreaterThan(0);
+    expect(
+      meadowSettledBrushStrength(
+        MEADOW_BRUSH_IDLE_EPSILON / 2,
+        MEADOW_BRUSH_IDLE_GRACE_SECONDS,
+      ),
+    ).toBe(0);
+    // And the window covers every cadence driven above, without claiming to
+    // bound every input gap a browser can produce.
     expect(MEADOW_BRUSH_IDLE_GRACE_SECONDS).toBeGreaterThan(10 / 60);
   });
 

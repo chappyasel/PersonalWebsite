@@ -98,11 +98,20 @@ export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
  * alternates and never accumulates. That is the distinction this window
  * exists to draw: gesture-idle, not between-event.
  *
- * 250ms is fifteen times the gap between samples of a 60Hz pointer, so it has
- * room for a stalled main thread or a throttled device, and it costs nothing:
- * the release decay needs about 1.6 seconds to carry full hover strength down
- * to the epsilon anyway, so waiting out the window never keeps the shader's
- * expensive path alive any longer than the decay already does.
+ * 250ms is a policy, not a proof. It is fifteen times the gap between samples
+ * of a 60Hz pointer and it covers every cadence the regression drives — 60Hz
+ * and 120Hz samples under 120Hz and 240Hz renderers, and a 15Hz pointer far
+ * outside what a browser delivers — but it cannot bound EVERY input gap a
+ * browser can produce. A gesture whose samples fall more than 250ms apart
+ * will still have its ramp cut. That is an explicit limit of this window
+ * rather than something ruled out.
+ *
+ * What it costs is likewise bounded rather than nothing. Released from full
+ * hover strength the release decay needs about 1.6 seconds to reach the
+ * epsilon, so the window adds nothing at all there. The case where it does
+ * cost is a brush released while ALREADY below the epsilon — a very light
+ * touch — which holds the shader's interaction block open for up to 250ms
+ * longer than a settle keyed on the value alone would have.
  */
 export const MEADOW_BRUSH_IDLE_GRACE_SECONDS = 0.25;
 
