@@ -7,6 +7,7 @@ import {
   MEADOW_BRUSH_IDLE_EPSILON,
   MEADOW_BRUSH_IDLE_GRACE_SECONDS,
   meadowBrushAtRest,
+  meadowBrushIdleSeconds,
   meadowSettledBrushStrength,
 } from "./meadowInteraction";
 import { MEADOW_POKE, MEADOW_WIND } from "./meadowMotion";
@@ -202,6 +203,23 @@ describe("meadow brush settles only when the gesture is actually idle", () => {
     expect(MEADOW_BRUSH_IDLE_GRACE_SECONDS).toBeGreaterThan(10 / 60);
   });
 
+  it("reads idle when the scene clock restarts under it", () => {
+    // R3F resets clock.elapsedTime on a frameloop change and sceneClock.ts
+    // puts it back — a wrapper, so something that can be bypassed. A stamp
+    // left in the future would otherwise disarm the settle for the rest of
+    // the visit with nothing to show for it.
+    expect(meadowBrushIdleSeconds(12, 4)).toBe(8);
+    expect(meadowBrushIdleSeconds(4, 4)).toBe(0);
+    expect(meadowBrushIdleSeconds(0, 30)).toBe(Number.POSITIVE_INFINITY);
+    expect(meadowBrushIdleSeconds(0, Number.NEGATIVE_INFINITY)).toBe(
+      Number.POSITIVE_INFINITY,
+    );
+    // And the settle is armed by that reading rather than stuck open.
+    expect(meadowSettledBrushStrength(1e-6, meadowBrushIdleSeconds(0, 30))).toBe(
+      0,
+    );
+  });
+
   it("never alters a brush inside the grace window", () => {
     expect(meadowSettledBrushStrength(1e-9, 0)).toBe(1e-9);
     expect(
@@ -242,7 +260,7 @@ describe("meadow brush settles only when the gesture is actually idle", () => {
     expect(meadow).toContain("let brushTarget = 0;");
     expect(meadow).toContain("lastBrushDriveAt.current = clock.elapsedTime;");
     expect(meadow).toContain(
-      "const secondsSinceBrushDriven =\n      clock.elapsedTime - lastBrushDriveAt.current;",
+      "const secondsSinceBrushDriven = meadowBrushIdleSeconds(\n      clock.elapsedTime,\n      lastBrushDriveAt.current,\n    );",
     );
     expect(meadow).toContain(
       "shared.uPoke.value.w = meadowSettledBrushStrength(\n      shared.uPoke.value.w,\n      secondsSinceBrushDriven,\n    );",

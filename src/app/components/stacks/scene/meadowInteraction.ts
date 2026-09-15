@@ -137,6 +137,26 @@ export function meadowSettledBrushStrength(
   return strength < MEADOW_BRUSH_IDLE_EPSILON ? 0 : strength;
 }
 
+/**
+ * How long the brush has gone undriven, on a clock that can restart.
+ *
+ * R3F resets `clock.elapsedTime` when the frameloop changes — `sceneClock.ts`
+ * exists to wrap `setFrameloop` and put it back, which is a wrapper and
+ * therefore something that can be bypassed. If it ever is, a stamp taken
+ * before the reset sits in the future forever, the age goes permanently
+ * negative, and the settle silently never arms again: no visual defect, but
+ * the shader's expensive path becomes the resident one and nothing says so.
+ *
+ * A clock that has moved backwards means the frameloop restarted, which means
+ * any gesture is long over, so the safe reading is "idle".
+ */
+export function meadowBrushIdleSeconds(
+  now: number,
+  lastDrivenAt: number,
+): number {
+  return now >= lastDrivenAt ? now - lastDrivenAt : Number.POSITIVE_INFINITY;
+}
+
 /** Whether no brush and no click ring carries strength. The frame loop
  * publishes the negation as `uPulseActive`, the shader's single uniform gate
  * over the per-instance interaction block. */

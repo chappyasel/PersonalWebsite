@@ -94,6 +94,7 @@ import {
 import {
   MEADOW_BRUSH_IDLE_EPSILON,
   meadowBrushAtRest,
+  meadowBrushIdleSeconds,
   meadowPokeStrength,
   meadowSettledBrushStrength,
 } from "./meadowInteraction";
@@ -2100,8 +2101,10 @@ export default function Meadow({
     // between two samples of a perfectly live drag, which is most frames on
     // a 120Hz panel with a 60Hz mouse.
     if (brushTarget > 0) lastBrushDriveAt.current = clock.elapsedTime;
-    const secondsSinceBrushDriven =
-      clock.elapsedTime - lastBrushDriveAt.current;
+    const secondsSinceBrushDriven = meadowBrushIdleSeconds(
+      clock.elapsedTime,
+      lastBrushDriveAt.current,
+    );
     shared.uPoke.value.w = meadowSettledBrushStrength(
       shared.uPoke.value.w,
       secondsSinceBrushDriven,
