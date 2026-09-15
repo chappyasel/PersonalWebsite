@@ -61,6 +61,13 @@ export function IllustratedTraverse({
   );
 
   useLayoutEffect(() => {
+    // Activity preserves refs while parking effects. Recovery can wake this
+    // row without a dimension handoff, so restore its current stop before
+    // paint instead of resuming an old smooth-scroll destination.
+    initialized.current = false;
+    destination.current = null;
+    restoredPosition.current = null;
+    appliedTransition.current = null;
     const read = () =>
       positionForIllustratedScroll(
         stops.current,
@@ -156,6 +163,7 @@ export function IllustratedTraverse({
       restoredPosition.current = el.scrollLeft;
       initialized.current = true;
       published.current = unit;
+      moving(false);
     } else if (enabled && published.current !== unit) {
       published.current = unit;
       destination.current = unit;

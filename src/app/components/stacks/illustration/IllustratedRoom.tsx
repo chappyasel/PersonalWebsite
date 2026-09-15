@@ -10,7 +10,7 @@ import { BootLoadingStatus } from "../dom/BootLoadingStatus";
 import { useRoomNavigationReady } from "../input/RoomNavigation";
 import { useStacks } from "../store";
 import { ArrowClockwise, WarningCircle, X } from "@phosphor-icons/react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { Activity, memo, useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -59,22 +59,7 @@ export function illustrationGeometryKey({
   ]);
 }
 
-/** An image layer only. PlacardLayer continues to own every content panel. */
-export default function IllustratedRoom({
-  data,
-  theme,
-  viewport,
-  visible,
-  navigationEnabled = true,
-  transitionPosition = null,
-  transitionId = 0,
-  canRequest3D,
-  loading = false,
-  entranceSettled = true,
-  onRequest3D,
-  onReady,
-  onUnavailable,
-}: {
+type IllustratedRoomProps = {
   data: StacksData;
   viewport: RoomArtworkViewport;
   theme: "light" | "dark";
@@ -88,7 +73,38 @@ export default function IllustratedRoom({
   onRequest3D: () => void;
   onReady: (key: string | null, matchRequired?: boolean) => void;
   onUnavailable: () => void;
-}) {
+};
+
+/** Keep the row resident without running its effects while 3D owns the view. */
+export default memo(function IllustratedRoom(props: IllustratedRoomProps) {
+  const [entryRetired, setEntryRetired] = useState(false);
+  useLayoutEffect(() => {
+    if (!props.visible) setEntryRetired(true);
+  }, [props.visible]);
+  return (
+    <Activity mode={props.visible ? "visible" : "hidden"}>
+      <ActiveIllustratedRoom {...props} allowGolfEntry={!entryRetired} />
+    </Activity>
+  );
+});
+
+/** An image layer only. PlacardLayer continues to own every content panel. */
+function ActiveIllustratedRoom({
+  data,
+  theme,
+  viewport,
+  visible,
+  navigationEnabled = true,
+  transitionPosition = null,
+  transitionId = 0,
+  canRequest3D,
+  loading = false,
+  entranceSettled = true,
+  onRequest3D,
+  onReady,
+  onUnavailable,
+  allowGolfEntry,
+}: IllustratedRoomProps & { allowGolfEntry: boolean }) {
   const unit = useStacks((state) => state.activeUnit);
   const locationReady = useRoomNavigationReady();
   const golfStop = useStacks((state) => state.golfStop);
@@ -113,7 +129,7 @@ export default function IllustratedRoom({
   useLayoutEffect(() => {
     if (!visible || !golfStop) setGolfEntry(false);
   }, [visible, golfStop]);
-  const showGolfEntry = golfEntry && golfStop;
+  const showGolfEntry = allowGolfEntry && golfEntry && golfStop;
   const drawingUnit = showGolfEntry ? GOLF_STOP_POSITION : unit;
   const artwork = getRoomArtwork(drawingUnit, theme, viewport);
   const root = useRef<HTMLDivElement>(null);
@@ -220,6 +236,7 @@ export default function IllustratedRoom({
     void document.fonts?.ready.then(measure);
     return () => {
       disposed = true;
+      element.removeAttribute("data-room-artwork");
       observer.disconnect();
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);

@@ -57,6 +57,7 @@ import { useRoomActive } from "./room/ResidentRoomHost";
 import { roomResidency } from "./room/roomResidency";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { repaintFrozenScene } from "./scene/sceneClock";
+import CanvasSizeBoundary from "./scene/CanvasSizeBoundary";
 import SceneClockBoundary from "./scene/SceneClockBoundary";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -2702,6 +2703,7 @@ export default function StacksCanvas({
           retireReadyFrames.current = () => cancelAnimationFrame(outerFrame);
         }}
       >
+        <CanvasSizeBoundary />
         <SceneClockBoundary />
         <Exposure dark={dark} />
         {postfx && (
