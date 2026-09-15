@@ -2,11 +2,11 @@
  * Every S3 key this feature touches, built in one place.
  *
  * The bucket is shared with the weightlifting backup and the weight log, so
- * confinement is not a style preference. Each builder runs through
- * `confine`, which refuses anything that would escape the prefix, and the
- * worker checks the same function before it reads or writes. A workId comes
- * from a book title by way of a slug, so it is already tame, but the check is
- * cheap and the failure it prevents is deleting somebody else's object.
+ * confinement is not a style preference. Each builder runs through `confine`,
+ * which refuses anything that would escape the prefix. A workId comes from a
+ * book title by way of a slug and a page id is a Notion UUID, so both are
+ * already tame, but the check is cheap and the failure it prevents is writing
+ * over somebody else's object.
  */
 
 export const PREFIX = "book-cover-emojis/";
@@ -45,29 +45,14 @@ export function confine(key: string): string {
   return key;
 }
 
-export const assetKey = (sha256: string) =>
-  confine(`${PREFIX}assets/${assertSegment(sha256, "sha256")}.png`);
+/** What the pipeline last knew about one book: fingerprint, artwork, upload. */
+export const sourceKey = (workId: string) =>
+  confine(`${PREFIX}sources/${assertSegment(workId, "workId")}.json`);
 
-export const revisionKey = (workId: string, revision: number) =>
-  confine(
-    `${PREFIX}work/${assertSegment(workId, "workId")}/rev-${assertPositive(revision, "revision")}.json`,
-  );
+/** What the automation last did to one Notion page, and what was there before. */
+export const pageKey = (notionId: string) =>
+  confine(`${PREFIX}pages/${assertSegment(notionId, "notionId")}.json`);
 
-export const headKey = (workId: string) =>
-  confine(`${PREFIX}work/${assertSegment(workId, "workId")}/head.json`);
-
-export const receiptKey = (workId: string, revision: number, attempt: number) =>
-  confine(
-    `${PREFIX}receipts/${assertSegment(workId, "workId")}/${assertPositive(revision, "revision")}-${assertPositive(attempt, "attempt")}.json`,
-  );
+export const pagePrefix = () => `${PREFIX}pages/`;
 
 export const catalogKey = () => confine(`${PREFIX}index/catalog.json`);
-
-export const workPrefix = () => `${PREFIX}work/`;
-
-function assertPositive(value: number, label: string): number {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`invalid ${label}: ${String(value)}`);
-  }
-  return value;
-}

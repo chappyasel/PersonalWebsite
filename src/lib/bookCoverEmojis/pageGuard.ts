@@ -11,7 +11,15 @@
  * the 328 book pages reports
  * parent.type "data_source_id" with this data_source_id.
  */
-import type { NotionPage } from "./notionEmojiApi";
+import type { NotionPage } from "./notionApi";
+
+/**
+ * The workspace these book pages live in. Not a secret: it is the first path
+ * segment of every icon URL Notion hands back. It is here so that a token
+ * swapped in the environment fails closed instead of putting book jackets on
+ * pages in some other workspace.
+ */
+export const BOOK_WORKSPACE_ID = "859fbc85-7644-4498-88d8-e0229d8cea32";
 
 export const BOOK_DATA_SOURCE_ID = "9d03bfe1-3c22-411e-921a-60f86bd790c4";
 export const BOOK_DATABASE_ID = "340ec223-7246-4d89-a44e-8005075bb7c4";

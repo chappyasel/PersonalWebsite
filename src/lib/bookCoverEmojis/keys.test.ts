@@ -1,29 +1,29 @@
 import {
   KeyOutsidePrefixError,
   PREFIX,
-  assetKey,
+  catalogKey,
   confine,
-  headKey,
-  receiptKey,
-  revisionKey,
+  pageKey,
+  sourceKey,
 } from "./keys";
 import { describe, expect, it } from "vitest";
 
 describe("prefix confinement", () => {
   it("keeps every builder under the feature's prefix", () => {
-    expect(assetKey("abc123")).toBe(`${PREFIX}assets/abc123.png`);
-    expect(revisionKey("book-the-body", 2)).toBe(`${PREFIX}work/book-the-body/rev-2.json`);
-    expect(headKey("book-the-body")).toBe(`${PREFIX}work/book-the-body/head.json`);
-    expect(receiptKey("book-the-body", 2, 1)).toBe(
-      `${PREFIX}receipts/book-the-body/2-1.json`,
+    expect(sourceKey("book-the-body")).toBe(
+      `${PREFIX}sources/book-the-body.json`,
     );
+    expect(pageKey("340c5ab0-d88d-8055-b415-ce051e3c6903")).toBe(
+      `${PREFIX}pages/340c5ab0-d88d-8055-b415-ce051e3c6903.json`,
+    );
+    expect(catalogKey()).toBe(`${PREFIX}index/catalog.json`);
   });
 
-  it("refuses traversal in a work id", () => {
+  it("refuses traversal in a work or page id", () => {
     // The bucket also holds the weightlifting backup, so this matters.
-    expect(() => revisionKey("../../weightlifting", 1)).toThrow(/invalid workId/);
-    expect(() => headKey("..")).toThrow(/invalid workId/);
-    expect(() => assetKey("../secret")).toThrow(/invalid sha256/);
+    expect(() => sourceKey("../../weightlifting")).toThrow(/invalid workId/);
+    expect(() => sourceKey("..")).toThrow(/invalid workId/);
+    expect(() => pageKey("../secret")).toThrow(/invalid notionId/);
   });
 
   it("refuses separators and absolute keys", () => {
@@ -35,14 +35,7 @@ describe("prefix confinement", () => {
   });
 
   it("refuses a work id carrying a slash", () => {
-    expect(() => headKey("book/../../weight-log")).toThrow(/invalid workId/);
-  });
-
-  it("refuses nonsense revision and attempt numbers", () => {
-    expect(() => revisionKey("book-x", 0)).toThrow(/invalid revision/);
-    expect(() => revisionKey("book-x", -1)).toThrow(/invalid revision/);
-    expect(() => revisionKey("book-x", 1.5)).toThrow(/invalid revision/);
-    expect(() => receiptKey("book-x", 1, 0)).toThrow(/invalid attempt/);
+    expect(() => sourceKey("book/../../weight-log")).toThrow(/invalid workId/);
   });
 
   it("accepts every work id the real catalog produces", () => {
@@ -52,7 +45,7 @@ describe("prefix confinement", () => {
       "book-1984",
       "book-7-habits-of-highly-effective-people",
     ]) {
-      expect(headKey(name).startsWith(PREFIX)).toBe(true);
+      expect(sourceKey(name).startsWith(PREFIX)).toBe(true);
     }
   });
 });

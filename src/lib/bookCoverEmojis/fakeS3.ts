@@ -1,21 +1,28 @@
-/** In-memory conditional S3 used only by focused tests. */
+/** In-memory S3 used only by focused tests. */
 import {
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
 
 export function fakeS3() {
   const objects = new Map<string, { body: Buffer; etag: string }>();
-  const writes: Array<{
-    Key?: string;
-    IfMatch?: string;
-    IfNoneMatch?: string;
-  }> = [];
+  const writes: Array<{ Key?: string }> = [];
   let version = 0;
-  let failHead = false;
   const client = {
-    send: async (command: GetObjectCommand | PutObjectCommand) => {
+    send: async (
+      command: GetObjectCommand | PutObjectCommand | ListObjectsV2Command,
+    ) => {
+      if (command instanceof ListObjectsV2Command) {
+        const prefix = command.input.Prefix ?? "";
+        return {
+          Contents: [...objects.keys()]
+            .filter((key) => key.startsWith(prefix))
+            .sort()
+            .map((Key) => ({ Key })),
+        };
+      }
       const key = command.input.Key!;
       const old = objects.get(key);
       if (command instanceof GetObjectCommand) {
@@ -34,17 +41,6 @@ export function fakeS3() {
       if (!(command instanceof PutObjectCommand))
         throw new Error("unsupported command");
       writes.push(command.input);
-      if (failHead && key.endsWith("/head.json")) {
-        failHead = false;
-        throw new Error("injected head failure");
-      }
-      if (
-        (command.input.IfNoneMatch === "*" && old) ||
-        (command.input.IfMatch && command.input.IfMatch !== old?.etag)
-      )
-        throw Object.assign(new Error("precondition"), {
-          $metadata: { httpStatusCode: 412 },
-        });
       const body = Buffer.isBuffer(command.input.Body)
         ? command.input.Body
         : Buffer.from(command.input.Body as string);
@@ -52,12 +48,5 @@ export function fakeS3() {
       return {};
     },
   } as unknown as S3Client;
-  return {
-    client,
-    objects,
-    writes,
-    failNextHead: () => {
-      failHead = true;
-    },
-  };
+  return { client, objects, writes };
 }

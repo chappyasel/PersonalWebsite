@@ -1,15 +1,18 @@
 /**
- * Whether the worker is allowed to set a page's icon.
+ * Whether the automation is allowed to set a page's icon.
  *
- * The rule that matters: once a person changes an icon by hand, the
- * automation stops touching that page. The worker knows what it last set,
- * from its receipts, so an icon that no longer matches its own last write is
- * somebody else's decision.
+ * The rule that matters: once a person changes an icon by hand, the automation
+ * stops touching that page. Ownership comes only from this page's own durable
+ * record of what the automation last set. Neither a name prefix nor the
+ * presence of some file in the workspace proves anything about who put it
+ * there, and an earlier version of this module that inferred ownership from
+ * the workspace emoji library was wrong in a way that would have silently
+ * overwritten unrelated icons.
  *
- * The exception is the first pass. A page the automation has never touched
- * may have an ordinary icon, or none, and the backfill is authorized to
- * replace it. The previous icon goes into the receipt first, so the change is
- * reversible by hand.
+ * The first pass is the exception. A page the automation has never touched may
+ * have an ordinary icon, or none, and the backfill is authorized to replace
+ * it. The previous icon is written to the record before the PATCH, so the
+ * change stays reversible by hand.
  */
 
 export type PageIcon =
@@ -18,6 +21,7 @@ export type PageIcon =
   | { type: "external"; url: string }
   | { type: "file"; url: string }
   | { type: "file_upload"; id: string }
+  | { type: "icon"; name: string }
   | null;
 
 /**
@@ -28,15 +32,17 @@ export type PageIcon =
  * flattened object with an `id` on the outside. Casting the raw JSON to the
  * internal shape looked fine to the compiler and silently produced an
  * undefined id, which made every readback comparison fail and every ownership
- * check fall through to "changed by hand". Decoding is the fix, and it has to
- * be driven by fixtures that look like real responses.
+ * check fall through to "changed by hand". Decoding is the fix, and the tests
+ * for it are driven by captures from the live API.
  */
 export function decodePageIcon(raw: unknown): PageIcon {
   if (!raw || typeof raw !== "object") return null;
   const icon = raw as Record<string, unknown>;
+  const nested = (key: string) =>
+    icon[key] as Record<string, unknown> | undefined;
   switch (icon.type) {
     case "custom_emoji": {
-      const inner = icon.custom_emoji as Record<string, unknown> | undefined;
+      const inner = nested("custom_emoji");
       const id = typeof inner?.id === "string" ? inner.id : null;
       if (!id) return null;
       return {
@@ -51,24 +57,88 @@ export function decodePageIcon(raw: unknown): PageIcon {
         ? { type: "emoji", emoji: icon.emoji }
         : null;
     case "external": {
-      const inner = icon.external as Record<string, unknown> | undefined;
+      const inner = nested("external");
       return typeof inner?.url === "string"
         ? { type: "external", url: inner.url }
         : null;
     }
     case "file": {
-      const inner = icon.file as Record<string, unknown> | undefined;
-      return typeof inner?.url === "string" ? { type: "file", url: inner.url } : null;
+      const inner = nested("file");
+      return typeof inner?.url === "string"
+        ? { type: "file", url: inner.url }
+        : null;
     }
     case "file_upload": {
-      const inner = icon.file_upload as Record<string, unknown> | undefined;
+      const inner = nested("file_upload");
       return typeof inner?.id === "string"
         ? { type: "file_upload", id: inner.id }
+        : null;
+    }
+    case "icon": {
+      const inner = nested("icon");
+      return typeof inner?.name === "string"
+        ? { type: "icon", name: inner.name }
         : null;
     }
     default:
       return null;
   }
+}
+
+/**
+ * The stable half of a Notion file URL.
+ *
+ * A file icon reads back as a presigned S3 URL whose query string carries a
+ * fresh one-hour credential on every single read, so comparing whole URLs
+ * would report "changed by hand" every time. The path
+ * (`/<workspace>/<attachment>/<filename>`) was identical across repeated reads
+ * and across two different pages sharing one upload, measured on 2026-09-15,
+ * and that is what identity compares.
+ *
+ * Returns null for a URL that will not parse, so a malformed icon can never
+ * compare equal to a real one.
+ */
+export function fileUrlKey(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the automation last set on a page, in a form that survives in storage
+ * and can be compared against a fresh read.
+ *
+ * `custom_emoji` is the retired browser path's shape. It stays because the
+ * pages it applied to are real and their receipts are the only proof that the
+ * icons on them are ours rather than somebody's own choice.
+ */
+export type OwnedIcon =
+  | { kind: "custom_emoji"; id: string }
+  | { kind: "file"; urlKey: string };
+
+/** The comparable identity of a live icon, or null if it has none. */
+export function iconIdentity(icon: PageIcon): OwnedIcon | null {
+  if (!icon) return null;
+  if (icon.type === "custom_emoji") return { kind: "custom_emoji", id: icon.id };
+  if (icon.type === "file") {
+    const urlKey = fileUrlKey(icon.url);
+    return urlKey ? { kind: "file", urlKey } : null;
+  }
+  return null;
+}
+
+export function sameOwnedIcon(
+  a: OwnedIcon | null,
+  b: OwnedIcon | null,
+): boolean {
+  if (!a || a.kind !== b?.kind) return false;
+  if (a.kind === "custom_emoji") {
+    return b.kind === "custom_emoji" && a.id === b.id;
+  }
+  return b.kind === "file" && a.urlKey === b.urlKey;
 }
 
 export type IconDecision = {
@@ -77,46 +147,46 @@ export type IconDecision = {
     | "backfill"
     | "automation-owned"
     | "already-correct"
-    | "unknown-custom-icon"
+    | "unknown-image-icon"
     | "changed-by-hand";
 };
 
 /**
- * Whether the worker may set a page's icon.
+ * Whether the automation may set this page's icon.
  *
- * Ownership comes only from this page's own record. An earlier version also
- * treated any custom emoji in the workspace library as ours, which was wrong
- * in a way that would have been hard to notice: the library holds every
- * personal emoji in the workspace, so after a state loss a page wearing an
- * unrelated one read as automation-owned and would have been overwritten.
- * Neither the library nor a name prefix proves anything about who set an icon.
+ * `owned` is what the record says the automation last put here, or null if it
+ * has never successfully touched this page. `target` is the icon it wants the
+ * page to end up wearing, or null when the artwork has changed and the target
+ * does not exist yet.
  *
- * Without a record, a custom emoji of unknown provenance means stand down. The
- * authorized backfill covers pages with no icon or an ordinary one, which is
- * what the before-snapshot showed, and nothing else.
+ * Without a record, an image icon of unknown provenance means stand down: a
+ * file or custom emoji someone chose themselves is not ours to replace. A
+ * plain emoji, a built-in icon, an external URL, or no icon at all is what the
+ * authorized backfill covers, which is what the before-snapshot showed.
  */
 export function decideIcon(
   current: PageIcon,
-  targetEmojiId: string,
-  lastAppliedEmojiId: string | null,
+  target: OwnedIcon | null,
+  owned: OwnedIcon | null,
 ): IconDecision {
-  if (current?.type === "custom_emoji" && current.id === targetEmojiId) {
+  const identity = iconIdentity(current);
+
+  if (target && sameOwnedIcon(identity, target)) {
     return { action: "skip", reason: "already-correct" };
   }
-  if (lastAppliedEmojiId === null) {
-    if (current?.type === "custom_emoji") {
-      // Someone put this here and we have no record of doing it.
-      return { action: "skip", reason: "unknown-custom-icon" };
+  if (owned === null) {
+    if (current?.type === "custom_emoji" || current?.type === "file") {
+      return { action: "skip", reason: "unknown-image-icon" };
     }
     return { action: "apply", reason: "backfill" };
   }
-  if (current?.type === "custom_emoji" && current.id === lastAppliedEmojiId) {
+  if (sameOwnedIcon(identity, owned)) {
     return { action: "apply", reason: "automation-owned" };
   }
   return { action: "skip", reason: "changed-by-hand" };
 }
 
-/** A compact record of what was there before, for the receipt. */
+/** A compact record of what was there before, for logs and receipts. */
 export function describeIcon(icon: PageIcon): string {
   if (!icon) return "none";
   switch (icon.type) {
@@ -126,6 +196,10 @@ export function describeIcon(icon: PageIcon): string {
       return `emoji:${icon.emoji}`;
     case "file_upload":
       return `file_upload:${icon.id}`;
+    case "file":
+      return `file:${fileUrlKey(icon.url) ?? "unparsable"}`;
+    case "icon":
+      return `icon:${icon.name}`;
     default:
       return icon.type;
   }
