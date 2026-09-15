@@ -67,6 +67,13 @@ test("3D travel leaves illustrated geometry idle and a dimension switch resumes 
       row,
     ),
   ).toBe(true);
+  // The illustration becomes visible before flattening retires the world.
+  // A second R during that interval is ignored on baseline and candidate;
+  // this regression covers returning after the transition completes.
+  await expect(page.locator(".stacks-world-shell")).toHaveAttribute(
+    "data-boot-status",
+    "illustrated",
+  );
   await page.keyboard.press("r");
   await expect(page.locator("html")).toHaveAttribute("data-room-view", "live");
   expect(await page.evaluate(() => window.__stacks!.state().activeUnit)).toBe(

@@ -147,20 +147,58 @@ The dependency lock SHA-256 is
   store. The auditor accepted the exact product commit; an independent Claude
   review found no remaining structural blocker.
 
-That build contained the same structural product bytes plus a separate mobile
-material draft. Material work has since moved to its own branch and is excluded
-from this change. A clean structural branch build and the updated motion matrix
-remain follow-up checks; the production browser counts above are not an FPS
-claim.
+The first browser build included a separate mobile material draft. A fresh
+clean build of structural branch `eaf1588c` now passes the standard `pnpm build`
+workflow and both privacy boundaries. Its build ID is
+`ZMCKTs03vniQTnG13h5Ir`. PR #79 also passed quality-contracts, check, and the
+Vercel preview build at that commit. Material source remains on a separate
+branch and is excluded from this PR.
+
+The clean-build failures were in verification setup. Direct `next build`
+skipped the standard prebuild, leaving the fresh checkout without its private
+search index. The standard `pnpm build` workflow passed after the checkout's
+ignored input was restored. The next attempt failed during Playwright test
+collection because its temporary config imported another checkout and loaded
+`@playwright/test` twice. Binding the config to the tested checkout fixed
+collection. These failures are retained with their original logs.
+
+The clean native run passed canvas sizing and both UI style tests. Its
+illustration test reached the selected 2D row, then failed on the second R.
+A differential probe reproduced the same failure on baseline and candidate:
+the illustration is visible during the 420 ms flattening transition, while
+`request3D()` still rejects the request because the world remains mounted.
+Both stayed illustrated for the entire ten-second observation. Rapid second-R
+input during flattening remains ignored; this change does not fix it.
+
+The residency regression now waits for completed `data-boot-status=illustrated`
+before requesting 3D again. That focused native retry passed on the clean
+build, including return to section 6 and actual WebGL context-loss recovery
+to section 3. Together with the earlier three passes, all four focused cases
+passed on the clean structural product. The follow-up changes only test
+sequencing, benchmark metadata, and this report; product bytes are unchanged.
 
 The first native Chrome baseline matrix completed all four desktop cases and
-mobile no-preference. Desktop live toggles kept WebGL and butterflies mounted;
-startup reduced motion selected the illustrated room. The mobile live-reduce
-case then failed its 30-second movement-settle gate. It did not complete the
-remaining mobile cases. The runner has since gained failed-state capture and
-independent-case continuation so that this failure can be diagnosed without
-losing the separate startup result. The strengthened runner awaits its final
-method review and rerun.
+mobile no-preference. The focused mobile follow-up completed no-preference
+and startup reduced motion. Startup selected the illustrated room on both
+desktop and mobile. Live desktop toggles kept WebGL and butterflies mounted.
+
+The mobile live-reduce case opened Search during rapid reverse travel. The
+updated workload check caught `searchOpen=true` and rejected the changed
+presentation. Live restoration was then correctly rejected while Search
+remained open. Search pauses the renderer, leaving its movement flag latched
+until rendering resumes. This explains the earlier movement-settle timeout;
+it supplies no measurement of whole-scene motion cost. The follow-up retained
+both failed states and screenshots, then completed the independent startup
+case across all seven panels. A quiet-host comparison needs a controlled
+travel path that excludes Search activation.
+
+The auditor accepted the strengthened runner. Its subsequent metadata change
+serializes the existing 120 Hz calibration verdict without changing any gate.
+The standalone mobile runner reached its explicit two-case failure, then
+waited indefinitely for the browser-close acknowledgment after contexts and
+the browser process had exited. Its owned process was terminated and the
+wrapper recorded exit 143. This cleanup failure is retained with the raw
+results; it is not a successful benchmark command.
 
 Every bracketing preflight was contended. No timing result from these overnight
 runs is accepted, and smooth 120 fps has not been established. Raw logs and

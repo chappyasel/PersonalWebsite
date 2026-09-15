@@ -45,12 +45,39 @@
     "productionBrowserTestsPassed": 4,
     "webglContextLossRecovery": "selected shelf restored",
     "buildScope": "same structural product bytes plus a separate material draft; no material source is included in the structural commits",
-    "cleanStructuralBuild": "pending"
+    "cleanStructuralBuild": {
+      "status": "passed",
+      "commit": "eaf1588cf1248497e963f3b18b8700171178d8df",
+      "buildId": "ZMCKTs03vniQTnG13h5Ir",
+      "pages": 605,
+      "searchBoundary": "passed",
+      "weightLogBoundary": "passed",
+      "browserRetry": "passed after awaiting completed flattening; rapid second-R remains ignored",
+      "initialNativeRun": {
+        "passed": 3,
+        "failed": 1,
+        "failedStage": "Second R was sent while bootStatus was flattening"
+      },
+      "focusedResidencyRetry": {
+        "passed": 1,
+        "failed": 0,
+        "commandExit": 0,
+        "returnedLiveUnit": 6,
+        "contextLossRestoredUnit": 3,
+        "beforePreflight": "contended",
+        "afterPreflight": "contended",
+        "productSourceChanged": false
+      },
+      "setupFailures": [
+        "Direct next build skipped prebuild and the fresh checkout lacked the private search index. Standard pnpm build passed after restoring ignored input.",
+        "Temporary Playwright config imported another checkout, causing duplicate @playwright/test during collection. Fixed config import."
+      ]
+    }
   },
   "review": {
     "product": "accepted by auditor at exact product commit; independent Claude structural review had no remaining blocker",
-    "motionRunnerSha256": "af9c55d1a14910a08f12a9dc82f48c3e399935f0da70dfccc0f7c36ccf2ad7fa",
-    "motionRunnerStatus": "updated failure capture and workload guards awaiting final review"
+    "motionRunnerSha256": "9ef33bba4f4d7674dedf5c31834d0b0f67f19a3cbece8b8a10ab055c87008e94",
+    "motionRunnerStatus": "accepted at af9c55d1; subsequent change only serializes calibrated120Hz"
   },
   "motionBaseline": {
     "browser": "152.0.7977.84",
@@ -142,8 +169,82 @@
     "reason": "Both preflights were contended. No FPS or timing savings claimed."
   },
   "remaining": [
-    "Clean structural branch build",
-    "Diagnose mobile live-reduce settle failure and complete all eight before/after motion cases",
-    "Review the strengthened motion runner"
-  ]
+    "Quiet-host controlled travel excluding Search, then paired timing",
+    "Browser-close acknowledgment cleanup reliability",
+    "Rapid second-R input during flattening remains ignored on baseline and candidate"
+  ],
+  "motionMobileFollowup": {
+    "commit": "ba4781172e38c5988cc3697cfb280782a59e2407",
+    "buildId": "6lQa0veIlL2CMrJweZMDz",
+    "cases": [
+      {
+        "name": "mobile-no-preference",
+        "status": "passed",
+        "presentation": "live",
+        "reducedMotion": false,
+        "butterflyMounted": true,
+        "searchOpen": false,
+        "visitedPanels": [
+          "training",
+          "books",
+          "systems",
+          "projects",
+          "blog",
+          "about"
+        ],
+        "failure": null
+      },
+      {
+        "name": "mobile-live-reduce",
+        "status": "failed",
+        "presentation": "live",
+        "reducedMotion": true,
+        "butterflyMounted": true,
+        "searchOpen": true,
+        "visitedPanels": null,
+        "failure": "Error: Renderer, quality, or framebuffer changed within the measurement window"
+      },
+      {
+        "name": "mobile-live-restored",
+        "status": "failed",
+        "presentation": "live",
+        "reducedMotion": false,
+        "butterflyMounted": true,
+        "searchOpen": true,
+        "visitedPanels": null,
+        "failure": "Error: An overlay or immersive experience paused the travel workload"
+      },
+      {
+        "name": "mobile-startup-reduce",
+        "status": "passed",
+        "presentation": "illustrated",
+        "reducedMotion": true,
+        "butterflyMounted": false,
+        "searchOpen": false,
+        "visitedPanels": [
+          "training",
+          "books",
+          "about",
+          "systems",
+          "projects",
+          "blog",
+          "talks"
+        ],
+        "failure": null
+      }
+    ],
+    "timingAccepted": false,
+    "commandExit": 143,
+    "cleanup": "Browser-close acknowledgment stalled after explicit two-case failure; owned runner terminated.",
+    "interpretation": "Reverse travel opened Search during live reduce and paused the renderer. Live restored remained paused. These failed windows do not measure whole-scene motion cost."
+  },
+  "rapidSecondR": {
+    "baselineBuildId": "6lQa0veIlL2CMrJweZMDz",
+    "candidateBuildId": "ZMCKTs03vniQTnG13h5Ir",
+    "bothBeforeSecondKey": "flattening",
+    "bothFinalPresentation": "illustrated",
+    "observationSeconds": 10,
+    "fixed": false,
+    "reason": "request3D rejects while worldMounted remains true during flattening"
+  }
 }

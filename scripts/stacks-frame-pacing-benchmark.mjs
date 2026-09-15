@@ -490,6 +490,7 @@ try {
         report.calibrations.push({
           device: device.name,
           startupReduced,
+          calibrated120Hz: device.calibrated120Hz,
           blank: summarize(calibration),
           frames: calibration,
         });
