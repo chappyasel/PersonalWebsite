@@ -1788,6 +1788,11 @@ export default function Meadow({
   const handledImpactRevision = useRef(
     getMeadowDisturbance().physicalEvent.revision,
   );
+  /** Scene time of the last frame that carried a pointer sample driving the
+   * brushes. The per-frame gesture target cannot answer "is a gesture
+   * happening" on its own — it is zero on every frame between two samples of
+   * a perfectly live drag — so the settle reads the age of this instead. */
+  const lastBrushDriveAt = useRef(Number.NEGATIVE_INFINITY);
   const bootAt = useRef(-1);
   const nextWindDiagnosticAt = useRef(0);
   useEffect(() => {
@@ -2088,15 +2093,22 @@ export default function Meadow({
     // Settle the RELEASED brushes and gate the shader's interaction block.
     // Both brushes decay geometrically and would otherwise hold a denormal
     // for tens of seconds after a gesture, keeping 1.45M vertex invocations
-    // on the expensive path with nothing to show for it. Passing the live
-    // gesture target is what keeps the settle off an attack ramp.
+    // on the expensive path with nothing to show for it.
+    //
+    // The age of the last pointer sample is what keeps the settle off a live
+    // attack ramp. `brushTarget` alone cannot: it is zero on every frame
+    // between two samples of a perfectly live drag, which is most frames on
+    // a 120Hz panel with a 60Hz mouse.
+    if (brushTarget > 0) lastBrushDriveAt.current = clock.elapsedTime;
+    const secondsSinceBrushDriven =
+      clock.elapsedTime - lastBrushDriveAt.current;
     shared.uPoke.value.w = meadowSettledBrushStrength(
       shared.uPoke.value.w,
-      brushTarget,
+      secondsSinceBrushDriven,
     );
     shared.uPokeF.value.w = meadowSettledBrushStrength(
       shared.uPokeF.value.w,
-      brushTarget,
+      secondsSinceBrushDriven,
     );
     shared.uPulseActive.value = meadowBrushAtRest(
       Math.max(shared.uPoke.value.w, shared.uPokeF.value.w),

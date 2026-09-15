@@ -87,18 +87,32 @@ export function meadowPokeStrength(worldX: number, worldZ: number): number {
 export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
 
 /**
- * Settle a RELEASED brush strength onto exactly zero once it is invisible.
+ * How long a brush has to go undriven before it counts as released.
  *
- * `target` is the strength the frame loop is currently damping toward, and it
- * is the whole reason this takes two arguments. A settle that looked only at
- * the eased value would also eat the attack ramp: each damp step is a
- * fraction of the target, so a slow drag — `meadowDragSample` scales
- * `hoverStrength` by `1 - exp(-speed / dragSpeedScale)`, which is a few
- * percent for a gentle sweep — would be knocked back to zero every frame and
- * could never climb past the epsilon. The flowers fail this first: they ease
- * at less than a third of the grass attack rate, so their first steps are
- * smaller still. Anything a gesture is actively driving therefore passes
- * through untouched, however small.
+ * The frame loop's gesture target is per-FRAME: it starts at zero and is only
+ * written on frames that carried a pointer sample. A 60Hz mouse under a 120Hz
+ * renderer therefore reports a target on every other frame and zero on the
+ * rest, and a 240Hz panel reports three zeros for every sample. Those zeros
+ * are not a released gesture, and a settle that cannot tell them from one
+ * snaps the attack ramp back down between every pair of samples — a slow drag
+ * alternates and never accumulates. That is the distinction this window
+ * exists to draw: gesture-idle, not between-event.
+ *
+ * 250ms is fifteen times the gap between samples of a 60Hz pointer, so it has
+ * room for a stalled main thread or a throttled device, and it costs nothing:
+ * the release decay needs about 1.6 seconds to carry full hover strength down
+ * to the epsilon anyway, so waiting out the window never keeps the shader's
+ * expensive path alive any longer than the decay already does.
+ */
+export const MEADOW_BRUSH_IDLE_GRACE_SECONDS = 0.25;
+
+/**
+ * Settle a released brush strength onto exactly zero once it is invisible.
+ *
+ * `meadowPokeStrength` above returns an exact zero out in the field; this is
+ * the same idea on the time axis, and `secondsSinceDriven` is what makes it
+ * safe. Anything a gesture has touched inside the grace window passes through
+ * untouched, however small, so no attack ramp is ever knocked back.
  *
  * With no gesture driving it, collapsing the brush moves the lean in TWO
  * ways, and the second is the larger one. The direct term is
@@ -112,13 +126,14 @@ export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
  * from several world units away — about 1.4% of a full-lean throw, and far
  * below one pixel. `meadowVertexBudget.test.ts` asserts the complete bound
  * rather than the direct half. What it buys is a uniform that is genuinely
- * zero at rest.
+ * zero at rest, which is what lets the grass vertex shader skip its whole
+ * per-instance interaction block.
  */
 export function meadowSettledBrushStrength(
   strength: number,
-  target: number,
+  secondsSinceDriven: number,
 ): number {
-  if (target > 0) return strength;
+  if (secondsSinceDriven < MEADOW_BRUSH_IDLE_GRACE_SECONDS) return strength;
   return strength < MEADOW_BRUSH_IDLE_EPSILON ? 0 : strength;
 }
 
