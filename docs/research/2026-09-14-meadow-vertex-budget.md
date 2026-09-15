@@ -76,7 +76,7 @@ Each guard is an algebraic identity rather than an approximation:
 Every guard reads uniforms only, so a warp cannot diverge on one, and each
 guarded term keeps a zero default declared ahead of its branch.
 
-### The bug the guards introduced, and what it taught
+### The two bugs the guards introduced, and what they taught
 
 `THREE.MathUtils.damp` approaches its target geometrically and never arrives,
 so the brushes had to be settled onto an exact zero or the guard would stay
@@ -91,9 +91,25 @@ dead band reached 15% of full hover strength. `meadowDragSample` scales
 strength by `1 − exp(−speed / dragSpeedScale)`, which is exactly a few percent
 for a gentle sweep: a slow drag on the lawn did nothing at all.
 
-A cold review caught it. The settle now takes the strength the frame loop is
-damping toward and leaves any driven brush alone, so only an undriven one
-collapses.
+The second attempt settled against the frame's gesture **target**, which is
+right for a gesture that drives every frame and wrong for every real one.
+`target` starts at zero each frame and is written only on frames that carried
+a pointer sample, so a 60Hz mouse under a 120Hz renderer reports a target on
+every other frame and zero on the rest. Those zeros are not a release. The
+settle read them as one and knocked the ramp down between every pair of
+samples — the same total suppression as the first bug, now hidden behind a
+test that only ever drove a constant target.
+
+The settle now reads how long the brush has gone undriven. A cold review
+caught both, and the second one is the more useful lesson: **a constant input
+cannot find an input-cadence bug.** The regression drives the real damp
+arithmetic at a real cadence and asserts the shipped rule changes not one
+frame of a live gesture — `toBe` against the same drive with no settle at all
+— across 60Hz under 120Hz, the alternating pattern at 240Hz, and a 15Hz
+pointer far outside anything a browser delivers. The rule it replaced is kept
+beside them as a named reproduction that still returns zero, because the
+obvious version of this optimisation is wrong in a way that is invisible
+against a constant input.
 
 The same review corrected the recorded bound. Collapsing the brush moves the
 lean twice: directly through `uPokeDir * push`, and indirectly through the
@@ -102,10 +118,12 @@ wind suppression, because `interactionShape` carries
 back `0.82 × (epsilon / 0.2)` of the gust. The indirect term is about four
 times the direct one. Both together are 1.4% of a full authored throw.
 
-Two lessons worth keeping. A threshold applied to an eased **state** is a
-different thing from a threshold applied to the **gesture** driving it, and
-only the second is safe. And a displacement bound has to account for every
-path the quantity reaches the output by, not just the obvious one.
+Three lessons worth keeping. A threshold on an eased **state** is a different
+thing from a threshold on the **gesture** driving it. A per-frame gesture
+target is a different thing again from "a gesture is happening", because most
+frames of a live gesture carry no sample. And a displacement bound has to
+account for every path the quantity reaches the output by, not just the
+obvious one.
 
 ## What the benchmark had to learn first
 
@@ -147,16 +165,37 @@ move `p95` at rest on this machine. That is a statement about an M5 Max with
 headroom, not about the M2 MacBook Air in the incident report, and this host
 cannot stand in for that one.
 
+## Attribution: what the decisive experiment said
+
+DPR 1 against DPR 2 holds the vertex count fixed and quarters the fragments.
+Unthrottled, at rest, pre-patch build, two repeats, host contended:
+
+| | full | no-meadow | meadow |
+| --- | ---: | ---: | ---: |
+| DPR 2 | 5.60 / 6.20 ms | 5.50 / 5.20 ms | +0.55 ms |
+| DPR 1 | 5.20 / 5.50 ms | 4.00 / 4.00 ms | +1.35 ms |
+
+Quartering the fragments did not shrink the meadow's cost by roughly four. It
+did not shrink it at all — it came out larger, which is impossible, and is
+therefore contention rather than signal.
+
+So the experiment failed to falsify the vertex thesis without confirming it.
+There is no evidence for fragment-bound: that required a fourfold shrink and
+produced none. There is weak evidence for vertex-bound: the DPR 1 pair is
+internally consistent (`no-meadow` 4.00 and 4.00, `full` 5.20 and 5.50, clean
+separation across repeats) and puts the meadow at about a quarter of a 5.35 ms
+frame. The DPR 2 pair is not usable — its two `no-meadow` repeats disagree by
+0.3 ms and straddle one of the `full` repeats.
+
+This needs a quiet host to conclude, and it should be concluded before anyone
+starts the larger change below.
+
 ## Open
 
-The decisive experiment is DPR 1 against DPR 2 with the vertex count held
-fixed and the fragment count quartered. If `full − no-meadow` shrinks by
-roughly four, the meadow is fragment-bound — `DoubleSide` alpha-tested cards
-have heavy overdraw — and the per-vertex story above is the wrong subject. If
-it holds flat, the vertex stage is the subject and the remaining
-instance-constant work is worth moving off the per-vertex path: a static
+The remaining instance-constant work is worth moving off the per-vertex path
+only if the attribution above resolves toward the vertex stage: a static
 origin texture, one small target written by a single fragment pass per frame
 (one texel per instance), and a `texelFetch` in the vertex shader keyed off a
 per-tile instanced index. That is exact rather than approximate — same math,
-same origin, no interpolation — but it adds a render target, and it should not
-begin until the attribution says the vertex stage is where the time goes.
+same origin, no interpolation — but it adds a render target, and the evidence
+for it is not yet good enough to justify one.
