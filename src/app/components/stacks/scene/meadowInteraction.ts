@@ -87,15 +87,31 @@ export function meadowPokeStrength(worldX: number, worldZ: number): number {
 export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
 
 /**
- * Settle an eased brush strength onto exactly zero once it is invisible.
+ * Settle a RELEASED brush strength onto exactly zero once it is invisible.
  *
- * The brush contributes at most `strength` to a lean the shader then clamps
- * at `MEADOW_WIND.authoredMaxLean` (0.36) and multiplies by a sway height
- * under 0.35 world units, so dropping it at the epsilon moves a blade tip by
- * at most a third of a millimetre — under a thousandth of a pixel from the
- * traverse camera. What it buys is a uniform that is genuinely zero at rest.
+ * `target` is the strength the frame loop is currently damping toward, and it
+ * is the whole reason this takes two arguments. A settle that looked only at
+ * the eased value would also eat the attack ramp: each damp step is a
+ * fraction of the target, so a slow drag — `meadowDragSample` scales
+ * `hoverStrength` by `1 - exp(-speed / dragSpeedScale)`, which is a few
+ * percent for a gentle sweep — would be knocked back to zero every frame and
+ * could never climb past the epsilon. The flowers fail this first: they ease
+ * at less than a third of the grass attack rate, so their first steps are
+ * smaller still. Anything a gesture is actively driving therefore passes
+ * through untouched, however small.
+ *
+ * With no gesture driving it the brush contributes at most `strength` to a
+ * lean the shader clamps at `MEADOW_WIND.authoredMaxLean` (0.36) and
+ * multiplies by a sway height under 0.35 world units, so collapsing it at the
+ * epsilon moves a blade tip by at most a third of a millimetre — under a
+ * thousandth of a pixel from the traverse camera. What it buys is a uniform
+ * that is genuinely zero at rest.
  */
-export function meadowSettledBrushStrength(strength: number): number {
+export function meadowSettledBrushStrength(
+  strength: number,
+  target: number,
+): number {
+  if (target > 0) return strength;
   return strength < MEADOW_BRUSH_IDLE_EPSILON ? 0 : strength;
 }
 

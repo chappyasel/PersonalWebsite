@@ -1918,6 +1918,11 @@ export default function Meadow({
       pokeClickAt.current.some((startedAt) => startedAt >= 0) ||
       shared.uPoke.value.w > MEADOW_BRUSH_IDLE_EPSILON ||
       shared.uPokeF.value.w > MEADOW_BRUSH_IDLE_EPSILON;
+    // The strength a live gesture is driving the brushes toward, or zero when
+    // nothing is. It has to outlive the pointer block below: the settle that
+    // closes the shader's uniform guard must never fire while a gesture is
+    // still ramping, or it would delete the whole input.
+    let brushTarget = 0;
     const touchInteractionActive =
       touchWake > 0.01 ||
       touchPulsePending ||
@@ -2048,6 +2053,7 @@ export default function Meadow({
           : MEADOW_POKE.flowerReleaseLambda,
         delta,
       );
+      brushTarget = target;
       if (touchInteractionActive)
         touchWorldRef.wakeStrength = Math.max(0, touchWake - delta * 5);
     }
@@ -2079,12 +2085,19 @@ export default function Meadow({
       uniform.w = pulse.strength;
       pulseStrengths.current[index] = pulse.strength;
     }
-    // Settle the eased brushes and gate the shader's interaction block. Both
-    // brushes decay geometrically and would otherwise hold a denormal for
-    // tens of seconds after a gesture, keeping 1.45M vertex invocations on
-    // the expensive path with nothing to show for it.
-    shared.uPoke.value.w = meadowSettledBrushStrength(shared.uPoke.value.w);
-    shared.uPokeF.value.w = meadowSettledBrushStrength(shared.uPokeF.value.w);
+    // Settle the RELEASED brushes and gate the shader's interaction block.
+    // Both brushes decay geometrically and would otherwise hold a denormal
+    // for tens of seconds after a gesture, keeping 1.45M vertex invocations
+    // on the expensive path with nothing to show for it. Passing the live
+    // gesture target is what keeps the settle off an attack ramp.
+    shared.uPoke.value.w = meadowSettledBrushStrength(
+      shared.uPoke.value.w,
+      brushTarget,
+    );
+    shared.uPokeF.value.w = meadowSettledBrushStrength(
+      shared.uPokeF.value.w,
+      brushTarget,
+    );
     shared.uPulseActive.value = meadowBrushAtRest(
       Math.max(shared.uPoke.value.w, shared.uPokeF.value.w),
       pulseStrengths.current,

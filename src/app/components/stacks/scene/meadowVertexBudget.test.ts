@@ -22,47 +22,101 @@ const deformedGrass = meadowGrassVertexShader(true);
 // The CPU half. An eased brush has to land on EXACTLY zero, or the shader's
 // uniform guard never closes and the expensive path is the resident one.
 
-describe("meadow brush settles to exactly zero", () => {
-  it("snaps a decayed brush strength to zero at the idle epsilon", () => {
-    expect(meadowSettledBrushStrength(MEADOW_BRUSH_IDLE_EPSILON / 2)).toBe(0);
-    expect(meadowSettledBrushStrength(1e-12)).toBe(0);
-    expect(Object.is(meadowSettledBrushStrength(0), 0)).toBe(true);
-    // Anything a visitor can see passes through untouched.
-    expect(meadowSettledBrushStrength(MEADOW_POKE.hoverStrength)).toBe(
-      MEADOW_POKE.hoverStrength,
+/** THREE.MathUtils.damp, reproduced so the settle can be tested against the
+ * arithmetic the frame loop actually runs. */
+const damp = (current: number, target: number, lambda: number, dt: number) =>
+  target + (current - target) * Math.exp(-lambda * dt);
+
+/** Drive one brush through `frames` at 120Hz exactly as the frame loop does:
+ * damp toward the target at the attack or release rate, then settle. */
+function driveBrush({
+  target,
+  frames,
+  attack,
+  release,
+  from = 0,
+}: {
+  target: number;
+  frames: number;
+  attack: number;
+  release: number;
+  from?: number;
+}) {
+  const dt = 1 / 120;
+  let strength = from;
+  for (let i = 0; i < frames; i += 1) {
+    strength = damp(
+      strength,
+      target,
+      target > strength ? attack : release,
+      dt,
     );
-    expect(meadowSettledBrushStrength(MEADOW_BRUSH_IDLE_EPSILON)).toBe(
-      MEADOW_BRUSH_IDLE_EPSILON,
-    );
+    strength = meadowSettledBrushStrength(strength, target);
+  }
+  return strength;
+}
+
+describe("meadow brush settles to exactly zero without eating a live gesture", () => {
+  it("lets a slow drag reach its target instead of being clamped to nothing", () => {
+    // A slow pointer drag produces a small target: meadowDragSample scales
+    // hoverStrength by (1 - exp(-speed / dragSpeedScale)), so a gentle sweep
+    // asks for a few percent of full strength. Each damp step toward it is a
+    // fraction of that again, which is how a naive settle on the STATE rather
+    // than on the gesture silently deletes the whole input: the ramp never
+    // clears the epsilon, so the brush is pinned at zero forever.
+    const slow = 0.006; // 3% of hoverStrength
+    expect(slow).toBeGreaterThan(MEADOW_BRUSH_IDLE_EPSILON);
+    const grass = driveBrush({
+      target: slow,
+      frames: 240,
+      attack: MEADOW_POKE.grassAttackLambda,
+      release: MEADOW_POKE.grassReleaseLambda,
+    });
+    expect(grass).toBeCloseTo(slow, 5);
+    // Flowers ease at less than a third of the grass attack rate, so their
+    // first steps are smaller still and they fail this first.
+    const flowers = driveBrush({
+      target: 0.02,
+      frames: 480,
+      attack: MEADOW_POKE.flowerAttackLambda,
+      release: MEADOW_POKE.flowerReleaseLambda,
+    });
+    expect(flowers).toBeCloseTo(0.02, 5);
   });
 
-  it("closes the gate within a second of a released gesture", () => {
-    // THREE.MathUtils.damp toward zero, at the authored grass release rate.
-    let strength: number = MEADOW_POKE.hoverStrength;
-    const delta = 1 / 120;
-    let frames = 0;
-    while (strength > 0 && frames < 10_000) {
-      strength *= Math.exp(-MEADOW_POKE.grassReleaseLambda * delta);
-      strength = meadowSettledBrushStrength(strength);
-      frames += 1;
-    }
-    expect(strength).toBe(0);
-    expect(frames / 120).toBeLessThan(2);
-    // Without the snap the same decay is still nonzero after a full minute,
-    // which is the whole reason the snap exists.
+  it("never alters a brush while a gesture is driving it", () => {
+    // The settle is a property of an UNDRIVEN brush. With any live target the
+    // damped value must pass through untouched, however small it is.
+    expect(meadowSettledBrushStrength(1e-9, 0.2)).toBe(1e-9);
+    expect(meadowSettledBrushStrength(1e-9, 1e-6)).toBe(1e-9);
+    expect(meadowSettledBrushStrength(0.5, 0.2)).toBe(0.5);
+  });
+
+  it("collapses a released brush to exactly zero within a second", () => {
+    const released = driveBrush({
+      target: 0,
+      frames: 240,
+      attack: MEADOW_POKE.grassAttackLambda,
+      release: MEADOW_POKE.grassReleaseLambda,
+      from: MEADOW_POKE.hoverStrength,
+    });
+    expect(Object.is(released, 0)).toBe(true);
+    // Without the settle the same decay is still nonzero after a full minute,
+    // which is the whole reason the settle exists: the shader's uniform guard
+    // would never close and the expensive path would be the resident one.
     let bare: number = MEADOW_POKE.hoverStrength;
     for (let i = 0; i < 120 * 60; i += 1)
-      bare *= Math.exp(-MEADOW_POKE.grassReleaseLambda * delta);
+      bare = damp(bare, 0, MEADOW_POKE.grassReleaseLambda, 1 / 120);
     expect(bare).toBeGreaterThan(0);
   });
 
-  it("keeps the snap far below one authored lean unit", () => {
+  it("keeps the collapsed amount far below one authored lean unit", () => {
     // The brush contributes at most `strength` to a lean the shader clamps at
-    // authoredMaxLean, so the worst displacement the snap removes is the
+    // authoredMaxLean, so the worst displacement the settle removes is the
     // epsilon itself against that clamp.
-    expect(MEADOW_BRUSH_IDLE_EPSILON / MEADOW_WIND.authoredMaxLean).toBeLessThan(
-      0.005,
-    );
+    expect(
+      MEADOW_BRUSH_IDLE_EPSILON / MEADOW_WIND.authoredMaxLean,
+    ).toBeLessThan(0.005);
   });
 
   it("reports rest only when no pulse slot and no brush carries strength", () => {
@@ -72,16 +126,19 @@ describe("meadow brush settles to exactly zero", () => {
     expect(meadowBrushAtRest(0, [])).toBe(true);
   });
 
-  it("agrees with the frame loop's own running test", () => {
-    // Meadow.tsx decides whether a touch gesture is still animating from the
-    // same threshold the vertex guard uses. If these drift, a gesture can be
-    // declared finished while the shader still pays for it, or the reverse.
+  it("settles both brushes against the gesture target the frame loop damped toward", () => {
+    expect(meadow).toContain(
+      "shared.uPoke.value.w = meadowSettledBrushStrength(\n      shared.uPoke.value.w,\n      brushTarget,\n    );",
+    );
+    expect(meadow).toContain(
+      "shared.uPokeF.value.w = meadowSettledBrushStrength(\n      shared.uPokeF.value.w,\n      brushTarget,\n    );",
+    );
+    // The frame loop's own "is a gesture still animating" test and the
+    // shader's guard have to read the same threshold, or a gesture can be
+    // declared finished while the shader still pays for it.
     expect(meadow).toContain("uPoke.value.w > MEADOW_BRUSH_IDLE_EPSILON");
     expect(meadow).toContain("uPokeF.value.w > MEADOW_BRUSH_IDLE_EPSILON");
     expect(meadow).toContain("shared.uPulseActive.value =");
-    expect(meadow).toContain(
-      "shared.uPoke.value.w = meadowSettledBrushStrength(",
-    );
   });
 });
 
