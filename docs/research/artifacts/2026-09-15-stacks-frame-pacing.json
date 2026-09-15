@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "productCommit": "1c97c93a184af5526078171af543ddd3e7dd4cd0",
+  "baselineProductCommit": "88f46c1f",
+  "sharedPrerequisite": "ba4781172e38c5988cc3697cfb280782a59e2407",
+  "dependencyLockSha256": "0fd44b43ac3e6dccac95a1942e3f396fe62d9add3081f09a638dcafcda465bf1",
+  "r3fVersion": "9.7.0",
+  "deterministicResults": [
+    {
+      "name": "Hidden illustrated image decode calls during three selected-section changes",
+      "scope": "component regression",
+      "before": 3,
+      "after": 0
+    },
+    {
+      "name": "False size publications across eight actual R3F configure calls",
+      "scope": "real R3F store regression",
+      "before": 8,
+      "after": 0
+    },
+    {
+      "name": "Scroll listener reconnections across five 3D section changes",
+      "scope": "production browser regression",
+      "before": 14,
+      "after": 0
+    },
+    {
+      "name": "DPR-only configure at unchanged CSS bounds",
+      "scope": "real R3F store regression",
+      "additionalSizePublications": 0,
+      "dpr": 1.5,
+      "pixelRatioUpdates": 1,
+      "rendererResizeCalls": 1
+    }
+  ],
+  "checks": {
+    "lint": "passed",
+    "typescript": "passed",
+    "repositoryUnitFilesPassed": 563,
+    "repositoryUnitTestsPassed": 4749,
+    "unitTestsSkipped": 24,
+    "nextBuildPages": 605,
+    "searchBoundary": "passed",
+    "weightLogBoundary": "passed",
+    "productionBrowserTestsPassed": 4,
+    "webglContextLossRecovery": "selected shelf restored",
+    "buildScope": "same structural product bytes plus a separate material draft; no material source is included in the structural commits",
+    "cleanStructuralBuild": "pending"
+  },
+  "review": {
+    "product": "accepted by auditor at exact product commit; independent Claude structural review had no remaining blocker",
+    "motionRunnerSha256": "af9c55d1a14910a08f12a9dc82f48c3e399935f0da70dfccc0f7c36ccf2ad7fa",
+    "motionRunnerStatus": "updated failure capture and workload guards awaiting final review"
+  },
+  "motionBaseline": {
+    "browser": "152.0.7977.84",
+    "commit": "ba4781172e38c5988cc3697cfb280782a59e2407",
+    "buildId": "6lQa0veIlL2CMrJweZMDz",
+    "completedCases": [
+      {
+        "name": "desktop-no-preference",
+        "presentation": "live",
+        "reducedMotion": false,
+        "butterflyMounted": true,
+        "visitedPanels": [
+          "projects",
+          "blog",
+          "talks",
+          "systems",
+          "training",
+          "books",
+          "about"
+        ],
+        "runtimeErrors": []
+      },
+      {
+        "name": "desktop-live-reduce",
+        "presentation": "live",
+        "reducedMotion": true,
+        "butterflyMounted": true,
+        "visitedPanels": [
+          "blog",
+          "projects",
+          "systems",
+          "training",
+          "books",
+          "about",
+          "talks"
+        ],
+        "runtimeErrors": []
+      },
+      {
+        "name": "desktop-live-restored",
+        "presentation": "live",
+        "reducedMotion": false,
+        "butterflyMounted": true,
+        "visitedPanels": [
+          "blog",
+          "projects",
+          "systems",
+          "training",
+          "books",
+          "about",
+          "talks"
+        ],
+        "runtimeErrors": []
+      },
+      {
+        "name": "desktop-startup-reduce",
+        "presentation": "illustrated",
+        "reducedMotion": true,
+        "butterflyMounted": false,
+        "visitedPanels": [
+          "projects",
+          "blog",
+          "talks",
+          "systems",
+          "training",
+          "about",
+          "books"
+        ],
+        "runtimeErrors": []
+      },
+      {
+        "name": "mobile-no-preference",
+        "presentation": "live",
+        "reducedMotion": false,
+        "butterflyMounted": true,
+        "visitedPanels": [
+          "training",
+          "books",
+          "systems",
+          "projects",
+          "blog",
+          "about"
+        ],
+        "runtimeErrors": []
+      }
+    ],
+    "failure": "mobile-live-reduce did not satisfy !quality.moving within 30 seconds after first traverse and idle; remaining mobile cases did not execute",
+    "timingAccepted": false,
+    "reason": "Both preflights were contended. No FPS or timing savings claimed."
+  },
+  "remaining": [
+    "Clean structural branch build",
+    "Diagnose mobile live-reduce settle failure and complete all eight before/after motion cases",
+    "Review the strengthened motion runner"
+  ]
+}

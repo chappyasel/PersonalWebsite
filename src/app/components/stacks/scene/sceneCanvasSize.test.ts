@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+// _roots is a private R3F 9.7 export used to inspect the real renderer store.
+// Revisit this test adapter when upgrading R3F; it is not a production API.
 import { _roots, createRoot } from "@react-three/fiber";
 import type { WebGLRenderer } from "three";
 import { expect, it, vi } from "vitest";
@@ -19,12 +21,13 @@ it("does not publish phantom resizes when Canvas reconfigures with full measured
     bottom: 900,
   };
   const resize = vi.fn();
+  const pixelRatio = vi.fn();
   const options = {
     frameloop: "never" as const,
     size: bounds,
     gl: {
       render: vi.fn(),
-      setPixelRatio: vi.fn(),
+      setPixelRatio: pixelRatio,
       setSize: resize,
       domElement: canvas,
     } as unknown as WebGLRenderer,
@@ -73,6 +76,17 @@ it("does not publish phantom resizes when Canvas reconfigures with full measured
     expect(store.getState().setSize).toBe(current);
     store.getState().setSize(900, 1440);
     expect(publications).toBe(3);
+
+    // The quality ladder can change DPR without changing any CSS bounds.
+    const unchangedSize = store.getState().size;
+    resize.mockClear();
+    pixelRatio.mockClear();
+    await root.configure({ ...options, size: portraitBounds, dpr: 1.5 });
+    expect(publications).toBe(3);
+    expect(store.getState().size).toBe(unchangedSize);
+    expect(store.getState().viewport.dpr).toBe(1.5);
+    expect(pixelRatio).toHaveBeenCalledExactlyOnceWith(1.5);
+    expect(resize).toHaveBeenCalledTimes(1);
     stop();
   } finally {
     _roots.delete(canvas);
