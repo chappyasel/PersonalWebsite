@@ -133,6 +133,14 @@ describe("meadow brush settles to exactly zero without eating a live gesture", (
     expect(meadow).toContain(
       "shared.uPokeF.value.w = meadowSettledBrushStrength(\n      shared.uPokeF.value.w,\n      brushTarget,\n    );",
     );
+    // The target has to be the one the damps actually aimed at, taken after
+    // them and inside the pointer block, or the settle is reading a stale or
+    // absent gesture and the unit regression above proves nothing about the
+    // shipped loop.
+    expect(meadow).toContain("let brushTarget = 0;");
+    expect(meadow).toMatch(
+      /MEADOW_POKE\.flowerReleaseLambda,\s*\n\s*delta,\s*\n\s*\);\s*\n\s*brushTarget = target;/,
+    );
     // The frame loop's own "is a gesture still animating" test and the
     // shader's guard have to read the same threshold, or a gesture can be
     // declared finished while the shader still pays for it.
