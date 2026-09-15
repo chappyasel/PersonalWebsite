@@ -24,6 +24,7 @@ import {
 import { isRoomPathname } from "~/lib/site/roomRoutes";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
+import { notifyRoomTakeover } from "./coarseTravelOwnership";
 import { dimensionTravel } from "./dimensionTravel";
 import {
   isStacksScrollableTarget,
@@ -38,6 +39,11 @@ export function navigateRoom(
   { rendererEnabled = true, instant = false } = {},
 ) {
   if (!Number.isFinite(position)) return;
+  // An explicit destination outranks any coarse gesture still in flight.
+  // Synchronous, because the scroll write below lands before anything else
+  // could notice, and a clamp still armed from the old gesture would drag
+  // this navigation back inside that gesture's window.
+  notifyRoomTakeover();
   const target = Math.max(0, Math.min(UNIT_COUNT - 1, position));
   const state = useStacks.getState();
   const command = instant ? state.jumpTo : state.travelTo;
@@ -231,6 +237,12 @@ export default function RoomNavigation({
         window.location.hash,
       );
       lastLocation.current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      // An explicit destination revokes a coarse gesture's ownership even when
+      // it names the stop we are already on. A search result for the current
+      // section, or a popstate that lands back on it, returns below without
+      // reaching navigateRoom — and a gesture still in flight would keep the
+      // clamp armed over a visitor who has just told us where they want to be.
+      notifyRoomTakeover();
       const nextMirrored = {
         activeUnit: Math.round(target),
         golfFocused: golfFocusedForScenePosition(target),
