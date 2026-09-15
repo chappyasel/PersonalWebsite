@@ -2,8 +2,8 @@
 import UnitRail from "../dom/UnitRail";
 import { useStacks } from "../store";
 import { cleanup, render } from "@testing-library/react";
-import Link from "next/link";
 import userEvent from "@testing-library/user-event";
+import Link from "next/link";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { RoomChrome } from "./RoomChrome";
@@ -42,6 +42,7 @@ it("keeps theme selection while holding scene controls until actual live present
     hidden: true,
   });
   expect(view.getByText("Chappy Asel")).not.toBeNull();
+  expect(view.getByRole("button", { name: "Search the site" })).not.toBeNull();
   expect(view.getByRole("button", { name: "Change theme" })).not.toBeNull();
   for (const name of [
     "Field Notes",

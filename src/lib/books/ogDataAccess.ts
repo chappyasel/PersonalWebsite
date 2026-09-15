@@ -7,25 +7,21 @@ import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
 
+import { findBookById } from "./bookLookup";
 import type { BaseBook } from "./types";
 
 /**
  * Fetch a book by ID for OG image generation
  * This is edge-runtime compatible (no tRPC)
  *
- * @param bookId - The book's Notion page ID
+ * @param bookId - The book's current or legacy slug
  * @returns The book with tags
  * @throws Error if book not found
  */
 export async function getBookForOG(
   bookId: string,
 ): Promise<BaseBook & { coverColor: string | null }> {
-  const book = await db.query.books.findFirst({
-    where: eq(books.id, bookId),
-    with: {
-      tags: true,
-    },
-  });
+  const book = await findBookById(bookId);
 
   if (!book) {
     throw new Error(`Book not found: ${bookId}`);
@@ -67,12 +63,7 @@ export async function getBookForOG(
 export async function getBookWithNotes(
   bookId: string,
 ): Promise<(BaseBook & { notes: string }) | null> {
-  const book = await db.query.books.findFirst({
-    where: eq(books.id, bookId),
-    with: {
-      tags: true,
-    },
-  });
+  const book = await findBookById(bookId);
 
   if (!book) {
     return null;

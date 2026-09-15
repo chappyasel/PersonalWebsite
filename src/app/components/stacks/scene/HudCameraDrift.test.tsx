@@ -43,7 +43,10 @@ vi.mock("@react-three/fiber", async () => {
   };
 });
 vi.mock("../boot/worldBootSession", () => ({
-  worldBoot: { getView: () => ({ revealed: true, presentation: "live" }) },
+  worldBoot: {
+    subscribe: () => () => undefined,
+    getView: () => ({ revealed: true, presentation: "live" }),
+  },
 }));
 vi.mock("../store", () => ({
   progressRef: runtime.progress,

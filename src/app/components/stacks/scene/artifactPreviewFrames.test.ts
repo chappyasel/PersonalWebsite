@@ -18,7 +18,14 @@ const FLAT_PRINT: ArtifactPreviewFrame = {
 afterEach(resetArtifactPreviewFramesForTests);
 
 describe("artifact preview frame registry", () => {
-  it("registers a form's edges and releases them on unmount", () => {
+  it("registers a form's edges and falls back to the capture on unmount", () => {
+    // Releasing used to leave nothing behind. There is a floor under the
+    // registry now — the frames captured from the live room, which the 2D
+    // illustration reads because none of its forms ever mount — so a form
+    // leaving reveals that rather than deleting the id.
+    const captured = artifactPreviewFrameFor("about-collective-group-v8");
+    expect(captured).not.toBeNull();
+
     const release = registerArtifactPreviewFrame(
       "about-collective-group-v8",
       FLAT_PRINT,
@@ -27,7 +34,9 @@ describe("artifact preview frame registry", () => {
       FLAT_PRINT,
     );
     release();
-    expect(artifactPreviewFrameFor("about-collective-group-v8")).toBeNull();
+    expect(artifactPreviewFrameFor("about-collective-group-v8")).toEqual(
+      captured,
+    );
   });
 
   it("carries the exact scene texture into the fullscreen handoff", () => {

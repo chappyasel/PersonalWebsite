@@ -5,6 +5,8 @@
   --room-entry-content-offset: 0px;
   --room-entry-nav-opacity: 1;
   --room-entry-nav-offset: 0px;
+  --room-entry-nav-delay: 0ms;
+  --room-entry-nav-slide-ms: 650ms;
 }
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
@@ -167,6 +169,7 @@
   :is(
     [data-placard-surface],
     .placard-section-heading,
+    .stacks-quotes,
     .placard-sections h1,
     [data-placard-surface] ~ :not([data-placard-surface])
   ) {
@@ -179,7 +182,7 @@
     [data-room-entrance="placing"]
   )
   :is(
-    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-desktop > .stacks-hud-drift,
     .stacks-unit-rail-mobile,
     .stacks-wordmark,
     .stacks-theme-toggle
@@ -190,14 +193,15 @@
 }
 .stacks-world-shell[data-room-entrance="placing"]
   :is(
-    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-desktop > .stacks-hud-drift,
     .stacks-unit-rail-mobile,
     .stacks-wordmark,
     .stacks-theme-toggle
   ) {
   transition:
-    opacity 500ms ease-out,
-    translate 650ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 500ms ease-out var(--room-entry-nav-delay),
+    translate var(--room-entry-nav-slide-ms) cubic-bezier(0.16, 1, 0.3, 1)
+      var(--room-entry-nav-delay);
 }
 /* Finish a skipped arrival immediately while the illustration owns the screen.
    Release this override for the live room's overlay return transitions. */
@@ -205,7 +209,7 @@
     [data-room-entrance="complete"][data-room-presentation="illustrated"]
   )
   :is(
-    .stacks-unit-rail-desktop,
+    .stacks-unit-rail-desktop > .stacks-hud-drift,
     .stacks-unit-rail-mobile,
     .stacks-wordmark,
     .stacks-theme-toggle
@@ -215,6 +219,12 @@
 }
 
 @media (min-width: 1200px) {
+  .stacks-world-shell[data-room-entrance="placing"] {
+    /* The 850ms name move reaches 75% of its distance at about 205ms
+       with cubic-bezier(0.22, 1, 0.36, 1). Finish before its handoff. */
+    --room-entry-nav-delay: 205ms;
+    --room-entry-nav-slide-ms: 620ms;
+  }
   .room-illustrated-chrome .stacks-wordmark {
     top: max(1.25rem, env(safe-area-inset-top, 0px));
     left: max(1.75rem, env(safe-area-inset-left, 0px));
@@ -232,6 +242,7 @@
     :is(
       [data-placard-surface],
       .placard-section-heading,
+      .stacks-quotes,
       .placard-sections h1,
       [data-placard-surface] ~ :not([data-placard-surface])
     ) {
@@ -278,6 +289,7 @@
   .stacks-world-shell[data-room-entrance]
     :is(
       .stacks-unit-rail-desktop,
+      .stacks-unit-rail-desktop > .stacks-hud-drift,
       .stacks-unit-rail-mobile,
       .stacks-wordmark,
       .stacks-theme-toggle,

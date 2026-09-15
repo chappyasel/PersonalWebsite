@@ -21,7 +21,6 @@
     --homepage-card-title-size: 1.125rem;
     --homepage-card-body-size: 0.9375rem;
     --homepage-card-meta-size: 0.8125rem;
-
   }
 }
 @container homepage-card (min-width: 600px) {
@@ -30,7 +29,6 @@
     --homepage-card-title-size: 1.25rem;
     --homepage-card-body-size: 1rem;
     --homepage-card-meta-size: 0.875rem;
-
   }
 }
 @layer components {
@@ -58,12 +56,18 @@
        title, author, stars, length, and a single date line. */
     --book-preview-cover-fallback: calc(
       var(--homepage-card-body-size, 0.875rem) * 1.5 +
-      var(--homepage-card-meta-size, 0.75rem) * 2.666 +
-      (var(--homepage-card-meta-size, 0.75rem) - 0.0625rem) * 2.666 +
-      0.5625rem
+        var(--homepage-card-meta-size, 0.75rem) * 2.666 +
+        (var(--homepage-card-meta-size, 0.75rem) - 0.0625rem) * 2.666 +
+        0.5625rem
     );
-    --book-preview-cover-size: var(--book-preview-cover-height, var(--book-preview-cover-fallback));
-    grid-template-columns: calc(var(--book-preview-cover-size) * 2 / 3) minmax(0, 1fr);
+    --book-preview-cover-size: var(
+      --book-preview-cover-height,
+      var(--book-preview-cover-fallback)
+    );
+    grid-template-columns: calc(var(--book-preview-cover-size) * 2 / 3) minmax(
+        0,
+        1fr
+      );
   }
   /* Book length and reading dates sit one pixel below the author label. */
   .book-preview-detail {
@@ -80,15 +84,22 @@
 
 /* Homepage cards share corner highlights in the scene and flat layout.
    Scene-specific fills and backdrop filters stay with the placards. */
-:where([data-placard-surface], [data-placard-media-highlight], html[data-world] .field-notes-glass-tooltip, html[data-world] .stacks-glass-tooltip, html[data-world] [data-home-glass]) {
+:where(
+    [data-placard-surface],
+    [data-placard-media-highlight],
+    html:is([data-world], [data-room-view]) .field-notes-glass-tooltip,
+    html:is([data-world], [data-room-view]) .stacks-glass-tooltip,
+    html:is([data-world], [data-room-view]) [data-home-glass]
+  ) {
   /* Anchor the edge when blur is disabled; explicit absolute layers win. */
   position: relative;
 }
 [data-placard-surface],
 [data-placard-media-highlight],
-html[data-world] [data-home-glass],
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
-html[data-world] .field-notes-stamp-tooltip {
+html:is([data-world], [data-room-view]) [data-home-glass],
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html:is([data-world], [data-room-view]) .field-notes-stamp-tooltip {
   --placard-edge-blend: soft-light;
   --placard-edge-width: 2px;
   --placard-edge-softness: 0px;
@@ -97,21 +108,20 @@ html[data-world] .field-notes-stamp-tooltip {
   /* The lower edge shades pale artwork in light mode and catches a faint
      reflection in dark mode, independently of the top-left color blend. */
   --placard-edge-bottom: rgb(0 0 0 / 0.18);
-  --placard-media-shadow:
-    0 2px 3px -1px rgb(0 0 0 / 0.20),
+  --placard-media-shadow: 0 2px 3px -1px rgb(0 0 0 / 0.2),
     2px 6px 12px -4px rgb(0 0 0 / 0.24);
   isolation: isolate;
 }
 .dark [data-placard-surface],
 .dark [data-placard-media-highlight],
-html.dark[data-world] [data-home-glass],
-html.dark[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip) {
+html.dark:is([data-world], [data-room-view]) [data-home-glass],
+html.dark:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip) {
   --placard-edge-top: rgb(255 255 255 / 0.24);
   --placard-edge-reflection-top: rgb(255 255 255 / 0.09);
   --placard-edge-bottom: rgb(255 255 255 / 0.09);
-  --placard-media-shadow:
-    0 2px 3px -1px rgb(0 0 0 / 0.40),
-    2px 6px 12px -4px rgb(0 0 0 / 0.50);
+  --placard-media-shadow: 0 2px 3px -1px rgb(0 0 0 / 0.4),
+    2px 6px 12px -4px rgb(0 0 0 / 0.5);
 }
 .dark [data-placard-media-highlight]:has(img) {
   /* Image edges need a little more reflection than the blurred card fill.
@@ -129,7 +139,9 @@ html:not(.dark) [data-placard-media="card-cover"] {
 [data-placard-media-highlight="raised"] {
   box-shadow: var(--placard-media-shadow);
 }
-html:not(.dark) a:is(:hover, :focus-visible) [data-placard-media-highlight="raised"] {
+html:not(.dark)
+  a:is(:hover, :focus-visible)
+  [data-placard-media-highlight="raised"] {
   --placard-edge-top: rgb(255 255 255 / 0.88);
 }
 [data-placard-surface] {
@@ -137,15 +149,14 @@ html:not(.dark) a:is(:hover, :focus-visible) [data-placard-media-highlight="rais
      second outline and offsets that layer from the card's outer radius. */
   border: 0 !important;
   box-shadow:
-    0 1px 2px rgb(28 25 23 / 0.10),
-    0 12px 30px -20px rgb(28 25 23 / 0.40) !important;
+    0 1px 2px rgb(28 25 23 / 0.1),
+    0 12px 30px -20px rgb(28 25 23 / 0.4) !important;
   transition-property: background-color, box-shadow;
   transition-duration: 200ms;
   transition-timing-function: ease-out;
 }
 .dark [data-placard-surface] {
-  box-shadow:
-    0 14px 34px -18px rgb(0 0 0 / 0.86) !important;
+  box-shadow: 0 14px 34px -18px rgb(0 0 0 / 0.86) !important;
 }
 html:not(.dark) [data-placard-link]:hover [data-placard-surface],
 html:not(.dark) [data-placard-link]:focus-visible [data-placard-surface],
@@ -164,8 +175,7 @@ html:not(.dark) a[data-placard-surface]:focus-visible {
 .dark a[data-placard-surface]:hover,
 .dark a:focus-visible [data-placard-surface],
 .dark a[data-placard-surface]:focus-visible {
-  box-shadow:
-    0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
+  box-shadow: 0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
 }
 
 /* Brighten the top-left colors, then add the white reflection and a subtler
@@ -176,10 +186,12 @@ html:not(.dark) a[data-placard-surface]:focus-visible {
 [data-placard-media-highlight]::before,
 [data-placard-surface]::after,
 [data-placard-media-highlight]::after,
-html[data-world] [data-home-glass]::before,
-html[data-world] [data-home-glass]::after,
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
+html:is([data-world], [data-room-view]) [data-home-glass]::before,
+html:is([data-world], [data-room-view]) [data-home-glass]::after,
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
 html[data-world] [data-tooltip-paper-edge]::before,
 html[data-world] [data-tooltip-paper-edge]::after {
   content: "";
@@ -192,48 +204,55 @@ html[data-world] [data-tooltip-paper-edge]::after {
 }
 [data-placard-surface]::after,
 [data-placard-media-highlight]::after,
-html[data-world] [data-home-glass]::after,
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
+html:is([data-world], [data-room-view]) [data-home-glass]::after,
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
 html[data-world] [data-tooltip-paper-edge]::after {
   mix-blend-mode: var(--placard-edge-blend);
-  box-shadow:
-    inset var(--placard-edge-width) var(--placard-edge-width) var(--placard-edge-softness, 0px) var(--placard-edge-top);
+  box-shadow: inset var(--placard-edge-width) var(--placard-edge-width)
+    var(--placard-edge-softness, 0px) var(--placard-edge-top);
 }
 [data-placard-surface]::before,
 [data-placard-media-highlight]::before,
-html[data-world] [data-home-glass]::before,
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
+html:is([data-world], [data-room-view]) [data-home-glass]::before,
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
 html[data-world] [data-tooltip-paper-edge]::before {
   z-index: 2;
   box-shadow:
-    inset var(--placard-edge-width) var(--placard-edge-width) var(--placard-edge-softness, 0px) var(--placard-edge-reflection-top),
-    inset calc(-1 * var(--placard-edge-width)) var(--placard-edge-bottom-y, calc(-1 * var(--placard-edge-width))) var(--placard-edge-softness, 0px) var(--placard-edge-bottom);
+    inset var(--placard-edge-width) var(--placard-edge-width)
+      var(--placard-edge-softness, 0px) var(--placard-edge-reflection-top),
+    inset calc(-1 * var(--placard-edge-width))
+      var(--placard-edge-bottom-y, calc(-1 * var(--placard-edge-width)))
+      var(--placard-edge-softness, 0px) var(--placard-edge-bottom);
 }
 
 /* Large reading panels use a softly rounded bevel with less contrast than
    their corner controls. Keep it above sticky headers as content scrolls. */
-html[data-world] [data-home-glass="modal"] {
+html:is([data-world], [data-room-view]) [data-home-glass="modal"] {
   --placard-edge-width: 2px;
   --placard-edge-softness: 1.5px;
   --placard-edge-top: rgb(255 255 255 / 0.42);
   --placard-edge-reflection-top: rgb(255 255 255 / 0.14);
   --placard-edge-bottom: rgb(0 0 0 / 0.09);
 }
-html.dark[data-world] [data-home-glass="modal"] {
+html.dark:is([data-world], [data-room-view]) [data-home-glass="modal"] {
   --placard-edge-top: rgb(255 255 255 / 0.14);
   --placard-edge-reflection-top: rgb(255 255 255 / 0.045);
   --placard-edge-bottom: rgb(255 255 255 / 0.045);
 }
-html[data-world] [data-home-glass="modal"]::after {
+html:is([data-world], [data-room-view]) [data-home-glass="modal"]::after {
   z-index: 30;
 }
-html[data-world] [data-home-glass="modal"]::before {
+html:is([data-world], [data-room-view]) [data-home-glass="modal"]::before {
   z-index: 31;
 }
 
 /* Keep the search panel's continuous perimeter quieter than the card edges. */
-html[data-world] [data-universal-search-material][data-home-glass]::before,
-html[data-world] [data-universal-search-material][data-home-glass]::after {
+html:is([data-world], [data-room-view])
+  [data-universal-search-material][data-home-glass]::before,
+html:is([data-world], [data-room-view])
+  [data-universal-search-material][data-home-glass]::after {
   opacity: 0.5;
 }
 
@@ -268,16 +287,26 @@ html[data-world] [data-search-glass-divider]::after {
 }
 html[data-world] [data-search-glass-divider]::before {
   z-index: 2;
-  background: linear-gradient(90deg, var(--placard-edge-reflection-top), var(--placard-edge-bottom));
+  background: linear-gradient(
+    90deg,
+    var(--placard-edge-reflection-top),
+    var(--placard-edge-bottom)
+  );
 }
 
 /* Mobile light glass stacks a sheet and card reflections over one backdrop.
    Soften both highlight layers, including media edges and hover highlights. */
 @media (width < 1200px) {
-  html[data-world]:not(.dark) [data-home-glass="sheet"]::before,
-  html[data-world]:not(.dark) [data-home-glass="sheet"]::after,
-  html[data-world]:not(.dark) [data-stacks-mobile-panel] :is([data-placard-surface], [data-placard-media-highlight])::before,
-  html[data-world]:not(.dark) [data-stacks-mobile-panel] :is([data-placard-surface], [data-placard-media-highlight])::after {
+  html:is([data-world], [data-room-view]):not(.dark)
+    [data-home-glass="sheet"]::before,
+  html:is([data-world], [data-room-view]):not(.dark)
+    [data-home-glass="sheet"]::after,
+  html[data-world]:not(.dark)
+    [data-stacks-mobile-panel]
+    :is([data-placard-surface], [data-placard-media-highlight])::before,
+  html[data-world]:not(.dark)
+    [data-stacks-mobile-panel]
+    :is([data-placard-surface], [data-placard-media-highlight])::after {
     opacity: 0.5;
   }
 }
@@ -337,7 +366,7 @@ html[data-world] [data-search-glass-divider]::before {
 
 /* Tooltips are dual-material like the Keycap: flat pages (Books,
    Weightlifting, Manual, Routine) get an opaque popover card in theme
-   tokens, and the homepage's 3D world — marked by data-world on the root —
+   tokens, and both homepage room views
    upgrades the same class to the original Field Notes launcher glass.
    Typography stays local to each caller, so handwritten, serif, sans, and
    object labels keep their current type. */
@@ -351,8 +380,8 @@ html[data-world] [data-search-glass-divider]::before {
 /* The glass needs its blur here rather than in caller utilities so flat
    pages never pay for a backdrop-filter they can't see. Do not add a manual
    -webkit copy (see .stacks-glass-tooltip above). */
-html[data-world] .field-notes-glass-tooltip,
-html[data-world] [data-home-glass="floating"] {
+html:is([data-world], [data-room-view]) .field-notes-glass-tooltip,
+html:is([data-world], [data-room-view]) [data-home-glass="floating"] {
   border-color: rgb(255 255 255 / 0.24);
   background-color: rgb(24 32 36 / 0.38);
   color: rgb(255 255 255 / 0.96);
@@ -364,7 +393,8 @@ html[data-world] [data-home-glass="floating"] {
    paper, not on the room: the glass went mid-grey over the white sheet with
    the page's dark ink still on it. While the overlay owns the screen the
    flat card comes back; the world's own tooltips are under it and closed. */
-html[data-world][data-overlay-open] .field-notes-glass-tooltip {
+html:is([data-world], [data-room-view])[data-overlay-open]
+  .field-notes-glass-tooltip {
   border-color: hsl(var(--border));
   background-color: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
@@ -376,59 +406,67 @@ html[data-world][data-overlay-open] .field-notes-glass-tooltip {
    fill, blur, or positioning. Reading-overlay tooltips keep their flat card.
    Stamp hints keep the light paper palette even in the dark room, with a
    separate edge node so their stitched ::after decoration stays intact. */
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
-html[data-world] [data-home-glass="floating"],
-html[data-world] .field-notes-stamp-tooltip {
-  --stacks-tooltip-shadow:
-    0 5px 12px -3px rgb(0 0 0 / 0.16),
-    0 14px 36px -6px rgb(0 0 0 / 0.30);
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html:is([data-world], [data-room-view]) [data-home-glass="floating"],
+html:is([data-world], [data-room-view]) .field-notes-stamp-tooltip {
+  --stacks-tooltip-shadow: 0 5px 12px -3px rgb(0 0 0 / 0.16),
+    0 14px 36px -6px rgb(0 0 0 / 0.3);
   border: 0;
   box-shadow: var(--stacks-tooltip-shadow);
 }
-html.dark[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
-html.dark[data-world] [data-home-glass="floating"] {
-  --stacks-tooltip-shadow:
-    0 5px 12px -3px rgb(0 0 0 / 0.26),
+html.dark:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html.dark:is([data-world], [data-room-view]) [data-home-glass="floating"] {
+  --stacks-tooltip-shadow: 0 5px 12px -3px rgb(0 0 0 / 0.26),
     0 14px 36px -6px rgb(0 0 0 / 0.55);
 }
 
-html[data-world]:not([data-overlay-open]) :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
-html[data-world] [data-home-glass="floating"],
-html[data-world] .field-notes-stamp-tooltip {
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
+html:is([data-world], [data-room-view]) [data-home-glass="floating"],
+html:is([data-world], [data-room-view]) .field-notes-stamp-tooltip {
   --placard-edge-width: 1px;
 }
 
 /* Match compact hints to the room and globe labels' spacing and curvature.
    Their smaller bodies need less edge contrast; reference labels stay as-is. */
-html[data-world]:not([data-overlay-open]) .home-control-tooltip,
-html[data-world] [data-home-glass="floating"] {
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  .home-control-tooltip,
+html:is([data-world], [data-room-view]) [data-home-glass="floating"] {
   --placard-edge-top: rgb(255 255 255 / 0.585);
   --placard-edge-reflection-top: rgb(255 255 255 / 0.21);
   --placard-edge-bottom: rgb(0 0 0 / 0.135);
   border-radius: 1rem;
 }
-html.dark[data-world]:not([data-overlay-open]) .home-control-tooltip,
-html.dark[data-world] [data-home-glass="floating"] {
+html.dark:is([data-world], [data-room-view]):not([data-overlay-open])
+  .home-control-tooltip,
+html.dark:is([data-world], [data-room-view]) [data-home-glass="floating"] {
   --placard-edge-top: rgb(255 255 255 / 0.18);
   --placard-edge-reflection-top: rgb(255 255 255 / 0.0675);
   --placard-edge-bottom: rgb(255 255 255 / 0.0675);
 }
-html[data-world]:not([data-overlay-open]) .home-control-tooltip {
+html:is([data-world], [data-room-view]):not([data-overlay-open])
+  .home-control-tooltip {
   padding: 0.625rem 0.875rem;
 }
-html[data-world] [data-home-glass="floating"] {
+html:is([data-world], [data-room-view]) [data-home-glass="floating"] {
   padding: 0.5rem;
 }
-html[data-world] [data-home-glass="floating"] [role="radio"] {
+html:is([data-world], [data-room-view])
+  [data-home-glass="floating"]
+  [role="radio"] {
   padding-inline: 0.375rem;
   border-radius: 0.625rem;
 }
 
 /* Menu rows use a translucent highlight over the same glass as tooltips. */
-html[data-world] [data-home-glass="floating"] [role="radio"]:is(:hover, :focus-visible) {
+html:is([data-world], [data-room-view])
+  [data-home-glass="floating"]
+  [role="radio"]:is(:hover, :focus-visible) {
   background-color: rgb(255 255 255 / 0.12);
 }
-html[data-world] [data-home-glass] {
+html:is([data-world], [data-room-view]) [data-home-glass] {
   border: 0;
 }
 
@@ -608,39 +646,45 @@ html[data-world].dark .sheet-control:hover {
 
 /* These controls sit close to their image or document. Keep the authored
    fills and filters, and replace the old border/inset pair with shared edges. */
-html[data-world] [data-home-glass="control"],
-html.dark[data-world] [data-home-glass="control"] {
+html:is([data-world], [data-room-view]) [data-home-glass="control"],
+html.dark:is([data-world], [data-room-view]) [data-home-glass="control"] {
   --placard-edge-width: 1px;
   --placard-edge-softness: 0px;
   box-shadow: var(--placard-media-shadow);
 }
 
 /* Modal controls sit close to the panel, with a restrained rim and shadow. */
-html[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"] {
-  --placard-media-shadow:
-    0 1px 2px rgb(0 0 0 / 0.10),
+html:is([data-world], [data-room-view])
+  :is(.sheet-control, .world-glass-control)[data-home-glass="control"] {
+  --placard-media-shadow: 0 1px 2px rgb(0 0 0 / 0.1),
     0 3px 8px -3px rgb(0 0 0 / 0.12);
 }
-html.dark[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"] {
-  --placard-media-shadow:
-    0 1px 2px rgb(0 0 0 / 0.20),
+html.dark:is([data-world], [data-room-view])
+  :is(.sheet-control, .world-glass-control)[data-home-glass="control"] {
+  --placard-media-shadow: 0 1px 2px rgb(0 0 0 / 0.2),
     0 3px 8px -3px rgb(0 0 0 / 0.24);
 }
-html[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"]::before,
-html[data-world] :is(.sheet-control, .world-glass-control)[data-home-glass="control"]::after {
+html:is([data-world], [data-room-view])
+  :is(.sheet-control, .world-glass-control)[data-home-glass="control"]::before,
+html:is([data-world], [data-room-view])
+  :is(.sheet-control, .world-glass-control)[data-home-glass="control"]::after {
   opacity: 0.6;
 }
-html[data-world] .sheet-control[data-home-glass="control"] {
+html:is([data-world], [data-room-view])
+  .sheet-control[data-home-glass="control"] {
   --world-control-fill: rgb(255 255 255 / 0.38);
 }
-html[data-world] .sheet-control[data-home-glass="control"]:hover {
+html:is([data-world], [data-room-view])
+  .sheet-control[data-home-glass="control"]:hover {
   --world-control-fill: rgb(255 255 255 / 0.5);
 }
-html.dark[data-world] .sheet-control[data-home-glass="control"] {
+html.dark:is([data-world], [data-room-view])
+  .sheet-control[data-home-glass="control"] {
   --world-control-fill: rgb(0 0 0 / 0.035);
   backdrop-filter: blur(32px) saturate(0.42) brightness(0.94);
 }
-html.dark[data-world] .sheet-control[data-home-glass="control"]:hover {
+html.dark:is([data-world], [data-room-view])
+  .sheet-control[data-home-glass="control"]:hover {
   --world-control-fill: rgb(0 0 0 / 0.02);
 }
 
@@ -1927,8 +1971,7 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 }
 
 .stacks-boot-coordination-base,
-.stacks-boot-coordination-stem,
-.stacks-boot-coordination-core {
+.stacks-boot-coordination-stem {
   fill: #030507;
 }
 
@@ -1995,6 +2038,31 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 .stacks-boot-coordination-dither {
   fill: #030507;
   shape-rendering: crispEdges;
+}
+
+/* Eight cached drawings, one visible at a time. No animation-frame JS. */
+.stacks-boot-coordination-dither-frame {
+  animation: stacks-coordination-dither 1.6s steps(1, end) infinite;
+}
+
+@keyframes stacks-coordination-dither {
+  0% {
+    opacity: 1;
+  }
+  12.5%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stacks-boot-coordination-dither-frame {
+    animation: none;
+    opacity: 0;
+  }
+  .stacks-boot-coordination-dither-frame:first-child {
+    opacity: 1;
+  }
 }
 
 .stacks-boot-coordination-node[data-theme="human"] {

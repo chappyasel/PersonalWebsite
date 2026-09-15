@@ -88,7 +88,7 @@ export default memo(function IllustratedRoom(props: IllustratedRoomProps) {
   );
 });
 
-/** An image layer only. PlacardLayer continues to own every content panel. */
+/** Artwork and object labels. PlacardLayer owns every content panel. */
 function ActiveIllustratedRoom({
   data,
   theme,
@@ -316,6 +316,16 @@ function ActiveIllustratedRoom({
                 (position === drawingUnit || entranceSettled) && (
                   <IllustrationStage
                     unitIndex={position}
+                    interactionData={
+                      visible &&
+                      navigationEnabled &&
+                      entranceSettled &&
+                      !moving &&
+                      !interactingWithPanel &&
+                      position === drawingUnit
+                        ? data
+                        : undefined
+                    }
                     // Offscreen shelves stay mounted so travel never remounts
                     // the row; only their fetch priority yields.
                     active={position === drawingUnit}
@@ -381,6 +391,9 @@ function RoomRecoveryNotice({ onRequest3D }: { onRequest3D: () => void }) {
         <Button
           type="button"
           variant="outline"
+          // Same edge and contact shadow the room gives its own controls,
+          // so the button belongs to the glass rather than sitting on it.
+          data-home-glass="pill"
           className="room-illustration-retry"
           onClick={onRequest3D}
         >

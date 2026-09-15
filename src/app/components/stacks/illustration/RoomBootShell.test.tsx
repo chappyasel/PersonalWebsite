@@ -201,8 +201,7 @@ it("keeps the pre-paint geometry in the server shell and drops it once hydrated"
     (script) => script.textContent ?? "",
   );
   expect(scripts).toHaveLength(7);
-  for (const script of scripts)
-    expect(script).toContain("--room-frame-");
+  for (const script of scripts) expect(script).toContain("--room-frame-");
   // The unit selection script still runs ahead of any shelf markup.
   expect(shell.querySelector("script")?.textContent).toContain(
     "data-room-first-unit",
@@ -272,4 +271,43 @@ it("keeps theme resolution out of the server request and forwards route boot own
   expect(page).toContain("<StacksHome data={data}");
   // data.ts imports client icon contexts and cannot enter the server shell.
   expect(shell).not.toContain('from "../data"');
+});
+
+it("holds the opening wordmark fully white until corner placement begins", () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync(
+    "src/app/components/stacks/illustration/roomBootShell.css",
+    "utf8",
+  );
+  const root = markup(
+    <>
+      <RoomBootShell unitIndex={0} illustrated />
+      <div className="stacks-world-shell" />
+    </>,
+  );
+  const html = document.documentElement;
+  const previousView = html.getAttribute("data-room-view");
+  html.setAttribute("data-room-view", "illustrated");
+  document.head.append(style);
+  document.body.append(root);
+  try {
+    const name = root.querySelector(".room-entry-wordmark")!;
+    const shell = root.querySelector(".stacks-world-shell")!;
+    for (const phase of [null, "shelf", "items"]) {
+      if (phase) shell.setAttribute("data-room-entrance", phase);
+      expect(getComputedStyle(name).opacity, `phase ${phase}`).toBe("1");
+      expect(getComputedStyle(name).color, `phase ${phase}`).toBe(
+        "rgb(255, 255, 255)",
+      );
+    }
+    shell.setAttribute("data-room-entrance", "placing");
+    // jsdom does not resolve custom properties inside opacity.
+    expect(getComputedStyle(name).opacity).not.toBe("1");
+    expect(getComputedStyle(name).color).toBe("var(--room-chrome-ink)");
+  } finally {
+    root.remove();
+    style.remove();
+    if (previousView === null) html.removeAttribute("data-room-view");
+    else html.setAttribute("data-room-view", previousView);
+  }
 });

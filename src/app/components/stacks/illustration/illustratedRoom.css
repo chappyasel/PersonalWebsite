@@ -1,19 +1,12 @@
 /* Illustration and live room share one shell and one resident content tree. */
-.room-illustration {
+.room-illustration,
+.stacks-world-shell {
   /* Pastel counterparts of theme.ts's blue sky and green meadow. */
-  --room-sky-top: #7eaacd;
-  --room-sky-horizon: #c3dbea;
-  --room-meadow-far: #bfd6b5;
-  --room-meadow-middle: #9db993;
-  --room-meadow-near: #809e76;
-  --room-illustration-scale: 1.4;
-  --room-illustration-stage-left: 0px;
-  --room-illustration-stage-right: 0px;
-  --room-illustration-stage-top: calc(env(safe-area-inset-top, 0px) + 7rem);
-  --room-illustration-sheet-peek: clamp(10.5rem, 30%, 17.5rem);
-  --room-illustration-stage-bottom: calc(
-    var(--room-illustration-sheet-peek) + 3rem
-  );
+  --room-sky-top: #699dc8;
+  --room-sky-horizon: #aecadc;
+  --room-meadow-far: #aecaa2;
+  --room-meadow-middle: #8daf82;
+  --room-meadow-near: #739668;
   --room-illustration-background: linear-gradient(
     180deg,
     var(--room-sky-top),
@@ -22,6 +15,16 @@
     var(--room-meadow-middle) 80%,
     var(--room-meadow-near)
   );
+}
+.room-illustration {
+  --room-illustration-scale: 1.4;
+  --room-illustration-stage-left: 0px;
+  --room-illustration-stage-right: 0px;
+  --room-illustration-stage-top: calc(env(safe-area-inset-top, 0px) + 7rem);
+  --room-illustration-sheet-peek: clamp(10.5rem, 30%, 17.5rem);
+  --room-illustration-stage-bottom: calc(
+    var(--room-illustration-sheet-peek) + 3rem
+  );
   position: absolute;
   inset: 0;
   isolation: isolate;
@@ -29,7 +32,8 @@
   visibility: hidden;
   pointer-events: none;
 }
-html.dark .room-illustration {
+html.dark .room-illustration,
+html.dark .stacks-world-shell {
   --room-sky-top: #26334d;
   --room-sky-horizon: #455675;
   --room-meadow-far: #526a58;
@@ -190,19 +194,30 @@ html.dark .room-illustration {
   line-height: 1.5;
   opacity: 0.8;
 }
+/* The button is a control on the glass, not a paper chip laid on top of it.
+   It used to be a 92% white slab with dark ink, which read as a sticker and
+   was the one opaque thing in the notice. Now it takes the room's own edge
+   and contact shadow through data-home-glass, and a white veil thin enough
+   to keep the tooltip material visible underneath.
+
+   No backdrop-filter of its own. The card it sits on already blurs the
+   room, and a nested filter would sample that card's composited output
+   rather than the room, which is the stacking that makes a control read
+   heavier than the surface it belongs to. The bevel and the shadow carry
+   the depth instead. */
 .room-illustration-retry {
   min-height: 2.75rem;
   min-width: 9rem;
-  border: 1px solid rgb(255 255 255 / 0.7);
+  border: 0;
   border-radius: 0.625rem;
-  background-color: rgb(255 255 255 / 0.92);
-  color: rgb(24 32 36);
+  background-color: rgb(255 255 255 / 0.14);
+  color: rgb(255 255 255 / 0.96);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  box-shadow: var(--placard-media-shadow);
 }
 .room-illustration-retry:is(:hover, :focus-visible) {
-  background-color: white;
-  color: rgb(24 32 36);
+  background-color: rgb(255 255 255 / 0.22);
+  color: rgb(255 255 255 / 0.96);
 }
 .room-illustration-dismiss {
   position: absolute;
@@ -228,11 +243,23 @@ html.dark .room-illustration {
   text-align: center;
   pointer-events: none;
 }
+html:not(.dark) .room-loading-status {
+  color: #fff;
+}
+html:not(.dark) .room-loading-status .stacks-boot-wait-notes {
+  color: rgb(255 255 255 / 0.7);
+}
 @media (width < 1200px) {
   .room-first-paint-status,
   .room-illustration-actions:has(.room-loading-status) {
     /* Fit above the existing rail without moving it during the handoff. */
     top: calc(env(safe-area-inset-top, 0px) + 0.5rem);
+  }
+  .room-illustration-actions:has(.room-illustration-error) {
+    /* The mobile rail starts at 3.5rem and is about 3em tall, so the shared
+       6.5rem put the notice's top edge against the rail's bottom edge. Drop
+       it clear of the row rather than shrinking either one. */
+    top: calc(env(safe-area-inset-top, 0px) + 7.75rem);
   }
 }
 /* The recovery action can finish fading after the drawing retires. */
@@ -434,4 +461,32 @@ html.dark
   .stacks-world-shell[data-room-presentation="illustrated"]
   .stacks-sheet-scene-dim {
   background-color: rgb(0 0 0 / 0.5);
+}
+
+/* Transparent targets follow the artwork and keep native horizontal swipes. */
+.room-illustration-hotspots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.room-illustration-hotspot {
+  position: absolute;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  pointer-events: auto;
+  touch-action: pan-x;
+  background: transparent !important;
+}
+/* Keyboard users need to see which target they are on before they open it,
+   so focus keeps its outline. The open state gets nothing: the label is
+   already on screen pointing at the object, and a ring cannot flatter it.
+   The hit boxes are generated rectangles that only loosely fit a drawn
+   object, so an outline on one reads as a stray frame in the scene rather
+   than as a highlight on the thing it belongs to. */
+.room-illustration-hotspot:focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.85);
+  outline-offset: 2px;
 }

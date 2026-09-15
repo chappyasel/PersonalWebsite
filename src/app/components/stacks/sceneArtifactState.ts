@@ -1,5 +1,6 @@
 "use client";
 
+import { worldBoot } from "./boot/worldBootSession";
 import {
   BARE_ARTIFACT_PREVIEW_FRAME,
   framedArtifactPreviewSize,
@@ -184,7 +185,9 @@ function activateSceneArtifact(id: SceneArtifactId) {
     "(prefers-reduced-motion: reduce)",
   ).matches;
   if (!artifact) return;
-  state.openSceneArtifact(id, reduceMotion);
+  // The 2D illustration opens the same inspector from a drawing rather than
+  // from a live object, so there is nothing for the handoff to animate.
+  state.openSceneArtifact(id, reduceMotion, worldBoot.getView().worldMounted);
 }
 
 export function openSceneArtifact(id: SceneArtifactId) {

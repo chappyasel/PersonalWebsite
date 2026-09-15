@@ -10,8 +10,8 @@
 // idle windows so travel never has to reconstruct them.
 import { requestBookPrefetch } from "../bookPrefetch";
 import { type StacksData, type StacksSlots, UNITS } from "../data";
-import { useRoomNavigation } from "../input/RoomNavigation";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
+import { wheelStepGesture } from "../mobile/wheelStepGesture";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
   effectivePlacardGlassMode,
@@ -123,6 +123,7 @@ import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
 import { pressLandsInRoom } from "./roomPress";
 import { BookStatsCard } from "./statsCards";
 import { useDesktopDetailsBoundary } from "./useDesktopDetailsBoundary";
+import { useSheetNavigation } from "./useSheetNavigation";
 import {
   formatLength,
   formatReadDates,
@@ -927,6 +928,8 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   side,
   dismissed,
   setDismissed,
+  swipeToAdjacentUnit,
+  horizontalWheel,
 }: {
   body: React.ReactNode;
   unitIndex: number;
@@ -934,6 +937,8 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   side: -1 | 0 | 1;
   dismissed: boolean;
   setDismissed: (dismissed: boolean) => void;
+  swipeToAdjacentUnit: (direction: -1 | 1) => boolean;
+  horizontalWheel: ReturnType<typeof wheelStepGesture>;
 }) {
   const modalOpen = useStacks((s) => s.modalOpen);
   const bookModalReturning = useStacks((s) => s.bookModalReturning);
@@ -1482,15 +1487,6 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     sheetOpacity,
   ]);
 
-  const navigate = useRoomNavigation();
-  const swipeToAdjacentUnit = useCallback(
-    (direction: -1 | 1) => {
-      const target = useStacks.getState().activeUnit + direction;
-      return target >= 0 && target < UNITS.length ? navigate(target) : false;
-    },
-    [navigate],
-  );
-
   // ONE title per sheet, and it is the unit's own name.
   //
   // The header prints `unit.label`, and the body's first heading is hidden
@@ -1836,6 +1832,16 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     // from the mobile panel reach this listener instead of moving the world.
     let wheelIntentState: MobileSheetWheelIntentState | null = null;
     const onWheel = (event: WheelEvent) => {
+      horizontalWheel(event, active);
+      if (event.ctrlKey) return;
+      if (
+        Math.abs(event.deltaX) >
+        Math.abs(event.deltaY) * MOBILE_SHEET_HORIZONTAL_DOMINANCE
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const scroller = scrollRef.current;
       const target = event.target;
       if (!scroller || !(target instanceof Node) || !scroller.contains(target))
@@ -1984,6 +1990,8 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       panel.style.userSelect = "";
     };
   }, [
+    active,
+    horizontalWheel,
     metrics,
     expanded,
     peekOverflows,
@@ -2288,7 +2296,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           y: chipY,
           visibility: chipVisibility,
         }}
-        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-bold text-foreground ${
+        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-semibold text-foreground ${
           active && chipActive ? "pointer-events-auto" : "pointer-events-none"
         }`}
       >
@@ -2318,6 +2326,13 @@ export default function PlacardLayer({
   sceneRevealed: boolean;
 }) {
   const settledActiveUnit = useStacks((s) => s.activeUnit);
+  const swipeToAdjacentUnit = useSheetNavigation();
+  // All resident panels share the same gesture, including momentum after
+  // navigation moves the next panel under the pointer.
+  const horizontalWheel = useMemo(
+    () => wheelStepGesture(swipeToAdjacentUnit),
+    [swipeToAdjacentUnit],
+  );
   const unitMapPreview = useStacks((s) => s.unitMapPreview);
   const activeUnit = unitMapPreview ?? settledActiveUnit;
   const golfFocused = useStacks((s) => s.golfFocused);
@@ -3253,6 +3268,8 @@ export default function PlacardLayer({
           side={index < activeUnit ? -1 : index > activeUnit ? 1 : 0}
           dismissed={mobileDismissed}
           setDismissed={setStacksSheetDismissed}
+          swipeToAdjacentUnit={swipeToAdjacentUnit}
+          horizontalWheel={horizontalWheel}
         />
       ))}
     </div>

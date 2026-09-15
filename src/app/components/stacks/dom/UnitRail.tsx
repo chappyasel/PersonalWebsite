@@ -24,6 +24,7 @@ import {
 } from "framer-motion";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { useUniversalSearchOpen } from "~/lib/universal-search/useUniversalSearchOpen";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { ChromeSearchButton } from "./ChromeSearchButton";
@@ -199,6 +200,7 @@ function ElasticMobileIndicator({
 
 export default function UnitRail() {
   const tapFirst = useTapFirstCapability();
+  const searchOpen = useUniversalSearchOpen();
   const activeUnit = useStacks((s) => s.activeUnit);
   const golfFocused = useStacks((s) => s.golfFocused);
   const unitMapPreview = useStacks((s) => s.unitMapPreview);
@@ -611,7 +613,7 @@ export default function UnitRail() {
             fontSize: `min(${MOBILE_RAIL_FONT_CLAMP}, calc((100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - ${2 * (HUD_MOBILE_TRAVEL_MAX_PX + 2)}px) / ${MOBILE_STEP_REM * (UNIT_COUNT + 1)}))`,
           }}
         >
-          <ChromeSearchButton mobile />
+          <ChromeSearchButton mobile active={searchOpen} />
           <div
             className="pointer-events-auto relative flex"
             // The row's font-size grows 1x to 1.2x with the viewport on the
@@ -685,14 +687,20 @@ export default function UnitRail() {
             }}
           >
             <ElasticMobileIndicator
-              displayedUnit={showGolfBall ? GOLF_STOP_POSITION : displayedUnit}
-              golfBall={showGolfBall}
+              displayedUnit={
+                searchOpen
+                  ? -1
+                  : showGolfBall
+                    ? GOLF_STOP_POSITION
+                    : displayedUnit
+              }
+              golfBall={!searchOpen && showGolfBall}
             />
             {UNITS.map((unit, i) => {
               const Icon = unit.icon;
               const current = i === activeUnit;
               const selected = i === displayedUnit;
-              const active = !golfFocused && selected;
+              const active = !searchOpen && !golfFocused && selected;
               const railLabel = unit.railLabel ?? unit.label;
               return (
                 <button

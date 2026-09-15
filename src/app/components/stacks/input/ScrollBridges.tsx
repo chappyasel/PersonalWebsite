@@ -13,15 +13,22 @@
 // double-apply deltas at inconsistent rates.
 import { GOLF_STOP_POSITION, UNIT_COUNT } from "../data";
 import { haptic } from "../mobile/liveness";
+import { openSearchFromEdge, roomEdgeMotion } from "../mobile/roomEdgeMotion";
 import {
   type TouchTravelStop,
   touchSwipeDestination,
   touchSwipeScrollBounds,
 } from "../mobile/swipeTravel";
 import { authoredTravelStops } from "../mobile/travel";
+import {
+  nativeHorizontalWheelGesture,
+  wheelStepGesture,
+  worldWheelDelta,
+} from "../mobile/wheelStepGesture";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
-import { scrollOffsetForUnit } from "../scene/worldLayout";
+import { isSeated } from "../scene/seated";
+import { STACKS_MOBILE_QUERY, scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, touchWorldRef, useStacks } from "../store";
 import { useEffect } from "react";
 
@@ -158,26 +165,54 @@ export default function ScrollBridges() {
           : 0;
     };
 
+    const edgeSearch = wheelStepGesture(() => openSearchFromEdge(), "world");
+    const nativeWheel = nativeHorizontalWheelGesture();
+    const originalOverscroll = scrollEl.style.overscrollBehaviorX;
     const onWheel = (e: WheelEvent) => {
+      const nativeHorizontal =
+        nativeWheel(e, scrollEl) &&
+        window.matchMedia(STACKS_MOBILE_QUERY).matches;
       const action = backgroundWorldGesture(
         useStacks.getState(),
         isStacksScrollableTarget(e.target),
         isUniversalSearchOpen(),
       );
-      if (action === "blocked") return;
-      if (isBrowserZoomWheel(e)) return;
+      const atSearchEdge =
+        action === "travel" &&
+        !isSeated() &&
+        window.matchMedia(STACKS_MOBILE_QUERY).matches &&
+        useStacks.getState().activeUnit === 0 &&
+        worldWheelDelta(e) < 0 &&
+        scrollEl.scrollLeft <= 2;
+      if (action === "blocked" || isBrowserZoomWheel(e)) {
+        edgeSearch(e, false);
+        return;
+      }
       if (e.deltaX !== 0 || e.deltaY !== 0) resetSelection();
       reconcileScrollRange();
-      e.preventDefault();
       e.stopPropagation();
       if (action === "collapse-and-travel") closeStacksPanel();
-      // A wheel or trackpad is fine-pointer intent even in a narrow window.
-      // Touch inspection zoom is owned by TouchInteractionLayer's vertical
-      // pointer drag; routing width-sized wheel events into that path made a
-      // narrow desktop window impossible to travel.
-      const dominant =
-        Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-      scrollEl.scrollLeft += wheelDeltaPx(e, dominant);
+      // A wheel or trackpad is fine-pointer intent, even in a narrow window.
+      const dominant = worldWheelDelta(e);
+      const delta = wheelDeltaPx(e, dominant);
+      const remaining = roomEdgeMotion.consume(delta);
+      const requested = scrollEl.scrollLeft + remaining;
+      const clamped = Math.max(0, Math.min(scrollRange, requested));
+      const overflow = requested - clamped;
+      if (overflow !== 0 && !isSeated()) roomEdgeMotion.pull(-overflow);
+      const searchOpened = edgeSearch(e, atSearchEdge);
+      // Native travel remains in charge between stops. At the two ends the
+      // camera spring supplies visible resistance for either wheel axis.
+      scrollEl.style.overscrollBehaviorX = "none";
+      if (
+        nativeHorizontal &&
+        overflow === 0 &&
+        remaining === delta &&
+        !searchOpened
+      )
+        return;
+      e.preventDefault();
+      scrollEl.scrollLeft = clamped;
       // This wheel already dismissed selection. Its queued native scroll
       // event must not dismiss an object selected after the wheel finished.
       lastScrollLeft = scrollEl.scrollLeft;
@@ -361,6 +396,7 @@ export default function ScrollBridges() {
     const onPointerDown = (event: PointerEvent) => {
       reconcileScrollRange();
       if (event.pointerType !== "touch") return;
+      scrollEl.style.overscrollBehaviorX = originalOverscroll;
       // A new contact owns the container from here; anything the previous
       // gesture still had pending is its predecessor's, not this one's.
       window.clearTimeout(settleTimer);
@@ -639,6 +675,7 @@ export default function ScrollBridges() {
     window.addEventListener("blur", clearPanKeys);
 
     return () => {
+      scrollEl.style.overscrollBehaviorX = originalOverscroll;
       window.removeEventListener("wheel", onWheel, { capture: true });
       scrollEl.removeEventListener("pointerdown", onPointerDown);
       scrollEl.removeEventListener("pointerup", onPointerUp);

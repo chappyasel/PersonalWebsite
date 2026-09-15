@@ -15,7 +15,13 @@ import {
 } from "~/components/ui/tooltip";
 import { openUniversalSearch } from "~/components/universal-search/UniversalSearchController";
 
-export function ChromeSearchButton({ mobile = false }: { mobile?: boolean }) {
+export function ChromeSearchButton({
+  mobile = false,
+  active = false,
+}: {
+  mobile?: boolean;
+  active?: boolean;
+}) {
   const searchFocusFromPalette = useRef(false);
   return (
     <TooltipProvider delayDuration={260}>
@@ -29,6 +35,8 @@ export function ChromeSearchButton({ mobile = false }: { mobile?: boolean }) {
             aria-label="Search the site"
             aria-keyshortcuts="Meta+K Control+K"
             aria-haspopup="dialog"
+            aria-expanded={mobile ? active : undefined}
+            data-active={(mobile && active) || undefined}
             onClick={openUniversalSearch}
             onBlur={() => {
               searchFocusFromPalette.current = isUniversalSearchOpen();

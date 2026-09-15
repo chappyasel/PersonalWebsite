@@ -43,6 +43,11 @@ import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { setLoadProgress } from "./loading";
+import {
+  ROOM_TRAVEL_DAMPING_SECONDS,
+  roomEdgeMotion,
+  searchFreezesRoom,
+} from "./mobile/roomEdgeMotion";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import {
   PERFORMANCE_DIAGNOSTIC_MAX_RUNTIME_CHECKPOINTS,
@@ -56,13 +61,13 @@ import {
 import { useRoomActive } from "./room/ResidentRoomHost";
 import { roomResidency } from "./room/roomResidency";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
-import { repaintFrozenScene } from "./scene/sceneClock";
 import CanvasSizeBoundary from "./scene/CanvasSizeBoundary";
-import SceneClockBoundary from "./scene/SceneClockBoundary";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
+import SceneClockBoundary from "./scene/SceneClockBoundary";
 import SceneLayoutEditorGizmo from "./scene/SceneLayoutEditorGizmo";
 import ScreenshotModeDriver from "./scene/ScreenshotModeDriver";
+import { readLiveArtifactPreviewFrames } from "./scene/artifactPreviewFrames";
 import {
   devHooksRequested,
   onDevHooksRequested,
@@ -137,6 +142,7 @@ import {
 import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
 import { createSceneQualitySampler } from "./scene/qualitySampler";
 import { SCENE_CANVAS_CONTEXT, sceneBackdropFor } from "./scene/sceneBackdrop";
+import { repaintFrozenScene } from "./scene/sceneClock";
 import {
   sceneColorGradeController,
   sceneColorGradeFor,
@@ -366,6 +372,12 @@ declare global {
         action?: "status" | "start" | "stop" | "reset" | "download",
       ) => unknown;
       layout?: () => SceneLayoutExportRecord[];
+      /** The artifact preview frame registry as plain JSON. Every frame is
+       * registered by the scene component that draws the photo, so this is
+       * the only way to read them without a renderer — which is exactly what
+       * the 2D illustration needs. `scripts/generate/artifact-preview-frames.mjs`
+       * walks the units and merges what each one registers. */
+      frames: () => Record<string, unknown>;
     };
   }
 }
@@ -392,6 +404,9 @@ function installDevHooks() {
     },
     hover(id) {
       useStacks.getState().setHovered(id);
+    },
+    frames() {
+      return Object.fromEntries(readLiveArtifactPreviewFrames());
     },
     openBook(id) {
       devOpenBook?.(id);
@@ -1699,11 +1714,18 @@ export default function StacksCanvas({
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
   const searchOpen = useUniversalSearchOpen();
+  const searchMotionActive = useSyncExternalStore(
+    roomEdgeMotion.subscribe,
+    roomEdgeMotion.getSnapshot,
+    roomEdgeMotion.getSnapshot,
+  ).active;
   const visionRidePhase = useStacks((s) => s.visionRidePhase);
   const roomMounted = visionRideRoomMounted(visionRidePhase);
   const artifactHandoff = useStacks((s) => s.modelArtifactHandoff);
   const freezeRoom =
-    !roomActive || searchOpen || (modalOpen && artifactHandoff === null);
+    !roomActive ||
+    searchFreezesRoom(searchOpen, searchMotionActive) ||
+    (modalOpen && artifactHandoff === null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   // Two things `onCreated` leaves running after it returns: the pair of queued
   // frames that report the first paint, and the context-loss listener. Both
@@ -2748,7 +2770,7 @@ export default function StacksCanvas({
         <ScrollControls
           horizontal
           pages={UNIT_COUNT}
-          damping={0.2}
+          damping={ROOM_TRAVEL_DAMPING_SECONDS}
           maxSpeed={coarseTouch ? 0.95 : 1.2}
           // Carrying a prop freezes travel too, but NOT through this flag.
           // drei only short-circuits its own handler here, so the element

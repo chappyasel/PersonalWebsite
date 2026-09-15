@@ -1,5 +1,9 @@
 import { readingBookMaterialColors } from "../../../../lib/books/coverEdgeColor";
 import {
+  COORDINATION_DITHER_FRAMES,
+  coordinationDitherPath,
+} from "../illustration/coordinationDitherGeometry";
+import {
   ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
   ABOUT_AIC_MARK_DEPTH,
@@ -728,9 +732,7 @@ describe("Homepage entrance", () => {
     const markup = renderBoot();
     const liveNetwork = createCoordinationNetwork();
 
-    expect(markup).toMatch(
-      /<circle class="stacks-boot-coordination-core"[^>]*>/,
-    );
+    expect(markup).not.toContain("stacks-boot-coordination-core");
     expect(markup).not.toContain("stacks-boot-coordination-shell");
     expect(markup).not.toContain("stacks-boot-coordination-horizon-ring");
     expect(markup.match(/class="stacks-boot-coordination-node"/g)).toHaveLength(
@@ -749,8 +751,54 @@ describe("Homepage entrance", () => {
     const ditherPixels = markup.match(
       /class="stacks-boot-coordination-dither"/g,
     );
-    expect(ditherPixels?.length).toBeGreaterThan(100);
+    expect(ditherPixels).toHaveLength(1);
+    expect(markup).not.toContain("data-coordination-dither-animated");
     expect(markup).toContain('data-dither-grid="ordered-4x4"');
+  });
+
+  it("embeds the full stem top in solid square pixels in every dither frame", () => {
+    const markup = renderBoot();
+    const stem = /class="stacks-boot-coordination-stem" points="([^"]+)"/.exec(
+      markup,
+    )![1]!;
+    const corners = stem
+      .split(" ")
+      .map((point) => point.split(",").map(Number));
+    const [tx, ty, cell] =
+      /data-dither-grid="ordered-4x4" transform="translate\((\S+) (\S+)\) scale\((\S+)\)"/
+        .exec(markup)!
+        .slice(1)
+        .map(Number) as [number, number, number];
+    for (let frame = 0; frame < COORDINATION_DITHER_FRAMES; frame++) {
+      const path = coordinationDitherPath(frame);
+      // The drawing contains only closed, one-pixel-high rectangular runs.
+      const runs = [...path.matchAll(/M(-?\d+),(-?\d+)h(\d+)v1h-\d+z/g)].map(
+        (match) => match.slice(1).map(Number),
+      );
+      expect(runs.length).toBeGreaterThan(0);
+      expect(path.replace(/M-?\d+,-?\d+h\d+v1h-\d+z/g, "")).toBe("");
+      for (let sample = 0; sample <= 10; sample++) {
+        const right = corners[2]!;
+        const left = corners[3]!;
+        const x =
+          (left[0]! + ((right[0]! - left[0]!) * sample) / 10 - tx) / cell;
+        const y = (left[1]! - ty) / cell;
+        expect(
+          runs.some(
+            ([start, row, width]) =>
+              x >= start! && x < start! + width! && y >= row! && y < row! + 1,
+          ),
+          `stem sample ${sample}, frame ${frame}`,
+        ).toBe(true);
+      }
+      expect(
+        runs.some(
+          ([start, row, width]) =>
+            row === 0 && start! <= 0 && start! + width! > 0,
+        ),
+        `solid center, frame ${frame}`,
+      ).toBe(true);
+    }
   });
 
   it("serializes Coordination network geometry at a canonical precision", () => {

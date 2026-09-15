@@ -79,10 +79,11 @@
     "youtube:score": "tsx ./scripts/score-youtube.ts",
     "youtube:evaluate-scores": "tsx ./scripts/evaluate-youtube-scores.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
-    "generate:room-artwork": "node scripts/generate/room-artwork.mjs",
-    "check:room-artwork": "node scripts/generate/room-artwork.mjs --check && pnpm check:room-artwork-quality",
+    "generate:room-artwork": "node scripts/generate/room-artwork.mjs && node scripts/generate/room-hotspots.mjs",
+    "check:room-artwork": "node scripts/generate/room-artwork.mjs --check && node scripts/generate/room-hotspots.mjs --check && pnpm check:room-artwork-quality",
     "check:room-artwork-quality": "node --test scripts/room-artwork-quality/shelf-faces.test.mjs && tsx scripts/room-artwork-quality/check-live-masks.mjs",
-    "import:medium": "node --env-file=.env --import tsx scripts/musings/import-medium.ts"
+    "import:medium": "node --env-file=.env --import tsx scripts/musings/import-medium.ts",
+    "generate:artifact-frames": "node scripts/generate/artifact-preview-frames.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",

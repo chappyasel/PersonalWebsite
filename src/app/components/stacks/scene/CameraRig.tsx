@@ -18,6 +18,7 @@ import { dimensionTravel } from "../input/dimensionTravel";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { presentationProfileForViewport } from "../mobile/presentation";
+import { applyRoomEdgeCameraRotation } from "../mobile/roomEdgeMotion";
 import {
   INERT_HOVER,
   panelCoverageRef,
@@ -1592,6 +1593,8 @@ export default function CameraRig() {
       handoffCamera.aimError = look.current.x - restingAimX;
       handoffCamera.frame++;
     }
+    if (!illustrationOwnsPose && s === 0)
+      applyRoomEdgeCameraRotation(camera);
     cameraTravelDiagnostics.targetX = targetX;
     cameraTravelDiagnostics.lookX = look.current.x;
     cameraTravelDiagnostics.lookLagX = look.current.x - eyeX;

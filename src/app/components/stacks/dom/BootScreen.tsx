@@ -13,6 +13,8 @@ import {
 } from "../boot/aboutBootStage";
 import { isBootingPhase } from "../boot/worldBootMachine";
 import { documentWorldPhase, worldBoot } from "../boot/worldBootSession";
+import { CoordinationDither } from "../illustration/CoordinationDither";
+import { COORDINATION_DITHER_CELL } from "../illustration/coordinationDitherGeometry";
 import {
   ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
@@ -138,10 +140,6 @@ const BOOT_COORDINATION_NETWORK = createCoordinationNetwork();
 const BOOT_COORDINATION_POINTS = BOOT_COORDINATION_NETWORK.nodes.map((node) =>
   coordinationNodePosition(node, 0, 0),
 );
-const BOOT_COORDINATION_DITHER_4X4 = [
-  0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5,
-] as const;
-
 /** Transcendental math can differ in its last bits across JS engines. React
  * hydration needs the server and client SVG attribute strings to match. */
 function bootSvgNumber(value: number): string {
@@ -878,7 +876,13 @@ function TJMedallionGlyph({
   );
 }
 
-function CoordinationGlobeGlyph({ height }: { height: number }) {
+function CoordinationGlobeGlyph({
+  height,
+  ditherActive,
+}: {
+  height: number;
+  ditherActive: boolean;
+}) {
   const sceneScale =
     height / (COORDINATION_GLOBE_PROFILE_HEIGHT * SCENE_TO_BOOT_SVG);
   const pixels = SCENE_TO_BOOT_SVG * sceneScale;
@@ -891,11 +895,14 @@ function CoordinationGlobeGlyph({ height }: { height: number }) {
   const stemTopRadius = COORDINATION_STEM_TOP_RADIUS * neckPixels;
   const stemBottom =
     -(COORDINATION_STEM_CENTER_Y - COORDINATION_STEM_HEIGHT / 2) * neckPixels;
-  const stemTop =
-    -(COORDINATION_STEM_CENTER_Y + COORDINATION_STEM_HEIGHT / 2) * neckPixels;
   const globeRadius =
     COORDINATION_CORE_RADIUS * COORDINATION_HORIZON_SCALE * pixels;
   const centerY = -COORDINATION_CORE_CENTER_Y * pixels;
+  // Overlap the solid pixels across the whole neck, including between frames.
+  const stemTop = Math.min(
+    -(COORDINATION_STEM_CENTER_Y + COORDINATION_STEM_HEIGHT / 2) * neckPixels,
+    centerY + globeRadius * 0.65,
+  );
   const point = ([x, y]: readonly [number, number, number]) =>
     [
       x * pixels * COORDINATION_NETWORK_SCALE,
@@ -908,27 +915,7 @@ function CoordinationGlobeGlyph({ height }: { height: number }) {
       return `M ${bootSvgNumber(start[0])} ${bootSvgNumber(start[1])} L ${bootSvgNumber(end[0])} ${bootSvgNumber(end[1])}`;
     })
     .join(" ");
-  const ditherCell = pixels * 0.0064;
-  const ditherExtent = Math.ceil((globeRadius * 1.06) / ditherCell);
-  const ditherPixels: Array<{ x: number; y: number }> = [];
-  for (let gridY = -ditherExtent; gridY <= ditherExtent; gridY += 1) {
-    for (let gridX = -ditherExtent; gridX <= ditherExtent; gridX += 1) {
-      const x = gridX * ditherCell;
-      const y = gridY * ditherCell;
-      const radius = Math.hypot(x, y) / globeRadius;
-      if (radius < 0.82 || radius > 1.06) continue;
-      const coverage = (1.06 - radius) / 0.24;
-      const bayerX = ((gridX % 4) + 4) % 4;
-      const bayerY = ((gridY % 4) + 4) % 4;
-      const threshold =
-        (BOOT_COORDINATION_DITHER_4X4[bayerY * 4 + bayerX]! + 0.5) / 16;
-      if (coverage < threshold) continue;
-      ditherPixels.push({
-        x: x - ditherCell / 2,
-        y: centerY + y - ditherCell / 2,
-      });
-    }
-  }
+  const ditherCell = pixels * COORDINATION_DITHER_CELL;
   return (
     <>
       <polygon
@@ -939,23 +926,11 @@ function CoordinationGlobeGlyph({ height }: { height: number }) {
         className="stacks-boot-coordination-stem"
         points={`${-stemBottomRadius},${stemBottom} ${stemBottomRadius},${stemBottom} ${stemTopRadius},${stemTop} ${-stemTopRadius},${stemTop}`}
       />
-      <circle
-        className="stacks-boot-coordination-core"
-        cx="0"
-        cy={centerY}
-        r={globeRadius * 0.82}
-      />
-      <g data-dither-grid="ordered-4x4">
-        {ditherPixels.map((pixel, index) => (
-          <rect
-            className="stacks-boot-coordination-dither"
-            key={index}
-            x={pixel.x}
-            y={pixel.y}
-            width={ditherCell}
-            height={ditherCell}
-          />
-        ))}
+      <g
+        data-dither-grid="ordered-4x4"
+        transform={`translate(${-ditherCell / 2} ${centerY - ditherCell / 2}) scale(${ditherCell})`}
+      >
+        <CoordinationDither active={ditherActive} />
       </g>
       <g className="stacks-boot-coordination-network">
         <path
@@ -1177,11 +1152,13 @@ function VisionProGlyph({ width, height }: { width: number; height: number }) {
 }
 
 function LandmarkGlyph({
+  ditherActive,
   landmark,
   readingBooks,
   readingBookColors,
   camera,
 }: {
+  ditherActive: boolean;
   landmark: AboutBootLandmark;
   readingBooks: BootReadingBook[];
   readingBookColors: Record<string, ReadingBookEdgeColor>;
@@ -1214,7 +1191,9 @@ function LandmarkGlyph({
       return <CollectiveMarkGlyph scale={landmark.profile.height / 0.208} />;
     }
     case "coordination-globe": {
-      return <CoordinationGlobeGlyph height={height} />;
+      return (
+        <CoordinationGlobeGlyph height={height} ditherActive={ditherActive} />
+      );
     }
     case "medallion": {
       return <TJMedallionGlyph width={width} height={height} />;
@@ -1276,6 +1255,7 @@ export function BootScreenArtwork({
   includeStageScript = false,
   camera = ABOUT_BOOT_CAMERA,
   shelfOnly = false,
+  ditherActive = false,
 }: BootScreenProps & {
   sceneRef?: RefObject<SVGSVGElement | null>;
   motesRef?: RefObject<HTMLDivElement | null>;
@@ -1284,6 +1264,8 @@ export function BootScreenArtwork({
   camera?: AboutBootCamera;
   /** Empty first paint omits landmarks and cover requests. */
   shelfOnly?: boolean;
+  /** Animate the fringe only in the active, settled 2D shelf. */
+  ditherActive?: boolean;
 }) {
   const cadence = ABOUT_BOOT_CADENCE;
   const keyframes = bootCssKeyframes(
@@ -1455,6 +1437,7 @@ export function BootScreenArtwork({
                             }}
                           >
                             <LandmarkGlyph
+                              ditherActive={ditherActive}
                               landmark={landmark}
                               readingBooks={resolvedReadingBooks}
                               readingBookColors={resolvedReadingBookColors}

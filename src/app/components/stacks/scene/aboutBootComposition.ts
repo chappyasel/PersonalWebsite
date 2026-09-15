@@ -355,3 +355,26 @@ export const ABOUT_BOOT_LANDMARKS = Object.fromEntries(
 export function aboutLandmarkNodeName(id: AboutLandmarkId) {
   return `${ABOUT_LANDMARK_NODE_PREFIX}${id}`;
 }
+
+/** Which artifact each About frame shows.
+ *
+ * About is the one unit whose hotspots come from live SVG nodes rather than
+ * captured geometry, so its prints are identified by landmark id
+ * ("collective-frame") and not by the "grab-photo-<artifact>" spelling every
+ * other unit draws. This is the bridge between the two.
+ *
+ * The pairing really lives in UnitAbout.tsx, where each photo's Grabbable
+ * carries the artifact id and its group carries the landmark name. That
+ * module reaches @react-three, so the 2D path cannot import it — see
+ * initialGraph.test.ts. aboutBootLandmarkArtifacts.test.ts reads UnitAbout's
+ * source and fails if these two ever disagree. */
+export const ABOUT_LANDMARK_ARTIFACTS: Readonly<Record<string, string>> = {
+  // The desk portrait, whose landmark and artifact happen to share a name.
+  // Spelled out rather than special-cased: the test below checks it against
+  // UnitAbout like the rest, and an identity that is assumed is an identity
+  // nobody notices breaking.
+  portrait: "portrait",
+  "collective-frame": "about-collective-group-v8",
+  "family-frame": "about-family-v8",
+  "profile-frame": "about-profile-full-v8",
+};

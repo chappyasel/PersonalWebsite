@@ -26,14 +26,21 @@ describe("sheet control presentation", () => {
   });
 
   it("shares the homepage edge treatment with the artifact controls", () => {
+    // The gate is data-world OR data-room-view: the room drops data-world
+    // when it hands the screen to the 2D illustration, and the chrome on top
+    // is the same chrome and wants the same edges. Both attributes score
+    // (0,1,0), so :is() leaves every one of these rules where it was in the
+    // cascade.
     expect(globals).toContain(
-      'html[data-world] [data-home-glass]::before',
+      "html:is([data-world], [data-room-view]) [data-home-glass]::before",
     );
     expect(controls).toContain('data-home-glass="control"');
     expect(inspector).toContain('data-home-glass="control"');
-    expect(rule('html.dark[data-world] [data-home-glass="control"]')).toContain(
-      "box-shadow: var(--placard-media-shadow)",
-    );
+    expect(
+      rule(
+        'html.dark:is([data-world], [data-room-view]) [data-home-glass="control"]',
+      ),
+    ).toContain("box-shadow: var(--placard-media-shadow)");
     expect(rule(".sheet-control")).not.toContain("inset");
   });
 });

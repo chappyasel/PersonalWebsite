@@ -105,9 +105,6 @@ export const MOBILE_SHEET_LIGHT_MATERIAL_CSS = `
     html:not(.dark) [data-stacks-glass-mode="native"] .placard-scroll a[data-placard-surface]:focus-visible {
       background-color: hsl(var(--card) / 0.74) !important;
     }
-    html:not(.dark) [data-stacks-glass-mode="native"] [data-stacks-mobile-intro="header"] > button:active {
-      background-color: rgb(0 0 0 / 0.16);
-    }
     html:not(.dark) [data-stacks-glass-mode="native"] .stacks-chip:is(:active, [data-pressed]) {
       background-color: color-mix(in srgb, var(--sheet-fill), black 12%);
     }

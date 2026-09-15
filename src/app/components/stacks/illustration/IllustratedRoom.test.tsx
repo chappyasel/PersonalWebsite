@@ -21,6 +21,8 @@ vi.mock("../dom/BootScreen", () => ({
     </svg>
   ),
 }));
+vi.mock("./IllustrationHotspots", () => ({ IllustrationHotspots: () => null }));
+
 const initial = useStacks.getState();
 const data = {
   readingBooks: [],

@@ -7,6 +7,8 @@
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
+  /* Native anchoring must not reposition the room when hotspots remount at rest. */
+  overflow-anchor: none;
   scrollbar-width: none;
   touch-action: pan-x;
   pointer-events: auto;
@@ -22,4 +24,23 @@
   flex: 0 0 var(--room-stop-width, 100%);
   height: 100%;
   pointer-events: none;
+}
+
+/* The static track contains transformed overflow, keeping scrollWidth stable.
+   Its inner artwork can stretch while the viewport still reaches both edges. */
+.room-illustration-track {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  overflow: clip;
+}
+.room-illustration-content {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+.room-illustration-content::before {
+  content: "";
+  flex: 0 0 var(--room-leading-space, 0px);
 }

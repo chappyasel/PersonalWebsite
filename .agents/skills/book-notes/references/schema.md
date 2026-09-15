@@ -2,6 +2,10 @@
 
 ## Basic lookups
 
+`books.id` holds the current slug. Website compatibility aliases in
+`src/lib/books/bookLookup.ts` are not database rows. For a known retired URL,
+query its mapped `notion_id` to find the current slug and notes.
+
 ```sql
 -- Find a book by partial title
 SELECT id, title, author, rating, finished

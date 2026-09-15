@@ -227,7 +227,14 @@ type StacksState = {
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
   setBookModalReturning: (bookModalReturning: boolean) => void;
-  openSceneArtifact: (id: SceneArtifactId, reducedMotion?: boolean) => void;
+  /** `sceneSource` is whether a live object exists for the artifact to fly
+   * out of and back into. False in the 2D illustration, which has no
+   * renderer: see the handoff below. */
+  openSceneArtifact: (
+    id: SceneArtifactId,
+    reducedMotion?: boolean,
+    sceneSource?: boolean,
+  ) => void;
   selectImageSceneArtifact: (id: SceneArtifactId) => void;
   dispatchModelArtifactHandoff: (event: ModelArtifactHandoffEvent) => void;
   closeSceneArtifact: () => void;
@@ -327,17 +334,31 @@ export const useStacks = create<StacksState>((set) => ({
         : { modalOpen, bookModalReturning: false },
     ),
   setBookModalReturning: (bookModalReturning) => set({ bookModalReturning }),
-  openSceneArtifact: (inspectedArtifact, reducedMotion = false) => {
+  openSceneArtifact: (
+    inspectedArtifact,
+    reducedMotion = false,
+    sceneSource = true,
+  ) => {
     recordArtifactFieldNote(inspectedArtifact);
     set((state) => ({
       inspectedArtifact,
-      modelArtifactHandoff: {
-        ...beginModelArtifactHandoff(inspectedArtifact, reducedMotion),
-        target:
-          state.modelArtifactHandoff?.artifactId === inspectedArtifact
-            ? state.modelArtifactHandoff.target
-            : null,
-      },
+      // No handoff without a scene source. The handoff is a round trip: it
+      // lifts a live object out of the room and is only retired when
+      // Grabbable dispatches `source-home` on the way back. Nothing dispatches
+      // that without a renderer, so a handoff begun in 2D would sit at
+      // `returning` forever, and `finishSceneArtifactClose` — which clears
+      // `modalOpen` only once both this and `inspectedArtifact` are empty —
+      // would never fire. The modal would close and every later open would be
+      // declined by the `modalOpen` guard.
+      modelArtifactHandoff: sceneSource
+        ? {
+            ...beginModelArtifactHandoff(inspectedArtifact, reducedMotion),
+            target:
+              state.modelArtifactHandoff?.artifactId === inspectedArtifact
+                ? state.modelArtifactHandoff.target
+                : null,
+          }
+        : null,
       modalOpen: true,
       focusedInteraction: null,
       pressedInteraction: null,
