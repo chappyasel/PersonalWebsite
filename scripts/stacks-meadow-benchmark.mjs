@@ -256,6 +256,24 @@ async function sample(page, { seconds, traverse }) {
   });
 }
 
+/**
+ * Two presentation modes, because they answer different questions and the
+ * first run of this benchmark got that wrong.
+ *
+ * Paced (the default) leaves vsync on, so a frame that finishes early waits
+ * for the panel. That is what a visitor experiences, and it is the only way
+ * to count frames that missed the 120Hz budget — but it also pins p50 at the
+ * 8.3ms refresh interval, so on a GPU with headroom every workload reads
+ * identically and the subject under test disappears into the vsync floor.
+ *
+ * Unthrottled removes the ceiling, so the frame interval is the actual cost
+ * of producing a frame. That is the number that attributes cost to a
+ * subsystem, and it is NOT a frame rate anyone will ever see.
+ *
+ * Quote the paced run for pacing and the unthrottled run for attribution.
+ * Never the reverse.
+ */
+const unthrottled = args.includes("--unthrottled");
 const browser = await chromium.launch({
   headless: true,
   // Metal ANGLE keeps real GL on darwin; SwiftShader loses the context
@@ -266,6 +284,9 @@ const browser = await chromium.launch({
     "--use-angle=metal",
     "--enable-webgl",
     "--ignore-gpu-blocklist",
+    ...(unthrottled
+      ? ["--disable-gpu-vsync", "--disable-frame-rate-limit"]
+      : []),
   ],
 });
 
@@ -275,6 +296,7 @@ const report = {
   startedAt: new Date().toISOString(),
   viewport,
   deviceScaleFactor,
+  presentation: unthrottled ? "unthrottled" : "paced",
   repeats,
   restSeconds,
   // The revision the SERVED BUILD came from. It is an explicit flag, not
@@ -386,6 +408,9 @@ const line = (name, phase, run) => {
 
 console.log(`## meadow benchmark "${label}"  ${report.buildRev ?? ""}`);
 console.log(`renderer: ${report.renderer}`);
+console.log(
+  `presentation: ${report.presentation}${unthrottled ? " (frame interval is production COST, not a frame rate anyone sees)" : " (vsync on: p50 is pinned at the refresh interval)"}`,
+);
 console.log(
   `preflight before=${report.preflight.before?.verdict} after=${report.preflight.after?.verdict} -> timing ${quiet ? "QUOTABLE" : "PROVISIONAL (counts still exact)"}`,
 );
