@@ -20,6 +20,10 @@
     {
       "path": "/api/cron/sync-weightlifting",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/sync-book-emojis",
+      "schedule": "20 9 * * *"
     }
   ]
 }
