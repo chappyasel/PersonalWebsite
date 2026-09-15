@@ -377,6 +377,34 @@ describe("UniversalSearchPalette", () => {
     expect(order).toEqual(["select", "action"]);
   });
 
+  it.each(["ArrowUp", "ArrowDown"])(
+    "starts at the first result on %s after each query edit",
+    async (key) => {
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={vi.fn()}
+          dependencies={dependencies()}
+        />,
+      );
+      const input = screen.getByRole("combobox", { name: "Universal Search" });
+      const selected = () =>
+        document.querySelector('[cmdk-item][data-selected="true"]');
+
+      for (const query of ["theme", "theme ", "the"]) {
+        fireEvent.change(input, { target: { value: query } });
+        await waitFor(() =>
+          expect(screen.getAllByRole("option").length).toBeGreaterThan(1),
+        );
+        fireEvent.keyDown(input, { key });
+        expect(selected()).toBe(screen.getAllByRole("option")[0]);
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        expect(selected()).toBe(screen.getAllByRole("option")[1]);
+        fireEvent.keyDown(input, { key: "End" });
+      }
+    },
+  );
+
   it("opens the keyboard-selected result with Enter", async () => {
     const navigate = vi.fn();
     const onOpenChange = vi.fn();
@@ -545,8 +573,8 @@ describe("UniversalSearchPalette", () => {
       expect(screen.getAllByRole("option", { name: /^Book \d$/ })).toHaveLength(
         6,
       );
-      // Six arrow presses walk from the first book onto the "Show more" row.
-      for (let step = 0; step < 6; step++) {
+      // The first arrow selects the first book; six more reach "Show more".
+      for (let step = 0; step < 7; step++) {
         fireEvent.keyDown(input, { key: "ArrowDown" });
       }
       expect(selected()).toBe("Show 4 more");

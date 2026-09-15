@@ -116,6 +116,45 @@ function detail(
 }
 
 describe("book note section links", () => {
+  it.each([false, true])("copies the book link with C, modal=%s", (isModal) => {
+    const onShare = vi.fn();
+    render(detail({ isModal, onShare }));
+    fireEvent.keyDown(window, { key: "c" });
+    expect(onShare).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(window, { key: "C", shiftKey: true });
+    expect(onShare).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves typing, native copy, and the command palette alone", () => {
+    const onShare = vi.fn();
+    const view = render(
+      <>
+        {detail({ onShare })}
+        <input aria-label="Search notes" />
+      </>,
+    );
+    fireEvent.keyDown(view.getByRole("textbox"), { key: "c" });
+    for (const modifier of [
+      "metaKey",
+      "ctrlKey",
+      "altKey",
+      "repeat",
+      "isComposing",
+    ]) {
+      fireEvent.keyDown(window, { key: "c", [modifier]: true });
+    }
+    document.documentElement.setAttribute("data-universal-search-open", "");
+    try {
+      fireEvent.keyDown(window, { key: "c" });
+    } finally {
+      document.documentElement.removeAttribute("data-universal-search-open");
+    }
+    expect(onShare).not.toHaveBeenCalled();
+    view.unmount();
+    fireEvent.keyDown(window, { key: "c" });
+    expect(onShare).not.toHaveBeenCalled();
+  });
+
   it("scrolls to the mounted heading after the desktop layout renders", async () => {
     render(detail());
     await act(() => vi.advanceTimersByTimeAsync(800));
