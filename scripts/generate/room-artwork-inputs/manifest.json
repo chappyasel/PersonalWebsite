@@ -4529,7 +4529,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/aboutBootComposition.ts",
-      "sha256": "3f05393dda29074c5872ba6352e5cb4fdf65dec450dd63e399cf79dc044ff67a",
+      "sha256": "b64608a32e700b7f797685d2191540c65e88b58ec930e31f93f977f49f5edb91",
       "archivedSha256": "3f05393dda29074c5872ba6352e5cb4fdf65dec450dd63e399cf79dc044ff67a"
     },
     {
@@ -4579,7 +4579,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/artifactPreviewFrames.ts",
-      "sha256": "bf8e53e6eac852b1dd047b2750445356c8e8a08798a97de013a7d3189684ba50",
+      "sha256": "eea11a567f2ecb2f09af64aea8c85c273b8959829f39c4ee94eaa85beebe06e9",
       "archivedSha256": "bf8e53e6eac852b1dd047b2750445356c8e8a08798a97de013a7d3189684ba50"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "b406b30b649520198f9c1e12376c65f581f7ebeb33b2c5ee1cd01a016915269c",
+  "sourceFingerprint": "49e15edccb8f9268b96068ee5ca29360fdd351ef7420cfff94072f124966508e",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",

@@ -28,9 +28,15 @@ vi.mock("~/lib/universal-search/overlay", () => ({
 beforeEach(() => {
   vi.spyOn(document, "hidden", "get").mockReturnValue(false);
   vi.spyOn(performance, "now").mockReturnValue(1000);
+  // The traverse subscribes to its reduced-motion query rather than only
+  // reading it, so the stub has to be a listenable MediaQueryList.
   vi.stubGlobal(
     "matchMedia",
-    vi.fn(() => ({ matches: false })),
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
   );
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
     {} as never,
@@ -266,7 +272,9 @@ it.each([false, true])(
     progressRef.current = 2.4 / 6;
     vi.mocked(window.matchMedia).mockReturnValue({
       matches: reducedMotion,
-    } as MediaQueryList);
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList);
     fireEvent.keyDown(window, { key: "r" });
     const row = view.container.firstElementChild as HTMLElement;
     // Stop positions are unequal, so interpolate within the actual artwork row.

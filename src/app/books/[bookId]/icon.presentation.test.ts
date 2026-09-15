@@ -38,8 +38,10 @@ describe("book favicon composition", () => {
   });
 
   it("is linked by an absolute books-host href so /books/:id pages find it", () => {
-    expect(pageSource).toContain("icon: `${getBooksOrigin()}/${bookId}/icon`");
-    expect(pageSource).not.toContain("icon: `/${bookId}/icon`");
+    // The page reads the id off the resolved book rather than the route
+    // param now; what this guards is the origin, not the identifier.
+    expect(pageSource).toContain("icon: `${getBooksOrigin()}/${book.id}/icon`");
+    expect(pageSource).not.toContain("icon: `/${book.id}/icon`");
   });
 
   it("caches per book like the OG card", () => {

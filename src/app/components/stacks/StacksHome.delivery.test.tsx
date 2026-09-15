@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import StacksHome from "./StacksHome";
 import type { StacksData, StacksSlots } from "./data";
@@ -73,9 +73,26 @@ vi.mock("./dom/PlacardLayer", async () => {
     },
   };
 });
+// The HUD's drift profile reads matchMedia on first render, and jsdom does
+// not implement it. Desktop, and never reduced motion, so the component picks
+// the same branch the assertions below were written against.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: !query.includes("reduced-motion"),
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 it("keeps the actual panel owner mounted with reader state and scroll intact after GPU failure", () => {

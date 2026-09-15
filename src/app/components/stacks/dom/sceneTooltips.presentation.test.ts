@@ -25,8 +25,15 @@ describe("tooltip presentation", () => {
     // opaque popover card…
     expect(surface).toContain("background-color: hsl(var(--popover))");
     expect(surface).toContain("color: hsl(var(--popover-foreground))");
-    // …and only the 3D world's root marker upgrades the surface to glass.
-    expect(surface).toContain("html[data-world] .field-notes-glass-tooltip");
+    // …and the room upgrades the surface to glass, in 3D or in the 2D
+    // illustration. It used to be data-world alone, but the room drops that
+    // attribute when it hands the screen to the drawing, and the drawing's
+    // own object labels carry this very class (IllustrationObjectLabel).
+    // Gated on data-world alone they came back as flat popover cards in 2D.
+    // roomTooltipMaterial.test.ts asserts the pair stay identical.
+    expect(surface).toContain(
+      "html:is([data-world], [data-room-view]) .field-notes-glass-tooltip",
+    );
     expect(surface).toContain("background-color: rgb(24 32 36 / 0.38)");
     expect(surface).toContain("color: rgb(255 255 255 / 0.96)");
     expect(surface).toContain("backdrop-filter: blur(24px) saturate(1.5)");
@@ -41,9 +48,9 @@ describe("tooltip presentation", () => {
     expect(fieldNotes).toContain(
       'className="field-notes-glass-tooltip field-notes-trigger-tooltip z-[2200]',
     );
-    expect(sound).toContain('<TooltipContent align={tooltipAlign}>');
+    expect(sound).toContain("<TooltipContent align={tooltipAlign}>");
     expect(details).toContain(
-      'className={`${tooltipSurfaceClassName} pointer-events-none',
+      "className={`${tooltipSurfaceClassName} pointer-events-none",
     );
     expect(objects).toContain("field-notes-glass-tooltip fixed z-30");
     expect(rail).toContain(
@@ -87,7 +94,9 @@ describe("tooltip presentation", () => {
     expect(fieldNotes).toContain(
       "field-notes-trigger-title field-notes-hand field-notes-strong",
     );
-    expect(details).toContain('import { tooltipSurfaceClassName } from "~/components/ui/tooltip"');
+    expect(details).toContain(
+      'import { tooltipSurfaceClassName } from "~/components/ui/tooltip"',
+    );
     expect(objects).toContain("text-[14px]");
     expect(objects).toContain("leading-[1.25]");
   });
