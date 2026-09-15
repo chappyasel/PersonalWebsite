@@ -10,23 +10,11 @@
       "no-meadow": "nomeadow=1",
       "full": ""
     },
-    "cssViewport": [
-      1440,
-      900
-    ],
+    "cssViewport": [1440, 900],
     "dpr": 2,
-    "buffer": [
-      2880,
-      1800
-    ],
-    "warmup": [
-      6,
-      0
-    ],
-    "measuredTrip": [
-      6,
-      0
-    ]
+    "buffer": [2880, 1800],
+    "warmup": [6, 0],
+    "measuredTrip": [6, 0]
   },
   "timingVerdict": "withheld: contended host",
   "sourceRegression": {
@@ -53,6 +41,120 @@
   },
   "runs": [
     {
+      "variant": "baseline",
+      "profile": "full",
+      "allocationDelta": {
+        "framebuffers": 81,
+        "textures": 162,
+        "deletedTextures": 162,
+        "links": 4
+      },
+      "dpr": [2, 2],
+      "buffer": [
+        [2880, 1800],
+        [2880, 1800]
+      ],
+      "postprocessing": ["full", "full"],
+      "pageErrors": [],
+      "sourceArtifact": "/tmp/gpu-detail-e2e-baseline-final-results/stacks-gpu-resource-lifeti-60b1b--reuses-framebuffer-objects/gpu-resource-lifetime.json",
+      "artifactSha256": "4b8476a2e025cdc53b88fdd3901d50fa8cebb7cf53a77b3b60a7f1004188cd83"
+    },
+    {
+      "variant": "baseline",
+      "profile": "full",
+      "allocationDelta": {
+        "framebuffers": 81,
+        "textures": 162,
+        "deletedTextures": 162,
+        "links": 4
+      },
+      "dpr": [2, 2],
+      "buffer": [
+        [2880, 1800],
+        [2880, 1800]
+      ],
+      "postprocessing": ["full", "full"],
+      "pageErrors": [],
+      "sourceArtifact": "/tmp/gpu-detail-e2e-baseline-final-results/stacks-gpu-resource-lifeti-60b1b--reuses-framebuffer-objects-repeat1/gpu-resource-lifetime.json",
+      "artifactSha256": "99406605ab5dd05d3ed75acc7752545a1a17fcaff1eeb8abe42ab1ff50ea8882"
+    },
+    {
+      "variant": "baseline",
+      "profile": "basic",
+      "allocationDelta": {
+        "framebuffers": 0,
+        "textures": 0,
+        "deletedTextures": 0,
+        "links": 4
+      },
+      "dpr": [2, 2],
+      "buffer": [
+        [2880, 1800],
+        [2880, 1800]
+      ],
+      "postprocessing": ["off", "off"],
+      "pageErrors": [],
+      "sourceArtifact": "/tmp/gpu-detail-e2e-baseline-final-results/stacks-gpu-resource-lifeti-90e5e--reuses-framebuffer-objects/gpu-resource-lifetime.json",
+      "artifactSha256": "0168564c5c9c8ce996d7d89dce976c08a339aa4614cc3228a33594461bf65972"
+    },
+    {
+      "variant": "baseline",
+      "profile": "basic",
+      "allocationDelta": {
+        "framebuffers": 0,
+        "textures": 0,
+        "deletedTextures": 0,
+        "links": 4
+      },
+      "dpr": [2, 2],
+      "buffer": [
+        [2880, 1800],
+        [2880, 1800]
+      ],
+      "postprocessing": ["off", "off"],
+      "pageErrors": [],
+      "sourceArtifact": "/tmp/gpu-detail-e2e-baseline-final-results/stacks-gpu-resource-lifeti-90e5e--reuses-framebuffer-objects-repeat1/gpu-resource-lifetime.json",
+      "artifactSha256": "8b45e38f1df39bc126eea2d13e5a65a7c0fd5bbe9ca22f4c9587e08a8a83e7ff"
+    },
+    {
+      "variant": "baseline",
+      "profile": "no-meadow",
+      "allocationDelta": {
+        "framebuffers": 84,
+        "textures": 168,
+        "deletedTextures": 168,
+        "links": 4
+      },
+      "dpr": [2, 2],
+      "buffer": [
+        [2880, 1800],
+        [2880, 1800]
+      ],
+      "postprocessing": ["full", "full"],
+      "pageErrors": [],
+      "sourceArtifact": "/tmp/gpu-detail-e2e-baseline-final-results/stacks-gpu-resource-lifeti-d1dbe--reuses-framebuffer-objects/gpu-resource-lifetime.json",
+      "artifactSha256": "b90cfacf2f0faa3001ff0a03381561b5eeebc475a0ea4e39d8f979a25acd9dc9"
+    },
+    {
+      "variant": "baseline",
+      "profile": "no-meadow",
+      "allocationDelta": {
+        "framebuffers": 84,
+        "textures": 168,
+        "deletedTextures": 168,
+        "links": 4
+      },
+      "dpr": [2, 2],
+      "buffer": [
+        [2880, 1800],
+        [2880, 1800]
+      ],
+      "postprocessing": ["full", "full"],
+      "pageErrors": [],
+      "sourceArtifact": "/tmp/gpu-detail-e2e-baseline-final-results/stacks-gpu-resource-lifeti-d1dbe--reuses-framebuffer-objects-repeat1/gpu-resource-lifetime.json",
+      "artifactSha256": "3d859fbba27cdd45b6a6ee6f6131dc2c2ed6e1e26ff2baa769577f3c04fcc0ee"
+    },
+    {
       "variant": "candidate",
       "profile": "full",
       "allocationDelta": {
@@ -61,24 +163,12 @@
         "deletedTextures": 0,
         "links": 4
       },
-      "dpr": [
-        2,
-        2
-      ],
+      "dpr": [2, 2],
       "buffer": [
-        [
-          2880,
-          1800
-        ],
-        [
-          2880,
-          1800
-        ]
+        [2880, 1800],
+        [2880, 1800]
       ],
-      "postprocessing": [
-        "full",
-        "full"
-      ],
+      "postprocessing": ["full", "full"],
       "pageErrors": [],
       "sourceArtifact": "/tmp/gpu-detail-e2e-patched-results/stacks-gpu-resource-lifeti-60b1b--reuses-framebuffer-objects/gpu-resource-lifetime.json",
       "artifactSha256": "057b06c5f2bda2cecf9e5214720d98d3fc72f2d603cf863e1b0607a335267f0b"
@@ -92,24 +182,12 @@
         "deletedTextures": 0,
         "links": 4
       },
-      "dpr": [
-        2,
-        2
-      ],
+      "dpr": [2, 2],
       "buffer": [
-        [
-          2880,
-          1800
-        ],
-        [
-          2880,
-          1800
-        ]
+        [2880, 1800],
+        [2880, 1800]
       ],
-      "postprocessing": [
-        "full",
-        "full"
-      ],
+      "postprocessing": ["full", "full"],
       "pageErrors": [],
       "sourceArtifact": "/tmp/gpu-detail-e2e-patched-results/stacks-gpu-resource-lifeti-60b1b--reuses-framebuffer-objects-repeat1/gpu-resource-lifetime.json",
       "artifactSha256": "6e01f67f57e9d7a49ded5bb0ca5024378640339ad67e53b2d1ec72aca6c30dd5"
@@ -123,24 +201,12 @@
         "deletedTextures": 0,
         "links": 4
       },
-      "dpr": [
-        2,
-        2
-      ],
+      "dpr": [2, 2],
       "buffer": [
-        [
-          2880,
-          1800
-        ],
-        [
-          2880,
-          1800
-        ]
+        [2880, 1800],
+        [2880, 1800]
       ],
-      "postprocessing": [
-        "off",
-        "off"
-      ],
+      "postprocessing": ["off", "off"],
       "pageErrors": [],
       "sourceArtifact": "/tmp/gpu-detail-e2e-patched-results/stacks-gpu-resource-lifeti-90e5e--reuses-framebuffer-objects/gpu-resource-lifetime.json",
       "artifactSha256": "037d91a9954934b0bf872bbb1479d39d7351456127269e55397ede8dc7a9a9e1"
@@ -154,24 +220,12 @@
         "deletedTextures": 0,
         "links": 4
       },
-      "dpr": [
-        2,
-        2
-      ],
+      "dpr": [2, 2],
       "buffer": [
-        [
-          2880,
-          1800
-        ],
-        [
-          2880,
-          1800
-        ]
+        [2880, 1800],
+        [2880, 1800]
       ],
-      "postprocessing": [
-        "off",
-        "off"
-      ],
+      "postprocessing": ["off", "off"],
       "pageErrors": [],
       "sourceArtifact": "/tmp/gpu-detail-e2e-patched-results/stacks-gpu-resource-lifeti-90e5e--reuses-framebuffer-objects-repeat1/gpu-resource-lifetime.json",
       "artifactSha256": "4de33526ef281a332efcf6aa3143c12f059946b05d9b39a362f5c1e13a8d951b"
@@ -185,24 +239,12 @@
         "deletedTextures": 0,
         "links": 4
       },
-      "dpr": [
-        2,
-        2
-      ],
+      "dpr": [2, 2],
       "buffer": [
-        [
-          2880,
-          1800
-        ],
-        [
-          2880,
-          1800
-        ]
+        [2880, 1800],
+        [2880, 1800]
       ],
-      "postprocessing": [
-        "full",
-        "full"
-      ],
+      "postprocessing": ["full", "full"],
       "pageErrors": [],
       "sourceArtifact": "/tmp/gpu-detail-e2e-patched-results/stacks-gpu-resource-lifeti-d1dbe--reuses-framebuffer-objects/gpu-resource-lifetime.json",
       "artifactSha256": "2179ab83e6d0470dc5eef35a6eb44112fe05a63e1d10f6d2aafeafa36dc02ac1"
@@ -216,24 +258,12 @@
         "deletedTextures": 0,
         "links": 4
       },
-      "dpr": [
-        2,
-        2
-      ],
+      "dpr": [2, 2],
       "buffer": [
-        [
-          2880,
-          1800
-        ],
-        [
-          2880,
-          1800
-        ]
+        [2880, 1800],
+        [2880, 1800]
       ],
-      "postprocessing": [
-        "full",
-        "full"
-      ],
+      "postprocessing": ["full", "full"],
       "pageErrors": [],
       "sourceArtifact": "/tmp/gpu-detail-e2e-patched-results/stacks-gpu-resource-lifeti-d1dbe--reuses-framebuffer-objects-repeat1/gpu-resource-lifetime.json",
       "artifactSha256": "48799642ff6a7b3df24ecfbe44acb8bdabe7acc8494697d16ab1efe50af04ee2"
@@ -260,5 +290,5 @@
       "reason": "Scene readiness timed out;0 resource artifacts; stopped remaining cases; strict artifact validation failed"
     }
   ],
-  "finalMatrixStatus": "Queued bounded diagnostic after restoring exact original next.config.js; candidate GPU/resource trends run independently. No final matrix acceptance yet."
+  "finalMatrixStatus": "Complete:12 valid persisted allocation artifacts. Original full repeated81, earlier retained original full84; no universal84count claim."
 }

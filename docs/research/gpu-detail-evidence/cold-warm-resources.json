@@ -1,0 +1,631 @@
+{
+  "task": "gpu-detail-lighting",
+  "timingClaims": false,
+  "heapCaveat": "Coarse unforced-GC performance.memory readings were constant within each cell. This API sample does not establish retained-memory slope, bytes saved, or absence of a leak. Cross-cell readings are not a before/after savings comparison.",
+  "drawCaveat": "Observed command totals depend on window length and driver cadence; not a draw-call speedup claim.",
+  "variants": [
+    {
+      "variant": "baseline",
+      "rawArtifact": "/tmp/gpu-detail-baseline-final-gpu.json",
+      "rawSha256": "201e4209a8e1086b1a9460cfb79756e248b36796b232cb2291f47cc63e291df2",
+      "browser": "148.0.7778.96",
+      "gpuTimerAvailable": true,
+      "preflight": {
+        "before": {
+          "at": "2026-09-15T06:17:13+00:00",
+          "author": "gpu-detail-codex",
+          "tag": "before",
+          "cores": 18,
+          "load1_per_core": 1.239,
+          "other_browser_cpu": 93.6,
+          "headless_browsers_not_mine": 0,
+          "failures": [
+            "load1/core 1.239 > 0.35",
+            "other browser CPU 93.6% > 25.0%"
+          ],
+          "verdict": "contended"
+        },
+        "after": {
+          "at": "2026-09-15T06:21:21+00:00",
+          "author": "gpu-detail-codex",
+          "tag": "after",
+          "cores": 18,
+          "load1_per_core": 0.809,
+          "other_browser_cpu": 138.3,
+          "headless_browsers_not_mine": 0,
+          "failures": [
+            "load1/core 0.809 > 0.35",
+            "other browser CPU 138.3% > 25.0%"
+          ],
+          "verdict": "contended"
+        }
+      },
+      "timingVerdict": "provisional",
+      "runs": [
+        {
+          "profile": "basic",
+          "cache": "cold",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              157000000, 157000000, 157000000, 157000000, 157000000, 157000000
+            ],
+            "programReferences": [2471, 2471, 2471, 2471, 2471, 2471],
+            "textures": [178, 178, 178, 178, 178, 178],
+            "geometries": [777, 777, 777, 777, 777, 777],
+            "programs": [95, 95, 95, 95, 95, 95],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [3, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [4, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 4057,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "basic",
+          "cache": "warm",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              157000000, 157000000, 157000000, 157000000, 157000000, 157000000
+            ],
+            "programReferences": [2470, 2470, 2470, 2470, 2470, 2470],
+            "textures": [178, 178, 178, 178, 178, 178],
+            "geometries": [777, 777, 777, 777, 777, 777],
+            "programs": [95, 95, 95, 95, 95, 95],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [4, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [4, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 4045,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "no-meadow",
+          "cache": "cold",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              139000000, 139000000, 139000000, 139000000, 139000000, 139000000
+            ],
+            "programReferences": [2685, 2820, 2955, 3090, 3235, 3380],
+            "textures": [216, 216, 216, 216, 216, 216],
+            "geometries": [779, 779, 779, 779, 779, 779],
+            "programs": [108, 108, 108, 108, 108, 108],
+            "framebufferAllocationsPerRoundTrip": [81, 81, 81, 81, 87, 87],
+            "textureAllocationsPerRoundTrip": [167, 162, 162, 162, 174, 174],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 3618,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "no-meadow",
+          "cache": "warm",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              139000000, 139000000, 139000000, 139000000, 139000000, 139000000
+            ],
+            "programReferences": [2700, 2840, 2985, 3125, 3270, 3415],
+            "textures": [216, 216, 216, 216, 216, 216],
+            "geometries": [779, 779, 779, 779, 779, 779],
+            "programs": [108, 108, 108, 108, 108, 108],
+            "framebufferAllocationsPerRoundTrip": [87, 84, 87, 84, 87, 87],
+            "textureAllocationsPerRoundTrip": [177, 168, 174, 168, 174, 174],
+            "programLinksPerRoundTrip": [4, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 4000,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "full",
+          "cache": "cold",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              167000000, 167000000, 167000000, 167000000, 167000000, 167000000
+            ],
+            "programReferences": [2788, 2923, 3063, 3203, 3343, 3478],
+            "textures": [219, 219, 219, 219, 219, 219],
+            "geometries": [790, 790, 790, 790, 790, 790],
+            "programs": [128, 128, 128, 128, 128, 128],
+            "framebufferAllocationsPerRoundTrip": [81, 81, 84, 84, 84, 81],
+            "textureAllocationsPerRoundTrip": [166, 162, 168, 168, 168, 162],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 3678,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "full",
+          "cache": "warm",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              167000000, 167000000, 167000000, 167000000, 167000000, 167000000
+            ],
+            "programReferences": [2783, 2918, 3053, 3188, 3323, 3458],
+            "textures": [219, 219, 219, 219, 219, 219],
+            "geometries": [790, 790, 790, 790, 790, 790],
+            "programs": [128, 128, 128, 128, 128, 128],
+            "framebufferAllocationsPerRoundTrip": [81, 81, 81, 81, 81, 81],
+            "textureAllocationsPerRoundTrip": [166, 162, 162, 162, 162, 162],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 3627,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "rawArtifact": "/tmp/gpu-detail-candidate-final-gpu.json",
+      "rawSha256": "37849bd1225ba5bb4ed4877efb943e06f78a7666ee57c05654b2e5664f91c722",
+      "browser": "148.0.7778.96",
+      "gpuTimerAvailable": true,
+      "preflight": {
+        "before": {
+          "at": "2026-09-15T06:13:03+00:00",
+          "author": "gpu-detail-codex",
+          "tag": "before",
+          "cores": 18,
+          "load1_per_core": 0.421,
+          "other_browser_cpu": 118.2,
+          "headless_browsers_not_mine": 0,
+          "failures": [
+            "load1/core 0.421 > 0.35",
+            "other browser CPU 118.2% > 25.0%"
+          ],
+          "verdict": "contended"
+        },
+        "after": {
+          "at": "2026-09-15T06:17:13+00:00",
+          "author": "gpu-detail-codex",
+          "tag": "after",
+          "cores": 18,
+          "load1_per_core": 1.239,
+          "other_browser_cpu": 108,
+          "headless_browsers_not_mine": 0,
+          "failures": [
+            "load1/core 1.239 > 0.35",
+            "other browser CPU 108.0% > 25.0%"
+          ],
+          "verdict": "contended"
+        }
+      },
+      "timingVerdict": "provisional",
+      "runs": [
+        {
+          "profile": "basic",
+          "cache": "cold",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              167000000, 167000000, 167000000, 167000000, 167000000, 167000000
+            ],
+            "programReferences": [2469, 2469, 2469, 2469, 2469, 2469],
+            "textures": [178, 178, 178, 178, 178, 178],
+            "geometries": [777, 777, 777, 777, 777, 777],
+            "programs": [95, 95, 95, 95, 95, 95],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [3, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [4, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 4064,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "basic",
+          "cache": "warm",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              167000000, 167000000, 167000000, 167000000, 167000000, 167000000
+            ],
+            "programReferences": [2469, 2469, 2469, 2469, 2469, 2469],
+            "textures": [178, 178, 178, 178, 178, 178],
+            "geometries": [777, 777, 777, 777, 777, 777],
+            "programs": [95, 95, 95, 95, 95, 95],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [3, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [4, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 4070,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "no-meadow",
+          "cache": "cold",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              139000000, 139000000, 139000000, 139000000, 139000000, 139000000
+            ],
+            "programReferences": [2498, 2498, 2498, 2498, 2498, 2498],
+            "textures": [216, 216, 216, 216, 216, 216],
+            "geometries": [779, 779, 779, 779, 779, 779],
+            "programs": [108, 108, 108, 108, 108, 108],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [4, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 3989,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "no-meadow",
+          "cache": "warm",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              139000000, 139000000, 139000000, 139000000, 139000000, 139000000
+            ],
+            "programReferences": [2498, 2498, 2498, 2498, 2498, 2498],
+            "textures": [216, 216, 216, 216, 216, 216],
+            "geometries": [779, 779, 779, 779, 779, 779],
+            "programs": [108, 108, 108, 108, 108, 108],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [5, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 3872,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "full",
+          "cache": "cold",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              139000000, 139000000, 139000000, 139000000, 139000000, 139000000
+            ],
+            "programReferences": [2596, 2596, 2596, 2596, 2596, 2596],
+            "textures": [219, 219, 219, 219, 219, 219],
+            "geometries": [790, 790, 790, 790, 790, 790],
+            "programs": [128, 128, 128, 128, 128, 128],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [4, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 3228,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        },
+        {
+          "profile": "full",
+          "cache": "warm",
+          "bootForeground": {
+            "focused": true,
+            "visibility": "visible"
+          },
+          "errors": [],
+          "phaseValidity": {
+            "settle": true,
+            "outbound-1": true,
+            "return-1": true,
+            "outbound-2": true,
+            "return-2": true,
+            "outbound-3": true,
+            "return-3": true,
+            "outbound-4": true,
+            "return-4": true,
+            "outbound-5": true,
+            "return-5": true,
+            "outbound-6": true,
+            "return-6": true,
+            "rest": true
+          },
+          "returnTrend": {
+            "heapBytes": [
+              139000000, 139000000, 139000000, 139000000, 139000000, 139000000
+            ],
+            "programReferences": [2596, 2596, 2596, 2596, 2596, 2596],
+            "textures": [219, 219, 219, 219, 219, 219],
+            "geometries": [790, 790, 790, 790, 790, 790],
+            "programs": [128, 128, 128, 128, 128, 128],
+            "framebufferAllocationsPerRoundTrip": [0, 0, 0, 0, 0, 0],
+            "textureAllocationsPerRoundTrip": [5, 0, 0, 0, 0, 0],
+            "programLinksPerRoundTrip": [5, 4, 4, 4, 4, 4]
+          },
+          "renderers": [
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Max, Unspecified Version)"
+          ],
+          "gpuQueryCount": 2575,
+          "disjointPhases": [],
+          "dprs": [2],
+          "buffers": [[2880, 1800]]
+        }
+      ]
+    }
+  ],
+  "methodCommit": "394a52b1",
+  "methodSha256": "1f53a8d6326625d37ac6eabce0698d294054a8568d82ee4401ea0b71335bd8bb",
+  "baselineCommit": "88f46c1f1604a908821f1c14e55a1a1137eac00d",
+  "productCommit": "1efd70bb81252dfc16f4ef5d4bed8173bc29dcbc",
+  "baselineBuildId": "oHkTRseonI69byVJZP4DS",
+  "candidateBuildId": "eTHphNe6e5tTxtw2X68gh",
+  "workload": {
+    "viewport": [1440, 900],
+    "dpr": 2,
+    "roundTrips": 6,
+    "travel": [0, 6, 0],
+    "coldWarm": true,
+    "repeatCount": 1,
+    "phaseCountPerCell": 14
+  }
+}

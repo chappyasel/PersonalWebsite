@@ -36,14 +36,14 @@ The change introduces no optional rendering path or new control.
 
 ## Scope decisions
 
-| Area | Finding and decision |
-| --- | --- |
-| Postprocessing and render targets | Repeated child updates rebuilt the same graph and retained merged materials. Fixed ownership and reuse before tuning pass quality. |
-| DPR and resolution | `ComposerPixelRatio` already synchronizes composer targets after renderer DPR changes. Kept its policy and all resolution limits. |
-| Shader compilation | `sceneGpuPrewarm` compiles visible color-space variants and uses a disposable 1 by 1 target to upload mounted resources. Unique program counts alone miss the merged-material reference leak. |
-| Lighting and shadows | Kept authored lights, the existing unit-light policy and Cinematic+ shadow settings. Removing these would change the tested workload. |
-| LOD, culling and mesh allocation | Kept existing unit activity and content tiers. Meadow internals and IllustratedRoom were excluded by lane ownership. No geometry-density or visibility reduction is part of the gain. |
-| Optional grade | The existing live Color grade checkbox now avoids constructing the mask when off. No new optional path was introduced. |
+| Area                              | Finding and decision                                                                                                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Postprocessing and render targets | Repeated child updates rebuilt the same graph and retained merged materials. Fixed ownership and reuse before tuning pass quality.                                                            |
+| DPR and resolution                | `ComposerPixelRatio` already synchronizes composer targets after renderer DPR changes. Kept its policy and all resolution limits.                                                             |
+| Shader compilation                | `sceneGpuPrewarm` compiles visible color-space variants and uses a disposable 1 by 1 target to upload mounted resources. Unique program counts alone miss the merged-material reference leak. |
+| Lighting and shadows              | Kept authored lights, the existing unit-light policy and Cinematic+ shadow settings. Removing these would change the tested workload.                                                         |
+| LOD, culling and mesh allocation  | Kept existing unit activity and content tiers. Meadow internals and IllustratedRoom were excluded by lane ownership. No geometry-density or visibility reduction is part of the gain.         |
+| Optional grade                    | The existing live Color grade checkbox now avoids constructing the mask when off. No new optional path was introduced.                                                                        |
 
 ## Reproduction and evidence
 
@@ -103,10 +103,58 @@ cases were stopped. Neither failed repeat supports an allocation or timing claim
 The original valid console red and the six persisted candidate green artifacts
 remain the retained proof in `gpu-detail-evidence/allocation-red-green.json`.
 
-The archive was also missing the original `next.config.js`; its exact configuration
-has been restored. A bounded diagnostic and independent candidate GPU/resource
-capture are queued. Until they finish, the extended cold/warm resource matrix is
-blocked, and this work is a draft PR. No new timing claim is accepted.
+The archive was also missing the original `next.config.js`. Restoring its exact
+configuration resolved readiness: both original and candidate reached the scene
+with no page/console errors or failed requests. The final allocation repeat now
+has six valid original artifacts: basic 0/0, no-meadow 84/84, and full 81/81 new
+framebuffers. The six candidate artifacts remain zero throughout. The earlier
+original full run observed 84; treat these as measured counts, not a universal
+84-allocation constant. All twelve artifacts preserve DPR, buffer size and the
+required postprocessing policy.
+
+## Extended cold/warm resource result
+
+Both builds completed basic, no-meadow and full profiles, each with a cold load
+and warm reload followed by six round trips. All 168 phase validations passed,
+including the actual quality-transition journal, and every cell had no page
+errors. This instrumented matrix has different phase boundaries from the
+allocation regression; its observed original allocation range is 81–87 per trip.
+
+| Profile   | Original FBOs per trip, cold / warm | Patched FBOs per trip | Original program references, first to sixth return, cold / warm | Patched references, every return, cold / warm |
+| --------- | ----------------------------------- | --------------------- | --------------------------------------------------------------- | --------------------------------------------- |
+| Basic     | 0 / 0                               | 0                     | 2471 to 2471 / 2470 to 2470                                     | 2469 / 2469                                   |
+| No-meadow | 81–87 / 84–87                       | 0                     | 2685 to 3380 / 2700 to 3415                                     | 2498 / 2498                                   |
+| Full      | 81–84 / 81                          | 0                     | 2788 to 3478 / 2783 to 3458                                     | 2596 / 2596                                   |
+
+The postprocessed profiles accumulate 675–715 program references from their
+first to sixth return in the original build and zero in the patch. These are
+Three.js program reference counts, not unique shader programs or retained heap
+bytes. Steady trips still link four scene programs in both builds. First-trip
+asset uploads remain; subsequent patched trips allocate zero textures, while
+original postprocessed trips allocate 162–174 textures.
+
+The inventories match between builds at return: basic 178 textures / 777
+geometries / 95 unique programs, no-meadow 216 / 779 / 108, full 219 / 790 / 128.
+All phases retain DPR 2 and a 2880 by 1800 drawing buffer. No rendering detail was
+removed to obtain the resource result.
+
+Chromium exposed ANGLE Metal on Apple M5 Max and the asynchronous GPU timer
+extension. GPU query samples were captured, but their durations are excluded.
+Both clean timing attempts stopped before launching a browser because preflight
+reported contention. All four preflights bracketing the GPU/resource matrices
+also reported contention. There is **no accepted p50/p95/p99/max, missed-frame,
+long-frame, cold/warm startup-time, or GPU-time comparison** from this session.
+
+Unforced `performance.memory` readings were coarse and constant within each
+cell: original basic 157 MB, no-meadow 139 MB, full 167 MB; candidate basic
+167 MB, no-meadow/full 139 MB. These samples cannot establish retained-memory
+slope or bytes saved. They do not contradict the asset lane's separate post-GC
+heap-growth finding. Program-reference growth is the useful lifetime evidence
+here; broader retained-memory investigation remains a handoff.
+
+Compact results and raw-file digests are in
+`gpu-detail-evidence/cold-warm-resources.json`. The PR remains a draft with timing
+and precise retained-memory evidence explicitly unavailable.
 
 ## Timing protocol
 
@@ -158,7 +206,7 @@ evidence, not a retained-memory measurement.
 - Repository suite: 563 files / 4,749 tests pass; 3 files / 24 tests skipped.
 - Clean standard production build and both postbuild boundaries: pass.
 - Production resource regression: original basic passes, no-meadow and full fail
-  on 84 allocations; patched three profiles repeated twice all pass.
+  on 81–84 allocations; patched three profiles repeated twice all pass.
 - Claude working-tree ownership review: no blockers. Production-distribution
   coverage is supplied by the browser red/green regression. Its suggestion to
   clear the retired graph reference is included. The auditor's exact-commit
