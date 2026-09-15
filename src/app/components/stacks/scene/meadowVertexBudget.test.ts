@@ -110,13 +110,21 @@ describe("meadow brush settles to exactly zero without eating a live gesture", (
     expect(bare).toBeGreaterThan(0);
   });
 
-  it("keeps the collapsed amount far below one authored lean unit", () => {
-    // The brush contributes at most `strength` to a lean the shader clamps at
-    // authoredMaxLean, so the worst displacement the settle removes is the
-    // epsilon itself against that clamp.
-    expect(
-      MEADOW_BRUSH_IDLE_EPSILON / MEADOW_WIND.authoredMaxLean,
-    ).toBeLessThan(0.005);
+  it("keeps the complete collapsed lean far below one authored throw", () => {
+    // Both terms, not just the direct one. `uPokeDir * push` is bounded by
+    // the epsilon; the wind suppression is bounded by
+    // windSuppression * (epsilon / hoverStrength) * the gust ceiling, and it
+    // is roughly four times larger. An earlier version of this bound counted
+    // only the direct half and understated the settle by that factor.
+    const direct = MEADOW_BRUSH_IDLE_EPSILON;
+    const suppression =
+      MEADOW_POKE.windSuppression *
+      (MEADOW_BRUSH_IDLE_EPSILON / MEADOW_POKE.hoverStrength) *
+      MEADOW_WIND.gustCeiling;
+    expect(suppression).toBeGreaterThan(direct);
+    expect((direct + suppression) / MEADOW_WIND.authoredMaxLean).toBeLessThan(
+      0.015,
+    );
   });
 
   it("reports rest only when no pulse slot and no brush carries strength", () => {

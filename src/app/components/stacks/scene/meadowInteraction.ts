@@ -100,12 +100,19 @@ export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
  * smaller still. Anything a gesture is actively driving therefore passes
  * through untouched, however small.
  *
- * With no gesture driving it the brush contributes at most `strength` to a
- * lean the shader clamps at `MEADOW_WIND.authoredMaxLean` (0.36) and
- * multiplies by a sway height under 0.35 world units, so collapsing it at the
- * epsilon moves a blade tip by at most a third of a millimetre — under a
- * thousandth of a pixel from the traverse camera. What it buys is a uniform
- * that is genuinely zero at rest.
+ * With no gesture driving it, collapsing the brush moves the lean in TWO
+ * ways, and the second is the larger one. The direct term is
+ * `uPokeDir * push`, which is bounded by the epsilon itself. The indirect
+ * term is the wind suppression: the shader computes
+ * `w * (1 - windSuppression * interactionShape)`, and `interactionShape`
+ * carries `clamp(uPoke.w / hoverStrength, 0, 1)`, so an epsilon of brush
+ * still holds back `0.82 * (epsilon / 0.2)` of the gust. Against the gust
+ * ceiling that is about four times the direct term. Both together move a
+ * blade tip by under two millimetres on a lawn the traverse camera views
+ * from several world units away — about 1.4% of a full-lean throw, and far
+ * below one pixel. `meadowVertexBudget.test.ts` asserts the complete bound
+ * rather than the direct half. What it buys is a uniform that is genuinely
+ * zero at rest.
  */
 export function meadowSettledBrushStrength(
   strength: number,
