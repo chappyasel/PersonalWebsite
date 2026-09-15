@@ -135,6 +135,9 @@ export class PhotoMaskPass extends Pass {
   override dispose() {
     for (const proxy of this.proxies.values()) this.scene.remove(proxy);
     this.proxies.clear();
+    // Pass.dispose shallowly disposes every texture property. This one is
+    // borrowed from the composer and remains in use by its other passes.
+    this.sceneDepth = null;
     super.dispose();
   }
 }
