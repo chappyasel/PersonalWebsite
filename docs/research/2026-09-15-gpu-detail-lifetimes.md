@@ -47,11 +47,25 @@ The change introduces no optional rendering path or new control.
 
 ## Reproduction and evidence
 
-The focused lifetime tests exercise the installed composer source with real
-postprocessing objects. Only the R3F host graph and renderer methods needed to
-construct a composer are substituted. They cover unchanged child props, merged
-pass retirement, and composer replacement. The photo-mask test supplies a real
-borrowed DepthTexture and verifies that removal leaves it alive.
+The focused lifetime tests exercise both the public package entry
+(`@react-three/postprocessing`, resolving to `dist/index.js` in 3.0.5) and the
+installed composer source with real postprocessing objects. Both run through
+R3F's context with a test store and renderer surface; no composer, pass, effect,
+or disposal method is mocked. They cover unchanged child props, merged-pass
+retirement, and composer replacement. The photo-mask test supplies a real
+borrowed DepthTexture and verifies that removal leaves it alive. These tests
+run in the ordinary Vitest suite included by `pnpm verify`, without a browser
+or a macOS requirement.
+
+The Grade contract also invokes its recorded frame callback after the real mask
+is disposed. It checks late depth arrival, replacement with a new texture, and
+preservation of that binding when disposal clears the mask's borrowed reference.
+The callback now ignores a null reference. This is a binding safeguard, not a
+claim that React renders a disposed mask today. It neither extends the
+composer-owned texture's lifetime nor makes the mask's disposed target safe to
+render. Camera changes and the existing Color grade gate still govern the
+mask/grade lifetime; live browser lifecycle and visual parity remain separate
+coverage requirements.
 
 ```sh
 pnpm exec vitest run src/app/components/stacks/scene/effectComposerLifecycle.test.tsx src/app/components/stacks/scene/PhotoMaskPass.test.ts src/app/components/stacks/scene/Effects.contract.test.tsx
@@ -226,13 +240,56 @@ Bundle hashes are recorded in `scene-bundle-receipt.json`. Compact allocation an
 resource-trend summaries live beside this report in `gpu-detail-evidence/`.
 
 The package patch includes source and distributed JavaScript because production
-imports the bundle. Recheck and retire it when upgrading react-postprocessing.
+imports the bundle. Follow the upgrade requirements below before changing its
+version.
 Effect convolution attributes are constructor-set in the current scene. The
 identity guard assumes those attributes remain fixed for each effect object;
 revisit the guard if a future effect changes its grouping attributes live.
 
-A source integration test alone does not verify the distribution, so the real
-production-browser allocation test is also required.
+The public-entry regression verifies the distributed composer lifecycle without
+WebGL. The production-browser allocation test is still required to verify actual
+GPU allocations; neither test establishes pixel parity.
+
+## Exact-version patch upgrade requirements
+
+The patch key in `pnpm-workspace.yaml` is
+`@react-three/postprocessing@3.0.5`; the file is
+`patches/@react-three__postprocessing@3.0.5.patch`. The reviewed dependency set
+also pins `postprocessing` to 6.39.4 and `three` to 0.185.1. A different wrapper
+version does not inherit this patch. An unapplied-patch install error must be
+resolved by reviewing the new version, not by dropping the patch key or
+disabling pnpm's patch checks to get an install through.
+
+For a wrapper upgrade:
+
+1. Inspect the new package's `exports` and composer implementation. Check whether
+   upstream now preserves unchanged ordered child objects, releases generated
+   materials/listeners, and detaches React-owned children before composer
+   disposal. If it does, remove this patch and its workspace entry together,
+   regenerate the lockfile, and verify the unpatched upstream behavior.
+2. Otherwise use `pnpm patch @react-three/postprocessing@<new-version>` and
+   `pnpm patch-commit <edit-directory>` to create a newly reviewed patch. Update
+   both source and the actual exported JavaScript; do not rename the old patch
+   or assume a source-only change reaches production. Review generated output
+   and package-entry changes explicitly. Never edit an installed package in the
+   shared pnpm store.
+3. Recheck `EffectPass.setEffects`, listener removal, base `Pass.dispose`,
+   shared-depth ownership, and React cleanup behavior when either rendering
+   dependency changes. The current patch relies on those contracts, not just
+   the wrapper version. Effect grouping attributes must remain fixed for each
+   retained Effect object.
+4. Run a frozen-lockfile install in each consuming worktree after updating its
+   branch. Run both public-entry and source lifecycle cases, the mask and Grade
+   contracts, full `pnpm verify`, and a clean production build. Prove that the
+   public-entry cases reject the original lifecycle fault using an affected
+   unpatched version or a deliberate mutation in a private test copy, without
+   mutating the shared store.
+5. Repeat the production allocation regression for basic, no-meadow, and full
+   profiles with unchanged quality and DPR. Include grade toggles and camera
+   replacement in any live lifecycle review. Serialize these checks and builds
+   through the coordination wrapper while lanes share the machine. Quiet
+   preflight at both ends is required for timing claims; successful allocation
+   tests or a stable control do not waive it.
 
 The first normal `pnpm build` stopped in the private Dad-content fetch; the
 worktree lacked its cached content and fetch credential. A clean direct Next

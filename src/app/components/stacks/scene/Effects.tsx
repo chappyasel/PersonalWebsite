@@ -429,7 +429,9 @@ function Grade({
     // The composer creates its depth texture when a pass first asks for it,
     // which may be after this effect was built; the pass holds the latest.
     const depth = effect.uniforms.get("uSceneDepth")!;
-    if (depth.value !== photoMask.sceneDepth)
+    // A retired mask clears its borrowed reference. A late callback must not
+    // replace the last binding with null; the composer still owns the texture.
+    if (photoMask.sceneDepth && depth.value !== photoMask.sceneDepth)
       depth.value = photoMask.sceneDepth;
     writeDevelopUniforms(
       effect.uniforms,

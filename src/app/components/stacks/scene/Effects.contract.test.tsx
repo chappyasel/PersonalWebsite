@@ -353,6 +353,41 @@ describe("the scene's postprocessing chain", () => {
     );
   });
 
+  it("keeps the last borrowed scene depth if a mask is retired before its grade", () => {
+    const chain = render();
+    const mask = chain.props("PhotoMaskPass")!
+      .effect as PhotoMaskModule.PhotoMaskPass;
+    const grade = chain.props("GradeEffect")!.effect as {
+      uniforms: Map<string, { value: unknown }>;
+    };
+    const uniform = grade.uniforms.get("uSceneDepth")!;
+    const frame = () => {
+      for (const { callback } of harness.frames) callback({}, 1 / 120);
+    };
+    const first = new THREE.DepthTexture(4, 4);
+    const replacement = new THREE.DepthTexture(8, 8);
+    const dispose = vi.spyOn(replacement, "dispose");
+
+    // Depth arrives after the grade is constructed and can change with the
+    // composer. Both bindings must reach the actual Grade frame callback.
+    mask.setDepthTexture(first);
+    frame();
+    expect(uniform.value).toBe(first);
+    mask.setDepthTexture(replacement);
+    frame();
+    expect(uniform.value).toBe(replacement);
+
+    // Exercise a late callback explicitly; this is not a claim about React's
+    // unmount ordering or permission to render a disposed mask target.
+    mask.dispose();
+    expect(mask.sceneDepth).toBeNull();
+    frame();
+    expect(uniform.value).toBe(replacement);
+    expect(dispose).not.toHaveBeenCalled();
+    first.dispose();
+    replacement.dispose();
+  });
+
   it("runs the shipped develop with the mixer skipped, and none of it under Flat", () => {
     const shipped = SCENE_GRADE_PROFILES.shipped.values.develop.light;
     const grade = render().props("GradeEffect") as

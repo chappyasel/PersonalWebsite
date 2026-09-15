@@ -1,24 +1,32 @@
 // @vitest-environment jsdom
-import { EffectComposer } from "../../../../../node_modules/@react-three/postprocessing/src/EffectComposer";
-import { act, cleanup, render } from "@testing-library/react";
+import { EffectComposer as SourceEffectComposer } from "../../../../../node_modules/@react-three/postprocessing/src/EffectComposer";
+import { context as FiberContext, type RootState } from "@react-three/fiber";
+import { EffectComposer } from "@react-three/postprocessing";
+import { act, cleanup, render as renderReact } from "@testing-library/react";
 import {
   type EffectComposer as Composer,
   Effect,
   type EffectPass,
   Pass,
 } from "postprocessing";
-import { createRef } from "react";
+import { type ReactNode, createRef } from "react";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { create } from "zustand";
 
-const harness = vi.hoisted(() => ({
+const harness = {
   state: {} as Record<string, unknown>,
   nodes: [] as unknown[],
-}));
-vi.mock("@react-three/fiber", () => ({
-  useThree: () => harness.state,
-  useFrame: () => undefined,
-}));
+};
+
+function render(element: ReactNode) {
+  const store = create<RootState>(() => harness.state as unknown as RootState);
+  return renderReact(element, {
+    wrapper: ({ children }) => (
+      <FiberContext.Provider value={store}>{children}</FiberContext.Provider>
+    ),
+  });
+}
 
 // Only the R3F host graph is substituted. The installed React composer,
 // postprocessing passes, effects, depth textures and disposal are real.
@@ -28,6 +36,7 @@ beforeEach(() => {
     get: () => ({ children: harness.nodes.map((object) => ({ object })) }),
   });
   harness.state = {
+    internal: { subscribe: () => () => undefined },
     camera: new THREE.PerspectiveCamera(),
     scene: new THREE.Scene(),
     size: { width: 1440, height: 900 },
@@ -55,7 +64,10 @@ function depthEffect() {
   );
 }
 
-describe("the installed composer's resource lifetime", () => {
+describe.each([
+  ["public package entry", EffectComposer],
+  ["package source", SourceEffectComposer],
+])("the installed composer's resource lifetime (%s)", (_, EffectComposer) => {
   it("keeps passes and shared depth when only child props change", () => {
     const effect = depthEffect();
     harness.nodes = [effect];
