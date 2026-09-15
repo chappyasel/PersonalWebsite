@@ -181,35 +181,44 @@ move `p95` at rest on this machine. That is a statement about an M5 Max with
 headroom, not about the M2 MacBook Air in the incident report, and this host
 cannot stand in for that one.
 
-## Attribution: what the decisive experiment said
+## Attribution: not established
 
-DPR 1 against DPR 2 holds the vertex count fixed and quarters the fragments.
-Unthrottled, at rest, pre-patch build, two repeats, host contended:
+DPR 1 against DPR 2 would hold the vertex count fixed and quarter the
+fragments, which is the experiment that separates a vertex-bound cost from a
+fragment-bound one. It was run. It did not answer the question, and nothing
+below is a conclusion.
 
-| | full | no-meadow | meadow |
-| --- | ---: | ---: | ---: |
-| DPR 2 | 5.60 / 6.20 ms | 5.50 / 5.20 ms | +0.55 ms |
-| DPR 1 | 5.20 / 5.50 ms | 4.00 / 4.00 ms | +1.35 ms |
+Every capture's own preflight returned contended, so under the auditor's
+contention gate none of these numbers is admissible evidence about where the
+meadow's cost goes. They are recorded as raw, unusable-for-attribution data:
 
-Quartering the fragments did not shrink the meadow's cost by roughly four. It
-did not shrink it at all — it came out larger, which is impossible, and is
-therefore contention rather than signal.
+| | full | no-meadow |
+| --- | ---: | ---: |
+| DPR 2, before | 5.60 / 6.20 ms | 5.50 / 5.20 ms |
+| DPR 1, before | 5.20 / 5.50 ms | 4.00 / 4.00 ms |
+| DPR 2, after | 6.70 / 6.10 ms | 5.00 / 6.70 ms |
+| DPR 1, after | 5.00 / 5.00 ms | 4.00 / 4.00 ms |
 
-So the experiment failed to falsify the vertex thesis without confirming it.
-There is no evidence for fragment-bound: that required a fourfold shrink and
-produced none. There is weak evidence for vertex-bound: the DPR 1 pair is
-internally consistent (`no-meadow` 4.00 and 4.00, `full` 5.20 and 5.50, clean
-separation across repeats) and puts the meadow at about a quarter of a 5.35 ms
-frame. The DPR 2 pair is not usable — its two `no-meadow` repeats disagree by
-0.3 ms and straddle one of the `full` repeats.
+A stable-looking control does not rescue a failed gate: the `no-meadow` column
+reading 4.00 four times at DPR 1 shows that configuration was quiet across
+those particular samples, not that the host was quiet enough for the
+difference between columns to mean anything. No reduction figure is claimed
+from this table, and neither vertex-bound nor fragment-bound is ruled in or
+out by it.
 
-This needs a quiet host to conclude, and it should be concluded before anyone
-starts the larger change below.
+What the same runs DO establish, because a busy host cannot move an integer,
+is submission parity: 42 instanced draws and ~1,991k submitted vertices before
+and after, the same tiles at the same rungs. That is evidence the guards did
+not make the meadow cheaper by drawing less of it. It is **not** evidence of
+visual parity, which remains open and would need a frame capture.
+
+Concluding the attribution needs a quiet host, and it should be concluded
+before anyone starts the larger change below.
 
 ## Open
 
 The remaining instance-constant work is worth moving off the per-vertex path
-only if the attribution above resolves toward the vertex stage: a static
+only if a quiet-host attribution resolves toward the vertex stage: a static
 origin texture, one small target written by a single fragment pass per frame
 (one texel per instance), and a `texelFetch` in the vertex shader keyed off a
 per-tile instanced index. That is exact rather than approximate — same math,

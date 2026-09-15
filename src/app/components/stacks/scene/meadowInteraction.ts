@@ -149,26 +149,26 @@ export function meadowSettledBrushStrength(
 /**
  * How long the brush has gone undriven, on a clock that can restart.
  *
- * R3F resets `clock.elapsedTime` when the frameloop changes — `sceneClock.ts`
- * exists to wrap `setFrameloop` and put it back, which is a wrapper and
- * therefore something that can be bypassed. If it ever is, a stamp taken
- * before the reset sits in the future forever, the age goes permanently
- * negative, and the settle silently never arms again: no visual defect, but
- * the shader's expensive path becomes the resident one and nothing says so.
+ * R3F resets `clock.elapsedTime` when the frameloop changes. `sceneClock.ts`
+ * retains a `setFrameloop` wrapper that restores the value, installed by
+ * `SceneClockBoundary` in a layout effect; no bypass has been identified on
+ * that path. Subtracting the stamp directly would nevertheless yield a
+ * NEGATIVE age after a rollback, which reads as inside the grace window and
+ * declines to settle — so the shader's expensive path would stay resident
+ * until the clock climbed back past the stale stamp, with no visual defect
+ * and nothing to say so. Reading a rolled-back clock as idle removes that.
  *
- * A clock that has moved backwards means the frameloop restarted, which means
- * any gesture is long over, so the safe reading is "idle".
- *
- * That reading has one documented cost. If a restart ever landed DURING a
- * live gesture, the frames between it and the next pointer sample would read
- * as idle, and a ramp still under the epsilon would be clipped for exactly
- * that span. It recovers by itself — the next sample restamps against the new
- * clock — and `meadowVertexBudget.test.ts` pins the bound at under one
- * epsilon even for a restart in the final frames with no sample left to
- * recover on. No production path reaches it: `sceneClock.ts` restores the
- * value, and the frameloop changes that reset it (a modal, a route pause)
- * interrupt the gesture anyway. This is recorded as a limit rather than
- * claimed to be unreachable.
+ * What that reading costs, precisely. The frame loop refreshes the stamp
+ * BEFORE it reads the age (Meadow.tsx), so any frame carrying a pointer
+ * sample repairs it and nothing clips. A rollback on a frame between two
+ * samples does clip: the age reads idle and a ramp still under the epsilon
+ * is zeroed for that one frame. The next sample then restamps and the ramp
+ * RESUMES — it does not return to the strength the undisturbed run had, and
+ * the two trajectories converge over the following frames rather than
+ * rejoining. The largest single-frame difference is the clipped value
+ * itself, and a rollback with no sample left after it loses that value
+ * outright. `meadowVertexBudget.test.ts` pins all of it per frame, for grass
+ * and for flowers, with the sampled-frame rollback kept as a control.
  */
 export function meadowBrushIdleSeconds(
   now: number,

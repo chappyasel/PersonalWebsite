@@ -30,7 +30,13 @@ const damp = (current: number, target: number, lambda: number, dt: number) =>
   target + (current - target) * Math.exp(-lambda * dt);
 
 type Settle = (strength: number, frame: Frame) => number;
-type Frame = { target: number; secondsSinceDriven: number };
+type Frame = {
+  target: number;
+  secondsSinceDriven: number;
+  /** What the accepted-baseline mutant would have computed: the stamp
+   * subtracted directly, which goes negative when the clock rolls back. */
+  rawAge: number;
+};
 
 /** The shipped rule. */
 const shipped: Settle = (strength, frame) =>
@@ -56,7 +62,7 @@ const perFrameTargetRule: Settle = (strength, frame) =>
  * is the ordinary desktop case: a 60Hz mouse under a 120Hz renderer carries a
  * target on every other frame and zero on the rest.
  */
-function driveCadence({
+function traceCadence({
   target,
   seconds,
   attack,
@@ -83,6 +89,14 @@ function driveCadence({
 }) {
   const dt = 1 / renderHz;
   const framesPerEvent = Math.max(1, Math.round(renderHz / eventHz));
+  const trace: Array<{
+    frame: number;
+    now: number;
+    target: number;
+    age: number;
+    rawAge: number;
+    strength: number;
+  }> = [];
   let strength = from;
   // The frame loop's own bookkeeping, reproduced rather than approximated:
   // a scene clock, a stamp, and the shipped age function between them.
@@ -95,15 +109,36 @@ function driveCadence({
     const frameTarget = sampled ? target : 0;
     if (frameTarget > 0) lastDrivenAt = now;
     const secondsSinceDriven = meadowBrushIdleSeconds(now, lastDrivenAt);
+    const rawAge = now - lastDrivenAt;
     strength = damp(
       strength,
       frameTarget,
       frameTarget > strength ? attack : release,
       dt,
     );
-    strength = settle(strength, { target: frameTarget, secondsSinceDriven });
+    strength = settle(strength, {
+      target: frameTarget,
+      secondsSinceDriven,
+      rawAge,
+    });
+    trace.push({
+      frame,
+      now,
+      target: frameTarget,
+      age: secondsSinceDriven,
+      rawAge,
+      strength,
+    });
   }
-  return strength;
+  return trace;
+}
+
+/** The endpoint of a drive. An endpoint alone cannot show a clip that the
+ * next sample recovers from, which is exactly how the first version of the
+ * clock-restart test passed while exercising nothing. */
+function driveCadence(options: Parameters<typeof traceCadence>[0]) {
+  const trace = traceCadence(options);
+  return trace[trace.length - 1]!.strength;
 }
 
 const GRASS = {
@@ -226,43 +261,138 @@ describe("meadow brush settles only when the gesture is actually idle", () => {
     expect(MEADOW_BRUSH_IDLE_GRACE_SECONDS).toBeGreaterThan(10 / 60);
   });
 
-  it("clips only until the next sample when the clock restarts mid-gesture", () => {
-    // The documented limit of reading idle from a clock that can restart. If
-    // R3F resets elapsedTime while a gesture is live, the frames between the
-    // reset and the next pointer sample read as idle, so a ramp still under
-    // the epsilon is clipped. It recovers by itself: the next sample restamps
-    // against the new clock and the drive continues.
+  it("clips one frame when the clock restarts between two samples", () => {
+    // The documented limit of reading idle from a clock that can restart, and
+    // the reason this is a per-frame trace rather than an endpoint: the clip
+    // happens on ONE frame and the runs converge afterwards, so comparing
+    // endpoints proves nothing. The first version of this test compared
+    // endpoints AND reset on a frame that carried a sample — which refreshes
+    // the stamp before the age is read, so nothing clipped — and therefore
+    // asserted a trajectory against itself. Swapping the idle helper for a
+    // raw subtraction left it green.
     //
-    // There is no known production path to it — sceneClock.ts restores the
-    // value, and a frameloop change interrupts the gesture anyway — so this
-    // records the behaviour rather than asserting it is unreachable.
-    const options = { target: 0.006, seconds: 10, ...GRASS };
-    const undisturbed = driveCadence({ ...options, settle: shipped });
-    const disturbed = driveCadence({
-      ...options,
-      settle: shipped,
-      clockResetsAtFrame: 600,
-    });
-    // Clipped, not erased, and back on the same trajectory long before the
-    // end of the gesture.
-    expect(disturbed).toBeCloseTo(undisturbed, 6);
-    // And a reset in the last frames, with no sample after it to recover on,
-    // costs at most the sub-epsilon tail.
-    const atTheEnd = driveCadence({
-      ...options,
-      settle: shipped,
-      clockResetsAtFrame: 1199,
-    });
-    expect(Math.abs(atTheEnd - undisturbed)).toBeLessThan(
-      MEADOW_BRUSH_IDLE_EPSILON,
-    );
+    // Frame 0 carries a sample. Frame 1 does not, and is where the clock
+    // rolls back: the stamp from frame 0 is now in the future, the age reads
+    // as idle, and the strength is still under the epsilon, so it is zeroed.
+    // Frame 2 carries the next sample, which restamps against the new clock.
+    for (const [name, lambdas, target, clipped, resumed] of [
+      ["grass", GRASS, 0.006, 0.0006422519895028757, 0.0006607093740718575],
+      ["flowers", FLOWERS, 0.02, 0.0006480728633084786, 0.0006556779903598813],
+    ] as const) {
+      const options = {
+        target,
+        seconds: 10,
+        ...lambdas,
+        clockResetsAtFrame: 1,
+      };
+      const undisturbed = traceCadence({ ...options, clockResetsAtFrame: -1, settle: shipped });
+      const disturbed = traceCadence({ ...options, settle: shipped });
+
+      // What the restart costs, exactly: one frame, driven to zero.
+      expect(undisturbed[1]!.strength, name).toBeCloseTo(clipped, 12);
+      expect(disturbed[1]!.age, name).toBe(Number.POSITIVE_INFINITY);
+      expect(disturbed[1]!.strength, name).toBe(0);
+
+      // The next positive drive repairs the stamp before the age is read, so
+      // the age is zero again and the ramp resumes. It resumes — it does not
+      // restore the strength the undisturbed run had.
+      expect(disturbed[2]!.target, name).toBeGreaterThan(0);
+      expect(disturbed[2]!.age, name).toBe(0);
+      expect(disturbed[2]!.strength, name).toBeCloseTo(resumed, 12);
+
+      // The two runs then differ for hundreds of frames and converge rather
+      // than rejoining: frame 2 damps up from zero instead of from the
+      // clipped value, so the ramp is behind until the exponential closes
+      // the gap. The bound is the largest single-frame difference over the
+      // whole drive, and it is exactly what the restart took.
+      const deviation = Math.max(
+        ...disturbed.map((row, i) =>
+          Math.abs(row.strength - undisturbed[i]!.strength),
+        ),
+      );
+      expect(deviation, name).toBeCloseTo(clipped, 12);
+      expect(disturbed.at(-1)!.strength, name).toBeCloseTo(
+        undisturbed.at(-1)!.strength,
+        12,
+      );
+    }
+  });
+
+  it("loses the sub-epsilon tail when the restart is the last frame", () => {
+    // Terminal loss: a restart on an unsampled frame with no sample left to
+    // recover on. This is the bound, and it is the whole of it.
+    for (const [name, lambdas, target, clipped] of [
+      ["grass", GRASS, 0.006, 0.0006422519895028757],
+      ["flowers", FLOWERS, 0.02, 0.0006480728633084786],
+    ] as const) {
+      const options = { target, seconds: 2 / 120, ...lambdas };
+      const undisturbed = driveCadence({ ...options, settle: shipped });
+      const terminal = driveCadence({
+        ...options,
+        settle: shipped,
+        clockResetsAtFrame: 1,
+      });
+      expect(undisturbed, name).toBeCloseTo(clipped, 12);
+      expect(terminal, name).toBe(0);
+      expect(undisturbed - terminal, name).toBeLessThan(
+        MEADOW_BRUSH_IDLE_EPSILON,
+      );
+    }
+  });
+
+  it("does not clip when the restart lands on a sampled frame", () => {
+    // The control the case above needs. A restart on a frame that carries a
+    // sample refreshes the stamp BEFORE the age is read, so nothing clips —
+    // which is why resetting on an even frame, as the first version of this
+    // test did, could never have failed.
+    for (const [name, lambdas, target] of [
+      ["grass", GRASS, 0.006],
+      ["flowers", FLOWERS, 0.02],
+    ] as const) {
+      const options = { target, seconds: 10, ...lambdas, settle: shipped };
+      const undisturbed = traceCadence(options);
+      const onSample = traceCadence({ ...options, clockResetsAtFrame: 600 });
+      expect(onSample[600]!.age, name).toBe(0);
+      expect(
+        onSample.filter((row, i) => row.strength !== undisturbed[i]!.strength),
+        name,
+      ).toEqual([]);
+    }
+  });
+
+  it("fails if the idle helper is replaced by a raw subtraction", () => {
+    // Mutation evidence that the three cases above actually depend on
+    // meadowBrushIdleSeconds. The accepted-baseline mutant subtracts the
+    // stamp directly, so a rolled-back clock yields a NEGATIVE age, which
+    // reads as inside the grace window and declines to settle. It never
+    // clips — so it disagrees with the shipped helper on exactly the frame
+    // the tests above pin, and it would leave the settle disarmed until the
+    // clock climbed back past the stale stamp.
+    const rawAgeSettle: Settle = (strength, frame) =>
+      meadowSettledBrushStrength(strength, frame.rawAge);
+    for (const [name, lambdas, target, clipped] of [
+      ["grass", GRASS, 0.006, 0.0006422519895028757],
+      ["flowers", FLOWERS, 0.02, 0.0006480728633084786],
+    ] as const) {
+      const options = {
+        target,
+        seconds: 10,
+        ...lambdas,
+        clockResetsAtFrame: 1,
+      };
+      const mutant = traceCadence({ ...options, settle: rawAgeSettle });
+      expect(mutant[1]!.rawAge, name).toBeLessThan(0);
+      expect(mutant[1]!.strength, name).toBeCloseTo(clipped, 12);
+      expect(mutant[1]!.strength, name).not.toBe(0);
+    }
   });
 
   it("reads idle when the scene clock restarts under it", () => {
     // R3F resets clock.elapsedTime on a frameloop change and sceneClock.ts
-    // puts it back — a wrapper, so something that can be bypassed. A stamp
-    // left in the future would otherwise disarm the settle for the rest of
-    // the visit with nothing to show for it.
+    // puts it back. Subtracting the stamp directly would still yield a
+    // negative age after a rollback, which reads as inside the grace window
+    // and declines to settle — leaving the shader's expensive path resident
+    // until the clock climbed back past the stale stamp.
     expect(meadowBrushIdleSeconds(12, 4)).toBe(8);
     expect(meadowBrushIdleSeconds(4, 4)).toBe(0);
     expect(meadowBrushIdleSeconds(0, 30)).toBe(Number.POSITIVE_INFINITY);
