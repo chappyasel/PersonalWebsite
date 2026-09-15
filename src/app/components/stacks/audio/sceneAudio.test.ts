@@ -531,7 +531,9 @@ describe("scene audio policy", () => {
         ),
       ).toBe(true),
     );
-    expect(fetch).toHaveBeenCalledWith("/audio/stacks/coordination-boom.ogg");
+    expect(vi.mocked(fetch).mock.calls.map(([path]) => path)).toContain(
+      "/audio/stacks/coordination-boom.ogg",
+    );
     runtime.teardown();
   });
 
@@ -591,5 +593,198 @@ describe("scene audio policy", () => {
       expect(FakeAudioContext.latest?.sources.length).toBeGreaterThan(0),
     );
     runtime.teardown();
+  });
+});
+
+describe("scene audio loading lifetime", () => {
+  it("finishes the replacement load even when one sample is unavailable", async () => {
+    installAudioBrowser();
+    const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((...args) =>
+      typeof args[0] === "string" && args[0].includes("golf-cup")
+        ? Promise.resolve({ ok: false } as Response)
+        : originalFetch(...args),
+    );
+    const runtime = new SceneAudioRuntime();
+    try {
+      runtime.unlock();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      runtime.teardown();
+      runtime.unlock();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(runtime.play("golf-cup", { x: 0, y: 0, z: 0 })).toBe(false);
+      expect(runtime.play("golf-win", { x: 0, y: 0, z: 0 })).toBe(true);
+      expect(FakeAudioContext.latest!.sources).toHaveLength(1);
+    } finally {
+      runtime.teardown();
+    }
+  });
+
+  it("allows a retry when the current soundtrack request fails", async () => {
+    installAudioBrowser();
+    const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+    let soundtrackRequests = 0;
+    vi.mocked(fetch).mockImplementation((...args) => {
+      if (
+        typeof args[0] === "string" &&
+        args[0].includes("synthwave-loop") &&
+        ++soundtrackRequests === 1
+      )
+        return Promise.resolve({ ok: false } as Response);
+      return originalFetch(...args);
+    });
+    const runtime = new SceneAudioRuntime();
+    try {
+      runtime.unlock();
+      runtime.startVisionRide();
+      await vi.waitFor(() =>
+        expect(runtime.snapshot().rideStatus).toBe("failed"),
+      );
+      runtime.startVisionRide();
+      await vi.waitFor(() =>
+        expect(runtime.snapshot().rideStatus).toBe("playing"),
+      );
+      expect(soundtrackRequests).toBe(2);
+    } finally {
+      runtime.teardown();
+    }
+  });
+
+  it("keeps replacement strikes queued when an old load finishes", async () => {
+    installAudioBrowser();
+    let finishOld!: (value: { duration: number }) => void;
+    let finishNew!: (value: { duration: number }) => void;
+    const oldDecode = new Promise<{ duration: number }>((resolve) => {
+      finishOld = resolve;
+    });
+    const newDecode = new Promise<{ duration: number }>((resolve) => {
+      finishNew = resolve;
+    });
+    let decodes = 0;
+    FakeAudioContext.decodeImpl = async () => {
+      decodes += 1;
+      if (decodes === 1) return oldDecode;
+      if (decodes === 2) return newDecode;
+      return { duration: 2 };
+    };
+    const runtime = new SceneAudioRuntime();
+    try {
+      runtime.unlock();
+      await vi.waitFor(() => expect(decodes).toBe(1));
+      runtime.teardown();
+      runtime.unlock();
+      await vi.waitFor(() => expect(decodes).toBe(2));
+      finishOld({ duration: 2 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(runtime.play("golf-strike", { x: 0, y: 0, z: 0 })).toBe(true);
+      finishNew({ duration: 2 });
+      await vi.waitFor(() =>
+        expect(FakeAudioContext.latest!.sources).toHaveLength(1),
+      );
+    } finally {
+      finishNew({ duration: 2 });
+      runtime.teardown();
+    }
+  });
+
+  it.each(["response", "body"] as const)(
+    "aborts a pending %s and skips decode after teardown",
+    async (stage) => {
+      installAudioBrowser();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let bodyStarted = false;
+      vi.mocked(fetch).mockImplementationOnce(async () => {
+        if (stage === "response") await gate;
+        return {
+          ok: true,
+          arrayBuffer: async () => {
+            bodyStarted = true;
+            if (stage === "body") await gate;
+            return new ArrayBuffer(1);
+          },
+        } as Response;
+      });
+      const decode = vi.spyOn(FakeAudioContext.prototype, "decodeAudioData");
+      const runtime = new SceneAudioRuntime();
+      try {
+        runtime.unlock();
+        if (stage === "body")
+          await vi.waitFor(() => expect(bodyStarted).toBe(true));
+        const signal = vi.mocked(fetch).mock.calls[0]?.[1]?.signal;
+        runtime.teardown();
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(decode).not.toHaveBeenCalled();
+        expect(signal?.aborted).toBe(true);
+      } finally {
+        release();
+        runtime.teardown();
+        decode.mockRestore();
+      }
+    },
+  );
+
+  it("keeps the replacement ride load deduplicated when an old request finishes", async () => {
+    installAudioBrowser();
+    const finishRides: Array<(response: Response) => void> = [];
+    const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((...args) => {
+      if (typeof args[0] === "string" && args[0].includes("synthwave-loop")) {
+        return new Promise<Response>((resolve) => {
+          finishRides.push(resolve);
+        });
+      }
+      return originalFetch(...args);
+    });
+    const runtime = new SceneAudioRuntime();
+    const response = { ok: false } as Response;
+    try {
+      runtime.unlock();
+      runtime.startVisionRide();
+      runtime.teardown();
+      runtime.unlock();
+      runtime.startVisionRide();
+      expect(finishRides).toHaveLength(2);
+      finishRides[0]!(response);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      runtime.startVisionRide();
+      expect(finishRides).toHaveLength(2);
+    } finally {
+      for (const finish of finishRides) finish(response);
+      runtime.teardown();
+    }
+  });
+
+  it("does not let an old decode restart loading in a replacement session", async () => {
+    installAudioBrowser();
+    let finishOldDecode!: (value: { duration: number }) => void;
+    const oldDecode = new Promise<{ duration: number }>((resolve) => {
+      finishOldDecode = resolve;
+    });
+    let decodes = 0;
+    FakeAudioContext.decodeImpl = async () => {
+      decodes += 1;
+      return decodes === 1 ? oldDecode : { duration: 2 };
+    };
+    const runtime = new SceneAudioRuntime();
+    try {
+      runtime.unlock();
+      await vi.waitFor(() => expect(decodes).toBe(1));
+      runtime.teardown();
+      runtime.unlock();
+      await vi.waitFor(() =>
+        expect(vi.mocked(fetch)).toHaveBeenCalledTimes(13),
+      );
+      finishOldDecode({ duration: 2 });
+      // Drain the old sequential load and all of its parallel asset stages.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(vi.mocked(fetch)).toHaveBeenCalledTimes(13);
+      expect(decodes).toBe(13);
+    } finally {
+      runtime.teardown();
+    }
   });
 });
