@@ -1,0 +1,584 @@
+{
+  "about-collective-group-v8": {
+    "image": {
+      "width": 0.3072,
+      "height": 0.19199999999999998
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/about-collective-group.webp"
+  },
+  "about-delicate-arch-v8": {
+    "image": {
+      "width": 0.24,
+      "height": 0.24
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/about-delicate-arch.webp"
+  },
+  "about-family-v8": {
+    "image": {
+      "width": 0.19825781250000002,
+      "height": 0.264
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/about-family.webp"
+  },
+  "about-profile-full-v8": {
+    "image": {
+      "width": 0.18,
+      "height": 0.24
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/about-profile-full.webp"
+  },
+  "about-speaking-candid-v8": {
+    "image": {
+      "width": 0.306,
+      "height": 0.204099609375
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/about-speaking-candid.webp"
+  },
+  "aggregate-strength": {
+    "image": {
+      "width": 0.26,
+      "height": 0.15487654320987654
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "#d7cdbb",
+        "radius": 0.004
+      }
+    ],
+    "previewSrc": "/images/stacks/training-figures/aggregate-strength.png"
+  },
+  "big-three": {
+    "image": {
+      "width": 0.26,
+      "height": 0.15319502074688798
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "#d7cdbb",
+        "radius": 0.004
+      }
+    ],
+    "previewSrc": "/images/stacks/training-figures/big-three.png"
+  },
+  "dexa-history": {
+    "image": {
+      "width": 0.225,
+      "height": 0.18000000000000002
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "#d7cdbb",
+        "radius": 0.004
+      }
+    ],
+    "previewSrc": "/images/stacks/training-figures/dexa-lean-mass-vs-bodyweight.png"
+  },
+  "lift-table": {
+    "image": {
+      "width": 0.245,
+      "height": 0.317
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/artifacts/lift-table.png"
+  },
+  "portrait": {
+    "image": {
+      "width": 0.86,
+      "height": 0.86
+    },
+    "layers": [
+      {
+        "inset": 0.04,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.08,
+        "tone": "frame",
+        "radius": 0.012
+      }
+    ],
+    "previewSrc": "/_next/image?url=%2Fimages%2Fabout%2Fprofile.jpg&w=256&q=75"
+  },
+  "projects-coding-couch-v8": {
+    "image": {
+      "width": 0.372,
+      "height": 0.29752734375
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/projects-coding-couch.webp"
+  },
+  "projects-facebook-v8": {
+    "image": {
+      "width": 0.36,
+      "height": 0.27
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/projects-facebook.webp"
+  },
+  "projects-wwdc-v8": {
+    "image": {
+      "width": 0.27037500000000003,
+      "height": 0.336
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/projects-wwdc.webp"
+  },
+  "systems-home-office-v8": {
+    "image": {
+      "width": 0.38,
+      "height": 0.28500000000000003
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/systems-home-office.webp"
+  },
+  "systems-lighthouse-v8": {
+    "image": {
+      "width": 0.22,
+      "height": 0.27506715506715507
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/systems-lighthouse.webp"
+  },
+  "systems-sf-dusk-v8": {
+    "image": {
+      "width": 0.38,
+      "height": 0.28500000000000003
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/systems-sf-dusk.webp"
+  },
+  "systems-supplements-v8": {
+    "image": {
+      "width": 0.44,
+      "height": 0.2195703125
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/systems-supplements.webp"
+  },
+  "systems-working-session-v8": {
+    "image": {
+      "width": 0.5,
+      "height": 0.26171875
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/systems-working-session.webp"
+  },
+  "talk-ann-interview-v8": {
+    "image": {
+      "width": 0.5,
+      "height": 0.3125
+    },
+    "layers": [
+      {
+        "inset": 0.02,
+        "tone": "#9aa0a6",
+        "radius": 0.003,
+        "finish": "metal"
+      }
+    ],
+    "accents": [],
+    "previewSrc": "/images/stacks/v8/512/talk-ann-interview.webp"
+  },
+  "talk-consensus-phone-v8": {
+    "image": {
+      "width": 0.6,
+      "height": 0.33749999999999997
+    },
+    "layers": [
+      {
+        "inset": 0.01,
+        "tone": "paper",
+        "radius": 0.002,
+        "finish": "paper"
+      }
+    ],
+    "accents": [
+      {
+        "kind": "eyelets",
+        "tone": "#b08b3c",
+        "radius": 0.009,
+        "stroke": 0.003,
+        "spread": 0.78
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/talk-consensus-phone.webp"
+  },
+  "talk-dc-policy-v8": {
+    "image": {
+      "width": 0.66,
+      "height": 0.37125
+    },
+    "layers": [
+      {
+        "inset": 0.012,
+        "tone": "#b0913f",
+        "radius": 0,
+        "finish": "gilt"
+      },
+      {
+        "inset": 0.05,
+        "tone": "pages",
+        "radius": 0,
+        "finish": "paper"
+      },
+      {
+        "inset": 0.072,
+        "tone": "frame",
+        "radius": 0.005,
+        "finish": "wood"
+      }
+    ],
+    "accents": [],
+    "previewSrc": "/images/stacks/v8/512/talk-dc-policy.webp"
+  },
+  "talk-demo-night-v8": {
+    "image": {
+      "width": 0.66,
+      "height": 0.41250000000000003
+    },
+    "layers": [
+      {
+        "inset": 0.016,
+        "tone": "pages",
+        "radius": 0,
+        "finish": "paper"
+      },
+      {
+        "inset": 0.048,
+        "tone": "#b0913f",
+        "radius": 0.006,
+        "finish": "gilt"
+      },
+      {
+        "inset": 0.058,
+        "tone": "#7d6429",
+        "radius": 0.006,
+        "finish": "gilt"
+      }
+    ],
+    "accents": [
+      {
+        "kind": "corner-blocks",
+        "tone": "#b0913f",
+        "size": 0.034,
+        "edgeInset": 0.017,
+        "radius": 0.004
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/talk-demo-night.webp"
+  },
+  "talk-panel-v8": {
+    "image": {
+      "width": 0.552,
+      "height": 0.3105
+    },
+    "layers": [
+      {
+        "inset": 0.018,
+        "tone": "paper",
+        "radius": 0.002,
+        "finish": "paper"
+      }
+    ],
+    "accents": [],
+    "previewSrc": "/images/stacks/v8/512/talk-panel.webp"
+  },
+  "training-bench-v8": {
+    "image": {
+      "width": 0.275,
+      "height": 0.267
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-bench.webp"
+  },
+  "training-deadlift-v8": {
+    "image": {
+      "width": 0.285,
+      "height": 0.27
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-deadlift.webp"
+  },
+  "training-golf-flag-v8": {
+    "image": {
+      "width": 0.24,
+      "height": 0.32
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/training-golf-flag.webp"
+  },
+  "training-golf-group-v8": {
+    "image": {
+      "width": 0.36,
+      "height": 0.27
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/training-golf-group.webp"
+  },
+  "training-gym-pose-v8": {
+    "image": {
+      "width": 0.24,
+      "height": 0.32
+    },
+    "layers": [
+      {
+        "inset": 0.014,
+        "tone": "paper",
+        "radius": 0.002
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-gym-pose.webp"
+  },
+  "training-pickleball-group-v8": {
+    "image": {
+      "width": 0.36,
+      "height": 0.27
+    },
+    "layers": [
+      {
+        "inset": 0.006,
+        "tone": "pages",
+        "radius": 0
+      },
+      {
+        "inset": 0.024,
+        "tone": "frame",
+        "radius": 0.005
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/512/training-pickleball-group.webp"
+  },
+  "training-stage-kneeling-v8": {
+    "image": {
+      "width": 0.17,
+      "height": 0.21255189255189258
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "paper",
+        "radius": 0.003
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-stage-kneeling.webp"
+  },
+  "training-stage-side-v8": {
+    "image": {
+      "width": 0.17,
+      "height": 0.21255189255189258
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "paper",
+        "radius": 0.003
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-stage-side.webp"
+  },
+  "training-trophy-front-v8": {
+    "image": {
+      "width": 0.17,
+      "height": 0.21255189255189258
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "paper",
+        "radius": 0.003
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-trophy-front.webp"
+  },
+  "training-trophy-side-v8": {
+    "image": {
+      "width": 0.36,
+      "height": 0.4495609756097561
+    },
+    "layers": [
+      {
+        "inset": 0.009,
+        "tone": "paper",
+        "radius": 0.003
+      }
+    ],
+    "previewSrc": "/images/stacks/v8/256/training-trophy-side.webp"
+  }
+}

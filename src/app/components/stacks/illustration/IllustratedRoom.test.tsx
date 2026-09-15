@@ -21,6 +21,8 @@ vi.mock("../dom/BootScreen", () => ({
     </svg>
   ),
 }));
+vi.mock("./IllustrationHotspots", () => ({ IllustrationHotspots: () => null }));
+
 const initial = useStacks.getState();
 const data = {
   readingBooks: [],
@@ -142,6 +144,50 @@ it("does not publish stale decode completion after a shelf changes", async () =>
       .querySelector("img[data-room-artwork]")
       ?.getAttribute("data-unit"),
   ).toBe("4");
+});
+
+it("parks decoding and geometry work during 3D travel and resumes on the current shelf", async () => {
+  const onReady = vi.fn();
+  const props = {
+    data,
+    theme: "light" as const,
+    viewport: "desktop" as const,
+    canRequest3D: false,
+    onRequest3D: vi.fn(),
+    onReady,
+    onUnavailable: vi.fn(),
+  };
+  const view = render(<IllustratedRoom {...props} visible />);
+  await act(async () => Promise.resolve());
+  const originalRow = view.container.querySelector(
+    ".room-illustration-traverse",
+  );
+  view.rerender(<IllustratedRoom {...props} visible={false} />);
+  await act(async () => Promise.resolve());
+  decode.mockClear();
+  onReady.mockClear();
+  const geometry = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+  geometry.mockClear();
+  for (const unit of [2, 4, 6]) {
+    await act(async () => {
+      useStacks.setState({ activeUnit: unit });
+    });
+  }
+  expect(decode).not.toHaveBeenCalled();
+  expect(geometry).not.toHaveBeenCalled();
+  expect(onReady).not.toHaveBeenCalled();
+
+  view.rerender(<IllustratedRoom {...props} visible />);
+  await act(async () => Promise.resolve());
+  expect(view.container.querySelector(".room-illustration-traverse")).toBe(
+    originalRow,
+  );
+  expect(
+    view.container
+      .querySelector("img[data-room-artwork]")
+      ?.getAttribute("data-unit"),
+  ).toBe("6");
+  expect(decode).toHaveBeenCalled();
 });
 
 it("withholds both new and cached registration until the entrance settles, then measures the final box", async () => {

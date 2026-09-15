@@ -1,0 +1,215 @@
+diff --git a/dist/index.js b/dist/index.js
+index 811cdc8d3c95864399e9458fb6362dc886342ff8..202d7f13ab27838aeb84f638b09bd63b17e14e23 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -25,6 +25,12 @@ function ke(e) {
+ 	};
+ }
+ var Ae = /* @__PURE__ */ ke("autoClear"), je = /* @__PURE__ */ ke("toneMapping");
++class StacksReactEffectPass extends y {
++  dispose() {
++    this.setEffects([]);
++    super.dispose();
++  }
++}
+ function Me(e, t) {
+ 	let n = [];
+ 	for (let r = 0; r < e.length; r++) {
+@@ -35,13 +41,14 @@ function Me(e, t) {
+ 				let t;
+ 				for (; (t = e[r + 1]) instanceof _ && !Oe(t);) a.push(t), r++;
+ 			}
+-			n.push(new y(t, ...a));
++			n.push(new StacksReactEffectPass(t, ...a));
+ 		} else i instanceof ne && n.push(i);
+ 	}
+ 	return n;
+ }
+ var Ne = /* @__PURE__ */ ge(function({ children: e, camera: t, scene: n, resolutionScale: i, enabled: o = !0, renderPriority: s = 1, autoClear: c = !0, depthBuffer: l, enableNormalPass: u, stencilBuffer: d, multisampling: p = 8, frameBufferType: m = ye, ref: h }) {
+ 	let { gl: g, scene: y, camera: b, size: x } = a(), S = n || y, C = t || b, [w, T] = I(null);
++  const stacksGraph = F(null);
+ 	j(() => {
+ 		Ae.acquire(g, !1);
+ 		let e = new v(g, {
+@@ -60,6 +67,10 @@ var Ne = /* @__PURE__ */ ge(function({ children: e, camera: t, scene: n, resolut
+ 			normalPass: t,
+ 			downSamplingPass: n
+ 		}), () => {
++      if (stacksGraph.current?.composer === e) {
++        stacksGraph.current.release();
++        stacksGraph.current = null;
++      }
+ 			e.dispose(), Ae.release(g);
+ 		};
+ 	}, [
+@@ -80,23 +91,38 @@ var Ne = /* @__PURE__ */ ge(function({ children: e, camera: t, scene: n, resolut
+ 		g.autoClear = c, d && !c && g.clearStencil(), n.render(t), g.autoClear = r;
+ 	}, o ? s : 0);
+ 	let E = F(null);
+-	N(() => {
+-		if (!w) return;
+-		let { composer: e, normalPass: t, downSamplingPass: n } = w, r = [], i = E.current.__r3f;
+-		if (i) {
+-			let e = i.children.map((e) => e.object).filter((e) => e instanceof _ || e instanceof ne);
+-			r.push(...Me(e, C));
+-		}
+-		for (let t of r) e.addPass(t);
+-		return r.length && (t && (t.enabled = !0), n && (n.enabled = !0)), () => {
+-			for (let t of r) e.removePass(t);
+-			t && (t.enabled = !1), n && (n.enabled = !1);
+-		};
+-	}, [
+-		w,
+-		e,
+-		C
+-	]), j(() => (je.acquire(g, xe), g.toneMapping = xe, () => {
++  N(() => () => {
++    stacksGraph.current?.release();
++    stacksGraph.current = null;
++  }, [w, C]);
++  N(() => {
++    if (!w) return;
++    const { composer, normalPass, downSamplingPass } = w;
++    const nodes = (E.current.__r3f?.children ?? []).map(child => child.object).filter(object => object instanceof _ || object instanceof ne);
++    const previous = stacksGraph.current;
++    if (previous && nodes.length === previous.nodes.length && nodes.every((node, index) => node === previous.nodes[index])) return;
++    previous?.release();
++    stacksGraph.current = null;
++    const passes = Me(nodes, C);
++    for (const pass of passes) composer.addPass(pass);
++    if (passes.length) {
++      if (normalPass) normalPass.enabled = true;
++      if (downSamplingPass) downSamplingPass.enabled = true;
++    }
++    stacksGraph.current = {
++      composer,
++      nodes,
++      release: () => {
++        for (const pass of passes) {
++          composer.removePass(pass);
++          if (pass instanceof StacksReactEffectPass) pass.dispose();
++        }
++        if (normalPass) normalPass.enabled = false;
++        if (downSamplingPass) downSamplingPass.enabled = false;
++      }
++    };
++  }, [w, e, C]);
++  j(() => (je.acquire(g, xe), g.toneMapping = xe, () => {
+ 		je.release(g);
+ 	}), [g]);
+ 	let D = P(() => w ? {
+diff --git a/src/EffectComposer.tsx b/src/EffectComposer.tsx
+index 7b0fef8844f8d45bc2d7032be012d1c32c9e0552..9c3c6c6fb06281967f92fb813632ca94c0902e31 100644
+--- a/src/EffectComposer.tsx
++++ b/src/EffectComposer.tsx
+@@ -102,6 +102,16 @@ const toneMappingGuard = /* @__PURE__ */ createRendererPropertyGuard('toneMappin
+  * passes, merging consecutive non-convolution Effects into a single
+  * EffectPass.
+  */
++// Effects belong to their React children. Generated merged passes own only
++// their shader material and change listeners, even when a live effect moves
++// into a replacement pass.
++class ReactEffectPass extends EffectPass {
++  override dispose() {
++    this.setEffects([])
++    super.dispose()
++  }
++}
++
+ function buildPasses(nodes: Array<Effect | Pass>, camera: Camera): Pass[] {
+   const passes: Pass[] = []
+ 
+@@ -120,7 +130,7 @@ function buildPasses(nodes: Array<Effect | Pass>, camera: Camera): Pass[] {
+         }
+       }
+ 
+-      passes.push(new EffectPass(camera, ...effects))
++      passes.push(new ReactEffectPass(camera, ...effects))
+     } else if (node instanceof Pass) {
+       passes.push(node)
+     }
+@@ -152,6 +162,12 @@ export const EffectComposer = /* @__PURE__ */ memo(function EffectComposer({
+   // disposed inside an effect lifecycle. useMemo is not suitable here
+   // because React may discard memoized values without running cleanup.
+   const [composerState, setComposerState] = useState<ComposerState | null>(null)
++  const graph = useRef<{
++    composer: EffectComposerImpl
++    nodes: Array<Effect | Pass>
++    release: () => void
++  } | null>(null)
++
+ 
+   useEffect(() => {
+     autoClearGuard.acquire(gl, false)
+@@ -179,6 +195,12 @@ export const EffectComposer = /* @__PURE__ */ memo(function EffectComposer({
+     setComposerState({ composer: effectComposer, normalPass, downSamplingPass })
+ 
+     return () => {
++      // Child passes can survive a composer rebuild. Detach them before
++      // disposing the composer's own buffers and internal render pass.
++      if (graph.current?.composer === effectComposer) {
++        graph.current.release()
++        graph.current = null
++      }
+       effectComposer.dispose()
+       autoClearGuard.release(gl)
+     }
+@@ -209,32 +231,41 @@ export const EffectComposer = /* @__PURE__ */ memo(function EffectComposer({
+   // through wrapper components — even after a reorder or a remount.
+   const group = useRef<Group>(null!)
+ 
++  // Cleanup belongs to the composer lifetime, not the identity of JSX props.
++  useLayoutEffect(() => () => {
++    graph.current?.release()
++    graph.current = null
++  }, [composerState, camera])
++
+   useLayoutEffect(() => {
+     if (!composerState) return
+     const { composer, normalPass, downSamplingPass } = composerState
+-
+-    const passes: Pass[] = []
+     const groupInstance = (group.current as Group & { __r3f: Instance<Group> }).__r3f
+-
+-    if (groupInstance) {
+-      const nodes = groupInstance.children.map((child) => child.object).filter(
+-        (object): object is Effect | Pass => object instanceof Effect || object instanceof Pass
+-      )
+-
+-      passes.push(...buildPasses(nodes, camera))
+-    }
+-
++    const nodes = (groupInstance?.children ?? []).map((child) => child.object).filter(
++      (object): object is Effect | Pass => object instanceof Effect || object instanceof Pass
++    )
++    const previous = graph.current
++    if (previous && nodes.length === previous.nodes.length && nodes.every((node, index) => node === previous.nodes[index])) return
++
++    previous?.release()
++    graph.current = null
++    const passes = buildPasses(nodes, camera)
+     for (const pass of passes) composer.addPass(pass)
+-
+     if (passes.length) {
+       if (normalPass) normalPass.enabled = true
+       if (downSamplingPass) downSamplingPass.enabled = true
+     }
+-
+-    return () => {
+-      for (const pass of passes) composer.removePass(pass)
+-      if (normalPass) normalPass.enabled = false
+-      if (downSamplingPass) downSamplingPass.enabled = false
++    graph.current = {
++      composer,
++      nodes,
++      release: () => {
++        for (const pass of passes) {
++          composer.removePass(pass)
++          if (pass instanceof ReactEffectPass) pass.dispose()
++        }
++        if (normalPass) normalPass.enabled = false
++        if (downSamplingPass) downSamplingPass.enabled = false
++      },
+     }
+   }, [composerState, children, camera])
+ 

@@ -471,6 +471,25 @@ export function sceneArtifactById(
     null) as SceneArtifact | null;
 }
 
+/** Resolve an artifact from the id the 2D illustration draws it under.
+ *
+ * SVG element ids cannot carry colons, so the artwork spells an interaction
+ * id with hyphens: `grab:photo:talk-panel-v8` is drawn as
+ * `grab-photo-talk-panel-v8`. Normalising in this direction keeps the
+ * artifacts themselves the single source of truth — a photo added to
+ * SCENE_ARTIFACTS becomes clickable in 2D as soon as the drawing carries a
+ * matching id, with no second table to keep in step.
+ *
+ * Returns null for anything the catalog does not know, so archived artwork
+ * can outlive a photo without inventing a label for it. */
+export function sceneArtifactByArtworkId(
+  artworkId: string,
+): SceneArtifact | null {
+  return (SCENE_ARTIFACTS.find(
+    (artifact) => artifact.interactionId.replaceAll(":", "-") === artworkId,
+  ) ?? null) as SceneArtifact | null;
+}
+
 export function adjacentSceneArtifact(
   id: SceneArtifactId,
   offset: -1 | 1,

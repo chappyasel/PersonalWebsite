@@ -99,6 +99,8 @@ One column is derived rather than mirrored from Notion: `cover_color` is the dom
 
 One Notion property runs the other way. `Website` (URL) is written by the sync, never read for content: it holds `https://books.chappyasel.com/<id>` for every mirrored page, is rewritten whenever the slug moves (a re-read can hand the clean slug to a different read), and is cleared when a page drops out of the mirror. Do not hand-edit it, and do not query it as a source field; `books.id` is the same value.
 
+Website detail lookups also accept the explicit retired slugs in `src/lib/books/bookLookup.ts`. They try the current ID first, then resolve a known old slug through its stable `notion_id`. These aliases are code-only; direct SQL still requires the current `id` or `notion_id`. Unknown slugs do not use title or prefix matching.
+
 ### Abandoned books
 
 A book Chappy dropped has `abandoned` (timestamp) set and `finished` NULL; `abandoned_at_min` holds the Audible position in raw minutes (percent = `abandoned_at_min / audio_length_min`). In Notion these are the `Abandoned` date and `Abandoned At` (H.MM, like Audio Length) properties. Consequences for queries:

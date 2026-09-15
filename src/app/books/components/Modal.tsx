@@ -106,7 +106,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
 
   // Fetch full book data (with notes)
   const {
-    data: fullBook,
+    data: fetchedBook,
     isLoading: isLoadingFull,
     error,
   } = api.books.getById.useQuery(
@@ -117,9 +117,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     },
   );
 
-  // Use preview data immediately, fall back to fetched data
-  const fetchedBook = fullBook?.id === bookId ? fullBook : undefined;
-  const book = selectedBook?.id === bookId ? selectedBook : fetchedBook;
+  // The query is keyed by the requested ID. A retired slug can return a
+  // different canonical ID, so accept its notes and replace the cached preview.
+  const book =
+    fetchedBook ?? (selectedBook?.id === bookId ? selectedBook : undefined);
   const isLoadingNotes = isLoadingFull && !fetchedBook;
   const fullHeight = !book || book.hasNotes;
 

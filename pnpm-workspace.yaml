@@ -30,4 +30,5 @@ overrides:
 # filter-before-push — so on a Next bump check whether that PR landed and
 # retire the patch instead of re-cutting it.
 patchedDependencies:
+  '@react-three/postprocessing@3.0.5': patches/@react-three__postprocessing@3.0.5.patch
   next@16.1.6: patches/next@16.1.6.patch

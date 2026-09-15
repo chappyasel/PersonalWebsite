@@ -49,7 +49,7 @@ export async function generateMetadata({
         description: `${book.author} ~ Book Notes by Chappy Asel`,
         images: [
           {
-            url: `/${bookId}/opengraph-image`,
+            url: `/${book.id}/opengraph-image`,
             width: 1200,
             height: 630,
             alt: `${book.title} cover and details`,
@@ -61,16 +61,16 @@ export async function generateMetadata({
         card: "summary_large_image",
         title: book.title,
         description: book.author,
-        images: [`/${bookId}/opengraph-image`],
+        images: [`/${book.id}/opengraph-image`],
       },
       alternates: {
-        canonical: `/${bookId}`,
+        canonical: `/${book.id}`,
       },
       // Next resolves openGraph and alternates against metadataBase but
       // writes icons out verbatim, and a bare /:bookId/icon only resolves on
       // the books host. Absolute, it works from /books/:bookId too.
       icons: {
-        icon: `${getBooksOrigin()}/${bookId}/icon`,
+        icon: `${getBooksOrigin()}/${book.id}/icon`,
       },
     };
   } catch {
@@ -112,6 +112,10 @@ async function BookLoader({ bookId }: { bookId: string }) {
 
   if (!book) {
     notFound();
+  }
+
+  if (book.id !== bookId) {
+    redirect(`/books/${book.id}`);
   }
 
   return (

@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -5,6 +6,7 @@ import {
   computeDailyReading,
   computeReadingAnalytics,
 } from "~/lib/books/analytics";
+import { findBookById } from "~/lib/books/bookLookup";
 import { refreshBookCachesAfterSync } from "~/lib/books/cacheInvalidation";
 import { syncBooksFromNotion } from "~/lib/books/sync";
 import type { BookReading, BookWithNotes } from "~/lib/books/types";
@@ -40,15 +42,10 @@ export const booksRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input }) => {
-      const book = await db.query.books.findFirst({
-        where: eq(books.id, input.bookId),
-        with: {
-          tags: true,
-        },
-      });
+      const book = await findBookById(input.bookId);
 
       if (!book) {
-        throw new Error("Book not found");
+        throw new TRPCError({ code: "NOT_FOUND", message: "Book not found" });
       }
 
       // Find other readings of the same book (case-insensitive title+author match,

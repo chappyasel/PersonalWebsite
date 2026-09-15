@@ -32,6 +32,10 @@ export const PLACARD_PAPER_SURFACE_CSS = `
             repeating-linear-gradient(97deg, rgb(92 70 43 / 0.018) 0 1px, transparent 1px 5px),
             repeating-linear-gradient(7deg, rgb(92 70 43 / 0.012) 0 1px, transparent 1px 7px) !important;
         }
+        [data-stacks-glass-mode="paper"] .stacks-chip:active,
+        [data-stacks-glass-mode="paper"] .stacks-chip[data-pressed] {
+          background-color: color-mix(in srgb, var(--sheet-fill), hsl(var(--foreground)) 12%) !important;
+        }
         .dark [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
         .dark [data-stacks-glass-mode="paper"] .stacks-sheet,
         .dark [data-stacks-glass-mode="paper"] .stacks-chip {

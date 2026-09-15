@@ -25,6 +25,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import captured from "./artifactPreviewFrames.generated.json";
+
 /** Grabbable provides the artifact it opens, so a form nested anywhere under
  * it can register its edges without each call site threading the id. */
 export const SceneArtifactIdContext = createContext<SceneArtifactId | null>(
@@ -36,12 +38,39 @@ export type ArtifactPreviewFrames = ReadonlyMap<
   ArtifactPreviewFrame
 >;
 
-const EMPTY: ArtifactPreviewFrames = new Map();
-let snapshot: ArtifactPreviewFrames = EMPTY;
+/** Captured frames, as a base the live registry writes over.
+ *
+ * A frame is registered by the scene component that draws the photo, so
+ * without a renderer there is nothing to register and every preview falls
+ * back to BARE_ARTIFACT_PREVIEW_FRAME. That is correct in 3D and wrong in
+ * the 2D illustration, which opens the same inspector from a drawing.
+ *
+ * So the capture is the floor and a live registration is the override: in
+ * the room a form still publishes its own edges and wins for its id, and in
+ * 2D the captured record stands. Inert JSON rather than an import of the
+ * scene modules that hold the layer constants — reaching those pulls
+ * @react-three/drei and fiber onto the homepage's initial graph, which
+ * initialGraph.test.ts exists to prevent.
+ *
+ * Regenerate with `pnpm generate:artifact-frames`. */
+const CAPTURED: ArtifactPreviewFrames = new Map(
+  Object.entries(captured as Record<string, ArtifactPreviewFrame>) as [
+    SceneArtifactId,
+    ArtifactPreviewFrame,
+  ][],
+);
+/** What forms have registered in this session, kept apart from the capture
+ * so a release can restore the captured frame rather than delete the id, and
+ * so a regeneration reads only what the room actually drew. A photo removed
+ * from the scene then disappears from the next capture instead of echoing
+ * out of the file it is being rewritten from. */
+let live: ReadonlyMap<SceneArtifactId, ArtifactPreviewFrame> = new Map();
+let snapshot: ArtifactPreviewFrames = CAPTURED;
 const listeners = new Set<() => void>();
 
 function publish(next: Map<SceneArtifactId, ArtifactPreviewFrame>) {
-  snapshot = next;
+  live = next;
+  snapshot = next.size ? new Map([...CAPTURED, ...next]) : CAPTURED;
   for (const listener of listeners) listener();
 }
 
@@ -79,10 +108,10 @@ export function registerArtifactPreviewFrame(
         `[stacks] ${id}: scene plane aspect ${mismatch.plane.toFixed(3)} vs source ${mismatch.source.toFixed(3)}. The shelf crops a photo the preview shows whole; cut the plane to the source's aspect.`,
       );
   }
-  publish(new Map(snapshot).set(id, frame));
+  publish(new Map(live).set(id, frame));
   return () => {
-    if (snapshot.get(id) !== frame) return;
-    const next = new Map(snapshot);
+    if (live.get(id) !== frame) return;
+    const next = new Map(live);
     next.delete(id);
     publish(next);
   };
@@ -96,6 +125,12 @@ export function artifactPreviewFrameFor(
 
 export function readArtifactPreviewFrames() {
   return snapshot;
+}
+
+/** Only what this session's forms registered. The capture script writes this,
+ * never the merged view, so the generated file cannot feed itself. */
+export function readLiveArtifactPreviewFrames() {
+  return live;
 }
 
 export function subscribeArtifactPreviewFrames(listener: () => void) {

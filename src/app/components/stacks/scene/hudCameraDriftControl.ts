@@ -62,3 +62,34 @@ export function advanceHudCameraDrift(
     currentPx + (target - currentPx) * (1 - Math.exp(-8 * stepSeconds));
   return Math.abs(next) < 0.05 ? 0 : next;
 }
+
+export type HudPointerSpring = { x: number; y: number; vx: number; vy: number };
+
+/** Critically damped spring. Velocity carries through target changes without bounce. */
+export function advanceHudPointerSpring(
+  state: HudPointerSpring,
+  x: number,
+  y: number,
+  deltaSeconds: number,
+): void {
+  if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+  const dt = Math.min(deltaSeconds, 1 / 60);
+  const frequency = 10;
+  const decay = Math.exp(-frequency * dt);
+  for (const [axis, velocity, target] of [
+    ["x", "vx", x],
+    ["y", "vy", y],
+  ] as const) {
+    const displacement = state[axis] - target;
+    const carry = state[velocity] + frequency * displacement;
+    state[axis] = target + (displacement + carry * dt) * decay;
+    state[velocity] = (state[velocity] - frequency * carry * dt) * decay;
+    if (
+      Math.abs(state[axis] - target) < 0.005 &&
+      Math.abs(state[velocity]) < 0.005
+    ) {
+      state[axis] = target;
+      state[velocity] = 0;
+    }
+  }
+}

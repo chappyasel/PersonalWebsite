@@ -34,6 +34,7 @@ import UnitRail from "./dom/UnitRail";
 import VisionRideControls from "./dom/VisionRideControls";
 import { usePhotoViewerChrome } from "./dom/usePhotoViewerChrome";
 import { recordFieldNoteEvent } from "./fieldNotes/progress";
+import { IllustratedHudDrift } from "./illustration/IllustratedHudDrift";
 import IllustratedRoom from "./illustration/IllustratedRoom";
 import { RoomChrome } from "./illustration/RoomChrome";
 import RoomDocument from "./illustration/RoomDocument";
@@ -707,7 +708,16 @@ export default function StacksHome({
             html[data-field-notes-open] .stacks-wordmark,
             html[data-overlay-open] .stacks-wordmark,
             html[data-prop-focus] .stacks-wordmark,
-            html[data-photo-view] .stacks-wordmark {
+            /* The chrome retreat belongs to the live room, where a photo
+               takes the whole screen and the room is a moving backdrop
+               behind it. The 2D illustration is a still drawing that stays
+               visible around the overlay, so pulling its sheet and rail away
+               only makes the page move under the photo: the stage reserves
+               room for the sheet, and losing it re-centres the artwork
+               downward in one frame with nothing to ease it. Leave 2D's
+               chrome where it is. Field Notes, overlays and prop focus are
+               untouched; none of them opens over the drawing. */
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-wordmark {
               opacity: 0;
               translate: 0 -12px;
               filter: blur(2px);
@@ -718,7 +728,7 @@ export default function StacksHome({
             html[data-field-notes-open] .stacks-theme-toggle,
             html[data-overlay-open] .stacks-theme-toggle,
             html[data-prop-focus] .stacks-theme-toggle,
-            html[data-photo-view] .stacks-theme-toggle {
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-theme-toggle {
               opacity: 0;
               translate: 8px -10px;
               filter: blur(2px);
@@ -729,7 +739,7 @@ export default function StacksHome({
             html[data-field-notes-open] .stacks-unit-rail-desktop,
             html[data-overlay-open] .stacks-unit-rail-desktop,
             html[data-prop-focus] .stacks-unit-rail-desktop,
-            html[data-photo-view] .stacks-unit-rail-desktop {
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-unit-rail-desktop {
               opacity: 0;
               translate: -22px 0;
               filter: blur(2px);
@@ -740,7 +750,7 @@ export default function StacksHome({
             html[data-field-notes-open] .stacks-unit-rail-mobile,
             html[data-overlay-open] .stacks-unit-rail-mobile,
             html[data-prop-focus] .stacks-unit-rail-mobile,
-            html[data-photo-view] .stacks-unit-rail-mobile {
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-unit-rail-mobile {
               opacity: 0;
               translate: 0 -14px;
               filter: blur(2px);
@@ -750,7 +760,7 @@ export default function StacksHome({
             }
             [data-stacks-desktop-dock][data-retracted],
             [data-stacks-details-toggle-shell][data-retracted],
-            html:is([data-field-notes-open], [data-overlay-open], [data-prop-focus], [data-photo-view="open"])
+            html:is([data-field-notes-open], [data-overlay-open], [data-prop-focus], [data-photo-view="open"]):not([data-room-view="illustrated"])
               :is([data-stacks-desktop-dock], [data-stacks-details-toggle-shell]) {
               translate: var(--stacks-sidebar-exit) 0;
             }
@@ -760,8 +770,8 @@ export default function StacksHome({
             html[data-prop-focus] [data-stacks-sheet-material],
             html[data-overlay-open] [data-stacks-mobile-panel],
             html[data-prop-focus] [data-stacks-mobile-panel],
-            html[data-photo-view] [data-stacks-sheet-material],
-            html[data-photo-view] [data-stacks-mobile-panel] {
+            html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-sheet-material],
+            html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-mobile-panel] {
               opacity: 0 !important;
               translate: 0 24px;
               transition-delay: 0ms;
@@ -771,7 +781,7 @@ export default function StacksHome({
             html[data-field-notes-open] [data-stacks-mobile-panel-dim],
             html[data-overlay-open] [data-stacks-mobile-panel-dim],
             html[data-prop-focus] [data-stacks-mobile-panel-dim],
-            html[data-photo-view] [data-stacks-mobile-panel-dim] {
+            html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-mobile-panel-dim] {
               opacity: 0 !important;
               transition-delay: 0ms;
               transition-duration: 160ms;
@@ -779,7 +789,7 @@ export default function StacksHome({
             html[data-field-notes-open] [data-stacks-portal-label],
             html[data-overlay-open] [data-stacks-portal-label],
             html[data-prop-focus] [data-stacks-portal-label],
-            html[data-photo-view] [data-stacks-portal-label] {
+            html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-portal-label] {
               opacity: 0;
               translate: 0 8px;
               transition-delay: 0ms;
@@ -789,7 +799,7 @@ export default function StacksHome({
             html[data-field-notes-open] .stacks-chrome-vignette,
             html[data-overlay-open] .stacks-chrome-vignette,
             html[data-prop-focus] .stacks-chrome-vignette,
-            html[data-photo-view] .stacks-chrome-vignette {
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-chrome-vignette {
               opacity: 0;
               transition-delay: 0ms;
               transition-duration: 180ms;
@@ -800,8 +810,8 @@ export default function StacksHome({
             html[data-prop-focus] .stacks-og-ui,
             html[data-overlay-open] .stacks-og-ui *,
             html[data-prop-focus] .stacks-og-ui *,
-            html[data-photo-view] .stacks-og-ui,
-            html[data-photo-view] .stacks-og-ui * { pointer-events: none !important; }
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-og-ui,
+            html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-og-ui * { pointer-events: none !important; }
             /* The one piece of chrome that belongs to the near prop: its
                caption's links (dom/PropCaption.tsx) must take the click the
                blanket rule above would swallow. */
@@ -840,7 +850,7 @@ export default function StacksHome({
               html[data-field-notes-open] .stacks-theme-toggle,
               html[data-overlay-open] .stacks-theme-toggle,
               html[data-prop-focus] .stacks-theme-toggle,
-              html[data-photo-view] .stacks-theme-toggle {
+              html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-theme-toggle {
                 translate: -10px 10px;
               }
             }
@@ -881,13 +891,13 @@ export default function StacksHome({
               html[data-prop-focus] [data-stacks-mobile-panel],
               html[data-overlay-open] [data-stacks-portal-label],
               html[data-prop-focus] [data-stacks-portal-label],
-              html[data-photo-view] .stacks-wordmark,
-              html[data-photo-view] .stacks-theme-toggle,
-              html[data-photo-view] .stacks-unit-rail-desktop,
-              html[data-photo-view] .stacks-unit-rail-mobile,
-              html[data-photo-view] [data-stacks-sheet-material],
-              html[data-photo-view] [data-stacks-mobile-panel],
-              html[data-photo-view] [data-stacks-portal-label] {
+              html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-wordmark,
+              html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-theme-toggle,
+              html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-unit-rail-desktop,
+              html[data-photo-view]:not([data-room-view="illustrated"]) .stacks-unit-rail-mobile,
+              html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-sheet-material],
+              html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-mobile-panel],
+              html[data-photo-view]:not([data-room-view="illustrated"]) [data-stacks-portal-label] {
                 translate: 0 0;
                 filter: none;
               }
@@ -898,6 +908,9 @@ export default function StacksHome({
           `}</style>
           <Activity mode={roomActive ? "visible" : "hidden"}>
             <RoomNavigation rendererEnabled={presentation === "live"}>
+              {presentation === "illustrated" && entrance === "complete" && (
+                <IllustratedHudDrift root={worldShellRef} />
+              )}
               {presentation !== "document" &&
                 worldBoot.getState().illustratedMode && (
                   <IllustratedRoom
@@ -917,10 +930,7 @@ export default function StacksHome({
                     }
                     transitionId={dimensionTravel.revision}
                     canRequest3D={boot.canRequest3D && !boot.interactionHeld}
-                    loading={
-                      boot.status === "booting" ||
-                      boot.recoverable
-                    }
+                    loading={boot.status === "booting" || boot.recoverable}
                     entranceSettled={entrance === "complete"}
                     onRequest3D={request3D}
                     onReady={illustrationReady}

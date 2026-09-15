@@ -34,6 +34,7 @@ import {
   type RefObject,
   cloneElement,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -56,6 +57,7 @@ import { selectBookNotice } from "~/lib/books/notices";
 import { getBookShareUrl, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book, BookReading } from "~/lib/books/types";
 import { abandonedPercent } from "~/lib/books/types";
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { cn } from "~/lib/util";
 
 import AnchorLink from "~/components/daylight/AnchorLink";
@@ -967,13 +969,43 @@ export function BookDetailContent({
     />
   );
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
     capture("book_link_copied", {
       book_id: book.id,
       book_title: book.title,
     });
     onShare();
-  };
+  }, [book.id, book.title, onShare]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.isComposing ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.key.toLowerCase() !== "c" ||
+        isUniversalSearchOpen() ||
+        document.querySelector(".PhotoView-Portal")
+      )
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest(
+            'input, textarea, select, [role="textbox"], [contenteditable="true"]',
+          ))
+      )
+        return;
+      event.preventDefault();
+      handleShare();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleShare]);
 
   // Scroll-driven animation setup
   // The raw scroll depth is the target; the header follows it through one of

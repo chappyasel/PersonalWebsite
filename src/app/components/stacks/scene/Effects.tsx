@@ -397,7 +397,7 @@ function Grade({
   // grade and the sky cross the theme flip together.
   const effect = useMemo(
     () => new GradeEffect(dark ? 1 : 0, settings, photoMask),
-    [], // eslint-disable-line react-hooks/exhaustive-deps
+    [photoMask], // eslint-disable-line react-hooks/exhaustive-deps
   );
   useDispose(effect);
   effect.uniforms.get("uLightCurve")!.value = settings.light.curve;
@@ -429,7 +429,9 @@ function Grade({
     // The composer creates its depth texture when a pass first asks for it,
     // which may be after this effect was built; the pass holds the latest.
     const depth = effect.uniforms.get("uSceneDepth")!;
-    if (depth.value !== photoMask.sceneDepth)
+    // A retired mask clears its borrowed reference. A late callback must not
+    // replace the last binding with null; the composer still owns the texture.
+    if (photoMask.sceneDepth && depth.value !== photoMask.sceneDepth)
       depth.value = photoMask.sceneDepth;
     writeDevelopUniforms(
       effect.uniforms,
@@ -1034,7 +1036,10 @@ export default function Effects({
   // grade, because the grade is its only reader; the object itself is kept
   // here so the grade can bind its textures once.
   const camera = useThree((state) => state.camera);
-  const photoMask = useMemo(() => new PhotoMaskPass(camera), [camera]);
+  const photoMask = useMemo(
+    () => (performanceSettings.colorGrade ? new PhotoMaskPass(camera) : null),
+    [camera, performanceSettings.colorGrade],
+  );
   const look = useMemo(
     () =>
       sceneGradeLookFor(
@@ -1144,7 +1149,7 @@ export default function Effects({
       <ComposerClearPolicy autoClear={performanceSettings.composerAutoClear} />
       {/* First, right behind the render pass: the photographs alone, into
           the mask the grade reads. It touches no composer buffer. */}
-      {performanceSettings.colorGrade && <PhotoMask pass={photoMask} />}
+      {photoMask && <PhotoMask pass={photoMask} />}
       {plan.ambientOcclusion && !visionRideRoomHidden && (
         <AmbientOcclusion
           plan={plan}
@@ -1249,7 +1254,7 @@ export default function Effects({
         }
       />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      {performanceSettings.colorGrade && (
+      {photoMask && (
         <Grade
           dark={dark}
           settings={colorGrade}

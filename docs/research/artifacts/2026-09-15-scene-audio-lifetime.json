@@ -1,0 +1,2421 @@
+{
+  "baselineCommit": "88f46c1f1604a908821f1c14e55a1a1137eac00d",
+  "fixedSourceSha256": "fe13b6db48b8d65af2195d18f12d09f7357c47062dc142e0b13dc7aeb159cac0",
+  "method": "Real SceneAudioRuntime, native 48 kHz Web Audio, first completed decode held across teardown/unlock; three repeats per version. Cumulative PCM allocation is not retained memory. Host preflights contended.",
+  "audio": {
+    "before": {
+      "suite": "audio",
+      "commit": "88f46c1f1604a908821f1c14e55a1a1137eac00d",
+      "dirtyFiles": [
+        "src/app/components/stacks/audio/sceneAudio.test.ts",
+        "src/app/components/stacks/audio/sceneAudio.ts"
+      ],
+      "browser": "148.0.7778.96",
+      "repetitions": 3,
+      "cycles": 6,
+      "results": [
+        {
+          "repeat": 0,
+          "before": {
+            "usedSize": 1116008,
+            "totalSize": 1359872,
+            "embedderHeapUsedSize": 295440,
+            "backingStorageSize": 29496,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          },
+          "allocation": {
+            "replacementReady": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "settled": {
+              "fetches": 24,
+              "decodes": 24,
+              "pcmBytes": 70050968
+            },
+            "failedResponses": [],
+            "decodedSampleRates": [48000]
+          },
+          "after": {
+            "usedSize": 1178868,
+            "totalSize": 2146304,
+            "embedderHeapUsedSize": 318944,
+            "backingStorageSize": 29858,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          }
+        },
+        {
+          "repeat": 1,
+          "before": {
+            "usedSize": 1116008,
+            "totalSize": 1359872,
+            "embedderHeapUsedSize": 295440,
+            "backingStorageSize": 29496,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          },
+          "allocation": {
+            "replacementReady": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "settled": {
+              "fetches": 24,
+              "decodes": 24,
+              "pcmBytes": 70050968
+            },
+            "failedResponses": [],
+            "decodedSampleRates": [48000]
+          },
+          "after": {
+            "usedSize": 1178868,
+            "totalSize": 2146304,
+            "embedderHeapUsedSize": 318944,
+            "backingStorageSize": 29858,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          }
+        },
+        {
+          "repeat": 2,
+          "before": {
+            "usedSize": 1116008,
+            "totalSize": 1359872,
+            "embedderHeapUsedSize": 295440,
+            "backingStorageSize": 29496,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          },
+          "allocation": {
+            "replacementReady": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "settled": {
+              "fetches": 24,
+              "decodes": 24,
+              "pcmBytes": 70050968
+            },
+            "failedResponses": [],
+            "decodedSampleRates": [48000]
+          },
+          "after": {
+            "usedSize": 1178868,
+            "totalSize": 2146304,
+            "embedderHeapUsedSize": 318944,
+            "backingStorageSize": 29858,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          }
+        }
+      ],
+      "bundleSha256": "1b3ae669413703a2a982befdb42c0e8726bd9ead739d131bc0c91a5b316b6165"
+    },
+    "after": {
+      "suite": "audio",
+      "commit": "88f46c1f1604a908821f1c14e55a1a1137eac00d",
+      "dirtyFiles": [
+        "src/app/components/stacks/audio/sceneAudio.test.ts",
+        "src/app/components/stacks/audio/sceneAudio.ts"
+      ],
+      "browser": "148.0.7778.96",
+      "repetitions": 3,
+      "cycles": 6,
+      "results": [
+        {
+          "repeat": 0,
+          "before": {
+            "usedSize": 1116092,
+            "totalSize": 1359872,
+            "embedderHeapUsedSize": 295440,
+            "backingStorageSize": 30308,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          },
+          "allocation": {
+            "replacementReady": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "settled": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "failedResponses": [],
+            "decodedSampleRates": [48000]
+          },
+          "after": {
+            "usedSize": 1185332,
+            "totalSize": 1884160,
+            "embedderHeapUsedSize": 314824,
+            "backingStorageSize": 30670,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          }
+        },
+        {
+          "repeat": 1,
+          "before": {
+            "usedSize": 1116092,
+            "totalSize": 1359872,
+            "embedderHeapUsedSize": 295440,
+            "backingStorageSize": 30308,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          },
+          "allocation": {
+            "replacementReady": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "settled": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "failedResponses": [],
+            "decodedSampleRates": [48000]
+          },
+          "after": {
+            "usedSize": 1185332,
+            "totalSize": 1884160,
+            "embedderHeapUsedSize": 314824,
+            "backingStorageSize": 30670,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          }
+        },
+        {
+          "repeat": 2,
+          "before": {
+            "usedSize": 1116092,
+            "totalSize": 1359872,
+            "embedderHeapUsedSize": 295440,
+            "backingStorageSize": 30308,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          },
+          "allocation": {
+            "replacementReady": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "settled": {
+              "fetches": 13,
+              "decodes": 13,
+              "pcmBytes": 35121484
+            },
+            "failedResponses": [],
+            "decodedSampleRates": [48000]
+          },
+          "after": {
+            "usedSize": 1185332,
+            "totalSize": 1884160,
+            "embedderHeapUsedSize": 314824,
+            "backingStorageSize": 30670,
+            "documents": 1,
+            "nodes": 10,
+            "jsEventListeners": 14,
+            "connectedCanvases": 0,
+            "connectedImages": 0,
+            "focused": true,
+            "visibility": "visible"
+          }
+        }
+      ],
+      "bundleSha256": "8de37457decc8ce30b07ea019d81249323abe9f44d040a09c395c20bdd261d42"
+    }
+  },
+  "room": {
+    "before": [
+      {
+        "profile": "basic",
+        "repeat": 0,
+        "query": "quality=safety&nomeadow&nopostfx",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 379542.4,
+          "rSquared": 0.9808293266792442,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 97966488,
+              "totalSize": 99418112,
+              "embedderHeapUsedSize": 29047520,
+              "backingStorageSize": 27949697,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4402,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 97410952,
+              "totalSize": 98893824,
+              "embedderHeapUsedSize": 29710168,
+              "backingStorageSize": 27950214,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4402,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 97984760,
+              "totalSize": 100204544,
+              "embedderHeapUsedSize": 29758032,
+              "backingStorageSize": 27948427,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4400,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 98315824,
+              "totalSize": 100466688,
+              "embedderHeapUsedSize": 29836520,
+              "backingStorageSize": 27948407,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4400,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 98702568,
+              "totalSize": 100466688,
+              "embedderHeapUsedSize": 29977456,
+              "backingStorageSize": 27948407,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4400,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 99252600,
+              "totalSize": 101515264,
+              "embedderHeapUsedSize": 29896896,
+              "backingStorageSize": 27948392,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4400,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 99414084,
+              "totalSize": 101515264,
+              "embedderHeapUsedSize": 29997744,
+              "backingStorageSize": 27948392,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4400,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "basic",
+        "repeat": 1,
+        "query": "quality=safety&nomeadow&nopostfx",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 475985.2,
+          "rSquared": 0.9866938515807868,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 97966716,
+              "totalSize": 99680256,
+              "embedderHeapUsedSize": 29948056,
+              "backingStorageSize": 28014787,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 97532116,
+              "totalSize": 99418112,
+              "embedderHeapUsedSize": 29881280,
+              "backingStorageSize": 28015261,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 97809364,
+              "totalSize": 99942400,
+              "embedderHeapUsedSize": 29961000,
+              "backingStorageSize": 28013639,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 98424768,
+              "totalSize": 100466688,
+              "embedderHeapUsedSize": 30101656,
+              "backingStorageSize": 28013452,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 98871680,
+              "totalSize": 101253120,
+              "embedderHeapUsedSize": 30330128,
+              "backingStorageSize": 28013482,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 99169796,
+              "totalSize": 101253120,
+              "embedderHeapUsedSize": 30144832,
+              "backingStorageSize": 28013482,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 99816776,
+              "totalSize": 101777408,
+              "embedderHeapUsedSize": 30259968,
+              "backingStorageSize": 28013482,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "no-meadow",
+        "repeat": 0,
+        "query": "quality=showcase&nomeadow",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2648341.6,
+          "rSquared": 0.9998186391464862,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 101624652,
+              "totalSize": 103350272,
+              "embedderHeapUsedSize": 29689360,
+              "backingStorageSize": 28634435,
+              "documents": 9,
+              "nodes": 11676,
+              "jsEventListeners": 4406,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 103631624,
+              "totalSize": 105447424,
+              "embedderHeapUsedSize": 30142608,
+              "backingStorageSize": 28635107,
+              "documents": 9,
+              "nodes": 11686,
+              "jsEventListeners": 4408,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 105829260,
+              "totalSize": 107806720,
+              "embedderHeapUsedSize": 29728920,
+              "backingStorageSize": 28545774,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 108574484,
+              "totalSize": 110690304,
+              "embedderHeapUsedSize": 29789192,
+              "backingStorageSize": 28545754,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 111265256,
+              "totalSize": 114098176,
+              "embedderHeapUsedSize": 30004880,
+              "backingStorageSize": 28545739,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 113827236,
+              "totalSize": 116195328,
+              "embedderHeapUsedSize": 29967024,
+              "backingStorageSize": 28545739,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 116444592,
+              "totalSize": 118816768,
+              "embedderHeapUsedSize": 29971944,
+              "backingStorageSize": 28545739,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "no-meadow",
+        "repeat": 1,
+        "query": "quality=showcase&nomeadow",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2582537.6,
+          "rSquared": 0.989303626491435,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 101552928,
+              "totalSize": 103874560,
+              "embedderHeapUsedSize": 29311808,
+              "backingStorageSize": 28630669,
+              "documents": 9,
+              "nodes": 11675,
+              "jsEventListeners": 4406,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 102878644,
+              "totalSize": 106233856,
+              "embedderHeapUsedSize": 30106144,
+              "backingStorageSize": 28631268,
+              "documents": 9,
+              "nodes": 11686,
+              "jsEventListeners": 4406,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 105223028,
+              "totalSize": 109117440,
+              "embedderHeapUsedSize": 29623976,
+              "backingStorageSize": 28542130,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 108662092,
+              "totalSize": 111214592,
+              "embedderHeapUsedSize": 29475528,
+              "backingStorageSize": 28542008,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 111383840,
+              "totalSize": 114098176,
+              "embedderHeapUsedSize": 29654736,
+              "backingStorageSize": 28541988,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 113224860,
+              "totalSize": 116719616,
+              "embedderHeapUsedSize": 29684848,
+              "backingStorageSize": 28541973,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 115854332,
+              "totalSize": 119603200,
+              "embedderHeapUsedSize": 29153200,
+              "backingStorageSize": 28541973,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "full",
+        "repeat": 0,
+        "query": "quality=showcase",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2297051.6,
+          "rSquared": 0.985130933211687,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 104621612,
+              "totalSize": 108593152,
+              "embedderHeapUsedSize": 29251704,
+              "backingStorageSize": 32587040,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 107785716,
+              "totalSize": 111214592,
+              "embedderHeapUsedSize": 29914192,
+              "backingStorageSize": 32587601,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 110587064,
+              "totalSize": 114884608,
+              "embedderHeapUsedSize": 29309384,
+              "backingStorageSize": 32498511,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 111942340,
+              "totalSize": 116719616,
+              "embedderHeapUsedSize": 29323600,
+              "backingStorageSize": 32498327,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 114234656,
+              "totalSize": 120127488,
+              "embedderHeapUsedSize": 29410344,
+              "backingStorageSize": 32498350,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 117359480,
+              "totalSize": 122486784,
+              "embedderHeapUsedSize": 29363488,
+              "backingStorageSize": 32498335,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 119363752,
+              "totalSize": 123535360,
+              "embedderHeapUsedSize": 29384592,
+              "backingStorageSize": 32498300,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4412,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "full",
+        "repeat": 1,
+        "query": "quality=showcase",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2450534.4,
+          "rSquared": 0.9816477466465533,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 104978248,
+              "totalSize": 108068864,
+              "embedderHeapUsedSize": 29144472,
+              "backingStorageSize": 32587428,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 106450172,
+              "totalSize": 110166016,
+              "embedderHeapUsedSize": 29643784,
+              "backingStorageSize": 32587988,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 109777284,
+              "totalSize": 114098176,
+              "embedderHeapUsedSize": 29067704,
+              "backingStorageSize": 32498898,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 112960788,
+              "totalSize": 117506048,
+              "embedderHeapUsedSize": 29325048,
+              "backingStorageSize": 32498714,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 114999964,
+              "totalSize": 118554624,
+              "embedderHeapUsedSize": 29192080,
+              "backingStorageSize": 32498694,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 118236564,
+              "totalSize": 123011072,
+              "embedderHeapUsedSize": 29220144,
+              "backingStorageSize": 32498679,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 119392068,
+              "totalSize": 124846080,
+              "embedderHeapUsedSize": 29299928,
+              "backingStorageSize": 32498679,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      }
+    ],
+    "baselineBuildId": "Vgd6BQyhJFPC1L3OKGUCf",
+    "after": [
+      {
+        "profile": "basic",
+        "repeat": 0,
+        "query": "quality=safety&nomeadow&nopostfx",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 398795.2,
+          "rSquared": 0.9951161115513332,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 98003956,
+              "totalSize": 100990976,
+              "embedderHeapUsedSize": 29624080,
+              "backingStorageSize": 28009098,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 97290116,
+              "totalSize": 99680256,
+              "embedderHeapUsedSize": 29712488,
+              "backingStorageSize": 28009501,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 97973952,
+              "totalSize": 100466688,
+              "embedderHeapUsedSize": 29244512,
+              "backingStorageSize": 28007828,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 98357320,
+              "totalSize": 100466688,
+              "embedderHeapUsedSize": 29076976,
+              "backingStorageSize": 28007808,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 98862516,
+              "totalSize": 101253120,
+              "embedderHeapUsedSize": 29189032,
+              "backingStorageSize": 28007847,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 99161264,
+              "totalSize": 101777408,
+              "embedderHeapUsedSize": 29069512,
+              "backingStorageSize": 28007793,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 99565956,
+              "totalSize": 102039552,
+              "embedderHeapUsedSize": 29194288,
+              "backingStorageSize": 28007793,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "basic",
+        "repeat": 1,
+        "query": "quality=safety&nomeadow&nopostfx",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 458640,
+          "rSquared": 0.9958493307657414,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 97961788,
+              "totalSize": 99942400,
+              "embedderHeapUsedSize": 29749288,
+              "backingStorageSize": 28000861,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 97824288,
+              "totalSize": 99680256,
+              "embedderHeapUsedSize": 29907480,
+              "backingStorageSize": 28001417,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 97825768,
+              "totalSize": 99418112,
+              "embedderHeapUsedSize": 29918696,
+              "backingStorageSize": 27999713,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 98393320,
+              "totalSize": 100204544,
+              "embedderHeapUsedSize": 30000200,
+              "backingStorageSize": 27999571,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 98843880,
+              "totalSize": 100990976,
+              "embedderHeapUsedSize": 30030184,
+              "backingStorageSize": 27999571,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4401,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 99256872,
+              "totalSize": 101253120,
+              "embedderHeapUsedSize": 29926352,
+              "backingStorageSize": 27999596,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 99687192,
+              "totalSize": 101777408,
+              "embedderHeapUsedSize": 29681000,
+              "backingStorageSize": 27999596,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4403,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 1.3888888888888888,
+            "physicalPixels": 2500000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "no-meadow",
+        "repeat": 0,
+        "query": "quality=showcase&nomeadow",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2523048,
+          "rSquared": 0.9962390821378042,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 101507808,
+              "totalSize": 104136704,
+              "embedderHeapUsedSize": 29604776,
+              "backingStorageSize": 28630985,
+              "documents": 9,
+              "nodes": 11676,
+              "jsEventListeners": 4406,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 103362924,
+              "totalSize": 105447424,
+              "embedderHeapUsedSize": 30299200,
+              "backingStorageSize": 28631439,
+              "documents": 9,
+              "nodes": 11686,
+              "jsEventListeners": 4406,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 105830464,
+              "totalSize": 108593152,
+              "embedderHeapUsedSize": 29758416,
+              "backingStorageSize": 28542446,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 108554444,
+              "totalSize": 111214592,
+              "embedderHeapUsedSize": 29121768,
+              "backingStorageSize": 28542304,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 111271912,
+              "totalSize": 114098176,
+              "embedderHeapUsedSize": 29756648,
+              "backingStorageSize": 28542304,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 113844276,
+              "totalSize": 116195328,
+              "embedderHeapUsedSize": 29934376,
+              "backingStorageSize": 28542289,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 115800788,
+              "totalSize": 119341056,
+              "embedderHeapUsedSize": 29275464,
+              "backingStorageSize": 28542289,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "no-meadow",
+        "repeat": 1,
+        "query": "quality=showcase&nomeadow",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2640308.8,
+          "rSquared": 0.9998950944856567,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 101669832,
+              "totalSize": 103612416,
+              "embedderHeapUsedSize": 29473472,
+              "backingStorageSize": 28621275,
+              "documents": 9,
+              "nodes": 11676,
+              "jsEventListeners": 4408,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 103526556,
+              "totalSize": 105185280,
+              "embedderHeapUsedSize": 29735704,
+              "backingStorageSize": 28621834,
+              "documents": 9,
+              "nodes": 11686,
+              "jsEventListeners": 4406,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 105843196,
+              "totalSize": 108068864,
+              "embedderHeapUsedSize": 29056672,
+              "backingStorageSize": 28532696,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 108524932,
+              "totalSize": 110428160,
+              "embedderHeapUsedSize": 29135576,
+              "backingStorageSize": 28532554,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 111226728,
+              "totalSize": 114098176,
+              "embedderHeapUsedSize": 29201992,
+              "backingStorageSize": 28532554,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 113763644,
+              "totalSize": 115933184,
+              "embedderHeapUsedSize": 29106272,
+              "backingStorageSize": 28532539,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 116425384,
+              "totalSize": 118816768,
+              "embedderHeapUsedSize": 29498848,
+              "backingStorageSize": 28532539,
+              "documents": 9,
+              "nodes": 11609,
+              "jsEventListeners": 4404,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "full",
+        "repeat": 0,
+        "query": "quality=showcase",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2970298.4,
+          "rSquared": 0.9917687391746914,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 104638080,
+              "totalSize": 108068864,
+              "embedderHeapUsedSize": 29767800,
+              "backingStorageSize": 32587784,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 107810148,
+              "totalSize": 110952448,
+              "embedderHeapUsedSize": 29682464,
+              "backingStorageSize": 32588267,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 108968204,
+              "totalSize": 114884608,
+              "embedderHeapUsedSize": 29186976,
+              "backingStorageSize": 32689065,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 112918668,
+              "totalSize": 116457472,
+              "embedderHeapUsedSize": 29337048,
+              "backingStorageSize": 32688806,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 114805608,
+              "totalSize": 118030336,
+              "embedderHeapUsedSize": 29257520,
+              "backingStorageSize": 32688786,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 118312332,
+              "totalSize": 121962496,
+              "embedderHeapUsedSize": 29741680,
+              "backingStorageSize": 32688771,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 121122864,
+              "totalSize": 124846080,
+              "embedderHeapUsedSize": 30002304,
+              "backingStorageSize": 32688771,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      },
+      {
+        "profile": "full",
+        "repeat": 1,
+        "query": "quality=showcase",
+        "heapFit": {
+          "fromCycle": 2,
+          "bytesPerCycle": 2735850.4,
+          "rSquared": 0.9831253278974998,
+          "constantResolution": true,
+          "constantQualityTransitions": true
+        },
+        "errors": [],
+        "samples": [
+          {
+            "cycle": 0,
+            "memory": {
+              "usedSize": 104582256,
+              "totalSize": 108593152,
+              "embedderHeapUsedSize": 29646528,
+              "backingStorageSize": 32587775,
+              "documents": 9,
+              "nodes": 11674,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 73,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 1,
+            "memory": {
+              "usedSize": 106565956,
+              "totalSize": 112263168,
+              "embedderHeapUsedSize": 29839528,
+              "backingStorageSize": 32588336,
+              "documents": 9,
+              "nodes": 11684,
+              "jsEventListeners": 4416,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 90,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 2,
+            "memory": {
+              "usedSize": 110149040,
+              "totalSize": 114360320,
+              "embedderHeapUsedSize": 29305064,
+              "backingStorageSize": 32499105,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 107,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 3,
+            "memory": {
+              "usedSize": 111604028,
+              "totalSize": 116195328,
+              "embedderHeapUsedSize": 29819664,
+              "backingStorageSize": 32499105,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 124,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 4,
+            "memory": {
+              "usedSize": 114620072,
+              "totalSize": 119341056,
+              "embedderHeapUsedSize": 29734280,
+              "backingStorageSize": 32499085,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 141,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 5,
+            "memory": {
+              "usedSize": 117387316,
+              "totalSize": 121700352,
+              "embedderHeapUsedSize": 29853984,
+              "backingStorageSize": 32499070,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 158,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          },
+          {
+            "cycle": 6,
+            "memory": {
+              "usedSize": 120936648,
+              "totalSize": 124059648,
+              "embedderHeapUsedSize": 29824264,
+              "backingStorageSize": 32499070,
+              "documents": 9,
+              "nodes": 11607,
+              "jsEventListeners": 4414,
+              "connectedCanvases": 1,
+              "connectedImages": 66,
+              "focused": true,
+              "visibility": "visible"
+            },
+            "imageDecodes": 175,
+            "audioDecodes": 12,
+            "audioPcmBytes": 35025484,
+            "effectiveDpr": 2,
+            "physicalPixels": 5184000,
+            "audioUnlocked": true,
+            "qualityTransitions": []
+          }
+        ]
+      }
+    ],
+    "fixedBuildId": "prfSRH74bqeDeZmOpg1OT"
+  },
+  "preflightVerdicts": {
+    "audioBefore": "contended",
+    "audioAfter": "contended",
+    "roomBeforeStart": "contended",
+    "roomBeforeEnd": "contended",
+    "roomAfterStart": "contended",
+    "roomAfterEnd": "contended"
+  }
+}

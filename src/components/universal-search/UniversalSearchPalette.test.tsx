@@ -10,6 +10,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { onUniversalSearchSelection } from "~/lib/universal-search/overlay";
 import { recordRecentResult } from "~/lib/universal-search/recents";
 import type { SearchResult } from "~/lib/universal-search/types";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
@@ -337,6 +338,73 @@ describe("UniversalSearchPalette", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("announces the choice before running the action, even if it throws", async () => {
+    // A paused coarse gesture is only cancelled when the room hears that a
+    // choice was made. Announcing after the action means a throwing action
+    // never announces, and the dismissal that follows snaps the room back to
+    // wherever the finger had been — undoing a command the visitor just ran.
+    const user = userEvent.setup();
+    const order: string[] = [];
+    const setTheme = vi.fn(() => {
+      order.push("action");
+      throw new Error("action failed");
+    });
+    const stop = onUniversalSearchSelection(() => order.push("select"));
+    // The throw escapes the React handler into jsdom's window. That is the
+    // real shape of a failing action; swallow the report so it does not read
+    // as a broken test run.
+    const swallow = (event: ErrorEvent) => event.preventDefault();
+    window.addEventListener("error", swallow);
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={vi.fn()}
+        dependencies={dependencies({ setTheme })}
+      />,
+    );
+
+    const input = screen.getByRole("combobox", { name: "Universal Search" });
+    await user.type(input, "dark mode");
+    try {
+      await user.click(screen.getByText("Set theme to Dark"));
+    } catch {
+      // The throw is the point of the case; the announcement must precede it.
+    }
+    stop();
+    window.removeEventListener("error", swallow);
+
+    expect(setTheme).toHaveBeenCalled();
+    expect(order).toEqual(["select", "action"]);
+  });
+
+  it.each(["ArrowUp", "ArrowDown"])(
+    "starts at the first result on %s after each query edit",
+    async (key) => {
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={vi.fn()}
+          dependencies={dependencies()}
+        />,
+      );
+      const input = screen.getByRole("combobox", { name: "Universal Search" });
+      const selected = () =>
+        document.querySelector('[cmdk-item][data-selected="true"]');
+
+      for (const query of ["theme", "theme ", "the"]) {
+        fireEvent.change(input, { target: { value: query } });
+        await waitFor(() =>
+          expect(screen.getAllByRole("option").length).toBeGreaterThan(1),
+        );
+        fireEvent.keyDown(input, { key });
+        expect(selected()).toBe(screen.getAllByRole("option")[0]);
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        expect(selected()).toBe(screen.getAllByRole("option")[1]);
+        fireEvent.keyDown(input, { key: "End" });
+      }
+    },
+  );
+
   it("opens the keyboard-selected result with Enter", async () => {
     const navigate = vi.fn();
     const onOpenChange = vi.fn();
@@ -505,8 +573,8 @@ describe("UniversalSearchPalette", () => {
       expect(screen.getAllByRole("option", { name: /^Book \d$/ })).toHaveLength(
         6,
       );
-      // Six arrow presses walk from the first book onto the "Show more" row.
-      for (let step = 0; step < 6; step++) {
+      // The first arrow selects the first book; six more reach "Show more".
+      for (let step = 0; step < 7; step++) {
         fireEvent.keyDown(input, { key: "ArrowDown" });
       }
       expect(selected()).toBe("Show 4 more");

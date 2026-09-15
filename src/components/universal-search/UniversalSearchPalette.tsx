@@ -51,6 +51,7 @@ import { type ThemeChoice } from "~/lib/theme";
 import { runCommandAction } from "~/lib/universal-search/actions";
 import { queryServerSearch } from "~/lib/universal-search/client-providers";
 import { navigateUniversalSearchResult } from "~/lib/universal-search/navigation";
+import { notifyUniversalSearchSelection } from "~/lib/universal-search/overlay";
 import { queryPublicSearchIndex } from "~/lib/universal-search/public-index";
 import {
   normalizeSearchText,
@@ -581,6 +582,7 @@ export function UniversalSearchPaletteContent({
   // cmdk's selection, held here so revealing a group's remaining rows can
   // hand the highlight to the first of them.
   const [selectedValue, setSelectedValue] = useState("");
+  const firstArrowPendingRef = useRef(true);
   // Groups the visitor asked to see in full, remembered per query: a new
   // query folds every group back to its preview.
   const [expanded, setExpanded] = useState<{
@@ -607,6 +609,7 @@ export function UniversalSearchPaletteContent({
       // query: a reopened palette starts at the top, not on the row chosen
       // last time, and Enter cannot open a row the visitor never saw.
       setSelectedValue("");
+      firstArrowPendingRef.current = true;
       setExpanded({ query: "", groups: [] });
       setExpansionNotice(null);
       return;
@@ -712,6 +715,7 @@ export function UniversalSearchPaletteContent({
         matchKind: "exact",
       }),
     );
+    notifyUniversalSearchSelection();
     close();
     dependencies.navigate(recent.href);
   };
@@ -722,6 +726,13 @@ export function UniversalSearchPaletteContent({
       : undefined;
     const matchKind = match?.matchKind ?? "exact";
     if (entry.kind === "action") {
+      // Announced before the action runs, not after. The visitor has committed
+      // the moment they pick a command, and an action that throws must not
+      // leave a paused gesture alive to snap the room back underneath them.
+      // Announced before the action runs, not after. The visitor has committed
+      // the moment they pick a command, and an action that throws must not
+      // leave a paused gesture alive to snap the room back underneath them.
+      notifyUniversalSearchSelection();
       runCommandAction(entry.actionId, {
         setTheme: dependencies.setTheme,
         setFont: dependencies.setFont,
@@ -763,6 +774,7 @@ export function UniversalSearchPaletteContent({
         matchKind,
       }),
     );
+    notifyUniversalSearchSelection();
     close();
     dependencies.navigate(href);
   };
@@ -780,6 +792,7 @@ export function UniversalSearchPaletteContent({
         matchKind: result.matchKind,
       }),
     );
+    notifyUniversalSearchSelection();
     close();
     dependencies.navigate(result.href);
   };
@@ -938,6 +951,27 @@ export function UniversalSearchPaletteContent({
             label="Universal Search"
             value={selectedValue}
             onValueChange={setSelectedValue}
+            onKeyDown={(event) => {
+              if (
+                event.nativeEvent.isComposing ||
+                !firstArrowPendingRef.current ||
+                (event.key !== "ArrowUp" && event.key !== "ArrowDown")
+              )
+                return;
+
+              // cmdk may already have selected a row as results arrived.
+              // The first arrow after typing always starts at the top.
+              event.preventDefault();
+              const first = event.currentTarget.querySelector<HTMLElement>(
+                '[cmdk-item]:not([aria-disabled="true"])',
+              );
+              const value = first?.getAttribute("data-value");
+              if (first && value) {
+                firstArrowPendingRef.current = false;
+                setSelectedValue(value);
+                first.scrollIntoView({ block: "nearest" });
+              }
+            }}
           >
             <div
               data-search-glass-divider={
@@ -957,7 +991,10 @@ export function UniversalSearchPaletteContent({
               <Command.Input
                 ref={inputRef}
                 value={query}
-                onValueChange={setQuery}
+                onValueChange={(value) => {
+                  firstArrowPendingRef.current = true;
+                  setQuery(value);
+                }}
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck={false}

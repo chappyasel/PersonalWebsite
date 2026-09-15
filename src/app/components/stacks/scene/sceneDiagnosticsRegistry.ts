@@ -1,4 +1,7 @@
 import { worldBoot } from "../boot/worldBootSession";
+import { coordinationDitherController } from "../illustration/coordinationDitherControl";
+import { illustrationOverscrollController } from "../illustration/illustrationOverscroll";
+import { roomEdgeMotion } from "../mobile/roomEdgeMotion";
 import {
   type VisionRideFinishPreview,
   type VisionRideScenePreview,
@@ -1134,11 +1137,56 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       selectionCameraPitchController.setEnabled(Boolean(value)),
   }),
   booleanDescriptor({
+    id: "camera.illustration-overscroll",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "2D edge resistance",
+    help: "Stretch the artwork at either end for horizontal or vertical wheel input, then settle back. The viewport stays fixed. Touch uses native overscroll. Disabled for reduced motion.",
+    defaultValue: true,
+    experimental: false,
+    store: illustrationOverscrollController,
+    read: () => illustrationOverscrollController.getSnapshot().enabled,
+    update: (value) =>
+      illustrationOverscrollController.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "One animation callback while the artwork settles. No animation work at rest.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "camera.room-edge-pan",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "3D edge rotation and Search motion",
+    help: "Turn the camera slightly at either end of the 3D room and when Search opens. Disabled for reduced motion.",
+    defaultValue: true,
+    experimental: false,
+    store: roomEdgeMotion,
+    read: () => roomEdgeMotion.getSnapshot().enabled,
+    update: (value) => roomEdgeMotion.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "A temporary damped camera rotation at room edges or while opening Search.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
     id: "camera.hud-drift",
     panel: "simulate",
     group: "simulate.camera",
     label: "HUD travel drift",
-    help: "Shift the HUD up to 20px against section travel, then ease back to centre. Mobile navigation, chrome, and bottom-sheet glass and content move horizontally together, pausing during touch interaction. Disabled for reduced motion.",
+    help: "In 2D and 3D, shift the HUD up to 20px against section travel, then ease back to centre. Mobile navigation, chrome, and bottom-sheet glass and content move horizontally together, pausing during touch interaction. Disabled for reduced motion.",
     defaultValue: true,
     experimental: false,
     store: hudCameraDriftController,
@@ -1160,7 +1208,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     panel: "simulate",
     group: "simulate.camera",
     label: "HUD mouse drift",
-    help: "Move the desktop HUD gently against the mouse, up to 12px horizontally and vertically. Fades during section travel. Disabled for reduced motion; reload restores the enabled default.",
+    help: "In 3D, move the desktop nav and content against the mouse with a smooth momentum spring, up to 12px horizontally and vertically. Fades during section travel. Disabled for reduced motion; reload restores the enabled default.",
     defaultValue: true,
     experimental: false,
     store: hudCameraDriftController,
@@ -2079,6 +2127,29 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     key: "suspendSettledPropWork",
     optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
+  }),
+  booleanDescriptor({
+    id: "render.coordination-dither-2d",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "2D Coordination dither edges",
+    help: "Animate the orb fringe on the settled About shelf. Stops in hidden tabs and for reduced motion.",
+    defaultValue: true,
+    experimental: false,
+    store: coordinationDitherController,
+    read: () => coordinationDitherController.getSnapshot().effectEnabled,
+    update: (value) =>
+      coordinationDitherController.setEffectEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Eight cached SVG paths, stepped by CSS at five frames per second. First paint uses one static path.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
   }),
   booleanDescriptor({
     id: "render.coordination-singularity",

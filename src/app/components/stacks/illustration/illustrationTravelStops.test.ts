@@ -45,9 +45,43 @@ it.each([
         expect(boxes[i]!.left - boxes[i - 1]!.right).toBeCloseTo(gap, 5);
         expect(stops[i]!.scrollLeft).toBeGreaterThan(stops[i - 1]!.scrollLeft);
       }
-      expect(stops[0]!.scrollLeft).toBe(0);
+      expect(stops[0]!.scrollLeft).toBeGreaterThanOrEqual(0);
       expect(stops.at(-1)!.width).toBe(width);
     }
+  },
+);
+
+it.each([
+  [1200, 900],
+  [1440, 900],
+  [390, 844],
+])(
+  "allows the entire About frame to clear the left edge at %i x %i",
+  (width, height) => {
+    const viewport = width < 600 ? "phone" : "desktop";
+    const stops = illustrationTravelStops(
+      width,
+      height,
+      RAIL_RIGHT_PX_FALLBACK,
+      "light",
+      viewport,
+    );
+    const frame = artworkFrame(
+      null,
+      aboutBootStageForViewport(
+        width,
+        height,
+        RAIL_RIGHT_PX_FALLBACK,
+        ABOUT_BOOT_STAGE_GEOMETRY,
+        0,
+      ),
+      width,
+      height,
+    );
+    const left = stops[0]!.scrollLeft + frame.x;
+    expect(left).toBeGreaterThanOrEqual(
+      (width >= 1200 ? RAIL_RIGHT_PX_FALLBACK : 0) + 24,
+    );
   },
 );
 

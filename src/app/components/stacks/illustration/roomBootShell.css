@@ -46,13 +46,86 @@ html[data-room-view] {
     --room-chrome-ink var(--room-dissolve-duration, 160ms) linear,
     --room-chrome-shadow var(--room-dissolve-duration, 160ms) linear;
 }
+/* Keep the shared chrome ink consistent through the 2D/3D handoff. */
 html:not(.dark):is(
+    [data-room-view="illustrated"],
     [data-room-view="dissolve"],
     [data-room-view="travel"],
     [data-room-view="live"]
   ) {
   --room-chrome-ink: rgb(255 255 255 / 0.94);
   --room-chrome-shadow: rgb(0 0 0 / 0.28);
+}
+/* A half ellipse reaches the viewport's left edge in both room modes.
+   2D adds an 80% gradient tint above the blur. Symmetric vertical insets
+   keep that gradient aligned with the room. 3D uses only the blur. */
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-unit-rail-desktop::before,
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-unit-rail-desktop::after {
+  content: "";
+  position: absolute;
+  /* Match the desktop rail's left-7 offset. */
+  inset: -5rem -6rem -5rem -1.75rem;
+  pointer-events: none;
+  mask-image: radial-gradient(
+    ellipse 100% 50% at left center,
+    #000 0%,
+    #000 45%,
+    transparent 100%
+  );
+}
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-unit-rail-desktop::before {
+  z-index: -1;
+  opacity: 0;
+  background: var(--room-illustration-background) center / 100% 100dvh no-repeat;
+  transition: opacity var(--room-dissolve-duration, 160ms) linear;
+}
+html[data-room-view="illustrated"]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-unit-rail-desktop::before {
+  opacity: calc(0.8 * var(--room-entry-nav-opacity, 1));
+}
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-unit-rail-desktop::after {
+  z-index: -2;
+  opacity: var(--room-entry-nav-opacity, 1);
+  backdrop-filter: blur(12px);
+}
+/* Fade the material itself, leaving its parent opaque so the blur keeps
+   sampling the room throughout arrival. Keep the gradient fixed in place. */
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry][data-room-entrance="placing"]
+  .stacks-unit-rail-desktop::before,
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry][data-room-entrance="placing"]
+  .stacks-unit-rail-desktop::after {
+  transition: opacity 500ms ease-out var(--room-entry-nav-delay, 0ms);
+}
+html[data-room-view]
+  .stacks-world-shell[data-illustrated-entry][data-room-entrance="complete"][data-room-presentation="illustrated"]
+  .stacks-unit-rail-desktop::before {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-room-view]
+    .stacks-world-shell[data-illustrated-entry]
+    .stacks-unit-rail-desktop::before,
+  html[data-room-view]
+    .stacks-world-shell[data-illustrated-entry]
+    .stacks-unit-rail-desktop::after {
+    transition: none !important;
+  }
+}
+html[data-room-view][data-room-nav-blur="off"]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-unit-rail-desktop::after {
+  content: none;
 }
 html.dark[data-room-view] {
   --room-chrome-shadow: rgb(0 0 0 / 0.28);
@@ -94,6 +167,31 @@ html:not(.dark)[data-room-view]
   .stacks-on-background-mark {
   background-color: var(--room-chrome-ink) !important;
 }
+/* Night 2D was never light. Neither of the rules that whiten room chrome
+   runs at night: this one and ChromeLayer's are both html:not(.dark), so the
+   rail kept its Tailwind text-foreground, which the dark theme defines as
+   24 6% 83% — a warm grey near rgb(216 212 208), not white. Over a dark room
+   that is correct and deliberate. Over a lit entrance drawing it is simply
+   dim. Scoped to illustrated so the 3D room's own night chrome is untouched,
+   and the wash above is already there to rest it on. */
+html.dark[data-room-view="illustrated"] {
+  --room-chrome-ink: rgb(255 255 255 / 0.94);
+}
+html.dark[data-room-view="illustrated"]
+  .stacks-world-shell[data-illustrated-entry]
+  :is(
+    .stacks-on-background-text,
+    .stacks-rail-icon,
+    [data-stacks-desktop-panel] .placard-section-heading,
+    [data-stacks-desktop-panel] .placard-sections h1
+  ) {
+  color: var(--room-chrome-ink) !important;
+}
+html.dark[data-room-view="illustrated"]
+  .stacks-world-shell[data-illustrated-entry]
+  .stacks-on-background-mark {
+  background-color: var(--room-chrome-ink) !important;
+}
 .room-entry-wordmark {
   position: fixed;
   z-index: 51;
@@ -124,6 +222,31 @@ html:is(
   opacity: var(--stacks-secondary-chrome-idle-opacity, 0.6);
   transition: none;
 }
+/* Hold the opening name at full white through first paint and assembly. */
+html[data-room-view="illustrated"] .room-entry-wordmark {
+  opacity: 1;
+  color: #fff;
+}
+html[data-room-view="illustrated"]:has(
+    .stacks-world-shell[data-room-entrance="placing"]
+  )
+  .room-entry-wordmark,
+html[data-room-view="illustrated"]:has(
+    .stacks-world-shell[data-room-entrance="complete"]
+  )
+  .room-entry-wordmark {
+  opacity: var(--stacks-secondary-chrome-idle-opacity, 0.6);
+  color: var(--room-chrome-ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.stacks-world-shell[data-room-entrance="placing"])
+    .room-entry-wordmark {
+    /* Match ILLUSTRATED_ENTRANCE.nameMs so the fade travels with the name. */
+    transition:
+      opacity 850ms cubic-bezier(0.22, 1, 0.36, 1),
+      color 850ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
 html[data-room-view="live"]
   .stacks-world-shell[data-illustrated-entry]
   [data-room-scene-chrome]
@@ -138,14 +261,15 @@ html[data-room-view="live"]
     opacity: var(--stacks-secondary-chrome-idle-opacity, 1);
   }
 }
-/* One name survives first paint, React hydration, and the 3D dissolve. */
-.room-illustrated-chrome .stacks-wordmark {
+/* Hide only the corner name while its opening copy travels. Search can
+   arrive with navigation inside the same header. */
+.room-illustrated-chrome .room-wordmark-label {
   visibility: hidden;
 }
 /* Settled 2D uses the name inside the scene so the sheet and its dim cover it. */
 .stacks-world-shell[data-room-presentation="illustrated"][data-room-entrance="complete"]
   .room-illustrated-chrome
-  .stacks-wordmark {
+  .room-wordmark-label {
   visibility: visible;
 }
 html:has(

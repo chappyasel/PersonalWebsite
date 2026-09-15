@@ -41,7 +41,11 @@ export function illustrationTravelStops(
       height,
     ),
   );
-  let scrollLeft = 0;
+  // About's authored camera position is a navigation stop, not the scroll
+  // boundary. Leave enough leading space to reveal its left side beyond it,
+  // including the area covered by the desktop rail.
+  const leftInset = (width >= STACKS_DESKTOP_MIN_WIDTH ? railRight : 0) + 24;
+  let scrollLeft = Math.max(0, Math.ceil(leftInset - frames[0]!.x));
   return frames.map((frame, index) => {
     const position = ILLUSTRATION_POSITIONS[index]!;
     const next = frames[index + 1];

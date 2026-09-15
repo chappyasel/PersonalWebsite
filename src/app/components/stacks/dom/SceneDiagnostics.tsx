@@ -1461,6 +1461,11 @@ export default function SceneDiagnostics({
   initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const [roomNavBlur, setRoomNavBlur] = useState(
+    () =>
+      typeof document === "undefined" ||
+      document.documentElement.dataset.roomNavBlur !== "off",
+  );
   const [golfFlagMotion, setGolfFlagMotion] = useState(
     () =>
       typeof document === "undefined" ||
@@ -2118,6 +2123,27 @@ export default function SceneDiagnostics({
               </button>
             </div>
           </DiagnosticRegistrySection>
+
+          <CollapsibleSection
+            label="Desktop navigation"
+            active={!roomNavBlur}
+            summary={roomNavBlur ? "blur on" : "blur off"}
+          >
+            <label className="stacks-diagnostics-control">
+              <input
+                type="checkbox"
+                checked={roomNavBlur}
+                onChange={(event) => {
+                  const enabled = event.currentTarget.checked;
+                  setRoomNavBlur(enabled);
+                  document.documentElement.dataset.roomNavBlur = enabled
+                    ? "on"
+                    : "off";
+                }}
+              />{" "}
+              Desktop navigation backdrop blur
+            </label>
+          </CollapsibleSection>
 
           <DiagnosticRegistrySection
             groupId="render.screenshot"

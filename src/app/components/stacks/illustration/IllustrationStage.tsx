@@ -1,8 +1,9 @@
 "use client";
 
-import { GOLF_STOP_POSITION, UNITS } from "../data";
+import { GOLF_STOP_POSITION, type StacksData, UNITS } from "../data";
 import { BootScreenArtwork } from "../dom/BootScreen";
 import type { BootReadingBook } from "../dom/bootReadingBooks";
+import dynamic from "next/dynamic";
 import type { CSSProperties } from "react";
 
 import type { ReadingBookEdgeColor } from "~/lib/books/coverEdgeColor";
@@ -17,8 +18,15 @@ import {
 } from "./artwork";
 import "./illustratedRoom.css";
 
+const IllustrationHotspots = dynamic(() =>
+  import("./IllustrationHotspots").then(
+    (module) => module.IllustrationHotspots,
+  ),
+);
+
 export type IllustrationStageProps = {
   unitIndex: number;
+  interactionData?: StacksData;
   theme?: RoomArtworkTheme | "system";
   viewport?: RoomArtworkViewport | "responsive";
   readingBooks?: BootReadingBook[];
@@ -35,6 +43,7 @@ export type IllustrationStageProps = {
 /** Shared first-paint/hydrated geometry. Registration markers belong to its client owner. */
 export function IllustrationStage({
   unitIndex,
+  interactionData,
   theme = "system",
   viewport = "responsive",
   readingBooks,
@@ -79,32 +88,44 @@ export function IllustrationStage({
         } as CSSProperties
       }
     >
-      {(camera) =>
-        unitIndex === 0 ? (
-          <div className="room-illustration-about">
-            <BootScreenArtwork
-              readingBooks={readingBooks}
-              readingBookColors={readingBookColors}
-              camera={camera}
-              shelfOnly={shelfOnly}
+      {(camera) => (
+        <>
+          {unitIndex === 0 ? (
+            <div className="room-illustration-about">
+              <BootScreenArtwork
+                readingBooks={readingBooks}
+                readingBookColors={readingBookColors}
+                camera={camera}
+                shelfOnly={shelfOnly}
+                ditherActive={Boolean(interactionData)}
+              />
+            </div>
+          ) : desktop && !unavailable ? (
+            <RoomArtworkImage
+              unitIndex={unitIndex}
+              theme={theme}
+              viewport={viewport}
+              active={active}
+              data-illustration-image=""
+              pictureClassName="room-illustration-picture"
+              alt={`${UNITS[unitIndex]?.label ?? "Room"} shelf illustration`}
             />
-          </div>
-        ) : desktop && !unavailable ? (
-          <RoomArtworkImage
-            unitIndex={unitIndex}
-            theme={theme}
-            viewport={viewport}
-            active={active}
-            data-illustration-image=""
-            pictureClassName="room-illustration-picture"
-            alt={`${UNITS[unitIndex]?.label ?? "Room"} shelf illustration`}
-          />
-        ) : (
-          <p className="room-illustration-unavailable" role="status">
-            The illustration is unavailable. You can still read this section.
-          </p>
-        )
-      }
+          ) : (
+            <p className="room-illustration-unavailable" role="status">
+              The illustration is unavailable. You can still read this section.
+            </p>
+          )}
+          {interactionData && !unavailable && (
+            <IllustrationHotspots
+              unit={unitIndex}
+              data={interactionData}
+              theme={tone}
+              viewport={viewport === "phone" ? "phone" : "desktop"}
+              camera={camera}
+            />
+          )}
+        </>
+      )}
     </IllustrationFrame>
   );
 }

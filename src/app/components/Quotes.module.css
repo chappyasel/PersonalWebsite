@@ -5,8 +5,21 @@
     0 2px 12px rgb(0 0 0 / 0.4);
 }
 
+/* text-shadow does not reach an SVG, so the heading's icon sat flat on the
+   sky while its words carried the same two-stop shadow. drop-shadow is the
+   filter equivalent: same offsets, same colours, and it follows the glyph
+   rather than its box. */
+.quotes svg {
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.65))
+    drop-shadow(0 2px 12px rgb(0 0 0 / 0.4));
+}
+
 :global([data-stacks-mobile-panel]) .quotes {
   text-shadow: none;
+}
+
+:global([data-stacks-mobile-panel]) .quotes svg {
+  filter: none;
 }
 
 :global(html:not(.dark) [data-stacks-mobile-panel]) .quotes {

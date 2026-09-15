@@ -91,7 +91,13 @@ import {
   nextTerrainBuildGate,
   shadeScale,
 } from "./meadowField";
-import { meadowPokeStrength } from "./meadowInteraction";
+import {
+  MEADOW_BRUSH_IDLE_EPSILON,
+  meadowBrushAtRest,
+  meadowBrushIdleSeconds,
+  meadowPokeStrength,
+  meadowSettledBrushStrength,
+} from "./meadowInteraction";
 import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
 import {
   MEADOW_FLOWER_WIND,
@@ -255,6 +261,11 @@ const LAMP_GLSL = /* glsl */ `
   float lampPool(vec3 p) {
     float g = 0.0;
     for (int i = 0; i < ${MEADOW_LAMP_MAX}; i++) {
+      // An unregistered or extinguished slot carries an exact zero (the frame
+      // loop writes one), and a zero glow multiplies the whole term away. The
+      // condition is uniform, so skipping costs no divergence and saves the
+      // length + smoothstep on every vertex of every tuft.
+      if (uLampGlow[i] <= 0.0) continue;
       vec2 d = p.xz - uLampPos[i].xz;
       float fall = 1.0 - smoothstep(0.0, uLampPos[i].w, length(d));
       g += uLampGlow[i] * fall * fall;
@@ -283,6 +294,11 @@ const SHARED_UNIFORMS_GLSL = /* glsl */ `
   // (.w). A bounded pool keeps repeated clicks layered without unbounded
   // shader work.
   uniform vec4 uPulses[${MEADOW_PULSE_LAYERS}];
+  // 1.0 while any brush or click ring carries strength. Every term the
+  // interaction block computes depends only on the instance origin, so it is
+  // per-INSTANCE work paid per VERTEX — 132 times over for the near tuft LOD.
+  // This is the one uniform that lets the whole block be skipped at rest.
+  uniform float uPulseActive;
   uniform float uDawn;
   uniform float uSeat;
   uniform float uWindAmp;
@@ -421,32 +437,47 @@ export const meadowGrassVertexShader = (deformation: boolean) => /* glsl */ `
     // Clicking creates a separate, immediately broad outward burst. The
     // COMBINED lean is clamped so a gust plus interaction cannot fold a
     // tuft flat.
-    vec2 pk = origin.xz - uPoke.xy;
-    float pkd = max(length(pk), 1e-4);
-    // Hover is a brush, not a force field: the spatial mask follows the
-    // trailing cursor centre, while uPokeDir points along mouse travel.
-    float pokeShape = 1.0 - smoothstep(0.0, uPoke.z, pkd);
+    //
+    // Both are guarded, and the guards are exact rather than approximate: a
+    // spent ring carries pulse.w == 0, which makes its activity zero (so the
+    // running max is unchanged) and multiplies its contribution to pulseLean
+    // to vec2(0); an idle brush carries uPoke.w == 0, which makes push zero
+    // and leaves interactionShape equal to pulseActivity. The frame loop
+    // writes those exact zeros — see meadowSettledBrushStrength.
     vec2 pulseLean = vec2(0.0);
     float pulseActivity = 0.0;
-    for (int pi = 0; pi < ${MEADOW_PULSE_LAYERS}; pi++) {
-      vec4 pulse = uPulses[pi];
-      vec2 pulseDelta = origin.xz - pulse.xy;
-      float pulseDistance = max(length(pulseDelta), 1e-4);
-      // Full force begins on a compact front, then the front races outward
-      // while fading. Unlike the old sine envelope, it never powers up late.
-      float pulseShape = 1.0 - smoothstep(
-        ${MEADOW_POKE.pulseWidth.toFixed(2)} * 0.35,
-        ${MEADOW_POKE.pulseWidth.toFixed(2)},
-        abs(pulseDistance - pulse.z)
-      );
-      float activity = clamp(pulse.w / ${MEADOW_POKE.clickStrength.toFixed(2)}, 0.0, 1.0);
-      pulseActivity = max(pulseActivity, pulseShape * activity);
-      pulseLean += pulseDelta / pulseDistance * pulseShape * pulse.w;
+    if (uPulseActive > 0.0) {
+      for (int pi = 0; pi < ${MEADOW_PULSE_LAYERS}; pi++) {
+        vec4 pulse = uPulses[pi];
+        if (pulse.w <= 0.0) continue;
+        vec2 pulseDelta = origin.xz - pulse.xy;
+        float pulseDistance = max(length(pulseDelta), 1e-4);
+        // Full force begins on a compact front, then the front races outward
+        // while fading. Unlike the old sine envelope, it never powers up late.
+        float pulseShape = 1.0 - smoothstep(
+          ${MEADOW_POKE.pulseWidth.toFixed(2)} * 0.35,
+          ${MEADOW_POKE.pulseWidth.toFixed(2)},
+          abs(pulseDistance - pulse.z)
+        );
+        float activity = clamp(pulse.w / ${MEADOW_POKE.clickStrength.toFixed(2)}, 0.0, 1.0);
+        pulseActivity = max(pulseActivity, pulseShape * activity);
+        pulseLean += pulseDelta / pulseDistance * pulseShape * pulse.w;
+      }
     }
-    float pokeActivity = clamp(uPoke.w / ${MEADOW_POKE.hoverStrength.toFixed(2)}, 0.0, 1.0);
-    // Give the click's first frame room instead of summing two full-strength
-    // interactions into the hard lean limit.
-    float push = pokeShape * uPoke.w * (1.0 - 0.70 * pulseActivity);
+    float pokeShape = 0.0;
+    float pokeActivity = 0.0;
+    float push = 0.0;
+    if (uPoke.w > 0.0) {
+      vec2 pk = origin.xz - uPoke.xy;
+      float pkd = max(length(pk), 1e-4);
+      // Hover is a brush, not a force field: the spatial mask follows the
+      // trailing cursor centre, while uPokeDir points along mouse travel.
+      pokeShape = 1.0 - smoothstep(0.0, uPoke.z, pkd);
+      pokeActivity = clamp(uPoke.w / ${MEADOW_POKE.hoverStrength.toFixed(2)}, 0.0, 1.0);
+      // Give the click's first frame room instead of summing two full-strength
+      // interactions into the hard lean limit.
+      push = pokeShape * uPoke.w * (1.0 - 0.70 * pulseActivity);
+    }
     float interactionShape = max(
       pokeShape * pokeActivity,
       pulseActivity
@@ -820,28 +851,35 @@ const FLOWER_VERTEX = /* glsl */ `
     // rides the flowers' slow copy of the signal so the implied stem bends
     // and recovers more lazily than a grass blade.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed) * ${MEADOW_FLOWER_WIND.response.toFixed(2)};
-    vec2 pk = origin.xz - uPokeF.xy;
-    float pkd = max(length(pk), 1e-4);
+    // Same exact guards as the tufts: a spent ring and an idle brush each
+    // contribute an algebraic zero, so skipping them changes no head.
     vec2 pulseLean = vec2(0.0);
     float pulseActivity = 0.0;
-    for (int pi = 0; pi < ${MEADOW_PULSE_LAYERS}; pi++) {
-      vec4 pulse = uPulses[pi];
-      vec2 pulseDelta = origin.xz - pulse.xy;
-      float pulseDistance = max(length(pulseDelta), 1e-4);
-      float pulseShape = 1.0 - smoothstep(
-        ${MEADOW_POKE.pulseWidth.toFixed(2)} * 0.35,
-        ${MEADOW_POKE.pulseWidth.toFixed(2)},
-        abs(pulseDistance - pulse.z)
-      );
-      float activity = clamp(pulse.w / ${MEADOW_POKE.clickStrength.toFixed(2)}, 0.0, 1.0);
-      pulseActivity = max(pulseActivity, pulseShape * activity);
-      pulseLean += pulseDelta / pulseDistance * pulseShape * pulse.w * 0.10;
+    if (uPulseActive > 0.0) {
+      for (int pi = 0; pi < ${MEADOW_PULSE_LAYERS}; pi++) {
+        vec4 pulse = uPulses[pi];
+        if (pulse.w <= 0.0) continue;
+        vec2 pulseDelta = origin.xz - pulse.xy;
+        float pulseDistance = max(length(pulseDelta), 1e-4);
+        float pulseShape = 1.0 - smoothstep(
+          ${MEADOW_POKE.pulseWidth.toFixed(2)} * 0.35,
+          ${MEADOW_POKE.pulseWidth.toFixed(2)},
+          abs(pulseDistance - pulse.z)
+        );
+        float activity = clamp(pulse.w / ${MEADOW_POKE.clickStrength.toFixed(2)}, 0.0, 1.0);
+        pulseActivity = max(pulseActivity, pulseShape * activity);
+        pulseLean += pulseDelta / pulseDistance * pulseShape * pulse.w * 0.10;
+      }
     }
-    w += uPokeDir
-      * (1.0 - smoothstep(0.0, uPokeF.z, pkd))
-      * uPokeF.w
-      * (1.0 - 0.70 * pulseActivity)
-      * 0.12;
+    if (uPokeF.w > 0.0) {
+      vec2 pk = origin.xz - uPokeF.xy;
+      float pkd = max(length(pk), 1e-4);
+      w += uPokeDir
+        * (1.0 - smoothstep(0.0, uPokeF.z, pkd))
+        * uPokeF.w
+        * (1.0 - 0.70 * pulseActivity)
+        * 0.12;
+    }
     w += pulseLean;
     float flowerLeanLength = max(length(w), 1e-4);
     w *= min(flowerLeanLength, ${MEADOW_FLOWER_WIND.maxLean.toFixed(2)})
@@ -1221,6 +1259,12 @@ export default function Meadow({
   /** Dev-only density override: a 0..1 fraction of the full buffers that
    * beats the rung while set. Never written in production. */
   const densityRef = useRef<number | null>(null);
+  /** Mirror of the live pulse strengths, so the frame loop can decide the
+   * shader's rest gate without allocating or reaching into three's uniforms
+   * from the pure motion module. */
+  const pulseStrengths = useRef<number[]>(
+    new Array<number>(MEADOW_PULSE_LAYERS).fill(0),
+  );
   const retireComplete = useRef(false);
   const recoveryComplete = useRef(false);
   const onRetiredRef = useRef(onRetired);
@@ -1372,6 +1416,9 @@ export default function Meadow({
           () => new THREE.Vector4(0, 0, 0, 0),
         ),
       },
+      // The single gate over the per-instance interaction block. See the
+      // uniform's declaration in SHARED_UNIFORMS_GLSL.
+      uPulseActive: { value: 0 },
     };
     const grassOnly = {
       uAlpha: { value: null as THREE.Texture | null },
@@ -1742,6 +1789,11 @@ export default function Meadow({
   const handledImpactRevision = useRef(
     getMeadowDisturbance().physicalEvent.revision,
   );
+  /** Scene time of the last frame that carried a pointer sample driving the
+   * brushes. The per-frame gesture target cannot answer "is a gesture
+   * happening" on its own — it is zero on every frame between two samples of
+   * a perfectly live drag — so the settle reads the age of this instead. */
+  const lastBrushDriveAt = useRef(Number.NEGATIVE_INFINITY);
   const bootAt = useRef(-1);
   const nextWindDiagnosticAt = useRef(0);
   useEffect(() => {
@@ -1870,8 +1922,13 @@ export default function Meadow({
       handledTouchPulseRevision.current !== touchWorldRef.meadowPulseRevision;
     const touchMotionRunning =
       pokeClickAt.current.some((startedAt) => startedAt >= 0) ||
-      shared.uPoke.value.w > 0.001 ||
-      shared.uPokeF.value.w > 0.001;
+      shared.uPoke.value.w > MEADOW_BRUSH_IDLE_EPSILON ||
+      shared.uPokeF.value.w > MEADOW_BRUSH_IDLE_EPSILON;
+    // The strength a live gesture is driving the brushes toward, or zero when
+    // nothing is. It has to outlive the pointer block below: the settle that
+    // closes the shader's uniform guard must never fire while a gesture is
+    // still ramping, or it would delete the whole input.
+    let brushTarget = 0;
     const touchInteractionActive =
       touchWake > 0.01 ||
       touchPulsePending ||
@@ -2002,6 +2059,7 @@ export default function Meadow({
           : MEADOW_POKE.flowerReleaseLambda,
         delta,
       );
+      brushTarget = target;
       if (touchInteractionActive)
         touchWorldRef.wakeStrength = Math.max(0, touchWake - delta * 5);
     }
@@ -2016,6 +2074,7 @@ export default function Meadow({
       const age = pulseAges[index]!;
       if (age < 0) {
         uniform.w = 0;
+        pulseStrengths.current[index] = 0;
         if (
           pokeClickAt.current[index]! >= 0 &&
           clock.elapsedTime - pokeClickAt.current[index]! >
@@ -2030,7 +2089,36 @@ export default function Meadow({
       );
       uniform.z = pulse.radius * pokeClickRadiusScale.current[index]!;
       uniform.w = pulse.strength;
+      pulseStrengths.current[index] = pulse.strength;
     }
+    // Settle the RELEASED brushes and gate the shader's interaction block.
+    // Both brushes decay geometrically and would otherwise hold a denormal
+    // for tens of seconds after a gesture, keeping 1.45M vertex invocations
+    // on the expensive path with nothing to show for it.
+    //
+    // The age of the last pointer sample is what keeps the settle off a live
+    // attack ramp. `brushTarget` alone cannot: it is zero on every frame
+    // between two samples of a perfectly live drag, which is most frames on
+    // a 120Hz panel with a 60Hz mouse.
+    if (brushTarget > 0) lastBrushDriveAt.current = clock.elapsedTime;
+    const secondsSinceBrushDriven = meadowBrushIdleSeconds(
+      clock.elapsedTime,
+      lastBrushDriveAt.current,
+    );
+    shared.uPoke.value.w = meadowSettledBrushStrength(
+      shared.uPoke.value.w,
+      secondsSinceBrushDriven,
+    );
+    shared.uPokeF.value.w = meadowSettledBrushStrength(
+      shared.uPokeF.value.w,
+      secondsSinceBrushDriven,
+    );
+    shared.uPulseActive.value = meadowBrushAtRest(
+      Math.max(shared.uPoke.value.w, shared.uPokeF.value.w),
+      pulseStrengths.current,
+    )
+      ? 0
+      : 1;
     shared.uDark.value = THREE.MathUtils.damp(
       shared.uDark.value,
       dark ? 1 : 0,
