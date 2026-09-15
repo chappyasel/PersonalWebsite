@@ -68,3 +68,45 @@ export function meadowPokeStrength(worldX: number, worldZ: number): number {
   const t = depthPastShelf / MEADOW_POKE_FADE_DEPTH;
   return 1 - t * t * (3 - 2 * t);
 }
+
+/**
+ * Where an eased brush stops existing.
+ *
+ * `meadowPokeStrength` above already returns an exact zero out in the field;
+ * this is the same idea on the time axis. `THREE.MathUtils.damp` approaches
+ * its target geometrically, so a brush released toward zero at the authored
+ * grass rate loses under 3% per 120Hz frame and stays a denormal for tens of
+ * seconds. The grass vertex shader gates its entire pointer/pulse block on
+ * `uPoke.w > 0.0`, and that guard is what lets 1.45 million vertex
+ * invocations skip work that only ever depends on the tuft origin — so a
+ * strength that never reaches zero would make the expensive path the
+ * resident one. This is the value at which the frame loop writes an exact
+ * zero instead, and it is the same threshold the frame loop already used to
+ * decide whether a touch gesture was still animating.
+ */
+export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
+
+/**
+ * Settle an eased brush strength onto exactly zero once it is invisible.
+ *
+ * The brush contributes at most `strength` to a lean the shader then clamps
+ * at `MEADOW_WIND.authoredMaxLean` (0.36) and multiplies by a sway height
+ * under 0.35 world units, so dropping it at the epsilon moves a blade tip by
+ * at most a third of a millimetre — under a thousandth of a pixel from the
+ * traverse camera. What it buys is a uniform that is genuinely zero at rest.
+ */
+export function meadowSettledBrushStrength(strength: number): number {
+  return strength < MEADOW_BRUSH_IDLE_EPSILON ? 0 : strength;
+}
+
+/** Whether no brush and no click ring carries strength. The frame loop
+ * publishes the negation as `uPulseActive`, the shader's single uniform gate
+ * over the per-instance interaction block. */
+export function meadowBrushAtRest(
+  brushStrength: number,
+  pulseStrengths: readonly number[],
+): boolean {
+  return (
+    brushStrength <= 0 && pulseStrengths.every((strength) => strength <= 0)
+  );
+}
