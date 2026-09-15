@@ -2275,6 +2275,11 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         data-home-glass="pill"
         data-swap-direction={side < 0 ? "previous" : "next"}
         onClick={restoreFromChip}
+        whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+        onTapStart={() => chipRef.current?.setAttribute("data-pressed", "")}
+        onTap={() => chipRef.current?.removeAttribute("data-pressed")}
+        onTapCancel={() => chipRef.current?.removeAttribute("data-pressed")}
+        onBlur={() => chipRef.current?.removeAttribute("data-pressed")}
         inert={!active || !chipActive}
         aria-hidden={!active || !chipActive}
         style={{
@@ -2282,7 +2287,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           y: chipY,
           visibility: chipVisibility,
         }}
-        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-bold text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50 ${
+        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-semibold text-foreground ${
           active && chipActive ? "pointer-events-auto" : "pointer-events-none"
         }`}
       >
@@ -2634,6 +2639,17 @@ export default function PlacardLayer({
         }
         .stacks-chip {
           box-shadow: var(--placard-media-shadow) !important;
+        }
+        /* Keep both colors: white separates the indicator from dark glass,
+           while the dark outer ring separates it from bright glass and sky.
+           The white outline alone has too little contrast on the light pill. */
+        .stacks-chip:focus-visible {
+          outline: 2px solid white;
+          outline-offset: 2px;
+          box-shadow: 0 0 0 6px rgb(24 24 24), var(--placard-media-shadow) !important;
+        }
+        .stacks-chip:is(:active, [data-pressed]) {
+          background-color: color-mix(in srgb, var(--sheet-fill), hsl(var(--foreground)) 12%);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
