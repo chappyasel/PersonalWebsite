@@ -1,0 +1,45 @@
+{
+  "method": {
+    "file": "scripts/stacks-gpu-detail-benchmark.mjs",
+    "sha256": "1f53a8d6326625d37ac6eabce0698d294054a8568d82ee4401ea0b71335bd8bb",
+    "reviewer": "benchmark-auditor-claude",
+    "verdict": "G10/G11/G12 cleared; method accepted; timing still requires quiet preflight before and after",
+    "boardReceiptUtc": "2026-09-15T05:37"
+  },
+  "product": {
+    "commit": "1efd70bb",
+    "reviewer": "Claude Code",
+    "session": "1a7761b5-0304-45ba-90ec-3d61f7b6730e",
+    "verdict": "No ownership or appearance blockers",
+    "followups": "Generated graph ref cleared after release; source red/green and production dist red/green verified; immutable grouping attributes documented",
+    "scope": "Pre-commit working-tree review; did not record an immutable content hash. Do not treat its timestamp as a commit receipt."
+  },
+  "sharedPrerequisite": {
+    "local": "d39361f0",
+    "canonicalFrameCommit": "ba4781172e38c5988cc3697cfb280782a59e2407",
+    "instruction": "Deduplicate at integration; equivalent CDP boundary type cast/comment"
+  },
+  "exactCommitReview": {
+    "commit": "1efd70bb81252dfc16f4ef5d4bed8173bc29dcbc",
+    "reviewer": "benchmark-auditor-claude",
+    "verdict": "No blocker found",
+    "scope": "Effects, PhotoMask ownership and regression; package patch internals not independently re-derived",
+    "followups": "P2 null-depth assignment guard and live grade/camera browser coverage; package patch retirement on upgrade"
+  },
+  "committedClaudeReview": {
+    "commit": "1efd70bb81252dfc16f4ef5d4bed8173bc29dcbc",
+    "gitShowFormat": "git show --format=fuller 1efd70bb81252dfc16f4ef5d4bed8173bc29dcbc",
+    "diffSha256": "cdaf4e0dd16daf97047c3940cadcd154d1573d939951d4cec8698cc2bd486df6",
+    "digestRecomputed": true,
+    "session": "1a7761b5-0304-45ba-90ec-3d61f7b6730e",
+    "verdict": "No blocker for this exact committed diff; source/dist parity, ownership, borrowed depth, zero mask construction off and unchanged defaults confirmed",
+    "scope": "Same existing Claude review resumed; immutable complete diff supplied; no tool calls, tests, builds, browser or extra agents by reviewer",
+    "followups": [
+      "Dist coverage relies on production browser regression",
+      "Additional texture deletion/program link bounds",
+      "Effect grouping attributes remain immutable",
+      "Mac-specific Metal browser gate",
+      "Recheck dependency patch on package upgrades"
+    ]
+  }
+}

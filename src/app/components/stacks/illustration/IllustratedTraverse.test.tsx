@@ -3,6 +3,7 @@ import { GOLF_STOP_POSITION, type StacksData } from "../data";
 import RoomNavigation, { navigateRoom } from "../input/RoomNavigation";
 import { useStacks } from "../store";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import IllustratedRoom from "./IllustratedRoom";
@@ -274,6 +275,7 @@ it("keeps a rail destination when an old scroll event arrives during smooth trav
   }
   const mounted = render(<ConnectedTraverse />);
   const viewport = mounted.container.firstElementChild as HTMLDivElement;
+  moving.mockClear(); // Initial placement reports settled before nav starts.
   const scrollTo = vi
     .spyOn(viewport, "scrollTo")
     .mockImplementation(() => undefined);
@@ -411,4 +413,50 @@ it("moves fetch priority to the shelf in view without remounting the row", () =>
   expect(imageAt(5)?.getAttribute("fetchpriority")).toBe("high");
   expect(imageAt(4)?.getAttribute("loading")).toBe("lazy");
   expect(imageAt(4)?.getAttribute("fetchpriority")).toBe("low");
+});
+
+it("restores the current shelf instantly when recovery wakes Activity without a handoff position", () => {
+  const moving = vi.fn();
+  const scrollTo = vi.spyOn(HTMLElement.prototype, "scrollTo");
+  const show = (visible: boolean, unit: number) => (
+    <Activity mode={visible ? "visible" : "hidden"}>
+      <IllustratedTraverse unit={unit} enabled onMovingChange={moving}>
+        <div />
+      </IllustratedTraverse>
+    </Activity>
+  );
+  const view = render(show(true, 4));
+  const row = view.container.firstElementChild as HTMLDivElement;
+  expect(row.scrollLeft).toBe(4000);
+  view.rerender(show(false, 4));
+  view.rerender(show(false, 6));
+  scrollTo.mockClear();
+  moving.mockClear();
+  view.rerender(show(true, 6));
+  expect(row.scrollLeft).toBe(6000);
+  expect(scrollTo).not.toHaveBeenCalledWith(
+    expect.objectContaining({ behavior: "smooth" }),
+  );
+  expect(moving).toHaveBeenLastCalledWith(false);
+  expect(view.container.firstElementChild).toBe(row);
+});
+
+it("clears an interrupted travel on Activity wake before a recovery drawing measures", () => {
+  const moving = vi.fn();
+  const show = (visible: boolean) => (
+    <Activity mode={visible ? "visible" : "hidden"}>
+      <IllustratedTraverse unit={4} enabled onMovingChange={moving}>
+        <div />
+      </IllustratedTraverse>
+    </Activity>
+  );
+  const view = render(show(true));
+  const row = view.container.firstElementChild as HTMLDivElement;
+  fireEvent.wheel(row, { deltaY: 100 });
+  expect(moving).toHaveBeenLastCalledWith(true);
+  view.rerender(show(false));
+  moving.mockClear();
+  view.rerender(show(true));
+  expect(row.scrollLeft).toBe(4000);
+  expect(moving).toHaveBeenLastCalledWith(false);
 });

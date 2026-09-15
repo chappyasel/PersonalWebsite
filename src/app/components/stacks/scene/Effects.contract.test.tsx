@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as PhotoMaskModule from "./PhotoMaskPass";
+
 // The composer chain is what this module produces, so that is what these
 // tests read. `@react-three/postprocessing` and `@react-three/fiber` are the
 // two things Effects cannot run without and cannot run inside Node, so both
@@ -28,7 +30,20 @@ const harness = vi.hoisted(() => ({
   composer: { setSize: vi.fn() },
   size: { width: 1440, height: 900 },
   pixelRatio: 1,
+  maskCreations: 0,
 }));
+
+vi.mock("./PhotoMaskPass", async (importOriginal) => {
+  const actual = await importOriginal<typeof PhotoMaskModule>();
+  return {
+    PhotoMaskPass: class extends actual.PhotoMaskPass {
+      constructor(camera: THREE.Camera) {
+        super(camera);
+        harness.maskCreations += 1;
+      }
+    },
+  };
+});
 
 // React asks an external store for its SERVER snapshot while
 // `renderToStaticMarkup` runs, and zustand answers that from a closure over
@@ -168,6 +183,7 @@ beforeEach(() => {
   harness.frames.length = 0;
   harness.composer.setSize.mockClear();
   harness.pixelRatio = 1;
+  harness.maskCreations = 0;
   sceneQualityController.resetControls();
   scenePerformanceController.reset();
   freeRoamDiagnosticsController.reset();
@@ -337,6 +353,41 @@ describe("the scene's postprocessing chain", () => {
     );
   });
 
+  it("keeps the last borrowed scene depth if a mask is retired before its grade", () => {
+    const chain = render();
+    const mask = chain.props("PhotoMaskPass")!
+      .effect as PhotoMaskModule.PhotoMaskPass;
+    const grade = chain.props("GradeEffect")!.effect as {
+      uniforms: Map<string, { value: unknown }>;
+    };
+    const uniform = grade.uniforms.get("uSceneDepth")!;
+    const frame = () => {
+      for (const { callback } of harness.frames) callback({}, 1 / 120);
+    };
+    const first = new THREE.DepthTexture(4, 4);
+    const replacement = new THREE.DepthTexture(8, 8);
+    const dispose = vi.spyOn(replacement, "dispose");
+
+    // Depth arrives after the grade is constructed and can change with the
+    // composer. Both bindings must reach the actual Grade frame callback.
+    mask.setDepthTexture(first);
+    frame();
+    expect(uniform.value).toBe(first);
+    mask.setDepthTexture(replacement);
+    frame();
+    expect(uniform.value).toBe(replacement);
+
+    // Exercise a late callback explicitly; this is not a claim about React's
+    // unmount ordering or permission to render a disposed mask target.
+    mask.dispose();
+    expect(mask.sceneDepth).toBeNull();
+    frame();
+    expect(uniform.value).toBe(replacement);
+    expect(dispose).not.toHaveBeenCalled();
+    first.dispose();
+    replacement.dispose();
+  });
+
   it("runs the shipped develop with the mixer skipped, and none of it under Flat", () => {
     const shipped = SCENE_GRADE_PROFILES.shipped.values.develop.light;
     const grade = render().props("GradeEffect") as
@@ -484,6 +535,7 @@ describe("the reversible comparison switches", () => {
     expect(chain.has("PhotoMaskPass")).toBe(false);
     expect(chain.has("ToneMapping")).toBe(true);
     expect(chain.order.at(-1)).toBe("SMAA");
+    expect(harness.maskCreations).toBe(0);
   });
 
   it("isolates the side lens with ?notiltshift", () => {

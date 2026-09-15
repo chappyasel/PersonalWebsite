@@ -68,3 +68,123 @@ export function meadowPokeStrength(worldX: number, worldZ: number): number {
   const t = depthPastShelf / MEADOW_POKE_FADE_DEPTH;
   return 1 - t * t * (3 - 2 * t);
 }
+
+/**
+ * Where an eased brush stops existing.
+ *
+ * `meadowPokeStrength` above already returns an exact zero out in the field;
+ * this is the same idea on the time axis. `THREE.MathUtils.damp` approaches
+ * its target geometrically, so a brush released toward zero at the authored
+ * grass rate loses under 3% per 120Hz frame and stays a denormal for tens of
+ * seconds. The grass vertex shader gates its entire pointer/pulse block on
+ * `uPoke.w > 0.0`, and that guard is what lets 1.45 million vertex
+ * invocations skip work that only ever depends on the tuft origin — so a
+ * strength that never reaches zero would make the expensive path the
+ * resident one. This is the value at which the frame loop writes an exact
+ * zero instead, and it is the same threshold the frame loop already used to
+ * decide whether a touch gesture was still animating.
+ */
+export const MEADOW_BRUSH_IDLE_EPSILON = 0.001;
+
+/**
+ * How long a brush has to go undriven before it counts as released.
+ *
+ * The frame loop's gesture target is per-FRAME: it starts at zero and is only
+ * written on frames that carried a pointer sample. A 60Hz mouse under a 120Hz
+ * renderer therefore reports a target on every other frame and zero on the
+ * rest, and a 240Hz panel reports three zeros for every sample. Those zeros
+ * are not a released gesture, and a settle that cannot tell them from one
+ * snaps the attack ramp back down between every pair of samples — a slow drag
+ * alternates and never accumulates. That is the distinction this window
+ * exists to draw: gesture-idle, not between-event.
+ *
+ * 250ms is a policy, not a proof. It is fifteen times the gap between samples
+ * of a 60Hz pointer and it covers every cadence the regression drives — 60Hz
+ * and 120Hz samples under 120Hz and 240Hz renderers, and a 15Hz pointer far
+ * outside what a browser delivers — but it cannot bound EVERY input gap a
+ * browser can produce. A gesture whose samples fall more than 250ms apart
+ * will still have its ramp cut. That is an explicit limit of this window
+ * rather than something ruled out.
+ *
+ * What it costs is likewise bounded rather than nothing. Released from full
+ * hover strength the release decay needs about 1.6 seconds to reach the
+ * epsilon, so the window adds nothing at all there. The case where it does
+ * cost is a brush released while ALREADY below the epsilon — a very light
+ * touch — which holds the shader's interaction block open for up to 250ms
+ * longer than a settle keyed on the value alone would have.
+ */
+export const MEADOW_BRUSH_IDLE_GRACE_SECONDS = 0.25;
+
+/**
+ * Settle a released brush strength onto exactly zero once it is invisible.
+ *
+ * `meadowPokeStrength` above returns an exact zero out in the field; this is
+ * the same idea on the time axis, and `secondsSinceDriven` is what makes it
+ * safe. Anything a gesture has touched inside the grace window passes through
+ * untouched, however small, so no attack ramp is ever knocked back.
+ *
+ * With no gesture driving it, collapsing the brush moves the lean in TWO
+ * ways, and the second is the larger one. The direct term is
+ * `uPokeDir * push`, which is bounded by the epsilon itself. The indirect
+ * term is the wind suppression: the shader computes
+ * `w * (1 - windSuppression * interactionShape)`, and `interactionShape`
+ * carries `clamp(uPoke.w / hoverStrength, 0, 1)`, so an epsilon of brush
+ * still holds back `0.82 * (epsilon / 0.2)` of the gust. Against the gust
+ * ceiling that is about four times the direct term. Both together move a
+ * blade tip by under two millimetres on a lawn the traverse camera views
+ * from several world units away — about 1.4% of a full-lean throw, and far
+ * below one pixel. `meadowVertexBudget.test.ts` asserts the complete bound
+ * rather than the direct half. What it buys is a uniform that is genuinely
+ * zero at rest, which is what lets the grass vertex shader skip its whole
+ * per-instance interaction block.
+ */
+export function meadowSettledBrushStrength(
+  strength: number,
+  secondsSinceDriven: number,
+): number {
+  if (secondsSinceDriven < MEADOW_BRUSH_IDLE_GRACE_SECONDS) return strength;
+  return strength < MEADOW_BRUSH_IDLE_EPSILON ? 0 : strength;
+}
+
+/**
+ * How long the brush has gone undriven, on a clock that can restart.
+ *
+ * R3F resets `clock.elapsedTime` when the frameloop changes. `sceneClock.ts`
+ * retains a `setFrameloop` wrapper that restores the value, installed by
+ * `SceneClockBoundary` in a layout effect; no bypass has been identified on
+ * that path. Subtracting the stamp directly would nevertheless yield a
+ * NEGATIVE age after a rollback, which reads as inside the grace window and
+ * declines to settle — so the shader's expensive path would stay resident
+ * until the clock climbed back past the stale stamp, with no visual defect
+ * and nothing to say so. Reading a rolled-back clock as idle removes that.
+ *
+ * What that reading costs, precisely. The frame loop refreshes the stamp
+ * BEFORE it reads the age (Meadow.tsx), so any frame carrying a pointer
+ * sample repairs it and nothing clips. A rollback on a frame between two
+ * samples does clip: the age reads idle and a ramp still under the epsilon
+ * is zeroed for that one frame. The next sample then restamps and the ramp
+ * RESUMES — it does not return to the strength the undisturbed run had, and
+ * the two trajectories converge over the following frames rather than
+ * rejoining. The largest single-frame difference is the clipped value
+ * itself, and a rollback with no sample left after it loses that value
+ * outright. `meadowVertexBudget.test.ts` pins all of it per frame, for grass
+ * and for flowers, with the sampled-frame rollback kept as a control.
+ */
+export function meadowBrushIdleSeconds(
+  now: number,
+  lastDrivenAt: number,
+): number {
+  return now >= lastDrivenAt ? now - lastDrivenAt : Number.POSITIVE_INFINITY;
+}
+
+/** Whether no brush and no click ring carries strength. The frame loop
+ * publishes the negation as `uPulseActive`, the shader's single uniform gate
+ * over the per-instance interaction block. */
+export function meadowBrushAtRest(
+  brushStrength: number,
+  pulseStrengths: readonly number[],
+): boolean {
+  return (
+    brushStrength <= 0 && pulseStrengths.every((strength) => strength <= 0)
+  );
+}

@@ -51,6 +51,7 @@ import { type ThemeChoice } from "~/lib/theme";
 import { runCommandAction } from "~/lib/universal-search/actions";
 import { queryServerSearch } from "~/lib/universal-search/client-providers";
 import { navigateUniversalSearchResult } from "~/lib/universal-search/navigation";
+import { notifyUniversalSearchSelection } from "~/lib/universal-search/overlay";
 import { queryPublicSearchIndex } from "~/lib/universal-search/public-index";
 import {
   normalizeSearchText,
@@ -712,6 +713,7 @@ export function UniversalSearchPaletteContent({
         matchKind: "exact",
       }),
     );
+    notifyUniversalSearchSelection();
     close();
     dependencies.navigate(recent.href);
   };
@@ -722,6 +724,13 @@ export function UniversalSearchPaletteContent({
       : undefined;
     const matchKind = match?.matchKind ?? "exact";
     if (entry.kind === "action") {
+      // Announced before the action runs, not after. The visitor has committed
+      // the moment they pick a command, and an action that throws must not
+      // leave a paused gesture alive to snap the room back underneath them.
+      // Announced before the action runs, not after. The visitor has committed
+      // the moment they pick a command, and an action that throws must not
+      // leave a paused gesture alive to snap the room back underneath them.
+      notifyUniversalSearchSelection();
       runCommandAction(entry.actionId, {
         setTheme: dependencies.setTheme,
         setFont: dependencies.setFont,
@@ -763,6 +772,7 @@ export function UniversalSearchPaletteContent({
         matchKind,
       }),
     );
+    notifyUniversalSearchSelection();
     close();
     dependencies.navigate(href);
   };
@@ -780,6 +790,7 @@ export function UniversalSearchPaletteContent({
         matchKind: result.matchKind,
       }),
     );
+    notifyUniversalSearchSelection();
     close();
     dependencies.navigate(result.href);
   };
