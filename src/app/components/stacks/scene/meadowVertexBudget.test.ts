@@ -66,6 +66,7 @@ function driveCadence({
   eventHz = 60,
   from = 0,
   driving = true,
+  clockResetsAtFrame = -1,
 }: {
   target: number;
   seconds: number;
@@ -76,16 +77,24 @@ function driveCadence({
   eventHz?: number;
   from?: number;
   driving?: boolean;
+  /** Frame at which the scene clock restarts from zero, as R3F does on a
+   * frameloop change. -1 never. */
+  clockResetsAtFrame?: number;
 }) {
   const dt = 1 / renderHz;
   const framesPerEvent = Math.max(1, Math.round(renderHz / eventHz));
   let strength = from;
-  let secondsSinceDriven = Number.POSITIVE_INFINITY;
+  // The frame loop's own bookkeeping, reproduced rather than approximated:
+  // a scene clock, a stamp, and the shipped age function between them.
+  let now = 0;
+  let lastDrivenAt = Number.NEGATIVE_INFINITY;
   const frames = Math.round(seconds * renderHz);
   for (let frame = 0; frame < frames; frame += 1) {
+    now = frame === clockResetsAtFrame ? 0 : now + dt;
     const sampled = driving && frame % framesPerEvent === 0;
     const frameTarget = sampled ? target : 0;
-    secondsSinceDriven = sampled ? 0 : secondsSinceDriven + dt;
+    if (frameTarget > 0) lastDrivenAt = now;
+    const secondsSinceDriven = meadowBrushIdleSeconds(now, lastDrivenAt);
     strength = damp(
       strength,
       frameTarget,
@@ -217,6 +226,38 @@ describe("meadow brush settles only when the gesture is actually idle", () => {
     expect(MEADOW_BRUSH_IDLE_GRACE_SECONDS).toBeGreaterThan(10 / 60);
   });
 
+  it("clips only until the next sample when the clock restarts mid-gesture", () => {
+    // The documented limit of reading idle from a clock that can restart. If
+    // R3F resets elapsedTime while a gesture is live, the frames between the
+    // reset and the next pointer sample read as idle, so a ramp still under
+    // the epsilon is clipped. It recovers by itself: the next sample restamps
+    // against the new clock and the drive continues.
+    //
+    // There is no known production path to it — sceneClock.ts restores the
+    // value, and a frameloop change interrupts the gesture anyway — so this
+    // records the behaviour rather than asserting it is unreachable.
+    const options = { target: 0.006, seconds: 10, ...GRASS };
+    const undisturbed = driveCadence({ ...options, settle: shipped });
+    const disturbed = driveCadence({
+      ...options,
+      settle: shipped,
+      clockResetsAtFrame: 600,
+    });
+    // Clipped, not erased, and back on the same trajectory long before the
+    // end of the gesture.
+    expect(disturbed).toBeCloseTo(undisturbed, 6);
+    // And a reset in the last frames, with no sample after it to recover on,
+    // costs at most the sub-epsilon tail.
+    const atTheEnd = driveCadence({
+      ...options,
+      settle: shipped,
+      clockResetsAtFrame: 1199,
+    });
+    expect(Math.abs(atTheEnd - undisturbed)).toBeLessThan(
+      MEADOW_BRUSH_IDLE_EPSILON,
+    );
+  });
+
   it("reads idle when the scene clock restarts under it", () => {
     // R3F resets clock.elapsedTime on a frameloop change and sceneClock.ts
     // puts it back — a wrapper, so something that can be bypassed. A stamp
@@ -228,6 +269,13 @@ describe("meadow brush settles only when the gesture is actually idle", () => {
     expect(meadowBrushIdleSeconds(0, Number.NEGATIVE_INFINITY)).toBe(
       Number.POSITIVE_INFINITY,
     );
+    // A clock that jumped FORWARD — a hidden tab, a long stall — reads as a
+    // long idle, which is the reading that arms the settle rather than
+    // stranding it.
+    expect(meadowBrushIdleSeconds(300, 4)).toBe(296);
+    expect(
+      meadowSettledBrushStrength(1e-6, meadowBrushIdleSeconds(300, 4)),
+    ).toBe(0);
     // And the settle is armed by that reading rather than stuck open.
     expect(meadowSettledBrushStrength(1e-6, meadowBrushIdleSeconds(0, 30))).toBe(
       0,

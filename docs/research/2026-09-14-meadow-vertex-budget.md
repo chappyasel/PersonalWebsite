@@ -109,6 +109,14 @@ decay needs about 1.6 seconds to reach the epsilon anyway, but a brush
 released while already under the epsilon holds the shader's interaction block
 open for up to the width of the window.
 
+Reading idle from the scene clock has its own documented limit. R3F resets
+`clock.elapsedTime` on a frameloop change and `sceneClock.ts` restores it by
+wrapping `setFrameloop`, so a restart during a live gesture would make the
+frames before the next pointer sample read as idle and clip a sub-epsilon
+ramp for that span. It recovers on the next sample, the bound is under one
+epsilon even with no sample left to recover on, and no production path reaches
+it — but it is a limit, not an impossibility, and it is written down as one.
+
 A cold review caught both bugs, and the second one is the more useful lesson:
 **a constant input cannot find an input-cadence bug.** The regression drives the real damp
 arithmetic at a real cadence and asserts the shipped rule changes not one

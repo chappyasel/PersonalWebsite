@@ -158,6 +158,17 @@ export function meadowSettledBrushStrength(
  *
  * A clock that has moved backwards means the frameloop restarted, which means
  * any gesture is long over, so the safe reading is "idle".
+ *
+ * That reading has one documented cost. If a restart ever landed DURING a
+ * live gesture, the frames between it and the next pointer sample would read
+ * as idle, and a ramp still under the epsilon would be clipped for exactly
+ * that span. It recovers by itself — the next sample restamps against the new
+ * clock — and `meadowVertexBudget.test.ts` pins the bound at under one
+ * epsilon even for a restart in the final frames with no sample left to
+ * recover on. No production path reaches it: `sceneClock.ts` restores the
+ * value, and the frameloop changes that reset it (a modal, a route pause)
+ * interrupt the gesture anyway. This is recorded as a limit rather than
+ * claimed to be unreachable.
  */
 export function meadowBrushIdleSeconds(
   now: number,
