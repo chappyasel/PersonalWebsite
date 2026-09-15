@@ -269,4 +269,16 @@ describe("PhotoMaskPass", () => {
     expect(pass.proxyCount).toBe(0);
     expect(pass.maskScene.children).toHaveLength(0);
   });
+
+  it("leaves the composer's borrowed depth texture alive on removal", () => {
+    const { pass } = setup();
+    const sceneDepth = new THREE.DepthTexture(1440, 900);
+    const dispose = vi.spyOn(sceneDepth, "dispose");
+    pass.setDepthTexture(sceneDepth);
+
+    pass.dispose();
+
+    expect(dispose).not.toHaveBeenCalled();
+    expect(pass.sceneDepth).toBeNull();
+  });
 });

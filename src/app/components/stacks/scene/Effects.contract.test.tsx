@@ -4,6 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as PhotoMaskModule from "./PhotoMaskPass";
+
 // The composer chain is what this module produces, so that is what these
 // tests read. `@react-three/postprocessing` and `@react-three/fiber` are the
 // two things Effects cannot run without and cannot run inside Node, so both
@@ -28,7 +30,20 @@ const harness = vi.hoisted(() => ({
   composer: { setSize: vi.fn() },
   size: { width: 1440, height: 900 },
   pixelRatio: 1,
+  maskCreations: 0,
 }));
+
+vi.mock("./PhotoMaskPass", async (importOriginal) => {
+  const actual = await importOriginal<typeof PhotoMaskModule>();
+  return {
+    PhotoMaskPass: class extends actual.PhotoMaskPass {
+      constructor(camera: THREE.Camera) {
+        super(camera);
+        harness.maskCreations += 1;
+      }
+    },
+  };
+});
 
 // React asks an external store for its SERVER snapshot while
 // `renderToStaticMarkup` runs, and zustand answers that from a closure over
@@ -168,6 +183,7 @@ beforeEach(() => {
   harness.frames.length = 0;
   harness.composer.setSize.mockClear();
   harness.pixelRatio = 1;
+  harness.maskCreations = 0;
   sceneQualityController.resetControls();
   scenePerformanceController.reset();
   freeRoamDiagnosticsController.reset();
@@ -484,6 +500,7 @@ describe("the reversible comparison switches", () => {
     expect(chain.has("PhotoMaskPass")).toBe(false);
     expect(chain.has("ToneMapping")).toBe(true);
     expect(chain.order.at(-1)).toBe("SMAA");
+    expect(harness.maskCreations).toBe(0);
   });
 
   it("isolates the side lens with ?notiltshift", () => {

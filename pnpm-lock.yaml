@@ -20,6 +20,9 @@ overrides:
   vite: 8.1.4
 
 patchedDependencies:
+  '@react-three/postprocessing@3.0.5':
+    hash: ab91f77db0c53a2c7d4c956a8d83125dd9c236f9c9f4ed0936fbe661dbc33b7d
+    path: patches/@react-three__postprocessing@3.0.5.patch
   next@16.1.6:
     hash: 2adaae6d3ad70c21c4cf5c4414d12fe3bd64aae23ca8b9da3b2c3d0bf8299aad
     path: patches/next@16.1.6.patch
@@ -78,7 +81,7 @@ importers:
         version: 9.7.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.185.1)
       '@react-three/postprocessing':
         specifier: 3.0.5
-        version: 3.0.5(@react-three/fiber@9.7.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.185.1))(@types/three@0.185.4)(postprocessing@6.39.4(three@0.185.1))(react@19.2.4)(three@0.185.1)
+        version: 3.0.5(patch_hash=ab91f77db0c53a2c7d4c956a8d83125dd9c236f9c9f4ed0936fbe661dbc33b7d)(@react-three/fiber@9.7.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.185.1))(@types/three@0.185.4)(postprocessing@6.39.4(three@0.185.1))(react@19.2.4)(three@0.185.1)
       '@t3-oss/env-nextjs':
         specifier: ^0.13.11
         version: 0.13.11(typescript@5.6.3)(zod@4.3.6)
@@ -8272,7 +8275,7 @@ snapshots:
       - '@types/react'
       - immer
 
-  '@react-three/postprocessing@3.0.5(@react-three/fiber@9.7.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.185.1))(@types/three@0.185.4)(postprocessing@6.39.4(three@0.185.1))(react@19.2.4)(three@0.185.1)':
+  '@react-three/postprocessing@3.0.5(patch_hash=ab91f77db0c53a2c7d4c956a8d83125dd9c236f9c9f4ed0936fbe661dbc33b7d)(@react-three/fiber@9.7.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.185.1))(@types/three@0.185.4)(postprocessing@6.39.4(three@0.185.1))(react@19.2.4)(three@0.185.1)':
     dependencies:
       '@react-three/fiber': 9.7.0(@types/react@19.2.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(three@0.185.1)
       maath: 0.10.8(@types/three@0.185.4)(three@0.185.1)
