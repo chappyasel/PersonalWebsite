@@ -117,6 +117,7 @@ import {
   mobileSheetTopPullAfterScroll,
   mobileSheetTopPullY,
 } from "./mobileSheetGeometry";
+import { MOBILE_SHEET_LIGHT_MATERIAL_CSS } from "./mobileSheetLightMaterial";
 import { nextPlacardToPrepare } from "./placardResidency";
 import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
 import { pressLandsInRoom } from "./roomPress";
@@ -2287,7 +2288,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
           y: chipY,
           visibility: chipVisibility,
         }}
-        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-semibold text-foreground ${
+        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 overflow-hidden rounded-full border px-4 font-serif text-sm font-bold text-foreground ${
           active && chipActive ? "pointer-events-auto" : "pointer-events-none"
         }`}
       >
@@ -2917,7 +2918,13 @@ export default function PlacardLayer({
           }
           /* The expanded-state scrim darkens the room in both themes. Give
              the light sheet more white resistance, then temper the cards so
-             they do not wash out as their new base gets lighter. */
+             they do not wash out as their new base gets lighter.
+
+             This is the fallback fill, not what a light card wears: the
+             sheet's own material sets [data-placard-surface] from
+             mobileSheetLightMaterial.ts, on a more specific selector. What
+             is left here is everything else inside the scroller that
+             happens to carry a backdrop-blur class. */
           html:not(.dark) .placard-scroll [class*="backdrop-blur"] {
             background-color: rgb(244 241 234 / 0.34) !important;
           }
@@ -3119,6 +3126,7 @@ export default function PlacardLayer({
           transform: none !important;
         }
         ${PLACARD_PAPER_SURFACE_CSS}
+        ${MOBILE_SHEET_LIGHT_MATERIAL_CSS}
       `}</style>
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now
           that no container has to look comfortable at that width — the

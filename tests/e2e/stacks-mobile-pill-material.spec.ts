@@ -34,8 +34,24 @@ async function composite(element: Locator) {
   });
 }
 
+// Computed rgb()/rgba() and color(srgb ...) serialize opaque alpha differently.
+function colorAlpha(color: string): number {
+  const match = /^(?:rgba?|color)\((.+)\)$/.exec(color);
+  if (!match) throw new Error(`Unsupported computed color: ${color}`);
+  const channels = match[1]!;
+  const explicit = channels.includes("/")
+    ? channels.split("/")[1]
+    : channels.includes(",") && channels.split(",").length === 4
+      ? channels.split(",")[3]
+      : "1";
+  const alpha = Number(explicit?.trim());
+  if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1)
+    throw new Error(`Invalid computed alpha: ${color}`);
+  return alpha;
+}
+
 for (const theme of ["light", "dark"] as const) {
-  test(`${theme} mobile pill retains native material with semibold and held feedback`, async ({
+  test(`${theme} mobile pill retains native material with bold text and held feedback`, async ({
     page,
   }, testInfo) => {
     test.setTimeout(120_000);
@@ -63,7 +79,7 @@ for (const theme of ["light", "dark"] as const) {
       .poll(async () => (await composite(sheet)).filter)
       .toBe(
         theme === "light"
-          ? "blur(42px) saturate(0.28) brightness(1.18)"
+          ? "blur(24px) saturate(1.5) brightness(0.62)"
           : "blur(32px) saturate(0.45) brightness(0.94)",
       );
     const reference = await composite(sheet);
@@ -73,18 +89,16 @@ for (const theme of ["light", "dark"] as const) {
     await expect(pill).toBeVisible();
     await expect(pill).toHaveCSS("opacity", "1");
     const actual = await composite(pill);
-    expect(actual.weight).toBe("600");
+    expect(actual.weight).toBe("700");
     expect(actual.before.opacity).toBe("1");
     expect(actual.after.opacity).toBe("1");
     expect(actual.after).toEqual({ ...reference.after, opacity: "1" });
     expect(actual.before.blend).toBe(reference.before.blend);
     expect(actual.before.width).toBe(reference.before.width);
-    const reflection =
-      theme === "light"
-        ? "rgba(255, 255, 255, 0.28)"
-        : "rgba(255, 255, 255, 0.09)";
-    const lowerEdge =
-      theme === "light" ? "rgba(0, 0, 0, 0.18)" : "rgba(255, 255, 255, 0.09)";
+    // The light shell sets the same three --placard-edge-* values the dark
+    // theme declares in globals.css, so both themes now bevel identically.
+    const reflection = "rgba(255, 255, 255, 0.09)";
+    const lowerEdge = "rgba(255, 255, 255, 0.09)";
     expect(actual.before.shadow).toBe(
       `${reflection} 2px 2px 0px 0px inset, ${lowerEdge} -2px -2px 0px 0px inset`,
     );
@@ -93,12 +107,14 @@ for (const theme of ["light", "dark"] as const) {
       `${reflection} 2px 2px 0px 0px inset, ${lowerEdge} -2px 0px 0px 0px inset`,
     );
     if (theme === "light") {
-      // Material parity is still under investigation. Keep the original
-      // contrast floor until a complete composite earns visual acceptance.
-      expect(actual.fill).toBe("rgba(255, 255, 255, 0.56)");
-      expect(actual.filter).toBe("blur(42px) saturate(0.28) brightness(1.34)");
-      expect(reference.fill).toBe("rgba(255, 255, 255, 0.28)");
-      expect(reference.after.opacity).toBe("0.5");
+      // The pill and the sheet are now cut from one material, which is what
+      // the pale version could never manage: its pill needed a 0.56 white
+      // fill to clear the meadow while the sheet sat at 0.28, and that gap
+      // is what read as the pill being denser than the sheet it belonged to.
+      expect(actual.fill).toBe("rgba(24, 32, 36, 0.38)");
+      expect(actual.filter).toBe("blur(24px) saturate(1.5) brightness(0.62)");
+      expect(reference.fill).toBe("rgba(24, 32, 36, 0.38)");
+      expect(reference.after.opacity).toBe("1");
     } else {
       // The detached night pill retains its measured luminance floor. The
       // larger sheet instead has an upward shadow and no bottom perimeter.
@@ -143,8 +159,8 @@ for (const theme of ["light", "dark"] as const) {
     expect(pressed.fill).not.toBe(actual.fill);
     // Twelve percent ink gives a visible press, including color-mix's
     // premultiplied alpha arithmetic over the existing native fills.
-    const alpha = Number(/[/,]\s*([\d.]+)\)$/.exec(pressed.fill)?.[1]);
-    const restAlpha = Number(/[/,]\s*([\d.]+)\)$/.exec(actual.fill)?.[1]);
+    const alpha = colorAlpha(pressed.fill);
+    const restAlpha = colorAlpha(actual.fill);
     expect(alpha).toBeCloseTo(restAlpha * 0.88 + 0.12, 3);
     await page.screenshot({ path: testInfo.outputPath(`${theme}-press.png`) });
     await cdp.send("Input.dispatchTouchEvent", {
@@ -184,3 +200,156 @@ for (const theme of ["light", "dark"] as const) {
     });
   });
 }
+
+for (const theme of ["light", "dark"] as const) {
+  test(`${theme} paper pill shows held feedback and restores its resting material`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.emulateMedia({ colorScheme: theme });
+    await page.goto("/?quality=safety&harness=1#systems");
+    await page.waitForFunction(
+      () =>
+        document.documentElement.dataset.roomView === "live" &&
+        window.__stacks?.state().controlsReady,
+      null,
+      { timeout: 90_000 },
+    );
+    await page.keyboard.press("Backquote");
+    await page.getByRole("tab", { name: "Render", exact: true }).tap();
+    const material = page.getByRole("combobox", {
+      name: "Placard material",
+      exact: true,
+    });
+    if (!(await material.isVisible()))
+      await page
+        .locator("summary")
+        .filter({ hasText: "Scene effects and materials" })
+        .tap();
+    await material.selectOption({ label: "Opaque paper" });
+    await expect(page.locator('[data-stacks-glass-mode="paper"]')).toHaveCount(
+      1,
+    );
+    await page
+      .getByRole("button", { name: "Close scene diagnostics", exact: true })
+      .tap();
+    await expect(page.locator("#stacks-scene-diagnostics")).toBeHidden();
+    const panel = page.locator("[data-stacks-mobile-panel][data-stacks-panel]");
+    await panel.getByRole("button", { name: "Close", exact: true }).tap();
+    const pill = page.locator("[data-stacks-chip]");
+    await expect(pill).toHaveCSS("opacity", "1");
+    const rest = await composite(pill);
+    const grain = await pill.evaluate(
+      (node) => getComputedStyle(node).backgroundImage,
+    );
+    expect(rest.filter).toBe("none");
+    expect(rest.weight).toBe("700");
+    await page.keyboard.press("Tab");
+    await pill.focus();
+    await expect(pill).toHaveCSS("outline-width", "2px");
+    expect((await composite(pill)).shadow).toContain(
+      "rgb(24, 24, 24) 0px 0px 0px 6px",
+    );
+    await page.screenshot({
+      path: testInfo.outputPath(`${theme}-paper-rest.png`),
+    });
+    const cdp = await page.context().newCDPSession(page);
+    let held = false;
+    const hold = async () => {
+      const box = await pill.boundingBox();
+      if (!box) throw new Error("Paper pill has no bounds");
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+      });
+      held = true;
+      await expect(pill).toHaveAttribute("data-pressed", "");
+    };
+    try {
+      await hold();
+      const pressed = await composite(pill);
+      await testInfo.attach("paper-press-composite", {
+        body: JSON.stringify({ theme, rest, pressed, grain }, null, 2),
+        contentType: "application/json",
+      });
+      await page.screenshot({
+        path: testInfo.outputPath(`${theme}-paper-press.png`),
+      });
+      expect(pressed.fill).not.toBe(rest.fill);
+      // Derive the press blend from the actual fill. This does not change
+      // the existing light paper/native-selector specificity behavior.
+      expect(colorAlpha(pressed.fill)).toBeCloseTo(
+        colorAlpha(rest.fill) * 0.88 + 0.12,
+        3,
+      );
+      expect(pressed.filter).toBe("none");
+      expect(
+        await pill.evaluate((node) => getComputedStyle(node).backgroundImage),
+      ).toBe(grain);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      held = false;
+      await expect(panel).toHaveAttribute("data-sheet", "peek");
+      await panel.getByRole("button", { name: "Close", exact: true }).tap();
+      await expect(pill).toHaveCSS("opacity", "1");
+      await hold();
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchCancel",
+        touchPoints: [],
+      });
+      held = false;
+      await expect(pill).not.toHaveAttribute("data-pressed", "");
+      await expect(pill).toHaveCSS("background-color", rest.fill);
+      await expect(pill).toBeVisible();
+      await page.screenshot({
+        path: testInfo.outputPath(`${theme}-paper-cancel.png`),
+      });
+      // The baseline next-tap-after-cancel limitation remains outside this test.
+    } finally {
+      // A failed held-state assertion must still release its injected touch.
+      if (held)
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchCancel",
+          touchPoints: [],
+        });
+      await cdp.detach();
+    }
+  });
+}
+
+test("the light sheet ships its dark shell without being asked", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto("/?quality=safety&harness=1#systems");
+  await page.waitForFunction(() => window.__stacks?.state().controlsReady);
+
+  // No query parameter, no Diagnostics checkbox, no opt-in attribute: the
+  // material is simply what the light sheet is made of now.
+  expect(page.url()).not.toContain("mobile-glass");
+  await expect(page.locator("[data-mobile-glass-prototype]")).toHaveCount(0);
+  const sheet = page.locator(".stacks-sheet").first();
+  const shell = await composite(sheet);
+  expect(colorAlpha(shell.fill)).toBeCloseTo(0.38, 2);
+  expect(shell.filter).toContain("blur(24px)");
+  expect(shell.filter).toContain("saturate(1.5)");
+
+  // The cards keep the room's dark ink on a light fill, and take it from a
+  // flat veil rather than a second blur over the sheet's own output.
+  const card = page
+    .locator("[data-stacks-mobile-panel] [data-placard-surface]")
+    .first();
+  const plate = await composite(card);
+  expect(colorAlpha(plate.fill)).toBeCloseTo(0.68, 2);
+  expect(plate.filter).toBe("none");
+
+  // Paper mode is the one thing that still outranks it.
+  await page.evaluate(() => {
+    document
+      .querySelector("[data-stacks-glass-mode]")
+      ?.setAttribute("data-stacks-glass-mode", "paper");
+  });
+  await expect.poll(async () => (await composite(sheet)).filter).toBe("none");
+});

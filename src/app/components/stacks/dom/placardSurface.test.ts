@@ -97,6 +97,20 @@ describe("the paper placard surface", () => {
     expect(opaqueChannels(declarations.get("--sheet-fill"))).toHaveLength(3);
   });
 
+  it.each([".stacks-chip:active", ".stacks-chip[data-pressed]"])(
+    "keeps held feedback above the opaque paper fill for %s",
+    (state) => {
+      const declarations = declarationsFor(
+        `[data-stacks-glass-mode="paper"] ${state}`,
+      );
+      expect(declarations.get("background-color")).toBe(
+        "color-mix(in srgb, var(--sheet-fill), hsl(var(--foreground)) 12%) !important",
+      );
+      expect(declarations.has("backdrop-filter")).toBe(false);
+      expect(declarations.has("--sheet-fill")).toBe(false);
+    },
+  );
+
   it("carries a dark fill dark enough to read light type on", () => {
     const light = opaqueChannels(
       declarationsFor('[data-stacks-glass-mode="paper"] .stacks-sheet').get(
