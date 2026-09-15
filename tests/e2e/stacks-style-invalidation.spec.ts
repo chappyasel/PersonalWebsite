@@ -36,7 +36,11 @@ for (const hidden of [false, true]) {
       ts: number;
       args?: { elementCount?: number };
     }> = [];
-    session.on("Tracing.dataCollected", ({ value }) => events.push(...value));
+    // CDP exposes trace payloads as object[]; the selected categories define
+    // the event fields read below.
+    session.on("Tracing.dataCollected", ({ value }) =>
+      events.push(...(value as unknown as typeof events)),
+    );
     await session.send("Tracing.start", {
       categories: "devtools.timeline,blink.user_timing",
     });
