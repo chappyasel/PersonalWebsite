@@ -140,6 +140,8 @@ export class SceneAudioRuntime {
   private rideExitSoundPlayed = false;
   private buffers = new Map<SoundName, AudioBuffer>();
   private loading: Promise<void> | null = null;
+  // Teardown-only cancellation for all requests owned by this context.
+  private loadAbort: AbortController | null = null;
   private loadComplete = false;
   private pendingPlays: PendingPlay[] = [];
   private ambience: AudioBufferSourceNode[] = [];
@@ -205,10 +207,13 @@ export class SceneAudioRuntime {
     this.state.unlocked = true;
     this.publish();
     this.loadComplete = false;
-    this.loading = this.loadBuffers();
+    const loadAbort = new AbortController();
+    this.loadAbort = loadAbort;
+    this.loading = this.loadBuffers(context, loadAbort.signal);
     if (this.state.rideRequested && !this.state.muted)
       this.ensureVisionRideAudio();
     void this.loading.finally(() => {
+      if (this.context !== context) return;
       this.loadComplete = true;
       this.pendingPlays = [];
     });
@@ -454,6 +459,8 @@ export class SceneAudioRuntime {
   };
 
   teardown = () => {
+    this.loadAbort?.abort();
+    this.loadAbort = null;
     window.clearTimeout(this.suspendTimer);
     window.clearTimeout(this.rideStopTimer);
     this.stopVisionRideSources();
@@ -492,26 +499,38 @@ export class SceneAudioRuntime {
     this.publish();
   };
 
-  private async loadBuffers() {
+  private async loadBuffers(context: AudioContext, signal: AbortSignal) {
     // The interaction-critical strike wins the decode queue. The orb boom is
     // next so a first visit to About does not wait behind the ambient beds;
     // effect variants never hold either path hostage.
-    await this.loadBuffer(FIRST_STRIKE);
-    await this.loadBuffer(COORDINATION_BOOM);
-    await Promise.all(CORE_AMBIENCE.map((name) => this.loadBuffer(name)));
+    // Every stage belongs to the context that unlocked it. A teardown followed
+    // by another unlock must not restart the old pipeline in the new context.
+    await this.loadBuffer(FIRST_STRIKE, context, signal);
+    if (signal.aborted) return;
+    await this.loadBuffer(COORDINATION_BOOM, context, signal);
+    if (signal.aborted) return;
+    await Promise.all(
+      CORE_AMBIENCE.map((name) => this.loadBuffer(name, context, signal)),
+    );
+    if (signal.aborted) return;
     if (this.state.ambienceRequested) this.ensureAmbience();
-    await Promise.all(DEFERRED_SOUNDS.map((name) => this.loadBuffer(name)));
+    await Promise.all(
+      DEFERRED_SOUNDS.map((name) => this.loadBuffer(name, context, signal)),
+    );
   }
 
-  private async loadBuffer(name: SoundName) {
-    const context = this.context;
-    if (!context) return;
+  private async loadBuffer(
+    name: SoundName,
+    context: AudioContext,
+    signal: AbortSignal,
+  ) {
+    if (signal.aborted) return;
     try {
-      const response = await fetch(FILES[name]);
-      if (!response.ok) return;
-      const buffer = await context.decodeAudioData(
-        await response.arrayBuffer(),
-      );
+      const response = await fetch(FILES[name], { signal });
+      if (!response.ok || signal.aborted) return;
+      const data = await response.arrayBuffer();
+      if (signal.aborted) return;
+      const buffer = await context.decodeAudioData(data);
       if (this.context !== context) return;
       this.buffers.set(name, buffer);
       this.flushPending(name);
@@ -540,14 +559,17 @@ export class SceneAudioRuntime {
       return;
     }
     if (this.rideLoad) return;
+    const signal = this.loadAbort?.signal;
+    if (!signal || signal.aborted) return;
     this.state.rideStatus = "loading";
     this.publish();
-    this.rideLoad = fetch(VISION_RIDE_SOUNDTRACK)
+    this.rideLoad = fetch(VISION_RIDE_SOUNDTRACK, { signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const buffer = await context.decodeAudioData(
-          await response.arrayBuffer(),
-        );
+        if (signal.aborted) return;
+        const data = await response.arrayBuffer();
+        if (signal.aborted) return;
+        const buffer = await context.decodeAudioData(data);
         if (this.context !== context) return;
         this.rideSoundtrack = buffer;
         this.state.rideStatus = "ready";
@@ -558,6 +580,7 @@ export class SceneAudioRuntime {
         if (this.context === context) this.state.rideStatus = "failed";
       })
       .finally(() => {
+        if (this.context !== context) return;
         this.rideLoad = null;
         this.publish();
       });
