@@ -2640,8 +2640,10 @@ export default function PlacardLayer({
             transform: none !important;
             transition: none !important;
           }
+          /* Card surfaces precede their foreground siblings. Keep this local:
+             an unqualified parent :has() invalidates unrelated resident UI. */
           [data-stacks-desktop-panel] [data-placard-surface],
-          [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
+          [data-stacks-desktop-panel] [data-placard-surface] ~ :not([data-placard-surface]),
           [data-stacks-desktop-panel] .placard-section-heading,
           [data-stacks-desktop-panel] .stacks-quotes,
           [data-stacks-desktop-panel] .placard-sections h1 {
@@ -2666,7 +2668,7 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel][data-stacks-initial-panel]
             [data-placard-surface],
           [data-stacks-desktop-panel][data-stacks-initial-panel]
-            :has(> [data-placard-surface]) > :not([data-placard-surface]) {
+            [data-placard-surface] ~ :not([data-placard-surface]) {
             opacity: var(--stacks-panel-opacity) !important;
             translate: 0 0 !important;
             animation: none !important;
@@ -3006,7 +3008,7 @@ export default function PlacardLayer({
            sibling independently; cards that own their glass fade as one. */
         @media (min-width: 1200px) {
           [data-stacks-desktop-panel] [data-placard-surface],
-          [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
+          [data-stacks-desktop-panel] [data-placard-surface] ~ :not([data-placard-surface]),
           [data-stacks-desktop-panel] .placard-section-heading,
           [data-stacks-desktop-panel] .stacks-quotes,
           [data-stacks-desktop-panel] .placard-sections h1 {
@@ -3045,7 +3047,7 @@ export default function PlacardLayer({
             [data-placard-surface],
           .stacks-world-shell[data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
-            :has(> [data-placard-surface]) > :not([data-placard-surface]) {
+            [data-placard-surface] ~ :not([data-placard-surface]) {
             animation: stacks-desktop-placard-card-in 480ms
               var(--stacks-ease, ease-out) 700ms backwards;
           }
@@ -3066,7 +3068,7 @@ export default function PlacardLayer({
             [data-placard-surface],
           .stacks-world-shell[data-load-path="warm"][data-revealed]
             [data-stacks-desktop-panel][data-stacks-initial-panel]
-            :has(> [data-placard-surface]) > :not([data-placard-surface]) {
+            [data-placard-surface] ~ :not([data-placard-surface]) {
             animation-duration: 320ms;
             animation-delay: 320ms;
           }

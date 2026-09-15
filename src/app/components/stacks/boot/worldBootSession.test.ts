@@ -90,6 +90,24 @@ function promote() {
 }
 
 describe("illustrated browser adapter", () => {
+  it("does not invalidate root styles when a hidden illustration changes in the live room", () => {
+    optIn();
+    session.start("hydrate");
+    const scope = promote();
+    const root = document.documentElement;
+    expect(root.getAttribute(P.presentationAttribute)).toBe("live");
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(root, { attributes: true });
+    const nextKey = "systems:light:desktop:1";
+    session.send({ type: "illustrationChanged", key: nextKey }, 1_000);
+    scope.send({ type: "illustrationRegistered", key: nextKey }, 1_100);
+    const records = observer.takeRecords();
+    observer.disconnect();
+    expect(root.getAttribute(P.presentationAttribute)).toBe("live");
+    expect(root.getAttribute(P.worldAttribute)).toBe("ready");
+    expect(records.map((record) => record.attributeName)).toEqual([]);
+  });
+
   it("opts in only from the page marker and leaves OG on its legacy path", () => {
     session.start("hydrate");
     expect(session.getState().illustratedMode).toBe(false);

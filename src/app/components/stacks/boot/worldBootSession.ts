@@ -211,7 +211,11 @@ function applyDocument(view: WorldBootView): void {
   const root = document.documentElement;
   if (!documentActive || view.documentPhase === null) {
     root.removeAttribute(WORLD_BOOT_POLICY.worldAttribute);
-  } else {
+  } else if (
+    root.getAttribute(WORLD_BOOT_POLICY.worldAttribute) !== view.documentPhase
+  ) {
+    // Hidden illustration readiness changes while traveling through the live
+    // room. Rewriting an unchanged root attribute still invalidates CSS.
     root.setAttribute(WORLD_BOOT_POLICY.worldAttribute, view.documentPhase);
   }
   if (
@@ -219,10 +223,15 @@ function applyDocument(view: WorldBootView): void {
     !view.ogCapture &&
     root.getAttribute(WORLD_BOOT_POLICY.illustrationAttribute) === "enabled"
   ) {
-    root.setAttribute(
-      WORLD_BOOT_POLICY.presentationAttribute,
-      view.presentation,
-    );
+    if (
+      root.getAttribute(WORLD_BOOT_POLICY.presentationAttribute) !==
+      view.presentation
+    ) {
+      root.setAttribute(
+        WORLD_BOOT_POLICY.presentationAttribute,
+        view.presentation,
+      );
+    }
   } else {
     root.removeAttribute(WORLD_BOOT_POLICY.presentationAttribute);
   }

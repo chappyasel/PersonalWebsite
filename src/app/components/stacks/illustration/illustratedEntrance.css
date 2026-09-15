@@ -168,7 +168,7 @@
     [data-placard-surface],
     .placard-section-heading,
     .placard-sections h1,
-    :has(> [data-placard-surface]) > :not([data-placard-surface])
+    [data-placard-surface] ~ :not([data-placard-surface])
   ) {
   animation: none !important;
 }
@@ -233,7 +233,7 @@
       [data-placard-surface],
       .placard-section-heading,
       .placard-sections h1,
-      :has(> [data-placard-surface]) > :not([data-placard-surface])
+      [data-placard-surface] ~ :not([data-placard-surface])
     ) {
     opacity: calc(
       var(--stacks-panel-opacity) * var(--room-entry-content-opacity)

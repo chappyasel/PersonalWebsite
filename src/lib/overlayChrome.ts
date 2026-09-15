@@ -3,8 +3,8 @@
  * now", so the 3D homepage's chrome can stand down for a modal the same way it
  * already does for Field Notes and the photo viewer.
  *
- * Those two write their own attributes (`data-field-notes-open`, and
- * PhotoView's `.PhotoView-Portal` node, matched with `:has()`), and
+ * Those two have their own attributes (`data-field-notes-open`, and
+ * `data-photo-view`, maintained by the homepage's portal observer), and
  * `StacksHome` keys the whole recede choreography off them. Modals were never
  * in that list, so the rail, the name, the theme toggle and the placard dock
  * all stayed lit behind the card. This is the third signal, folded into the
