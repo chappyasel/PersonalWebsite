@@ -55,6 +55,7 @@ import {
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
+import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
@@ -527,12 +528,7 @@ export const BookCard = memo(function BookCard({
                     <span className="min-w-0 truncate">{book.author}</span>
                     {book.publicationYear && (
                       <span className="shrink-0 whitespace-nowrap">
-                        <span
-                          aria-hidden="true"
-                          className={cardStyles.separator}
-                        >
-                          {" • "}
-                        </span>
+                        <BookMetadataSeparator />
                         <span aria-label={`Published ${book.publicationYear}`}>
                           {book.publicationYear}
                         </span>
@@ -557,12 +553,7 @@ export const BookCard = memo(function BookCard({
                         {pageLength ? (
                           <>
                             {audioLength}
-                            <span
-                              aria-hidden="true"
-                              className={cardStyles.separator}
-                            >
-                              {" • "}
-                            </span>
+                            <BookMetadataSeparator />
                             {pageLength}
                           </>
                         ) : (

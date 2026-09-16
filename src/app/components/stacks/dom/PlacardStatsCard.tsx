@@ -1,7 +1,7 @@
 import TiltCard from "../../TiltCard";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { cn } from "~/lib/util";
@@ -176,6 +176,50 @@ function PlacardYearBars({
           const actualHeight = Math.max(2 / 46, year.value / max);
           const projectedHeight = year.projectedRemainder / max;
 
+          const bar = (
+            <div
+              tabIndex={size === "card" ? undefined : 0}
+              aria-label={`${year.year}: ${year.value} ${unit}`}
+              onPointerUp={(event) => {
+                if (event.pointerType === "touch") event.stopPropagation();
+              }}
+              onClick={(event) => {
+                if (tapFirst) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }
+              }}
+              className="relative flex min-w-0 flex-1 flex-col items-center justify-end"
+            >
+              <div
+                className="flex w-full flex-col justify-end overflow-hidden rounded-t-[3px]"
+                style={{ maxWidth: years.length === 1 ? 64 : undefined }}
+              >
+                {projectedHeight > 0 ? (
+                  <div
+                    className="border border-dashed border-foreground/35 bg-foreground/[0.06]"
+                    style={{
+                      height: `calc(var(--placard-year-bar-max, 46px) * ${projectedHeight})`,
+                    }}
+                  />
+                ) : null}
+                <div
+                  className="bg-foreground/75"
+                  style={{
+                    height: `calc(var(--placard-year-bar-max, 46px) * ${actualHeight})`,
+                  }}
+                />
+              </div>
+              <span className="mt-1.5 text-[length:var(--placard-label)] tabular-nums leading-none text-muted-foreground">
+                &apos;{String(year.year).slice(2)}
+              </span>
+            </div>
+          );
+          // Radix tooltips dismiss one another globally. Inside a hover card,
+          // keep the chart labels but leave year inspection to the full placard.
+          if (size === "card")
+            return <Fragment key={year.year}>{bar}</Fragment>;
+
           return (
             <Tooltip
               key={year.year}
@@ -187,45 +231,7 @@ function PlacardYearBars({
                 )
               }
             >
-              <TooltipTrigger asChild>
-                <div
-                  tabIndex={0}
-                  aria-label={`${year.year}: ${year.value} ${unit}`}
-                  onPointerUp={(event) => {
-                    if (event.pointerType === "touch") event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    if (tapFirst) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                    }
-                  }}
-                  className="relative flex min-w-0 flex-1 flex-col items-center justify-end"
-                >
-                  <div
-                    className="flex w-full flex-col justify-end overflow-hidden rounded-t-[3px]"
-                    style={{ maxWidth: years.length === 1 ? 64 : undefined }}
-                  >
-                    {projectedHeight > 0 ? (
-                      <div
-                        className="border border-dashed border-foreground/35 bg-foreground/[0.06]"
-                        style={{
-                          height: `calc(var(--placard-year-bar-max, 46px) * ${projectedHeight})`,
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className="bg-foreground/75"
-                      style={{
-                        height: `calc(var(--placard-year-bar-max, 46px) * ${actualHeight})`,
-                      }}
-                    />
-                  </div>
-                  <span className="mt-1.5 text-[length:var(--placard-label)] leading-none tabular-nums text-muted-foreground">
-                    &apos;{String(year.year).slice(2)}
-                  </span>
-                </div>
-              </TooltipTrigger>
+              <TooltipTrigger asChild>{bar}</TooltipTrigger>
               <TooltipContent side="top" sideOffset={6} className="text-center">
                 <span className="block opacity-75">{year.year}</span>
                 <strong className="font-semibold tabular-nums">
@@ -402,13 +408,13 @@ export function PlacardCardHeading({
     >
       <h3
         data-placard-card-heading=""
-        className="flex items-center gap-2 homepage-card-title font-semibold text-foreground"
+        className="homepage-card-title flex items-center gap-2 font-semibold text-foreground"
       >
         <Icon aria-hidden className="size-5 shrink-0" weight="duotone" />
         {children}
       </h3>
       {detail ? (
-        <span className="whitespace-nowrap homepage-card-meta text-muted-foreground">
+        <span className="homepage-card-meta whitespace-nowrap text-muted-foreground">
           {detail}
         </span>
       ) : null}

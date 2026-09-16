@@ -60,6 +60,10 @@ import { abandonedPercent } from "~/lib/books/types";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { cn } from "~/lib/util";
 
+import {
+  BookMetadataSeparator,
+  BookMetadataText,
+} from "~/components/books/BookMetadataSeparator";
 import AnchorLink from "~/components/daylight/AnchorLink";
 import {
   SheetCloseControl,
@@ -135,9 +139,7 @@ function BookBreadcrumb({
             />
             <span className="xs:hidden">Book Notes</span>
             <span className="hidden xs:inline">Chappy&apos;s Book Notes</span>
-            <span aria-hidden="true" className="text-muted-foreground/40">
-              ·
-            </span>
+            <BookMetadataSeparator gap={0} />
             <span className="shrink-0 tabular-nums">
               {modalBookCount?.toLocaleString() ?? "All"}
               <span className="hidden xs:inline"> books</span>
@@ -165,9 +167,7 @@ function BookBreadcrumb({
                   className="shrink-0"
                 />
                 <span>Chappy&apos;s Book Notes</span>
-                <span aria-hidden="true" className="text-muted-foreground/40">
-                  ·
-                </span>
+                <BookMetadataSeparator gap={0} />
                 <span className="shrink-0 tabular-nums">
                   {bookshelfBookCount?.toLocaleString() ?? "All"} books
                 </span>
@@ -586,12 +586,7 @@ function BookByline({ book }: { book: BookDetailBook }) {
       <span className="min-w-0 truncate">{book.author}</span>
       {book.publicationYear && (
         <span className="shrink-0 whitespace-nowrap">
-          <span
-            aria-hidden="true"
-            className="mr-2 font-normal text-muted-foreground/40"
-          >
-            •
-          </span>
+          <BookMetadataSeparator />
           <span aria-label={`Published ${book.publicationYear}`}>
             {book.publicationYear}
           </span>
@@ -616,13 +611,8 @@ function BookFacts({ book }: { book: BookDetailBook }) {
         value={
           pageLength ? (
             <>
-              {audioLength}{" "}
-              <span
-                aria-hidden="true"
-                className="font-normal text-muted-foreground/40"
-              >
-                •
-              </span>{" "}
+              {audioLength}
+              <BookMetadataSeparator />
               {pageLength}
             </>
           ) : (
@@ -687,7 +677,9 @@ function BookFacts({ book }: { book: BookDetailBook }) {
         tooltip={
           days != null ? (
             <>
-              {days} days{percent != null ? ` · stopped ${percent}% in` : ""}
+              <BookMetadataText
+                text={`${days} days${percent != null ? ` · stopped ${percent}% in` : ""}`}
+              />
             </>
           ) : undefined
         }
@@ -851,12 +843,7 @@ function BookActions({
         />
         <FontToggle className="size-8 shrink-0 text-muted-foreground/70" />
       </div>
-      <span
-        aria-hidden="true"
-        className="text-xs leading-none text-muted-foreground/40"
-      >
-        •
-      </span>
+      <BookMetadataSeparator gap={0} />
       <ReadNavigation
         bookId={book.id}
         readings={book.otherReadings}
@@ -1513,7 +1500,7 @@ export function BookDetailContent({
                     style={{
                       fontSize: authorFontSize,
                     }}
-                    className="flex items-baseline gap-2 text-muted-foreground"
+                    className="flex items-baseline text-muted-foreground"
                   >
                     <BookByline book={book} />
                   </motion.p>
@@ -1616,7 +1603,7 @@ export function BookDetailContent({
                 </motion.h2>
                 <motion.p
                   style={{ fontSize: authorFontSize }}
-                  className="flex items-baseline gap-2 text-muted-foreground"
+                  className="flex items-baseline text-muted-foreground"
                 >
                   <BookByline book={book} />
                 </motion.p>
@@ -1665,7 +1652,7 @@ export function BookDetailContent({
               </h2>
 
               {/* Author */}
-              <p className="flex items-baseline gap-2 text-base text-muted-foreground">
+              <p className="flex items-baseline text-base text-muted-foreground">
                 <BookByline book={book} />
               </p>
             </motion.div>

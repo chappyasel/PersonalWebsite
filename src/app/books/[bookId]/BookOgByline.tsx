@@ -1,3 +1,5 @@
+import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
+
 export function BookOgByline({
   author,
   publicationYear,
@@ -34,13 +36,8 @@ export function BookOgByline({
         {author}
       </div>
       {publicationYear && (
-        <div style={{ display: "flex", flexShrink: 0, marginLeft: "14px" }}>
-          <span
-            style={{ color: separatorColor, marginRight: "14px" }}
-            aria-hidden="true"
-          >
-            •
-          </span>
+        <div style={{ display: "flex", flexShrink: 0 }}>
+          <BookMetadataSeparator gap={14} color={separatorColor} />
           <span>{publicationYear}</span>
         </div>
       )}

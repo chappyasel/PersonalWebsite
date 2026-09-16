@@ -178,7 +178,7 @@ describe("BookCard cover overlay", () => {
     expect(card.style.getPropertyValue("--book-foreground")).toBe("#24231f");
     expect(
       container.querySelector(`.${cardStyles.text}`)?.textContent,
-    ).toContain("Adrian Tchaikovsky • 2015");
+    ).toContain("Adrian Tchaikovsky•2015");
     expect(container.querySelectorAll(".text-yellow-400")).toHaveLength(4);
   });
 

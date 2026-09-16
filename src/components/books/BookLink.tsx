@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import { BookMetadataText } from "./BookMetadataSeparator";
 import { useInlineBookPreview } from "./InlineBookPreviewProvider";
 import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
 
@@ -176,7 +177,9 @@ export default function BookLink({
                         weight="bold"
                         className="shrink-0 opacity-70"
                       />
-                      {facts.length}
+                      <span>
+                        <BookMetadataText text={facts.length} />
+                      </span>
                     </p>
                   )}
                 </div>

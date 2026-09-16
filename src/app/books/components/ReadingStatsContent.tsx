@@ -12,6 +12,7 @@ import {
 } from "~/lib/stats/yoy";
 import { api } from "~/trpc/react";
 
+import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 import {
   type ChartConfig,
   ChartContainer,
@@ -383,8 +384,8 @@ export function ReadingStatsContent({ initialScope }: { initialScope: Scope }) {
 
       {stats.pace && (
         <p className="-mt-1 text-center text-xs text-muted-foreground">
-          On pace for ~{stats.pace.books} books · ~
-          {stats.pace.pages.toLocaleString()} pages
+          On pace for ~{stats.pace.books} books
+          <BookMetadataSeparator />~{stats.pace.pages.toLocaleString()} pages
         </p>
       )}
 

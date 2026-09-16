@@ -161,13 +161,6 @@
   color: var(--book-secondary);
 }
 
-.separator {
-  /* Preserve equal spaces at the start of the byline's flex item. */
-  white-space: pre;
-  font-weight: 400;
-  opacity: 0.4;
-}
-
 .fact {
   display: flex;
   align-items: center;

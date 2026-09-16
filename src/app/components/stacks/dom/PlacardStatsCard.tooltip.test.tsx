@@ -91,3 +91,44 @@ it("inspects one year at a time on touch without following the card link", async
   await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
   expect(navigate).not.toHaveBeenCalled();
 });
+
+it("keeps chart inspection quiet inside an outer hover card", async () => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+  const { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } =
+    await import("~/components/ui/tooltip");
+  const changed = vi.fn();
+  render(
+    <TooltipProvider>
+      <Tooltip defaultOpen onOpenChange={changed}>
+        <TooltipTrigger asChild>
+          <button>Book Notes</button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <PlacardStatsCard
+            size="card"
+            headline="327"
+            headlineIcon={HashIcon}
+            headlineLabel="Books"
+            years={[
+              { year: 2025, value: 42, projectedRemainder: 0 },
+              { year: 2026, value: 19, projectedRemainder: 6 },
+            ]}
+            yearUnit="books"
+            stats={[]}
+          />
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>,
+  );
+  const bars = screen.getAllByLabelText("2026: 19 books");
+  fireEvent.focus(bars[0]!);
+  expect(changed).not.toHaveBeenCalledWith(false);
+  expect(screen.getAllByRole("tooltip")).toHaveLength(1);
+});

@@ -110,7 +110,7 @@ describe("BookDetailContent note availability", () => {
     );
 
     expect(markup).toMatch(
-      /aria-label="Breadcrumb"[\s\S]*?<a[^>]*><svg[\s\S]*?Chappy&#x27;s Book Notes[\s\S]*?·[\s\S]*?322 books[\s\S]*?<svg/,
+      /aria-label="Breadcrumb"[\s\S]*?<a[^>]*><svg[\s\S]*?Chappy&#x27;s Book Notes[\s\S]*?•[\s\S]*?322 books[\s\S]*?<svg/,
     );
     expect(markup).not.toContain('class="text-border">/</li>');
     expect(markup).toContain("text-muted-foreground/70");
@@ -146,7 +146,7 @@ describe("BookDetailContent note availability", () => {
     expect(markup).toContain("data-book-facts");
     expect(markup).not.toContain('data-book-fact="published"');
     expect(markup).toMatch(
-      /data-book-fact="length"[\s\S]*?aria-hidden="true" class="font-normal text-muted-foreground\/40">•<\/span>/,
+      /data-book-fact="length"[\s\S]*?data-book-metadata-separator=""[^>]*>•<\/span>/,
     );
     expect(markup).toMatch(
       /Adrian Tchaikovsky<\/span>[\s\S]*?aria-hidden="true"[^>]*>•<\/span><span aria-label="Published 2015">2015<\/span>/,

@@ -26,6 +26,8 @@ import {
 } from "~/lib/books/ogTitle";
 import { phosphorSvg } from "~/lib/og/phosphor";
 
+import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
+
 import { BookOgByline } from "./BookOgByline";
 import { loadGeorgiaProBold, loadGeorgiaProRegular } from "./fonts";
 import {
@@ -351,7 +353,7 @@ export default async function Image({
                 author={book.author}
                 publicationYear={book.publicationYear}
                 color={textColorWithOpacity(0.78)}
-                separatorColor={textColorWithOpacity(0.38)}
+                separatorColor={textColorWithOpacity(1)}
               />
 
               {facts.length > 0 && (
@@ -400,16 +402,10 @@ export default async function Image({
                         {fact.key === "length" && fact.value.includes(" · ") ? (
                           <>
                             <span>{fact.value.split(" · ")[0]}</span>
-                            <span
-                              aria-hidden="true"
-                              style={{
-                                color: textColorWithOpacity(0.38),
-                                fontWeight: 400,
-                                margin: "0 0.35em",
-                              }}
-                            >
-                              •
-                            </span>
+                            <BookMetadataSeparator
+                              gap={14}
+                              color={textColorWithOpacity(1)}
+                            />
                             <span>{fact.value.split(" · ")[1]}</span>
                           </>
                         ) : (

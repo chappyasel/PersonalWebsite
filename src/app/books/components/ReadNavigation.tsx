@@ -11,6 +11,7 @@ import type { MouseEvent } from "react";
 
 import type { BookReading } from "~/lib/books/types";
 
+import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 import { Button } from "~/components/ui/button";
 import {
   Tooltip,
@@ -87,12 +88,7 @@ export function ReadNavigation({
           })}
         </nav>
       </TooltipProvider>
-      <span
-        aria-hidden="true"
-        className="text-xs leading-none text-muted-foreground/40"
-      >
-        •
-      </span>
+      <BookMetadataSeparator gap={0} />
     </>
   );
 }
