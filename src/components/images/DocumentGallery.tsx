@@ -17,9 +17,13 @@ import {
 import { PhotoSlider } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 
+import { ownsOverlayInput } from "~/lib/overlays/coordinator";
+
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
 import { Button } from "~/components/ui/button";
 
 import { ImageViewerChrome } from "./ImageViewerChrome";
+import { ImageZoomGestures } from "./ImageZoomGestures";
 import { fitImagePreview } from "./imagePreviewFit";
 import { artifactPreviewVisualEffects } from "~/app/components/stacks/scene/artifactPreviewVisualEffects";
 
@@ -49,6 +53,7 @@ export function DocumentGallery({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(false);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const trigger = useRef<HTMLButtonElement | null>(null);
+  const surface = useRef<HTMLElement | null>(null);
   const register = useCallback((image: GalleryImage) => {
     setEntries((previous) => [
       ...previous.filter((entry) => entry.id !== image.id),
@@ -117,6 +122,7 @@ export function DocumentGallery({ children }: { children: ReactNode }) {
         index={index}
         visible={visible && !!active}
         onIndexChange={(next) => {
+          if (!ownsOverlayInput(surface.current)) return;
           if (entries[next]) setSelected(entries[next].id);
         }}
         onClose={() => setVisible(false)}
@@ -140,15 +146,24 @@ export function DocumentGallery({ children }: { children: ReactNode }) {
         easing={() => "cubic-bezier(0.4, 0, 0.2, 1)"}
         overlayRender={(props) =>
           active ? (
-            <ImageViewerChrome
-              layout="document"
-              caption={active.caption}
-              total={entries.length}
-              index={props.index}
-              visible={props.visible}
-              onIndexChange={props.onIndexChange}
-              onClose={props.onClose}
-            />
+            <>
+              <OverlayPresence
+                kind="image"
+                surfaceRef={surface}
+                phase={props.visible ? "open" : "closing"}
+                onDismiss={props.onClose}
+              />
+              <ImageZoomGestures {...props} />
+              <ImageViewerChrome
+                layout="document"
+                caption={active.caption}
+                total={entries.length}
+                index={props.index}
+                visible={props.visible}
+                onIndexChange={props.onIndexChange}
+                onClose={props.onClose}
+              />
+            </>
           ) : null
         }
       />

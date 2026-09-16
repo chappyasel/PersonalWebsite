@@ -1,5 +1,7 @@
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 
+import { overlayCoordinator } from "~/lib/overlays/coordinator";
+
 export type FieldNotesShortcutEvent = Readonly<{
   key: string;
   shiftKey: boolean;
@@ -42,6 +44,8 @@ export function fieldNotesShortcutIntent(
  */
 export function connectFieldNotesShortcut(toggle: () => void) {
   const onKey = (event: KeyboardEvent) => {
+    const top = overlayCoordinator.getSnapshot().top;
+    if (top && top !== "album") return;
     const intent = fieldNotesShortcutIntent({
       key: event.key,
       shiftKey: event.shiftKey,

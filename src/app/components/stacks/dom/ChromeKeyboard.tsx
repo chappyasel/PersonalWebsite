@@ -12,6 +12,8 @@ import {
 } from "../scene/screenshotMode";
 import { Fragment, useEffect, useRef } from "react";
 
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
+
 import { Keycap } from "~/components/ui/keycap";
 
 import {
@@ -34,7 +36,10 @@ export default function ChromeKeyboard({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (document.documentElement.hasAttribute("data-field-notes-open"))
+      if (
+        roomOverlayBlocksInput() ||
+        document.documentElement.hasAttribute("data-field-notes-open")
+      )
         return;
       const editable = isEditableShortcutTarget(event.target);
       // The screenshot dolly, only while the mode is on. Read from the

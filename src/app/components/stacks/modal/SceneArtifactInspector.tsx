@@ -26,6 +26,7 @@ import { useTheme } from "next-themes";
 import {
   type CSSProperties,
   type HTMLAttributes,
+  type RefObject,
   createRef,
   useCallback,
   useEffect,
@@ -43,7 +44,11 @@ import type {
   DataType as PhotoSliderItem,
 } from "react-photo-view/dist/types";
 
+import { ownsOverlayInput } from "~/lib/overlays/coordinator";
+
 import { ImageViewerChrome } from "~/components/images/ImageViewerChrome";
+import { ImageZoomGestures } from "~/components/images/ImageZoomGestures";
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
 
 import { ProgressivePreviewImage } from "./ProgressivePreviewImage";
 import {
@@ -93,20 +98,21 @@ function writeStageOffset(offsetY: number) {
   );
 }
 
-/* The wrap's `transform` is inline (the slider's x travel); `translate`
- * composes with it. The shift only animates once the viewer has settled
+/* Move the inner photo, leaving the viewport-sized clipping container fixed.
+ * Zoom gradually removes the caption offset so pan limits match the viewport.
+ * The shift only animates once the viewer has settled
  * (see `data-scene-artifact-preview-settled`), never on the frame the
  * origin is measured. */
 const STAGE_STYLE = `
-  .stacks-artifact-preview--staged .PhotoView__PhotoWrap {
-    translate: 0 var(${STAGE_OFFSET_PROPERTY}, 0px);
+  .stacks-artifact-preview--staged .PhotoView__PhotoBox {
+    translate: 0 calc(var(${STAGE_OFFSET_PROPERTY}, 0px) * var(--image-stage-zoom-weight, 1));
   }
-  .stacks-artifact-preview--staged .PhotoView__PhotoWrap:has([data-scene-artifact-preview-settled]) {
-    transition: translate ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING};
+  .stacks-artifact-preview--staged .PhotoView__PhotoBox[style*="transition:"]:has([data-scene-artifact-preview-settled]) {
+    transition-property: transform, translate !important;
   }
   @media (prefers-reduced-motion: reduce) {
-    .stacks-artifact-preview--staged .PhotoView__PhotoWrap:has([data-scene-artifact-preview-settled]) {
-      transition: none;
+    .stacks-artifact-preview--staged .PhotoView__PhotoBox:has([data-scene-artifact-preview-settled]) {
+      transition: none !important;
     }
   }
 `;
@@ -121,6 +127,7 @@ function PreviewChrome({
   onMeasure,
   onIndexChange,
   onClose,
+  zoomed,
 }: {
   artifact: SceneArtifact;
   total: number;
@@ -131,34 +138,38 @@ function PreviewChrome({
   onMeasure: (measurement: ArtifactPreviewChrome) => void;
   onIndexChange: (index: number) => void;
   onClose: () => void;
+  zoomed: boolean;
 }) {
   const note = useObjectNote(artifact.id);
   const caption =
     note?.visitor && note.status === "written" ? note.body : undefined;
   return (
-    <ImageViewerChrome
-      title={artifact.title}
-      caption={caption}
-      captionId={`artifact-caption-${artifact.id}`}
-      contentTop={contentTop}
-      captionMaxHeight={captionMaxHeight}
-      onMeasure={onMeasure}
-      total={total}
-      index={index}
-      visible={visible}
-      onIndexChange={onIndexChange}
-      onClose={onClose}
-      actions={artifact.actions.map((action) => ({
-        ...(action.kind === "destination"
-          ? destinationFor(action.to)
-          : { href: action.href, external: true }),
-        label: action.label,
-      }))}
-    />
+    <>
+      <ImageViewerChrome
+        title={artifact.title}
+        caption={caption}
+        captionId={`artifact-caption-${artifact.id}`}
+        contentTop={zoomed ? undefined : contentTop}
+        captionMaxHeight={captionMaxHeight}
+        onMeasure={onMeasure}
+        total={total}
+        index={index}
+        visible={visible}
+        onIndexChange={onIndexChange}
+        onClose={onClose}
+        actions={artifact.actions.map((action) => ({
+          ...(action.kind === "destination"
+            ? destinationFor(action.to)
+            : { href: action.href, external: true }),
+          label: action.label,
+        }))}
+      />
+    </>
   );
 }
 
 function ImagePreviewOverlay({
+  surfaceRef,
   artifact,
   total,
   preview,
@@ -168,6 +179,7 @@ function ImagePreviewOverlay({
 }: {
   artifact: SceneArtifact;
   total: number;
+  surfaceRef: RefObject<HTMLElement | null>;
   preview: OverlayRenderProps;
   contentTop: number;
   captionMaxHeight: number;
@@ -236,17 +248,27 @@ function ImagePreviewOverlay({
   }, []);
 
   return (
-    <PreviewChrome
-      artifact={artifact}
-      total={total}
-      index={preview.index}
-      visible={preview.overlayVisible && preview.visible}
-      contentTop={contentTop}
-      captionMaxHeight={captionMaxHeight}
-      onMeasure={onMeasure}
-      onIndexChange={preview.onIndexChange}
-      onClose={preview.onClose}
-    />
+    <>
+      <OverlayPresence
+        kind="scene-image"
+        phase={preview.visible ? "open" : "closing"}
+        onDismiss={preview.onClose}
+        surfaceRef={surfaceRef}
+      />
+      <ImageZoomGestures {...preview} />
+      <PreviewChrome
+        zoomed={preview.scale > 1.01}
+        artifact={artifact}
+        total={total}
+        index={preview.index}
+        visible={preview.overlayVisible && preview.visible}
+        contentTop={contentTop}
+        captionMaxHeight={captionMaxHeight}
+        onMeasure={onMeasure}
+        onIndexChange={preview.onIndexChange}
+        onClose={preview.onClose}
+      />
+    </>
   );
 }
 
@@ -558,6 +580,7 @@ export function PreviewPrint({
 }
 
 export default function SceneArtifactInspector() {
+  const imageSurface = useRef<HTMLElement | null>(null);
   const selectedId = useStacks((state) => state.inspectedArtifact);
   const artifactHandoffPhase = useStacks(
     (state) => state.modelArtifactHandoff?.phase ?? null,
@@ -867,6 +890,7 @@ export default function SceneArtifactInspector() {
           index={Math.max(0, position)}
           visible={Boolean(selectedId && artifact)}
           onIndexChange={(nextIndex) => {
+            if (!ownsOverlayInput(imageSurface.current)) return;
             const next = imageCollection[nextIndex];
             if (next && next.id !== selectedId) selectSceneArtifact(next.id);
           }}
@@ -895,6 +919,7 @@ export default function SceneArtifactInspector() {
           }`}
           overlayRender={(props) => (
             <ImagePreviewOverlay
+              surfaceRef={imageSurface}
               artifact={artifact}
               total={imageCollection.length}
               preview={props}

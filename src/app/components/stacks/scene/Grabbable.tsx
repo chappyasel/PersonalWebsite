@@ -61,7 +61,11 @@ import {
 } from "../sceneArtifactState";
 import { type SceneArtifactId, sceneArtifactById } from "../sceneArtifacts";
 import { useStacks } from "../store";
-import { type ThreeEvent, useThree } from "@react-three/fiber";
+import {
+  type RenderCallback,
+  type ThreeEvent,
+  useThree,
+} from "@react-three/fiber";
 import {
   useCallback,
   useEffect,
@@ -1866,7 +1870,7 @@ export default function Grabbable({
     unitIndex,
   ]);
 
-  useUnitFrame(({ camera }, rawDelta) => {
+  const advanceGrabbable: RenderCallback = ({ camera }, rawDelta) => {
     const g = group.current;
     if (!g) return;
     // A backgrounded tab hands back one enormous delta; integrating it would
@@ -2758,7 +2762,13 @@ export default function Grabbable({
       activityUnpin.current?.();
       activityUnpin.current = null;
     }
-  }, "maintenance");
+  };
+  useUnitFrame(advanceGrabbable, "maintenance", 0, () =>
+    Boolean(
+      artifact &&
+        useStacks.getState().modelArtifactHandoff?.artifactId === artifact,
+    ),
+  );
 
   return (
     <>

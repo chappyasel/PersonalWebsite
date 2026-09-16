@@ -37,7 +37,12 @@ it("toggles an accessible, persistent preference and restores it on the next mou
   const second = render(<MotionToggle />);
   const restored = second.getByRole("button", { name: "Reduce motion" });
   expect(restored.getAttribute("aria-pressed")).toBe("true");
-  fireEvent.click(restored);
+  fireEvent.keyDown(window, { key: "m" });
+  expect(desktopMotionPreference.getSnapshot()).toBe(true);
+  fireEvent.keyDown(window, { key: "M", shiftKey: true, repeat: true });
+  expect(desktopMotionPreference.getSnapshot()).toBe(true);
+  fireEvent.keyDown(window, { key: "M", shiftKey: true });
+  expect(restored.getAttribute("aria-pressed")).toBe("false");
   expect(desktopMotionPreference.getSnapshot()).toBe(false);
   expect(
     document.documentElement.hasAttribute("data-desktop-reduced-motion"),

@@ -85,6 +85,7 @@ const CARD_SURFACE =
 
 function ProjectItem({ project }: { project: Project }) {
   const tile = PROJECT_TILES[project.image];
+  const external = Boolean(project.link && !project.link.startsWith("/"));
   const content = (
     <>
       {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
@@ -112,11 +113,22 @@ function ProjectItem({ project }: { project: Project }) {
         className={`relative flex min-w-0 flex-1 flex-col justify-start ${tile ? "pl-[var(--homepage-card-padding)]" : ""}`}
         style={{ transform: "translateZ(20px)" }}
       >
-        <h3 className="homepage-card-title font-semibold">{project.name}</h3>
+        <h3 className="flex items-start gap-2 homepage-card-title font-semibold">
+          <span className="min-w-0 flex-1">{project.name}</span>
+          {external ? (
+            <ArrowUpRightIcon
+              aria-hidden
+              weight="bold"
+              className="mt-1 size-4 shrink-0 text-muted-foreground opacity-60"
+            />
+          ) : null}
+        </h3>
         <p className="homepage-card-meta font-semibold text-muted-foreground">
           {project.meta}
         </p>
-        <p className="mt-1 line-clamp-4 homepage-card-body">{project.description}</p>
+        <p className="mt-1 line-clamp-4 homepage-card-body opacity-80">
+          {project.description}
+        </p>
       </div>
     </>
   );
@@ -177,11 +189,13 @@ function RepoItem({ repo }: { repo: GitHubPlacardRepo }) {
           <ArrowUpRightIcon
             aria-hidden
             weight="bold"
-            className="mt-1 size-4 shrink-0 text-muted-foreground transition-colors group-hover/repo:text-foreground"
+            className="mt-1 size-4 shrink-0 text-muted-foreground opacity-60"
           />
         </span>
         {blurb ? (
-          <p className="homepage-card-body [overflow-wrap:anywhere]">{blurb}</p>
+          <p className="homepage-card-body opacity-80 [overflow-wrap:anywhere]">
+            {blurb}
+          </p>
         ) : null}
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 homepage-card-meta text-muted-foreground opacity-60">
           {repo.language ? (

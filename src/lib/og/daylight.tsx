@@ -22,6 +22,7 @@ import {
   SKYLINE_SHAPES,
   SKYLINE_VIEWBOX,
   SKYLINE_WIDTH,
+  type SkylineShape,
 } from "../../components/daylight/skylineGeometry";
 import React from "react";
 
@@ -46,7 +47,18 @@ export const DAYLIGHT = {
 } as const;
 
 /** The dome's surveyed skyline, aspect-true across the card width. */
-export function skyline(width: number) {
+export function skyline(
+  width: number,
+  {
+    shapes = SKYLINE_SHAPES,
+    bridgeColor = DAYLIGHT.ggb,
+    silhouetteColor = DAYLIGHT.silhouette,
+  }: {
+    shapes?: SkylineShape[];
+    bridgeColor?: string;
+    silhouetteColor?: string;
+  } = {},
+) {
   const height = Math.round((width * SKYLINE_HEIGHT) / SKYLINE_WIDTH);
   return React.createElement(
     "svg",
@@ -56,15 +68,15 @@ export function skyline(width: number) {
       viewBox: SKYLINE_VIEWBOX,
       style: { position: "absolute" as const, bottom: -1, left: 0 },
     },
-    ...SKYLINE_SHAPES.map((shape, i) => {
+    ...shapes.map((shape, i) => {
       const fill =
         shape.tone === "ggb"
-          ? DAYLIGHT.ggb
+          ? bridgeColor
           : shape.tone === "sutro-red"
             ? DAYLIGHT.sutroRed
             : shape.tone === "sutro-white"
               ? DAYLIGHT.sutroWhite
-              : DAYLIGHT.silhouette;
+              : silhouetteColor;
       if (shape.kind === "rect") {
         return React.createElement("rect", {
           key: i,

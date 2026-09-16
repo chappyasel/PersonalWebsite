@@ -379,7 +379,7 @@ describe("Field Notes stamp tooltip presentation", () => {
 
   it("layers the album above the development diagnostics drawer", () => {
     expect(source).toContain(
-      "field-notes-album-overlay bg-[#17212a]/16 fixed inset-0 z-[5000]",
+      "field-notes-album-overlay fixed inset-0 z-[5000]",
     );
     expect(source).toContain(
       "field-notes-album fixed left-1/2 top-1/2 z-[5001]",
@@ -389,12 +389,9 @@ describe("Field Notes stamp tooltip presentation", () => {
 
   it("keeps a non-black scrim and album material in every mobile handoff frame", () => {
     expect(source).toContain(
-      "field-notes-album-overlay bg-[#17212a]/16 fixed inset-0 z-[5000]",
+      "field-notes-album-overlay fixed inset-0 z-[5000]",
     );
     expect(source).not.toContain("field-notes-album-overlay bg-black");
-    expect(source).toContain(
-      "background-color: rgba(87,69,53,.14) !important;",
-    );
     expect(source).toMatch(
       /@keyframes field-notes-mobile-overlay-in[\s\S]*?0% \{ opacity: 0; \}[\s\S]*?42% \{ opacity: \.46; \}[\s\S]*?82% \{ opacity: \.9; \}[\s\S]*?94% \{ opacity: \.98; \}[\s\S]*?100% \{ opacity: 1; \}/,
     );

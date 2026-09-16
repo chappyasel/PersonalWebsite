@@ -26,7 +26,11 @@ import {
   peekModalOrigin,
   takeModalOrigin,
 } from "~/lib/originFlight";
-import { closeOverlayChrome, openOverlayChrome } from "~/lib/overlayChrome";
+import {
+  beginOverlayClose,
+  ownsOverlayInput,
+} from "~/lib/overlays/coordinator";
+import { OVERLAY_MOTION } from "~/lib/overlays/motion";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { api } from "~/trpc/react";
 
@@ -35,6 +39,7 @@ import {
   SheetControlCluster,
   SheetExpandControl,
 } from "~/components/modal-sheet/SheetControls";
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
 
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
@@ -45,30 +50,6 @@ import {
   isBookModalHistoryState,
 } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
-
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
-
-function focusableChildren(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-  ).filter((element) => {
-    const style = getComputedStyle(element);
-    return (
-      !element.hidden &&
-      element.getAttribute("aria-hidden") !== "true" &&
-      style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      element.getClientRects().length > 0
-    );
-  });
-}
 
 export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
@@ -124,31 +105,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const isLoadingNotes = isLoadingFull && !fetchedBook;
   const fullHeight = !book || book.hasNotes;
 
-  // The 3D world's chrome stands down for as long as this modal owns the
-  // screen (see lib/overlayChrome and the recede rules in StacksHome), and
-  // comes back the moment a close begins, so it is already returning while
-  // the shell flies home to its cover. Idempotent, because a close can also
-  // arrive as a history pop that never runs through `handleClose`.
-  const overlayHeldRef = useRef(false);
-  const releaseOverlayChrome = () => {
-    if (!overlayHeldRef.current) return;
-    overlayHeldRef.current = false;
-    closeOverlayChrome();
-  };
-  useEffect(() => {
-    if (!isModalOpen) return;
-    overlayHeldRef.current = true;
-    openOverlayChrome();
-    return releaseOverlayChrome;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen]);
-
   const handleClose = () => {
     // Prevent double-close during exit animation (ref updates synchronously)
     if (isClosingRef.current) return;
     isClosingRef.current = true;
+    beginOverlayClose(shellRef.current);
     onCloseStart?.();
-    releaseOverlayChrome();
     // Blur active element to prevent focus ring on book card
     (document.activeElement as HTMLElement)?.blur();
     // Stacks origin pop, reversed: the shell flies back to the clicked
@@ -204,8 +166,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       }
       if (!isModalOpen || isClosingRef.current) return;
       isClosingRef.current = true;
+      beginOverlayClose(shellRef.current);
       onCloseStart?.();
-      releaseOverlayChrome();
       (document.activeElement as HTMLElement)?.blur();
       const origin = stacksOriginRef.current;
       const shell = shellRef.current;
@@ -254,6 +216,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     }
     if (!sawOwnPathRef.current || isClosingRef.current) return;
     isClosingRef.current = true;
+    beginOverlayClose(shellRef.current);
     onCloseStart?.();
     closeModal();
   }, [
@@ -299,7 +262,6 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     if (isClosingRef.current) return;
     event.preventDefault();
     isClosingRef.current = true;
-    releaseOverlayChrome();
     (document.activeElement as HTMLElement)?.blur();
     window.history.replaceState(null, "", tagHref(tag));
     closeModal();
@@ -422,72 +384,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     };
   }, [isModalOpen]);
 
-  // `aria-modal` describes a boundary; it does not create one. Keep both
-  // sequential and programmatic focus inside the dialog while it is open.
-  // The full-viewport backdrop already blocks pointer interaction, so this
-  // local trap works identically on the standalone Books site and over the
-  // Stacks world without making assumptions about either page's DOM root.
-  useEffect(() => {
-    if (!isModalOpen) return;
-
-    const photoViewerOpen = () =>
-      document.querySelector(".PhotoView-Portal") !== null;
-    const containFocus = (event: FocusEvent) => {
-      if (isUniversalSearchOpen()) return;
-      const shell = shellRef.current;
-      if (!shell || photoViewerOpen()) return;
-      if (event.target instanceof Node && shell.contains(event.target)) return;
-      shell.focus({ preventScroll: true });
-    };
-    const trapTab = (event: KeyboardEvent) => {
-      if (isUniversalSearchOpen()) return;
-      if (event.key !== "Tab" || photoViewerOpen()) return;
-      const shell = shellRef.current;
-      if (!shell) return;
-      const focusable = focusableChildren(shell);
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      const active = document.activeElement;
-
-      if (!first || !last) {
-        event.preventDefault();
-        shell.focus({ preventScroll: true });
-        return;
-      }
-      if (event.shiftKey && (active === shell || active === first)) {
-        event.preventDefault();
-        last.focus({ preventScroll: true });
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus({ preventScroll: true });
-      }
-    };
-
-    document.addEventListener("focusin", containFocus);
-    window.addEventListener("keydown", trapTab);
-    return () => {
-      document.removeEventListener("focusin", containFocus);
-      window.removeEventListener("keydown", trapTab);
-    };
-  }, [isModalOpen]);
-
-  // Prevent background scroll when modal is open
-  useEffect(() => {
-    if (isModalOpen) {
-      const previous = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = previous;
-      };
-    }
-  }, [isModalOpen]);
-
   // Handle keyboard shortcuts (ESC to close, Enter for full page)
   useEffect(() => {
     if (!isModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isUniversalSearchOpen()) return;
+      if (e.defaultPrevented) return;
+      if (isUniversalSearchOpen() || !ownsOverlayInput(shellRef.current))
+        return;
       // Check if photo viewer is open (react-photo-view adds this class to body)
       const photoViewOpen = document.querySelector(".PhotoView-Portal");
 
@@ -552,6 +456,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
           {/* Backdrop */}
           <motion.div
             ref={backdropRef}
+            data-overlay-backdrop=""
             className={`fixed inset-0 z-50 bg-stone-900/70 dark:bg-black/70 ${expanded ? "pointer-events-none" : ""}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -566,10 +471,16 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
 
           {/* Modal */}
           <div
+            data-overlay-surface=""
             className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
             onPointerDown={armDismiss}
             onClick={dismissIfArmed}
           >
+            <OverlayPresence
+              kind="document"
+              phase={originExitRunning ? "closing" : "open"}
+              onDismiss={handleClose}
+            />
             <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
               <motion.div
                 ref={shellRef}
@@ -587,22 +498,25 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                   launchOrigin || reduceMotion
                     ? false
                     : fromStacks
-                      ? { opacity: 0, scale: 0.965, y: 14 }
-                      : { opacity: 1, scale: 1, y: 0 }
+                      ? OVERLAY_MOTION.initial
+                      : OVERLAY_MOTION.active
                 }
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+                animate={OVERLAY_MOTION.active}
                 exit={
                   originOwnsExit
                     ? { opacity: 0, scale: 1, y: 0 }
                     : fromStacks && !reduceMotion
-                      ? { opacity: 0, scale: 0.982, y: 8 }
+                      ? {
+                          ...OVERLAY_MOTION.departing,
+                          transition: OVERLAY_MOTION.exit,
+                        }
                       : { opacity: 0 }
                 }
                 transition={
                   reduceMotion || originOwnsExit
                     ? { duration: 0 }
                     : fromStacks
-                      ? { duration: 0.34, ease: [0.16, 1, 0.3, 1] }
+                      ? OVERLAY_MOTION.enter
                       : { duration: 0.2 }
                 }
               >

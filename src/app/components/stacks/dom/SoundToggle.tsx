@@ -1,5 +1,7 @@
 "use client";
 
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
+
 import { sceneAudio } from "../audio/sceneAudio";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { SCENE_SOUND_STORAGE_KEY } from "../scene/sceneVisitStorage";
@@ -65,6 +67,7 @@ export function SoundToggle({
         event.ctrlKey ||
         event.altKey ||
         event.repeat ||
+        roomOverlayBlocksInput() ||
         event.defaultPrevented ||
         isEditableShortcutTarget(event.target)
       )

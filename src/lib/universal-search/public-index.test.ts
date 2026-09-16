@@ -120,7 +120,7 @@ describe("public index searching", () => {
     protocol: "http:",
   };
 
-  it("ranks identity above body matches and resolves local subdomains", () => {
+  it("ranks identity above body matches and resolves shared local routes", () => {
     const results = searchLoadedPublicIndex(index, "context", location);
 
     expect(results.map((result) => result.id)).toEqual([
@@ -128,7 +128,7 @@ describe("public index searching", () => {
       "public:manual:collaboration",
     ]);
     expect(results[1]).toMatchObject({
-      href: "http://manual.localhost:3000/#collaboration",
+      href: "http://localhost:3000/manual#collaboration",
       matchKind: "body",
       group: "public-writing",
     });

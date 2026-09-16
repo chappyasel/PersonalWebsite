@@ -237,7 +237,10 @@ describe("coarse-pointer ownership", () => {
       /\.stacks-canvas-shell canvas \{[\s\S]*?-webkit-touch-callout: none;[\s\S]*?-webkit-user-select: none;/,
     );
     expect(sheet).toMatch(
-      /\[data-stacks-mobile-panel\] \[data-tilt-card-interactive\] \*[\s\S]*?-webkit-touch-callout: none;[\s\S]*?-webkit-user-select: none !important;/,
+      /\[data-stacks-mobile-panel\] \[data-tilt-card-interactive\] \{\s*-webkit-touch-callout: none;\s*\}/,
+    );
+    expect(globals).toMatch(
+      /html\[data-world\] \.placard-scroll img,[\s\S]*?-webkit-user-select: none !important;/,
     );
     expect(canvas).toContain(
       'shell.addEventListener("selectstart", preventNativeSelection)',

@@ -57,6 +57,8 @@ describe("universal search shell wiring", () => {
     const contents = source(path);
 
     expect(contents).toContain("isUniversalSearchOpen");
-    expect(contents).toMatch(/if \(isUniversalSearchOpen\(\)\) return;/);
+    expect(contents).toMatch(
+      /if \([^{};]*isUniversalSearchOpen\(\)[^{};]*\)\s*return;/,
+    );
   });
 });

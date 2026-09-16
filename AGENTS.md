@@ -39,6 +39,11 @@ Filled icons are appropriate for earned rating stars, video play controls,
 brand logos, and saved or selected control states. Preserve intentional icon
 treatments elsewhere; do not apply a site-wide fill-to-outline replacement.
 
+Keep the keyboard shortcut overlay limited to shortcut groups and rows. Do not
+add footer text explaining alternate modifiers or legacy shortcuts. Show Command
+for search and theme shortcuts, with Phosphor modifier icons. Keep Control
+alternatives and the legacy Command-Option-L theme shortcut supported silently.
+
 ## Debug controls
 
 Every boolean control in Scene Diagnostics uses the existing native checkbox

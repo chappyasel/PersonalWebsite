@@ -15,6 +15,7 @@ import {
   wheelStepGesture,
   worldWheelDelta,
 } from "../mobile/wheelStepGesture";
+import { homeTapMotion, homeTapPullback } from "../scene/homeTapMotion";
 import { RAIL_RIGHT_PX_FALLBACK } from "../scene/worldLayout";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
 import {
@@ -68,6 +69,32 @@ export function IllustratedTraverse({
     typeof createIllustrationOverscroll
   > | null>(null);
   const reducedMotion = useDesktopReducedMotion();
+  useLayoutEffect(() => {
+    const element = content.current;
+    const viewport = root.current;
+    if (!element || !viewport || !enabled) return;
+    const originalScale = element.style.scale;
+    const originalOrigin = element.style.transformOrigin;
+    const restore = () => {
+      element.style.scale = originalScale;
+      element.style.transformOrigin = originalOrigin;
+    };
+    const update = () => {
+      const pullback = homeTapPullback(homeTapMotion.getOffset());
+      if (pullback === 0) {
+        restore();
+        return;
+      }
+      // Scale about the visible viewport, not the centre of the whole room.
+      element.style.transformOrigin = `${viewport.scrollLeft + viewport.clientWidth / 2}px ${viewport.clientHeight / 2}px`;
+      element.style.scale = String(1 / (1 + pullback));
+    };
+    const unsubscribe = homeTapMotion.subscribeFrame(update);
+    return () => {
+      unsubscribe();
+      restore();
+    };
+  }, [enabled]);
   useLayoutEffect(() => {
     const element = content.current;
     const viewport = root.current;

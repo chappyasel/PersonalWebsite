@@ -87,6 +87,7 @@
 :where(
     [data-placard-surface],
     [data-placard-media-highlight],
+    html:is([data-world], [data-room-view]) .scene-caption-glass,
     html:is([data-world], [data-room-view]) .field-notes-glass-tooltip,
     html:is([data-world], [data-room-view]) .stacks-glass-tooltip,
     html:is([data-world], [data-room-view]) [data-home-glass]
@@ -97,6 +98,7 @@
 [data-placard-surface],
 [data-placard-media-highlight],
 html:is([data-world], [data-room-view]) [data-home-glass],
+html:is([data-world], [data-room-view]) .scene-caption-glass,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
 html:is([data-world], [data-room-view]) .field-notes-stamp-tooltip {
@@ -115,6 +117,7 @@ html:is([data-world], [data-room-view]) .field-notes-stamp-tooltip {
 .dark [data-placard-surface],
 .dark [data-placard-media-highlight],
 html.dark:is([data-world], [data-room-view]) [data-home-glass],
+html.dark:is([data-world], [data-room-view]) .scene-caption-glass,
 html.dark:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip) {
   --placard-edge-top: rgb(255 255 255 / 0.24);
@@ -188,8 +191,10 @@ html:not(.dark) a[data-placard-surface]:focus-visible {
 [data-placard-media-highlight]::after,
 html:is([data-world], [data-room-view]) [data-home-glass]::before,
 html:is([data-world], [data-room-view]) [data-home-glass]::after,
+html:is([data-world], [data-room-view]) .scene-caption-glass::before,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
+html:is([data-world], [data-room-view]) .scene-caption-glass::after,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
 html[data-world] [data-tooltip-paper-edge]::before,
@@ -205,6 +210,7 @@ html[data-world] [data-tooltip-paper-edge]::after {
 [data-placard-surface]::after,
 [data-placard-media-highlight]::after,
 html:is([data-world], [data-room-view]) [data-home-glass]::after,
+html:is([data-world], [data-room-view]) .scene-caption-glass::after,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::after,
 html[data-world] [data-tooltip-paper-edge]::after {
@@ -215,6 +221,7 @@ html[data-world] [data-tooltip-paper-edge]::after {
 [data-placard-surface]::before,
 [data-placard-media-highlight]::before,
 html:is([data-world], [data-room-view]) [data-home-glass]::before,
+html:is([data-world], [data-room-view]) .scene-caption-glass::before,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip)::before,
 html[data-world] [data-tooltip-paper-edge]::before {
@@ -370,6 +377,7 @@ html[data-world] [data-search-glass-divider]::before {
    upgrades the same class to the original Field Notes launcher glass.
    Typography stays local to each caller, so handwritten, serif, sans, and
    object labels keep their current type. */
+.scene-caption-glass,
 .field-notes-glass-tooltip {
   border-color: hsl(var(--border));
   background-color: hsl(var(--popover));
@@ -380,6 +388,9 @@ html[data-world] [data-search-glass-divider]::before {
 /* The glass needs its blur here rather than in caller utilities so flat
    pages never pay for a backdrop-filter they can't see. Do not add a manual
    -webkit copy (see .stacks-glass-tooltip above). */
+/* Captions retain glass when their viewer opens. The paper-tooltip override
+   below applies only to tooltips over reading panels. */
+html:is([data-world], [data-room-view]) .scene-caption-glass,
 html:is([data-world], [data-room-view]) .field-notes-glass-tooltip,
 html:is([data-world], [data-room-view]) [data-home-glass="floating"] {
   border-color: rgb(255 255 255 / 0.24);
@@ -406,6 +417,7 @@ html:is([data-world], [data-room-view])[data-overlay-open]
    fill, blur, or positioning. Reading-overlay tooltips keep their flat card.
    Stamp hints keep the light paper palette even in the dark room, with a
    separate edge node so their stitched ::after decoration stays intact. */
+html:is([data-world], [data-room-view]) .scene-caption-glass,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
 html:is([data-world], [data-room-view]) [data-home-glass="floating"],
@@ -415,6 +427,7 @@ html:is([data-world], [data-room-view]) .field-notes-stamp-tooltip {
   border: 0;
   box-shadow: var(--stacks-tooltip-shadow);
 }
+html.dark:is([data-world], [data-room-view]) .scene-caption-glass,
 html.dark:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
 html.dark:is([data-world], [data-room-view]) [data-home-glass="floating"] {
@@ -422,6 +435,7 @@ html.dark:is([data-world], [data-room-view]) [data-home-glass="floating"] {
     0 14px 36px -6px rgb(0 0 0 / 0.55);
 }
 
+html:is([data-world], [data-room-view]) .scene-caption-glass,
 html:is([data-world], [data-room-view]):not([data-overlay-open])
   :is(.field-notes-glass-tooltip, .stacks-glass-tooltip),
 html:is([data-world], [data-room-view]) [data-home-glass="floating"],
@@ -872,6 +886,12 @@ html.dark:is([data-world], [data-room-view])
     outline: none;
     -webkit-tap-highlight-color: transparent;
   }
+  /* Suppress the native touch highlight before focus arrives, too. The
+     sheet controls keep their own keyboard focus indicators. */
+  [data-stacks-mobile-panel] [data-stacks-mobile-intro="header"] > button,
+  [data-stacks-mobile-panel] .stacks-sheet-grabber {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* PlacardStatsCard, wide form. The year-bar cards (Books, Weightlifting) put
@@ -1007,7 +1027,9 @@ html[data-book-font="literata"] [data-book-font-scope] {
 
 /* Photos and Field Notes use the same quiet separation from the room. Blur is
  * a live diagnostics override because it samples the full viewport. */
-.stacks-photo-preview-mask {
+.stacks-photo-preview-mask,
+.dark .stacks-photo-preview-mask,
+.field-notes-album-overlay {
   background: rgb(23 33 42 / 0.16) !important;
 }
 
@@ -1026,6 +1048,19 @@ html[data-book-font="literata"] [data-book-font-scope] {
 .document-gallery-mask--blurred {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+}
+
+/* Every overlay over either room view uses the same tint. Standalone pages
+ * retain their reading/media backdrops; each viewer still owns its blur.
+ * This also outranks the legacy dark-mode photo gradient. */
+html:is([data-world], [data-room-view])
+  :is(
+    [data-overlay-backdrop],
+    .stacks-photo-preview-mask,
+    .document-gallery-mask,
+    .field-notes-album-overlay
+  ) {
+  background: rgb(23 33 42 / 0.16) !important;
 }
 
 /* The enlarged photo is drawn as the print it is on the shelf (its paper,
@@ -2217,6 +2252,37 @@ html[data-world] .placard-scroll * {
   user-select: text !important;
 }
 
+/* Reading surfaces opt all descendants into selection. Images must override
+   that rule directly, while card titles and descriptions remain selectable. */
+.homepage-card-container img,
+html[data-world] .placard-scroll img,
+.homepage-card-container [data-doc-cover] > [aria-hidden],
+.homepage-card-container [data-doc-cover] > [aria-hidden] * {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  pointer-events: none;
+}
+
+.homepage-card-container [data-placard-media="card-cover"] {
+  -webkit-touch-callout: none;
+}
+
+[data-tilt-card-interactive] a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Clip the animated skyline itself without cutting off the card's shadow. */
+[data-doc-cover] {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  clip-path: inset(
+    0 round var(--cover-card-radius, 1.5rem) var(--cover-card-radius, 1.5rem) 0
+      0
+  );
+}
+
 html[data-world] input,
 html[data-world] textarea,
 html[data-world] [contenteditable="true"] {
@@ -2347,4 +2413,9 @@ html[data-world] [contenteditable="true"] {
     opacity: 1;
     transform: none;
   }
+}
+
+/* Floating controls opened inside the active overlay sit above that layer. */
+html[data-overlay-input] [data-radix-popper-content-wrapper] {
+  z-index: var(--overlay-floating-layer) !important;
 }

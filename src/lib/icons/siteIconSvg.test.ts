@@ -14,21 +14,28 @@ describe("siteIconSvg", () => {
     const svg = siteIconSvg(glyph("routine"), "rt");
     expect(svg.startsWith("<svg xmlns=")).toBe(true);
     expect(svg).toContain("@media (prefers-color-scheme: dark){");
-    // Day sky and night sky both present, glyph colour for each: the sky's
-    // ink by day, the morning ochre by night.
+    // Both sky palettes retain the shared white glyph ink.
     expect(svg).toContain("#126bb0");
     expect(svg).toContain("#1c284d");
     expect(svg).toContain("#rt .g{fill:hsl(40, 30%, 96%)}");
-    expect(svg).toContain("#rt .g{fill:hsl(38, 48%, 68%)}");
+    expect(svg).toContain("#rt .g{fill:hsl(220, 25%, 92%)}");
   });
 
-  it("shows the sun by day and the moon, stars and city lights by night", () => {
+  it("shows clouds by day and faint stars and city lights at night, without a sun or moon", () => {
     const svg = siteIconSvg(glyph("manual"), "mn");
     const [day, night] = svg.split("@media (prefers-color-scheme: dark)");
-    expect(day).toContain("#mn .night{display:none}");
-    expect(night).toContain("#mn .night{display:inline}#mn .day{display:none}");
-    expect(svg).toContain('<g class="day">');
-    expect(svg).toContain('<g class="night">');
+    expect(day).toContain("#mn .stars,#mn .nl{display:none}");
+    expect(day).toContain("#mn .clouds{fill:#fff;opacity:0.18}");
+    expect(night).toContain("#mn .clouds{display:none}");
+    expect(night).toContain(
+      "#mn .stars{display:inline;fill:#e3e6e9;opacity:.4}",
+    );
+    expect(svg).toContain('<g class="stars">');
+    expect(svg).toContain('<g class="clouds">');
+    expect(night).toContain("#mn .nl{display:inline}");
+    expect(svg).not.toContain('<g class="day">');
+    expect(svg).not.toContain('<g class="night">');
+    expect(svg).not.toContain('id="mn-moon"');
     expect(svg).toContain('<g class="nl">');
   });
 
@@ -36,10 +43,13 @@ describe("siteIconSvg", () => {
     const svg = siteIconSvg(glyph("liarsdice"), "ld");
     expect(svg).toContain('class="f-ggb"');
     expect(svg).toContain('class="f-sil"');
-    expect(svg).toContain("#ld .f-ggb{fill:hsl(8, 36%, 42%)}");
-    expect(svg).toContain("#ld .f-ggb{fill:#a63a46}");
-    expect(svg).toContain("#ld .f-sil{fill:#5b7288}");
-    expect(svg).toContain("#ld .f-sil{fill:#191a2c}");
+    expect(svg).toContain("#ld .f-ggb{fill:#b74727}");
+    expect(svg).toContain("#ld .f-ggb{fill:url(#ld-bridge-night)}");
+    expect(svg).toContain("#ld .s-ggb{stroke:url(#ld-bridge-night)}");
+    expect(svg).toContain('stop-color="#493440"');
+    expect(svg).toContain('stop-color="#b39777"');
+    expect(svg).toContain("#ld .f-sil{fill:#57765a}");
+    expect(svg).toContain("#ld .f-sil{fill:#263d31}");
   });
 
   it("leaves out the skyline east of the window", () => {
@@ -59,7 +69,7 @@ describe("siteIconSvg", () => {
   it("draws the glyph from Phosphor path data over the card", () => {
     const svg = siteIconSvg(glyph("liarsdice"), "ld");
     expect(svg).toMatch(
-      /<g class="g" transform="translate\(12\.8 12\.8\) scale\([\d.]+\)"><path d="M[^"]+"\/>/,
+      /<g class="g" transform="translate\(12 12\) scale\(0\.1563\)"><path d="M[^"]+"\/>/,
     );
   });
 
@@ -92,9 +102,9 @@ describe("siteImageIconSvg", () => {
     expect(svg).toContain('clip-path="url(#wl-tile)"');
   });
 
-  it("points at the app icon files shipped under public/", () => {
+  it("uses the full rainbow app icon in both themes", () => {
     expect(spec.light.svg).toBe("/images/weightlifting/app-icon-128.jpg");
     expect(spec.light.png).toBe("/images/weightlifting/app-icon-256.jpg");
-    expect(spec.dark).toBe("/images/weightlifting/app-icon-dark-128.png");
+    expect(spec.dark).toBe(spec.light.svg);
   });
 });

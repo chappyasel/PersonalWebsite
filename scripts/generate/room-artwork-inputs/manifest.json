@@ -4444,7 +4444,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/Grabbable.tsx",
-      "sha256": "58275cc4c2023e6adce74b3ab0660757ca1ef690b1cc269810c7e491558d148a",
+      "sha256": "950bae73bf25bd36dd0b508749299a9cad79dc5ecdd04499eacd6c866a461a5c",
       "archivedSha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79"
     },
     {
@@ -4479,12 +4479,12 @@
     },
     {
       "path": "src/app/components/stacks/scene/ModelProp.tsx",
-      "sha256": "d33d7383f3918403fdbc607fc9c1b868946beb3a049ed3ed055e3e9697841731",
+      "sha256": "b34657a5ac891eb2948951293b180c0387cb62bf170d4bc5bcfb254c68fcb9cd",
       "archivedSha256": "2d9e1eab12a99e3652c522936ecde2a3492d531479d426d019d582eb76881ab1"
     },
     {
       "path": "src/app/components/stacks/scene/PhysicsSceneProvider.tsx",
-      "sha256": "3ae727557289db3595b1229b3ce43a75dc0d643eac616499ca273ed48ebed2a4",
+      "sha256": "087487fa18ee61d51a38b361d4df9e6ddc900c814f3eec8e96307255c8be0f1d",
       "archivedSha256": "3ae727557289db3595b1229b3ce43a75dc0d643eac616499ca273ed48ebed2a4"
     },
     {
@@ -4499,7 +4499,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/PropApproach.tsx",
-      "sha256": "16c1a57b0cbd734cbadaf3b74f421d60069e187f9512b647f3f395f622148dc8",
+      "sha256": "32a6d4bd454539c65e9ab3aba11c1e1e1e6e94dfc8f690659c27efe6a80d2366",
       "archivedSha256": "77302e1571c2a579dfaaa5850b78d4ed85f40151a8f41c4043839d6be5a647e4"
     },
     {
@@ -4519,7 +4519,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/WavingGolfFlag.tsx",
-      "sha256": "caa69a1b6a80e4f789f1824ee39f220e8a6ec45bb0bbd06cc45070ee467d2ad8",
+      "sha256": "9c38885e739449aa1e0592844baae03e7d8273a014b4f497bc53202a6ab0bbbf",
       "archivedSha256": "caa69a1b6a80e4f789f1824ee39f220e8a6ec45bb0bbd06cc45070ee467d2ad8"
     },
     {
@@ -4649,7 +4649,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/golf/GolfExperience.tsx",
-      "sha256": "dfd55d1398ccf3f0289cfc31f2ab1b910b64cc5c5d37c72acb86c58f8b585665",
+      "sha256": "6bb3f6fbdb1b14bfc10e5a1db5e41510ebc806a6772a3ee09395ad5e654ded40",
       "archivedSha256": "dfd55d1398ccf3f0289cfc31f2ab1b910b64cc5c5d37c72acb86c58f8b585665"
     },
     {
@@ -5054,7 +5054,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/unitActivity.tsx",
-      "sha256": "63168f85ac626926abb11f7d660fe7414edbb60bd7477a949ae4c9e1cc4de59c",
+      "sha256": "82222dbc08e028adbb0395152c03cc781f572e1a77faba2f38447783767bdb64",
       "archivedSha256": "63168f85ac626926abb11f7d660fe7414edbb60bd7477a949ae4c9e1cc4de59c"
     },
     {
@@ -5119,7 +5119,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
-      "sha256": "5eb50a6007502e967b1df7bc93a7a7211c909b1b607914c437b334731d9e3374",
+      "sha256": "6f5a62088a0428464047f25c666b79d3d6fb89d4a9faadb4284bedb8daaedec7",
       "archivedSha256": "567752b48fedd6d067c375e7577ae6be581713ee1c5a38ba5d18643834946a69"
     },
     {
@@ -5164,12 +5164,12 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/talkGalleryLayout.ts",
-      "sha256": "a29d5d132f575e7b27432de8cd5560a996222bfec2485824faff7b65cc44d755",
+      "sha256": "d9f43aed77960bf649dfbcacd1f16e803bb31623ac558601d283df8c995a3986",
       "archivedSha256": "a29d5d132f575e7b27432de8cd5560a996222bfec2485824faff7b65cc44d755"
     },
     {
       "path": "src/app/components/stacks/scene/units/talkPhotoSetups.tsx",
-      "sha256": "38dd61a8ac8b17246a8b5f8974bcf97ff7d05b07fabd0052be86a7c6231e0e98",
+      "sha256": "724fb8dfcfd8731590fe8fbb0235b01620b51987650039095202bd03eeaa157d",
       "archivedSha256": "38dd61a8ac8b17246a8b5f8974bcf97ff7d05b07fabd0052be86a7c6231e0e98"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "49e15edccb8f9268b96068ee5ca29360fdd351ef7420cfff94072f124966508e",
+  "sourceFingerprint": "3ef2a49cf16ab5f47940074a658d1568f44970dfc354a05b439b2dbf4e98043b",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5574,6 +5574,63 @@
           "path": "src/app/components/stacks/scene/units/trainingTubs.tsx",
           "previousSha256": "c51d8e92b1f415f067ba8bf99140f5aa5887761118ca622da7adaff4b4fe8013",
           "sha256": "cd08d3f37ee0b3a1db446a1bd8c2374198c5a6728abbf1c4233238aaa61312d4"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed frame scheduling and inspection changes, plus monitor-arm clearance geometry, in docs/reviews/2026-09-15-overlays-and-homepage-release.md. Resting photo and shelf poses remain unchanged. Approved drawings retain their captured monitor-arm detail; no claim of identical support geometry or fresh capture.",
+      "previousFingerprint": "49e15edccb8f9268b96068ee5ca29360fdd351ef7420cfff94072f124966508e",
+      "sourceFingerprint": "3ef2a49cf16ab5f47940074a658d1568f44970dfc354a05b439b2dbf4e98043b",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/Grabbable.tsx",
+          "previousSha256": "58275cc4c2023e6adce74b3ab0660757ca1ef690b1cc269810c7e491558d148a",
+          "sha256": "950bae73bf25bd36dd0b508749299a9cad79dc5ecdd04499eacd6c866a461a5c"
+        },
+        {
+          "path": "src/app/components/stacks/scene/ModelProp.tsx",
+          "previousSha256": "d33d7383f3918403fdbc607fc9c1b868946beb3a049ed3ed055e3e9697841731",
+          "sha256": "b34657a5ac891eb2948951293b180c0387cb62bf170d4bc5bcfb254c68fcb9cd"
+        },
+        {
+          "path": "src/app/components/stacks/scene/PhysicsSceneProvider.tsx",
+          "previousSha256": "3ae727557289db3595b1229b3ce43a75dc0d643eac616499ca273ed48ebed2a4",
+          "sha256": "087487fa18ee61d51a38b361d4df9e6ddc900c814f3eec8e96307255c8be0f1d"
+        },
+        {
+          "path": "src/app/components/stacks/scene/PropApproach.tsx",
+          "previousSha256": "16c1a57b0cbd734cbadaf3b74f421d60069e187f9512b647f3f395f622148dc8",
+          "sha256": "32a6d4bd454539c65e9ab3aba11c1e1e1e6e94dfc8f690659c27efe6a80d2366"
+        },
+        {
+          "path": "src/app/components/stacks/scene/WavingGolfFlag.tsx",
+          "previousSha256": "caa69a1b6a80e4f789f1824ee39f220e8a6ec45bb0bbd06cc45070ee467d2ad8",
+          "sha256": "9c38885e739449aa1e0592844baae03e7d8273a014b4f497bc53202a6ab0bbbf"
+        },
+        {
+          "path": "src/app/components/stacks/scene/golf/GolfExperience.tsx",
+          "previousSha256": "dfd55d1398ccf3f0289cfc31f2ab1b910b64cc5c5d37c72acb86c58f8b585665",
+          "sha256": "6bb3f6fbdb1b14bfc10e5a1db5e41510ebc806a6772a3ee09395ad5e654ded40"
+        },
+        {
+          "path": "src/app/components/stacks/scene/unitActivity.tsx",
+          "previousSha256": "63168f85ac626926abb11f7d660fe7414edbb60bd7477a949ae4c9e1cc4de59c",
+          "sha256": "82222dbc08e028adbb0395152c03cc781f572e1a77faba2f38447783767bdb64"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTalks.tsx",
+          "previousSha256": "5eb50a6007502e967b1df7bc93a7a7211c909b1b607914c437b334731d9e3374",
+          "sha256": "6f5a62088a0428464047f25c666b79d3d6fb89d4a9faadb4284bedb8daaedec7"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/talkGalleryLayout.ts",
+          "previousSha256": "a29d5d132f575e7b27432de8cd5560a996222bfec2485824faff7b65cc44d755",
+          "sha256": "d9f43aed77960bf649dfbcacd1f16e803bb31623ac558601d283df8c995a3986"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/talkPhotoSetups.tsx",
+          "previousSha256": "38dd61a8ac8b17246a8b5f8974bcf97ff7d05b07fabd0052be86a7c6231e0e98",
+          "sha256": "724fb8dfcfd8731590fe8fbb0235b01620b51987650039095202bd03eeaa157d"
         }
       ]
     }

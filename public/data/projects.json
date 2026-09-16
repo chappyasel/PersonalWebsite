@@ -10,6 +10,7 @@
     },
     {
       "name": "Homework App",
+      "link": "https://softwar.io/app/homework-app",
       "image": "/images/stacks/v8/512/projects-homework-icon.webp",
       "meta": "iOS · acquired by Haystack AI in 2019",
       "languages": ["Objective-C"],

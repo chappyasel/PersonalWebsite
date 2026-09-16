@@ -154,7 +154,11 @@ export function shortcutGroups(
   const visitor: ShortcutGroup = {
     title: "Keyboard",
     rows: [
-      { keys: ["Cmd/Ctrl", "K"], does: "Search the site" },
+      { keys: ["Command", "K"], does: "Search the site" },
+      {
+        keys: ["Command", "Shift", "L"],
+        does: "Switch light or dark mode",
+      },
       { keys: ["ArrowLeft", "ArrowRight"], does: "Previous or next shelf" },
       { keys: ["A", "D"], does: "Pan the room" },
       { keys: ["1", "7"], join: "to", does: "Jump to a shelf" },
@@ -163,6 +167,7 @@ export function shortcutGroups(
       { keys: ["\\"], does: "Hide or show details" },
       { keys: ["H"], does: "Hide or show the interface" },
       { keys: ["M"], does: "Mute or unmute scene sound" },
+      { keys: ["Shift", "M"], does: "Toggle reduced motion" },
       { keys: ["?"], does: "Show keyboard shortcuts" },
       { keys: ["Esc"], does: "Close" },
     ],

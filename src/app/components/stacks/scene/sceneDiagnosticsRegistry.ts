@@ -8,6 +8,7 @@ import {
   visionRideDiagnosticsController,
 } from "../visionRide/visionRideDiagnostics";
 
+import { overlayBackgroundMotion } from "~/lib/overlays/backgroundMotion";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
 import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
@@ -15,6 +16,7 @@ import { backgroundBookTreatment } from "./backgroundBookTreatment";
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { selectionCameraPitchController } from "./cameraZoom";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
+import { coordinationSceneMotion } from "./coordinationSceneMotion";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import { golfFocusPullConsoleController } from "./golfFocusPullConsole";
 import {
@@ -30,6 +32,7 @@ import {
   GOLF_SUSPENSE_CONSOLE_DEFAULT,
   golfSuspenseConsoleController,
 } from "./golfSuspenseConsole";
+import { homeTapMotion } from "./homeTapMotion";
 import { hudCameraDriftController } from "./hudCameraDriftControl";
 import { insectDiagnosticsController } from "./insectPerchDiagnostic";
 import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnostics";
@@ -1160,6 +1163,28 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     },
   }),
   booleanDescriptor({
+    id: "camera.overlay-slowdown",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Gradual overlay pause",
+    help: "Ease scene motion to a stop when an overlay opens, then restore speed as dismissal begins. Disabled for reduced motion. Reload restores the enabled default.",
+    defaultValue: true,
+    experimental: false,
+    store: overlayBackgroundMotion,
+    read: () => overlayBackgroundMotion.getSnapshot().enabled,
+    update: (value) => overlayBackgroundMotion.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Integrates scene speed during a 1.5-second transition. Rendering sleeps once the scene and foreground transitions settle.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
     id: "camera.room-edge-pan",
     panel: "simulate",
     group: "simulate.camera",
@@ -1196,6 +1221,28 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       activeValues: [true],
       enabled:
         "One frame callback updates the HUD translation when it changes.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "camera.home-tap-pullback",
+    panel: "simulate",
+    group: "simulate.camera",
+    label: "Home tap pullback",
+    help: "When already on About, tapping the name pulls back slightly and springs home in 2D and 3D. Disabled for reduced motion. Reload restores the enabled default.",
+    defaultValue: true,
+    experimental: false,
+    store: homeTapMotion,
+    read: () => homeTapMotion.getSnapshot().enabled,
+    update: (value) => homeTapMotion.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "One spring animation during a home tap. No animation work at rest.",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,
@@ -2150,6 +2197,28 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
         perFrameWork: false,
       },
     },
+  }),
+  booleanDescriptor({
+    id: "render.coordination-scene-speed",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "CR orb scene speed",
+    help: "Ease the whole scene to twice speed while the CR orb is hovered, focused, or held. UI and inspection gestures stay at normal speed. Disabled for reduced motion.",
+    defaultValue: true,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "One shared speed calculation while entering or leaving the orb effect.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: coordinationSceneMotion,
+    read: () => coordinationSceneMotion.getSnapshot().enabled,
+    update: (value) => coordinationSceneMotion.setEnabled(Boolean(value)),
   }),
   booleanDescriptor({
     id: "render.coordination-singularity",

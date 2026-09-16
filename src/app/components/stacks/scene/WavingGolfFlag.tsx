@@ -1,13 +1,13 @@
 "use client";
 
 import { useGLTF, useTexture } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { GOLF_CUP } from "./golf/golfCourse";
 import { GOLF_FOG_POLICY } from "./golf/golfPresentation";
 import { useResolvedMeadowVisibility } from "./scenePerformance";
+import { useRoomFrame } from "./useRoomFrame";
 
 const FLAG_URL = "/models/golf-flag.glb";
 const FLAG_LOGO_URL = "/images/stacks/reginald-solo-logo.webp";
@@ -112,7 +112,7 @@ export default function WavingGolfFlag({
       for (const material of ownedMaterials) material.dispose();
     };
   }, [scene]);
-  useFrame(({ clock }) => {
+  useRoomFrame(({ clock }) => {
     for (const uniform of timeUniforms.current)
       uniform.value = clock.elapsedTime;
   });

@@ -144,12 +144,12 @@ describe("BookDetailContent note availability", () => {
 
     expect(detailSource.match(/<BookFacts book=\{book\} \/>/g)).toHaveLength(2);
     expect(markup).toContain("data-book-facts");
-    expect(markup).toContain('data-book-fact="published"');
+    expect(markup).not.toContain('data-book-fact="published"');
     expect(markup).toMatch(
       /data-book-fact="length"[\s\S]*?aria-hidden="true" class="text-muted-foreground\/40">·<\/span>/,
     );
     expect(markup).toMatch(
-      /<dt[^>]*>Published<\/dt>[\s\S]*?<dd[^>]*>2015<\/dd>/,
+      /Adrian Tchaikovsky<\/span>[\s\S]*?aria-hidden="true"[^>]*>•<\/span><span aria-label="Published 2015">2015<\/span>/,
     );
     expect(markup).not.toContain("Published:");
     expect(markup).toContain('aria-label="Book actions"');

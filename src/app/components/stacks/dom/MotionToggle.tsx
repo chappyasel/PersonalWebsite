@@ -1,13 +1,17 @@
 "use client";
 
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { WavesIcon } from "@phosphor-icons/react";
+import { useEffect } from "react";
 
 import {
   desktopMotionPreference,
   useDesktopReducedMotion,
 } from "~/lib/desktopMotionPreference";
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
 
 import { Button } from "~/components/ui/button";
+import { KeycapSequence } from "~/components/ui/keycap";
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +21,32 @@ import {
 
 export function MotionToggle() {
   const reduced = useDesktopReducedMotion();
+
+  useEffect(() => {
+    const onMotionShortcut = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "m" ||
+        !event.shiftKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.repeat ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        roomOverlayBlocksInput() ||
+        document.documentElement.hasAttribute("data-field-notes-open") ||
+        isEditableShortcutTarget(event.target)
+      )
+        return;
+      event.preventDefault();
+      desktopMotionPreference.setReduced(
+        !desktopMotionPreference.getSnapshot(),
+      );
+    };
+    window.addEventListener("keydown", onMotionShortcut);
+    return () => window.removeEventListener("keydown", onMotionShortcut);
+  }, []);
+
   return (
     <TooltipProvider>
       <Tooltip delayDuration={200}>
@@ -26,6 +56,7 @@ export function MotionToggle() {
             variant="ghost"
             size="icon"
             aria-label="Reduce motion"
+            aria-keyshortcuts="Shift+M"
             aria-pressed={reduced}
             onClick={() => desktopMotionPreference.setReduced(!reduced)}
             data-motion-toggle=""
@@ -38,7 +69,10 @@ export function MotionToggle() {
           </Button>
         </TooltipTrigger>
         <TooltipContent align="start">
-          <p>{reduced ? "Reduced motion on" : "Reduce motion"}</p>
+          <p className="flex items-center gap-1.5">
+            <span>{reduced ? "Reduced motion on" : "Reduce motion"}</span>
+            <KeycapSequence keys={["Shift", "M"]} label="Shift M" />
+          </p>
           <p className="text-xs opacity-75">
             Less camera motion. No card tilt or HUD drift.
           </p>

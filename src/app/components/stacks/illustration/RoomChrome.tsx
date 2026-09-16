@@ -1,5 +1,6 @@
 import ChromeLayer, { ChromeSceneControls } from "../dom/ChromeLayer";
 import { ChromeSearchButton } from "../dom/ChromeSearchButton";
+import { RoomHomeButton, roomHomeClassName } from "../dom/RoomHomeButton";
 import { useSceneControlTooltipAlign } from "../dom/useSceneControlTooltipAlign";
 
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
@@ -40,9 +41,7 @@ export function RoomChrome({
             className="stacks-wordmark pointer-events-none absolute z-20"
           >
             <div className="pointer-events-auto grid grid-cols-[auto_auto] items-center gap-x-0.5">
-              <span className="room-wordmark-label stacks-mobile-secondary-chrome stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
-                Chappy Asel
-              </span>
+              <RoomHomeButton className={roomHomeClassName} />
               <ChromeSearchButton />
             </div>
           </div>

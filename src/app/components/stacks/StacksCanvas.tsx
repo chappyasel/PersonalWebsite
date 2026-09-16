@@ -30,10 +30,11 @@ import {
 import type * as THREE from "three";
 
 import { recordModalOriginAtPointer } from "~/lib/originFlight";
-import { useUniversalSearchOpen } from "~/lib/universal-search/useUniversalSearchOpen";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { openSheetRoute } from "~/components/modal-sheet/sheetRoute";
+import { useOverlayState } from "~/components/overlays/OverlayPresence";
+import { useOverlayBackgroundMotion } from "~/components/overlays/useOverlayBackgroundMotion";
 
 import { sceneAudio } from "./audio/sceneAudio";
 import { requestBookPrefetch } from "./bookPrefetch";
@@ -46,7 +47,6 @@ import { setLoadProgress } from "./loading";
 import {
   ROOM_TRAVEL_DAMPING_SECONDS,
   roomEdgeMotion,
-  searchFreezesRoom,
 } from "./mobile/roomEdgeMotion";
 import { performanceDiagnosticRequested } from "./performanceDiagnosticRequest";
 import {
@@ -1709,11 +1709,12 @@ export default function StacksCanvas({
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
   const performanceSettings = useScenePerformanceSettings();
-  // Search and book inspection freeze the room. Photo inspection leaves it
-  // alive behind the same translucent treatment as Field Notes.
+  // Ease ambient time to rest before sleeping the renderer. Foreground
+  // inspection and physical handoffs keep their own live frames.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
-  const searchOpen = useUniversalSearchOpen();
+  const overlayState = useOverlayState();
+  const backgroundMotion = useOverlayBackgroundMotion();
   const searchMotionActive = useSyncExternalStore(
     roomEdgeMotion.subscribe,
     roomEdgeMotion.getSnapshot,
@@ -1722,10 +1723,14 @@ export default function StacksCanvas({
   const visionRidePhase = useStacks((s) => s.visionRidePhase);
   const roomMounted = visionRideRoomMounted(visionRidePhase);
   const artifactHandoff = useStacks((s) => s.modelArtifactHandoff);
+  const handoffNeedsFrames =
+    artifactHandoff !== null && artifactHandoff.phase !== "inspecting";
   const freezeRoom =
     !roomActive ||
-    searchFreezesRoom(searchOpen, searchMotionActive) ||
-    (modalOpen && artifactHandoff === null);
+    (overlayState.freezeRoom &&
+      backgroundMotion.paused &&
+      !searchMotionActive &&
+      !handoffNeedsFrames);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   // Two things `onCreated` leaves running after it returns: the pair of queued
   // frames that report the first paint, and the context-loss listener. Both
@@ -2640,8 +2645,8 @@ export default function StacksCanvas({
       <Canvas
         events={pointerEvents}
         shadows="soft"
-        // Search and books freeze immediately. Models freeze after the real
-        // shelf object reaches the camera. Photos keep the room alive throughout.
+        // Settled overlays freeze rendering. Physical handoffs and inspected
+        // objects keep rendering while useRoomFrame pauses background animation.
         frameloop={freezeRoom ? "never" : "always"}
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={dpr}

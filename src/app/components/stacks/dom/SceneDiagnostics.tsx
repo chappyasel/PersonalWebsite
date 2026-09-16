@@ -90,10 +90,12 @@ import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
 import { skyEventDiagnosticsController } from "~/lib/skyEventDiagnostics";
 
 import { KeycapSequence } from "~/components/ui/keycap";
 
+import { PersistentHud } from "./PersistentHud";
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
 import {
@@ -1654,6 +1656,7 @@ export default function SceneDiagnostics({
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
       if (
+        roomOverlayBlocksInput() ||
         event.defaultPrevented ||
         event.repeat ||
         event.metaKey ||
@@ -2528,14 +2531,16 @@ export default function SceneDiagnostics({
         : null}
       <div className="stacks-debug-launchers pointer-events-auto">
         {hudVisible ? (
-          <DevPerformanceHud
-            expanded={open}
-            captureStatus={captureStatus}
-            activeProfile={activeProfile}
-            launcher={launcher}
-            onDismiss={() => setHudVisible(false)}
-            onToggle={toggleConsole}
-          />
+          <PersistentHud>
+            <DevPerformanceHud
+              expanded={open}
+              captureStatus={captureStatus}
+              activeProfile={activeProfile}
+              launcher={launcher}
+              onDismiss={() => setHudVisible(false)}
+              onToggle={toggleConsole}
+            />
+          </PersistentHud>
         ) : null}
         {drawer && typeof document !== "undefined"
           ? createPortal(drawer, document.body)

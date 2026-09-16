@@ -65,8 +65,12 @@ export function navigateRoomLink(index: number, rendererEnabled: boolean) {
   const state = useStacks.getState();
   if (state.modalOpen || state.panelState === "closing") return false;
   state.setFocusedInteraction(null);
-  const push = () =>
-    window.history.pushState(null, "", unitUrl(index, window.location.search));
+  const push = () => {
+    const destination = unitUrl(index, window.location.search);
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (current !== destination)
+      window.history.pushState(null, "", destination);
+  };
   if (state.panelState === "open" || state.panelState === "opening") {
     closeStacksPanel();
     navigateRoom(index, { rendererEnabled });

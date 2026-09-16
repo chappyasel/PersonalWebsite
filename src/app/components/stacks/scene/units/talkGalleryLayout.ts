@@ -179,7 +179,11 @@ export function talkFramePoint(setup: TalkSetup, local: Vec3): Vec3 {
  * so at its own x, not at the print's middle. */
 export function talkBackPlaneZ(setup: TalkSetup, x: number, y: number) {
   const normal = rotateTalkPoint(setup.rest, [0, 0, 1]);
-  const origin = talkFramePoint(setup, [0, 0, talkBoxCenterLocalZ(setup)]);
+  const origin = talkFramePoint(setup, [
+    0,
+    0,
+    -(setup.thickness + TALK_FACE_GAP),
+  ]);
   return (
     origin[2] +
     (normal[0] * (origin[0] - x) + normal[1] * (origin[1] - y)) / normal[2]
@@ -544,16 +548,32 @@ export function talkHangWires() {
  * mount is not holding a moment it has no counterweight for. */
 export function talkArmMount() {
   const setup = TALK_SETUPS["talk-ann-interview-v8"];
-  const head: Vec3 = [
-    setup.base[0],
-    talkSeat(setup),
-    talkBackPlaneZ(setup, setup.base[0], talkSeat(setup)),
-  ];
+  const headY = talkSeat(setup);
+  // The plate is axis-aligned, so its whole front face must clear the
+  // tilted backing, including the corner nearest the photo.
+  const headZ = Math.min(
+    ...[-1, 1].flatMap((x) =>
+      [-1, 1].map((y) =>
+        talkBackPlaneZ(
+          setup,
+          setup.base[0] + (x * TALK_ARM.headWidth) / 2,
+          headY + (y * TALK_ARM.headHeight) / 2,
+        ),
+      ),
+    ),
+  );
+  const head: Vec3 = [setup.base[0], headY, headZ];
+  const normal = rotateTalkPoint(setup.rest, [0, 0, 1]);
+  // Keep the elbow's full radius behind the backing at boom height.
+  // The narrower boom and drop fit inside that clearance too.
+  const boomToZ =
+    talkBackPlaneZ(setup, setup.base[0], TALK_ARM.boomY) -
+    (TALK_ARM.boomThickness * 0.72 + TALK_FACE_GAP) / normal[2];
   return {
     head,
     /** Boom runs from the clamp post forward to the head. */
     boomFromZ: TALK_ARM.clampZ,
-    boomToZ: head[2],
+    boomToZ,
     boomY: TALK_ARM.boomY,
     postX: setup.base[0],
   };

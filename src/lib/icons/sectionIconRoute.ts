@@ -4,8 +4,8 @@ import { siteIconSvg, siteImageIconSvg } from "./siteIconSvg";
 
 /**
  * The response every section's `tab-icon/route.ts` returns. A day in the
- * cache is plenty: the file only changes with a deploy, and browsers hold
- * favicons far longer than that on their own.
+ * production cache is plenty. Consumers version their URLs when artwork
+ * changes; development responses stay uncached.
  */
 export async function sectionIconSvgResponse(
   key: SectionIconKey,
@@ -21,7 +21,10 @@ export async function sectionIconSvgResponse(
   return new Response(svg, {
     headers: {
       "content-type": "image/svg+xml; charset=utf-8",
-      "cache-control": "public, max-age=86400",
+      "cache-control":
+        process.env.NODE_ENV === "development"
+          ? "no-store"
+          : "public, max-age=86400",
     },
   });
 }

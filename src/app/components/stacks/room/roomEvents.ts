@@ -1,4 +1,18 @@
+import { overlayCoordinator } from "~/lib/overlays/coordinator";
+
 import { roomResidency } from "./roomResidency";
+
+const OWNED_INPUT = new Set([
+  "keydown",
+  "pointerdown",
+  "pointermove",
+  "mousedown",
+  "mousemove",
+  "wheel",
+  "touchstart",
+  "touchmove",
+  "click",
+]);
 
 type Listener = EventListenerOrEventListenerObject;
 type Registration = {
@@ -80,6 +94,12 @@ export function roomEventTarget<T extends Window | Document>(target: () => T) {
     }
     const wrapped: EventListener = (event) => {
       if (!roomResidency.getSnapshot().active) return;
+      // Release events still reach the room so held keys and drags cannot stick.
+      if (
+        overlayCoordinator.getSnapshot().blockPointer &&
+        OWNED_INPUT.has(event.type)
+      )
+        return;
       if (typeof options === "object" && options.once)
         remove(type, listener, options);
       if (typeof listener === "function") listener.call(target(), event);

@@ -79,6 +79,11 @@ import { devSubdomainUrl } from "~/lib/util";
 import { Keycap } from "~/components/ui/keycap";
 import { tooltipSurfaceClassName } from "~/components/ui/tooltip";
 
+import {
+  MOBILE_CARD_BLEED_PX,
+  MOBILE_SCROLL_FADE_PX,
+  useMobileSheetScrollFade,
+} from "./useMobileSheetScrollFade";
 import { BookCoverSizeGroup } from "./BookCoverSizeGroup";
 import { BookSubjectCards } from "./BookSubjectCards";
 import {
@@ -129,69 +134,6 @@ import {
   formatReadDates,
   formatSingleReadDate,
 } from "~/app/books/lib/format";
-
-/** Which edges of a scroll container have content past them. Mirrors the
- * AIC platform's pattern of only fading an edge that actually continues, so
- * a short placard gets no phantom fade. */
-function useScrollEdges(
-  ref: React.RefObject<HTMLDivElement | null>,
-  /** Re-attach when the scroller comes into existence. The mobile sheet is
-   * inside an AnimatePresence, so its scroller is absent on the first render
-   * of the component that owns this hook — and with only the (stable) ref in
-   * the dep list the effect ran once against null and never again, so the
-   * mobile fades never appeared at all. */
-  attached = true,
-) {
-  const [edges, setEdges] = useState({
-    top: false,
-    topFadeStrength: 0,
-    bottom: false,
-  });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !attached) {
-      setEdges({ top: false, topFadeStrength: 0, bottom: false });
-      return;
-    }
-    const update = () => {
-      const { scrollTop, scrollHeight, clientHeight } = el;
-      const top = scrollTop > 4;
-      const topFadeStrength = Math.min(1, Math.max(0, scrollTop / 12));
-      const bottom = scrollTop + clientHeight < scrollHeight - 4;
-      setEdges((prev) =>
-        prev.top === top &&
-        prev.topFadeStrength === topFadeStrength &&
-        prev.bottom === bottom
-          ? prev
-          : { top, topFadeStrength, bottom },
-      );
-    };
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    for (const child of Array.from(el.children)) ro.observe(child);
-    // Mobile swaps section bodies and several cards populate asynchronously,
-    // so the children present at mount are not necessarily the children that
-    // decide whether this thing scrolls. Without the subtree watch the fade
-    // can miss exactly the long placards that need it.
-    const mo = new MutationObserver(update);
-    mo.observe(el, { childList: true, subtree: true });
-    return () => {
-      el.removeEventListener("scroll", update);
-      ro.disconnect();
-      mo.disconnect();
-    };
-  }, [ref, attached]);
-  return edges;
-}
-
-/** How far mobile sheet content dissolves at each scroll edge. */
-const TOP_FADE_PX = 18;
-// Extend the mobile scrollport into the header's lower edge. Matching inner
-// padding preserves the first card's position while leaving room for its
-// spring lift, scale overshoot and shadow at scrollTop 0.
-const MOBILE_CARD_BLEED_PX = 24;
 
 /** Home/End belong to the section whose scroller owns focus, not the room
  * behind it. Keeping this on the scroller also means nested links can use the
@@ -974,7 +916,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   // Mobile keeps one translucent material surface to make text readable over
   // the rendered room. Inner cards retain their contrasting fills but not a
   // second backdrop blur, and the sheet owns the scroll-edge dissolve.
-  const edges = useScrollEdges(scrollRef, expanded && active);
+  const scrollFade = useMobileSheetScrollFade(scrollRef, expanded && active);
 
   // One scroller serves seven placards and all three detents, so its
   // scrollTop outlives both the document in it and the pose it was set in.
@@ -2003,11 +1945,6 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     swipeToAdjacentUnit,
   ]);
 
-  // Only expanded reading fades content that has scrolled past the top edge.
-  const sheetMask = expanded
-    ? `linear-gradient(to bottom, rgb(0 0 0 / ${1 - edges.topFadeStrength}) 0, rgb(0 0 0 / ${1 - edges.topFadeStrength}) ${MOBILE_CARD_BLEED_PX}px, black ${MOBILE_CARD_BLEED_PX + TOP_FADE_PX}px)`
-    : undefined;
-
   // One frame of nothing rather than one frame of a full-screen sheet: the
   // detents are derived from a measured viewport, and before that measurement
   // every one of them is zero.
@@ -2219,14 +2156,13 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 <XIcon className="size-[max(1.25rem,0.8em)]" weight="bold" />
               </button>
             </div>
-            {/* The mobile sheet keeps its masked-scroller dissolve. The sheet
-            behind is the one blurred surface; cards above it use translucent
-            fills rather than trying to sample an already-filtered backdrop. */}
+            {/* Fade the cards into the sheet's glass without filtering the
+                material again or introducing an overlay edge. */}
             <div
               data-stacks-mobile-intro="body"
               className="relative min-h-0 flex-1"
             >
-              <div
+              <motion.div
                 ref={scrollRef}
                 tabIndex={interactive ? 0 : -1}
                 onKeyDown={handleSectionBoundaryKey}
@@ -2246,9 +2182,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 style={{
                   top: -MOBILE_CARD_BLEED_PX,
                   paddingTop: MOBILE_CARD_BLEED_PX,
-                  scrollPaddingTop: MOBILE_CARD_BLEED_PX + TOP_FADE_PX,
-                  maskImage: sheetMask,
-                  WebkitMaskImage: sheetMask,
+                  scrollPaddingTop: MOBILE_SCROLL_FADE_PX,
+                  maskImage: scrollFade.mask,
+                  WebkitMaskImage: scrollFade.mask,
                 }}
               >
                 {/* Short placards sit centred once the sheet is at full height,
@@ -2272,7 +2208,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 >
                   {body}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </motion.div>
@@ -2909,16 +2845,10 @@ export default function PlacardLayer({
             -webkit-user-select: none !important;
             user-select: none !important;
           }
-          /* A placard card is one large link. On iOS, holding it otherwise
-             highlights the full rounded rectangle before opening Safari's
-             link callout, and a double tap can select its display text.
-             Keep ordinary sheet prose selectable; only whole-card links opt
-             out of the native selection and preview treatment. */
-          [data-stacks-mobile-panel] [data-tilt-card-interactive],
-          [data-stacks-mobile-panel] [data-tilt-card-interactive] * {
+          /* Suppress whole-card link previews while keeping card prose
+             selectable. Image selection is handled in globals.css. */
+          [data-stacks-mobile-panel] [data-tilt-card-interactive] {
             -webkit-touch-callout: none;
-            -webkit-user-select: none !important;
-            user-select: none !important;
           }
           .placard-scroll {
             --cover-card-radius: 1.25rem;

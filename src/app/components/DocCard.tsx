@@ -201,7 +201,7 @@ export default function DocCard({
                 />
                 {title}
               </h2>
-              <p className="mt-2 homepage-card-body">{description}</p>
+              <p className="mt-2 homepage-card-body opacity-80">{description}</p>
             </div>
           </div>
 

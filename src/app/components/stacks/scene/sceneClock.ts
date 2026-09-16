@@ -1,12 +1,34 @@
 import type { RootState } from "@react-three/fiber";
 
+import { overlayBackgroundMotion } from "~/lib/overlays/backgroundMotion";
+
 const protectedClocks = new WeakSet<RootState["clock"]>();
+const frameScales = new WeakMap<RootState["clock"], number>();
+
+/** Share the clock's integrated speed with delta-driven background animation. */
+export function roomFrameDelta(clock: RootState["clock"], delta: number) {
+  return delta * (frameScales.get(clock) ?? overlayBackgroundMotion.getSpeed());
+}
 
 /** R3F resets elapsedTime when changing frameloop. Modal and route pauses
  * should stop animation without restarting clouds, birds, or camera sway. */
-export function preserveSceneClock(state: RootState) {
+export function preserveSceneClock(
+  state: RootState,
+  ambientSpeed: (delta: number) => number = () => 1,
+) {
   if (protectedClocks.has(state.clock)) return;
   protectedClocks.add(state.clock);
+  const getDelta = state.clock.getDelta.bind(state.clock);
+  state.clock.getDelta = () => {
+    const elapsed = state.clock.elapsedTime;
+    const delta = getDelta();
+    const ambientDelta =
+      overlayBackgroundMotion.advance(delta) * ambientSpeed(delta);
+    frameScales.set(state.clock, delta > 0 ? ambientDelta / delta : 0);
+    state.clock.elapsedTime = elapsed + ambientDelta;
+    // Foreground gestures, focus pulls, and return flights retain real time.
+    return delta;
+  };
   const setFrameloop = state.setFrameloop;
   const preservedFrameloop: RootState["setFrameloop"] = (mode) => {
     const { clock } = state.get();

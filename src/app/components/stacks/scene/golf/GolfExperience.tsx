@@ -1,12 +1,10 @@
 "use client";
 
-import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 import { sceneAudio } from "../../audio/sceneAudio";
 import { recordFieldNoteEvent } from "../../fieldNotes/progress";
 import { useStacks } from "../../store";
 import ModelProp from "../ModelProp";
+import { golfMode } from "../golfMode";
 import { InteractionClaim } from "../interaction";
 import { registerSceneInteraction } from "../interactionRegistry";
 import { publishMeadowPhysicalEvent } from "../meadowDisturbance";
@@ -17,12 +15,12 @@ import {
   meadowTrailReady,
 } from "../meadowMotion";
 import { useResolvedMeadowVisibility } from "../scenePerformance";
-import { golfMode } from "../golfMode";
 import { golfFocusPullDiagnostics } from "../shelfDepthOfField";
 import type { UnitProps } from "../units/types";
+import { useRoomFrame } from "../useRoomFrame";
 import { unitPose } from "../worldLayout";
 import { Html } from "@react-three/drei";
-import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { type ThreeEvent, useThree } from "@react-three/fiber";
 import React, {
   useCallback,
   useEffect,
@@ -96,7 +94,6 @@ import {
   setGolfSuspenseEnabled,
 } from "./golfSuspense";
 import { planGolfTrajectory } from "./golfTrajectory";
-import { planLoosePropLaunch } from "./loosePropLaunch";
 import type {
   GolfBallId,
   GolfBallPhase,
@@ -110,6 +107,8 @@ import {
   hittableContactPoint,
   setHittableBallTapHandler,
 } from "./hittableBalls";
+import { planLoosePropLaunch } from "./loosePropLaunch";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const BALL_GEOMETRY = GOLF_BALL_GEOMETRY;
 const BALL_BUMP = GOLF_BALL_BUMP;
@@ -194,7 +193,7 @@ function ConfettiBurst({
       }),
     };
   }, [serial, suppressed]);
-  useFrame(() => {
+  useRoomFrame(() => {
     if (suppressed || !active) {
       burst.current = null;
       for (const mesh of meshRefs.current) if (mesh) mesh.visible = false;
@@ -803,7 +802,7 @@ export default function GolfExperience({
     };
   }, [motion.clubSwing, tapLooseBall, toWorld]);
 
-  useFrame((_, delta) => {
+  useRoomFrame((_, delta) => {
     if (document.hidden) {
       stepper.current.clear();
       return;

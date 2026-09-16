@@ -15,6 +15,10 @@
   overflow: hidden;
   border-top-left-radius: var(--cover-card-radius, 1.5rem);
   border-top-right-radius: var(--cover-card-radius, 1.5rem);
+  /* Keep transformed artwork inside the top corners during a touch press. */
+  clip-path: inset(
+    0 round var(--cover-card-radius, 1.5rem) var(--cover-card-radius, 1.5rem) 0 0
+  );
 }
 
 .body {
@@ -35,6 +39,8 @@
     --placard-edge-bottom-y: calc(-1 * var(--placard-edge-width));
     width: calc((100% - var(--homepage-card-padding)) / 2);
     border-radius: 1rem;
+    /* The inset thumbnail's shadow extends beyond its own perimeter. */
+    clip-path: none;
     box-shadow: var(--placard-media-shadow);
   }
 

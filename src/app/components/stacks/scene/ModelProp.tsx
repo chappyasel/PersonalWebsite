@@ -17,7 +17,7 @@
 // ships 0.4/0.272, which reads as tinted chrome under our environment map.
 import { INERT_HOVER, useStacks } from "../store";
 import { useGLTF, useTexture } from "@react-three/drei";
-import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
@@ -63,6 +63,7 @@ import {
 } from "./reactionArchetype";
 import { propReactionsSuppressed } from "./reactionEngagement";
 import { useSceneQualityControls } from "./sceneQualityController";
+import { useRoomFrame } from "./useRoomFrame";
 
 /** Name of the node `spinPart` isolates. Animators find it by traversing the
  * subtree rather than through a prop, which keeps ModelProp's memo free of
@@ -761,7 +762,7 @@ function HoverFloor({
       );
     }
   }, [name, force, hoverKey]);
-  useFrame(({ camera }, delta) => {
+  useRoomFrame(({ camera }, delta) => {
     const g = ref.current;
     if (!g || inert) return;
     const glow = archetype === "glow";

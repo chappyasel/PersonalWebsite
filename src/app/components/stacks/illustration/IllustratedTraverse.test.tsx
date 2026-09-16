@@ -3,6 +3,7 @@ import { GOLF_STOP_POSITION, type StacksData } from "../data";
 import RoomNavigation, { navigateRoom } from "../input/RoomNavigation";
 import { dimensionTravel } from "../input/dimensionTravel";
 import { roomEdgeMotion } from "../mobile/roomEdgeMotion";
+import { homeTapMotion } from "../scene/homeTapMotion";
 import { useStacks } from "../store";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { Activity, useState } from "react";
@@ -224,6 +225,7 @@ it.each(["/golf", "/#golf"])(
 afterEach(() => {
   cleanup();
   roomEdgeMotion.cancel();
+  homeTapMotion.cancel();
   if (originalDecode)
     Object.defineProperty(HTMLImageElement.prototype, "decode", originalDecode);
   else Reflect.deleteProperty(HTMLImageElement.prototype, "decode");
@@ -231,6 +233,30 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("pulls the artwork back on a home tap without moving the viewport or changing sections", () => {
+  useStacks.setState({ activeUnit: 0 });
+  const view = render(
+    <IllustratedTraverse unit={0} enabled onMovingChange={vi.fn()}>
+      <div />
+    </IllustratedTraverse>,
+  );
+  const viewport = view.container.firstElementChild as HTMLElement;
+  const artwork = view.container.querySelector<HTMLElement>(
+    ".room-illustration-content",
+  )!;
+  act(() => {
+    homeTapMotion.play();
+    vi.advanceTimersByTime(100);
+  });
+  expect(Number(artwork.style.scale)).toBeLessThan(0.99);
+  expect(Number(artwork.style.scale)).toBeGreaterThan(0.97);
+  expect(viewport.scrollLeft).toBe(0);
+  expect(useStacks.getState().activeUnit).toBe(0);
+  act(() => void vi.advanceTimersByTime(1400));
+  expect(artwork.style.scale).toBe("");
+  expect(artwork.style.transformOrigin).toBe("");
 });
 
 it("pans the artwork for a sheet Search gesture and restores it without moving the viewport", () => {

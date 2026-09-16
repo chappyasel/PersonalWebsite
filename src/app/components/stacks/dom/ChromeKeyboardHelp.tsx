@@ -7,9 +7,7 @@ import {
 
 import { ChromeShortcutList } from "./ChromeKeyboard";
 import { ChromeSearchButton } from "./ChromeSearchButton";
-
-const labelClassName =
-  "room-wordmark-label stacks-mobile-secondary-chrome stacks-on-background-text whitespace-nowrap rounded-sm font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg";
+import { RoomHomeButton, roomHomeClassName } from "./RoomHomeButton";
 
 export default function ChromeKeyboardHelp({
   open,
@@ -26,18 +24,12 @@ export default function ChromeKeyboardHelp({
     <div>
       <div className="grid grid-cols-[auto_auto] items-center gap-x-0.5">
         {tapFirst ? (
-          <span className={labelClassName}>Chappy Asel</span>
+          <RoomHomeButton className={roomHomeClassName} />
         ) : (
           <TooltipProvider delayDuration={260}>
             <Tooltip open={open} onOpenChange={onOpenChange}>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Chappy Asel, keyboard shortcuts"
-                  className={`${labelClassName} text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
-                >
-                  Chappy Asel
-                </button>
+                <RoomHomeButton className={roomHomeClassName} />
               </TooltipTrigger>
               <TooltipContent
                 side="bottom"

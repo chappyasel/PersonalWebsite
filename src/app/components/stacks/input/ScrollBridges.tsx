@@ -32,6 +32,7 @@ import { STACKS_MOBILE_QUERY, scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, touchWorldRef, useStacks } from "../store";
 import { useEffect } from "react";
 
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
 import {
   UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
   isUniversalSearchOpen,
@@ -169,6 +170,7 @@ export default function ScrollBridges() {
     const nativeWheel = nativeHorizontalWheelGesture();
     const originalOverscroll = scrollEl.style.overscrollBehaviorX;
     const onWheel = (e: WheelEvent) => {
+      if (roomOverlayBlocksInput()) return;
       const nativeHorizontal =
         nativeWheel(e, scrollEl) &&
         window.matchMedia(STACKS_MOBILE_QUERY).matches;
@@ -593,6 +595,7 @@ export default function ScrollBridges() {
       if (
         direction !== 0 &&
         !state.modalOpen &&
+        !roomOverlayBlocksInput() &&
         state.panelState === "closed" &&
         state.visionRidePhase === "idle" &&
         !freeRoamDiagnosticsController.getSnapshot().enabled

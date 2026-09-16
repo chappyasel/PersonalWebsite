@@ -3,6 +3,7 @@ import { roomResidency } from "../room/roomResidency";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
+import { OVERLAY_OPEN_ATTRIBUTE } from "~/lib/overlays/coordinator";
 import { UNIVERSAL_SEARCH_OPEN_ATTRIBUTE } from "~/lib/universal-search/overlay";
 
 import ScenePointerTracking from "./ScenePointerTracking";
@@ -29,6 +30,8 @@ afterEach(() => {
   cleanup();
   document.body.replaceChildren();
   document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
+  document.documentElement.removeAttribute(OVERLAY_OPEN_ATTRIBUTE);
+  document.documentElement.removeAttribute("data-field-notes-open");
   runtime.state.pointer.set(0, 0);
   runtime.state.raycaster.setFromCamera.mockClear();
 });
@@ -50,28 +53,35 @@ function move(
   return event;
 }
 
-it("holds the background pointer while search is open and resumes on the next scene movement", () => {
-  const target = document.createElement("div");
-  document.body.append(target);
-  render(<ScenePointerTracking />);
-  move(target, 850, 175);
-  expect(runtime.state.pointer.x).toBe(0.5);
-  expect(runtime.state.pointer.y).toBe(0.5);
+it.each([
+  UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
+  "data-field-notes-open",
+  OVERLAY_OPEN_ATTRIBUTE,
+])(
+  "holds the background pointer while %s is set and resumes on the next scene movement",
+  (attribute) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    render(<ScenePointerTracking />);
+    move(target, 850, 175);
+    expect(runtime.state.pointer.x).toBe(0.5);
+    expect(runtime.state.pointer.y).toBe(0.5);
 
-  document.documentElement.setAttribute(
-    UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
-    "true",
-  );
-  move(target, 350, 425);
-  expect(runtime.state.pointer.x).toBe(0.5);
-  expect(runtime.state.pointer.y).toBe(0.5);
+    document.documentElement.setAttribute(
+      attribute,
+      attribute === UNIVERSAL_SEARCH_OPEN_ATTRIBUTE ? "true" : "",
+    );
+    move(target, 350, 425);
+    expect(runtime.state.pointer.x).toBe(0.5);
+    expect(runtime.state.pointer.y).toBe(0.5);
 
-  document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
-  expect(runtime.state.pointer.x).toBe(0.5);
-  move(target, 350, 425);
-  expect(runtime.state.pointer.x).toBe(-0.5);
-  expect(runtime.state.pointer.y).toBe(-0.5);
-});
+    document.documentElement.removeAttribute(attribute);
+    expect(runtime.state.pointer.x).toBe(0.5);
+    move(target, 350, 425);
+    expect(runtime.state.pointer.x).toBe(-0.5);
+    expect(runtime.state.pointer.y).toBe(-0.5);
+  },
+);
 
 it("keeps the shared camera/HUD pointer continuous across cards, navigation, and the scene", () => {
   const shell = document.createElement("div");

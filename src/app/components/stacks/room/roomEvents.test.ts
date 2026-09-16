@@ -1,12 +1,39 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 
+import { registerOverlay } from "~/lib/overlays/coordinator";
+
 import { roomEventTarget } from "./roomEvents";
 import { roomResidency } from "./roomResidency";
 
 afterEach(() => {
   roomResidency.evict();
   roomResidency.enter(Symbol(), null);
+});
+
+it("pauses scene gestures under an overlay while continuing to release held input", () => {
+  const events = roomEventTarget(() => window);
+  const move = vi.fn();
+  const release = vi.fn();
+  events.addEventListener("pointermove", move);
+  events.addEventListener("pointerup", release);
+  const overlay = registerOverlay({ kind: "video", dismiss: vi.fn() });
+  try {
+    window.dispatchEvent(new Event("pointermove"));
+    window.dispatchEvent(new Event("pointerup"));
+    expect(move).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledOnce();
+    overlay.update("closing");
+    window.dispatchEvent(new Event("pointermove"));
+    expect(move).not.toHaveBeenCalled();
+    overlay.release();
+    window.dispatchEvent(new Event("pointermove"));
+    expect(move).toHaveBeenCalledOnce();
+  } finally {
+    overlay.release();
+    events.removeEventListener("pointermove", move);
+    events.removeEventListener("pointerup", release);
+  }
 });
 
 it("detaches scene input while parked, then reconnects without duplicate listeners", () => {

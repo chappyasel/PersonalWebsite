@@ -260,7 +260,9 @@ describe("Scene artifact inspector", () => {
     expect(globalStyles).toContain(
       ".stacks-artifact-preview-mask.PhotoView-Slider__fadeOut",
     );
-    expect(globalStyles).toContain(".stacks-photo-preview-mask {");
+    expect(globalStyles).toMatch(
+      /\.stacks-photo-preview-mask,\s*\.dark \.stacks-photo-preview-mask,\s*\.field-notes-album-overlay\s*\{\s*background: rgb\(23 33 42 \/ 0\.16\) !important;/,
+    );
     expect(globalStyles).toContain("background: rgb(23 33 42 / 0.16)");
     expect(globalStyles).toContain("backdrop-filter: blur(1px)");
     expect(globalStyles).toContain(".stacks-artifact-preview-print {");
@@ -273,8 +275,9 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("destinationFor(action.to)");
     expect(inspector).not.toContain('aria-label="Zoom in"');
     expect(inspector).not.toContain('aria-label="Zoom out"');
-    expect(inspector).toContain('aria-label="Previous image"');
-    expect(inspector).toContain('aria-label="Next image"');
+    expect(inspector).toContain('mediaLabel = "image"');
+    expect(inspector).toContain('aria-label={`Previous ${mediaLabel}`}');
+    expect(inspector).toContain('aria-label={`Next ${mediaLabel}`}');
     expect(inspector).toContain("{index + 1} / {total}");
     expect(inspector).toContain("selectSceneArtifact(next.id)");
     expect(inspector).toContain("photoClosable={false}");
@@ -302,7 +305,7 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("note?.visitor");
     expect(inspector).toContain('note.status === "written"');
     expect(inspector).not.toContain("artifact.caption");
-    expect(inspector).toContain("bg-black/55");
+    expect(inspector).toContain("sceneCaptionClassName");
     expect(inspector).not.toContain("bg-gradient-to-t");
     expect(inspector).not.toContain("bg-[#f2e7cf]/85");
     expect(inspector).toContain("ArrowUpRightIcon");

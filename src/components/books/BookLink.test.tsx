@@ -205,7 +205,11 @@ describe("inline book navigation", () => {
       </InlineBookPreviewProvider>,
     );
     clickLink();
-    await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(2));
+    await waitFor(() =>
+      expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(2),
+    );
+    // The retained parent yields its focus and accessibility tree to the book.
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
     const bookDialog = document.querySelector<HTMLElement>(
       '[data-book-modal-shell="document"]',
     )!;

@@ -10,6 +10,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { ThemeProvider } from "~/lib/providers";
 import { onUniversalSearchSelection } from "~/lib/universal-search/overlay";
 import { recordRecentResult } from "~/lib/universal-search/recents";
 import type { SearchResult } from "~/lib/universal-search/types";
@@ -63,6 +64,74 @@ function dependencies(
 }
 
 describe("UniversalSearchPalette", () => {
+  it.each([
+    { name: "Command-Shift-L", metaKey: true, shiftKey: true },
+    { name: "Control-Shift-L", ctrlKey: true, shiftKey: true },
+    { name: "Command-Option-L", metaKey: true, altKey: true },
+  ])(
+    "toggles the theme with $name while preserving the open search",
+    async (shortcut) => {
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => true),
+      }));
+      window.localStorage.setItem("theme", "light");
+      document.cookie = "theme=light; path=/";
+      const onOpenChange = vi.fn();
+      try {
+        render(
+          <ThemeProvider>
+            <UniversalSearchPaletteContent
+              open
+              onOpenChange={onOpenChange}
+              dependencies={dependencies()}
+            />
+          </ThemeProvider>,
+        );
+        const input = screen.getByRole("combobox", {
+          name: "Universal Search",
+        });
+        fireEvent.change(input, { target: { value: "books" } });
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        const selection = input.getAttribute("aria-activedescendant");
+        await waitFor(() =>
+          expect(document.documentElement.classList.contains("light")).toBe(
+            true,
+          ),
+        );
+
+        for (const theme of ["dark", "light"]) {
+          fireEvent.keyDown(input, { key: "L", code: "KeyL", ...shortcut });
+          await waitFor(() =>
+            expect(document.documentElement.classList.contains(theme)).toBe(
+              true,
+            ),
+          );
+          expect(
+            screen.getByRole("combobox", { name: "Universal Search" }),
+          ).toBe(input);
+          expect(input).toHaveProperty("value", "books");
+          expect(document.activeElement).toBe(input);
+          expect(input.getAttribute("aria-activedescendant")).toBe(selection);
+          expect(onOpenChange).not.toHaveBeenCalled();
+        }
+      } finally {
+        cleanup();
+        window.matchMedia = originalMatchMedia;
+        window.localStorage.removeItem("theme");
+        document.cookie = "theme=; Max-Age=0; path=/";
+        document.documentElement.classList.remove("light", "dark");
+      }
+    },
+  );
+
   it("shows touch search without keyboard hints or command actions", async () => {
     const matchMedia = window.matchMedia;
     window.matchMedia = vi.fn((query: string) => ({
@@ -426,8 +495,79 @@ describe("UniversalSearchPalette", () => {
     );
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(navigate).toHaveBeenCalledWith("https://manual.chappyasel.com/");
+    expect(navigate).toHaveBeenCalledWith("https://www.chappyasel.com/manual");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it.each([
+    [
+      "manual",
+      "https://www.chappyasel.com/manual",
+      "https://www.chappyasel.com",
+    ],
+    ["manual", "http://localhost:3000/manual", "http://localhost:3000"],
+    ["dark mode", "Set theme to Dark", "https://www.chappyasel.com"],
+  ])(
+    "copies the highlighted %s result without activating it",
+    async (query, text, origin) => {
+      const deps = dependencies({ location: new URL(origin) });
+      const onOpenChange = vi.fn();
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={onOpenChange}
+          dependencies={deps}
+        />,
+      );
+      const input = screen.getByRole("combobox", { name: "Universal Search" });
+      fireEvent.change(input, { target: { value: query } });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      const clipboardData = { setData: vi.fn() };
+
+      expect(fireEvent.copy(input, { clipboardData })).toBe(false);
+      expect(clipboardData.setData).toHaveBeenCalledWith("text/plain", text);
+      expect(deps.navigate).not.toHaveBeenCalled();
+      expect(deps.setTheme).not.toHaveBeenCalled();
+      expect(onOpenChange).not.toHaveBeenCalled();
+    },
+  );
+
+  it("copies a recent result's link and preserves native query-text copying", () => {
+    window.localStorage.clear();
+    recordRecentResult(window.localStorage, {
+      id: "book:copy",
+      kind: "content",
+      group: "books",
+      label: "A book to copy",
+      href: "https://books.chappyasel.com/copy#notes",
+      matchKind: "exact",
+      score: 1_000,
+    });
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={vi.fn()}
+        dependencies={dependencies()}
+      />,
+    );
+    const input = screen.getByRole<HTMLInputElement>("combobox", {
+      name: "Universal Search",
+    });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    const clipboardData = { setData: vi.fn() };
+    fireEvent.copy(input, { clipboardData });
+    expect(clipboardData.setData).toHaveBeenCalledWith(
+      "text/plain",
+      "https://books.chappyasel.com/copy#notes",
+    );
+
+    clipboardData.setData.mockClear();
+    fireEvent.change(input, { target: { value: "manual" } });
+    input.focus();
+    input.setSelectionRange(0, 3);
+    expect(fireEvent.copy(input, { clipboardData })).toBe(true);
+    expect(clipboardData.setData).not.toHaveBeenCalled();
+    window.localStorage.clear();
   });
 
   it("records destination selection, navigates, and clears query on close", async () => {
@@ -455,7 +595,7 @@ describe("UniversalSearchPalette", () => {
       screen.getByRole("option", { name: /Personal Operating Manual/ }),
     );
 
-    expect(navigate).toHaveBeenCalledWith("https://manual.chappyasel.com/");
+    expect(navigate).toHaveBeenCalledWith("https://www.chappyasel.com/manual");
     expect(onOpenChange).toHaveBeenCalledWith(false);
 
     view.rerender(
@@ -501,13 +641,32 @@ describe("UniversalSearchPalette", () => {
     );
     expect(
       first?.querySelector("img[data-search-page-tile]")?.getAttribute("src"),
-    ).toBe("https://www.chappyasel.com/systems/tab-icon");
+    ).toBe("https://www.chappyasel.com/systems/tab-icon?v=9");
     // The homepage section that only mentions it comes after, undressed.
     expect(second?.textContent).toBe("Personal Systems section");
     expect(second?.querySelector("img")).toBeNull();
   });
 
-  it("serves a subdomain page's tile from that page's own host", () => {
+  it("requests the current Book Notes icon revision on localhost", () => {
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={vi.fn()}
+        dependencies={dependencies({
+          location: { hostname: "localhost", port: "3000", protocol: "http:" },
+        })}
+      />,
+    );
+    const bookTile = screen
+      .getAllByRole("option")
+      .find((option) => option.textContent?.startsWith("Book Notes"))
+      ?.querySelector("img[data-search-page-tile]");
+    expect(bookTile?.getAttribute("src")).toBe(
+      "http://books.localhost:3000/tab-icon?v=9",
+    );
+  });
+
+  it("serves Weightlifting's tile from its subdomain", () => {
     render(
       <UniversalSearchPaletteContent
         open
@@ -524,10 +683,9 @@ describe("UniversalSearchPalette", () => {
       .getAllByRole("option")
       .map((option) => option.querySelector("img[data-search-page-tile]"))
       .filter((tile) => tile !== null);
-    // The route lives on the section's own host: the subdomain proxy only
-    // knows the bare path there.
+    // The tile and destination use the same Weightlifting subdomain.
     expect(tiles.map((tile) => tile.getAttribute("src"))).toEqual([
-      "https://weightlifting.chappyasel.com/tab-icon",
+      "https://weightlifting.chappyasel.com/tab-icon?v=9",
     ]);
   });
 
@@ -578,6 +736,9 @@ describe("UniversalSearchPalette", () => {
         fireEvent.keyDown(input, { key: "ArrowDown" });
       }
       expect(selected()).toBe("Show 4 more");
+      const clipboardData = { setData: vi.fn() };
+      expect(fireEvent.copy(input, { clipboardData })).toBe(true);
+      expect(clipboardData.setData).not.toHaveBeenCalled();
       fireEvent.keyDown(input, { key: "Enter" });
 
       expect(screen.getAllByRole("option", { name: /^Book \d$/ })).toHaveLength(
@@ -591,6 +752,11 @@ describe("UniversalSearchPalette", () => {
       expect(selected()).toBe("Book 6");
       fireEvent.keyDown(input, { key: "ArrowDown" });
       expect(selected()).toBe("Book 7");
+      fireEvent.copy(input, { clipboardData });
+      expect(clipboardData.setData).toHaveBeenCalledWith(
+        "text/plain",
+        "https://books.chappyasel.com/7",
+      );
       expect(screen.getByRole("status").textContent).toBe(
         "4 more Book Notes results shown",
       );

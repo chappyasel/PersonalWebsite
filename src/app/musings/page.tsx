@@ -98,7 +98,8 @@ export default function MusingsPage() {
                               <>
                                 <ArrowUpRight
                                   aria-hidden="true"
-                                  className="ml-1 inline size-4"
+                                  weight="bold"
+                                  className="ml-1 inline size-4 text-muted-foreground opacity-60"
                                 />
                                 <span className="sr-only">
                                   {" "}
@@ -107,7 +108,7 @@ export default function MusingsPage() {
                               </>
                             ) : null}
                           </h2>
-                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground opacity-80">
                             {post.description}
                           </p>
                           {minutes !== null && (

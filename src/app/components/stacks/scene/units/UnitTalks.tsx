@@ -11,6 +11,7 @@ import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
+import PropApproach from "../PropApproach";
 import { LampSwitch } from "../eggs";
 import {
   MOTH_LIGHT_PROFILES,
@@ -18,6 +19,12 @@ import {
   registerMeadowLamp,
 } from "../meadowLights";
 import { ApertureHalo, GlowSprite, ShelfUnit } from "../primitives";
+import {
+  beginPropTurn,
+  createPropApproach,
+  createPropTurn,
+  usePropApproachNear,
+} from "../propApproachState";
 import { sceneUnitLightUserData } from "../sceneGpuPrewarm";
 import { useUnitRealLights } from "../scenePerformance";
 import { useUnitLod } from "../useUnitLod";
@@ -272,6 +279,63 @@ const STICKER_CAMERA_MARKS = [
   { key: "talks-b", x: 0.19, z: -0.02, yaw: -0.55, tone: 0.96 },
 ] as const;
 
+function ShelfStickerCamera({
+  mark,
+  unitIndex,
+  shadeColor,
+}: {
+  mark: (typeof STICKER_CAMERA_MARKS)[number];
+  unitIndex: number;
+  shadeColor: string;
+}) {
+  const hoverKey = `grab:sticker-camera:${mark.key}`;
+  const approach = useMemo(
+    () =>
+      createPropApproach(hoverKey, {
+        link: { href: "https://stickercamera.com/", label: "stickercamera.com" },
+      }),
+    [hoverKey],
+  );
+  const turn = useMemo(() => createPropTurn(), []);
+  const near = usePropApproachNear(approach);
+
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={hoverKey}
+      base={[mark.x, 0, mark.z]}
+      shadeColor={shadeColor}
+      shadeWidth={0.26}
+      shape="box"
+      massKg={0.26}
+      portalLabel="Sticker Camera"
+      actionLabel="Closer look"
+      onTap={() => (approach.near ? approach.dismiss() : approach.approach())}
+      activateOnFirstTouch
+      draggable={!near}
+      onDragIntent={() => {
+        if (approach.near) beginPropTurn(turn);
+        else approach.dismiss();
+      }}
+      liveBounds
+    >
+      <group position={[0, STICKER_CAMERA.height / 2, 0]}>
+        <PropApproach
+          controller={approach}
+          unitIndex={unitIndex}
+          height={STICKER_CAMERA.height}
+          width={STICKER_CAMERA.width}
+          restRotation={[0, mark.yaw, 0]}
+          keepPressesOnProp
+          turn={turn}
+        >
+          <StickerCamera tone={mark.tone} />
+        </PropApproach>
+      </group>
+    </Grabbable>
+  );
+}
+
 /** The shared carry/preview wiring for one talk photo. Pose, seat, mass and
  * shade width all come off the setup's layout entry, so the Grabbable and
  * the rendered form cannot disagree about where the print rests. */
@@ -393,23 +457,12 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                 well past these yaws — and they are turned differently so the
                 pair does not read as one object copied. */}
             {STICKER_CAMERA_MARKS.map((mark) => (
-              <Grabbable
+              <ShelfStickerCamera
                 key={mark.key}
+                mark={mark}
                 unitIndex={index}
-                hoverKey={`grab:sticker-camera:${mark.key}`}
-                base={[mark.x, 0, mark.z]}
                 shadeColor={palette.shadow}
-                shadeWidth={0.26}
-                shape="box"
-                massKg={0.26}
-              >
-                <group
-                  position={[0, STICKER_CAMERA.height / 2, 0]}
-                  rotation={[0, mark.yaw, 0]}
-                >
-                  <StickerCamera tone={mark.tone} />
-                </group>
-              </Grabbable>
+              />
             ))}
 
             <Grabbable

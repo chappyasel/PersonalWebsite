@@ -13,6 +13,7 @@ import {
 import * as THREE from "three";
 
 import { scenePerformanceController } from "./scenePerformance";
+import { useRoomFrame } from "./useRoomFrame";
 import { unitPose } from "./worldLayout";
 
 export type UnitActivityState = "hot" | "warm" | "cold";
@@ -347,16 +348,18 @@ export function useUnitFrame(
   callback: RenderCallback,
   lane: UnitWorkLane = "ambient",
   renderPriority = 0,
+  needsFrame?: () => boolean,
 ) {
   const unitIndex = useContext(UnitActivityContext);
-  useFrame((state, delta, frame) => {
-    if (!sceneUnitActivityController.allows(unitIndex, lane)) return;
-    callback(
-      state,
-      sceneUnitActivityController.deltaFor(unitIndex, lane, delta),
-      frame,
-    );
-  }, renderPriority);
+  useRoomFrame(
+    (state, delta, frame) => {
+      if (!sceneUnitActivityController.allows(unitIndex, lane)) return;
+      callback(state, delta, frame);
+    },
+    renderPriority,
+    needsFrame,
+    (delta) => sceneUnitActivityController.deltaFor(unitIndex, lane, delta),
+  );
 }
 
 export function SceneUnitActivityDriver() {

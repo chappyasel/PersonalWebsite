@@ -1,4 +1,8 @@
-import { ClockIcon, PenNibIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowUpRightIcon,
+  ClockIcon,
+  PenNibIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import data from "public/data/blog-posts.json";
 import React from "react";
@@ -43,6 +47,7 @@ export default async function BlogPosts() {
 
 function BlogPostItem({ post }: { post: BlogPost }) {
   const minutes = musingReadingMinutes(post);
+  const external = !post.link.startsWith("/");
   return (
     <TiltCard
       interactive
@@ -50,7 +55,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
     >
       <SheetLink
         href={post.link}
-        target={post.link.startsWith("/") ? undefined : "_blank"}
+        target={external ? "_blank" : undefined}
         className={`${styles.card} group relative flex w-full [transform-style:preserve-3d]`}
       >
         {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
@@ -66,6 +71,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
         >
           {post.thumbnail ? (
             <Image
+              draggable={false}
               className="aspect-[2/1] h-auto w-full bg-muted object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
               src={post.thumbnail}
               alt={post.title}
@@ -80,8 +86,19 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           className={`${styles.body} relative flex min-w-0 flex-1 flex-col justify-start`}
           style={{ transform: "translateZ(20px)" }}
         >
-          <h3 className="homepage-card-title font-semibold">{post.title}</h3>
-          <p className="mt-1 line-clamp-2 homepage-card-body">{post.description}</p>
+          <h3 className="flex items-start gap-2 homepage-card-title font-semibold">
+            <span className="min-w-0 flex-1">{post.title}</span>
+            {external ? (
+              <ArrowUpRightIcon
+                aria-hidden
+                weight="bold"
+                className="mt-1 size-4 shrink-0 text-muted-foreground opacity-60"
+              />
+            ) : null}
+          </h3>
+          <p className="mt-1 line-clamp-2 homepage-card-body opacity-80">
+            {post.description}
+          </p>
           <div className="mt-auto flex flex-wrap items-center gap-3 pt-3 homepage-card-meta text-muted-foreground opacity-60">
             {minutes !== null && (
               <span className="flex items-center gap-1.5">

@@ -6,14 +6,20 @@ import { phosphorSvg } from "~/lib/og/phosphor";
 import { loadPublicImage } from "./publicImage";
 import { type SiteIconSpec } from "./sectionIcons";
 import { SITE_ICON_SIZES, TILE_RADIUS, siteIconFrame } from "./siteIconSizes";
-import { SKY_CARD, skylinePlacement } from "./skyCard";
+import {
+  ICON_BRIDGE_COLOR,
+  ICON_HILL_COLOR,
+  ICON_SKYLINE_SHAPES,
+  SKY_CARD,
+  skylinePlacement,
+} from "./skyCard";
 
 /**
  * A section's PNG icon, light scheme only: Safari tabs (which ignore SVG
  * favicons) and home screens (which mask a static tile) are the only
  * readers. The SVG favicon in siteIconSvg.ts is where the night lives.
  *
- * Glyph sections draw the sky card: day sky, sun, ember, and the surveyed
+ * Glyph sections draw a section-colored sky, ember, and the surveyed
  * skyline through the Golden Gate window, with the glyph over it. Image
  * sections clip their raster mark to the same corner. `id` is what Next
  * hands the icon route: a promise of the `generateImageMetadata` id, so it
@@ -55,10 +61,10 @@ export async function siteIconImage(
   }
 
   const glyphSize = Math.round(frame * SKY_CARD.glyph.size);
-  const glyphOffset = Math.round(frame * SKY_CARD.glyph.offset);
+  const glyphOffset = (frame - glyphSize) / 2;
   const color = spec.color.light;
   const strip = skylinePlacement(frame);
-  const disc = SKY_CARD.disc;
+  const [skyTop, skyMid, skyLow] = spec.background.light;
 
   return new ImageResponse(
     (
@@ -70,7 +76,7 @@ export async function siteIconImage(
           height: "100%",
           overflow: "hidden",
           borderRadius: radius,
-          background: `linear-gradient(180deg, ${DAYLIGHT.skyTop} 0%, #3a7fb3 60%, ${DAYLIGHT.skyLow} 100%)`,
+          background: `linear-gradient(180deg, ${skyTop} 0%, ${skyMid} 60%, ${skyLow} 100%)`,
         }}
       >
         <div
@@ -84,31 +90,18 @@ export async function siteIconImage(
             background: `radial-gradient(50% 60% at 91% 100%, ${DAYLIGHT.skyEmber}cc, ${DAYLIGHT.skyEmber}00 70%)`,
           }}
         />
-        {/* The sun, with its haze */}
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: frame * (disc.x - disc.halo),
-            top: frame * (disc.y - disc.halo),
-            width: frame * disc.halo * 2,
-            height: frame * disc.halo * 2,
-            borderRadius: 999,
-            backgroundColor: "rgba(255, 245, 214, 0.3)",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: frame * (disc.x - disc.r),
-            top: frame * (disc.y - disc.r),
-            width: frame * disc.r * 2,
-            height: frame * disc.r * 2,
-            borderRadius: 999,
-            backgroundColor: "#fff6dc",
-          }}
-        />
+        <svg
+          width={frame}
+          height={frame}
+          viewBox="0 0 1 1"
+          style={{ position: "absolute", top: 0, left: 0 }}
+        >
+          <g fill="#fff" opacity={SKY_CARD.cloudOpacity}>
+            {SKY_CARD.clouds.map((cloud, index) => (
+              <ellipse key={index} {...cloud} />
+            ))}
+          </g>
+        </svg>
         {/* The skyline strip, slid so the Golden Gate window fills the tile */}
         <div
           style={{
@@ -120,7 +113,11 @@ export async function siteIconImage(
             height: strip.height,
           }}
         >
-          {skyline(strip.width)}
+          {skyline(strip.width, {
+            shapes: ICON_SKYLINE_SHAPES,
+            bridgeColor: ICON_BRIDGE_COLOR.light,
+            silhouetteColor: ICON_HILL_COLOR.light,
+          })}
         </div>
         <div
           style={{

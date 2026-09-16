@@ -88,16 +88,20 @@ function ThemeKeyboardShortcut() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (
-        e.metaKey &&
-        e.altKey &&
+        !e.defaultPrevented &&
+        !e.repeat &&
+        !e.isComposing &&
+        e.metaKey !== e.ctrlKey &&
+        e.shiftKey !== e.altKey &&
         (e.key.toLowerCase() === "l" || e.code === "KeyL")
       ) {
         e.preventDefault();
         setTheme(oppositeTheme(resolvedTheme));
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    // Global theme shortcuts must reach us before dialogs contain key events.
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
   }, [resolvedTheme, setTheme]);
 
   return null;

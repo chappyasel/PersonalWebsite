@@ -9,9 +9,10 @@ describe("projects data", () => {
     expect(projectsData.projects[0]?.link).toBe(
       "https://apps.apple.com/us/app/id1266077653",
     );
-    // The App Store listing is gone since the acquisition; the card stays
-    // unlinked rather than pointing at a dead page.
-    expect(projectsData.projects[1]).not.toHaveProperty("link");
+    // The acquired app links to its current product page.
+    expect(projectsData.projects[1]?.link).toBe(
+      "https://softwar.io/app/homework-app",
+    );
   });
 
   it("gives every project an image path, a meta line, and prose without dashes", () => {

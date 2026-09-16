@@ -8,14 +8,14 @@ describe("siteIconMetadata", () => {
     expect(icons).toEqual({
       icon: [
         {
-          url: "https://weightlifting.chappyasel.com/tab-icon",
+          url: "https://weightlifting.chappyasel.com/tab-icon?v=9",
           type: "image/svg+xml",
           sizes: "any",
         },
       ],
       apple: [
         {
-          url: "https://weightlifting.chappyasel.com/icon/app",
+          url: "https://weightlifting.chappyasel.com/icon/app?v=9",
           sizes: "180x180",
           type: "image/png",
         },
@@ -28,14 +28,16 @@ describe("siteIconMetadata", () => {
       icon: Array<{ url: string }>;
       apple: Array<{ url: string }>;
     };
-    expect(icons.icon[0]?.url).toBe("/liarsdice/tab-icon");
-    expect(icons.apple[0]?.url).toBe("/liarsdice/icon/app");
+    expect(icons.icon[0]?.url).toBe("/liarsdice/tab-icon?v=9");
+    expect(icons.apple[0]?.url).toBe("/liarsdice/icon/app?v=9");
   });
 
   it("tolerates a trailing slash on the base", () => {
     const icons = siteIconMetadata("http://routine.localhost:3000/") as {
       icon: Array<{ url: string }>;
     };
-    expect(icons.icon[0]?.url).toBe("http://routine.localhost:3000/tab-icon");
+    expect(icons.icon[0]?.url).toBe(
+      "http://routine.localhost:3000/tab-icon?v=9",
+    );
   });
 });

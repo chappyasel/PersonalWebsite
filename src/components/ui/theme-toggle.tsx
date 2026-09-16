@@ -153,8 +153,8 @@ export function ThemeToggle({
               <span className="flex items-center gap-1.5">
                 <span>Switch to {THEME_LABEL[nextVisibleTheme]}</span>
                 <KeycapSequence
-                  keys={["⌘", "⌥", "L"]}
-                  label="Command Option L"
+                  keys={["Command", "Shift", "L"]}
+                  label="Command Shift L"
                 />
               </span>
               <span className="mt-1.5 block">Hold for options</span>

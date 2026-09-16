@@ -19,9 +19,15 @@ import {
   peekModalOrigin,
   takeModalOrigin,
 } from "~/lib/originFlight";
-import { closeOverlayChrome, openOverlayChrome } from "~/lib/overlayChrome";
+import {
+  beginOverlayClose,
+  ownsOverlayInput,
+} from "~/lib/overlays/coordinator";
+import { OVERLAY_MOTION } from "~/lib/overlays/motion";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { cn } from "~/lib/utils";
+
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
 
 import {
   SheetCloseControl,
@@ -42,30 +48,6 @@ export const InModalSheetContext = createContext(false);
 export const ModalSheetDismissContext = createContext<(() => void) | null>(
   null,
 );
-
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
-
-function focusableChildren(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-  ).filter((element) => {
-    const style = getComputedStyle(element);
-    return (
-      !element.hidden &&
-      element.getAttribute("aria-hidden") !== "true" &&
-      style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      element.getClientRects().length > 0
-    );
-  });
-}
 
 type ModalSheetProps = {
   label: string;
@@ -121,6 +103,7 @@ function PresentedSheet({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(true);
+  const [closing, setClosing] = useState(false);
   // Expanded = the sheet has taken over the viewport and IS the page now:
   // same URL, no navigation. The sheet attribute and caller class come off
   // so in-sheet-hidden chrome (back links, theme toggles) returns.
@@ -215,21 +198,11 @@ function PresentedSheet({
     };
   };
 
-  // The world's chrome is held down for as long as the sheet owns the screen,
-  // and released the moment a close begins so it is already returning while
-  // the card flies home. Idempotent: the unmount path releases it too, for the
-  // closes that never run through `close` (a back button, a hard navigation).
-  const overlayHeldRef = useRef(false);
-  const releaseOverlayChrome = () => {
-    if (!overlayHeldRef.current) return;
-    overlayHeldRef.current = false;
-    closeOverlayChrome();
-  };
-
   const close = () => {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
-    releaseOverlayChrome();
+    beginOverlayClose(shellRef.current);
+    setClosing(true);
     // The launcher un-suspends NOW, so the source card is already back on
     // the page while the sheet flies home onto it instead of popping in
     // after.
@@ -287,21 +260,19 @@ function PresentedSheet({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (isUniversalSearchOpen()) return;
+      if (
+        event.defaultPrevented ||
+        isUniversalSearchOpen() ||
+        !ownsOverlayInput(shellRef.current)
+      )
+        return;
       if (document.querySelector(".PhotoView-Portal")) return;
-      if (document.querySelector('[data-book-modal-shell="document"]')) return;
+
       if (event.key === "Escape") closeRef.current();
     };
     window.addEventListener("keydown", onKey);
     // The page underneath keeps its scroll position; only the sheet scrolls.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    // Raised at mount, not with presence: the chrome has to be on its way out
-    // while the card grows, or it snaps off half a second late. The placard
-    // dock is the one piece that waits, and it waits in CSS (StacksHome), so
-    // the card still has a live source card to grow out of.
-    overlayHeldRef.current = true;
-    openOverlayChrome();
+
     // Presence is raised AFTER the entrance: on the homepage the world's
     // placards suspend themselves on it, and the source card must stay put
     // under the growing sheet — half a second of live launcher is harmless.
@@ -313,58 +284,12 @@ function PresentedSheet({
     const frame = requestAnimationFrame(() => shellRef.current?.focus());
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
+
       window.clearTimeout(raise);
-      releaseOverlayChrome();
       presenceRef.current?.(false);
       cancelAnimationFrame(frame);
       const target = returnFocusRef.current;
       if (target?.isConnected) target.focus({ preventScroll: true });
-    };
-  }, []);
-
-  // `aria-modal` describes a boundary; it does not create one. Keep both
-  // sequential and programmatic focus inside the dialog while it is open —
-  // same local trap as the books modal, so it works over any launcher.
-  useEffect(() => {
-    const containFocus = (event: FocusEvent) => {
-      if (isUniversalSearchOpen()) return;
-      if (document.querySelector('[data-book-modal-shell="document"]')) return;
-      const shell = shellRef.current;
-      if (!shell) return;
-      if (event.target instanceof Node && shell.contains(event.target)) return;
-      shell.focus({ preventScroll: true });
-    };
-    const trapTab = (event: KeyboardEvent) => {
-      if (isUniversalSearchOpen()) return;
-      if (document.querySelector('[data-book-modal-shell="document"]')) return;
-      if (event.key !== "Tab") return;
-      const shell = shellRef.current;
-      if (!shell) return;
-      const focusable = focusableChildren(shell);
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      const active = document.activeElement;
-
-      if (!first || !last) {
-        event.preventDefault();
-        shell.focus({ preventScroll: true });
-        return;
-      }
-      if (event.shiftKey && (active === shell || active === first)) {
-        event.preventDefault();
-        last.focus({ preventScroll: true });
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus({ preventScroll: true });
-      }
-    };
-
-    document.addEventListener("focusin", containFocus);
-    window.addEventListener("keydown", trapTab);
-    return () => {
-      document.removeEventListener("focusin", containFocus);
-      window.removeEventListener("keydown", trapTab);
     };
   }, []);
 
@@ -377,15 +302,22 @@ function PresentedSheet({
       <AnimatePresence onExitComplete={() => router.back()}>
         {open && (
           <div
+            data-overlay-surface=""
             data-modal-sheet={expanded ? undefined : ""}
             className={cn("fixed inset-0 z-50", !expanded && className)}
           >
+            <OverlayPresence
+              kind="document"
+              phase={closing ? "closing" : "open"}
+              onDismiss={() => closeRef.current()}
+            />
             {/* Dim only, no backdrop-filter: Chromium smears a backdrop blur
               across overlapping siblings after viewport resizes (the whole
               card went soft), and no layer pinning reliably kept the card
               out of that pass. */}
             <motion.div
               ref={backdropRef}
+              data-overlay-backdrop=""
               className={cn(
                 "absolute inset-0 bg-stone-900/70 dark:bg-black/70",
                 expanded && "pointer-events-none",
@@ -417,20 +349,19 @@ function PresentedSheet({
                 )}
                 onClick={(event) => event.stopPropagation()}
                 initial={
-                  origin || reduceMotion
-                    ? false
-                    : { opacity: 0, scale: 0.965, y: 14 }
+                  origin || reduceMotion ? false : OVERLAY_MOTION.initial
                 }
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+                animate={OVERLAY_MOTION.active}
                 exit={
                   reduceMotion
                     ? { opacity: 0 }
-                    : { opacity: 0, scale: 0.982, y: 8 }
+                    : {
+                        ...OVERLAY_MOTION.departing,
+                        transition: OVERLAY_MOTION.exit,
+                      }
                 }
                 transition={
-                  reduceMotion
-                    ? { duration: 0 }
-                    : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }
+                  reduceMotion ? { duration: 0 } : OVERLAY_MOTION.enter
                 }
               >
                 {!expanded && (

@@ -4,6 +4,8 @@ import { roomWindowEvents } from "../room/roomEvents";
 import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 
+import { OVERLAY_OPEN_ATTRIBUTE } from "~/lib/overlays/coordinator";
+import { overlayCoordinator } from "~/lib/overlays/coordinator";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 /** Keep motion coordinates live over DOM chrome without forwarding its events
@@ -12,7 +14,14 @@ export default function ScenePointerTracking() {
   const get = useThree((state) => state.get);
   useEffect(() => {
     const track = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse" || isUniversalSearchOpen()) return;
+      if (
+        event.pointerType !== "mouse" ||
+        overlayCoordinator.getSnapshot().blockPointer ||
+        isUniversalSearchOpen() ||
+        document.documentElement.hasAttribute(OVERLAY_OPEN_ATTRIBUTE) ||
+        document.documentElement.hasAttribute("data-field-notes-open")
+      )
+        return;
       const { pointer, size } = get();
       if (size.width <= 0 || size.height <= 0) return;
       // Fiber already measures the canvas. Client coordinates stay consistent

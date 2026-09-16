@@ -6,6 +6,7 @@ const read = (relativePath: string) =>
 
 const chromeSource = read("./ChromeLayer.tsx");
 const helpSource = read("./ChromeKeyboardHelp.tsx");
+const homeButtonSource = read("./RoomHomeButton.tsx");
 const fieldNotesSource = read("../fieldNotes/FieldNotesChrome.tsx");
 const railSource = read("./UnitRail.tsx");
 const sharedStyles = read("../../../../styles/globals.css");
@@ -31,7 +32,8 @@ describe("mobile chrome presentation", () => {
     );
     expect(chromeSource).toContain("data-tap-first={tapFirst || undefined}");
     expect(chromeSource).toContain("stacks-mobile-secondary-chrome");
-    expect(helpSource).toContain("stacks-mobile-secondary-chrome");
+    expect(helpSource).toContain("className={roomHomeClassName}");
+    expect(homeButtonSource).toContain("stacks-mobile-secondary-chrome");
     expect(fieldNotesSource).toContain("stacks-mobile-secondary-chrome");
     expect(sharedStyles).toMatch(
       /\.stacks-mobile-secondary-chrome:(?:focus-visible|active)[\s\S]*?opacity: 1;/,

@@ -18,7 +18,10 @@ import { dimensionTravel } from "../input/dimensionTravel";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { presentationProfileForViewport } from "../mobile/presentation";
-import { applyRoomEdgeCameraRotation } from "../mobile/roomEdgeMotion";
+import {
+  applyRoomEdgeCameraRotation,
+  roomEdgeMotion,
+} from "../mobile/roomEdgeMotion";
 import {
   INERT_HOVER,
   panelCoverageRef,
@@ -33,6 +36,7 @@ import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import { desktopMotionPreference } from "~/lib/desktopMotionPreference";
+import { overlayBackgroundMotion } from "~/lib/overlays/backgroundMotion";
 
 import {
   cameraDepthDiagnosticsController,
@@ -79,6 +83,7 @@ import {
   golfVisibilityRelevantForScenePosition,
 } from "./golfVisibility";
 import { golfYawRig } from "./golfYawPivot";
+import { homeTapMotion, homeTapPullback } from "./homeTapMotion";
 import {
   cursorForInteraction,
   getSceneInteraction,
@@ -104,6 +109,7 @@ import {
   type SceneArtifactCameraLockState,
   sceneArtifactCameraLockFrame,
 } from "./sceneArtifactCameraLock";
+import { roomFrameDelta } from "./sceneClock";
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import {
   screenshotModeController,
@@ -632,6 +638,17 @@ export default function CameraRig() {
   }, [camera, freeRoamEnabled, freeRoamStorage, scroll.el]);
 
   useFrame(({ camera, pointer, clock }, delta) => {
+    const handoff = useStacks.getState().modelArtifactHandoff;
+    const foreground =
+      roomEdgeMotion.getSnapshot().active ||
+      (handoff && handoff.phase !== "inspecting");
+    if (!foreground) delta = roomFrameDelta(clock, delta);
+    if (
+      !foreground &&
+      delta === 0 &&
+      overlayBackgroundMotion.getSnapshot().paused
+    )
+      return;
     // A rotating globe can move a dot under a stationary pointer without
     // changing the store's hovered prop. Resolve its cursor every frame.
     const interaction = useStacks.getState();
@@ -1593,8 +1610,23 @@ export default function CameraRig() {
       handoffCamera.aimError = look.current.x - restingAimX;
       handoffCamera.frame++;
     }
-    if (!illustrationOwnsPose && s === 0)
-      applyRoomEdgeCameraRotation(camera);
+    if (!illustrationOwnsPose && s === 0) applyRoomEdgeCameraRotation(camera);
+    if (
+      homeTapMotion.getSnapshot().active &&
+      !illustrationOwnsPose &&
+      !neutralPointer &&
+      s === 0 &&
+      !(reducedMotionQuery?.matches ?? false) &&
+      !desktopMotionPreference.getSnapshot() &&
+      useStacks.getState().activeUnit === 0
+    ) {
+      // Local Z moves straight back along the finished camera's viewing axis.
+      // Apply after the authored pose so the impulse cannot accumulate drift.
+      camera.translateZ(
+        camera.position.distanceTo(travelLook.current) *
+          homeTapPullback(homeTapMotion.getOffset()),
+      );
+    }
     cameraTravelDiagnostics.targetX = targetX;
     cameraTravelDiagnostics.lookX = look.current.x;
     cameraTravelDiagnostics.lookLagX = look.current.x - eyeX;

@@ -1,8 +1,5 @@
 "use client";
 
-import { roomWindowEvents, roomDocumentEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 // The meadow below the horizon — a faithful port of Ebenezer's FluffyGrass
 // recipe (MIT, https://github.com/thebenezer/FluffyGrass — the vendored
 // grass-tuft.glb + alpha texture are his) onto this scene's verified field
@@ -22,7 +19,7 @@ import { useWorldBootScope } from "../boot/useWorldBoot";
 import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import {
   type MutableRefObject,
   useEffect,
@@ -119,6 +116,11 @@ import { useSceneQualityControls } from "./sceneQualityController";
 import { SCREENSHOT_UNIT, useScreenshotMode } from "./screenshotMode";
 import { getSeatAmount } from "./seated";
 import { StaticWorldRoot } from "./staticWorld";
+import { useRoomFrame } from "./useRoomFrame";
+import {
+  roomDocumentEvents,
+  roomWindowEvents,
+} from "~/app/components/stacks/room/roomEvents";
 
 const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
@@ -1148,7 +1150,7 @@ function useTerrainGeometry(tier: SceneContentTier) {
 
   useEffect(() => () => cache.clear((geometry) => geometry.dispose()), [cache]);
 
-  useFrame((_, delta) => {
+  useRoomFrame((_, delta) => {
     if (bound.tier === tier) {
       gate.current = IDLE_TERRAIN_BUILD_GATE;
       return;
@@ -1213,6 +1215,7 @@ export default function Meadow({
   onRecovered?: () => void;
 }) {
   const gl = useThree((state) => state.gl);
+  const sceneClock = useThree((state) => state.clock);
   const { cinematicPlus } = useSceneQualityControls();
   const freeRoam = useSyncExternalStore(
     freeRoamDiagnosticsController.subscribe,
@@ -1643,11 +1646,12 @@ export default function Meadow({
   useEffect(() => {
     const onVisibility = () => {
       if (deformationEnabled)
-        deformation.tick(performance.now() / 1000, document.hidden);
+        deformation.tick(sceneClock.elapsedTime, document.hidden);
     };
     roomDocumentEvents.addEventListener("visibilitychange", onVisibility);
-    return () => roomDocumentEvents.removeEventListener("visibilitychange", onVisibility);
-  }, [deformation, deformationEnabled]);
+    return () =>
+      roomDocumentEvents.removeEventListener("visibilitychange", onVisibility);
+  }, [deformation, deformationEnabled, sceneClock]);
 
   // Instance fill, once per tile. The matrices still point at meadowField's
   // exact authored placements; only their draw ownership changes. Each
@@ -1835,7 +1839,7 @@ export default function Meadow({
 
   // The complete per-frame cost: shared uniform writes plus one cheap count
   // assignment per tile. Visibility itself remains Three's frustum test.
-  useFrame(({ clock, gl, camera, pointer }, delta) => {
+  useRoomFrame(({ clock, gl, camera, pointer }, delta) => {
     const shared = built.shared;
     if (retiring) {
       shared.uOpacity.value = Math.max(
@@ -1856,7 +1860,7 @@ export default function Meadow({
         onRecoveredRef.current?.();
       }
     }
-    const nowSeconds = performance.now() / 1000;
+    const nowSeconds = clock.elapsedTime;
     const disturbance = getMeadowDisturbance();
     deformation.applyResetRevision(disturbance.resetRevision);
     // Pointer → lawn: unproject the cursor and hit the base ground plane

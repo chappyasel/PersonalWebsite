@@ -1,5 +1,7 @@
 import { UNIT_COUNT } from "../data";
 
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
+
 export function isStacksScrollableTarget(target: EventTarget | null) {
   const closest = (target as { closest?: (selector: string) => Element | null })
     ?.closest;
@@ -42,6 +44,7 @@ export function shouldHandleWorldNavigationKey(
   universalSearchOpen = false,
 ) {
   return (
+    !roomOverlayBlocksInput() &&
     !universalSearchOpen &&
     !event.defaultPrevented &&
     !isInteractiveWorldNavigationTarget(event.target)

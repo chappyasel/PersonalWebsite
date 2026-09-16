@@ -3,11 +3,17 @@ import { _roots, context, createRoot } from "@react-three/fiber";
 import { cleanup, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import type { WebGLRenderer } from "three";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import SceneClockBoundary from "./SceneClockBoundary";
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", () => ({ matches: false }));
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 it("protects an existing renderer through Strict Mode replays and parked-room effect cleanup", () => {
   const canvas = {} as HTMLCanvasElement;

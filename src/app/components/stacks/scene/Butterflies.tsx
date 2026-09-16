@@ -16,7 +16,6 @@
 import { UNIT_COUNT } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
-import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -26,7 +25,6 @@ import {
   COORDINATION_AGENT_COLOR,
   COORDINATION_GLOBE_INTERACTION_ID,
   COORDINATION_HUMAN_COLOR,
-  COORDINATION_INSECT_TIME_SCALE,
 } from "./coordinationNetwork";
 import { INSECT_ENVELOPES } from "./insectCollision";
 import {
@@ -97,6 +95,7 @@ import {
 import { MEADOW_GROUND_BASE } from "./meadowField";
 import { nearPropApproach } from "./propApproachState";
 import { getSceneImpulse, sceneImpulseInsectDeparture } from "./sceneImpulse";
+import { useRoomFrame } from "./useRoomFrame";
 import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const TAU = Math.PI * 2;
@@ -1527,7 +1526,7 @@ function Flight({
     ],
   );
 
-  useFrame(({ clock, camera, pointer, size }, delta) => {
+  useRoomFrame(({ clock, camera, pointer, size }, delta) => {
     const g = root.current;
     if (!g) return;
     const t = clock.elapsedTime;
@@ -1613,8 +1612,7 @@ function Flight({
       (stacks.hovered === COORDINATION_GLOBE_INTERACTION_ID ||
         stacks.focusedInteraction === COORDINATION_GLOBE_INTERACTION_ID ||
         stacks.dragging === COORDINATION_GLOBE_INTERACTION_ID);
-    const insectDelta =
-      delta * (coordinationEngaged ? COORDINATION_INSECT_TIME_SCALE : 1);
+    const insectDelta = delta;
     const ease = 1 - Math.exp(-YAW_LAMBDA * insectDelta);
     const previousCoordinationColorMix = coordinationColorMix.current;
     coordinationColorMix.current = THREE.MathUtils.damp(

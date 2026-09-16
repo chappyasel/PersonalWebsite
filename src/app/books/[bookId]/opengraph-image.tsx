@@ -17,9 +17,13 @@ import {
   fetchExternalImage,
   getAverageImageColor,
   getTextColorAndOverlay,
-  getTitleStyle,
   truncateTitle,
 } from "~/lib/books/ogImageUtils";
+import {
+  BOOK_OG_TITLE_LINE_HEIGHT,
+  BOOK_OG_TITLE_WIDTH,
+  getBookOgTitleSize,
+} from "~/lib/books/ogTitle";
 import { phosphorSvg } from "~/lib/og/phosphor";
 
 import { BookOgByline } from "./BookOgByline";
@@ -113,11 +117,6 @@ export default async function Image({
       usesDarkText = false;
     }
 
-    // Determine title styling
-    const titleStyle = getTitleStyle(book.title);
-    const displayTitle = titleStyle.shouldTruncate
-      ? truncateTitle(book.title)
-      : book.title;
     // The remaining facts the page lists under the byline, in order and with
     // their glyphs: length, then whichever reading row applies.
     type Fact = { key: string; icon: Icon; label: string; value: string };
@@ -167,6 +166,8 @@ export default async function Image({
       loadGeorgiaProBold(),
       loadGeorgiaProRegular(),
     ]);
+
+    const titleFontSize = await getBookOgTitleSize(book.title, fontBold);
 
     return new ImageResponse(
       (
@@ -308,7 +309,8 @@ export default async function Image({
                 flexDirection: "column",
                 justifyContent: "center",
                 marginLeft: "60px",
-                flex: 1,
+                width: BOOK_OG_TITLE_WIDTH,
+                flexShrink: 0,
               }}
             >
               <div
@@ -328,11 +330,12 @@ export default async function Image({
 
               <h1
                 style={{
-                  fontSize: `${titleStyle.fontSize}px`,
+                  fontSize: `${titleFontSize}px`,
                   fontWeight: 700,
                   color: textColor,
                   margin: 0,
-                  lineHeight: 1.125,
+                  lineHeight: BOOK_OG_TITLE_LINE_HEIGHT,
+                  wordBreak: "break-word",
                   maxWidth: "100%",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -341,7 +344,7 @@ export default async function Image({
                   WebkitBoxOrient: "vertical",
                 }}
               >
-                {displayTitle}
+                {book.title}
               </h1>
 
               <BookOgByline

@@ -1,15 +1,12 @@
 "use client";
 
-import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 // Atmosphere for the homepage 3D scene — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
 import { useWorldBootScope } from "../boot/useWorldBoot";
 import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import {
   type MutableRefObject,
   type RefObject,
@@ -69,7 +66,9 @@ import {
 } from "./skyDepthLayers";
 import { SKY_LIGHTING } from "./skyLighting";
 import { updateManualWorldMatrix } from "./staticWorld";
+import { useRoomFrame } from "./useRoomFrame";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const FIREWORK_LAYERS = 4;
 type CoordinationFlickerSignal = MutableRefObject<number>;
@@ -2975,7 +2974,7 @@ function CoordinationEnvironmentFault({
     },
     [coordinationFlickerSignal],
   );
-  useFrame((_, delta) => {
+  useRoomFrame((_, delta) => {
     const impulse = getSceneImpulse();
     if (handledSkyImpulse.current !== impulse.revision) {
       handledSkyImpulse.current = impulse.revision;
@@ -3240,7 +3239,7 @@ function SkyDome({
       roomWindowEvents.removeEventListener("pointerup", onUp);
     };
   }, []);
-  useFrame(({ clock, camera, pointer, raycaster, size }, delta) => {
+  useRoomFrame(({ clock, camera, pointer, raycaster, size }, delta) => {
     const u = material.uniforms;
     u.uMeadow!.value = THREE.MathUtils.damp(
       u.uMeadow!.value as number,
@@ -3539,7 +3538,7 @@ function ImageBasedEnvironmentFlicker({
     },
     [baseIntensity, scene],
   );
-  useFrame(() => {
+  useRoomFrame(() => {
     scene.environmentIntensity = baseIntensity * flickerSignal.current;
   });
   return null;
@@ -3803,7 +3802,7 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
     [geometry],
   );
   useEffect(() => () => material.dispose(), [material]);
-  useFrame(({ clock, size, viewport }, delta) => {
+  useRoomFrame(({ clock, size, viewport }, delta) => {
     const impulse = getSceneImpulse();
     if (handledImpulse.current !== impulse.revision) {
       handledImpulse.current = impulse.revision;
@@ -3861,7 +3860,7 @@ function CinematicSunSource() {
     return registerCinematicSun(sun);
   }, []);
 
-  useFrame(({ camera }) => {
+  useRoomFrame(({ camera }) => {
     const sun = sunRef.current;
     if (!sun) return;
     // The dome rides with the camera, so the painted sun is always this
@@ -3986,7 +3985,7 @@ function KeyLight({
       shadow?.mapPass?.dispose();
     };
   }, [cinematicPlus]);
-  useFrame(({ camera }) => {
+  useRoomFrame(({ camera }) => {
     const light = lightRef.current;
     const hemi = hemiRef.current;
     if (!light || !hemi) return;

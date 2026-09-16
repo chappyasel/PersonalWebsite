@@ -457,6 +457,27 @@ export default function UnitRail() {
         @media (hover: hover) {
           .stacks-rail-row:hover .stacks-rail-label { opacity: 1; }
         }
+        .stacks-rail-desktop-item .stacks-rail-inner {
+          transform-origin: left center;
+          transition: transform 0.38s var(--stacks-ease, ease-out);
+        }
+        .stacks-rail-desktop-item .stacks-rail-label {
+          transform-origin: left center;
+          transition: opacity 0.38s var(--stacks-ease, ease-out), transform 0.38s var(--stacks-ease, ease-out);
+        }
+        .stacks-rail-desktop-item[data-active] .stacks-rail-label {
+          transform: scale(1.06);
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .stacks-rail-desktop-item:focus-visible .stacks-rail-inner {
+            transform: scale(1.025);
+          }
+        }
+        @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+          .stacks-rail-desktop-item:hover .stacks-rail-inner {
+            transform: scale(1.025);
+          }
+        }
         .stacks-rail-tooltip {
           visibility: hidden;
           opacity: 0;
@@ -495,6 +516,10 @@ export default function UnitRail() {
             radial-gradient(circle at 45% 70%, hsl(0 0% 0% / 0.28) 0 0.04rem, transparent 0.055rem);
         }
         @media (prefers-reduced-motion: reduce) {
+          .stacks-rail-desktop-item .stacks-rail-inner,
+          .stacks-rail-desktop-item .stacks-rail-label {
+            transition: none;
+          }
           .stacks-unit-rail-mobile .stacks-rail-row,
           .stacks-world-shell[data-revealed]
             .stacks-unit-rail-mobile
@@ -573,7 +598,7 @@ export default function UnitRail() {
                 // The desktop rail uses a larger mark and label but a tighter
                 // 2.25rem step, improving scanability without stretching the
                 // seven-item group down the scene. pl-4 is the thumb's lane.
-                className={`stacks-on-background-text stacks-rail-row group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:text-foreground ${
+                className={`stacks-on-background-text stacks-rail-row stacks-rail-desktop-item group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:text-foreground ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"

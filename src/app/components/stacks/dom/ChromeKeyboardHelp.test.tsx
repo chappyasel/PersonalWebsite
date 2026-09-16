@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
+import { homeTapMotion } from "../scene/homeTapMotion";
+import { useStacks } from "../store";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -8,7 +11,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   OPEN_UNIVERSAL_SEARCH_EVENT,
@@ -41,9 +44,17 @@ function SearchDialog({
   );
 }
 
+const playHomeFeedback = vi.fn();
+beforeEach(() => {
+  playHomeFeedback.mockClear();
+  vi.spyOn(homeTapMotion, "play").mockImplementation(playHomeFeedback);
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  useStacks.setState(useStacks.getInitialState());
+  window.history.replaceState(null, "", "/");
 });
 
 describe("ChromeKeyboardHelp", () => {
@@ -114,25 +125,59 @@ describe("ChromeKeyboardHelp", () => {
     },
   );
 
-  it("keeps the mobile wordmark non-interactive and omits shortcut help", () => {
+  it.each([true, false])("returns home on click, tap-first: %s", (tapFirst) => {
     const onOpen = vi.fn();
+    useStacks.setState({ activeUnit: 3, sheetDismissed: true });
     render(
       <ChromeKeyboardHelp
         open={false}
         onOpenChange={onOpen}
-        tapFirst
+        tapFirst={tapFirst}
         fieldNotes={<button type="button">Field Notes</button>}
       />,
     );
 
-    expect(screen.getByText("Chappy Asel").tagName).toBe("SPAN");
+    expect(
+      screen.getByRole("button", { name: "Chappy Asel, return home" }),
+    ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Open keyboard shortcuts" }),
     ).toBeNull();
     expect(screen.queryByText("Shortcuts")).toBeNull();
     fireEvent.click(screen.getByText("Chappy Asel"));
-    expect(onOpen).not.toHaveBeenCalled();
+    expect(useStacks.getState().activeUnit).toBe(0);
+    expect(useStacks.getState().sheetDismissed).toBe(false);
+    expect(playHomeFeedback).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Field Notes" })).toBeTruthy();
+  });
+
+  it("closes an expanded About sheet without adding another home history entry", () => {
+    window.history.replaceState(null, "", "/");
+    useStacks.setState({ activeUnit: 0, panelState: "open" });
+    const back = vi
+      .spyOn(window.history, "back")
+      .mockImplementation(() => undefined);
+    const push = vi.spyOn(window.history, "pushState");
+    render(
+      <ChromeKeyboardHelp
+        open={false}
+        onOpenChange={vi.fn()}
+        tapFirst
+        fieldNotes={null}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Chappy Asel, return home" }),
+    );
+    expect(back).toHaveBeenCalledOnce();
+    expect(useStacks.getState().panelState).toBe("closing");
+    act(() => useStacks.setState({ panelState: "closed" }));
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Chappy Asel, return home" }),
+    );
+    expect(push).not.toHaveBeenCalled();
+    expect(playHomeFeedback).toHaveBeenCalledTimes(2);
   });
 
   it("shows shortcuts in the name tooltip without a help overlay", () => {
@@ -147,7 +192,7 @@ describe("ChromeKeyboardHelp", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Chappy Asel, keyboard shortcuts",
+        name: "Chappy Asel, return home",
       }),
     ).toBeTruthy();
     expect(screen.getByRole("tooltip")).toBeTruthy();

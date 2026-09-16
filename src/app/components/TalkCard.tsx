@@ -1,10 +1,8 @@
-import {
-  ClockIcon,
-  PlayIcon,
-} from "@phosphor-icons/react/dist/ssr";
+import { ClockIcon, PlayIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
-import Link from "next/link";
 import React from "react";
+
+import { VideoTrigger } from "~/components/videos/VideoGallery";
 
 import styles from "./CoverCard.module.css";
 import talkStyles from "./TalkCard.module.css";
@@ -54,10 +52,10 @@ export default function TalkCard({ talk }: { talk: Talk }) {
       interactive
       className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
     >
-      <Link
-        href={talk.url}
-        target="_blank"
-        className={`${styles.card} group relative flex h-full w-full [transform-style:preserve-3d]`}
+      <VideoTrigger
+        videoId={talk.videoId}
+        title={talk.title}
+        className={`${styles.card} group relative flex h-full w-full [transform-style:preserve-3d] [&_svg]:size-3 [&_.talk-play-control_svg]:size-6`}
       >
         {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
         <div
@@ -72,6 +70,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
           className={`${styles.media} relative aspect-video shrink-0 self-start bg-muted`}
         >
           <Image
+            draggable={false}
             src={talk.thumbnail}
             alt={talk.title}
             fill
@@ -102,11 +101,9 @@ export default function TalkCard({ talk }: { talk: Talk }) {
             {talk.venue}
           </p>
 
-          <h3 className="homepage-card-title font-semibold">
-            {talk.title}
-          </h3>
+          <h3 className="homepage-card-title font-semibold">{talk.title}</h3>
 
-          <p className="mt-1 line-clamp-2 homepage-card-body">
+          <p className="mt-1 line-clamp-2 homepage-card-body opacity-80">
             {talk.excerpt}
           </p>
 
@@ -120,7 +117,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
             </time>
           </div>
         </div>
-      </Link>
+      </VideoTrigger>
     </TiltCard>
   );
 }

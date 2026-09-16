@@ -3,10 +3,17 @@ import type { RootState } from "@react-three/fiber";
 import type { WebGLRenderer } from "three";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { preserveSceneClock, repaintFrozenScene } from "./sceneClock";
+import { overlayBackgroundMotion } from "~/lib/overlays/backgroundMotion";
+
+import {
+  preserveSceneClock,
+  repaintFrozenScene,
+  roomFrameDelta,
+} from "./sceneClock";
 
 let canvas: HTMLCanvasElement;
 let state: RootState;
+let ambientSpeed: ReturnType<typeof vi.fn<(delta: number) => number>>;
 
 beforeEach(() => {
   // Exercise R3F's actual store and clock without creating a WebGL context.
@@ -14,10 +21,14 @@ beforeEach(() => {
   createRoot(canvas);
   state = _roots.get(canvas)!.store.getState();
   state.gl = { xr: { isPresenting: false } } as WebGLRenderer;
-  preserveSceneClock(state);
+  ambientSpeed = vi.fn<(delta: number) => number>().mockReturnValue(1);
+  preserveSceneClock(state, ambientSpeed);
 });
 
 afterEach(() => {
+  overlayBackgroundMotion.setReducedMotion(true);
+  overlayBackgroundMotion.setPaused(false);
+  overlayBackgroundMotion.setReducedMotion(false);
   _roots.delete(canvas);
   vi.restoreAllMocks();
 });
@@ -49,6 +60,53 @@ it("resumes without counting time spent reading the modal", () => {
   expect(state.clock.elapsedTime).toBeCloseTo(120.016);
 });
 
+it("holds ambient time while supplying real delta to an inspected object's frames", () => {
+  let now = 10_000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  overlayBackgroundMotion.setReducedMotion(true);
+  overlayBackgroundMotion.setPaused(true);
+  state.get().setFrameloop("always");
+  state.clock.elapsedTime = 120;
+  for (let frame = 0; frame < 10; frame++) {
+    now += 16;
+    expect(state.clock.getDelta()).toBeCloseTo(0.016);
+    expect(state.clock.elapsedTime).toBe(120);
+  }
+  overlayBackgroundMotion.setPaused(false);
+  now += 16;
+  expect(state.clock.getDelta()).toBeCloseTo(0.016);
+  expect(state.clock.elapsedTime).toBeCloseTo(120.016);
+});
+
+it("uses the same integrated time for shaders and simulation, while foreground delta stays real", () => {
+  let now = 10_000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  state.get().setFrameloop("always");
+  state.clock.elapsedTime = 120;
+  overlayBackgroundMotion.setPaused(true);
+  let ambient = 0;
+  for (let frame = 0; frame < 100; frame++) {
+    now += 16;
+    const delta = state.clock.getDelta();
+    expect(delta).toBeCloseTo(0.016);
+    ambient += roomFrameDelta(state.clock, delta);
+    expect(state.clock.elapsedTime).toBeCloseTo(120 + ambient);
+  }
+  expect(ambient).toBeCloseTo(0.75);
+  state.get().setFrameloop("never");
+  now += 60_000;
+  overlayBackgroundMotion.setPaused(false);
+  state.get().setFrameloop("always");
+  now += 16;
+  const delta = state.clock.getDelta();
+  expect(delta).toBeCloseTo(0.016);
+  expect(roomFrameDelta(state.clock, delta)).toBeGreaterThan(0);
+  expect(roomFrameDelta(state.clock, delta)).toBeLessThan(delta);
+  expect(state.clock.elapsedTime).toBeCloseTo(
+    120.75 + roomFrameDelta(state.clock, delta),
+  );
+});
+
 it("repaints a frozen resize without moving animation time", () => {
   state.clock.elapsedTime = 120;
   state.get().setFrameloop("never");
@@ -62,6 +120,28 @@ it("repaints a frozen resize without moving animation time", () => {
   expect(frame).toHaveBeenCalledWith(state.get(), 0, undefined);
   expect(state.clock.elapsedTime).toBe(120);
   unsubscribe();
+});
+
+it("applies the orb boost to both animation clocks while an overlay can still stop them", () => {
+  let now = 10_000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  ambientSpeed.mockReturnValue(2);
+  state.get().setFrameloop("always");
+  state.clock.elapsedTime = 120;
+  now += 16;
+  const realDelta = state.clock.getDelta();
+  expect(realDelta).toBeCloseTo(0.016);
+  expect(roomFrameDelta(state.clock, realDelta)).toBeCloseTo(0.032);
+  expect(state.clock.elapsedTime).toBeCloseTo(120.032);
+  overlayBackgroundMotion.setPaused(true);
+  now += 1500;
+  state.clock.getDelta();
+  const pausedTime = state.clock.elapsedTime;
+  now += 16;
+  const pausedDelta = state.clock.getDelta();
+  expect(pausedDelta).toBeCloseTo(0.016);
+  expect(roomFrameDelta(state.clock, pausedDelta)).toBe(0);
+  expect(state.clock.elapsedTime).toBe(pausedTime);
 });
 
 it("cancels a queued automatic frame when a modal freezes the room", () => {

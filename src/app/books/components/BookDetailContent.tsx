@@ -7,7 +7,6 @@ import {
   ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
   BooksIcon,
-  CalendarBlankIcon,
   CalendarIcon,
   CheckIcon,
   ClockIcon,
@@ -578,19 +577,26 @@ function BookFact({
   );
 }
 
+function BookByline({ book }: { book: BookDetailBook }) {
+  return (
+    <>
+      <span className="min-w-0 truncate">{book.author}</span>
+      {book.publicationYear && (
+        <span className="shrink-0 whitespace-nowrap">
+          <span aria-hidden="true" className="mr-2 text-muted-foreground/40">
+            •
+          </span>
+          <span aria-label={`Published ${book.publicationYear}`}>
+            {book.publicationYear}
+          </span>
+        </span>
+      )}
+    </>
+  );
+}
+
 function BookFacts({ book }: { book: BookDetailBook }) {
   const facts: ReactNode[] = [];
-
-  if (book.publicationYear) {
-    facts.push(
-      <BookFact
-        key="published"
-        icon={<CalendarBlankIcon size={14} weight="bold" />}
-        label="Published"
-        value={book.publicationYear}
-      />,
-    );
-  }
 
   if (book.audioLengthMin != null || book.pageCount != null) {
     const formattedLength =
@@ -1480,9 +1486,9 @@ export function BookDetailContent({
                     style={{
                       fontSize: authorFontSize,
                     }}
-                    className="line-clamp-1 text-muted-foreground"
+                    className="flex items-baseline gap-2 text-muted-foreground"
                   >
-                    {book.author}
+                    <BookByline book={book} />
                   </motion.p>
 
                   {/* Metadata - Desktop only.
@@ -1580,9 +1586,9 @@ export function BookDetailContent({
                 </motion.h2>
                 <motion.p
                   style={{ fontSize: authorFontSize }}
-                  className="line-clamp-1 text-muted-foreground"
+                  className="flex items-baseline gap-2 text-muted-foreground"
                 >
-                  {book.author}
+                  <BookByline book={book} />
                 </motion.p>
               </motion.div>
             )}
@@ -1629,7 +1635,9 @@ export function BookDetailContent({
               </h2>
 
               {/* Author */}
-              <p className="text-base text-muted-foreground">{book.author}</p>
+              <p className="flex items-baseline gap-2 text-base text-muted-foreground">
+                <BookByline book={book} />
+              </p>
             </motion.div>
             <motion.div
               ref={bindMobileSegment("facts")}

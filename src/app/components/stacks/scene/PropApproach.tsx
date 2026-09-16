@@ -30,6 +30,11 @@ import { useFrame, useThree } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import {
+  overlayCoordinator,
+  registerOverlay,
+} from "~/lib/overlays/coordinator";
+
 import { focusPull } from "./focusPull";
 import {
   PROP_APPROACH_LAMBDA,
@@ -46,6 +51,7 @@ import {
   wrapPropTurn,
   wrapYaw,
 } from "./propApproachState";
+import { InspectedObjectFrames } from "./useRoomFrame";
 import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 const ORIGIN = new THREE.Vector3();
@@ -152,6 +158,27 @@ export default function PropApproach({
     [],
   );
 
+  const overlayLease = useRef<ReturnType<typeof registerOverlay> | null>(null);
+  useEffect(() => {
+    const reflect = () => {
+      if (controller.near) {
+        overlayLease.current ??= registerOverlay({
+          kind: "object",
+          settled: false,
+          dismiss: () => controller.dismiss(),
+        });
+        overlayLease.current.update("open");
+      } else overlayLease.current?.update("closing");
+    };
+    reflect();
+    const unsubscribe = controller.subscribe(reflect);
+    return () => {
+      unsubscribe();
+      overlayLease.current?.release();
+      overlayLease.current = null;
+    };
+  }, [controller]);
+
   // The rest of the interface steps aside while a prop is up close, through
   // the same CSS exit the photo viewer uses (StacksHome's style block reads
   // this attribute beside `data-overlay-open`). Any near prop counts, so
@@ -229,6 +256,9 @@ export default function PropApproach({
   }, [controller, get, group, keepPressesOnProp, scratch, turn]);
 
   useFrame(({ camera, size, pointer }, rawDelta) => {
+    const overlay = overlayCoordinator.getSnapshot();
+    if (controller.near && overlay.pauseBackground && overlay.top !== "object")
+      return;
     const node = group.current;
     const parent = node?.parent;
     if (!node || !parent) return;
@@ -322,7 +352,11 @@ export default function PropApproach({
             delta,
           );
     }
+    if (goal === 1 && progress.current > 1 - 1e-3)
+      overlayLease.current?.settle();
     if (goal === 0 && progress.current < 1e-3) {
+      overlayLease.current?.release();
+      overlayLease.current = null;
       if (progress.current !== 0) {
         progress.current = 0;
         tiltEased.current = 0;
@@ -461,7 +495,9 @@ export default function PropApproach({
       name={`prop-approach:${controller.id}:${unitIndex}`}
       rotation={[restX, restY, restZ]}
     >
-      {children}
+      <InspectedObjectFrames.Provider value={() => controller.near}>
+        {children}
+      </InspectedObjectFrames.Provider>
     </group>
   );
 }

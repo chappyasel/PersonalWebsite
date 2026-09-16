@@ -25,10 +25,16 @@ describe("placard text hierarchy", () => {
     expect(placard).not.toContain("text-muted-foreground/70");
     expect(placard).not.toContain("text-muted-foreground/50");
     for (const card of [blogPosts, talkCard]) {
-      expect(card).toContain("homepage-card-meta text-muted-foreground opacity-60");
-      expect(card).toContain('className="mt-1 line-clamp-2 homepage-card-body"');
+      expect(card).toContain(
+        "homepage-card-meta text-muted-foreground opacity-60",
+      );
+      expect(card).toContain(
+        'className="mt-1 line-clamp-2 homepage-card-body opacity-80"',
+      );
     }
-    expect(talkCard).toContain("homepage-card-meta font-semibold text-muted-foreground");
+    expect(talkCard).toContain(
+      "homepage-card-meta font-semibold text-muted-foreground",
+    );
     expect(talkCard).not.toContain("text-foreground opacity-70");
   });
 
@@ -41,6 +47,8 @@ describe("placard text hierarchy", () => {
     expect(placard).toContain("Favorite subjects");
     expect(placard).not.toContain("Library by subject");
     expect(subjectCards).toContain("${colors.bg} 65%, transparent");
-    expect(subjectCards).toContain("text-foreground");
+    expect(subjectCards).toContain(
+      "color-mix(in srgb, hsl(var(--foreground)) 75%, ${colors.fg})",
+    );
   });
 });

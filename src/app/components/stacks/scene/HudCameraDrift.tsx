@@ -2,19 +2,20 @@
 
 import { worldBoot } from "../boot/worldBootSession";
 import { progressRef, useStacks } from "../store";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { useMemo, useSyncExternalStore } from "react";
 
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import { screenshotModeController } from "./screenshotMode";
 import { useHudDrift, useHudDriftProfile } from "./useHudDrift";
+import { useRoomFrame } from "./useRoomFrame";
 
 /** Read eased travel after CameraRig publishes the current frame. */
 function DriftFrame({ mobile }: { mobile: boolean }) {
   const canvas = useThree((state) => state.gl.domElement);
   const root = useMemo(() => ({ current: canvas }), [canvas]);
   const advance = useHudDrift(root, mobile);
-  useFrame((scene, delta) => {
+  useRoomFrame((scene, delta) => {
     const boot = worldBoot.getView();
     const state = useStacks.getState();
     advance(

@@ -9,7 +9,6 @@
 // The camera only chooses which residents enter the one instanced draw; it
 // never changes their world positions.
 import { UNIT_COUNT } from "../data";
-import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -36,6 +35,7 @@ import {
   petalRenderScale,
   petalShockwaveImpulse,
 } from "./petalMotion";
+import { useRoomFrame } from "./useRoomFrame";
 import { UNIT_SPACING } from "./worldLayout";
 
 /** A petal, not a leaf: 2 × 3 cm at the meadow's scale. */
@@ -385,7 +385,7 @@ function PetalField({
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  useFrame(({ camera }, delta) => {
+  useRoomFrame(({ camera }, delta) => {
     const instance = mesh.current;
     if (!instance) return;
     darkAmount.current = THREE.MathUtils.damp(

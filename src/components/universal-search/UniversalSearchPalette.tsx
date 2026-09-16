@@ -46,6 +46,7 @@ import {
   universalSearchZeroResultsProperties,
 } from "~/lib/analytics";
 import { type FontOption, useFont } from "~/lib/font-provider";
+import { siteIconUrl } from "~/lib/icons/siteIconUrl";
 import { SITE_PAGES } from "~/lib/site/pages";
 import { type ThemeChoice } from "~/lib/theme";
 import { runCommandAction } from "~/lib/universal-search/actions";
@@ -76,6 +77,7 @@ import {
   type SearchLocation,
   resolveDestinationTarget,
   resolveRegistryDestination,
+  resolveSearchResultHref,
 } from "~/lib/universal-search/urls";
 import {
   type AsyncSearchGroup,
@@ -87,6 +89,7 @@ import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffec
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { cn } from "~/lib/util";
 
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
 import { Button } from "~/components/ui/button";
 import { Keycap, KeycapSequence } from "~/components/ui/keycap";
 
@@ -139,7 +142,7 @@ const ROW_SELECTED = "data-[selected=true]:bg-primary/5";
  * text column, however the rows are mixed. */
 const ICON_SLOT = "flex size-7 shrink-0 items-center justify-center";
 
-/** A glyph centred in the slot, coloured like the row's text state. */
+/** A bold, muted glyph centred in the slot, brighter when selected. */
 function SlotGlyph({
   icon: IconComponent,
   className,
@@ -150,8 +153,8 @@ function SlotGlyph({
   return (
     <span aria-hidden className={cn(ICON_SLOT, className)}>
       <IconComponent
-        className="size-[18px] text-muted-foreground group-data-[selected=true]:text-foreground"
-        weight="regular"
+        className="size-[18px] text-muted-foreground/75 group-data-[selected=true]:text-foreground/75"
+        weight="bold"
       />
     </span>
   );
@@ -212,7 +215,7 @@ function commandMatches(query: string): RankedCommandEntry[] {
 function pageTileUrl(entry: CommandDestinationEntry, location: SearchLocation) {
   const prefix = (entry.target.path ?? "").replace(/\/+$/, "");
   return resolveDestinationTarget(
-    { kind: "site", site: entry.target.site, path: `${prefix}/tab-icon` },
+    { kind: "site", site: entry.target.site, path: siteIconUrl(prefix) },
     location,
   );
 }
@@ -235,6 +238,7 @@ function PageRow({
   return (
     <Command.Item
       value={entry.id}
+      data-search-copy={resolveRegistryDestination(entry.id, location)}
       onSelect={onSelect}
       className={cn(
         "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1.5 text-sm outline-none",
@@ -290,6 +294,11 @@ function CommandRow({
   return (
     <Command.Item
       value={entry.id}
+      data-search-copy={
+        entry.kind === "destination"
+          ? resolveRegistryDestination(entry.id, location)
+          : entry.label
+      }
       onSelect={onSelect}
       className={cn(
         "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1.5 text-sm outline-none",
@@ -313,6 +322,7 @@ function RecentRow({
   return (
     <Command.Item
       value={`recent:${recent.id}`}
+      data-search-copy={recent.href}
       onSelect={onSelect}
       className={cn(
         "group flex cursor-default select-none items-center gap-3 rounded-lg px-3 py-1 text-sm outline-none",
@@ -391,11 +401,7 @@ function ResultPicture({
   const imageUrl =
     result.imageUrl && failed !== result.imageUrl ? result.imageUrl : null;
   if (!imageUrl) {
-    return (
-      <span aria-hidden className={cn(ICON_SLOT, "h-5")}>
-        <IconComponent className="size-[18px] text-muted-foreground group-data-[selected=true]:text-foreground" />
-      </span>
-    );
+    return <SlotGlyph icon={IconComponent} className="h-5" />;
   }
   return result.group === "books" ? (
     <Image
@@ -433,6 +439,7 @@ function SearchResultRow({
   return (
     <Command.Item
       value={result.id}
+      data-search-copy={result.href ?? result.label}
       onSelect={onSelect}
       className={cn(
         "group flex cursor-default select-none items-start gap-3 rounded-lg px-3 py-1.5 text-sm outline-none",
@@ -494,9 +501,7 @@ function ShowMoreRow({
         ROW_SELECTED,
       )}
     >
-      <span aria-hidden className={ICON_SLOT}>
-        <CaretDownIcon className="size-[18px]" />
-      </span>
+      <SlotGlyph icon={CaretDownIcon} />
       <span>{`Show ${count} more`}</span>
     </Command.Item>
   );
@@ -699,8 +704,10 @@ export function UniversalSearchPaletteContent({
   const close = () => onOpenChange(false);
 
   const selectRecent = (recent: RecentResult, rank: number) => {
+    const href = resolveSearchResultHref(recent.href, dependencies.location);
     const next = recordRecentResult(dependencies.storage, {
       ...recent,
+      href,
       group: "destinations",
       matchKind: "exact",
       score: 1_000,
@@ -717,7 +724,7 @@ export function UniversalSearchPaletteContent({
     );
     notifyUniversalSearchSelection();
     close();
-    dependencies.navigate(recent.href);
+    dependencies.navigate(href);
   };
 
   const selectCommand = (entry: CommandEntry, rank: number) => {
@@ -781,7 +788,8 @@ export function UniversalSearchPaletteContent({
 
   const selectSearchResult = (result: SearchResult, rank: number) => {
     if (!result.href) return;
-    const next = recordRecentResult(dependencies.storage, result);
+    const href = resolveSearchResultHref(result.href, dependencies.location);
+    const next = recordRecentResult(dependencies.storage, { ...result, href });
     setRecents(next);
     dependencies.capture(
       "universal_search_result_selected",
@@ -794,7 +802,7 @@ export function UniversalSearchPaletteContent({
     );
     notifyUniversalSearchSelection();
     close();
-    dependencies.navigate(result.href);
+    dependencies.navigate(href);
   };
 
   const expandedGroups =
@@ -884,6 +892,7 @@ export function UniversalSearchPaletteContent({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay
+          data-overlay-backdrop=""
           data-universal-search-overlay=""
           className={cn(
             "fixed inset-0 z-[1000] bg-stone-950/20 dark:bg-black/35",
@@ -894,6 +903,8 @@ export function UniversalSearchPaletteContent({
           )}
         />
         <Dialog.Content
+          data-overlay-surface=""
+          onKeyDown={(event) => event.stopPropagation()}
           data-universal-search-material=""
           data-home-glass={onWorldScene ? "panel" : undefined}
           aria-describedby={undefined}
@@ -935,6 +946,11 @@ export function UniversalSearchPaletteContent({
             "motion-safe:ease-out motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=closed]:slide-out-to-top-1 motion-safe:data-[state=open]:slide-in-from-top-2 motion-safe:data-[state=closed]:[animation-duration:150ms] motion-safe:data-[state=open]:[animation-duration:220ms]",
           )}
         >
+          <OverlayPresence
+            kind="command"
+            phase={open ? "open" : "closing"}
+            onDismiss={() => onOpenChange(false)}
+          />
           <Dialog.Title className="sr-only">Universal Search</Dialog.Title>
           <div
             role="status"
@@ -951,6 +967,31 @@ export function UniversalSearchPaletteContent({
             label="Universal Search"
             value={selectedValue}
             onValueChange={setSelectedValue}
+            onCopy={(event) => {
+              // Let native copy handle selected query text. Otherwise copy
+              // the highlighted row through the browser's copy event, which
+              // supports Command-C and Control-C without clipboard permission.
+              const input = inputRef.current;
+              if (
+                (document.activeElement === input &&
+                  input?.selectionStart !== input?.selectionEnd) ||
+                window.getSelection()?.toString()
+              ) {
+                return;
+              }
+              const text = event.currentTarget
+                .querySelector(
+                  '[cmdk-item][data-selected="true"]:not([aria-disabled="true"])',
+                )
+                ?.getAttribute("data-search-copy");
+              if (!text) return;
+              event.clipboardData.setData(
+                "text/plain",
+                resolveSearchResultHref(text, dependencies.location),
+              );
+              event.preventDefault();
+              event.stopPropagation();
+            }}
             onKeyDown={(event) => {
               if (
                 event.nativeEvent.isComposing ||
@@ -983,7 +1024,8 @@ export function UniversalSearchPaletteContent({
             >
               <MagnifyingGlassIcon
                 aria-hidden
-                className="size-5 shrink-0 text-muted-foreground"
+                weight="bold"
+                className="size-5 shrink-0 text-muted-foreground/75"
               />
               {/* No autoFocus: Radix's FocusScope must perform the initial
                   focus itself, or it never records a last-focused element and
@@ -1012,7 +1054,11 @@ export function UniversalSearchPaletteContent({
                   aria-label="Close search"
                   onClick={() => onOpenChange(false)}
                 >
-                  <XIcon aria-hidden />
+                  <XIcon
+                    aria-hidden
+                    weight="bold"
+                    className="text-muted-foreground/75"
+                  />
                 </Button>
               ) : (
                 <Keycap width="fit" className="hidden sm:inline-flex">
@@ -1123,8 +1169,8 @@ export function UniversalSearchPaletteContent({
                   <div className="flex flex-col items-center gap-2.5 px-4 py-10 text-center text-sm text-muted-foreground">
                     <MagnifyingGlassIcon
                       aria-hidden
-                      weight="duotone"
-                      className="size-7 opacity-40"
+                      weight="bold"
+                      className="size-7 opacity-35"
                     />
                     <span>No results for “{query.trim()}”</span>
                   </div>
@@ -1135,17 +1181,28 @@ export function UniversalSearchPaletteContent({
                 data-search-glass-divider={
                   onWorldScene && visualEffects.backdropBlur ? "top" : undefined
                 }
-                className="flex items-center justify-between border-t border-border/70 px-5 py-3.5 font-serif text-[11px] text-muted-foreground [&>span]:relative [&>span]:-top-px"
+                className="flex items-center gap-5 border-t border-border/70 px-5 py-3.5 font-serif text-[11px] text-muted-foreground [&>span]:relative [&>span]:-top-px"
               >
                 <span className="inline-flex items-center gap-2">
                   <KeycapSequence
                     keys={["ArrowUp", "ArrowDown"]}
                     label="Up and down arrows"
+                    className="[&_svg]:opacity-75"
                   />
                   Navigate
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <Keycap aria-hidden="true">Enter</Keycap>
+                  <KeycapSequence
+                    keys={["Command", "C"]}
+                    label="Command C"
+                    className="[&_svg]:opacity-75"
+                  />
+                  Copy
+                </span>
+                <span className="ml-auto inline-flex items-center gap-2">
+                  <Keycap aria-hidden="true" className="[&_svg]:opacity-75">
+                    Enter
+                  </Keycap>
                   Open
                 </span>
               </div>

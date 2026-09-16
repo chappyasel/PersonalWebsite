@@ -26,6 +26,8 @@ import {
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { sceneCaptionClassName } from "~/components/overlays/captionStyles";
+
 /** Gap between the prop's foot and the panel, in CSS pixels. Covers the
  * tile's backward lean and the pointer follow, which the published foot
  * leaves out. */
@@ -104,9 +106,9 @@ export default function PropCaption() {
           data-prop-caption-visible={visible ? "" : undefined}
           aria-live="polite"
           className="pointer-events-none fixed inset-x-0 top-0 z-30 flex justify-center px-4"
-          style={motionStyle}
         >
           <section
+            style={motionStyle}
             aria-hidden={!visible}
             // Stays mounted through the fade, so while hidden its links must
             // take no clicks: an invisible anchor over the room would open a
@@ -116,7 +118,7 @@ export default function PropCaption() {
             // marked this way alone, so a long caption scrolls instead of
             // travelling the room.
             data-stacks-scrollable
-            className="field-notes-glass-tooltip pointer-events-auto w-full max-w-[440px] overflow-y-auto overscroll-contain rounded-xl border px-4 py-3 text-center backdrop-blur-xl backdrop-saturate-150"
+            className={`pointer-events-auto w-full max-w-[440px] overflow-y-auto overscroll-contain ${sceneCaptionClassName}`}
           >
             <p className="text-[13px] leading-relaxed opacity-80 sm:text-sm">
               {caption.body}
@@ -146,16 +148,16 @@ export default function PropCaption() {
           data-prop-caption
           data-prop-caption-visible={visible ? "" : undefined}
           className="pointer-events-none fixed inset-x-0 bottom-[max(20px,env(safe-area-inset-bottom))] z-30 flex justify-center px-4"
-          style={motionStyle}
         >
           <a
+            style={motionStyle}
             aria-hidden={!visible}
             inert={!visible}
             href={link.href}
             target="_blank"
             rel="noreferrer"
             tabIndex={visible ? 0 : -1}
-            className={`${anchorClass} field-notes-glass-tooltip rounded-full border px-4 py-2 font-serif text-[15px] leading-none backdrop-blur-xl backdrop-saturate-150 transition-transform hover:scale-[1.03]`}
+            className={`${anchorClass} scene-caption-glass rounded-full border px-4 py-2 font-serif text-[15px] leading-none backdrop-blur-xl backdrop-saturate-150 transition-transform hover:scale-[1.03]`}
           >
             {link.label}
             <ArrowSquareOutIcon aria-hidden size={14} weight="bold" />

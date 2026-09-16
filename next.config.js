@@ -26,6 +26,7 @@ const config = {
   // WebGL lifecycle equivalent to production.
   reactStrictMode: false,
   outputFileTracingIncludes: {
+    "/weightlifting/**": ["./src/fonts/weightlifting/*.otf"],
     "/api/search": ["./content/dad-search-index.json"],
   },
   outputFileTracingExcludes: {

@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import postcss from "postcss";
 import { afterEach, expect, it } from "vitest";
 
+import { sceneCaptionClassName } from "~/components/overlays/captionStyles";
+
 const stylesheet = postcss.parse(
   readFileSync("src/styles/globals.css", "utf8"),
 );
@@ -13,9 +15,9 @@ afterEach(() => {
   document.documentElement.classList.remove("dark");
   document.body.replaceChildren();
 });
-function material() {
+function material(className = "field-notes-glass-tooltip") {
   const label = document.createElement("div");
-  label.className = "field-notes-glass-tooltip";
+  label.className = className;
   document.body.append(label);
   const declarations: Record<string, string> = {};
   stylesheet.walkRules((rule) => {
@@ -60,3 +62,40 @@ it("keeps reading overlay tooltips on paper in 2D", () => {
   document.documentElement.dataset.overlayOpen = "";
   expect(material()["background-color"]).toEqual(paper["background-color"]);
 });
+
+it.each(["data-world", "data-room-view"])(
+  "keeps scene captions blurred while a viewer is open under %s",
+  (attribute) => {
+    document.documentElement.setAttribute(attribute, "");
+    document.documentElement.setAttribute("data-overlay-open", "");
+    expect(material(sceneCaptionClassName)["backdrop-filter"]).toBe(
+      "blur(24px) saturate(1.5)",
+    );
+    expect(material()["backdrop-filter"]).toBe("none");
+  },
+);
+
+it.each([false, true])(
+  "matches caption edges to room tooltips while the viewer is open, dark=%s",
+  (dark) => {
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.dataset.world = "";
+    const tooltip = material();
+    document.documentElement.dataset.overlayOpen = "";
+    const caption = material(sceneCaptionClassName);
+    for (const property of [
+      "--placard-edge-blend",
+      "--placard-edge-width",
+      "--placard-edge-softness",
+      "--placard-edge-top",
+      "--placard-edge-reflection-top",
+      "--placard-edge-bottom",
+      "--stacks-tooltip-shadow",
+      "border",
+      "box-shadow",
+    ]) {
+      expect(tooltip[property], property).toBeDefined();
+      expect(caption[property], property).toEqual(tooltip[property]);
+    }
+  },
+);

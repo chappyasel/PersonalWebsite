@@ -1,6 +1,8 @@
 import { MicrophoneStageIcon } from "@phosphor-icons/react/dist/ssr";
 import data from "public/data/speaking.json";
 
+import { VideoGallery } from "~/components/videos/VideoGallery";
+
 import styles from "./CoverCard.module.css";
 import TalkCard, { type Talk } from "./TalkCard";
 
@@ -19,11 +21,18 @@ export default async function Talks() {
         Featured Talks
       </h1>
 
-      <div className="placard-card-stack flex w-full flex-col gap-4">
-        {TALKS.map((talk) => (
-          <TalkCard key={talk.videoId} talk={talk} />
-        ))}
-      </div>
+      <VideoGallery
+        videos={TALKS.map((talk) => ({
+          id: talk.videoId,
+          title: talk.title,
+        }))}
+      >
+        <div className="placard-card-stack flex w-full flex-col gap-4">
+          {TALKS.map((talk) => (
+            <TalkCard key={talk.videoId} talk={talk} />
+          ))}
+        </div>
+      </VideoGallery>
     </section>
   );
 }

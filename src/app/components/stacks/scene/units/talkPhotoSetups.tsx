@@ -691,11 +691,7 @@ export function TalkMonitorArm({ palette }: { palette: Palette }) {
       {/* Drop from the elbow to the head, and the head itself. */}
       <mesh
         castShadow
-        position={[
-          0,
-          (TALK_ARM.boomY + mount.head[1]) / 2,
-          (mount.boomToZ + mount.head[2]) / 2,
-        ]}
+        position={[0, (TALK_ARM.boomY + mount.head[1]) / 2, mount.boomToZ]}
       >
         <boxGeometry args={[TALK_ARM.headWidth * 0.45, dropHeight, 0.016]} />
         <ArmMetal />

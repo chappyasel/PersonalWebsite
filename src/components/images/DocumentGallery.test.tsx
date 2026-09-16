@@ -9,6 +9,8 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { registerOverlay } from "~/lib/overlays/coordinator";
+
 import { DocumentGallery, ZoomableImage } from "./DocumentGallery";
 import { artifactPreviewVisualEffects } from "~/app/components/stacks/scene/artifactPreviewVisualEffects";
 
@@ -23,6 +25,46 @@ afterEach(() => {
   cleanup();
   artifactPreviewVisualEffects.resetForTests();
   vi.unstubAllGlobals();
+});
+
+it("keeps its selection and remains open while a child overlay handles navigation and Escape", async () => {
+  const view = render(
+    <DocumentGallery>
+      <ZoomableImage src="/one.webp" alt="One">
+        <span>One</span>
+      </ZoomableImage>
+      <ZoomableImage src="/two.webp" alt="Two">
+        <span>Two</span>
+      </ZoomableImage>
+    </DocumentGallery>,
+  );
+  await userEvent.click(
+    view.getByRole("button", { name: "Enlarge image: One" }),
+  );
+  await waitFor(() =>
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      "1 / 2",
+    ),
+  );
+  const counter = document.querySelector('[aria-live="polite"]')!;
+  const child = document.createElement("div");
+  child.tabIndex = -1;
+  document.body.append(child);
+  const dismiss = vi.fn();
+  const lease = registerOverlay({ kind: "command", surface: child, dismiss });
+  try {
+    child.focus();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(counter.textContent).toBe("1 / 2");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(dismiss).toHaveBeenCalledOnce();
+    expect(counter.isConnected).toBe(true);
+  } finally {
+    lease.release();
+    child.remove();
+  }
+  fireEvent.keyDown(window, { key: "ArrowRight" });
+  await waitFor(() => expect(counter.textContent).toBe("2 / 2"));
 });
 
 it("opens the selected image in one gallery and returns keyboard focus when closed", async () => {
@@ -113,4 +155,50 @@ it("provides a viewer for an image rendered outside a document provider", async 
   expect(
     document.querySelector(".PhotoView-Portal img")?.getAttribute("src"),
   ).toBe("/standalone.webp");
+});
+
+it("pinches the actual image while preventing browser zoom", async () => {
+  const view = render(
+    <ZoomableImage src="/pinch.webp" alt="Pinch image" width={800} height={600}>
+      <span>Pinch image</span>
+    </ZoomableImage>,
+  );
+  fireEvent.click(
+    view.getByRole("button", { name: "Enlarge image: Pinch image" }),
+  );
+  const image = await waitFor(() => {
+    const image = document.querySelector('img[src="/pinch.webp"]');
+    expect(image).toBeTruthy();
+    return image!;
+  });
+  const box = image.closest<HTMLElement>(".PhotoView__PhotoBox")!;
+  const initialWidth = parseFloat((image as HTMLElement).style.width);
+  const displayedScale = () =>
+    (Number(/^matrix\(([^,]+)/.exec(box.style.transform)?.[1]) *
+      parseFloat((image as HTMLElement).style.width)) /
+    initialWidth;
+  const event = new WheelEvent("wheel", {
+    ctrlKey: true,
+    deltaY: -20,
+    bubbles: true,
+    cancelable: true,
+  });
+  fireEvent(image, event);
+  expect(event.defaultPrevented).toBe(true);
+  await waitFor(() => {
+    const scale = displayedScale();
+    expect(scale).toBeCloseTo(Math.exp(0.2));
+  });
+  const start = new Event("gesturestart", { bubbles: true, cancelable: true });
+  fireEvent(image, start);
+  const change = Object.assign(
+    new Event("gesturechange", { bubbles: true, cancelable: true }),
+    { scale: 2 },
+  );
+  fireEvent(image, change);
+  expect(change.defaultPrevented).toBe(true);
+  await waitFor(() => {
+    const scale = displayedScale();
+    expect(scale).toBeCloseTo(Math.exp(0.2) * 2);
+  });
 });

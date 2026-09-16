@@ -30,6 +30,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { ownsOverlayInput } from "~/lib/overlays/coordinator";
+
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
 import { Keycap } from "~/components/ui/keycap";
 import {
   Tooltip,
@@ -2072,11 +2075,13 @@ export function CompactAlbum({
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
+        !ownsOverlayInput(document.querySelector(".field-notes-album")) ||
         isEditableShortcutTarget(event.target) ||
         (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
       )
         return;
       event.preventDefault();
+      event.stopPropagation();
       const direction = event.key === "ArrowLeft" ? "previous" : "next";
       if (window.matchMedia("(min-width: 768px)").matches) {
         beginDesktopTurn(direction);
@@ -2084,22 +2089,37 @@ export function CompactAlbum({
         beginMobileTurn(direction);
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    const album = document.querySelector(".field-notes-album");
+    album?.addEventListener("keydown", onKeyDown as EventListener);
+    return () =>
+      album?.removeEventListener("keydown", onKeyDown as EventListener);
   }, [beginDesktopTurn, beginMobileTurn, open]);
 
   return (
     <TooltipProvider delayDuration={180} skipDelayDuration={80}>
       <Dialog.Portal>
-        <Dialog.Overlay className="field-notes-album-overlay bg-[#17212a]/16 fixed inset-0 z-[5000] backdrop-blur-[1px]" />
+        <Dialog.Overlay
+          data-overlay-backdrop=""
+          className="field-notes-album-overlay fixed inset-0 z-[5000] backdrop-blur-[1px]"
+        />
         <Dialog.Content
+          data-overlay-surface=""
           data-stacks-scrollable
           // Opening with F must not paint a focus ring on the first control
-          // (the close button). Focus stays put; the dialog still traps Tab
-          // and Escape still closes through the dismissable layer.
-          onOpenAutoFocus={(event) => event.preventDefault()}
+          // (the close button). Focus the album itself; Tab reaches its controls.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            document
+              .querySelector<HTMLElement>(".field-notes-album")
+              ?.focus({ preventScroll: true });
+          }}
           className="field-notes-album fixed left-1/2 top-1/2 z-[5001] max-h-[min(45rem,calc(100dvh-0.5rem))] w-[min(28rem,calc(100vw-0.5rem))] -translate-x-1/2 -translate-y-1/2 overflow-visible rounded-[1.05rem] border border-[#29180f] bg-[#54351f] p-1.5 focus:outline-none md:max-h-[min(45rem,calc(100dvh-1rem))] md:w-[min(50rem,calc(100vw-1rem))] md:p-3"
         >
+          <OverlayPresence
+            kind="album"
+            phase={open ? "open" : "closing"}
+            onDismiss={onClose}
+          />
           <Dialog.Title className="sr-only">Field Notes album</Dialog.Title>
           <Dialog.Description className="sr-only">
             An album of {FIELD_NOTES.length} stamps earned by exploring the
@@ -2645,9 +2665,6 @@ export default function FieldNotesChrome() {
           animation: field-notes-close-control-out 140ms ease-in both;
         }
         @media (max-width: 767px) {
-          .field-notes-album-overlay {
-            background-color: rgba(87,69,53,.14) !important;
-          }
           .field-notes-album-overlay[data-state="open"] {
             animation: field-notes-mobile-overlay-in 700ms cubic-bezier(.2,.68,.2,1) both;
           }

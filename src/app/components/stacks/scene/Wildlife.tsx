@@ -6,7 +6,6 @@
 // using the shared allocation-free pilot.
 import { isWorldRevealed } from "../boot/worldBootSession";
 import { useStacks } from "../store";
-import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -17,7 +16,6 @@ import {
   COORDINATION_AGENT_COLOR,
   COORDINATION_GLOBE_INTERACTION_ID,
   COORDINATION_HUMAN_COLOR,
-  COORDINATION_INSECT_TIME_SCALE,
 } from "./coordinationNetwork";
 import { INSECT_ENVELOPES } from "./insectCollision";
 import type { InsectContainment } from "./insectContainment";
@@ -76,6 +74,7 @@ import {
 import { MEADOW_GROUND_BASE } from "./meadowField";
 import { type MeadowLamp, getMeadowLamps } from "./meadowLights";
 import { getSceneImpulse, sceneImpulseInsectDeparture } from "./sceneImpulse";
+import { useRoomFrame } from "./useRoomFrame";
 import {
   BAT_FLIGHT,
   type BatFrame,
@@ -726,7 +725,7 @@ function LivingWildlife({
     };
   }, []);
 
-  useFrame(({ clock, camera, pointer, size }, delta) => {
+  useRoomFrame(({ clock, camera, pointer, size }, delta) => {
     const clockTime = clock.elapsedTime;
     if (settledAt.current === null && isWorldRevealed()) {
       settledAt.current = clockTime;
@@ -794,8 +793,7 @@ function LivingWildlife({
       (stacks.hovered === COORDINATION_GLOBE_INTERACTION_ID ||
         stacks.focusedInteraction === COORDINATION_GLOBE_INTERACTION_ID ||
         stacks.dragging === COORDINATION_GLOBE_INTERACTION_ID);
-    const insectDelta =
-      delta * (coordinationEngaged ? COORDINATION_INSECT_TIME_SCALE : 1);
+    const insectDelta = delta;
     coordinationColorMix.current = THREE.MathUtils.damp(
       coordinationColorMix.current,
       coordinationEngaged ? 1 : 0,

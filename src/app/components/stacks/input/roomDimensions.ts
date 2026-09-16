@@ -6,6 +6,7 @@ import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { progressRef, useStacks } from "../store";
 import { useEffect } from "react";
 
+import { roomOverlayBlocksInput } from "~/lib/overlays/coordinator";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 import { dimensionTravel } from "./dimensionTravel";
@@ -25,6 +26,7 @@ export function requestRoomDimension(target: RoomDimension): boolean {
     view.status === "exited" ||
     view.status === "flattening" ||
     document.hidden ||
+    roomOverlayBlocksInput() ||
     isUniversalSearchOpen() ||
     room.modalOpen ||
     room.dragging ||

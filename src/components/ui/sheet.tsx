@@ -7,6 +7,8 @@ import * as React from "react";
 
 import { cn } from "~/lib/utils";
 
+import { OverlayPresence } from "~/components/overlays/OverlayPresence";
+
 const Sheet = SheetPrimitive.Root;
 
 const SheetTrigger = SheetPrimitive.Trigger;
@@ -20,6 +22,7 @@ const SheetOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
+    data-overlay-backdrop=""
     className={cn(
       "fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
@@ -62,11 +65,16 @@ const SheetContent = React.forwardRef<
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
+      data-overlay-surface=""
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
-      <SheetPrimitive.Close className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+      <OverlayPresence kind="drawer" />
+      <SheetPrimitive.Close
+        data-overlay-close=""
+        className="absolute right-4 top-4 flex size-11 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none sm:size-10"
+      >
         <XIcon size={16} weight="bold" className="text-primary" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>

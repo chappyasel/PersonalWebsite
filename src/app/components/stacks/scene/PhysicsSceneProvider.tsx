@@ -1,6 +1,5 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
 import {
   type ReactNode,
   createContext,
@@ -9,6 +8,8 @@ import {
   useRef,
 } from "react";
 import type * as THREE from "three";
+
+import { useRoomFrame } from "./useRoomFrame";
 
 export type PhysicsStaticRoot = {
   id: string;
@@ -104,7 +105,7 @@ export function usePhysicsScene() {
  * advances. One callback owns stepping and visibility resets for every unit. */
 export function PhysicsSceneFrameDriver() {
   const scope = usePhysicsScene();
-  useFrame((state, rawDelta) => {
+  useRoomFrame((state, rawDelta) => {
     scope.tick(
       Math.min(rawDelta, 1 / 30),
       state.clock.elapsedTime,

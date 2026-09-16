@@ -379,12 +379,9 @@ describe("Coordination globe presentation contract", () => {
     expect(wildlifeSource).toContain("coordinationColorMix.current");
   });
 
-  it("runs butterflies and moths at twice speed while the globe is engaged", () => {
-    expect(networkSource).toContain("COORDINATION_INSECT_TIME_SCALE = 2");
+  it("uses the shared scene delta without applying a second insect speed boost", () => {
     for (const insectSource of [butterflySource, wildlifeSource]) {
-      expect(insectSource).toContain(
-        "coordinationEngaged ? COORDINATION_INSECT_TIME_SCALE : 1",
-      );
+      expect(insectSource).not.toContain("COORDINATION_INSECT_TIME_SCALE");
       expect(insectSource).toContain("advanceInsectPilot(pilot, insectDelta");
     }
   });

@@ -104,3 +104,26 @@ it("keeps a touch scroll inside the caption away from the viewer's window listen
   window.removeEventListener("touchmove", windowTouchMove);
   expect(windowTouchMove).toHaveBeenCalledTimes(1);
 });
+
+it("animates the caption glass itself without a fading ancestor", () => {
+  const view = render(
+    <ImageViewerChrome
+      caption="Moving caption"
+      contentTop={400}
+      total={1}
+      index={0}
+      visible
+      onIndexChange={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  const caption = view.container.querySelector<HTMLElement>(
+    "[data-artifact-preview-caption]",
+  )!;
+  expect(caption.style.opacity).toBe("0");
+  let parent = caption.parentElement;
+  while (parent && parent !== view.container) {
+    expect(parent.style.opacity).toBe("");
+    parent = parent.parentElement;
+  }
+});

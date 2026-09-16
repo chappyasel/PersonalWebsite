@@ -21,6 +21,7 @@ import {
   TALK_ARM,
   TALK_BRASS,
   TALK_EASEL,
+  TALK_FACE_GAP,
   TALK_GILT,
   TALK_GILT_DEEP,
   TALK_HANG,
@@ -29,6 +30,7 @@ import {
   TALK_POST,
   TALK_SETUPS,
   TALK_SETUP_IDS,
+  rotateTalkPoint,
   talkArmMount,
   talkBackPlaneZ,
   talkBoxCenterLocalZ,
@@ -231,11 +233,16 @@ describe("talk gallery layout", () => {
     const mount = talkArmMount();
     // Nothing under it: the lowest corner floats well clear of the wood.
     expect(setup.lift).toBeGreaterThan(0.12);
-    // The head meets the panel's actual back plane, not a guessed offset.
-    expect(mount.head[2]).toBeCloseTo(
-      talkBackPlaneZ(setup, setup.base[0], mount.head[1]),
-      9,
-    );
+    // The plate clears the backing across its entire front face.
+    for (const x of [-1, 1])
+      for (const y of [-1, 1])
+        expect(mount.head[2]).toBeLessThanOrEqual(
+          talkBackPlaneZ(
+            setup,
+            setup.base[0] + (x * TALK_ARM.headWidth) / 2,
+            mount.head[1] + (y * TALK_ARM.headHeight) / 2,
+          ),
+        );
     // The head is at the panel's own centre height, so the mount is not
     // holding a moment the counterweight was never sized for.
     expect(mount.head[1]).toBeCloseTo(talkSeat(setup), 9);
@@ -247,6 +254,67 @@ describe("talk gallery layout", () => {
     expect(TALK_ARM.clampZ - TALK_ARM.clampDepth / 2 - 0.02).toBeLessThan(
       backEdge + 0.04,
     );
+  });
+
+  it("keeps the arm hardware behind the tilted photo backing", () => {
+    const setup = TALK_SETUPS["talk-ann-interview-v8"];
+    const mount = talkArmMount();
+    const normal = rotateTalkPoint(setup.rest, [0, 0, 1]);
+    const back = talkFramePoint(setup, [
+      0,
+      0,
+      -(setup.thickness + TALK_FACE_GAP),
+    ]);
+    const distance = (point: readonly number[]) =>
+      point.reduce(
+        (sum, value, axis) => sum + (value - back[axis]!) * normal[axis]!,
+        0,
+      );
+
+    // A sphere's frontmost point lies one radius along the photo normal.
+    expect(
+      distance([mount.postX, mount.boomY, mount.boomToZ]) +
+        TALK_ARM.boomThickness * 0.72,
+    ).toBeLessThanOrEqual(0);
+
+    const boxes = [
+      {
+        center: [
+          mount.postX,
+          mount.boomY,
+          (mount.boomFromZ + mount.boomToZ) / 2,
+        ],
+        size: [
+          TALK_ARM.boomThickness,
+          TALK_ARM.boomThickness,
+          mount.boomToZ - mount.boomFromZ,
+        ],
+      },
+      {
+        center: [mount.postX, (mount.boomY + mount.head[1]) / 2, mount.boomToZ],
+        size: [
+          TALK_ARM.headWidth * 0.45,
+          Math.abs(mount.boomY - mount.head[1]),
+          0.016,
+        ],
+      },
+      {
+        center: [mount.postX, mount.head[1], mount.head[2] - 0.014],
+        size: [TALK_ARM.headWidth, TALK_ARM.headHeight, 0.026],
+      },
+    ];
+    for (const box of boxes)
+      for (const x of [-1, 1])
+        for (const y of [-1, 1])
+          for (const z of [-1, 1])
+            expect(
+              distance(
+                box.center.map(
+                  (value, axis) =>
+                    value + ([x, y, z][axis]! * box.size[axis]!) / 2,
+                ),
+              ),
+            ).toBeLessThanOrEqual(0);
   });
 
   it("keeps the arm clear of the panel's top edge", () => {

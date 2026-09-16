@@ -2,8 +2,9 @@
 
 import { browserStorage, claimArrivalBeat } from "../mobile/liveness";
 import { arrivalBeatRef, useStacks } from "../store";
-import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
+
+import { useRoomFrame } from "./useRoomFrame";
 
 export function arrivalBeatDuration(unit: number) {
   if (unit === 0) return 900;
@@ -20,7 +21,7 @@ export default function ArrivalBeats() {
   } | null>(null);
   const previous = useRef<number | null>(null);
 
-  useFrame((_, delta) => {
+  useRoomFrame((_, delta) => {
     if (settledUnit !== null && settledUnit !== previous.current) {
       previous.current = settledUnit;
       const duration = arrivalBeatDuration(settledUnit);

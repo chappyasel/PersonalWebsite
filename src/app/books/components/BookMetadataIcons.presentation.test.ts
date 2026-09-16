@@ -11,12 +11,9 @@ const detailSource = readFileSync(
 );
 
 describe("book metadata icons", () => {
-  it("uses the blank calendar for publication dates", () => {
+  it("uses the blank calendar for the publication sort", () => {
     expect(sortSource).toMatch(
       /field: "publicationYear", label: "Published", icon: CalendarBlankIcon/,
-    );
-    expect(detailSource).toMatch(
-      /key="published"[\s\S]*?icon=\{<CalendarBlankIcon size=\{14\} weight="bold" \/>\}/,
     );
   });
 

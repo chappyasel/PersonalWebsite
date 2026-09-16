@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { SITE_ICON_SIZES } from "./siteIconSizes";
+import { siteIconUrl } from "./siteIconUrl";
 
 /**
  * The `icons` metadata for a section that ships its own icon routes: an
@@ -16,12 +17,11 @@ import { SITE_ICON_SIZES } from "./siteIconSizes";
  * Next writes icons verbatim) or its path prefix on the main host.
  */
 export function siteIconMetadata(base: string): NonNullable<Metadata["icons"]> {
-  const prefix = base.replace(/\/$/, "");
   return {
-    icon: [{ url: `${prefix}/tab-icon`, type: "image/svg+xml", sizes: "any" }],
+    icon: [{ url: siteIconUrl(base), type: "image/svg+xml", sizes: "any" }],
     apple: [
       {
-        url: `${prefix}/icon/app`,
+        url: siteIconUrl(base, "app"),
         sizes: `${SITE_ICON_SIZES.app}x${SITE_ICON_SIZES.app}`,
         type: "image/png",
       },

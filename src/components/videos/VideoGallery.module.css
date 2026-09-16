@@ -1,0 +1,77 @@
+.viewer {
+  padding: max(72px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) max(84px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.content {
+  width: min(100%, 72rem, calc((100dvh - 156px) * 16 / 9));
+  flex-shrink: 0;
+}
+
+.viewer[data-state="open"],
+.backdrop[data-state="open"] {
+  animation: appear var(--overlay-enter-duration) ease-out both;
+}
+
+.viewer[data-state="closed"],
+.backdrop[data-state="closed"] {
+  animation: disappear var(--overlay-exit-duration) ease-in both;
+  pointer-events: none;
+}
+
+.viewer[data-state="open"] .content {
+  animation: expand var(--overlay-enter-duration) cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+.viewer[data-state="closed"] .content {
+  animation: contract var(--overlay-exit-duration) cubic-bezier(0.4, 0, 1, 1)
+    both;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes disappear {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes expand {
+  from {
+    transform: var(--overlay-enter-transform);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes contract {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  to {
+    transform: var(--overlay-exit-transform);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer[data-state],
+  .backdrop[data-state],
+  .viewer[data-state] .content {
+    animation: none;
+  }
+}

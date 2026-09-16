@@ -232,24 +232,6 @@ export async function convertToPngDataUri(
 }
 
 /**
- * Determine if a title is long and needs size adjustment
- * Updated for larger font sizes (roughly 2x original)
- * @param title - The book title
- * @returns Object with fontSize and whether to truncate
- */
-export function getTitleStyle(title: string): {
-  fontSize: number;
-  shouldTruncate: boolean;
-} {
-  if (title.length > 30) {
-    return { fontSize: 62, shouldTruncate: true };
-  } else if (title.length > 15) {
-    return { fontSize: 80, shouldTruncate: false };
-  }
-  return { fontSize: 96, shouldTruncate: false };
-}
-
-/**
  * Calculate average RGB color from image buffer
  * Uses sharp to analyze image and extract average color
  * @param imageBuffer - The image data as ArrayBuffer

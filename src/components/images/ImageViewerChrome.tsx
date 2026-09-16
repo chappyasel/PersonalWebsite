@@ -9,6 +9,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLayoutEffect, useRef } from "react";
 
+import { sceneCaptionClassName } from "~/components/overlays/captionStyles";
 import { Button } from "~/components/ui/button";
 
 import {
@@ -34,6 +35,7 @@ export function ImageViewerChrome({
   captionMaxHeight,
   onMeasure,
   layout = "scene",
+  mediaLabel = "image",
   actions = [],
   total,
   index,
@@ -55,6 +57,7 @@ export function ImageViewerChrome({
     controlsHeight: number;
   }) => void;
   layout?: "scene" | "document";
+  mediaLabel?: "image" | "video";
   actions?: ImageViewerAction[];
   total: number;
   index: number;
@@ -70,7 +73,10 @@ export function ImageViewerChrome({
     if (!onMeasure) return;
     const measure = () =>
       onMeasure({
-        captionHeight: captionRefs.current.get(captionKey)?.offsetHeight ?? 0,
+        captionHeight: Math.max(
+          captionRefs.current.get(captionKey)?.offsetHeight ?? 0,
+          captionRefs.current.get(captionKey)?.scrollHeight ?? 0,
+        ),
         controlsHeight: controlsRef.current?.offsetHeight ?? 0,
       });
     measure();
@@ -82,23 +88,45 @@ export function ImageViewerChrome({
   }, [caption, captionKey, onMeasure]);
 
   const captionContent = caption?.trim() ? (
-    <section
+    <motion.section
+      key={captionKey}
       ref={(element) => {
         if (element) captionRefs.current.set(captionKey, element);
         else captionRefs.current.delete(captionKey);
       }}
       id={captionId}
       data-artifact-preview-caption
+      // Fade the glass itself. A fading ancestor blocks its scene backdrop.
+      initial={
+        contentTop === undefined
+          ? false
+          : { opacity: 0, y: reducedMotion ? 0 : 8 }
+      }
+      animate={
+        contentTop === undefined
+          ? undefined
+          : {
+              opacity: visible ? 1 : 0,
+              y: visible || reducedMotion ? 0 : 8,
+            }
+      }
+      exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
+      transition={{ duration: reducedMotion ? 0 : 0.24 }}
+      aria-hidden={!visible}
+      inert={!visible}
+      style={{ maxHeight: captionMaxHeight, touchAction: "pan-y" }}
+      // Keep caption scrolling out of react-photo-view's window handler.
+      onTouchMove={(event) => event.stopPropagation()}
       className={
         layout === "document"
-          ? "order-0 min-w-0 max-w-2xl px-4 text-center"
-          : "order-0 min-w-0 max-w-2xl self-center rounded-xl bg-black/55 px-3 py-2 text-center shadow-lg backdrop-blur-sm"
+          ? "order-0 pointer-events-auto min-w-0 max-w-2xl overflow-y-auto overscroll-contain px-4 text-center"
+          : `order-0 pointer-events-auto min-w-0 max-w-2xl self-center overflow-y-auto overscroll-contain ${sceneCaptionClassName}`
       }
     >
       <p className="text-pretty text-[13px] leading-relaxed text-white/85 sm:text-sm">
         {caption}
       </p>
-    </section>
+    </motion.section>
   ) : null;
 
   return (
@@ -111,7 +139,9 @@ export function ImageViewerChrome({
         variant="ghost"
         type="button"
         onClick={onClose}
-        aria-label={title ? `Close ${title} preview` : "Close image preview"}
+        aria-label={
+          title ? `Close ${title} preview` : `Close ${mediaLabel} preview`
+        }
         data-artifact-preview-control="close"
         data-home-glass="control"
         className={`pointer-events-auto absolute right-[max(14px,env(safe-area-inset-right))] top-[max(14px,env(safe-area-inset-top))] grid size-11 place-items-center rounded-full p-0 sm:size-10 ${glassControl}`}
@@ -131,31 +161,7 @@ export function ImageViewerChrome({
               : `top ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`,
           }}
         >
-          <AnimatePresence mode="popLayout">
-            {captionContent && (
-              <motion.div
-                key={captionKey}
-                className="pointer-events-auto max-w-2xl overflow-y-auto overscroll-contain"
-                initial={{ opacity: 0, y: reducedMotion ? 0 : 8 }}
-                animate={{
-                  opacity: visible ? 1 : 0,
-                  y: visible || reducedMotion ? 0 : 8,
-                }}
-                exit={{ opacity: 0, y: reducedMotion ? 0 : -6 }}
-                transition={{ duration: reducedMotion ? 0 : 0.24 }}
-                aria-hidden={!visible}
-                inert={!visible}
-                style={{ maxHeight: captionMaxHeight, touchAction: "pan-y" }}
-                // react-photo-view cancels every touchmove at the window
-                // (non-passive, preventDefault) to own the drag. A scroll
-                // inside the caption must not reach it, or a long caption
-                // cannot be scrolled on a phone.
-                onTouchMove={(event) => event.stopPropagation()}
-              >
-                {captionContent}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <AnimatePresence mode="popLayout">{captionContent}</AnimatePresence>
         </div>
       )}
 
@@ -207,7 +213,7 @@ export function ImageViewerChrome({
                 type="button"
                 onClick={() => onIndexChange(index - 1)}
                 disabled={index === 0}
-                aria-label="Previous image"
+                aria-label={`Previous ${mediaLabel}`}
                 className="grid size-11 place-items-center rounded-l-full p-0 text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 motion-reduce:transition-none sm:size-10"
               >
                 <ArrowLeftIcon aria-hidden size={18} weight="bold" />
@@ -223,7 +229,7 @@ export function ImageViewerChrome({
                 type="button"
                 onClick={() => onIndexChange(index + 1)}
                 disabled={index === total - 1}
-                aria-label="Next image"
+                aria-label={`Next ${mediaLabel}`}
                 className="grid size-11 place-items-center rounded-r-full p-0 text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 motion-reduce:transition-none sm:size-10"
               >
                 <ArrowRightIcon aria-hidden size={18} weight="bold" />
