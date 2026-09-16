@@ -120,12 +120,16 @@ export async function getBooks(input: BookCollectionInput): Promise<Book[]> {
     }
     // Timeline position is when the attempt ended: finish date, or abandoned
     // date for drops. In-progress reads (neither) sort last.
-    group.sort((a, b) =>
-      (a.finished ?? a.abandoned ?? "9999").localeCompare(
-        b.finished ?? b.abandoned ?? "9999",
-      ),
+    group.sort(
+      (a, b) =>
+        (a.finished ?? a.abandoned ?? "9999").localeCompare(
+          b.finished ?? b.abandoned ?? "9999",
+        ) ||
+        (a.started ?? "9999").localeCompare(b.started ?? "9999") ||
+        a.id.localeCompare(b.id),
     );
     const allReadings: BookReading[] = group.map((book) => ({
+      id: book.id,
       started: book.started,
       finished: book.finished,
       abandoned: book.abandoned,

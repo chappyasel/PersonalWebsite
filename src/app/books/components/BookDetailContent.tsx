@@ -49,6 +49,7 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { capture, captureOnce } from "~/lib/analytics";
+import { bookCoverShadow } from "~/lib/books/coverShadow";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
@@ -84,7 +85,9 @@ import {
   NoNotesState,
   ReadingNowNotice,
 } from "./BookNotices";
+import { DetailCoverTilt } from "./DetailCoverTilt";
 import { InlineMarkdown } from "./InlineMarkdown";
+import { ReadNavigation } from "./ReadNavigation";
 import { TagBadge } from "./TagBadge";
 
 /**
@@ -583,7 +586,10 @@ function BookByline({ book }: { book: BookDetailBook }) {
       <span className="min-w-0 truncate">{book.author}</span>
       {book.publicationYear && (
         <span className="shrink-0 whitespace-nowrap">
-          <span aria-hidden="true" className="mr-2 text-muted-foreground/40">
+          <span
+            aria-hidden="true"
+            className="mr-2 font-normal text-muted-foreground/40"
+          >
             •
           </span>
           <span aria-label={`Published ${book.publicationYear}`}>
@@ -611,8 +617,11 @@ function BookFacts({ book }: { book: BookDetailBook }) {
           pageLength ? (
             <>
               {audioLength}{" "}
-              <span aria-hidden="true" className="text-muted-foreground/40">
-                ·
+              <span
+                aria-hidden="true"
+                className="font-normal text-muted-foreground/40"
+              >
+                •
               </span>{" "}
               {pageLength}
             </>
@@ -809,6 +818,9 @@ function BrandIcon({ brand }: { brand: "audible" | "notion" }) {
 }
 
 function BookActions({
+  onReadSelect,
+  book,
+  booksHref,
   copied,
   audibleUrl,
   notionUrl,
@@ -822,6 +834,9 @@ function BookActions({
   onShare: () => void;
   onAudibleClick: () => void;
   onNotionClick: () => void;
+  book: BookDetailBook;
+  onReadSelect?: BookDetailContentProps["onReadSelect"];
+  booksHref?: string;
 }) {
   return (
     <div className="-ml-2 flex flex-nowrap items-center gap-2">
@@ -842,6 +857,12 @@ function BookActions({
       >
         •
       </span>
+      <ReadNavigation
+        bookId={book.id}
+        readings={book.otherReadings}
+        onReadSelect={onReadSelect}
+        booksHref={booksHref}
+      />
       <div role="group" aria-label="Book actions" className="flex items-center">
         <CopyLinkButton copied={copied} onClick={onShare} />
         {audibleUrl && (
@@ -898,6 +919,8 @@ type BookDetailContentProps = {
   tagHref?: (tag: string) => string;
   /** In-place takeover for a tag press; the link stays the fallback. */
   onTagSelect?: (tag: string, event: MouseEvent<HTMLAnchorElement>) => void;
+  /** Replace the current modal reading without adding a history entry. */
+  onReadSelect?: (bookId: string, event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
 export function BookDetailContent({
@@ -918,6 +941,7 @@ export function BookDetailContent({
   expanded = false,
   tagHref,
   onTagSelect,
+  onReadSelect,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const notice = selectBookNotice(book);
@@ -971,6 +995,7 @@ export function BookDetailContent({
       key={tag}
       tag={tag}
       href={tagHref?.(tag)}
+      tooltip="More books on this topic"
       onClick={tagHref ? (event) => handleTagClick(tag, event) : undefined}
     />
   );
@@ -1119,12 +1144,9 @@ export function BookDetailContent({
   const headerOverflow = useTransform(smoothProgress, (progress) =>
     Math.max(0, geometry.shrink * (1 - progress)),
   );
-  const coverBoxShadow = useTransform(
-    smoothProgress,
-    [0, 1],
-    isLargeScreen
-      ? ["0px 8px 20px rgba(0, 0, 0, 0.15)", "0px 2px 6px rgba(0, 0, 0, 0.1)"]
-      : ["0px 4px 6px rgba(0, 0, 0, 0.1)", "0px 1px 3px rgba(0, 0, 0, 0.08)"],
+  const coverShadowSize = useTransform(smoothProgress, [0, 1], [1, 0.25]);
+  const coverBoxShadow = useTransform(coverShadowSize, (size) =>
+    bookCoverShadow(0, 0, 1, size),
   );
 
   // Header padding
@@ -1414,30 +1436,35 @@ export function BookDetailContent({
               className="aspect-[2/3] flex-shrink-0"
               style={{ height: coverHeight }}
             >
-              {coverUrl ? (
-                <motion.div
-                  style={{
-                    borderRadius: coverBorderRadius,
-                    boxShadow: coverBoxShadow,
-                    // Sampled jacket color behind the image while it loads
-                    backgroundColor: book.coverColor ?? undefined,
-                  }}
-                  className="h-full w-full overflow-hidden"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={coverUrl}
-                    alt={`${book.title} cover`}
-                    className="h-full w-full object-cover"
-                  />
-                </motion.div>
-              ) : (
-                <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted p-2 text-center shadow-md">
-                  <p className="text-xs font-semibold text-foreground">
-                    {book.title}
-                  </p>
-                </div>
-              )}
+              <DetailCoverTilt
+                borderRadius={coverBorderRadius}
+                shadowSize={coverShadowSize}
+                restingShadow={coverBoxShadow}
+              >
+                {coverUrl ? (
+                  <motion.div
+                    style={{
+                      borderRadius: coverBorderRadius,
+                      // Sampled jacket color behind the image while it loads
+                      backgroundColor: book.coverColor ?? undefined,
+                    }}
+                    className="h-full w-full overflow-hidden"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={coverUrl}
+                      alt={`${book.title} cover`}
+                      className="h-full w-full object-cover"
+                    />
+                  </motion.div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-[inherit] bg-muted p-2 text-center">
+                    <p className="text-xs font-semibold text-foreground">
+                      {book.title}
+                    </p>
+                  </div>
+                )}
+              </DetailCoverTilt>
             </motion.div>
 
             {/* Compact Title/Author - Desktop shows animated version, Mobile fades in */}
@@ -1554,6 +1581,9 @@ export function BookDetailContent({
                       }}
                     >
                       <BookActions
+                        book={fullBook ?? book}
+                        booksHref={modalBreadcrumbHref}
+                        onReadSelect={onReadSelect}
                         copied={copied}
                         audibleUrl={book.audibleUrl}
                         notionUrl={book.notionUrl}
@@ -1704,6 +1734,9 @@ export function BookDetailContent({
               }}
             >
               <BookActions
+                book={fullBook ?? book}
+                booksHref={modalBreadcrumbHref}
+                onReadSelect={onReadSelect}
                 copied={copied}
                 audibleUrl={book.audibleUrl}
                 notionUrl={book.notionUrl}

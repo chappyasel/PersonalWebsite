@@ -1,4 +1,6 @@
 export type BookReading = {
+  id: string; // Current slug for this reading
+
   started: string | null;
   finished: string | null;
   abandoned: string | null;

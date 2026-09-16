@@ -51,6 +51,7 @@ export function GolfBallProp({
       shadeColor={palette.shadow}
       shadeWidth={0.1}
       shape="sphere"
+      sceneImpulseReaction="roll"
       massKg={GOLF_BALL_MASS_KG}
       restitution={0.55}
       maxThrowSpeed={9}

@@ -3,7 +3,7 @@
 import { sceneAudio } from "../audio/sceneAudio";
 import { isWorldRevealed } from "../boot/worldBootSession";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
-import { useStacks } from "../store";
+import { touchWorldRef, useStacks } from "../store";
 import { type Palette } from "../theme";
 import { useThree } from "@react-three/fiber";
 import {
@@ -21,6 +21,7 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
+import { CoordinationBurstFragments } from "./CoordinationBurstFragments";
 import Grabbable from "./Grabbable";
 import { aboutLandmarkNodeName } from "./aboutBootComposition";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
@@ -69,6 +70,11 @@ import { publishSceneImpulse } from "./sceneImpulse";
 import { screenshotModeController } from "./screenshotMode";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { useUnitFrame } from "./unitActivity";
+import {
+  type CoordinationChargeSignal,
+  coordinationChargeProgress,
+  useCoordinationCharge,
+} from "./useCoordinationCharge";
 
 const HORIZON_VERTEX = /* glsl */ `
   uniform float uTime;
@@ -332,6 +338,7 @@ type NetworkScene = Readonly<{
     hoverStrength: number,
     burstStrength: number,
     connections: readonly CoordinationConnection[],
+    chargeStrength?: number,
   ) => void;
 }>;
 
@@ -442,11 +449,14 @@ function useNetworkScene(
       hoverStrength: number,
       burstStrength: number,
       connections: readonly CoordinationConnection[],
+      chargeStrength = 0,
     ) => {
       const instanced = nodes.current;
       graph.nodes.forEach((node, index) => {
         const point = coordinationNodePosition(node, elapsed, burstStrength);
-        points[index]!.set(point[0], point[1], point[2]);
+        points[index]!.set(point[0], point[1], point[2]).multiplyScalar(
+          1 - chargeStrength * 0.24,
+        );
         const depth = THREE.MathUtils.clamp(
           0.5 + points[index]!.z / (COORDINATION_CORE_RADIUS * 2),
           0,
@@ -455,7 +465,7 @@ function useNetworkScene(
         const scale =
           (0.00235 + (index % 4) * 0.00016) *
           (0.84 + depth * 0.28) *
-          (1 + burstStrength * 0.7) *
+          (1 + burstStrength * 0.7 + chargeStrength * 0.65) *
           legibility.nodeScale;
         if (instanced) {
           matrix.makeScale(scale, scale, scale);
@@ -499,9 +509,10 @@ function useNetworkScene(
       ).data;
       neighborhoodBuffer.needsUpdate = true;
       neighborhood.material.opacity =
-        legibility.baseLineOpacity +
-        hoverStrength * 0.07 +
-        burstStrength * 0.26;
+        (legibility.baseLineOpacity +
+          hoverStrength * 0.07 +
+          chargeStrength * 0.4) *
+        (1 - burstStrength * 0.88);
 
       connectionLines.forEach((visual, index) => {
         const connection = connections[index];
@@ -512,7 +523,10 @@ function useNetworkScene(
               ]
             : undefined;
         const revealVisible =
-          !!pair && !!connection && connection.opacity > 0.001;
+          !!pair &&
+          !!connection &&
+          connection.opacity > 0.001 &&
+          burstStrength < 0.7;
         visual.object.visible = revealVisible;
         visual.tip.visible = revealVisible;
         if (!revealVisible || !pair || !connection) return;
@@ -629,10 +643,12 @@ function StaticCoordinationNetwork({
 
 function LiveCoordinationNetwork({
   burstSignal,
+  chargeSignal,
   horizonMaterial,
   legibility,
 }: {
   burstSignal: BurstSignal;
+  chargeSignal: CoordinationChargeSignal;
   horizonMaterial: HorizonMaterialRef;
   legibility: CoordinationGlobeLegibility;
 }) {
@@ -711,6 +727,7 @@ function LiveCoordinationNetwork({
       // thick reveal arcs: at 3.4px they are the one thing on the globe
       // that reads as a line in a still, and a header wants the sphere.
       screenshotModeController.getSnapshot().enabled ? [] : connectionFrames,
+      coordinationChargeProgress(chargeSignal.current, performance.now()),
     );
   });
   return <NetworkMeshes scene={scene} />;
@@ -726,11 +743,13 @@ function prefersReducedMotion() {
 function CoordinationNetwork({
   still,
   burstSignal,
+  chargeSignal,
   horizonMaterial,
   legibility,
 }: {
   still: boolean;
   burstSignal: BurstSignal;
+  chargeSignal: CoordinationChargeSignal;
   horizonMaterial: HorizonMaterialRef;
   legibility: CoordinationGlobeLegibility;
 }) {
@@ -739,6 +758,7 @@ function CoordinationNetwork({
   ) : (
     <LiveCoordinationNetwork
       burstSignal={burstSignal}
+      chargeSignal={chargeSignal}
       horizonMaterial={horizonMaterial}
       legibility={legibility}
     />
@@ -791,9 +811,13 @@ function AmorphousHorizon({
 function CoordinationSingularity({
   still,
   burstSignal,
+  chargeSignal,
+  burstDebrisEnabled,
 }: {
   still: boolean;
   burstSignal: BurstSignal;
+  chargeSignal: CoordinationChargeSignal;
+  burstDebrisEnabled: boolean;
 }) {
   const horizonMaterial = useRef<THREE.ShaderMaterial>(null);
   const legibility = useCoordinationLegibility();
@@ -803,6 +827,9 @@ function CoordinationSingularity({
           actual meadow and scene color, making the dither part of the orb's
           silhouette rather than a pattern painted over glass. */}
       <AmorphousHorizon materialRef={horizonMaterial} legibility={legibility} />
+      {!still && burstDebrisEnabled ? (
+        <CoordinationBurstFragments burstSignal={burstSignal} />
+      ) : null}
       {/* Depth is deliberately disobeyed here: the graph is spatially inside
           the opaque horizon, yet remains readable as if the glass has exposed
           information that ordinary light cannot carry back out. */}
@@ -810,6 +837,7 @@ function CoordinationSingularity({
         <CoordinationNetwork
           still={still}
           burstSignal={burstSignal}
+          chargeSignal={chargeSignal}
           horizonMaterial={horizonMaterial}
           legibility={legibility}
         />
@@ -823,11 +851,15 @@ function CoordinationGlobeBody({
   effectEnabled,
   still,
   burstSignal,
+  chargeSignal,
+  burstDebrisEnabled,
 }: {
   dark: boolean;
   effectEnabled: boolean;
   still: boolean;
   burstSignal: BurstSignal;
+  chargeSignal: CoordinationChargeSignal;
+  burstDebrisEnabled: boolean;
 }) {
   return (
     <group name={aboutLandmarkNodeName("coordination-globe")}>
@@ -875,7 +907,12 @@ function CoordinationGlobeBody({
       </group>
       <group position={[0, COORDINATION_CORE_CENTER_Y, 0]}>
         {effectEnabled ? (
-          <CoordinationSingularity still={still} burstSignal={burstSignal} />
+          <CoordinationSingularity
+            still={still}
+            burstSignal={burstSignal}
+            chargeSignal={chargeSignal}
+            burstDebrisEnabled={burstDebrisEnabled}
+          />
         ) : null}
       </group>
       <mesh
@@ -925,12 +962,16 @@ export function CoordinationGlobe({
   const dragged = useStacks(
     (state) => state.dragging === COORDINATION_GLOBE_INTERACTION_ID,
   );
-  const coordinationEngaged = focused || hovered || dragged;
+  // Touch selection owns engagement. Synthetic touch hover can survive a
+  // cancelled swipe and must not charge the orb on its own.
+  const coordinationEngaged =
+    focused ||
+    dragged ||
+    (hovered && touchWorldRef.interactionPointerType !== "touch");
   const still = useMemo(() => prefersReducedMotion(), []);
   const burstSignal = useRef(createCoordinationBurst());
   const shockwaveOrigin = useRef<THREE.Group>(null);
   const shockwaveWorld = useMemo(() => new THREE.Vector3(), []);
-  const wasShockwaveEngaged = useRef(false);
   const lastShockwaveAt = useRef(Number.NEGATIVE_INFINITY);
   const effectEnabled = diagnostics.effectEnabled && near;
   const projectedLocalBounds = useMemo(() => {
@@ -952,8 +993,7 @@ export function CoordinationGlobe({
       origin: Readonly<{ x: number; y: number; z: number }>,
       discovered = false,
     ) => {
-      if (!effectEnabled || still) return;
-      if (discovered) recordFieldNoteEvent({ type: "coordination-shockwave" });
+      if (!effectEnabled || still || !isWorldRevealed()) return;
       const now = performance.now();
       if (now - lastShockwaveAt.current < 900) return;
       lastShockwaveAt.current = now;
@@ -989,14 +1029,13 @@ export function CoordinationGlobe({
         radius: 1.05,
         timeScale: 1.7,
       });
+      if (discovered) recordFieldNoteEvent({ type: "coordination-shockwave" });
     },
     [effectEnabled, scale, still],
   );
-  useEffect(() => {
-    const entered = coordinationEngaged && !wasShockwaveEngaged.current;
-    wasShockwaveEngaged.current = coordinationEngaged;
+  const releaseCharge = useCallback(() => {
     const origin = shockwaveOrigin.current;
-    if (!entered || !origin) return;
+    if (!origin) return;
     origin.getWorldPosition(shockwaveWorld);
     emitShockwave(
       {
@@ -1006,7 +1045,12 @@ export function CoordinationGlobe({
       },
       true,
     );
-  }, [coordinationEngaged, emitShockwave, shockwaveWorld]);
+  }, [emitShockwave, shockwaveWorld]);
+  const chargeSignal = useCoordinationCharge(
+    coordinationEngaged,
+    effectEnabled && !still,
+    releaseCharge,
+  );
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -1018,7 +1062,6 @@ export function CoordinationGlobe({
       massKg={0.85}
       restitution={0.1}
       maxThrowSpeed={2.2}
-      onDragIntent={(origin) => emitShockwave(origin, true)}
       projectedLocalBounds={projectedLocalBounds}
       href="https://coordination.sh/"
       portalLabel="Coordination Research"
@@ -1030,6 +1073,8 @@ export function CoordinationGlobe({
           effectEnabled={effectEnabled}
           still={still}
           burstSignal={burstSignal}
+          chargeSignal={chargeSignal}
+          burstDebrisEnabled={diagnostics.burstDebrisEnabled}
         />
       </group>
     </Grabbable>

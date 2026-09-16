@@ -193,7 +193,7 @@ describe("Coordination globe network", () => {
     expect(strengths[0]).toBeGreaterThan(0);
     expect(Math.max(...strengths)).toBeGreaterThan(0.99);
     expect(strengths.at(-1)).toBe(0);
-    expect(burst).toEqual({ age: null, strength: 0 });
+    expect(burst).toEqual({ age: null, strength: 0, revision: 1 });
     expect(
       coordinationNodePosition(graph.nodes[0]!, 17, burst.strength),
     ).toEqual(coordinationNodePosition(graph.nodes[0]!, 17, 0));

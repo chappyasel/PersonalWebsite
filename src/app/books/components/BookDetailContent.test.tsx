@@ -146,7 +146,7 @@ describe("BookDetailContent note availability", () => {
     expect(markup).toContain("data-book-facts");
     expect(markup).not.toContain('data-book-fact="published"');
     expect(markup).toMatch(
-      /data-book-fact="length"[\s\S]*?aria-hidden="true" class="text-muted-foreground\/40">·<\/span>/,
+      /data-book-fact="length"[\s\S]*?aria-hidden="true" class="font-normal text-muted-foreground\/40">•<\/span>/,
     );
     expect(markup).toMatch(
       /Adrian Tchaikovsky<\/span>[\s\S]*?aria-hidden="true"[^>]*>•<\/span><span aria-label="Published 2015">2015<\/span>/,

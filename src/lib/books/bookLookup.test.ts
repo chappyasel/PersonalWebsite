@@ -125,3 +125,35 @@ describe("renamed book links", () => {
     });
   });
 });
+
+describe("reading history on detail lookups", () => {
+  it("returns identical linked history on the page and modal, identifying duplicate dates by ID", async () => {
+    const earlier = {
+      id: "earlier-read",
+      started: new Date("2025-01-01"),
+      finished: new Date("2025-02-01"),
+    };
+    const current = { ...earlier, id: book.id };
+    const abandoned = {
+      id: "abandoned-attempt",
+      abandoned: new Date("2025-03-01"),
+    };
+    const ongoing = { id: "ongoing-read", started: new Date("2026-01-01") };
+    mocks.findMany.mockResolvedValue([earlier, current, abandoned, ongoing]);
+    const page = await getBookWithNotes(book.id);
+    const modal = await booksRouter
+      .createCaller(context)
+      .getById({ bookId: book.id });
+    expect(page).toEqual(modal);
+    expect(page).toMatchObject({
+      readNumber: 2,
+      totalReads: 3,
+      otherReadings: [
+        { id: earlier.id },
+        { id: book.id },
+        { id: abandoned.id },
+        { id: ongoing.id },
+      ],
+    });
+  });
+});

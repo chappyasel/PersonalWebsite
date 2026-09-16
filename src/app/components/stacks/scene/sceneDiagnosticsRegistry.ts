@@ -8,6 +8,7 @@ import {
   visionRideDiagnosticsController,
 } from "../visionRide/visionRideDiagnostics";
 
+import { bookCardVisualEffects } from "~/lib/books/cardVisualEffects";
 import { overlayBackgroundMotion } from "~/lib/overlays/backgroundMotion";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
@@ -2144,6 +2145,71 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       artifactPreviewVisualEffects.setBackdropBlur(Boolean(value)),
   }),
   booleanDescriptor({
+    id: "render.book-cover-lift-shadows",
+    panel: "render",
+    group: "render.photographs",
+    label: "Book cover moving shadows",
+    help: "Move and soften shadows with cover lift and tilt on the bookshelf and in book details.",
+    defaultValue: bookCardVisualEffects.defaultSnapshot.coverLiftShadows,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled: "CSS shadow updates while a book cover's springs are moving.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: bookCardVisualEffects,
+    read: () => bookCardVisualEffects.getSnapshot().coverLiftShadows,
+    update: (value) =>
+      bookCardVisualEffects.setCoverLiftShadows(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.book-detail-cover-tilt",
+    panel: "render",
+    group: "render.photographs",
+    label: "Book detail cover tilt",
+    help: "Tilt and lift the book cover on hover in book details.",
+    defaultValue: bookCardVisualEffects.defaultSnapshot.detailCoverTilt,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled: "CSS cover transforms following the pointer with springs.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: bookCardVisualEffects,
+    read: () => bookCardVisualEffects.getSnapshot().detailCoverTilt,
+    update: (value) => bookCardVisualEffects.setDetailCoverTilt(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.book-card-blur",
+    panel: "render",
+    group: "render.photographs",
+    label: "Book card blur",
+    help: "Progressively blur book covers behind their text on hover or keyboard focus. The cover tint remains readable with blur off.",
+    defaultValue: bookCardVisualEffects.defaultSnapshot.backdropBlur,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Three masked CSS backdrop layers on the hovered or focused book card.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: bookCardVisualEffects,
+    read: () => bookCardVisualEffects.getSnapshot().backdropBlur,
+    update: (value) => bookCardVisualEffects.setBackdropBlur(Boolean(value)),
+  }),
+  booleanDescriptor({
     id: "render.universal-search-blur",
     panel: "render",
     group: "render.scene-effects",
@@ -2242,6 +2308,32 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       coordinationGlobeDiagnosticsController.getSnapshot().effectEnabled,
     update: (value) =>
       coordinationGlobeDiagnosticsController.setEffectEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.coordination-burst-debris",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "Coordination burst fragments",
+    help: "Release fragments and trails outside the orb when its charge completes.",
+    defaultValue: DEFAULT_COORDINATION.burstDebrisEnabled,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Two instanced draws during a burst, with ballistic fragment motion.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: coordinationGlobeDiagnosticsController,
+    read: () =>
+      coordinationGlobeDiagnosticsController.getSnapshot().burstDebrisEnabled,
+    update: (value) =>
+      coordinationGlobeDiagnosticsController.setBurstDebrisEnabled(
+        Boolean(value),
+      ),
   }),
   performanceBoolean({
     id: "render.pause-prewarm-travel",

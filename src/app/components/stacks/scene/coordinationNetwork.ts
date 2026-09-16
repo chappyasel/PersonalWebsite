@@ -29,6 +29,7 @@ export type CoordinationNetwork = Readonly<{
 export type CoordinationBurst = {
   age: number | null;
   strength: number;
+  revision: number;
 };
 
 export type CoordinationConnection = {
@@ -44,8 +45,8 @@ export type CoordinationConnectionPool = {
   nextSequence: number;
 };
 
-const BURST_ATTACK = 0.12;
-const BURST_RELEASE = 1.05;
+const BURST_ATTACK = 0.035;
+const BURST_RELEASE = 1.35;
 const CONNECTION_GROW = 0.58;
 const CONNECTION_FADE = 1.05;
 const NEIGHBORS_PER_NODE = 6;
@@ -235,10 +236,11 @@ export function coordinationNodePosition(
 }
 
 export function createCoordinationBurst(): CoordinationBurst {
-  return { age: null, strength: 0 };
+  return { age: null, strength: 0, revision: 0 };
 }
 
 export function triggerCoordinationBurst(burst: CoordinationBurst) {
+  burst.revision += 1;
   burst.age = 0;
   burst.strength = 0;
 }

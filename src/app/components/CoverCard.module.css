@@ -4,6 +4,12 @@
 
 .card {
   flex-direction: column;
+}
+
+/* Give the glass its own radius so its fill and edge highlights follow the
+   same curve as the cover without inheriting a trigger's default radius. */
+.card,
+.background {
   border-radius: var(--cover-card-radius, 1.5rem);
 }
 

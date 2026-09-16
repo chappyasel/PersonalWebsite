@@ -4444,7 +4444,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/Grabbable.tsx",
-      "sha256": "950bae73bf25bd36dd0b508749299a9cad79dc5ecdd04499eacd6c866a461a5c",
+      "sha256": "bd77dc3b5a249d8656527ce6d29a2a6c7ca517fac480326e3d42523814891239",
       "archivedSha256": "996da516bc24c117abe952a895f529a668288f32b8886b326784b53c1c015c79"
     },
     {
@@ -4644,7 +4644,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/golf/GolfBallProp.tsx",
-      "sha256": "ff3775e3d46f5d9c3323d9ae2939bc7c03dee7cdd8b7da1f285656e9fe400e59",
+      "sha256": "dfd9d35a3f0c7cbc4f0fab564f5febe0d006d6ba5511c100ee54759f19c74ae5",
       "archivedSha256": "ff3775e3d46f5d9c3323d9ae2939bc7c03dee7cdd8b7da1f285656e9fe400e59"
     },
     {
@@ -4889,7 +4889,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/physics.ts",
-      "sha256": "3e64b2f2883b0f0b3eee009674fec0c327677f5096da920b632c58002ae0a237",
+      "sha256": "549fa5c88f6380d7fabe6ccc57a7a27556d400222096c0106f8db465dc986dc4",
       "archivedSha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089"
     },
     {
@@ -4974,7 +4974,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/sceneImpulse.ts",
-      "sha256": "cc24f25ca5813b85dd1bae9cad53a0e7eea035572c961e66aa6fcf62f1313579",
+      "sha256": "7b389139203f189b5fed864ee6ac0ffbe834637ba9034415c01574a6b8117ba6",
       "archivedSha256": "cc24f25ca5813b85dd1bae9cad53a0e7eea035572c961e66aa6fcf62f1313579"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "3ef2a49cf16ab5f47940074a658d1568f44970dfc354a05b439b2dbf4e98043b",
+  "sourceFingerprint": "e524a3872278c5f166a277e54677e9b2a3c48b244d826a7e51744de1ecd52214",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5631,6 +5631,33 @@
           "path": "src/app/components/stacks/scene/units/talkPhotoSetups.tsx",
           "previousSha256": "38dd61a8ac8b17246a8b5f8974bcf97ff7d05b07fabd0052be86a7c6231e0e98",
           "sha256": "724fb8dfcfd8731590fe8fbb0235b01620b51987650039095202bd03eeaa157d"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed shockwave-only changes in docs/reviews/2026-09-16-books-and-coordination-release.md. Launch velocity, tumble, and golf-ball roll responses preserve captured resting geometry, materials, cameras, and authored poses. This updates the source dependency receipt without claiming a fresh capture.",
+      "previousFingerprint": "3ef2a49cf16ab5f47940074a658d1568f44970dfc354a05b439b2dbf4e98043b",
+      "sourceFingerprint": "e524a3872278c5f166a277e54677e9b2a3c48b244d826a7e51744de1ecd52214",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/Grabbable.tsx",
+          "previousSha256": "950bae73bf25bd36dd0b508749299a9cad79dc5ecdd04499eacd6c866a461a5c",
+          "sha256": "bd77dc3b5a249d8656527ce6d29a2a6c7ca517fac480326e3d42523814891239"
+        },
+        {
+          "path": "src/app/components/stacks/scene/golf/GolfBallProp.tsx",
+          "previousSha256": "ff3775e3d46f5d9c3323d9ae2939bc7c03dee7cdd8b7da1f285656e9fe400e59",
+          "sha256": "dfd9d35a3f0c7cbc4f0fab564f5febe0d006d6ba5511c100ee54759f19c74ae5"
+        },
+        {
+          "path": "src/app/components/stacks/scene/physics.ts",
+          "previousSha256": "3e64b2f2883b0f0b3eee009674fec0c327677f5096da920b632c58002ae0a237",
+          "sha256": "549fa5c88f6380d7fabe6ccc57a7a27556d400222096c0106f8db465dc986dc4"
+        },
+        {
+          "path": "src/app/components/stacks/scene/sceneImpulse.ts",
+          "previousSha256": "cc24f25ca5813b85dd1bae9cad53a0e7eea035572c961e66aa6fcf62f1313579",
+          "sha256": "7b389139203f189b5fed864ee6ac0ffbe834637ba9034415c01574a6b8117ba6"
         }
       ]
     }

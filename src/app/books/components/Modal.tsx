@@ -45,7 +45,9 @@ import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
 import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
 import {
+  BOOK_MODAL_HISTORY_STATE,
   bookIdFromPathname,
+  inlineBookHistoryEntry,
   inlineBookIdFromHistory,
   isBookModalHistoryState,
 } from "./modalHistory";
@@ -229,6 +231,42 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     onCloseStart,
     presentation?.source,
   ]);
+
+  const handleReadSelect = (
+    nextBookId: string,
+    event: ReactMouseEvent<HTMLAnchorElement>,
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    event.preventDefault();
+    if (isClosingRef.current) return;
+
+    const entry =
+      presentation?.source === "document"
+        ? inlineBookHistoryEntry(nextBookId, window.location)
+        : {
+            href: bookPath(nextBookId, searchParams.toString()),
+            state: BOOK_MODAL_HISTORY_STATE,
+          };
+    // Keep the original launcher immediately behind this modal, including
+    // after repeated switches. Preserve Next's state and document markers.
+    sawOwnPathRef.current = false;
+    window.history.replaceState(
+      { ...window.history.state, ...entry.state },
+      "",
+      entry.href,
+    );
+    setCopied(false);
+    openModalById(nextBookId);
+    shellRef.current?.focus({ preventScroll: true });
+  };
 
   const expandHref = fullBookPageHref(bookId, presentation, bookPath(bookId));
 
@@ -558,6 +596,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     </div>
                   ) : book ? (
                     <BookDetailContent
+                      key={book.id}
+                      onReadSelect={handleReadSelect}
                       book={book}
                       fullBook={fetchedBook}
                       isLoadingNotes={isLoadingNotes}

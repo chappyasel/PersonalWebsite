@@ -1,7 +1,29 @@
+import { JSDOM } from "jsdom";
+import { readFileSync } from "node:fs";
 import * as THREE from "three";
+import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PhysicsSceneScope } from "./PhysicsSceneProvider";
+import {
+  ABOUT_AIC_BASE_DEPTH,
+  ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_HEIGHT,
+  ABOUT_AIC_MARK_SOURCE_DEPTH,
+} from "./aboutAwardGeometry";
+import {
+  ABOUT_AIC_SCALE,
+  ABOUT_COORDINATION_GLOBE_SCALE,
+} from "./aboutLampPose";
+import {
+  ABOUT_AIC_MARK_YAW,
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_LANDMARK_X,
+  ABOUT_LOWER_LANDMARK_Z,
+} from "./aboutScenePose";
+import { COORDINATION_CORE_CENTER_Y } from "./coordinationGlobeGeometry";
+import { ABOUT_GOLF_BALLS } from "./golf/aboutGolfBalls";
+import { GOLF_BALL_RADIUS } from "./golf/golfBallGeometry";
 import {
   getMeadowDisturbance,
   resetMeadowDisturbance,
@@ -17,7 +39,9 @@ import {
   warm,
 } from "./physics";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import { sceneImpulseKick, sceneImpulseLaunchVelocity } from "./sceneImpulse";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
+import { tjMedallionSolidGroup } from "./tjMedallionGeometry";
 import {
   ABOUT_READING_BOOK,
   readingStackPoses,
@@ -103,6 +127,51 @@ function ballFixture() {
   return { shelf, prop };
 }
 
+function collectiveAwardFixture() {
+  const dom = new JSDOM();
+  vi.stubGlobal("DOMParser", dom.window.DOMParser);
+  try {
+    const svg = new SVGLoader().parse(
+      readFileSync(
+        new URL(
+          "../../../../../public/images/stacks/v8/ai-collective-mark.svg",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    const geometry = new THREE.ExtrudeGeometry(
+      svg.paths.flatMap((path) => SVGLoader.createShapes(path)),
+      {
+        depth: ABOUT_AIC_MARK_SOURCE_DEPTH,
+        bevelEnabled: false,
+        curveSegments: 16,
+      },
+    );
+    geometry.scale(
+      ...new THREE.Vector3()
+        .setScalar(ABOUT_AIC_MARK_HEIGHT / 844.38)
+        .toArray(),
+    );
+    geometry.rotateX(Math.PI);
+    geometry.center();
+    const mark = new THREE.Mesh(geometry);
+    mark.position.set(0, 0.118, 0.004);
+    mark.rotation.y = ABOUT_AIC_MARK_YAW;
+    const group = new THREE.Group();
+    group.add(
+      mark,
+      box([ABOUT_AIC_BASE_WIDTH, 0.024, ABOUT_AIC_BASE_DEPTH], [0, 0.012, 0]),
+    );
+    group.rotation.y = ABOUT_AIC_ROOT_YAW;
+    group.scale.setScalar(ABOUT_AIC_SCALE);
+    return group;
+  } finally {
+    vi.unstubAllGlobals();
+    dom.window.close();
+  }
+}
+
 describe("static collider support height", () => {
   it("keeps shelf-world neighbours above their local plank surface", () => {
     expect(staticColliderSupportY("top")).toBe(0);
@@ -153,6 +222,117 @@ describe("shelf physics lifecycle and carrying", () => {
     expect(entry.body?.velocity.length()).toBeGreaterThan(1);
     expect(entry.body?.angularVelocity.length()).toBeGreaterThan(5);
   });
+
+  it("throws a nearby standing award clear of the shelf instead of only tipping it", async () => {
+    await warm();
+    const { prop, shelf } = topFixture();
+    prop.clear();
+    prop.add(box([0.23, 0.27, 0.08], [0, 0.135, 0]));
+    shelf.add(box([0.3, 0.18, 0.18], [0.32, 0.09, 0]));
+    const entry = handle("shockwave-award", prop);
+    entry.massKg = 0.45;
+    const prepared = worldFor(prop, [entry]);
+    expect(prepared.status).toBe("ready");
+    if (prepared.status !== "ready") return;
+
+    const kick = sceneImpulseKick(
+      {
+        sourceId: "orb",
+        x: -0.32,
+        y: 0.25,
+        z: -0.035,
+        radius: 1.65,
+        strength: 2,
+        palette: "coordination",
+        revision: 1,
+      },
+      prop.getWorldPosition(new THREE.Vector3()),
+      entry.key,
+    );
+    const launch = sceneImpulseLaunchVelocity(kick);
+    prepared.world.knock(
+      entry,
+      new THREE.Vector3(launch.x, launch.y, launch.z),
+    );
+    const start = prop.position.clone();
+    let maxClearance = 0;
+    for (let frame = 0; frame < 24; frame += 1) {
+      prepared.world.tick(1 / 60, frame + 1);
+      prop.updateWorldMatrix(true, true);
+      maxClearance = Math.max(
+        maxClearance,
+        new THREE.Box3().setFromObject(prop).min.y - 0.035,
+      );
+    }
+    expect(maxClearance).toBeGreaterThan(0.06);
+    expect(prop.position.x - start.x).toBeGreaterThan(0.3);
+  });
+
+  it.each(["ai-collective", "tj-medallion"] as const)(
+    "launches the authored %s away from the orb on the lower shelf",
+    async (id) => {
+      await warm();
+      const { prop, shelf } = topFixture();
+      shelf.position.y = SHELF_SURFACE.lower;
+      prop.clear();
+      prop.add(
+        id === "ai-collective"
+          ? collectiveAwardFixture()
+          : tjMedallionSolidGroup(THREE),
+      );
+      prop.position.set(ABOUT_LANDMARK_X[id], 0, ABOUT_LOWER_LANDMARK_Z[id]);
+      const direction = id === "ai-collective" ? -1 : 1;
+      // Neighboring Movable Props participate in the same solver world.
+      const neighbor = new THREE.Group();
+      neighbor.position.set(
+        prop.position.x + direction * 0.32,
+        0,
+        prop.position.z,
+      );
+      neighbor.add(box([0.3, 0.18, 0.18], [0, 0.09, 0]));
+      shelf.add(neighbor);
+      const neighborEntry = handle("neighbor", neighbor, "lower");
+      neighborEntry.massKg = 0.65;
+      const entry = handle(id, prop, "lower");
+      entry.massKg = id === "ai-collective" ? 0.42 : 0.45;
+      const prepared = worldFor(prop, [entry, neighborEntry]);
+      expect(prepared.status).toBe("ready");
+      if (prepared.status !== "ready") return;
+      const kick = sceneImpulseKick(
+        {
+          sourceId: "orb",
+          x: ABOUT_LANDMARK_X["coordination-globe"],
+          y:
+            SHELF_SURFACE.lower +
+            COORDINATION_CORE_CENTER_Y * ABOUT_COORDINATION_GLOBE_SCALE,
+          z: ABOUT_LOWER_LANDMARK_Z["coordination-globe"],
+          radius: 1.65,
+          strength: 2,
+          palette: "coordination",
+          revision: 1,
+        },
+        prop.getWorldPosition(new THREE.Vector3()),
+        entry.key,
+      );
+      const launch = sceneImpulseLaunchVelocity(kick);
+      prepared.world.knock(
+        entry,
+        new THREE.Vector3(launch.x, launch.y, launch.z),
+      );
+      const start = prop.position.clone();
+      let maxClearance = 0;
+      for (let frame = 0; frame < 24; frame += 1) {
+        prepared.world.tick(1 / 60, frame + 1);
+        prop.updateWorldMatrix(true, true);
+        maxClearance = Math.max(
+          maxClearance,
+          new THREE.Box3().setFromObject(prop).min.y - SHELF_SURFACE.lower,
+        );
+      }
+      expect(maxClearance).toBeGreaterThan(0.12);
+      expect((prop.position.x - start.x) * direction).toBeGreaterThan(0.3);
+    },
+  );
 
   it("resolves top, lower, and floor handles from their shared support frame", () => {
     const top = topFixture();
@@ -829,6 +1009,85 @@ function sceneHandle(
 }
 
 describe("scene-wide physics world", () => {
+  it.each(ABOUT_GOLF_BALLS)(
+    "rolls $id away from the orb along the floor",
+    async ({ id, base }) => {
+      await warm();
+      const root = new THREE.Group();
+      const prop = new THREE.Group();
+      prop.position.fromArray(base);
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(GOLF_BALL_RADIUS, 24, 16),
+      );
+      ball.position.y = GOLF_BALL_RADIUS;
+      prop.add(ball);
+      root.add(prop);
+      const entry = handle(`golf-ball:${id}`, prop, "floor");
+      entry.shape = "sphere";
+      entry.massKg = 0.046;
+      entry.restitution = 0.55;
+      const prepared = worldFor(prop, [entry]);
+      expect(prepared.status).toBe("ready");
+      if (prepared.status !== "ready") return;
+      const origin = {
+        x: ABOUT_LANDMARK_X["coordination-globe"],
+        y:
+          SHELF_SURFACE.lower +
+          COORDINATION_CORE_CENTER_Y * ABOUT_COORDINATION_GLOBE_SCALE,
+        z: ABOUT_LOWER_LANDMARK_Z["coordination-globe"],
+      };
+      const kick = sceneImpulseKick(
+        {
+          ...origin,
+          sourceId: "orb",
+          radius: 1.65,
+          strength: 2,
+          palette: "coordination",
+          revision: 1,
+        },
+        prop.getWorldPosition(new THREE.Vector3()),
+        entry.key,
+      );
+      const launch = sceneImpulseLaunchVelocity(kick, "roll");
+      expect(launch.y).toBe(0);
+      prepared.world.knock(
+        entry,
+        new THREE.Vector3(launch.x, launch.y, launch.z),
+      );
+      const spin = entry.body!.angularVelocity;
+      expect(spin.length()).toBeGreaterThan(0);
+      // Rolling follows the velocity's perpendicular axis, including when
+      // the shared visual-spin cap limits the angular speed.
+      expect(
+        new THREE.Vector3(spin.x, spin.y, spin.z)
+          .normalize()
+          .distanceTo(new THREE.Vector3(launch.z, 0, -launch.x).normalize()),
+      ).toBeLessThan(1e-5);
+      const start = ball.getWorldPosition(new THREE.Vector3());
+      const outward = new THREE.Vector3(
+        start.x - origin.x,
+        0,
+        start.z - origin.z,
+      ).normalize();
+      let highest = start.y - GOLF_BALL_RADIUS;
+      let rotationTravel = 0;
+      const previousRotation = prop.quaternion.clone();
+      const ballPosition = new THREE.Vector3();
+      for (let frame = 0; frame < 60; frame += 1) {
+        prepared.world.tick(1 / 120, frame + 1);
+        ball.getWorldPosition(ballPosition);
+        highest = Math.max(highest, ballPosition.y - GOLF_BALL_RADIUS);
+        rotationTravel += previousRotation.angleTo(prop.quaternion);
+        previousRotation.copy(prop.quaternion);
+      }
+      expect(
+        ball.getWorldPosition(ballPosition).sub(start).dot(outward),
+      ).toBeGreaterThan(0.25);
+      expect(rotationTravel).toBeGreaterThan(1);
+      expect(highest - SHELF_GEOMETRY.groundY).toBeLessThan(GOLF_BALL_RADIUS);
+    },
+  );
+
   it("emits bounded travel wakes while a released prop crosses the ground", async () => {
     await warm();
     const unit = new THREE.Group();

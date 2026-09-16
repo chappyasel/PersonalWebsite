@@ -55,13 +55,13 @@ export default function TalkCard({ talk }: { talk: Talk }) {
       <VideoTrigger
         videoId={talk.videoId}
         title={talk.title}
-        className={`${styles.card} group relative flex h-full w-full [transform-style:preserve-3d] [&_svg]:size-3 [&_.talk-play-control_svg]:size-6`}
+        className={`${styles.card} group relative flex h-full w-full rounded-[var(--cover-card-radius,1.5rem)] [transform-style:preserve-3d] [&_svg]:size-3 [&_.talk-play-control_svg]:size-6`}
       >
         {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
         <div
           data-placard-background=""
           data-placard-surface=""
-          className="absolute inset-0 rounded-[inherit] border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
+          className={`${styles.background} absolute inset-0 border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]`}
         />
 
         <div

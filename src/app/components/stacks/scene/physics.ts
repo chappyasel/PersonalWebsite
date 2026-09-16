@@ -54,7 +54,9 @@ const DENSITY = 90;
 const COM_FRACTION = 0.35;
 const DEFAULT_MAX_THROW = 4;
 const TUMBLE = 0.9;
-const SHOCKWAVE_MAX_SPEED = 2.4;
+// Preserve the upward part of the launch so shelf neighbors cannot turn the
+// blast into a sideways topple. This cap is separate from hand throws.
+const SHOCKWAVE_MAX_SPEED = 4.8;
 const SHOCKWAVE_TOPPLE_SPEED = 6.2;
 const MIN_EXTENT = 0.008;
 /** Cannon has no continuous collision detection. Bodies thinner than this
@@ -1422,9 +1424,9 @@ export class ScenePhysicsWorld {
     return true;
   }
 
-  /** Wake a parked prop with a mass-aware world-space impulse. Unlike a hand
-   * release, the hit lands above the centre of mass and guarantees enough
-   * angular speed for a standing plaque or medallion to topple visibly. */
+  /** Launch through the centre of mass, then add a bounded tumble. Applying
+   * the entire blast above the centre spins thin awards into their neighbors
+   * before they can get clear of the shelf. */
   knock(handle: ShelfHandle, requestedWorldVelocity: THREE.Vector3): boolean {
     const worldVelocity = requestedWorldVelocity.clone();
     if (worldVelocity.length() > SHOCKWAVE_MAX_SPEED)
@@ -1432,20 +1434,19 @@ export class ScenePhysicsWorld {
     if (!this.release(handle, new THREE.Vector3())) return false;
     const body = handle.body;
     if (!body) return false;
-    const contactHeight = Math.max(
-      0.04,
-      (handle.smallestExtent ?? 0.12) * 0.45,
-    );
     body.applyImpulse(
       new this.C.Vec3(
         worldVelocity.x * body.mass,
         worldVelocity.y * body.mass,
         worldVelocity.z * body.mass,
       ),
-      new this.C.Vec3(0, contactHeight, 0),
     );
     const horizontal = Math.hypot(worldVelocity.x, worldVelocity.z);
-    if (horizontal > 1e-5) {
+    const radius = this.balls.get(body.id);
+    if (radius !== undefined) {
+      const [spinX, spinY, spinZ] = ballReleaseSpin(worldVelocity, radius);
+      body.angularVelocity.set(spinX, spinY, spinZ);
+    } else if (horizontal > 1e-5) {
       body.angularVelocity.x +=
         (worldVelocity.z / horizontal) * SHOCKWAVE_TOPPLE_SPEED;
       body.angularVelocity.z -=

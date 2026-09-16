@@ -1,0 +1,327 @@
+.card {
+  --book-overlay-visible: 0;
+  --book-blur-soft: none;
+  --book-blur-medium: none;
+  --book-blur-deep: none;
+  --book-material-duration: 460ms;
+  --book-ink-duration: 300ms;
+  --book-ink-offset: 4px;
+  --book-ink-scale: 0.95;
+  /* Reverse the five-row sequence on exit over 80ms. */
+  --book-ink-delay: 80ms;
+  --book-stagger: -20ms;
+}
+
+.card:is([data-keyboard-focused="true"], :focus-visible) {
+  --book-overlay-visible: 1;
+  --book-blur-soft: blur(1.5px);
+  --book-blur-medium: blur(4px);
+  --book-blur-deep: blur(8px);
+  --book-material-duration: 620ms;
+  --book-ink-duration: 420ms;
+  --book-ink-offset: 0px;
+  --book-ink-scale: 1;
+  --book-ink-delay: 50ms;
+  --book-stagger: 32ms;
+}
+
+@media (hover: hover) {
+  .card:hover {
+    --book-overlay-visible: 1;
+    --book-blur-soft: blur(1.5px);
+    --book-blur-medium: blur(4px);
+    --book-blur-deep: blur(8px);
+    --book-material-duration: 620ms;
+    --book-ink-duration: 420ms;
+    --book-ink-offset: 0px;
+    --book-ink-scale: 1;
+    --book-ink-delay: 50ms;
+    --book-stagger: 32ms;
+  }
+}
+
+:global(.dark) .coverFrame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  /* Only the material overlay lives inside the cover's rounded clip. */
+}
+
+.body {
+  position: relative;
+  padding: var(--book-overlay-padding);
+  color: var(--book-foreground);
+}
+
+.materialBody {
+  height: var(--book-overlay-height, 0px);
+}
+
+.floatingText,
+.badges,
+.copy {
+  /* All content shares one plane above the clipped jacket. */
+  transform: translateZ(var(--book-text-depth));
+}
+
+/* The tint protects the first line; blur starts halfway through that line
+   and builds through the author, metadata, and stars.
+   Keep opacity off their parent so the blur can sample the cover behind it. */
+.glass,
+.wash {
+  position: absolute;
+  inset: -2.5rem 0 0;
+  opacity: var(--book-overlay-visible);
+  transition: opacity var(--book-material-duration) ease-in-out;
+}
+
+.glass {
+  /* The layer shares the title's font size. Half its 1.25em line height
+     places the clear edge within the title at every card size. */
+  top: calc(var(--book-overlay-padding) + 0.625em);
+  /* Animate the filter itself on exit too, so the jacket does not snap sharp
+     while the tint is still fading. At rest, the filter resolves to none. */
+  transition:
+    opacity var(--book-material-duration) ease-in-out,
+    backdrop-filter var(--book-material-duration) ease-in-out;
+}
+
+.soft {
+  /* Author only the standard property. Next's CSS transform drops it when
+     a manual prefixed duplicate follows, leaving Chrome without any blur. */
+  backdrop-filter: var(--book-blur-soft);
+  mask-image: linear-gradient(to bottom, transparent, black 1.5rem);
+}
+
+.medium {
+  backdrop-filter: var(--book-blur-medium);
+  mask-image: linear-gradient(to bottom, transparent 0.3rem, black 2.5rem);
+}
+
+.deep {
+  backdrop-filter: var(--book-blur-deep);
+  mask-image: linear-gradient(to bottom, transparent 0.75rem, black 3.5rem);
+}
+
+.wash {
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--book-wash) / 0),
+    rgb(var(--book-wash) / 0.12) 1rem,
+    rgb(var(--book-wash) / 0.4) 2rem,
+    rgb(var(--book-wash) / var(--book-wash-opacity)) 3rem,
+    rgb(var(--book-wash) / calc(var(--book-wash-opacity) + 0.06)) 100%
+  );
+}
+
+.text {
+  position: relative;
+}
+
+.text > * {
+  opacity: var(--book-overlay-visible);
+  transform: translateY(var(--book-ink-offset)) scale(var(--book-ink-scale));
+  transform-origin: left center;
+  transition:
+    opacity var(--book-ink-duration) ease-in-out,
+    transform var(--book-ink-duration) cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--book-ink-delay) + var(--book-line-delay, 0ms));
+}
+
+.text > :nth-child(2) {
+  --book-line-delay: var(--book-stagger);
+}
+
+.text > :nth-child(3) {
+  --book-line-delay: calc(var(--book-stagger) * 2);
+}
+
+.text > :nth-child(4) {
+  --book-line-delay: calc(var(--book-stagger) * 3);
+}
+
+.text > :nth-child(5) {
+  --book-line-delay: calc(var(--book-stagger) * 4);
+}
+
+.secondary {
+  color: var(--book-secondary);
+}
+
+.separator {
+  /* Preserve equal spaces at the start of the byline's flex item. */
+  white-space: pre;
+  font-weight: 400;
+  opacity: 0.4;
+}
+
+.fact {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  color: var(--book-foreground);
+}
+
+.factIcon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  color: var(--book-secondary);
+  opacity: 0.65;
+}
+
+.emptyStar {
+  color: var(--book-secondary);
+  opacity: 0.35;
+}
+
+.badge,
+.copyVisual {
+  /* Mix into the cover tint so the rim keeps its hue while becoming darker
+     on light covers and lighter on dark covers. */
+  border: 1px solid
+    color-mix(in srgb, var(--book-foreground) 14%, rgb(var(--book-wash)));
+  background: rgb(var(--book-wash) / 0.94);
+  color: var(--book-foreground);
+}
+
+.badges {
+  top: var(--book-corner-inset);
+  left: var(--book-corner-inset);
+}
+
+.badge {
+  gap: 0.375em;
+  padding: 0.25em 0.625em;
+  border-radius: 9999px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.badge > svg {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.copy {
+  top: var(--book-corner-inset);
+  right: var(--book-corner-inset);
+  /* Preserve the original border box used by copyRef hit testing. */
+  border: 1px solid transparent;
+  opacity: var(--book-overlay-visible);
+  scale: 1;
+  transition:
+    opacity var(--book-ink-duration) ease var(--book-ink-delay),
+    scale 200ms ease,
+    transform 200ms ease;
+}
+
+.copyVisual {
+  position: absolute;
+  inset: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  /* Align the visible circle with the badges despite its smaller size. */
+  transform-origin: top right;
+  transform: scale(0.805) scale(var(--book-ink-scale));
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform var(--book-ink-duration) cubic-bezier(0.22, 1, 0.36, 1)
+      var(--book-ink-delay);
+}
+
+.copyVisual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(0 0 0 / 0.2);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.card[data-cover-tone="dark"] .copyVisual::before,
+.card[data-cover-tone="light"]
+  .copy[data-copy-complete="true"]
+  .copyVisual::before {
+  background: rgb(255 255 255 / 0.2);
+}
+
+.card[data-cover-tone="dark"]
+  .copy[data-copy-complete="true"]
+  .copyVisual::before {
+  background: rgb(0 0 0 / 0.2);
+}
+
+.copy[data-copy-hovered="true"] {
+  /* Keep hover scale independent of the shared content depth. */
+  scale: 1.08;
+}
+
+.copy[data-copy-hovered="true"] .copyVisual::before {
+  opacity: 1;
+}
+
+.copyVisual > svg {
+  position: relative;
+  z-index: 1;
+}
+
+.copy[data-copy-complete="true"] .copyVisual {
+  background-color: var(--book-foreground);
+  color: rgb(var(--book-wash));
+  border-color: color-mix(
+    in srgb,
+    rgb(var(--book-wash)) 14%,
+    var(--book-foreground)
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass,
+  .wash,
+  .text > *,
+  .copy,
+  .copyVisual,
+  .copyVisual::before {
+    transition: none;
+  }
+
+  .floatingText,
+  .badges,
+  .copy,
+  .text > * {
+    transform: none;
+  }
+
+  .copy[data-copy-hovered="true"] {
+    scale: 1;
+  }
+
+  .copyVisual {
+    transform: scale(0.805);
+  }
+}

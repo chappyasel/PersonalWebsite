@@ -5,17 +5,30 @@ import { getTagColor, getTagIcon } from "~/lib/books/tagColors";
 import { cn } from "~/lib/utils";
 
 import { Badge, badgeVariants } from "~/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 type TagBadgeProps = {
   tag: string;
   className?: string;
   /** Renders the badge as a link, e.g. to the shelf narrowed to this tag. */
   href?: string;
+  tooltip?: string;
   /** Runs before the link navigates; preventDefault to take it over. */
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
-export function TagBadge({ tag, className, href, onClick }: TagBadgeProps) {
+export function TagBadge({
+  tag,
+  className,
+  href,
+  tooltip,
+  onClick,
+}: TagBadgeProps) {
   const colors = getTagColor(tag);
   const IconComponent = getTagIcon(tag);
 
@@ -35,7 +48,7 @@ export function TagBadge({ tag, className, href, onClick }: TagBadgeProps) {
       "--tag-border": colors.border,
       "--tag-border-hover": colors.borderHover,
     } as CSSProperties;
-    return (
+    const link = (
       <Link
         href={href}
         prefetch={false}
@@ -53,6 +66,16 @@ export function TagBadge({ tag, className, href, onClick }: TagBadgeProps) {
       >
         {content}
       </Link>
+    );
+    return tooltip ? (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>{link}</TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ) : (
+      link
     );
   }
 

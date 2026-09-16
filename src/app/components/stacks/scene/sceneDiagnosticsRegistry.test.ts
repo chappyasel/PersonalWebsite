@@ -2,6 +2,8 @@ import fs from "node:fs";
 import type * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
+import { bookCardVisualEffects } from "~/lib/books/cardVisualEffects";
+
 import { MeadowDeformationController } from "./meadowDeformation";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import { MEADOW_WIND } from "./meadowMotion";
@@ -45,6 +47,18 @@ class NoWorkRenderer {
 }
 
 describe("Scene Diagnostics registry", () => {
+  it("toggles book card blur live without changing production quality", () => {
+    const quality = sceneQualityController.getSnapshot();
+    try {
+      sceneDiagnosticsRegistry.update("render.book-card-blur", false);
+      expect(bookCardVisualEffects.getSnapshot().backdropBlur).toBe(false);
+      sceneDiagnosticsRegistry.update("render.book-card-blur", true);
+      expect(bookCardVisualEffects.getSnapshot().backdropBlur).toBe(true);
+      expect(sceneQualityController.getSnapshot()).toBe(quality);
+    } finally {
+      bookCardVisualEffects.setBackdropBlur(true);
+    }
+  });
   it("compares insect planning live without changing quality policy", () => {
     const quality = sceneQualityController.getSnapshot();
     try {

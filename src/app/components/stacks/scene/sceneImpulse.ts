@@ -225,6 +225,21 @@ export function createSceneImpulseMotion(): SceneImpulseMotion {
   return { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
 }
 
+/** A shelf launch needs enough lift to clear neighboring props before the
+ * outward kick meets them. Keep lift proportional to the received impulse
+ * so distant objects do not get the same throw as the orb's neighbors. */
+export function sceneImpulseLaunchVelocity(
+  kick: ScenePoint,
+  motion: "throw" | "roll" = "throw",
+): ScenePoint {
+  const horizontal = Math.hypot(kick.x, kick.z);
+  return {
+    x: kick.x * 2.35,
+    y: motion === "roll" ? 0 : Math.max(kick.y * 2.35, horizontal * 2.5),
+    z: kick.z * 2.35,
+  };
+}
+
 export function applySceneImpulseKick(
   motion: SceneImpulseMotion,
   kick: Readonly<{ x: number; y: number; z: number }>,

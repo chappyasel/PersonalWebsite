@@ -397,7 +397,24 @@ export default async function Image({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {fact.value}
+                        {fact.key === "length" && fact.value.includes(" · ") ? (
+                          <>
+                            <span>{fact.value.split(" · ")[0]}</span>
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                color: textColorWithOpacity(0.38),
+                                fontWeight: 400,
+                                margin: "0 0.35em",
+                              }}
+                            >
+                              •
+                            </span>
+                            <span>{fact.value.split(" · ")[1]}</span>
+                          </>
+                        ) : (
+                          fact.value
+                        )}
                       </div>
                     </div>
                   ))}

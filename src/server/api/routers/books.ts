@@ -1,15 +1,14 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, isNotNull, or, sql } from "drizzle-orm";
+import { desc, eq, isNotNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import {
   computeDailyReading,
   computeReadingAnalytics,
 } from "~/lib/books/analytics";
-import { findBookById } from "~/lib/books/bookLookup";
 import { refreshBookCachesAfterSync } from "~/lib/books/cacheInvalidation";
+import { getBookWithNotes } from "~/lib/books/ogDataAccess";
 import { syncBooksFromNotion } from "~/lib/books/sync";
-import type { BookReading, BookWithNotes } from "~/lib/books/types";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -42,79 +41,11 @@ export const booksRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input }) => {
-      const book = await findBookById(input.bookId);
-
+      const book = await getBookWithNotes(input.bookId);
       if (!book) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Book not found" });
       }
-
-      // Find other readings of the same book (case-insensitive title+author match,
-      // consistent with the getAll grouping which uses toLowerCase())
-      const otherReads = await db.query.books.findMany({
-        where: and(
-          sql`LOWER(${books.title}) = LOWER(${book.title})`,
-          sql`LOWER(${books.author}) = LOWER(${book.author})`,
-        ),
-        columns: {
-          started: true,
-          finished: true,
-          abandoned: true,
-          abandonedAtMin: true,
-          rating: true,
-        },
-        orderBy: asc(
-          sql`COALESCE(${books.finished}, ${books.abandoned}, NOW())`,
-        ),
-      });
-
-      const allReadings: BookReading[] = otherReads.map((r) => ({
-        started: r.started?.toISOString() ?? null,
-        finished: r.finished?.toISOString() ?? null,
-        abandoned: r.abandoned?.toISOString() ?? null,
-        abandonedAtMin: r.abandonedAtMin ?? null,
-        rating: r.rating ?? null,
-      }));
-
-      // Abandoned attempts never claim a read number — mirrors the getAll
-      // grouping, where "2nd Read" means the book was actually read twice.
-      const completedReadings = allReadings.filter((r) => !r.abandoned);
-      const readNumber = book.abandoned
-        ? 0
-        : completedReadings.findIndex(
-            (r) =>
-              r.started === (book.started?.toISOString() ?? null) &&
-              r.finished === (book.finished?.toISOString() ?? null),
-          ) + 1 || 1;
-
-      const result: BookWithNotes = {
-        id: book.id,
-        notionId: book.notionId,
-        title: book.title,
-        author: book.author,
-        publicationYear: book.publicationYear ?? null,
-        started: book.started?.toISOString() ?? null,
-        finished: book.finished?.toISOString() ?? null,
-        abandoned: book.abandoned?.toISOString() ?? null,
-        abandonedAtMin: book.abandonedAtMin ?? null,
-        rating: book.rating ?? null,
-        audioLengthMin: book.audioLengthMin ?? null,
-        pageCount: book.pageCount ?? null,
-        tags: book.tags.map((t) => t.tagName),
-        hasNotes: book.hasNotes,
-        hasSummary: book.hasSummary,
-        isAutomated: book.isAutomated,
-        isFeatured: book.isFeatured,
-        coverUrl: book.coverUrl,
-        coverColor: book.coverColor ?? null,
-        audibleUrl: book.audibleUrl,
-        notionUrl: book.notionUrl,
-        notes: book.notes ?? "",
-        readNumber,
-        totalReads: completedReadings.length,
-        otherReadings: allReadings,
-      };
-
-      return result;
+      return book;
     }),
 
   /**

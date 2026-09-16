@@ -142,6 +142,7 @@ import {
   createSceneImpulseMotion,
   getSceneImpulse,
   sceneImpulseKick,
+  sceneImpulseLaunchVelocity,
   stepSceneImpulseMotion,
 } from "./sceneImpulse";
 import {
@@ -522,12 +523,13 @@ function requestSceneImpulseKnockdown(
   scope: PhysicsSceneScope,
   entry: ShelfHandle,
   kick: Readonly<{ x: number; y: number; z: number }>,
+  reaction: "knockdown" | "roll",
 ) {
-  const worldVelocity = new THREE.Vector3(
-    kick.x * 2.35,
-    Math.max(0.32, kick.y * 2.35),
-    kick.z * 2.35,
+  const launch = sceneImpulseLaunchVelocity(
+    kick,
+    reaction === "roll" ? "roll" : "throw",
   );
+  const worldVelocity = new THREE.Vector3(launch.x, launch.y, launch.z);
   void loadGrabbablePhysics().then((loaded) => {
     if (!loaded) return;
     const attempt = (remaining: number) => {
@@ -819,7 +821,7 @@ export default function Grabbable({
   ) => void;
   /** A few hero props can enter the real rigid-body world when a scene
    * shockwave reaches them. Everyone else keeps the short authored nudge. */
-  sceneImpulseReaction?: "nudge" | "knockdown";
+  sceneImpulseReaction?: "nudge" | "knockdown" | "roll";
   /** Stable bounds for touch and Portal projection when shader geometry does
    * not describe its visible extent (wide screen-space lines are canonical). */
   projectedLocalBounds?: ProjectedLocalBounds;
@@ -2551,11 +2553,17 @@ export default function Grabbable({
         g.getWorldPosition(impulseWorld);
         const kick = sceneImpulseKick(sceneImpulse, impulseWorld, hoverKey);
         if (
-          sceneImpulseReaction === "knockdown" &&
+          sceneImpulseReaction !== "nudge" &&
           Math.abs(kick.x) + Math.abs(kick.y) + Math.abs(kick.z) > 1e-5
         ) {
           const entry = handle.current;
-          if (entry) requestSceneImpulseKnockdown(physicsScene, entry, kick);
+          if (entry)
+            requestSceneImpulseKnockdown(
+              physicsScene,
+              entry,
+              kick,
+              sceneImpulseReaction,
+            );
         } else {
           impulseLocal.set(kick.x, kick.y, kick.z);
           g.getWorldQuaternion(impulseWorldQuaternion).invert();

@@ -125,9 +125,6 @@ describe("Coordination globe presentation contract", () => {
     expect(globeSource).not.toContain("draggable={false}");
     expect(globeSource).toContain('shape="box"');
     expect(globeSource).toContain("massKg=");
-    expect(globeSource).toContain(
-      "onDragIntent={(origin) => emitShockwave(origin, true)}",
-    );
     expect(globeSource).toContain("triggerCoordinationBurst(");
     expect(globeSource).toContain("stepCoordinationBurst(");
     expect(move).toContain("fireDragIntent(event);");
@@ -136,12 +133,10 @@ describe("Coordination globe presentation contract", () => {
     );
   });
 
-  it("discovers the shockwave when hover triggers the globe", () => {
-    const engagementStart = globeSource.indexOf(
-      "const entered = coordinationEngaged",
-    );
+  it("discovers the shockwave after the charge completes", () => {
+    const engagementStart = globeSource.indexOf("const releaseCharge =");
     const engagementEnd = globeSource.indexOf(
-      "}, [coordinationEngaged",
+      "}, [emitShockwave",
       engagementStart,
     );
     const engagement = globeSource.slice(engagementStart, engagementEnd);
@@ -317,8 +312,8 @@ describe("Coordination globe presentation contract", () => {
     expect(globeSource.match(/strength: 2,/g)).toHaveLength(2);
   });
 
-  it("turns hover entry into a physical knockdown and practical-light shock", () => {
-    expect(globeSource).toContain("wasShockwaveEngaged");
+  it("turns a completed charge into a physical knockdown and practical-light shock", () => {
+    expect(globeSource).toContain("useCoordinationCharge(");
     expect(globeSource).toContain("emitShockwave(");
     expect(unitSource).toContain('sceneImpulseReaction="knockdown"');
     expect(authoredPropsSource).toContain('sceneImpulseReaction="knockdown"');
@@ -334,7 +329,7 @@ describe("Coordination globe presentation contract", () => {
     );
     expect(primitivesSource.slice(bankStart, bankEnd)).toContain('form="back"');
     expect(globeSource).toContain("const coordinationEngaged =");
-    expect(globeSource).toContain("focused || hovered");
+    expect(globeSource).toContain("focused ||");
   });
 
   it("makes the dust response global, faster, brighter, and saturated", () => {

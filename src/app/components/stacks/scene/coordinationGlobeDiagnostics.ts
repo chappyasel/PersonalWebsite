@@ -1,16 +1,22 @@
 export type CoordinationGlobeDiagnosticsSnapshot = Readonly<{
   effectEnabled: boolean;
+  burstDebrisEnabled: boolean;
 }>;
 
 const INITIAL: CoordinationGlobeDiagnosticsSnapshot = Object.freeze({
   effectEnabled: true,
+  burstDebrisEnabled: true,
 });
 
 export function createCoordinationGlobeDiagnosticsController() {
   let snapshot = INITIAL;
   const listeners = new Set<() => void>();
   const publish = (next: CoordinationGlobeDiagnosticsSnapshot) => {
-    if (next.effectEnabled === snapshot.effectEnabled) return;
+    if (
+      next.effectEnabled === snapshot.effectEnabled &&
+      next.burstDebrisEnabled === snapshot.burstDebrisEnabled
+    )
+      return;
     snapshot = next;
     for (const listener of listeners) listener();
   };
@@ -20,7 +26,10 @@ export function createCoordinationGlobeDiagnosticsController() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    setEffectEnabled: (effectEnabled: boolean) => publish({ effectEnabled }),
+    setEffectEnabled: (effectEnabled: boolean) =>
+      publish({ ...snapshot, effectEnabled }),
+    setBurstDebrisEnabled: (burstDebrisEnabled: boolean) =>
+      publish({ ...snapshot, burstDebrisEnabled }),
   };
 }
 

@@ -9,6 +9,7 @@ import {
   resetSceneImpulse,
   sceneImpulseInsectDeparture,
   sceneImpulseKick,
+  sceneImpulseLaunchVelocity,
   sceneImpulseLightScale,
   sceneImpulseSkyScale,
   sceneImpulseStrengthAt,
@@ -109,6 +110,20 @@ describe("scene impulse bridge", () => {
     expect(doubled.x).toBeCloseTo(ordinary.x * 2);
     expect(doubled.y).toBeCloseTo(ordinary.y * 2);
     expect(doubled.z).toBeCloseTo(ordinary.z * 2);
+  });
+
+  it("gives throws shelf clearance while preserving impulse falloff and zero motion", () => {
+    const near = sceneImpulseLaunchVelocity({ x: 1, y: 0.2, z: -0.25 });
+    const far = sceneImpulseLaunchVelocity({ x: 0.25, y: 0.05, z: -0.0625 });
+    expect(near.y).toBeGreaterThan(Math.hypot(near.x, near.z));
+    expect(near.x).toBeGreaterThan(0);
+    expect(near.z).toBeLessThan(0);
+    expect(far.y).toBeCloseTo(near.y / 4);
+    expect(sceneImpulseLaunchVelocity({ x: 0, y: 0, z: 0 })).toEqual({
+      x: 0,
+      y: 0,
+      z: 0,
+    });
   });
 
   it("knocks every held insect away from the source, even beyond the prop radius", () => {

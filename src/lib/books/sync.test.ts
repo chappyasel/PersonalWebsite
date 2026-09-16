@@ -56,6 +56,7 @@ describe("featured selection during book sync", () => {
         id: "test-book",
         notionId: book.notionId,
         isFeatured: false,
+        author: book.author,
         lastEditedTime: new Date("2026-09-08T00:00:00Z"),
       },
     ]);
@@ -78,6 +79,7 @@ describe("featured selection during book sync", () => {
         id: "test-book",
         notionId: book.notionId,
         isFeatured: true,
+        author: book.author,
         lastEditedTime: new Date("2026-09-08T00:00:00Z"),
       },
     ]);
@@ -101,5 +103,48 @@ describe("featured selection during book sync", () => {
     await syncBooksFromNotion("cron", refresh);
     expect(refresh).not.toHaveBeenCalled();
     expect(mocks.updates.some((update) => "isFeatured" in update)).toBe(false);
+  });
+});
+
+describe("author changes during book sync", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.updates.length = 0;
+    mocks.fetchBooks.mockResolvedValue([book]);
+    mocks.fetchDetails.mockRejectedValue(new Error("Notes unavailable"));
+    mocks.findMany.mockResolvedValue([
+      {
+        id: "test-book",
+        notionId: book.notionId,
+        isFeatured: book.isFeatured,
+        author: "Previous Author",
+        lastEditedTime: new Date("2026-09-08T00:00:00Z"),
+      },
+    ]);
+  });
+
+  it("saves and invalidates the author before notes download, even when notes fail", async () => {
+    const refresh = vi.fn(async (ids: string[]) => {
+      expect(ids).toEqual(["test-book"]);
+      expect(mocks.updates).toContainEqual({ author: book.author });
+      expect(mocks.fetchDetails).not.toHaveBeenCalled();
+    });
+    const result = await syncBooksFromNotion("manual", refresh);
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(result.bookIdsToInvalidate).toContain("test-book");
+    expect(mocks.updates.some((update) => "lastEditedTime" in update)).toBe(
+      false,
+    );
+    expect(result.errors).toHaveLength(1);
+  });
+
+  it("does not write or invalidate an unchanged author", async () => {
+    mocks.fetchBooks.mockResolvedValue([
+      { ...book, author: "Previous Author" },
+    ]);
+    const refresh = vi.fn();
+    await syncBooksFromNotion("manual", refresh);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(mocks.updates.some((update) => "author" in update)).toBe(false);
   });
 });

@@ -165,9 +165,9 @@ the completed state until the visitor finds the new entry.
 10. [ ] **Ripple Effect** `◇`
 
     - Rarity: Common.
-    - Earned by: Explicitly activate the Coordination Research globe's
-      shockwave.
-    - First hint: One project reaches beyond its plinth.
+    - Earned by: Keep the Coordination Research globe hovered, selected, or
+      carried for two seconds to charge and release its shockwave.
+    - First hint: The Coordination globe can make waves.
     - Notes:
 
 11. [ ] **Task Light** `◇`

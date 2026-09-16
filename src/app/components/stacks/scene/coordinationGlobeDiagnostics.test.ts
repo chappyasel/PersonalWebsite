@@ -27,4 +27,20 @@ describe("Coordination globe diagnostics", () => {
 
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it("toggles burst fragments independently and resets them on reload", () => {
+    const controller = createCoordinationGlobeDiagnosticsController();
+    controller.setBurstDebrisEnabled(false);
+    expect(controller.getSnapshot()).toEqual({
+      effectEnabled: true,
+      burstDebrisEnabled: false,
+    });
+    controller.setEffectEnabled(false);
+    controller.setEffectEnabled(true);
+    expect(controller.getSnapshot().burstDebrisEnabled).toBe(false);
+    expect(
+      createCoordinationGlobeDiagnosticsController().getSnapshot()
+        .burstDebrisEnabled,
+    ).toBe(true);
+  });
 });

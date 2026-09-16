@@ -72,7 +72,7 @@ Run SQL via the bundled script. Output is CSV on stdout.
 
 The Postgres book cache syncs daily at 09:00 UTC. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; blank scaffolds and undated want-to-read pages are intentionally outside the SQL mirror. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
 
-For existing mirrored books, `Featured?` is saved as soon as the sync reads the Notion properties. The cron and website manual-sync action invalidate the affected book pages, images, and shelf caches before downloading notes. A failed note download therefore does not block a featured selection change. The notes' `last_edited_time` watermark stays unchanged until their full refresh succeeds, so `is_featured` can be newer than that watermark. New books still need their initial full sync before appearing on the shelf.
+For existing mirrored books, the sync saves `Author` and `Featured?` as soon as it reads the Notion properties. The cron and website manual-sync action invalidate the affected book pages, images, and shelf caches before downloading notes. A failed note download therefore does not block an author correction or featured selection change. The notes' `last_edited_time` watermark stays unchanged until their full refresh succeeds, so `author` and `is_featured` can be newer than that watermark. New books still need their initial full sync before appearing on the shelf.
 
 Book API requests share a queue that spaces calls 350 ms apart and honors Notion's retry delay. Retries repeat the failed API request, including nested block pagination, rather than restarting a book's entire note conversion. The production book cron allows up to 800 seconds for larger refreshes.
 
@@ -100,6 +100,8 @@ One column is derived rather than mirrored from Notion: `cover_color` is the dom
 One Notion property runs the other way. `Website` (URL) is written by the sync, never read for content: it holds `https://books.chappyasel.com/<id>` for every mirrored page, is rewritten whenever the slug moves (a re-read can hand the clean slug to a different read), and is cleared when a page drops out of the mirror. Do not hand-edit it, and do not query it as a source field; `books.id` is the same value.
 
 Website detail lookups also accept the explicit retired slugs in `src/lib/books/bookLookup.ts`. They try the current ID first, then resolve a known old slug through its stable `notion_id`. These aliases are code-only; direct SQL still requires the current `id` or `notion_id`. Unknown slugs do not use title or prefix matching.
+
+The website’s `otherReadings` entries include each reading’s current `id`. Standalone pages and modal lookups share the same history query, matched by case-insensitive title and author, ordered by finish or abandonment date, with ongoing reads last. Ties use start date, then ID. Previous/next read buttons skip abandoned attempts and link to the adjacent read’s notes.
 
 ### Abandoned books
 

@@ -2,13 +2,13 @@
  * Edge-compatible database access for OG image generation
  * Cannot use tRPC in edge runtime, so we use direct database queries
  */
-import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
 
 import { findBookById } from "./bookLookup";
-import type { BaseBook } from "./types";
+import type { BaseBook, BookReading, BookWithNotes } from "./types";
 
 /**
  * Fetch a book by ID for OG image generation
@@ -62,12 +62,45 @@ export async function getBookForOG(
  */
 export async function getBookWithNotes(
   bookId: string,
-): Promise<(BaseBook & { notes: string }) | null> {
+): Promise<BookWithNotes | null> {
   const book = await findBookById(bookId);
 
   if (!book) {
     return null;
   }
+
+  const otherReads = await db.query.books.findMany({
+    where: and(
+      sql`LOWER(${books.title}) = LOWER(${book.title})`,
+      sql`LOWER(${books.author}) = LOWER(${book.author})`,
+    ),
+    columns: {
+      id: true,
+      started: true,
+      finished: true,
+      abandoned: true,
+      abandonedAtMin: true,
+      rating: true,
+    },
+    orderBy: [
+      asc(
+        sql`COALESCE(${books.finished}, ${books.abandoned}, 'infinity'::timestamp)`,
+      ),
+      asc(books.started),
+      asc(books.id),
+    ],
+  });
+  const otherReadings: BookReading[] = otherReads.map((reading) => ({
+    id: reading.id,
+    started: reading.started?.toISOString() ?? null,
+    finished: reading.finished?.toISOString() ?? null,
+    abandoned: reading.abandoned?.toISOString() ?? null,
+    abandonedAtMin: reading.abandonedAtMin ?? null,
+    rating: reading.rating ?? null,
+  }));
+  const completedReadings = otherReadings.filter(
+    (reading) => !reading.abandoned,
+  );
 
   // Transform database result to BookWithNotes type
   return {
@@ -92,6 +125,13 @@ export async function getBookWithNotes(
     audibleUrl: book.audibleUrl,
     notionUrl: book.notionUrl,
     notes: book.notes ?? "",
+    coverColor: book.coverColor ?? null,
+    readNumber: book.abandoned
+      ? 0
+      : completedReadings.findIndex((reading) => reading.id === book.id) + 1 ||
+        1,
+    totalReads: completedReadings.length,
+    otherReadings,
   };
 }
 

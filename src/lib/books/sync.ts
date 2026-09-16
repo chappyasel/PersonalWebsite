@@ -77,7 +77,7 @@ type BookContentResult =
  */
 export async function syncBooksFromNotion(
   triggeredBy: "cron" | "manual" = "cron",
-  onFeaturedChanged?: (bookIds: string[]) => Promise<void>,
+  onPropertiesChanged?: (bookIds: string[]) => Promise<void>,
 ): Promise<SyncResult> {
   const syncId = await createSyncRecord(triggeredBy);
 
@@ -115,6 +115,7 @@ export async function syncBooksFromNotion(
         notionId: true,
         lastEditedTime: true,
         isFeatured: true,
+        author: true,
       },
     });
     const dbBooksMap = new Map(
@@ -122,24 +123,34 @@ export async function syncBooksFromNotion(
     );
     console.log(`Found ${dbBooks.length} books in database`);
 
-    // Featured selection only needs the page properties we already fetched.
-    // Save it before downloading notes, and keep the notes' edit watermark so
+    // Author and featured selection only need properties we already fetched.
+    // Save them before downloading notes, and keep the notes' edit watermark so
     // a failed content download remains eligible for the next run.
     const storedByNotionId = new Map(
       dbBooks.map((book) => [book.notionId, book]),
     );
-    const featuredChangedIds: string[] = [];
+    const propertiesChangedIds: string[] = [];
     for (const book of notionBooksWithSlugs) {
       const stored = storedByNotionId.get(book.notionId);
-      if (!stored || stored.isFeatured === book.isFeatured) continue;
+      if (!stored) continue;
+      const changes: Partial<
+        Pick<typeof books.$inferInsert, "author" | "isFeatured">
+      > = {};
+      if (stored.isFeatured !== book.isFeatured) {
+        changes.isFeatured = book.isFeatured;
+      }
+      if (stored.author !== book.author) {
+        changes.author = book.author;
+      }
+      if (Object.keys(changes).length === 0) continue;
       await db
         .update(books)
-        .set({ isFeatured: book.isFeatured })
+        .set(changes)
         .where(eq(books.notionId, book.notionId));
-      featuredChangedIds.push(stored.id);
+      propertiesChangedIds.push(stored.id);
     }
-    if (featuredChangedIds.length > 0) {
-      await onFeaturedChanged?.(featuredChangedIds);
+    if (propertiesChangedIds.length > 0) {
+      await onPropertiesChanged?.(propertiesChangedIds);
     }
 
     // STEP 3.5: Delete books that no longer exist in Notion
@@ -183,7 +194,7 @@ export async function syncBooksFromNotion(
     );
     const bookIdsToInvalidate = new Set([
       ...deletedBookIds,
-      ...featuredChangedIds,
+      ...propertiesChangedIds,
     ]);
 
     for (const book of [...successfulChangedBooks, ...unchangedBooks]) {

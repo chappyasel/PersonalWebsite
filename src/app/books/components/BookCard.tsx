@@ -14,9 +14,14 @@ import {
   BookmarkSimpleIcon,
   FileTextIcon,
 } from "@phosphor-icons/react";
-import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
-  type SpringOptions,
+  CalendarIcon,
+  CheckIcon,
+  ClockIcon,
+  HeadphonesIcon,
+  StarIcon,
+} from "@phosphor-icons/react/dist/ssr";
+import {
   motion,
   useMotionValue,
   useReducedMotion,
@@ -24,9 +29,23 @@ import {
 } from "framer-motion";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { memo, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { capture } from "~/lib/analytics";
+import { bookCardPalette } from "~/lib/books/cardPalette";
+import { bookCardVisualEffects } from "~/lib/books/cardVisualEffects";
+import {
+  bookHoverSpring,
+  bookHoverScale as hoverScale,
+  bookTiltAmplitude as tiltAmplitude,
+} from "~/lib/books/coverMotion";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import {
   abandonedPercent,
@@ -40,6 +59,8 @@ import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute
 import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
+import cardStyles from "./BookCard.module.css";
+import { BookCoverSurface } from "./BookCoverSurface";
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import { cn } from "@/src/lib/util";
 import {
@@ -74,13 +95,13 @@ const sizeStyles = {
     placeholderTitle: "text-[8px]",
     placeholderAuthor: "text-[7px]",
     badgeText: "hidden",
-    badgeIcon: "h-2 w-2",
     overlayTitle: "hidden",
     overlayAuthor: "hidden",
+    overlayFact: "hidden",
     star: "hidden",
-    badgeSpacing: "top-1 left-1",
-    overlayPadding: "p-1",
-    copyButton: "top-1 right-1 p-0.5",
+    cornerInset: "0.375rem",
+    overlayPadding: "0.25rem",
+    copyButton: "p-0.5",
     copyIcon: "size-2.5",
     floatZ: 5, // px - parallax float height for 3D effect
     hideOverlays: true, // Special flag to hide all overlays
@@ -89,13 +110,13 @@ const sizeStyles = {
     placeholderTitle: "text-xs",
     placeholderAuthor: "text-[10px]",
     badgeText: "text-[10px]",
-    badgeIcon: "h-2.5 w-2.5",
-    overlayTitle: "text-xs",
-    overlayAuthor: "text-[10px]",
-    star: "!size-4",
-    badgeSpacing: "top-1.5 left-1.5",
-    overlayPadding: "p-3",
-    copyButton: "top-1.5 right-1.5 p-1",
+    overlayTitle: "text-sm",
+    overlayAuthor: "text-[11px]",
+    overlayFact: "text-[10px]",
+    star: "!size-3.5",
+    cornerInset: "0.5rem",
+    overlayPadding: "0.75rem",
+    copyButton: "p-1",
     copyIcon: "size-3.5",
     floatZ: 10, // px - parallax float height for 3D effect
     hideOverlays: false,
@@ -103,14 +124,14 @@ const sizeStyles = {
   M: {
     placeholderTitle: "text-sm",
     placeholderAuthor: "text-xs",
-    badgeText: "text-xs",
-    badgeIcon: "h-3 w-3",
-    overlayTitle: "text-sm",
+    badgeText: "text-[11px]",
+    overlayTitle: "text-base",
     overlayAuthor: "text-xs",
-    star: "!size-[18px]",
-    badgeSpacing: "top-2 left-2",
-    overlayPadding: "p-4",
-    copyButton: "top-2 right-2 p-1.5",
+    overlayFact: "text-[11px]",
+    star: "!size-4",
+    cornerInset: "0.625rem",
+    overlayPadding: "1rem",
+    copyButton: "p-1.5",
     copyIcon: "size-5",
     floatZ: 20, // px - parallax float height for 3D effect
     hideOverlays: false,
@@ -118,39 +139,18 @@ const sizeStyles = {
   L: {
     placeholderTitle: "text-base",
     placeholderAuthor: "text-lg",
-    badgeText: "text-sm",
-    badgeIcon: "h-3.5 w-3.5",
-    overlayTitle: "text-lg",
+    badgeText: "text-xs",
+    overlayTitle: "text-xl",
     overlayAuthor: "text-sm",
+    overlayFact: "text-xs",
     star: "!size-5",
-    badgeSpacing: "top-3 left-3",
-    overlayPadding: "p-8",
-    copyButton: "top-3 right-3 p-2",
+    cornerInset: "0.875rem",
+    overlayPadding: "2rem",
+    copyButton: "p-2",
     copyIcon: "size-6",
     floatZ: 30, // px - parallax float height for 3D effect
     hideOverlays: false,
   },
-} as const;
-
-// Keep the original smooth pickup and return independent of other cards.
-const bookHoverSpring: SpringOptions = {
-  damping: 25,
-  stiffness: 120,
-  mass: 1,
-};
-
-const hoverScale = {
-  XS: 1.2, // Largest scale for extra small books
-  S: 1.15, // Larger scale for small books
-  M: 1.1, // Medium scale
-  L: 1.05, // Smaller scale for large books
-} as const;
-
-const tiltAmplitude = {
-  XS: 0, // No tilt for XS (too small)
-  S: 20, // More tilt for small books
-  M: 15, // Medium tilt
-  L: 10, // Less tilt for large books
 } as const;
 
 export const BookCard = memo(function BookCard({
@@ -161,6 +161,12 @@ export const BookCard = memo(function BookCard({
   onHover,
 }: BookCardProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
+  const palette = bookCardPalette(book.coverColor);
+  const visualEffects = useSyncExternalStore(
+    bookCardVisualEffects.subscribe,
+    bookCardVisualEffects.getSnapshot,
+    bookCardVisualEffects.getServerSnapshot,
+  );
   const styles = sizeStyles[size];
   const status = readingStatus(book);
   const readDates =
@@ -172,9 +178,20 @@ export const BookCard = memo(function BookCard({
         : (formatReadDates(book.started, book.finished) ??
           (book.finished ? formatSingleReadDate(book.finished) : null));
   const length = formatLength(book.audioLengthMin, book.pageCount);
+  const [audioLength, pageLength] = length?.split(" · ") ?? [];
+  const ReadingIcon =
+    status === "reading"
+      ? CalendarIcon
+      : status === "abandoned"
+        ? BookmarkSimpleIcon
+        : book.readNumber > 1
+          ? ArrowsClockwiseIcon
+          : ClockIcon;
   const actions = useModalActions();
   const { openModal } = actions;
   const cardRef = useRef<HTMLButtonElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
+  const overlayBodyRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
   useIntersectionMotion(cardRef);
   const searchParams = useSearchParams();
@@ -188,6 +205,22 @@ export const BookCard = memo(function BookCard({
   useEffect(() => {
     setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
+
+  // Match the glass to the untransformed text height without putting the text
+  // inside overflow-hidden, which would flatten its depth against the jacket.
+  useEffect(() => {
+    const card = cardRef.current;
+    const body = overlayBodyRef.current;
+    if (!card || !body) return;
+    const syncHeight = () => {
+      card.style.setProperty("--book-overlay-height", `${body.offsetHeight}px`);
+    };
+    syncHeight();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(syncHeight);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, [styles.hideOverlays]);
 
   // Track copy trigger at focus start to detect new copies vs focus changes
   const focusStartTriggerRef = useRef<number>(0);
@@ -231,10 +264,10 @@ export const BookCard = memo(function BookCard({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  // Check if click is in the top-right corner (copy button zone)
+  // Follow the visible control as the card tilts and scales.
   const isInCopyZone = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!cardRef.current) return false;
-    const rect = cardRef.current.getBoundingClientRect();
+    if (styles.hideOverlays || !copyRef.current) return false;
+    const rect = copyRef.current.getBoundingClientRect();
 
     // Get click/touch position
     let clientX: number, clientY: number;
@@ -248,20 +281,18 @@ export const BookCard = memo(function BookCard({
       return false;
     }
 
-    // Define hit zone size based on card size (generous tap target)
-    // XS has no copy button (hideOverlays), so disable the zone entirely
-    const zoneSize =
-      size === "XS" ? 0 : size === "S" ? 32 : size === "M" ? 40 : 48;
-
-    const isInRightEdge = clientX > rect.right - zoneSize;
-    const isInTopEdge = clientY < rect.top + zoneSize;
-
-    return isInRightEdge && isInTopEdge;
+    const padding = "touches" in e ? 8 : 4;
+    return (
+      clientX >= rect.left - padding &&
+      clientX <= rect.right + padding &&
+      clientY >= rect.top - padding &&
+      clientY <= rect.bottom + padding
+    );
   };
 
   const handleClick = (e: React.MouseEvent) => {
     // Check if click is in the copy button zone
-    if (isInCopyZone(e)) {
+    if (e.detail > 0 && isInCopyZone(e)) {
       handleCopyLink();
       return;
     }
@@ -327,6 +358,7 @@ export const BookCard = memo(function BookCard({
       onMouseLeave={handleMouseLeave}
       className={cn(
         `intersect-once group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
+        cardStyles.card,
         sizeRadius[size],
         // Only enable 3D perspective on non-touch devices
         !isTouchDevice && "[perspective:1000px]",
@@ -335,11 +367,22 @@ export const BookCard = memo(function BookCard({
       )}
       aria-label={`View details for ${book.title} by ${book.author}`}
       data-book-id={book.id}
-      style={{
-        // Only enable 3D transform style on non-touch devices
-        transformStyle: isTouchDevice ? undefined : "preserve-3d",
-        outline: "none",
-      }}
+      data-keyboard-focused={isKeyboardFocused}
+      data-cover-tone={palette.tone}
+      style={
+        {
+          "--book-wash": palette.washRgb,
+          "--book-wash-opacity": palette.washOpacity,
+          "--book-overlay-padding": styles.overlayPadding,
+          "--book-corner-inset": styles.cornerInset,
+          "--book-text-depth": `${isTouchDevice || reduceMotion ? 0 : styles.floatZ * 1.5}px`,
+          "--book-foreground": palette.foreground,
+          "--book-secondary": palette.secondary,
+          // Only enable 3D transform style on non-touch devices
+          transformStyle: isTouchDevice ? undefined : "preserve-3d",
+          outline: "none",
+        } as CSSProperties
+      }
     >
       <motion.div
         className={cn(
@@ -361,9 +404,15 @@ export const BookCard = memo(function BookCard({
         transition={{ type: "spring", ...cardInteractionSpring }}
       >
         {/* Cover container with shadow and rounded corners */}
-        <div
+        <BookCoverSurface
+          motion={
+            isTouchDevice || reduceMotion
+              ? undefined
+              : { rotateX, rotateY, scale }
+          }
           className={cn(
-            `relative overflow-hidden shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] transition-shadow duration-300 hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] focus:outline-none`,
+            `relative overflow-hidden focus:outline-none`,
+            cardStyles.coverFrame,
             sizeRadius[size],
             // Keyboard focus indicator - on inner element so it lifts with 3D transform
             isKeyboardFocused &&
@@ -418,50 +467,184 @@ export const BookCard = memo(function BookCard({
                 )}
               </div>
             )}
+            {!styles.hideOverlays && (
+              // Cover and glass share the same flat plane and rounded clip.
+              <div className={cardStyles.overlay}>
+                <div className={cn(cardStyles.body, cardStyles.materialBody)}>
+                  {visualEffects.backdropBlur && (
+                    <>
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          cardStyles.glass,
+                          cardStyles.soft,
+                          styles.overlayTitle,
+                        )}
+                      />
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          cardStyles.glass,
+                          cardStyles.medium,
+                          styles.overlayTitle,
+                        )}
+                      />
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          cardStyles.glass,
+                          cardStyles.deep,
+                          styles.overlayTitle,
+                        )}
+                      />
+                    </>
+                  )}
+                  <div aria-hidden="true" className={cardStyles.wash} />
+                </div>
+              </div>
+            )}
           </motion.div>
-        </div>
+        </BookCoverSurface>
 
         {/* Floating elements - outside overflow-hidden for parallax effect */}
         {/* Hide all overlays for XS size */}
         {!styles.hideOverlays && (
           <>
+            <div className={cn(cardStyles.overlay, cardStyles.floatingText)}>
+              <div ref={overlayBodyRef} className={cardStyles.body}>
+                <div className={cardStyles.text}>
+                  <h3
+                    className={`line-clamp-3 font-semibold leading-tight ${styles.overlayTitle}`}
+                  >
+                    {book.title}
+                  </h3>
+                  <p
+                    className={cn(
+                      `flex min-w-0 items-baseline pt-0.5 font-normal ${styles.overlayAuthor}`,
+                      cardStyles.secondary,
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{book.author}</span>
+                    {book.publicationYear && (
+                      <span className="shrink-0 whitespace-nowrap">
+                        <span
+                          aria-hidden="true"
+                          className={cardStyles.separator}
+                        >
+                          {" • "}
+                        </span>
+                        <span aria-label={`Published ${book.publicationYear}`}>
+                          {book.publicationYear}
+                        </span>
+                      </span>
+                    )}
+                  </p>
+                  {length && (
+                    <p
+                      data-book-fact="length"
+                      aria-label={`Length: ${length}`}
+                      className={cn(
+                        `mt-2 ${styles.overlayFact}`,
+                        cardStyles.fact,
+                      )}
+                    >
+                      <HeadphonesIcon
+                        aria-hidden="true"
+                        weight="bold"
+                        className={cardStyles.factIcon}
+                      />
+                      <span className="min-w-0 truncate">
+                        {pageLength ? (
+                          <>
+                            {audioLength}
+                            <span
+                              aria-hidden="true"
+                              className={cardStyles.separator}
+                            >
+                              {" • "}
+                            </span>
+                            {pageLength}
+                          </>
+                        ) : (
+                          length
+                        )}
+                      </span>
+                    </p>
+                  )}
+                  {readDates && (
+                    <p
+                      data-book-fact="read"
+                      aria-label={
+                        status === "reading"
+                          ? readDates
+                          : `${status === "abandoned" ? "Abandoned" : "Read"}: ${readDates}`
+                      }
+                      className={cn(
+                        styles.overlayFact,
+                        length ? "mt-1" : "mt-2",
+                        cardStyles.fact,
+                      )}
+                    >
+                      <ReadingIcon
+                        aria-hidden="true"
+                        weight="bold"
+                        className={cardStyles.factIcon}
+                      />
+                      <span className="min-w-0 truncate">{readDates}</span>
+                    </p>
+                  )}
+                  {book.rating && (
+                    <div
+                      role="img"
+                      aria-label={`${book.rating} out of 5 stars`}
+                      className="mt-2 flex gap-0.5"
+                    >
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <StarIcon
+                          key={i}
+                          aria-hidden="true"
+                          weight={i < book.rating! ? "fill" : "duotone"}
+                          style={
+                            i < book.rating! && palette.starOverride
+                              ? { color: palette.starOverride }
+                              : undefined
+                          }
+                          className={cn(
+                            styles.star,
+                            i < book.rating!
+                              ? "text-yellow-400"
+                              : cardStyles.emptyStar,
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             {/* Badges container - stacked vertically */}
             <div
               className={cn(
                 "absolute flex flex-col items-start gap-1",
-                styles.badgeSpacing,
+                cardStyles.badges,
               )}
-              style={
-                isTouchDevice
-                  ? undefined
-                  : { transform: `translateZ(${styles.floatZ}px)` }
-              }
             >
               {isCurrentlyReading(book) && (
                 <Badge
-                  variant="secondary"
-                  className={cn(
-                    `gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90`,
-                    sizeRadius[size],
-                  )}
+                  variant="outline"
+                  className={cn(cardStyles.badge, styles.badgeText)}
                 >
-                  <BookOpenIcon className={styles.badgeIcon} weight="bold" />
-                  <span className={styles.badgeText}>Reading</span>
+                  <BookOpenIcon aria-hidden="true" weight="bold" />
+                  <span>Reading</span>
                 </Badge>
               )}
               {status === "abandoned" && (
                 <Badge
-                  variant="secondary"
-                  className={cn(
-                    `gap-1 bg-stone-50/95 text-stone-700/85 shadow-md ring-1 ring-stone-900/5 dark:bg-stone-900/95 dark:text-stone-200/85 dark:ring-white/10`,
-                    sizeRadius[size],
-                  )}
+                  variant="outline"
+                  className={cn(cardStyles.badge, styles.badgeText)}
                 >
-                  <BookmarkSimpleIcon
-                    className={styles.badgeIcon}
-                    weight="bold"
-                  />
-                  <span className={styles.badgeText}>
+                  <BookmarkSimpleIcon aria-hidden="true" weight="bold" />
+                  <span>
                     {abandonedPercent(book) != null
                       ? `Abandoned ${abandonedPercent(book)}%`
                       : "Abandoned"}
@@ -470,17 +653,11 @@ export const BookCard = memo(function BookCard({
               )}
               {book.readNumber > 1 && (
                 <Badge
-                  variant="secondary"
-                  className={cn(
-                    `gap-1 bg-purple-50/90 text-purple-600/80 shadow-md dark:bg-purple-950/90 dark:text-purple-400/90`,
-                    sizeRadius[size],
-                  )}
+                  variant="outline"
+                  className={cn(cardStyles.badge, styles.badgeText)}
                 >
-                  <ArrowsClockwiseIcon
-                    className={styles.badgeIcon}
-                    weight="bold"
-                  />
-                  <span className={styles.badgeText}>
+                  <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />
+                  <span>
                     {book.readNumber === 2
                       ? "2nd Read"
                       : book.readNumber === 3
@@ -491,99 +668,35 @@ export const BookCard = memo(function BookCard({
               )}
               {!book.hasNotes && (
                 <Badge
-                  variant="secondary"
+                  variant="outline"
                   data-book-badge="no-notes"
-                  className={cn(
-                    `gap-1 bg-stone-50/95 text-stone-700/85 shadow-md ring-1 ring-stone-900/5 dark:bg-stone-900/95 dark:text-stone-200/85 dark:ring-white/10`,
-                    sizeRadius[size],
-                  )}
+                  className={cn(cardStyles.badge, styles.badgeText)}
                 >
-                  <FileTextIcon className={styles.badgeIcon} weight="bold" />
-                  <span className={styles.badgeText}>No Notes</span>
+                  <FileTextIcon aria-hidden="true" weight="bold" />
+                  <span>No Notes</span>
                 </Badge>
-              )}
-            </div>
-
-            {/* Gradient overlay - does not float */}
-            <div
-              className={cn(
-                `pointer-events-none absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent to-60% transition-opacity duration-500 group-hover:opacity-100`,
-                sizeRadius[size],
-                isKeyboardFocused ? "opacity-100" : "opacity-0",
-              )}
-            />
-
-            {/* Text overlay - floats above */}
-            <div
-              className={cn(
-                `pointer-events-none absolute inset-0 flex flex-col justify-end transition-opacity duration-500 group-hover:opacity-100`,
-                styles.overlayPadding,
-                sizeRadius[size],
-                isKeyboardFocused ? "opacity-100" : "opacity-0",
-              )}
-              style={
-                isTouchDevice
-                  ? undefined
-                  : { transform: `translateZ(${styles.floatZ * 1.5}px)` }
-              }
-            >
-              <h3
-                className={`line-clamp-3 font-semibold leading-tight text-white drop-shadow-md ${styles.overlayTitle}`}
-              >
-                {book.title}
-              </h3>
-              <p
-                className={`truncate pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
-              >
-                {book.author}
-                {book.publicationYear ? ` (${book.publicationYear})` : ""}
-              </p>
-              {readDates && (
-                <p
-                  className={`truncate pt-0.5 text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
-                >
-                  {readDates}
-                </p>
-              )}
-              {length && (
-                <p
-                  className={`truncate text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
-                >
-                  {length}
-                </p>
-              )}
-              {book.rating && (
-                <div className="mt-1 flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <StarIcon
-                      key={i}
-                      weight={i < book.rating! ? "fill" : "duotone"}
-                      className={`${styles.star} ${i < book.rating! ? "text-yellow-400" : "text-white/30"}`}
-                    />
-                  ))}
-                </div>
               )}
             </div>
 
             {/* Copy link icon - visual indicator, clicks detected via position */}
             <div
+              ref={copyRef}
+              data-copy-hovered={isHoveringCopyZone}
+              data-copy-complete={copied}
               className={cn(
-                `pointer-events-none absolute rounded-full bg-stone-900/30 text-white transition-all duration-200 group-hover:opacity-100 ${styles.copyButton}`,
-                copied && "bg-green-500/60",
-                isHoveringCopyZone && !copied && "scale-110 bg-stone-900/50",
-                isKeyboardFocused ? "opacity-100" : "opacity-0",
+                `pointer-events-none absolute rounded-full ${styles.copyButton}`,
+                cardStyles.copy,
               )}
-              style={
-                isTouchDevice
-                  ? undefined
-                  : { transform: `translateZ(${styles.floatZ * 0.5}px)` }
-              }
             >
-              {copied ? (
-                <CheckIcon className={styles.copyIcon} weight="bold" />
-              ) : (
-                <LinkIcon className={styles.copyIcon} weight="bold" />
-              )}
+              {/* Keep the original bounds for pointer and touch hit testing. */}
+              <span aria-hidden className={`block ${styles.copyIcon}`} />
+              <span className={cardStyles.copyVisual}>
+                {copied ? (
+                  <CheckIcon className={styles.copyIcon} weight="bold" />
+                ) : (
+                  <LinkIcon className={styles.copyIcon} weight="bold" />
+                )}
+              </span>
             </div>
           </>
         )}
