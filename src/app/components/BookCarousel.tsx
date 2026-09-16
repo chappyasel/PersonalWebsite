@@ -229,7 +229,7 @@ function BookCover({ book }: { book: HomepageBookCover }) {
           <p className="line-clamp-2 font-semibold leading-snug">
             {book.title}
           </p>
-          <p className="line-clamp-1 text-muted-foreground">{book.author}</p>
+          <p className="truncate text-muted-foreground">{book.author}</p>
         </div>
       </TooltipContent>
     </Tooltip>

@@ -106,11 +106,11 @@ export default function BooksPageClient({
                 ? "https://www.chappyasel.com"
                 : devBaseUrl()
             }
-            className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
+            className="group inline-flex min-w-0 max-w-full items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <span className="relative inline-flex h-6 w-6 items-center justify-center md:h-8 md:w-9">
+            <span className="relative inline-flex h-6 w-6 shrink-0 items-center justify-center md:h-8 md:w-9">
               <AnimatePresence mode="wait" initial={false}>
                 {isHovered ? (
                   <motion.div
@@ -141,11 +141,11 @@ export default function BooksPageClient({
                 )}
               </AnimatePresence>
             </span>
-            <span className="line-clamp-1">
+            <span className="truncate">
               Chappy&apos;s<span className="hidden sm:inline"> Book</span> Notes
             </span>
           </Link>
-          <div className="flex translate-x-3 items-center gap-0">
+          <div className="flex shrink-0 translate-x-3 items-center gap-0">
             <ReadingStatsPopover
               scope="all"
               align="end"

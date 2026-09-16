@@ -604,7 +604,7 @@ export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
         )}
       </div>
       <div data-book-preview-details="" className="min-w-0 self-start">
-        <p className="book-preview-title homepage-card-body line-clamp-1 font-serif font-semibold text-foreground">
+        <p className="book-preview-title homepage-card-body truncate font-serif font-semibold text-foreground">
           {book.title}
         </p>
         <p className="homepage-card-meta mt-px truncate text-muted-foreground">
@@ -616,12 +616,12 @@ export function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
           </div>
         ) : null}
         {length ? (
-          <p className="book-preview-detail mt-0.5 line-clamp-1 text-muted-foreground">
+          <p className="book-preview-detail mt-0.5 truncate text-muted-foreground">
             {length}
           </p>
         ) : null}
         {dates ? (
-          <p className="book-preview-detail mt-0.5 line-clamp-1 text-muted-foreground">
+          <p className="book-preview-detail mt-0.5 truncate text-muted-foreground">
             {dates}
           </p>
         ) : null}

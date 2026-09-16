@@ -124,14 +124,14 @@ const SelectTrigger = React.forwardRef<
         }
       }}
       className={cn(
-        "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors duration-200 ease-in-out hover:bg-accent focus:outline-none focus-visible:border-primary/60 focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1",
+        "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors duration-200 ease-in-out hover:bg-accent focus:outline-none focus-visible:border-primary/60 focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground [&>span]:min-w-0 [&>span]:truncate",
         className,
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <CaretDownIcon className="h-4 w-4 opacity-50" />
+        <CaretDownIcon className="h-4 w-4 shrink-0 opacity-50" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );

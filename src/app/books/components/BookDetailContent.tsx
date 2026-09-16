@@ -1580,7 +1580,7 @@ export function BookDetailContent({
               >
                 <motion.h2
                   style={{ fontSize: titleFontSize }}
-                  className="line-clamp-1 font-semibold leading-tight text-foreground"
+                  className="truncate font-semibold leading-tight text-foreground"
                 >
                   {book.title}
                 </motion.h2>

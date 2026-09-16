@@ -130,7 +130,7 @@ export default function BookLink({
               <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                 {book.title}
               </p>
-              <p className="mt-0.5 line-clamp-1 text-muted-foreground">
+              <p className="mt-0.5 truncate text-muted-foreground">
                 {book.author}
               </p>
               {book.rating != null && (

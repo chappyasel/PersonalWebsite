@@ -705,7 +705,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
   return (
     <div className="space-y-6 sm:space-y-10">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 max-w-full flex-col gap-1">
           <h1>
             <Link
               href={
@@ -714,7 +714,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                   : "/weightlifting"
               }
               aria-label="Weight Log, back to Weightlifting"
-              className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
+              className="group inline-flex min-w-0 max-w-full items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
             >
               <span
                 aria-hidden="true"
@@ -729,7 +729,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
                   className="absolute h-7 w-7 scale-75 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 group-focus-visible:scale-100 group-focus-visible:opacity-100 motion-reduce:transition-none md:h-9 md:w-9"
                 />
               </span>
-              <span className="line-clamp-1 font-rounded">Weight Log</span>
+              <span className="truncate font-rounded">Weight Log</span>
             </Link>
           </h1>
           <p className="pl-9 text-sm text-muted-foreground md:pl-11">

@@ -82,18 +82,18 @@ export function YouTubeDashboard() {
     <div className="mx-auto max-w-4xl space-y-10 font-sans">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
+        <div className="min-w-0">
           <Link
             href={
               process.env.NODE_ENV === "production"
                 ? "https://www.chappyasel.com"
                 : devBaseUrl()
             }
-            className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
+            className="group inline-flex min-w-0 max-w-full items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <span className="relative inline-flex h-7 w-7 items-center justify-center md:h-9 md:w-9">
+            <span className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center md:h-9 md:w-9">
               <AnimatePresence mode="wait" initial={false}>
                 {isHovered ? (
                   <motion.div
@@ -124,7 +124,7 @@ export function YouTubeDashboard() {
                 )}
               </AnimatePresence>
             </span>
-            <span className="line-clamp-1 font-rounded">
+            <span className="truncate font-rounded">
               Chappy&apos;s YouTube
             </span>
           </Link>

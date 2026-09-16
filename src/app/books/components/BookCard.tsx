@@ -533,21 +533,21 @@ export const BookCard = memo(function BookCard({
                 {book.title}
               </h3>
               <p
-                className={`line-clamp-1 pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
+                className={`truncate pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
               >
                 {book.author}
                 {book.publicationYear ? ` (${book.publicationYear})` : ""}
               </p>
               {readDates && (
                 <p
-                  className={`line-clamp-1 pt-0.5 text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
+                  className={`truncate pt-0.5 text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
                 >
                   {readDates}
                 </p>
               )}
               {length && (
                 <p
-                  className={`line-clamp-1 text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
+                  className={`truncate text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
                 >
                   {length}
                 </p>
