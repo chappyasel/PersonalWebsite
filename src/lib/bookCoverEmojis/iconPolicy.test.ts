@@ -1,8 +1,8 @@
 /**
- * Fixtures here are captures from the live API on 2026-09-15, not synthetic
- * shapes. An earlier version of this module was tested against flattened
- * objects that the API never sends, which is exactly why it shipped a decoder
- * that returned an undefined id for every real response.
+ * Fixtures preserve response shapes captured from the live API on 2026-09-15.
+ * Access-key IDs and signatures are dummy values; never commit signed URLs.
+ * An earlier version used flattened fixtures that the API never sends and
+ * shipped a decoder that returned an undefined id for every real response.
  */
 import { describe, expect, it } from "vitest";
 
@@ -20,14 +20,14 @@ import {
 const FILE_READ_ONE = {
   type: "file",
   file: {
-    url: "https://prod-files-secure.s3.us-west-2.amazonaws.com/859fbc85-7644-4498-88d8-e0229d8cea32/aae80268-be21-484a-b080-7fb8dfc1dde9/book-the-mom-test.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAZI2LB466UQDEDEOL%2F20260915%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20260915T192438Z&X-Amz-Expires=3600&X-Amz-Signature=ce5b068b51324b7b625f506acd3a15f4cd567116c4a8a14635d4fb15a6817e30",
+    url: "https://prod-files-secure.s3.us-west-2.amazonaws.com/859fbc85-7644-4498-88d8-e0229d8cea32/aae80268-be21-484a-b080-7fb8dfc1dde9/book-the-mom-test.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=example-access-key%2F20260915%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20260915T192438Z&X-Amz-Expires=3600&X-Amz-Signature=example-signature-1",
     expiry_time: "2026-09-15T20:24:38.368Z",
   },
 };
 const FILE_READ_TWO = {
   type: "file",
   file: {
-    url: "https://prod-files-secure.s3.us-west-2.amazonaws.com/859fbc85-7644-4498-88d8-e0229d8cea32/aae80268-be21-484a-b080-7fb8dfc1dde9/book-the-mom-test.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAZI2LB4663B4PCZJN%2F20260915%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20260915T192440Z&X-Amz-Expires=3600&X-Amz-Signature=8b703504cafd4f251376819c336b1314d168cd2cdc071077c4f2643f9840825f",
+    url: "https://prod-files-secure.s3.us-west-2.amazonaws.com/859fbc85-7644-4498-88d8-e0229d8cea32/aae80268-be21-484a-b080-7fb8dfc1dde9/book-the-mom-test.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=example-access-key%2F20260915%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20260915T192440Z&X-Amz-Expires=3600&X-Amz-Signature=example-signature-2",
     expiry_time: "2026-09-15T20:24:40.509Z",
   },
 };
