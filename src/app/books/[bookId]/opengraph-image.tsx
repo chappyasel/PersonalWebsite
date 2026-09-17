@@ -360,43 +360,75 @@ export default async function Image({
                 <div
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
                     marginTop: "32px",
                     fontSize: "28px",
                     lineHeight: 1.4,
                   }}
                 >
-                  {facts.map((fact) => (
-                    <div
-                      key={fact.key}
-                      style={{ display: "flex", alignItems: "center" }}
-                    >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      flexShrink: 0,
+                      gap: "16px",
+                      width: "36px",
+                      color: textColorWithOpacity(0.6),
+                    }}
+                  >
+                    {facts.map((fact) => (
                       <div
+                        key={fact.key}
                         style={{
                           display: "flex",
-                          width: "36px",
+                          height: "40px",
+                          alignItems: "center",
                           justifyContent: "center",
-                          color: textColorWithOpacity(0.6),
                         }}
                       >
                         {phosphorSvg(fact.icon, { size: 26, weight: "bold" })}
                       </div>
+                    ))}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      flexShrink: 0,
+                      gap: "16px",
+                      marginLeft: "12px",
+                      marginRight: "16px",
+                      color: textColorWithOpacity(0.7),
+                    }}
+                  >
+                    {facts.map((fact) => (
                       <div
+                        key={fact.key}
                         style={{
                           display: "flex",
-                          width: "168px",
-                          marginLeft: "12px",
-                          color: textColorWithOpacity(0.7),
+                          height: "40px",
+                          alignItems: "center",
                         }}
                       >
                         {fact.label}
                       </div>
+                    ))}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "16px",
+                      color: textColorWithOpacity(0.88),
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {facts.map((fact) => (
                       <div
+                        key={fact.key}
                         style={{
                           display: "flex",
-                          color: textColorWithOpacity(0.88),
-                          whiteSpace: "nowrap",
+                          height: "40px",
+                          alignItems: "center",
                         }}
                       >
                         {fact.key === "length" && fact.value.includes(" · ") ? (
@@ -412,8 +444,8 @@ export default async function Image({
                           fact.value
                         )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
 

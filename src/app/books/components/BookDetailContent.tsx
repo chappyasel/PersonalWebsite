@@ -553,7 +553,7 @@ function BookFact({
   return (
     <div
       data-book-fact={label.toLowerCase()}
-      className="grid min-w-0 cursor-default grid-cols-[1rem_4.25rem_minmax(0,1fr)] items-start gap-x-1.5 sm:grid-cols-[1.125rem_5rem_minmax(0,1fr)]"
+      className="col-span-3 grid min-w-0 cursor-default grid-cols-subgrid items-start"
     >
       <span
         aria-hidden="true"
@@ -561,7 +561,7 @@ function BookFact({
       >
         {icon}
       </span>
-      <dt className="text-xs font-medium leading-4 text-muted-foreground/70 sm:text-sm sm:leading-5">
+      <dt className="pr-0.5 text-xs font-medium leading-4 text-muted-foreground/70 sm:text-sm sm:leading-5">
         {label}
       </dt>
       {tooltip ? (
@@ -698,7 +698,10 @@ function BookFacts({ book }: { book: BookDetailBook }) {
 
   if (facts.length === 0) return null;
   return (
-    <dl data-book-facts className="flex min-w-0 flex-col gap-1.5 sm:gap-2">
+    <dl
+      data-book-facts
+      className="grid min-w-0 grid-cols-[1rem_max-content_minmax(0,1fr)] gap-x-1.5 gap-y-1.5 sm:grid-cols-[1.125rem_max-content_minmax(0,1fr)] sm:gap-y-2"
+    >
       {facts}
     </dl>
   );

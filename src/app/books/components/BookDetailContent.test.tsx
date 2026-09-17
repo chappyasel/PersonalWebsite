@@ -153,7 +153,8 @@ describe("BookDetailContent note availability", () => {
     );
     expect(markup).not.toContain("Published:");
     expect(markup).toContain('aria-label="Book actions"');
-    expect(markup).toContain("grid-cols-[1rem_4.25rem_minmax(0,1fr)]");
+    expect(markup).toContain("grid-cols-[1rem_max-content_minmax(0,1fr)]");
+    expect(markup).toContain("grid-cols-subgrid");
     expect(markup).toContain("text-xs");
     expect(markup).toContain("w-fit min-w-0 max-w-full justify-self-start");
     expect(markup).not.toContain("md:grid-cols-3");
