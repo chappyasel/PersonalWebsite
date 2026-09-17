@@ -203,6 +203,15 @@ export function useProgressiveSearch({
           >;
           for (const group of ["books", "weightlifting", "dad"] as const) {
             const incoming = response.groups[group];
+            // Match transport failures: a provider timeout must not erase
+            // cached public results. Private Dad results never use this fallback.
+            if (group !== "dad" && incoming.status === "error" && cached[group]) {
+              nextServerGroups[group] = {
+                status: "success",
+                results: cached[group],
+              };
+              continue;
+            }
             if (group !== "dad" && incoming.status === "success") {
               cache.write(normalizedQuery, group, incoming.results);
             }
