@@ -237,6 +237,81 @@ describe("useProgressiveSearch", () => {
     );
   });
 
+  it.each(["books", "weightlifting"] as const)(
+    "retains cached %s results when that provider fails during refresh",
+    async (group) => {
+      const cache = createSearchSessionCache();
+      const cachedResult = result("cached", group);
+      cache.write("search", group, [cachedResult]);
+      const response = serverPayload();
+      response.groups[group] = { status: "error", results: [] };
+      response.groups.dad = { status: "error", results: [] };
+      const searchPublic = vi.fn(async () => []);
+      const searchServer = vi.fn(async () => response);
+      const { result: hook } = renderHook(() =>
+        useProgressiveSearch({
+          query: "search",
+          enabled: true,
+          searchPublic,
+          searchServer,
+          cache,
+        }),
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(140);
+      });
+
+      expect(hook.current.groups[group]).toEqual({
+        status: "success",
+        results: [cachedResult],
+      });
+      expect(hook.current.groups.dad).toEqual({ status: "error", results: [] });
+      expect(hook.current.isSettledZero).toBe(false);
+      expect(cache.read("search")[group]).toEqual([cachedResult]);
+    },
+  );
+
+  it.each(["success", "skipped", "error"] as const)(
+    "keeps %s refresh semantics without leaking results across queries",
+    async (status) => {
+      const cache = createSearchSessionCache();
+      cache.write("previous", "books", [result("old-book", "books")]);
+      cache.write("search", "weightlifting", [result("old-lift", "weightlifting")]);
+      const response = serverPayload();
+      response.groups.books = { status, results: [] };
+      response.groups.weightlifting = { status, results: [] };
+      response.groups.dad = { status: "skipped", results: [] };
+      const searchPublic = vi.fn(async () => []);
+      const searchServer = vi.fn(async () => response);
+      const { result: hook } = renderHook(() =>
+        useProgressiveSearch({
+          query: "search",
+          enabled: true,
+          searchPublic,
+          searchServer,
+          cache,
+        }),
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(140);
+      });
+
+      expect(hook.current.groups.books).toEqual({ status, results: [] });
+      expect(hook.current.groups.dad).toEqual({ status: "skipped", results: [] });
+      expect(hook.current.groups.weightlifting).toEqual(
+        status === "error"
+          ? { status: "success", results: [result("old-lift", "weightlifting")] }
+          : { status, results: [] },
+      );
+      expect(hook.current.isSettledZero).toBe(status !== "error");
+      if (status === "success") {
+        expect(cache.read("search").weightlifting).toEqual([]);
+      }
+    },
+  );
+
   it("isolates provider errors and waits to declare zero results", async () => {
     const cache = createSearchSessionCache();
     const publicSearch = deferred<SearchResult[]>();
