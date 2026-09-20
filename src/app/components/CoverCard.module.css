@@ -23,7 +23,8 @@
   border-top-right-radius: var(--cover-card-radius, 1.5rem);
   /* Keep transformed artwork inside the top corners during a touch press. */
   clip-path: inset(
-    0 round var(--cover-card-radius, 1.5rem) var(--cover-card-radius, 1.5rem) 0 0
+    0 round var(--cover-card-radius, 1.5rem) var(--cover-card-radius, 1.5rem) 0
+      0
   );
 }
 
@@ -34,7 +35,8 @@
 /* Every card fills the list. Use that width, including in the desktop dock,
    to decide when the image and text have room to sit beside each other. */
 @container cover-cards (min-width: 36rem) {
-  .card {
+  /* Outrank VideoTrigger's p-0 and gap-0 regardless of stylesheet order. */
+  .card.card {
     flex-direction: row;
     gap: var(--homepage-card-padding);
     padding: var(--homepage-card-padding);

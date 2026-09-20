@@ -46,6 +46,8 @@ Use this when Chappy asks for a new blank booknotes page with chapter headings /
 4. Page body should match Chappy’s fill-in template:
    - `# Summary`
    - paragraph `Todo`
+   - `# Chappy’s Review` (required on every new scaffold)
+   - paragraph `Todo`
    - `# Key Takeaways`
    - one bullet `Todo`
    - `# Notes`
@@ -53,6 +55,7 @@ Use this when Chappy asks for a new blank booknotes page with chapter headings /
    - introductions, chapters, and epilogues as bold paragraphs
    - exactly one empty bulleted-list item under each empty reading-section leaf
 5. Verify by fetching the new page’s children and confirming the expected block count/order. Return the Notion URL.
+6. When syncing a newly created book to the website, also apply and verify its Notion cover icon after the mirror contains a cover URL. The content sync does not run the separate cover-icon pipeline. Use the existing pipeline with a targeted work name (`scripts/book-cover-emojis/apply.ts run --only book-<title-slug> --apply`, confirm the grouping name first), then re-fetch the Notion page and confirm its icon is a file. Do not claim full setup is complete after checking website text alone.
 
 Credential/path notes: use the `notion` skill for API details. If `$NOTION_API_KEY` is not exported, parse only the `NOTION_API_KEY=` line from `~/.hermes/.env`, then fall back to `~/.config/notion/api_key`.
 
