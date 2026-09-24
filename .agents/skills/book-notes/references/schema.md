@@ -201,6 +201,14 @@ ORDER BY times_read DESC;
 
 ## Metadata / sync freshness
 
+`last_edited_time` tracks the last successful notes download. The sync can save
+verified author, cover, publication, pages, audio runtime, Audible URL, and
+featured selection before notes succeed. Missing metadata retries independently
+of that watermark. Notion remains the source of truth; nonempty manual values
+are preserved. See the skill's scoped refresh instructions for authorized
+single-page maintenance without deletion or unrelated book writes.
+
+
 ```sql
 SELECT MAX(last_synced_at) AS last_sync FROM books;
 ```

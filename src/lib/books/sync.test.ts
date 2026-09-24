@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("~/env", () => ({ env: { NOTION_API_KEY: "test" } }));
+vi.mock("./metadataEnrichment", () => ({
+  enrichNotionBook: vi.fn(async (book: NotionBook) => book),
+}));
 vi.mock("./coverColor.server", () => ({ resolveCoverColor: vi.fn() }));
 vi.mock("./notion", () => ({
   fetchBooksFromNotion: mocks.fetchBooks,
@@ -20,6 +23,9 @@ vi.mock("./notion", () => ({
 }));
 vi.mock("~/server/db", () => ({
   db: {
+    select: () => ({ from: () => ({ where: async () => [{ count: 1 }] }) }),
+    transaction: async (fn: (tx: unknown) => unknown) =>
+      fn({ query: { books: { findMany: mocks.findMany } } }),
     query: { books: { findMany: mocks.findMany } },
     insert: () => ({ values: () => ({ returning: async () => [{ id: 1 }] }) }),
     update: () => ({
@@ -41,6 +47,8 @@ const book = {
   isFeatured: true,
   coverUrl: "https://example.com/cover.jpg",
   audioLengthMin: 300,
+  publicationYear: 2014,
+  pageCount: 352,
   audibleUrl: "https://www.audible.com/pd/example",
   websiteUrl: "https://books.chappyasel.com/test-book",
 } as NotionBook;
@@ -53,6 +61,7 @@ describe("featured selection during book sync", () => {
     mocks.fetchDetails.mockRejectedValue(new Error("Notes unavailable"));
     mocks.findMany.mockResolvedValue([
       {
+        ...book,
         id: "test-book",
         notionId: book.notionId,
         isFeatured: false,
@@ -76,6 +85,7 @@ describe("featured selection during book sync", () => {
     mocks.fetchBooks.mockResolvedValue([{ ...book, isFeatured: false }]);
     mocks.findMany.mockResolvedValue([
       {
+        ...book,
         id: "test-book",
         notionId: book.notionId,
         isFeatured: true,
@@ -114,6 +124,7 @@ describe("author changes during book sync", () => {
     mocks.fetchDetails.mockRejectedValue(new Error("Notes unavailable"));
     mocks.findMany.mockResolvedValue([
       {
+        ...book,
         id: "test-book",
         notionId: book.notionId,
         isFeatured: book.isFeatured,

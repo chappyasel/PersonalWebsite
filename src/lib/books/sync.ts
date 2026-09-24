@@ -1,18 +1,12 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
 import { resolveCoverColor } from "./coverColor.server";
-import { fetchBookCover } from "./coverFetcher";
 import { stripCoverCurl } from "./coverUtils";
-import { isCoverImageUrl, shouldRepairCover } from "./coverValidation";
-import {
-  estimatePagesFromAudio,
-  fetchAudibleLength,
-  fetchPageCount,
-  minutesToHourDotMinutes,
-} from "./lengthFetcher";
+import { needsMetadata, selectMetadataBatch } from "./metadata";
+import { enrichNotionBook } from "./metadataEnrichment";
 import {
   type NotionBook,
   WEBSITE_PROPERTY,
@@ -22,12 +16,7 @@ import {
 } from "./notion";
 import { createBookNotionClient } from "./notionClient";
 import { generateAllBookIds } from "./slugify";
-import {
-  mergeAudibleMetadata,
-  shouldFetchBookContent,
-  shouldLookupAudibleMetadata,
-  websiteUrlToWrite,
-} from "./syncPlanning";
+import { shouldFetchBookContent, websiteUrlToWrite } from "./syncPlanning";
 
 export type SyncResult = {
   totalBooksInNotion: number;
@@ -78,159 +67,211 @@ type BookContentResult =
 export async function syncBooksFromNotion(
   triggeredBy: "cron" | "manual" = "cron",
   onPropertiesChanged?: (bookIds: string[]) => Promise<void>,
+  options: { onlyNotionIds?: string[] } = {},
 ): Promise<SyncResult> {
-  const syncId = await createSyncRecord(triggeredBy);
-
-  try {
-    console.log("Starting book sync...");
-
-    // STEP 1: Fetch all book metadata from Notion
-    console.log("Fetching all books from Notion...");
-    const notionBooks = await fetchBooksFromNotion();
-    console.log(`Found ${notionBooks.length} books in Notion`);
-
-    // STEP 2: Generate human-readable slugs for all books
-    console.log("Generating slugs for all books...");
-    const slugMap = generateAllBookIds(
-      notionBooks.map((b) => ({
-        notionId: b.notionId,
-        title: b.title,
-        author: b.author || null,
-        publicationYear: b.publicationYear,
-        finished: b.finished,
-        abandoned: b.abandoned,
-      })),
+  const onlyIds =
+    options.onlyNotionIds === undefined
+      ? undefined
+      : new Set(options.onlyNotionIds);
+  if (onlyIds && (onlyIds.size === 0 || onlyIds.size > 20)) {
+    throw new Error(
+      "onlyNotionIds must select between 1 and 20 mirrored Notion pages",
     );
-
-    // Apply slugs to books
-    const notionBooksWithSlugs = notionBooks.map((book) => ({
+  }
+  // A scoped run still needs the whole catalog to assign reread slugs safely.
+  const notionBooks = await fetchBooksFromNotion();
+  if (
+    onlyIds &&
+    [...onlyIds].some((id) => !notionBooks.some((book) => book.notionId === id))
+  ) {
+    throw new Error(
+      "Requested Notion ID is absent from the Started/Finished catalog; no books were written",
+    );
+  }
+  const dbBooks = await db.query.books.findMany({
+    columns: {
+      id: true,
+      notionId: true,
+      lastEditedTime: true,
+      isFeatured: true,
+      author: true,
+      coverUrl: true,
+      coverColor: true,
+      publicationYear: true,
+      pageCount: true,
+      audioLengthMin: true,
+      audibleUrl: true,
+    },
+  });
+  const storedByNotionId = new Map(
+    dbBooks.map((book) => [book.notionId, book]),
+  );
+  const withSlugs = (catalog: NotionBook[]) => {
+    const slugMap = generateAllBookIds(catalog);
+    return catalog.map((book) => ({
       ...book,
-      id: slugMap.get(book.notionId) ?? book.notionId, // Fallback shouldn't happen
+      id: slugMap.get(book.notionId) ?? book.notionId,
     }));
-
-    // STEP 3: Fetch existing books from database (indexed by notionId)
-    const dbBooks = await db.query.books.findMany({
-      columns: {
-        id: true,
-        notionId: true,
-        lastEditedTime: true,
-        isFeatured: true,
-        author: true,
-      },
-    });
+  };
+  const checkScope = (catalog: NotionBook[]) => {
+    if (!onlyIds) return;
+    for (const book of catalog.filter((book) => onlyIds.has(book.notionId))) {
+      const owner = dbBooks.find(
+        (row) =>
+          row.id === book.id &&
+          row.notionId !== book.notionId &&
+          !onlyIds.has(row.notionId),
+      );
+      if (owner)
+        throw new Error(
+          `Target slug collision: ${book.id} belongs to unrelated Notion page ${owner.notionId}; refresh both readings explicitly`,
+        );
+    }
+  };
+  checkScope(withSlugs(notionBooks));
+  const syncId = await createSyncRecord(
+    onlyIds ? `${triggeredBy}:scoped` : triggeredBy,
+  );
+  try {
+    // New books get immediate lookup capacity; retries have their own reserved
+    // budget. Overflow new pages join normal retries once mirrored. Rotation
+    // includes complete rows, so successful repairs never reset the cursor.
+    // Scoped maintenance must not advance the global retry rotation.
+    const retryRun = onlyIds
+      ? 0
+      : (
+          await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(syncMetadata)
+            .where(inArray(syncMetadata.triggeredBy, ["cron", "manual"]))
+        )[0]!.count;
+    const selected = notionBooks.filter(
+      (book) => !onlyIds || onlyIds.has(book.notionId),
+    );
+    const newPages = selected.filter(
+      (book) => !storedByNotionId.has(book.notionId),
+    );
+    const existingPages = selected.filter((book) =>
+      storedByNotionId.has(book.notionId),
+    );
+    const batch = onlyIds
+      ? selected.filter(needsMetadata)
+      : [
+          ...selectMetadataBatch(newPages.filter(needsMetadata), retryRun, 10),
+          ...selectMetadataBatch(existingPages, retryRun, 20),
+        ];
+    // Four workers bound outbound catalog concurrency. Each failure is isolated.
+    const recovered = new Map<string, NotionBook>();
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(4, batch.length) }, async () => {
+        while (next < batch.length) {
+          const book = batch[next++]!;
+          recovered.set(book.notionId, await enrichNotionBook(book));
+        }
+      }),
+    );
+    const catalogWithSlugs = withSlugs(
+      notionBooks.map((book) => recovered.get(book.notionId) ?? book),
+    );
+    checkScope(catalogWithSlugs);
+    const syncBooks = catalogWithSlugs.filter(
+      (book) => !onlyIds || onlyIds.has(book.notionId),
+    );
     const dbBooksMap = new Map(
-      dbBooks.map((b) => [b.notionId, new Date(b.lastEditedTime)]),
+      dbBooks.map((book) => [book.notionId, new Date(book.lastEditedTime)]),
     );
-    console.log(`Found ${dbBooks.length} books in database`);
 
-    // Author and featured selection only need properties we already fetched.
-    // Save them before downloading notes, and keep the notes' edit watermark so
-    // a failed content download remains eligible for the next run.
-    const storedByNotionId = new Map(
-      dbBooks.map((book) => [book.notionId, book]),
-    );
-    const propertiesChangedIds: string[] = [];
-    for (const book of notionBooksWithSlugs) {
-      const stored = storedByNotionId.get(book.notionId);
-      if (!stored) continue;
-      const changes: Partial<
-        Pick<typeof books.$inferInsert, "author" | "isFeatured">
-      > = {};
-      if (stored.isFeatured !== book.isFeatured) {
-        changes.isFeatured = book.isFeatured;
-      }
-      if (stored.author !== book.author) {
-        changes.author = book.author;
-      }
-      if (Object.keys(changes).length === 0) continue;
-      await db
-        .update(books)
-        .set(changes)
-        .where(eq(books.notionId, book.notionId));
-      propertiesChangedIds.push(stored.id);
-    }
-    if (propertiesChangedIds.length > 0) {
-      await onPropertiesChanged?.(propertiesChangedIds);
-    }
-
-    // STEP 3.5: Delete books that no longer exist in Notion
-    const notionIdSet = new Set(notionBooks.map((b) => b.notionId));
     const {
       deleted: booksDeleted,
       deletedBookIds,
       guardError,
-    } = await deleteBooksRemovedFromNotion(notionIdSet, dbBooks);
+    } = onlyIds
+      ? { deleted: 0, deletedBookIds: [], guardError: null }
+      : await deleteBooksRemovedFromNotion(
+          new Set(notionBooks.map((book) => book.notionId)),
+          dbBooks,
+        );
 
-    // STEP 4: Categorize books (new, updated, unchanged)
+    // Preserve existing notes and tags through ALL slug migrations, even if
+    // their upcoming note fetch fails. No note watermark advances here.
+    await migrateChangedSlugs(syncBooks);
+    const propertiesChangedIds = new Set<string>();
+    const propertiesWarmIds = new Set<string>();
+    for (const book of syncBooks) {
+      const stored = storedByNotionId.get(book.notionId);
+      if (!stored) continue;
+      const changes: Partial<typeof books.$inferInsert> = {};
+      for (const field of [
+        "author",
+        "publicationYear",
+        "pageCount",
+        "audioLengthMin",
+        "audibleUrl",
+        "isFeatured",
+      ] as const) {
+        if (stored[field] !== book[field])
+          Object.assign(changes, { [field]: book[field] });
+      }
+      const coverUrl = stripCoverCurl(book.coverUrl);
+      if (stored.coverUrl !== coverUrl) {
+        changes.coverUrl = coverUrl;
+        changes.coverColor = coverUrl
+          ? await resolveCoverColor(coverUrl)
+          : null;
+      }
+      if (Object.keys(changes).length)
+        await db
+          .update(books)
+          .set(changes)
+          .where(eq(books.notionId, book.notionId));
+      if (Object.keys(changes).length || stored.id !== book.id) {
+        propertiesChangedIds.add(stored.id);
+        propertiesChangedIds.add(book.id);
+        propertiesWarmIds.add(book.id);
+      }
+    }
+    if (propertiesChangedIds.size)
+      await onPropertiesChanged?.([...propertiesChangedIds]);
     const { newBooks, updatedBooks, unchangedBooks } = categorizeBooks(
-      notionBooksWithSlugs,
+      syncBooks,
       dbBooksMap,
     );
-
-    console.log(
-      `Categorized: ${newBooks.length} new, ${updatedBooks.length} updated, ${unchangedBooks.length} unchanged`,
-    );
-
-    // STEP 5: Rate-limited full content fetch for new + updated books
-    const booksNeedingContent = [...newBooks, ...updatedBooks];
-    const contentFetchResults =
-      await fetchBooksContentWithRateLimit(booksNeedingContent);
-
-    // STEP 6: Upsert books to database
-    console.log("Upserting books to database...");
+    const contentFetchResults = await fetchBooksContentWithRateLimit([
+      ...newBooks,
+      ...updatedBooks,
+    ]);
     await upsertBooksToDatabase(contentFetchResults, unchangedBooks);
-
-    // Build a precise cache plan. Successful new/updated books and books whose
-    // generated slug changed need fresh pages/images. Removed and superseded
-    // slugs only need invalidation; warming them would cache a not-found card.
-    const existingIdByNotionId = new Map(
-      dbBooks.map((book) => [book.notionId, book.id]),
-    );
     const successfulChangedBooks = contentFetchResults
       .filter((result) => result.success)
       .map((result) => result.book);
-    const bookIdsToWarm = new Set(
-      successfulChangedBooks.map((book) => book.id),
+    const mirroredBooks = syncBooks.filter(
+      (book) =>
+        storedByNotionId.has(book.notionId) ||
+        successfulChangedBooks.some(
+          (changed) => changed.notionId === book.notionId,
+        ),
     );
+    const bookIdsToWarm = new Set([
+      ...propertiesWarmIds,
+      ...successfulChangedBooks.map((book) => book.id),
+    ]);
     const bookIdsToInvalidate = new Set([
       ...deletedBookIds,
       ...propertiesChangedIds,
+      ...bookIdsToWarm,
     ]);
-
-    for (const book of [...successfulChangedBooks, ...unchangedBooks]) {
-      const previousId = existingIdByNotionId.get(book.notionId);
-      if (previousId && previousId !== book.id) {
-        bookIdsToInvalidate.add(previousId);
-        bookIdsToWarm.add(book.id);
-      }
-    }
-    for (const bookId of bookIdsToWarm) {
-      bookIdsToInvalidate.add(bookId);
-    }
-
-    // STEP 6.5: Point every Notion page at its site page. Runs after the
-    // upsert so a link never goes live before the row it names, and covers
-    // unchanged books too because a re-read can move their slug.
     const { websiteUrlsWritten, websiteUrlsPending } =
-      await syncWebsiteUrlsToNotion([
-        ...successfulChangedBooks,
-        ...unchangedBooks,
-      ]);
-
-    // STEP 7: Calculate results
-    const errors = contentFetchResults
-      .filter((r) => !r.success)
-      .map((r) => ({
-        bookId: r.bookId,
-        bookTitle: r.bookTitle,
-        error: r.error,
+      await syncWebsiteUrlsToNotion(mirroredBooks);
+    const errors: SyncError[] = contentFetchResults
+      .filter((result) => !result.success)
+      .map((result) => ({
+        bookId: result.bookId,
+        bookTitle: result.bookTitle,
+        error: result.error,
         timestamp: new Date(),
       }));
-
-    if (guardError) {
-      errors.push(guardError);
-    }
-
+    if (guardError) errors.push(guardError);
     const result: SyncResult = {
       totalBooksInNotion: notionBooks.length,
       booksAdded: newBooks.length,
@@ -239,16 +280,14 @@ export async function syncBooksFromNotion(
       booksDeleted,
       bookIdsToInvalidate: [...bookIdsToInvalidate].sort(),
       bookIdsToWarm: [...bookIdsToWarm].sort(),
-      fullContentFetched: contentFetchResults.filter((r) => r.success).length,
+      fullContentFetched: successfulChangedBooks.length,
       fullContentSkipped: unchangedBooks.length,
       websiteUrlsWritten,
       websiteUrlsPending,
       errors,
     };
-
     console.log("Sync completed successfully:", result);
     await completeSyncRecord(syncId, "success", result);
-
     return result;
   } catch (error) {
     console.error("Sync failed:", error);
@@ -338,7 +377,7 @@ function categorizeBooks(
       newBooks.push(book);
     } else {
       const notionEditedTime = new Date(book.lastEditedTime);
-      if (shouldFetchBookContent(notionEditedTime, dbLastEdited, book)) {
+      if (shouldFetchBookContent(notionEditedTime, dbLastEdited)) {
         // Book was edited or has incomplete metadata that needs repair.
         updatedBooks.push(book);
       } else {
@@ -382,9 +421,8 @@ async function fetchBooksContentWithRateLimit(
       return {
         success: true,
         book: {
-          ...bookWithNotes,
-          id: book.id, // Use our generated slug
-          lastEditedTime: book.lastEditedTime,
+          ...book,
+          notes: bookWithNotes.notes,
         },
       } as BookContentResult;
     } catch (error) {
@@ -420,11 +458,6 @@ async function upsertBooksToDatabase(
   contentResults: BookContentResult[],
   unchangedBooks: NotionBook[],
 ): Promise<void> {
-  // PRE-STEP: Migrate all changed slugs before any content upserts.
-  // This prevents the case where an updated book's new slug collides with
-  // an unchanged book's current slug, silently overwriting it.
-  await migrateChangedSlugs(contentResults, unchangedBooks);
-
   // Sampling a cover color downloads the jacket, which is slow next to the
   // rest of the upsert. Keep the stored color while the cover URL is unchanged
   // and sample only when a cover is new, repaired, or was never sampled.
@@ -448,29 +481,6 @@ async function upsertBooksToDatabase(
       );
     }
 
-    // Validate covers from Notion before sending them to an <img>. This also
-    // repairs existing books whose Cover property contains a product page.
-    const originalCoverUrl = book.coverUrl;
-    const hasValidCover = originalCoverUrl
-      ? await isCoverImageUrl(originalCoverUrl)
-      : false;
-    if (!hasValidCover) {
-      console.log(`  📚 Fetching cover for book: ${book.title}`);
-      try {
-        const fetchedCover = await fetchBookCover(book.title, book.author);
-        if (fetchedCover) {
-          book.coverUrl = fetchedCover;
-          await updateNotionCover(book.notionId, fetchedCover);
-        } else if (shouldRepairCover(originalCoverUrl)) {
-          // Prefer the UI's title placeholder over a permanently broken image.
-          book.coverUrl = null;
-          await updateNotionCover(book.notionId, null);
-        }
-      } catch (error) {
-        console.error(`  ✗ Failed to fetch cover for ${book.title}:`, error);
-      }
-    }
-
     // Notion's Cover property holds Google Books URLs as pasted, page curl
     // and all. Store the flat art so every consumer starts clean and the
     // one-off cleanup of the column survives the next sync.
@@ -486,69 +496,6 @@ async function upsertBooksToDatabase(
           ? `  🎨 Cover color for "${book.title}": ${coverColor}`
           : `  ✗ Could not sample a cover color for ${book.title}`,
       );
-    }
-
-    // Enrich length data for ANY book passing through (new or updated) whose
-    // Notion values are blank — this is what makes "clear the cell in Notion
-    // to re-fetch" work. Manual Notion edits always win; a miss stays blank.
-    const fetchedLengths: {
-      audioLengthMin?: number;
-      pageCount?: number;
-      audibleUrl?: string;
-    } = {};
-
-    if (shouldLookupAudibleMetadata(book.audioLengthMin, book.audibleUrl)) {
-      try {
-        const audible = await fetchAudibleLength(book.title, book.author);
-        if (audible) {
-          console.log(
-            `  🎧 Audible match for "${book.title}": ${audible.matchedTitle} (${audible.runtimeMin} min)`,
-          );
-          const metadata = mergeAudibleMetadata(book.audioLengthMin, audible);
-          book.audioLengthMin = metadata.audioLengthMin;
-          book.audibleUrl = metadata.audibleUrl;
-          if (metadata.fetchedAudioLengthMin !== undefined) {
-            fetchedLengths.audioLengthMin = metadata.fetchedAudioLengthMin;
-          }
-          fetchedLengths.audibleUrl = metadata.audibleUrl;
-        }
-      } catch (error) {
-        console.error(
-          `  ✗ Failed to fetch audio length for ${book.title}:`,
-          error,
-        );
-      }
-    }
-
-    if (book.pageCount == null) {
-      try {
-        const pages = await fetchPageCount(book.title, book.author);
-        if (pages) {
-          console.log(
-            `  📖 Page count for "${book.title}": ${pages.pageCount} (${pages.matchedTitle})`,
-          );
-          book.pageCount = pages.pageCount;
-          fetchedLengths.pageCount = pages.pageCount;
-        } else if (book.audioLengthMin != null) {
-          // No source has pages but runtime is known — estimate from the
-          // catalog's empirical narration pace
-          const estimated = estimatePagesFromAudio(book.audioLengthMin);
-          console.log(
-            `  📖 Estimated page count for "${book.title}": ${estimated} (from ${book.audioLengthMin} min audio)`,
-          );
-          book.pageCount = estimated;
-          fetchedLengths.pageCount = estimated;
-        }
-      } catch (error) {
-        console.error(
-          `  ✗ Failed to fetch page count for ${book.title}:`,
-          error,
-        );
-      }
-    }
-
-    if (Object.keys(fetchedLengths).length > 0) {
-      await updateNotionLengths(book.notionId, fetchedLengths);
     }
 
     // Upsert book (use id as conflict target since it's the PK)
@@ -631,138 +578,51 @@ async function upsertBooksToDatabase(
   }
 }
 
-/**
- * Migrate slugs that have changed for ALL books (including unchanged ones)
- * before any content upserts.
- *
- * When a re-read's finished date changes, generateAllBookIds may reassign
- * which book gets the "clean" slug. Without this step, an updated book's
- * new slug can collide with an unchanged book's current slug, causing the
- * unchanged book to be silently overwritten via onConflictDoUpdate.
- *
- * Strategy: delete all records with stale slugs first (to free the slug
- * namespace and handle swaps), then re-insert unchanged books with their
- * new slugs. Updated/new books will be re-inserted by the normal upsert.
- */
-async function migrateChangedSlugs(
-  contentResults: BookContentResult[],
-  unchangedBooks: NotionBook[],
-): Promise<void> {
-  // Build map of notionId → newSlug for ALL books in this sync
-  const newSlugMap = new Map<string, string>();
-  for (const result of contentResults) {
-    if (result.success) {
-      newSlugMap.set(result.book.notionId, result.book.id);
-    }
-  }
-  for (const book of unchangedBooks) {
-    newSlugMap.set(book.notionId, book.id);
-  }
-
-  // Fetch current slugs from DB
-  const existingBooks = await db.query.books.findMany({
-    columns: { id: true, notionId: true },
-  });
-
-  // Find books whose slugs need to change
-  const slugChanges: { notionId: string; oldSlug: string; newSlug: string }[] =
-    [];
-  for (const existing of existingBooks) {
-    const newSlug = newSlugMap.get(existing.notionId);
-    if (newSlug && newSlug !== existing.id) {
-      slugChanges.push({
-        notionId: existing.notionId,
-        oldSlug: existing.id,
-        newSlug,
-      });
-    }
-  }
-
-  if (slugChanges.length === 0) return;
-
-  console.log(`Migrating ${slugChanges.length} changed slug(s)...`);
-
-  // Identify which changed-slug books are "unchanged" (need content preserved)
-  const unchangedNotionIds = new Set(unchangedBooks.map((b) => b.notionId));
-  const preservedData = new Map<
-    string,
-    {
-      id: string;
-      notionId: string;
-      title: string;
-      author: string;
-      publicationYear: number | null;
-      started: Date | null;
-      finished: Date | null;
-      rating: number | null;
-      audioLengthMin: number | null;
-      pageCount: number | null;
-      hasNotes: boolean;
-      hasSummary: boolean;
-      isAutomated: boolean;
-      isFeatured: boolean;
-      coverUrl: string | null;
-      coverColor: string | null;
-      audibleUrl: string | null;
-      notionUrl: string;
-      notes: string | null;
-      lastEditedTime: Date;
-      lastSyncedAt: Date;
-      createdAt: Date;
-      updatedAt: Date | null;
-      tags: { id: number; bookId: string; tagName: string }[];
-    }
-  >();
-
-  // Fetch full data for unchanged books before deleting
-  for (const change of slugChanges) {
-    if (unchangedNotionIds.has(change.notionId)) {
-      const fullBook = await db.query.books.findFirst({
-        where: eq(books.notionId, change.notionId),
-        with: { tags: true },
-      });
-      if (fullBook) {
-        preservedData.set(change.notionId, fullBook);
-      }
-    }
-  }
-
-  // Phase 1: Delete ALL records with changed slugs (frees slug namespace,
-  // handles swaps where A→B and B→A). Cascade deletes tags.
-  for (const change of slugChanges) {
-    console.log(`  Slug migration: ${change.oldSlug} → ${change.newSlug}`);
-    await db.delete(books).where(eq(books.notionId, change.notionId));
-  }
-
-  // Phase 2: Re-insert unchanged books with their new slugs (preserving content).
-  // Updated/new books will be re-inserted by the normal upsert loop.
-  for (const [notionId, fullBook] of preservedData) {
-    const newSlug = slugChanges.find((c) => c.notionId === notionId)!.newSlug;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { tags: tagsData, id: _oldId, ...bookData } = fullBook;
-
-    await db.insert(books).values({
-      ...bookData,
-      id: newSlug,
-      lastSyncedAt: new Date(),
+/** Move selected slugs atomically, preserving notes, watermarks and tags. */
+async function migrateChangedSlugs(syncBooks: NotionBook[]): Promise<void> {
+  const newSlugMap = new Map(syncBooks.map((book) => [book.notionId, book.id]));
+  await db.transaction(async (tx) => {
+    const existingBooks = await tx.query.books.findMany({
+      columns: { id: true, notionId: true },
     });
-
-    if (tagsData.length > 0) {
-      await db.insert(bookTags).values(
-        tagsData.map((tag) => ({
-          bookId: newSlug,
-          tagName: tag.tagName,
-        })),
-      );
+    const changes = existingBooks.filter(
+      (book) =>
+        newSlugMap.has(book.notionId) &&
+        newSlugMap.get(book.notionId) !== book.id,
+    );
+    // Preserve every row before deleting any, including reads whose notes may fail.
+    const preserved = await Promise.all(
+      changes.map(async (change) => {
+        const fullBook = await tx.query.books.findFirst({
+          where: eq(books.notionId, change.notionId),
+          with: { tags: true },
+        });
+        if (!fullBook)
+          throw new Error(
+            `Book disappeared during slug migration: ${change.notionId}`,
+          );
+        return fullBook;
+      }),
+    );
+    for (const book of preserved)
+      await tx.delete(books).where(eq(books.notionId, book.notionId));
+    for (const book of preserved) {
+      const { tags, ...data } = book;
+      const id = newSlugMap.get(book.notionId)!;
+      await tx.insert(books).values({ ...data, id });
+      if (tags.length)
+        await tx
+          .insert(bookTags)
+          .values(tags.map((tag) => ({ bookId: id, tagName: tag.tagName })));
     }
-  }
+  });
 }
 
 /**
  * Create a new sync record
  */
 async function createSyncRecord(
-  triggeredBy: "cron" | "manual",
+  triggeredBy: "cron" | "manual" | "cron:scoped" | "manual:scoped",
 ): Promise<number> {
   const result = await db
     .insert(syncMetadata)
@@ -810,74 +670,6 @@ async function completeSyncRecord(
         errorCount: 1,
       })
       .where(eq(syncMetadata.id, syncId));
-  }
-}
-
-/**
- * Update book length properties in Notion. Writes only the properties that
- * were actually fetched so manual values are never touched.
- */
-async function updateNotionLengths(
-  pageId: string,
-  values: {
-    audioLengthMin?: number;
-    pageCount?: number;
-    audibleUrl?: string;
-  },
-): Promise<void> {
-  const notion = createBookNotionClient();
-
-  const properties: Record<
-    string,
-    { type: "number"; number: number } | { type: "url"; url: string }
-  > = {};
-  if (values.audioLengthMin !== undefined) {
-    properties["Audio Length"] = {
-      type: "number",
-      number: minutesToHourDotMinutes(values.audioLengthMin),
-    };
-  }
-  if (values.pageCount !== undefined) {
-    properties.Pages = { type: "number", number: values.pageCount };
-  }
-  if (values.audibleUrl !== undefined) {
-    properties.Audible = { type: "url", url: values.audibleUrl };
-  }
-
-  try {
-    await notion.pages.update({
-      page_id: pageId,
-      properties,
-    });
-    console.log(`  ✓ Updated Notion lengths for page ${pageId.slice(0, 8)}...`);
-  } catch (error) {
-    console.error(`  ✗ Failed to update Notion lengths for ${pageId}:`, error);
-  }
-}
-
-/**
- * Update book cover in Notion
- */
-async function updateNotionCover(
-  pageId: string,
-  coverUrl: string | null,
-): Promise<void> {
-  const notion = createBookNotionClient();
-  try {
-    await notion.pages.update({
-      page_id: pageId,
-      properties: {
-        Cover: {
-          type: "url",
-          url: coverUrl,
-        },
-      },
-    });
-    console.log(
-      `  ✓ ${coverUrl ? "Updated" : "Cleared invalid"} Notion cover for page ${pageId.slice(0, 8)}...`,
-    );
-  } catch (error) {
-    console.error(`  ✗ Failed to update Notion cover for ${pageId}:`, error);
   }
 }
 

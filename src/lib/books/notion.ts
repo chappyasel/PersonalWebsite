@@ -149,6 +149,16 @@ export async function fetchBooksFromNotion(): Promise<NotionBook[]> {
   }
 }
 
+/** Read metadata independently of block downloads. */
+export async function fetchBookProperties(bookId: string): Promise<NotionBook> {
+  const page = await notion.pages.retrieve({ page_id: bookId });
+  if (!("properties" in page)) throw new Error("Page does not have properties");
+  return {
+    ...transformNotionPageToBook(page),
+    lastEditedTime: page.last_edited_time,
+  };
+}
+
 /**
  * Fetch a single book with full notes content
  */
@@ -191,7 +201,7 @@ export async function fetchBookDetails(
  * Note: The `id` field is initially set to the Notion page ID.
  * It will be replaced with a human-readable slug during sync.
  */
-function transformNotionPageToBook(
+export function transformNotionPageToBook(
   page: PageObjectResponse,
 ): Omit<NotionBook, "lastEditedTime"> {
   const props = page.properties;
@@ -238,13 +248,9 @@ function transformNotionPageToBook(
       props["Audio Length"].number != null
         ? hourDotMinutesToMinutes(props["Audio Length"].number)
         : null,
-    // Implausibly small page counts (bad source data) are treated as missing
-    // so they don't corrupt analytics; enrichment can refill them
+    // Preserve every nonempty manual value, including short books.
     pageCount:
-      props.Pages &&
-      "number" in props.Pages &&
-      props.Pages.number != null &&
-      props.Pages.number >= 20
+      props.Pages && "number" in props.Pages && props.Pages.number != null
         ? props.Pages.number
         : null,
     tags:
@@ -314,16 +320,9 @@ export function getLastEditedTime(page: PageObjectResponse): string {
 function extractTitle(
   titleProp: PageObjectResponse["properties"][string] | undefined,
 ): string {
-  if (
-    titleProp &&
-    "title" in titleProp &&
-    Array.isArray(titleProp.title) &&
-    titleProp.title[0] &&
-    "plain_text" in titleProp.title[0]
-  ) {
-    return titleProp.title[0].plain_text;
-  }
-  return "";
+  return titleProp && "title" in titleProp
+    ? titleProp.title.map((part) => part.plain_text).join("")
+    : "";
 }
 
 /**
@@ -332,14 +331,7 @@ function extractTitle(
 function extractRichText(
   richTextProp: PageObjectResponse["properties"][string] | undefined,
 ): string {
-  if (
-    richTextProp &&
-    "rich_text" in richTextProp &&
-    Array.isArray(richTextProp.rich_text) &&
-    richTextProp.rich_text[0] &&
-    "plain_text" in richTextProp.rich_text[0]
-  ) {
-    return richTextProp.rich_text[0].plain_text;
-  }
-  return "";
+  return richTextProp && "rich_text" in richTextProp
+    ? richTextProp.rich_text.map((part) => part.plain_text).join("")
+    : "";
 }

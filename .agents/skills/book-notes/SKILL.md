@@ -9,7 +9,7 @@ Read-only SQL access to Chappy's book library in the PersonalWebsite Postgres DB
 
 ## Ownership and discovery
 
-The canonical skill lives beside the implementation at `/Users/chappyasel/Desktop/Repos/PersonalWebsite/.agents/skills/book-notes`. The paths `~/.agents/skills/book-notes` and `/Users/chappyasel/Desktop/Agents/book-notes` are discovery symlinks to that directory. Edit the canonical repo copy so skill and code changes can land together.
+The canonical skill lives beside the implementation at `/Users/chappyasel/Desktop/Repos/PersonalWebsite/.agents/skills/book-notes`. The paths `~/.agents/skills/book-notes` and `/Users/chappyasel/Desktop/Agents/book-notes` are discovery symlinks to that directory. Edit the copy in the active repository worktree so skill and code changes land together. In an isolated worktree, do not edit the original checkout through a discovery symlink.
 
 Treat these code paths as authoritative:
 
@@ -40,7 +40,9 @@ Use this when Chappy asks for a new blank booknotes page with chapter headings /
    - Book Notes database ID: `340ec223-7246-4d89-a44e-8005075bb7c4`
    - Book Notes data source ID: `9d03bfe1-3c22-411e-921a-60f86bd790c4`
    - For books with multiple authors, record only the first-listed author in the `Author` property.
-   - Required properties: `Title` (title), `Author` (rich_text if known), `Publication` (number if known), `Tags` (multi_select if obvious), `Notes?` = true, `Summarized?` = false, `Automated?` = false. A newly created fill-in skeleton already contains a notes structure, so mark `Notes?` checked at creation.
+   - Verify creation metadata against a publisher, author, library catalog, or the exact linked Audible product. Match title and author, and check edition details before setting publication year, pages, runtime, or a cover. For a missing author, a title-only search result is insufficient. Use an exact linked identifier or agreement from independent catalogs. Leave ambiguous fields blank and report the candidates.
+   - Populate `Cover` only with a verified image URL for that work. Preserve supplied manual values. Do not estimate pages from audio, infer a publication year from an audiobook release, or invent tags. Use only tags explicitly supplied or approved by Chappy.
+   - Required properties: `Title` (title), `Author` (rich_text if verified), `Publication` (number if verified), `Tags` (multi_select, empty unless supplied or approved), `Notes?` = true, `Summarized?` = false, `Automated?` = false. A newly created fill-in skeleton already contains a notes structure, so mark `Notes?` checked at creation.
    - Leave `Started` and `Finished` empty unless Chappy explicitly supplies a date. The page will stay Notion-only until one of those fields is set.
    - Leave `Website` empty. The sync fills it once the page enters the mirror.
 4. Page body should match Chappy’s fill-in template:
@@ -75,7 +77,29 @@ Run SQL via the bundled script. Output is CSV on stdout.
 
 The Postgres book cache syncs daily at 09:00 UTC. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; blank scaffolds and undated want-to-read pages are intentionally outside the SQL mirror. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
 
-For existing mirrored books, the sync saves `Author` and `Featured?` as soon as it reads the Notion properties. The cron and website manual-sync action invalidate the affected book pages, images, and shelf caches before downloading notes. A failed note download therefore does not block an author correction or featured selection change. The notes' `last_edited_time` watermark stays unchanged until their full refresh succeeds, so `author` and `is_featured` can be newer than that watermark. New books still need their initial full sync before appearing on the shelf.
+For existing mirrored books, the sync saves author, publication year, cover, pages, audio runtime, Audible URL, and featured selection before downloading notes. It computes slugs after acknowledged enrichment writes and moves selected slugs in a transaction that preserves notes and tags. The cron and website manual-sync action invalidate affected caches before downloading notes. Failed note downloads leave the previous notes and their `last_edited_time` watermark intact, so properties can be newer than that watermark. New books still need their initial successful note fetch before appearing on the shelf.
+
+### Metadata enrichment and retries
+
+`src/lib/books/metadata.ts` decides identity from Google Books and Audible evidence. It accepts an exact normalized title and full first-author match, an exact existing Audible product identifier, or agreement between both catalogs when the author is missing. It does not accept word-prefix titles or surname-only identity. A missing subtitle is allowed when Notion holds just the main title. Same-title authors remain ambiguous unless a recorded author or linked Audible product disambiguates them.
+
+Each proposed write rereads Notion, preserves every nonempty value, and writes only missing fields. This includes short or zero manual page counts, existing Audible URLs, and nonempty covers even when their URL is invalid. Image responses are checked before writing a recovered cover. Edition conflicts leave cover, publication year, or pages blank. An existing manual runtime must match an unlinked Audible candidate before its URL can be added. An explicit Audible identifier can disambiguate the edition while preserving the manual runtime; no page estimates or automatic tags are written. An unavailable or truncated catalog cannot establish uniqueness. A healthy source can still supply fields when the manual author or exact linked Audible identifier establishes identity. For example, an Audible identifier can recover author/runtime during a Google outage while print fields stay blank.
+
+The `book_metadata` structured logs include the Notion page ID, status, reason, candidate source/ID/title/authors/fields, proposed patch, unresolved fields, and provider failures with typed source, code, and HTTP status when available. Use these to supply a verified Author, Audible URL, or edition metadata in Notion. Never bypass an ambiguous decision with the old first-result cover or length backfill scripts.
+
+Metadata retries do not depend on the notes watermark and do not trigger note downloads. Each global run reserves up to 10 initial lookups for incomplete new pages and 20 slots for existing pages, with at most four workers. New-page overflow rotates and joins existing-page retries after entering the mirror. Each catalog request has an eight-second timeout. Retry traversal rotates over stable Notion IDs using the count of global sync records. Scoped runs are recorded as `manual:scoped` or `cron:scoped` and do not advance that rotation. Complete records consume traversal positions but make no metadata requests, preventing repaired rows from resetting progress. No schema change or separate metadata table is required.
+
+### Refresh selected Notion pages
+
+Only run this writer when Chappy authorizes a mirror refresh. `syncBooksFromNotion` accepts a third argument, `{ onlyNotionIds: ["<Notion page UUID>"] }`. It reads the whole eligible catalog for slug allocation but enriches, mirrors, writes Website URLs, and returns cache invalidations only for selected pages. Deletion is disabled. The list must contain 1 to 20 eligible pages with `Started` or `Finished`; empty and absent IDs fail before writes. A target slug owned by an unrelated stored reading is rejected. Include both readings explicitly to allow their slug swap. A known collision fails before enrichment; a collision introduced by recovered author/year is checked again before mirror writes.
+
+Example for the repaired Superintelligence page, from the authorized repository worktree:
+
+```bash
+PATH="$HOME/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:$PATH" DOTENV_CONFIG_PATH=.env pnpm exec tsx -r dotenv/config -e 'import { syncBooksFromNotion } from "./src/lib/books/sync"; void syncBooksFromNotion("manual", undefined, { onlyNotionIds: ["3e3c5ab0-d88d-807c-b205-da379a41cdfb"] }).then(result => { console.log(JSON.stringify(result)); if (result.errors.length || result.websiteUrlsPending) process.exitCode = 1; }).catch(error => { console.error(error); process.exitCode = 1; });'
+```
+
+This command writes only the selected books and the sync audit record. It does not refresh Next.js caches from the standalone process or run cover icons. The coordinator must handle cache refresh and the separate targeted icon pipeline, whose work ID here is `book-superintelligence`. Never replace a failed scoped refresh with a broad sync without authorization. Credentials stay in the local environment and must not be printed.
 
 Book API requests share a queue that spaces calls 350 ms apart and honors Notion's retry delay. Retries repeat the failed API request, including nested block pagination, rather than restarting a book's entire note conversion. The production book cron allows up to 800 seconds for larger refreshes.
 
