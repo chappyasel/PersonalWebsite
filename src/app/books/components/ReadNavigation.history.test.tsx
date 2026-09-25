@@ -106,6 +106,7 @@ function makeBook(id: string): BookWithNotes {
     audibleUrl: null,
     notionUrl: "https://notion.so/book",
     notes: `Notes for ${id}`,
+    linkedBooks: {},
     readNumber: readings.findIndex((r) => r.id === id) + 1,
     totalReads: 3,
     otherReadings: readings,

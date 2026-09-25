@@ -55,6 +55,51 @@ function renderCurrentBook(isModal: boolean, copied = false) {
   );
 }
 
+describe("BookDetailContent note links", () => {
+  it("draws a link to a library book as the shared BookLink", () => {
+    const markup = renderToStaticMarkup(
+      <FontProvider>
+        <BookDetailContent
+          book={{ ...CURRENT_BOOK_WITHOUT_NOTES, hasNotes: true }}
+          fullBook={{
+            ...CURRENT_BOOK_WITHOUT_NOTES,
+            hasNotes: true,
+            notes:
+              "- Read [Chatter](https://books.chappyasel.com/chatter) and [his site](https://example.com).",
+            linkedBooks: {
+              chatter: {
+                title: "Chatter",
+                author: "Ethan Kross",
+                coverUrl: "https://books.google.com/chatter.jpg",
+                rating: 4,
+                started: null,
+                finished: "2024-05-01T00:00:00.000Z",
+                abandoned: null,
+                abandonedAtMin: null,
+                audioLengthMin: 300,
+                pageCount: 256,
+                hasNotes: true,
+              },
+            },
+          }}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+        />
+      </FontProvider>,
+    );
+
+    // The book's own path on this host, its cover, and the owner's words,
+    // outside typography's link and image rules.
+    expect(markup).toMatch(
+      /<span class="not-prose"><a [^>]*href="\/books\/chatter"[^>]*><img [^>]*chatter\.jpg[^>]*><em>Chatter<\/em><\/a><\/span>/,
+    );
+    // Every other link stays a plain link.
+    expect(markup).toContain('<a href="https://example.com">his site</a>');
+  });
+});
+
 describe("BookDetailContent note availability", () => {
   it("reserves the internal scroll container for modal presentation", () => {
     expect(renderCurrentBook(false)).toContain(

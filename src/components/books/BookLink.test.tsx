@@ -20,7 +20,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ModalSheet from "~/components/modal-sheet/ModalSheet";
 
 import BookLink from "./BookLink";
-import { InlineBookPreviewProvider } from "./InlineBookPreviewProvider";
+import {
+  InlineBookOpener,
+  InlineBookPreviewProvider,
+} from "./InlineBookPreviewProvider";
 import * as documentNavigation from "~/app/components/route-transition-prototype/documentNavigation";
 import { MusingBody } from "~/app/musings/MusingBody";
 
@@ -185,6 +188,19 @@ describe("inline book navigation", () => {
     expect(window.location.hash).toBe("#communication");
     act(() => window.history.forward());
     await screen.findByRole("dialog");
+  });
+
+  it("lets a surface that already hosts the book modal open the book itself", () => {
+    const open = vi.fn();
+    render(
+      <InlineBookPreviewProvider>
+        <InlineBookOpener open={open}>{link}</InlineBookOpener>
+      </InlineBookPreviewProvider>,
+    );
+    expect(clickLink()).toBe(true);
+    expect(open).toHaveBeenCalledWith("the-culture-code", expect.any(Object));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(window.location.pathname).toBe("/manual");
   });
 
   it("returns to the document on Escape", async () => {

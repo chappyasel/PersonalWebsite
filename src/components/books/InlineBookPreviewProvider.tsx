@@ -41,6 +41,23 @@ export function InlineBookPreviewProvider({
   );
 }
 
+/**
+ * Running text inside a surface that already hosts the book modal (the
+ * Books app, or a book open in it) opens linked books through that surface
+ * instead of stacking this provider's document modal on top of it.
+ */
+export function InlineBookOpener({
+  open,
+  children,
+}: {
+  open: (bookId: string, origin: DOMRect) => void;
+  children: ReactNode;
+}) {
+  return (
+    <OpenBookContext.Provider value={open}>{children}</OpenBookContext.Provider>
+  );
+}
+
 export function useInlineBookPreview() {
   return useContext(OpenBookContext);
 }

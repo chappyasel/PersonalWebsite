@@ -1,6 +1,9 @@
 "use client";
 
 import { BookDetailContent } from "../components/BookDetailContent";
+import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
+import { useModalActions } from "../contexts/BookPreviewContext";
+import { useBookPath } from "../hooks/useBookPath";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -9,15 +12,18 @@ import {
   getBooksPath,
   getBooksTagQuery,
 } from "~/lib/books/paths";
-import type { BaseBook } from "~/lib/books/types";
+import type { BaseBook, BookWithNotes } from "~/lib/books/types";
 import { copyTextToClipboard } from "~/lib/clipboard";
+import { ownsOverlayInput } from "~/lib/overlays/coordinator";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+
+import { InlineBookOpener } from "~/components/books/InlineBookPreviewProvider";
 
 import { requestPrototypeNavigation } from "~/app/components/route-transition-prototype/navigation";
 
 type BookPageProps = {
   bookId: string;
-  book: BaseBook & { notes: string };
+  book: BaseBook & Pick<BookWithNotes, "notes" | "linkedBooks">;
   bookshelfBookCount: number;
 };
 
@@ -35,10 +41,29 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
   // modal does without giving that up; the breadcrumb drops it too.
   const tagHref = (tag: string) => getBooksPath(getBooksTagQuery(tag));
 
-  // Handle Escape key to navigate back to books grid
+  // A book the notes link opens over this page the way a shelf card opens
+  // over the shelf, on a history entry of its own, so Back and the close
+  // control both return here.
+  const { openModalById } = useModalActions();
+  const bookPath = useBookPath();
+  const openLinkedBook = useCallback(
+    (linkedBookId: string) => {
+      openModalById(linkedBookId);
+      window.history.pushState(
+        BOOK_MODAL_HISTORY_STATE,
+        "",
+        bookPath(linkedBookId),
+      );
+    },
+    [openModalById, bookPath],
+  );
+
+  // Handle Escape key to navigate back to books grid. A book modal open over
+  // the page takes Escape for itself.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isUniversalSearchOpen()) return;
+      if (isUniversalSearchOpen() || !ownsOverlayInput(contentRef.current))
+        return;
       if (e.key === "Escape") {
         e.preventDefault();
         handleClose();
@@ -62,18 +87,20 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
       <div className="flex min-h-[100dvh] flex-col">
         {/* Content Container */}
         <div className="flex min-h-[100dvh] flex-col bg-background">
-          <BookDetailContent
-            book={book}
-            fullBook={book}
-            isLoadingNotes={false}
-            contentRef={contentRef}
-            onShare={handleShare}
-            copied={copied}
-            bookId={bookId}
-            bookshelfBookCount={bookshelfBookCount}
-            onClose={handleClose}
-            tagHref={tagHref}
-          />
+          <InlineBookOpener open={openLinkedBook}>
+            <BookDetailContent
+              book={book}
+              fullBook={book}
+              isLoadingNotes={false}
+              contentRef={contentRef}
+              onShare={handleShare}
+              copied={copied}
+              bookId={bookId}
+              bookshelfBookCount={bookshelfBookCount}
+              onClose={handleClose}
+              tagHref={tagHref}
+            />
+          </InlineBookOpener>
         </div>
       </div>
     </div>

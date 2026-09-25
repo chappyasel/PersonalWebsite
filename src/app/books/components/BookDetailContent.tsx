@@ -49,17 +49,21 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { capture, captureOnce } from "~/lib/analytics";
+import { textOfChildren } from "~/lib/anchors";
 import { bookCoverShadow } from "~/lib/books/coverShadow";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
+import { bookSlugFromUrl } from "~/lib/books/inlineFacts";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookShareUrl, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book, BookReading } from "~/lib/books/types";
 import { abandonedPercent } from "~/lib/books/types";
+import { isBareUrl } from "~/lib/site/pages";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { cn } from "~/lib/util";
 
+import BookLink from "~/components/books/BookLink";
 import {
   BookMetadataSeparator,
   BookMetadataText,
@@ -70,6 +74,7 @@ import {
   SheetControlCluster,
   SheetExpandControl,
 } from "~/components/modal-sheet/SheetControls";
+import type { BookLookup } from "~/components/notion/types";
 import SitePageHoverCard from "~/components/site/SitePageHoverCard";
 import { Button } from "~/components/ui/button";
 import { DisclosureCaret, DisclosurePanel } from "~/components/ui/disclosure";
@@ -881,6 +886,7 @@ type BookDetailBook = BaseBook &
     Pick<Book, "readNumber" | "totalReads" | "otherReadings" | "coverColor">
   > & {
     notes?: string;
+    linkedBooks?: BookLookup;
   };
 
 type BookDetailContentProps = {
@@ -1830,6 +1836,41 @@ export function BookDetailContent({
                             </blockquote>
                           ),
                           summary: BookNoteSummary,
+                          // A link to another library book is the BookLink
+                          // the documents use: getBookWithNotes has already
+                          // pointed Notion mentions of Book Notes pages at
+                          // the book's site URL. not-prose keeps
+                          // typography's link and image rules off its
+                          // inline cover.
+                          a: ({ node: _node, href, children, ...props }) => {
+                            const slug = href ? bookSlugFromUrl(href) : null;
+                            if (!slug) {
+                              return (
+                                <a href={href} {...props}>
+                                  {children}
+                                </a>
+                              );
+                            }
+                            const label = textOfChildren(children);
+                            return (
+                              <span className="not-prose">
+                                <BookLink
+                                  href={
+                                    modalBreadcrumbHref
+                                      ? `${modalBreadcrumbHref}/${encodeURIComponent(slug)}`
+                                      : bookPath(slug)
+                                  }
+                                  slug={slug}
+                                  book={fullBook?.linkedBooks?.[slug]}
+                                  label={
+                                    !label || isBareUrl(label)
+                                      ? undefined
+                                      : label
+                                  }
+                                />
+                              </span>
+                            );
+                          },
                         } as Components
                       }
                     >

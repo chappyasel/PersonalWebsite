@@ -1,3 +1,5 @@
+import type { BookLookup } from "~/components/notion/types";
+
 export type BookReading = {
   id: string; // Current slug for this reading
 
@@ -48,6 +50,9 @@ export type Book = BaseBook & {
 
 export type BookWithNotes = Book & {
   notes: string; // Notion Markdown content
+  /** Cover and hover-card facts for each library book the notes link,
+   * keyed by slug (linkNotesToLibrary). */
+  linkedBooks: BookLookup;
 };
 
 export type BookFilters = {

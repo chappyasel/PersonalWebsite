@@ -51,6 +51,7 @@ const book: BookWithNotes = {
   audibleUrl: null,
   notionUrl: "https://www.notion.so/3dcc5ab0d88d81ad90deffe1800b1816",
   notes: "# Notes\n\n**1: Market Segmentation**\n\n- ",
+  linkedBooks: {},
   readNumber: 1,
   totalReads: 1,
   otherReadings: [],

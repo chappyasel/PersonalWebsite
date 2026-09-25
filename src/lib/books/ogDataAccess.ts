@@ -8,6 +8,7 @@ import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
 
 import { findBookById } from "./bookLookup";
+import { linkNotesToLibrary } from "./inlineLookup";
 import type { BaseBook, BookReading, BookWithNotes } from "./types";
 
 /**
@@ -69,6 +70,9 @@ export async function getBookWithNotes(
     return null;
   }
 
+  // Never rejects (it degrades to the notes as written), so it can run
+  // alongside the reads query.
+  const linking = linkNotesToLibrary(book.notes ?? "");
   const otherReads = await db.query.books.findMany({
     where: and(
       sql`LOWER(${books.title}) = LOWER(${book.title})`,
@@ -124,7 +128,7 @@ export async function getBookWithNotes(
     coverUrl: book.coverUrl,
     audibleUrl: book.audibleUrl,
     notionUrl: book.notionUrl,
-    notes: book.notes ?? "",
+    ...(await linking),
     coverColor: book.coverColor ?? null,
     readNumber: book.abandoned
       ? 0

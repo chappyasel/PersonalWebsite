@@ -34,6 +34,7 @@ import { OVERLAY_MOTION } from "~/lib/overlays/motion";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { api } from "~/trpc/react";
 
+import { InlineBookOpener } from "~/components/books/InlineBookPreviewProvider";
 import {
   SheetCloseControl,
   SheetControlCluster,
@@ -232,20 +233,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     presentation?.source,
   ]);
 
-  const handleReadSelect = (
-    nextBookId: string,
-    event: ReactMouseEvent<HTMLAnchorElement>,
-  ) => {
-    if (
-      event.defaultPrevented ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey ||
-      event.button !== 0
-    )
-      return;
-    event.preventDefault();
+  // Another reading, or a book the notes link: this modal becomes that book.
+  const switchToBook = (nextBookId: string) => {
     if (isClosingRef.current) return;
 
     const entry =
@@ -266,6 +255,23 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     setCopied(false);
     openModalById(nextBookId);
     shellRef.current?.focus({ preventScroll: true });
+  };
+
+  const handleReadSelect = (
+    nextBookId: string,
+    event: ReactMouseEvent<HTMLAnchorElement>,
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    event.preventDefault();
+    switchToBook(nextBookId);
   };
 
   const expandHref = fullBookPageHref(bookId, presentation, bookPath(bookId));
@@ -595,34 +601,36 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       </button>
                     </div>
                   ) : book ? (
-                    <BookDetailContent
-                      key={book.id}
-                      onReadSelect={handleReadSelect}
-                      book={book}
-                      fullBook={fetchedBook}
-                      isLoadingNotes={isLoadingNotes}
-                      contentRef={contentRef}
-                      onShare={handleShare}
-                      copied={copied}
-                      bookId={bookId}
-                      isModal={true}
-                      onClose={handleClose}
-                      onExpand={handleExpand}
-                      expanded={expanded}
-                      modalBreadcrumbHref={
-                        fromStacks ? presentation.booksHref : undefined
-                      }
-                      modalBookHref={
-                        fromStacks
-                          ? `${presentation.booksHref}/${bookId}`
-                          : undefined
-                      }
-                      modalBookCount={
-                        fromStacks ? presentation.bookCount : undefined
-                      }
-                      tagHref={tagHref}
-                      onTagSelect={handleTagSelect}
-                    />
+                    <InlineBookOpener open={switchToBook}>
+                      <BookDetailContent
+                        key={book.id}
+                        onReadSelect={handleReadSelect}
+                        book={book}
+                        fullBook={fetchedBook}
+                        isLoadingNotes={isLoadingNotes}
+                        contentRef={contentRef}
+                        onShare={handleShare}
+                        copied={copied}
+                        bookId={bookId}
+                        isModal={true}
+                        onClose={handleClose}
+                        onExpand={handleExpand}
+                        expanded={expanded}
+                        modalBreadcrumbHref={
+                          fromStacks ? presentation.booksHref : undefined
+                        }
+                        modalBookHref={
+                          fromStacks
+                            ? `${presentation.booksHref}/${bookId}`
+                            : undefined
+                        }
+                        modalBookCount={
+                          fromStacks ? presentation.bookCount : undefined
+                        }
+                        tagHref={tagHref}
+                        onTagSelect={handleTagSelect}
+                      />
+                    </InlineBookOpener>
                   ) : (
                     <div className="relative h-full">
                       <SheetControlCluster className="absolute right-6 top-6 z-10 xs:right-14">
