@@ -3,6 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 import { bookTags, books } from "~/server/db/schema";
 
+import { notionDateToInstant } from "./dates";
 import type { NotionBook } from "./notion";
 import { syncBooksFromNotion } from "./sync";
 
@@ -117,8 +118,13 @@ const complete: NotionBook = {
   lastEditedTime: "2026-01-01T00:00:00Z",
 };
 function stored(book: NotionBook) {
+  const date = (value: string | null) =>
+    value ? notionDateToInstant(value) : null;
   return {
     ...book,
+    started: date(book.started),
+    finished: date(book.finished),
+    abandoned: date(book.abandoned),
     notes: "Saved notes",
     lastEditedTime: new Date(book.lastEditedTime),
     coverColor: "#123456",
@@ -158,6 +164,26 @@ it("retries empty author and cover on unchanged pages without downloading notes"
   });
   expect(result.bookIdsToInvalidate).toContain("superintelligence");
 });
+it("moves dates stored as UTC midnights to Pacific midnights without downloading notes", async () => {
+  mocks.catalog.mockResolvedValue([{ ...complete, finished: "2026-01-20" }]);
+  mocks.rows = [
+    {
+      ...stored({ ...complete, finished: "2026-01-20" }),
+      started: new Date("2026-01-01T00:00:00Z"),
+      finished: new Date("2026-01-20T00:00:00Z"),
+    },
+  ];
+  const result = await syncBooksFromNotion("manual");
+  expect(mocks.notes).not.toHaveBeenCalled();
+  expect(mocks.rows[0]).toMatchObject({
+    started: new Date("2026-01-01T08:00:00Z"),
+    finished: new Date("2026-01-20T08:00:00Z"),
+    abandoned: null,
+    notes: "Saved notes",
+  });
+  expect(result.bookIdsToInvalidate).toContain("superintelligence");
+});
+
 it("keeps recovered metadata and previous notes/watermark after notes fail", async () => {
   mocks.catalog.mockResolvedValue([
     {

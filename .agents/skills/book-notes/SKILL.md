@@ -123,6 +123,8 @@ Reference detail: `references/tag-taxonomy-cleanup.md` captures the proven audit
 
 The Drizzle definitions in `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/server/db/schema.ts` are the source of truth. Inspect the `books` and `bookTags` definitions before using a field not shown in the bundled examples; TypeScript camelCase names map to snake_case SQL columns. One book has many tags through `book_tags.book_id = books.id`.
 
+The three reading dates, `started`, `finished`, and `abandoned`, hold each Notion day as midnight Pacific time, so a raw value reads `07:00:00+00` or `08:00:00+00`. `references/schema.md` covers querying them.
+
 One column is derived rather than mirrored from Notion: `cover_color` is the dominant jacket color the sync samples from `cover_url` for the website's color sort. See `references/schema.md` before reasoning about it; it has no Notion counterpart.
 
 One Notion property runs the other way. `Website` (URL) is written by the sync, never read for content: it holds `https://books.chappyasel.com/<id>` for every mirrored page, is rewritten whenever the slug moves (a re-read can hand the clean slug to a different read), and is cleared when a page drops out of the mirror. Do not hand-edit it, and do not query it as a source field; `books.id` is the same value.

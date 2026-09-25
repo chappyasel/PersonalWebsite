@@ -5,6 +5,7 @@ import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
 import { resolveCoverColor } from "./coverColor.server";
 import { stripCoverCurl } from "./coverUtils";
+import { notionDateToInstant } from "./dates";
 import { needsMetadata, selectMetadataBatch } from "./metadata";
 import { enrichNotionBook } from "./metadataEnrichment";
 import {
@@ -101,6 +102,9 @@ export async function syncBooksFromNotion(
       pageCount: true,
       audioLengthMin: true,
       audibleUrl: true,
+      started: true,
+      finished: true,
+      abandoned: true,
     },
   });
   const storedByNotionId = new Map(
@@ -212,6 +216,13 @@ export async function syncBooksFromNotion(
       ] as const) {
         if (stored[field] !== book[field])
           Object.assign(changes, { [field]: book[field] });
+      }
+      // Dates as well: rows stored before dates became Pacific midnights
+      // (they were UTC midnights) are rewritten here, notes untouched.
+      for (const field of ["started", "finished", "abandoned"] as const) {
+        const value = book[field] ? notionDateToInstant(book[field]) : null;
+        if (stored[field]?.getTime() !== value?.getTime())
+          changes[field] = value;
       }
       const coverUrl = stripCoverCurl(book.coverUrl);
       if (stored.coverUrl !== coverUrl) {
@@ -508,9 +519,9 @@ async function upsertBooksToDatabase(
         title: book.title,
         author: book.author,
         publicationYear: book.publicationYear,
-        started: book.started ? new Date(book.started) : null,
-        finished: book.finished ? new Date(book.finished) : null,
-        abandoned: book.abandoned ? new Date(book.abandoned) : null,
+        started: book.started ? notionDateToInstant(book.started) : null,
+        finished: book.finished ? notionDateToInstant(book.finished) : null,
+        abandoned: book.abandoned ? notionDateToInstant(book.abandoned) : null,
         abandonedAtMin: book.abandonedAtMin,
         rating: book.rating,
         audioLengthMin: book.audioLengthMin,
@@ -534,9 +545,11 @@ async function upsertBooksToDatabase(
           title: book.title,
           author: book.author,
           publicationYear: book.publicationYear,
-          started: book.started ? new Date(book.started) : null,
-          finished: book.finished ? new Date(book.finished) : null,
-          abandoned: book.abandoned ? new Date(book.abandoned) : null,
+          started: book.started ? notionDateToInstant(book.started) : null,
+          finished: book.finished ? notionDateToInstant(book.finished) : null,
+          abandoned: book.abandoned
+            ? notionDateToInstant(book.abandoned)
+            : null,
           abandonedAtMin: book.abandonedAtMin,
           rating: book.rating,
           audioLengthMin: book.audioLengthMin,

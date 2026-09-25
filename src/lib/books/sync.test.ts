@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { notionDateToInstant } from "./dates";
 import type { NotionBook } from "./notion";
 import { syncBooksFromNotion } from "./sync";
 
@@ -52,6 +53,8 @@ const book = {
   audibleUrl: "https://www.audible.com/pd/example",
   websiteUrl: "https://books.chappyasel.com/test-book",
 } as NotionBook;
+/** The row's dates as the sync stores them: Pacific midnights. */
+const storedDates = { finished: notionDateToInstant(book.finished!) };
 
 describe("featured selection during book sync", () => {
   beforeEach(() => {
@@ -62,6 +65,7 @@ describe("featured selection during book sync", () => {
     mocks.findMany.mockResolvedValue([
       {
         ...book,
+        ...storedDates,
         id: "test-book",
         notionId: book.notionId,
         isFeatured: false,
@@ -86,6 +90,7 @@ describe("featured selection during book sync", () => {
     mocks.findMany.mockResolvedValue([
       {
         ...book,
+        ...storedDates,
         id: "test-book",
         notionId: book.notionId,
         isFeatured: true,
@@ -125,6 +130,7 @@ describe("author changes during book sync", () => {
     mocks.findMany.mockResolvedValue([
       {
         ...book,
+        ...storedDates,
         id: "test-book",
         notionId: book.notionId,
         isFeatured: book.isFeatured,

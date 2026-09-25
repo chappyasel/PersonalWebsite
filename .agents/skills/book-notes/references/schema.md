@@ -170,6 +170,12 @@ LIMIT 10;
 
 ## Reading pace
 
+`started`, `finished`, and `abandoned` are the Notion calendar days, stored
+as that day's midnight in Pacific time (07:00 or 08:00 UTC). Their UTC date
+is still the Notion date, so `finished::date`, `DATE_TRUNC`, and `EXTRACT`
+in the default UTC session return it. Write
+`(finished AT TIME ZONE 'America/Los_Angeles')::date` to say so outright.
+
 ```sql
 -- Books finished per month (last 2 years)
 SELECT DATE_TRUNC('month', finished) AS month, COUNT(*) AS n

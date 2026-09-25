@@ -52,6 +52,7 @@ import { capture, captureOnce } from "~/lib/analytics";
 import { textOfChildren } from "~/lib/anchors";
 import { bookCoverShadow } from "~/lib/books/coverShadow";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { BOOK_DATE_TIME_ZONE } from "~/lib/books/dates";
 import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
 import { bookSlugFromUrl } from "~/lib/books/inlineFacts";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
@@ -527,15 +528,21 @@ function getReadingDays(
   const startDate = new Date(started);
   const endDate = new Date(finished);
   const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Both ends are Pacific midnights, so a span crossing a clock change is a
+  // whole number of days give or take an hour.
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
+/** "September 23rd '26", as a Pacific day like every other book date. */
 function formatStartedDate(started: string): string {
   const date = new Date(started);
-  const month = date.toLocaleDateString("en-US", { month: "long" });
-  const day = date.getDate();
-  const year = date.toLocaleDateString("en-US", { year: "2-digit" });
-  return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    date.toLocaleDateString("en-US", {
+      ...options,
+      timeZone: BOOK_DATE_TIME_ZONE,
+    });
+  const day = Number(part({ day: "numeric" }));
+  return `${part({ month: "long" })} ${day}${getOrdinalSuffix(day)} '${part({ year: "2-digit" })}`;
 }
 
 function BookFact({

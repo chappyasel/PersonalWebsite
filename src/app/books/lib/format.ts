@@ -1,7 +1,8 @@
+import { BOOK_DATE_TIME_ZONE } from "~/lib/books/dates";
+
 /**
  * Format raw minutes as "12h 32m", omitting hours when 0 ("45m")
  */
-const BOOK_DATE_TIME_ZONE = "America/Los_Angeles";
 
 function getBookDateParts(date: Date): {
   monthShort: string;
