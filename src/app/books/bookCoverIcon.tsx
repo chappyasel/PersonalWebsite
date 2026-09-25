@@ -2,8 +2,8 @@ import { ImageResponse } from "next/og";
 
 import { coverBackdropColor } from "~/lib/books/coverColor";
 import {
-  arrayBufferToDataUri,
   calculateLuminance,
+  coverDataUri,
   fetchExternalImage,
   generateFallbackCoverSvg,
   getAverageImageColor,
@@ -56,8 +56,10 @@ export async function bookCoverIconImage(
     ? await fetchExternalImage(book.coverUrl)
     : null;
 
-  if (coverBuffer) {
-    coverSrc = arrayBufferToDataUri(coverBuffer);
+  const coverDataSrc = coverBuffer ? await coverDataUri(coverBuffer) : null;
+
+  if (coverBuffer && coverDataSrc) {
+    coverSrc = coverDataSrc;
     const [dimensions, avgColor] = await Promise.all([
       getImageDimensions(coverBuffer),
       getAverageImageColor(coverBuffer),

@@ -23,7 +23,11 @@ function hexLuminance(hex: string): number | null {
   const match = /^#([0-9a-f]{6})$/i.exec(hex);
   if (!match?.[1]) return null;
   const value = Number.parseInt(match[1], 16);
-  return calculateLuminance((value >> 16) & 255, (value >> 8) & 255, value & 255);
+  return calculateLuminance(
+    (value >> 16) & 255,
+    (value >> 8) & 255,
+    value & 255,
+  );
 }
 
 /**
@@ -209,6 +213,45 @@ export function arrayBufferToDataUri(
 ): string {
   const base64 = Buffer.from(buffer).toString("base64");
   return `data:${mimeType};base64,${base64}`;
+}
+
+/** The longest edge a fetched cover keeps on its way into satori. The card
+ * draws the cover 460 px tall and blurs the full-bleed copy, so nothing
+ * visible is lost. */
+const COVER_MAX_EDGE = 1200;
+
+/**
+ * A fetched cover as a data URI satori can draw, or null when the bytes are
+ * not an image. Satori parses an image by the type its URI names, so a PNG
+ * labeled as JPEG throws while the card streams. A JPEG that already fits
+ * passes through untouched; any other format, or a larger image (Plurality's
+ * cover is a 5100×6600 PNG), is re-encoded as a JPEG that fits.
+ */
+export async function coverDataUri(
+  buffer: ArrayBuffer,
+): Promise<string | null> {
+  try {
+    const image = sharp(Buffer.from(buffer));
+    const { format, width = 0, height = 0 } = await image.metadata();
+    if (format === "jpeg" && Math.max(width, height) <= COVER_MAX_EDGE) {
+      return arrayBufferToDataUri(buffer, "image/jpeg");
+    }
+    const jpeg = await image
+      .rotate()
+      .resize({
+        width: COVER_MAX_EDGE,
+        height: COVER_MAX_EDGE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+  } catch (error) {
+    console.error("Error preparing cover image:", error);
+    return null;
+  }
 }
 
 /**

@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as OgImageUtils from "~/lib/books/ogImageUtils";
 
@@ -16,19 +16,36 @@ import type * as OgImageUtils from "~/lib/books/ogImageUtils";
 
 const COVER = { r: 180, g: 40, b: 60 };
 
-/** A flat JPEG, the format the routes label a fetched cover as. */
-async function coverJpeg(): Promise<ArrayBuffer> {
-  const jpeg = await sharp({
-    create: { width: 120, height: 180, channels: 3, background: COVER },
-  })
-    .jpeg({ quality: 100 })
-    .toBuffer();
-  return jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength);
+const served = vi.hoisted(() => ({ format: "jpeg" as "jpeg" | "png" }));
+
+/**
+ * The cover as its host serves it: a small JPEG, the common case, or a PNG
+ * larger than the routes pass through whole. Plurality's cover is a
+ * 5100×6600 PNG, and while the routes labeled every cover as JPEG, satori
+ * could not read its size and drew nothing where it belonged.
+ */
+async function fetchedCover(): Promise<ArrayBuffer> {
+  const png = served.format === "png";
+  const image = sharp({
+    create: {
+      width: png ? 1300 : 120,
+      height: png ? 1800 : 180,
+      channels: 3,
+      background: COVER,
+    },
+  });
+  const bytes = png
+    ? await image.png().toBuffer()
+    : await image.jpeg({ quality: 100 }).toBuffer();
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
 }
 
 vi.mock("~/lib/books/ogImageUtils", async (importOriginal) => {
   const actual = await importOriginal<typeof OgImageUtils>();
-  return { ...actual, fetchExternalImage: coverJpeg };
+  return { ...actual, fetchExternalImage: fetchedCover };
 });
 
 vi.mock("~/lib/books/ogDataAccess", () => ({
@@ -77,8 +94,12 @@ function near(
   );
 }
 
-describe("book OG card with the cover fetched", () => {
-  it("renders, and draws the cover where the board would be", async () => {
+describe.each(["jpeg", "png"] as const)("a %s cover", (format) => {
+  beforeEach(() => {
+    served.format = format;
+  });
+
+  it("renders on the OG card, where the board would be", async () => {
     const { default: Image } = await import("./opengraph-image");
     const response = await Image({
       params: Promise.resolve({ bookId: "solaris" }),
@@ -90,10 +111,8 @@ describe("book OG card with the cover fetched", () => {
     // Middle of the cover slot: the fetched cover, not a board or a hole
     expect(near(await pixel(png, 213, 315), COVER)).toBe(true);
   }, 30_000);
-});
 
-describe("book tab icon with the cover fetched", () => {
-  it("renders with the cover on its blurred copy", async () => {
+  it("renders on the tab icon, over its blurred copy", async () => {
     const { bookCoverIconImage } = await import("../bookCoverIcon");
     const { ICON_FRAME } = await import("./iconLayout");
     const response = await bookCoverIconImage(

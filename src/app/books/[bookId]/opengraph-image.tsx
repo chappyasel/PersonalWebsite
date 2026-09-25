@@ -12,8 +12,8 @@ import { ImageResponse } from "next/og";
 import { coverBackdropColor, parseHex } from "~/lib/books/coverColor";
 import { getBookForOG } from "~/lib/books/ogDataAccess";
 import {
-  arrayBufferToDataUri,
   calculateLuminance,
+  coverDataUri,
   fetchExternalImage,
   getAverageImageColor,
   getTextColorAndOverlay,
@@ -79,9 +79,8 @@ export default async function Image({
 
     if (book.coverUrl) {
       const coverBuffer = await fetchExternalImage(book.coverUrl);
-      if (coverBuffer) {
-        coverImageSrc = arrayBufferToDataUri(coverBuffer);
-
+      coverImageSrc = coverBuffer ? await coverDataUri(coverBuffer) : null;
+      if (coverBuffer && coverImageSrc) {
         // Analyze image color for dynamic text/overlay
         const avgColor = await getAverageImageColor(coverBuffer);
         if (avgColor) {
