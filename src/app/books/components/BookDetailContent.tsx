@@ -1792,7 +1792,8 @@ export function BookDetailContent({
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeRaw, rehypeBookHeadingAnchors]}
                       urlTransform={(url) => {
-                        // Allow data URLs (base64 images from Notion)
+                        // Allow data URLs (base64 images from Notion,
+                        // stored before note images moved to Blob)
                         if (url.startsWith("data:")) {
                           return url;
                         }
@@ -1818,6 +1819,8 @@ export function BookDetailContent({
                                   src={src}
                                   alt={alt ?? ""}
                                   className="cursor-zoom-in"
+                                  loading="lazy"
+                                  decoding="async"
                                   {...props}
                                 />
                               </PhotoView>

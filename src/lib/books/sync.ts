@@ -101,7 +101,15 @@ export async function withBookSyncLock<T>(run: () => Promise<T>): Promise<T> {
 export async function syncBooksFromNotion(
   triggeredBy: "cron" | "manual" = "cron",
   onPropertiesChanged?: (bookIds: string[]) => Promise<void>,
-  options: { onlyNotionIds?: string[] } = {},
+  options: {
+    onlyNotionIds?: string[];
+    /**
+     * Download every selected book's notes, edited or not. For a one-time
+     * rewrite after the notes format changes; an ordinary sync fetches only
+     * pages edited since their last download.
+     */
+    refetchNotes?: boolean;
+  } = {},
 ): Promise<SyncResult> {
   const onlyIds =
     options.onlyNotionIds === undefined
@@ -280,11 +288,13 @@ export async function syncBooksFromNotion(
     const { newBooks, updatedBooks, unchangedBooks } = categorizeBooks(
       syncBooks,
       dbBooksMap,
+      options.refetchNotes ?? false,
     );
-    const contentFetchResults = await fetchBooksContentWithRateLimit([
-      ...newBooks,
-      ...updatedBooks,
-    ]);
+    const contentFetchResults = await fetchBooksContentWithRateLimit(
+      [...newBooks, ...updatedBooks],
+      // Mentions of other library pages take their titles from the catalog.
+      new Map(notionBooks.map((book) => [book.notionId, book.title])),
+    );
     await upsertBooksToDatabase(contentFetchResults, unchangedBooks);
     const successfulChangedBooks = contentFetchResults
       .filter((result) => result.success)
@@ -403,6 +413,7 @@ async function deleteBooksRemovedFromNotion(
 function categorizeBooks(
   notionBooks: NotionBook[],
   dbBooksMap: Map<string, Date>, // Map<notionId, lastEditedTime>
+  refetchNotes: boolean,
 ): {
   newBooks: NotionBook[];
   updatedBooks: NotionBook[];
@@ -421,7 +432,10 @@ function categorizeBooks(
       newBooks.push(book);
     } else {
       const notionEditedTime = new Date(book.lastEditedTime);
-      if (shouldFetchBookContent(notionEditedTime, dbLastEdited)) {
+      if (
+        refetchNotes ||
+        shouldFetchBookContent(notionEditedTime, dbLastEdited)
+      ) {
         // Book was edited or has incomplete metadata that needs repair.
         updatedBooks.push(book);
       } else {
@@ -441,6 +455,7 @@ function categorizeBooks(
  */
 async function fetchBooksContentWithRateLimit(
   booksToFetch: NotionBook[],
+  titleByNotionId: ReadonlyMap<string, string>,
 ): Promise<BookContentResult[]> {
   console.log(
     `Fetching full content for ${booksToFetch.length} books (Notion requests spaced 350 ms apart)...`,
@@ -456,7 +471,10 @@ async function fetchBooksContentWithRateLimit(
 
     try {
       // Use notionId to fetch from Notion API
-      const bookWithNotes = await fetchBookDetails(book.notionId);
+      const bookWithNotes = await fetchBookDetails(
+        book.notionId,
+        titleByNotionId,
+      );
 
       completed++;
       console.log(`✓ [${completed}/${total}] Fetched: ${displayTitle}`);

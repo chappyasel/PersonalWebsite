@@ -3,7 +3,10 @@ import { NotionToMarkdown } from "notion-to-md";
 
 import { hourDotMinutesToMinutes } from "./lengthFetcher";
 import { separateAdjacentQuoteBlocks, toggleHeadings } from "./markdown";
+import { persistImages } from "./noteImages";
 import { createBookNotionClient } from "./notionClient";
+import { fetchNotesFromMarkdown } from "./notionNotes";
+import { findRateLimitError } from "./rateLimiter";
 import type { BaseBook } from "./types";
 import { env } from "~/env";
 
@@ -11,9 +14,9 @@ const notion = createBookNotionClient();
 
 const n2m = new NotionToMarkdown({
   notionClient: notion,
-  config: {
-    convertImagesToBase64: true, // Convert images to base64 to avoid expiring Notion URLs
-  },
+  // Images keep Notion's signed links here; persistImages replaces them
+  // before they expire.
+  config: { convertImagesToBase64: false },
 });
 
 /**
@@ -159,11 +162,24 @@ export async function fetchBookProperties(bookId: string): Promise<NotionBook> {
   };
 }
 
+/** The notes as notion-to-md writes them, one request per parent block. */
+async function fetchNotesByBlockWalk(bookId: string): Promise<string> {
+  const mdBlocks = await n2m.pageToMarkdown(bookId);
+  const mdString = n2m.toMarkdownString(
+    toggleHeadings(separateAdjacentQuoteBlocks(mdBlocks)),
+  );
+  return persistImages(mdString.parent ?? "");
+}
+
 /**
- * Fetch a single book with full notes content
+ * Fetch a single book with full notes content. Notes come from the
+ * page-markdown endpoint in one request; the block walk stays for pages the
+ * endpoint cannot represent or when it fails. A rate limit is not a reason to
+ * walk blocks, which would only make more requests.
  */
 export async function fetchBookDetails(
   bookId: string,
+  titleByNotionId?: ReadonlyMap<string, string>,
 ): Promise<Omit<NotionBook, "lastEditedTime"> & { notes: string }> {
   try {
     // Fetch the page
@@ -177,12 +193,17 @@ export async function fetchBookDetails(
     // Transform to book
     const book = transformNotionPageToBook(page);
 
-    // Fetch all blocks including nested children and convert to markdown
-    const mdBlocks = await n2m.pageToMarkdown(bookId);
-    const mdString = n2m.toMarkdownString(
-      toggleHeadings(separateAdjacentQuoteBlocks(mdBlocks)),
-    );
-    const notes = mdString.parent ?? "";
+    const notes =
+      (await fetchNotesFromMarkdown(bookId, titleByNotionId).catch(
+        (error: unknown) => {
+          if (findRateLimitError(error)) throw error;
+          console.warn(
+            `  ✗ Markdown endpoint failed for ${bookId}; walking blocks instead:`,
+            error,
+          );
+          return null;
+        },
+      )) ?? (await fetchNotesByBlockWalk(bookId));
 
     return {
       ...book,

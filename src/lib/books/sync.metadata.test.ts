@@ -347,6 +347,11 @@ it("is idempotent across repeated completed runs", async () => {
       ),
   ).toBe(true);
 });
+it("downloads unedited notes when asked to refetch them", async () => {
+  await syncBooksFromNotion("manual", undefined, { refetchNotes: true });
+  expect(mocks.notes).toHaveBeenCalledOnce();
+  expect(mocks.rows[0]).toMatchObject({ notes: "Fresh notes" });
+});
 it("stamps every unchanged book in one statement", async () => {
   const pages = ["page-0", "page-1", "page-2"].map((notionId, i) => ({
     ...complete,

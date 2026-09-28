@@ -13,9 +13,14 @@ class BookNotionClient extends Client {
   }
 }
 
-export function createBookNotionClient(): Client {
+/**
+ * The shared-queue client. A caller may pin a newer API version for an
+ * endpoint that needs one; the default stays the SDK's.
+ */
+export function createBookNotionClient(notionVersion?: string): Client {
   return new BookNotionClient({
     auth: env.NOTION_API_KEY,
+    notionVersion,
     timeoutMs: 15_000,
     fetch: (url, init) =>
       fetch(url, {

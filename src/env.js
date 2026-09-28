@@ -37,6 +37,9 @@ export const env = createEnv({
      * snapshot instead of live activity. Needs no scopes for public data;
      * the owner's own token also counts private contributions. */
     GITHUB_TOKEN: z.string().optional(),
+    /** Optional. The book-notes-images Blob store. Without it the sync
+     * stores note images inline as base64, as it did before the store. */
+    BLOB_READ_WRITE_TOKEN: z.string().optional(),
   },
 
   /**
@@ -72,6 +75,7 @@ export const env = createEnv({
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     DAD_CONTENT_PASSWORD: process.env.DAD_CONTENT_PASSWORD,
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
