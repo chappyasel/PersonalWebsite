@@ -62,6 +62,39 @@ type BookContentResult =
       error: string;
     };
 
+export class BookSyncBusyError extends Error {
+  constructor() {
+    super(
+      "Another book sync held the lock for 5 minutes; this one was skipped",
+    );
+  }
+}
+
+/**
+ * Runs one sync at a time. A second trigger waits for the first to finish
+ * rather than racing its slug moves and tag rewrites, then syncs again so
+ * edits made during the first run still land.
+ *
+ * The lock lives in a side transaction while the sync itself runs on other
+ * pooled connections, so that transaction sits idle, and Neon ends idle
+ * transactions after 5 minutes.
+ */
+export async function withBookSyncLock<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL idle_in_transaction_session_timeout = 0`);
+      await tx.execute(sql`SET LOCAL lock_timeout = '5min'`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(872041, 2)`);
+      return run();
+    });
+  } catch (error) {
+    // 55P03 is lock_not_available: lock_timeout expired.
+    if ((error as { code?: unknown } | null)?.code === "55P03")
+      throw new BookSyncBusyError();
+    throw error;
+  }
+}
+
 /**
  * Main sync orchestrator - syncs all books from Notion to database
  */
@@ -581,13 +614,19 @@ async function upsertBooksToDatabase(
     }
   }
 
-  // Update lastSyncedAt for unchanged books (use notionId for lookup)
+  // Stamp every unchanged book in one statement. Production functions run in
+  // iad1 and the database in us-west-2, so one UPDATE per book cost ~40 s.
   // Slug migration for these books was already handled by migrateChangedSlugs
-  for (const book of unchangedBooks) {
+  if (unchangedBooks.length > 0) {
     await db
       .update(books)
       .set({ lastSyncedAt: new Date() })
-      .where(eq(books.notionId, book.notionId));
+      .where(
+        inArray(
+          books.notionId,
+          unchangedBooks.map((book) => book.notionId),
+        ),
+      );
   }
 }
 

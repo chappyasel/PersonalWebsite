@@ -104,6 +104,8 @@ This command writes only the selected books and the sync audit record. It does n
 
 Book API requests share a queue that spaces calls 350 ms apart and honors Notion's retry delay. Retries repeat the failed API request, including nested block pagination, rather than restarting a book's entire note conversion. The production book cron allows up to 800 seconds for larger refreshes.
 
+The Notion sync button POSTs to `/api/cron/sync-books`. The route answers `202` at once and runs the sync after the response, so the reply carries no result; the newest `sync_metadata` row shows when the run finished and what it changed. The daily cron and the button share a Postgres advisory lock. A second trigger waits up to five minutes for the running sync, then runs its own so edits made in the meantime still land. Standalone scoped runs call `syncBooksFromNotion` directly and do not take the lock.
+
 ## Book tag taxonomy cleanup / repair
 
 Use this workflow when Chappy asks to fix Book Notes tags, make tags show up on `books.chappyasel.com`, or replace non-standard tags.

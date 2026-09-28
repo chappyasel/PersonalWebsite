@@ -26,6 +26,7 @@ vi.mock("~/env", () => ({ env: { NOTION_API_KEY: "test" } }));
 vi.mock("drizzle-orm", async (original) => ({
   ...(await original<typeof Drizzle>()),
   eq: (column: unknown, value: unknown) => ({ column, value }),
+  inArray: (column: unknown, values: unknown[]) => ({ column, values }),
 }));
 vi.mock("./notion", () => ({
   fetchBooksFromNotion: mocks.catalog,
@@ -74,11 +75,17 @@ vi.mock("~/server/db", () => {
     }),
     update: (table: unknown) => ({
       set: (values: Record<string, unknown>) => ({
-        where: async ({ value }: { value: unknown }) => {
-          mocks.writes.push({ table, values, id: value, kind: "update" });
+        where: async (condition: { value?: unknown; values?: unknown[] }) => {
+          const ids = condition.values ?? [condition.value];
+          mocks.writes.push({
+            table,
+            values,
+            id: condition.values ?? condition.value,
+            kind: "update",
+          });
           if (table === books)
             for (const row of mocks.rows)
-              if (row.notionId === value) Object.assign(row, values);
+              if (ids.includes(row.notionId)) Object.assign(row, values);
         },
       }),
     }),
@@ -339,6 +346,24 @@ it("is idempotent across repeated completed runs", async () => {
         Object.keys(w.values ?? {}).every((key) => key === "lastSyncedAt"),
       ),
   ).toBe(true);
+});
+it("stamps every unchanged book in one statement", async () => {
+  const pages = ["page-0", "page-1", "page-2"].map((notionId, i) => ({
+    ...complete,
+    id: `book-${i}`,
+    title: `Book ${i}`,
+    notionId,
+    websiteUrl: `https://books.chappyasel.com/book-${i}`,
+  }));
+  mocks.catalog.mockResolvedValue(pages);
+  mocks.rows = pages.map(stored);
+  await syncBooksFromNotion("cron");
+  const stamps = mocks.writes.filter(
+    (w) => w.table === books && w.kind === "update",
+  );
+  expect(stamps).toHaveLength(1);
+  expect(stamps[0]!.id).toEqual(["page-0", "page-1", "page-2"]);
+  expect(Object.keys(stamps[0]!.values ?? {})).toEqual(["lastSyncedAt"]);
 });
 it("attempts a new incomplete page immediately while reserving retry slots for unchanged pages", async () => {
   const oldPages = Array.from({ length: 45 }, (_, i) => ({
