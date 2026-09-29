@@ -9,6 +9,7 @@ import {
   separateAdjacentQuoteBlocks,
   separateCachedQuoteBlocks,
   toggleHeadings,
+  withoutPlaceholders,
 } from "./markdown";
 
 const n2m = new NotionToMarkdown({ notionClient: {} as Client });
@@ -143,5 +144,49 @@ describe("toggleHeadings", () => {
     ]);
     expect(out[0]?.children[0]?.type).toBe("toggle");
     expect(out[0]?.children[0]?.parent).toBe("<strong>Inner</strong>");
+  });
+});
+
+describe("withoutPlaceholders", () => {
+  it("shows nothing for a skeleton that has not been filled in", () => {
+    expect(
+      withoutPlaceholders(
+        "# Summary\n\nTodo\n\n# Chappy’s Review\n\nTodo\n\n# Key Takeaways\n\n- Todo",
+      ),
+    ).toBe("");
+  });
+
+  it("keeps the written sections and drops the unwritten ones", () => {
+    expect(
+      withoutPlaceholders(
+        "# Summary\n\nBostrom argues.\n\n# Chappy’s Review\n\nTODO\n\n# Key Takeaways\n\n- Todo",
+      ),
+    ).toBe("# Summary\n\nBostrom argues.");
+  });
+
+  it("drops chapters whose only note is an empty bullet", () => {
+    expect(
+      withoutPlaceholders(
+        "# Notes\n\n### Before You Read\n\n**0-0: Endorsements**\n\n-\n\n### Preface\n\n**1: Seeing Plural**\n\n- Democracy is waning\n\n**2: Next**\n\n- -\n    -\n    -",
+      ),
+    ).toBe(
+      "# Notes\n\n### Preface\n\n**1: Seeing Plural**\n\n- Democracy is waning",
+    );
+  });
+
+  it("keeps an empty bullet that holds a nested list", () => {
+    const notes = "-\n    1. Practice warmth\n    - Show zeal";
+    expect(withoutPlaceholders(notes)).toBe(notes);
+  });
+
+  it("keeps a bold line that stands on its own", () => {
+    const notes = "- Resilient societies forget\n\n**Humility.**";
+    expect(withoutPlaceholders(notes)).toBe(notes);
+  });
+
+  it("returns notes without placeholders unchanged, spacing and all", () => {
+    const notes =
+      "# Summary\n\n\nText  \n\n<details>\n<summary>S</summary>\n\n- a\n\n</details>";
+    expect(withoutPlaceholders(notes)).toBe(notes);
   });
 });

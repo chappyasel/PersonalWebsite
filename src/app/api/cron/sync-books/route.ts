@@ -16,6 +16,22 @@ function verifyAuth(request: NextRequest): boolean {
 }
 
 /**
+ * The scheduled sync runs at 3 AM and 3 PM Pacific. Vercel schedules crons in
+ * UTC, so vercel.json fires at both the daylight and the standard-time offset
+ * and only the run that lands on one of these Pacific hours syncs.
+ */
+const SYNC_HOURS_PACIFIC = [3, 15];
+
+function isScheduledSyncHour(now: Date): boolean {
+  const hour = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).format(now);
+  return SYNC_HOURS_PACIFIC.includes(Number(hour));
+}
+
+/**
  * Runs the sync and cache refresh (shared between GET and POST)
  */
 async function runSync(source: "cron" | "manual") {
@@ -36,13 +52,19 @@ async function runSync(source: "cron" | "manual") {
 }
 
 /**
- * Vercel Cron endpoint for syncing books from Notion
- * Called daily at 9:00 AM UTC
+ * Vercel Cron endpoint for syncing books from Notion, at 3 AM and 3 PM
+ * Pacific (see isScheduledSyncHour)
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel automatically adds this)
   if (!verifyAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!isScheduledSyncHour(new Date())) {
+    return NextResponse.json({
+      success: true,
+      skipped: "not 3 AM or 3 PM Pacific",
+    });
   }
 
   try {

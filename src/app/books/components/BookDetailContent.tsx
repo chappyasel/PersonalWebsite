@@ -1769,7 +1769,9 @@ export function BookDetailContent({
           <AbandonedNotice percent={abandonedPercent(book)} />
         )}
 
-        {/* Notes section */}
+        {/* Notes section. Notes that load empty were only unwritten skeleton
+            sections and show nothing; the Notion link is for notes that
+            failed to load. */}
         {book.hasNotes ? (
           <div className="pb-[min(25vh,300px)]">
             {isLoadingNotes ? (
@@ -1891,7 +1893,7 @@ export function BookDetailContent({
                   </PhotoProvider>
                 </div>
               </>
-            ) : (
+            ) : fullBook ? null : (
               <p className="py-8 text-center text-muted-foreground">
                 This book has notes. View them in{" "}
                 <a

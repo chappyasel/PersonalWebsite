@@ -9,6 +9,7 @@ import { books } from "~/server/db/schema";
 
 import { findBookById } from "./bookLookup";
 import { linkNotesToLibrary } from "./inlineLookup";
+import { withoutPlaceholders } from "./markdown";
 import type { BaseBook, BookReading, BookWithNotes } from "./types";
 
 /**
@@ -72,7 +73,8 @@ export async function getBookWithNotes(
 
   // Never rejects (it degrades to the notes as written), so it can run
   // alongside the reads query.
-  const linking = linkNotesToLibrary(book.notes ?? "");
+  // Unwritten skeleton sections (Todo, empty bullets) never reach the page.
+  const linking = linkNotesToLibrary(withoutPlaceholders(book.notes ?? ""));
   const otherReads = await db.query.books.findMany({
     where: and(
       sql`LOWER(${books.title}) = LOWER(${book.title})`,

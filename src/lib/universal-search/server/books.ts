@@ -4,6 +4,7 @@ import { resolveDestinationTarget } from "../urls";
 import { sql } from "drizzle-orm";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { withoutPlaceholders } from "~/lib/books/markdown";
 
 import { createServerExcerpt } from "./excerpt";
 import { MAX_PROVIDER_RESULTS } from "./search";
@@ -204,7 +205,12 @@ export async function searchBooks(
       options.location,
     ),
     ...(row.matchKind === "body" && row.notes
-      ? { excerpt: createServerExcerpt(row.notes, normalizedQuery) }
+      ? {
+          excerpt: createServerExcerpt(
+            withoutPlaceholders(row.notes),
+            normalizedQuery,
+          ),
+        }
       : {}),
     matchKind: row.matchKind,
     score: row.score,

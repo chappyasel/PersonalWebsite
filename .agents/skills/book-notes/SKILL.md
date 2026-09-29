@@ -5,7 +5,7 @@ description: Query Chappy's personal book library synced from Notion — titles,
 
 # book-notes
 
-Read-only SQL access to Chappy's book library in the PersonalWebsite Postgres DB (Neon). The Vercel cron sync runs daily at 09:00 UTC from the Notion Book Notes database.
+Read-only SQL access to Chappy's book library in the PersonalWebsite Postgres DB (Neon). The Vercel cron sync runs at 3 AM and 3 PM Pacific from the Notion Book Notes database.
 
 ## Ownership and discovery
 
@@ -76,7 +76,7 @@ Run SQL via the bundled script. Output is CSV on stdout.
 
 ### Freshness caveat
 
-The Postgres book cache syncs daily at 09:00 UTC. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; undated want-to-read pages are intentionally outside the SQL mirror. A new skeleton gets `Started` at creation, so it enters the mirror on the next sync. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
+The Postgres book cache syncs at 3 AM and 3 PM Pacific. Vercel schedules crons in UTC, so `vercel.json` fires at both the daylight and the standard-time offset and the route skips whichever run is not on one of those Pacific hours. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; undated want-to-read pages are intentionally outside the SQL mirror. A new skeleton gets `Started` at creation, so it enters the mirror on the next sync. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
 
 For existing mirrored books, the sync saves author, publication year, cover, pages, audio runtime, Audible URL, and featured selection before downloading notes. It computes slugs after acknowledged enrichment writes and moves selected slugs in a transaction that preserves notes and tags. The cron and website manual-sync action invalidate affected caches before downloading notes. Failed note downloads leave the previous notes and their `last_edited_time` watermark intact, so properties can be newer than that watermark. New books still need their initial successful note fetch before appearing on the shelf.
 
@@ -106,7 +106,9 @@ Notes come from Notion's page-markdown endpoint (`GET /v1/pages/{id}/markdown`, 
 
 Book API requests share a queue that spaces calls 350 ms apart and honors Notion's retry delay. Retries repeat the failed API request, including nested block pagination, rather than restarting a book's entire note conversion. The production book cron allows up to 800 seconds for larger refreshes.
 
-The Notion sync button POSTs to `/api/cron/sync-books`. The route answers `202` at once and runs the sync after the response, so the reply carries no result; the newest `sync_metadata` row shows when the run finished and what it changed. The daily cron and the button share a Postgres advisory lock. A second trigger waits up to five minutes for the running sync, then runs its own so edits made in the meantime still land. Standalone scoped runs call `syncBooksFromNotion` directly and do not take the lock.
+The site hides notes that have not been written yet; the Postgres cache keeps them as Notion has them. `withoutPlaceholders` in `src/lib/books/markdown.ts` drops sections whose body is only `Todo` or empty, headings and bold chapter labels left over empty bullets, and empty bullets, when the book page, the book modal and search excerpts read the notes. A book whose notes are all placeholders shows no notes, so an unfilled skeleton never appears on the site.
+
+The Notion sync button POSTs to `/api/cron/sync-books`. The route answers `202` at once and runs the sync after the response, so the reply carries no result; the newest `sync_metadata` row shows when the run finished and what it changed. The scheduled cron and the button share a Postgres advisory lock. A second trigger waits up to five minutes for the running sync, then runs its own so edits made in the meantime still land. Standalone scoped runs call `syncBooksFromNotion` directly and do not take the lock.
 
 ## Book tag taxonomy cleanup / repair
 
@@ -177,7 +179,7 @@ Sibling skills using the same PersonalWebsite Postgres database (cross-domain JO
 
 ## Cover icon pipeline
 
-Every mirrored book wears its own cover as its Notion page icon. One Vercel cron, `/api/cron/sync-book-emojis`, does the whole job at 09:20 UTC within a 300-second limit: it reads the mirror, renders the jackets that changed, uploads them to Notion, and sets the icons. There is no second service, no queue for another machine to drain, and no local scheduler.
+Every mirrored book wears its own cover as its Notion page icon. One Vercel cron, `/api/cron/sync-book-emojis`, does the whole job at 11:20 UTC (3:20 AM PST, 4:20 AM PDT), after the morning book sync, within a 300-second limit: it reads the mirror, renders the jackets that changed, uploads them to Notion, and sets the icons. There is no second service, no queue for another machine to drain, and no local scheduler.
 
 It requires `CRON_SECRET` authorization and runs by default once deployed. Set `BOOK_COVER_EMOJIS_DISABLED=true` to stop it without waiting for a deploy. It needs no new configuration: `NOTION_API_KEY`, `DATABASE_URL`, `AWS_BUCKET_NAME`, `AWS_REGION`, and the AWS credentials are already required by the books sync, and the target workspace defaults to the one the book pages live in. `BOOK_COVER_EMOJIS_WORKSPACE_ID` overrides that default. Either way the token's own workspace is checked against the resolved value before anything is read or written, and a mismatch aborts the run.
 
