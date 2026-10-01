@@ -75,7 +75,7 @@ Do not write SQL for these questions. `scripts/search.sh` searches every book's 
    ~/.agents/skills/book-notes/scripts/search.sh "what trust is" "how trust is built between people" "how trust breaks or is betrayed"
    ```
    `--books N` (default 25) and `--passages N` (default 3 per book) widen or narrow it. A run takes about 6 seconds.
-3. **Read the passages and keep what bears on the question.** The ranking finds candidates; it does not judge them. Drop passages that only share a word (a "goal-content integrity" bullet is not about trust). Count the books that survive; that count is the "N more" in the answer.
+3. **Read the passages and keep what bears on the question.** The ranking finds candidates; it does not judge them. Drop passages that only share a word (a "goal-content integrity" bullet is not about trust), then pick the five books most central to the question.
 4. **Pull more context only when a passage is ambiguous.** Each passage is already a whole chapter section or takeaway. For the full notes, query `notes` for that one book with `q.sh`.
 5. **Answer in the format below.**
 
@@ -84,11 +84,12 @@ Do not write SQL for these questions. `scripts/search.sh` searches every book's 
 ### Answer format
 
 1. **Synthesis first.** One sentence that answers the question, then one sentence per angle. Attribute claims to their authors ("Sinek ties trust to acting on your values consistently"). These are Chappy's notes on the author's argument, so never write "you believe" from them. When a passage from a Chappy's Review section speaks to the question, lead with it and label it as his view. Name a disagreement only when the notes actually conflict (Axelrod: "the foundation of cooperation is not really trust, but the durability of the relationship"). Length follows the question; 100 to 150 words is typical.
-2. **Then the books, grouped under the same angles.** Up to 3 books per angle and about 10 in all. Each book appears once, under its strongest angle. A narrow question gets one flat ranked list; do not invent groups to fill the format.
-3. **Each entry:** the title linked to the passage's chapter `url`, the rating (or "unrated"), and one line on what the book contributes, from the notes. Mark a `status: reading` book "reading now".
-4. **Rank within a group by centrality, then rating.** A book whose Summary, Key Takeaways, or a whole chapter is about the topic outranks one with a passing bullet; rating breaks ties. A book rated 2 or below stays in the list but never leads a group unless it is the only source for that angle.
-5. **Close with the count** of the other relevant books, "N more books touch on trust", counting only books that survived step 3, never `candidateBooks`. Offer to list them.
-6. **Links:** website links only, from the passage `url`. Give the Notion link only when Chappy asks for it or the task is editing. In Discord, write links as `[Title](<url>)` so they do not unfurl into previews.
+2. **Then at most 5 books, in one ranked list.** No groups. Rank by centrality, then rating: a book whose Summary, Key Takeaways, or a whole chapter is about the topic outranks one with a passing bullet, and rating breaks ties. A book rated 2 or below makes the list only when no better-rated book covers its angle.
+3. **Each entry leads with the angle the book takes**, in a few words, then the title linked to the passage's chapter `url`, the rating (or "unrated"), and one line from the notes on what it says. Mark a `status: reading` book "reading now". For example:
+   `1. **Trust as social capital.** [Bowling Alone](<https://books.chappyasel.com/bowling-alone#8-reciprocity-honesty-and-trust>) · 5★. Putnam traces the collapse of the networks of trust and reciprocity that make democracy work.`
+4. **Close with the shelf search for the question's key terms**, which lists every book whose notes mention them: `https://books.chappyasel.com/?q=<term>`. Use 1 to 3 short terms that appear in the notes. The shelf requires every word of a term, so prefer single words and tight phrases. For example:
+   `More in my notes: [trust](<https://books.chappyasel.com/?q=trust>) · [social capital](<https://books.chappyasel.com/?q=social%20capital>)`
+5. **Links:** website links only. Give the Notion link only when Chappy asks for it or the task is editing. In Discord, write every link as `[text](<url>)` so it does not unfurl into a preview.
 
 ### Freshness
 
