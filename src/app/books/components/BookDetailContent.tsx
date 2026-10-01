@@ -55,7 +55,7 @@ import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { BOOK_DATE_TIME_ZONE } from "~/lib/books/dates";
 import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
 import { bookSlugFromUrl } from "~/lib/books/inlineFacts";
-import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
+import { renderableNotes } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookShareUrl, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book, BookReading } from "~/lib/books/types";
@@ -356,32 +356,6 @@ function HeaderGlassBackdrop({
       />
     </div>
   );
-}
-
-/**
- * Process details/summary blocks to ensure markdown inside is rendered
- * Converts <details><summary>X</summary>Y</details> format to a structure
- * where the content is properly processed as markdown
- */
-function processDetailsBlocks(markdown: string): string {
-  // Match details blocks with their content
-  const detailsRegex = /<details>(.*?)<\/details>/gs;
-
-  return markdown.replace(detailsRegex, (match: string, content: string) => {
-    // Extract summary and remaining content
-    const summaryRegex = /<summary>(.*?)<\/summary>(.*)/s;
-    const summaryMatch = summaryRegex.exec(content);
-
-    if (!summaryMatch) {
-      return match; // Return original if format is unexpected
-    }
-
-    const summaryText = summaryMatch[1]?.trim() ?? "";
-    const detailsContent = summaryMatch[2]?.trim() ?? "";
-
-    // Return formatted with newlines so markdown inside gets processed
-    return `\n<details>\n<summary>${summaryText}</summary>\n\n${detailsContent}\n\n</details>\n`;
-  });
 }
 
 type MarkdownSummaryProps = ComponentPropsWithoutRef<"summary"> & {
@@ -1784,7 +1758,7 @@ export function BookDetailContent({
                   className={cn(
                     "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
                     "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
-                    "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline prose-a:decoration-foreground/15 hover:prose-a:text-foreground hover:prose-a:decoration-foreground/30 prose-strong:font-semibold prose-strong:text-foreground",
+                    "prose-p:translate-y-2 prose-p:scroll-mt-24 prose-p:text-foreground prose-a:text-foreground prose-a:underline prose-a:decoration-foreground/15 hover:prose-a:text-foreground hover:prose-a:decoration-foreground/30 prose-strong:font-semibold prose-strong:text-foreground",
                     "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
                     "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",
                   )}
@@ -1886,9 +1860,7 @@ export function BookDetailContent({
                         } as Components
                       }
                     >
-                      {processDetailsBlocks(
-                        separateCachedQuoteBlocks(fullBook.notes),
-                      )}
+                      {renderableNotes(fullBook.notes)}
                     </ReactMarkdown>
                   </PhotoProvider>
                 </div>

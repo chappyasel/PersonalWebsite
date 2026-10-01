@@ -168,6 +168,34 @@ WHERE notes ILIKE '%compounding%'
 LIMIT 10;
 ```
 
+## Note search passages
+
+`book_note_chunks` holds every book's notes split into passages, one per
+chapter section or takeaway toggle (`src/lib/books/noteChunks.ts`), each with
+a 1024-dimension `voyage-4-large` embedding. For a concept question, use
+`scripts/search.sh` rather than querying it: a vector search needs the
+question embedded first. It is keyed by `notion_id`, not the slug, with no
+foreign key, because a slug move deletes and reinserts the `books` row.
+`anchor` is the id the book page renders for the passage's chapter, so
+`'https://books.chappyasel.com/' || b.id || '#' || c.anchor` opens the page
+at that chapter. Passages are cut from the notes as the page shows them, so
+unwritten skeleton sections have none.
+
+```sql
+-- One book's passages in page order
+SELECT c.ordinal, c.section, c.heading, c.anchor, LEFT(c.content, 120) AS opening
+FROM book_note_chunks c
+JOIN books b ON b.notion_id = c.notion_id
+WHERE b.id = 'the-infinite-game'
+ORDER BY c.ordinal;
+
+-- Books whose passages are missing (no notes written yet, or a failed embed)
+SELECT b.id, b.title
+FROM books b
+WHERE b.notes IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM book_note_chunks c WHERE c.notion_id = b.notion_id);
+```
+
 ## Reading pace
 
 `started`, `finished`, and `abandoned` are the Notion calendar days, stored
