@@ -32,6 +32,41 @@ export function separateCachedQuoteBlocks(markdown: string): string {
   return markdown.replace(/^([ \t]*)(> .*)(?<! {2})\n(?=\1> )/gm, "$1$2\n$1\n");
 }
 
+/**
+ * Process details/summary blocks to ensure markdown inside is rendered
+ * Converts <details><summary>X</summary>Y</details> format to a structure
+ * where the content is properly processed as markdown
+ */
+function processDetailsBlocks(markdown: string): string {
+  // Match details blocks with their content
+  const detailsRegex = /<details>(.*?)<\/details>/gs;
+
+  return markdown.replace(detailsRegex, (match: string, content: string) => {
+    // Extract summary and remaining content
+    const summaryRegex = /<summary>(.*?)<\/summary>(.*)/s;
+    const summaryMatch = summaryRegex.exec(content);
+
+    if (!summaryMatch) {
+      return match; // Return original if format is unexpected
+    }
+
+    const summaryText = summaryMatch[1]?.trim() ?? "";
+    const detailsContent = summaryMatch[2]?.trim() ?? "";
+
+    // Return formatted with newlines so markdown inside gets processed
+    return `\n<details>\n<summary>${summaryText}</summary>\n\n${detailsContent}\n\n</details>\n`;
+  });
+}
+
+/**
+ * The markdown the book page hands ReactMarkdown, from the notes the server
+ * sent it. The note-search chunker parses the same string, so its chapter
+ * anchors are the ones the page renders.
+ */
+export function renderableNotes(notes: string): string {
+  return processDetailsBlocks(separateCachedQuoteBlocks(notes));
+}
+
 const HEADING_MARKS = /^#{1,6}\s+/;
 
 /**

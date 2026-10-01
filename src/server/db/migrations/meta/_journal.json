@@ -148,6 +148,13 @@
       "when": 1789273191954,
       "tag": "0020_personality_shares",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790888326435,
+      "tag": "0021_book_note_chunks",
+      "breakpoints": true
     }
   ]
 }

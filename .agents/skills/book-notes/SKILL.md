@@ -1,6 +1,6 @@
 ---
 name: book-notes
-description: Query Chappy's personal book library synced from Notion — titles, authors, ratings, tags, reading dates, and full notes/summaries. Use this skill whenever the user asks about books they've read, want to read, notes on a specific book, reading history, ratings, tags/topics, reading pace over time, recommendations based on their library, or anything referencing "my books", "my reading", "what I've read", "the book about X", or a specific title. Prefer this over web search for any question about Chappy's personal reading.
+description: Query Chappy's personal book library synced from Notion — titles, authors, ratings, tags, reading dates, and full notes/summaries. Use this skill whenever the user asks about books they've read, want to read, notes on a specific book, reading history, ratings, tags/topics, reading pace over time, recommendations based on their library, what the notes say about an idea or topic ("what is trust?", "which books should come to mind for X"), or anything referencing "my books", "my reading", "what I've read", "the book about X", or a specific title. Prefer this over web search for any question about Chappy's personal reading.
 ---
 
 # book-notes
@@ -17,6 +17,7 @@ Treat these code paths as authoritative:
 - Notion mapping: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/notion.ts`
 - Sync behavior: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/sync.ts`
 - Supported tag taxonomy: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/tagColors.ts`
+- Note search passages and embeddings: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/noteChunks.ts`, `noteEmbeddings.ts`, and `noteSearch.ts`
 
 If those files change the fields, filters, freshness, or query behavior described here, update this skill in the same code change.
 
@@ -62,6 +63,38 @@ Use this when Chappy asks for a new blank booknotes page with chapter headings /
 
 Credential/path notes: use the `notion` skill for API details. If `$NOTION_API_KEY` is not exported, parse only the `NOTION_API_KEY=` line from `~/.hermes/.env`, then fall back to `~/.config/notion/api_key`.
 
+## Concept and topic questions
+
+Use this flow when Chappy asks what his books say about an idea, or which books should come to mind for it: "what is trust?", "best books I've read on creativity", "what did I read about incentives". Questions about one title, ratings, tags, dates, or reading pace keep the SQL path in "How to query".
+
+Do not write SQL for these questions. `scripts/search.sh` searches every book's note passages by meaning and by keyword and returns books with chapter links.
+
+1. **Write the angles.** Before searching, turn the question into 6 to 8 short angles a book could take on it. For "what is trust?": what trust is, how it is built between people, how it breaks, trust inside teams, trust at society scale, trust in institutions, trust as a default about strangers, trust as an economic mechanism. A narrow question can have fewer.
+2. **Search once with every angle.** Each argument is one angle:
+   ```bash
+   ~/.agents/skills/book-notes/scripts/search.sh "what trust is" "how trust is built between people" "how trust breaks or is betrayed"
+   ```
+   `--books N` (default 25) and `--passages N` (default 3 per book) widen or narrow it. A run takes about 6 seconds.
+3. **Read the passages and keep what bears on the question.** The ranking finds candidates; it does not judge them. Drop passages that only share a word (a "goal-content integrity" bullet is not about trust), then pick the five books most central to the question.
+4. **Pull more context only when a passage is ambiguous.** Each passage is already a whole chapter section or takeaway. For the full notes, query `notes` for that one book with `q.sh`.
+5. **Answer in the format below.**
+
+`search.sh` prints compact JSON: `mode` (`hybrid`, or `keyword` when the queries could not be embedded, with a `warning` to pass on), `queries`, `candidateBooks` (books with any matching passage), and `books`, best first. Each book has `id`, `title`, `author`, `rating` (null when unrated), `status` (`finished` or `reading`), `tags`, `url`, and `passages`. Each passage has `section` (Summary, Key Takeaways, Notes, Chappy's Review), `heading` (the chapter or takeaway), `url` (the book page at that chapter when it has an anchor), `text`, and `queries` (indexes into the top-level `queries` that found it). Abandoned books are already left out.
+
+### Answer format
+
+1. **Synthesis first.** One sentence that answers the question, then one sentence per angle. Attribute claims to their authors ("Sinek ties trust to acting on your values consistently"). These are Chappy's notes on the author's argument, so never write "you believe" from them. When a passage from a Chappy's Review section speaks to the question, lead with it and label it as his view. Name a disagreement only when the notes actually conflict (Axelrod: "the foundation of cooperation is not really trust, but the durability of the relationship"). Length follows the question; 100 to 150 words is typical.
+2. **Then at most 5 books, in one ranked list.** No groups. Rank by centrality, then rating: a book whose Summary, Key Takeaways, or a whole chapter is about the topic outranks one with a passing bullet, and rating breaks ties. A book rated 2 or below makes the list only when no better-rated book covers its angle.
+3. **Each entry leads with the angle the book takes**, in a few words, then the title linked to the passage's chapter `url`, the rating (or "unrated"), and one line from the notes on what it says. Mark a `status: reading` book "reading now". For example:
+   `1. **Trust as social capital.** [Bowling Alone](<https://books.chappyasel.com/bowling-alone#8-reciprocity-honesty-and-trust>) · 5★. Putnam traces the collapse of the networks of trust and reciprocity that make democracy work.`
+4. **Close with the shelf search for the question's key terms**, which lists every book whose notes mention them: `https://books.chappyasel.com/?q=<term>`. Use 1 to 3 short terms that appear in the notes. The shelf requires every word of a term, so prefer single words and tight phrases. For example:
+   `More in my notes: [trust](<https://books.chappyasel.com/?q=trust>) · [social capital](<https://books.chappyasel.com/?q=social%20capital>)`
+5. **Links:** website links only. Give the Notion link only when Chappy asks for it or the task is editing. In Discord, write every link as `[text](<url>)` so it does not unfurl into a preview.
+
+### Freshness
+
+The book sync rebuilds a book's passages when its notes, title, or author change, up to 40 books per sync; the rest follow on later syncs. A failed embedding keeps the book's previous passages and appears in the sync's errors as `note-embeddings`. After a chunker or model change (`CHUNKER_VERSION` and `NOTE_EMBEDDING_MODEL` in `noteEmbeddings.ts`), rebuild everything with `pnpm backfill:book-embeddings` from the repository; it skips books that are already current. Embeddings go through the Vercel AI Gateway with `AI_GATEWAY_API_KEY` from `.env`. The sync and that backfill are the only writers of `book_note_chunks`; never write it by hand.
+
 ## How to query
 
 Run SQL via the bundled script. Output is CSV on stdout.
@@ -76,7 +109,7 @@ Run SQL via the bundled script. Output is CSV on stdout.
 
 ### Freshness caveat
 
-The Postgres book cache syncs at 3 AM and 3 PM Pacific. Vercel schedules crons in UTC, so `vercel.json` fires at both the daylight and the standard-time offset and the route skips whichever run is not on one of those Pacific hours. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; undated want-to-read pages are intentionally outside the SQL mirror. A new skeleton gets `Started` at creation, so it enters the mirror on the next sync. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
+The Postgres book cache syncs at 3 AM and 3 PM Pacific. Vercel schedules crons in UTC, so `vercel.json` fires at both the daylight and the standard-time offset and the route skips whichever run is not on one of those Pacific hours. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; undated want-to-read pages are intentionally outside the SQL mirror. A new skeleton gets `Started` at creation, so it enters the mirror on the next sync. Note-search passages follow the mirrored notes (see "Concept and topic questions"). If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
 
 For existing mirrored books, the sync saves author, publication year, cover, pages, audio runtime, Audible URL, and featured selection before downloading notes. It computes slugs after acknowledged enrichment writes and moves selected slugs in a transaction that preserves notes and tags. The cron and website manual-sync action invalidate affected caches before downloading notes. Failed note downloads leave the previous notes and their `last_edited_time` watermark intact, so properties can be newer than that watermark. New books still need their initial successful note fetch before appearing on the shelf.
 

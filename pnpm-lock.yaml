@@ -187,6 +187,12 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-rehype:
+        specifier: ^11.1.2
+        version: 11.1.2
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
@@ -208,6 +214,9 @@ importers:
       three-stdlib:
         specifier: 2.36.1
         version: 2.36.1(three@0.185.1)
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       zod:
         specifier: 4.3.6
         version: 4.3.6

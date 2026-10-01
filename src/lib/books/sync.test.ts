@@ -8,6 +8,14 @@ const mocks = vi.hoisted(() => ({
   fetchBooks: vi.fn(),
   fetchDetails: vi.fn(),
   findMany: vi.fn(),
+  refreshEmbeddings: vi.fn(async () => ({
+    booksEmbedded: 0,
+    passagesWritten: 0,
+    booksPending: 0,
+    booksWithoutPassages: 0,
+    booksRemoved: 0,
+    failures: [] as Array<{ notionId: string; title: string; error: string }>,
+  })),
   updates: [] as Record<string, unknown>[],
 }));
 
@@ -16,6 +24,9 @@ vi.mock("./metadataEnrichment", () => ({
   enrichNotionBook: vi.fn(async (book: NotionBook) => book),
 }));
 vi.mock("./coverColor.server", () => ({ resolveCoverColor: vi.fn() }));
+vi.mock("./noteEmbeddings", () => ({
+  refreshNoteEmbeddings: mocks.refreshEmbeddings,
+}));
 vi.mock("./notion", () => ({
   fetchBooksFromNotion: mocks.fetchBooks,
   fetchBookDetails: mocks.fetchDetails,
@@ -163,5 +174,58 @@ describe("author changes during book sync", () => {
     await syncBooksFromNotion("manual", refresh);
     expect(refresh).not.toHaveBeenCalled();
     expect(mocks.updates.some((update) => "author" in update)).toBe(false);
+  });
+});
+
+describe("note search refresh during book sync", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.updates.length = 0;
+    mocks.fetchBooks.mockResolvedValue([book]);
+    mocks.fetchDetails.mockRejectedValue(new Error("Notes unavailable"));
+    mocks.findMany.mockResolvedValue([
+      {
+        ...book,
+        ...storedDates,
+        lastEditedTime: new Date("2026-09-08T00:00:00Z"),
+      },
+    ]);
+  });
+
+  it("reports a failed refresh as a sync error instead of failing the sync", async () => {
+    mocks.refreshEmbeddings.mockRejectedValueOnce(new Error("Gateway away"));
+    const result = await syncBooksFromNotion("cron");
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        bookId: "note-embeddings",
+        error: "Gateway away",
+      }),
+    );
+  });
+
+  it("names the books a refresh could not embed", async () => {
+    mocks.refreshEmbeddings.mockResolvedValueOnce({
+      booksEmbedded: 0,
+      passagesWritten: 0,
+      booksPending: 0,
+      booksWithoutPassages: 0,
+      booksRemoved: 0,
+      failures: [
+        { notionId: book.notionId, title: book.title, error: "Rate limited" },
+      ],
+    });
+    const result = await syncBooksFromNotion("cron");
+    expect(
+      result.errors.find((error) => error.bookId === "note-embeddings")?.error,
+    ).toBe("1 book(s) not embedded: Test Book (Rate limited)");
+  });
+
+  it("limits a scoped sync's refresh to the selected pages", async () => {
+    await syncBooksFromNotion("manual", undefined, {
+      onlyNotionIds: [book.notionId],
+    });
+    expect(mocks.refreshEmbeddings).toHaveBeenCalledWith(
+      expect.objectContaining({ onlyNotionIds: new Set([book.notionId]) }),
+    );
   });
 });

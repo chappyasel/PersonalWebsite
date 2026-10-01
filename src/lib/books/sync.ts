@@ -8,6 +8,7 @@ import { stripCoverCurl } from "./coverUtils";
 import { notionDateToInstant } from "./dates";
 import { needsMetadata, selectMetadataBatch } from "./metadata";
 import { enrichNotionBook } from "./metadataEnrichment";
+import { refreshNoteEmbeddings } from "./noteEmbeddings";
 import {
   type NotionBook,
   WEBSITE_PROPERTY,
@@ -326,6 +327,8 @@ export async function syncBooksFromNotion(
         timestamp: new Date(),
       }));
     if (guardError) errors.push(guardError);
+    const embeddingError = await refreshNoteSearch(onlyIds);
+    if (embeddingError) errors.push(embeddingError);
     const result: SyncResult = {
       totalBooksInNotion: notionBooks.length,
       booksAdded: newBooks.length,
@@ -349,6 +352,49 @@ export async function syncBooksFromNotion(
       error: error instanceof Error ? error.message : "Unknown error",
     });
     throw error;
+  }
+}
+
+/**
+ * Most books one sync embeds for note search. A sync usually changes a few;
+ * a bulk rebuild (a new chunker version) goes through
+ * `pnpm backfill:book-embeddings` or spreads over later syncs.
+ */
+const MAX_EMBEDDED_BOOKS_PER_SYNC = 40;
+
+/**
+ * Rebuild note-search passages for the books whose notes changed. A failure
+ * (the AI Gateway away, a model error) keeps the previous passages and comes
+ * back as one sync error; the next sync sees the same stale books and
+ * retries them.
+ */
+async function refreshNoteSearch(
+  onlyNotionIds: ReadonlySet<string> | undefined,
+): Promise<SyncError | null> {
+  const error = (message: string): SyncError => ({
+    bookId: "note-embeddings",
+    bookTitle: "Note search passages",
+    error: message,
+    timestamp: new Date(),
+  });
+  try {
+    const refresh = await refreshNoteEmbeddings({
+      onlyNotionIds,
+      maxBooks: MAX_EMBEDDED_BOOKS_PER_SYNC,
+    });
+    console.log("Note search refresh:", {
+      ...refresh,
+      failures: refresh.failures.length,
+    });
+    if (!refresh.failures.length) return null;
+    return error(
+      `${refresh.failures.length} book(s) not embedded: ${refresh.failures
+        .map((failure) => `${failure.title} (${failure.error})`)
+        .join("; ")}`,
+    );
+  } catch (cause) {
+    console.error("Note search refresh failed:", cause);
+    return error(cause instanceof Error ? cause.message : "Unknown error");
   }
 }
 

@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   doublePrecision,
   index,
   integer,
@@ -193,6 +194,57 @@ export const bookTags = pgTable(
     ),
     tagNameIdx: index("tag_name_idx").on(table.tagName),
     bookIdIdx: index("book_tag_book_id_idx").on(table.bookId),
+  }),
+);
+
+/**
+ * pgvector's `vector(n)` column. drizzle-orm 0.30 has no native vector type;
+ * the driver reads and writes the extension's text form, `[0.1,0.2,...]`.
+ */
+const vector = customType<{
+  data: number[];
+  driverData: string;
+  config: { dimensions: number };
+}>({
+  dataType: (config) => `vector(${config?.dimensions ?? 1024})`,
+  toDriver: (value) => `[${value.join(",")}]`,
+  fromDriver: (value) => value.slice(1, -1).split(",").map(Number),
+});
+
+/**
+ * Note search: each book's notes split into chapter-sized passages
+ * (src/lib/books/noteChunks.ts), each with an embedding. The sync rewrites
+ * a book's passages when its notes, title, or author change.
+ *
+ * Keyed by Notion page, not slug, and without a foreign key: a slug move
+ * deletes and reinserts the books row, which would cascade away passages
+ * whose notes did not change. Search joins on `books.notion_id`, and the
+ * embedding refresh removes passages whose page left the mirror.
+ */
+export const bookNoteChunks = pgTable(
+  "book_note_chunks",
+  {
+    id: serial("id").primaryKey(),
+    notionId: varchar("notion_id", { length: 255 }).notNull(),
+    ordinal: integer("ordinal").notNull(),
+    section: text("section"),
+    heading: text("heading"),
+    // The book page's id for the passage's chapter, for deep links.
+    anchor: varchar("anchor", { length: 255 }),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 1024 }).notNull(),
+    // Hash of what the passages were built from (notes, title, author,
+    // chunker version, model). Identical on every passage of one book.
+    sourceHash: varchar("source_hash", { length: 64 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  },
+  (table) => ({
+    notionOrdinalIdx: uniqueIndex("book_note_chunk_notion_ordinal_idx").on(
+      table.notionId,
+      table.ordinal,
+    ),
   }),
 );
 

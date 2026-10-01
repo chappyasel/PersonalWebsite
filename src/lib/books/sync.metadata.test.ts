@@ -35,6 +35,9 @@ vi.mock("./notion", () => ({
   WEBSITE_PROPERTY: "Website",
 }));
 vi.mock("./metadataEnrichment", () => ({ enrichNotionBook: mocks.enrich }));
+vi.mock("./noteEmbeddings", () => ({
+  refreshNoteEmbeddings: vi.fn(async () => ({ failures: [] })),
+}));
 vi.mock("./notionClient", () => ({
   createBookNotionClient: () => ({ pages: { update: mocks.updateNotion } }),
 }));
