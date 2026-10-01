@@ -14,6 +14,11 @@ import { UNIVERSAL_SEARCH_OPEN_ATTRIBUTE } from "~/lib/universal-search/overlay"
 
 export const OPEN_UNIVERSAL_SEARCH_EVENT = "chappy:universal-search:open";
 
+/** The valueless query key that opens the palette (`/books?search`). The
+ * controller adds and deletes it on every open and close, so no page may
+ * use the same key for its own state. */
+export const UNIVERSAL_SEARCH_PARAM = "search";
+
 export type UniversalSearchPaletteProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -119,9 +124,9 @@ export function openUniversalSearch() {
 
 function setSearchRequest(open: boolean) {
   const url = new URL(window.location.href);
-  if (url.searchParams.has("search") === open) return;
-  if (open) url.search += `${url.search ? "&" : "?"}search`;
-  else url.searchParams.delete("search");
+  if (url.searchParams.has(UNIVERSAL_SEARCH_PARAM) === open) return;
+  if (open) url.search += `${url.search ? "&" : "?"}${UNIVERSAL_SEARCH_PARAM}`;
+  else url.searchParams.delete(UNIVERSAL_SEARCH_PARAM);
   window.history.replaceState(
     window.history.state,
     "",
@@ -141,7 +146,7 @@ function SearchUrlTrigger({
   onClose: () => void;
 }) {
   const params = useSearchParams();
-  const requested = params?.has("search") ?? false;
+  const requested = params?.has(UNIVERSAL_SEARCH_PARAM) ?? false;
   const previous = useRef(false);
   useEffect(() => {
     if (previous.current === requested) return;

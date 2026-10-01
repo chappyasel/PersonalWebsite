@@ -1,6 +1,6 @@
 const MAX_EXCERPT_CODE_POINTS = 220;
 
-function stripMarkup(value: string) {
+export function stripMarkup(value: string) {
   return value
     .replace(/&(?:lt|#0*60|#x0*3c);/gi, "<")
     .replace(/&(?:gt|#0*62|#x0*3e);/gi, ">")

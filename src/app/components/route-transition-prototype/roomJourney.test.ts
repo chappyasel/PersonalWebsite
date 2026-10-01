@@ -135,7 +135,7 @@ it("keeps the entry point through Next and filter replacements, without copying 
     writeRoomJourney(journey);
     history.replaceState({ __NA: true, routerTree: "new tree" }, "", "/books");
     expect(readRoomJourney(history.state)).toEqual(journey);
-    history.replaceState(null, "", "/books?search=behave");
+    history.replaceState(null, "", "/books?q=behave");
     expect(readRoomJourney(history.state)).toEqual(journey);
     history.replaceState({ modal: true }, "", "/books/behave");
     expect(readRoomJourney(history.state)).toBeNull();

@@ -90,6 +90,7 @@ import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { cn } from "~/lib/util";
 
 import { OverlayPresence } from "~/components/overlays/OverlayPresence";
+import { SearchMark } from "~/components/ui/search-mark";
 import { Button } from "~/components/ui/button";
 import { Keycap, KeycapSequence } from "~/components/ui/keycap";
 
@@ -185,12 +186,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, index) =>
         index % 2 === 1 ? (
-          <mark
-            key={index}
-            className="rounded-[2px] bg-amber-500/25 text-inherit dark:bg-amber-300/25"
-          >
-            {part}
-          </mark>
+          <SearchMark key={index}>{part}</SearchMark>
         ) : (
           part
         ),

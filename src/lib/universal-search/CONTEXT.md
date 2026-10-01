@@ -12,6 +12,14 @@ also adds the flag; closing removes it. Both use history replacement, preserving
 the route, filters, shelf hash, and existing history state without adding Back
 button entries.
 The URL flag opens the existing palette; it does not supply a search query.
+The `search` key is reserved for this flag on every route. A page that keeps
+its own text filter in the URL uses another key; the Books shelf uses `q`.
+
+The Books shelf's own search box answers from the same full-text index as the
+palette's Books group. Covers filter by title and author in the browser, and a
+"Mentioned in notes" list under them shows each book whose notes match, with
+the passage. The shelf intersects those matches with its tag and rating
+filters; the palette does not filter.
 
 ## Language
 

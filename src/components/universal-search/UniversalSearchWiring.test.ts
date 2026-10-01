@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { searchParamsParsers as booksParsers } from "~/app/books/lib/searchParams";
+
+import { UNIVERSAL_SEARCH_PARAM } from "./UniversalSearchController";
+
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
@@ -14,6 +18,16 @@ describe("universal search shell wiring", () => {
       'import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController"',
     );
     expect(layout).toContain("<UniversalSearchController />");
+  });
+
+  // The controller adds and deletes this key on every open and close. When
+  // the Books filter also lived at `?search`, typing in its box opened the
+  // palette and closing the palette wiped the filter.
+  it("keeps the palette's URL flag out of the Books shelf's own query state", () => {
+    expect(Object.keys(booksParsers)).not.toContain(UNIVERSAL_SEARCH_PARAM);
+    expect(source("src/app/books/components/BookSearch.tsx")).toContain(
+      'useQueryState("q")',
+    );
   });
 
   it("keeps the palette behind a dynamic import", () => {

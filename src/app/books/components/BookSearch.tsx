@@ -8,7 +8,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 
 export function BookSearch() {
-  const [search, setSearch] = useQueryState("search");
+  const [search, setSearch] = useQueryState("q");
   const [inputValue, setInputValue] = useState(search ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -81,7 +81,7 @@ export function BookSearch() {
       <Input
         ref={inputRef}
         type="text"
-        placeholder="Search books by title or author..."
+        placeholder="Search titles, authors, and notes..."
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => {
