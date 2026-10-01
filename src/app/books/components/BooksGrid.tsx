@@ -10,7 +10,7 @@ import {
 } from "../lib/format";
 import { searchParamsParsers } from "../lib/searchParams";
 import { resolveSort } from "../lib/sort";
-import { useIsRestoring } from "@tanstack/react-query";
+import { keepPreviousData, useIsRestoring } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,10 +21,12 @@ import {
   coverColorLabel,
   orderByCoverColor,
 } from "~/lib/books/coverColor";
+import { noteSearchQuery } from "~/lib/books/notesSearch";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
+import { type BookNoteRow, BookNoteMatches } from "./BookNoteMatches";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
 import { ReadingStatsPopover } from "./ReadingStatsPopover";
@@ -36,6 +38,9 @@ const sizeWidths = {
   M: "170px",
   L: "260px",
 } as const;
+
+/** The last item in the virtualized list while a search has note matches. */
+const NOTE_SECTION = { key: "note-matches", books: null } as const;
 
 type BooksGridProps = {
   initialBooks: Book[];
@@ -75,7 +80,7 @@ export function BooksGrid({
     params.hasSummary,
     params.isReread,
     params.abandoned,
-    params.search,
+    params.q,
     params.sort,
     params.order,
   ]);
@@ -117,12 +122,14 @@ export function BooksGrid({
       hasSummary: null,
       isReread: null,
       abandoned: null,
-      search: "",
+      q: "",
     });
   };
 
-  // Client-side filtering and sorting (memoized to allow useEffect before early returns)
-  const books = useMemo(() => {
+  // The shelf under every filter except the text query. The covers narrow
+  // it by title and author; the notes search narrows the same set by what
+  // the notes say, so tags and ratings apply to both.
+  const shelf = useMemo(() => {
     if (!allBooks || allBooks.length === 0) return [];
 
     // In zoom-out mode, skip filtering (show all books)
@@ -169,15 +176,33 @@ export function BooksGrid({
         filteredBooks = filteredBooks.filter((book) => book.readNumber > 1);
       }
 
-      // Filter by search query
-      if (params.search) {
-        const searchLower = params.search.toLowerCase();
-        filteredBooks = filteredBooks.filter(
-          (book) =>
-            book.title.toLowerCase().includes(searchLower) ||
-            book.author.toLowerCase().includes(searchLower),
-        );
-      }
+    }
+
+    return filteredBooks;
+  }, [
+    allBooks,
+    isZoomOut,
+    params.tags,
+    params.minRating,
+    params.hasNotes,
+    params.hasSummary,
+    params.isReread,
+    params.abandoned,
+  ]);
+
+  // Client-side text filter and sorting (memoized to allow useEffect before
+  // early returns)
+  const books = useMemo(() => {
+    let filteredBooks = shelf;
+
+    // Filter by search query
+    if (!isZoomOut && params.q) {
+      const searchLower = params.q.toLowerCase();
+      filteredBooks = filteredBooks.filter(
+        (book) =>
+          book.title.toLowerCase().includes(searchLower) ||
+          book.author.toLowerCase().includes(searchLower),
+      );
     }
 
     // Client-side sorting (still applies in zoom-out mode). Color is not a
@@ -229,19 +254,48 @@ export function BooksGrid({
 
       return sortOrder === "desc" ? -comparison : comparison;
     });
-  }, [
-    allBooks,
-    isZoomOut,
-    params.tags,
-    params.minRating,
-    params.hasNotes,
-    params.hasSummary,
-    params.isReread,
-    params.abandoned,
-    params.search,
-    sortField,
-    sortOrder,
-  ]);
+  }, [shelf, isZoomOut, params.q, sortField, sortOrder]);
+
+  // Full-text search of the notes, the second half of the search box. The
+  // covers above answer instantly from the loaded shelf; this asks the
+  // server and lists its answers under them. Zoom-out shows every book
+  // whatever the filters say, so it skips the search.
+  const noteQuery = isZoomOut ? null : noteSearchQuery(params.q);
+  const noteSearch = api.books.searchNotes.useQuery(
+    { query: noteQuery ?? "" },
+    {
+      enabled: noteQuery !== null,
+      staleTime: 5 * 60 * 1000,
+      // Hold the last answer while the next one loads, so the list dims
+      // and updates instead of collapsing on every keystroke.
+      placeholderData: keepPreviousData,
+    },
+  );
+  const noteMatches = noteQuery === null ? undefined : noteSearch.data;
+  const isSearchingNotes =
+    noteQuery !== null &&
+    !noteSearch.isError &&
+    (noteSearch.isPending || noteSearch.isPlaceholderData);
+
+  // A book the covers already show is not repeated as a row.
+  const noteRows = useMemo<BookNoteRow[]>(() => {
+    if (!noteMatches) return [];
+    const shown = new Set(books.map((book) => book.id));
+    const onShelf = new Map(shelf.map((book) => [book.id, book]));
+    return noteMatches.flatMap((match) => {
+      const book = onShelf.get(match.bookId);
+      return book && !shown.has(book.id)
+        ? [{ book, excerpt: match.excerpt }]
+        : [];
+    });
+  }, [noteMatches, books, shelf]);
+  const showNoteMatches = isSearchingNotes || noteRows.length > 0;
+
+  // Arrow keys walk the covers and carry on into the note rows.
+  const navigableBooks = useMemo(
+    () => [...books, ...noteRows.map((row) => row.book)],
+    [books, noteRows],
+  );
 
   // Report total book count to parent (for zoom-out button calculation)
   // We use allBooks.length since zoom-out mode shows ALL books regardless of filters
@@ -252,7 +306,7 @@ export function BooksGrid({
   // Initialize keyboard navigation
   const { focusedBookId, showFocusIndicator, copyTrigger, setHoveredBookId } =
     useKeyboardNavigation({
-      books,
+      books: navigableBooks,
       isZoomOut,
     });
 
@@ -300,15 +354,16 @@ export function BooksGrid({
     return <EmptyState type="no-books" onClearFilters={handleClearFilters} />;
   }
 
-  // Check if filters resulted in no books
-  if (books.length === 0) {
+  // Check if filters resulted in no books. A search is only empty once the
+  // notes have answered too.
+  if (books.length === 0 && !showNoteMatches) {
     const hasFilters =
       params.tags.length > 0 ||
       (params.minRating ??
         params.hasNotes ??
         params.hasSummary ??
         params.isReread ??
-        params.search) !== null;
+        params.q) !== null;
 
     return (
       <EmptyState
@@ -400,15 +455,30 @@ export function BooksGrid({
 
   // Create sections array for virtualization. Without headers there is one
   // section holding the whole sorted list, so the grid never breaks a row.
-  const sections = hideHeaders
+  const coverSections = hideHeaders
     ? [{ key: "all", books }]
     : groupKeys.map((key) => ({
         key,
         books: groupedBooks[key]!,
       }));
+  const sections: Array<(typeof coverSections)[number] | typeof NOTE_SECTION> =
+    showNoteMatches
+      ? [...coverSections.filter((s) => s.books.length > 0), NOTE_SECTION]
+      : coverSections;
+
+  const renderNoteMatches = () => (
+    <BookNoteMatches
+      key={NOTE_SECTION.key}
+      rows={noteRows}
+      isSearching={isSearchingNotes}
+      focusedBookId={focusedBookId}
+      showFocusIndicator={showFocusIndicator}
+      onHover={setHoveredBookId as (bookId: string | null) => void}
+    />
+  );
 
   // Shared section renderer
-  const renderSection = (section: (typeof sections)[number]) => (
+  const renderSection = (section: (typeof coverSections)[number]) => (
     <div key={section.key} className="flex flex-col gap-4 pb-8">
       {/* Section Header — year headers get a stats popover */}
       {!hideHeaders && (
@@ -476,7 +546,9 @@ export function BooksGrid({
 
   // In zoom-out mode, render all sections without virtualization
   if (isZoomOut) {
-    return <div className="flex flex-col">{sections.map(renderSection)}</div>;
+    return (
+      <div className="flex flex-col">{coverSections.map(renderSection)}</div>
+    );
   }
 
   // Normal mode with virtualization
@@ -488,7 +560,11 @@ export function BooksGrid({
       isScrolling={setIsScrolling}
       overscan={200} // Buffer pixels above/below viewport
       initialItemCount={1}
-      itemContent={(_, section) => renderSection(section)}
+      itemContent={(_, section) =>
+        section.books === null
+          ? renderNoteMatches()
+          : renderSection(section)
+      }
     />
   );
 }

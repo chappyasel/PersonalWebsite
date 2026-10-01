@@ -7,6 +7,10 @@ import {
   computeReadingAnalytics,
 } from "~/lib/books/analytics";
 import { refreshBookCachesAfterSync } from "~/lib/books/cacheInvalidation";
+import {
+  NOTE_SEARCH_MAX_QUERY_LENGTH,
+  noteSearchQuery,
+} from "~/lib/books/notesSearch";
 import { getBookWithNotes } from "~/lib/books/ogDataAccess";
 import { syncBooksFromNotion } from "~/lib/books/sync";
 import {
@@ -16,6 +20,7 @@ import {
 } from "~/server/api/trpc";
 import { db } from "~/server/db";
 import { books, syncMetadata } from "~/server/db/schema";
+import { searchBookNotes } from "~/server/queries/bookNotesSearch";
 import {
   bookCollectionInputSchema,
   getBookStats,
@@ -30,6 +35,17 @@ export const booksRouter = createTRPCRouter({
   getAll: publicProcedure
     .input(bookCollectionInputSchema)
     .query(({ input }) => getBooks(input)),
+
+  /**
+   * Books whose notes mention the query, with the matching passage. The
+   * shelf lists these under its title and author matches.
+   */
+  searchNotes: publicProcedure
+    .input(z.object({ query: z.string().max(NOTE_SEARCH_MAX_QUERY_LENGTH) }))
+    .query(({ input }) => {
+      const query = noteSearchQuery(input.query);
+      return query ? searchBookNotes(query) : [];
+    }),
 
   /**
    * Get book by ID with full notes
