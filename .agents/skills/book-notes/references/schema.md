@@ -176,9 +176,11 @@ a 1024-dimension `voyage-4-large` embedding. For a concept question, use
 `scripts/search.sh` rather than querying it: a vector search needs the
 question embedded first. It is keyed by `notion_id`, not the slug, with no
 foreign key, because a slug move deletes and reinserts the `books` row.
-`anchor` is the id the book page renders for the passage's chapter, so
+`anchor` is the id the book page renders for the passage's chapter, or for
+the takeaway toggle itself, so
 `'https://books.chappyasel.com/' || b.id || '#' || c.anchor` opens the page
-at that chapter. Passages are cut from the notes as the page shows them, so
+at that chapter, unfolding a takeaway. The shelf's "Mentioned in notes" rows
+and the Command palette's notes matches link the same way. Passages are cut from the notes as the page shows them, so
 unwritten skeleton sections have none.
 
 ```sql

@@ -36,6 +36,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -418,9 +419,13 @@ function AnimatedDetails({
       const hash = bookNoteHash();
       const self = ref.current;
       if (!hash || !self) return;
-      const target = Array.from(self.querySelectorAll("[id]")).find(
-        (element) => element.id === hash,
-      );
+      // A takeaway link names the toggle itself; a chapter link, something
+      // inside it.
+      const target =
+        self.id === hash ||
+        Array.from(self.querySelectorAll("[id]")).some(
+          (element) => element.id === hash,
+        );
       if (target) setIsOpen(true);
     }
     handle();
@@ -448,7 +453,7 @@ function AnimatedDetails({
     <div
       {...divProps}
       ref={ref}
-      className={cn("my-1.5 pl-[26px]", className)}
+      className={cn("my-1.5 scroll-mt-24 pl-[26px]", className)}
       data-expanded={isOpen}
     >
       <button
@@ -1054,6 +1059,32 @@ export function BookDetailContent({
     ChapterHeading.displayName = `Chapter${Tag.toUpperCase()}`;
     return ChapterHeading;
   };
+  // A chapter written as a bold paragraph carries an id too
+  // (rehypeBookHeadingAnchors) and gets the headings' copy-link button.
+  // Every other paragraph renders as before. Memoized: a new component type
+  // each render would remount every paragraph in the notes.
+  const ChapterLabel = useMemo(() => {
+    const Label = ({
+      node: _node,
+      children,
+      id,
+      ...props
+    }: ComponentPropsWithoutRef<"p"> & { node?: unknown }) =>
+      id ? (
+        <p {...props} id={id} className="group/sec">
+          {children}
+          <AnchorLink
+            id={id}
+            url={chapterUrl}
+            className="ml-1 inline-flex align-middle"
+          />
+        </p>
+      ) : (
+        <p {...props}>{children}</p>
+      );
+    Label.displayName = "ChapterLabel";
+    return Label;
+  }, [chapterUrl]);
 
   // Arriving on a chapter link: the notes load after the page, so scroll
   // once they are in the tree and any folded block around the target has
@@ -1786,6 +1817,7 @@ export function BookDetailContent({
                           h2: chapterHeading("h2"),
                           h3: chapterHeading("h3"),
                           h4: chapterHeading("h4"),
+                          p: ChapterLabel,
                           img: ({ src, alt, ...props }) => {
                             if (!src) return null;
                             return (

@@ -174,7 +174,8 @@ export function chunkBookNotes(notes: string): NoteChunk[] {
           anchor: id,
         };
       } else if (isElement(node, "details")) {
-        // A takeaway toggle is its own passage under its summary; whatever
+        // A takeaway toggle is its own passage under its summary, linked to
+        // the toggle (which opens when the address names it); whatever
         // chapter context it sat in comes back once it closes.
         flush();
         const outer = context;
@@ -193,6 +194,7 @@ export function chunkBookNotes(notes: string): NoteChunk[] {
             ...context,
             heading: context.heading ? `${context.heading} › ${title}` : title,
           };
+        if (typeof id === "string") context = { ...context, anchor: id };
         flow((node.children ?? []).filter((child) => child !== summary));
         flush();
         context = outer;

@@ -14,13 +14,17 @@ import { api } from "~/trpc/react";
 
 import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
-
 import { SearchMark } from "~/components/ui/search-mark";
 
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import { cn } from "@/src/lib/util";
 
-export type BookNoteRow = { book: Book; excerpt: NoteExcerptSegment[] };
+export type BookNoteRow = {
+  book: Book;
+  excerpt: NoteExcerptSegment[];
+  /** The chapter the excerpt came from; the row opens the book there. */
+  anchor: string | null;
+};
 
 type BookNoteMatchesProps = {
   rows: BookNoteRow[];
@@ -87,7 +91,7 @@ export function BookNoteMatches({
 }
 
 function BookNoteMatchRow({
-  row: { book, excerpt },
+  row: { book, excerpt, anchor },
   isKeyboardFocused,
   onHover,
 }: {
@@ -101,7 +105,11 @@ function BookNoteMatchRow({
   const utils = api.useUtils();
   const rowRef = useRef<HTMLButtonElement>(null);
   const coverUrl = enhanceCoverUrl(book.coverUrl);
-  const bookUrl = bookPath(book.id, searchParams.toString());
+  // The book view scrolls to the chapter once its notes load, opening a
+  // folded takeaway if that is where the passage lives.
+  const bookUrl = `${bookPath(book.id, searchParams.toString())}${
+    anchor ? `#${encodeURIComponent(anchor)}` : ""
+  }`;
 
   // The same open a cover performs (BookCard.handleClick).
   const handleClick = () => {

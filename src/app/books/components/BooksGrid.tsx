@@ -26,7 +26,7 @@ import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
-import { type BookNoteRow, BookNoteMatches } from "./BookNoteMatches";
+import { BookNoteMatches, type BookNoteRow } from "./BookNoteMatches";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
 import { ReadingStatsPopover } from "./ReadingStatsPopover";
@@ -175,7 +175,6 @@ export function BooksGrid({
       if (params.isReread !== null && params.isReread !== undefined) {
         filteredBooks = filteredBooks.filter((book) => book.readNumber > 1);
       }
-
     }
 
     return filteredBooks;
@@ -285,7 +284,7 @@ export function BooksGrid({
     return noteMatches.flatMap((match) => {
       const book = onShelf.get(match.bookId);
       return book && !shown.has(book.id)
-        ? [{ book, excerpt: match.excerpt }]
+        ? [{ book, excerpt: match.excerpt, anchor: match.anchor }]
         : [];
     });
   }, [noteMatches, books, shelf]);
@@ -561,9 +560,7 @@ export function BooksGrid({
       overscan={200} // Buffer pixels above/below viewport
       initialItemCount={1}
       itemContent={(_, section) =>
-        section.books === null
-          ? renderNoteMatches()
-          : renderSection(section)
+        section.books === null ? renderNoteMatches() : renderSection(section)
       }
     />
   );

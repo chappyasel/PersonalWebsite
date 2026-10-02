@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type NoteSearchHit, rankNoteSearchHits } from "./noteSearch";
+import { type NoteSearchHit, rankNoteSearchHits } from "./semanticNoteSearch";
 
 vi.mock("~/server/db", () => ({ db: {} }));
 

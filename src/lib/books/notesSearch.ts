@@ -24,6 +24,9 @@ export type BookNoteMatch = {
   /** One passage from the notes, split so the shelf can set the matched
    * words in a heavier weight. */
   excerpt: NoteExcerptSegment[];
+  /** The book page's id for the chapter or takeaway the passage came from,
+   * so the row opens there. Null when the match spans passages. */
+  anchor: string | null;
 };
 
 const ESCAPE_BASE = 0xe000;

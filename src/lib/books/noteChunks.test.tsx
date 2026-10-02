@@ -65,7 +65,7 @@ describe("chunkBookNotes", () => {
       {
         section: "Key Takeaways",
         heading: "Build trusting teams before expecting performance",
-        anchor: "key-takeaways",
+        anchor: "build-trusting-teams-before-expecting-performance",
         text: "- Navy SEALs rank on performance and trust\n- Leaders take the first step",
       },
       {
@@ -97,6 +97,19 @@ describe("chunkBookNotes", () => {
       "notes-2",
       "notes-3",
     ]);
+  });
+
+  it("anchors each takeaway toggle on the toggle itself", () => {
+    const ids = renderedIds(NOTES);
+    expect(ids).toContain("build-trusting-teams-before-expecting-performance");
+    const html = renderToStaticMarkup(
+      <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeBookHeadingAnchors]}>
+        {renderableNotes(NOTES)}
+      </ReactMarkdown>,
+    );
+    expect(html).toContain(
+      '<details id="build-trusting-teams-before-expecting-performance">',
+    );
   });
 
   it("leaves paragraphs that only start in bold unanchored", () => {

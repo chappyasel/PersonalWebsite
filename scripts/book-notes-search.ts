@@ -9,7 +9,7 @@
  */
 // Env comes from `node --env-file` in search.sh: ~/server/db validates env
 // at module-evaluation time, and ESM hoists imports above any statement.
-import { searchBookNotes } from "../src/lib/books/noteSearch";
+import { searchNotesByMeaning } from "../src/lib/books/semanticNoteSearch";
 
 function numberFlag(args: string[], name: string): number | undefined {
   const index = args.indexOf(name);
@@ -25,7 +25,7 @@ async function main() {
   const args = process.argv.slice(2);
   const maxBooks = numberFlag(args, "--books");
   const maxPassagesPerBook = numberFlag(args, "--passages");
-  const result = await searchBookNotes({
+  const result = await searchNotesByMeaning({
     queries: args,
     maxBooks,
     maxPassagesPerBook,

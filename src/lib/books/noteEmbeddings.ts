@@ -18,7 +18,7 @@ export const NOTE_EMBEDDING_MODEL = "voyage/voyage-4-large";
  * hold. Every book's source hash changes with it, so the next refresh
  * rebuilds them all.
  */
-const CHUNKER_VERSION = 1;
+const CHUNKER_VERSION = 2;
 
 /** Stop starting books once this many in a row have failed (a missing key). */
 const MAX_CONSECUTIVE_FAILURES = 3;

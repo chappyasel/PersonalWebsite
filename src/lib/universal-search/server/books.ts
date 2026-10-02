@@ -32,6 +32,9 @@ export type BookSearchRow = {
   tags: string[];
   notes: string | null;
   cover_url: string | null;
+  /** The book page's id for the first note passage that holds the query,
+   * so a notes match opens at its chapter. */
+  anchor?: string | null;
 };
 
 export type BookSearchLoader = (
@@ -145,7 +148,23 @@ export async function loadBookSearchRows(
           ORDER BY bt.tag_name
         ) AS tags,
         ${strippedNotes} AS notes,
-        b.cover_url
+        b.cover_url,
+        -- The chapter of the excerpt: the first passage, in page order,
+        -- holding the query as written (the excerpt centres on its first
+        -- occurrence), else the first one the stemmed query matches.
+        (
+          SELECT c.anchor
+          FROM book_note_chunks c
+          WHERE c.notion_id = b.notion_id
+            AND (
+              position(${query} IN lower(coalesce(c.heading, '') || ' ' || c.content)) > 0
+              OR to_tsvector('english', c.content) @@ plainto_tsquery('english', ${query})
+            )
+          ORDER BY
+            position(${query} IN lower(coalesce(c.heading, '') || ' ' || c.content)) = 0,
+            c.ordinal
+          LIMIT 1
+        ) AS anchor
       FROM deduplicated d
       JOIN books b ON b.id = d.id
       ORDER BY d.match_priority, d.text_rank DESC, b.title
@@ -201,6 +220,8 @@ export async function searchBooks(
         kind: "site",
         site: "books",
         path: `/${encodeURIComponent(row.id)}`,
+        // A match in the notes opens the book at the passage's chapter.
+        ...(row.matchKind === "body" && row.anchor ? { hash: row.anchor } : {}),
       },
       options.location,
     ),

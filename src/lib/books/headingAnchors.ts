@@ -29,9 +29,23 @@ export function chapterLabelOf(node: MarkdownNode): MarkdownNode | null {
 }
 
 /**
- * Assign heading and chapter-label ids in document order before React
- * renders any components. Labels share the headings' id set, so a link to
- * any chapter in the notes resolves to one element.
+ * A toggle's summary (a Key Takeaways item), whose words name the toggle's
+ * anchor. Null for anything else.
+ */
+function toggleSummaryOf(node: MarkdownNode): MarkdownNode | null {
+  if (node.type !== "element" || node.tagName !== "details") return null;
+  return (
+    node.children?.find(
+      (child) => child.type === "element" && child.tagName === "summary",
+    ) ?? null
+  );
+}
+
+/**
+ * Assign heading, chapter-label, and toggle ids in document order before
+ * React renders any components. All three share one id set, so a link to any
+ * chapter or takeaway in the notes resolves to one element. A toggle's id
+ * sits on the toggle itself, which opens when the address names it.
  */
 export function rehypeBookHeadingAnchors() {
   return (tree: MarkdownNode) => {
@@ -40,7 +54,7 @@ export function rehypeBookHeadingAnchors() {
       const anchored =
         node.type === "element" && /^h[1-4]$/.test(node.tagName ?? "")
           ? node
-          : chapterLabelOf(node);
+          : (chapterLabelOf(node) ?? toggleSummaryOf(node));
       if (anchored) {
         node.properties = {
           ...node.properties,

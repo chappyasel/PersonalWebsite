@@ -132,7 +132,7 @@ function keywordQuery(query: string): string {
  * their best passages and chapter links. Abandoned books are left out, as
  * the shelf leaves them out. Read-only.
  */
-export async function searchBookNotes(options: {
+export async function searchNotesByMeaning(options: {
   queries: string[];
   maxBooks?: number;
   maxPassagesPerBook?: number;

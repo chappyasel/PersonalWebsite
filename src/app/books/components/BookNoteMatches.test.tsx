@@ -60,6 +60,7 @@ const ROW = {
     { text: "Dopamine", match: true },
     { text: " system", match: false },
   ],
+  anchor: null,
 };
 
 function renderMatches(
@@ -118,6 +119,18 @@ describe("BookNoteMatches", () => {
     expect(openModal).toHaveBeenCalledWith(BEHAVE, "S");
     expect(window.location.pathname).toBe("/books/behave");
     expect(window.location.search).toBe("?q=dopamine");
+  });
+
+  it("opens the book at the chapter the passage came from", () => {
+    renderMatches({
+      rows: [{ ...ROW, anchor: "3-the-dopamine-system" }],
+    });
+
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(window.location.pathname).toBe("/books/behave");
+    expect(window.location.search).toBe("?q=dopamine");
+    expect(window.location.hash).toBe("#3-the-dopamine-system");
   });
 
   it("shows the keyboard focus the grid hands it", () => {

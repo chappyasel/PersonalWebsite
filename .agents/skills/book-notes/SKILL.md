@@ -17,7 +17,7 @@ Treat these code paths as authoritative:
 - Notion mapping: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/notion.ts`
 - Sync behavior: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/sync.ts`
 - Supported tag taxonomy: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/tagColors.ts`
-- Note search passages and embeddings: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/noteChunks.ts`, `noteEmbeddings.ts`, and `noteSearch.ts`
+- Note search passages and embeddings: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/noteChunks.ts`, `noteEmbeddings.ts`, and `semanticNoteSearch.ts`
 
 If those files change the fields, filters, freshness, or query behavior described here, update this skill in the same code change.
 
@@ -79,7 +79,7 @@ Do not write SQL for these questions. `scripts/search.sh` searches every book's 
 4. **Pull more context only when a passage is ambiguous.** Each passage is already a whole chapter section or takeaway. For the full notes, query `notes` for that one book with `q.sh`.
 5. **Answer in the format below.**
 
-`search.sh` prints compact JSON: `mode` (`hybrid`, or `keyword` when the queries could not be embedded, with a `warning` to pass on), `queries`, `candidateBooks` (books with any matching passage), and `books`, best first. Each book has `id`, `title`, `author`, `rating` (null when unrated), `status` (`finished` or `reading`), `tags`, `url`, and `passages`. Each passage has `section` (Summary, Key Takeaways, Notes, Chappy's Review), `heading` (the chapter or takeaway), `url` (the book page at that chapter when it has an anchor), `text`, and `queries` (indexes into the top-level `queries` that found it). Abandoned books are already left out.
+`search.sh` prints compact JSON: `mode` (`hybrid`, or `keyword` when the queries could not be embedded, with a `warning` to pass on), `queries`, `candidateBooks` (books with any matching passage), and `books`, best first. Each book has `id`, `title`, `author`, `rating` (null when unrated), `status` (`finished` or `reading`), `tags`, `url`, and `passages`. Each passage has `section` (Summary, Key Takeaways, Notes, Chappy's Review), `heading` (the chapter or takeaway), `url` (the book page at that chapter, or at that takeaway, which opens unfolded), `text`, and `queries` (indexes into the top-level `queries` that found it). Abandoned books are already left out.
 
 ### Answer format
 

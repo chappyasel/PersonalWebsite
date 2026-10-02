@@ -21,6 +21,11 @@ palette's Books group. Covers filter by title and author in the browser, and a
 the passage. The shelf intersects those matches with its tag and rating
 filters; the palette does not filter.
 
+A notes match in either place opens the book at the chapter or takeaway its
+passage came from, using the note-search passages (`book_note_chunks`) and
+the anchors the book page renders. A title, author, or tag match opens the
+top of the book.
+
 ## Language
 
 **Command palette**:

@@ -52,6 +52,37 @@ describe("searchBooks", () => {
     expect(results[2]?.excerpt).toContain("decision");
   });
 
+  it("opens a notes match at its chapter and an identity match at the top", async () => {
+    const results = await searchBooks("decision", {
+      load: async () => [
+        {
+          id: "body-book",
+          title: "A Different Book",
+          author: "Author",
+          tags: [],
+          notes: "The durable decision appears here.",
+          cover_url: null,
+          anchor: "3-durable-choices",
+        },
+        {
+          id: "decision-book",
+          title: "Decision Book",
+          author: "Another Author",
+          tags: [],
+          notes: "A decision in the notes too.",
+          cover_url: null,
+          anchor: "1-intro",
+        },
+      ],
+      location: new URL("https://www.chappyasel.com"),
+    });
+
+    expect(results.map((result) => result.href)).toEqual([
+      "https://books.chappyasel.com/decision-book",
+      "https://books.chappyasel.com/body-book#3-durable-choices",
+    ]);
+  });
+
   it("serves the flat cover art, never Google's rendered page curl", async () => {
     const results = await searchBooks("burn", {
       load: async () => [
