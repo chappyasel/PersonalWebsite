@@ -181,7 +181,12 @@ the takeaway toggle itself, so
 `'https://books.chappyasel.com/' || b.id || '#' || c.anchor` opens the page
 at that chapter, unfolding a takeaway. The shelf's "Mentioned in notes" rows
 and the Command palette's notes matches link the same way. Passages are cut from the notes as the page shows them, so
-unwritten skeleton sections have none.
+unwritten skeleton sections have none. `search_vector` is a Postgres-generated
+`tsvector` over heading and content with a GIN index (migration 0022); keyword
+matches on passages use it rather than parsing text per query. Takeaway
+anchors stop near 64 characters at a word boundary, and headings and chapter
+labels take their ids before takeaways do, so a chapter's anchor never moves
+to a takeaway of the same name.
 
 ```sql
 -- One book's passages in page order

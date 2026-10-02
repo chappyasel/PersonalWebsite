@@ -21,10 +21,15 @@ palette's Books group. Covers filter by title and author in the browser, and a
 the passage. The shelf intersects those matches with its tag and rating
 filters; the palette does not filter.
 
-A notes match in either place opens the book at the chapter or takeaway its
-passage came from, using the note-search passages (`book_note_chunks`) and
-the anchors the book page renders. A title, author, or tag match opens the
-top of the book.
+A notes match in either place opens the book at the passage that best
+matches the query (`bestPassageSql` over the note-search passages in
+`book_note_chunks`), at the chapter or takeaway anchor the book page renders,
+and its excerpt is cut from that passage, so both surfaces open the same place
+for one query. The link names the query as `?hl=`, which the book page marks
+for a few seconds and then removes from the address. When no single passage
+holds the query, or a book's passages are being rebuilt, the excerpt comes
+from the whole notes and the link opens the top of the book. A title, author,
+or tag match opens the top of the book.
 
 ## Language
 

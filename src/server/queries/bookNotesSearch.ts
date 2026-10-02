@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 
+import { bestPassageSql } from "~/lib/books/notePassageSql";
 import {
   type BookNoteMatch,
   NOTE_MATCH_END,
@@ -26,9 +27,10 @@ const HEADLINE_OPTIONS = `StartSel=${NOTE_MATCH_START}, StopSel=${NOTE_MATCH_END
  * shelf draws these under its title and author matches.
  *
  * The passage is the book's note-search passage (book_note_chunks) that
- * ranks highest for the query, so the excerpt and the chapter a row opens
- * are the same place. When no single passage holds every word, the excerpt
- * comes from the whole notes and the row opens the top of the book.
+ * ranks highest for the query (bestPassageSql), so the excerpt and the
+ * chapter a row opens are the same place. When no single passage holds every
+ * word, or the book's passages are being rebuilt, the excerpt comes from the
+ * whole notes and the row opens the top of the book.
  *
  * Every match comes back: the shelf narrows them by its own filters, so a
  * top-N here would hide matches behind books the visitor filtered out. The
@@ -57,22 +59,14 @@ export async function searchBookNotes(query: string): Promise<BookNoteMatch[]> {
       passage.anchor,
       ts_headline(
         'english',
-        coalesce(passage.content, b.notes, ''),
+        coalesce(passage.text, b.notes, ''),
         q.tsq,
         ${HEADLINE_OPTIONS}
       ) AS headline
     FROM matches m
     JOIN books b ON b.id = m.id
     CROSS JOIN q
-    LEFT JOIN LATERAL (
-      SELECT c.anchor, c.content
-      FROM book_note_chunks c
-      WHERE c.notion_id = b.notion_id
-        AND to_tsvector('english', c.content) @@ q.tsq
-      ORDER BY ts_rank_cd(to_tsvector('english', c.content), q.tsq) DESC,
-        c.ordinal
-      LIMIT 1
-    ) passage ON true
+    LEFT JOIN LATERAL ${bestPassageSql(sql`b.notion_id`, sql`q.tsq`)} passage ON true
     ORDER BY m.text_rank DESC, b.title
   `);
 
