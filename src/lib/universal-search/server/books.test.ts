@@ -79,7 +79,7 @@ describe("searchBooks", () => {
 
     expect(results.map((result) => result.href)).toEqual([
       "https://books.chappyasel.com/decision-book",
-      "https://books.chappyasel.com/body-book#3-durable-choices",
+      "https://books.chappyasel.com/body-book?hl=decision#3-durable-choices",
     ]);
   });
 

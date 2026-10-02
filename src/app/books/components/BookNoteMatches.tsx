@@ -9,6 +9,7 @@ import { useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { NoteExcerptSegment } from "~/lib/books/notesSearch";
+import { SEARCH_HIGHLIGHT_PARAM } from "~/lib/books/searchHighlight";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
@@ -106,8 +107,12 @@ function BookNoteMatchRow({
   const rowRef = useRef<HTMLButtonElement>(null);
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   // The book view scrolls to the chapter once its notes load, opening a
-  // folded takeaway if that is where the passage lives.
-  const bookUrl = `${bookPath(book.id, searchParams.toString())}${
+  // folded takeaway if that is where the passage lives, and marks the
+  // search (?hl=) there for a few seconds.
+  const params = new URLSearchParams(searchParams.toString());
+  const query = params.get("q")?.trim();
+  if (query) params.set(SEARCH_HIGHLIGHT_PARAM, query);
+  const bookUrl = `${bookPath(book.id, params.toString())}${
     anchor ? `#${encodeURIComponent(anchor)}` : ""
   }`;
 

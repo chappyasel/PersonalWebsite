@@ -111,14 +111,14 @@ describe("BookNoteMatches", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("opens the book the way a cover does and keeps the search in the URL", () => {
+  it("opens the book the way a cover does, keeping the search and naming it to mark", () => {
     renderMatches();
 
     fireEvent.click(screen.getByRole("button"));
 
     expect(openModal).toHaveBeenCalledWith(BEHAVE, "S");
     expect(window.location.pathname).toBe("/books/behave");
-    expect(window.location.search).toBe("?q=dopamine");
+    expect(window.location.search).toBe("?q=dopamine&hl=dopamine");
   });
 
   it("opens the book at the chapter the passage came from", () => {
@@ -129,7 +129,7 @@ describe("BookNoteMatches", () => {
     fireEvent.click(screen.getByRole("button"));
 
     expect(window.location.pathname).toBe("/books/behave");
-    expect(window.location.search).toBe("?q=dopamine");
+    expect(window.location.search).toBe("?q=dopamine&hl=dopamine");
     expect(window.location.hash).toBe("#3-the-dopamine-system");
   });
 

@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { withoutPlaceholders } from "~/lib/books/markdown";
+import { SEARCH_HIGHLIGHT_PARAM } from "~/lib/books/searchHighlight";
 
 import { createServerExcerpt } from "./excerpt";
 import { MAX_PROVIDER_RESULTS } from "./search";
@@ -219,8 +220,12 @@ export async function searchBooks(
       {
         kind: "site",
         site: "books",
-        path: `/${encodeURIComponent(row.id)}`,
-        // A match in the notes opens the book at the passage's chapter.
+        // A match in the notes opens the book at the passage's chapter and
+        // names the search (?hl=) so the page marks it for a few seconds.
+        path:
+          row.matchKind === "body"
+            ? `/${encodeURIComponent(row.id)}?${SEARCH_HIGHLIGHT_PARAM}=${encodeURIComponent(normalizedQuery)}`
+            : `/${encodeURIComponent(row.id)}`,
         ...(row.matchKind === "body" && row.anchor ? { hash: row.anchor } : {}),
       },
       options.location,

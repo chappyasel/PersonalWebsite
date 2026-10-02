@@ -2,6 +2,7 @@
 
 import { useBookPath } from "../hooks/useBookPath";
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
+import { markSearchArrival } from "../lib/searchArrival";
 import {
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
@@ -59,6 +60,7 @@ import { bookSlugFromUrl } from "~/lib/books/inlineFacts";
 import { renderableNotes } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookShareUrl, getBooksPath } from "~/lib/books/paths";
+import { SEARCH_HIGHLIGHT_PARAM } from "~/lib/books/searchHighlight";
 import type { BaseBook, Book, BookReading } from "~/lib/books/types";
 import { abandonedPercent } from "~/lib/books/types";
 import { isBareUrl } from "~/lib/site/pages";
@@ -1121,6 +1123,16 @@ export function BookDetailContent({
       window.removeEventListener("hashchange", handle);
     };
   }, [notesLoaded, bookId, isLoadingNotes]);
+
+  // Arriving from a notes match (?hl=): mark the search's words in the
+  // notes for a few seconds, alongside the scroll to its chapter.
+  useEffect(() => {
+    if (!notesLoaded) return;
+    return markSearchArrival(
+      notesRef.current,
+      new URLSearchParams(window.location.search).get(SEARCH_HIGHLIGHT_PARAM),
+    );
+  }, [notesLoaded, bookId]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
