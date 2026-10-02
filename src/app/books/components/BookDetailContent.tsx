@@ -1078,10 +1078,12 @@ export function BookDetailContent({
       id ? (
         <p {...props} id={id} className="group/sec">
           {children}
+          {/* Lifted 2px: in body-size text, align-middle centres the button
+              on the x-height, which sits below the middle of a bold label. */}
           <AnchorLink
             id={id}
             url={chapterUrl}
-            className="ml-1 inline-flex align-middle"
+            className="relative -top-0.5 ml-1 inline-flex align-middle"
           />
         </p>
       ) : (
