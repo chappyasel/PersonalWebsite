@@ -32,7 +32,7 @@ export function chapterLabelOf(node: MarkdownNode): MarkdownNode | null {
  * A toggle's summary (a Key Takeaways item), whose words name the toggle's
  * anchor. Null for anything else.
  */
-function toggleSummaryOf(node: MarkdownNode): MarkdownNode | null {
+export function toggleSummaryOf(node: MarkdownNode): MarkdownNode | null {
   if (node.type !== "element" || node.tagName !== "details") return null;
   return (
     node.children?.find(
@@ -42,27 +42,52 @@ function toggleSummaryOf(node: MarkdownNode): MarkdownNode | null {
 }
 
 /**
- * Assign heading, chapter-label, and toggle ids in document order before
- * React renders any components. All three share one id set, so a link to any
- * chapter or takeaway in the notes resolves to one element. A toggle's id
- * sits on the toggle itself, which opens when the address names it.
+ * Takeaway summaries are often whole sentences. Their ids stop at a word
+ * boundary near this length, which keeps shared links readable and well
+ * inside the 255 characters a stored passage anchor allows.
+ */
+const MAX_TOGGLE_ANCHOR = 64;
+
+function capSlug(slug: string): string {
+  if (slug.length <= MAX_TOGGLE_ANCHOR) return slug;
+  const cut = slug.slice(0, MAX_TOGGLE_ANCHOR + 1);
+  const boundary = cut.lastIndexOf("-");
+  return (boundary > 0 ? cut.slice(0, boundary) : cut).replace(/-+$/, "");
+}
+
+/**
+ * Assign heading, chapter-label, and toggle ids before React renders any
+ * components. Headings and labels take theirs first, in document order,
+ * exactly as before toggles had ids, so an existing chapter link never moves
+ * to a takeaway of the same name; toggles then take what is left. All share
+ * one id set, so a link to any chapter or takeaway resolves to one element.
+ * A toggle's id sits on the toggle itself, which opens when the address
+ * names it.
  */
 export function rehypeBookHeadingAnchors() {
   return (tree: MarkdownNode) => {
     const ids = new Set<string>();
+    const toggles: Array<{ node: MarkdownNode; summary: MarkdownNode }> = [];
     function visit(node: MarkdownNode) {
-      const anchored =
+      const chapter =
         node.type === "element" && /^h[1-4]$/.test(node.tagName ?? "")
           ? node
-          : (chapterLabelOf(node) ?? toggleSummaryOf(node));
-      if (anchored) {
+          : chapterLabelOf(node);
+      const summary = toggleSummaryOf(node);
+      if (chapter) {
         node.properties = {
           ...node.properties,
-          id: uniqueAnchor(anchorSlug(textOfNode(anchored)), ids),
+          id: uniqueAnchor(anchorSlug(textOfNode(chapter)), ids),
         };
-      }
+      } else if (summary) toggles.push({ node, summary });
       node.children?.forEach(visit);
     }
     visit(tree);
+    for (const { node, summary } of toggles) {
+      node.properties = {
+        ...node.properties,
+        id: uniqueAnchor(capSlug(anchorSlug(textOfNode(summary))), ids),
+      };
+    }
   };
 }

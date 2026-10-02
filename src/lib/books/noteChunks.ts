@@ -9,6 +9,7 @@ import {
   chapterLabelOf,
   rehypeBookHeadingAnchors,
   textOfNode,
+  toggleSummaryOf,
 } from "./headingAnchors";
 import { renderableNotes, withoutPlaceholders } from "./markdown";
 
@@ -19,8 +20,8 @@ export type NoteChunk = {
   /** The chapter, part, or takeaway the passage sits under, if any. */
   heading: string | null;
   /**
-   * The id of the nearest chapter anchor at or above the passage on the
-   * book page, so a link lands on the passage's chapter.
+   * The id the book page gives the passage's takeaway toggle, or else the
+   * nearest chapter anchor above it, so a link lands on the passage.
    */
   anchor: string | null;
   /** The passage as plain text, list structure kept as `-` and `1.` lines. */
@@ -135,8 +136,8 @@ type Context = Pick<NoteChunk, "section" | "heading" | "anchor">;
 /**
  * Split a book's notes into passages: one per chapter, part, or takeaway
  * toggle, with the section it belongs to and the anchor the book page gives
- * its chapter. Notes are read the way the page shows them, so sections not
- * written yet produce no passages.
+ * its chapter or toggle. Notes are read the way the page shows them, so
+ * sections not written yet produce no passages.
  */
 export function chunkBookNotes(notes: string): NoteChunk[] {
   const markdown = renderableNotes(withoutPlaceholders(notes));
@@ -179,9 +180,7 @@ export function chunkBookNotes(notes: string): NoteChunk[] {
         // chapter context it sat in comes back once it closes.
         flush();
         const outer = context;
-        const summary = (node.children ?? []).find((child) =>
-          isElement(child, "summary"),
-        );
+        const summary = toggleSummaryOf(node);
         // The summary is raw HTML, so its markdown (`Build **trusting
         // teams**`) arrives as literal text; the page renders it inline.
         const title = summary
