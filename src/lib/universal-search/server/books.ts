@@ -5,6 +5,8 @@ import { sql } from "drizzle-orm";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { withoutPlaceholders } from "~/lib/books/markdown";
+import { bestPassageSql } from "~/lib/books/notePassageSql";
+import { SEARCH_HIGHLIGHT_PARAM } from "~/lib/books/searchHighlight";
 
 import { createServerExcerpt } from "./excerpt";
 import { MAX_PROVIDER_RESULTS } from "./search";
@@ -32,6 +34,10 @@ export type BookSearchRow = {
   tags: string[];
   notes: string | null;
   cover_url: string | null;
+  /** For a notes match: the book page's id for the chapter or takeaway of
+   * the passage that best matches the query, and that passage's text. */
+  anchor?: string | null;
+  passage?: string | null;
 };
 
 export type BookSearchLoader = (
@@ -145,9 +151,18 @@ export async function loadBookSearchRows(
           ORDER BY bt.tag_name
         ) AS tags,
         ${strippedNotes} AS notes,
-        b.cover_url
+        b.cover_url,
+        passage.anchor,
+        passage.text AS passage
       FROM deduplicated d
       JOIN books b ON b.id = d.id
+      -- A notes match (the full-text arm) opens at, and is excerpted from,
+      -- the passage the shelf would pick for the same query.
+      LEFT JOIN LATERAL ${bestPassageSql(
+        sql`b.notion_id`,
+        sql`plainto_tsquery('english', ${query})`,
+        sql`d.match_priority = 5`,
+      )} passage ON true
       ORDER BY d.match_priority, d.text_rank DESC, b.title
       LIMIT 24
     `);
@@ -185,34 +200,44 @@ export async function searchBooks(
       .map((row) => ({ ...row, matchKind: "body" as const, score: 400 })),
   ];
 
-  return ranked.slice(0, MAX_PROVIDER_RESULTS).map((row) => ({
-    id: `book:${row.id}`,
-    kind: "content",
-    group: "books",
-    label: row.title,
-    description: row.author,
-    // The same clean art the library draws: Google Books thumbnails carry a
-    // rendered page-curl edge unless asked not to.
-    ...(row.cover_url
-      ? { imageUrl: enhanceCoverUrl(row.cover_url) ?? row.cover_url }
-      : {}),
-    href: resolveDestinationTarget(
-      {
-        kind: "site",
-        site: "books",
-        path: `/${encodeURIComponent(row.id)}`,
-      },
-      options.location,
-    ),
-    ...(row.matchKind === "body" && row.notes
-      ? {
-          excerpt: createServerExcerpt(
-            withoutPlaceholders(row.notes),
-            normalizedQuery,
-          ),
-        }
-      : {}),
-    matchKind: row.matchKind,
-    score: row.score,
-  }));
+  return ranked.slice(0, MAX_PROVIDER_RESULTS).map((row) => {
+    const inNotes = row.matchKind === "body";
+    return {
+      id: `book:${row.id}`,
+      kind: "content",
+      group: "books",
+      label: row.title,
+      description: row.author,
+      // The same clean art the library draws: Google Books thumbnails carry a
+      // rendered page-curl edge unless asked not to.
+      ...(row.cover_url
+        ? { imageUrl: enhanceCoverUrl(row.cover_url) ?? row.cover_url }
+        : {}),
+      href: resolveDestinationTarget(
+        {
+          kind: "site",
+          site: "books",
+          // A match in the notes opens the book at the passage's chapter and
+          // names the search (?hl=) so the page marks it for a few seconds.
+          path: inNotes
+            ? `/${encodeURIComponent(row.id)}?${SEARCH_HIGHLIGHT_PARAM}=${encodeURIComponent(normalizedQuery)}`
+            : `/${encodeURIComponent(row.id)}`,
+          ...(inNotes && row.anchor ? { hash: row.anchor } : {}),
+        },
+        options.location,
+      ),
+      ...(inNotes && row.notes
+        ? {
+            // The passage the link opens at, so the excerpt shows what the
+            // visitor lands on.
+            excerpt: createServerExcerpt(
+              row.passage ?? withoutPlaceholders(row.notes),
+              normalizedQuery,
+            ),
+          }
+        : {}),
+      matchKind: row.matchKind,
+      score: row.score,
+    };
+  });
 }

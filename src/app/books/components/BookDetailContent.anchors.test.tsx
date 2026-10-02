@@ -241,6 +241,60 @@ describe("book note section links", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
+  it("opens and scrolls to a takeaway toggle the address names", async () => {
+    window.history.replaceState(null, "", "/books/test-book#build-trust-first");
+    const fullBook = {
+      ...book,
+      notes:
+        "# Key Takeaways\n\n<details>\n<summary>Build **trust** first</summary>\n\n- Leaders go first\n\n</details>",
+    };
+    render(detail({ fullBook }));
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    const toggle = document.getElementById("build-trust-first")!;
+    expect(toggle.getAttribute("data-expanded")).toBe("true");
+    expect(scrolled).toContain(toggle);
+  });
+
+  it("keeps the arrival marks on chapter and takeaway text through re-renders", async () => {
+    const registry = new Map<string, { ranges: Range[] }>();
+    vi.stubGlobal("CSS", { highlights: registry });
+    vi.stubGlobal(
+      "Highlight",
+      class {
+        ranges: Range[];
+        constructor(...ranges: Range[]) {
+          this.ranges = ranges;
+        }
+      },
+    );
+    window.history.replaceState(
+      { modal: true },
+      "",
+      "/books/test-book?q=trust&hl=trust#build-trust-first",
+    );
+    const fullBook = {
+      ...book,
+      notes:
+        "## Trust\n\nEarned trust.\n\n# Key Takeaways\n\n<details>\n<summary>Build trust first</summary>\n\n- Leaders trust first\n\n</details>",
+    };
+    const view = render(<StrictMode>{detail({ fullBook })}</StrictMode>);
+    await act(() => vi.advanceTimersByTimeAsync(20));
+    // A parent re-render (the copy state flipping) must not remount them.
+    view.rerender(
+      <StrictMode>{detail({ fullBook, copied: true })}</StrictMode>,
+    );
+    const ranges = [...registry.values()].flatMap((entry) => entry.ranges);
+    expect(ranges.map(String)).toEqual(["Trust", "trust", "trust", "trust"]);
+    for (const range of ranges) {
+      expect(range.startContainer.isConnected).toBe(true);
+      expect(range.collapsed).toBe(false);
+    }
+    // Read once, then gone from the address, so a reload or a later book
+    // opened from here does not mark it again.
+    expect(window.location.search).toBe("?q=trust");
+    expect(window.history.state).toEqual({ modal: true });
+  });
+
   it("ignores malformed URL fragments", async () => {
     window.history.replaceState(null, "", "#%E0%A4%A");
     render(detail());

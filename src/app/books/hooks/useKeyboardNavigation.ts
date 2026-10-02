@@ -3,10 +3,12 @@
 import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
+import { noteMatchHref } from "../lib/noteMatchLink";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getBookShareUrl } from "~/lib/books/paths";
+import { withoutSearchHighlight } from "~/lib/books/searchHighlight";
 import type { Book } from "~/lib/books/types";
 
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
@@ -14,11 +16,15 @@ import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute
 interface UseKeyboardNavigationOptions {
   books: Book[];
   isZoomOut: boolean;
+  /** The "Mentioned in notes" books among `books`, each with the anchor of
+   * its matched passage (null when the match spans passages). */
+  noteAnchors?: ReadonlyMap<string, string | null>;
 }
 
 export function useKeyboardNavigation({
   books,
   isZoomOut,
+  noteAnchors,
 }: UseKeyboardNavigationOptions) {
   const { isModalOpen, keyboardFocusedIndex, keyboardFocusedBookId } =
     useModalState();
@@ -258,7 +264,16 @@ export function useKeyboardNavigation({
         setShowFocusIndicator(true); // Show indicator on keyboard action
         lastFocusedBookIdRef.current = book.id;
       }
-      const href = bookPath(book.id, searchParams.toString());
+      // A "Mentioned in notes" row opens where its click does: at the
+      // passage, with the search marked.
+      const href = noteAnchors?.has(book.id)
+        ? noteMatchHref(
+            bookPath,
+            book.id,
+            searchParams.toString(),
+            noteAnchors.get(book.id) ?? null,
+          )
+        : bookPath(book.id, withoutSearchHighlight(searchParams.toString()));
       // On a phone the book is its own page, not a modal over the shelf.
       if (loadFullPageOnSmallViewport(href)) return;
       // Open the modal
@@ -273,6 +288,7 @@ export function useKeyboardNavigation({
     openModal,
     searchParams,
     bookPath,
+    noteAnchors,
   ]);
 
   // Copy the focused book's URL and trigger visual feedback

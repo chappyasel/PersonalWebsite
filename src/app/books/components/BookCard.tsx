@@ -47,6 +47,7 @@ import {
   bookTiltAmplitude as tiltAmplitude,
 } from "~/lib/books/coverMotion";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { withoutSearchHighlight } from "~/lib/books/searchHighlight";
 import {
   abandonedPercent,
   isCurrentlyReading,
@@ -252,7 +253,10 @@ export const BookCard = memo(function BookCard({
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
   // Preserve current query params when navigating to book detail
-  const bookUrl = bookPath(book.id, searchParams.toString());
+  const bookUrl = bookPath(
+    book.id,
+    withoutSearchHighlight(searchParams.toString()),
+  );
 
   const handleCopyLink = () => {
     capture("book_link_copied", {

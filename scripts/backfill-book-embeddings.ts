@@ -13,10 +13,15 @@
 // config() call here: this script imports ~/server/db, which validates env at
 // module-evaluation time, and ESM hoists imports above any statement body.
 import { refreshNoteEmbeddings } from "../src/lib/books/noteEmbeddings";
+import { withBookSyncLock } from "../src/lib/books/sync";
 
 async function main() {
   const started = Date.now();
-  const result = await refreshNoteEmbeddings({ concurrency: 4 });
+  // Under the sync's lock: a cron run or the Notion button rebuilding the
+  // same books at the same time would collide on their passages.
+  const result = await withBookSyncLock(() =>
+    refreshNoteEmbeddings({ concurrency: 4 }),
+  );
   console.log({
     ...result,
     seconds: Math.round((Date.now() - started) / 1000),

@@ -3,6 +3,10 @@
 import { useBookPath } from "../hooks/useBookPath";
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
 import {
+  markSearchArrival,
+  takeSearchArrivalQuery,
+} from "../lib/searchArrival";
+import {
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
@@ -36,6 +40,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -418,10 +423,14 @@ function AnimatedDetails({
       const hash = bookNoteHash();
       const self = ref.current;
       if (!hash || !self) return;
-      const target = Array.from(self.querySelectorAll("[id]")).find(
-        (element) => element.id === hash,
-      );
-      if (target) setIsOpen(true);
+      // A takeaway link names the toggle itself; a chapter link, something
+      // inside it.
+      const namesThisToggle =
+        self.id === hash ||
+        Array.from(self.querySelectorAll("[id]")).some(
+          (element) => element.id === hash,
+        );
+      if (namesThisToggle) setIsOpen(true);
     }
     handle();
     window.addEventListener("hashchange", handle);
@@ -448,7 +457,7 @@ function AnimatedDetails({
     <div
       {...divProps}
       ref={ref}
-      className={cn("my-1.5 pl-[26px]", className)}
+      className={cn("my-1.5 scroll-mt-24 pl-[26px]", className)}
       data-expanded={isOpen}
     >
       <button
@@ -1027,18 +1036,25 @@ export function BookDetailContent({
 
   const showBreadcrumb = !isModal || Boolean(modalBreadcrumbHref);
 
-  // Chapter anchors: each heading in the notes gets an id from its words,
-  // unique within this render, and a copy-link button on hover that copies
+  // The notes' renderers, built once per book view. A new component type on
+  // any render would remount its whole subtree: headings, folded takeaways
+  // (closing ones the reader opened), quotes, links, and the text the
+  // arrival marks point at.
+  //
+  // Chapter anchors: each heading in the notes, and each chapter written as
+  // a bold paragraph, gets an id from its words, unique within this render
+  // (rehypeBookHeadingAnchors), and a copy-link button on hover that copies
   // the book's own URL plus the fragment (the address bar may be a modal's).
   const chapterUrl = getBookShareUrl(bookId);
-  const chapterHeading = (Tag: "h1" | "h2" | "h3" | "h4") => {
-    const ChapterHeading = ({
-      node: _node,
-      children,
-      id,
-      ...props
-    }: ComponentPropsWithoutRef<typeof Tag> & { node?: unknown }) => {
-      return (
+  const linkedBooks = fullBook?.linkedBooks;
+  const noteComponents = useMemo((): Components => {
+    const chapterHeading = (Tag: "h1" | "h2" | "h3" | "h4") => {
+      const ChapterHeading = ({
+        node: _node,
+        children,
+        id,
+        ...props
+      }: ComponentPropsWithoutRef<typeof Tag> & { node?: unknown }) => (
         <Tag {...props} id={id} className="group/sec scroll-mt-24">
           {children}
           {id && (
@@ -1050,10 +1066,94 @@ export function BookDetailContent({
           )}
         </Tag>
       );
+      ChapterHeading.displayName = `Chapter${Tag.toUpperCase()}`;
+      return ChapterHeading;
     };
-    ChapterHeading.displayName = `Chapter${Tag.toUpperCase()}`;
-    return ChapterHeading;
-  };
+    const ChapterLabel = ({
+      node: _node,
+      children,
+      id,
+      ...props
+    }: ComponentPropsWithoutRef<"p"> & { node?: unknown }) =>
+      id ? (
+        <p {...props} id={id} className="group/sec">
+          {children}
+          <AnchorLink
+            id={id}
+            url={chapterUrl}
+            className="ml-1 inline-flex align-middle"
+          />
+        </p>
+      ) : (
+        <p {...props}>{children}</p>
+      );
+    ChapterLabel.displayName = "ChapterLabel";
+    return {
+      h1: chapterHeading("h1"),
+      h2: chapterHeading("h2"),
+      h3: chapterHeading("h3"),
+      h4: chapterHeading("h4"),
+      p: ChapterLabel,
+      img: ({ src, alt, ...props }) => {
+        if (!src) return null;
+        return (
+          <PhotoView src={src as string}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt ?? ""}
+              className="cursor-zoom-in"
+              loading="lazy"
+              decoding="async"
+              {...props}
+            />
+          </PhotoView>
+        );
+      },
+      details: ({ node: _node, ...props }) => <AnimatedDetails {...props} />,
+      blockquote: ({ children, node: _node, className, ...props }) => (
+        <blockquote
+          {...props}
+          className={cn(
+            "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-muted-foreground",
+            className,
+          )}
+        >
+          {children}
+        </blockquote>
+      ),
+      summary: BookNoteSummary,
+      // A link to another library book is the BookLink the documents use:
+      // getBookWithNotes has already pointed Notion mentions of Book Notes
+      // pages at the book's site URL. not-prose keeps typography's link and
+      // image rules off its inline cover.
+      a: ({ node: _node, href, children, ...props }) => {
+        const slug = href ? bookSlugFromUrl(href) : null;
+        if (!slug) {
+          return (
+            <a href={href} {...props}>
+              {children}
+            </a>
+          );
+        }
+        const label = textOfChildren(children);
+        return (
+          <span className="not-prose">
+            <BookLink
+              href={
+                modalBreadcrumbHref
+                  ? `${modalBreadcrumbHref}/${encodeURIComponent(slug)}`
+                  : bookPath(slug)
+              }
+              slug={slug}
+              book={linkedBooks?.[slug]}
+              label={!label || isBareUrl(label) ? undefined : label}
+            />
+          </span>
+        );
+      },
+    };
+  }, [chapterUrl, modalBreadcrumbHref, bookPath, linkedBooks]);
 
   // Arriving on a chapter link: the notes load after the page, so scroll
   // once they are in the tree and any folded block around the target has
@@ -1076,7 +1176,12 @@ export function BookDetailContent({
       const target = Array.from(
         notesRef.current?.querySelectorAll<HTMLElement>("[id]") ?? [],
       ).find((element) => element.id === hash);
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      target?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
     };
     const handle = () => {
       cancel();
@@ -1090,6 +1195,18 @@ export function BookDetailContent({
       window.removeEventListener("hashchange", handle);
     };
   }, [notesLoaded, bookId, isLoadingNotes]);
+
+  // Arriving from a notes match (?hl=): mark the search's words in the
+  // notes for a few seconds, alongside the scroll to its chapter. The query
+  // is taken from the address once per book (and removed from it), and
+  // kept here so a re-run of this effect marks the same words.
+  const arrivalQuery = useRef<{ bookId: string; query: string | null }>(null);
+  useEffect(() => {
+    if (!notesLoaded) return;
+    if (arrivalQuery.current?.bookId !== bookId)
+      arrivalQuery.current = { bookId, query: takeSearchArrivalQuery() };
+    return markSearchArrival(notesRef.current, arrivalQuery.current.query);
+  }, [notesLoaded, bookId]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -1780,85 +1897,7 @@ export function BookDetailContent({
                         // Use default transform for security on other URLs
                         return defaultUrlTransform(url);
                       }}
-                      components={
-                        {
-                          h1: chapterHeading("h1"),
-                          h2: chapterHeading("h2"),
-                          h3: chapterHeading("h3"),
-                          h4: chapterHeading("h4"),
-                          img: ({ src, alt, ...props }) => {
-                            if (!src) return null;
-                            return (
-                              <PhotoView src={src as string}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={src}
-                                  alt={alt ?? ""}
-                                  className="cursor-zoom-in"
-                                  loading="lazy"
-                                  decoding="async"
-                                  {...props}
-                                />
-                              </PhotoView>
-                            );
-                          },
-                          details: ({ node: _node, ...props }) => (
-                            <AnimatedDetails {...props} />
-                          ),
-                          blockquote: ({
-                            children,
-                            node: _node,
-                            className,
-                            ...props
-                          }) => (
-                            <blockquote
-                              {...props}
-                              className={cn(
-                                "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-muted-foreground",
-                                className,
-                              )}
-                            >
-                              {children}
-                            </blockquote>
-                          ),
-                          summary: BookNoteSummary,
-                          // A link to another library book is the BookLink
-                          // the documents use: getBookWithNotes has already
-                          // pointed Notion mentions of Book Notes pages at
-                          // the book's site URL. not-prose keeps
-                          // typography's link and image rules off its
-                          // inline cover.
-                          a: ({ node: _node, href, children, ...props }) => {
-                            const slug = href ? bookSlugFromUrl(href) : null;
-                            if (!slug) {
-                              return (
-                                <a href={href} {...props}>
-                                  {children}
-                                </a>
-                              );
-                            }
-                            const label = textOfChildren(children);
-                            return (
-                              <span className="not-prose">
-                                <BookLink
-                                  href={
-                                    modalBreadcrumbHref
-                                      ? `${modalBreadcrumbHref}/${encodeURIComponent(slug)}`
-                                      : bookPath(slug)
-                                  }
-                                  slug={slug}
-                                  book={fullBook?.linkedBooks?.[slug]}
-                                  label={
-                                    !label || isBareUrl(label)
-                                      ? undefined
-                                      : label
-                                  }
-                                />
-                              </span>
-                            );
-                          },
-                        } as Components
-                      }
+                      components={noteComponents}
                     >
                       {renderableNotes(fullBook.notes)}
                     </ReactMarkdown>

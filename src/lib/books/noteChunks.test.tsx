@@ -65,7 +65,7 @@ describe("chunkBookNotes", () => {
       {
         section: "Key Takeaways",
         heading: "Build trusting teams before expecting performance",
-        anchor: "key-takeaways",
+        anchor: "build-trusting-teams-before-expecting-performance",
         text: "- Navy SEALs rank on performance and trust\n- Leaders take the first step",
       },
       {
@@ -97,6 +97,74 @@ describe("chunkBookNotes", () => {
       "notes-2",
       "notes-3",
     ]);
+  });
+
+  it("anchors each takeaway toggle on the toggle itself", () => {
+    const ids = renderedIds(NOTES);
+    expect(ids).toContain("build-trusting-teams-before-expecting-performance");
+    const html = renderToStaticMarkup(
+      <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeBookHeadingAnchors]}>
+        {renderableNotes(NOTES)}
+      </ReactMarkdown>,
+    );
+    expect(html).toContain(
+      '<details id="build-trusting-teams-before-expecting-performance">',
+    );
+  });
+
+  it("returns to the chapter's anchor after a toggle inside it", () => {
+    const notes = [
+      "### 1: Chapter",
+      "",
+      "- before",
+      "",
+      "<details>",
+      "<summary>Inner idea</summary>",
+      "",
+      "- inside",
+      "",
+      "</details>",
+      "",
+      "- after",
+    ].join("\n");
+    expect(chunkBookNotes(notes).map((c) => [c.anchor, c.text])).toEqual([
+      ["1-chapter", "- before"],
+      ["inner-idea", "- inside"],
+      ["1-chapter", "- after"],
+    ]);
+  });
+
+  it("keeps a chapter's id when a takeaway of the same name comes first", () => {
+    const notes = [
+      "# Key Takeaways",
+      "",
+      "<details>",
+      "<summary>Trust</summary>",
+      "",
+      "- A takeaway",
+      "",
+      "</details>",
+      "",
+      "## Trust",
+      "",
+      "- The chapter",
+    ].join("\n");
+    expect(renderedIds(notes)).toEqual(["key-takeaways", "trust-2", "trust"]);
+    expect(chunkBookNotes(notes).map((c) => c.anchor)).toEqual([
+      "trust-2",
+      "trust",
+    ]);
+  });
+
+  it("caps a long takeaway's id at a word boundary", () => {
+    const summary =
+      "Procrastination is resistance's easiest form to rationalize because we never say we will never do it";
+    const notes = `<details>\n<summary>${summary}</summary>\n\n- x\n\n</details>`;
+    const [id] = renderedIds(notes);
+    expect(id).toBe(
+      "procrastination-is-resistances-easiest-form-to-rationalize",
+    );
+    expect(chunkBookNotes(notes)[0]!.anchor).toBe(id);
   });
 
   it("leaves paragraphs that only start in bold unanchored", () => {

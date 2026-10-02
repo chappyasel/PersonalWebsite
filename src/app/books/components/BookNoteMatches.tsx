@@ -2,6 +2,7 @@
 
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
+import { noteMatchHref } from "../lib/noteMatchLink";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -14,13 +15,17 @@ import { api } from "~/trpc/react";
 
 import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
-
 import { SearchMark } from "~/components/ui/search-mark";
 
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import { cn } from "@/src/lib/util";
 
-export type BookNoteRow = { book: Book; excerpt: NoteExcerptSegment[] };
+export type BookNoteRow = {
+  book: Book;
+  excerpt: NoteExcerptSegment[];
+  /** The chapter or takeaway the excerpt came from; the row opens there. */
+  anchor: string | null;
+};
 
 type BookNoteMatchesProps = {
   rows: BookNoteRow[];
@@ -87,7 +92,7 @@ export function BookNoteMatches({
 }
 
 function BookNoteMatchRow({
-  row: { book, excerpt },
+  row: { book, excerpt, anchor },
   isKeyboardFocused,
   onHover,
 }: {
@@ -101,7 +106,15 @@ function BookNoteMatchRow({
   const utils = api.useUtils();
   const rowRef = useRef<HTMLButtonElement>(null);
   const coverUrl = enhanceCoverUrl(book.coverUrl);
-  const bookUrl = bookPath(book.id, searchParams.toString());
+  // The book view scrolls to the chapter once its notes load, opening a
+  // folded takeaway if that is where the passage lives, and marks the
+  // search there for a few seconds.
+  const bookUrl = noteMatchHref(
+    bookPath,
+    book.id,
+    searchParams.toString(),
+    anchor,
+  );
 
   // The same open a cover performs (BookCard.handleClick).
   const handleClick = () => {

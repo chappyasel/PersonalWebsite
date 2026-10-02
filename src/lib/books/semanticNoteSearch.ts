@@ -97,7 +97,7 @@ export type NoteSearchResult = {
     passages: Array<{
       section: string | null;
       heading: string | null;
-      /** The book page at this passage's chapter when it has an anchor. */
+      /** The book page at this passage's chapter or takeaway. */
       url: string;
       text: string;
       /** Indexes into the top-level `queries` that found it. */
@@ -132,7 +132,7 @@ function keywordQuery(query: string): string {
  * their best passages and chapter links. Abandoned books are left out, as
  * the shelf leaves them out. Read-only.
  */
-export async function searchBookNotes(options: {
+export async function searchNotesByMeaning(options: {
   queries: string[];
   maxBooks?: number;
   maxPassagesPerBook?: number;
@@ -193,7 +193,7 @@ export async function searchBookNotes(options: {
             WITH q AS (SELECT websearch_to_tsquery('english', ${words}) AS query),
             passages AS (
               SELECT c.id, c.notion_id,
-                to_tsvector('english', coalesce(c.heading, '') || ' ' || c.content) AS doc
+                c.search_vector AS doc
               FROM book_note_chunks c
               JOIN books b ON b.notion_id = c.notion_id
               WHERE ${visible}
