@@ -53,6 +53,26 @@ export function noteSourceHash(book: {
     .digest("hex");
 }
 
+/**
+ * Whether stored passages say something other than the passages the notes
+ * now yield: their headings or text differ, or there are more or fewer of
+ * them. Anchors and embeddings are not compared; stale ones of those still
+ * point at the right words.
+ */
+export function passagesOutdated(
+  stored: ReadonlyArray<{ heading: string | null; content: string }>,
+  next: readonly NoteChunk[],
+): boolean {
+  return (
+    stored.length !== next.length ||
+    stored.some(
+      (row, index) =>
+        row.heading !== next[index]!.heading ||
+        row.content !== next[index]!.text,
+    )
+  );
+}
+
 export type NoteEmbeddingRefresh = {
   /** Books whose passages were rebuilt and embedded. */
   booksEmbedded: number;
@@ -63,14 +83,25 @@ export type NoteEmbeddingRefresh = {
   booksWithoutPassages: number;
   /** Books whose page left the mirror, passages deleted. */
   booksRemoved: number;
+  /**
+   * Books whose stored passages no longer matched their notes and could not
+   * be rebuilt this run (a failure, or past `maxBooks`). Their passages are
+   * deleted, so search falls back to the current notes rather than showing
+   * text the notes no longer have.
+   */
+  booksCleared: number;
   failures: Array<{ notionId: string; title: string; error: string }>;
 };
 
 /**
  * Bring every book's note-search passages in line with its notes: rebuild
  * and embed the books whose source hash changed, drop passages for pages
- * that left the mirror. A failed book keeps its previous passages and stays
- * stale, so the next run retries it. Never throws for one book's failure.
+ * that left the mirror. Books whose notes changed go first. A book that is
+ * not rebuilt (a failure, or past `maxBooks`) keeps its previous passages
+ * only while their text still matches its notes, as after a chunker or
+ * model change; otherwise they are deleted, because the shelf's public
+ * excerpts read them. Stale books stay stale, so the next run retries them.
+ * Never throws for one book's failure.
  */
 export async function refreshNoteEmbeddings(
   options: {
@@ -87,6 +118,7 @@ export async function refreshNoteEmbeddings(
     booksPending: 0,
     booksWithoutPassages: 0,
     booksRemoved: 0,
+    booksCleared: 0,
     failures: [],
   };
   const rows = await db
@@ -142,6 +174,45 @@ export async function refreshNoteEmbeddings(
         .delete(bookNoteChunks)
         .where(eq(bookNoteChunks.notionId, book.notionId));
   }
+  // Which stored passages say something the notes no longer do. Those books
+  // are rebuilt first, and cleared if they cannot be rebuilt this run.
+  const storedText = new Map<
+    string,
+    Array<{ heading: string | null; content: string }>
+  >();
+  const withStored = toEmbed.filter((book) => stored.has(book.notionId));
+  if (withStored.length)
+    for (const row of await db
+      .select({
+        notionId: bookNoteChunks.notionId,
+        heading: bookNoteChunks.heading,
+        content: bookNoteChunks.content,
+      })
+      .from(bookNoteChunks)
+      .where(
+        inArray(
+          bookNoteChunks.notionId,
+          withStored.map((book) => book.notionId),
+        ),
+      )
+      .orderBy(bookNoteChunks.notionId, bookNoteChunks.ordinal)) {
+      const list = storedText.get(row.notionId) ?? [];
+      list.push(row);
+      storedText.set(row.notionId, list);
+    }
+  const outdated = new Set(
+    withStored
+      .filter((book) =>
+        passagesOutdated(storedText.get(book.notionId) ?? [], book.chunks),
+      )
+      .map((book) => book.notionId),
+  );
+  toEmbed.sort(
+    (a, b) =>
+      Number(outdated.has(b.notionId)) - Number(outdated.has(a.notionId)),
+  );
+  const embedded = new Set<string>();
+
   const batch = toEmbed.slice(0, options.maxBooks ?? toEmbed.length);
   result.booksPending = toEmbed.length - batch.length;
   if (batch.length)
@@ -176,7 +247,11 @@ export async function refreshNoteEmbeddings(
                   ordinal,
                   section: chunk.section,
                   heading: chunk.heading,
-                  anchor: chunk.anchor,
+                  // The column holds 255; an id that long cannot be a link.
+                  anchor:
+                    chunk.anchor && chunk.anchor.length <= 255
+                      ? chunk.anchor
+                      : null,
                   content: chunk.text,
                   embedding: embeddings[ordinal]!,
                   sourceHash: book.hash,
@@ -184,6 +259,7 @@ export async function refreshNoteEmbeddings(
               );
             });
             consecutiveFailures = 0;
+            embedded.add(book.notionId);
             result.booksEmbedded++;
             result.passagesWritten += book.chunks.length;
           } catch (error) {
@@ -205,5 +281,12 @@ export async function refreshNoteEmbeddings(
   );
   // Books never started because the run gave up still need a later run.
   result.booksPending += batch.length - next;
+  const cleared = [...outdated].filter((id) => !embedded.has(id));
+  if (cleared.length) {
+    await db
+      .delete(bookNoteChunks)
+      .where(inArray(bookNoteChunks.notionId, cleared));
+    result.booksCleared = cleared.length;
+  }
   return result;
 }

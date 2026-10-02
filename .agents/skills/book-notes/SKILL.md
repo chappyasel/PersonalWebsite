@@ -93,7 +93,7 @@ Do not write SQL for these questions. `scripts/search.sh` searches every book's 
 
 ### Freshness
 
-The book sync rebuilds a book's passages when its notes, title, or author change, up to 40 books per sync; the rest follow on later syncs. A failed embedding keeps the book's previous passages and appears in the sync's errors as `note-embeddings`. After a chunker or model change (`CHUNKER_VERSION` and `NOTE_EMBEDDING_MODEL` in `noteEmbeddings.ts`), rebuild everything with `pnpm backfill:book-embeddings` from the repository; it skips books that are already current. Embeddings go through the Vercel AI Gateway with `AI_GATEWAY_API_KEY` from `.env`. The sync and that backfill are the only writers of `book_note_chunks`; never write it by hand.
+The book sync rebuilds a book's passages when its notes, title, or author change, up to 40 books per sync, books whose notes changed first; the rest follow on later syncs. A failed embedding appears in the sync's errors as `note-embeddings`. A book that is not rebuilt keeps its previous passages only while their text still matches its notes (after a chunker or model change); otherwise they are deleted, because the shelf's public excerpts read them, and search falls back to the notes until the next successful rebuild. After a chunker or model change (`CHUNKER_VERSION` and `NOTE_EMBEDDING_MODEL` in `noteEmbeddings.ts`), rebuild everything with `pnpm backfill:book-embeddings` from the repository; it takes the sync's lock and skips books that are already current. Embeddings go through the Vercel AI Gateway with `AI_GATEWAY_API_KEY` from `.env`. The sync and that backfill are the only writers of `book_note_chunks`; never write it by hand.
 
 ## How to query
 
