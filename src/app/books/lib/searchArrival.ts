@@ -1,14 +1,42 @@
 import {
-  SEARCH_HIGHLIGHT_STEPS,
+  SEARCH_HIGHLIGHT_PARAM,
   findTermRanges,
   highlightTerms,
 } from "~/lib/books/searchHighlight";
 
+/**
+ * The marks' strength over time: the shelf's SearchMark amber at 25% while
+ * the reader lands, then a fade. Highlights cannot transition, so each step
+ * is its own named highlight, styled once by `ensureHighlightStyles`.
+ * Every step re-reads the notes, so a re-render that replaces text nodes
+ * cannot leave the marks pointing at detached ones.
+ */
+const STEPS: ReadonlyArray<{ at: number; alpha: number }> = [
+  { at: 0, alpha: 0.25 },
+  // Re-reads at full strength while the page settles (layout, the scroll
+  // to the chapter, a takeaway opening).
+  { at: 150, alpha: 0.25 },
+  { at: 800, alpha: 0.25 },
+  ...[0.22, 0.19, 0.16, 0.13, 0.1, 0.07, 0.04, 0.02].map((alpha, index) => ({
+    at: 3500 + index * 75,
+    alpha,
+  })),
+];
+const CLEAR_AT = 3500 + 8 * 75;
+
+const stepName = (alpha: number) =>
+  `book-search-arrival-${Math.round(alpha * 100)}`;
+const NAMES = [...new Set(STEPS.map((step) => stepName(step.alpha)))];
+
+// The keys Next's router keeps in a history entry's state.
+const NEXT_HISTORY_KEYS = new Set([
+  "__NA",
+  "_N",
+  "__PRIVATE_NEXTJS_INTERNALS_TREE",
+]);
+
 // Nothing to undo when nothing was marked.
 const unmarked = () => undefined;
-
-/** Each step's strength, the shelf's SearchMark amber at 25% stepping down. */
-const STEP_ALPHAS = [0.25, 0.19, 0.13, 0.07, 0.03];
 
 /**
  * The marks' colours, added to the page the first time one is drawn. They
@@ -19,17 +47,41 @@ function ensureHighlightStyles() {
   if (document.querySelector("style[data-book-search-arrival]")) return;
   const style = document.createElement("style");
   style.dataset.bookSearchArrival = "";
-  style.textContent = SEARCH_HIGHLIGHT_STEPS.flatMap((name, index) => [
-    `::highlight(${name}) { background-color: rgb(245 158 11 / ${STEP_ALPHAS[index]}); }`,
-    `.dark ::highlight(${name}) { background-color: rgb(252 211 77 / ${STEP_ALPHAS[index]}); }`,
+  style.textContent = STEPS.flatMap(({ alpha }) => [
+    `::highlight(${stepName(alpha)}) { background-color: rgb(245 158 11 / ${alpha}); }`,
+    `.dark ::highlight(${stepName(alpha)}) { background-color: rgb(252 211 77 / ${alpha}); }`,
   ]).join("\n");
   document.head.append(style);
 }
 
-/** How long the marks stay at full strength once the notes are in. */
-const HOLD_MS = 3500;
-/** Highlights cannot transition, so the fade is steps this far apart. */
-const FADE_STEP_MS = 150;
+/**
+ * The search this arrival should mark, read once from `?hl=` and then
+ * removed from the address, so a reload, a link copied from the bar, or a
+ * later book opened from this view (tag links and read switching copy the
+ * query string) does not mark it again. The history entry's own state is
+ * kept, and the router learns the new address.
+ */
+export function takeSearchArrivalQuery(): string | null {
+  const url = new URL(window.location.href);
+  const query = url.searchParams.get(SEARCH_HIGHLIGHT_PARAM);
+  if (query === null) return null;
+  url.searchParams.delete(SEARCH_HIGHLIGHT_PARAM);
+  // Without Next's own markers: its patched replaceState passes a state
+  // that carries them straight through, and the router (useSearchParams,
+  // the links built from it) would keep `hl`. Given a plain state it copies
+  // its markers back and moves the router to the new address.
+  const state = Object.fromEntries(
+    Object.entries(
+      (window.history.state ?? {}) as Record<string, unknown>,
+    ).filter(([key]) => !NEXT_HISTORY_KEYS.has(key)),
+  );
+  window.history.replaceState(
+    state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+  return query;
+}
 
 /**
  * Mark the arriving search's words under `root` with the CSS Custom
@@ -45,28 +97,24 @@ export function markSearchArrival(
   if (!root || !query?.trim() || typeof CSS === "undefined") return unmarked;
   if (!("highlights" in CSS) || typeof Highlight === "undefined")
     return unmarked;
-  const ranges = findTermRanges(root, highlightTerms(query));
-  if (!ranges.length) return unmarked;
+  const stems = highlightTerms(query);
+  if (!findTermRanges(root, stems).length) return unmarked;
 
   ensureHighlightStyles();
   const registry = CSS.highlights;
-  const highlight = new Highlight(...ranges);
-  const clear = () =>
-    SEARCH_HIGHLIGHT_STEPS.forEach((name) => registry.delete(name));
-  const show = (name: string) => {
+  const clear = () => NAMES.forEach((name) => registry.delete(name));
+  const show = (alpha: number) => {
     clear();
-    registry.set(name, highlight);
+    const ranges = findTermRanges(root, stems);
+    if (ranges.length) registry.set(stepName(alpha), new Highlight(...ranges));
   };
 
-  show(SEARCH_HIGHLIGHT_STEPS[0]);
+  show(STEPS[0]!.alpha);
   const timers = [
-    ...SEARCH_HIGHLIGHT_STEPS.slice(1).map((name, index) =>
-      window.setTimeout(() => show(name), HOLD_MS + index * FADE_STEP_MS),
+    ...STEPS.slice(1).map(({ at, alpha }) =>
+      window.setTimeout(() => show(alpha), at),
     ),
-    window.setTimeout(
-      clear,
-      HOLD_MS + (SEARCH_HIGHLIGHT_STEPS.length - 1) * FADE_STEP_MS,
-    ),
+    window.setTimeout(clear, CLEAR_AT),
   ];
   return () => {
     timers.forEach((timer) => window.clearTimeout(timer));

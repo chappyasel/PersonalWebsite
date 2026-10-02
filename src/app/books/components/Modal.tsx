@@ -18,6 +18,7 @@ import {
   getBooksPath,
   getBooksTagQuery,
 } from "~/lib/books/paths";
+import { withoutSearchHighlight } from "~/lib/books/searchHighlight";
 import { copyTextToClipboard } from "~/lib/clipboard";
 import {
   type ModalOrigin,
@@ -241,7 +242,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       presentation?.source === "document"
         ? inlineBookHistoryEntry(nextBookId, window.location)
         : {
-            href: bookPath(nextBookId, searchParams.toString()),
+            href: bookPath(
+              nextBookId,
+              withoutSearchHighlight(searchParams.toString()),
+            ),
             state: BOOK_MODAL_HISTORY_STATE,
           };
     // Keep the original launcher immediately behind this modal, including
@@ -282,7 +286,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const tagHref = (tag: string) =>
     fromStacks && presentation
       ? `${presentation.booksHref}/?${getBooksTagQuery(tag)}`
-      : getBooksPath(getBooksTagQuery(tag, searchParams.toString()));
+      : getBooksPath(
+          getBooksTagQuery(
+            tag,
+            withoutSearchHighlight(searchParams.toString()),
+          ),
+        );
 
   // The modal sits on a history entry of its own, above the shelf's. Closing
   // through the X pops that entry; a tag instead REWRITES it into the

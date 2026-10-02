@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
-import { findTermRanges, highlightTerms } from "./searchHighlight";
+import { findTermRanges, highlightTerms, wordStem } from "./searchHighlight";
 
 describe("highlightTerms", () => {
   it("drops stopwords and cuts words to a stem", () => {
@@ -16,6 +16,25 @@ describe("highlightTerms", () => {
     expect(highlightTerms("uses")).toEqual(["uses"]);
     expect(highlightTerms("AI ethics")).toEqual(["ai", "ethic"]);
   });
+
+  it("bounds what a hand-written ?hl= can ask for", () => {
+    const many = Array.from({ length: 50 }, (_, index) => `word${index}`);
+    expect(highlightTerms(many.join(" "))).toHaveLength(8);
+    expect(highlightTerms(`${"a".repeat(300)} trust`)).not.toContain("trust");
+  });
+});
+
+describe("wordStem", () => {
+  it("cuts plain suffixes and leaves endings that belong to the word", () => {
+    expect(
+      ["trusting", "trusted", "trusts", "classes", "boxes", "cities"].map(
+        wordStem,
+      ),
+    ).toEqual(["trust", "trust", "trust", "class", "box", "city"]);
+    expect(
+      ["string", "evening", "speed", "news", "notes"].map(wordStem),
+    ).toEqual(["string", "evening", "speed", "news", "note"]);
+  });
 });
 
 describe("findTermRanges", () => {
@@ -27,13 +46,25 @@ describe("findTermRanges", () => {
     );
   }
 
-  it("marks whole words that start with a term, across elements", () => {
+  it("marks whole words that share a stem with a term, across elements", () => {
     expect(
       mark(
         "<p>Trust is built.</p><ul><li><strong>Trusting</strong> teams; mistrust spreads</li></ul>",
         "trust",
       ),
     ).toEqual(["Trust", "Trusting"]);
+  });
+
+  it("does not mark unrelated words that only start the same way", () => {
+    expect(mark("<p>Strong strings beat stress</p>", "string")).toEqual([
+      "strings",
+    ]);
+    expect(
+      mark("<p>Nothing notable in my notes, not one</p>", "notes"),
+    ).toEqual(["notes"]);
+    expect(mark("<p>Even the evening event</p>", "evening")).toEqual([
+      "evening",
+    ]);
   });
 
   it("skips screen-reader-only labels", () => {

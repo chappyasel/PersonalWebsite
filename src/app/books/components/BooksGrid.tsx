@@ -295,6 +295,10 @@ export function BooksGrid({
     () => [...books, ...noteRows.map((row) => row.book)],
     [books, noteRows],
   );
+  const noteAnchors = useMemo(
+    () => new Map(noteRows.map((row) => [row.book.id, row.anchor])),
+    [noteRows],
+  );
 
   // Report total book count to parent (for zoom-out button calculation)
   // We use allBooks.length since zoom-out mode shows ALL books regardless of filters
@@ -307,6 +311,7 @@ export function BooksGrid({
     useKeyboardNavigation({
       books: navigableBooks,
       isZoomOut,
+      noteAnchors,
     });
 
   // Scroll focused book into view with padding buffer (keyboard navigation only)

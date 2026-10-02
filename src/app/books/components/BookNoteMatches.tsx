@@ -2,6 +2,7 @@
 
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
+import { noteMatchHref } from "../lib/noteMatchLink";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -9,7 +10,6 @@ import { useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { NoteExcerptSegment } from "~/lib/books/notesSearch";
-import { SEARCH_HIGHLIGHT_PARAM } from "~/lib/books/searchHighlight";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
@@ -23,7 +23,7 @@ import { cn } from "@/src/lib/util";
 export type BookNoteRow = {
   book: Book;
   excerpt: NoteExcerptSegment[];
-  /** The chapter the excerpt came from; the row opens the book there. */
+  /** The chapter or takeaway the excerpt came from; the row opens there. */
   anchor: string | null;
 };
 
@@ -108,13 +108,13 @@ function BookNoteMatchRow({
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   // The book view scrolls to the chapter once its notes load, opening a
   // folded takeaway if that is where the passage lives, and marks the
-  // search (?hl=) there for a few seconds.
-  const params = new URLSearchParams(searchParams.toString());
-  const query = params.get("q")?.trim();
-  if (query) params.set(SEARCH_HIGHLIGHT_PARAM, query);
-  const bookUrl = `${bookPath(book.id, params.toString())}${
-    anchor ? `#${encodeURIComponent(anchor)}` : ""
-  }`;
+  // search there for a few seconds.
+  const bookUrl = noteMatchHref(
+    bookPath,
+    book.id,
+    searchParams.toString(),
+    anchor,
+  );
 
   // The same open a cover performs (BookCard.handleClick).
   const handleClick = () => {
