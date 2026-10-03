@@ -46,6 +46,7 @@ import { Button } from "~/components/ui/button";
 
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
+import { ModalBackdrop } from "./ModalBackdrop";
 import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
 import { RelatedBooks } from "./RelatedBooks";
 import {
@@ -56,6 +57,14 @@ import {
   isBookModalHistoryState,
 } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
+
+// Hands the card's fades to framer-motion's frame loop instead of the
+// browser's (WAAPI). A WAAPI fade ends by cancelling the browser animation
+// and writing the final value on the loop's next frame, so for a frame the
+// layer can show where it started, the card's text blinking out at the end
+// of fading in. Framer will not use WAAPI for an element with an `onUpdate`
+// handler. The backdrop has its own fades (ModalBackdrop).
+const DRIVE_FADES_ON_FRAME_LOOP = () => undefined;
 
 export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
@@ -516,18 +525,11 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       {isModalOpen && bookId && (
         <>
           {/* Backdrop */}
-          <motion.div
-            ref={backdropRef}
+          <ModalBackdrop
+            backdropRef={backdropRef}
+            instant={Boolean(reduceMotion) || originOwnsExit}
             data-overlay-backdrop=""
             className={`fixed inset-0 z-50 bg-stone-900/70 dark:bg-black/70 ${expanded ? "pointer-events-none" : ""}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            // One fade everywhere. The books site's 0.2s read as the black
-            // dropping in at once behind the first frames of an open.
-            transition={{
-              duration: reduceMotion || originOwnsExit ? 0 : 0.28,
-            }}
             onPointerDown={armDismiss}
             onClick={dismissIfArmed}
           />
@@ -550,6 +552,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
             <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
               <motion.div
                 ref={shellRef}
+                onUpdate={DRIVE_FADES_ON_FRAME_LOOP}
                 role="dialog"
                 aria-modal="true"
                 aria-label={
@@ -600,6 +603,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 {/* Actual content - fades in on top */}
                 <motion.div
                   data-home-glass="modal"
+                  onUpdate={DRIVE_FADES_ON_FRAME_LOOP}
                   className={`relative overflow-hidden rounded-3xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
                   // Flying in, the content travels with the shell; growing
                   // out of a shelf cover, it fades in once the morph is under way.

@@ -13,7 +13,10 @@ describe("book modal presentation", () => {
     expect(modal).toContain(
       "<AnimatePresence onExitComplete={() => setOriginExitRunning(false)}>",
     );
-    expect(modal).toContain("reduceMotion || originOwnsExit ? 0");
+    // The backdrop skips its own fade out (ModalBackdrop).
+    expect(modal).toContain(
+      "instant={Boolean(reduceMotion) || originOwnsExit}",
+    );
     expect(modal).toContain(
       "originOwnsExit\n                    ? { opacity: 0, scale: 1, y: 0 }",
     );
