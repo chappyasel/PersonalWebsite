@@ -1,13 +1,15 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useMotionValue } from "framer-motion";
 import Image from "next/image";
 
+import { bookCoverShadow } from "~/lib/books/coverShadow";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { Book } from "~/lib/books/types";
 
 import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 
+import { DetailCoverTilt } from "./DetailCoverTilt";
 import { cn } from "@/src/lib/util";
 
 /**
@@ -47,6 +49,62 @@ export function BookRowCover({
         />
       )}
     </motion.div>
+  );
+}
+
+// The book view's header cover once it has folded (BookDetailContent): a
+// 4px corner and a quarter of the resting shadow.
+const FOLDED_RADIUS = "4px";
+const FOLDED_SHADOW_SIZE = 0.25;
+
+/**
+ * A row cover drawn as the book view's folded header cover: the same
+ * radius and shadow, and on hover the same lift and tilt toward the
+ * pointer, or none where that header has none (reduced motion, touch, the
+ * effect switched off). Its box is `[data-book-row-cover]`, which a book
+ * view opened from the row flies out of.
+ */
+export function BookRowTiltCover({
+  book,
+}: {
+  book: Pick<Book, "coverUrl" | "coverColor">;
+}) {
+  const coverUrl = enhanceCoverUrl(book.coverUrl);
+  const borderRadius = useMotionValue(FOLDED_RADIUS);
+  const shadowSize = useMotionValue(FOLDED_SHADOW_SIZE);
+  const restingShadow = useMotionValue(
+    bookCoverShadow(0, 0, 1, FOLDED_SHADOW_SIZE),
+  );
+  return (
+    <div data-book-row-cover className="mt-0.5 aspect-[2/3] w-14 shrink-0">
+      <DetailCoverTilt
+        borderRadius={borderRadius}
+        shadowSize={shadowSize}
+        restingShadow={restingShadow}
+      >
+        <div
+          className={cn(
+            "relative h-full w-full overflow-hidden rounded-[4px]",
+            !book.coverColor &&
+              "bg-gradient-to-b from-stone-500/20 to-stone-700/20",
+          )}
+          style={
+            book.coverColor ? { backgroundColor: book.coverColor } : undefined
+          }
+        >
+          {coverUrl && (
+            <Image
+              src={coverUrl}
+              alt=""
+              fill
+              sizes="56px"
+              className="h-full w-full select-none object-cover"
+              draggable="false"
+            />
+          )}
+        </div>
+      </DetailCoverTilt>
+    </div>
   );
 }
 

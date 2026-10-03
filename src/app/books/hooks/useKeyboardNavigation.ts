@@ -16,7 +16,7 @@ import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute
 interface UseKeyboardNavigationOptions {
   books: Book[];
   isZoomOut: boolean;
-  /** The "Mentioned in notes" books among `books`, each with the anchor of
+  /** The "Mentioned in Notes" books among `books`, each with the anchor of
    * its matched passage (null when the match spans passages). */
   noteAnchors?: ReadonlyMap<string, string | null>;
 }
@@ -264,7 +264,7 @@ export function useKeyboardNavigation({
         setShowFocusIndicator(true); // Show indicator on keyboard action
         lastFocusedBookIdRef.current = book.id;
       }
-      // A "Mentioned in notes" row opens where its click does: at the
+      // A "Mentioned in Notes" row opens where its click does: at the
       // passage, with the search marked.
       const href = noteAnchors?.has(book.id)
         ? noteMatchHref(

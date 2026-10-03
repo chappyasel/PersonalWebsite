@@ -57,7 +57,7 @@ export function BookNoteMatches({
       className="flex flex-col gap-2 pb-8"
     >
       <h2 className="text-2xl font-semibold text-foreground">
-        Mentioned in notes
+        Mentioned in Notes
         {rows.length > 0 && (
           <span className="ml-1 inline-block -translate-y-0.5 text-sm text-muted-foreground">
             ({rows.length})

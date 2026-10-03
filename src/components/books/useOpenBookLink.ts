@@ -12,12 +12,18 @@ import { navigateFullDocument } from "~/app/components/route-transition-prototyp
  * follow the link. Small viewports load the book's own page. Elsewhere the
  * surface hosting the link opens the book: the Books app or an open book
  * over itself, a document in its own book modal. With no such surface the
- * link navigates.
+ * link navigates. The modal flies out of `origin`'s box when one is given
+ * (a row's cover), else out of the link's own.
  */
 export function useOpenBookLink() {
   const openBook = useInlineBookPreview();
   return useCallback(
-    (event: MouseEvent<HTMLAnchorElement>, href: string, slug: string) => {
+    (
+      event: MouseEvent<HTMLAnchorElement>,
+      href: string,
+      slug: string,
+      origin?: Element | null,
+    ) => {
       if (
         event.defaultPrevented ||
         event.button !== 0 ||
@@ -34,7 +40,7 @@ export function useOpenBookLink() {
       }
       if (!openBook) return;
       event.preventDefault();
-      openBook(slug, event.currentTarget.getBoundingClientRect());
+      openBook(slug, (origin ?? event.currentTarget).getBoundingClientRect());
     },
     [openBook],
   );

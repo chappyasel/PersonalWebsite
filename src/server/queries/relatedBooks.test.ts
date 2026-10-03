@@ -18,7 +18,7 @@ vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 vi.mock("~/server/db", () => ({
   db: {
     execute: mocks.execute,
-    select: () => ({ from: mocks.books }),
+    query: { books: { findMany: mocks.books } },
   },
 }));
 afterEach(() => vi.resetAllMocks());
@@ -34,8 +34,27 @@ function book(
     publicationYear: 2000,
     coverUrl: `https://covers.example/${id}.jpg`,
     coverColor: "#335577",
+    rating: 4,
+    started: "2024-01-01T08:00:00.000Z",
+    finished: "2024-02-01T08:00:00.000Z",
     abandoned: false,
     ...overrides,
+  };
+}
+
+/** A books row as the loader reads it, with Date columns. */
+function bookRow(
+  id: string,
+  dates: { finished?: Date | null; abandoned?: Date | null } = {},
+) {
+  return {
+    ...book(id),
+    started: new Date("2024-01-01T08:00:00.000Z"),
+    finished:
+      "finished" in dates
+        ? dates.finished
+        : new Date("2024-02-01T08:00:00.000Z"),
+    abandoned: dates.abandoned ?? null,
   };
 }
 
@@ -137,7 +156,10 @@ describe("shapeRelatedBooks", () => {
   it("draws each row from the reading's own fields, and nothing else", () => {
     const related = shapeRelatedBooks(
       [near("a", "b", 0.9)],
-      [book("a"), book("b", { publicationYear: null, coverColor: null })],
+      [
+        book("a"),
+        book("b", { publicationYear: null, coverColor: null, rating: null }),
+      ],
       OPTIONS,
     );
     expect(related.a).toEqual([
@@ -148,21 +170,54 @@ describe("shapeRelatedBooks", () => {
         publicationYear: null,
         coverUrl: "https://covers.example/b.jpg",
         coverColor: null,
+        rating: null,
+        started: "2024-01-01T08:00:00.000Z",
+        finished: "2024-02-01T08:00:00.000Z",
       },
     ]);
   });
 });
 
 describe("loadRelatedBooks", () => {
+  const sqlOf = (call: number) =>
+    new PgDialect().sqlToQuery(mocks.execute.mock.calls[call]![0] as SQL);
+
   it("compares books by the average of their passage embeddings", async () => {
     mocks.execute.mockResolvedValue([]);
     mocks.books.mockResolvedValue([]);
     await loadRelatedBooks();
-    const query = new PgDialect().sqlToQuery(
-      mocks.execute.mock.calls[0]![0] as SQL,
-    );
-    expect(query.sql).toContain("avg(c.embedding)");
-    expect(query.sql).toContain("o.centroid <=> s.centroid");
+    expect(sqlOf(0).sql).toContain("avg(c.embedding)");
+    expect(sqlOf(0).sql).toContain("o.centroid <=> s.centroid");
+  });
+
+  it("reads an attempt as abandoned only when it was never finished", async () => {
+    mocks.execute.mockResolvedValue([
+      { book_id: "a", related_id: "dropped", similarity: 0.9 },
+      { book_id: "a", related_id: "reread", similarity: 0.8 },
+    ]);
+    mocks.books.mockResolvedValue([
+      bookRow("a"),
+      bookRow("dropped", { finished: null, abandoned: new Date("2024-02-01") }),
+      bookRow("reread", { abandoned: new Date("2023-02-01") }),
+    ]);
+
+    expect(ids(await loadRelatedBooks(), "a")).toEqual(["reread"]);
+  });
+
+  it("hands the reading dates to the row as ISO strings", async () => {
+    mocks.execute.mockResolvedValue([
+      { book_id: "a", related_id: "b", similarity: 0.8 },
+    ]);
+    mocks.books.mockResolvedValue([
+      bookRow("a"),
+      bookRow("b", { finished: null }),
+    ]);
+
+    const [row] = (await loadRelatedBooks()).a!;
+    expect(row).toMatchObject({
+      started: "2024-01-01T08:00:00.000Z",
+      finished: null,
+    });
   });
 
   it("applies the shipped limit and floor to every book", async () => {
@@ -182,7 +237,7 @@ describe("loadRelatedBooks", () => {
       },
     ]);
     mocks.books.mockResolvedValue(
-      ["a", "thin", ...others].map((id) => book(id)),
+      ["a", "thin", ...others].map((id) => bookRow(id)),
     );
 
     const related = await loadRelatedBooks();
@@ -195,7 +250,7 @@ describe("loadRelatedBooks", () => {
     mocks.execute.mockResolvedValue([
       { book_id: "a", related_id: "b", similarity: 0.8 },
     ]);
-    mocks.books.mockResolvedValue([book("a"), book("b")]);
+    mocks.books.mockResolvedValue([bookRow("a"), bookRow("b")]);
 
     expect((await getRelatedBooks("a")).map((entry) => entry.id)).toEqual([
       "b",

@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,14 +20,18 @@ import { BookDetailContent } from "./BookDetailContent";
 import { RelatedBooks } from "./RelatedBooks";
 import * as documentNavigation from "~/app/components/route-transition-prototype/documentNavigation";
 
-const { getRelated } = vi.hoisted(() => ({
+const { getRelated, prefetch } = vi.hoisted(() => ({
+  prefetch: vi.fn(),
   getRelated: vi.fn<
     (input: { bookId: string }) => { data: RelatedBook[] | undefined }
   >(() => ({ data: undefined })),
 }));
 
 vi.mock("~/trpc/react", () => ({
-  api: { books: { getRelated: { useQuery: getRelated } } },
+  api: {
+    useUtils: () => ({ books: { getById: { prefetch } } }),
+    books: { getRelated: { useQuery: getRelated } },
+  },
 }));
 vi.mock("next/link", () => ({
   default: (props: ComponentProps<"a">) => <a {...props} />,
@@ -35,6 +45,10 @@ const CHATTER: RelatedBook = {
   publicationYear: 2021,
   coverUrl: null,
   coverColor: "#e4572e",
+  rating: 4,
+  // Midnight Pacific, the way the sync stores a Notion day.
+  started: "2024-03-12T07:00:00.000Z",
+  finished: "2024-03-18T07:00:00.000Z",
 };
 const THE_WAR_OF_ART: RelatedBook = {
   id: "the-war-of-art",
@@ -43,11 +57,15 @@ const THE_WAR_OF_ART: RelatedBook = {
   publicationYear: null,
   coverUrl: null,
   coverColor: null,
+  rating: null,
+  started: "2026-09-28T07:00:00.000Z",
+  finished: null,
 };
 
 let smallScreen = false;
 beforeEach(() => {
   smallScreen = false;
+  window.history.replaceState(null, "", "/books/talking-to-strangers");
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: smallScreen && query.includes("width < 640px"),
     addEventListener: vi.fn(),
@@ -88,26 +106,54 @@ describe("RelatedBooks", () => {
   ])("draws nothing while the list is %s", (_, books) => {
     renderRelated(books);
     expect(document.querySelector("[data-related-books]")).toBeNull();
-    expect(screen.queryByText("Related books")).toBeNull();
+    expect(screen.queryByText("Related Books")).toBeNull();
   });
 
-  it("lists each book as a row with its title, author, and year", () => {
+  it("sets the list off from the notes with a break", () => {
+    renderRelated([CHATTER]);
+    const section = screen.getByRole("region", { name: "Related Books" });
+    const breakMark = section.querySelector("[data-related-books-break]")!;
+    expect(breakMark.getAttribute("aria-hidden")).toBe("true");
+    // Three pills over two.
+    expect(
+      [...breakMark.children].map((course) => course.children.length),
+    ).toEqual([3, 2]);
+    expect(breakMark.nextElementSibling?.textContent).toBe("Related Books");
+  });
+
+  it("lists each book with its rating and when it was read", () => {
     renderRelated([CHATTER, THE_WAR_OF_ART]);
 
-    const section = screen.getByRole("region", { name: "Related books" });
+    const section = screen.getByRole("region", { name: "Related Books" });
     const links = screen.getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/books/chatter",
       "/books/the-war-of-art",
     ]);
-    expect(links[0]!.textContent).toBe("ChatterEthan Kross•2021");
-    // No year, no separator.
-    expect(links[1]!.textContent).toBe("The War of ArtSteven Pressfield");
+    const chatter = within(links[0]!);
+    expect(chatter.getByText("Chatter")).toBeTruthy();
+    expect(chatter.getByText("Ethan Kross")).toBeTruthy();
+    expect(chatter.getByText("2021")).toBeTruthy();
+    expect(chatter.getByRole("img", { name: "4 out of 5 stars" })).toBeTruthy();
+    expect(chatter.getByText("Mar 12th - 18th '24")).toBeTruthy();
+    // Unrated and still being read: no stars, no year, the start date.
+    expect(links[1]!.textContent).toBe(
+      "The War of ArtSteven PressfieldStarted Sep 28th '26",
+    );
     // The jacket color stands in for the cover until it loads.
     expect(
-      links[0]!.querySelector<HTMLElement>(".aspect-\\[2\\/3\\]")!.style
+      links[0]!.querySelector<HTMLElement>("[style*='background-color']")!.style
         .backgroundColor,
     ).toBe("rgb(228, 87, 46)");
+    // The cover sits as the book view's folded header cover does: a 4px
+    // corner and a quarter of the resting shadow.
+    const surface = links[0]!.querySelector<HTMLElement>(
+      "[style*='box-shadow']",
+    )!;
+    expect(surface.style.borderRadius).toBe("4px");
+    expect(surface.style.boxShadow).toContain(
+      "0.00px 1.25px 5.00px 0.50px rgba(0, 0, 0, 0.12)",
+    );
     // Titles, authors and years only: no scores, no reasons.
     expect(section.textContent).not.toMatch(/%|\d\.\d|because/i);
   });
@@ -122,11 +168,27 @@ describe("RelatedBooks", () => {
   });
 
   it("opens a book through the surface hosting it, as notes links do", () => {
-    const open = renderRelated([CHATTER]);
+    const open = renderRelated([THE_WAR_OF_ART]);
     const click = new MouseEvent("click", { bubbles: true, cancelable: true });
     fireEvent(screen.getByRole("link"), click);
-    expect(open).toHaveBeenCalledWith("chatter", expect.any(Object));
+    expect(open).toHaveBeenCalledWith("the-war-of-art", expect.any(Object));
     expect(click.defaultPrevented).toBe(true);
+  });
+
+  it("flies the book view out of the row's cover", () => {
+    const open = renderRelated([CHATTER]);
+    const link = screen.getByRole("link");
+    const cover = link.querySelector<HTMLElement>("[data-book-row-cover]")!;
+    const coverBox = new DOMRect(328, 467, 56, 84);
+    vi.spyOn(cover, "getBoundingClientRect").mockReturnValue(coverBox);
+    fireEvent.click(link);
+    expect(open).toHaveBeenCalledWith("chatter", coverBox);
+  });
+
+  it("fetches a book while the pointer rests on its row", () => {
+    renderRelated([CHATTER]);
+    fireEvent.mouseEnter(screen.getByRole("link"));
+    expect(prefetch).toHaveBeenCalledWith({ bookId: "chatter" });
   });
 
   it("loads the book's own page on a small screen", () => {

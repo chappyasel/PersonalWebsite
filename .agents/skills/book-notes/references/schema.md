@@ -179,7 +179,7 @@ foreign key, because a slug move deletes and reinserts the `books` row.
 `anchor` is the id the book page renders for the passage's chapter, or for
 the takeaway toggle itself, so
 `'https://books.chappyasel.com/' || b.id || '#' || c.anchor` opens the page
-at that chapter, unfolding a takeaway. The shelf's "Mentioned in notes" rows
+at that chapter, unfolding a takeaway. The shelf's "Mentioned in Notes" rows
 and the Command palette's notes matches link the same way. Passages are cut from the notes as the page shows them, so
 unwritten skeleton sections have none. `search_vector` is a Postgres-generated
 `tsvector` over heading and content with a GIN index (migration 0022); keyword

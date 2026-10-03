@@ -4,14 +4,21 @@ import "server-only";
 
 import type { Book } from "~/lib/books/types";
 import { db } from "~/server/db";
-import { books } from "~/server/db/schema";
 
 import { BOOKS_DATA_TAG, BOOKS_REVALIDATE_SECONDS } from "./books";
 
 /** A book listed under another as related: what its row draws. */
 export type RelatedBook = Pick<
   Book,
-  "id" | "title" | "author" | "publicationYear" | "coverUrl" | "coverColor"
+  | "id"
+  | "title"
+  | "author"
+  | "publicationYear"
+  | "coverUrl"
+  | "coverColor"
+  | "rating"
+  | "started"
+  | "finished"
 >;
 
 /** One of a book's nearest books by note centroid, nearest first. */
@@ -94,6 +101,9 @@ export function shapeRelatedBooks(
         publicationYear: other.publicationYear,
         coverUrl: other.coverUrl,
         coverColor: other.coverColor,
+        rating: other.rating,
+        started: other.started,
+        finished: other.finished,
       });
     }
     if (rows.length) related[bookId] = rows;
@@ -133,17 +143,20 @@ export async function loadRelatedBooks(): Promise<
         ORDER BY o.centroid <=> s.centroid, o.id
         LIMIT ${NEIGHBOURS_PER_BOOK}
       ) n`),
-    db
-      .select({
-        id: books.id,
-        title: books.title,
-        author: books.author,
-        publicationYear: books.publicationYear,
-        coverUrl: books.coverUrl,
-        coverColor: books.coverColor,
-        abandoned: sql<boolean>`(${books.abandoned} IS NOT NULL AND ${books.finished} IS NULL)`,
-      })
-      .from(books),
+    db.query.books.findMany({
+      columns: {
+        id: true,
+        title: true,
+        author: true,
+        publicationYear: true,
+        coverUrl: true,
+        coverColor: true,
+        rating: true,
+        started: true,
+        finished: true,
+        abandoned: true,
+      },
+    }),
   ]);
   const neighbours = (
     neighbourRows as unknown as Array<{
@@ -159,9 +172,16 @@ export async function loadRelatedBooks(): Promise<
   return shapeRelatedBooks(
     neighbours,
     candidates.map((book) => ({
-      ...book,
+      id: book.id,
+      title: book.title,
+      author: book.author,
       publicationYear: book.publicationYear ?? null,
+      coverUrl: book.coverUrl,
       coverColor: book.coverColor ?? null,
+      rating: book.rating ?? null,
+      started: book.started?.toISOString() ?? null,
+      finished: book.finished?.toISOString() ?? null,
+      abandoned: Boolean(book.abandoned && !book.finished),
     })),
     {
       limit: RELATED_BOOKS_LIMIT,
