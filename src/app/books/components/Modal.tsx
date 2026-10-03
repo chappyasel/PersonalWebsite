@@ -46,7 +46,9 @@ import { Button } from "~/components/ui/button";
 
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
+import { ModalBackdrop } from "./ModalBackdrop";
 import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
+import { RelatedBooks } from "./RelatedBooks";
 import {
   BOOK_MODAL_HISTORY_STATE,
   bookIdFromPathname,
@@ -55,6 +57,14 @@ import {
   isBookModalHistoryState,
 } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
+
+// Hands the card's fades to framer-motion's frame loop instead of the
+// browser's (WAAPI). A WAAPI fade ends by cancelling the browser animation
+// and writing the final value on the loop's next frame, so for a frame the
+// layer can show where it started, the card's text blinking out at the end
+// of fading in. Framer will not use WAAPI for an element with an `onUpdate`
+// handler. The backdrop has its own fades (ModalBackdrop).
+const DRIVE_FADES_ON_FRAME_LOOP = () => undefined;
 
 export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
@@ -76,17 +86,18 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
-  // A 3D cover/spine click records a small rect at the pointer (a mesh has
-  // no DOM box); the shell flies from and back to it, the same origin pop
-  // the daylight sheet does. Absent on the standalone books site, where the
-  // cover's layoutId morph already owns the entrance.
-  const stacksOriginRef = useRef<ModalOrigin | null>(null);
+  // A launcher without a cover to morph from records where it was clicked:
+  // a 3D cover or spine a small rect at the pointer (a mesh has no DOM box),
+  // a book linked from the notes or listed as related its own box. The shell
+  // flies from and back to it, the same origin pop the daylight sheet does.
+  // A shelf cover records nothing; its layoutId morph owns the entrance.
+  const originRef = useRef<ModalOrigin | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
   // Documents use the same external-library links and origin flight as Stacks.
   const fromStacks = presentation !== undefined;
   const onCloseStart = presentation?.onCloseStart;
-  const launchOrigin = fromStacks && isModalOpen ? peekModalOrigin() : null;
+  const launchOrigin = isModalOpen ? peekModalOrigin() : null;
 
   const bookId = selectedBookId ?? "";
 
@@ -122,10 +133,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     (document.activeElement as HTMLElement)?.blur();
     // Stacks origin pop, reversed: the shell flies back to the clicked
     // cover's rect before the modal state tears down.
-    const origin = stacksOriginRef.current;
+    const origin = originRef.current;
     const shell = shellRef.current;
     if (origin && shell) {
-      stacksOriginRef.current = null;
+      originRef.current = null;
       setOriginExitRunning(true);
       const flying = originExit(shell, origin, backdropRef.current, () => {
         closeModal();
@@ -176,10 +187,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       beginOverlayClose(shellRef.current);
       onCloseStart?.();
       (document.activeElement as HTMLElement)?.blur();
-      const origin = stacksOriginRef.current;
+      const origin = originRef.current;
       const shell = shellRef.current;
       if (origin && shell) {
-        stacksOriginRef.current = null;
+        originRef.current = null;
         setOriginExitRunning(true);
         if (originExit(shell, origin, backdropRef.current, closeModal)) return;
         setOriginExitRunning(false);
@@ -408,19 +419,18 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     beginExpand();
   };
 
-  // Stacks origin pop: overlay a WAAPI flight from the clicked cover's rect
-  // on top of the shell transition (WAAPI owns transform/opacity while it
-  // runs, and both land on identity, so the two never fight). Before paint,
-  // so the shell never flashes at rest first.
+  // Origin pop: overlay a WAAPI flight from the launcher's recorded rect on
+  // top of the shell transition (WAAPI owns transform/opacity while it runs,
+  // and both land on identity, so the two never fight). Before paint, so the
+  // shell never flashes at rest first.
   useLayoutEffect(() => {
-    if (!isModalOpen || !fromStacks) return;
+    if (!isModalOpen) return;
     const origin = takeModalOrigin();
     if (!origin) return;
-    stacksOriginRef.current = origin;
+    originRef.current = origin;
     const shell = shellRef.current;
     if (shell) originEntrance(shell, origin);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen, fromStacks]);
+  }, [isModalOpen]);
 
   // Canvas books have no DOM cover to receive focus, while books opened on
   // the dedicated site do. In either case the dialog itself becomes the
@@ -499,36 +509,38 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // A recorded 3D-origin flight has already animated both layers completely
-  // to zero before modal state is released. Framer's ordinary exit must be
+  // A recorded origin flight (from a 3D prop, a document link, or a link on
+  // a book's page) has already animated both layers completely to zero
+  // before modal state is released. Framer's ordinary exit must be
   // instantaneous in that case: its internal motion values still say 1, so
   // replaying the fallback fade would make the invisible layers flash back.
-  const originOwnsExit = fromStacks && originExitRunning;
+  // Cleared once that exit completes (AnimatePresence below), so the next
+  // open's first render fades the backdrop in rather than dropping it in at
+  // full black. Not by `isModalOpen`: the exit plays the props of the last
+  // render before close, when the modal was still open.
+  const originOwnsExit = originExitRunning;
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => setOriginExitRunning(false)}>
       {isModalOpen && bookId && (
         <>
           {/* Backdrop */}
-          <motion.div
-            ref={backdropRef}
+          <ModalBackdrop
+            backdropRef={backdropRef}
+            instant={Boolean(reduceMotion) || originOwnsExit}
             data-overlay-backdrop=""
             className={`fixed inset-0 z-50 bg-stone-900/70 dark:bg-black/70 ${expanded ? "pointer-events-none" : ""}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{
-              duration:
-                reduceMotion || originOwnsExit ? 0 : fromStacks ? 0.28 : 0.2,
-            }}
             onPointerDown={armDismiss}
             onClick={dismissIfArmed}
           />
 
           {/* Modal */}
+          {/* Vertical overscroll stops here so the page underneath never
+              scrolls; sideways it carries on to the browser, so a two-finger
+              swipe goes back or forward instead of rubber-banding the card. */}
           <div
             data-overlay-surface=""
-            className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
+            className="fixed inset-0 z-50 overflow-y-auto overscroll-y-contain"
             onPointerDown={armDismiss}
             onClick={dismissIfArmed}
           >
@@ -540,6 +552,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
             <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]">
               <motion.div
                 ref={shellRef}
+                onUpdate={DRIVE_FADES_ON_FRAME_LOOP}
                 role="dialog"
                 aria-modal="true"
                 aria-label={
@@ -590,8 +603,11 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 {/* Actual content - fades in on top */}
                 <motion.div
                   data-home-glass="modal"
+                  onUpdate={DRIVE_FADES_ON_FRAME_LOOP}
                   className={`relative overflow-hidden rounded-3xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
-                  initial={fromStacks ? false : { opacity: 0 }}
+                  // Flying in, the content travels with the shell; growing
+                  // out of a shelf cover, it fades in once the morph is under way.
+                  initial={fromStacks || launchOrigin ? false : { opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{
@@ -646,6 +662,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                         }
                         tagHref={tagHref}
                         onTagSelect={handleTagSelect}
+                        relatedBooks={
+                          <RelatedBooks
+                            bookId={book.id}
+                            booksHref={
+                              fromStacks ? presentation.booksHref : undefined
+                            }
+                          />
+                        }
                       />
                     </InlineBookOpener>
                   ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { BookDetailContent } from "../components/BookDetailContent";
+import { RelatedBooks } from "../components/RelatedBooks";
 import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
@@ -14,8 +15,10 @@ import {
 } from "~/lib/books/paths";
 import type { BaseBook, BookWithNotes } from "~/lib/books/types";
 import { copyTextToClipboard } from "~/lib/clipboard";
+import { recordModalOrigin } from "~/lib/originFlight";
 import { ownsOverlayInput } from "~/lib/overlays/coordinator";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+import { api } from "~/trpc/react";
 
 import { InlineBookOpener } from "~/components/books/InlineBookPreviewProvider";
 
@@ -41,13 +44,22 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
   // modal does without giving that up; the breadcrumb drops it too.
   const tagHref = (tag: string) => getBooksPath(getBooksTagQuery(tag));
 
-  // A book the notes link opens over this page the way a shelf card opens
-  // over the shelf, on a history entry of its own, so Back and the close
-  // control both return here.
+  // A book the notes link, or a related book, opens over this page on a
+  // history entry of its own, so Back and the close control both return
+  // here. It flies out of the link it was opened from and back into it
+  // (recordModalOrigin): unlike a shelf cover, a link has no cover for the
+  // book view to grow out of.
   const { openModalById } = useModalActions();
   const bookPath = useBookPath();
+  const utils = api.useUtils();
+  const prefetchLinkedBook = useCallback(
+    (linkedBookId: string) =>
+      void utils.books.getById.prefetch({ bookId: linkedBookId }),
+    [utils],
+  );
   const openLinkedBook = useCallback(
-    (linkedBookId: string) => {
+    (linkedBookId: string, origin: DOMRect) => {
+      recordModalOrigin(origin);
       openModalById(linkedBookId);
       window.history.pushState(
         BOOK_MODAL_HISTORY_STATE,
@@ -87,7 +99,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
       <div className="flex min-h-[100dvh] flex-col">
         {/* Content Container */}
         <div className="flex min-h-[100dvh] flex-col bg-background">
-          <InlineBookOpener open={openLinkedBook}>
+          <InlineBookOpener open={openLinkedBook} prefetch={prefetchLinkedBook}>
             <BookDetailContent
               book={book}
               fullBook={book}
@@ -99,6 +111,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
               bookshelfBookCount={bookshelfBookCount}
               onClose={handleClose}
               tagHref={tagHref}
+              relatedBooks={<RelatedBooks bookId={bookId} />}
             />
           </InlineBookOpener>
         </div>

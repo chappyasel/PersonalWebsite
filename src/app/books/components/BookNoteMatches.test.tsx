@@ -83,7 +83,7 @@ describe("BookNoteMatches", () => {
     const { container } = renderMatches();
 
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
-      "Mentioned in notes(1)",
+      "Mentioned in Notes(1)",
     );
     const row = screen.getByRole("button", {
       name: "View details for Behave by Robert M. Sapolsky",

@@ -13,7 +13,6 @@ import Link from "next/link";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { humanizeSlug, inlineBookFacts } from "~/lib/books/inlineFacts";
 
-import { prefersFullPage } from "~/components/modal-sheet/sheetRoute";
 import type { BookLookupEntry } from "~/components/notion/types";
 import {
   Tooltip,
@@ -23,8 +22,18 @@ import {
 } from "~/components/ui/tooltip";
 
 import { BookMetadataText } from "./BookMetadataSeparator";
-import { useInlineBookPreview } from "./InlineBookPreviewProvider";
-import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
+import { useInlineBookPrefetch } from "./InlineBookPreviewProvider";
+import { useOpenBookLink } from "./useOpenBookLink";
+
+// Focus a person can see: keyboard focus, not the focus a closing modal
+// hands back to the link that opened it after a click.
+function isFocusVisible(element: Element) {
+  try {
+    return element.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
 
 /**
  * The one way to link a book from running text.
@@ -55,30 +64,23 @@ export default function BookLink({
 }) {
   const title = label ?? book?.title ?? humanizeSlug(slug);
   const cover = enhanceCoverUrl(book?.coverUrl ?? null);
-  const openBook = useInlineBookPreview();
+  const openBookLink = useOpenBookLink();
+  const prefetch = useInlineBookPrefetch();
+  const prefetchBook = () => prefetch?.(slug);
 
   const anchor = (
     <Link
       href={href}
       data-route-transition="preserve"
-      onClick={(event) => {
-        if (
-          event.defaultPrevented ||
-          event.button !== 0 ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey
-        )
-          return;
-        if (prefersFullPage()) {
-          event.preventDefault();
-          navigateFullDocument(href, { source: event.currentTarget });
-          return;
-        }
-        if (!openBook) return;
-        event.preventDefault();
-        openBook(slug, event.currentTarget.getBoundingClientRect());
+      onClick={(event) => openBookLink(event, href, slug)}
+      onMouseEnter={prefetchBook}
+      onPointerDown={prefetchBook}
+      onFocus={(event) => {
+        prefetchBook();
+        // The hover card opens on focus too. Returned to the link as the
+        // modal closes, it would pop up over the page as the modal fades;
+        // a handled event keeps Radix from opening it.
+        if (!isFocusVisible(event.currentTarget)) event.preventDefault();
       }}
       className="inline-flex items-baseline gap-1.5 underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
     >

@@ -18,6 +18,7 @@ Treat these code paths as authoritative:
 - Sync behavior: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/sync.ts`
 - Supported tag taxonomy: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/tagColors.ts`
 - Note search passages and embeddings: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/noteChunks.ts`, `noteEmbeddings.ts`, and `semanticNoteSearch.ts`
+- Related books on each book page: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/server/queries/relatedBooks.ts`. It reads the same passages read-only, averages each book's embeddings, and lists up to 5 books by cosine similarity (floor 0.60), one reading per book and no abandoned attempts. Books without written notes have no passages, so they get no list and appear in none.
 
 If those files change the fields, filters, freshness, or query behavior described here, update this skill in the same code change.
 

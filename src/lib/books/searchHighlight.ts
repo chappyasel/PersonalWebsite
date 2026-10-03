@@ -1,6 +1,6 @@
 /**
  * The search a visitor arrived with, marked in the book's notes for a few
- * seconds. Links from a notes match (the shelf's "Mentioned in notes" rows,
+ * seconds. Links from a notes match (the shelf's "Mentioned in Notes" rows,
  * the Command palette) carry the query as `?hl=`; the book page marks every
  * word it names, then fades the marks out.
  */

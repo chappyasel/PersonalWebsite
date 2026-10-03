@@ -19,6 +19,9 @@ const InlineBookModal = dynamic(() => import("./InlineBookModal"), {
 const OpenBookContext = createContext<
   ((bookId: string, origin: DOMRect) => void) | null
 >(null);
+const PrefetchBookContext = createContext<((bookId: string) => void) | null>(
+  null,
+);
 
 export function InlineBookPreviewProvider({
   children,
@@ -45,19 +48,31 @@ export function InlineBookPreviewProvider({
  * Running text inside a surface that already hosts the book modal (the
  * Books app, or a book open in it) opens linked books through that surface
  * instead of stacking this provider's document modal on top of it.
+ * `prefetch` fetches a book while a link to it is pointed at, so the modal
+ * opens on its notes rather than a skeleton.
  */
 export function InlineBookOpener({
   open,
+  prefetch,
   children,
 }: {
   open: (bookId: string, origin: DOMRect) => void;
+  prefetch?: (bookId: string) => void;
   children: ReactNode;
 }) {
   return (
-    <OpenBookContext.Provider value={open}>{children}</OpenBookContext.Provider>
+    <OpenBookContext.Provider value={open}>
+      <PrefetchBookContext.Provider value={prefetch ?? null}>
+        {children}
+      </PrefetchBookContext.Provider>
+    </OpenBookContext.Provider>
   );
 }
 
 export function useInlineBookPreview() {
   return useContext(OpenBookContext);
+}
+
+export function useInlineBookPrefetch() {
+  return useContext(PrefetchBookContext);
 }

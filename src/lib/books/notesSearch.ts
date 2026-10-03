@@ -75,7 +75,7 @@ export function noteSearchQuery(raw: string): string | null {
  * Returns null when the headline carries no marker. The search index also
  * covers title and author, so a book can match the query without its notes
  * mentioning it; Postgres then returns the opening words unmarked, and that
- * book does not belong under "Mentioned in notes".
+ * book does not belong under "Mentioned in Notes".
  */
 export function noteExcerptSegments(
   headline: string,

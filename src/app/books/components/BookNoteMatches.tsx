@@ -3,21 +3,18 @@
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
 import { noteMatchHref } from "../lib/noteMatchLink";
-import { motion } from "framer-motion";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useRef } from "react";
 
-import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { NoteExcerptSegment } from "~/lib/books/notesSearch";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
-import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
 import { LoadFailed } from "~/components/ui/load-failed";
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { SearchMark } from "~/components/ui/search-mark";
 
+import { BookRowCover, BookRowTitle } from "./BookRow";
 import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import { cn } from "@/src/lib/util";
 
@@ -60,7 +57,7 @@ export function BookNoteMatches({
       className="flex flex-col gap-2 pb-8"
     >
       <h2 className="text-2xl font-semibold text-foreground">
-        Mentioned in notes
+        Mentioned in Notes
         {rows.length > 0 && (
           <span className="ml-1 inline-block -translate-y-0.5 text-sm text-muted-foreground">
             ({rows.length})
@@ -116,7 +113,6 @@ function BookNoteMatchRow({
   const bookPath = useBookPath();
   const utils = api.useUtils();
   const rowRef = useRef<HTMLButtonElement>(null);
-  const coverUrl = enhanceCoverUrl(book.coverUrl);
   // The book view scrolls to the chapter once its notes load, opening a
   // folded takeaway if that is where the passage lives, and marks the
   // search there for a few seconds.
@@ -157,47 +153,9 @@ function BookNoteMatchRow({
       {/* Shares the cover's layoutId so the book view grows out of the
           thumbnail the way it grows out of a cover on the shelf. A book is
           drawn once per search, as a cover or as a row, never both. */}
-      <motion.div
-        layoutId={`book-cover-${book.id}`}
-        className={cn(
-          "relative mt-0.5 aspect-[2/3] w-14 shrink-0 overflow-hidden rounded-[3px] shadow-sm",
-          !book.coverColor &&
-            "bg-gradient-to-b from-stone-500/20 to-stone-700/20",
-        )}
-        style={
-          book.coverColor ? { backgroundColor: book.coverColor } : undefined
-        }
-        transition={{
-          layout: { type: "spring", stiffness: 300, damping: 30 },
-        }}
-      >
-        {coverUrl && (
-          <Image
-            src={coverUrl}
-            alt=""
-            fill
-            sizes="56px"
-            className="h-full w-full select-none object-cover"
-            draggable="false"
-          />
-        )}
-      </motion.div>
-      {/* Title over author and year, the order the cover overlay uses. */}
+      <BookRowCover book={book} layoutId={`book-cover-${book.id}`} />
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-base font-semibold leading-tight text-foreground">
-          {book.title}
-        </h3>
-        <p className="flex min-w-0 items-baseline pt-0.5 text-sm text-muted-foreground">
-          <span className="min-w-0 truncate">{book.author}</span>
-          {book.publicationYear && (
-            <span className="shrink-0 whitespace-nowrap">
-              <BookMetadataSeparator />
-              <span aria-label={`Published ${book.publicationYear}`}>
-                {book.publicationYear}
-              </span>
-            </span>
-          )}
-        </p>
+        <BookRowTitle book={book} />
         <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-muted-foreground">
           {excerpt.map((segment, index) =>
             segment.match ? (
