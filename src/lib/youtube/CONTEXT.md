@@ -53,7 +53,7 @@ The explicit state for a video whose available evidence cannot support a Learnin
 _Avoid_: Unknown = 0.5, default score
 
 **Coverage Through**:
-The instant the ingested history is complete to, which is when Google built the most recent Takeout archive that was successfully ingested. A day between the newest Watch Event and Coverage Through was checked and found empty, so it counts as zero viewing; a day after it has simply not been exported yet and is absent rather than zero.
+The instant the ingested history is complete to, which is when Google built the most recent Takeout archive that was successfully ingested. A day between the newest Watch Event and Coverage Through was checked and found empty, so it counts as zero viewing; a day after it has simply not been exported yet and is absent rather than zero. The watch-day that holds Coverage Through was only partly exported, so it is absent too, and the day before it is the last covered day where every bounded range ends.
 _Avoid_: Last sync, last watch, today
 
 **Estimated Exposure**:

@@ -48,7 +48,7 @@ function DayCell({
   videoCount: number;
   isToday: boolean;
   isCurrentMonth: boolean;
-  /** Whether the ingested history reaches this day. Past the boundary an empty
+  /** Whether the export saw this whole watch-day. Past the boundary an empty
    *  cell would otherwise read as a day of no watching. */
   isCovered: boolean;
 }) {
@@ -60,10 +60,10 @@ function DayCell({
         !isCurrentMonth ? "opacity-0" : ""
       }`}
       aria-label={
-        !isCovered
-          ? `${dateStr}: not exported yet`
-          : hours > 0
-            ? `${dateStr}: ${hours.toFixed(1)}h (${videoCount} videos)`
+        hours > 0
+          ? `${dateStr}: ${hours.toFixed(1)}h (${videoCount} videos)`
+          : !isCovered
+            ? `${dateStr}: not exported yet`
             : `${dateStr}: no watching`
       }
     >
