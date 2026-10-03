@@ -19,6 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "~/components/ui/chart";
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 import { YearHeatmap } from "~/components/ui/year-heatmap";
 
@@ -126,10 +127,27 @@ function hoursToOpacity(hours: number): number {
 
 /** Daily reading heatmap for one year — data + ramp stay books-specific */
 function ReadingHeatmap({ year }: { year: string }) {
-  const { data: daily } = api.books.getDailyReading.useQuery(
+  const {
+    data: daily,
+    isError,
+    isFetching,
+    refetch,
+  } = api.books.getDailyReading.useQuery(
     { year: Number(year) },
     { staleTime: 5 * 60 * 1000 },
   );
+
+  // An empty grid would read as a year without reading.
+  if (isError) {
+    return (
+      <LoadFailed
+        message="Daily reading failed to load."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+        className="py-2"
+      />
+    );
+  }
 
   return (
     <YearHeatmap
@@ -173,10 +191,14 @@ export function ReadingStatsContent({ initialScope }: { initialScope: Scope }) {
     storeChoice("mode", m);
   };
 
-  const { data: analytics } = api.books.getReadingAnalytics.useQuery(
-    undefined,
-    { staleTime: 5 * 60 * 1000 },
-  );
+  const {
+    data: analytics,
+    isError: analyticsFailed,
+    isFetching: analyticsFetching,
+    refetch: refetchAnalytics,
+  } = api.books.getReadingAnalytics.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
 
   const stats = useMemo(() => {
     if (!analytics) return null;
@@ -277,6 +299,17 @@ export function ReadingStatsContent({ initialScope }: { initialScope: Scope }) {
       }) ?? [],
     [stats, metric, mode],
   );
+
+  if (!stats && analyticsFailed) {
+    return (
+      <LoadFailed
+        message="Reading stats failed to load."
+        retrying={analyticsFetching}
+        onRetry={() => void refetchAnalytics()}
+        className="py-6"
+      />
+    );
+  }
 
   if (!stats) {
     return (

@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { reportClientError } from "~/lib/error-reporting/client";
+
 /**
  * The last resort. This replaces the root layout, so it runs when the layout
  * itself is what failed: the theme provider, the font loader, the stylesheet.
@@ -54,6 +56,11 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("Root layout error:", error);
+    reportClientError(error, {
+      source: "boundary",
+      label: "global",
+      digest: error.digest,
+    });
   }, [error]);
 
   return (

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { syncBookEmojis } from "~/server/bookCoverEmojis/cloud";
+import { reportServerError } from "~/server/errorReporting";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -18,8 +19,14 @@ export async function GET(request: NextRequest) {
   try {
     const result = await syncBookEmojis();
     return NextResponse.json({ success: result.failed.length === 0, ...result });
-  } catch {
-    // Provider errors may contain signed cover URLs or credentials.
+  } catch (error) {
+    // Provider errors may contain signed cover URLs or credentials, so the
+    // report keeps the error's type and stack and drops its message.
+    await reportServerError(error, {
+      source: "cron",
+      route: "/api/cron/sync-book-emojis",
+      redactMessage: true,
+    });
     return NextResponse.json(
       { success: false, error: "Book emoji sync failed" },
       { status: 500 },

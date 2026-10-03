@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { api } from "~/trpc/react";
 
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 
 const MONTH_NAMES = [
@@ -161,12 +162,19 @@ function MonthMiniCalendar({
 }
 
 export function YearCalendar() {
+  // Stats only set how far back the year stepper goes. If they fail, the
+  // stepper stays on this year and the calendar still renders.
   const { data: stats } = api.youtube.getStats.useQuery();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
 
-  const { data: calendarData, isLoading } =
-    api.youtube.getCalendarData.useQuery({ year });
+  const {
+    data: calendarData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = api.youtube.getCalendarData.useQuery({ year });
 
   const minYear = stats?.earliestWatch
     ? new Date(stats.earliestWatch).getFullYear()
@@ -209,6 +217,12 @@ export function YearCalendar() {
             <Skeleton key={i} className="h-44 rounded-lg" />
           ))}
         </div>
+      ) : isError ? (
+        <LoadFailed
+          message="Daily activity failed to load."
+          retrying={isFetching}
+          onRetry={() => void refetch()}
+        />
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {Array.from({ length: 12 }).map((_, month) => (

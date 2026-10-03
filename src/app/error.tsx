@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { reportClientError } from "~/lib/error-reporting/client";
+
 import "~/styles/daylight.css";
 
 /**
@@ -27,6 +29,11 @@ export default function RootError({
 }) {
   useEffect(() => {
     console.error("Unhandled page error:", error);
+    reportClientError(error, {
+      source: "boundary",
+      label: "root",
+      digest: error.digest,
+    });
   }, [error]);
 
   return (

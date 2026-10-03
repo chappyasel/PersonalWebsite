@@ -9,6 +9,7 @@ import {
   WorkoutSyncBusyError,
   syncWeightlifting,
 } from "~/lib/weightlifting/sync";
+import { reportServerError } from "~/server/errorReporting";
 
 import { env } from "~/env";
 
@@ -54,6 +55,11 @@ export async function GET(request: NextRequest) {
       );
     }
     console.error("Cron sync failed:", error);
+    await reportServerError(error, {
+      source: "cron",
+      route: "/api/cron/sync-weightlifting",
+      label: "cron",
+    });
     return NextResponse.json(
       {
         success: false,
@@ -81,6 +87,11 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("Webhook sync failed:", error);
+    await reportServerError(error, {
+      source: "cron",
+      route: "/api/cron/sync-weightlifting",
+      label: "manual",
+    });
     return NextResponse.json(
       {
         success: false,

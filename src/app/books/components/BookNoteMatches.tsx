@@ -14,6 +14,7 @@ import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { BookMetadataSeparator } from "~/components/books/BookMetadataSeparator";
+import { LoadFailed } from "~/components/ui/load-failed";
 import { loadFullPageOnSmallViewport } from "~/components/modal-sheet/sheetRoute";
 import { SearchMark } from "~/components/ui/search-mark";
 
@@ -32,6 +33,8 @@ type BookNoteMatchesProps = {
   /** The server has not answered for the current query yet. Rows, if any,
    * belong to the previous query and are drawn dimmed. */
   isSearching: boolean;
+  /** The server could not search the notes for the current query. */
+  failure?: { retrying: boolean; retry: () => void } | null;
   focusedBookId: string | null;
   showFocusIndicator: boolean;
   onHover: (bookId: string | null) => void;
@@ -45,6 +48,7 @@ type BookNoteMatchesProps = {
 export function BookNoteMatches({
   rows,
   isSearching,
+  failure,
   focusedBookId,
   showFocusIndicator,
   onHover,
@@ -63,7 +67,14 @@ export function BookNoteMatches({
           </span>
         )}
       </h2>
-      {rows.length === 0 ? (
+      {failure && rows.length === 0 ? (
+        <LoadFailed
+          message="The notes search failed."
+          retrying={failure.retrying}
+          onRetry={failure.retry}
+          className="items-start py-0 text-left"
+        />
+      ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground" role="status">
           Searching notes
         </p>

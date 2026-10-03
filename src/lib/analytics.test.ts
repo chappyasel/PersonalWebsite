@@ -269,4 +269,20 @@ describe("analytics URL privacy", () => {
       }),
     ).toEqual({ event_property: "kept" });
   });
+
+  it("cuts private-area paths back to the area root", () => {
+    expect(
+      sanitizeAnalyticsProperties({
+        $current_url: "https://www.chappyasel.com/dad/journal/2003/some-entry",
+        $referrer: "https://www.chappyasel.com/youtube/calibrate?x=1",
+        $pathname: "/dad/journal/2003/some-entry",
+        $initial_pathname: "/books/the-hobbit",
+      }),
+    ).toEqual({
+      $current_url: "https://www.chappyasel.com/dad",
+      $referrer: "https://www.chappyasel.com/youtube",
+      $pathname: "/dad",
+      $initial_pathname: "/books/the-hobbit",
+    });
+  });
 });

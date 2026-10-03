@@ -49,6 +49,8 @@ export function BookFilters({
   const [hoveredRating, setHoveredRating] = useState<number | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const isRestoring = useIsRestoring();
+  // Both start from the server render's answer, so a failed refetch keeps
+  // the filters as they were.
   const { data: tags } = api.books.getTags.useQuery(undefined, {
     initialData: initialTags,
     staleTime: 5 * 60 * 1000,

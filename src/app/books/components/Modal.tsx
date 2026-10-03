@@ -42,6 +42,7 @@ import {
   SheetExpandControl,
 } from "~/components/modal-sheet/SheetControls";
 import { OverlayPresence } from "~/components/overlays/OverlayPresence";
+import { Button } from "~/components/ui/button";
 
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
@@ -94,6 +95,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     data: fetchedBook,
     isLoading: isLoadingFull,
     error,
+    isFetching: isRetryingBook,
+    refetch: refetchBook,
   } = api.books.getById.useQuery(
     { bookId },
     {
@@ -602,12 +605,17 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       <p className="text-center text-muted-foreground">
                         Failed to load book details
                       </p>
-                      <button
-                        onClick={handleClose}
-                        className="bg-title hover:bg-body rounded-lg px-6 py-2 text-background transition-colors"
-                      >
-                        Close
-                      </button>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={() => void refetchBook()}
+                          disabled={isRetryingBook}
+                        >
+                          Try again
+                        </Button>
+                        <Button variant="outline" onClick={handleClose}>
+                          Close
+                        </Button>
+                      </div>
                     </div>
                   ) : book ? (
                     <InlineBookOpener open={switchToBook}>

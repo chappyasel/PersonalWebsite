@@ -17,6 +17,7 @@ import {
 } from "~/lib/youtube/dashboard";
 import { api } from "~/trpc/react";
 
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
   Tooltip,
@@ -221,10 +222,10 @@ function ScoreSparkline({
 }
 
 export function StatsCards() {
-  const { data: stats, isLoading: statsLoading } =
-    api.youtube.getStats.useQuery();
-  const { data: diet, isLoading: dietLoading } =
-    api.youtube.getInformationDietSummary.useQuery();
+  const statsQuery = api.youtube.getStats.useQuery();
+  const dietQuery = api.youtube.getInformationDietSummary.useQuery();
+  const { data: stats, isLoading: statsLoading } = statsQuery;
+  const { data: diet, isLoading: dietLoading } = dietQuery;
 
   if (statsLoading || dietLoading) {
     return (
@@ -235,7 +236,19 @@ export function StatsCards() {
       </div>
     );
   }
-  if (!stats || !diet) return null;
+  if (!stats || !diet) {
+    const failed = [statsQuery, dietQuery].filter((query) => query.isError);
+    if (failed.length === 0) return null;
+    return (
+      <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+        <LoadFailed
+          message="Stats failed to load."
+          retrying={failed.some((query) => query.isFetching)}
+          onRetry={() => failed.forEach((query) => void query.refetch())}
+        />
+      </div>
+    );
+  }
 
   const currentHours = diet.current.exposureSeconds / 3600;
   const priorHours = diet.prior.exposureSeconds / 3600;

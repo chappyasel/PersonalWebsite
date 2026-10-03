@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse, after } from "next/server";
 
 import { refreshBookCachesAfterSync } from "~/lib/books/cacheInvalidation";
 import { syncBooksFromNotion, withBookSyncLock } from "~/lib/books/sync";
+import { reportServerError } from "~/server/errorReporting";
 
 import { env } from "~/env";
 
@@ -71,6 +72,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, ...(await runSync("cron")) });
   } catch (error) {
     console.error("Cron sync failed:", error);
+    await reportServerError(error, {
+      source: "cron",
+      route: "/api/cron/sync-books",
+      label: "cron",
+    });
 
     return NextResponse.json(
       {
@@ -102,6 +108,11 @@ export function POST(request: NextRequest) {
       console.log("Webhook sync finished; cache refresh:", cacheRefresh);
     } catch (error) {
       console.error("Webhook sync failed:", error);
+      await reportServerError(error, {
+        source: "cron",
+        route: "/api/cron/sync-books",
+        label: "manual",
+      });
     }
   });
 

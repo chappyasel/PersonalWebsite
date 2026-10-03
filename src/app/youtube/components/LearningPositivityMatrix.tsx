@@ -16,6 +16,7 @@ import { scoreBand, scoreTextClass } from "~/lib/youtube/dashboard";
 import { api } from "~/trpc/react";
 
 import { ChartContainer, ChartTooltip } from "~/components/ui/chart";
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 
 import { type TimeRange, TimeRangeToggle } from "./TimeRangeToggle";
@@ -179,15 +180,26 @@ export function LearningPositivityMatrix() {
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(
     null,
   );
-  const { data, isLoading } = api.youtube.getInformationDietChannels.useQuery({
-    limit: 500,
-    timeRange,
-  });
-  const { data: videos } = api.youtube.getChannelVideos.useQuery(
+  const { data, isLoading, isError, isFetching, refetch } =
+    api.youtube.getInformationDietChannels.useQuery({
+      limit: 500,
+      timeRange,
+    });
+  const videosQuery = api.youtube.getChannelVideos.useQuery(
     { channelId: selectedChannelId ?? 0, limit: 30 },
     { enabled: selectedChannelId !== null },
   );
+  const videos = videosQuery.data;
   if (isLoading) return <Skeleton className="h-96 w-full rounded-lg" />;
+  if (isError) {
+    return (
+      <LoadFailed
+        message="Channels failed to load."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
   const points: MatrixPoint[] = (data ?? [])
     .filter(
       (
@@ -276,6 +288,14 @@ export function LearningPositivityMatrix() {
               Close
             </button>
           </div>
+          {videosQuery.isError && (
+            <LoadFailed
+              message="Videos failed to load."
+              retrying={videosQuery.isFetching}
+              onRetry={() => void videosQuery.refetch()}
+              className="py-4"
+            />
+          )}
           <div className="grid gap-2 sm:grid-cols-2">
             {videos?.map((video) => (
               <a

@@ -21,6 +21,7 @@ import {
 import { api } from "~/trpc/react";
 
 import { ChartContainer, ChartTooltip } from "~/components/ui/chart";
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 
 import { type TimeRange, TimeRangeToggle } from "./TimeRangeToggle";
@@ -198,12 +199,22 @@ export function WatchTimeChart() {
   const [activePanel, setActivePanel] = useState<
     "watch-time" | "scores" | null
   >(null);
-  const { data, isLoading } = api.youtube.getInformationDietTrend.useQuery({
-    groupBy,
-    timeRange,
-  });
+  const { data, isLoading, isError, isFetching, refetch } =
+    api.youtube.getInformationDietTrend.useQuery({
+      groupBy,
+      timeRange,
+    });
 
   if (isLoading) return <Skeleton className="h-[30rem] w-full rounded-lg" />;
+  if (isError) {
+    return (
+      <LoadFailed
+        message="Watch time failed to load."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
   if (!data?.length) {
     return (
       <p className="py-8 text-center text-sm text-neutral-400">

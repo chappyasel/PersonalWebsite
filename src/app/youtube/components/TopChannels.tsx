@@ -6,6 +6,7 @@ import { useState } from "react";
 import { scoreTextClass } from "~/lib/youtube/dashboard";
 import { api } from "~/trpc/react";
 
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 
 import { type TimeRange, TimeRangeToggle } from "./TimeRangeToggle";
@@ -73,10 +74,11 @@ function Score({
 export function TopChannels() {
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [expanded, setExpanded] = useState(false);
-  const { data, isLoading } = api.youtube.getInformationDietChannels.useQuery({
-    limit: expanded ? 50 : 10,
-    timeRange,
-  });
+  const { data, isLoading, isError, isFetching, refetch } =
+    api.youtube.getInformationDietChannels.useQuery({
+      limit: expanded ? 50 : 10,
+      timeRange,
+    });
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -84,6 +86,15 @@ export function TopChannels() {
           <Skeleton key={index} className="h-10 rounded-md" />
         ))}
       </div>
+    );
+  }
+  if (isError) {
+    return (
+      <LoadFailed
+        message="Channels failed to load."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
     );
   }
   if (!data?.length)

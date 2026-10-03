@@ -7,6 +7,7 @@ import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { useState } from "react";
 import SuperJSON from "superjson";
 
+import { reportFailedRequest } from "~/lib/error-reporting/client";
 import { type AppRouter } from "~/server/api/root";
 
 import { createQueryClient } from "./query-client";
@@ -18,7 +19,8 @@ export const getQueryClient = () => {
     return createQueryClient();
   }
   // Browser: use singleton pattern to keep the same query client
-  return (clientQueryClientSingleton ??= createQueryClient());
+  return (clientQueryClientSingleton ??=
+    createQueryClient(reportFailedRequest));
 };
 
 export const api = createTRPCReact<AppRouter>();
