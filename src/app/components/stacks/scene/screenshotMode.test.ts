@@ -1,3 +1,9 @@
+import {
+  GOLF_STOP_POSITION,
+  GOLF_UNIT_INDEX,
+  UNITS,
+  UNIT_COUNT,
+} from "../data";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -5,12 +11,17 @@ import {
   SCREENSHOT_DOLLY_MIN,
   SCREENSHOT_FOV_DEFAULT,
   SCREENSHOT_FOV_MAX,
+  SCREENSHOT_GOLF_STOP,
+  SCREENSHOT_GOLF_UNITS,
   SCREENSHOT_GRASS_LIFT_MAX,
   SCREENSHOT_GRASS_MAX,
   SCREENSHOT_MODE_DEFAULT,
+  SCREENSHOT_STOPS,
   SCREENSHOT_TILT_DEFAULT,
   SCREENSHOT_TILT_MAX,
   SCREENSHOT_TILT_MIN,
+  SCREENSHOT_UNIT,
+  SCREENSHOT_UNIT_COUNT,
   clampScreenshotDolly,
   clampScreenshotTilt,
   screenshotDollyKeyDelta,
@@ -18,6 +29,9 @@ import {
   screenshotModeController,
   screenshotModeFromSearch,
   screenshotModeUrl,
+  screenshotShowsGolf,
+  screenshotSoloUnits,
+  screenshotStopFromValue,
   screenshotTiltRadians,
   searchPinsQuality,
 } from "./screenshotMode";
@@ -256,5 +270,77 @@ describe("screenshot mode", () => {
     expect(screenshotModeController.getSnapshot()).toEqual(
       SCREENSHOT_MODE_DEFAULT,
     );
+  });
+});
+
+describe("screenshot mode stops", () => {
+  afterEach(() => screenshotModeController.reset());
+
+  // screenshotMode.ts cannot import data.ts (Phosphor icons, React context),
+  // so it keeps its own copy of the stops. These pin the copy to the scene.
+  it("mirrors the scene's units and golf stop", () => {
+    expect(SCREENSHOT_UNIT_COUNT).toBe(UNIT_COUNT);
+    expect(SCREENSHOT_GOLF_STOP).toBe(GOLF_STOP_POSITION);
+    expect(SCREENSHOT_GOLF_UNITS).toContain(GOLF_UNIT_INDEX);
+    expect(
+      SCREENSHOT_STOPS.filter(({ stop }) => !screenshotShowsGolf(stop)),
+    ).toEqual(UNITS.map(({ label }, stop) => ({ stop, label })));
+  });
+
+  it("stands on About unless the URL names another shelf or golf", () => {
+    expect(screenshotModeFromSearch("?screenshot=1").stop).toBe(
+      SCREENSHOT_UNIT,
+    );
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-unit=4").stop,
+    ).toBe(4);
+    expect(
+      screenshotModeFromSearch("?screenshot=1&screenshot-unit=golf").stop,
+    ).toBe(SCREENSHOT_GOLF_STOP);
+    for (const value of ["7", "-1", "2.5", "projects", ""]) {
+      expect(screenshotStopFromValue(value)).toBe(SCREENSHOT_UNIT);
+    }
+    // Without the switch the parameter means nothing.
+    expect(screenshotModeFromSearch("?screenshot-unit=4")).toEqual(
+      SCREENSHOT_MODE_DEFAULT,
+    );
+  });
+
+  it("keeps one shelf warm, or both shelves beside the golf green", () => {
+    expect(screenshotSoloUnits(0)).toEqual([0]);
+    expect(screenshotSoloUnits(6)).toEqual([6]);
+    expect(screenshotSoloUnits(SCREENSHOT_GOLF_STOP)).toEqual([1, 2]);
+  });
+
+  it("writes the stop into the setup URL only when it is not About", () => {
+    const on = { ...SCREENSHOT_MODE_DEFAULT, enabled: true };
+    expect(screenshotModeUrl("https://chappyasel.com/", on)).toBe(
+      "https://chappyasel.com/?screenshot=1",
+    );
+    expect(
+      new URL(
+        screenshotModeUrl("https://chappyasel.com/", { ...on, stop: 5 }),
+      ).searchParams.get("screenshot-unit"),
+    ).toBe("5");
+    const golf = screenshotModeUrl("https://chappyasel.com/", {
+      ...on,
+      stop: SCREENSHOT_GOLF_STOP,
+    });
+    expect(new URL(golf).searchParams.get("screenshot-unit")).toBe("golf");
+    expect(screenshotModeFromSearch(new URL(golf).search).stop).toBe(
+      SCREENSHOT_GOLF_STOP,
+    );
+  });
+
+  it("moves the live stop through the same rules as the URL", () => {
+    screenshotModeController.seed(screenshotModeFromSearch("?screenshot=1"));
+    screenshotModeController.setStop(4);
+    expect(screenshotModeController.getSnapshot().stop).toBe(4);
+    screenshotModeController.setStop(SCREENSHOT_GOLF_STOP);
+    expect(screenshotModeController.getSnapshot().stop).toBe(
+      SCREENSHOT_GOLF_STOP,
+    );
+    screenshotModeController.setStop(99);
+    expect(screenshotModeController.getSnapshot().stop).toBe(SCREENSHOT_UNIT);
   });
 });

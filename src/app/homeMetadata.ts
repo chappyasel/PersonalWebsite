@@ -64,26 +64,27 @@ export const roomViewport: Viewport = {
 };
 
 /** The homepage's composed card, as a route. File-based metadata images do
- * not cascade to sibling routes (`/golf` shipped with no image at all), so
- * every room stop names the homepage's card until it has a still of its own. */
+ * not cascade to sibling routes (`/golf` shipped with no image at all), so a
+ * room stop without a card of its own names this one. */
 const HOME_OG_IMAGE = {
   url: "/opengraph-image",
   width: 1200,
   height: 630,
-  alt: HOMEPAGE_TITLE,
 };
 
 /** Metadata for a room stop that owns a path. A hash never reaches the
  * server, so `/#projects` could only ever unfurl as the homepage; a path
- * carries the stop's own title and line over the homepage's card. */
+ * carries the stop's own title, line, and card. */
 export function roomStopMetadata({
   path,
   title,
   description,
   canonical = path,
   index = true,
+  ownCard = false,
 }: {
   path: string;
+  /** The page title as it reads in a tab and a share: "Chappy's Projects". */
   title: string;
   description: string;
   /** Where search engines should credit the page. About's stop is the
@@ -91,31 +92,33 @@ export function roomStopMetadata({
   canonical?: string;
   /** Hidden stops (golf) stay out of the index. */
   index?: boolean;
+  /** The route has its own `opengraph-image.tsx`. Its images are then left
+   * out here so the file convention attaches the card, with a content hash
+   * in its URL; images named here would replace it. */
+  ownCard?: boolean;
 }): Metadata {
-  // The site's separator: "Liar's Dice Calculator ~ Chappy Asel", "<book> ~
-  // Chappy's Book Notes". Golf used a pipe until it shared this helper.
-  const fullTitle = `${title} ~ ${HOMEPAGE_TITLE}`;
+  const images = ownCard ? undefined : [{ ...HOME_OG_IMAGE, alt: title }];
   return {
-    title: fullTitle,
+    title,
     description,
     alternates: { canonical },
     ...(index ? {} : { robots: { index: false, follow: false } }),
     openGraph: {
-      title: fullTitle,
+      title,
       description,
       url: path,
       siteName: HOMEPAGE_TITLE,
       locale: "en_US",
       type: "website",
-      images: [HOME_OG_IMAGE],
+      ...(images ? { images } : {}),
     },
     twitter: {
       card: "summary_large_image",
       site: "@chappyasel",
       creator: "@chappyasel",
-      title: fullTitle,
+      title,
       description,
-      images: [HOME_OG_IMAGE],
+      ...(images ? { images } : {}),
     },
   };
 }

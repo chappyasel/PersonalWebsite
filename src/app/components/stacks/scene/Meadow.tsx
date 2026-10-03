@@ -113,7 +113,11 @@ import {
   useScenePerformanceSettings,
 } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
-import { SCREENSHOT_UNIT, useScreenshotMode } from "./screenshotMode";
+import {
+  screenshotShowsGolf,
+  screenshotSoloUnits,
+  useScreenshotMode,
+} from "./screenshotMode";
 import { getSeatAmount } from "./seated";
 import { StaticWorldRoot } from "./staticWorld";
 import { useRoomFrame } from "./useRoomFrame";
@@ -1281,25 +1285,36 @@ export default function Meadow({
   // Screenshot mode's lawn: the other shelves and the couch leave (their
   // baked shadows and unmown aprons with them), the grass stands a little
   // taller away from About and a little more uneven everywhere, and the
-  // putting green is not painted. The instances rebuild for it, which the
-  // fill effect below already handles the way it handles a tier change;
-  // the ordinary room keeps the one build it started with.
+  // putting green is not painted unless the still stands at golf. The
+  // instances rebuild for it, which the fill effect below already handles
+  // the way it handles a tier change; the ordinary room keeps the one build
+  // it started with.
   const screenshot = useScreenshotMode();
+  const soloUnits = useMemo(
+    () => screenshotSoloUnits(screenshot.stop),
+    [screenshot.stop],
+  );
   const grassOptions = useMemo<GrassBuildOptions | undefined>(
     () =>
       screenshot.enabled
         ? {
-            furniture: { units: [SCREENSHOT_UNIT], couch: false },
+            furniture: { units: [...soloUnits], couch: false },
             still: {
               lift: screenshot.grassLift,
               variation: screenshot.grassVariation,
             },
           }
         : undefined,
-    [screenshot.enabled, screenshot.grassLift, screenshot.grassVariation],
+    [
+      screenshot.enabled,
+      soloUnits,
+      screenshot.grassLift,
+      screenshot.grassVariation,
+    ],
   );
   const furniture = grassOptions?.furniture ?? MEADOW_FURNITURE_ALL;
-  const golfPresent = !screenshot.enabled;
+  const golfPresent =
+    !screenshot.enabled || screenshotShowsGolf(screenshot.stop);
   const streams = useMemo(
     () => buildGrassInstances(undefined, grassOptions),
     [grassOptions],

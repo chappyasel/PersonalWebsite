@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
 
 import { sceneQualityController } from "./sceneQualityController";
 import {
-  SCREENSHOT_UNIT,
+  screenshotSoloUnits,
   searchPinsQuality,
   useScreenshotMode,
 } from "./screenshotMode";
@@ -28,7 +28,7 @@ function setChromeHiddenSilently(hidden: boolean) {
 }
 
 export default function ScreenshotModeDriver() {
-  const { enabled } = useScreenshotMode();
+  const { enabled, stop } = useScreenshotMode();
   // Owns only the hide it introduced, like free roam: an interface the
   // owner had already hidden with H stays hidden when the mode is switched
   // off, and one they revealed with Escape while the mode was on is not
@@ -41,7 +41,6 @@ export default function ScreenshotModeDriver() {
     if (!enabled) return;
     const visibility = chrome.current;
     visibility.enter();
-    sceneUnitActivityController.setSoloUnit(SCREENSHOT_UNIT);
 
     // A still frame has no frame budget to protect, so it gets the finish
     // the owner otherwise has to pick by hand. An explicit `?quality=` in
@@ -53,22 +52,32 @@ export default function ScreenshotModeDriver() {
     const forcedCinematic = !pinned && !before.cinematicPlus;
     if (forcedCinematic) sceneQualityController.setMode("cinematic+");
 
-    // The About stop is solved differently with the rail gone (no shift),
-    // so re-land on it. travelTo reads the live shift through CameraRig's
-    // clampedOffset, which is why this is a travel and not a scroll write.
-    useStacks.getState().travelTo?.(SCREENSHOT_UNIT);
-
     return () => {
-      sceneUnitActivityController.setSoloUnit(null);
       visibility.exit();
       const after = sceneQualityController.getSnapshot();
       // Hand the quality back only if it is still the one this mode set;
       // an owner who moved the Mode control meanwhile keeps their choice.
       if (forcedCinematic && after.cinematicPlus)
         sceneQualityController.setMode(before.mode);
-      useStacks.getState().travelTo?.(SCREENSHOT_UNIT);
     };
   }, [enabled]);
+
+  // Which shelf stands alone, kept apart from the hide and the quality so
+  // the console's Shelf control moves the still without cycling either.
+  useEffect(() => {
+    if (!enabled) return;
+    sceneUnitActivityController.setSoloUnits(screenshotSoloUnits(stop));
+    // The About stop is solved differently with the rail gone (no shift),
+    // so re-land on it. travelTo reads the live shift through CameraRig's
+    // clampedOffset, which is why this is a travel and not a scroll write.
+    // Any other stop (`screenshot-unit`) is reached the same way.
+    useStacks.getState().travelTo?.(stop);
+
+    return () => {
+      sceneUnitActivityController.setSoloUnits(null);
+      useStacks.getState().travelTo?.(stop);
+    };
+  }, [enabled, stop]);
 
   return null;
 }

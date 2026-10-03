@@ -8,7 +8,7 @@ import {
 } from "./homeOgPresentation";
 
 const imageRoute = readFileSync(
-  fileURLToPath(new URL("./opengraph-image.tsx", import.meta.url)),
+  fileURLToPath(new URL("./roomOgCard.tsx", import.meta.url)),
   "utf8",
 );
 
@@ -22,7 +22,7 @@ describe("home OG signature treatment", () => {
     expect(HOME_OG_SIGNATURE_TEXT).not.toHaveProperty("backgroundImage");
   });
 
-  it("applies the presentation to the generated image route", () => {
+  it("applies the presentation to every room card", () => {
     expect(imageRoute).toContain("style={HOME_OG_BOTTOM_FADE}");
     expect(imageRoute).toContain("style={HOME_OG_SIGNATURE_TEXT}");
     expect(imageRoute).not.toContain("HOME_OG_SIGNATURE_GLASS");

@@ -42,6 +42,7 @@ export const SCREENSHOT_TILT_PARAM = "screenshot-tilt";
 export const SCREENSHOT_GRASS_LIFT_PARAM = "screenshot-grass-lift";
 export const SCREENSHOT_GRASS_VARIATION_PARAM = "screenshot-grass-variation";
 export const SCREENSHOT_PORTRAIT_PARAM = "screenshot-portrait";
+export const SCREENSHOT_UNIT_PARAM = "screenshot-unit";
 export const SCREENSHOT_QUERY_KEYS = [
   SCREENSHOT_PARAM,
   SCREENSHOT_DOLLY_PARAM,
@@ -50,11 +51,68 @@ export const SCREENSHOT_QUERY_KEYS = [
   SCREENSHOT_GRASS_LIFT_PARAM,
   SCREENSHOT_GRASS_VARIATION_PARAM,
   SCREENSHOT_PORTRAIT_PARAM,
+  SCREENSHOT_UNIT_PARAM,
 ] as const;
 
-/** The unit that stays on screen. Always About: the header is a portrait
- * of the person, and About is the shelf that says who he is. */
+/** The unit that stays on screen unless the URL names another. About: the
+ * header is a portrait of the person, and About is the shelf that says who
+ * he is. */
 export const SCREENSHOT_UNIT = 0;
+
+/** The stops a still can stand at, in rail order. A shelf is its unit index;
+ * golf is the stop between Books and Weightlifting. `screenshot-unit` takes
+ * the index or the word `golf`, so the room OG cards can capture any shelf
+ * alone (scripts/generate/room-og-config.mjs).
+ *
+ * The scene's own table lives in data.ts, which this dependency-free module
+ * cannot import; screenshotMode.test.ts pins the two together. */
+export const SCREENSHOT_UNIT_COUNT = 7;
+export const SCREENSHOT_GOLF = "golf";
+export const SCREENSHOT_GOLF_STOP = 1.52;
+/** The golf stop stands between Books and Weightlifting, and the green
+ * reads as a place only with both shelves beside it. Weightlifting also owns
+ * the green's flag, tees, balls, and club. */
+export const SCREENSHOT_GOLF_UNITS: readonly number[] = Object.freeze([1, 2]);
+export const SCREENSHOT_STOPS: readonly Readonly<{
+  stop: number;
+  label: string;
+}>[] = Object.freeze([
+  { stop: 0, label: "About" },
+  { stop: 1, label: "Book Notes" },
+  { stop: SCREENSHOT_GOLF_STOP, label: "Golf" },
+  { stop: 2, label: "Weightlifting" },
+  { stop: 3, label: "Personal Systems" },
+  { stop: 4, label: "Projects" },
+  { stop: 5, label: "Musings" },
+  { stop: 6, label: "Featured Talks" },
+]);
+
+export function screenshotShowsGolf(stop: number) {
+  return stop === SCREENSHOT_GOLF_STOP;
+}
+
+/** The units a still keeps warm: the shelf, or both shelves beside the
+ * golf green. Every other unit resolves cold. */
+export function screenshotSoloUnits(stop: number): readonly number[] {
+  return screenshotShowsGolf(stop) ? SCREENSHOT_GOLF_UNITS : [stop];
+}
+
+/** A stop from the URL or the console. Anything that is not a shelf index
+ * or golf is About, the same fallback a mistyped lens gets. */
+export function screenshotStopFromValue(value: unknown): number {
+  if (value === SCREENSHOT_GOLF || value === SCREENSHOT_GOLF_STOP)
+    return SCREENSHOT_GOLF_STOP;
+  if (value === null || value === undefined || value === "")
+    return SCREENSHOT_UNIT;
+  const index = Number(value);
+  return Number.isInteger(index) && index >= 0 && index < SCREENSHOT_UNIT_COUNT
+    ? index
+    : SCREENSHOT_UNIT;
+}
+
+function screenshotStopParam(stop: number) {
+  return screenshotShowsGolf(stop) ? SCREENSHOT_GOLF : String(stop);
+}
 
 /** World units the camera stands back from its authored stop. The visitor's
  * zoom floor is 0.75; a 4:1 banner wants far more air than that. At the
@@ -113,6 +171,8 @@ export type ScreenshotModeSnapshot = Readonly<{
    * sits beside the image; on for a card that stands alone, like the OG
    * image, where the portrait is the only face in the frame. */
   portrait: boolean;
+  /** Where the still stands: a shelf's unit index, or the golf stop. */
+  stop: number;
 }>;
 
 export const SCREENSHOT_MODE_DEFAULT: ScreenshotModeSnapshot = Object.freeze({
@@ -123,6 +183,7 @@ export const SCREENSHOT_MODE_DEFAULT: ScreenshotModeSnapshot = Object.freeze({
   grassLift: SCREENSHOT_GRASS_LIFT_DEFAULT,
   grassVariation: SCREENSHOT_GRASS_VARIATION_DEFAULT,
   portrait: false,
+  stop: SCREENSHOT_UNIT,
 });
 
 function screenshotFlagFromValue(raw: string | null) {
@@ -211,6 +272,7 @@ export function screenshotModeFromSearch(
     portrait:
       params.has(SCREENSHOT_PORTRAIT_PARAM) &&
       screenshotFlagFromValue(params.get(SCREENSHOT_PORTRAIT_PARAM)),
+    stop: screenshotStopFromValue(params.get(SCREENSHOT_UNIT_PARAM)),
   };
 }
 
@@ -255,6 +317,11 @@ export function screenshotModeUrl(
         String(snapshot.grassVariation),
       );
     if (snapshot.portrait) url.searchParams.set(SCREENSHOT_PORTRAIT_PARAM, "1");
+    if (snapshot.stop !== SCREENSHOT_UNIT)
+      url.searchParams.set(
+        SCREENSHOT_UNIT_PARAM,
+        screenshotStopParam(snapshot.stop),
+      );
   }
   return url.toString();
 }
@@ -347,6 +414,12 @@ class ScreenshotModeController {
   setPortrait(portrait: boolean) {
     if (this.snapshot.portrait === portrait) return;
     this.publish({ ...this.snapshot, portrait });
+  }
+
+  setStop(stop: number) {
+    const next = screenshotStopFromValue(stop);
+    if (this.snapshot.stop === next) return;
+    this.publish({ ...this.snapshot, stop: next });
   }
 
   /** Seed from the URL once, at canvas mount. Later reads come from the

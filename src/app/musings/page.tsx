@@ -17,14 +17,14 @@ import TiltCard from "~/app/components/TiltCard";
 export const revalidate = 86400;
 
 export const metadata: Metadata = {
-  title: "Musings ~ Chappy Asel",
+  title: "Chappy's Musings",
   description: "Essays and blog posts by Chappy Asel.",
   alternates: {
     canonical: "/musings",
     types: { "application/rss+xml": "/musings/feed.xml" },
   },
   openGraph: {
-    title: "Musings ~ Chappy Asel",
+    title: "Chappy's Musings",
     description: "Essays and blog posts by Chappy Asel.",
     url: "/musings",
     type: "website",

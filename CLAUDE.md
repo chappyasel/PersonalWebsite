@@ -37,21 +37,34 @@ in it is deterministic and needs no credentials, so red means someone broke the
 code.
 
 `pnpm verify:artifacts` strictly checks whether committed generated files still
-match the sources they were made from. Today that is the homepage OG capture,
-and regenerating it needs a production build with database credentials. The
-automatic Git hook and `.github/workflows/refresh-home-og.yml` report stale
-captures as warnings because a shared renderer source can change for an
-off-camera Unit without changing the About card. Keeping artifact freshness
-out of `pnpm verify` is deliberate: a code gate that can never go green is a
-code gate people learn to ignore.
+match the sources they were made from. That includes the room OG cards: the
+homepage card and one card each for `/projects`, `/musings`, `/talks`, and
+`/golf`, all captured from the live room in screenshot mode
+(`scripts/generate/room-og-config.mjs`). Each card's manifest hashes the files
+its shelf is built from, and regenerating a card needs a production build with
+database credentials. `.github/workflows/refresh-home-og.yml` reports stale
+cards as warnings. Keeping artifact freshness out of `pnpm verify` is
+deliberate: a code gate that can never go green is a code gate people learn to
+ignore.
+
+A changed hash is a proxy, and usually a wrong one: most edits to a watched
+file do not move the picture. The real check runs after a local `pnpm build`.
+`postbuild` serves the new build, renders every card whose hashes moved, and
+compares the pixels with the committed JPEG. When they match, it restamps the
+card and its manifest without a warning. When they differ, it leaves the
+committed card alone, writes the new render to `.next/cache/room-og/<slug>.jpg`,
+and prints the command that adopts it. It never runs on Vercel or in CI and
+never fails the build, and `ROOM_OG_POSTBUILD=0` skips it for one build. Each
+card it renders costs a few minutes of software WebGL.
 
 `pnpm install` configures `.githooks/pre-commit` unless another
 `core.hooksPath` is already in use. The hook checks the Git index, not the
-working tree, so partial commits are safe. Its warning is narrowed to the fixed
-About capture: other Unit-local sources and assets are excluded, while shared
-rendering sources remain watched. When the About frame intentionally changes,
-run `pnpm generate:home-og:local` and stage both outputs named by the warning. CI
-repeats the freshness check if a local hook is bypassed.
+working tree, so partial commits are safe. It does not report hash staleness.
+It warns only when a staged card is not the capture its manifest describes,
+such as a JPEG replaced by hand. To refresh cards on purpose, run
+`pnpm generate:room-og:local` for every card or add `--unit <slug>` for one,
+then stage the JPEG and manifest it writes. `pnpm generate:home-og:local` is
+the About card alone.
 
 Neither gate measures bundle size, and nothing else does either. The homepage
 first load matters: it is the boot path for the 3D room, and one value import

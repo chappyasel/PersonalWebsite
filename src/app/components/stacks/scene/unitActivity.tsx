@@ -164,24 +164,39 @@ class SceneUnitActivityController {
   private direction: -1 | 0 | 1 = 0;
   private executed = 0;
   private skipped = 0;
-  /** Screenshot mode's "only this unit". Every other unit resolves cold no
-   * matter where the camera stands, which hides its root and parks its work
-   * lanes through the same path the camera-derived state uses. Null is the
+  /** Screenshot mode's "only these units": one shelf, or the two either
+   * side of the golf green. Every other unit resolves cold no matter where
+   * the camera stands, which hides its root and parks its work lanes
+   * through the same path the camera-derived state uses. Null is the
    * ordinary room. */
-  private soloUnit: number | null = null;
+  private soloUnits: readonly number[] | null = null;
   private soloListeners = new Set<() => void>();
 
-  setSoloUnit(index: number | null) {
+  setSoloUnits(indexes: readonly number[] | null) {
     const next =
-      index === null
+      indexes === null
         ? null
-        : Math.min(UNIT_COUNT - 1, Math.max(0, Math.round(index)));
-    if (this.soloUnit === next) return;
-    this.soloUnit = next;
+        : [
+            ...new Set(
+              indexes.map((index) =>
+                Math.min(UNIT_COUNT - 1, Math.max(0, Math.round(index))),
+              ),
+            ),
+          ].sort((a, b) => a - b);
+    const current = this.soloUnits;
+    if (
+      current === next ||
+      (current !== null &&
+        next !== null &&
+        current.length === next.length &&
+        current.every((index, i) => index === next[i]))
+    )
+      return;
+    this.soloUnits = next;
     for (const listener of this.soloListeners) listener();
   }
 
-  readonly getSoloUnit = () => this.soloUnit;
+  readonly getSoloUnits = () => this.soloUnits;
   readonly subscribeSolo = (listener: () => void) => {
     this.soloListeners.add(listener);
     return () => this.soloListeners.delete(listener);
@@ -290,7 +305,7 @@ class SceneUnitActivityController {
         now,
       });
       const next: UnitActivityState =
-        this.soloUnit !== null && index !== this.soloUnit
+        this.soloUnits !== null && !this.soloUnits.includes(index)
           ? "cold"
           : resolution.state;
       this.outsideSince[index] = resolution.outsideSince;
@@ -317,13 +332,13 @@ class SceneUnitActivityController {
 
 export const sceneUnitActivityController = new SceneUnitActivityController();
 
-/** The unit screenshot mode has singled out, or null. Scene-level objects
+/** The units screenshot mode has singled out, or null. Scene-level objects
  * that are drawn per unit but live outside the unit roots (the ground pools)
  * read this so they disappear with the shelf they belong to. */
-export function useSoloUnit() {
+export function useSoloUnits() {
   return useSyncExternalStore(
     sceneUnitActivityController.subscribeSolo,
-    sceneUnitActivityController.getSoloUnit,
+    sceneUnitActivityController.getSoloUnits,
     () => null,
   );
 }

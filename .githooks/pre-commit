@@ -1,4 +1,8 @@
 #!/bin/sh
-if ! node scripts/check-home-og-freshness.mjs --staged; then
-  echo "Homepage OG freshness is advisory; the commit will continue."
+# Room OG cards: warn only when a staged card is not the capture its manifest
+# describes (replaced by hand, or committed without its manifest). Whether the
+# scene has moved since a card was captured is a question for the pixels, and
+# a local `pnpm build` answers it (scripts/generate/room-og-postbuild.mjs).
+if ! node scripts/check-home-og-freshness.mjs --staged --integrity; then
+  echo "Room OG card integrity is advisory; the commit will continue."
 fi

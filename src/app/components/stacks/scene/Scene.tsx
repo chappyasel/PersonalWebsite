@@ -56,7 +56,7 @@ import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   SceneUnitActivityDriver,
   UnitActivityProvider,
-  useSoloUnit,
+  useSoloUnits,
   useUnitActivityRoot,
 } from "./unitActivity";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
@@ -404,16 +404,16 @@ function QualityLayer({
   quality: SceneQualityPlan;
   headOnCapture: boolean;
 }) {
-  // Screenshot mode's solo unit. The pools live outside the unit roots the
+  // Screenshot mode's solo units. The pools live outside the unit roots the
   // residency controller hides, so a hidden shelf would otherwise leave its
   // shadow on the lawn.
-  const soloUnit = useSoloUnit();
+  const soloUnits = useSoloUnits();
   return (
     <>
       <SceneEnvironment palette={palette} dark={dark} quality={quality} />
       {quality.environment.grounding &&
         UNITS.map((unit, i) =>
-          soloUnit !== null && i !== soloUnit ? null : (
+          soloUnits !== null && !soloUnits.includes(i) ? null : (
             <group
               key={`pool-${unit.slug}`}
               {...unitPoseForCapture(i, headOnCapture)}
