@@ -37,7 +37,17 @@ python3 scripts/weight-log/import_workbook.py "$WEIGHT_WORKBOOK" \
 node --env-file=.env --import tsx scripts/weight-log/store.ts --upload
 ```
 
-`WEIGHT_WORKBOOK` is the path to the local workbook. The first command validates weekly calculations and writes an encrypted, ignored development snapshot. The second uploads that ciphertext with a private ACL and verifies the stored bytes and decryption. Neither command prints measurements or secrets. There is no automatic sync.
+`WEIGHT_WORKBOOK` is the path to the local workbook. The first command validates weekly calculations and writes an encrypted, ignored development snapshot. The second uploads that ciphertext with a private ACL and verifies the stored bytes and decryption. Neither command prints measurements or secrets.
+
+## Automatic refresh
+
+The Hermes job "Weight Log Refresh" runs both commands every day at 8:00 local time. Its ID is `7bd64831c4b3` and its script is `~/.hermes/scripts/cron/weight_log_refresh.py`. It runs from the main checkout, `~/Desktop/Repos/PersonalWebsite`, against `iCloud Drive/Spreadsheets/Weight Log.xlsx`. When the workbook is byte-identical to the last successful upload, the job does nothing. If iCloud has offloaded the file to save space, the job asks `brctl` to download it first.
+
+When `history-context.enc` is missing, the job renames any local `snapshot.enc` to `snapshot.enc.bak-<timestamp>` and rebuilds the companion with `restore:weight-log`. Restore prefers a local snapshot over S3, and an old one would roll the historical context back. Renaming it loses nothing, because the import overwrites `snapshot.enc` anyway. The job refuses to upload unless restore downloaded production.
+
+Failures post to the Hermes `#ops` channel, and the last failed step's full output goes to `~/.hermes/workspace/state/weight-log/last-failure.log`. Three failures in a row pause the job. If the Mac is asleep at 8:00, the run happens when it wakes, up to 12 hours late.
+
+The upload is automatic, so a plausible typo in the workbook goes live on the next run. The importer still rejects weekly averages that differ from Excel's saved values.
 
 The importer keeps actual date cells, daily weights, phase boundaries, target values, and the days included in each weekly calculation. It checks recomputed averages against Excel's saved values. Formula-specific exclusions survive import; excluded readings remain visible. Nonnumeric daily annotations are counted and skipped. No formulas are evaluated as code. DEXA values come from the total-body section of the workbook, including reported body-fat overrides.
 
@@ -73,7 +83,7 @@ The shaded envelope spans both ends of the recollection, calendar, front-loaded,
 
 Strength and lean-mass changes can have weak associations over a training block, as shown in [Bagheri et al.](https://pubmed.ncbi.nlm.nih.gov/39206316/). Hydration and glycogen also affect DEXA lean-mass measurements, as shown in [Toomey et al.](https://pubmed.ncbi.nlm.nih.gov/28204901/). These findings explain why performance is supporting evidence and why the paths remain explicit assumptions. Neither study validates this reconstruction.
 
-The private companion file `data/weight-log/history-context.enc` preserves recollections and strength summaries independently of workbook imports. The storage script merges it into each new encrypted snapshot, and fails on invalid or undecryptable context rather than silently dropping it. Local edits and workbook refreshes do not upload data; `--upload` remains an explicit separate operation. Releasing a model revision requires both the code and its matching encrypted snapshot update. Verify the private upload by reading back and decrypting the stored bytes before deploying the code.
+The private companion file `data/weight-log/history-context.enc` preserves recollections and strength summaries independently of workbook imports. The storage script merges it into each new encrypted snapshot, and fails on invalid or undecryptable context rather than silently dropping it. Local edits and a hand-run import do not upload data; `--upload` is a separate step, which the daily Hermes job runs after each import. Releasing a model revision requires both the code and its matching encrypted snapshot update. Verify the private upload by reading back and decrypting the stored bytes before deploying the code.
 
 After the last scan, the model uses `FFM = anchor FFM + k * weight change`, the relationship in the analysis repo's `src/dexa/forecast.py`. Separate gain and loss values of `k` are medians of consecutive scan ratios. Intervals with less than 2 lb of change, more than 365 days between scans, or a ratio outside zero to one are excluded. With fewer than two usable intervals in a direction, FFM stays constant and the interface states that fallback. Planned future weight drives a separate dashed body-fat projection. Impossible percentages are omitted rather than clamped. These are heuristic estimates, not daily measurements or validated predictive intervals. The main time-series chart does not reproduce the analysis repo's bootstrap forecast or the workbook's Bull/Bear scenarios.
 
