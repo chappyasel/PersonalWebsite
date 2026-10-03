@@ -8,31 +8,25 @@ import { chromium } from "playwright";
 import sharp from "sharp";
 
 import {
-  homeOgInputManifest,
-  stampHomeOgImage,
-  writeHomeOgManifest,
-} from "./home-og-inputs.mjs";
-import {
-  HOME_OG_CAMERA_Y,
   HOME_OG_DEVICE_SCALE_FACTOR,
-  HOME_OG_FOV,
   HOME_OG_LENS_CENTER,
-  HOME_OG_LOOK_Y,
   HOME_OG_OUTPUT,
   HOME_OG_RESOLUTION_CEILING,
   HOME_OG_SCENE_CROP,
-  HOME_OG_SCREENSHOT_PARAMS,
   HOME_OG_VIEWPORT,
-} from "./home-og-scene-config.mjs";
+  ROOM_OG_RENDER_CHANGED_EXIT,
+  roomOgCard,
+} from "./room-og-config.mjs";
+import {
+  roomOgInputManifest,
+  stampRoomOgImage,
+  writeRoomOgManifest,
+} from "./room-og-inputs.mjs";
 
 const { width: WIDTH, height: HEIGHT } = HOME_OG_OUTPUT;
 const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
-);
-const DEFAULT_OUTPUT = path.join(
-  ROOT,
-  "public/images/stacks/home-og-scene.jpg",
 );
 
 /** When to take the shot.
@@ -91,31 +85,39 @@ function valueAfter(flag) {
   return value;
 }
 
-function captureUrl(rawUrl) {
-  const url = new URL(rawUrl);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
+/** @param {string} rawUrl @param {ReturnType<typeof roomOgCard>} card */
+function captureUrl(rawUrl, card) {
+  const origin = new URL(rawUrl);
+  if (origin.protocol !== "http:" && origin.protocol !== "https:") {
     throw new Error("--url must use http or https");
   }
+  const url = new URL(card.path, origin);
   url.searchParams.set("og-capture", "1");
-  // Screenshot mode's still with the portrait kept. The mode lands the render
-  // on Cinematic+ (full-resolution AO and depth of field, 10-level bloom, 8x
-  // MSAA, real shadows) by itself, and only because no `quality=` is set here.
-  for (const [key, value] of Object.entries(HOME_OG_SCREENSHOT_PARAMS)) {
+  // Screenshot mode's still: the card's shelf alone (`screenshot-unit`), and
+  // for About, the portrait kept. The mode lands the render on Cinematic+
+  // (full-resolution AO and depth of field, 10-level bloom, 8x MSAA, real
+  // shadows) by itself, and only because no `quality=` is set here.
+  for (const [key, value] of Object.entries(card.screenshotParams)) {
     url.searchParams.set(key, value);
   }
   url.searchParams.set("og-resolution", HOME_OG_RESOLUTION_CEILING.toString());
   url.searchParams.set("og-head-on", "1");
   // A slightly narrower capture lens gives the shelf more of the finished
   // card without changing the live homepage camera.
-  url.searchParams.set("og-fov", HOME_OG_FOV.toString());
-  url.searchParams.set("og-look-y", HOME_OG_LOOK_Y.toString());
-  url.searchParams.set("og-camera-y", HOME_OG_CAMERA_Y.toString());
+  url.searchParams.set("og-fov", card.fov.toString());
+  url.searchParams.set("og-look-y", card.lookY.toString());
+  url.searchParams.set("og-camera-y", card.cameraY.toString());
   // Keep the full cinematic side lens, but center its clear band on the crop
   // instead of the hidden rail and reading dock.
   url.searchParams.set("og-lens-center", HOME_OG_LENS_CENTER.toString());
   if (url.searchParams.has("quality")) {
     throw new Error(
       "The OG capture must not pin a quality: screenshot mode lands on Cinematic+ only when the URL leaves it open.",
+    );
+  }
+  if (url.searchParams.has("debug")) {
+    throw new Error(
+      "The OG capture must not run with ?debug=1: its overlays paint over the scene.",
     );
   }
   return url;
@@ -247,10 +249,12 @@ async function renderedPixelsMatch(candidatePath, committedPath) {
   try {
     const decode = (file) =>
       sharp(file).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const [candidate, committed] = await Promise.all([
-      decode(candidatePath),
-      decode(committedPath),
-    ]);
+    // One at a time, committed first. With Promise.all a missing committed
+    // card (a new one) rejected while libvips was still reading the
+    // candidate, and the stamp below then rewrote that file under it: the
+    // process died with SIGBUS.
+    const committed = await decode(committedPath);
+    const candidate = await decode(candidatePath);
     if (candidate.data.length !== committed.data.length) return null;
     let sum = 0;
     for (let i = 0; i < candidate.data.length; i += 1) {
@@ -264,29 +268,89 @@ async function renderedPixelsMatch(candidatePath, committedPath) {
   }
 }
 
+const slug = valueAfter("--unit") ?? "about";
+/** `--fov`, `--look-y`, and `--camera-y` try another framing without editing
+ * room-og-config.mjs. Like `--gpu`, they only write to a scratch `--output`:
+ * a committed card's framing lives in the config, where the manifest sees it. */
+const framingOverrides = Object.fromEntries(
+  [
+    ["fov", valueAfter("--fov")],
+    ["lookY", valueAfter("--look-y")],
+    ["cameraY", valueAfter("--camera-y")],
+  ]
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => [key, Number(value)]),
+);
+/** `--param key=value`, repeatable: an extra screenshot-mode parameter such
+ * as `screenshot-dolly=1.5` or `screenshot-tilt=4`, for the same purpose. */
+const extraParams = process.argv.flatMap((arg, index) =>
+  arg === "--param" ? [process.argv[index + 1]?.split("=") ?? []] : [],
+);
+for (const [key, value] of extraParams) {
+  if (!key?.startsWith("screenshot-") || value === undefined) {
+    throw new Error("--param takes a screenshot-* key=value pair");
+  }
+  framingOverrides.screenshotParams = {
+    ...roomOgCard(slug).screenshotParams,
+    ...framingOverrides.screenshotParams,
+    [key]: value,
+  };
+}
+const card = { ...roomOgCard(slug), ...framingOverrides };
+/** Report-only: on a pixel match, restamp the committed card and its
+ * manifest; on a change, leave both alone and write the new render to
+ * `--candidate` for review. This is what the postbuild check runs. */
+const verify = process.argv.includes("--verify");
 const sourceUrl = captureUrl(
   valueAfter("--url") ??
     process.env.HOME_OG_SOURCE_URL ??
     "http://localhost:3000",
+  card,
 );
-const outputPath = path.resolve(ROOT, valueAfter("--output") ?? DEFAULT_OUTPUT);
+const defaultOutput = path.join(ROOT, card.image);
+const outputPath = path.resolve(ROOT, valueAfter("--output") ?? defaultOutput);
+const candidateOption = valueAfter("--candidate");
+const candidatePath = candidateOption
+  ? path.resolve(ROOT, candidateOption)
+  : null;
+const gpu = process.argv.includes("--gpu");
+if (verify && outputPath !== defaultOutput) {
+  throw new Error("--verify checks the committed card; drop --output.");
+}
+if (
+  (gpu || Object.keys(framingOverrides).length > 0) &&
+  outputPath === defaultOutput
+) {
+  throw new Error(
+    "--gpu and framing overrides are for trying a frame; pass --output to a scratch path.",
+  );
+}
 const temporaryOutputPath = path.join(
   tmpdir(),
-  `home-og-scene-${process.pid}.jpg`,
+  `room-og-${slug}-${process.pid}.jpg`,
 );
-const rawOutputPath = path.join(tmpdir(), `home-og-scene-${process.pid}.png`);
+const rawOutputPath = path.join(tmpdir(), `room-og-${slug}-${process.pid}.png`);
 
 await mkdir(path.dirname(outputPath), { recursive: true });
-const startingInputs = await homeOgInputManifest({ root: ROOT });
+const startingInputs = await roomOgInputManifest({ root: ROOT, card: slug });
 
 const browser = await chromium.launch({
   headless: true,
-  // Software WebGL on every platform, deliberately: local and CI captures
-  // must come off the same renderer or the "unchanged" pixel tolerance
-  // rewrites the committed card on renderer noise alone. It costs over a
-  // minute to reach the first real frame at the cinematic profile.
-  args: ["--enable-webgl", "--ignore-gpu-blocklist"],
+  // Software WebGL on every platform by default, deliberately: every
+  // committed card and every pixel comparison must come off the same
+  // renderer or the "unchanged" tolerance rewrites the committed card on
+  // renderer noise alone. It costs over a minute to reach the first real
+  // frame at the cinematic profile. `--gpu` uses Metal on macOS for framing
+  // work against a dev server; never commit a card captured that way.
+  args: [
+    "--enable-webgl",
+    "--ignore-gpu-blocklist",
+    ...(gpu && process.platform === "darwin"
+      ? ["--enable-gpu", "--use-angle=metal"]
+      : []),
+  ],
 });
+let renderChanged = false;
 
 try {
   const context = await browser.newContext({
@@ -317,7 +381,7 @@ try {
   });
   if (!response?.ok()) {
     throw new Error(
-      `Homepage returned ${response?.status() ?? "no response"} at ${sourceUrl.href}`,
+      `The room returned ${response?.status() ?? "no response"} at ${sourceUrl.href}`,
     );
   }
 
@@ -492,29 +556,43 @@ try {
       `Render unchanged (mean difference ${unchanged.difference.toFixed(2)}); keeping the committed pixels and restamping.`,
     );
     await rm(temporaryOutputPath, { force: true });
-    await stampHomeOgImage({
+    await stampRoomOgImage({
       imagePath: outputPath,
       inputDigest: startingInputs.digest,
     });
+  } else if (verify) {
+    renderChanged = true;
+    console.log(
+      unchanged
+        ? `Render changed (mean difference ${unchanged.difference.toFixed(2)} against ${path.relative(ROOT, outputPath)}).`
+        : `No committed card to compare at ${path.relative(ROOT, outputPath)}.`,
+    );
+    if (candidatePath) {
+      await mkdir(path.dirname(candidatePath), { recursive: true });
+      await rename(temporaryOutputPath, candidatePath);
+      console.log(`New render: ${path.relative(ROOT, candidatePath)}`);
+    }
   } else {
     if (unchanged) {
       console.log(
         `Render changed (mean difference ${unchanged.difference.toFixed(2)}).`,
       );
     }
-    await stampHomeOgImage({
+    await stampRoomOgImage({
       imagePath: temporaryOutputPath,
       inputDigest: startingInputs.digest,
     });
     await rename(temporaryOutputPath, outputPath);
   }
-  const { size } = await stat(outputPath);
-  if (outputPath === DEFAULT_OUTPUT) {
-    await writeHomeOgManifest({ root: ROOT });
+  if (!renderChanged) {
+    const { size } = await stat(outputPath);
+    if (outputPath === defaultOutput) {
+      await writeRoomOgManifest({ root: ROOT, card: slug });
+    }
+    console.log(
+      `Captured ${slug} from ${sourceUrl.origin} to ${path.relative(ROOT, outputPath)} (${Math.round(size / 1024)} KiB)`,
+    );
   }
-  console.log(
-    `Captured ${sourceUrl.origin} to ${path.relative(ROOT, outputPath)} (${Math.round(size / 1024)} KiB)`,
-  );
   if (failures.length > 0) {
     console.warn(
       `Capture completed with ${failures.length} failed request(s); first: ${failures[0]}`,
@@ -527,3 +605,5 @@ try {
     rm(temporaryOutputPath, { force: true }),
   ]);
 }
+
+if (renderChanged) process.exitCode = ROOM_OG_RENDER_CHANGED_EXIT;

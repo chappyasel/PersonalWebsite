@@ -667,7 +667,7 @@ lens instead. Everything it does is session-only and gone on a reload without th
 parameter; it changes no production quality policy and awards no Field Note.
 
 The homepage OG card is this still too, since 2026-09-06: the generator
-(`scripts/generate/home-og-scene.mjs`) captures `?screenshot=1` at night with
+(`scripts/generate/room-og-scene.mjs`) captures `?screenshot=1` at night with
 `screenshot-portrait=1`, which keeps the large portrait where a header would
 stand the Macintosh, because a link preview has no profile picture beside
 it. The console's "Top shelf" control is the same switch. The capture keeps
@@ -675,9 +675,17 @@ its own 30 degree lens, pitch and crop from before; only the room in front
 of the camera changed. The generator sets no `?quality=`, on purpose: the
 mode lands on Cinematic+ only when the URL leaves the quality open.
 
-On, it makes every unit except About cold through the residency controller
-(`sceneUnitActivityController.setSoloUnit`), so the shelf stands alone; the
-per-unit ground pools follow the same answer. It hides the interface with the
+`?screenshot-unit=` picks the shelf that stands alone: a unit index, or
+`golf` for the stop between Books and Weightlifting, which keeps both of
+those shelves and paints the putting green. The console's "Shelf" control is
+the same value. The room OG cards for `/projects`, `/musings`, `/talks`, and
+`/golf` are this still of their shelf (2026-10-02), through the homepage
+card's lens and crop; `scripts/generate/room-og-config.mjs` holds each
+card's stop and any framing of its own.
+
+On, it makes every unit except the chosen one cold through the residency
+controller (`sceneUnitActivityController.setSoloUnits`), so the shelf stands
+alone; the per-unit ground pools follow the same answer. It hides the interface with the
 H key's attribute, but silently, and owns only the hide it introduced, the
 same contract free roam uses. Capture drops the desktop rail/dock truck and
 pointer parallax reads a centred pointer, so the shelf rests on the middle of

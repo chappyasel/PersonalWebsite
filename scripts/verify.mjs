@@ -4,12 +4,13 @@
 //
 // One thing is deliberately not here.
 //
-// Homepage OG freshness lives in `pnpm verify:artifacts`. It asks whether a
+// Room OG card freshness lives in `pnpm verify:artifacts`. It asks whether a
 // committed binary still matches the source it was captured from, which is a
 // question about an artifact rather than about the code, and answering it green
 // again needs a production build with database credentials. Folding it in here
-// would mean the code gate could never go green on a correct branch.
-// `.github/workflows/refresh-home-og.yml` remains the precise signal for it.
+// would mean the code gate could never go green on a correct branch. The pixel
+// answer comes from `postbuild` after a local build
+// (scripts/generate/room-og-postbuild.mjs).
 import { spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -122,6 +123,6 @@ for (const step of STEPS.slice(results.length)) {
   console.log(`skip  ${step.name.padEnd(width)}`);
 }
 console.log("\nNot covered here:");
-console.log("  homepage OG freshness — `pnpm verify:artifacts`");
+console.log("  room OG card freshness — `pnpm verify:artifacts`");
 
 process.exit(results.every((result) => result.passed) ? 0 : 1);

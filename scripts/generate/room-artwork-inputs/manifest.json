@@ -5054,7 +5054,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/unitActivity.tsx",
-      "sha256": "82222dbc08e028adbb0395152c03cc781f572e1a77faba2f38447783767bdb64",
+      "sha256": "afcc099ea64ae9b90ffcb1b4fc23bfdeb28df548f33407a3cafaaeffcb7cf71f",
       "archivedSha256": "63168f85ac626926abb11f7d660fe7414edbb60bd7477a949ae4c9e1cc4de59c"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "e524a3872278c5f166a277e54677e9b2a3c48b244d826a7e51744de1ecd52214",
+  "sourceFingerprint": "52ee32e918f3e3968ef8852ae75e871f37579e123ddf31c389262a4ccb8084ad",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5658,6 +5658,18 @@
           "path": "src/app/components/stacks/scene/sceneImpulse.ts",
           "previousSha256": "cc24f25ca5813b85dd1bae9cad53a0e7eea035572c961e66aa6fcf62f1313579",
           "sha256": "7b389139203f189b5fed864ee6ac0ffbe834637ba9034415c01574a6b8117ba6"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed a screenshot-mode-only change for the room OG cards: the solo unit became a set of units so a golf still keeps Books and Weightlifting beside the green. The ordinary room passes null exactly as before, so captured geometry, materials, cameras, and authored poses are unchanged. This updates the source dependency receipt without claiming a fresh capture.",
+      "previousFingerprint": "e524a3872278c5f166a277e54677e9b2a3c48b244d826a7e51744de1ecd52214",
+      "sourceFingerprint": "52ee32e918f3e3968ef8852ae75e871f37579e123ddf31c389262a4ccb8084ad",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/unitActivity.tsx",
+          "previousSha256": "82222dbc08e028adbb0395152c03cc781f572e1a77faba2f38447783767bdb64",
+          "sha256": "afcc099ea64ae9b90ffcb1b4fc23bfdeb28df548f33407a3cafaaeffcb7cf71f"
         }
       ]
     }

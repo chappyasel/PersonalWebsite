@@ -9,7 +9,8 @@ export const revalidate = 86400;
 
 export const metadata: Metadata = roomStopMetadata({
   path: "/golf",
-  title: "Golf",
+  ownCard: true,
+  title: "Chappy's Golf",
   description: "A hidden four-ball golf green in Chappy Asel's 3D world.",
   index: false,
 });

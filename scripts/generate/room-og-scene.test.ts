@@ -15,10 +15,12 @@ import {
   HOME_OG_RESOLUTION_CEILING,
   HOME_OG_SCENE_CROP,
   HOME_OG_SCREENSHOT_PARAMS,
-} from "./home-og-scene-config.mjs";
+  ROOM_OG_CARDS,
+  ROOM_OG_SLUGS,
+} from "./room-og-config.mjs";
 
 const generator = readFileSync(
-  fileURLToPath(new URL("./home-og-scene.mjs", import.meta.url)),
+  fileURLToPath(new URL("./room-og-scene.mjs", import.meta.url)),
   "utf8",
 );
 const cameraRig = readFileSync(
@@ -45,9 +47,10 @@ describe("home OG scene capture", () => {
       screenshot: "1",
       "screenshot-portrait": "1",
     });
-    expect(generator).toContain(
-      "Object.entries(HOME_OG_SCREENSHOT_PARAMS)",
+    expect(ROOM_OG_CARDS.about.screenshotParams).toBe(
+      HOME_OG_SCREENSHOT_PARAMS,
     );
+    expect(generator).toContain("Object.entries(card.screenshotParams)");
     // The mode only lands on Cinematic+ when the URL does not pin a quality,
     // so the generator must not, and it refuses to run if it ever does.
     expect(generator).not.toContain('url.searchParams.set("quality"');
@@ -90,8 +93,9 @@ describe("home OG scene capture", () => {
     expect(HOME_OG_CAMERA_Y).toBe(0.4);
     expect(horizonShiftFraction).toBeGreaterThanOrEqual(0.05);
     expect(horizonShiftFraction).toBeLessThan(0.06);
+    expect(ROOM_OG_CARDS.about.cameraY).toBe(HOME_OG_CAMERA_Y);
     expect(generator).toContain(
-      'url.searchParams.set("og-camera-y", HOME_OG_CAMERA_Y.toString())',
+      'url.searchParams.set("og-camera-y", card.cameraY.toString())',
     );
     expect(cameraRig).toContain(
       "captureCameraYFromSearch(window.location.search)",
@@ -108,12 +112,14 @@ describe("home OG scene capture", () => {
       'url.searchParams.set("og-lens-center", HOME_OG_LENS_CENTER.toString())',
     );
     expect(HOME_OG_FOV).toBe(30);
+    expect(ROOM_OG_CARDS.about.fov).toBe(HOME_OG_FOV);
     expect(generator).toContain(
-      'url.searchParams.set("og-fov", HOME_OG_FOV.toString())',
+      'url.searchParams.set("og-fov", card.fov.toString())',
     );
     expect(HOME_OG_LOOK_Y).toBe(-0.105);
+    expect(ROOM_OG_CARDS.about.lookY).toBe(HOME_OG_LOOK_Y);
     expect(generator).toContain(
-      'url.searchParams.set("og-look-y", HOME_OG_LOOK_Y.toString())',
+      'url.searchParams.set("og-look-y", card.lookY.toString())',
     );
     expect(cameraRig).toContain("captureFovFromSearch(window.location.search)");
     // The capture lens stays first in the chain: screenshot mode's lens sits
@@ -144,5 +150,77 @@ describe("home OG scene capture", () => {
     expect(generator).not.toContain("canvas.toDataURL");
     expect(generator).not.toContain("preserveDrawingBuffer");
     expect(generator).not.toContain("swiftshader");
+  });
+
+  it("uses Metal only for scratch framing captures, never for a committed card", () => {
+    expect(generator).toContain('"--enable-gpu", "--use-angle=metal"');
+    expect(generator).toContain(
+      "--gpu and framing overrides are for trying a frame; pass --output to a scratch path.",
+    );
+  });
+
+  it("refuses debug overlays, which paint over the scene", () => {
+    expect(generator).toContain('if (url.searchParams.has("debug"))');
+  });
+});
+
+describe("room OG cards", () => {
+  it("has one card per room path plus the homepage", () => {
+    expect(ROOM_OG_SLUGS).toEqual([
+      "about",
+      "projects",
+      "musings",
+      "talks",
+      "golf",
+    ]);
+  });
+
+  it("captures every card as screenshot mode's still of one stop", () => {
+    const stops = Object.fromEntries(
+      ROOM_OG_SLUGS.map((slug) => {
+        const params: Readonly<Record<string, string>> =
+          ROOM_OG_CARDS[slug].screenshotParams;
+        return [slug, params["screenshot-unit"] ?? null];
+      }),
+    );
+    expect(stops).toEqual({
+      about: null,
+      projects: "4",
+      musings: "5",
+      talks: "6",
+      golf: "golf",
+    });
+    for (const slug of ROOM_OG_SLUGS) {
+      expect(ROOM_OG_CARDS[slug].screenshotParams.screenshot).toBe("1");
+      expect(ROOM_OG_CARDS[slug].screenshotParams).not.toHaveProperty(
+        "quality",
+      );
+    }
+  });
+
+  it("writes the homepage card where it always was and the rest under og/", () => {
+    expect(ROOM_OG_CARDS.about.image).toBe(
+      "public/images/stacks/home-og-scene.jpg",
+    );
+    for (const slug of ROOM_OG_SLUGS.filter((slug) => slug !== "about")) {
+      expect(ROOM_OG_CARDS[slug].image).toBe(
+        `public/images/stacks/og/${slug}.jpg`,
+      );
+      expect(ROOM_OG_CARDS[slug].manifest).toBe(
+        `public/images/stacks/og/${slug}.inputs.json`,
+      );
+    }
+  });
+
+  it("keeps each card's aim inside the range the camera accepts", () => {
+    for (const slug of ROOM_OG_SLUGS) {
+      const { fov, lookY, cameraY } = ROOM_OG_CARDS[slug];
+      expect(fov).toBeGreaterThanOrEqual(24);
+      expect(fov).toBeLessThanOrEqual(45);
+      expect(lookY).toBeGreaterThanOrEqual(-0.4);
+      expect(lookY).toBeLessThanOrEqual(0.2);
+      expect(cameraY).toBeGreaterThanOrEqual(0);
+      expect(cameraY).toBeLessThanOrEqual(1);
+    }
   });
 });

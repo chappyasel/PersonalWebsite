@@ -14,7 +14,7 @@ export const revalidate = 86400;
 
 export const metadata: Metadata = roomStopMetadata({
   path: "/about",
-  title: "About",
+  title: "About ~ Chappy Asel",
   description: HOMEPAGE_DESCRIPTION,
   canonical: "/",
 });

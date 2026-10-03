@@ -9,7 +9,8 @@ export const revalidate = 86400;
 
 export const metadata: Metadata = roomStopMetadata({
   path: "/projects",
-  title: "Projects",
+  ownCard: true,
+  title: "Chappy's Projects",
   description:
     "Apps and open source by Chappy Asel, with a year of GitHub activity.",
 });

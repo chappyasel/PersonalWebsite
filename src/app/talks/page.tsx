@@ -9,7 +9,8 @@ export const revalidate = 86400;
 
 export const metadata: Metadata = roomStopMetadata({
   path: "/talks",
-  title: "Featured Talks",
+  ownCard: true,
+  title: "Chappy's Featured Talks",
   description: "Featured talks and podcast appearances by Chappy Asel.",
 });
 

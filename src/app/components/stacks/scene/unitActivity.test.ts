@@ -200,18 +200,18 @@ describe("screenshot solo unit", () => {
       sceneUnitActivityController.update(camera, 0.016, 1_000);
       expect(books.visible).toBe(true);
 
-      sceneUnitActivityController.setSoloUnit(0);
+      sceneUnitActivityController.setSoloUnits([0]);
       sceneUnitActivityController.update(camera, 0.016, 1_016);
       expect(about.visible).toBe(true);
       expect(books.visible).toBe(false);
       expect(sceneUnitActivityController.stateFor(1)).toBe("cold");
       expect(sceneUnitActivityController.allows(1, "ambient")).toBe(false);
 
-      sceneUnitActivityController.setSoloUnit(null);
+      sceneUnitActivityController.setSoloUnits(null);
       sceneUnitActivityController.update(camera, 0.016, 1_032);
       expect(books.visible).toBe(true);
     } finally {
-      sceneUnitActivityController.setSoloUnit(null);
+      sceneUnitActivityController.setSoloUnits(null);
       releaseAbout();
       releaseBooks();
     }
