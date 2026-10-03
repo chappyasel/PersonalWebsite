@@ -10,6 +10,7 @@ import {
   ChartContainer,
   ChartTooltip,
 } from "~/components/ui/chart";
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 
 import { type TimeRange, TimeRangeToggle } from "./TimeRangeToggle";
@@ -107,13 +108,24 @@ export function CategoryBreakdown() {
   const [groupBy, setGroupBy] = useState<GroupBy>("quarter");
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
 
-  const { data, isLoading } = api.youtube.getCategoryBreakdown.useQuery({
-    groupBy,
-    timeRange,
-  });
+  const { data, isLoading, isError, isFetching, refetch } =
+    api.youtube.getCategoryBreakdown.useQuery({
+      groupBy,
+      timeRange,
+    });
 
   if (isLoading) {
     return <Skeleton className="h-72 w-full rounded-lg" />;
+  }
+
+  if (isError) {
+    return (
+      <LoadFailed
+        message="Categories failed to load."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (!data || data.length === 0) {

@@ -2,6 +2,8 @@
 
 import type { PostHog } from "posthog-js";
 
+import { collapsePrivatePath } from "~/lib/error-reporting/sanitize";
+
 export type HomepageDeliveryMode = "world" | "flat";
 export type HomepageDeliveryReason =
   | "world"
@@ -462,6 +464,7 @@ const URL_PROPERTIES = new Set([
   "$initial_current_url",
   "$initial_referrer",
 ]);
+const PATH_PROPERTIES = new Set(["$pathname", "$initial_pathname"]);
 
 function querylessUrl(value: unknown): string | undefined {
   if (typeof value !== "string" || !value) return undefined;
@@ -469,13 +472,17 @@ function querylessUrl(value: unknown): string | undefined {
     const base =
       typeof window === "undefined" ? "https://invalid.local" : window.origin;
     const url = new URL(value, base);
-    return `${url.origin}${url.pathname}`;
+    return `${url.origin}${collapsePrivatePath(url.pathname)}`;
   } catch {
     return undefined;
   }
 }
 
-/** Strip queries and fragments from URL properties added by the SDK itself. */
+/**
+ * Strip queries and fragments from URL properties added by the SDK itself,
+ * and cut paths inside the private areas back to the area root: a Dad
+ * journal path names the entry.
+ */
 export function sanitizeAnalyticsProperties(
   properties: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -484,6 +491,10 @@ export function sanitizeAnalyticsProperties(
     if (URL_PROPERTIES.has(key)) {
       const url = querylessUrl(value);
       if (url) sanitized[key] = url;
+      continue;
+    }
+    if (PATH_PROPERTIES.has(key) && typeof value === "string") {
+      sanitized[key] = collapsePrivatePath(value);
       continue;
     }
     if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -537,6 +548,22 @@ function initializeAnalytics(): Promise<PostHog | null> {
     });
 
   return initialization;
+}
+
+/**
+ * Sends one `$exception` through the analytics client, so error reports get
+ * the same URL sanitizing and never create a person profile. It loads
+ * PostHog at once instead of at idle, since a page that just failed may
+ * never reach idle. Callers pass an error that is already sanitized; see
+ * `~/lib/error-reporting/client`.
+ */
+export function captureException(
+  error: Error,
+  properties: Record<string, unknown>,
+): void {
+  void initializeAnalytics()
+    .then((posthog) => posthog?.captureException(error, properties))
+    .catch(() => undefined);
 }
 
 const ANALYTICS_RETRY_DELAYS_MS = [1000, 5000, 30000] as const;

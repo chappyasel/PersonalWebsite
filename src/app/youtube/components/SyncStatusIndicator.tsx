@@ -51,6 +51,9 @@ export function SyncStatusIndicator() {
   const { data } = api.youtube.getSyncStatus.useQuery(undefined, {
     staleTime: QUERY_STALE_TIME,
   });
+  // A failed status query leaves the line out, the same as having no
+  // history yet. The dashboard stands without it, and the QueryClient has
+  // already reported the failure.
   if (!data?.coveredThrough || !data.lastCoveredDay) return null;
 
   const {

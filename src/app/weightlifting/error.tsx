@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
+import { reportClientError } from "~/lib/error-reporting/client";
+
 export default function WeightliftingError({
   error,
   reset,
@@ -12,6 +14,11 @@ export default function WeightliftingError({
 }) {
   useEffect(() => {
     console.error("Weightlifting page error:", error);
+    reportClientError(error, {
+      source: "boundary",
+      label: "weightlifting",
+      digest: error.digest,
+    });
   }, [error]);
 
   return (

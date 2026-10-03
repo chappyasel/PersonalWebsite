@@ -8,7 +8,11 @@ import { reportClientError } from "~/lib/error-reporting/client";
 
 import { Button } from "~/components/ui/button";
 
-export default function BooksError({
+/**
+ * Never shows `error.message`: this area is private, and a message can quote
+ * the history it failed to render. The report drops it for the same reason.
+ */
+export default function YouTubeError({
   error,
   reset,
 }: {
@@ -19,16 +23,16 @@ export default function BooksError({
   const [retrying, startRetry] = useTransition();
 
   useEffect(() => {
-    console.error("Books page error:", error);
+    console.error("YouTube page error:", error);
     reportClientError(error, {
       source: "boundary",
-      label: "books",
+      label: "youtube",
       digest: error.digest,
     });
   }, [error]);
 
-  // The shelf is a server render, and reset() alone re-renders the payload
-  // that already failed. Refreshing first asks the server again.
+  // The page checks access on the server, and reset() alone re-renders the
+  // payload that already failed. Refreshing first asks the server again.
   const retry = () =>
     startRetry(() => {
       router.refresh();
@@ -36,14 +40,14 @@ export default function BooksError({
     });
 
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-      <h1 className="text-3xl font-semibold text-foreground">
+    <div className="mx-auto flex min-h-[50vh] max-w-4xl flex-col items-center justify-center gap-3 text-center font-sans">
+      <h1 className="font-rounded text-2xl font-semibold text-foreground">
         Something went wrong
       </h1>
-      <p className="text-muted-foreground">
-        The library failed to load. It is usually temporary.
+      <p className="text-sm text-muted-foreground">
+        The dashboard failed to load. It is usually temporary.
       </p>
-      <div className="mt-4 flex gap-4">
+      <div className="mt-3 flex gap-3">
         <Button onClick={retry} disabled={retrying}>
           Try again
         </Button>
@@ -52,7 +56,7 @@ export default function BooksError({
         </Button>
       </div>
       {error.digest && (
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="mt-3 text-xs text-muted-foreground">
           Error ID: {error.digest}
         </p>
       )}

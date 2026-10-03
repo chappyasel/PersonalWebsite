@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "~/trpc/react";
 
+import { LoadFailed } from "~/components/ui/load-failed";
 import { Skeleton } from "~/components/ui/skeleton";
 
 type Scores = Record<
@@ -19,7 +20,8 @@ type Scores = Record<
 >;
 
 export function CalibrationSpreadsheet() {
-  const { data, isLoading } = api.youtube.getCalibrationVideos.useQuery();
+  const { data, isLoading, isError, isFetching, refetch } =
+    api.youtube.getCalibrationVideos.useQuery();
   const [scores, setScores] = useState<Scores>({});
   const [saved, setSaved] = useState(false);
   useEffect(() => {
@@ -40,6 +42,16 @@ export function CalibrationSpreadsheet() {
     onSuccess: () => setSaved(true),
   });
   if (isLoading) return <Skeleton className="h-[75vh] w-full rounded-xl" />;
+  if (isError) {
+    return (
+      <LoadFailed
+        message="Calibration videos failed to load."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+        className="py-24"
+      />
+    );
+  }
   if (!data?.length) {
     return (
       <div className="mx-auto max-w-2xl py-24 text-center">

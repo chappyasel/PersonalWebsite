@@ -1,3 +1,5 @@
+import { reportServerErrorAfterResponse } from "~/server/errorReporting";
+
 /**
  * Run a data loader and, if it throws, log it and return a neutral value
  * instead of propagating. The page renders without that data.
@@ -7,9 +9,9 @@
  * should let the error through and say so on its own error screen. Silently
  * degrading there would show an empty page that looks like the real answer.
  *
- * Failures are logged rather than swallowed. An outage that renders a
- * plausible-looking page and leaves nothing behind is worse than one that
- * breaks loudly.
+ * Failures are logged and reported rather than swallowed. An outage that
+ * renders a plausible-looking page and leaves nothing behind is worse than
+ * one that breaks loudly.
  */
 export async function orEmpty<T>(
   label: string,
@@ -20,6 +22,7 @@ export async function orEmpty<T>(
     return await load();
   } catch (error) {
     console.error(`[${label}] failed, rendering without it:`, error);
+    reportServerErrorAfterResponse(error, { source: "degrade", label });
     return empty;
   }
 }

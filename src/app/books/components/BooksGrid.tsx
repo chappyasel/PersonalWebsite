@@ -30,6 +30,7 @@ import { BookNoteMatches, type BookNoteRow } from "./BookNoteMatches";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
 import { ReadingStatsPopover } from "./ReadingStatsPopover";
+import { LoadFailed } from "~/components/ui/load-failed";
 import { cn } from "@/src/lib/util";
 
 // Size to preferred width mapping
@@ -100,8 +101,15 @@ export function BooksGrid({
     ? "XS"
     : ((params.size as "S" | "M" | "L") ?? "M");
 
-  // Fetch ALL books once (no filters, no pagination)
-  const { data: allBooks, isLoading } = api.books.getAll.useQuery(
+  // Fetch ALL books once (no filters, no pagination). The server render
+  // supplies the first answer, so a failed refetch keeps showing it.
+  const {
+    data: allBooks,
+    isLoading,
+    isError: shelfFailed,
+    isFetching: shelfFetching,
+    refetch: refetchShelf,
+  } = api.books.getAll.useQuery(
     {
       // No filters - get everything
       sortField: "finished",
@@ -271,6 +279,7 @@ export function BooksGrid({
     },
   );
   const noteMatches = noteQuery === null ? undefined : noteSearch.data;
+  const noteSearchFailed = noteQuery !== null && noteSearch.isError;
   const isSearchingNotes =
     noteQuery !== null &&
     !noteSearch.isError &&
@@ -288,7 +297,8 @@ export function BooksGrid({
         : [];
     });
   }, [noteMatches, books, shelf]);
-  const showNoteMatches = isSearchingNotes || noteRows.length > 0;
+  const showNoteMatches =
+    isSearchingNotes || noteRows.length > 0 || noteSearchFailed;
 
   // Arrow keys walk the covers and carry on into the note rows.
   const navigableBooks = useMemo(
@@ -355,6 +365,16 @@ export function BooksGrid({
   }
 
   if (!allBooks || allBooks.length === 0) {
+    if (shelfFailed) {
+      return (
+        <LoadFailed
+          message="The shelf failed to load."
+          retrying={shelfFetching}
+          onRetry={() => void refetchShelf()}
+          className="min-h-[40vh] justify-center"
+        />
+      );
+    }
     return <EmptyState type="no-books" onClearFilters={handleClearFilters} />;
   }
 
@@ -475,6 +495,14 @@ export function BooksGrid({
       key={NOTE_SECTION.key}
       rows={noteRows}
       isSearching={isSearchingNotes}
+      failure={
+        noteSearchFailed
+          ? {
+              retrying: noteSearch.isFetching,
+              retry: () => void noteSearch.refetch(),
+            }
+          : null
+      }
       focusedBookId={focusedBookId}
       showFocusIndicator={showFocusIndicator}
       onHover={setHoveredBookId as (bookId: string | null) => void}
