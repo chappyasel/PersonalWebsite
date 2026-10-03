@@ -16,6 +16,7 @@ vi.mock("../components/BookDetailContent", () => ({
     <button onClick={onClose}>Close</button>
   ),
 }));
+vi.mock("../components/RelatedBooks", () => ({ RelatedBooks: () => null }));
 
 beforeEach(() => vi.resetAllMocks());
 afterEach(cleanup);

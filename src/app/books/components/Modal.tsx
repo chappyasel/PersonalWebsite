@@ -47,6 +47,7 @@ import { Button } from "~/components/ui/button";
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
 import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
+import { RelatedBooks } from "./RelatedBooks";
 import {
   BOOK_MODAL_HISTORY_STATE,
   bookIdFromPathname,
@@ -646,6 +647,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                         }
                         tagHref={tagHref}
                         onTagSelect={handleTagSelect}
+                        relatedBooks={
+                          <RelatedBooks
+                            bookId={book.id}
+                            booksHref={
+                              fromStacks ? presentation.booksHref : undefined
+                            }
+                          />
+                        }
                       />
                     </InlineBookOpener>
                   ) : (

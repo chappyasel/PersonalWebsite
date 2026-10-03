@@ -27,6 +27,8 @@ import {
   getBookTags,
   getBooks,
 } from "~/server/queries/books";
+import { orEmpty } from "~/server/queries/degrade";
+import { getRelatedBooks } from "~/server/queries/relatedBooks";
 
 export const booksRouter = createTRPCRouter({
   /**
@@ -63,6 +65,17 @@ export const booksRouter = createTRPCRouter({
       }
       return book;
     }),
+
+  /**
+   * The books whose notes are closest to this one's in meaning, for the end
+   * of its page. Empty for a book without written notes, and when the
+   * database is away: the page stands without them.
+   */
+  getRelated: publicProcedure
+    .input(z.object({ bookId: z.string().min(1) }))
+    .query(({ input }) =>
+      orEmpty("related-books", () => getRelatedBooks(input.bookId), []),
+    ),
 
   /**
    * Get book by Notion ID (for redirect support from old URLs)

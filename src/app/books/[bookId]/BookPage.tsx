@@ -1,6 +1,7 @@
 "use client";
 
 import { BookDetailContent } from "../components/BookDetailContent";
+import { RelatedBooks } from "../components/RelatedBooks";
 import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
@@ -99,6 +100,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
               bookshelfBookCount={bookshelfBookCount}
               onClose={handleClose}
               tagHref={tagHref}
+              relatedBooks={<RelatedBooks bookId={bookId} />}
             />
           </InlineBookOpener>
         </div>
