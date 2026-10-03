@@ -169,12 +169,12 @@ async function main() {
   // Record when Google built this archive. The watch history alone cannot say
   // whether a quiet stretch at its end is a week of not watching or a week
   // that was never exported; the build time draws that line, and the sync
-  // stores it so the dashboard can plot the quiet days as zeros.
+  // stores it so the dashboard can plot the quiet days as zeros. When neither
+  // Drive nor the archive name can say, leave it out: the download time is
+  // later than the build, so it would claim days the export never saw.
   const sourceFile = chosen?.name ?? path.basename(zipPath);
   const exportCreatedAt =
-    chosen?.createdTime ??
-    parseTakeoutTimestamp(sourceFile)?.toISOString() ??
-    new Date().toISOString();
+    chosen?.createdTime ?? parseTakeoutTimestamp(sourceFile)?.toISOString();
   const sidecar: TakeoutSidecar = {
     exportCreatedAt,
     sourceFile,
@@ -185,7 +185,9 @@ async function main() {
     sidecarPathFor(FINAL_PATH),
     JSON.stringify(sidecar, null, 2),
   );
-  console.log(`Archive built ${exportCreatedAt} (${sourceFile})`);
+  console.log(
+    `Archive built ${exportCreatedAt ?? "at an unknown time"} (${sourceFile})`,
+  );
 
   fs.rmSync(extractDir, { recursive: true, force: true });
   process.exit(0);

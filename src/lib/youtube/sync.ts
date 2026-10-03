@@ -19,7 +19,7 @@ type TakeoutEntry = {
   title?: string;
   titleUrl?: string;
   subtitles?: { name: string; url: string }[];
-  time: string;
+  time?: string;
   products?: string[];
 };
 
@@ -35,6 +35,9 @@ export type YtSyncResult = {
   totalVideos: number;
   enrichedVideos: number;
   deletedVideos: number;
+  /** Watch Events left out because their timestamp could not be read. One
+   *  malformed row should not cost the rest of the archive. */
+  skippedWatchEvents: number;
   /** When Google built the archive — the instant the history is complete to. */
   exportCreatedAt: Date | null;
   /** Newest watch event in the archive. */
@@ -79,6 +82,7 @@ export async function syncYouTube(
     };
     const parsed: ParsedEntry[] = [];
     let deletedCount = 0;
+    let skippedCount = 0;
 
     for (const entry of entries) {
       if (!entry.titleUrl) {
@@ -89,6 +93,17 @@ export async function syncYouTube(
       const videoId = extractVideoId(entry.titleUrl);
       if (!videoId) continue;
 
+      const watchedAt = new Date(entry.time ?? Number.NaN);
+      if (Number.isNaN(watchedAt.getTime())) {
+        // A few examples are enough to diagnose; the summary carries the count.
+        if (++skippedCount <= 5) {
+          console.warn(
+            `Skipping ${videoId}: unreadable timestamp ${JSON.stringify(entry.time)}`,
+          );
+        }
+        continue;
+      }
+
       const title = entry.title?.replace(/^Watched\s+/, "") ?? null;
 
       parsed.push({
@@ -96,13 +111,22 @@ export async function syncYouTube(
         title,
         channelName: entry.subtitles?.[0]?.name ?? null,
         channelUrl: entry.subtitles?.[0]?.url ?? null,
-        watchedAt: new Date(entry.time),
+        watchedAt,
       });
     }
 
     console.log(
-      `Parsed ${parsed.length} videos, ${deletedCount} deleted/unavailable`,
+      `Parsed ${parsed.length} videos, ${deletedCount} deleted/unavailable, ` +
+        `${skippedCount} skipped for an unreadable timestamp`,
     );
+    // Skipping is for the odd malformed row. If nothing could be read, the
+    // export format has probably changed, and recording this archive's build
+    // time would mark every day since the last sync as checked and empty.
+    if (parsed.length === 0 && skippedCount > 0) {
+      throw new Error(
+        `All ${skippedCount} Watch Events have an unreadable timestamp`,
+      );
+    }
 
     // What this archive can vouch for. The newest watch event tells you when
     // Chappy last opened YouTube; the export's build time tells you how far
@@ -393,6 +417,7 @@ export async function syncYouTube(
       totalVideos: parsed.length,
       enrichedVideos: enrichedCount,
       deletedVideos: deletedCount,
+      skippedWatchEvents: skippedCount,
       exportCreatedAt: provenance.exportCreatedAt,
       latestWatchAt: latestWatchAt,
       sourceFile: provenance.sourceFile,

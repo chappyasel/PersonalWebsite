@@ -72,10 +72,20 @@ describe("readExportProvenance", () => {
     ).toBe("2026-08-23T02:13:59.000Z");
   });
 
-  it("falls back to the file's mtime when the sidecar is corrupt", () => {
+  // The file is written after Google builds the archive, often days later, so
+  // its mtime would count the days in between as covered when the export
+  // never saw them.
+  it("vouches for nothing when the sidecar is corrupt", () => {
     const historyPath = tempHistory("{not json");
-    const { exportCreatedAt } = readExportProvenance(historyPath);
-    expect(exportCreatedAt).toEqual(fs.statSync(historyPath).mtime);
+    expect(readExportProvenance(historyPath)).toEqual({
+      exportCreatedAt: null,
+      sourceFile: null,
+    });
+  });
+
+  it("vouches for nothing for a hand-placed file with no sidecar", () => {
+    const historyPath = tempHistory();
+    expect(readExportProvenance(historyPath).exportCreatedAt).toBeNull();
   });
 
   it("reports nothing for a file that is not there", () => {

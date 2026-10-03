@@ -10,7 +10,8 @@ import * as fs from "fs";
  * is indistinguishable from a week of missing data.
  */
 export type TakeoutSidecar = {
-  exportCreatedAt: string;
+  /** Absent when nothing could vouch for the build time. */
+  exportCreatedAt?: string;
   sourceFile: string;
   driveFileId?: string;
   downloadedAt?: string;
@@ -42,9 +43,11 @@ export type ExportProvenance = {
 
 /**
  * Establish when the archive at `historyPath` was built. The sidecar is the
- * only authority; the archive name is a fallback for hand-placed files, and
- * the file's own mtime is a last resort that only ever runs late (the file
- * cannot predate its export), so it never claims coverage the data lacks.
+ * only authority, and the archive name is a fallback for hand-placed files.
+ * The file's own mtime cannot stand in. It records when the file was copied
+ * out of the zip, which is after the build and often days after, so it would
+ * count those unexported days as covered. With no build time the sync records
+ * none, and Coverage Through falls back to the newest Watch Event.
  */
 export function readExportProvenance(historyPath: string): ExportProvenance {
   const sidecarPath = sidecarPathFor(historyPath);
@@ -73,15 +76,8 @@ export function readExportProvenance(historyPath: string): ExportProvenance {
     }
   }
 
-  const fromPath = parseTakeoutTimestamp(historyPath);
-  if (fromPath) return { exportCreatedAt: fromPath, sourceFile: null };
-
-  try {
-    return {
-      exportCreatedAt: fs.statSync(historyPath).mtime,
-      sourceFile: null,
-    };
-  } catch {
-    return { exportCreatedAt: null, sourceFile: null };
-  }
+  return {
+    exportCreatedAt: parseTakeoutTimestamp(historyPath),
+    sourceFile: null,
+  };
 }

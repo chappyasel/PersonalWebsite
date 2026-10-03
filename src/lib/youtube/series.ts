@@ -27,11 +27,11 @@ export function enumeratePeriods(
  *
  * The window opens at the selected range's own start, so a 30-day view is 30
  * days wide even when the first watch in it landed on day eleven, and closes
- * at the Coverage Through period — the last one the ingested export can speak
- * for. Every period inside that window is plotted: a stretch with no watching
- * is a real zero. Periods past the boundary are unknown rather than empty, so
- * they stay off the chart entirely instead of drawing as zeros that a later
- * export would contradict.
+ * at the period holding the last covered watch-day, the last one the ingested
+ * export can speak for. Every period inside that window is plotted: a stretch
+ * with no watching is a real zero. Periods past the boundary are unknown
+ * rather than empty, so they stay off the chart entirely instead of drawing as
+ * zeros that a later export would contradict.
  */
 export function seriesPeriods({
   dataPeriods,
@@ -44,7 +44,7 @@ export function seriesPeriods({
   groupBy: SeriesGroupBy;
   /** Start of the selected time range, or null for the full history. */
   rangeStartKey?: string | null;
-  /** Period holding the Coverage Through instant, or null when unknown. */
+  /** Period holding the last covered watch-day, or null when unknown. */
   coverageKey?: string | null;
 }): string[] {
   const firstData = dataPeriods[0] ?? null;
