@@ -4,6 +4,7 @@ import {
   DAD_ACCESS_COOKIE_NAME,
   isValidDadAccessToken,
 } from "~/lib/dad/access";
+import { isValidYoutubeAccessToken } from "~/lib/youtube/access";
 
 import { env } from "~/env";
 
@@ -14,26 +15,20 @@ import { env } from "~/env";
 const SECTION_ICON_PATH = /^\/[a-z]+\/(?:icon\/[a-z]+|tab-icon)$/;
 
 export async function proxy(req: NextRequest) {
-  // Protect Dad sub-routes with the same signed token used by the layout and API.
+  // Protect Dad and YouTube sub-routes with the same signed tokens their pages
+  // and tRPC procedures check. The section roots (/dad, /youtube) are the
+  // password gates, so those pages check the token themselves.
   const { pathname } = req.nextUrl;
   const isSectionIcon = SECTION_ICON_PATH.test(pathname);
-  if (
-    pathname.startsWith("/dad/") &&
-    !pathname.startsWith("/dad/api") &&
-    !isSectionIcon
-  ) {
+  if (pathname.startsWith("/dad/") && !isSectionIcon) {
     const token = req.cookies.get(DAD_ACCESS_COOKIE_NAME)?.value;
     if (!isValidDadAccessToken(token, env.DAD_CONTENT_PASSWORD)) {
       return NextResponse.redirect(new URL("/dad", req.url));
     }
   }
-  if (
-    pathname.startsWith("/youtube/") &&
-    !pathname.startsWith("/youtube/api") &&
-    !isSectionIcon
-  ) {
+  if (pathname.startsWith("/youtube/") && !isSectionIcon) {
     const token = req.cookies.get("youtube-access")?.value;
-    if (!token) {
+    if (!isValidYoutubeAccessToken(token, env.DAD_CONTENT_PASSWORD)) {
       return NextResponse.redirect(new URL("/youtube", req.url));
     }
   }

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { dadAccessToken } from "~/lib/dad/access";
+import { youtubeAccessToken } from "~/lib/youtube/access";
 
 import { proxy } from "./proxy";
 
@@ -9,9 +10,15 @@ vi.mock("~/env", () => ({
   env: { DAD_CONTENT_PASSWORD: "correct-password" },
 }));
 
-function dadRequest(cookie?: string) {
-  return new NextRequest("https://chappyasel.com/dad/journal/entry", {
+function dadRequest(cookie?: string, path = "/dad/journal/entry") {
+  return new NextRequest(`https://chappyasel.com${path}`, {
     headers: cookie ? { cookie: `dad-access=${cookie}` } : undefined,
+  });
+}
+
+function youtubeRequest(cookie?: string, path = "/youtube/calibrate") {
+  return new NextRequest(`https://chappyasel.com${path}`, {
+    headers: cookie ? { cookie: `youtube-access=${cookie}` } : undefined,
   });
 }
 
@@ -28,6 +35,51 @@ describe("Dad proxy authorization", () => {
   it("accepts a Dad access cookie signed with the current password", async () => {
     const response = await proxy(
       dadRequest(dadAccessToken("correct-password")),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("guards every path under /dad, including /dad/api", async () => {
+    const response = await proxy(dadRequest(undefined, "/dad/api/entries"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://chappyasel.com/dad");
+  });
+
+  it("leaves the section's tab icon public for the password gate", async () => {
+    const response = await proxy(dadRequest(undefined, "/dad/tab-icon"));
+
+    expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+describe("YouTube proxy authorization", () => {
+  it.each([
+    ["a missing", undefined],
+    ["an arbitrary", "authenticated"],
+    ["a non-ASCII", "é".repeat(64)],
+    ["a Dad-signed", dadAccessToken("correct-password")],
+    ["a stale", youtubeAccessToken("old-password")],
+  ])("redirects %s YouTube access cookie", async (_, cookie) => {
+    const response = await proxy(youtubeRequest(cookie));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://chappyasel.com/youtube",
+    );
+  });
+
+  it("guards /youtube/api like any other YouTube path", async () => {
+    const response = await proxy(youtubeRequest(undefined, "/youtube/api/x"));
+
+    expect(response.status).toBe(307);
+  });
+
+  it("accepts the token the YouTube login action sets", async () => {
+    const response = await proxy(
+      youtubeRequest(youtubeAccessToken("correct-password")),
     );
 
     expect(response.status).toBe(200);

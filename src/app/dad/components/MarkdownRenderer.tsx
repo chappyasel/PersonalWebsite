@@ -9,6 +9,8 @@ import remarkGfm from "remark-gfm";
 
 /* eslint-disable @next/next/no-img-element */
 
+/* eslint-disable @next/next/no-img-element */
+
 function rewriteImageSrc(src: string): string {
   // Rewrite relative image paths like ../images/1999-04-12-01.jpg
   const imageMatch = /(?:\.\.\/)*images\/(.+)/.exec(src);

@@ -4,10 +4,7 @@ import { notFound } from "next/navigation";
 
 import { EntryHeader } from "~/app/dad/components/EntryHeader";
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
-import {
-  getAdjacentEntries,
-  readMarkdownFileSafe,
-} from "~/app/dad/lib/content";
+import { dadContent } from "~/app/dad/lib/content";
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9_-]+$/;
 
@@ -16,13 +13,16 @@ export default async function JournalEntryPage({
 }: {
   params: Promise<{ year: string; slug: string }>;
 }) {
+  const dad = await dadContent();
+  if (!dad) return null;
+
   const { year, slug } = await params;
   if (!SAFE_SEGMENT.test(year) || !SAFE_SEGMENT.test(slug)) notFound();
 
-  const entry = readMarkdownFileSafe(`Journal/${year}/${slug}.md`);
+  const entry = dad.readMarkdownFileSafe(`Journal/${year}/${slug}.md`);
   if (!entry) notFound();
   const { frontmatter, content } = entry;
-  const { prev, next } = getAdjacentEntries(year, slug);
+  const { prev, next } = dad.getAdjacentEntries(year, slug);
 
   return (
     <div className="py-8">

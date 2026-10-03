@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
-import { readMarkdownFileSafe } from "~/app/dad/lib/content";
+import { dadContent } from "~/app/dad/lib/content";
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9_-]+$/;
 
@@ -12,10 +12,13 @@ export default async function InsightPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const dad = await dadContent();
+  if (!dad) return null;
+
   const { slug } = await params;
   if (!SAFE_SEGMENT.test(slug)) notFound();
 
-  const entry = readMarkdownFileSafe(`Insights/${slug}.md`);
+  const entry = dad.readMarkdownFileSafe(`Insights/${slug}.md`);
   if (!entry) notFound();
   const { frontmatter, content } = entry;
   const title = (frontmatter.title as string) ?? slug;

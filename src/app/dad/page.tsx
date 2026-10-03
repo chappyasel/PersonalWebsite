@@ -1,15 +1,19 @@
 import Link from "next/link";
 
-import { getInsightSlugs, readMarkdownFile } from "./lib/content";
+import { dadContent } from "./lib/content";
 
 export default async function DadPage() {
-  // Access is enforced server-side in the dad layout.
+  // The proxy does not cover /dad because the password gate lives here, so
+  // this check is the only one that keeps the index out of the response.
+  const dad = await dadContent();
+  if (!dad) return null;
+
   // Build the insight list with titles from frontmatter
-  const slugs = getInsightSlugs().filter(
-    (s) => s !== "00-life-story" && s !== "bio-updates-draft",
-  );
+  const slugs = dad
+    .getInsightSlugs()
+    .filter((s) => s !== "00-life-story" && s !== "bio-updates-draft");
   const insights = slugs.map((slug) => {
-    const { frontmatter } = readMarkdownFile(`Insights/${slug}.md`);
+    const { frontmatter } = dad.readMarkdownFile(`Insights/${slug}.md`);
     return {
       slug,
       title: (frontmatter.title as string) ?? slug,

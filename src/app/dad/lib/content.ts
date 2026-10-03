@@ -2,11 +2,13 @@ import fs from "fs";
 import matter from "gray-matter";
 import path from "path";
 
-// Build path dynamically to prevent Turbopack from statically analyzing symlinks
-const CONTENT_ROOT = path.join(process.cwd(), ...["content", "dad"]);
+import { hasDadAccess } from "./access";
 
-export function readMarkdownFile(relativePath: string) {
-  const fullPath = path.join(CONTENT_ROOT, relativePath);
+// Build path dynamically to prevent Turbopack from statically analyzing symlinks
+const contentRoot = () => path.join(process.cwd(), ...["content", "dad"]);
+
+function readMarkdownFile(relativePath: string) {
+  const fullPath = path.join(contentRoot(), relativePath);
   const raw = fs.readFileSync(fullPath, "utf-8");
   const { data: frontmatter, content: rawContent } = matter(raw);
   // Strip the leading # heading since pages render their own title from frontmatter
@@ -17,7 +19,7 @@ export function readMarkdownFile(relativePath: string) {
 // Same as readMarkdownFile but returns null instead of throwing when the file
 // is missing or unreadable. Use on dynamically-rendered (on-demand) routes so
 // an unknown slug yields a 404 rather than a 500.
-export function readMarkdownFileSafe(relativePath: string) {
+function readMarkdownFileSafe(relativePath: string) {
   try {
     return readMarkdownFile(relativePath);
   } catch {
@@ -25,8 +27,8 @@ export function readMarkdownFileSafe(relativePath: string) {
   }
 }
 
-export function getInsightSlugs(): string[] {
-  const dir = path.join(CONTENT_ROOT, "Insights");
+function getInsightSlugs(): string[] {
+  const dir = path.join(contentRoot(), "Insights");
   return fs
     .readdirSync(dir)
     .filter((f) => f.endsWith(".md"))
@@ -34,8 +36,8 @@ export function getInsightSlugs(): string[] {
     .sort();
 }
 
-export function getJournalYears(): string[] {
-  const dir = path.join(CONTENT_ROOT, "Journal");
+function getJournalYears(): string[] {
+  const dir = path.join(contentRoot(), "Journal");
   return fs
     .readdirSync(dir)
     .filter((f) => {
@@ -45,8 +47,8 @@ export function getJournalYears(): string[] {
     .sort();
 }
 
-export function getJournalEntries(year: string): string[] {
-  const dir = path.join(CONTENT_ROOT, "Journal", year);
+function getJournalEntries(year: string): string[] {
+  const dir = path.join(contentRoot(), "Journal", year);
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
@@ -55,7 +57,7 @@ export function getJournalEntries(year: string): string[] {
     .sort();
 }
 
-export function getAdjacentEntries(
+function getAdjacentEntries(
   year: string,
   slug: string,
 ): {
@@ -95,4 +97,23 @@ export function getAdjacentEntries(
     prev: toEntry(allEntries[currentIndex - 1]),
     next: toEntry(allEntries[currentIndex + 1]),
   };
+}
+
+const reader = {
+  readMarkdownFile,
+  readMarkdownFileSafe,
+  getInsightSlugs,
+  getAdjacentEntries,
+};
+
+export type DadContentReader = typeof reader;
+
+/**
+ * The only way to read Dad content: the readers, or null when the request has
+ * no valid signed access cookie. Every Dad page starts here and renders
+ * nothing on null. The proxy and the layout's password gate also check the
+ * cookie, but neither stops a page's payload on its own (ADR 0003).
+ */
+export async function dadContent(): Promise<DadContentReader | null> {
+  return (await hasDadAccess()) ? reader : null;
 }

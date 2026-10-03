@@ -2,10 +2,12 @@ import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
-import { readMarkdownFile } from "~/app/dad/lib/content";
+import { dadContent } from "~/app/dad/lib/content";
 
-export default function LifeStoryPage() {
-  const { frontmatter, content } = readMarkdownFile(
+export default async function LifeStoryPage() {
+  const dad = await dadContent();
+  if (!dad) return null;
+  const { frontmatter, content } = dad.readMarkdownFile(
     "Insights/00-life-story.md",
   );
   const title = (frontmatter.title as string) ?? "Life Story";
