@@ -143,7 +143,9 @@ describe("inline book navigation", () => {
     );
     const bookLink = screen.getByRole("link", { name: "full book notes" });
     expect(bookLink.querySelector("img")).not.toBeNull();
-    fireEvent.focus(bookLink);
+    // Keyboard focus, which shows a focus ring (:focus-visible); the card
+    // stays shut for the focus a closing modal hands back after a click.
+    act(() => bookLink.focus());
     const tooltip = await screen.findByRole("tooltip");
     expect(within(tooltip).getByText("Daniel Coyle")).toBeTruthy();
     expect(within(tooltip).getByLabelText("5 out of 5 stars")).toBeTruthy();

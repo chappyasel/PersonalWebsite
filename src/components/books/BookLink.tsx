@@ -22,7 +22,18 @@ import {
 } from "~/components/ui/tooltip";
 
 import { BookMetadataText } from "./BookMetadataSeparator";
+import { useInlineBookPrefetch } from "./InlineBookPreviewProvider";
 import { useOpenBookLink } from "./useOpenBookLink";
+
+// Focus a person can see: keyboard focus, not the focus a closing modal
+// hands back to the link that opened it after a click.
+function isFocusVisible(element: Element) {
+  try {
+    return element.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
 
 /**
  * The one way to link a book from running text.
@@ -54,12 +65,23 @@ export default function BookLink({
   const title = label ?? book?.title ?? humanizeSlug(slug);
   const cover = enhanceCoverUrl(book?.coverUrl ?? null);
   const openBookLink = useOpenBookLink();
+  const prefetch = useInlineBookPrefetch();
+  const prefetchBook = () => prefetch?.(slug);
 
   const anchor = (
     <Link
       href={href}
       data-route-transition="preserve"
       onClick={(event) => openBookLink(event, href, slug)}
+      onMouseEnter={prefetchBook}
+      onPointerDown={prefetchBook}
+      onFocus={(event) => {
+        prefetchBook();
+        // The hover card opens on focus too. Returned to the link as the
+        // modal closes, it would pop up over the page as the modal fades;
+        // a handled event keeps Radix from opening it.
+        if (!isFocusVisible(event.currentTarget)) event.preventDefault();
+      }}
       className="inline-flex items-baseline gap-1.5 underline decoration-muted-foreground/15 underline-offset-2 transition-colors hover:decoration-muted-foreground/30"
     >
       {cover && (

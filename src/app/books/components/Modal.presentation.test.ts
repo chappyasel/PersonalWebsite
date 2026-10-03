@@ -6,8 +6,12 @@ const modal = readFileSync(new URL("./Modal.tsx", import.meta.url), "utf8");
 describe("book modal presentation", () => {
   it("does not replay Framer fades after an origin-owned exit", () => {
     expect(modal).toContain("const [originExitRunning, setOriginExitRunning]");
+    // Any origin flight, not only the homepage's: notes links and related
+    // books on a book's page fly too.
+    expect(modal).toContain("const originOwnsExit = originExitRunning;");
+    // Cleared once the exit completes, so the next open still fades in.
     expect(modal).toContain(
-      "const originOwnsExit = fromStacks && originExitRunning",
+      "<AnimatePresence onExitComplete={() => setOriginExitRunning(false)}>",
     );
     expect(modal).toContain("reduceMotion || originOwnsExit ? 0");
     expect(modal).toContain(

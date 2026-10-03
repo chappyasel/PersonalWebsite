@@ -385,7 +385,9 @@ function PresentedSheet({
                 <div
                   data-modal-scroller
                   className={cn(
-                    "overflow-y-auto overscroll-contain",
+                    // Vertical only, so a sideways swipe still reaches the
+                    // browser's back and forward gesture.
+                    "overflow-y-auto overscroll-y-contain",
                     isCard ? "min-h-0 flex-1" : "h-full",
                   )}
                 >

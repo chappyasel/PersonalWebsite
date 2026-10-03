@@ -63,6 +63,7 @@ vi.mock("~/lib/analytics", () => ({ capture: vi.fn(), captureOnce: vi.fn() }));
 vi.mock("./RelatedBooks", () => ({ RelatedBooks: () => null }));
 vi.mock("~/trpc/react", () => ({
   api: {
+    useUtils: () => ({ books: { getById: { prefetch: vi.fn() } } }),
     books: {
       getById: {
         useQuery: ({ bookId }: { bookId: string }) => ({

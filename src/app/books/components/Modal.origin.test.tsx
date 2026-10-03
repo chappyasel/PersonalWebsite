@@ -110,6 +110,22 @@ it.each(["close button", "history back"])(
   },
 );
 
+it("flies a books-site modal from the link a book page opened it from", () => {
+  originFlight.recordModalOrigin({
+    left: 328,
+    top: 467,
+    width: 56,
+    height: 84,
+  });
+  render(<Modal />);
+  expect(entrance).toHaveBeenCalledOnce();
+});
+
+it("leaves a shelf cover's modal to its layoutId morph", () => {
+  render(<Modal />);
+  expect(entrance).not.toHaveBeenCalled();
+});
+
 it("measures the resting shell before flying from a desktop cover", () => {
   originFlight.recordModalOrigin({
     left: 1100,

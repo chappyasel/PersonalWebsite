@@ -17,6 +17,9 @@ vi.mock("../components/BookDetailContent", () => ({
   ),
 }));
 vi.mock("../components/RelatedBooks", () => ({ RelatedBooks: () => null }));
+vi.mock("~/trpc/react", () => ({
+  api: { useUtils: () => ({ books: { getById: { prefetch: vi.fn() } } }) },
+}));
 
 beforeEach(() => vi.resetAllMocks());
 afterEach(cleanup);
