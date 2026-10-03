@@ -678,8 +678,8 @@ async function upsertBooksToDatabase(
     }
   }
 
-  // Stamp every unchanged book in one statement. Production functions run in
-  // iad1 and the database in us-west-2, so one UPDATE per book cost ~40 s.
+  // Stamp every unchanged book in one statement. One UPDATE per book cost
+  // ~40 s when functions ran in iad1, across the country from the database.
   // Slug migration for these books was already handled by migrateChangedSlugs
   if (unchangedBooks.length > 0) {
     await db
