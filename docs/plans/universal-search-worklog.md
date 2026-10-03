@@ -270,6 +270,8 @@ Canonical `chappyasel.com` hosts set `Domain=.chappyasel.com` so an unlock on on
 
 `/api/dad-images` was previously identified as lacking the Dad gate. Universal Search must not index or return image paths. Hardening that separate image endpoint remains follow-up work unless it enters the search data path.
 
+Closed on October 2, 2026: the image route now checks the signed Dad cookie and serves images as `private`. See [ADR 0003](../adr/0003-private-areas-check-access-where-data-is-read.md).
+
 ## Public-content index
 
 ### 2026-08-22: Index only records with usable, non-YouTube destinations
@@ -305,7 +307,7 @@ The browser renders registry matches synchronously, waits 140 ms before async wo
 
 - Pointer and mobile triggers remain TODO by explicit user direction. The dialog itself remains width-constrained at narrow viewports.
 - There is no process-local search rate limiter. Query bounds, debounce, result limits, statement deadlines, and the now-indexable note branch bound application work; platform-level rate limiting remains the durable production option.
-- `/api/dad-images` predates this feature and remains outside the Dad gate. Search does not index or return image paths.
+- `/api/dad-images` predates this feature and remains outside the Dad gate. Search does not index or return image paths. Closed on October 2, 2026; see [ADR 0003](../adr/0003-private-areas-check-access-where-data-is-read.md).
 - Dad's first authorized query on a cold server instance parses the 1.1 MB private artifact once. The promise stays warm per process, but only a deployed preview can characterize cold latency.
 - `pnpm verify:artifacts` still encounters the unrelated stale homepage OG artifact before its search-index step. Search freshness is also a deterministic `pnpm verify` step and passes independently.
 - Browser automation and network-panel paint evidence were not run because repository instructions prohibit browser automation unless explicitly requested. Synchronous DOM tests and production manifest checks are the non-browser evidence.

@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 
-import {
-  DAD_ACCESS_COOKIE_NAME,
-  isValidDadAccessToken,
-} from "~/lib/dad/access";
+import { hasDadAccess } from "./lib/access";
 import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import { PageTransition } from "./components/PageTransition";
 import { PasswordGate } from "./components/PasswordGate";
 import { GrainientBackground } from "~/components/ui/grainient-background";
-
-import { env } from "~/env";
 
 export const metadata: Metadata = {
   title: "Dad's Journal",
@@ -25,13 +19,12 @@ export default async function DadLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Server-side access gate for the entire /dad/* subtree. Reading cookies()
-  // here also opts all dad routes out of static prerendering, so no journal
-  // content is ever baked into public static HTML.
-  const hasAccess = isValidDadAccessToken(
-    (await cookies()).get(DAD_ACCESS_COOKIE_NAME)?.value,
-    env.DAD_CONTENT_PASSWORD,
-  );
+  // Chooses between the password gate and the section. Reading cookies() here
+  // also opts all dad routes out of static prerendering, so no journal content
+  // is ever baked into public static HTML. It does not stop a page's payload
+  // from being sent. Pages read content through dadContent(), which checks the
+  // cookie itself (ADR 0003).
+  const hasAccess = await hasDadAccess();
 
   return (
     <TRPCReactProvider>

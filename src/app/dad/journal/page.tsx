@@ -2,10 +2,12 @@ import { ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
-import { readMarkdownFile } from "~/app/dad/lib/content";
+import { dadContent } from "~/app/dad/lib/content";
 
-export default function JournalIndexPage() {
-  const { content } = readMarkdownFile("Journal/index.md");
+export default async function JournalIndexPage() {
+  const dad = await dadContent();
+  if (!dad) return null;
+  const { content } = dad.readMarkdownFile("Journal/index.md");
 
   return (
     <div className="py-8">

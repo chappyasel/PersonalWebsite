@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const DAD_ACCESS_COOKIE_NAME = "dad-access";
+export const DAD_ACCESS_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 const CANONICAL_DOMAIN = "chappyasel.com";
 
@@ -55,7 +56,7 @@ export function dadAccessCookieOptions(
     httpOnly: true,
     secure,
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: DAD_ACCESS_MAX_AGE_SECONDS,
     path: "/",
   };
 }
