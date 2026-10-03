@@ -4,6 +4,7 @@
       "ENABLE_EXPERIMENTAL_COREPACK": "1"
     }
   },
+  "regions": ["pdx1"],
   "functions": {
     "src/app/api/cron/sync-books/route.ts": {
       "maxDuration": 800
