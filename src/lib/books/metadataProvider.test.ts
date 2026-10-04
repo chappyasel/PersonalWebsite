@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fetchMetadataEvidence } from "./metadataProvider";
 
+vi.mock("~/env", () => ({ env: { GOOGLE_BOOKS_API_KEY: "books-key" } }));
 afterEach(() => vi.unstubAllGlobals());
 describe("metadata catalog providers", () => {
   it("queries title-only for empty author and retains competing candidates and identifiers", async () => {
@@ -67,6 +68,26 @@ describe("metadata catalog providers", () => {
       ),
     ).toBe(true);
   });
+  it("searches quoted phrases with the API key", async () => {
+    const fetcher = vi.fn(
+      async (_url: string) =>
+        new Response(JSON.stringify({ totalItems: 0, products: [] })),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    await fetchMetadataEvidence({
+      title: "A World Without Email",
+      author: "Cal Newport",
+    });
+    const google = new URL(
+      fetcher.mock.calls
+        .map(([url]) => url)
+        .find((url) => url.includes("googleapis"))!,
+    );
+    expect(google.searchParams.get("q")).toBe(
+      '"A World Without Email" "Cal Newport"',
+    );
+    expect(google.searchParams.get("key")).toBe("books-key");
+  });
   it("reports HTTP and malformed data failures instead of pretending the catalog is empty", async () => {
     vi.stubGlobal(
       "fetch",
@@ -81,9 +102,8 @@ describe("metadata catalog providers", () => {
         .failures,
     ).toHaveLength(2);
   });
-  it("marks truncated result sets incomplete", async () => {
-    vi.stubGlobal(
-      "fetch",
+  it("marks a full page incomplete but trusts a short page over totalItems", async () => {
+    const page = (count: number) =>
       vi.fn(
         async (url: string) =>
           new Response(
@@ -91,21 +111,23 @@ describe("metadata catalog providers", () => {
               url.includes("googleapis")
                 ? {
                     totalItems: 99,
-                    items: [
-                      {
-                        id: "a",
-                        volumeInfo: { title: "Title", authors: ["Author"] },
-                      },
-                    ],
+                    items: Array.from({ length: count }, (_, i) => ({
+                      id: `v${i}`,
+                      volumeInfo: { title: "Title", authors: ["Author"] },
+                    })),
                   }
                 : { products: [] },
             ),
           ),
-      ),
-    );
+      );
+    vi.stubGlobal("fetch", page(40));
     expect(
       (await fetchMetadataEvidence({ title: "Title", author: "" })).failures,
     ).toContainEqual({ source: "google", code: "truncated" });
+    vi.stubGlobal("fetch", page(3));
+    expect(
+      (await fetchMetadataEvidence({ title: "Title", author: "" })).failures,
+    ).toEqual([]);
   });
   it("rejects malformed successful response shapes", async () => {
     vi.stubGlobal(

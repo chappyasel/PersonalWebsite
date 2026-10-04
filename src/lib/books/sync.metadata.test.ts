@@ -174,6 +174,24 @@ it("retries empty author and cover on unchanged pages without downloading notes"
   });
   expect(result.bookIdsToInvalidate).toContain("superintelligence");
 });
+it("records catalog outages as one sync error instead of a silent success", async () => {
+  const incomplete = { ...complete, coverUrl: null };
+  mocks.catalog.mockResolvedValue([incomplete]);
+  mocks.rows = [stored(incomplete)];
+  mocks.enrich.mockImplementation(
+    async (book: NotionBook, reportFailure: (reason: string) => void) => {
+      reportFailure("google HTTP 429");
+      return book;
+    },
+  );
+  const result = await syncBooksFromNotion("manual");
+  expect(result.errors).toEqual([
+    expect.objectContaining({
+      bookId: "book-metadata",
+      error: "1 lookup(s) failed: Superintelligence (google HTTP 429)",
+    }),
+  ]);
+});
 it("moves dates stored as UTC midnights to Pacific midnights without downloading notes", async () => {
   mocks.catalog.mockResolvedValue([{ ...complete, finished: "2026-01-20" }]);
   mocks.rows = [
@@ -475,5 +493,8 @@ it("complete new pages do not consume initial metadata lookup capacity", async (
   mocks.rows = [];
   mocks.catalog.mockResolvedValue([...ready, missing]);
   await syncBooksFromNotion("manual");
-  expect(mocks.enrich).toHaveBeenCalledExactlyOnceWith(missing);
+  expect(mocks.enrich).toHaveBeenCalledExactlyOnceWith(
+    missing,
+    expect.any(Function),
+  );
 });

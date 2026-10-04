@@ -7,6 +7,7 @@ import {
   type MetadataInput,
   audibleAsin,
 } from "./metadata";
+import { env } from "~/env";
 
 const positiveInteger = z.number().int().positive().optional();
 const googleVolume = z.object({
@@ -43,6 +44,8 @@ const audibleResponse = z.object({
   total_results: z.number().optional(),
 });
 
+const GOOGLE_PAGE_SIZE = 40;
+
 class CatalogHttpError extends Error {
   constructor(readonly status: number) {
     super("Catalog HTTP error");
@@ -61,11 +64,20 @@ export async function fetchMetadataEvidence(
     Partial<Pick<MetadataInput, "audibleUrl">>,
 ): Promise<MetadataEvidence> {
   const result: MetadataEvidence = { candidates: [], failures: [] };
+  // Google answers a query made only of intitle:/inauthor: operators with
+  // zero results, so search the quoted phrases and let the resolver match.
   const query = [
-    `intitle:${JSON.stringify(book.title)}`,
-    ...(book.author.trim() ? [`inauthor:${JSON.stringify(book.author)}`] : []),
+    JSON.stringify(book.title),
+    ...(book.author.trim() ? [JSON.stringify(book.author)] : []),
   ].join(" ");
-  const googleUrl = `https://www.googleapis.com/books/v1/volumes?${new URLSearchParams({ q: query, maxResults: "40" })}`;
+  const googleParams = new URLSearchParams({
+    q: query,
+    maxResults: String(GOOGLE_PAGE_SIZE),
+  });
+  // Keyless requests share a project whose daily quota is 0: always a 429.
+  if (env.GOOGLE_BOOKS_API_KEY)
+    googleParams.set("key", env.GOOGLE_BOOKS_API_KEY);
+  const googleUrl = `https://www.googleapis.com/books/v1/volumes?${googleParams}`;
   const asin = audibleAsin(book.audibleUrl ?? null);
   const audibleParams = new URLSearchParams({
     title: book.title,
@@ -86,8 +98,10 @@ export async function fetchMetadataEvidence(
     if (!parsed.success)
       result.failures.push({ source: "google", code: "invalid_response" });
     else {
-      const { items = [], totalItems } = parsed.data;
-      if (totalItems > items.length)
+      const { items = [] } = parsed.data;
+      // totalItems is an estimate that runs above and below the items
+      // returned, so only a full page means more results may exist.
+      if (items.length >= GOOGLE_PAGE_SIZE)
         result.failures.push({ source: "google", code: "truncated" });
       for (const { id, volumeInfo: info } of items) {
         const links = info.imageLinks;
