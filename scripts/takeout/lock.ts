@@ -1,14 +1,14 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { stateFilePath } from "./state";
+import { takeoutPaths } from "./config";
 
 /** Shared by all checkouts using this runtime state, not tied to cwd.
  * Never expire a lock by age or PID: a killed parent may leave sync running.
  * After a crash, an operator must check for surviving children before removal.
  */
 export function acquireRefreshLock(): () => void {
-  const lockDir = path.join(path.dirname(stateFilePath()), "refresh.lock");
+  const { lockDir } = takeoutPaths();
   fs.mkdirSync(path.dirname(lockDir), { recursive: true });
   try {
     fs.mkdirSync(lockDir);

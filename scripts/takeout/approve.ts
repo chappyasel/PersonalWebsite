@@ -25,6 +25,7 @@ import { spawn, spawnSync } from "child_process";
 import * as path from "path";
 
 import { close, getPage, hasGoogleSessionCookies } from "./browser";
+import { LOCAL_TSX_CLI } from "./config";
 import { getDrive } from "./drive";
 import {
   AUTH_GATE_RE,
@@ -50,11 +51,15 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
  *  tap ingests within minutes instead of waiting for the next cron tick. If the
  *  zip isn't in Drive yet it harmlessly no-ops and the cron picks it up later. */
 function ingestNow() {
-  const child = spawn("npx", ["tsx", "scripts/takeout/refresh.ts"], {
-    cwd: REPO_ROOT,
-    detached: true,
-    stdio: "ignore",
-  });
+  const child = spawn(
+    process.execPath,
+    [LOCAL_TSX_CLI, "scripts/takeout/refresh.ts"],
+    {
+      cwd: REPO_ROOT,
+      detached: true,
+      stdio: "ignore",
+    },
+  );
   child.unref();
 }
 

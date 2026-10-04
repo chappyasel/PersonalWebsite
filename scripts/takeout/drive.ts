@@ -1,17 +1,16 @@
 /**
  * Shared Drive API helpers. Loads the user's OAuth client config + refresh
- * token from ~/.local/share/youtube-takeout/, returns an authed Drive client.
+ * token from the configured credentials directory; returns an authed client.
  */
 import * as fs from "fs";
 import type { Credentials, OAuth2Client } from "google-auth-library";
 import { google } from "googleapis";
 import type { drive_v3 } from "googleapis";
-import * as os from "os";
-import * as path from "path";
 
-const DATA_ROOT = path.join(os.homedir(), ".local/share/youtube-takeout");
-export const OAUTH_CLIENT_PATH = path.join(DATA_ROOT, "oauth-client.json");
-export const TOKEN_PATH = path.join(DATA_ROOT, "drive-token.json");
+import { takeoutPaths } from "./config";
+
+export const OAUTH_CLIENT_PATH = takeoutPaths().oauthClientPath;
+export const TOKEN_PATH = takeoutPaths().tokenPath;
 
 export const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"];
 
@@ -63,6 +62,7 @@ export function getDrive(): drive_v3.Drive {
 }
 
 export function saveToken(token: Record<string, unknown>): void {
-  fs.mkdirSync(DATA_ROOT, { recursive: true });
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(token, null, 2));
+  fs.mkdirSync(takeoutPaths().credentialsDir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(TOKEN_PATH, JSON.stringify(token, null, 2), { mode: 0o600 });
+  fs.chmodSync(TOKEN_PATH, 0o600);
 }

@@ -1,0 +1,2627 @@
+diff --git a/docs/implementation-receipts/youtube-takeout-drive-recovery.md b/docs/implementation-receipts/youtube-takeout-drive-recovery.md
+new file mode 100644
+index 00000000..2ac6168b
+--- /dev/null
++++ b/docs/implementation-receipts/youtube-takeout-drive-recovery.md
+@@ -0,0 +1,72 @@
++# YouTube Takeout Drive recovery receipt
++
++Implemented only in the dedicated workspace on baseline `7540dfcc51e702121fddc3d637d1e27c6b97fd5f`. Final read-only check confirmed the actual runtime checkout remains clean at that commit. No delegation, commits, pushes, live DB writes, live download, browser/auth UI, credential changes, external messages, schedule changes, wrapper changes, q.sh edits, or deployments.
++
++## Files
++
++Runtime files to copy together after coordinator review and backup:
++
++- `scripts/takeout/refresh.ts`: Drive discovery before state/request-age/window checks; safe CLI modes; confirmed sync success before watermark advancement; detectable failures and enrichment retry.
++- `scripts/takeout/download.ts`: optional successful-export watermark, Drive pagination, archive-content inspection, extraction failure detection, staged history and truthful sidecar.
++- `scripts/takeout/state.ts`: successful archive checkpoint, legacy sidecar migration, pending enrichment.
++- `scripts/takeout/lock.ts`: exclusive shared runtime lock.
++- `scripts/sync-youtube.ts`: structured success event; dynamic sync import after dotenv initialization.
++
++Regression files:
++
++- `scripts/takeout/refresh.test.ts`
++- `scripts/takeout/download.test.ts`
++- `src/lib/youtube/sync.test.ts`
++
++Evidence files alongside this receipt: `youtube-takeout-red.txt`, `youtube-takeout-green.txt`, `youtube-takeout-typecheck.txt`, `youtube-takeout-lint.txt`. The lint log is empty because the final command passed without diagnostics.
++
++## Validation
++
++Before implementation, `pnpm exec vitest run scripts/takeout/refresh.test.ts` failed all three orchestration regressions: idle skipped ingestion, stale requested state skipped ingestion, and recent requested state still filtered by request time.
++
++Final checks after the dotenv import fix:
++
++- `pnpm exec vitest run scripts/takeout src/lib/youtube`: 113 tests passed across 12 files.
++- `pnpm typecheck`: passed, including Next route type generation and `tsc --noEmit`.
++- Targeted ESLint on all eight code/test files: passed.
++- `git diff --check`: passed.
++- `pnpm exec tsx scripts/takeout/refresh.ts --help`: passed without runtime activity.
++
++Tests exercise the actual refresh entry point with real temporary state/sidecar files and mocked subprocesses. Download tests use mocked Drive responses and real ZIP extraction. DB tests mock the database. Coverage includes ordinary cron argv, expired browser auth, both request ages, recent ingestion, second-tick ingestion suppression, weekend browser suppression, staging-only behavior, failed/missing/mismatched sync results, enrichment retry, lock contention/release, pagination, and archive provenance.
++
++## Runtime activation, coordinator only
++
++After checking the baseline and backing up runtime code, state, canonical history, sidecar, and database, copy the five runtime files together. Confirm no older refresh or standalone ingestion process is active during activation. This worker has not activated or run recovery.
++
++From `/Users/chappyasel/Desktop/Repos/PersonalWebsite`, staging without DB writes uses:
++
++```sh
++pnpm exec tsx scripts/takeout/refresh.ts --download-only
++```
++
++This mode cannot request an export or launch a browser. It stages history and sidecar without advancing the successful-ingestion checkpoint. The staleness watchdog can update its local alert timestamp.
++
++Once live ingestion is authorized, run these as two separate commands, checking the first result before the second:
++
++```sh
++pnpm exec tsx scripts/takeout/refresh.ts --no-browser
++pnpm exec tsx scripts/takeout/refresh.ts --no-browser
++```
++
++The first performs sync, classify, and the existing score top-up. Expect `sync_ok` and `refresh_complete`, exit 0. With unchanged Drive contents and successful enrichment, the second emits `no_new_archive`, exit 0, without sync/classify/score. These paths were tested with isolated fixtures, not against the live database. Invoke TS directly, as requested, to avoid wrapper messaging.
++
++Verify successful sync metadata and the state checkpoint retain Drive creation time `2026-09-28T06:04:58.013Z` for `takeout-20260928T055945Z-1-001.zip`, with newest watch `2026-09-27T19:41:31.917Z` if the coordinator-inspected archive remains newest. Neither download nor import time becomes coverage. Compare live row counts and duplicate-event checks before and after both ticks; this worker did not query or mutate the live DB.
++
++## Limitations and failure behavior
++
++Browser auth remains expired. Ordinary scheduled runs retain the weekend/five-day request policy, but isolated request-auth failure emits `requested_auth_failure`, updates state, and exits 0 so the cron's three-failure auto-pause cannot disable healthy Drive discovery. A regression covers three such failures followed by successful discovery. Other Drive, sync, classify, and score failures exit nonzero. Failed enrichment retains successful ingestion and retries enrichment on the next tick without reporting completion prematurely.
++
++The lock is `~/.hermes/workspace/state/youtube-takeout/refresh.lock`, shared across checkouts. It remains after a killed process. Check its owner and all surviving download/sync/enrichment children before manually clearing it. Never clear it solely because it is old. Standalone scripts and an already-running pre-patch refresh do not acquire this lock. A crash after DB success but before the local checkpoint can replay conflict-safe ingestion after recovery.
++
++Field Notes does not apply: this is internal ingestion maintenance with no visitor-facing discovery added.
++
++## Shipping follow-up, October 3
++
++The user's subsequent shipping instruction supersedes the implementation-only restriction on committing and pushing this fix. Before shipping, all eight code/test files in the actual runtime checkout matched this workspace. Runtime state reported a completed ingestion at `2026-10-04T00:07:16.748Z`, with no error, pending enrichment, or refresh lock. The coordinator performed that activation; this worker did not rerun ingestion or modify the runtime checkout.
++
++The shipping branch includes the newer remote main commit `c817678e`, preserving the book-sync fix. Checks rerun against that combined code passed: 113 tests across 12 files, `pnpm typecheck`, targeted ESLint, and `git diff --check`.
+diff --git a/docs/implementation-receipts/youtube-takeout-green.txt b/docs/implementation-receipts/youtube-takeout-green.txt
+new file mode 100644
+index 00000000..52c5aae6
+--- /dev/null
++++ b/docs/implementation-receipts/youtube-takeout-green.txt
+@@ -0,0 +1,8 @@
++
++ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++
++
++ Test Files  12 passed (12)
++      Tests  113 passed (113)
++   Start at  17:02:43
++   Duration  232ms (transform 410ms, setup 0ms, import 703ms, tests 193ms, environment 0ms)
+diff --git a/docs/implementation-receipts/youtube-takeout-lint.txt b/docs/implementation-receipts/youtube-takeout-lint.txt
+new file mode 100644
+index 00000000..e69de29b
+diff --git a/docs/implementation-receipts/youtube-takeout-red.txt b/docs/implementation-receipts/youtube-takeout-red.txt
+new file mode 100644
+index 00000000..4aa051dc
+--- /dev/null
++++ b/docs/implementation-receipts/youtube-takeout-red.txt
+@@ -0,0 +1,62 @@
++
++ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++
++ ❯ scripts/takeout/refresh.test.ts (3 tests | 3 failed) 19ms
++   × imports a fresh Drive archive while idle with expired browser auth, then does not ingest it again 13ms
++   × discovers in requested state regardless of request timestamp 2026-09-30T12:00:00.000Z 3ms
++   × discovers in requested state regardless of request timestamp 2026-09-14T12:00:00.000Z 2ms
++
++⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
++
++ FAIL  scripts/takeout/refresh.test.ts > imports a fresh Drive archive while idle with expired browser auth, then does not ingest it again
++AssertionError: expected [] to deeply equal [ …(3) ]
++
++- Expected
+++ Received
++
++- [
++-   "npx tsx scripts/sync-youtube.ts",
++-   "npx tsx scripts/classify-youtube.ts",
++-   "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
++- ]
+++ []
++
++ ❯ scripts/takeout/refresh.test.ts:84:57
++     82| it("imports a fresh Drive archive while idle with expired browser auth…
++     83|   await tick();
++     84|   expect(mocks.execSync.mock.calls.map(([cmd]) => cmd)).toEqual([
++       |                                                         ^
++     85|     "npx tsx scripts/sync-youtube.ts",
++     86|     "npx tsx scripts/classify-youtube.ts",
++
++⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
++
++ FAIL  scripts/takeout/refresh.test.ts > discovers in requested state regardless of request timestamp 2026-09-30T12:00:00.000Z
++AssertionError: expected [ 'tsx', …(3) ] to not include '--requested-at'
++ ❯ scripts/takeout/refresh.test.ts:101:52
++     99|     await tick();
++    100|     expect(mocks.execSync).toHaveBeenCalledTimes(3);
++    101|     expect(mocks.spawnSync.mock.calls[0]?.[1]).not.toContain("--reques…
++       |                                                    ^
++    102|     expect(readState()).toMatchObject({ state: "idle", requested_at: n…
++    103|   },
++
++⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
++
++ FAIL  scripts/takeout/refresh.test.ts > discovers in requested state regardless of request timestamp 2026-09-14T12:00:00.000Z
++AssertionError: expected "vi.fn()" to be called 3 times, but got 0 times
++ ❯ scripts/takeout/refresh.test.ts:100:28
++     98|     fs.writeFileSync(stateFile, JSON.stringify({ ...readState(), state…
++     99|     await tick();
++    100|     expect(mocks.execSync).toHaveBeenCalledTimes(3);
++       |                            ^
++    101|     expect(mocks.spawnSync.mock.calls[0]?.[1]).not.toContain("--reques…
++    102|     expect(readState()).toMatchObject({ state: "idle", requested_at: n…
++
++⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
++
++
++ Test Files  1 failed (1)
++      Tests  3 failed (3)
++   Start at  16:52:09
++   Duration  102ms (transform 21ms, setup 0ms, import 22ms, tests 19ms, environment 0ms)
+diff --git a/docs/implementation-receipts/youtube-takeout-typecheck.txt b/docs/implementation-receipts/youtube-takeout-typecheck.txt
+new file mode 100644
+index 00000000..eeae4770
+--- /dev/null
++++ b/docs/implementation-receipts/youtube-takeout-typecheck.txt
+@@ -0,0 +1,10 @@
++
++> personal-website@0.1.0 typecheck /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++> pnpm typegen && tsc --noEmit
++
++
++> personal-website@0.1.0 typegen /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++> SKIP_ENV_VALIDATION=1 next typegen
++
++Generating route types...
++✓ Types generated successfully
+diff --git a/scripts/sync-youtube.ts b/scripts/sync-youtube.ts
+index 4e8436a4..199e5bd0 100644
+--- a/scripts/sync-youtube.ts
++++ b/scripts/sync-youtube.ts
+@@ -3,22 +3,25 @@
+  *
+  * Run with: npx tsx scripts/sync-youtube.ts
+  */
+-
+ import "dotenv/config";
+-import { syncYouTube } from "../src/lib/youtube/sync";
+-
+-import * as path from "path";
+-import * as os from "os";
+ 
+-const FILE_PATH = path.join(
+-  os.homedir(),
+-  ".local/share/youtube-takeout/watch-history.json",
+-);
++import { takeoutPaths } from "./takeout/config";
+ 
+ async function main() {
++  // Load DB/env modules only after dotenv/config has initialized this CLI.
++  const { syncYouTube } = await import("../src/lib/youtube/sync");
+   console.log("Starting YouTube sync...");
+-  const result = await syncYouTube("manual", FILE_PATH);
+-  console.log("Sync complete:", result);
++  const result = await syncYouTube("manual", takeoutPaths().historyPath);
++  if ("status" in result && result.status !== "success") {
++    throw new Error("YouTube sync did not report success");
++  }
++  console.log(
++    JSON.stringify({
++      event: "youtube_sync_complete",
++      status: "success",
++      ...result,
++    }),
++  );
+   process.exit(0);
+ }
+ 
+diff --git a/scripts/takeout/approve.ts b/scripts/takeout/approve.ts
+index 533e0e78..acde1722 100644
+--- a/scripts/takeout/approve.ts
++++ b/scripts/takeout/approve.ts
+@@ -25,6 +25,7 @@ import { spawn, spawnSync } from "child_process";
+ import * as path from "path";
+ 
+ import { close, getPage, hasGoogleSessionCookies } from "./browser";
++import { LOCAL_TSX_CLI } from "./config";
+ import { getDrive } from "./drive";
+ import {
+   AUTH_GATE_RE,
+@@ -50,11 +51,15 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
+  *  tap ingests within minutes instead of waiting for the next cron tick. If the
+  *  zip isn't in Drive yet it harmlessly no-ops and the cron picks it up later. */
+ function ingestNow() {
+-  const child = spawn("npx", ["tsx", "scripts/takeout/refresh.ts"], {
+-    cwd: REPO_ROOT,
+-    detached: true,
+-    stdio: "ignore",
+-  });
++  const child = spawn(
++    process.execPath,
++    [LOCAL_TSX_CLI, "scripts/takeout/refresh.ts"],
++    {
++      cwd: REPO_ROOT,
++      detached: true,
++      stdio: "ignore",
++    },
++  );
+   child.unref();
+ }
+ 
+diff --git a/scripts/takeout/download.test.ts b/scripts/takeout/download.test.ts
+new file mode 100644
+index 00000000..b2903b6a
+--- /dev/null
++++ b/scripts/takeout/download.test.ts
+@@ -0,0 +1,168 @@
++import type { TakeoutSidecar } from "../../src/lib/youtube/coverage";
++import type { drive_v3 } from "googleapis";
++import { execFileSync } from "node:child_process";
++import * as fs from "node:fs";
++import * as os from "node:os";
++import * as path from "node:path";
++import { Readable } from "node:stream";
++import { afterEach, beforeEach, expect, it, vi } from "vitest";
++
++import { downloadLatestArchive } from "./download";
++
++const mocks = vi.hoisted(() => ({
++  home: "",
++  list: vi.fn<
++    (args: { pageToken?: string }) => Promise<{
++      data: { files: drive_v3.Schema$File[]; nextPageToken?: string };
++    }>
++  >(),
++  get: vi.fn<(args: { fileId: string }) => Promise<{ data: Readable }>>(),
++}));
++vi.mock("dotenv/config", () => ({}));
++vi.mock("./drive", () => ({
++  getDrive: () => ({ files: { list: mocks.list, get: mocks.get } }),
++}));
++
++const youtube = {
++  id: "youtube-archive",
++  name: "takeout-20260928T055945Z-1-001.zip",
++  createdTime: "2026-09-28T06:04:58.013Z",
++};
++let zipNumber = 0;
++function zip(member: string, content = "[]") {
++  const directory = path.join(mocks.home, `zip-${zipNumber++}`);
++  fs.mkdirSync(path.dirname(path.join(directory, member)), { recursive: true });
++  fs.writeFileSync(path.join(directory, member), content);
++  execFileSync("zip", ["-q", "archive.zip", member], { cwd: directory });
++  return fs.readFileSync(path.join(directory, "archive.zip"));
++}
++function sidecar() {
++  return JSON.parse(
++    fs.readFileSync(
++      path.join(
++        mocks.home,
++        ".local/share/youtube-takeout/watch-history.meta.json",
++      ),
++      "utf8",
++    ),
++  ) as TakeoutSidecar;
++}
++
++beforeEach(() => {
++  mocks.home = fs.mkdtempSync(path.join(os.tmpdir(), "takeout-download-"));
++  vi.stubEnv(
++    "YOUTUBE_TAKEOUT_DATA_DIR",
++    path.join(mocks.home, ".local/share/youtube-takeout"),
++  );
++  vi.stubEnv("YOUTUBE_TAKEOUT_STATE_DIR", path.join(mocks.home, "state"));
++  vi.stubEnv(
++    "YOUTUBE_TAKEOUT_CREDENTIALS_DIR",
++    path.join(mocks.home, "credentials"),
++  );
++  mocks.list.mockReset();
++  mocks.get.mockReset();
++  vi.spyOn(console, "log").mockImplementation(() => undefined);
++});
++afterEach(() => {
++  vi.restoreAllMocks();
++  vi.unstubAllEnvs();
++  fs.rmSync(mocks.home, { recursive: true, force: true });
++});
++
++it("paginates, inspects service archives, stages truthful coverage, and skips the successful watermark next tick", async () => {
++  const otherZip = zip("Takeout/Other/data.json");
++  const youtubeZip = zip(
++    "Takeout/YouTube and YouTube Music/history/watch-history.json",
++    '[{"title":"fixture"}]',
++  );
++  const other = {
++    id: "other",
++    name: "takeout-20260928T055944Z-001.zip",
++    createdTime: "2026-09-28T06:05:00Z",
++  };
++  mocks.list.mockImplementation(({ pageToken }) =>
++    Promise.resolve({
++      data: pageToken
++        ? { files: [youtube] }
++        : { files: [other], nextPageToken: "page-two" },
++    }),
++  );
++  mocks.get.mockImplementation(({ fileId }) =>
++    Promise.resolve({
++      data: Readable.from([fileId === "other" ? otherZip : youtubeZip]),
++    }),
++  );
++  expect(
++    await downloadLatestArchive({
++      afterExportCreatedAt: "2026-09-13T02:18:56.298Z",
++    }),
++  ).toBe(0);
++  expect(mocks.list.mock.calls[1]?.[0].pageToken).toBe("page-two");
++  expect(sidecar()).toMatchObject({
++    driveFileId: youtube.id,
++    sourceFile: youtube.name,
++    exportCreatedAt: youtube.createdTime,
++  });
++  expect(sidecar().downloadedAt).not.toBe(youtube.createdTime);
++  expect(
++    fs
++      .readdirSync(path.join(mocks.home, ".local/share/youtube-takeout"))
++      .sort(),
++  ).toEqual(["incoming", "watch-history.json", "watch-history.meta.json"]);
++  expect(
++    fs.readdirSync(
++      path.join(mocks.home, ".local/share/youtube-takeout/incoming"),
++    ),
++  ).toEqual([]);
++  expect(fs.existsSync(path.join(mocks.home, "credentials"))).toBe(false);
++  expect(
++    fs.readFileSync(
++      path.join(mocks.home, ".local/share/youtube-takeout/watch-history.json"),
++      "utf8",
++    ),
++  ).toBe('[{"title":"fixture"}]');
++  mocks.get.mockClear();
++  expect(
++    await downloadLatestArchive({
++      afterExportCreatedAt: sidecar().exportCreatedAt,
++      excludeFileId: youtube.id,
++    }),
++  ).toBe(3);
++  expect(mocks.get.mock.calls.map(([arg]) => arg.fileId)).toEqual(["other"]);
++});
++
++it("uses the archive filename if Drive creation time is missing, never the download time", async () => {
++  const bytes = zip("Takeout/history/watch-history.json");
++  mocks.list.mockResolvedValue({
++    data: { files: [{ ...youtube, createdTime: null }] },
++  });
++  mocks.get.mockResolvedValue({ data: Readable.from([bytes]) });
++  expect(await downloadLatestArchive()).toBe(0);
++  expect(sidecar().exportCreatedAt).toBe("2026-09-28T05:59:45.000Z");
++});
++
++it("surfaces a corrupt archive instead of claiming it is not ready", async () => {
++  mocks.list.mockResolvedValue({ data: { files: [youtube] } });
++  mocks.get.mockResolvedValue({
++    data: Readable.from([Buffer.from("broken zip")]),
++  });
++  await expect(downloadLatestArchive()).rejects.toThrow();
++  expect(
++    fs.existsSync(
++      path.join(
++        mocks.home,
++        ".local/share/youtube-takeout/watch-history.meta.json",
++      ),
++    ),
++  ).toBe(false);
++});
++
++it("surfaces Drive errors and rejects an invalid watermark before any Drive calls", async () => {
++  mocks.list.mockRejectedValue(new Error("Drive unavailable"));
++  await expect(downloadLatestArchive()).rejects.toThrow("Drive unavailable");
++  mocks.list.mockClear();
++  await expect(
++    downloadLatestArchive({ afterExportCreatedAt: "invalid" }),
++  ).rejects.toThrow("Invalid archive date");
++  expect(mocks.list).not.toHaveBeenCalled();
++});
+diff --git a/scripts/takeout/download.ts b/scripts/takeout/download.ts
+index bd9736bc..40afb47e 100644
+--- a/scripts/takeout/download.ts
++++ b/scripts/takeout/download.ts
+@@ -1,199 +1,166 @@
+-/**
+- * Find the newest Takeout zip in Google Drive (newer than --requested-at),
+- * download it via Drive API, extract watch-history.json, place at canonical
+- * path the sync script reads.
+- *
+- * Replaces the prior Playwright-based download flow, which Google's passkey
+- * reauth gate makes impossible from headless contexts.
+- *
+- * Exit codes:
+- *   0 = downloaded + extracted; downstream sync can run
+- *   3 = no ready export yet (try again later)
+- *   1 = auth failure (need to re-run drive-auth)
+- *   2 = unexpected failure
+- *
+- * Args: --requested-at <ISO>
++/** Drive-only archive discovery. No browser or export requests.
++ * Exit 0: staged history + provenance; 3: no newer YouTube archive;
++ * 1: Drive auth failure; 2: download/extraction/argument failure.
++ * Optional filters: --after-export-created-at <ISO>, --exclude-file-id <id>.
++ * --requested-at <ISO> remains available for older standalone callers.
+  */
+ import {
+   type TakeoutSidecar,
+   parseTakeoutTimestamp,
+   sidecarPathFor,
+ } from "../../src/lib/youtube/coverage";
+-import { execSync } from "child_process";
++import { execFileSync } from "child_process";
+ import * as fs from "fs";
+-import * as os from "os";
++import type { drive_v3 } from "googleapis";
++import { pipeline } from "node:stream/promises";
++import { pathToFileURL } from "node:url";
+ import * as path from "path";
+ 
++import { takeoutPaths } from "./config";
+ import { getDrive } from "./drive";
+ 
+-const DATA_ROOT = path.join(os.homedir(), ".local/share/youtube-takeout");
+-const DOWNLOAD_DIR = path.join(DATA_ROOT, "incoming");
+-const FINAL_PATH = path.join(DATA_ROOT, "watch-history.json");
++export type DownloadOptions = {
++  afterExportCreatedAt?: string;
++  excludeFileId?: string;
++  requestedAt?: string;
++};
+ 
+-function parseArgs(): { requestedAt: Date } {
+-  const idx = process.argv.indexOf("--requested-at");
+-  if (idx === -1 || !process.argv[idx + 1]) {
+-    throw new Error("--requested-at <ISO> is required");
++function archiveTime(file: drive_v3.Schema$File): string | undefined {
++  if (file.createdTime && Number.isFinite(Date.parse(file.createdTime))) {
++    return new Date(file.createdTime).toISOString();
+   }
+-  return { requestedAt: new Date(process.argv[idx + 1]!) };
++  return parseTakeoutTimestamp(file.name ?? "")?.toISOString();
+ }
+ 
+-async function main() {
+-  const { requestedAt } = parseArgs();
+-  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+-
+-  let drive;
+-  try {
+-    drive = getDrive();
+-  } catch (err) {
+-    console.error(err instanceof Error ? err.message : String(err));
+-    process.exit(1);
+-  }
+-
+-  // Find Takeout zips. Google delivers them to a "Takeout" folder in the user's
+-  // Drive as multiple files per export: "takeout-YYYYMMDDTHHMMSSZ-NNN.zip" and
+-  // "takeout-YYYYMMDDTHHMMSSZ-3-NNN.zip". The "-3-" file is the YouTube one
+-  // (different service IDs get different prefixes). Mime is "application/x-zip".
+-  const q =
+-    "name contains 'takeout-' and (mimeType = 'application/zip' or mimeType = 'application/x-zip-compressed' or mimeType = 'application/x-zip') and trashed = false";
+-  let resp;
+-  try {
+-    resp = await drive.files.list({
+-      q,
+-      orderBy: "createdTime desc",
+-      pageSize: 25,
+-      fields: "files(id, name, size, createdTime, md5Checksum)",
+-    });
+-  } catch (err) {
+-    const msg = err instanceof Error ? err.message : String(err);
+-    if (/invalid_grant|unauthorized/i.test(msg)) {
+-      console.error(
+-        "Drive auth failed — refresh token may be revoked. Re-run `pnpm takeout:drive-auth`.",
+-      );
+-      process.exit(1);
++export async function downloadLatestArchive(
++  options: DownloadOptions = {},
++): Promise<0 | 3> {
++  for (const value of [options.afterExportCreatedAt, options.requestedAt]) {
++    if (value !== undefined && !Number.isFinite(Date.parse(value))) {
++      throw new Error("Invalid archive date filter");
+     }
+-    console.error("Drive list failed:", msg);
+-    process.exit(2);
+-  }
+-
+-  const files = resp.data.files ?? [];
+-  if (files.length === 0) {
+-    console.log("No Takeout zips in Drive yet.");
+-    process.exit(3);
+   }
+-
+-  // Pick fresh files (createdTime ≥ requested_at − 1h). Google has changed the
+-  // service archive number over time (-3- in June 2026, -2- in July 2026), so
+-  // do not depend on the filename to identify the YouTube zip. Download fresh
+-  // candidates newest-first and keep the one that actually contains
+-  // watch-history.json.
+-  const marginMs = 60 * 60_000;
+-  const cutoff = new Date(requestedAt.getTime() - marginMs);
+-  const fresh = files.filter(
+-    (f) => f.createdTime && new Date(f.createdTime) >= cutoff,
+-  );
+-  if (fresh.length === 0) {
+-    console.log(
+-      `Newest Takeout zip in Drive (${files[0]?.createdTime}) is older than requested_at ${requestedAt.toISOString()}. Not ready yet.`,
+-    );
+-    process.exit(3);
+-  }
+-
+-  let zipPath: string | null = null;
+-  let extractDir: string | null = null;
+-  let chosen: (typeof fresh)[number] | null = null;
+-
+-  for (const candidate of fresh) {
+-    console.log(
+-      `Checking: ${candidate.name} (${candidate.size} bytes, created ${candidate.createdTime}, id=${candidate.id})`,
+-    );
+-
+-    const candidateZipPath = path.join(
+-      DOWNLOAD_DIR,
+-      candidate.name ?? `takeout-${Date.now()}.zip`,
+-    );
+-    const stream = await drive.files.get(
+-      { fileId: candidate.id!, alt: "media" },
+-      { responseType: "stream" },
+-    );
+-    await new Promise<void>((resolve, reject) => {
+-      const out = fs.createWriteStream(candidateZipPath);
+-      stream.data.on("error", reject);
+-      out.on("error", reject);
+-      out.on("close", resolve);
+-      stream.data.pipe(out);
++  const drive = getDrive();
++  const files: drive_v3.Schema$File[] = [];
++  let pageToken: string | undefined;
++  do {
++    const response = await drive.files.list({
++      q: "name contains 'takeout-' and (mimeType = 'application/zip' or mimeType = 'application/x-zip-compressed' or mimeType = 'application/x-zip') and trashed = false",
++      orderBy: "createdTime desc",
++      pageSize: 100,
++      fields: "nextPageToken,files(id,name,size,createdTime,md5Checksum)",
++      pageToken,
+     });
+-    console.log(
+-      `Downloaded → ${candidateZipPath} (${fs.statSync(candidateZipPath).size} bytes)`,
+-    );
+-
+-    const candidateExtractDir = path.join(
+-      DOWNLOAD_DIR,
+-      `extract-${Date.now()}`,
+-    );
+-    fs.mkdirSync(candidateExtractDir, { recursive: true });
++    files.push(...(response.data.files ?? []));
++    pageToken = response.data.nextPageToken ?? undefined;
++  } while (pageToken);
++
++  // Request age never filters the refresh path. The only watermark there is
++  // the archive whose sync succeeded, not its download or ingestion time.
++  const candidates = files
++    .flatMap((file) => {
++      const at = archiveTime(file);
++      if (!file.id || !at || file.id === options.excludeFileId) return [];
++      if (
++        options.afterExportCreatedAt &&
++        Date.parse(at) <= Date.parse(options.afterExportCreatedAt)
++      )
++        return [];
++      if (
++        options.requestedAt &&
++        Date.parse(at) < Date.parse(options.requestedAt) - 3_600_000
++      )
++        return [];
++      return [{ file, at }];
++    })
++    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
++
++  const { incomingDir: incoming, historyPath: finalPath } = takeoutPaths();
++  fs.mkdirSync(incoming, { recursive: true });
++  for (const { file, at } of candidates) {
++    const staging = fs.mkdtempSync(path.join(incoming, "download-"));
+     try {
+-      execSync(
+-        `unzip -j -o "${candidateZipPath}" "*/watch-history.json" -d "${candidateExtractDir}"`,
+-        {
+-          stdio: "inherit",
+-        },
+-      );
+-      zipPath = candidateZipPath;
+-      extractDir = candidateExtractDir;
+-      chosen = candidate;
+-      break;
+-    } catch {
+-      fs.rmSync(candidateExtractDir, { recursive: true, force: true });
+-      console.log(
+-        "No watch-history.json in this zip; trying next fresh Takeout zip.",
++      const zipPath = path.join(staging, "archive.zip");
++      const stream = await drive.files.get(
++        { fileId: file.id!, alt: "media" },
++        { responseType: "stream" },
+       );
++      await pipeline(stream.data, fs.createWriteStream(zipPath));
++      // Listing errors indicate a broken zip, not an export that isn't ready.
++      const entries = execFileSync("unzip", ["-Z1", zipPath], {
++        encoding: "utf8",
++        maxBuffer: 16 * 1024 * 1024,
++        stdio: "pipe",
++      });
++      const histories = entries
++        .split(/\r?\n/)
++        .filter((entry) => /(^|\/)watch-history\.json$/.test(entry));
++      if (!histories.length) continue; // Service suffixes change; inspect contents.
++      if (histories.length !== 1)
++        throw new Error("Ambiguous watch history archive");
++      const extracted = path.join(staging, "watch-history.json");
++      const fd = fs.openSync(extracted, "w");
++      try {
++        execFileSync("unzip", ["-p", zipPath, histories[0]!], {
++          stdio: ["ignore", fd, "pipe"],
++        });
++      } finally {
++        fs.closeSync(fd);
++      }
++      const sidecar: TakeoutSidecar = {
++        exportCreatedAt: at,
++        sourceFile: file.name ?? "unknown-takeout.zip",
++        driveFileId: file.id!,
++        downloadedAt: new Date().toISOString(),
++      };
++      const metaPath = path.join(staging, "watch-history.meta.json");
++      fs.writeFileSync(metaPath, JSON.stringify(sidecar, null, 2));
++      fs.renameSync(extracted, finalPath);
++      fs.renameSync(metaPath, sidecarPathFor(finalPath));
++      console.log(JSON.stringify({ event: "archive_staged", ...sidecar }));
++      return 0;
++    } finally {
++      fs.rmSync(staging, { recursive: true, force: true });
+     }
+   }
++  console.log("No newer Takeout archive contains watch-history.json.");
++  return 3;
++}
+ 
+-  if (!zipPath || !extractDir) {
+-    console.error("No fresh Takeout zip contained watch-history.json.");
+-    process.exit(3);
++function parseArgs(): DownloadOptions {
++  const options: DownloadOptions = {};
++  const names: Record<string, keyof DownloadOptions> = {
++    "--after-export-created-at": "afterExportCreatedAt",
++    "--exclude-file-id": "excludeFileId",
++    "--requested-at": "requestedAt",
++  };
++  const args = process.argv.slice(2);
++  for (let i = 0; i < args.length; i += 2) {
++    const key = names[args[i]!];
++    const value = args[i + 1];
++    if (!key || !value || value.startsWith("--"))
++      throw new Error("Invalid download arguments");
++    options[key] = value;
+   }
++  return options;
++}
+ 
+-  const extracted = path.join(extractDir, "watch-history.json");
+-  if (!fs.existsSync(extracted)) {
+-    console.error("watch-history.json not in zip.");
+-    process.exit(2);
++if (
++  process.argv[1] &&
++  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
++) {
++  try {
++    process.exitCode = await downloadLatestArchive(parseArgs());
++  } catch (error) {
++    const message = error instanceof Error ? error.message : "";
++    const authFailed =
++      /invalid_grant|unauthorized|refresh token|OAuth client|invalid authentication credentials/i.test(
++        message,
++      );
++    // Never dump a Google API error object: it can include request credentials.
++    console.error(
++      authFailed ? "Drive authentication failed." : "Takeout download failed.",
++    );
++    process.exitCode = authFailed ? 1 : 2;
+   }
+-
+-  fs.mkdirSync(path.dirname(FINAL_PATH), { recursive: true });
+-  fs.copyFileSync(extracted, FINAL_PATH);
+-  console.log(`Placed → ${FINAL_PATH}`);
+-
+-  // Record when Google built this archive. The watch history alone cannot say
+-  // whether a quiet stretch at its end is a week of not watching or a week
+-  // that was never exported; the build time draws that line, and the sync
+-  // stores it so the dashboard can plot the quiet days as zeros. When neither
+-  // Drive nor the archive name can say, leave it out: the download time is
+-  // later than the build, so it would claim days the export never saw.
+-  const sourceFile = chosen?.name ?? path.basename(zipPath);
+-  const exportCreatedAt =
+-    chosen?.createdTime ?? parseTakeoutTimestamp(sourceFile)?.toISOString();
+-  const sidecar: TakeoutSidecar = {
+-    exportCreatedAt,
+-    sourceFile,
+-    driveFileId: chosen?.id ?? undefined,
+-    downloadedAt: new Date().toISOString(),
+-  };
+-  fs.writeFileSync(
+-    sidecarPathFor(FINAL_PATH),
+-    JSON.stringify(sidecar, null, 2),
+-  );
+-  console.log(
+-    `Archive built ${exportCreatedAt ?? "at an unknown time"} (${sourceFile})`,
+-  );
+-
+-  fs.rmSync(extractDir, { recursive: true, force: true });
+-  process.exit(0);
+ }
+-
+-main().catch((err) => {
+-  console.error("Download failed:", err);
+-  process.exit(2);
+-});
+diff --git a/scripts/takeout/drive.ts b/scripts/takeout/drive.ts
+index a95735ec..084502b2 100644
+--- a/scripts/takeout/drive.ts
++++ b/scripts/takeout/drive.ts
+@@ -1,17 +1,16 @@
+ /**
+  * Shared Drive API helpers. Loads the user's OAuth client config + refresh
+- * token from ~/.local/share/youtube-takeout/, returns an authed Drive client.
++ * token from the configured credentials directory; returns an authed client.
+  */
+ import * as fs from "fs";
+ import type { Credentials, OAuth2Client } from "google-auth-library";
+ import { google } from "googleapis";
+ import type { drive_v3 } from "googleapis";
+-import * as os from "os";
+-import * as path from "path";
+ 
+-const DATA_ROOT = path.join(os.homedir(), ".local/share/youtube-takeout");
+-export const OAUTH_CLIENT_PATH = path.join(DATA_ROOT, "oauth-client.json");
+-export const TOKEN_PATH = path.join(DATA_ROOT, "drive-token.json");
++import { takeoutPaths } from "./config";
++
++export const OAUTH_CLIENT_PATH = takeoutPaths().oauthClientPath;
++export const TOKEN_PATH = takeoutPaths().tokenPath;
+ 
+ export const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"];
+ 
+@@ -63,6 +62,7 @@ export function getDrive(): drive_v3.Drive {
+ }
+ 
+ export function saveToken(token: Record<string, unknown>): void {
+-  fs.mkdirSync(DATA_ROOT, { recursive: true });
+-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(token, null, 2));
++  fs.mkdirSync(takeoutPaths().credentialsDir, { recursive: true, mode: 0o700 });
++  fs.writeFileSync(TOKEN_PATH, JSON.stringify(token, null, 2), { mode: 0o600 });
++  fs.chmodSync(TOKEN_PATH, 0o600);
+ }
+diff --git a/scripts/takeout/lock.ts b/scripts/takeout/lock.ts
+new file mode 100644
+index 00000000..12b56e79
+--- /dev/null
++++ b/scripts/takeout/lock.ts
+@@ -0,0 +1,35 @@
++import * as fs from "fs";
++import * as path from "path";
++
++import { takeoutPaths } from "./config";
++
++/** Shared by all checkouts using this runtime state, not tied to cwd.
++ * Never expire a lock by age or PID: a killed parent may leave sync running.
++ * After a crash, an operator must check for surviving children before removal.
++ */
++export function acquireRefreshLock(): () => void {
++  const { lockDir } = takeoutPaths();
++  fs.mkdirSync(path.dirname(lockDir), { recursive: true });
++  try {
++    fs.mkdirSync(lockDir);
++  } catch (error) {
++    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
++      throw new Error("refresh_lock_busy");
++    }
++    throw error;
++  }
++  try {
++    fs.writeFileSync(
++      path.join(lockDir, "owner.json"),
++      JSON.stringify({
++        pid: process.pid,
++        startedAt: new Date().toISOString(),
++        cwd: process.cwd(),
++      }),
++    );
++  } catch (error) {
++    fs.rmSync(lockDir, { recursive: true, force: true });
++    throw error;
++  }
++  return () => fs.rmSync(lockDir, { recursive: true, force: true });
++}
+diff --git a/scripts/takeout/refresh.test.ts b/scripts/takeout/refresh.test.ts
+new file mode 100644
+index 00000000..acfee1df
+--- /dev/null
++++ b/scripts/takeout/refresh.test.ts
+@@ -0,0 +1,431 @@
++import * as fs from "node:fs";
++import * as os from "node:os";
++import * as path from "node:path";
++import { afterEach, beforeEach, expect, it, vi } from "vitest";
++
++import type { RefreshState } from "./state";
++
++const mocks = vi.hoisted(() => ({
++  home: "",
++  spawnSync:
++    vi.fn<
++      (
++        cmd: string,
++        args: string[],
++      ) => { status: number; stdout: string; stderr: string }
++    >(),
++  execFileSync: vi.fn<(cmd: string, args: string[]) => string>(),
++  spawn: vi.fn<() => never>(),
++}));
++vi.mock("dotenv/config", () => ({}));
++vi.mock("child_process", () => ({
++  spawnSync: mocks.spawnSync,
++  execFileSync: mocks.execFileSync,
++  spawn: mocks.spawn,
++}));
++
++const archive = {
++  driveFileId: "fresh-youtube-archive",
++  sourceFile: "takeout-20260928T055945Z-1-001.zip",
++  exportCreatedAt: "2026-09-28T05:59:45.000Z",
++  downloadedAt: "2026-10-01T12:00:00.000Z",
++};
++let stateFile: string;
++let originalArgv: string[];
++
++function readState() {
++  return JSON.parse(fs.readFileSync(stateFile, "utf8")) as RefreshState;
++}
++
++async function tick() {
++  vi.resetModules();
++  await import("./refresh");
++}
++
++beforeEach(() => {
++  vi.useFakeTimers();
++  // Thursday: no export request window, and browser auth has expired.
++  vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z"));
++  mocks.home = fs.mkdtempSync(path.join(os.tmpdir(), "takeout-refresh-"));
++  vi.stubEnv(
++    "YOUTUBE_TAKEOUT_DATA_DIR",
++    path.join(mocks.home, ".local/share/youtube-takeout"),
++  );
++  vi.stubEnv(
++    "YOUTUBE_TAKEOUT_STATE_DIR",
++    path.join(mocks.home, ".hermes/workspace/state/youtube-takeout"),
++  );
++  vi.stubEnv(
++    "YOUTUBE_TAKEOUT_CREDENTIALS_DIR",
++    path.join(mocks.home, "credentials"),
++  );
++  stateFile = path.join(
++    mocks.home,
++    ".hermes/workspace/state/youtube-takeout/state.json",
++  );
++  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
++  fs.writeFileSync(
++    stateFile,
++    JSON.stringify({
++      state: "idle",
++      requested_at: null,
++      last_ingested_at: "2026-09-13T02:30:00.000Z",
++      last_error: "google_auth_expired",
++      consecutive_failures: 3,
++    }),
++  );
++  originalArgv = process.argv;
++  process.argv = ["node", "scripts/takeout/refresh.ts", "--no-browser"];
++  process.exitCode = 0;
++  mocks.spawnSync.mockReset().mockImplementation((_cmd, args: string[]) => {
++    if (args.includes("scripts/takeout/request.ts")) {
++      return { status: 1, stdout: "expired browser session", stderr: "" };
++    }
++    expect(args).toContain("scripts/takeout/download.ts");
++    const watermark = args.indexOf("--after-export-created-at");
++    if (watermark >= 0 && args[watermark + 1] === archive.exportCreatedAt) {
++      return { status: 3, stdout: "No newer archive", stderr: "" };
++    }
++    const dataDir = path.join(mocks.home, ".local/share/youtube-takeout");
++    fs.mkdirSync(dataDir, { recursive: true });
++    fs.writeFileSync(path.join(dataDir, "watch-history.json"), "[]");
++    fs.writeFileSync(
++      path.join(dataDir, "watch-history.meta.json"),
++      JSON.stringify(archive),
++    );
++    return { status: 0, stdout: "downloaded", stderr: "" };
++  });
++  mocks.execFileSync
++    .mockReset()
++    .mockImplementation((_cmd: string, args: string[]) =>
++      args.includes("scripts/sync-youtube.ts")
++        ? JSON.stringify({
++            event: "youtube_sync_complete",
++            status: "success",
++            ...archive,
++          })
++        : "ok",
++    );
++  mocks.spawn.mockReset().mockImplementation(() => {
++    throw new Error("Browser forbidden");
++  });
++  vi.spyOn(console, "log").mockImplementation(() => undefined);
++});
++
++afterEach(() => {
++  process.argv = originalArgv;
++  process.exitCode = 0;
++  vi.useRealTimers();
++  vi.restoreAllMocks();
++  vi.unstubAllEnvs();
++  fs.rmSync(mocks.home, { recursive: true, force: true });
++});
++
++it("imports a fresh Drive archive while idle with expired browser auth, then does not ingest it again", async () => {
++  await tick();
++  expect(
++    mocks.execFileSync.mock.calls.map(([, args]) => args.slice(1)),
++  ).toEqual([
++    ["scripts/sync-youtube.ts"],
++    ["scripts/classify-youtube.ts"],
++    [
++      "scripts/score-youtube.ts",
++      "--scope",
++      "all",
++      "--top-up",
++      "--execute",
++      "--activate",
++    ],
++  ]);
++  const { LOCAL_TSX_CLI } = await import("./config");
++  for (const [command, args] of [
++    ...mocks.spawnSync.mock.calls,
++    ...mocks.execFileSync.mock.calls,
++  ]) {
++    expect(command).toBe(process.execPath);
++    expect(args[0]).toBe(LOCAL_TSX_CLI);
++    expect(path.isAbsolute(args[0]!)).toBe(true);
++    expect(fs.existsSync(args[0]!)).toBe(true);
++  }
++  expect(readState()).toMatchObject({ state: "idle", last_error: null });
++  await tick();
++  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++  expect(
++    mocks.spawnSync.mock.calls.every(([, args]) =>
++      args.includes("scripts/takeout/download.ts"),
++    ),
++  ).toBe(true);
++  expect(mocks.spawn).not.toHaveBeenCalled();
++});
++
++it.each(["2026-09-30T12:00:00.000Z", "2026-09-14T12:00:00.000Z"])(
++  "discovers in requested state regardless of request timestamp %s",
++  async (requestedAt) => {
++    fs.writeFileSync(
++      stateFile,
++      JSON.stringify({
++        ...readState(),
++        state: "requested",
++        requested_at: requestedAt,
++      }),
++    );
++    await tick();
++    expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++    expect(mocks.spawnSync.mock.calls[0]?.[1]).not.toContain("--requested-at");
++    expect(readState()).toMatchObject({ state: "idle", requested_at: null });
++  },
++);
++
++it.each(["2026-10-01T12:00:00Z", "2026-10-03T19:00:00Z"])(
++  "discovers with ordinary cron argv on %s before touching expired browser auth",
++  async (now) => {
++    vi.setSystemTime(new Date(now));
++    process.argv = originalArgv.slice(0, 2);
++    await tick();
++    expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++    expect(
++      mocks.spawnSync.mock.calls.every(([, args]) =>
++        args.includes("scripts/takeout/download.ts"),
++      ),
++    ).toBe(true);
++    expect(mocks.spawn).not.toHaveBeenCalled();
++  },
++);
++
++it("discovers even when the last ingestion is too recent for a request", async () => {
++  fs.writeFileSync(
++    stateFile,
++    JSON.stringify({
++      ...readState(),
++      last_ingested_at: "2026-09-30T12:00:00Z",
++    }),
++  );
++  await tick();
++  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++});
++
++it.each(["idle", "requested"] as const)(
++  "never requests or launches a browser in --no-browser mode on a stale weekend in %s state",
++  async (state) => {
++    vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
++    fs.writeFileSync(
++      stateFile,
++      JSON.stringify({
++        ...readState(),
++        state,
++        requested_at: "2026-09-14T12:00:00Z",
++      }),
++    );
++    mocks.spawnSync.mockReturnValue({ status: 3, stdout: "", stderr: "" });
++    await tick();
++    expect(mocks.spawnSync).toHaveBeenCalledTimes(1);
++    expect(mocks.execFileSync).not.toHaveBeenCalled();
++    expect(mocks.spawn).not.toHaveBeenCalled();
++    expect(process.exitCode).toBe(0);
++  },
++);
++
++it("stages only in --download-only mode, without acknowledging ingestion", async () => {
++  vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
++  process.argv = ["node", "scripts/takeout/refresh.ts", "--download-only"];
++  const previous = readState();
++  await tick();
++  expect(mocks.execFileSync).not.toHaveBeenCalled();
++  expect(mocks.spawn).not.toHaveBeenCalled();
++  expect(readState().last_ingested_at).toBe(previous.last_ingested_at);
++  expect(readState().last_ingested_archive).toBeUndefined();
++  expect(
++    fs.existsSync(
++      path.join(
++        mocks.home,
++        ".local/share/youtube-takeout/watch-history.meta.json",
++      ),
++    ),
++  ).toBe(true);
++  process.argv = ["node", "scripts/takeout/refresh.ts", "--no-browser"];
++  await tick();
++  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++});
++
++it.each(["throw", "failed-result", "missing-result", "wrong-archive"])(
++  "does not advance watermark on sync %s; retries the same archive",
++  async (failure) => {
++    const success = mocks.execFileSync.getMockImplementation()!;
++    mocks.execFileSync.mockImplementationOnce(() => {
++      if (failure === "throw") throw new Error("sync failed");
++      if (failure === "missing-result") return "finished";
++      return JSON.stringify({
++        event: "youtube_sync_complete",
++        ...archive,
++        status: failure === "failed-result" ? "failed" : "success",
++        ...(failure === "wrong-archive"
++          ? { exportCreatedAt: "2026-10-01T12:00:00Z" }
++          : {}),
++      });
++    });
++    const previous = readState();
++    await tick();
++    expect(process.exitCode).toBe(1);
++    expect(readState()).toMatchObject({
++      last_error: "sync_failed",
++      last_ingested_at: previous.last_ingested_at,
++    });
++    expect(readState().last_ingested_archive).toBeUndefined();
++    expect(mocks.execFileSync).toHaveBeenCalledTimes(1);
++    process.exitCode = 0;
++    mocks.execFileSync.mockImplementation(success);
++    await tick();
++    expect(readState().last_ingested_archive).toEqual(archive);
++    expect(process.exitCode).toBe(0);
++  },
++);
++
++it.each(["classify", "score"])(
++  "reports %s failure and retries enrichment without duplicate ingestion",
++  async (stage) => {
++    const success = mocks.execFileSync.getMockImplementation()!;
++    mocks.execFileSync.mockImplementation((cmd: string, args: string[]) => {
++      if (args.includes(`scripts/${stage}-youtube.ts`))
++        throw new Error("stage failed");
++      return success(cmd, args);
++    });
++    await tick();
++    expect(process.exitCode).toBe(1);
++    expect(readState()).toMatchObject({
++      enrichment_pending: true,
++      last_error: `${stage}_failed`,
++      last_ingested_archive: archive,
++    });
++    expect(
++      vi
++        .mocked(console.log)
++        .mock.calls.some(
++          ([line]) =>
++            (JSON.parse(String(line)) as { event: string }).event ===
++            "refresh_complete",
++        ),
++    ).toBe(false);
++    mocks.execFileSync.mockImplementation(success);
++    process.exitCode = 0;
++    await tick();
++    expect(
++      mocks.execFileSync.mock.calls.filter(([, args]) =>
++        args.includes("scripts/sync-youtube.ts"),
++      ),
++    ).toHaveLength(1);
++    expect(readState()).toMatchObject({
++      enrichment_pending: false,
++      last_error: null,
++    });
++    expect(process.exitCode).toBe(0);
++  },
++);
++
++it.each([1, 2])(
++  "surfaces download failure %s without sync or browser activity",
++  async (status) => {
++    mocks.spawnSync.mockReturnValue({
++      status,
++      stdout: "",
++      stderr: "sensitive error omitted",
++    });
++    await tick();
++    expect(process.exitCode).toBe(1);
++    expect(mocks.execFileSync).not.toHaveBeenCalled();
++    expect(mocks.spawn).not.toHaveBeenCalled();
++  },
++);
++
++it("uses the legacy successful sidecar as a watermark, never last_ingested_at", async () => {
++  const dataDir = path.join(mocks.home, ".local/share/youtube-takeout");
++  fs.mkdirSync(dataDir, { recursive: true });
++  fs.writeFileSync(
++    path.join(dataDir, "watch-history.meta.json"),
++    JSON.stringify({
++      ...archive,
++      downloadedAt: "2026-09-28T07:00:00Z",
++    }),
++  );
++  fs.writeFileSync(
++    stateFile,
++    JSON.stringify({
++      ...readState(),
++      last_ingested_at: "2026-09-29T12:00:00Z",
++    }),
++  );
++  await tick();
++  expect(mocks.spawnSync.mock.calls[0]?.[1]).toContain(archive.exportCreatedAt);
++  expect(mocks.execFileSync).not.toHaveBeenCalled();
++});
++
++it("keeps the future weekend request policy after discovery finds nothing", async () => {
++  vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
++  process.argv = originalArgv.slice(0, 2);
++  mocks.spawnSync.mockReturnValueOnce({ status: 3, stdout: "", stderr: "" });
++  await tick();
++  expect(mocks.spawnSync.mock.calls[1]?.[1]).toContain(
++    "scripts/takeout/request.ts",
++  );
++  expect(readState().last_error).toBe("google_auth_expired");
++  expect(process.exitCode).toBe(0);
++});
++
++it("refuses overlapping ticks at the shared runtime lock before reading/writing state", async () => {
++  const lockPath = path.join(path.dirname(stateFile), "refresh.lock");
++  fs.mkdirSync(lockPath);
++  const before = fs.readFileSync(stateFile, "utf8");
++  await tick();
++  expect(process.exitCode).toBe(1);
++  expect(mocks.spawnSync).not.toHaveBeenCalled();
++  expect(mocks.execFileSync).not.toHaveBeenCalled();
++  expect(fs.readFileSync(stateFile, "utf8")).toBe(before);
++  expect(fs.existsSync(lockPath)).toBe(true);
++});
++
++it("releases the lock on unexpected failure so the next tick can retry", async () => {
++  mocks.spawnSync.mockImplementationOnce(() => {
++    throw new Error("unexpected failure");
++  });
++  await tick();
++  expect(process.exitCode).toBe(1);
++  expect(
++    fs.existsSync(path.join(path.dirname(stateFile), "refresh.lock")),
++  ).toBe(false);
++  process.exitCode = 0;
++  await tick();
++  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++  expect(process.exitCode).toBe(0);
++});
++
++it("keeps Drive discovery alive after repeated browser-auth failures", async () => {
++  vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
++  process.argv = originalArgv.slice(0, 2);
++  const availableArchive = mocks.spawnSync.getMockImplementation()!;
++  mocks.spawnSync.mockImplementation((_cmd, args: string[]) => ({
++    status: args.includes("scripts/takeout/request.ts") ? 1 : 3,
++    stdout: "",
++    stderr: "",
++  }));
++  for (let i = 0; i < 3; i++) {
++    await tick();
++    expect(process.exitCode).toBe(0);
++    expect(readState().last_error).toBe("google_auth_expired");
++  }
++  expect(
++    vi
++      .mocked(console.log)
++      .mock.calls.filter(
++        ([line]) =>
++          (JSON.parse(String(line)) as { event: string }).event ===
++          "requested_auth_failure",
++      ),
++  ).toHaveLength(3);
++  mocks.spawnSync.mockImplementation(availableArchive);
++  await tick();
++  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
++  expect(readState()).toMatchObject({
++    last_error: null,
++    last_ingested_archive: archive,
++  });
++  expect(mocks.spawn).not.toHaveBeenCalled();
++});
+diff --git a/scripts/takeout/refresh.ts b/scripts/takeout/refresh.ts
+index 8751b891..021df2dd 100644
+--- a/scripts/takeout/refresh.ts
++++ b/scripts/takeout/refresh.ts
+@@ -1,37 +1,29 @@
+ /**
+- * Top-level state machine for the YouTube Takeout auto-refresh.
+- * Idempotent — safe to run on a cron tick. Exits 0 always; the agent reads
+- * stdout (one JSON event per line) to decide whether to post a summary.
+- *
+- * Behaviour by current state:
+- *   idle      — if last_ingested_at is older than MIN_AGE_DAYS AND today is a
+- *               request day, try the HEADLESS request (request.ts):
+- *                 • exit 0  → mark `requested` (fully automatic, no human).
+- *                 • exit 4  → Google demanded a passkey step-up. Launch the
+- *                             headed approval window (approve.ts) for a one-tap
+- *                             human approval and emit `request_needs_passkey`.
+- *                 • exit 1  → session expired → emit `requested_auth_failure`.
+- *   requested — try download.ts (Drive API). On success run sync + classify +
+- *               score top-up → mark idle. "Not ready" → wait. Stuck >
+- *               GIVE_UP_DAYS → give up.
+- *
+- * A staleness watchdog runs on every tick regardless of state: if the data is
+- * older than STALE_ALERT_DAYS it emits `data_stale` (throttled to once/24h) so
+- * silent drift can't go unnoticed.
+- *
+- * Run with: npx tsx scripts/takeout/refresh.ts
++ * Discover Drive archives on every tick, then apply the existing request policy.
++ * --no-browser: discover + sync + classify + score, with no export requests/UI.
++ * --download-only: stage an archive only; no DB writes, enrichment or browser.
++ * Drive/ingestion/enrichment failures exit nonzero. Expired request-browser
++ * auth stays observable without pausing the cron that discovers Drive archives.
+  */
+-
+-import { execSync, spawnSync, spawn } from "child_process";
++import { execFileSync, spawn, spawnSync } from "child_process";
+ import * as path from "path";
+-import { readState, writeState } from "./state";
++
++import { LOCAL_TSX_CLI } from "./config";
++import { acquireRefreshLock } from "./lock";
++import {
++  type RefreshState,
++  ingestedArchive,
++  readDownloadedArchive,
++  readState,
++  writeState,
++} from "./state";
+ 
+ const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
+ 
+-const MIN_AGE_DAYS = 5;        // request a new export at most ~weekly
+-const GIVE_UP_DAYS = 5;        // abandon a stuck request after this long
++const MIN_AGE_DAYS = 5; // request a new export at most ~weekly
++const GIVE_UP_DAYS = 5; // abandon a stuck request after this long
+ const REQUEST_DAYS = new Set([0, 6]); // 0=Sun, 6=Sat — request on the weekend (Saturday anchor)
+-const STALE_ALERT_DAYS = 9;    // loud watchdog alert if the data is older than this
++const STALE_ALERT_DAYS = 9; // loud watchdog alert if the data is older than this
+ const APPROVAL_PENDING_MIN = 25; // don't relaunch a headed approval within this window
+ 
+ function daysAgo(iso: string | null | undefined): number {
+@@ -44,8 +36,11 @@ function minutesAgo(iso: string | null | undefined): number {
+   return (Date.now() - new Date(iso).getTime()) / 60_000;
+ }
+ 
+-function runScript(rel: string, args: string[] = []): { code: number; out: string } {
+-  const res = spawnSync("npx", ["tsx", rel, ...args], {
++function runScript(
++  rel: string,
++  args: string[] = [],
++): { code: number; out: string } {
++  const res = spawnSync(process.execPath, [LOCAL_TSX_CLI, rel, ...args], {
+     cwd: REPO_ROOT,
+     encoding: "utf8",
+     stdio: ["ignore", "pipe", "pipe"],
+@@ -56,11 +51,15 @@ function runScript(rel: string, args: string[] = []): { code: number; out: strin
+ 
+ /** Open the headed one-tap approval window, detached so it outlives this tick. */
+ function launchApprovalDetached() {
+-  const child = spawn("npx", ["tsx", "scripts/takeout/approve.ts", "--timeout", "20"], {
+-    cwd: REPO_ROOT,
+-    detached: true,
+-    stdio: "ignore",
+-  });
++  const child = spawn(
++    process.execPath,
++    [LOCAL_TSX_CLI, "scripts/takeout/approve.ts", "--timeout", "20"],
++    {
++      cwd: REPO_ROOT,
++      detached: true,
++      stdio: "ignore",
++    },
++  );
+   child.unref();
+ }
+ 
+@@ -68,7 +67,7 @@ function emit(event: string, data: Record<string, unknown> = {}) {
+   console.log(JSON.stringify({ event, ...data }));
+ }
+ 
+-async function main() {
++function refresh(downloadOnly: boolean, noBrowser: boolean) {
+   const state = readState();
+   emit("state_loaded", { state });
+ 
+@@ -80,6 +79,178 @@ async function main() {
+     emit("data_stale", { age_days: Math.round(ingestAge) });
+   }
+ 
++  const watermark = ingestedArchive(state);
++  const args: string[] = [];
++  if (watermark?.exportCreatedAt)
++    args.push("--after-export-created-at", watermark.exportCreatedAt);
++  if (watermark?.driveFileId)
++    args.push("--exclude-file-id", watermark.driveFileId);
++  emit("checking_download");
++  const dl = runScript("scripts/takeout/download.ts", args);
++  if (dl.code === 3) {
++    if (!downloadOnly && state.enrichment_pending) {
++      finishEnrichment(state);
++      return;
++    }
++    if (noBrowser || downloadOnly) {
++      emit("no_new_archive");
++      return;
++    }
++    requestIfDue(state);
++    return;
++  }
++  if (dl.code === 1) {
++    writeState({
++      ...state,
++      last_error: "drive_auth_failed",
++      consecutive_failures: state.consecutive_failures + 1,
++    });
++    emit("download_auth_failure");
++    process.exitCode = 1;
++    return;
++  }
++  if (dl.code !== 0) {
++    writeState({
++      ...state,
++      last_error: `download_failed_${dl.code}`,
++      consecutive_failures: state.consecutive_failures + 1,
++    });
++    emit("download_failed", { code: dl.code });
++    process.exitCode = 1;
++    return;
++  }
++
++  const archive = readDownloadedArchive();
++  if (!archive) throw new Error("missing_archive_sidecar");
++  emit("download_ok", {
++    source_file: archive.sourceFile,
++    export_created_at: archive.exportCreatedAt,
++  });
++  if (downloadOnly) {
++    emit("download_only_complete");
++    return;
++  }
++
++  emit("running_sync");
++  try {
++    const syncOut = execFileSync(
++      process.execPath,
++      [LOCAL_TSX_CLI, "scripts/sync-youtube.ts"],
++      {
++        cwd: REPO_ROOT,
++        encoding: "utf8",
++        stdio: "pipe",
++      },
++    );
++    const completion = syncOut
++      .split(/\r?\n/)
++      .flatMap((line) => {
++        try {
++          return [JSON.parse(line) as Record<string, unknown>];
++        } catch {
++          return [];
++        }
++      })
++      .find((event) => event?.event === "youtube_sync_complete");
++    if (
++      completion?.status !== "success" ||
++      completion.exportCreatedAt !== archive.exportCreatedAt ||
++      completion.sourceFile !== archive.sourceFile
++    ) {
++      throw new Error("sync_success_not_confirmed");
++    }
++    emit("sync_ok", { export_created_at: archive.exportCreatedAt });
++  } catch {
++    writeState({
++      ...state,
++      last_error: `sync_failed`,
++      consecutive_failures: state.consecutive_failures + 1,
++    });
++    emit("sync_failed");
++    process.exitCode = 1;
++    return;
++  }
++
++  // Commit ingestion before enrichment. A failed score/classify retry must not
++  // cause another sync of the same archive on the next tick.
++  const ingested: RefreshState = {
++    ...state,
++    state: "idle",
++    requested_at: null,
++    last_ingested_at: new Date().toISOString(),
++    last_ingested_archive: archive,
++    last_error: null,
++    consecutive_failures: 0,
++    approval_pending_since: null,
++    last_stale_alert_at: null,
++    enrichment_pending: true,
++  };
++  writeState(ingested);
++  finishEnrichment(ingested);
++}
++
++function finishEnrichment(state: RefreshState) {
++  const failures: string[] = [];
++  emit("running_classify");
++  try {
++    const classifyOut = execFileSync(
++      process.execPath,
++      [LOCAL_TSX_CLI, "scripts/classify-youtube.ts"],
++      {
++        cwd: REPO_ROOT,
++        encoding: "utf8",
++        stdio: "pipe",
++      },
++    );
++    emit("classify_ok", { tail: classifyOut.slice(-500) });
++  } catch {
++    // Preserve the successful ingest, but fail this tick and retry enrichment.
++    failures.push("classify_failed");
++    emit("classify_failed");
++  }
++
++  // Learning Value and Positivity read yt_classifications, which the step above
++  // does not write; without this the dashboard's score coverage decays a little
++  // more with every ingest. --top-up appends the few hundred videos this export
++  // brought to the live run rather than rescoring the whole library, so a week's
++  // catch-up costs cents and a couple of minutes.
++  emit("running_score");
++  try {
++    const scoreOut = execFileSync(
++      process.execPath,
++      [
++        LOCAL_TSX_CLI,
++        "scripts/score-youtube.ts",
++        "--scope",
++        "all",
++        "--top-up",
++        "--execute",
++        "--activate",
++      ],
++      { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
++    );
++    emit("score_ok", { tail: scoreOut.slice(-500) });
++  } catch {
++    // The next tick retries the top-up without reingesting.
++    failures.push("score_failed");
++    emit("score_failed");
++  }
++
++  writeState({
++    ...state,
++    enrichment_pending: failures.length > 0,
++    last_error: failures.length ? failures.join(",") : null,
++    consecutive_failures: failures.length ? state.consecutive_failures + 1 : 0,
++  });
++  if (failures.length) {
++    process.exitCode = 1;
++    emit("refresh_incomplete", { failures });
++  } else {
++    emit("refresh_complete");
++  }
++}
++
++function requestIfDue(state: RefreshState) {
+   if (state.state === "idle") {
+     const ageDays = daysAgo(state.last_ingested_at);
+     const today = new Date().getDay();
+@@ -104,7 +275,7 @@ async function main() {
+ 
+     // Try the fully-automatic headless request first.
+     emit("requesting_export", { last_ingest_age_days: Math.round(ageDays) });
+-    const { code, out } = runScript("scripts/takeout/request.ts");
++    const { code } = runScript("scripts/takeout/request.ts");
+ 
+     if (code === 0) {
+       writeState({
+@@ -132,14 +303,17 @@ async function main() {
+         last_error: "google_auth_expired",
+         consecutive_failures: state.consecutive_failures + 1,
+       });
+-      emit("requested_auth_failure", { tail: out.slice(-500) });
++      // Browser auth is independent of Drive OAuth. A nonzero tick here can
++      // auto-pause cron and prevent future archive discovery.
++      emit("requested_auth_failure");
+     } else {
+       writeState({
+         ...state,
+         last_error: `request_failed_${code}`,
+         consecutive_failures: state.consecutive_failures + 1,
+       });
+-      emit("requested_failed", { code, tail: out.slice(-500) });
++      emit("requested_failed", { code });
++      process.exitCode = 1;
+     }
+     return;
+   }
+@@ -155,105 +329,41 @@ async function main() {
+       consecutive_failures: state.consecutive_failures + 1,
+     });
+     emit("gave_up_on_stuck_request", { age_days: Math.round(reqAge) });
++    process.exitCode = 1;
+     return;
+   }
+ 
+-  emit("checking_download", { request_age_days: Math.round(reqAge) });
+-  const dl = runScript("scripts/takeout/download.ts", [
+-    "--requested-at",
+-    state.requested_at!,
+-  ]);
+-
+-  if (dl.code === 3) {
+-    emit("not_ready_yet");
+-    return;
+-  }
+-  if (dl.code === 1) {
+-    writeState({
+-      ...state,
+-      last_error: "google_auth_expired",
+-      consecutive_failures: state.consecutive_failures + 1,
+-    });
+-    emit("download_auth_failure", { tail: dl.out.slice(-500) });
+-    return;
+-  }
+-  if (dl.code !== 0) {
+-    writeState({
+-      ...state,
+-      last_error: `download_failed_${dl.code}`,
+-      consecutive_failures: state.consecutive_failures + 1,
+-    });
+-    emit("download_failed", { code: dl.code, tail: dl.out.slice(-500) });
+-    return;
+-  }
+-
+-  emit("download_ok", { tail: dl.out.slice(-300) });
++  emit("not_ready_yet");
++}
+ 
+-  emit("running_sync");
+-  try {
+-    const syncOut = execSync("npx tsx scripts/sync-youtube.ts", {
+-      cwd: REPO_ROOT,
+-      encoding: "utf8",
+-      stdio: "pipe",
+-    });
+-    emit("sync_ok", { tail: syncOut.slice(-500) });
+-  } catch (err) {
+-    const msg = err instanceof Error ? err.message : String(err);
+-    writeState({
+-      ...state,
+-      last_error: `sync_failed`,
+-      consecutive_failures: state.consecutive_failures + 1,
+-    });
+-    emit("sync_failed", { error: msg.slice(-500) });
++function main() {
++  const args = process.argv.slice(2);
++  if (args.includes("--help")) {
++    console.log(
++      "Usage: tsx scripts/takeout/refresh.ts [--no-browser | --download-only]\n--no-browser: discover, sync, classify and score; never request an export or open a browser.\n--download-only: stage the archive and sidecar; no DB writes, enrichment or browser.",
++    );
+     return;
+   }
+-
+-  emit("running_classify");
+-  try {
+-    const classifyOut = execSync("npx tsx scripts/classify-youtube.ts", {
+-      cwd: REPO_ROOT,
+-      encoding: "utf8",
+-      stdio: "pipe",
+-    });
+-    emit("classify_ok", { tail: classifyOut.slice(-500) });
+-  } catch (err) {
+-    const msg = err instanceof Error ? err.message : String(err);
+-    // Classify failure is non-fatal — ingest already happened.
+-    emit("classify_failed", { error: msg.slice(-500) });
++  if (args.some((arg) => !["--no-browser", "--download-only"].includes(arg))) {
++    throw new Error("invalid_refresh_arguments");
+   }
+-
+-  // Learning Value and Positivity read yt_classifications, which the step above
+-  // does not write; without this the dashboard's score coverage decays a little
+-  // more with every ingest. --top-up appends the few hundred videos this export
+-  // brought to the live run rather than rescoring the whole library, so a week's
+-  // catch-up costs cents and a couple of minutes.
+-  emit("running_score");
++  const release = acquireRefreshLock();
+   try {
+-    const scoreOut = execSync(
+-      "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
+-      { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
+-    );
+-    emit("score_ok", { tail: scoreOut.slice(-500) });
+-  } catch (err) {
+-    const msg = err instanceof Error ? err.message : String(err);
+-    // Also non-fatal: stale scores are better than a failed refresh, and the
+-    // next tick tops up whatever this one missed.
+-    emit("score_failed", { error: msg.slice(-500) });
++    refresh(args.includes("--download-only"), args.includes("--no-browser"));
++  } finally {
++    release();
+   }
+-
+-  writeState({
+-    state: "idle",
+-    requested_at: null,
+-    last_ingested_at: new Date().toISOString(),
+-    last_error: null,
+-    consecutive_failures: 0,
+-    approval_pending_since: null,
+-    last_stale_alert_at: null,
+-  });
+-  emit("refresh_complete");
+ }
+ 
+-main().catch((err) => {
+-  emit("orchestrator_crashed", { error: err instanceof Error ? err.message : String(err) });
+-  process.exit(0);
+-});
++try {
++  main();
++} catch (error) {
++  // Child output and API error objects can contain credentials. Emit only a
++  // controlled status; the CLI exit code is the scheduler's failure signal.
++  emit(
++    error instanceof Error && error.message === "refresh_lock_busy"
++      ? "refresh_lock_busy"
++      : "orchestrator_crashed",
++  );
++  process.exitCode = 1;
++}
+diff --git a/scripts/takeout/state.ts b/scripts/takeout/state.ts
+index ac953b99..1bd85adc 100644
+--- a/scripts/takeout/state.ts
++++ b/scripts/takeout/state.ts
+@@ -1,6 +1,10 @@
++import {
++  type TakeoutSidecar,
++  sidecarPathFor,
++} from "../../src/lib/youtube/coverage";
+ import * as fs from "fs";
+-import * as path from "path";
+-import * as os from "os";
++
++import { takeoutPaths } from "./config";
+ 
+ export type RefreshState = {
+   state: "idle" | "requested";
+@@ -8,6 +12,10 @@ export type RefreshState = {
+   last_ingested_at: string | null;
+   last_error: string | null;
+   consecutive_failures: number;
++  /** Advanced only after sync succeeds; downloadedAt is never coverage. */
++  last_ingested_archive?: TakeoutSidecar;
++  /** Retry enrichment without reingesting an already successful archive. */
++  enrichment_pending?: boolean;
+   /** Set when a headed approval window has been launched and is awaiting a tap.
+    *  Suppresses re-launching a duplicate window on the next cron tick. */
+   approval_pending_since?: string | null;
+@@ -15,12 +23,6 @@ export type RefreshState = {
+   last_stale_alert_at?: string | null;
+ };
+ 
+-const STATE_DIR = path.join(
+-  os.homedir(),
+-  ".hermes/workspace/state/youtube-takeout",
+-);
+-const STATE_FILE = path.join(STATE_DIR, "state.json");
+-
+ const DEFAULT_STATE: RefreshState = {
+   state: "idle",
+   requested_at: null,
+@@ -30,11 +32,13 @@ const DEFAULT_STATE: RefreshState = {
+ };
+ 
+ export function readState(): RefreshState {
++  const { stateFile: STATE_FILE } = takeoutPaths();
+   if (!fs.existsSync(STATE_FILE)) return { ...DEFAULT_STATE };
+   return JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) as RefreshState;
+ }
+ 
+ export function writeState(state: RefreshState): void {
++  const { stateDir: STATE_DIR, stateFile: STATE_FILE } = takeoutPaths();
+   fs.mkdirSync(STATE_DIR, { recursive: true });
+   const tmp = STATE_FILE + ".tmp";
+   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
+@@ -42,5 +46,41 @@ export function writeState(state: RefreshState): void {
+ }
+ 
+ export function stateFilePath(): string {
+-  return STATE_FILE;
++  return takeoutPaths().stateFile;
++}
++
++export function readDownloadedArchive(): TakeoutSidecar | undefined {
++  const file = sidecarPathFor(takeoutPaths().historyPath);
++  if (!fs.existsSync(file)) return undefined;
++  const value = JSON.parse(fs.readFileSync(file, "utf8")) as TakeoutSidecar;
++  if (
++    !value.driveFileId ||
++    !value.sourceFile ||
++    !value.exportCreatedAt ||
++    !Number.isFinite(Date.parse(value.exportCreatedAt))
++  ) {
++    throw new Error("invalid_archive_sidecar");
++  }
++  return value;
++}
++
++export function ingestedArchive(
++  state: RefreshState,
++): TakeoutSidecar | undefined {
++  if (state.last_ingested_archive) return state.last_ingested_archive;
++  // Migrate the old state only when the download preceded a successful ingest.
++  // A sidecar from a failed/pending sync must never suppress a retry.
++  try {
++    const archive = readDownloadedArchive();
++    if (
++      archive?.downloadedAt &&
++      state.last_ingested_at &&
++      Date.parse(archive.downloadedAt) <= Date.parse(state.last_ingested_at)
++    ) {
++      return archive;
++    }
++  } catch {
++    /* Missing or invalid legacy metadata means discover without a cutoff. */
++  }
++  return undefined;
+ }
+diff --git a/src/lib/youtube/sync.test.ts b/src/lib/youtube/sync.test.ts
+index 46abeb83..b2bae817 100644
+--- a/src/lib/youtube/sync.test.ts
++++ b/src/lib/youtube/sync.test.ts
+@@ -5,6 +5,7 @@ import * as os from "os";
+ import * as path from "path";
+ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ 
++import { sidecarPathFor } from "./coverage";
+ import { syncYouTube } from "./sync";
+ 
+ const mocks = vi.hoisted(() => ({
+@@ -115,3 +116,24 @@ describe("syncYouTube", () => {
+     expect(wrote).toBe(false);
+   });
+ });
++
++it("records archive creation coverage, separately from ingestion and newest watch", async () => {
++  const historyPath = takeoutFile([
++    watched("aaaaaaaaaaa", "2026-09-27T19:41:31.917Z"),
++  ]);
++  fs.writeFileSync(
++    sidecarPathFor(historyPath),
++    JSON.stringify({
++      exportCreatedAt: "2026-09-28T06:04:58.013Z",
++      sourceFile: "takeout-20260928T055945Z-1-001.zip",
++      downloadedAt: "2026-10-03T12:00:00.000Z",
++    }),
++  );
++  await syncYouTube("manual", historyPath);
++  expect(mocks.completed.at(-1)).toMatchObject({
++    status: "success",
++    exportCreatedAt: new Date("2026-09-28T06:04:58.013Z"),
++    latestWatchAt: new Date("2026-09-27T19:41:31.917Z"),
++    sourceFile: "takeout-20260928T055945Z-1-001.zip",
++  });
++});
+diff --git a/docs/implementation-receipts/worker-launcher/README.md b/docs/implementation-receipts/worker-launcher/README.md
+new file mode 100644
+index 00000000..f83eb7b1
+--- /dev/null
++++ b/docs/implementation-receipts/worker-launcher/README.md
+@@ -0,0 +1,79 @@
++# YouTube worker configuration handoff
++
++This follow-up preserves the completed Drive-discovery repair and adds runtime configuration plus an offline-tested worker launcher. All changes remain in the dedicated workspace. No network calls, live runtime/state/credential changes, schedule changes, browser activity, commits, pushes, installation, or deployment were performed during this follow-up. The coordinator owns cutover and live verification.
++
++## Runtime configuration
++
++All overrides must be absolute paths. Empty, relative, and unexpanded `~` values fail.
++
++| Variable | Default | Worker value |
++| --- | --- | --- |
++| `YOUTUBE_TAKEOUT_DATA_DIR` | `~/.local/share/youtube-takeout` | `/Users/chappyasel/hermes-work/youtube-worker-migration/data` |
++| `YOUTUBE_TAKEOUT_STATE_DIR` | `~/.hermes/workspace/state/youtube-takeout` | `/Users/chappyasel/hermes-work/youtube-worker-migration/state` |
++| `YOUTUBE_TAKEOUT_CREDENTIALS_DIR` | Selected data directory | `/Users/chappyasel/.config/youtube-takeout-worker` |
++
++The shared configuration supplies Drive OAuth/token paths, incoming staging, history/sidecar, state, and the refresh lock. Saved Drive tokens use mode `0600`. Data holds history/sidecar and an incoming directory whose temporary downloads are cleaned up. Credentials stay outside it. HOME and os.homedir are never retargeted, including in the new tests.
++
++Refresh subprocesses use `process.execPath` and the installed `tsx/cli` resolved from the checkout. They cannot fetch tsx through npx. This also applies to the existing approval path's refresh launch. Sync/scoring logic and arguments are unchanged. `--no-browser` remains mandatory for the worker.
++
++## Launcher
++
++Source: `youtube_takeout_worker.py`. Intended installation: the worker profile's `scripts/youtube_takeout_worker.py`. No installation was performed.
++
++The launcher uses the fixed task root above and cwd `/Users/chappyasel/hermes-work/youtube-worker-migration/runtime`. It requires `owner.json` with `owner` equal to `worker` and boolean `enabled` equal to `true`. Missing, malformed, disabled, or differently owned configuration fails without spawning. It holds an exclusive `fcntl.flock` on `state/launcher.lock` throughout the child process. Contention skips with exit 0. The existing `state/refresh.lock` provides the second lock inside TypeScript; the coordinator's migration fence remains untouched.
++
++The child environment contains only the OS account's actual HOME, PATH `/usr/bin:/bin:/usr/sbin:/sbin`, TZ `America/Los_Angeles`, the three path overrides, `DOTENV_CONFIG_PATH` pointing to protected `runtime.env`, and `SKIP_ENV_VALIDATION=1`. No inherited project or Hermes secrets enter the child. The runtime.env file must be a regular file owned by the current account with mode `0600`. It must contain exactly the three nonempty keys `DATABASE_URL`, `YOUTUBE_API_KEY`, and `AI_GATEWAY_API_KEY`. Single-line quotes, comments, and `export` are accepted; duplicates, interpolation, escapes, unknown keys, and malformed input fail. Values are never logged.
++
++The exact command is:
++
++```sh
++/Users/chappyasel/.local/bin/with-worker-node24 corepack pnpm exec tsx scripts/takeout/refresh.ts --no-browser
++```
++
++This command is documented for coordinator activation, not executed by this worker. The launcher starts a new process group, times out after 1100 seconds, sends SIGTERM, allows up to 10 seconds, and sends SIGKILL to the group even if its leader has already exited. Timeout returns 124. Other failures return nonzero, including `classify_failed` or `score_failed` events with child exit 0. A successful run requires `refresh_complete` or `no_new_archive`. Output is local JSON with known event names only; raw child output and secret fields are not relayed. It sends no notifications.
++
++## Changed code paths
++
++Follow-up runtime files:
++
++- `scripts/takeout/config.ts`, new
++- `scripts/takeout/drive.ts`
++- `scripts/takeout/state.ts`
++- `scripts/takeout/lock.ts`
++- `scripts/takeout/download.ts`
++- `scripts/takeout/refresh.ts`
++- `scripts/takeout/approve.ts`
++- `scripts/sync-youtube.ts`
++
++Follow-up tests:
++
++- `scripts/takeout/config.test.ts`, new
++- `scripts/takeout/drive.test.ts`, new
++- `scripts/takeout/download.test.ts`
++- `scripts/takeout/refresh.test.ts`
++- `scripts/sync-youtube.test.ts`, new
++- `docs/implementation-receipts/worker-launcher/test_youtube_takeout_worker.py`, new
++
++The combined patch also includes the prior repair's `src/lib/youtube/sync.test.ts` and implementation receipt/evidence. No book-sync changes from the newer main commit are included.
++
++## Verification
++
++Run from the dedicated workspace:
++
++```sh
++pnpm exec vitest run scripts/takeout scripts/sync-youtube.test.ts src/lib/youtube
++PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s docs/implementation-receipts/worker-launcher -p 'test_*.py' -v
++pnpm typecheck
++```
++
++Targeted ESLint covers all follow-up TypeScript files. Default-path tests resolve paths without opening actual credentials. Drive uses fixture credentials and a mocked OAuth client. Download tests use fixture ZIPs and mocked Drive. Sync and refresh mock database/subprocess work. A fresh Node process verifies scoped dotenv loading with a temporary fixture. Python tests mock child processes and signals while exercising real local flock contention.
++
++Final results: 123 TypeScript tests across 15 files passed; 10 Python tests passed; typecheck, targeted ESLint, and whitespace checks passed. The targeted lint command was `pnpm exec eslint scripts/takeout/config.ts scripts/takeout/config.test.ts scripts/takeout/drive.ts scripts/takeout/drive.test.ts scripts/takeout/state.ts scripts/takeout/lock.ts scripts/takeout/download.ts scripts/takeout/download.test.ts scripts/takeout/refresh.ts scripts/takeout/refresh.test.ts scripts/takeout/approve.ts scripts/sync-youtube.ts scripts/sync-youtube.test.ts`.
++
++Final command results are recorded in `typescript-tests.txt`, `python-tests.txt`, `typecheck.txt`, and `lint.txt`. `combined-from-7540dfcc.patch` contains the complete task change relative to `7540dfcc51e702121fddc3d637d1e27c6b97fd5f`, including the prior repair. `SHA256SUMS` records each patch target and the patch itself; it excludes itself. The patch excludes its own bytes and the hash manifest. Verify from the workspace root with:
++
++```sh
++shasum -a 256 -c docs/implementation-receipts/worker-launcher/SHA256SUMS
++```
++
++The launcher and migration paths have not been exercised live. The coordinator must review, install, verify worker idempotence, and enable the single schedule. Field Notes does not apply to this internal runtime change.
+diff --git a/docs/implementation-receipts/worker-launcher/lint.txt b/docs/implementation-receipts/worker-launcher/lint.txt
+new file mode 100644
+index 00000000..e69de29b
+diff --git a/docs/implementation-receipts/worker-launcher/python-tests.txt b/docs/implementation-receipts/worker-launcher/python-tests.txt
+new file mode 100644
+index 00000000..45f023f4
+--- /dev/null
++++ b/docs/implementation-receipts/worker-launcher/python-tests.txt
+@@ -0,0 +1,15 @@
++test_accepts_nonempty_quoted_scoped_dotenv (test_youtube_takeout_worker.WorkerTests.test_accepts_nonempty_quoted_scoped_dotenv) ... ok
++test_failure_events_even_when_child_exits_zero (test_youtube_takeout_worker.WorkerTests.test_failure_events_even_when_child_exits_zero) ... ok
++test_lock_contention_skips (test_youtube_takeout_worker.WorkerTests.test_lock_contention_skips) ... ok
++test_minimal_env_command_cwd_and_lock_lifetime (test_youtube_takeout_worker.WorkerTests.test_minimal_env_command_cwd_and_lock_lifetime) ... ok
++test_nonzero_and_missing_completion_fail (test_youtube_takeout_worker.WorkerTests.test_nonzero_and_missing_completion_fail) ... ok
++test_owner_gate (test_youtube_takeout_worker.WorkerTests.test_owner_gate) ... ok
++test_required_credentials_and_permissions (test_youtube_takeout_worker.WorkerTests.test_required_credentials_and_permissions) ... ok
++test_spawn_failure_is_nonzero_without_logging_exception (test_youtube_takeout_worker.WorkerTests.test_spawn_failure_is_nonzero_without_logging_exception) ... ok
++test_timeout_kills_descendants_even_if_leader_exits_after_term (test_youtube_takeout_worker.WorkerTests.test_timeout_kills_descendants_even_if_leader_exits_after_term) ... ok
++test_timeout_terminates_then_kills_group_and_releases_lock (test_youtube_takeout_worker.WorkerTests.test_timeout_terminates_then_kills_group_and_releases_lock) ... ok
++
++----------------------------------------------------------------------
++Ran 10 tests in 0.018s
++
++OK
+diff --git a/docs/implementation-receipts/worker-launcher/test_youtube_takeout_worker.py b/docs/implementation-receipts/worker-launcher/test_youtube_takeout_worker.py
+new file mode 100644
+index 00000000..a9d8f877
+--- /dev/null
++++ b/docs/implementation-receipts/worker-launcher/test_youtube_takeout_worker.py
+@@ -0,0 +1,161 @@
++import contextlib
++import fcntl
++import importlib.util
++import io
++import json
++import os
++from pathlib import Path
++import signal
++import subprocess
++import tempfile
++import types
++import unittest
++from unittest.mock import Mock, patch
++
++spec = importlib.util.spec_from_file_location("youtube_worker", Path(__file__).with_name("youtube_takeout_worker.py"))
++worker = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(worker)
++
++
++class WorkerTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.root = Path(self.temp.name) / "task"
++        self.credentials = Path(self.temp.name) / "protected"
++        self.root.mkdir()
++        self.credentials.mkdir()
++        self.runtime = self.root / "runtime"
++        self.runtime.mkdir()
++        for name, value in [("TASK_ROOT", self.root), ("CREDENTIAL_ROOT", self.credentials), ("RUNTIME_CWD", self.runtime)]:
++            self.enterContext(patch.object(worker, name, value))
++        self.logs = io.StringIO()
++        self.enterContext(contextlib.redirect_stdout(self.logs))
++        self.popen = self.enterContext(patch.object(worker.subprocess, "Popen"))
++        self.killpg = self.enterContext(patch.object(worker.os, "killpg"))
++        self.process = Mock(pid=98765, returncode=0)
++        self.process.communicate.return_value = ('{"event":"no_new_archive"}\n', None)
++        self.popen.return_value = self.process
++        self.owner({"owner": "worker", "enabled": True})
++        self.envfile("DATABASE_URL=postgres://fixture/db\nYOUTUBE_API_KEY=fixture-youtube\nAI_GATEWAY_API_KEY=fixture-ai\n")
++
++    def owner(self, value):
++        (self.root / "owner.json").write_text(json.dumps(value))
++
++    def envfile(self, text):
++        file = self.credentials / "runtime.env"
++        file.write_text(text)
++        file.chmod(0o600)
++
++    def test_owner_gate(self):
++        for invalid in [None, [], {"owner": "daily", "enabled": True}, {"owner": "worker", "enabled": False}, {"owner": "worker", "enabled": 1}]:
++            with self.subTest(invalid=invalid):
++                self.owner(invalid)
++                self.assertEqual(worker.main(), 1)
++        (self.root / "owner.json").write_text("{")
++        self.assertEqual(worker.main(), 1)
++        (self.root / "owner.json").unlink()
++        self.assertEqual(worker.main(), 1)
++        self.popen.assert_not_called()
++        self.assertFalse((self.root / "state").exists())
++
++    def test_lock_contention_skips(self):
++        state = self.root / "state"
++        state.mkdir()
++        with (state / "launcher.lock").open("a") as lock:
++            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++            self.assertEqual(worker.main(), 0)
++        self.popen.assert_not_called()
++        self.assertIn('"worker_busy"', self.logs.getvalue())
++
++    def test_minimal_env_command_cwd_and_lock_lifetime(self):
++        def communicate(timeout):
++            self.assertEqual(timeout, 1100)
++            with (self.root / "state/launcher.lock").open("a") as contender:
++                with self.assertRaises(BlockingIOError):
++                    fcntl.flock(contender.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++            return ('{"event":"refresh_complete"}\n', None)
++        self.process.communicate.side_effect = communicate
++        account_home = "/Users/chappyasel"
++        with patch.object(worker.pwd, "getpwuid", return_value=types.SimpleNamespace(pw_dir=account_home)):
++            with patch.dict(os.environ, {"DATABASE_URL": "inherited-db", "AI_GATEWAY_API_KEY": "inherited-ai", "HERMES_TOKEN": "inherited-hermes"}):
++                self.assertEqual(worker.main(), 0)
++        args, options = self.popen.call_args
++        self.assertEqual(args[0], [account_home + "/.local/bin/with-worker-node24", "corepack", "pnpm", "exec", "tsx", "scripts/takeout/refresh.ts", "--no-browser"])
++        self.assertEqual(options["cwd"], str(self.runtime))
++        self.assertTrue(options["start_new_session"])
++        self.assertEqual(options["env"], {
++            "HOME": account_home, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "TZ": "America/Los_Angeles",
++            "DOTENV_CONFIG_PATH": str(self.credentials / "runtime.env"), "SKIP_ENV_VALIDATION": "1",
++            "YOUTUBE_TAKEOUT_DATA_DIR": str(self.root / "data"), "YOUTUBE_TAKEOUT_STATE_DIR": str(self.root / "state"),
++            "YOUTUBE_TAKEOUT_CREDENTIALS_DIR": str(self.credentials),
++        })
++        with (self.root / "state/launcher.lock").open("a") as lock:
++            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++        self.assertNotIn("fixture-ai", self.logs.getvalue())
++        self.assertNotIn("inherited", self.logs.getvalue())
++
++    def test_required_credentials_and_permissions(self):
++        valid = "DATABASE_URL=postgres://fixture/db\nYOUTUBE_API_KEY=fixture\nAI_GATEWAY_API_KEY=fixture\n"
++        for key in worker.REQUIRED_KEYS:
++            with self.subTest(key=key):
++                self.envfile("\n".join(line for line in valid.splitlines() if not line.startswith(key + "=")))
++                self.assertEqual(worker.main(), 1)
++                self.envfile("\n".join(key + "=''" if line.startswith(key + "=") else line for line in valid.splitlines()))
++                self.assertEqual(worker.main(), 1)
++        for suffix in ["HOME=/other\n", "AI_GATEWAY_API_KEY=duplicate\n"]:
++            self.envfile(valid + suffix)
++            self.assertEqual(worker.main(), 1)
++        self.envfile(valid.replace("AI_GATEWAY_API_KEY=fixture", "AI_GATEWAY_API_KEY=${OTHER_TOKEN}"))
++        self.assertEqual(worker.main(), 1)
++        self.envfile(valid)
++        (self.credentials / "runtime.env").chmod(0o644)
++        self.assertEqual(worker.main(), 1)
++        (self.credentials / "runtime.env").unlink()
++        self.assertEqual(worker.main(), 1)
++        self.popen.assert_not_called()
++
++    def test_accepts_nonempty_quoted_scoped_dotenv(self):
++        self.envfile("# scoped fixture\nexport DATABASE_URL='postgres://fixture/db'\nYOUTUBE_API_KEY=\"fixture\" # note\nAI_GATEWAY_API_KEY=fixture\n")
++        self.assertEqual(worker.main(), 0)
++
++    def test_failure_events_even_when_child_exits_zero(self):
++        for event in worker.FAILURE_EVENTS:
++            with self.subTest(event=event):
++                self.process.communicate.return_value = (json.dumps({"event": event, "secret": "must-not-log"}) + '\n{"event":"refresh_complete"}\n', None)
++                self.assertEqual(worker.main(), 1)
++        self.assertNotIn("must-not-log", self.logs.getvalue())
++
++    def test_nonzero_and_missing_completion_fail(self):
++        self.process.returncode = 9
++        self.assertEqual(worker.main(), 1)
++        self.process.returncode = 0
++        self.process.communicate.return_value = ("arbitrary sensitive output", None)
++        self.assertEqual(worker.main(), 1)
++        self.assertNotIn("arbitrary sensitive", self.logs.getvalue())
++
++    def test_timeout_terminates_then_kills_group_and_releases_lock(self):
++        self.process.communicate.side_effect = [
++            subprocess.TimeoutExpired("fixture", 1100),
++            subprocess.TimeoutExpired("fixture", 10),
++            ("", None),
++        ]
++        self.assertEqual(worker.main(), 124)
++        self.assertEqual(self.killpg.call_args_list, [unittest.mock.call(98765, signal.SIGTERM), unittest.mock.call(98765, signal.SIGKILL)])
++        self.assertEqual(self.process.communicate.call_args_list, [unittest.mock.call(timeout=1100), unittest.mock.call(timeout=10), unittest.mock.call()])
++        with (self.root / "state/launcher.lock").open("a") as lock:
++            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++
++    def test_timeout_kills_descendants_even_if_leader_exits_after_term(self):
++        self.process.communicate.side_effect = [subprocess.TimeoutExpired("fixture", 1100), ("", None), ("", None)]
++        self.assertEqual(worker.main(), 124)
++        self.killpg.assert_any_call(98765, signal.SIGKILL)
++
++    def test_spawn_failure_is_nonzero_without_logging_exception(self):
++        self.popen.side_effect = OSError("sensitive fixture")
++        self.assertEqual(worker.main(), 1)
++        self.assertNotIn("sensitive fixture", self.logs.getvalue())
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/docs/implementation-receipts/worker-launcher/typecheck.txt b/docs/implementation-receipts/worker-launcher/typecheck.txt
+new file mode 100644
+index 00000000..eeae4770
+--- /dev/null
++++ b/docs/implementation-receipts/worker-launcher/typecheck.txt
+@@ -0,0 +1,10 @@
++
++> personal-website@0.1.0 typecheck /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++> pnpm typegen && tsc --noEmit
++
++
++> personal-website@0.1.0 typegen /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++> SKIP_ENV_VALIDATION=1 next typegen
++
++Generating route types...
++✓ Types generated successfully
+diff --git a/docs/implementation-receipts/worker-launcher/typescript-tests.txt b/docs/implementation-receipts/worker-launcher/typescript-tests.txt
+new file mode 100644
+index 00000000..028cd3f4
+--- /dev/null
++++ b/docs/implementation-receipts/worker-launcher/typescript-tests.txt
+@@ -0,0 +1,8 @@
++
++ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
++
++
++ Test Files  15 passed (15)
++      Tests  123 passed (123)
++   Start at  17:27:43
++   Duration  300ms (transform 674ms, setup 0ms, import 1.02s, tests 471ms, environment 1ms)
+diff --git a/docs/implementation-receipts/worker-launcher/youtube_takeout_worker.py b/docs/implementation-receipts/worker-launcher/youtube_takeout_worker.py
+new file mode 100644
+index 00000000..f33973f6
+--- /dev/null
++++ b/docs/implementation-receipts/worker-launcher/youtube_takeout_worker.py
+@@ -0,0 +1,182 @@
++#!/usr/bin/env python3
++"""Run the owned YouTube worker without inheriting another profile's secrets."""
++import fcntl
++import json
++import os
++from pathlib import Path
++import pwd
++import re
++import signal
++import stat
++import subprocess
++import sys
++
++TASK_ROOT = Path("/Users/chappyasel/hermes-work/youtube-worker-migration")
++CREDENTIAL_ROOT = Path("/Users/chappyasel/.config/youtube-takeout-worker")
++RUNTIME_CWD = TASK_ROOT / "runtime"
++TIMEOUT_SECONDS = 1100
++TERMINATE_GRACE_SECONDS = 10
++REQUIRED_KEYS = frozenset({"DATABASE_URL", "YOUTUBE_API_KEY", "AI_GATEWAY_API_KEY"})
++FAILURE_EVENTS = frozenset({
++    "download_auth_failure", "download_failed", "sync_failed", "classify_failed",
++    "score_failed", "refresh_incomplete", "orchestrator_crashed", "refresh_lock_busy",
++    "requested_failed", "gave_up_on_stuck_request", "requesting_export",
++    "request_needs_passkey", "requested_ok", "requested_auth_failure", "approval_in_progress",
++})
++SUCCESS_EVENTS = frozenset({"refresh_complete", "no_new_archive"})
++
++
++def emit(event, **fields):
++    print(json.dumps({"event": event, **fields}), flush=True)
++
++
++def worker_owns_task():
++    try:
++        owner = json.loads((TASK_ROOT / "owner.json").read_text())
++        return isinstance(owner, dict) and owner.get("owner") == "worker" and owner.get("enabled") is True
++    except (OSError, ValueError):
++        return False
++
++
++def valid_runtime_env(file):
++    """Accept a small dotenv file containing only the three scoped assignments.
++
++    Values can be unquoted or single/double quoted on one line. Reject variable
++    interpolation and duplicates so validation cannot disagree with dotenv.
++    Never return or log the secret values.
++    """
++    try:
++        metadata = file.lstat()
++        if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600 or metadata.st_uid != os.getuid():
++            return False
++        seen = set()
++        for line in file.read_text().splitlines():
++            line = line.strip()
++            if not line or line.startswith("#"):
++                continue
++            match = re.fullmatch(r"(?:export\s+)?([A-Z_][A-Z_0-9]*)\s*=\s*(.*)", line)
++            if not match:
++                return False
++            key, value = match.groups()
++            if key not in REQUIRED_KEYS or key in seen or "${" in value:
++                return False
++            if value.startswith(("'", '"')):
++                quote = value[0]
++                end = value.find(quote, 1)
++                if end < 0 or (value[end + 1:].strip() and not value[end + 1:].strip().startswith("#")):
++                    return False
++                value = value[1:end]
++            else:
++                value = value.split("#", 1)[0].strip()
++            # Scoped keys/URLs need no escapes; reject ambiguous dotenv syntax.
++            if not value.strip() or "\\" in value or "\x00" in value:
++                return False
++            seen.add(key)
++        return seen == REQUIRED_KEYS
++    except (OSError, UnicodeError):
++        return False
++
++
++def child_settings():
++    # Use the OS account home; never inherit a retargeted HOME or any secret.
++    home = pwd.getpwuid(os.getuid()).pw_dir
++    env = {
++        "HOME": home,
++        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
++        "TZ": "America/Los_Angeles",
++        "DOTENV_CONFIG_PATH": str(CREDENTIAL_ROOT / "runtime.env"),
++        "SKIP_ENV_VALIDATION": "1",
++        "YOUTUBE_TAKEOUT_DATA_DIR": str(TASK_ROOT / "data"),
++        "YOUTUBE_TAKEOUT_STATE_DIR": str(TASK_ROOT / "state"),
++        "YOUTUBE_TAKEOUT_CREDENTIALS_DIR": str(CREDENTIAL_ROOT),
++    }
++    command = [str(Path(home) / ".local/bin/with-worker-node24"), "corepack", "pnpm", "exec", "tsx", "scripts/takeout/refresh.ts", "--no-browser"]
++    return command, env
++
++
++def signal_group(process, sig):
++    try:
++        os.killpg(process.pid, sig)
++    except ProcessLookupError:
++        pass
++
++
++def stop_group(process):
++    signal_group(process, signal.SIGTERM)
++    try:
++        process.communicate(timeout=TERMINATE_GRACE_SECONDS)
++    except subprocess.TimeoutExpired:
++        pass
++    finally:
++        # Kill the group even if the leader exited; descendants can survive it.
++        signal_group(process, signal.SIGKILL)
++    process.communicate()
++
++
++def run_child():
++    command, env = child_settings()
++    process = subprocess.Popen(command, cwd=str(RUNTIME_CWD), env=env,
++                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
++                               text=True, start_new_session=True)
++    try:
++        output, _ = process.communicate(timeout=TIMEOUT_SECONDS)
++    except subprocess.TimeoutExpired:
++        stop_group(process)
++        emit("worker_timeout", timeout_seconds=TIMEOUT_SECONDS)
++        return 124
++    except BaseException:
++        stop_group(process)
++        raise
++
++    failed = False
++    completed = False
++    for line in output.splitlines():
++        try:
++            record = json.loads(line)
++        except ValueError:
++            continue
++        event = record.get("event") if isinstance(record, dict) else None
++        if not isinstance(event, str):
++            continue
++        # Relay only known event names, never arbitrary child output or fields.
++        if event in FAILURE_EVENTS or event in SUCCESS_EVENTS:
++            emit("worker_child_event", child_event=event)
++        failed = failed or event in FAILURE_EVENTS
++        completed = completed or event in SUCCESS_EVENTS
++    if process.returncode != 0 or failed or not completed:
++        emit("worker_failed", returncode=process.returncode, failure_event=failed, completion_event=completed)
++        return 1
++    emit("worker_complete")
++    return 0
++
++
++def main():
++    if not worker_owns_task():
++        emit("worker_owner_rejected")
++        return 1
++    try:
++        state = TASK_ROOT / "state"
++        state.mkdir(parents=True, exist_ok=True)
++        with (state / "launcher.lock").open("a") as lock:
++            try:
++                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
++            except BlockingIOError:
++                emit("worker_busy")
++                return 0
++            # Recheck after locking so ownership changes cannot start a new run.
++            if not worker_owns_task():
++                emit("worker_owner_rejected")
++                return 1
++            if not valid_runtime_env(CREDENTIAL_ROOT / "runtime.env"):
++                emit("worker_credentials_rejected")
++                return 1
++            emit("worker_started")
++            return run_child()
++    except Exception:
++        # Exceptions may include subprocess output or dotenv values.
++        emit("worker_launcher_failed")
++        return 1
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/sync-youtube.test.ts b/scripts/sync-youtube.test.ts
+new file mode 100644
+index 00000000..d468ec89
+--- /dev/null
++++ b/scripts/sync-youtube.test.ts
+@@ -0,0 +1,28 @@
++import * as path from "path";
++import { afterEach, expect, it, vi } from "vitest";
++
++const mocks = vi.hoisted(() => ({
++  sync: vi.fn().mockResolvedValue({ totalVideos: 1 }),
++}));
++vi.mock("dotenv/config", () => ({}));
++vi.mock("../src/lib/youtube/sync", () => ({ syncYouTube: mocks.sync }));
++afterEach(() => {
++  vi.restoreAllMocks();
++  vi.unstubAllEnvs();
++});
++
++it("passes the configured history path to sync without accessing a live database", async () => {
++  vi.stubEnv("YOUTUBE_TAKEOUT_DATA_DIR", "/fixture-worker/data");
++  vi.stubEnv("YOUTUBE_TAKEOUT_STATE_DIR", "/fixture-worker/state");
++  vi.stubEnv("YOUTUBE_TAKEOUT_CREDENTIALS_DIR", "/fixture-worker/credentials");
++  vi.spyOn(console, "log").mockImplementation(() => undefined);
++  const exit = vi
++    .spyOn(process, "exit")
++    .mockImplementation(() => undefined as never);
++  await import("./sync-youtube");
++  await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
++  expect(mocks.sync).toHaveBeenCalledWith(
++    "manual",
++    path.join("/fixture-worker/data", "watch-history.json"),
++  );
++});
+diff --git a/scripts/takeout/config.test.ts b/scripts/takeout/config.test.ts
+new file mode 100644
+index 00000000..bc21277a
+--- /dev/null
++++ b/scripts/takeout/config.test.ts
+@@ -0,0 +1,105 @@
++import * as os from "os";
++import * as path from "path";
++import { afterEach, beforeEach, expect, it, vi } from "vitest";
++
++import { takeoutPaths } from "./config";
++
++vi.mock("dotenv/config", () => ({}));
++const names = [
++  "YOUTUBE_TAKEOUT_DATA_DIR",
++  "YOUTUBE_TAKEOUT_STATE_DIR",
++  "YOUTUBE_TAKEOUT_CREDENTIALS_DIR",
++];
++beforeEach(() => {
++  for (const name of names) vi.stubEnv(name, undefined);
++});
++afterEach(() => vi.unstubAllEnvs());
++
++it("retains all daily defaults without opening any credential files", () => {
++  const data = path.join(os.homedir(), ".local/share/youtube-takeout");
++  const state = path.join(
++    os.homedir(),
++    ".hermes/workspace/state/youtube-takeout",
++  );
++  expect(takeoutPaths()).toEqual({
++    dataDir: data,
++    stateDir: state,
++    credentialsDir: data,
++    incomingDir: path.join(data, "incoming"),
++    historyPath: path.join(data, "watch-history.json"),
++    stateFile: path.join(state, "state.json"),
++    lockDir: path.join(state, "refresh.lock"),
++    oauthClientPath: path.join(data, "oauth-client.json"),
++    tokenPath: path.join(data, "drive-token.json"),
++  });
++});
++
++it("keeps worker output, state and credentials separate", () => {
++  vi.stubEnv(names[0]!, "/worker/data");
++  vi.stubEnv(names[1]!, "/worker/state");
++  vi.stubEnv(names[2]!, "/protected/credentials");
++  expect(takeoutPaths()).toEqual({
++    dataDir: "/worker/data",
++    stateDir: "/worker/state",
++    credentialsDir: "/protected/credentials",
++    incomingDir: "/worker/data/incoming",
++    historyPath: "/worker/data/watch-history.json",
++    stateFile: "/worker/state/state.json",
++    lockDir: "/worker/state/refresh.lock",
++    oauthClientPath: "/protected/credentials/oauth-client.json",
++    tokenPath: "/protected/credentials/drive-token.json",
++  });
++});
++
++it.each(names)("rejects relative and empty %s overrides", (name) => {
++  for (const value of ["relative", "~/data", ""]) {
++    vi.stubEnv(name, value);
++    expect(() => takeoutPaths()).toThrow(`${name} must be an absolute path`);
++  }
++});
++
++it("defaults credentials to the selected data directory unless explicitly separated", () => {
++  vi.stubEnv(names[0]!, "/worker/data");
++  expect(takeoutPaths().credentialsDir).toBe("/worker/data");
++});
++
++it("loads scoped DOTENV_CONFIG_PATH in a fresh process without consuming the repo .env", async () => {
++  const fs = await import("node:fs");
++  const { spawnSync } = await import("node:child_process");
++  const { pathToFileURL } = await import("node:url");
++  const { LOCAL_TSX_CLI } = await import("./config");
++  const root = fs.mkdtempSync(path.join(os.tmpdir(), "takeout-dotenv-"));
++  try {
++    const file = path.join(root, "runtime.env");
++    fs.writeFileSync(
++      file,
++      "DATABASE_URL=postgres://fixture/db\nYOUTUBE_API_KEY=fixture-youtube\nAI_GATEWAY_API_KEY=fixture-ai\n",
++      { mode: 0o600 },
++    );
++    const source = `import assert from 'node:assert/strict';
++      const { takeoutPaths } = await import(${JSON.stringify(pathToFileURL(path.join(import.meta.dirname, "config.ts")).href)});
++      assert.equal(process.env.DATABASE_URL, 'postgres://fixture/db');
++      assert.equal(process.env.YOUTUBE_API_KEY, 'fixture-youtube');
++      assert.equal(process.env.AI_GATEWAY_API_KEY, 'fixture-ai');
++      assert.equal(process.env.NOTION_SECRET, undefined);
++      assert.equal(takeoutPaths().credentialsDir, ${JSON.stringify(path.join(root, "credentials"))});
++      console.log('scoped-env-ok');`;
++    const fixture = path.join(root, "check.mts");
++    fs.writeFileSync(fixture, source);
++    const result = spawnSync(process.execPath, [LOCAL_TSX_CLI, fixture], {
++      encoding: "utf8",
++      env: {
++        NODE_ENV: "test",
++        DOTENV_CONFIG_PATH: file,
++        SKIP_ENV_VALIDATION: "1",
++        YOUTUBE_TAKEOUT_DATA_DIR: path.join(root, "data"),
++        YOUTUBE_TAKEOUT_STATE_DIR: path.join(root, "state"),
++        YOUTUBE_TAKEOUT_CREDENTIALS_DIR: path.join(root, "credentials"),
++      },
++    });
++    expect(result.status).toBe(0);
++    expect(result.stdout).toContain("scoped-env-ok");
++  } finally {
++    fs.rmSync(root, { recursive: true, force: true });
++  }
++});
+diff --git a/scripts/takeout/config.ts b/scripts/takeout/config.ts
+new file mode 100644
+index 00000000..32478650
+--- /dev/null
++++ b/scripts/takeout/config.ts
+@@ -0,0 +1,40 @@
++import "dotenv/config";
++import { createRequire } from "node:module";
++import * as os from "os";
++import * as path from "path";
++
++/** Resolve installed tooling locally, using the same Node as the parent. */
++export const LOCAL_TSX_CLI = createRequire(import.meta.url).resolve("tsx/cli");
++
++function directory(name: string, fallback: string): string {
++  const value = process.env[name];
++  if (value === undefined) return fallback;
++  if (!path.isAbsolute(value)) {
++    throw new Error(`${name} must be an absolute path`);
++  }
++  return path.normalize(value);
++}
++
++/** Explicit overrides keep worker artifacts and credentials out of daily paths. */
++export function takeoutPaths() {
++  const dataDir = directory(
++    "YOUTUBE_TAKEOUT_DATA_DIR",
++    path.join(os.homedir(), ".local/share/youtube-takeout"),
++  );
++  const stateDir = directory(
++    "YOUTUBE_TAKEOUT_STATE_DIR",
++    path.join(os.homedir(), ".hermes/workspace/state/youtube-takeout"),
++  );
++  const credentialsDir = directory("YOUTUBE_TAKEOUT_CREDENTIALS_DIR", dataDir);
++  return {
++    dataDir,
++    stateDir,
++    credentialsDir,
++    incomingDir: path.join(dataDir, "incoming"),
++    historyPath: path.join(dataDir, "watch-history.json"),
++    stateFile: path.join(stateDir, "state.json"),
++    lockDir: path.join(stateDir, "refresh.lock"),
++    oauthClientPath: path.join(credentialsDir, "oauth-client.json"),
++    tokenPath: path.join(credentialsDir, "drive-token.json"),
++  };
++}
+diff --git a/scripts/takeout/drive.test.ts b/scripts/takeout/drive.test.ts
+new file mode 100644
+index 00000000..745916ec
+--- /dev/null
++++ b/scripts/takeout/drive.test.ts
+@@ -0,0 +1,70 @@
++import * as fs from "fs";
++import * as os from "os";
++import * as path from "path";
++import { afterEach, beforeEach, expect, it, vi } from "vitest";
++
++const mocks = vi.hoisted(() => ({ credentials: vi.fn(), oauth: vi.fn() }));
++vi.mock("dotenv/config", () => ({}));
++vi.mock("googleapis", () => ({
++  google: {
++    auth: {
++      OAuth2: class {
++        constructor(...args: unknown[]) {
++          mocks.oauth(...args);
++        }
++        setCredentials = mocks.credentials;
++      },
++    },
++  },
++}));
++let root: string;
++beforeEach(() => {
++  vi.resetModules();
++  mocks.credentials.mockClear();
++  mocks.oauth.mockClear();
++  root = fs.mkdtempSync(path.join(os.tmpdir(), "takeout-drive-"));
++  vi.stubEnv("YOUTUBE_TAKEOUT_DATA_DIR", path.join(root, "outputs"));
++  vi.stubEnv("YOUTUBE_TAKEOUT_STATE_DIR", path.join(root, "state"));
++  vi.stubEnv("YOUTUBE_TAKEOUT_CREDENTIALS_DIR", path.join(root, "protected"));
++});
++afterEach(() => {
++  vi.unstubAllEnvs();
++  fs.rmSync(root, { recursive: true, force: true });
++});
++
++it("loads and saves Drive credentials only in the explicit root with private token permissions", async () => {
++  const { OAUTH_CLIENT_PATH, TOKEN_PATH, loadAuthedClient, saveToken } =
++    await import("./drive");
++  expect(OAUTH_CLIENT_PATH).toBe(
++    path.join(root, "protected/oauth-client.json"),
++  );
++  expect(TOKEN_PATH).toBe(path.join(root, "protected/drive-token.json"));
++  fs.mkdirSync(path.dirname(OAUTH_CLIENT_PATH));
++  fs.writeFileSync(
++    OAUTH_CLIENT_PATH,
++    JSON.stringify({
++      installed: {
++        client_id: "fixture-client",
++        client_secret: "fixture-secret",
++      },
++    }),
++    { mode: 0o600 },
++  );
++  saveToken({ refresh_token: "fixture-token" });
++  loadAuthedClient();
++  expect(mocks.oauth).toHaveBeenCalledWith(
++    "fixture-client",
++    "fixture-secret",
++    "http://localhost",
++  );
++  expect(mocks.credentials).toHaveBeenCalledWith({
++    refresh_token: "fixture-token",
++  });
++  fs.chmodSync(TOKEN_PATH, 0o644);
++  saveToken({ refresh_token: "fixture-replacement" });
++  expect(fs.statSync(TOKEN_PATH).mode & 0o777).toBe(0o600);
++  expect(JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"))).toEqual({
++    refresh_token: "fixture-replacement",
++  });
++  expect(fs.existsSync(path.join(root, "outputs"))).toBe(false);
++});

@@ -3,8 +3,8 @@ import {
   sidecarPathFor,
 } from "../../src/lib/youtube/coverage";
 import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+
+import { takeoutPaths } from "./config";
 
 export type RefreshState = {
   state: "idle" | "requested";
@@ -23,12 +23,6 @@ export type RefreshState = {
   last_stale_alert_at?: string | null;
 };
 
-const STATE_DIR = path.join(
-  os.homedir(),
-  ".hermes/workspace/state/youtube-takeout",
-);
-const STATE_FILE = path.join(STATE_DIR, "state.json");
-
 const DEFAULT_STATE: RefreshState = {
   state: "idle",
   requested_at: null,
@@ -38,11 +32,13 @@ const DEFAULT_STATE: RefreshState = {
 };
 
 export function readState(): RefreshState {
+  const { stateFile: STATE_FILE } = takeoutPaths();
   if (!fs.existsSync(STATE_FILE)) return { ...DEFAULT_STATE };
   return JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) as RefreshState;
 }
 
 export function writeState(state: RefreshState): void {
+  const { stateDir: STATE_DIR, stateFile: STATE_FILE } = takeoutPaths();
   fs.mkdirSync(STATE_DIR, { recursive: true });
   const tmp = STATE_FILE + ".tmp";
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
@@ -50,16 +46,11 @@ export function writeState(state: RefreshState): void {
 }
 
 export function stateFilePath(): string {
-  return STATE_FILE;
+  return takeoutPaths().stateFile;
 }
 
-export const HISTORY_PATH = path.join(
-  os.homedir(),
-  ".local/share/youtube-takeout/watch-history.json",
-);
-
 export function readDownloadedArchive(): TakeoutSidecar | undefined {
-  const file = sidecarPathFor(HISTORY_PATH);
+  const file = sidecarPathFor(takeoutPaths().historyPath);
   if (!fs.existsSync(file)) return undefined;
   const value = JSON.parse(fs.readFileSync(file, "utf8")) as TakeoutSidecar;
   if (

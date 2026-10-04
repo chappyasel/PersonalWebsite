@@ -12,18 +12,13 @@ import { downloadLatestArchive } from "./download";
 const mocks = vi.hoisted(() => ({
   home: "",
   list: vi.fn<
-    (args: {
-      pageToken?: string;
-    }) => Promise<{
+    (args: { pageToken?: string }) => Promise<{
       data: { files: drive_v3.Schema$File[]; nextPageToken?: string };
     }>
   >(),
   get: vi.fn<(args: { fileId: string }) => Promise<{ data: Readable }>>(),
 }));
-vi.mock("os", async (importOriginal) => ({
-  ...(await importOriginal<typeof os>()),
-  homedir: () => mocks.home,
-}));
+vi.mock("dotenv/config", () => ({}));
 vi.mock("./drive", () => ({
   getDrive: () => ({ files: { list: mocks.list, get: mocks.get } }),
 }));
@@ -55,12 +50,22 @@ function sidecar() {
 
 beforeEach(() => {
   mocks.home = fs.mkdtempSync(path.join(os.tmpdir(), "takeout-download-"));
+  vi.stubEnv(
+    "YOUTUBE_TAKEOUT_DATA_DIR",
+    path.join(mocks.home, ".local/share/youtube-takeout"),
+  );
+  vi.stubEnv("YOUTUBE_TAKEOUT_STATE_DIR", path.join(mocks.home, "state"));
+  vi.stubEnv(
+    "YOUTUBE_TAKEOUT_CREDENTIALS_DIR",
+    path.join(mocks.home, "credentials"),
+  );
   mocks.list.mockReset();
   mocks.get.mockReset();
   vi.spyOn(console, "log").mockImplementation(() => undefined);
 });
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   fs.rmSync(mocks.home, { recursive: true, force: true });
 });
 
@@ -99,6 +104,17 @@ it("paginates, inspects service archives, stages truthful coverage, and skips th
     exportCreatedAt: youtube.createdTime,
   });
   expect(sidecar().downloadedAt).not.toBe(youtube.createdTime);
+  expect(
+    fs
+      .readdirSync(path.join(mocks.home, ".local/share/youtube-takeout"))
+      .sort(),
+  ).toEqual(["incoming", "watch-history.json", "watch-history.meta.json"]);
+  expect(
+    fs.readdirSync(
+      path.join(mocks.home, ".local/share/youtube-takeout/incoming"),
+    ),
+  ).toEqual([]);
+  expect(fs.existsSync(path.join(mocks.home, "credentials"))).toBe(false);
   expect(
     fs.readFileSync(
       path.join(mocks.home, ".local/share/youtube-takeout/watch-history.json"),

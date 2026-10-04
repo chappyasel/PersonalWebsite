@@ -4,19 +4,14 @@
  * Run with: npx tsx scripts/sync-youtube.ts
  */
 import "dotenv/config";
-import * as os from "os";
-import * as path from "path";
 
-const FILE_PATH = path.join(
-  os.homedir(),
-  ".local/share/youtube-takeout/watch-history.json",
-);
+import { takeoutPaths } from "./takeout/config";
 
 async function main() {
   // Load DB/env modules only after dotenv/config has initialized this CLI.
   const { syncYouTube } = await import("../src/lib/youtube/sync");
   console.log("Starting YouTube sync...");
-  const result = await syncYouTube("manual", FILE_PATH);
+  const result = await syncYouTube("manual", takeoutPaths().historyPath);
   if ("status" in result && result.status !== "success") {
     throw new Error("YouTube sync did not report success");
   }

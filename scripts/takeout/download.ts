@@ -14,9 +14,9 @@ import * as fs from "fs";
 import type { drive_v3 } from "googleapis";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
-import * as os from "os";
 import * as path from "path";
 
+import { takeoutPaths } from "./config";
 import { getDrive } from "./drive";
 
 export type DownloadOptions = {
@@ -75,8 +75,7 @@ export async function downloadLatestArchive(
     })
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
-  const dataRoot = path.join(os.homedir(), ".local/share/youtube-takeout");
-  const incoming = path.join(dataRoot, "incoming");
+  const { incomingDir: incoming, historyPath: finalPath } = takeoutPaths();
   fs.mkdirSync(incoming, { recursive: true });
   for (const { file, at } of candidates) {
     const staging = fs.mkdtempSync(path.join(incoming, "download-"));
@@ -108,7 +107,6 @@ export async function downloadLatestArchive(
       } finally {
         fs.closeSync(fd);
       }
-      const finalPath = path.join(dataRoot, "watch-history.json");
       const sidecar: TakeoutSidecar = {
         exportCreatedAt: at,
         sourceFile: file.name ?? "unknown-takeout.zip",

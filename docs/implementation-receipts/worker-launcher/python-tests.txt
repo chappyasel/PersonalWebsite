@@ -1,0 +1,15 @@
+test_accepts_nonempty_quoted_scoped_dotenv (test_youtube_takeout_worker.WorkerTests.test_accepts_nonempty_quoted_scoped_dotenv) ... ok
+test_failure_events_even_when_child_exits_zero (test_youtube_takeout_worker.WorkerTests.test_failure_events_even_when_child_exits_zero) ... ok
+test_lock_contention_skips (test_youtube_takeout_worker.WorkerTests.test_lock_contention_skips) ... ok
+test_minimal_env_command_cwd_and_lock_lifetime (test_youtube_takeout_worker.WorkerTests.test_minimal_env_command_cwd_and_lock_lifetime) ... ok
+test_nonzero_and_missing_completion_fail (test_youtube_takeout_worker.WorkerTests.test_nonzero_and_missing_completion_fail) ... ok
+test_owner_gate (test_youtube_takeout_worker.WorkerTests.test_owner_gate) ... ok
+test_required_credentials_and_permissions (test_youtube_takeout_worker.WorkerTests.test_required_credentials_and_permissions) ... ok
+test_spawn_failure_is_nonzero_without_logging_exception (test_youtube_takeout_worker.WorkerTests.test_spawn_failure_is_nonzero_without_logging_exception) ... ok
+test_timeout_kills_descendants_even_if_leader_exits_after_term (test_youtube_takeout_worker.WorkerTests.test_timeout_kills_descendants_even_if_leader_exits_after_term) ... ok
+test_timeout_terminates_then_kills_group_and_releases_lock (test_youtube_takeout_worker.WorkerTests.test_timeout_terminates_then_kills_group_and_releases_lock) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.018s
+
+OK

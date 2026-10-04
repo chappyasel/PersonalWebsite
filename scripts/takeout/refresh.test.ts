@@ -14,16 +14,13 @@ const mocks = vi.hoisted(() => ({
         args: string[],
       ) => { status: number; stdout: string; stderr: string }
     >(),
-  execSync: vi.fn<(cmd: string) => string>(),
+  execFileSync: vi.fn<(cmd: string, args: string[]) => string>(),
   spawn: vi.fn<() => never>(),
 }));
-vi.mock("os", async (importOriginal) => ({
-  ...(await importOriginal<typeof os>()),
-  homedir: () => mocks.home,
-}));
+vi.mock("dotenv/config", () => ({}));
 vi.mock("child_process", () => ({
   spawnSync: mocks.spawnSync,
-  execSync: mocks.execSync,
+  execFileSync: mocks.execFileSync,
   spawn: mocks.spawn,
 }));
 
@@ -50,6 +47,18 @@ beforeEach(() => {
   // Thursday: no export request window, and browser auth has expired.
   vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z"));
   mocks.home = fs.mkdtempSync(path.join(os.tmpdir(), "takeout-refresh-"));
+  vi.stubEnv(
+    "YOUTUBE_TAKEOUT_DATA_DIR",
+    path.join(mocks.home, ".local/share/youtube-takeout"),
+  );
+  vi.stubEnv(
+    "YOUTUBE_TAKEOUT_STATE_DIR",
+    path.join(mocks.home, ".hermes/workspace/state/youtube-takeout"),
+  );
+  vi.stubEnv(
+    "YOUTUBE_TAKEOUT_CREDENTIALS_DIR",
+    path.join(mocks.home, "credentials"),
+  );
   stateFile = path.join(
     mocks.home,
     ".hermes/workspace/state/youtube-takeout/state.json",
@@ -86,15 +95,17 @@ beforeEach(() => {
     );
     return { status: 0, stdout: "downloaded", stderr: "" };
   });
-  mocks.execSync.mockReset().mockImplementation((cmd: string) =>
-    cmd.includes("scripts/sync-youtube.ts")
-      ? JSON.stringify({
-          event: "youtube_sync_complete",
-          status: "success",
-          ...archive,
-        })
-      : "ok",
-  );
+  mocks.execFileSync
+    .mockReset()
+    .mockImplementation((_cmd: string, args: string[]) =>
+      args.includes("scripts/sync-youtube.ts")
+        ? JSON.stringify({
+            event: "youtube_sync_complete",
+            status: "success",
+            ...archive,
+          })
+        : "ok",
+    );
   mocks.spawn.mockReset().mockImplementation(() => {
     throw new Error("Browser forbidden");
   });
@@ -106,19 +117,39 @@ afterEach(() => {
   process.exitCode = 0;
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   fs.rmSync(mocks.home, { recursive: true, force: true });
 });
 
 it("imports a fresh Drive archive while idle with expired browser auth, then does not ingest it again", async () => {
   await tick();
-  expect(mocks.execSync.mock.calls.map(([cmd]) => cmd)).toEqual([
-    "npx tsx scripts/sync-youtube.ts",
-    "npx tsx scripts/classify-youtube.ts",
-    "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
+  expect(
+    mocks.execFileSync.mock.calls.map(([, args]) => args.slice(1)),
+  ).toEqual([
+    ["scripts/sync-youtube.ts"],
+    ["scripts/classify-youtube.ts"],
+    [
+      "scripts/score-youtube.ts",
+      "--scope",
+      "all",
+      "--top-up",
+      "--execute",
+      "--activate",
+    ],
   ]);
+  const { LOCAL_TSX_CLI } = await import("./config");
+  for (const [command, args] of [
+    ...mocks.spawnSync.mock.calls,
+    ...mocks.execFileSync.mock.calls,
+  ]) {
+    expect(command).toBe(process.execPath);
+    expect(args[0]).toBe(LOCAL_TSX_CLI);
+    expect(path.isAbsolute(args[0]!)).toBe(true);
+    expect(fs.existsSync(args[0]!)).toBe(true);
+  }
   expect(readState()).toMatchObject({ state: "idle", last_error: null });
   await tick();
-  expect(mocks.execSync).toHaveBeenCalledTimes(3);
+  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
   expect(
     mocks.spawnSync.mock.calls.every(([, args]) =>
       args.includes("scripts/takeout/download.ts"),
@@ -139,7 +170,7 @@ it.each(["2026-09-30T12:00:00.000Z", "2026-09-14T12:00:00.000Z"])(
       }),
     );
     await tick();
-    expect(mocks.execSync).toHaveBeenCalledTimes(3);
+    expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
     expect(mocks.spawnSync.mock.calls[0]?.[1]).not.toContain("--requested-at");
     expect(readState()).toMatchObject({ state: "idle", requested_at: null });
   },
@@ -151,7 +182,7 @@ it.each(["2026-10-01T12:00:00Z", "2026-10-03T19:00:00Z"])(
     vi.setSystemTime(new Date(now));
     process.argv = originalArgv.slice(0, 2);
     await tick();
-    expect(mocks.execSync).toHaveBeenCalledTimes(3);
+    expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
     expect(
       mocks.spawnSync.mock.calls.every(([, args]) =>
         args.includes("scripts/takeout/download.ts"),
@@ -170,25 +201,36 @@ it("discovers even when the last ingestion is too recent for a request", async (
     }),
   );
   await tick();
-  expect(mocks.execSync).toHaveBeenCalledTimes(3);
+  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
 });
 
-it("never requests or launches a browser in --no-browser mode on a weekend with no archive", async () => {
-  vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
-  mocks.spawnSync.mockReturnValue({ status: 3, stdout: "", stderr: "" });
-  await tick();
-  expect(mocks.spawnSync).toHaveBeenCalledTimes(1);
-  expect(mocks.execSync).not.toHaveBeenCalled();
-  expect(mocks.spawn).not.toHaveBeenCalled();
-  expect(process.exitCode).toBe(0);
-});
+it.each(["idle", "requested"] as const)(
+  "never requests or launches a browser in --no-browser mode on a stale weekend in %s state",
+  async (state) => {
+    vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
+    fs.writeFileSync(
+      stateFile,
+      JSON.stringify({
+        ...readState(),
+        state,
+        requested_at: "2026-09-14T12:00:00Z",
+      }),
+    );
+    mocks.spawnSync.mockReturnValue({ status: 3, stdout: "", stderr: "" });
+    await tick();
+    expect(mocks.spawnSync).toHaveBeenCalledTimes(1);
+    expect(mocks.execFileSync).not.toHaveBeenCalled();
+    expect(mocks.spawn).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(0);
+  },
+);
 
 it("stages only in --download-only mode, without acknowledging ingestion", async () => {
   vi.setSystemTime(new Date("2026-10-03T19:00:00Z"));
   process.argv = ["node", "scripts/takeout/refresh.ts", "--download-only"];
   const previous = readState();
   await tick();
-  expect(mocks.execSync).not.toHaveBeenCalled();
+  expect(mocks.execFileSync).not.toHaveBeenCalled();
   expect(mocks.spawn).not.toHaveBeenCalled();
   expect(readState().last_ingested_at).toBe(previous.last_ingested_at);
   expect(readState().last_ingested_archive).toBeUndefined();
@@ -202,14 +244,14 @@ it("stages only in --download-only mode, without acknowledging ingestion", async
   ).toBe(true);
   process.argv = ["node", "scripts/takeout/refresh.ts", "--no-browser"];
   await tick();
-  expect(mocks.execSync).toHaveBeenCalledTimes(3);
+  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
 });
 
 it.each(["throw", "failed-result", "missing-result", "wrong-archive"])(
   "does not advance watermark on sync %s; retries the same archive",
   async (failure) => {
-    const success = mocks.execSync.getMockImplementation()!;
-    mocks.execSync.mockImplementationOnce(() => {
+    const success = mocks.execFileSync.getMockImplementation()!;
+    mocks.execFileSync.mockImplementationOnce(() => {
       if (failure === "throw") throw new Error("sync failed");
       if (failure === "missing-result") return "finished";
       return JSON.stringify({
@@ -229,9 +271,9 @@ it.each(["throw", "failed-result", "missing-result", "wrong-archive"])(
       last_ingested_at: previous.last_ingested_at,
     });
     expect(readState().last_ingested_archive).toBeUndefined();
-    expect(mocks.execSync).toHaveBeenCalledTimes(1);
+    expect(mocks.execFileSync).toHaveBeenCalledTimes(1);
     process.exitCode = 0;
-    mocks.execSync.mockImplementation(success);
+    mocks.execFileSync.mockImplementation(success);
     await tick();
     expect(readState().last_ingested_archive).toEqual(archive);
     expect(process.exitCode).toBe(0);
@@ -241,11 +283,11 @@ it.each(["throw", "failed-result", "missing-result", "wrong-archive"])(
 it.each(["classify", "score"])(
   "reports %s failure and retries enrichment without duplicate ingestion",
   async (stage) => {
-    const success = mocks.execSync.getMockImplementation()!;
-    mocks.execSync.mockImplementation((cmd: string) => {
-      if (cmd.includes(`scripts/${stage}-youtube.ts`))
+    const success = mocks.execFileSync.getMockImplementation()!;
+    mocks.execFileSync.mockImplementation((cmd: string, args: string[]) => {
+      if (args.includes(`scripts/${stage}-youtube.ts`))
         throw new Error("stage failed");
-      return success(cmd);
+      return success(cmd, args);
     });
     await tick();
     expect(process.exitCode).toBe(1);
@@ -263,12 +305,12 @@ it.each(["classify", "score"])(
             "refresh_complete",
         ),
     ).toBe(false);
-    mocks.execSync.mockImplementation(success);
+    mocks.execFileSync.mockImplementation(success);
     process.exitCode = 0;
     await tick();
     expect(
-      mocks.execSync.mock.calls.filter(([cmd]) =>
-        cmd.includes("scripts/sync-youtube.ts"),
+      mocks.execFileSync.mock.calls.filter(([, args]) =>
+        args.includes("scripts/sync-youtube.ts"),
       ),
     ).toHaveLength(1);
     expect(readState()).toMatchObject({
@@ -289,7 +331,7 @@ it.each([1, 2])(
     });
     await tick();
     expect(process.exitCode).toBe(1);
-    expect(mocks.execSync).not.toHaveBeenCalled();
+    expect(mocks.execFileSync).not.toHaveBeenCalled();
     expect(mocks.spawn).not.toHaveBeenCalled();
   },
 );
@@ -313,7 +355,7 @@ it("uses the legacy successful sidecar as a watermark, never last_ingested_at", 
   );
   await tick();
   expect(mocks.spawnSync.mock.calls[0]?.[1]).toContain(archive.exportCreatedAt);
-  expect(mocks.execSync).not.toHaveBeenCalled();
+  expect(mocks.execFileSync).not.toHaveBeenCalled();
 });
 
 it("keeps the future weekend request policy after discovery finds nothing", async () => {
@@ -335,7 +377,7 @@ it("refuses overlapping ticks at the shared runtime lock before reading/writing 
   await tick();
   expect(process.exitCode).toBe(1);
   expect(mocks.spawnSync).not.toHaveBeenCalled();
-  expect(mocks.execSync).not.toHaveBeenCalled();
+  expect(mocks.execFileSync).not.toHaveBeenCalled();
   expect(fs.readFileSync(stateFile, "utf8")).toBe(before);
   expect(fs.existsSync(lockPath)).toBe(true);
 });
@@ -351,7 +393,7 @@ it("releases the lock on unexpected failure so the next tick can retry", async (
   ).toBe(false);
   process.exitCode = 0;
   await tick();
-  expect(mocks.execSync).toHaveBeenCalledTimes(3);
+  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
   expect(process.exitCode).toBe(0);
 });
 
@@ -380,7 +422,7 @@ it("keeps Drive discovery alive after repeated browser-auth failures", async () 
   ).toHaveLength(3);
   mocks.spawnSync.mockImplementation(availableArchive);
   await tick();
-  expect(mocks.execSync).toHaveBeenCalledTimes(3);
+  expect(mocks.execFileSync).toHaveBeenCalledTimes(3);
   expect(readState()).toMatchObject({
     last_error: null,
     last_ingested_archive: archive,

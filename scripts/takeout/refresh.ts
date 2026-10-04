@@ -5,9 +5,10 @@
  * Drive/ingestion/enrichment failures exit nonzero. Expired request-browser
  * auth stays observable without pausing the cron that discovers Drive archives.
  */
-import { execSync, spawn, spawnSync } from "child_process";
+import { execFileSync, spawn, spawnSync } from "child_process";
 import * as path from "path";
 
+import { LOCAL_TSX_CLI } from "./config";
 import { acquireRefreshLock } from "./lock";
 import {
   type RefreshState,
@@ -39,7 +40,7 @@ function runScript(
   rel: string,
   args: string[] = [],
 ): { code: number; out: string } {
-  const res = spawnSync("npx", ["tsx", rel, ...args], {
+  const res = spawnSync(process.execPath, [LOCAL_TSX_CLI, rel, ...args], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
@@ -51,8 +52,8 @@ function runScript(
 /** Open the headed one-tap approval window, detached so it outlives this tick. */
 function launchApprovalDetached() {
   const child = spawn(
-    "npx",
-    ["tsx", "scripts/takeout/approve.ts", "--timeout", "20"],
+    process.execPath,
+    [LOCAL_TSX_CLI, "scripts/takeout/approve.ts", "--timeout", "20"],
     {
       cwd: REPO_ROOT,
       detached: true,
@@ -132,11 +133,15 @@ function refresh(downloadOnly: boolean, noBrowser: boolean) {
 
   emit("running_sync");
   try {
-    const syncOut = execSync("npx tsx scripts/sync-youtube.ts", {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      stdio: "pipe",
-    });
+    const syncOut = execFileSync(
+      process.execPath,
+      [LOCAL_TSX_CLI, "scripts/sync-youtube.ts"],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        stdio: "pipe",
+      },
+    );
     const completion = syncOut
       .split(/\r?\n/)
       .flatMap((line) => {
@@ -188,11 +193,15 @@ function finishEnrichment(state: RefreshState) {
   const failures: string[] = [];
   emit("running_classify");
   try {
-    const classifyOut = execSync("npx tsx scripts/classify-youtube.ts", {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      stdio: "pipe",
-    });
+    const classifyOut = execFileSync(
+      process.execPath,
+      [LOCAL_TSX_CLI, "scripts/classify-youtube.ts"],
+      {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        stdio: "pipe",
+      },
+    );
     emit("classify_ok", { tail: classifyOut.slice(-500) });
   } catch {
     // Preserve the successful ingest, but fail this tick and retry enrichment.
@@ -207,8 +216,17 @@ function finishEnrichment(state: RefreshState) {
   // catch-up costs cents and a couple of minutes.
   emit("running_score");
   try {
-    const scoreOut = execSync(
-      "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
+    const scoreOut = execFileSync(
+      process.execPath,
+      [
+        LOCAL_TSX_CLI,
+        "scripts/score-youtube.ts",
+        "--scope",
+        "all",
+        "--top-up",
+        "--execute",
+        "--activate",
+      ],
       { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
     );
     emit("score_ok", { tail: scoreOut.slice(-500) });
