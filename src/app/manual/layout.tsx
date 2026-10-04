@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 
 import { siteIconMetadata } from "~/lib/icons/siteIconMetadata";
+import { getRootOrigin } from "~/lib/site/origin";
 import { SITE_PAGES } from "~/lib/site/pages";
 import { devSubdomainUrl } from "~/lib/util";
 
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Chappy's Personal Operating Manual",
     description: SITE_PAGES.manual.description,
-    url: "/",
+    url: `${getRootOrigin()}/manual`,
     siteName: "Chappy Asel",
     locale: "en_US",
     type: "website",
@@ -41,7 +42,8 @@ export const metadata: Metadata = {
     images: ["/images/manual-og.png"],
   },
   alternates: {
-    canonical: "/",
+    // HTML entry requests on the subdomain redirect to this document.
+    canonical: `${getRootOrigin()}/manual`,
   },
 };
 

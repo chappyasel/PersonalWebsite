@@ -1,3 +1,5 @@
+import manualData from "../../public/data/manual.json";
+import routineData from "../../public/data/routine.json";
 import systemsData from "../../public/data/systems.json";
 import { type MetadataRoute } from "next";
 
@@ -19,28 +21,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
     {
       url: "https://www.chappyasel.com/",
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },
     {
-      url: "https://books.chappyasel.com",
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: "https://manual.chappyasel.com",
-      lastModified: new Date(),
+      url: "https://www.chappyasel.com/manual",
+      lastModified: new Date(manualData.lastUpdated),
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: "https://routine.chappyasel.com",
-      lastModified: new Date(),
+      url: "https://www.chappyasel.com/routine",
+      lastModified: new Date(routineData.lastUpdated),
       changeFrequency: "monthly",
       priority: 0.8,
     },
+    ...["projects", "talks"].map((path) => ({
+      url: `https://www.chappyasel.com/${path}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
     {
       url: "https://www.chappyasel.com/systems",
       lastModified: new Date(systemsData.lastUpdated),

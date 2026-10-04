@@ -122,7 +122,7 @@ describe("local connected-site entry points", () => {
     );
     expect(response.headers.get("location")).toBe(expected);
   });
-  it.each(["books", "weightlifting", "manual", "routine"])(
+  it.each(["manual", "routine"])(
     "opens the production %s entry point in the main app",
     async (site) => {
       vi.stubEnv("NODE_ENV", "production");
@@ -157,4 +157,71 @@ describe("local connected-site entry points", () => {
     );
     expect(response.headers.get("location")).toBeNull();
   });
+});
+
+describe("production standalone section URLs", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(["books", "weightlifting"])(
+    "serves %s roots and deep links on their own host",
+    async (site) => {
+      vi.stubEnv("NODE_ENV", "production");
+      for (const path of ["/", "/example?sort=rating"]) {
+        const response = await proxy(
+          new NextRequest(`https://${site}.chappyasel.com${path}`, {
+            headers: { accept: "text/html" },
+          }),
+        );
+        expect(response.headers.get("location")).toBeNull();
+        expect(response.headers.get("x-middleware-rewrite")).toBe(
+          `https://${site}.chappyasel.com/${site}${path === "/" ? "" : path}`,
+        );
+      }
+    },
+  );
+
+  it.each(["books", "weightlifting"])(
+    "redirects old %s entry links without losing query parameters",
+    async (site) => {
+      vi.stubEnv("NODE_ENV", "production");
+      for (const method of ["GET", "HEAD"]) {
+        const response = await proxy(
+          new NextRequest(`https://www.chappyasel.com/${site}/?sort=rating`, {
+            method,
+            headers: { accept: "text/html" },
+          }),
+        );
+        expect(response.status).toBe(308);
+        expect(response.headers.get("location")).toBe(
+          `https://${site}.chappyasel.com/?sort=rating`,
+        );
+      }
+      const rsc = await proxy(
+        new NextRequest(`https://www.chappyasel.com/${site}`, {
+          headers: { rsc: "1", accept: "text/x-component" },
+        }),
+      );
+      expect(rsc.headers.get("location")).toBeNull();
+    },
+  );
+
+  it.each(["books", "weightlifting"])(
+    "strips only the complete %s prefix",
+    async (site) => {
+      vi.stubEnv("NODE_ENV", "production");
+      const prefixed = await proxy(
+        new NextRequest(`https://${site}.chappyasel.com/${site}/example?x=1`),
+      );
+      expect(prefixed.headers.get("location")).toBe(
+        `https://${site}.chappyasel.com/example?x=1`,
+      );
+      const slug = await proxy(
+        new NextRequest(`https://${site}.chappyasel.com/${site}-example`),
+      );
+      expect(slug.headers.get("location")).toBeNull();
+      expect(slug.headers.get("x-middleware-rewrite")).toBe(
+        `https://${site}.chappyasel.com/${site}/${site}-example`,
+      );
+    },
+  );
 });

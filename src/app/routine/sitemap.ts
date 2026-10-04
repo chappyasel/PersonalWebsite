@@ -8,7 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     {
-      url: "https://routine.chappyasel.com",
+      url: "https://www.chappyasel.com/routine",
       lastModified,
       changeFrequency: "monthly",
       priority: 1,

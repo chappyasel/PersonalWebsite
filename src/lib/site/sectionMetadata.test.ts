@@ -104,15 +104,18 @@ describe("section share previews", () => {
     },
   );
 
-  it("serves Routine's fixed sections under its canonical subdomain", async () => {
+  it("uses Routine's main-host canonical while keeping its preview image origin", async () => {
     const metadata = await sectionMetadata(
       "routine",
       Promise.resolve({ section: "morning" }),
-      parent("https://routine.chappyasel.com", "/"),
+      parent(
+        "https://routine.chappyasel.com",
+        "https://www.chappyasel.com/routine",
+      ),
     );
     expect(metadata.openGraph).toMatchObject({
       title: "Morning",
-      url: "https://routine.chappyasel.com/?section=morning",
+      url: "https://www.chappyasel.com/routine?section=morning",
       images: [
         {
           url: "https://routine.chappyasel.com/api/og/section?page=routine&section=morning",

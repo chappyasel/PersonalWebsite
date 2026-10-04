@@ -61,15 +61,32 @@ it.each([
   vi.stubEnv("NODE_ENV", "development");
   expect(prototypeDestination(href, from)?.href).toBe(expected);
 });
-it("keeps production portal navigation in the current main app", () => {
-  vi.stubEnv("NODE_ENV", "production");
-  expect(
-    prototypeDestination(
-      "https://weightlifting.chappyasel.com/",
-      "https://www.chappyasel.com/",
-    )?.href,
-  ).toBe("https://www.chappyasel.com/weightlifting");
-});
+it.each(["books", "weightlifting"])(
+  "leaves production %s links on their public host",
+  (site) => {
+    vi.stubEnv("NODE_ENV", "production");
+    for (const path of ["/", "/example?sort=rating#notes"]) {
+      expect(
+        prototypeDestination(
+          `https://${site}.chappyasel.com${path}`,
+          "https://www.chappyasel.com/",
+        ),
+      ).toBeNull();
+    }
+  },
+);
+it.each(["manual", "routine"])(
+  "keeps production %s navigation in the main app",
+  (site) => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(
+      prototypeDestination(
+        `https://${site}.chappyasel.com/`,
+        "https://www.chappyasel.com/",
+      )?.href,
+    ).toBe(`https://www.chappyasel.com/${site}`);
+  },
+);
 it("normalizes the main domain alias on the return trip", () => {
   vi.stubEnv("NODE_ENV", "production");
   expect(

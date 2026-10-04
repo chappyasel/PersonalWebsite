@@ -78,3 +78,18 @@ it("does not prepare transitions for external links or feeds", () => {
   expect(setItem).not.toHaveBeenCalled();
   expect(assign).toHaveBeenCalledWith("https://example.com/article");
 });
+
+it.each(["books", "weightlifting"])(
+  "preserves the production %s host on full-page navigation",
+  (site) => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const href = `https://${site}.chappyasel.com/example?x=1#notes`;
+      navigateFullDocument(href);
+      expect(assign).toHaveBeenCalledWith(href);
+      expect(setItem).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  },
+);

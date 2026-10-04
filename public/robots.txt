@@ -6,3 +6,5 @@ Disallow: /api/trpc/dad
 Disallow: /api/trpc/youtube
 
 Sitemap: https://www.chappyasel.com/sitemap.xml
+Sitemap: https://books.chappyasel.com/sitemap.xml
+Sitemap: https://weightlifting.chappyasel.com/sitemap.xml

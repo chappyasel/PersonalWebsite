@@ -35,16 +35,54 @@ export async function proxy(req: NextRequest) {
 
   const hostname = req.headers.get("host") ?? req.nextUrl.hostname;
 
+  // Metadata files normally bypass section rewrites. Each standalone host
+  // must serve its own sitemap at the endpoint advertised in robots.txt.
+  if (pathname === "/sitemap.xml") {
+    const site = ["books", "weightlifting"].find(
+      (site) =>
+        hostname === `${site}.chappyasel.com` ||
+        hostname === `${site}.localhost` ||
+        hostname.startsWith(`${site}.localhost:`),
+    );
+    if (!site) return NextResponse.next();
+    const url = req.nextUrl.clone();
+    url.pathname = `/${site}/sitemap.xml`;
+    return NextResponse.rewrite(url);
+  }
+
+  // Keep old entry links working while giving full-page visits the public
+  // subdomain address. RSC and deep path aliases still support inline sheets.
+  if (
+    process.env.NODE_ENV === "production" &&
+    ["www.chappyasel.com", "chappyasel.com"].includes(hostname) &&
+    req.headers.get("rsc") !== "1" &&
+    (req.method === "HEAD" ||
+      (req.method === "GET" &&
+        req.headers.get("accept")?.includes("text/html")))
+  ) {
+    const site = ["books", "weightlifting"].find(
+      (site) => pathname === `/${site}` || pathname === `/${site}/`,
+    );
+    if (site) {
+      const url = req.nextUrl.clone();
+      url.protocol = "https:";
+      url.hostname = `${site}.chappyasel.com`;
+      url.port = "";
+      url.pathname = "/";
+      return NextResponse.redirect(url, 308);
+    }
+  }
+
   // Local site entry points share one document once opened. This lets the
   // room/page transition controller survive navigation in either direction.
-  // Production section entry pages also join the main app; deep subdomain
-  // URLs, assets, APIs, and RSC requests retain their existing routing.
+  // Manual and Routine use main-host paths in production. Books and
+  // Weightlifting retain their standalone hosts.
   const localSite = ["books", "weightlifting", "manual", "routine"].find(
     (site) =>
       hostname === `${site}.localhost` ||
       hostname.startsWith(`${site}.localhost:`),
   );
-  const productionSite = ["books", "weightlifting", "manual", "routine"].find(
+  const productionSite = ["manual", "routine"].find(
     (site) =>
       hostname === `${site}.chappyasel.com` &&
       (pathname === "/" || pathname === `/${site}` || pathname === `/${site}/`),
@@ -78,13 +116,14 @@ export async function proxy(req: NextRequest) {
 
   // books.chappyasel.com → /books/*
   const isBooksSubdomain =
-    hostname.startsWith("books.localhost") ||
-    hostname.endsWith("books.chappyasel.com");
+    hostname === "books.localhost" ||
+    hostname.startsWith("books.localhost:") ||
+    hostname === "books.chappyasel.com";
 
   if (isBooksSubdomain) {
     const url = req.nextUrl.clone();
 
-    if (url.pathname.startsWith("/books")) {
+    if (url.pathname === "/books" || url.pathname.startsWith("/books/")) {
       const newPath = url.pathname.replace(/^\/books/, "") || "/";
       url.pathname = newPath;
       return NextResponse.redirect(url);
@@ -141,13 +180,17 @@ export async function proxy(req: NextRequest) {
 
   // weightlifting.chappyasel.com → /weightlifting/*
   const isWeightliftingSubdomain =
-    hostname.startsWith("weightlifting.localhost") ||
-    hostname.endsWith("weightlifting.chappyasel.com");
+    hostname === "weightlifting.localhost" ||
+    hostname.startsWith("weightlifting.localhost:") ||
+    hostname === "weightlifting.chappyasel.com";
 
   if (isWeightliftingSubdomain) {
     const url = req.nextUrl.clone();
 
-    if (url.pathname.startsWith("/weightlifting")) {
+    if (
+      url.pathname === "/weightlifting" ||
+      url.pathname.startsWith("/weightlifting/")
+    ) {
       const newPath = url.pathname.replace(/^\/weightlifting/, "") || "/";
       url.pathname = newPath;
       return NextResponse.redirect(url);
@@ -165,6 +208,7 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/sitemap.xml",
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)

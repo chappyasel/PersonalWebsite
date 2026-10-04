@@ -107,6 +107,10 @@ export function prototypeDestination(
         : [`${site}.localhost`, `${site}.chappyasel.com`]
       ).includes(url.hostname),
     );
+    // A production standalone section must keep its public host. Returning
+    // null leaves the link or scene action to perform cross-origin navigation.
+    if (production && (portal === "books" || portal === "weightlifting"))
+      return null;
     if (portal) {
       const path =
         url.pathname === `/${portal}` || url.pathname.startsWith(`/${portal}/`)

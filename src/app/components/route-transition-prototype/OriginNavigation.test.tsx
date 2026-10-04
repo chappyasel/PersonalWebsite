@@ -101,20 +101,44 @@ it.each(["development", "production"])(
     const view = render(
       <>
         <PageUnderTest />
-        <a href="https://books.chappyasel.com/" target="_blank">
-          Book Notes
+        <a href="https://manual.chappyasel.com/" target="_blank">
+          Manual
         </a>
       </>,
     );
     expect(
       screen.queryByRole("region", { name: "Route transition prototype" }),
     ).toBeNull();
-    await act(async () => fireEvent.click(screen.getByText("Book Notes")));
-    expect(navigation.router.push).toHaveBeenCalledWith("/books");
+    await act(async () => fireEvent.click(screen.getByText("Manual")));
+    expect(navigation.router.push).toHaveBeenCalledWith("/manual");
     expect(document.documentElement.dataset.routePrototype).toBe("origin");
-    navigation.pathname = "/books";
+    navigation.pathname = "/manual";
     await act(async () => view.rerender(<PageUnderTest />));
     await act(async () => finish());
+  },
+);
+
+it.each(["books", "weightlifting"])(
+  "leaves production %s link and scene navigation to the browser",
+  async (site) => {
+    vi.stubEnv("NODE_ENV", "production");
+    const href = `https://${site}.chappyasel.com/`;
+    render(
+      <>
+        <PageUnderTest />
+        <a href={href} target="_blank">
+          Standalone section
+        </a>
+      </>,
+    );
+    await act(async () => {
+      expect(fireEvent.click(screen.getByText("Standalone section"))).toBe(
+        true,
+      );
+      expect(requestPrototypeNavigation(href)).toBe(false);
+    });
+    expect(navigation.router.push).not.toHaveBeenCalled();
+    expect(vi.spyOn(document, "startViewTransition")).not.toHaveBeenCalled();
   },
 );
 
