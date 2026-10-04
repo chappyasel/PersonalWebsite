@@ -208,12 +208,18 @@ export async function syncBooksFromNotion(
         ];
     // Four workers bound outbound catalog concurrency. Each failure is isolated.
     const recovered = new Map<string, NotionBook>();
+    const metadataFailures: string[] = [];
     let next = 0;
     await Promise.all(
       Array.from({ length: Math.min(4, batch.length) }, async () => {
         while (next < batch.length) {
           const book = batch[next++]!;
-          recovered.set(book.notionId, await enrichNotionBook(book));
+          recovered.set(
+            book.notionId,
+            await enrichNotionBook(book, (reason) =>
+              metadataFailures.push(`${book.title} (${reason})`),
+            ),
+          );
         }
       }),
     );
@@ -327,6 +333,13 @@ export async function syncBooksFromNotion(
         timestamp: new Date(),
       }));
     if (guardError) errors.push(guardError);
+    if (metadataFailures.length)
+      errors.push({
+        bookId: "book-metadata",
+        bookTitle: "Catalog metadata",
+        error: `${metadataFailures.length} lookup(s) failed: ${metadataFailures.join("; ")}`,
+        timestamp: new Date(),
+      });
     const embeddingError = await refreshNoteSearch(onlyIds);
     if (embeddingError) errors.push(embeddingError);
     const result: SyncResult = {

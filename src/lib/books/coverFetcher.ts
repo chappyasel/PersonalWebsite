@@ -1,13 +1,17 @@
-import { stripCoverCurl } from "./coverUtils";
 /**
  * Book cover fetcher using Amazon print editions, Google Books, and Open
- * Library. Callers only invoke this for new books whose Notion cover is blank.
+ * Library. Metadata enrichment calls it when a Notion cover is blank and the
+ * catalog evidence cannot pin one edition. Self-contained (no ~/env import)
+ * so the backfill script can use it too.
  */
 import { fetchAmazonPrintCover } from "./amazonCoverFetcher";
+import { stripCoverCurl } from "./coverUtils";
 
 type GoogleBooksResponse = {
   items?: Array<{
     volumeInfo: {
+      title?: string;
+      authors?: string[];
       imageLinks?: {
         thumbnail?: string;
         small?: string;
@@ -33,8 +37,20 @@ async function fetchFromGoogleBooks(
   author: string,
 ): Promise<string | null> {
   try {
-    const query = `intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(author)}`;
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
+    // Google returns nothing for a query made only of intitle:/inauthor:
+    // operators, so search the quoted phrases and keep the first volume whose
+    // title starts with the book's and whose authors include its surname.
+    const params = new URLSearchParams({
+      q: [title, author]
+        .filter((part) => part.trim())
+        .map((part) => JSON.stringify(part))
+        .join(" "),
+      maxResults: "10",
+    });
+    // Keyless requests share a project whose daily quota is 0.
+    const key = process.env.GOOGLE_BOOKS_API_KEY;
+    if (key) params.set("key", key);
+    const url = `https://www.googleapis.com/books/v1/volumes?${params}`;
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -43,9 +59,20 @@ async function fetchFromGoogleBooks(
     }
 
     const data = (await response.json()) as GoogleBooksResponse;
+    const wantedTitle = normalize(title);
+    const surname = normalize(author).split(" ").pop() ?? "";
+    const volume = data.items?.find(
+      ({ volumeInfo: info }) =>
+        info.imageLinks &&
+        normalize(info.title ?? "").startsWith(wantedTitle) &&
+        (!surname ||
+          (info.authors ?? []).some((name) =>
+            normalize(name).split(" ").includes(surname),
+          )),
+    );
 
-    if (data.items?.[0]?.volumeInfo.imageLinks) {
-      const imageLinks = data.items[0].volumeInfo.imageLinks;
+    if (volume?.volumeInfo.imageLinks) {
+      const imageLinks = volume.volumeInfo.imageLinks;
       // Prefer higher resolution images
       let coverUrl =
         imageLinks.extraLarge ??
@@ -74,6 +101,14 @@ async function fetchFromGoogleBooks(
     console.error("Error fetching from Google Books:", error);
     return null;
   }
+}
+
+function normalize(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 /**
