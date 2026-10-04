@@ -302,8 +302,12 @@ export const BookCard = memo(function BookCard({
       return;
     }
 
-    // Remove focus to prevent Safari focus ring
-    cardRef.current?.blur();
+    // Remove focus to prevent a focus ring. whileTap gives the inner
+    // motion.div tabindex="0", so a click focuses it rather than the button,
+    // and the modal hands focus back to it on close (a ring after Escape).
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && cardRef.current?.contains(focused))
+      focused.blur();
     // On a phone the book is its own page, not a modal over the shelf
     // (components/modal-sheet/sheetRoute).
     if (loadFullPageOnSmallViewport(bookUrl, { source: cardRef.current }))
