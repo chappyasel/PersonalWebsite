@@ -1,37 +1,28 @@
 /**
- * Top-level state machine for the YouTube Takeout auto-refresh.
- * Idempotent — safe to run on a cron tick. Exits 0 always; the agent reads
- * stdout (one JSON event per line) to decide whether to post a summary.
- *
- * Behaviour by current state:
- *   idle      — if last_ingested_at is older than MIN_AGE_DAYS AND today is a
- *               request day, try the HEADLESS request (request.ts):
- *                 • exit 0  → mark `requested` (fully automatic, no human).
- *                 • exit 4  → Google demanded a passkey step-up. Launch the
- *                             headed approval window (approve.ts) for a one-tap
- *                             human approval and emit `request_needs_passkey`.
- *                 • exit 1  → session expired → emit `requested_auth_failure`.
- *   requested — try download.ts (Drive API). On success run sync + classify +
- *               score top-up → mark idle. "Not ready" → wait. Stuck >
- *               GIVE_UP_DAYS → give up.
- *
- * A staleness watchdog runs on every tick regardless of state: if the data is
- * older than STALE_ALERT_DAYS it emits `data_stale` (throttled to once/24h) so
- * silent drift can't go unnoticed.
- *
- * Run with: npx tsx scripts/takeout/refresh.ts
+ * Discover Drive archives on every tick, then apply the existing request policy.
+ * --no-browser: discover + sync + classify + score, with no export requests/UI.
+ * --download-only: stage an archive only; no DB writes, enrichment or browser.
+ * Drive/ingestion/enrichment failures exit nonzero. Expired request-browser
+ * auth stays observable without pausing the cron that discovers Drive archives.
  */
-
-import { execSync, spawnSync, spawn } from "child_process";
+import { execSync, spawn, spawnSync } from "child_process";
 import * as path from "path";
-import { readState, writeState } from "./state";
+
+import { acquireRefreshLock } from "./lock";
+import {
+  type RefreshState,
+  ingestedArchive,
+  readDownloadedArchive,
+  readState,
+  writeState,
+} from "./state";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
-const MIN_AGE_DAYS = 5;        // request a new export at most ~weekly
-const GIVE_UP_DAYS = 5;        // abandon a stuck request after this long
+const MIN_AGE_DAYS = 5; // request a new export at most ~weekly
+const GIVE_UP_DAYS = 5; // abandon a stuck request after this long
 const REQUEST_DAYS = new Set([0, 6]); // 0=Sun, 6=Sat — request on the weekend (Saturday anchor)
-const STALE_ALERT_DAYS = 9;    // loud watchdog alert if the data is older than this
+const STALE_ALERT_DAYS = 9; // loud watchdog alert if the data is older than this
 const APPROVAL_PENDING_MIN = 25; // don't relaunch a headed approval within this window
 
 function daysAgo(iso: string | null | undefined): number {
@@ -44,7 +35,10 @@ function minutesAgo(iso: string | null | undefined): number {
   return (Date.now() - new Date(iso).getTime()) / 60_000;
 }
 
-function runScript(rel: string, args: string[] = []): { code: number; out: string } {
+function runScript(
+  rel: string,
+  args: string[] = [],
+): { code: number; out: string } {
   const res = spawnSync("npx", ["tsx", rel, ...args], {
     cwd: REPO_ROOT,
     encoding: "utf8",
@@ -56,11 +50,15 @@ function runScript(rel: string, args: string[] = []): { code: number; out: strin
 
 /** Open the headed one-tap approval window, detached so it outlives this tick. */
 function launchApprovalDetached() {
-  const child = spawn("npx", ["tsx", "scripts/takeout/approve.ts", "--timeout", "20"], {
-    cwd: REPO_ROOT,
-    detached: true,
-    stdio: "ignore",
-  });
+  const child = spawn(
+    "npx",
+    ["tsx", "scripts/takeout/approve.ts", "--timeout", "20"],
+    {
+      cwd: REPO_ROOT,
+      detached: true,
+      stdio: "ignore",
+    },
+  );
   child.unref();
 }
 
@@ -68,7 +66,7 @@ function emit(event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...data }));
 }
 
-async function main() {
+function refresh(downloadOnly: boolean, noBrowser: boolean) {
   const state = readState();
   emit("state_loaded", { state });
 
@@ -80,6 +78,161 @@ async function main() {
     emit("data_stale", { age_days: Math.round(ingestAge) });
   }
 
+  const watermark = ingestedArchive(state);
+  const args: string[] = [];
+  if (watermark?.exportCreatedAt)
+    args.push("--after-export-created-at", watermark.exportCreatedAt);
+  if (watermark?.driveFileId)
+    args.push("--exclude-file-id", watermark.driveFileId);
+  emit("checking_download");
+  const dl = runScript("scripts/takeout/download.ts", args);
+  if (dl.code === 3) {
+    if (!downloadOnly && state.enrichment_pending) {
+      finishEnrichment(state);
+      return;
+    }
+    if (noBrowser || downloadOnly) {
+      emit("no_new_archive");
+      return;
+    }
+    requestIfDue(state);
+    return;
+  }
+  if (dl.code === 1) {
+    writeState({
+      ...state,
+      last_error: "drive_auth_failed",
+      consecutive_failures: state.consecutive_failures + 1,
+    });
+    emit("download_auth_failure");
+    process.exitCode = 1;
+    return;
+  }
+  if (dl.code !== 0) {
+    writeState({
+      ...state,
+      last_error: `download_failed_${dl.code}`,
+      consecutive_failures: state.consecutive_failures + 1,
+    });
+    emit("download_failed", { code: dl.code });
+    process.exitCode = 1;
+    return;
+  }
+
+  const archive = readDownloadedArchive();
+  if (!archive) throw new Error("missing_archive_sidecar");
+  emit("download_ok", {
+    source_file: archive.sourceFile,
+    export_created_at: archive.exportCreatedAt,
+  });
+  if (downloadOnly) {
+    emit("download_only_complete");
+    return;
+  }
+
+  emit("running_sync");
+  try {
+    const syncOut = execSync("npx tsx scripts/sync-youtube.ts", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    const completion = syncOut
+      .split(/\r?\n/)
+      .flatMap((line) => {
+        try {
+          return [JSON.parse(line) as Record<string, unknown>];
+        } catch {
+          return [];
+        }
+      })
+      .find((event) => event?.event === "youtube_sync_complete");
+    if (
+      completion?.status !== "success" ||
+      completion.exportCreatedAt !== archive.exportCreatedAt ||
+      completion.sourceFile !== archive.sourceFile
+    ) {
+      throw new Error("sync_success_not_confirmed");
+    }
+    emit("sync_ok", { export_created_at: archive.exportCreatedAt });
+  } catch {
+    writeState({
+      ...state,
+      last_error: `sync_failed`,
+      consecutive_failures: state.consecutive_failures + 1,
+    });
+    emit("sync_failed");
+    process.exitCode = 1;
+    return;
+  }
+
+  // Commit ingestion before enrichment. A failed score/classify retry must not
+  // cause another sync of the same archive on the next tick.
+  const ingested: RefreshState = {
+    ...state,
+    state: "idle",
+    requested_at: null,
+    last_ingested_at: new Date().toISOString(),
+    last_ingested_archive: archive,
+    last_error: null,
+    consecutive_failures: 0,
+    approval_pending_since: null,
+    last_stale_alert_at: null,
+    enrichment_pending: true,
+  };
+  writeState(ingested);
+  finishEnrichment(ingested);
+}
+
+function finishEnrichment(state: RefreshState) {
+  const failures: string[] = [];
+  emit("running_classify");
+  try {
+    const classifyOut = execSync("npx tsx scripts/classify-youtube.ts", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    emit("classify_ok", { tail: classifyOut.slice(-500) });
+  } catch {
+    // Preserve the successful ingest, but fail this tick and retry enrichment.
+    failures.push("classify_failed");
+    emit("classify_failed");
+  }
+
+  // Learning Value and Positivity read yt_classifications, which the step above
+  // does not write; without this the dashboard's score coverage decays a little
+  // more with every ingest. --top-up appends the few hundred videos this export
+  // brought to the live run rather than rescoring the whole library, so a week's
+  // catch-up costs cents and a couple of minutes.
+  emit("running_score");
+  try {
+    const scoreOut = execSync(
+      "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
+      { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
+    );
+    emit("score_ok", { tail: scoreOut.slice(-500) });
+  } catch {
+    // The next tick retries the top-up without reingesting.
+    failures.push("score_failed");
+    emit("score_failed");
+  }
+
+  writeState({
+    ...state,
+    enrichment_pending: failures.length > 0,
+    last_error: failures.length ? failures.join(",") : null,
+    consecutive_failures: failures.length ? state.consecutive_failures + 1 : 0,
+  });
+  if (failures.length) {
+    process.exitCode = 1;
+    emit("refresh_incomplete", { failures });
+  } else {
+    emit("refresh_complete");
+  }
+}
+
+function requestIfDue(state: RefreshState) {
   if (state.state === "idle") {
     const ageDays = daysAgo(state.last_ingested_at);
     const today = new Date().getDay();
@@ -104,7 +257,7 @@ async function main() {
 
     // Try the fully-automatic headless request first.
     emit("requesting_export", { last_ingest_age_days: Math.round(ageDays) });
-    const { code, out } = runScript("scripts/takeout/request.ts");
+    const { code } = runScript("scripts/takeout/request.ts");
 
     if (code === 0) {
       writeState({
@@ -132,14 +285,17 @@ async function main() {
         last_error: "google_auth_expired",
         consecutive_failures: state.consecutive_failures + 1,
       });
-      emit("requested_auth_failure", { tail: out.slice(-500) });
+      // Browser auth is independent of Drive OAuth. A nonzero tick here can
+      // auto-pause cron and prevent future archive discovery.
+      emit("requested_auth_failure");
     } else {
       writeState({
         ...state,
         last_error: `request_failed_${code}`,
         consecutive_failures: state.consecutive_failures + 1,
       });
-      emit("requested_failed", { code, tail: out.slice(-500) });
+      emit("requested_failed", { code });
+      process.exitCode = 1;
     }
     return;
   }
@@ -155,105 +311,41 @@ async function main() {
       consecutive_failures: state.consecutive_failures + 1,
     });
     emit("gave_up_on_stuck_request", { age_days: Math.round(reqAge) });
+    process.exitCode = 1;
     return;
   }
 
-  emit("checking_download", { request_age_days: Math.round(reqAge) });
-  const dl = runScript("scripts/takeout/download.ts", [
-    "--requested-at",
-    state.requested_at!,
-  ]);
-
-  if (dl.code === 3) {
-    emit("not_ready_yet");
-    return;
-  }
-  if (dl.code === 1) {
-    writeState({
-      ...state,
-      last_error: "google_auth_expired",
-      consecutive_failures: state.consecutive_failures + 1,
-    });
-    emit("download_auth_failure", { tail: dl.out.slice(-500) });
-    return;
-  }
-  if (dl.code !== 0) {
-    writeState({
-      ...state,
-      last_error: `download_failed_${dl.code}`,
-      consecutive_failures: state.consecutive_failures + 1,
-    });
-    emit("download_failed", { code: dl.code, tail: dl.out.slice(-500) });
-    return;
-  }
-
-  emit("download_ok", { tail: dl.out.slice(-300) });
-
-  emit("running_sync");
-  try {
-    const syncOut = execSync("npx tsx scripts/sync-youtube.ts", {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      stdio: "pipe",
-    });
-    emit("sync_ok", { tail: syncOut.slice(-500) });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    writeState({
-      ...state,
-      last_error: `sync_failed`,
-      consecutive_failures: state.consecutive_failures + 1,
-    });
-    emit("sync_failed", { error: msg.slice(-500) });
-    return;
-  }
-
-  emit("running_classify");
-  try {
-    const classifyOut = execSync("npx tsx scripts/classify-youtube.ts", {
-      cwd: REPO_ROOT,
-      encoding: "utf8",
-      stdio: "pipe",
-    });
-    emit("classify_ok", { tail: classifyOut.slice(-500) });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // Classify failure is non-fatal — ingest already happened.
-    emit("classify_failed", { error: msg.slice(-500) });
-  }
-
-  // Learning Value and Positivity read yt_classifications, which the step above
-  // does not write; without this the dashboard's score coverage decays a little
-  // more with every ingest. --top-up appends the few hundred videos this export
-  // brought to the live run rather than rescoring the whole library, so a week's
-  // catch-up costs cents and a couple of minutes.
-  emit("running_score");
-  try {
-    const scoreOut = execSync(
-      "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
-      { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
-    );
-    emit("score_ok", { tail: scoreOut.slice(-500) });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // Also non-fatal: stale scores are better than a failed refresh, and the
-    // next tick tops up whatever this one missed.
-    emit("score_failed", { error: msg.slice(-500) });
-  }
-
-  writeState({
-    state: "idle",
-    requested_at: null,
-    last_ingested_at: new Date().toISOString(),
-    last_error: null,
-    consecutive_failures: 0,
-    approval_pending_since: null,
-    last_stale_alert_at: null,
-  });
-  emit("refresh_complete");
+  emit("not_ready_yet");
 }
 
-main().catch((err) => {
-  emit("orchestrator_crashed", { error: err instanceof Error ? err.message : String(err) });
-  process.exit(0);
-});
+function main() {
+  const args = process.argv.slice(2);
+  if (args.includes("--help")) {
+    console.log(
+      "Usage: tsx scripts/takeout/refresh.ts [--no-browser | --download-only]\n--no-browser: discover, sync, classify and score; never request an export or open a browser.\n--download-only: stage the archive and sidecar; no DB writes, enrichment or browser.",
+    );
+    return;
+  }
+  if (args.some((arg) => !["--no-browser", "--download-only"].includes(arg))) {
+    throw new Error("invalid_refresh_arguments");
+  }
+  const release = acquireRefreshLock();
+  try {
+    refresh(args.includes("--download-only"), args.includes("--no-browser"));
+  } finally {
+    release();
+  }
+}
+
+try {
+  main();
+} catch (error) {
+  // Child output and API error objects can contain credentials. Emit only a
+  // controlled status; the CLI exit code is the scheduler's failure signal.
+  emit(
+    error instanceof Error && error.message === "refresh_lock_busy"
+      ? "refresh_lock_busy"
+      : "orchestrator_crashed",
+  );
+  process.exitCode = 1;
+}

@@ -5,6 +5,7 @@ import * as os from "os";
 import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { sidecarPathFor } from "./coverage";
 import { syncYouTube } from "./sync";
 
 const mocks = vi.hoisted(() => ({
@@ -113,5 +114,26 @@ describe("syncYouTube", () => {
         .sql.includes("INSERT INTO yt_watch_events"),
     );
     expect(wrote).toBe(false);
+  });
+});
+
+it("records archive creation coverage, separately from ingestion and newest watch", async () => {
+  const historyPath = takeoutFile([
+    watched("aaaaaaaaaaa", "2026-09-27T19:41:31.917Z"),
+  ]);
+  fs.writeFileSync(
+    sidecarPathFor(historyPath),
+    JSON.stringify({
+      exportCreatedAt: "2026-09-28T06:04:58.013Z",
+      sourceFile: "takeout-20260928T055945Z-1-001.zip",
+      downloadedAt: "2026-10-03T12:00:00.000Z",
+    }),
+  );
+  await syncYouTube("manual", historyPath);
+  expect(mocks.completed.at(-1)).toMatchObject({
+    status: "success",
+    exportCreatedAt: new Date("2026-09-28T06:04:58.013Z"),
+    latestWatchAt: new Date("2026-09-27T19:41:31.917Z"),
+    sourceFile: "takeout-20260928T055945Z-1-001.zip",
   });
 });

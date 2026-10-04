@@ -1,199 +1,168 @@
-/**
- * Find the newest Takeout zip in Google Drive (newer than --requested-at),
- * download it via Drive API, extract watch-history.json, place at canonical
- * path the sync script reads.
- *
- * Replaces the prior Playwright-based download flow, which Google's passkey
- * reauth gate makes impossible from headless contexts.
- *
- * Exit codes:
- *   0 = downloaded + extracted; downstream sync can run
- *   3 = no ready export yet (try again later)
- *   1 = auth failure (need to re-run drive-auth)
- *   2 = unexpected failure
- *
- * Args: --requested-at <ISO>
+/** Drive-only archive discovery. No browser or export requests.
+ * Exit 0: staged history + provenance; 3: no newer YouTube archive;
+ * 1: Drive auth failure; 2: download/extraction/argument failure.
+ * Optional filters: --after-export-created-at <ISO>, --exclude-file-id <id>.
+ * --requested-at <ISO> remains available for older standalone callers.
  */
 import {
   type TakeoutSidecar,
   parseTakeoutTimestamp,
   sidecarPathFor,
 } from "../../src/lib/youtube/coverage";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import * as fs from "fs";
+import type { drive_v3 } from "googleapis";
+import { pipeline } from "node:stream/promises";
+import { pathToFileURL } from "node:url";
 import * as os from "os";
 import * as path from "path";
 
 import { getDrive } from "./drive";
 
-const DATA_ROOT = path.join(os.homedir(), ".local/share/youtube-takeout");
-const DOWNLOAD_DIR = path.join(DATA_ROOT, "incoming");
-const FINAL_PATH = path.join(DATA_ROOT, "watch-history.json");
+export type DownloadOptions = {
+  afterExportCreatedAt?: string;
+  excludeFileId?: string;
+  requestedAt?: string;
+};
 
-function parseArgs(): { requestedAt: Date } {
-  const idx = process.argv.indexOf("--requested-at");
-  if (idx === -1 || !process.argv[idx + 1]) {
-    throw new Error("--requested-at <ISO> is required");
+function archiveTime(file: drive_v3.Schema$File): string | undefined {
+  if (file.createdTime && Number.isFinite(Date.parse(file.createdTime))) {
+    return new Date(file.createdTime).toISOString();
   }
-  return { requestedAt: new Date(process.argv[idx + 1]!) };
+  return parseTakeoutTimestamp(file.name ?? "")?.toISOString();
 }
 
-async function main() {
-  const { requestedAt } = parseArgs();
-  fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
-
-  let drive;
-  try {
-    drive = getDrive();
-  } catch (err) {
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exit(1);
+export async function downloadLatestArchive(
+  options: DownloadOptions = {},
+): Promise<0 | 3> {
+  for (const value of [options.afterExportCreatedAt, options.requestedAt]) {
+    if (value !== undefined && !Number.isFinite(Date.parse(value))) {
+      throw new Error("Invalid archive date filter");
+    }
   }
-
-  // Find Takeout zips. Google delivers them to a "Takeout" folder in the user's
-  // Drive as multiple files per export: "takeout-YYYYMMDDTHHMMSSZ-NNN.zip" and
-  // "takeout-YYYYMMDDTHHMMSSZ-3-NNN.zip". The "-3-" file is the YouTube one
-  // (different service IDs get different prefixes). Mime is "application/x-zip".
-  const q =
-    "name contains 'takeout-' and (mimeType = 'application/zip' or mimeType = 'application/x-zip-compressed' or mimeType = 'application/x-zip') and trashed = false";
-  let resp;
-  try {
-    resp = await drive.files.list({
-      q,
+  const drive = getDrive();
+  const files: drive_v3.Schema$File[] = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await drive.files.list({
+      q: "name contains 'takeout-' and (mimeType = 'application/zip' or mimeType = 'application/x-zip-compressed' or mimeType = 'application/x-zip') and trashed = false",
       orderBy: "createdTime desc",
-      pageSize: 25,
-      fields: "files(id, name, size, createdTime, md5Checksum)",
+      pageSize: 100,
+      fields: "nextPageToken,files(id,name,size,createdTime,md5Checksum)",
+      pageToken,
     });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/invalid_grant|unauthorized/i.test(msg)) {
-      console.error(
-        "Drive auth failed — refresh token may be revoked. Re-run `pnpm takeout:drive-auth`.",
-      );
-      process.exit(1);
-    }
-    console.error("Drive list failed:", msg);
-    process.exit(2);
-  }
+    files.push(...(response.data.files ?? []));
+    pageToken = response.data.nextPageToken ?? undefined;
+  } while (pageToken);
 
-  const files = resp.data.files ?? [];
-  if (files.length === 0) {
-    console.log("No Takeout zips in Drive yet.");
-    process.exit(3);
-  }
+  // Request age never filters the refresh path. The only watermark there is
+  // the archive whose sync succeeded, not its download or ingestion time.
+  const candidates = files
+    .flatMap((file) => {
+      const at = archiveTime(file);
+      if (!file.id || !at || file.id === options.excludeFileId) return [];
+      if (
+        options.afterExportCreatedAt &&
+        Date.parse(at) <= Date.parse(options.afterExportCreatedAt)
+      )
+        return [];
+      if (
+        options.requestedAt &&
+        Date.parse(at) < Date.parse(options.requestedAt) - 3_600_000
+      )
+        return [];
+      return [{ file, at }];
+    })
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
-  // Pick fresh files (createdTime ≥ requested_at − 1h). Google has changed the
-  // service archive number over time (-3- in June 2026, -2- in July 2026), so
-  // do not depend on the filename to identify the YouTube zip. Download fresh
-  // candidates newest-first and keep the one that actually contains
-  // watch-history.json.
-  const marginMs = 60 * 60_000;
-  const cutoff = new Date(requestedAt.getTime() - marginMs);
-  const fresh = files.filter(
-    (f) => f.createdTime && new Date(f.createdTime) >= cutoff,
-  );
-  if (fresh.length === 0) {
-    console.log(
-      `Newest Takeout zip in Drive (${files[0]?.createdTime}) is older than requested_at ${requestedAt.toISOString()}. Not ready yet.`,
-    );
-    process.exit(3);
-  }
-
-  let zipPath: string | null = null;
-  let extractDir: string | null = null;
-  let chosen: (typeof fresh)[number] | null = null;
-
-  for (const candidate of fresh) {
-    console.log(
-      `Checking: ${candidate.name} (${candidate.size} bytes, created ${candidate.createdTime}, id=${candidate.id})`,
-    );
-
-    const candidateZipPath = path.join(
-      DOWNLOAD_DIR,
-      candidate.name ?? `takeout-${Date.now()}.zip`,
-    );
-    const stream = await drive.files.get(
-      { fileId: candidate.id!, alt: "media" },
-      { responseType: "stream" },
-    );
-    await new Promise<void>((resolve, reject) => {
-      const out = fs.createWriteStream(candidateZipPath);
-      stream.data.on("error", reject);
-      out.on("error", reject);
-      out.on("close", resolve);
-      stream.data.pipe(out);
-    });
-    console.log(
-      `Downloaded → ${candidateZipPath} (${fs.statSync(candidateZipPath).size} bytes)`,
-    );
-
-    const candidateExtractDir = path.join(
-      DOWNLOAD_DIR,
-      `extract-${Date.now()}`,
-    );
-    fs.mkdirSync(candidateExtractDir, { recursive: true });
+  const dataRoot = path.join(os.homedir(), ".local/share/youtube-takeout");
+  const incoming = path.join(dataRoot, "incoming");
+  fs.mkdirSync(incoming, { recursive: true });
+  for (const { file, at } of candidates) {
+    const staging = fs.mkdtempSync(path.join(incoming, "download-"));
     try {
-      execSync(
-        `unzip -j -o "${candidateZipPath}" "*/watch-history.json" -d "${candidateExtractDir}"`,
-        {
-          stdio: "inherit",
-        },
+      const zipPath = path.join(staging, "archive.zip");
+      const stream = await drive.files.get(
+        { fileId: file.id!, alt: "media" },
+        { responseType: "stream" },
       );
-      zipPath = candidateZipPath;
-      extractDir = candidateExtractDir;
-      chosen = candidate;
-      break;
-    } catch {
-      fs.rmSync(candidateExtractDir, { recursive: true, force: true });
-      console.log(
-        "No watch-history.json in this zip; trying next fresh Takeout zip.",
-      );
+      await pipeline(stream.data, fs.createWriteStream(zipPath));
+      // Listing errors indicate a broken zip, not an export that isn't ready.
+      const entries = execFileSync("unzip", ["-Z1", zipPath], {
+        encoding: "utf8",
+        maxBuffer: 16 * 1024 * 1024,
+        stdio: "pipe",
+      });
+      const histories = entries
+        .split(/\r?\n/)
+        .filter((entry) => /(^|\/)watch-history\.json$/.test(entry));
+      if (!histories.length) continue; // Service suffixes change; inspect contents.
+      if (histories.length !== 1)
+        throw new Error("Ambiguous watch history archive");
+      const extracted = path.join(staging, "watch-history.json");
+      const fd = fs.openSync(extracted, "w");
+      try {
+        execFileSync("unzip", ["-p", zipPath, histories[0]!], {
+          stdio: ["ignore", fd, "pipe"],
+        });
+      } finally {
+        fs.closeSync(fd);
+      }
+      const finalPath = path.join(dataRoot, "watch-history.json");
+      const sidecar: TakeoutSidecar = {
+        exportCreatedAt: at,
+        sourceFile: file.name ?? "unknown-takeout.zip",
+        driveFileId: file.id!,
+        downloadedAt: new Date().toISOString(),
+      };
+      const metaPath = path.join(staging, "watch-history.meta.json");
+      fs.writeFileSync(metaPath, JSON.stringify(sidecar, null, 2));
+      fs.renameSync(extracted, finalPath);
+      fs.renameSync(metaPath, sidecarPathFor(finalPath));
+      console.log(JSON.stringify({ event: "archive_staged", ...sidecar }));
+      return 0;
+    } finally {
+      fs.rmSync(staging, { recursive: true, force: true });
     }
   }
-
-  if (!zipPath || !extractDir) {
-    console.error("No fresh Takeout zip contained watch-history.json.");
-    process.exit(3);
-  }
-
-  const extracted = path.join(extractDir, "watch-history.json");
-  if (!fs.existsSync(extracted)) {
-    console.error("watch-history.json not in zip.");
-    process.exit(2);
-  }
-
-  fs.mkdirSync(path.dirname(FINAL_PATH), { recursive: true });
-  fs.copyFileSync(extracted, FINAL_PATH);
-  console.log(`Placed → ${FINAL_PATH}`);
-
-  // Record when Google built this archive. The watch history alone cannot say
-  // whether a quiet stretch at its end is a week of not watching or a week
-  // that was never exported; the build time draws that line, and the sync
-  // stores it so the dashboard can plot the quiet days as zeros. When neither
-  // Drive nor the archive name can say, leave it out: the download time is
-  // later than the build, so it would claim days the export never saw.
-  const sourceFile = chosen?.name ?? path.basename(zipPath);
-  const exportCreatedAt =
-    chosen?.createdTime ?? parseTakeoutTimestamp(sourceFile)?.toISOString();
-  const sidecar: TakeoutSidecar = {
-    exportCreatedAt,
-    sourceFile,
-    driveFileId: chosen?.id ?? undefined,
-    downloadedAt: new Date().toISOString(),
-  };
-  fs.writeFileSync(
-    sidecarPathFor(FINAL_PATH),
-    JSON.stringify(sidecar, null, 2),
-  );
-  console.log(
-    `Archive built ${exportCreatedAt ?? "at an unknown time"} (${sourceFile})`,
-  );
-
-  fs.rmSync(extractDir, { recursive: true, force: true });
-  process.exit(0);
+  console.log("No newer Takeout archive contains watch-history.json.");
+  return 3;
 }
 
-main().catch((err) => {
-  console.error("Download failed:", err);
-  process.exit(2);
-});
+function parseArgs(): DownloadOptions {
+  const options: DownloadOptions = {};
+  const names: Record<string, keyof DownloadOptions> = {
+    "--after-export-created-at": "afterExportCreatedAt",
+    "--exclude-file-id": "excludeFileId",
+    "--requested-at": "requestedAt",
+  };
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i += 2) {
+    const key = names[args[i]!];
+    const value = args[i + 1];
+    if (!key || !value || value.startsWith("--"))
+      throw new Error("Invalid download arguments");
+    options[key] = value;
+  }
+  return options;
+}
+
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
+  try {
+    process.exitCode = await downloadLatestArchive(parseArgs());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const authFailed =
+      /invalid_grant|unauthorized|refresh token|OAuth client|invalid authentication credentials/i.test(
+        message,
+      );
+    // Never dump a Google API error object: it can include request credentials.
+    console.error(
+      authFailed ? "Drive authentication failed." : "Takeout download failed.",
+    );
+    process.exitCode = authFailed ? 1 : 2;
+  }
+}

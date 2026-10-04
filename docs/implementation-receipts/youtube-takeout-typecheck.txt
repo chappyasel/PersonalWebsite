@@ -1,0 +1,10 @@
+
+> personal-website@0.1.0 typecheck /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
+> pnpm typegen && tsc --noEmit
+
+
+> personal-website@0.1.0 typegen /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-takeout-drive-recovery
+> SKIP_ENV_VALIDATION=1 next typegen
+
+Generating route types...
+✓ Types generated successfully

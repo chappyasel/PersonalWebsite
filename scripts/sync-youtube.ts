@@ -3,12 +3,9 @@
  *
  * Run with: npx tsx scripts/sync-youtube.ts
  */
-
 import "dotenv/config";
-import { syncYouTube } from "../src/lib/youtube/sync";
-
-import * as path from "path";
 import * as os from "os";
+import * as path from "path";
 
 const FILE_PATH = path.join(
   os.homedir(),
@@ -16,9 +13,20 @@ const FILE_PATH = path.join(
 );
 
 async function main() {
+  // Load DB/env modules only after dotenv/config has initialized this CLI.
+  const { syncYouTube } = await import("../src/lib/youtube/sync");
   console.log("Starting YouTube sync...");
   const result = await syncYouTube("manual", FILE_PATH);
-  console.log("Sync complete:", result);
+  if ("status" in result && result.status !== "success") {
+    throw new Error("YouTube sync did not report success");
+  }
+  console.log(
+    JSON.stringify({
+      event: "youtube_sync_complete",
+      status: "success",
+      ...result,
+    }),
+  );
   process.exit(0);
 }
 
