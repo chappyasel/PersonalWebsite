@@ -72,6 +72,18 @@ const OFFSCREEN_RESET_SECONDS = 1;
 const SETTLED_SLEEP_SECONDS = 0.5;
 const SETTLED_LINEAR_SPEED = 0.02;
 const SETTLED_ANGULAR_SPEED = 0.08;
+/** A parked body counts as resting on another when its collider bottom is
+ * within this of the other's collider top and their footprints overlap. */
+const RESTING_CONTACT_GAP = 0.004;
+/** How far a support may slide or tip from where it was parked before what
+ * rested on it is woken. Cannon only wakes a sleeping body when something
+ * touching it moves, and a support that tips away from rest loses contact
+ * before it is fast enough to count, so a bumped tile used to leave the tile
+ * above it asleep in mid-air. The margins are wide on purpose: a woken thin
+ * billet standing on another one does not stay standing, so waking the load
+ * on every small jostle would collapse a stack nobody really knocked. */
+const SUPPORT_SLIP = 0.01;
+const SUPPORT_TIP = (5 * Math.PI) / 180;
 
 /** Keep collision accuracy independent from renderer cadence without allowing
  * a late frame to schedule an unbounded solver catch-up. A fast thin body gets
@@ -154,6 +166,11 @@ export type ShelfHandle = {
   body?: CANNON.Body;
   com?: THREE.Vector3;
   parked?: boolean;
+  /** The body's pose when park() last left it. */
+  parkedPose?: { position: CANNON.Vec3; quaternion: CANNON.Quaternion };
+  /** Parked bodies that were resting on this one when it left its park.
+   * They are woken once it has slid or tipped away (SUPPORT_SLIP). */
+  restingLoads?: ShelfHandle[];
   prev?: THREE.Vector3;
   hullReasons?: PhysicsReasonCode[];
   smallestExtent?: number;
@@ -912,7 +929,7 @@ export class ScenePhysicsWorld {
     const body = handle.body;
     if (!body || !handle.com || !handle.prev) return false;
     handle.onReset?.(false);
-    handle.parked = false;
+    this.leavePark(handle);
     handle.offscreenFor = 0;
     handle.settledFor = 0;
     body.type = this.C.Body.KINEMATIC;
@@ -1056,7 +1073,7 @@ export class ScenePhysicsWorld {
       (candidate) => candidate.body === contact.body,
     );
     if (other) {
-      other.parked = false;
+      this.leavePark(other);
       other.phase.current = "sim";
     }
   }
@@ -1408,7 +1425,7 @@ export class ScenePhysicsWorld {
         -worldVelocity.x * TUMBLE,
       );
     }
-    handle.parked = false;
+    this.leavePark(handle);
     handle.offscreenFor = 0;
     handle.settledFor = 0;
     handle.phase.current = "sim";
@@ -1521,9 +1538,75 @@ export class ScenePhysicsWorld {
     body.aabbNeedsUpdate = true;
     handle.prev?.copy(pose.position);
     handle.parked = true;
+    handle.parkedPose = {
+      position: body.position.clone(),
+      quaternion: body.quaternion.clone(),
+    };
+    handle.restingLoads = undefined;
     handle.offscreenFor = 0;
     handle.settledFor = 0;
     body.sleep();
+  }
+
+  /** Every way out of park goes through here, so a body that leaves it can
+   * remember which parked bodies were resting on it. The body may already
+   * have taken one solver step, so its bounds are measured back at the
+   * parked position. */
+  private leavePark(handle: ShelfHandle) {
+    const body = handle.body;
+    const parked = handle.parkedPose;
+    if (handle.parked && body && parked) {
+      updateBodyBounds(body);
+      const shift = parked.position.vsub(body.position);
+      const lower = body.aabb.lowerBound.vadd(shift);
+      const upper = body.aabb.upperBound.vadd(shift);
+      const loads = this.handles.filter((other) => {
+        const load = other.body;
+        if (other === handle || !other.parked || !load) return false;
+        if (load.aabbNeedsUpdate) updateBodyBounds(load);
+        const bounds = load.aabb;
+        return (
+          Math.abs(bounds.lowerBound.y - upper.y) <= RESTING_CONTACT_GAP &&
+          bounds.lowerBound.x < upper.x &&
+          bounds.upperBound.x > lower.x &&
+          bounds.lowerBound.z < upper.z &&
+          bounds.upperBound.z > lower.z
+        );
+      });
+      handle.restingLoads = loads.length > 0 ? loads : undefined;
+    }
+    handle.parked = false;
+  }
+
+  /** Wake what was resting on a support once the support has slid or tipped
+   * away from its parked pose. Each woken load leaves park the same way, so
+   * a tower comes down from the bottom up. */
+  private wakeStrandedLoads() {
+    for (const handle of this.handles) {
+      const loads = handle.restingLoads;
+      const body = handle.body;
+      const parked = handle.parkedPose;
+      if (!loads || !body || !parked) continue;
+      const q = body.quaternion;
+      const p = parked.quaternion;
+      const alignment = Math.min(
+        1,
+        Math.abs(q.x * p.x + q.y * p.y + q.z * p.z + q.w * p.w),
+      );
+      if (
+        body.position.distanceTo(parked.position) <= SUPPORT_SLIP &&
+        2 * Math.acos(alignment) <= SUPPORT_TIP
+      )
+        continue;
+      handle.restingLoads = undefined;
+      for (const load of loads) {
+        if (!load.parked || !load.body || !this.handles.includes(load))
+          continue;
+        this.leavePark(load);
+        load.phase.current = "sim";
+        load.body.wakeUp();
+      }
+    }
   }
 
   private promoteSettledBodyToSleep(
@@ -1649,7 +1732,7 @@ export class ScenePhysicsWorld {
       }
       if (handle.parked) {
         if (body.sleepState !== sleeping) {
-          handle.parked = false;
+          this.leavePark(handle);
           handle.phase.current = "sim";
           this.pull(handle);
         }
@@ -1657,6 +1740,7 @@ export class ScenePhysicsWorld {
       }
       this.push(handle, 0);
     }
+    this.wakeStrandedLoads();
     this.checkDiceTower(delta);
     const pendingReset = this.handles.find(
       (handle) => (handle.offscreenFor ?? 0) > 0,

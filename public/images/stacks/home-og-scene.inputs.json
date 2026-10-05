@@ -1,7 +1,7 @@
 {
   "version": 2,
   "algorithm": "sha256",
-  "digest": "6570314be583090e675e4e85dc6bd09ea326750ffa4ffdf53f2bcaae3d1915ab",
+  "digest": "489282f6e4f28e0a74b0543ea8f783114289a0ba6236e7cfc6c58e834ae580b0",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -625,7 +625,7 @@
     "src/app/components/stacks/illustration/aboutProjection.ts": "0b61be4ab6285d85",
     "src/app/components/stacks/illustration/artwork/RoomArtworkImage.tsx": "cf58c406154bc273",
     "src/app/components/stacks/illustration/artwork/booksIdentity.ts": "2bb538d570510782",
-    "src/app/components/stacks/illustration/artwork/catalog.json": "cf09c6174824704a",
+    "src/app/components/stacks/illustration/artwork/catalog.json": "fee5b39d84d19f13",
     "src/app/components/stacks/illustration/artwork/getRoomArtwork.ts": "7350c12ed5afd8b9",
     "src/app/components/stacks/illustration/artwork/hotspots.generated.json": "c3f7bffb9de0554a",
     "src/app/components/stacks/illustration/artwork/index.ts": "936587ca9dd7f147",
@@ -867,7 +867,7 @@
     "src/app/components/stacks/scene/photoTextures.ts": "a8a5c3f604417570",
     "src/app/components/stacks/scene/photographTreatment.ts": "19a585caa5c5e0f2",
     "src/app/components/stacks/scene/photos.tsx": "0cffe29a5cabeeca",
-    "src/app/components/stacks/scene/physics.ts": "549fa5c88f6380d7",
+    "src/app/components/stacks/scene/physics.ts": "26df30f20a803ba2",
     "src/app/components/stacks/scene/physicsColliders.ts": "d8d3c0a6cf35d8be",
     "src/app/components/stacks/scene/physicsDiagnostics.ts": "30c99ba8c9dbf985",
     "src/app/components/stacks/scene/pixelArt.ts": "5896b97498e84325",
@@ -1006,7 +1006,7 @@
   },
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "c8bab0cc7de7f1ecc8ce19aee1b5e7dc439175d897a33aebedbd43ce15e3492b",
-    "inputDigest": "6570314be583090e675e4e85dc6bd09ea326750ffa4ffdf53f2bcaae3d1915ab"
+    "digest": "afe8052e4e1b6456d72c1a0de8ca16b549977f5a750dfedc7790bd910a6c9a21",
+    "inputDigest": "489282f6e4f28e0a74b0543ea8f783114289a0ba6236e7cfc6c58e834ae580b0"
   }
 }

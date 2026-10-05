@@ -4889,7 +4889,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/physics.ts",
-      "sha256": "549fa5c88f6380d7fabe6ccc57a7a27556d400222096c0106f8db465dc986dc4",
+      "sha256": "26df30f20a803ba2ea1c02fc6d9f12c3271419d9a9d6dd23595692c5073d8ce2",
       "archivedSha256": "b29022fa7cf7cc4c96f730d3b2ef826297ad5d79880c3e6eddeb6d3efde34089"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "71c4eb7fe1167d5e6acad5be76a29b2531e311758cf701806e128fd90c7d3fcb",
+  "sourceFingerprint": "dc977bebe9a4a803246c6bb1a4dd9ce4a61e4fe5fb5bbbf844c2eaf9c5a4279f",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5687,6 +5687,18 @@
           "path": "src/app/components/stacks/scene/aboutRoleIcons.ts",
           "previousSha256": "92e0499245c88e211c224665892d4948e0b3b2b5494042259295a76438f5a570",
           "sha256": "02343df6251f166b17c58873601f1d639a6e7c931c41562f320d83a218f48311"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed a wake-only change in physics.ts: a body leaving park records which parked bodies rest on it, and wakes them once it slides 1 cm or tips 5 degrees from its parked pose. Parked poses, colliders, materials, cameras, and authored poses are unchanged, so resting geometry is identical. This updates the source dependency receipt without claiming a fresh capture.",
+      "previousFingerprint": "71c4eb7fe1167d5e6acad5be76a29b2531e311758cf701806e128fd90c7d3fcb",
+      "sourceFingerprint": "dc977bebe9a4a803246c6bb1a4dd9ce4a61e4fe5fb5bbbf844c2eaf9c5a4279f",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/physics.ts",
+          "previousSha256": "549fa5c88f6380d7fabe6ccc57a7a27556d400222096c0106f8db465dc986dc4",
+          "sha256": "26df30f20a803ba2ea1c02fc6d9f12c3271419d9a9d6dd23595692c5073d8ce2"
         }
       ]
     }
