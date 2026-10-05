@@ -1,5 +1,7 @@
 import type { BookLookup } from "~/components/notion/types";
 
+import type { LinkPreviews } from "./linkPreview";
+
 export type BookReading = {
   id: string; // Current slug for this reading
 
@@ -53,6 +55,9 @@ export type BookWithNotes = Book & {
   /** Cover and hover-card facts for each library book the notes link,
    * keyed by slug (linkNotesToLibrary). */
   linkedBooks: BookLookup;
+  /** Icon, site name and card for each web link the notes draw as a
+   * mention, keyed by address (linkPreviewsFor). */
+  linkPreviews: LinkPreviews;
 };
 
 export type BookFilters = {

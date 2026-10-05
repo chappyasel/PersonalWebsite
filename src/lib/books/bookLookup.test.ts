@@ -25,6 +25,9 @@ vi.mock("~/server/queries/books", async () => {
   };
 });
 vi.mock("~/server/queries/relatedBooks", () => ({ getRelatedBooks: vi.fn() }));
+vi.mock("~/lib/books/linkPreview.server", () => ({
+  linkPreviewsFor: vi.fn(() => Promise.resolve({})),
+}));
 vi.mock("~/server/api/trpc", async () => {
   const { initTRPC } = await import("@trpc/server");
   const t = initTRPC.create();

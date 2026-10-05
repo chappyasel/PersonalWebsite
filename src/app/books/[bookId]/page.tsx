@@ -106,7 +106,7 @@ async function BookLoader({ bookId }: { bookId: string }) {
 
   // Fetch the book and bookshelf size together for the standalone breadcrumb.
   const [book, bookshelfBookCount] = await Promise.all([
-    getBookWithNotes(bookId),
+    getBookWithNotes(bookId, { staticPage: true }),
     getBookshelfBookCount(),
   ]);
 
