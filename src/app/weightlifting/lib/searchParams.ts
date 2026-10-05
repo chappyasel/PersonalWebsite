@@ -15,8 +15,7 @@ export const DEFAULT_EXERCISES = [
   "70 Degree Incline Press",
   "Barbell Overhead Press",
   "Back Squats",
-  "Sumo Deadlifts",
-  "Conventional Deadlifts",
+  "Deadlifts", // every variation, see BASE_NAME_LIFTS
   "Normal Lat Pulldowns",
   "Incline bench Bent Rows",
   "Barbell Conventional Curls",

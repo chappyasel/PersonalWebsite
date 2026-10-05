@@ -23,6 +23,7 @@ import {
   wlWorkouts,
 } from "~/server/db/schema";
 import {
+  allVariantsSlug,
   getCachedExerciseDirectory,
   getCachedExerciseOccurrences,
 } from "~/server/queries/exerciseDirectory";
@@ -34,37 +35,70 @@ import { getCachedExerciseIndex } from "~/server/queries/weightliftingExercise";
 import { getChartSelectableExercises } from "~/server/queries/weightliftingExercises";
 import { getCachedWeightliftingPareto } from "~/server/queries/weightliftingPareto";
 
+import {
+  BASE_NAME_LIFTS,
+  withBaseNameLifts,
+} from "~/app/weightlifting/lib/featuredLifts";
+
+const BASE_NAME_LIFTS_SQL = sql.join(
+  BASE_NAME_LIFTS.map((name) => sql`${name}`),
+  sql`, `,
+);
+
+type RecordRow = {
+  display_name: string;
+  category: string;
+  best_one_rm: number;
+  best_reps: number;
+  best_weight: number;
+  instance_count: number;
+};
+
 const getCachedPersonalRecords = unstable_cache(
   async () => {
-    const rows = await db.execute<{
-      display_name: string;
-      category: string;
-      best_one_rm: number;
-      best_reps: number;
-      best_weight: number;
-      instance_count: number;
-    }>(sql`
-      SELECT DISTINCT ON (display_name)
-        CASE
-          WHEN e.iteration IS NOT NULL AND e.iteration != ''
-          THEN e.iteration || ' ' || e.name
-          ELSE e.name
-        END AS display_name,
-        e.category,
-        s.one_rm AS best_one_rm,
-        s.reps AS best_reps,
-        s.weight AS best_weight,
-        (SELECT COUNT(DISTINCT e2.id)
-         FROM wl_exercises e2
-         WHERE e2.name = e.name
-           AND COALESCE(e2.iteration, '') = COALESCE(e.iteration, '')) AS instance_count
-      FROM wl_sets s
-      INNER JOIN wl_exercises e ON s.exercise_id = e.id
-      INNER JOIN wl_workouts w ON e.workout_id = w.id
-      WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
-      -- newest wins equal 1RMs, matching the exercise pages' podium
-      ORDER BY display_name, s.one_rm DESC, w.date DESC
-    `);
+    const [rows, liftRows] = await Promise.all([
+      db.execute<RecordRow>(sql`
+        SELECT DISTINCT ON (display_name)
+          CASE
+            WHEN e.iteration IS NOT NULL AND e.iteration != ''
+            THEN e.iteration || ' ' || e.name
+            ELSE e.name
+          END AS display_name,
+          e.category,
+          s.one_rm AS best_one_rm,
+          s.reps AS best_reps,
+          s.weight AS best_weight,
+          (SELECT COUNT(DISTINCT e2.id)
+           FROM wl_exercises e2
+           WHERE e2.name = e.name
+             AND COALESCE(e2.iteration, '') = COALESCE(e.iteration, '')) AS instance_count
+        FROM wl_sets s
+        INNER JOIN wl_exercises e ON s.exercise_id = e.id
+        INNER JOIN wl_workouts w ON e.workout_id = w.id
+        WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
+        -- newest wins equal 1RMs, matching the exercise pages' podium
+        ORDER BY display_name, s.one_rm DESC, w.date DESC
+      `),
+      // Base-name lifts take every variation, counted the way the
+      // all-variations page counts them
+      db.execute<RecordRow>(sql`
+        SELECT DISTINCT ON (e.name)
+          e.name AS display_name,
+          e.category,
+          s.one_rm AS best_one_rm,
+          s.reps AS best_reps,
+          s.weight AS best_weight,
+          (SELECT COUNT(DISTINCT e2.id)
+           FROM wl_exercises e2
+           WHERE e2.name = e.name) AS instance_count
+        FROM wl_sets s
+        INNER JOIN wl_exercises e ON s.exercise_id = e.id
+        INNER JOIN wl_workouts w ON e.workout_id = w.id
+        WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
+          AND e.name IN (${BASE_NAME_LIFTS_SQL})
+        ORDER BY e.name, s.one_rm DESC, w.date DESC
+      `),
+    ]);
 
     // Link each record to its exercise page where one exists (the index
     // covers reps×weight lifts with 10+ sets; anything else gets no link).
@@ -77,17 +111,24 @@ const getCachedPersonalRecords = unstable_cache(
       console.error("exercise index unavailable for PR links:", error);
     }
 
-    return rows.map((r) => ({
+    const toRecord = (r: RecordRow, slug: string | null) => ({
       exerciseName: r.display_name,
       category: r.category,
       bestOneRM: Number(r.best_one_rm),
       reps: Number(r.best_reps),
       weight: Number(r.best_weight),
       instanceCount: Number(r.instance_count),
-      slug: slugByName.get(r.display_name) ?? null,
-    }));
+      slug,
+    });
+    return [
+      // A variation-less row named like a lift is already inside the lift
+      ...rows
+        .filter((r) => !BASE_NAME_LIFTS.includes(r.display_name))
+        .map((r) => toRecord(r, slugByName.get(r.display_name) ?? null)),
+      ...liftRows.map((r) => toRecord(r, allVariantsSlug(r.display_name))),
+    ];
   },
-  ["wl-personal-records"],
+  ["wl-personal-records-v2"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
@@ -136,27 +177,31 @@ const getCachedStrengthProgression = unstable_cache(
     }>(sql`
       SELECT
         TO_CHAR(w.date, 'YYYY-MM-DD') AS date,
-        CASE
-          WHEN e.iteration IS NOT NULL AND e.iteration != ''
-          THEN e.iteration || ' ' || e.name
-          ELSE e.name
-        END AS exercise,
+        lift.exercise,
         MAX(s.one_rm) AS best_one_rm
       FROM wl_sets s
       INNER JOIN wl_exercises e ON s.exercise_id = e.id
       INNER JOIN wl_workouts w ON e.workout_id = w.id
+      -- A set counts toward its display name and, for a base-name lift,
+      -- toward the base name too, so "Deadlifts" charts every variation
+      -- while "Sumo Deadlifts" still charts on its own
+      CROSS JOIN LATERAL (
+        VALUES
+          (CASE
+            WHEN e.iteration IS NOT NULL AND e.iteration != ''
+            THEN e.iteration || ' ' || e.name
+            ELSE e.name
+          END),
+          (CASE WHEN e.name IN (${BASE_NAME_LIFTS_SQL}) THEN e.name END)
+      ) AS lift(exercise)
       WHERE s.one_rm IS NOT NULL
         AND s.one_rm > 0
         AND e.style = 'reps_weight'
-        AND (CASE
-          WHEN e.iteration IS NOT NULL AND e.iteration != ''
-          THEN e.iteration || ' ' || e.name
-          ELSE e.name
-        END) IN (${sql.join(
+        AND lift.exercise IN (${sql.join(
           exercises.map((ex) => sql`${ex}`),
           sql`, `,
         )})
-      GROUP BY date, exercise
+      GROUP BY date, lift.exercise
       ORDER BY date
     `);
 
@@ -166,7 +211,7 @@ const getCachedStrengthProgression = unstable_cache(
       bestOneRM: Number(r.best_one_rm),
     }));
   },
-  ["wl-strength-progression"],
+  ["wl-strength-progression-v2"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
@@ -512,7 +557,9 @@ export const weightliftingRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input }) => {
-      return getChartSelectableExercises(input.minSets);
+      return withBaseNameLifts(
+        await getChartSelectableExercises(input.minSets),
+      );
     }),
 
   /** Weekly/monthly/yearly training buckets + lifetime totals */

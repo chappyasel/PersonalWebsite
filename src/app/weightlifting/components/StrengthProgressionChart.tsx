@@ -51,8 +51,7 @@ function shortenName(name: string) {
     .replace(/^Flat Barbell /, "")
     .replace(/^Barbell /, "")
     .replace(/ Press$/, "")
-    .replace(/^Back /, "")
-    .replace(/^Sumo /, "");
+    .replace(/^Back /, "");
 }
 
 function formatDate(dateStr: string) {
