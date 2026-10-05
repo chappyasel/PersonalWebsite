@@ -6,6 +6,7 @@ import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { weightliftingRouter } from "~/server/api/routers/weightlifting";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 import { allVariantsSlug } from "~/server/queries/exerciseDirectory";
+import type * as WeightliftingExercise from "~/server/queries/weightliftingExercise";
 
 import { BASE_NAME_LIFTS } from "~/app/weightlifting/lib/featuredLifts";
 import { DEFAULT_EXERCISES } from "~/app/weightlifting/lib/searchParams";
@@ -34,9 +35,8 @@ vi.mock("~/server/queries/weightliftingPareto", () => ({
   getCachedWeightliftingPareto: vi.fn(),
 }));
 vi.mock("~/server/queries/weightliftingExercise", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("~/server/queries/weightliftingExercise")
-  >()),
+  // Keeps the real DISPLAY_NAME_SQL the router's queries are built from
+  ...(await importOriginal<typeof WeightliftingExercise>()),
   getCachedExerciseIndex: mocks.index,
   getFreshExerciseIndex: mocks.index,
 }));
