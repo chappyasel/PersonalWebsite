@@ -58,12 +58,18 @@ references and conversion tests, or explicit zone metadata from the app.
 - **Workout preview** — the modal presentation of one workout (name, date,
   stats row, exercise cards). Opens from a calendar day or an exercise
   page's instance row.
-- **Featured lifts** — the curated exercise types (default 13) whose summed
-  1RMe drives the dashboard's aggregate progression chart and its
-  asymptotic fit.
+- **Featured lifts** — the curated lifts (default 12) whose summed 1RMe
+  drives the dashboard's aggregate progression chart and its asymptotic
+  fit. A lift is usually one exercise type. "Deadlifts" is a base-name lift
+  (`BASE_NAME_LIFTS`): the chart, the Featured Lifts table, and the picker
+  treat every deadlift variation as one lift, and the table links it to the
+  all-variations page. A single variation stays selectable while its lift
+  is not: adding the lift replaces its variations, and the picker hides
+  them while the lift is selected, so no set counts twice in the aggregate.
 - **Chart-selectable exercise** — an exercise type eligible for the
   dashboard picker and for its own page: measured reps × weight, with at
-  least 10 sets carrying a 1RMe.
+  least 10 sets carrying a 1RMe. The picker also lists each base-name lift
+  whose variations reach 10 such sets together.
 - **Category** — the app's muscle-group taxonomy (Abs / Core, Back,
   Biceps, Cardio, Chest, Legs, Olympic, Shoulders, Triceps, Other), each
   with a fixed color used everywhere both app and site color exercises.
