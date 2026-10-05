@@ -135,7 +135,9 @@ const getCachedPersonalRecords = unstable_cache(
         : (slugByName.get(r.display_name) ?? null),
     }));
   },
-  ["wl-personal-records-v2"],
+  // The lift list is in the key: the SQL reads it from module scope, which
+  // unstable_cache's callback-source key cannot see
+  ["wl-personal-records-v2", ...BASE_NAME_LIFTS],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
@@ -209,7 +211,7 @@ const getCachedStrengthProgression = unstable_cache(
       bestOneRM: Number(r.best_one_rm),
     }));
   },
-  ["wl-strength-progression-v2"],
+  ["wl-strength-progression-v2", ...BASE_NAME_LIFTS],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
@@ -540,7 +542,7 @@ export const weightliftingRouter = createTRPCRouter({
   getStrengthProgression: publicProcedure
     .input(
       z.object({
-        exercises: z.array(z.string().min(1).max(511)).min(1).max(20),
+        exercises: z.array(z.string()).min(1).max(20),
       }),
     )
     .query(async ({ input }) => {

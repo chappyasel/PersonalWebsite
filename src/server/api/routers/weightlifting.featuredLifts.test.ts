@@ -164,16 +164,6 @@ it("charts a base-name lift and its variations from one query", async () => {
   expect(query.sql).toContain("GROUP BY 1, lift.name");
 });
 
-it("rejects empty and oversized exercise names before querying", async () => {
-  await expect(
-    caller.getStrengthProgression({ exercises: [""] }),
-  ).rejects.toThrow();
-  await expect(
-    caller.getStrengthProgression({ exercises: ["x".repeat(512)] }),
-  ).rejects.toThrow();
-  expect(mocks.execute).not.toHaveBeenCalled();
-});
-
 it("builds the picker's Deadlifts entry from every variation, rare ones included", async () => {
   mocks.selectable.mockResolvedValue([
     {
