@@ -40,6 +40,7 @@ import {
 import {
   ABOUT_ROLES,
   ABOUT_ROLE_ICON_SIZE,
+  ABOUT_ROLE_TOP_ROW,
   aboutRoleIconOffset,
 } from "../aboutRoleIcons";
 import {
@@ -679,9 +680,9 @@ export default function UnitAbout({
               </VisionRideSource>
             </Grabbable>
             {/* The Role Icons: where he works now, beside the product he
-                worked on. Four Project Icon billets at half the Projects
-                edge, stacked two by two like the dice; each is a Portal to its
-                organization and every tile is its own Movable Prop. */}
+                worked on. Five Project Icon billets at half the Projects
+                edge, stacked two, two, and one like the dice; each is a Portal
+                to its organization and every tile is its own Movable Prop. */}
             <group name={aboutLandmarkNodeName("role-icons")}>
               {ABOUT_ROLES.map((role) => {
                 const [dx, dy, dz] = aboutRoleIconOffset(role);
@@ -707,8 +708,12 @@ export default function UnitAbout({
                     size={ABOUT_ROLE_ICON_SIZE}
                     massKg={0.08}
                     hoverTiltAngle={ABOUT_ROLE_HOVER_ANGLE}
-                    // Only the top row has room to lift out of the stack.
-                    hoverLift={role.row === 1 ? ABOUT_ROLE_HOVER_LIFT : 0}
+                    // Only the apex has room to lift out of the stack.
+                    hoverLift={
+                      role.row === ABOUT_ROLE_TOP_ROW
+                        ? ABOUT_ROLE_HOVER_LIFT
+                        : 0
+                    }
                   />
                 );
               })}

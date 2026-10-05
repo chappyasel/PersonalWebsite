@@ -247,7 +247,7 @@ describe("About shelf throwable props", () => {
     expect(source.match(/colliderProfile="foliage-base"/g)).toHaveLength(3);
   });
 
-  it("stacks the four Role Icons beside Vision Pro as half-size Portals", () => {
+  it("stacks the five Role Icons beside Vision Pro as half-size Portals", () => {
     const start = source.indexOf('name={aboutLandmarkNodeName("role-icons")}');
     const end = source.indexOf('hoverKey="grab:ai-collective-mark"', start);
     const stack = source.slice(start, end);
@@ -260,10 +260,14 @@ describe("About shelf throwable props", () => {
     expect(stack).toContain("portalLabel={role.portalLabel}");
     expect(stack).toContain("size={ABOUT_ROLE_ICON_SIZE}");
     expect(stack).toContain('ABOUT_BOOT_LANDMARKS["role-icons"].x + dx');
-    // Four roles, each a distinct organization with its own artwork and Portal.
-    expect(new Set(ABOUT_ROLES.map((role) => role.id)).size).toBe(4);
-    expect(new Set(ABOUT_ROLES.map((role) => role.href)).size).toBe(4);
-    expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(4);
+    // Only the apex lifts on hover: every lower tile has one resting on it.
+    expect(stack).toMatch(
+      /hoverLift=\{\s*role\.row === ABOUT_ROLE_TOP_ROW\s*\?\s*ABOUT_ROLE_HOVER_LIFT\s*:\s*0\s*\}/,
+    );
+    // Five roles, each a distinct organization with its own artwork and Portal.
+    expect(new Set(ABOUT_ROLES.map((role) => role.id)).size).toBe(5);
+    expect(new Set(ABOUT_ROLES.map((role) => role.href)).size).toBe(5);
+    expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(5);
     expect(ABOUT_ROLE_ICON_SIZE).toBe(PROJECT_ARTIFACT_DIMENSIONS.icon / 2);
   });
 

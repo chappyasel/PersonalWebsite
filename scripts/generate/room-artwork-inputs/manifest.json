@@ -4529,7 +4529,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/aboutBootComposition.ts",
-      "sha256": "b64608a32e700b7f797685d2191540c65e88b58ec930e31f93f977f49f5edb91",
+      "sha256": "75945f733339e89bb89da18d1aafb623548bccda892d3c20334c41201755e64d",
       "archivedSha256": "3f05393dda29074c5872ba6352e5cb4fdf65dec450dd63e399cf79dc044ff67a"
     },
     {
@@ -4554,7 +4554,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/aboutRoleIcons.ts",
-      "sha256": "92e0499245c88e211c224665892d4948e0b3b2b5494042259295a76438f5a570",
+      "sha256": "02343df6251f166b17c58873601f1d639a6e7c931c41562f320d83a218f48311",
       "archivedSha256": "8c7924f7658ab0e93ad88eb87696935242b143beea066e9a2cc77e376da4e426"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "52ee32e918f3e3968ef8852ae75e871f37579e123ddf31c389262a4ccb8084ad",
+  "sourceFingerprint": "71c4eb7fe1167d5e6acad5be76a29b2531e311758cf701806e128fd90c7d3fcb",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5670,6 +5670,23 @@
           "path": "src/app/components/stacks/scene/unitActivity.tsx",
           "previousSha256": "82222dbc08e028adbb0395152c03cc781f572e1a77faba2f38447783767bdb64",
           "sha256": "afcc099ea64ae9b90ffcb1b4fc23bfdeb28df548f33407a3cafaaeffcb7cf71f"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed the About Role Icons growing from four tiles to five (EWOR added, stacked two, two, and one). Only the About shelf changes; About has no approved drawing, and none of the 24 Books, Projects, Systems, Weightlifting, Musings, or Talks drawings shows the role tiles, so their captured geometry, materials, cameras, and authored poses are unchanged. This updates the source dependency receipt without claiming a fresh capture.",
+      "previousFingerprint": "52ee32e918f3e3968ef8852ae75e871f37579e123ddf31c389262a4ccb8084ad",
+      "sourceFingerprint": "71c4eb7fe1167d5e6acad5be76a29b2531e311758cf701806e128fd90c7d3fcb",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/aboutBootComposition.ts",
+          "previousSha256": "b64608a32e700b7f797685d2191540c65e88b58ec930e31f93f977f49f5edb91",
+          "sha256": "75945f733339e89bb89da18d1aafb623548bccda892d3c20334c41201755e64d"
+        },
+        {
+          "path": "src/app/components/stacks/scene/aboutRoleIcons.ts",
+          "previousSha256": "92e0499245c88e211c224665892d4948e0b3b2b5494042259295a76438f5a570",
+          "sha256": "02343df6251f166b17c58873601f1d639a6e7c931c41562f320d83a218f48311"
         }
       ]
     }

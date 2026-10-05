@@ -10,6 +10,7 @@ import {
   ABOUT_ROLE_STACK_PROFILE_WIDTH,
   ABOUT_ROLE_STACK_WIDTH,
   ABOUT_ROLE_STACK_YAW,
+  ABOUT_ROLE_TOP_ROW,
   aboutRoleIconOffset,
 } from "./aboutRoleIcons";
 import { projectIconBody } from "./projectIconGeometry";
@@ -17,15 +18,16 @@ import { LOWER_SHELF_HEADROOM, SHELF_GEOMETRY } from "./shelfGeometry";
 import { PROJECT_ARTIFACT_DIMENSIONS } from "./units/unitShelfLayout";
 
 describe("About Role Icons", () => {
-  it("names four distinct organizations, each with a Portal and artwork", () => {
+  it("names five distinct organizations, each with a Portal and artwork", () => {
     expect(ABOUT_ROLES.map((role) => role.id)).toEqual([
-      "madrona",
-      "roam",
-      "susa",
       "weightlifting",
+      "ewor",
+      "madrona",
+      "susa",
+      "roam",
     ]);
-    expect(new Set(ABOUT_ROLES.map((role) => role.href)).size).toBe(4);
-    expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(4);
+    expect(new Set(ABOUT_ROLES.map((role) => role.href)).size).toBe(5);
+    expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(5);
     for (const role of ABOUT_ROLES) {
       expect(role.href).toMatch(/^https:\/\//);
       expect(role.portalLabel.length).toBeGreaterThan(0);
@@ -36,18 +38,27 @@ describe("About Role Icons", () => {
     }
   });
 
-  it("stacks two by two: a full bottom row and a top row resting on it", () => {
-    const cells = ABOUT_ROLES.map((role) => `${role.column},${role.row}`);
-    expect(new Set(cells).size).toBe(4);
-    expect(cells.sort()).toEqual(["0,0", "0,1", "1,0", "1,1"]);
+  it("stacks two, two, and one: the apex straddles the seam below it", () => {
+    const at = (column: string, row: number) =>
+      ABOUT_ROLES.find((role) => role.column === column && role.row === row)
+        ?.id;
+    // Owner's layout (2026-10-05): the app on top, EWOR and Madrona in the
+    // middle, Susa and Roam on the shelf.
+    expect(at("center", ABOUT_ROLE_TOP_ROW)).toBe("weightlifting");
+    expect(at("left", 1)).toBe("ewor");
+    expect(at("right", 1)).toBe("madrona");
+    expect(at("left", 0)).toBe("susa");
+    expect(at("right", 0)).toBe("roam");
 
     for (const role of ABOUT_ROLES) {
       const [dx, dy, dz] = aboutRoleIconOffset(role);
       expect(Math.hypot(dx, dz)).toBeCloseTo(
-        (ABOUT_ROLE_ICON_SIZE + ABOUT_ROLE_ICON_GAP) / 2,
+        role.column === "center"
+          ? 0
+          : (ABOUT_ROLE_ICON_SIZE + ABOUT_ROLE_ICON_GAP) / 2,
         10,
       );
-      // A top tile sits exactly on the tile below: same column, one edge up.
+      // Every tile sits exactly on the row below: one edge up.
       expect(dy).toBeCloseTo(role.row * ABOUT_ROLE_ICON_SIZE, 10);
       expect(role.yaw).toBe(ABOUT_ROLE_STACK_YAW);
     }
@@ -55,19 +66,26 @@ describe("About Role Icons", () => {
       ABOUT_ROLE_ICON_SIZE * 2 + ABOUT_ROLE_ICON_GAP,
       10,
     );
-    expect(ABOUT_ROLE_STACK_HEIGHT).toBeCloseTo(ABOUT_ROLE_ICON_SIZE * 2, 10);
+    expect(ABOUT_ROLE_STACK_HEIGHT).toBeCloseTo(ABOUT_ROLE_ICON_SIZE * 3, 10);
 
-    for (const column of [0, 1] as const) {
-      const bottom = ABOUT_ROLES.find(
-        (role) => role.column === column && role.row === 0,
-      )!;
-      const top = ABOUT_ROLES.find(
-        (role) => role.column === column && role.row === 1,
-      )!;
-      const [bottomX, , bottomZ] = aboutRoleIconOffset(bottom);
-      const [topX, , topZ] = aboutRoleIconOffset(top);
-      expect([topX, topZ]).toEqual([bottomX, bottomZ]);
+    for (const column of ["left", "right"] as const) {
+      const [bottomX, , bottomZ] = aboutRoleIconOffset(
+        ABOUT_ROLES.find((role) => role.column === column && role.row === 0)!,
+      );
+      const [middleX, , middleZ] = aboutRoleIconOffset(
+        ABOUT_ROLES.find((role) => role.column === column && role.row === 1)!,
+      );
+      expect([middleX, middleZ]).toEqual([bottomX, bottomZ]);
     }
+    // The apex centre is the midpoint of the two tiles it rests on.
+    const [left, right, apex] = (["left", "right", "center"] as const).map(
+      (column) =>
+        aboutRoleIconOffset(
+          ABOUT_ROLES.find((role) => role.column === column)!,
+        ),
+    );
+    expect(apex![0]).toBeCloseTo((left![0] + right![0]) / 2, 10);
+    expect(apex![2]).toBeCloseTo((left![2] + right![2]) / 2, 10);
   });
 
   it("is the Projects die's edge and half the Project Icon's", () => {

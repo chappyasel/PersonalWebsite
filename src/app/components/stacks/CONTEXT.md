@@ -187,9 +187,9 @@ not a screenshot mounted as wall art.
 _Avoid_: Project card, app screenshot
 
 **Role Icon** — a Project Icon billet on the About shelf carrying the mark of
-an organization Chappy currently works with, and a Portal to it. The four stand
-two by two beside the Apple mark at half the Projects edge; each is its own
-Movable Prop.
+an organization Chappy currently works with, and a Portal to it. The five stand
+two, two, and one beside the Apple mark at half the Projects edge, the top tile
+across the seam of the two below; each is its own Movable Prop.
 _Avoid_: Logo wall, sponsor badge, client list
 
 **Dice Pyramid** — six separate Movable Props arranged three-two-one to

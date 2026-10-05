@@ -61,6 +61,19 @@
     "body": "The product I spent two years helping launch at Apple. I worked as an AR/VR software engineer on the teams behind Vision Pro."
   },
   {
+    "id": "link:about:role:ewor",
+    "title": "EWOR",
+    "status": "written",
+    "visitor": false,
+    "links": [
+      {
+        "label": "EWOR",
+        "href": "https://www.ewor.com/"
+      }
+    ],
+    "body": "Venture scout at EWOR."
+  },
+  {
     "id": "link:about:role:madrona",
     "title": "Madrona",
     "status": "written",
@@ -71,7 +84,7 @@
         "href": "https://www.madrona.com/"
       }
     ],
-    "body": "One of four role tiles stacked two by two beside Vision Pro. I am a venture\nscout at Madrona."
+    "body": "One of five role tiles stacked two, two, and one beside Vision Pro. I am a\nventure scout at Madrona."
   },
   {
     "id": "link:about:role:roam",

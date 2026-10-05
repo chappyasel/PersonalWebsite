@@ -81,14 +81,22 @@ Link: Apple Vision Pro https://www.apple.com/apple-vision-pro/
 
 The product I spent two years helping launch at Apple. I worked as an AR/VR software engineer on the teams behind Vision Pro.
 
+## link:about:role:ewor
+
+Title: EWOR
+Status: written
+Link: EWOR https://www.ewor.com/
+
+Venture scout at EWOR.
+
 ## link:about:role:madrona
 
 Title: Madrona
 Status: written
 Link: Madrona https://www.madrona.com/
 
-One of four role tiles stacked two by two beside Vision Pro. I am a venture
-scout at Madrona.
+One of five role tiles stacked two, two, and one beside Vision Pro. I am a
+venture scout at Madrona.
 
 ## link:about:role:roam
 
