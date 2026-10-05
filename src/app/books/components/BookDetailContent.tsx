@@ -60,6 +60,11 @@ import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { BOOK_DATE_TIME_ZONE } from "~/lib/books/dates";
 import { rehypeBookHeadingAnchors } from "~/lib/books/headingAnchors";
 import { bookSlugFromUrl } from "~/lib/books/inlineFacts";
+import {
+  type LinkPreviews,
+  isMentionLink,
+  isPastedAddress,
+} from "~/lib/books/linkPreview";
 import { renderableNotes } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookShareUrl, getBooksPath } from "~/lib/books/paths";
@@ -74,6 +79,7 @@ import {
   BookMetadataSeparator,
   BookMetadataText,
 } from "~/components/books/BookMetadataSeparator";
+import LinkMention from "~/components/books/LinkMention";
 import AnchorLink from "~/components/daylight/AnchorLink";
 import {
   SheetCloseControl,
@@ -877,6 +883,7 @@ type BookDetailBook = BaseBook &
   > & {
     notes?: string;
     linkedBooks?: BookLookup;
+    linkPreviews?: LinkPreviews;
   };
 
 type BookDetailContentProps = {
@@ -1050,6 +1057,7 @@ export function BookDetailContent({
   // the book's own URL plus the fragment (the address bar may be a modal's).
   const chapterUrl = getBookShareUrl(bookId);
   const linkedBooks = fullBook?.linkedBooks;
+  const linkPreviews = fullBook?.linkPreviews;
   const noteComponents = useMemo((): Components => {
     const chapterHeading = (Tag: "h1" | "h2" | "h3" | "h4") => {
       const ChapterHeading = ({
@@ -1132,8 +1140,44 @@ export function BookDetailContent({
       // getBookWithNotes has already pointed Notion mentions of Book Notes
       // pages at the book's site URL. not-prose keeps typography's link and
       // image rules off its inline cover.
-      a: ({ node: _node, href, children, ...props }) => {
+      a: ({ node, href, children, title, ...props }) => {
         const slug = href ? bookSlugFromUrl(href) : null;
+        const label = textOfChildren(children);
+        // A web link Notion holds as a link mention (the sync titles it
+        // "@"), or a pasted address: the site's icon and name, then
+        // the title, as Notion draws it. A mention keeps its own words.
+        if (!slug && href && isMentionLink({ label, href, title })) {
+          const runs = node?.children ?? [];
+          // Italics around the whole link carry over; anything finer (a bold
+          // word) keeps the words exactly as written.
+          const emphasis =
+            runs.length > 0 &&
+            runs.every(
+              (child) => child.type === "element" && child.tagName === "em",
+            );
+          const formatted = runs.some(
+            (child) =>
+              child.type === "element" &&
+              !(
+                child.tagName === "em" &&
+                child.children.every((inner) => inner.type === "text")
+              ),
+          );
+          return (
+            <span className="not-prose">
+              <LinkMention
+                href={href}
+                preview={linkPreviews?.[href]}
+                words={
+                  isPastedAddress(label, href)
+                    ? undefined
+                    : { text: label, node: children, formatted }
+                }
+                emphasis={emphasis}
+              />
+            </span>
+          );
+        }
         if (!slug) {
           return (
             <a href={href} {...props}>
@@ -1141,7 +1185,6 @@ export function BookDetailContent({
             </a>
           );
         }
-        const label = textOfChildren(children);
         return (
           <span className="not-prose">
             <BookLink
@@ -1158,7 +1201,7 @@ export function BookDetailContent({
         );
       },
     };
-  }, [chapterUrl, modalBreadcrumbHref, bookPath, linkedBooks]);
+  }, [chapterUrl, modalBreadcrumbHref, bookPath, linkedBooks, linkPreviews]);
 
   // Arriving on a chapter link: the notes load after the page, so scroll
   // once they are in the tree and any folded block around the target has
