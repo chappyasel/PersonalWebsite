@@ -2,9 +2,8 @@ import { normalizeSearchText, rankSearchCandidates } from "../ranking";
 import type { SearchResult } from "../types";
 import { resolveDestinationTarget } from "../urls";
 
-import { categoryColor } from "~/app/weightlifting/lib/utils";
-
 import { MAX_PROVIDER_RESULTS } from "./search";
+import { categoryColor } from "~/app/weightlifting/lib/utils";
 
 export type WeightliftingExerciseRow = {
   slug: string;
@@ -19,8 +18,8 @@ export type WeightliftingExerciseLoader = (
   signal: AbortSignal,
 ) => Promise<WeightliftingExerciseRow[]>;
 
-// The exercise index is the same universe the dashboard picker shows, plus
-// the slug each exercise's own page lives at — search must land on
+// The exercise index is the dashboard picker's universe without its
+// base-name lift entries, plus the slug each exercise's own page lives at — search must land on
 // /back-squats, not a ?exercises= chart preselection.
 async function defaultExerciseLoader(signal: AbortSignal) {
   if (signal.aborted) throw new Error("search_aborted");

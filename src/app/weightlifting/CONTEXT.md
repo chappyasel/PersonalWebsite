@@ -66,7 +66,8 @@ references and conversion tests, or explicit zone metadata from the app.
   all-variations page. Single variations stay selectable on their own.
 - **Chart-selectable exercise** — an exercise type eligible for the
   dashboard picker and for its own page: measured reps × weight, with at
-  least 10 sets carrying a 1RMe.
+  least 10 sets carrying a 1RMe. The picker also lists each base-name lift
+  whose variations reach 10 such sets together.
 - **Category** — the app's muscle-group taxonomy (Abs / Core, Back,
   Biceps, Cardio, Chest, Legs, Olympic, Shoulders, Triceps, Other), each
   with a fixed color used everywhere both app and site color exercises.

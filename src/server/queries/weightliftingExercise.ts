@@ -15,7 +15,7 @@ import {
 import { buildSlugMap } from "~/app/weightlifting/lib/exerciseSlug";
 
 /** The display-name derivation every weightlifting query shares. */
-const DISPLAY_NAME_SQL = sql`
+export const DISPLAY_NAME_SQL = sql`
   CASE
     WHEN e.iteration IS NOT NULL AND e.iteration != ''
     THEN e.iteration || ' ' || e.name
@@ -35,9 +35,10 @@ export type ExerciseIndexEntry = {
 
 /**
  * Every exercise that gets its own page: reps×weight lifts with at least 10
- * sets carrying an est. 1RM — the same universe the dashboard's exercise
- * picker shows. (setCount counts those 1RM-bearing sets, not all logged
- * sets; the detail page's totalSets is the true count.)
+ * sets carrying an est. 1RM — the dashboard's exercise picker shows these
+ * plus one entry per base-name lift (BASE_NAME_LIFTS). (setCount counts
+ * those 1RM-bearing sets, not all logged sets; the detail page's totalSets
+ * is the true count.)
  */
 async function buildExerciseIndex(
   load: (
