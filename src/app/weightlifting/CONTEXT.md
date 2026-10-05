@@ -63,7 +63,9 @@ references and conversion tests, or explicit zone metadata from the app.
   fit. A lift is usually one exercise type. "Deadlifts" is a base-name lift
   (`BASE_NAME_LIFTS`): the chart, the Featured Lifts table, and the picker
   treat every deadlift variation as one lift, and the table links it to the
-  all-variations page. Single variations stay selectable on their own.
+  all-variations page. A single variation stays selectable while its lift
+  is not: adding the lift replaces its variations, and the picker hides
+  them while the lift is selected, so no set counts twice in the aggregate.
 - **Chart-selectable exercise** — an exercise type eligible for the
   dashboard picker and for its own page: measured reps × weight, with at
   least 10 sets carrying a 1RMe. The picker also lists each base-name lift

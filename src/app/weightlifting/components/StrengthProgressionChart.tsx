@@ -1,6 +1,7 @@
 "use client";
 
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { BASE_NAME_LIFTS } from "../lib/featuredLifts";
 import { type ChartMode, wlSearchParams } from "../lib/searchParams";
 import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
 import { CaretDownIcon, PlusIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
@@ -642,9 +643,19 @@ export function StrengthProgressionChart({
     };
   }, [progressionData, selectedExercises, timeRange, topExercises, chartMode]);
 
+  // A base-name lift and its variations are never selected together, or the
+  // aggregate would sum the same sets twice: adding the lift replaces its
+  // variations, and the picker hides them while the lift is selected
+  const isVariationOf = (lift: string, displayName: string) =>
+    BASE_NAME_LIFTS.includes(lift) &&
+    displayName !== lift &&
+    topExercises?.some((e) => e.displayName === displayName && e.name === lift);
+
   const toggleExercise = (name: string) => {
     setSelectedExercises((prev) =>
-      prev.includes(name) ? prev.filter((e) => e !== name) : [...prev, name],
+      prev.includes(name)
+        ? prev.filter((e) => e !== name)
+        : [...prev.filter((e) => !isVariationOf(name, e)), name],
     );
   };
 
@@ -652,6 +663,13 @@ export function StrengthProgressionChart({
     if (!topExercises) return [];
     return topExercises
       .filter((e) => !selectedExercises.includes(e.displayName))
+      .filter(
+        (e) =>
+          !(
+            BASE_NAME_LIFTS.includes(e.name) &&
+            selectedExercises.includes(e.name)
+          ),
+      )
       .filter((e) =>
         search
           ? e.displayName.toLowerCase().includes(search.toLowerCase())

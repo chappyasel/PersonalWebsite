@@ -117,3 +117,36 @@ it("offers the whole Deadlifts lift in the picker beside single variations", () 
   const update = setSelected.mock.calls[0]![0] as (prev: string[]) => string[];
   expect(update(["Back Squats"])).toEqual(["Back Squats", "Deadlifts"]);
 });
+
+it("hides a selected lift's variations from the picker", () => {
+  render(
+    <StrengthProgressionChart
+      selectedExercises={["Back Squats", "Deadlifts"]}
+      setSelectedExercises={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  fireEvent.change(screen.getByPlaceholderText("Search exercises..."), {
+    target: { value: "deadlifts" },
+  });
+  expect(screen.getByText("No exercises found")).toBeTruthy();
+});
+
+it("replaces selected variations when the whole lift is added", () => {
+  const setSelected = vi.fn();
+  render(
+    <StrengthProgressionChart
+      selectedExercises={["Sumo Deadlifts", "Conventional Deadlifts"]}
+      setSelectedExercises={setSelected}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  fireEvent.change(screen.getByPlaceholderText("Search exercises..."), {
+    target: { value: "deadlifts" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /^Deadlifts/ }));
+  const update = setSelected.mock.calls[0]![0] as (prev: string[]) => string[];
+  expect(
+    update(["Back Squats", "Sumo Deadlifts", "Conventional Deadlifts"]),
+  ).toEqual(["Back Squats", "Deadlifts"]);
+});
