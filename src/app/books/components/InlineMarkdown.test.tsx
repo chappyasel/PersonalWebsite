@@ -21,6 +21,11 @@ describe("InlineMarkdown", () => {
       "[linked text](https://example.com)",
       '<a href="https://example.com">linked text</a>',
     ],
+    // The sync's mention mark is never a native tooltip.
+    [
+      '[Read](https://plurality.net/read/ "@")',
+      '<a href="https://plurality.net/read/">Read</a>',
+    ],
     ["~~strikethrough~~", "<del>strikethrough</del>"],
     ["\\*literal asterisks\\*", "*literal asterisks*"],
     ["2 * 3 * 4", "2 * 3 * 4"],

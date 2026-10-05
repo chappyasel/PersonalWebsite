@@ -3,6 +3,9 @@ import remarkGfm from "remark-gfm";
 
 const inlineComponents = {
   p: ({ children }) => <>{children}</>,
+  // A link's Markdown title is the sync's mark for a Notion link mention
+  // ("@"), never a tooltip to show.
+  a: ({ node: _node, title: _title, ...props }) => <a {...props} />,
 } satisfies Components;
 
 /**
