@@ -673,7 +673,7 @@ describe("Homepage entrance", () => {
     );
   });
 
-  it("draws the four Role Icons with their live yaw and artwork", () => {
+  it("draws the five Role Icons with their live yaw and artwork", () => {
     const markup = renderBoot();
     const tiles = [...markup.matchAll(/data-boot-role="([^"]+)"/g)].map(
       (match) => match[1],

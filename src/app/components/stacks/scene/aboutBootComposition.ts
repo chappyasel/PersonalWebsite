@@ -294,7 +294,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     sceneScale: ABOUT_MODEL_POSES["vision-pro"].scale,
   },
   {
-    // Four Role Icons, two by two, beside Vision Pro. The tiles carry
+    // Five Role Icons, two, two, and one, beside Vision Pro. The tiles carry
     // their own brand colors, so this landmark has no single colorProfile.
     id: "role-icons",
     shelf: "lower",

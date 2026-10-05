@@ -913,6 +913,62 @@ describe("shelf physics lifecycle and carrying", () => {
     expect(support.body!.sleepState).toBe(2);
   });
 
+  it("wakes a tile resting on one that tips over, but not on a small jostle", async () => {
+    // Two half-size billets, one standing on the other like the About Role
+    // Icons. Cannon wakes a sleeping body only when something touching it
+    // moves, and a tile tipping away from rest loses contact first.
+    const stack = () => {
+      const root = new THREE.Group();
+      const shelf = new THREE.Group();
+      shelf.position.y = SHELF_SURFACE.top;
+      root.add(shelf);
+      const tile = (y: number) => {
+        const group = new THREE.Group();
+        group.position.y = y;
+        group.add(box([0.16, 0.16, 0.02], [0, 0.08, 0]));
+        shelf.add(group);
+        return group;
+      };
+      const supportGroup = tile(0);
+      const loadGroup = tile(0.16);
+      root.updateWorldMatrix(true, true);
+      const support = handle("stack-base", supportGroup);
+      const load = handle("stack-load", loadGroup);
+      const prepared = worldFor(supportGroup, [support, load]);
+      if (prepared.status !== "ready") throw new Error(prepared.status);
+      prepared.world.adopt(load);
+      return { world: prepared.world, support, load };
+    };
+    const run = (world: ReturnType<typeof stack>["world"]) => {
+      for (let frame = 0; frame < 120; frame++) world.tick(1 / 60, frame + 1);
+    };
+    await warm();
+
+    // Woken by the solver with a tip toward the camera.
+    const tipped = stack();
+    const loadY = tipped.load.body!.position.y;
+    tipped.support.body!.wakeUp();
+    tipped.support.body!.angularVelocity.set(3, 0, 0);
+    run(tipped.world);
+    expect(tipped.load.phase.current).toBe("sim");
+    expect(tipped.load.body!.position.y).toBeLessThan(loadY - 0.05);
+
+    // Knocked through the public path.
+    const knocked = stack();
+    knocked.world.knock(knocked.support, new THREE.Vector3(0, 0, 1));
+    run(knocked.world);
+    expect(knocked.load.phase.current).toBe("sim");
+    expect(knocked.load.body!.position.y).toBeLessThan(loadY - 0.05);
+
+    // A nudge that leaves the base standing leaves the load asleep.
+    const nudged = stack();
+    nudged.support.body!.wakeUp();
+    nudged.support.body!.velocity.set(0.1, 0, 0);
+    run(nudged.world);
+    expect(nudged.load.parked).toBe(true);
+    expect(nudged.load.body!.sleepState).toBe(2);
+  });
+
   it("can drag a prop beyond a finite shelf edge and land it on the room floor", async () => {
     await warm();
     const { prop } = topFixture();

@@ -995,10 +995,10 @@ function CoordinationGlobeGlyph({
   );
 }
 
-/** Four flat tiles in their own brand colors, at the exact offsets the live
+/** Five flat tiles in their own brand colors, at the exact offsets the live
  * Role Icons stand at, so the silhouette hands off to the billets in place.
  * Each rect carries its own light/dark pair: the item-level object color
- * cannot express four different tiles. */
+ * cannot express five different tiles. */
 function RoleIconStackGlyph() {
   const size = ABOUT_ROLE_ICON_SIZE * SCENE_TO_BOOT_SVG;
   const body = projectIconBody(ABOUT_ROLE_ICON_SIZE);
