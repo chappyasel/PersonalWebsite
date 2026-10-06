@@ -157,6 +157,28 @@ function titleWithoutSite(title: string, site: string): string | null {
 }
 
 /**
+ * The site's name as a mention's words give it, for a preview that has none
+ * (a site that turned the server away): the part after the last separator
+ * or before the first, when it spells the address's own name. "Read —
+ * Plurality" on plurality.net gives "Plurality"; words that never name the
+ * site give nothing.
+ */
+function siteInWords(words: string, href: string): string {
+  const host = new URL(href).hostname.replace(/^www\./, "");
+  const names = new Set([host, host.split(".")[0]!].map(squeezed));
+  const parts = words.split(/\s+[-–—|·:•]\s+/);
+  if (parts.length < 2) return "";
+  return (
+    [parts.at(-1)!, parts[0]!].find((part) => names.has(squeezed(part))) ?? ""
+  );
+}
+
+/** Letters and digits only, lower case: "The World Cafe" is theworldcafe. */
+function squeezed(text: string): string {
+  return comparable(text).replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+/**
  * The two runs a mention shows: the muted context (the site's name, or the
  * repository's owner) and the underlined title. A title that already names
  * the site at either end loses that half, so "Read — Plurality" from
@@ -187,8 +209,8 @@ export function mentionText(
         }
       : { context: `${github.owner}/`, title: github.repo, joined: true };
   }
-  const site = preview.site.trim();
   const title = (words ?? preview.title).trim();
+  const site = preview.site.trim() || (words ? siteInWords(title, href) : "");
   if (!site || comparable(site) === comparable(title)) {
     return { context: null, title, joined: false };
   }

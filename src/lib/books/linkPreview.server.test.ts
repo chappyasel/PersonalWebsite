@@ -280,6 +280,47 @@ describe("linkPreviewsFor", () => {
   });
 });
 
+describe("previews for a site that turns the server away", () => {
+  it("fall back to the site's icon from Google's favicon service", async () => {
+    const icon = await png([30, 140, 230]);
+    const fetched = serve({
+      "https://blocked.example/post": () => new Response("", { status: 403 }),
+      "https://www.google.com/s2/favicons?domain=blocked.example&sz=64": () =>
+        new Response(new Uint8Array(icon)),
+    });
+    const previews = await linkPreviewsFor(
+      '[Post — Blocked](https://blocked.example/post "@")',
+    );
+    expect(previews["https://blocked.example/post"]).toMatchObject({
+      site: "",
+      title: "blocked.example/post",
+      description: null,
+      image: null,
+      github: null,
+    });
+    expect(previews["https://blocked.example/post"]?.icon).toMatch(
+      /^data:image\/png;base64,/,
+    );
+    expect(fetched).toEqual([
+      "https://blocked.example/post",
+      "https://www.google.com/s2/favicons?domain=blocked.example&sz=64",
+    ]);
+  });
+
+  it("have nothing when Google has no icon either", async () => {
+    serve({
+      "https://unknown.example/post": () => new Response("", { status: 403 }),
+      "https://www.google.com/s2/favicons?domain=unknown.example&sz=64": () =>
+        new Response("", { status: 404 }),
+    });
+    expect(
+      await linkPreviewsFor(
+        "[https://unknown.example/post](https://unknown.example/post)",
+      ),
+    ).toEqual({});
+  });
+});
+
 describe("noteLinks", () => {
   it("finds links the way the page renders them", () => {
     const links = noteLinks(

@@ -15,6 +15,7 @@ import {
   type LinkPreviews,
   isExternalLink,
   isMentionLink,
+  prettyUrl,
 } from "./linkPreview";
 import { renderableNotes } from "./markdown";
 import { env } from "~/env";
@@ -788,27 +789,66 @@ const cachedUnfurl = unstable_cache(unfurl, ["link-preview-v1"], {
   tags: [LINK_PREVIEW_TAG],
 });
 
+/**
+ * The icon alone, from Google's favicon service, for a page this server
+ * cannot read. Sites behind bot protection (Cloudflare, ModSecurity) turn
+ * away a request from a datacenter address but not Google, which fetches
+ * and caches favicons itself. The preview has no site name or card; a
+ * mention still shows Notion's words, and a pasted address its own.
+ */
+export async function iconOnlyPreview(
+  href: string,
+): Promise<LinkPreview | null> {
+  const budget = AbortSignal.timeout(UNFURL_BUDGET_MS);
+  const within: Within = (ms) =>
+    AbortSignal.any([budget, AbortSignal.timeout(ms)]);
+  const { hostname } = new URL(href);
+  const icon = await fetchIcon(
+    [`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`],
+    within,
+  );
+  if (!icon) return null;
+  return {
+    site: "",
+    title: prettyUrl(href),
+    description: null,
+    icon: icon.icon,
+    iconTone: icon.iconTone,
+    image: null,
+    github: null,
+  };
+}
+
+const cachedIconOnly = unstable_cache(iconOnlyPreview, ["link-icon-v1"], {
+  revalidate: LINK_PREVIEW_REVALIDATE,
+  tags: [LINK_PREVIEW_TAG],
+});
+
 const inFlight = new Map<string, Promise<LinkPreview | null>>();
 const failedAt = new Map<string, number>();
 
-/** One preview at a time per address on this instance, and an address that
- * just failed is left alone for RETRY_AFTER_MS. Never rejects. */
+/**
+ * One preview at a time per address on this instance, and an address that
+ * just failed is left alone for RETRY_AFTER_MS. A page with nothing to read
+ * (it turned the server away, or failed) falls back to its icon alone.
+ * Never rejects.
+ */
 function previewFor(href: string): Promise<LinkPreview | null> {
-  const failed = failedAt.get(href);
-  if (failed !== undefined && Date.now() - failed < RETRY_AFTER_MS) {
-    return Promise.resolve(null);
-  }
   let pending = inFlight.get(href);
-  if (!pending) {
-    pending = cachedUnfurl(href)
-      .catch((error: unknown) => {
-        failedAt.set(href, Date.now());
-        console.warn(`  ✗ No link preview for ${href}:`, error);
-        return null;
-      })
-      .finally(() => inFlight.delete(href));
-    inFlight.set(href, pending);
-  }
+  if (pending) return pending;
+  const failed = failedAt.get(href);
+  const full =
+    failed !== undefined && Date.now() - failed < RETRY_AFTER_MS
+      ? Promise.resolve(null)
+      : cachedUnfurl(href).catch((error: unknown) => {
+          failedAt.set(href, Date.now());
+          console.warn(`  ✗ No link preview for ${href}:`, error);
+          return null;
+        });
+  pending = full
+    .then((preview) => preview ?? cachedIconOnly(href).catch(() => null))
+    .finally(() => inFlight.delete(href));
+  inFlight.set(href, pending);
   return pending;
 }
 
