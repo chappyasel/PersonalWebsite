@@ -98,6 +98,74 @@ describe("BookDetailContent note links", () => {
     // Every other link stays a plain link.
     expect(markup).toContain('<a href="https://example.com">his site</a>');
   });
+
+  it("draws Notion link mentions and pasted addresses as mentions", () => {
+    const markup = renderToStaticMarkup(
+      <FontProvider>
+        <BookDetailContent
+          book={{ ...CURRENT_BOOK_WITHOUT_NOTES, hasNotes: true }}
+          fullBook={{
+            ...CURRENT_BOOK_WITHOUT_NOTES,
+            hasNotes: true,
+            notes: [
+              '- *Website:* [*Read — Plurality*](https://plurality.net/read/ "@")',
+              "- Also [https://www.navalmanack.com/reading/](https://www.navalmanack.com/reading/)",
+              "- Eg. [World Cafe Method](https://theworldcafe.com/method/)",
+              '- Also [**The** Handbook](https://handbook.gitlab.com/ "@")',
+              '- And [**Read** the book](https://plurality.net/book/ "@")',
+            ].join("\n"),
+            linkPreviews: {
+              "https://plurality.net/book/": {
+                site: "Plurality",
+                title: "Plurality",
+                description: null,
+                icon: null,
+                iconTone: null,
+                image: null,
+                github: null,
+              },
+              "https://plurality.net/read/": {
+                site: "Plurality",
+                title: "Read — Plurality",
+                description: null,
+                icon: "data:image/png;base64,AAAA",
+                iconTone: "dark-tile",
+                image: null,
+                github: null,
+              },
+            },
+          }}
+          isLoadingNotes={false}
+          onShare={vi.fn()}
+          copied={false}
+          bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+        />
+      </FontProvider>,
+    );
+
+    // The icon, the site's name, then the title without the site's name,
+    // in the italics the owner gave it, and no native tooltip.
+    expect(markup).toMatch(
+      /<a href="https:\/\/plurality\.net\/read\/"[^>]*><em><span class="whitespace-nowrap"><img [^>]*src="data:image\/png;base64,AAAA"[^>]*><span[^>]*>Plurality<\/span><\/span><span[^>]*>Read<\/span><\/em><\/a>/,
+    );
+    expect(markup).toContain("dark:ring-1");
+    expect(markup).not.toContain('title="@"');
+    // A pasted address with no preview shows itself, tidied.
+    expect(markup).toContain(">navalmanack.com/reading</span>");
+    // A mention whose site gave no preview keeps Notion's words, formatting
+    // and all, beside a globe.
+    expect(markup).toMatch(
+      /<a href="https:\/\/handbook\.gitlab\.com\/"[^>]*><svg[^>]*>.*?<\/svg><span[^>]*><strong>The<\/strong> Handbook<\/span><\/a>/,
+    );
+    // Formatting inside a mention's words survives its preview.
+    expect(markup).toMatch(
+      /<span[^>]*>Plurality<\/span><\/span><span[^>]*><strong>Read<\/strong> the book<\/span>/,
+    );
+    // Words the owner linked stay a plain link.
+    expect(markup).toContain(
+      '<a href="https://theworldcafe.com/method/">World Cafe Method</a>',
+    );
+  });
 });
 
 describe("BookDetailContent note availability", () => {

@@ -125,6 +125,80 @@ describe("links", () => {
     );
   });
 
+  it("reports blocks that link words to the web, and marks link mentions", () => {
+    // The endpoint writes a link mention and a link on typed words alike.
+    // Only a block lookup tells them apart; a pasted address needs none.
+    const markdown = [
+      "- *Website: *[*Read — Plurality*](https://plurality.net/read/)",
+      "- *Github: *[*https://github.com/pluralitybook/plurality*](https://github.com/pluralitybook/plurality)",
+      "- Eg. [World Cafe Method](https://theworldcafe.com/method/)",
+      "- [The Narrow Corridor](https://app.notion.com/p/24ac5ab0d88d8080b97cf4c208a20389)",
+      "<details>",
+      "<summary>See [Gresham's law](https://en.wikipedia.org/wiki/Gresham)</summary>",
+      "\tBody",
+      "</details>",
+    ].join("\n");
+    // A toggle's summary is raw HTML on the page and is never marked.
+    expect(convertNotionMarkdown(markdown).linkPaths).toEqual(["0", "2"]);
+    expect(
+      convertNotionMarkdown(markdown, {
+        linkMentionsAt: (path) =>
+          path === "0" ? new Set(["https://plurality.net/read/"]) : undefined,
+      }).markdown.split("\n")[0],
+    ).toBe(
+      '- *Website:* [*Read — Plurality*](https://plurality.net/read/ "@")',
+    );
+  });
+
+  it("marks a mention only in its own block", () => {
+    // The same address typed on words elsewhere on the page keeps its words.
+    const markdown = [
+      "- [Read — Plurality](https://plurality.net/read/)",
+      "- As [Weyl argues](https://plurality.net/read/), plurality scales.",
+    ].join("\n");
+    expect(
+      convertNotionMarkdown(markdown, {
+        linkMentionsAt: (path) =>
+          path === "0" ? new Set(["https://plurality.net/read/"]) : undefined,
+      }).markdown,
+    ).toBe(
+      [
+        '- [Read — Plurality](https://plurality.net/read/ "@")',
+        "- As [Weyl argues](https://plurality.net/read/), plurality scales.",
+      ].join("\n"),
+    );
+  });
+
+  it("finds word links below the top level, but not inside columns", () => {
+    const markdown = [
+      "- Sources",
+      "\t- See [Mercury](https://en.wikipedia.org/wiki/Mercury_(planet))",
+      "<details>",
+      "<summary>More</summary>",
+      "\tSee [Y](https://y.example/z)",
+      "</details>",
+      "<columns>",
+      "\t<column>",
+      "\t\tSee [Z](https://z.example/w)",
+      "\t</column>",
+      "</columns>",
+    ].join("\n");
+    expect(convertNotionMarkdown(markdown).linkPaths).toEqual(["0/0", "1/0"]);
+    const marked = convertNotionMarkdown(markdown, {
+      linkMentionsAt: (path) =>
+        ({
+          "0/0": new Set(["https://en.wikipedia.org/wiki/Mercury_(planet)"]),
+          "1/0": new Set(["https://y.example/z"]),
+        })[path],
+    }).markdown;
+    // A balanced pair of parentheses belongs to the address.
+    expect(marked).toContain(
+      '[Mercury](https://en.wikipedia.org/wiki/Mercury_(planet) "@")',
+    );
+    expect(marked).toContain('[Y](https://y.example/z "@")');
+    expect(marked).toContain("[Z](https://z.example/w)");
+  });
+
   it("reports tags it does not know", () => {
     expect(
       convertNotionMarkdown('<mention-date start="2026-01-01"/>').unsupported,

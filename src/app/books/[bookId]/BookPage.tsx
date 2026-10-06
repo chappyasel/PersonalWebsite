@@ -26,7 +26,8 @@ import { requestPrototypeNavigation } from "~/app/components/route-transition-pr
 
 type BookPageProps = {
   bookId: string;
-  book: BaseBook & Pick<BookWithNotes, "notes" | "linkedBooks">;
+  book: BaseBook &
+    Pick<BookWithNotes, "notes" | "linkedBooks" | "linkPreviews">;
   bookshelfBookCount: number;
 };
 

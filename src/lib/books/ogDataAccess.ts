@@ -9,6 +9,7 @@ import { books } from "~/server/db/schema";
 
 import { findBookById } from "./bookLookup";
 import { linkNotesToLibrary } from "./inlineLookup";
+import type { LinkPreviews } from "./linkPreview";
 import { withoutPlaceholders } from "./markdown";
 import type { BaseBook, BookReading, BookWithNotes } from "./types";
 
@@ -60,10 +61,13 @@ export async function getBookForOG(
  * This is used by the book detail page to pre-fetch data
  *
  * @param bookId - The book's slug ID
+ * @param options.staticPage - The ISR page asks: its HTML lasts a day, so it
+ *   waits longer for link previews than a tRPC request does
  * @returns The book with tags and notes, or null if not found
  */
 export async function getBookWithNotes(
   bookId: string,
+  { staticPage = false }: { staticPage?: boolean } = {},
 ): Promise<BookWithNotes | null> {
   const book = await findBookById(bookId);
 
@@ -71,10 +75,22 @@ export async function getBookWithNotes(
     return null;
   }
 
+  // Unwritten skeleton sections (Todo, empty bullets) never reach the page.
+  const notes = withoutPlaceholders(book.notes ?? "");
   // Never rejects (it degrades to the notes as written), so it can run
   // alongside the reads query.
-  // Unwritten skeleton sections (Todo, empty bullets) never reach the page.
-  const linking = linkNotesToLibrary(withoutPlaceholders(book.notes ?? ""));
+  const linking = linkNotesToLibrary(notes);
+  // Never rejects either, and waits a bounded time for previews it has not
+  // seen. Loaded here so the book's OG image routes, which share this
+  // module, never load sharp and the Markdown parser for it.
+  const previewing = import("./linkPreview.server")
+    .then(({ linkPreviewsFor, BOOK_PAGE_PREVIEW_WAIT_MS }) =>
+      linkPreviewsFor(
+        notes,
+        staticPage ? BOOK_PAGE_PREVIEW_WAIT_MS : undefined,
+      ),
+    )
+    .catch((): LinkPreviews => ({}));
   const otherReads = await db.query.books.findMany({
     where: and(
       sql`LOWER(${books.title}) = LOWER(${book.title})`,
@@ -131,6 +147,7 @@ export async function getBookWithNotes(
     audibleUrl: book.audibleUrl,
     notionUrl: book.notionUrl,
     ...(await linking),
+    linkPreviews: await previewing,
     coverColor: book.coverColor ?? null,
     readNumber: book.abandoned
       ? 0

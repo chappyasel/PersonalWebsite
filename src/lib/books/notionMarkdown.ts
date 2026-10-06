@@ -14,6 +14,9 @@
  * - Toggle headings are headings marked `{toggle="true"}`. The renderer draws
  *   them as toggles with a bold summary.
  * - Page mentions are `<mention-page url/>` with no title.
+ * - A link mention (a pasted web link Notion shows with its site's icon and
+ *   name) is `[page title](url)`, the same as a link on typed words. The
+ *   renderer draws a mention differently, so it is marked `"@"`.
  * - `<empty-block/>`, `<span color>`, `<columns>` and `<file>` mean nothing to
  *   the renderer.
  *
@@ -21,6 +24,7 @@
  * dialect. It reports every tag it does not know, so the sync can fall back
  * to the block walk instead of publishing a page that renders wrong.
  */
+import { MENTION_TITLE, isExternalLink, isPastedAddress } from "./linkPreview";
 
 type Line = { depth: number; text: string; raw: string };
 
@@ -40,6 +44,13 @@ export type ConvertOptions = {
    * it often keeps counting past a run of bullets.
    */
   listStartAt?: (path: string) => number | undefined;
+  /**
+   * The addresses a block holds as link mentions, by the block's sibling
+   * path. The endpoint writes a mention like any other link; in that block,
+   * a link to one of these gets the title `"@"`. Keyed by block, so a
+   * typed link elsewhere on the page to the same address stays a link.
+   */
+  linkMentionsAt?: (path: string) => ReadonlySet<string> | undefined;
 };
 
 export type ConvertedNotes = {
@@ -48,6 +59,9 @@ export type ConvertedNotes = {
   unsupported: string[];
   /** Paths of numbered items that resume a list, for `listStartAt`. */
   resumedListPaths: string[];
+  /** Paths of blocks with a web link on words rather than its address,
+   * which may be a link mention, for `linkMentionsAt`. */
+  linkPaths: string[];
 };
 
 /** Tags the notes renderer draws itself. */
@@ -68,6 +82,10 @@ const CLOSER = /^<\/(details|columns|column)>$/;
 const LIST_ITEM = /^(?:[-*+]|\d+\.)(?: |$)/;
 const MENTION_PAGE =
   /<mention-page url="([^"]+)"(?:\s*\/>|>(.*?)<\/mention-page>)/g;
+const TOGGLE_HEADING = /^(#{1,6})\s+(.*?)\s*\{toggle="true"\}$/;
+/** A link that is not an image: its words, then its address. */
+const WEB_LINK =
+  /(?<!!)\[((?:[^\]\\]|\\.)*)\]\((https?:\/\/(?:[^()\s]|\([^()\s]*\))+)\)/g;
 
 function toLines(markdown: string): Line[] {
   return markdown.split("\n").map((raw) => {
@@ -150,6 +168,11 @@ function parseBlocks(
 type Context = Required<ConvertOptions> & {
   unsupported: Set<string>;
   resumedListPaths: string[];
+  linkPaths: string[];
+  /** The block whose own text `inline` is converting, as a sibling path;
+   * null inside columns. renderBlock sets it before converting a block's
+   * text and before its children, which set their own. */
+  blockPath: string | null;
 };
 
 /** Sibling indexes from the page down to a block; null inside columns. */
@@ -250,6 +273,11 @@ function inline(text: string, ctx: Context): string {
       /<file src="([^"]*)"(?:\s*\/>|>(.*?)<\/file>)/g,
       (_match, source: string, caption?: string) =>
         fileLink(source, caption ?? ""),
+    )
+    .replace(WEB_LINK, (match, label: string, url: string) =>
+      ctx.blockPath !== null && ctx.linkMentionsAt(ctx.blockPath)?.has(url)
+        ? `[${label}](${url} "${MENTION_TITLE}")`
+        : match,
     );
   out = tidyEmphasis(out)
     // notion-to-md used the file name as an image's alt text.
@@ -289,12 +317,38 @@ function renderToggle(
   return `<details>\n<summary>${summary}</summary>\n${body}\n\n</details>`;
 }
 
+/** True when the text links words, not a pasted address, to the web: the
+ * only links the endpoint may have written from a link mention. */
+function hasWordLink(text: string): boolean {
+  for (const [, label, url] of text.matchAll(WEB_LINK)) {
+    const words = label!.replace(/^[*_]+|[*_]+$/g, "");
+    if (isExternalLink(url!) && !isPastedAddress(words, url!)) return true;
+  }
+  return false;
+}
+
 function renderBlock(
   block: Block,
   ctx: Context,
   topLevel: boolean,
   path: Path,
 ): string {
+  // A toggle's summary (and a toggle heading's) is raw HTML on the page:
+  // the renderer draws its links plainly and slugs its anchor from the
+  // literal text, so a mark there would only move the anchor.
+  const isSummary =
+    block.kind === "toggle" ||
+    (block.kind === "text" &&
+      (TOGGLE_HEADING.test(block.text) ||
+        (/^#{1,6}\s/.test(block.text) && block.children.length > 0)));
+  ctx.blockPath = isSummary ? null : (path?.join("/") ?? null);
+  if (
+    ctx.blockPath !== null &&
+    block.kind === "text" &&
+    hasWordLink(block.text)
+  ) {
+    ctx.linkPaths.push(ctx.blockPath);
+  }
   switch (block.kind) {
     case "fence":
       return block.lines.join("\n");
@@ -311,7 +365,7 @@ function renderBlock(
       );
     case "text": {
       if (block.text === "<empty-block/>") return "";
-      const heading = /^(#{1,6})\s+(.*?)\s*\{toggle="true"\}$/.exec(block.text);
+      const heading = TOGGLE_HEADING.exec(block.text);
       if (heading || (/^#{1,6}\s/.test(block.text) && block.children.length)) {
         const text = inline(block.text, ctx)
           .replace(/^#{1,6}\s+/, "")
@@ -394,13 +448,17 @@ export function convertNotionMarkdown(
   const ctx: Context = {
     titleOf: options.titleOf ?? (() => undefined),
     listStartAt: options.listStartAt ?? (() => undefined),
+    linkMentionsAt: options.linkMentionsAt ?? (() => undefined),
     unsupported: new Set(),
     resumedListPaths: [],
+    linkPaths: [],
+    blockPath: null,
   };
   const [blocks] = parseBlocks(toLines(markdown), 0, 0);
   return {
     markdown: renderBlocks(blocks, ctx, true, []),
     unsupported: [...ctx.unsupported].sort(),
     resumedListPaths: ctx.resumedListPaths,
+    linkPaths: ctx.linkPaths,
   };
 }
