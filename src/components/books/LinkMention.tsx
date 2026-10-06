@@ -234,7 +234,10 @@ export default function LinkMention({
     </a>
   );
 
-  if (!preview) return anchor;
+  // A card earns its place with something the line does not show.
+  if (!preview?.description && !preview?.image && !preview?.github) {
+    return anchor;
+  }
 
   return (
     <TooltipProvider delayDuration={200}>

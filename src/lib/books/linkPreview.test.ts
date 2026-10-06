@@ -199,6 +199,32 @@ describe("mentionText", () => {
     ).toEqual({ context: null, title: "Read — Plurality", joined: false });
   });
 
+  it("finds the site's name in a mention's words when the site gave none", () => {
+    // An icon-only preview, for a site that turned the server away.
+    const iconOnly = preview({ site: "", title: "plurality.net/read" });
+    expect(
+      mentionText("https://plurality.net/read/", iconOnly, "Read — Plurality"),
+    ).toEqual({ context: "Plurality", title: "Read", joined: false });
+    expect(
+      mentionText(
+        "https://theworldcafe.com/method/",
+        iconOnly,
+        "Method | The World Cafe",
+      ),
+    ).toEqual({ context: "The World Cafe", title: "Method", joined: false });
+    // Words that never name the site stand whole.
+    expect(
+      mentionText(
+        "https://theworldcafe.com/method/",
+        iconOnly,
+        "World Cafe Method",
+      ),
+    ).toEqual({ context: null, title: "World Cafe Method", joined: false });
+    expect(
+      mentionText("https://plurality.net/read/", iconOnly, "Read — Weyl"),
+    ).toEqual({ context: null, title: "Read — Weyl", joined: false });
+  });
+
   it("shows the tidied address without a preview", () => {
     expect(
       mentionText("https://www.navalmanack.com/navals-recommended-reading"),
