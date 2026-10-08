@@ -1,0 +1,31 @@
+### final gates (round three, 2026-10-07)
+
+$ pnpm verify
+pass  next typegen
+pass  tsc
+pass  eslint
+pass  vitest
+pass  artwork unit tests
+pass  search index
+pass  meadow
+
+Not covered here:
+  room OG card freshness — `pnpm verify:artifacts`
+exit=0
+ Test Files  673 passed | 3 skipped (676)
+      Tests  5915 passed | 24 skipped (5939)
+
+$ pnpm exec vitest run scripts/takeout
+ Test Files  15 passed (15)
+      Tests  329 passed (329)
+
+$ pnpm test:browser-fixtures
+ Test Files  3 passed (3)
+      Tests  36 passed (36)
+
+$ python3 -m unittest test_youtube_takeout_worker   (in docs/implementation-receipts/worker-launcher)
+Ran 23 tests
+OK
+
+$ git diff --check
+clean

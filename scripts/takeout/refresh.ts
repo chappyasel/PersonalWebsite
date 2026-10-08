@@ -10,6 +10,14 @@ import * as path from "path";
 
 import { LOCAL_TSX_CLI } from "./config";
 import { acquireRefreshLock } from "./lock";
+import { readRequestState } from "./request-state";
+import {
+  type DriveCheck,
+  computeE2eStatus,
+  freshnessMaxAgeHours,
+} from "./status";
+import * as os from "os";
+
 import {
   type RefreshState,
   ingestedArchive,
@@ -67,6 +75,31 @@ function emit(event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...data }));
 }
 
+/**
+ * Report where the pipeline actually stands, alongside the event that says what
+ * this tick did. `no_new_archive` only ever meant "the Drive check is healthy";
+ * on its own it reads as success even when the newest archive Google built is a
+ * week old. This emits coverage, the ingestion time and the request state as
+ * separate facts, from files only — no Drive call, no browser, no request.
+ */
+function emitE2eStatus(state: RefreshState | null, driveCheck: DriveCheck) {
+  try {
+    emit("e2e_status", {
+      status: computeE2eStatus({
+        now: new Date(),
+        importer: state,
+        request: readRequestState(),
+        driveCheck,
+        hostname: os.hostname(),
+        maxAgeHours: freshnessMaxAgeHours(process.env),
+      }),
+    });
+  } catch {
+    // A status read must never be able to fail a tick that otherwise worked.
+    emit("e2e_status_unavailable");
+  }
+}
+
 function refresh(downloadOnly: boolean, noBrowser: boolean) {
   const state = readState();
   emit("state_loaded", { state });
@@ -94,28 +127,33 @@ function refresh(downloadOnly: boolean, noBrowser: boolean) {
     }
     if (noBrowser || downloadOnly) {
       emit("no_new_archive");
+      emitE2eStatus(state, "healthy");
       return;
     }
     requestIfDue(state);
     return;
   }
   if (dl.code === 1) {
-    writeState({
+    const failed = {
       ...state,
       last_error: "drive_auth_failed",
       consecutive_failures: state.consecutive_failures + 1,
-    });
+    };
+    writeState(failed);
     emit("download_auth_failure");
+    emitE2eStatus(failed, "failing");
     process.exitCode = 1;
     return;
   }
   if (dl.code !== 0) {
-    writeState({
+    const failed = {
       ...state,
       last_error: `download_failed_${dl.code}`,
       consecutive_failures: state.consecutive_failures + 1,
-    });
+    };
+    writeState(failed);
     emit("download_failed", { code: dl.code });
+    emitE2eStatus(failed, "failing");
     process.exitCode = 1;
     return;
   }
@@ -161,12 +199,17 @@ function refresh(downloadOnly: boolean, noBrowser: boolean) {
     }
     emit("sync_ok", { export_created_at: archive.exportCreatedAt });
   } catch {
-    writeState({
+    const failed = {
       ...state,
       last_error: `sync_failed`,
       consecutive_failures: state.consecutive_failures + 1,
-    });
+    };
+    writeState(failed);
     emit("sync_failed");
+    // The Drive check itself worked — it found and staged this archive. Only
+    // the ingestion failed, and conflating the two would send an operator to
+    // the wrong place.
+    emitE2eStatus(failed, "healthy");
     process.exitCode = 1;
     return;
   }
@@ -242,12 +285,18 @@ function finishEnrichment(state: RefreshState) {
     last_error: failures.length ? failures.join(",") : null,
     consecutive_failures: failures.length ? state.consecutive_failures + 1 : 0,
   });
+  const finished = {
+    ...state,
+    enrichment_pending: failures.length > 0,
+    last_error: failures.length ? failures.join(",") : null,
+  } as RefreshState;
   if (failures.length) {
     process.exitCode = 1;
     emit("refresh_incomplete", { failures });
   } else {
     emit("refresh_complete");
   }
+  emitE2eStatus(finished, "healthy");
 }
 
 function requestIfDue(state: RefreshState) {

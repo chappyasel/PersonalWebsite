@@ -1,0 +1,25 @@
+ FAIL  scripts/takeout/entry.test.ts > exitWhenDone > exits with main's code once main is done, with the helper still running
+AssertionError: expected 1 to be 4 // Object.is equality
+
+- Expected
++ Received
+
+- 4
++ 1
+
+ ❯ scripts/takeout/entry.test.ts:55:22
+     53|     const run = await runFixture("helper", 10_000);
+     54|     expect(run.exited).toBe(true);
+     55|     expect(run.code).toBe(4);
+       |                      ^
+     56|     // The last line is flushed before the process goes.
+     57|     expect(run.stdout).toContain('"event":"fixture_done"');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  17:53:27
+   Duration  391ms (transform 9ms, setup 0ms, import 14ms, tests 311ms, environment 0ms)
+

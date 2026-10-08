@@ -1,0 +1,10 @@
+### slice 1 (request-only state machine + queue evidence) — GREEN
+$ pnpm exec vitest run scripts/takeout/queue-evidence.test.ts scripts/takeout/request-state.test.ts
+
+ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume
+
+
+ Test Files  2 passed (2)
+      Tests  35 passed (35)
+   Start at  08:37:42
+   Duration  144ms (transform 39ms, setup 0ms, import 54ms, tests 13ms, environment 0ms)

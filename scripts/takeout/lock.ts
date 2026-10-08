@@ -8,13 +8,27 @@ import { takeoutPaths } from "./config";
  * After a crash, an operator must check for surviving children before removal.
  */
 export function acquireRefreshLock(): () => void {
-  const { lockDir } = takeoutPaths();
+  return acquireLockDir(takeoutPaths().lockDir, "refresh_lock_busy");
+}
+
+/**
+ * A second, independent mutex for work that is not an import tick — asking
+ * Google for an export, for one. It must not contend with the importer's lock:
+ * a request waiting on a human tap would otherwise block every ingestion for
+ * as long as the window stayed open.
+ */
+export function acquireNamedLock(name: string): () => void {
+  const { stateDir } = takeoutPaths();
+  return acquireLockDir(path.join(stateDir, name), `${name}_busy`);
+}
+
+function acquireLockDir(lockDir: string, busyMessage: string): () => void {
   fs.mkdirSync(path.dirname(lockDir), { recursive: true });
   try {
     fs.mkdirSync(lockDir);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      throw new Error("refresh_lock_busy");
+      throw new Error(busyMessage);
     }
     throw error;
   }

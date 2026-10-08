@@ -84,6 +84,7 @@
     "youtube:score": "tsx ./scripts/score-youtube.ts",
     "youtube:evaluate-scores": "tsx ./scripts/evaluate-youtube-scores.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
+    "test:browser-fixtures": "vitest run --config vitest.browser.config.ts",
     "generate:room-artwork": "node scripts/generate/room-artwork.mjs && node scripts/generate/room-hotspots.mjs",
     "check:room-artwork": "node scripts/generate/room-artwork.mjs --check && node scripts/generate/room-hotspots.mjs --check && pnpm check:room-artwork-quality",
     "check:room-artwork-quality": "node --test scripts/room-artwork-quality/shelf-faces.test.mjs && tsx scripts/room-artwork-quality/check-live-masks.mjs",

@@ -1,0 +1,36 @@
+### slice 5 (DOM adapter boundary, headless fixture browser) — GREEN
+Headless Chromium, no window. Every request is fulfilled from a fixture string by page.route; anything else is aborted, so no network and no Google account are involved.
+
+$ pnpm exec vitest run scripts/takeout/takeout-dom.browser.test.ts
+
+ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume
+
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > reads an in-progress YouTube export with its id and date 27ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > distinguishes a finished archive from one being built 16ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > leaves products empty when the row does not name one 14ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > trusts an empty list only when the page says there are none 15ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > calls a page it cannot make sense of unreadable, not empty 14ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > will not invent a card from an in-progress marker with no row 13ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > does not credit another product's export with YouTube text elsewhere 14ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > calls the whole queue unreadable when one row's status is unclear 15ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > does not trust explanatory empty copy that an in-progress marker contradicts 12ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > will not call a page served over plain HTTP the Takeout form 30ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > refuses to navigate while a challenge is on screen 36ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > reports a sign-in redirect as an auth gate, never as an empty queue 3ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > observeManageQueue > reports a password prompt on the Takeout host as an auth gate 6ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > isTakeoutUrl > accepts only HTTPS takeout.google.com, on the expected path 0ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > isTakeoutUrl > refuses another origin, another scheme, or the wrong path 0ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > detectAuthGate > finds the password step and says credentials are not its job 6ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > detectAuthGate > finds the passkey step from the challenge URL 6ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > detectAuthGate > finds the passkey step from the page's own words 10ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > detectAuthGate > reports no gate on an ordinary export list 6ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > formReady > is true on the delivery step 8ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > formReady > is false on the export list, and off the Takeout host 9ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > the password route's DOM steps > clicks through Try another way to a password field 52ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > the password route's DOM steps > reports a missing control rather than clicking something else 8ms
+ ✓ scripts/takeout/takeout-dom.browser.test.ts > the password route's DOM steps > does not mistake a hidden choice for an available one 6ms
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  09:10:07
+   Duration  636ms (transform 20ms, setup 0ms, import 133ms, tests 448ms, environment 0ms)

@@ -1,0 +1,26 @@
+### slice 1 (request-only state machine + queue evidence) — RED
+$ pnpm exec vitest run scripts/takeout/queue-evidence.test.ts scripts/takeout/request-state.test.ts
+      3| import {
+       | ^
+      4|   type ManageExportObservation,
+      5|   type QueueObservation,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  scripts/takeout/request-state.test.ts [ scripts/takeout/request-state.test.ts ]
+Error: Cannot find module './request-state' imported from /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume/scripts/takeout/request-state.test.ts
+ ❯ scripts/takeout/request-state.test.ts:6:1
+      4| import { afterEach, beforeEach, describe, expect, it, vi } from "vites…
+      5|
+      6| import {
+       | ^
+      7|   type RequestState,
+      8|   AWAITING_AUTH_MAX_MIN,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  no tests
+   Start at  08:34:19
+   Duration  110ms (transform 33ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)

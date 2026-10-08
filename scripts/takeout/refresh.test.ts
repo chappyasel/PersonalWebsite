@@ -121,6 +121,163 @@ afterEach(() => {
   fs.rmSync(mocks.home, { recursive: true, force: true });
 });
 
+function emitted(event: string): Record<string, unknown>[] {
+  return vi
+    .mocked(console.log)
+    .mock.calls.flatMap(([line]) => {
+      try {
+        return [JSON.parse(String(line)) as Record<string, unknown>];
+      } catch {
+        return [];
+      }
+    })
+    .filter((record) => record.event === event);
+}
+
+it("reports a healthy Drive check over a stale corpus as stale, not as success", async () => {
+  // The production shape this repair was reported against: an ingestion that
+  // succeeded hours ago, from an archive Google built six days earlier.
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({
+      state: "idle",
+      requested_at: null,
+      last_ingested_at: "2026-10-04T00:07:16.748Z",
+      last_error: null,
+      consecutive_failures: 0,
+      last_ingested_archive: {
+        driveFileId: "drive-1",
+        sourceFile: "takeout-20260928T055945Z-1-001.zip",
+        exportCreatedAt: "2026-09-28T06:04:58.013Z",
+        downloadedAt: "2026-09-28T07:00:00.000Z",
+      },
+    }),
+  );
+  vi.setSystemTime(new Date("2026-10-04T18:00:00.000Z"));
+  mocks.spawnSync.mockReturnValue({
+    status: 3,
+    stdout: "No newer archive",
+    stderr: "",
+  });
+  await tick();
+
+  expect(emitted("no_new_archive")).toHaveLength(1);
+  const [report] = emitted("e2e_status");
+  const status = report?.status as Record<string, unknown>;
+  expect(status).toMatchObject({
+    drive_check: "healthy",
+    freshness: "stale",
+    last_ingested_at: "2026-10-04T00:07:16.748Z",
+    coverage_through: "2026-09-28T06:04:58.013Z",
+    coverage_source_file: "takeout-20260928T055945Z-1-001.zip",
+    freshness_max_age_hours: 144,
+    request_status: "request_state_missing",
+    last_observed_pending_export: "unknown",
+    request_observed_at: null,
+    request_state_host: null,
+  });
+  expect(status.failures).toEqual(
+    expect.arrayContaining(["corpus_stale", "request_state_missing"]),
+  );
+  // The tick itself did its job, so it must not fail; the status carries the
+  // bad news instead.
+  expect(process.exitCode).toBe(0);
+  expect(mocks.execFileSync).not.toHaveBeenCalled();
+  expect(mocks.spawn).not.toHaveBeenCalled();
+});
+
+it("reports fresh coverage as fresh with no failures", async () => {
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({
+      ...readState(),
+      last_ingested_at: "2026-10-01T06:00:00.000Z",
+      last_error: null,
+      last_ingested_archive: {
+        driveFileId: "fresh-youtube-archive",
+        sourceFile: archive.sourceFile,
+        exportCreatedAt: "2026-09-30T06:00:00.000Z",
+        downloadedAt: "2026-10-01T05:00:00.000Z",
+      },
+    }),
+  );
+  await tick();
+  const status = emitted("e2e_status")[0]?.status as Record<string, unknown>;
+  expect(status).toMatchObject({ freshness: "fresh", drive_check: "healthy" });
+  expect(status.failures).toEqual(["request_state_missing"]);
+});
+
+it("never claims a request is queued or awaiting auth without a record", async () => {
+  mocks.spawnSync.mockReturnValue({ status: 3, stdout: "", stderr: "" });
+  await tick();
+  const status = emitted("e2e_status")[0]?.status as Record<string, unknown>;
+  expect(status.request_status).toBe("request_state_missing");
+  expect(status.request_blocker).toBeNull();
+  expect(status.request_detail).toBeNull();
+  expect(
+    fs.existsSync(path.join(path.dirname(stateFile), "request-state.json")),
+  ).toBe(false);
+});
+
+it.each([
+  [1, "drive_auth_failed"],
+  [2, "download_failed"],
+])(
+  "calls the Drive check failing when download exits %i, and still reports status",
+  async (status, failure) => {
+    mocks.spawnSync.mockReturnValue({ status, stdout: "", stderr: "secret" });
+    await tick();
+    expect(process.exitCode).toBe(1);
+    const report = emitted("e2e_status")[0]?.status as Record<string, unknown>;
+    expect(report.drive_check).toBe("failing");
+    expect(report.failures).toContain(failure);
+  },
+);
+
+it("blames the ingestion, not the Drive check, when sync fails", async () => {
+  mocks.execFileSync.mockImplementationOnce(() => {
+    throw new Error("sync failed");
+  });
+  await tick();
+  expect(process.exitCode).toBe(1);
+  const report = emitted("e2e_status")[0]?.status as Record<string, unknown>;
+  expect(report.drive_check).toBe("healthy");
+  expect(report.failures).toContain("sync_failed");
+});
+
+it("keeps a stale corpus from failing an otherwise healthy tick", async () => {
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({
+      ...readState(),
+      last_error: null,
+      last_ingested_archive: {
+        driveFileId: "drive-1",
+        sourceFile: "takeout-20260901T055945Z-1-001.zip",
+        exportCreatedAt: "2026-09-01T06:00:00.000Z",
+        downloadedAt: "2026-09-01T07:00:00.000Z",
+      },
+    }),
+  );
+  mocks.spawnSync.mockReturnValue({ status: 3, stdout: "", stderr: "" });
+  await tick();
+  const report = emitted("e2e_status")[0]?.status as Record<string, unknown>;
+  expect(report.freshness).toBe("stale");
+  expect(report.drive_check).toBe("healthy");
+  expect(process.exitCode).toBe(0);
+});
+
+it("reports status after a completed ingestion too", async () => {
+  await tick();
+  expect(emitted("refresh_complete")).toHaveLength(1);
+  const status = emitted("e2e_status")[0]?.status as Record<string, unknown>;
+  expect(status).toMatchObject({
+    coverage_through: archive.exportCreatedAt,
+    freshness: "fresh",
+    drive_check: "healthy",
+  });
+});
+
 it("imports a fresh Drive archive while idle with expired browser auth, then does not ingest it again", async () => {
   await tick();
   expect(
