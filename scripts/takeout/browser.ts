@@ -54,11 +54,23 @@ export async function getPage(options?: {
   return page;
 }
 
+/** How long to wait for the browser to close before giving up on it. */
+const CLOSE_TIMEOUT_MS = 10_000;
+
+/**
+ * Close the browser, or stop waiting for it. Playwright's close waits for the
+ * browser's stdio to close, and a headed Chrome for Testing leaves
+ * `chrome_crashpad_handler` holding stderr after the browser itself has gone,
+ * so the wait can last forever (live, 2026-10-08).
+ */
 export async function close(): Promise<void> {
-  if (_context) {
-    await _context.close();
-    _context = null;
-  }
+  const context = _context;
+  if (!context) return;
+  _context = null;
+  await Promise.race([
+    context.close().catch(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, CLOSE_TIMEOUT_MS).unref()),
+  ]);
 }
 
 const REQUIRED_GOOGLE_COOKIES = ["SID", "SAPISID", "__Secure-1PSID"];

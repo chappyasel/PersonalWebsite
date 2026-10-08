@@ -15,7 +15,9 @@ import {
   type RequestState,
   blankRequestState,
   recordAwaitingAuth,
+  readRequestState,
   recordBlocked,
+  recordFailure,
   recordFormFilled,
   recordSubmitted,
   startAttempt,
@@ -445,6 +447,43 @@ describe("approve.ts", () => {
     const queued = emitted().filter((record) => record.event === "approve_queued");
     // The old record is never reported as this run's acceptance.
     expect(queued).toEqual([expect.objectContaining({ attempt_id: "a2", fresh: true })]);
+  });
+
+  it("reports an earlier click verified during this run as this run's result", async () => {
+    // Live, 2026-10-08: the click was on record as unverified, and the new
+    // window's only job was to confirm it.
+    writeBouncedState("a1");
+    mocks.spawn.mockImplementation(() => {
+      session();
+      setTimeout(() => writeQueuedState(new Date().toISOString(), "a1"), 20);
+      return { unref: vi.fn() };
+    });
+    await runApprove(["--wait", "1"]);
+    expect(process.exitCode).toBe(0);
+    const events = emitted().map((record) => record.event);
+    expect(events).not.toContain("approve_already_queued");
+    expect(emitted()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ event: "approve_queued", attempt_id: "a1", fresh: true }),
+      ]),
+    );
+  });
+
+  it("does not report the failure the window was opened to resolve", async () => {
+    // The exact live record: an unverified click, then five unreadable reads.
+    writeBouncedState("a1");
+    const parked = readRequestState().state!;
+    writeRequestState(
+      recordFailure(parked, { now: new Date("2026-10-08T13:22:31.000Z"), error: "queue_unreadable" }),
+    );
+    mocks.spawn.mockImplementation(() => {
+      session();
+      setTimeout(() => writeQueuedState(new Date().toISOString(), "a1"), 20);
+      return { unref: vi.fn() };
+    });
+    await runApprove(["--wait", "1"]);
+    expect(process.exitCode).toBe(0);
+    expect(emitted().map((record) => record.event)).not.toContain("approve_failed");
   });
 
   it("calls an aged export history when the window finds it still building", async () => {

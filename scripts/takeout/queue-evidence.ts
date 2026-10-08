@@ -168,6 +168,30 @@ export function confirmQueueEvidence(input: {
   }
   if (pendingBefore === null) return { confirmed: false, reason: "no_baseline" };
 
+  const verdict = confirmBuilding(observation, pendingBefore);
+  if (verdict.confirmed) return verdict;
+
+  // A YouTube-only export can finish within minutes, before any read sees it
+  // building (live, 2026-10-08: "Completed", "Created 7 minutes ago"). A
+  // finished row counts only when it carries an id the snapshot taken before
+  // the attempt did not hold. Without an id it could be any old export.
+  const finished = observation.exports.find(
+    (card) =>
+      card.status === "complete" &&
+      card.exportId !== null &&
+      namesYouTube(card) &&
+      !pendingBefore.some((earlier) => sameExport(card, earlier)),
+  );
+  return finished
+    ? { confirmed: true, evidence: evidenceFrom(finished, observation) }
+    : verdict;
+}
+
+/** The original rule: an identified, new, in-progress YouTube row. */
+function confirmBuilding(
+  observation: QueueObservation,
+  pendingBefore: ManageExportObservation[],
+): QueueVerdict {
   const building = observation.exports.filter(
     (card) => card.status === "in_progress",
   );

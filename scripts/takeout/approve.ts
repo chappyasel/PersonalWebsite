@@ -253,10 +253,18 @@ export async function main(): Promise<number> {
     }
     const state = read.state;
     if (!state) continue;
+    // The record as it stood before this run is the past, whatever it says.
+    // A blocker or a failure there is what the window was opened to resolve,
+    // and a queued record is last cycle's. Only what the window writes now
+    // is this run's result; a window that ends without writing anything new
+    // found nothing to change (its log says why).
+    if (state.updated_at === before.state?.updated_at) {
+      if (readSession().kind === "alive") continue;
+      if (before.state.phase === "queued") return alreadyQueued();
+      break;
+    }
     // Until the new window has given the old attempt up, the record still
-    // describes it, blocker and all. That is the past, not this run's result.
-    // A window that refused the retry ends without writing anything, so its
-    // going away is the answer (the reason is in its log).
+    // describes it. That is the past too.
     if (retryId !== null && state.attempt?.attempt_id === retryId) {
       if (readSession().kind !== "alive") break;
       continue;
@@ -272,16 +280,10 @@ export async function main(): Promise<number> {
     if (state.phase === "queued") {
       // Acceptance belongs to an attempt that queued while this was watching.
       const attemptId = state.attempt?.attempt_id ?? null;
-      if (attemptId === priorAttemptId) {
-        // Still the record from before this run. A window that ends without
-        // starting anything new found Google still building it.
-        if (readSession().kind !== "alive") return alreadyQueued();
-        continue;
-      }
       emit("approve_queued", {
         queued_at: state.queued_at,
         attempt_id: attemptId,
-        fresh: attemptId !== priorAttemptId,
+        fresh: true,
         evidence: state.queue_evidence,
       });
       notifyMac("YouTube export queued", "Google is building the archive.");

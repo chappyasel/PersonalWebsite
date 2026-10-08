@@ -69,9 +69,11 @@ Two predicates, deliberately opposed:
 - **Suppression is generous.** A row that might be a YouTube export stops a
   second request, including one whose products Google did not print. The cost of
   being wrong is a skipped week.
-- **Confirmation is strict.** `queued` needs an in-progress row on
-  takeout.google.com/manage that says YouTube, carries an identity, and was not
-  in the snapshot taken before the attempt. No baseline means no confirmation at
+- **Confirmation is strict.** `queued` needs a row on takeout.google.com/manage
+  that says YouTube, carries an identity, and was not in the snapshot taken
+  before the attempt. The row is usually in progress, but it can also be
+  finished: on 2026-10-08 Google built the export in minutes and the first
+  sighting read "Completed". No baseline means no confirmation at
   all: a row's id distinguishes it from other rows, not from its own earlier
   self.
 
@@ -303,8 +305,10 @@ holder ends cleanly when the person closes the window. The live record is
 recovered with `--retry-unconfirmed`. A cycle-old export leads to one new
 request. The retry is refused while an export is building.
 
-`flow.ts`, `browser.ts`, `state.ts`, `config.ts`, `download.ts`,
-`sync-youtube.ts` and the lock file are untouched.
+`browser.ts` changed in one place on 2026-10-08: `close()` gives up after 10
+seconds, because Playwright's close waits on the stderr pipe that headed
+Chrome's crash-reporter helpers keep open. `flow.ts`, `state.ts`, `config.ts`,
+`download.ts`, `sync-youtube.ts` and the lock file are untouched.
 
 ### The browser-fixture tests and CI
 

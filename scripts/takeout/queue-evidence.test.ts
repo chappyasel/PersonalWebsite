@@ -66,15 +66,49 @@ describe("confirmQueueEvidence", () => {
     ).toEqual({ confirmed: false, reason: "not_a_queue_source" });
   });
 
-  it("refuses to confirm from a reached URL or a completed archive card", () => {
+  it("refuses to confirm from a reached URL or a finished card it already saw", () => {
+    const finished = card({ exportId: "export-old", status: "complete" });
+    expect(
+      confirmQueueEvidence({ observation: queue([finished]), pendingBefore: [finished] }),
+    ).toEqual({ confirmed: false, reason: "no_in_progress_export" });
+    expect(
+      confirmQueueEvidence({ observation: queue([]), pendingBefore: [] }),
+    ).toEqual({ confirmed: false, reason: "no_in_progress_export" });
+  });
+
+  it("confirms a YouTube export Google finished before anything saw it building", () => {
+    // Live, 2026-10-08: the export was "Completed" within minutes, and three
+    // checks in a row never saw an in-progress row.
+    const expired = [
+      card({ exportId: "expired-1", status: "complete", createdAtText: null }),
+      card({ exportId: "expired-2", status: "complete", createdAtText: null }),
+    ];
+    const finished = card({ exportId: "export-new", status: "complete", createdAtText: null });
+    expect(
+      confirmQueueEvidence({ observation: queue([finished, ...expired]), pendingBefore: expired }),
+    ).toEqual({
+      confirmed: true,
+      evidence: {
+        source: "takeout_manage_queue",
+        exportId: "export-new",
+        createdAtText: null,
+        observedAt,
+      },
+    });
+  });
+
+  it("never credits a finished card it cannot tell apart from an old one", () => {
     expect(
       confirmQueueEvidence({
-        observation: queue([card({ status: "complete" })]),
+        observation: queue([card({ exportId: null, status: "complete" })]),
         pendingBefore: [],
       }),
     ).toEqual({ confirmed: false, reason: "no_in_progress_export" });
     expect(
-      confirmQueueEvidence({ observation: queue([]), pendingBefore: [] }),
+      confirmQueueEvidence({
+        observation: queue([card({ status: "complete", products: ["google photos"] })]),
+        pendingBefore: [],
+      }),
     ).toEqual({ confirmed: false, reason: "no_in_progress_export" });
   });
 

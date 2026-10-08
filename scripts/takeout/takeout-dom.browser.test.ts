@@ -96,6 +96,18 @@ describe("observeManageQueue", () => {
       {exportId: "old-two", status: "complete", products: expect.arrayContaining(["youtube and youtube music"]) as string[]},
     ]});
   });
+  it("reads a row Google has already finished as complete, not unreadable", async () => {
+    // The live Summary page, 2026-10-08, minutes after "Create export".
+    await serve(manage(`<h1>Summary</h1><div role="list">
+      <div><a href="./manage/archive/new-one">YouTube and YouTube Music<p>Completed</p><p>Data backup to Drive</p><p>Created 7 minutes ago</p></a></div>
+      <div><a href="./manage/archive/old-one">YouTube and YouTube Music<p>Expired</p><p>Data backup to Drive</p><p>Created September 28, 1:59 AM</p></a></div>
+    </div>`));
+    const observation = await observeManageQueue(page);
+    expect(observation).toMatchObject({source: "takeout_manage_queue", exports: [
+      {exportId: "new-one", status: "complete"},
+      {exportId: "old-one", status: "complete"},
+    ]});
+  });
   it("reads an in-progress YouTube export with its id and date", async () => {
     await serve(
       manage(
