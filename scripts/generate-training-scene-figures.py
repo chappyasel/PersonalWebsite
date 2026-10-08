@@ -8,6 +8,8 @@ import base64
 import json
 import shutil
 import subprocess
+import sys
+from dataclasses import replace
 from pathlib import Path
 
 ANALYSIS_ROOT = Path("/Users/chappyasel/Desktop/Repos/WeightliftingApp-AnalyzeData")
@@ -16,6 +18,47 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 IMAGE_OUTPUT_DIR = REPOSITORY_ROOT / "public/images/stacks/training-figures"
 ARTIFACT_IMAGE_DIR = REPOSITORY_ROOT / "public/images/stacks/artifacts"
 DOCUMENT_OUTPUT_DIR = REPOSITORY_ROOT / "public/documents"
+
+
+def refresh_dexa_figure(workbook: Path) -> None:
+    """Render current workbook scans with the analysis repository's chart code."""
+    sys.path.insert(0, str(ANALYSIS_ROOT / "src"))
+    import pandas as pd
+    from dexa import charts
+
+    # Keep the private snapshot in memory; only the existing public chart is saved.
+    snapshot = json.loads(subprocess.check_output([
+        sys.executable,
+        str(REPOSITORY_ROOT / "scripts/weight-log/import_workbook.py"),
+        str(workbook),
+    ]))
+    scans = snapshot["scans"]
+    if len(scans) < 2 or any(
+        scan["leanMass"] is None or scan["fatMass"] is None for scan in scans
+    ):
+        raise ValueError("The static DEXA chart requires complete scan masses")
+    totals = pd.DataFrame([
+        {
+            "date": pd.Timestamp(scan["date"]),
+            "weight_lb": scan["weight"],
+            "lean_soft_tissue_lb": scan["leanMass"],
+            "bone_mineral_content_lb": (
+                scan["weight"] - scan["leanMass"] - scan["fatMass"]
+            ),
+        }
+        for scan in scans
+    ])
+    IMAGE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    # Both footer notes must fit even after the scan count reaches two digits.
+    frame = charts.TOPOGRAPHY_FRAME
+    charts.TOPOGRAPHY_FRAME = replace(frame, footer_sizes=(7.4, 7.4))
+    try:
+        charts.plot_lean_mass_vs_bodyweight(
+            totals, IMAGE_OUTPUT_DIR / "dexa-lean-mass-vs-bodyweight.png"
+        )
+    finally:
+        charts.TOPOGRAPHY_FRAME = frame
+
 
 def notebook_png(notebook_path: Path, title: str) -> bytes:
     """Read the reviewed PNG embedded in the analysis notebook's chart cell."""
@@ -71,12 +114,27 @@ def write_lift_table_artifact() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--figures-only",
         action="store_true",
         help="Copy the three reviewed analysis-repository figures only.",
     )
+    mode.add_argument(
+        "--dexa-only",
+        action="store_true",
+        help="Render just the DEXA chart from the current workbook.",
+    )
+    parser.add_argument("--workbook", type=Path)
     args = parser.parse_args()
+    if args.dexa_only:
+        if args.workbook is None:
+            parser.error("--dexa-only requires --workbook")
+        refresh_dexa_figure(args.workbook)
+        print("Refreshed the DEXA scene figure from the validated workbook.")
+        return
+    if args.workbook is not None:
+        parser.error("--workbook requires --dexa-only")
     if args.figures_only:
         write_figure_images()
         print(f"Wrote figure images to {IMAGE_OUTPUT_DIR}")

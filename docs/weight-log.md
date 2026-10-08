@@ -39,6 +39,20 @@ node --env-file=.env --import tsx scripts/weight-log/store.ts --upload
 
 `WEIGHT_WORKBOOK` is the path to the local workbook. The first command validates weekly calculations and writes an encrypted, ignored development snapshot. The second uploads that ciphertext with a private ACL and verifies the stored bytes and decryption. Neither command prints measurements or secrets.
 
+### Refreshing the training-room DEXA image
+
+The training room also shows a committed PNG. Refreshing the encrypted snapshot updates the live chart, estimates, and bulk scenarios, but does not rebuild this image. Render it from the same workbook with the analysis repository's Python environment:
+
+```sh
+~/Desktop/Repos/WeightliftingApp-AnalyzeData/venv/bin/python \
+  scripts/generate-training-scene-figures.py --dexa-only \
+  --workbook "$WEIGHT_WORKBOOK"
+```
+
+This command validates the workbook with the website importer and uses the analysis repository's existing DEXA chart renderer. It keeps the imported data in memory and replaces only `public/images/stacks/training-figures/dexa-lean-mass-vs-bodyweight.png`. Review the rendered image before deploying it through the normal website release. No other training figures or analysis-repository files change.
+
+The October 7, 2026 refresh includes ten scans. The workbook calculates body fat from its rounded masses; its latest value rounds to 13.9%, while the BodySpec report prints 14.0%. The import preserves the workbook value. No Field Note is added for a data refresh; quality-bar test 2 requires a distinct semantic completion beyond ordinary viewing.
+
 ## Automatic refresh
 
 The Hermes job "Weight Log Refresh" runs both commands every day at 8:00 local time. Its ID is `7bd64831c4b3` and its script is `~/.hermes/scripts/cron/weight_log_refresh.py`. It runs from the main checkout, `~/Desktop/Repos/PersonalWebsite`, against `iCloud Drive/Spreadsheets/Weight Log.xlsx`. When the workbook is byte-identical to the last successful upload, the job does nothing. If iCloud has offloaded the file to save space, the job asks `brctl` to download it first.
