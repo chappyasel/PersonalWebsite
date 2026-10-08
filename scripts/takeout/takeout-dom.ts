@@ -52,9 +52,9 @@ const KNOWN_PRODUCTS: [RegExp, string][] = [
 
 /** Google's own wording for an export it is still building. */
 const IN_PROGRESS_RE = /Export in progress|creating a copy of data|Preparing/i;
-/** Wording for one it has finished. */
+/** Wording for one it has finished. "Completed" is the live Summary page's. */
 const COMPLETE_RE =
-  /Download|available until|export is ready|Expired|Deleted|Failed/i;
+  /Completed|Download|available until|export is ready|Expired|Deleted|Failed/i;
 /** The page saying, in as many words, that there are no exports. */
 const EMPTY_RE =
   /No exports|You have no exports|haven'?t (?:created|exported)|nothing to show/i;

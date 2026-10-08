@@ -44,7 +44,7 @@ vi.mock("./browser", () => ({
   getProfileDir: () => "/nonexistent",
 }));
 
-type FakeExport = { id: string; status: "in_progress" | "expired" };
+type FakeExport = { id: string; status: "in_progress" | "completed" | "expired" };
 
 type FakeGoogle = {
   /** What /manage lists, newest last. */
@@ -55,6 +55,8 @@ type FakeGoogle = {
   /** Whether someone at the window finishes Google's step, and how soon. */
   person: "absent" | "approves";
   personDelayMs: number;
+  /** What a new export's row says the first time /manage lists it. */
+  newExportStatus: "in_progress" | "completed";
 };
 
 let browser: Browser;
@@ -112,7 +114,11 @@ function manage(): string {
     .map(
       (item) => `<li><a href="/manage/export/${item.id}">Export</a>
         <div>YouTube and YouTube Music · ${
-          item.status === "in_progress" ? "Export in progress" : "Expired"
+          item.status === "in_progress"
+            ? "Export in progress"
+            : item.status === "completed"
+              ? "Completed"
+              : "Expired"
         } · Oct 5, 2026</div></li>`,
     )
     .join("");
@@ -143,7 +149,7 @@ async function serveFakeGoogle(target: Page): Promise<void> {
           google.pendingCreate = false;
           google.exports.push({
             id: `e2e-export-${google.createClicks}`,
-            status: "in_progress",
+            status: google.newExportStatus,
           });
         }
         return respond(manage());
@@ -262,6 +268,7 @@ beforeEach(async () => {
     pendingCreate: false,
     person: "approves",
     personDelayMs: 1500,
+    newExportStatus: "in_progress",
   };
   page = await browser.newPage();
   await serveFakeGoogle(page);
@@ -323,6 +330,17 @@ describe("session-host.ts, end to end against a fake Google", () => {
         expect.objectContaining({ event: "host_finished", code: 0, reason: "queued" }),
       ]),
     );
+    expectNoImporterOrSession();
+  }, 120_000);
+
+  it("confirms an export Google finished before any check saw it building", async () => {
+    google.newExportStatus = "completed";
+    await expect(runHolder()).resolves.toBe(0);
+    expect(google.createClicks).toBe(1);
+    expect(requestState()).toMatchObject({
+      phase: "queued",
+      queue_evidence: { exportId: "e2e-export-1" },
+    });
     expectNoImporterOrSession();
   }, 120_000);
 

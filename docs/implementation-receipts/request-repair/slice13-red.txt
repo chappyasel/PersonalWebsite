@@ -1,0 +1,25 @@
+-     "createdAtText": null,
+-     "exportId": "export-new",
+-     "observedAt": "2026-10-04T18:00:00.000Z",
+-     "source": "takeout_manage_queue",
+-   },
++   "confirmed": false,
++   "reason": "no_in_progress_export",
+  }
+
+ ❯ scripts/takeout/queue-evidence.test.ts:89:7
+     87|     expect(
+     88|       confirmQueueEvidence({ observation: queue([finished, ...expired]…
+     89|     ).toEqual({
+       |       ^
+     90|       confirmed: true,
+     91|       evidence: {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  09:30:03
+   Duration  82ms (transform 13ms, setup 0ms, import 18ms, tests 5ms, environment 0ms)
+

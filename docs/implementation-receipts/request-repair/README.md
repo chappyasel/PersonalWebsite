@@ -69,9 +69,11 @@ Two predicates, deliberately opposed:
 - **Suppression is generous.** A row that might be a YouTube export stops a
   second request, including one whose products Google did not print. The cost of
   being wrong is a skipped week.
-- **Confirmation is strict.** `queued` needs an in-progress row on
-  takeout.google.com/manage that says YouTube, carries an identity, and was not
-  in the snapshot taken before the attempt. No baseline means no confirmation at
+- **Confirmation is strict.** `queued` needs a row on takeout.google.com/manage
+  that says YouTube, carries an identity, and was not in the snapshot taken
+  before the attempt. The row is usually in progress, but it can also be
+  finished: on 2026-10-08 Google built the export in minutes and the first
+  sighting read "Completed". No baseline means no confirmation at
   all: a row's id distinguishes it from other rows, not from its own earlier
   self.
 
