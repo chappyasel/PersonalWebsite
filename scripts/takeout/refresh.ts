@@ -6,9 +6,10 @@
  * auth stays observable without pausing the cron that discovers Drive archives.
  */
 import { execFileSync, spawn, spawnSync } from "child_process";
+import * as fs from "fs";
 import * as path from "path";
 
-import { LOCAL_TSX_CLI } from "./config";
+import { LOCAL_TSX_CLI, takeoutPaths } from "./config";
 import { acquireRefreshLock } from "./lock";
 import { readRequestState } from "./request-state";
 import {
@@ -232,8 +233,50 @@ function refresh(downloadOnly: boolean, noBrowser: boolean) {
   finishEnrichment(ingested);
 }
 
+/**
+ * The last enrichment failure's own words, kept on this machine only.
+ *
+ * Events stay names-only, because the launcher relays them and a child's
+ * output can carry anything. But "score_failed" alone hid a model rejecting a
+ * parameter until someone reran the scorer by hand (2026-10-08). The file
+ * exists only while enrichment is failing.
+ */
+export function enrichmentErrorPath(): string {
+  return path.join(takeoutPaths().stateDir, "enrichment-error.txt");
+}
+
+function outputText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Buffer.isBuffer(value)) return value.toString("utf8");
+  return "";
+}
+
+/** Credentials in URLs, key=value secrets, and long token-shaped strings. */
+export function redactSecrets(text: string): string {
+  return text
+    .replace(/(\b[a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi, "$1[redacted]@")
+    .replace(/\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*\s*[=:]\s*)\S+/g, "$1[redacted]")
+    .replace(/\b((?:api[_-]?key|token|secret|password)\s*[=:]\s*)\S+/gi, "$1[redacted]")
+    .replace(/\b(Bearer\s+)\S+/gi, "$1[redacted]")
+    .replace(/\b(?=[\w-]*\d)(?=[\w-]*[A-Za-z])[\w-]{32,}\b/g, "[redacted]");
+}
+
+function describeFailure(step: string, error: unknown): string {
+  const failure = (error ?? {}) as { status?: unknown; stdout?: unknown; stderr?: unknown };
+  const status = typeof failure.status === "number" ? String(failure.status) : "unknown";
+  return [
+    `${new Date().toISOString()} ${step} failed, exit ${status}`,
+    "--- stderr (tail)",
+    redactSecrets(outputText(failure.stderr).slice(-4000)).trimEnd(),
+    "--- stdout (tail)",
+    redactSecrets(outputText(failure.stdout).slice(-2000)).trimEnd(),
+    "",
+  ].join("\n");
+}
+
 function finishEnrichment(state: RefreshState) {
   const failures: string[] = [];
+  const details: string[] = [];
   emit("running_classify");
   try {
     const classifyOut = execFileSync(
@@ -246,9 +289,10 @@ function finishEnrichment(state: RefreshState) {
       },
     );
     emit("classify_ok", { tail: classifyOut.slice(-500) });
-  } catch {
+  } catch (error) {
     // Preserve the successful ingest, but fail this tick and retry enrichment.
     failures.push("classify_failed");
+    details.push(describeFailure("classify", error));
     emit("classify_failed");
   }
 
@@ -273,10 +317,21 @@ function finishEnrichment(state: RefreshState) {
       { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
     );
     emit("score_ok", { tail: scoreOut.slice(-500) });
-  } catch {
+  } catch (error) {
     // The next tick retries the top-up without reingesting.
     failures.push("score_failed");
+    details.push(describeFailure("score", error));
     emit("score_failed");
+  }
+
+  try {
+    if (details.length) {
+      fs.writeFileSync(enrichmentErrorPath(), details.join("\n"), { mode: 0o600 });
+    } else {
+      fs.rmSync(enrichmentErrorPath(), { force: true });
+    }
+  } catch {
+    // Diagnostics must never fail a tick that otherwise did its job.
   }
 
   writeState({

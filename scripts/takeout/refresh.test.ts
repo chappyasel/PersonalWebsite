@@ -437,6 +437,58 @@ it.each(["throw", "failed-result", "missing-result", "wrong-archive"])(
   },
 );
 
+it("keeps the failing step's own error text in a local file, redacted", async () => {
+  // Live, 2026-10-08: score_failed was all anyone could see, and finding
+  // the cause took a separate run of the scorer on the worker.
+  const success = mocks.execFileSync.getMockImplementation()!;
+  mocks.execFileSync.mockImplementation((cmd: string, args: string[]) => {
+    if (args.includes("scripts/score-youtube.ts")) {
+      throw Object.assign(new Error("Command failed"), {
+        status: 1,
+        stdout: "learning_value: run 24 has 42567 of 42638 videos; scoring 71.\n",
+        stderr:
+          "Unsupported value: 'minimal' is not supported with the 'gpt-5.6-luna-2026-07-09' model.\n" +
+          "at postgresql://yt:hunter2-secret@db.example.com/yt using vck_0123456789abcdefghijklmnopqrstuvwxyzABCD\n" +
+          "AI_GATEWAY_API_KEY=not-for-the-log\n" +
+          "401 Unauthorized: invalid request, Authorization: Bearer short-but-secret\n",
+      });
+    }
+    return success(cmd, args);
+  });
+  await tick();
+  expect(process.exitCode).toBe(1);
+
+  const file = path.join(path.dirname(stateFile), "enrichment-error.txt");
+  const text = fs.readFileSync(file, "utf8");
+  expect(text).toContain("score failed, exit 1");
+  expect(text).toContain("Unsupported value: 'minimal'");
+  expect(text).toContain("scoring 71");
+  // The words that diagnose a failure survive the redaction.
+  expect(text).toContain("401 Unauthorized: invalid request");
+  for (const secret of [
+    "hunter2-secret",
+    "vck_0123456789abcdefghijklmnopqrstuvwxyzABCD",
+    "not-for-the-log",
+    "short-but-secret",
+  ]) {
+    expect(text).not.toContain(secret);
+  }
+  expect(fs.statSync(file).mode & 0o077).toBe(0);
+  // The event stream, which the launcher relays, still carries names only.
+  const logged = vi
+    .mocked(console.log)
+    .mock.calls.map(([line]) => String(line))
+    .join("\n");
+  expect(logged).not.toContain("Unsupported value");
+
+  // A clean enrichment removes it, so the file means a current failure.
+  mocks.execFileSync.mockImplementation(success);
+  process.exitCode = 0;
+  await tick();
+  expect(process.exitCode).toBe(0);
+  expect(fs.existsSync(file)).toBe(false);
+});
+
 it.each(["classify", "score"])(
   "reports %s failure and retries enrichment without duplicate ingestion",
   async (stage) => {
