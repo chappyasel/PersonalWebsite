@@ -389,8 +389,11 @@ two of its checks.
 4. **Scoring on the worker** failed after the 2026-10-08 import because the
    model rejected `"minimal"`, fixed in #114. Until the worker runs that code,
    every tick retries the 71-video top-up per dimension and fails the same
-   way. `refresh.ts` still discards the scorer's error text, which is why
-   finding this took a separate run.
+   way. Finding it took a separate run because `refresh.ts` discarded the
+   scorer's error text. It now writes the failing step's exit code and output
+   tail, with secrets redacted, to `enrichment-error.txt` in the worker's
+   state directory. The file is deleted once enrichment succeeds, and
+   nothing in it reaches the event stream.
 
 Field Notes does not apply. This is internal ingestion maintenance with
 nothing visitor-facing.
