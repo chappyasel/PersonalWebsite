@@ -227,11 +227,15 @@ export async function main(): Promise<number> {
       "Complete the sign-in in the browser window to queue this week's export.",
     );
     // The holder claims ownership before it launches the browser, so a record
-    // that never appears means no window was opened.
+    // that never appears means no window was opened. Unless the window has
+    // already done its work and gone: an export Google finished earlier is
+    // verified in seconds, between two of these checks (live, 2026-10-08).
+    const recordMoved = () =>
+      readRequestState().state?.updated_at !== before.state?.updated_at;
     let started = false;
     for (let poll = 0; poll < HOST_START_POLLS; poll += 1) {
       await sleep(pollMs);
-      if (readSession().kind === "alive") {
+      if (readSession().kind === "alive" || recordMoved()) {
         started = true;
         break;
       }

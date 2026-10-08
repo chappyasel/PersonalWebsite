@@ -329,12 +329,42 @@ to the removed sign-in and stay as history.
 `final-gates.txt` has the numbers for this round. `mutation-checks.txt` lists
 the invariants broken on purpose and the tests that caught each one.
 
+## The first live approval (2026-10-08)
+
+The automation profile's cookie store had been emptied on 2026-10-07 at 08:40,
+cause unknown, so Chappy signed it back in with `pnpm takeout:login`. Then:
+
+1. `approve.ts --retry-unconfirmed 839f6aae-…` read /manage, found nothing
+   building, gave the bounced click up, and clicked "Create export" once at
+   13:19:58Z. The holder saw no reauth step, probably because the sign-in
+   was minutes old.
+2. Google built the YouTube-only export within minutes. /manage never listed
+   it in progress. Its first row read "Completed", which the parser did not
+   know, so the holder found the list unreadable. After five reads it
+   recorded `queue_unreadable` and held, as #110 intended. The row text came
+   from cua-driver's read-only `get_window_state` on our own window.
+3. #112 taught the parser "Completed" and accepted a finished YouTube row
+   with an id the baseline did not hold. A fresh window then verified the
+   same click without clicking again. The record says `queued`, with
+   evidence `be362e48-b9ae-40b3-9cdf-c6a91ee6004c` observed at 13:54:02Z.
+4. A worker tick at 13:42Z had already imported
+   `takeout-20261008T132016Z-1-001.zip`. Watch events went from 49,366 to
+   49,446, the newest watch is now 2026-10-07, and `e2e_status` reported
+   `freshness: fresh` with coverage through 13:25:25Z. Scoring then failed,
+   and the worker's state says `enrichment_pending`. `refresh.ts` discards
+   the scorer's error, so the cause is not in any receipt.
+
+Two more bugs surfaced and are fixed. First, a released window hung on
+Playwright's close, which waits on the stderr pipe Chrome's crash-reporter
+helpers keep open; `close()` is now bounded. Second, `approve.ts` reported
+`approve_window_not_started` for a window that verified and closed between
+two of its checks.
+
 ## What has not been proved
 
-- A full live approval. The holder has reached the real passkey challenge,
-  but nobody has finished it in a holder's window yet. That a passkey tap
-  completes the pending export without a second click was seen with the old
-  approval flow, before this repair.
+- Whether a passkey or password reauth, when Google does ask for one, ends
+  in the export without a second click. The 2026-10-08 run needed no reauth.
+  The fixture models the passkey case as observed with the old flow.
 - Why the first live holder never wrote a record. The unreadable /manage
   cause is inferred; its output was discarded.
 - Google's wording on the reauth screens and the native dialog's control
@@ -351,10 +381,11 @@ the invariants broken on purpose and the tests that caught each one.
    helper. Its receipts are in `reconcile-71ee5b83/` beside the checkout. One
    `--no-browser` tick afterwards reported `drive_check: healthy`,
    `freshness: stale`, with unchanged database counts.
-3. **The live record** at `~/hermes-work/youtube-request-live/state` holds
-   attempt `839f6aae-b102-4164-9395-632e2fc6365d`, the bounced click.
-   `RUN-LIVE.md` has the one command that retires it and asks for a new
-   export, with a person at the window.
+3. **The live record** at `~/hermes-work/youtube-request-live/state` is
+   `queued` (attempt `559feabc-c223-4cb5-81f8-cc43833e31b3`, 2026-10-08), so
+   `approve.ts` opens nothing until 120 hours have passed.
+4. **Scoring on the worker failed** after the 2026-10-08 import, cause
+   unknown. The next scheduled tick retries enrichment without reimporting.
 
 Field Notes does not apply. This is internal ingestion maintenance with
 nothing visitor-facing.

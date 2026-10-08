@@ -1,0 +1,12 @@
+       |                              ^
+    499|     const events = emitted().map((record) => record.event);
+    500|     expect(events).not.toContain("approve_window_not_started");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 45 passed (46)
+   Start at  09:54:50
+   Duration  741ms (transform 46ms, setup 0ms, import 44ms, tests 633ms, environment 0ms)
+

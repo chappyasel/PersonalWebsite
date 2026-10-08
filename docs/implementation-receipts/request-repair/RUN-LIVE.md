@@ -9,24 +9,11 @@ closes. Nothing is scheduled, and the importer isn't run.
 Run it on the Mac that holds the automation browser profile
 (`~/.config/youtube-takeout-profile`), from a checkout of main.
 
-## The first run: retire the bounced click
+The first run happened on 2026-10-08; see the README. Before running this,
+check that the automation profile is still signed in. `approve.ts` exits 1
+with `approve_session_missing` if not, and `pnpm takeout:login` fixes it.
 
-The live record still holds the attempt from 2026-10-05, a click that bounced
-to a passkey challenge nobody finished. Nothing will start a new attempt until
-that one is given up, so the first run names it:
-
-```sh
-export YOUTUBE_TAKEOUT_STATE_DIR=~/hermes-work/youtube-request-live/state
-pnpm exec tsx scripts/takeout/approve.ts \
-  --retry-unconfirmed 839f6aae-b102-4164-9395-632e2fc6365d --wait 30
-```
-
-The window reads Google's export list first. If any YouTube export is still
-building, it refuses, clicks nothing, and closes. The reason is in
-`request-session.log` in the state directory. Otherwise it gives the old
-attempt up, starts one new attempt, and waits for you.
-
-## Later runs
+## Running it
 
 ```sh
 export YOUTUBE_TAKEOUT_STATE_DIR=~/hermes-work/youtube-request-live/state
@@ -36,9 +23,17 @@ pnpm exec tsx scripts/takeout/approve.ts --wait 30
 `approve.ts` reports `approve_already_queued` and opens nothing if an export
 was confirmed within the last five days.
 
+A click that bounced to "Verify it's you" and was never finished blocks new
+requests. When you know nobody finished it, retire it by name:
+`approve.ts --retry-unconfirmed <attempt_id>`. The id is in
+`request-state.json`. It refuses if any YouTube export is still building.
+
 ## During the run
 
-When Google shows "Verify it's you", finish it in that window. If Chrome shows
+Google may build the export without asking anything. On 2026-10-08, soon
+after a sign-in, the window saw no verify step, Google finished in minutes, and the window
+confirmed it from the "Completed" row. If Google does show "Verify it's you",
+finish it in that window. If Chrome shows
 "No passkeys available", choose "Try another way" and enter your password.
 Then leave the window alone. Within a poll or two it reads Google's export
 list and closes.
