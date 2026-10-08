@@ -51,7 +51,8 @@ Exit codes from `approve.ts`:
   open and still waiting for you. Finish the step, then run `approve.ts`
   again with no flags to attach to it.
 - `2` with `approve_blocked`, `approve_failed`, `approve_retry_refused` or
-  `approve_window_gone`. Read `request-session.log`, then
+  `approve_window_gone`. `approve_failed` with `queue_unreadable` means the
+  window could not read Google's export list five times in a row. Read `request-session.log`, then
   `pnpm exec tsx scripts/takeout/status-cli.ts --pretty`.
 - `1` means the browser profile's Google cookies have expired. Run
   `pnpm takeout:login` first.
@@ -65,6 +66,8 @@ touch "$YOUTUBE_TAKEOUT_STATE_DIR/request-session.release"
 ## After it queues
 
 Google builds the archive over a few hours and puts it in Drive. The worker
-job `c0b4ce46c316` downloads and imports it on its next run. Its
-`e2e_status` reports `freshness: "fresh"` once the new archive is ingested.
-That last part is the real proof the whole loop works.
+job `c0b4ce46c316` downloads and imports it on its next run. Freshness is
+judged by the archive's own build time, so once a newly built archive is
+ingested, `e2e_status` reports `freshness: "fresh"` as long as its build
+time is within the 144-hour threshold. That is the real proof the whole loop
+works.

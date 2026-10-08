@@ -135,3 +135,9 @@ alive with the pipe held open.
 --- (q) approve.ts refuses at any queued record, whatever its age ---
      × asks again once last cycle's export has aged out 3ms
       Tests  1 failed | 42 passed (43)
+
+### follow-up (2026-10-08)
+
+--- (r) an unreadable queue is polled forever without a record ---
+     × records an unreadable queue and holds, instead of polling it forever 5ms
+      Tests  1 failed | 19 passed (20)

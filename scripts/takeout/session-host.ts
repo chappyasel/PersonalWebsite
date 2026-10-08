@@ -59,8 +59,10 @@ import {
   type AbandonRefusal,
   type RequestBlocker,
   abandonUnconfirmedAttempt,
+  blankRequestState,
   readRequestState,
   recordBlocked,
+  recordFailure,
   writeRequestState,
 } from "./request-state";
 import {
@@ -94,6 +96,14 @@ Owns the headed approval window. No timeout closes it.
 
 Release the window with:
   touch "$YOUTUBE_TAKEOUT_STATE_DIR/request-session.release"`;
+
+/**
+ * Consecutive unreadable queue reads before the holder records the failure and
+ * stops polling. One or two can be a page mid-navigation; five in a row is a
+ * page this code cannot read, and polling it forever writes nothing anyone
+ * sees (the first live holder, 2026-10-05).
+ */
+export const UNOBSERVED_LIMIT = 5;
 
 /** Outcomes that mean the window has done its job and can close. */
 const COMPLETE: Partial<Record<FlowOutcome["kind"], number>> = {
@@ -149,6 +159,7 @@ export async function runApprovalSession(
   options: ApprovalSessionDeps,
 ): Promise<ApprovalSessionResult> {
   let holding = false;
+  let unobserved = 0;
   let deadlineAt = options.deadlineAt;
   for (;;) {
     // Ending without a confirmed export is never a success, however it ended.
@@ -162,6 +173,7 @@ export async function runApprovalSession(
       options.consumeResume();
       if (holding) {
         holding = false;
+        unobserved = 0;
         deadlineAt = options.now() + options.resumeWindowMs;
         emit("host_resumed", { polling_until_ms: options.resumeWindowMs });
       }
@@ -199,6 +211,23 @@ export async function runApprovalSession(
 
       if (outcome.kind === "awaiting_auth" && options.onAuthWait) {
         if ((await options.onAuthWait(outcome)) === "retry") continue;
+      }
+
+      unobserved = outcome.kind === "queue_unobserved" ? unobserved + 1 : 0;
+      if (unobserved >= UNOBSERVED_LIMIT) {
+        // The record is the only place approve.ts and the status look. A read
+        // of it that fails is left alone rather than overwritten.
+        const read = options.deps.loadState();
+        if (read.state || !read.present) {
+          options.deps.saveState(
+            recordFailure(read.state ?? blankRequestState(), {
+              now: options.deps.now(),
+              error: "queue_unreadable",
+            }),
+          );
+        }
+        emit("host_holding", { reason: "queue_unobserved" });
+        holding = true;
       }
 
       if (outcome.kind === "blocked" || outcome.kind === "failed") {

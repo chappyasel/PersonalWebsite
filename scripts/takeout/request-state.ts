@@ -479,7 +479,7 @@ export function abandonUnconfirmedAttempt(
   input: { now: Date; attemptId: string; exports: ManageExportObservation[] },
 ): { ok: true; state: RequestState } | { ok: false; reason: AbandonRefusal } {
   const attempt = state.attempt;
-  if (!attempt || attempt.attempt_id !== input.attemptId) {
+  if (attempt?.attempt_id !== input.attemptId) {
     return { ok: false, reason: "no_such_attempt" };
   }
   if (state.phase === "queued") return { ok: false, reason: "already_queued" };

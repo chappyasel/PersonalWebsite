@@ -1,9 +1,10 @@
 # Status slice
 
 Active on the worker since 2026-10-04, when the coordinator applied and
-verified it. This file is the contract as reviewed then. It ships in the
-same merge as the rest of the request repair, and none of the nine files
-below changed in a way the status reads.
+verified it. This file is the contract as reviewed then. It shipped in the
+same merge as the rest of the request repair (#109). Since activation,
+`queue-evidence.ts` changed how it recognises a YouTube row, and nothing the
+status reports changed shape.
 
 ## Files
 

@@ -92,8 +92,8 @@ describe("observeManageQueue", () => {
     </div>`));
     const observation = await observeManageQueue(page);
     expect(observation).toMatchObject({source: "takeout_manage_queue", exports: [
-      {exportId: "old-one", status: "complete", products: expect.arrayContaining(["youtube and youtube music"])},
-      {exportId: "old-two", status: "complete", products: expect.arrayContaining(["youtube and youtube music"])},
+      {exportId: "old-one", status: "complete", products: expect.arrayContaining(["youtube and youtube music"]) as string[]},
+      {exportId: "old-two", status: "complete", products: expect.arrayContaining(["youtube and youtube music"]) as string[]},
     ]});
   });
   it("reads an in-progress YouTube export with its id and date", async () => {

@@ -21,6 +21,7 @@ import type { RequestFlowDeps } from "./request-flow";
 import { blankRequestState, readRequestState, writeRequestState } from "./request-state";
 import {
   type ApprovalSessionDeps,
+  UNOBSERVED_LIMIT,
   nativeRouteHook,
   runApprovalSession,
 } from "./session-host";
@@ -333,7 +334,7 @@ describe("runApprovalSession", () => {
     expect(readRequestState().state?.queue_evidence).toBeNull();
   });
 
-  it("holds rather than closing when the queue cannot be read", async () => {
+  it("writes nothing for a few unreadable reads, which can be a page mid-navigation", async () => {
     const h = harness({ maxWaits: 3 });
     h.options.deps.observeQueue = async () => {
       h.calls.push("observeQueue");
@@ -344,6 +345,25 @@ describe("runApprovalSession", () => {
     expect(h.waits.length).toBeGreaterThan(0);
     expect(h.closed()).toBe(false);
     expect(readRequestState().present).toBe(false);
+  });
+
+  it("records an unreadable queue and holds, instead of polling it forever", async () => {
+    // The first live holder looped like this with nothing written, so the
+    // status said request_state_missing and approve.ts said "still waiting".
+    const h = harness({ maxWaits: UNOBSERVED_LIMIT + 4 });
+    h.options.deps.observeQueue = async () => {
+      h.calls.push("observeQueue");
+      return unknownObservation("unreadable", clock.toISOString());
+    };
+    const result = await runApprovalSession(h.options);
+    expect(result.code).toBe(4);
+    expect(h.closed()).toBe(false);
+    expect(h.calls.filter((call) => call === "observeQueue")).toHaveLength(UNOBSERVED_LIMIT);
+    expect(readRequestState().state).toMatchObject({
+      phase: "failed",
+      last_error: "queue_unreadable",
+      attempt: null,
+    });
   });
 
   it("runs the opted-in native route at the passkey gate, where the dialog is", async () => {
