@@ -29,3 +29,28 @@ OK
 
 $ git diff --check
 clean
+
+### follow-up gates (2026-10-08)
+
+$ pnpm verify
+pass  next typegen
+pass  tsc
+pass  eslint
+pass  vitest
+pass  artwork unit tests
+pass  search index
+pass  meadow
+      Tests  5978 passed | 25 skipped (6003)
+
+$ pnpm exec vitest run scripts/takeout
+      Tests  330 passed (330)
+
+$ pnpm test:browser-fixtures
+      Tests  36 passed (36)
+
+$ python3 -B -m unittest test_youtube_takeout_worker
+Ran 23 tests
+OK
+
+$ eslint --max-warnings 0 <every takeout file this work touched>
+clean

@@ -37,7 +37,8 @@ The request path had five ways to lie or repeat itself:
 
 ### Request state, apart from the importer (`request-state.ts`)
 
-`request-state.json`, which nothing in the import path reads or writes. Phases:
+`request-state.json`. The importer never writes it, and `refresh.ts` reads it
+only to report request status. Phases:
 `idle`, `awaiting_auth` (explicit, resumable), `submitted_unverified`, `queued`,
 `failed`. `planAttempt` decides what a run may do, and three rules carry it:
 
@@ -122,9 +123,11 @@ Judgements are bound tightly and fail to "unreadable":
 - `observeManageQueue` refuses to navigate while a challenge is on screen, so it
   cannot walk away from a sign-in someone is halfway through.
 
-The live run of 2026-10-05 read the real /manage page correctly: two expired
-exports as `complete`, no pending YouTube export. The rest of the real wording,
-including the reauth screens, is still unverified.
+The real /manage page is a "Summary" list whose rows link to
+`/manage/archive/<id>`, not `/manage/export/<id>`. The coordinator added that
+link form on 2026-10-05, between the two live holders, and the second holder
+then read the page correctly: two expired exports as `complete`, no pending
+YouTube export. The reauth screens' wording is still unverified.
 
 ### The password route (`native-modal.ts`, `password-route.ts`)
 
@@ -198,12 +201,16 @@ live finding below is why.
 ### Status
 
 Active on the worker since 2026-10-04. `STATUS-SLICE.md` has the contract.
-`status.ts`, `status-cli.ts`, `refresh.ts` and `queue-evidence.ts` are
-unchanged since. `request-state.ts` grew additively: `recordBaseline`, more
-sign-in steps, three blockers that only the removed sign-in wrote, and
-`abandonUnconfirmedAttempt`. Nothing the status reads was renamed or removed,
-and the launcher's allow list still carries the three blocker names so a
-record already on disk keeps parsing.
+`status.ts`, `status-cli.ts` and `refresh.ts` are unchanged since.
+`queue-evidence.ts` changed in one place: a row counts as YouTube when a
+product name contains "youtube", which the live /manage page needed.
+`request-state.ts` grew additively: `recordBaseline`, more sign-in steps,
+three blockers that only the removed sign-in wrote, and
+`abandonUnconfirmedAttempt`. Nothing the status reports changed shape.
+
+Main's launcher template allows the three retired blocker names. The
+launcher installed on the worker predates them and does not; since nothing
+writes them, nothing is dropped.
 
 ## Round three: what the live run found (2026-10-05 to 10-07)
 
@@ -226,11 +233,16 @@ ends the process explicitly. `entry.test.ts` reproduces the condition with a
 shell that exits while its `sleep` child keeps the pipe, and shows the old
 entry staying alive and the new one exiting with the right code.
 
-**The first holder left nothing to diagnose it by.** `approve.ts` started the
-holder with `stdio: "ignore"`, and the coordinator's launch sent it to
-`/dev/null`. Why that holder never wrote `request-state.json` is still
-unknown. The holder's output now goes to `request-session.log` in the state
-directory, and `approve.ts` prints the path.
+**The first holder failed silently.** It ran before the coordinator's
+`/manage/archive/` fix, so it very likely read the real export list as
+unreadable. The attempt then returned `queue_unobserved` without saving, and
+the holder polled again forever. Nothing reached a record, and its output
+went to `/dev/null`. This is inferred from the code and the timing, since
+the output is gone. Two fixes followed. The holder's output now goes to
+`request-session.log` in the state directory, and `approve.ts` prints the
+path. After five unreadable reads in a row, the holder records
+`queue_unreadable` and stops polling, so `approve.ts` reports a failure
+instead of "still waiting for you".
 
 **The native route clicked on every poll.** See the password route above.
 
@@ -252,9 +264,6 @@ have answered "already queued" every week from then on. It now asks the
 planner, which suppresses for one cycle, 120 hours, and then sends the window
 to read Google's list. A queued record from before the run is never reported
 as that run's acceptance.
-
-The earlier theory that /manage could not be read was wrong. The live record
-shows it was read correctly.
 
 ## Files
 
@@ -322,7 +331,8 @@ the invariants broken on purpose and the tests that caught each one.
   but nobody has finished it in a holder's window yet. That a passkey tap
   completes the pending export without a second click was seen with the old
   approval flow, before this repair.
-- Why the first live holder never wrote a record. Its output was discarded.
+- Why the first live holder never wrote a record. The unreadable /manage
+  cause is inferred; its output was discarded.
 - Google's wording on the reauth screens and the native dialog's control
   labels. Code that does not recognise a screen parks for a person.
 
@@ -330,11 +340,13 @@ the invariants broken on purpose and the tests that caught each one.
 
 1. **Keep the daily job `8c7c1b43a686` paused** and its ownership fence in
    place. The worker job `c0b4ce46c316` owns discovery and import.
-2. **Reconcile the worker checkout with main.** Hermes reported it detached
-   at `7540dfcc` with uncommitted changes and the status files untracked, at
+2. **The worker checkout** at
    `/Users/chappyasel/hermes-work/youtube-worker-migration/runtime` on
-   `chappys-macbook-pro`. Keep worker-only adaptations, `state/`, `data/` and
-   the installed launcher.
+   `chappys-macbook-pro` was reconciled to `71ee5b83` by Hermes on
+   2026-10-08, keeping the installed launcher and the worker-only readback
+   helper. Its receipts are in `reconcile-71ee5b83/` beside the checkout. One
+   `--no-browser` tick afterwards reported `drive_check: healthy`,
+   `freshness: stale`, with unchanged database counts.
 3. **The live record** at `~/hermes-work/youtube-request-live/state` holds
    attempt `839f6aae-b102-4164-9395-632e2fc6365d`, the bounced click.
    `RUN-LIVE.md` has the one command that retires it and asks for a new
