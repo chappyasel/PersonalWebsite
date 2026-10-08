@@ -48,6 +48,15 @@ const PROMPT_VERSIONS: Record<ScoreDimension, string> = {
   positivity: "v1",
 };
 const FORMULA_VERSION = "v1";
+/**
+ * The cheapest reasoning setting the model accepts. It was "minimal" until the
+ * alias moved to the gpt-5.6-luna-2026-07-09 snapshot, which rejects it
+ * ("Supported values are: 'none', 'low', 'medium', 'high', 'xhigh', and
+ * 'max'"); every top-up then failed (worker, 2026-10-08). "none" replaces it
+ * as the lowest setting. A run is keyed on model, prompt and formula, not on
+ * this, so existing runs keep resuming.
+ */
+const REASONING_EFFORT = "none";
 const INPUT_VERSION = "metadata-v1";
 const CALIBRATION_SIZE = 20;
 const BATCH_SIZE = 10;
@@ -401,7 +410,7 @@ async function classifyBatch(
         providerOptions: {
           openai: {
             serviceTier: "flex",
-            reasoningEffort: "minimal",
+            reasoningEffort: REASONING_EFFORT,
             textVerbosity: "low",
           },
           gateway: { tags: ["youtube-scoring", dimension] },
@@ -417,7 +426,7 @@ async function classifyBatch(
         providerOptions: {
           openai: {
             serviceTier: "flex",
-            reasoningEffort: "minimal",
+            reasoningEffort: REASONING_EFFORT,
             textVerbosity: "low",
           },
           gateway: { tags: ["youtube-scoring", dimension] },
