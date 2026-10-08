@@ -1,0 +1,95 @@
+### slice 6 (entrypoints + approval window lifecycle) — GREEN
+
+$ pnpm exec vitest run scripts/takeout/cli-args.test.ts scripts/takeout/session.test.ts scripts/takeout/session-host.test.ts scripts/takeout/request-cli.test.ts
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > reads flags and values 1ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > answers --help before anything else, even beside bad arguments 0ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > refuses an argument it does not know 0ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > refuses a flag that was retired rather than ignoring it 0ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > refuses an option with no value, or one that looks like a flag 0ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > refuses the same argument twice 0ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > accepts nothing at all 0ms
+ ✓ scripts/takeout/cli-args.test.ts > parseCliArgs > names the offending argument on the error 0ms
+ ✓ scripts/takeout/cli-args.test.ts > positiveNumber > takes a positive finite value 0ms
+ ✓ scripts/takeout/cli-args.test.ts > positiveNumber > falls back on anything else 0ms
+ ✓ scripts/takeout/session.test.ts > session registry > keeps the approval session beside request state, not in importer state 2ms
+ ✓ scripts/takeout/session.test.ts > session registry > reports no session when nothing was ever written 1ms
+ ✓ scripts/takeout/session.test.ts > session registry > reports a live session by its process, not by its age 1ms
+ ✓ scripts/takeout/session.test.ts > session registry > reports a session whose process is gone as dead 1ms
+ ✓ scripts/takeout/session.test.ts > session registry > treats a process it may not signal as alive, never as free to replace 1ms
+ ✓ scripts/takeout/session.test.ts > session registry > reports another machine's session as foreign, with no liveness claim 1ms
+ ✓ scripts/takeout/session.test.ts > session registry > reports a corrupt session file as unreadable rather than as absent 1ms
+ ✓ scripts/takeout/session.test.ts > session registry > clears only its own file 1ms
+ ✓ scripts/takeout/session.test.ts > decideSession > attaches to a live window instead of opening a second one 0ms
+ ✓ scripts/takeout/session.test.ts > decideSession > attaches to a live window even for a different attempt 0ms
+ ✓ scripts/takeout/session.test.ts > decideSession > starts only when there is no session at all 0ms
+ ✓ scripts/takeout/session.test.ts > decideSession > replaces a record whose process is gone 0ms
+ ✓ scripts/takeout/session.test.ts > decideSession > defers to another machine rather than guessing about its window 0ms
+ ✓ scripts/takeout/session.test.ts > decideSession > fails closed on an unreadable record instead of opening a window 0ms
+ ✓ scripts/takeout/session.test.ts > session ownership > claims the window before any browser exists, and writes the record 3ms
+ ✓ scripts/takeout/session.test.ts > session ownership > refuses a second claim while the first holder is alive 2ms
+ ✓ scripts/takeout/session.test.ts > session ownership > refuses to launch beside another machine's claim 1ms
+ ✓ scripts/takeout/session.test.ts > session ownership > fails closed on an owner file it cannot read 1ms
+ ✓ scripts/takeout/session.test.ts > session ownership > takes over a dead holder's claim, and says it did 2ms
+ ✓ scripts/takeout/session.test.ts > session ownership > never takes over a holder whose process it may not signal 1ms
+ ✓ scripts/takeout/session.test.ts > session ownership > does not contend with the per-attempt request mutex 2ms
+ ✓ scripts/takeout/session.test.ts > release sentinel > is absent until an operator asks for the window to close 1ms
+ ✓ scripts/takeout/session.test.ts > resume sentinel > is a one-shot request a holder consumes 1ms
+ ✓ scripts/takeout/session.test.ts > resume sentinel > is separate from a release, so neither can be mistaken for the other 1ms
+ ✓ scripts/takeout/session.test.ts > request mutex > lets one holder in and refuses the next until it releases 2ms
+ ✓ scripts/takeout/session.test.ts > request mutex > does not contend with the importer's refresh lock 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'queued', evidence: null } to exit 0 17ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'awaiting_auth', step: 'passkey', blocker: null } to exit 4 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'submission_unverified', reason: 'no_in_progress_export' } to exit 5 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'queue_unobserved', reason: 'auth_gate' } to exit 5 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'already_queued', reason: 'within_cycle' } to exit 3 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'pending_export_exists', exportIds: [] } to exit 3 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'deferred', reason: 'foreign_host' } to exit 3 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'blocked', reason: 'submission_uncertain' } to exit 2 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > maps { kind: 'failed', error: 'ui_failure' } to exit 2 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > records the missing session and exits 1 without opening a page 3ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > refuses --debug before touching anything 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > refuses --timeout before touching anything 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > refuses --no-headed before touching anything 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > refuses --headed before touching anything 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > answers --help without reading cookies or state 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > fails closed on a record it cannot parse, without overwriting it 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > does not write a failure over a record it cannot parse 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > reads the session only after taking the mutex 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > stands down on a session record it cannot read 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > stands down while a headed window owns the flow 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > refuses to run twice at once 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > releases the mutex even when the attempt throws 2ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > reports what the recorded state allows without touching the browser 1ms
+ ✓ scripts/takeout/request-cli.test.ts > request.ts exit codes > never writes the importer's state or runs the importer 1ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > refuses a retired flag before spawning anything 7ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > has no way to run the importer at all 4ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > reports an export queued earlier as history, not as acceptance 8ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > says so plainly when the window never opened 8ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > stops as soon as an export is confirmed queued 5ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > holds the window open when the deadline passes, instead of ending 0ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > holds indefinitely past the deadline until something releases it 0ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > holds the window open on a blocker instead of closing it 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > keeps waiting while an auth gate is up, polling without resubmitting 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > completes the first submission once a person clears the gate 3ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > ends when the person closes the window themselves 0ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > ends on an explicit release, without having driven anything 0ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > gives up its turn when the per-attempt mutex is held elsewhere 1ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > releases the mutex after each attempt, not for the window's life 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > stops when there is already an export building, without claiming it 1ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > holds rather than closing when the queue cannot be read 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > runs the opted-in route at the passkey gate, which is where the dialog is 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > leaves a visible password prompt to the person and their vault 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > does nothing automatic at the passkey gate when the adapter is off 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > carries on in the same window when a resume is asked for 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > resumes a blocked holder without resubmitting a submitted attempt 2ms
+ ✓ scripts/takeout/session-host.test.ts > runApprovalSession > treats a resume as one request, not a standing instruction 3ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > does not claim the window is open once the holder has gone 122ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > asks for a detached window rather than owning one 8ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > does not ask a window it is not attached to for anything 1ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > says the window is still open when it stops watching 122ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > watches an existing window instead of starting a second 123ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > stands down rather than open a window beside another host's 2ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > does nothing at all with --no-launch and no session 1ms
+ ✓ scripts/takeout/request-cli.test.ts > approve.ts > reports a fresh acceptance from an attempt that queued while watching 7ms
+ Test Files  4 passed (4)
+      Tests  90 passed (90)

@@ -1,0 +1,13 @@
+### slice 10 (request.ts end to end against a fake Google, headless) — GREEN
+Real: CLI, mutex, state machine, flow.ts form steps, queue reads, passkey switch, sign-in, 1Password lookup down to spawning a binary.
+Fake: Google (fixture pages via page.route, everything else aborted), the op binary (a shell script printing a fixture password), the cookie check.
+
+$ pnpm exec vitest run scripts/takeout/end-to-end.browser.test.ts
+ ✓ scripts/takeout/end-to-end.browser.test.ts > request.ts, end to end against a fake Google > fills the form, signs in with the stored password, and confirms the export 16273ms
+ ✓ scripts/takeout/end-to-end.browser.test.ts > request.ts, end to end against a fake Google > fetched the password from 1Password, and never let it out 16083ms
+ ✓ scripts/takeout/end-to-end.browser.test.ts > request.ts, end to end against a fake Google > supplies an authenticator code when Google asks for one 16911ms
+ ✓ scripts/takeout/end-to-end.browser.test.ts > request.ts, end to end against a fake Google > stops at a refused password, and the next run does not type it again 16094ms
+ ✓ scripts/takeout/end-to-end.browser.test.ts > request.ts, end to end against a fake Google > without a stored password, parks for a person and types nothing 15156ms
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Duration  80.84s (transform 53ms, setup 0ms, import 139ms, tests 80.63s, environment 0ms)

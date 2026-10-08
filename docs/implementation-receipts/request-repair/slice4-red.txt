@@ -1,0 +1,17 @@
+### slice 4 (truthful read-only e2e status) — RED
+$ pnpm exec vitest run scripts/takeout/status.test.ts
+ ❯ scripts/takeout/status.test.ts:5:1
+      3|
+      4| import type { RefreshState } from "./state";
+      5| import {
+       | ^
+      6|   DEFAULT_FRESHNESS_MAX_AGE_HOURS,
+      7|   FRESHNESS_MAX_AGE_HOURS_ENV,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  08:52:27
+   Duration  118ms (transform 11ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)

@@ -1,69 +1,84 @@
 /**
- * Headed human-approval path for the YouTube Takeout export.
+ * Ask for the headed approval window, then wait a bounded time for it — without
+ * owning it.
  *
- * Google demands an interactive passkey/reauth at "Create export" that the
- * headless cron (request.ts) cannot satisfy. This script opens a real Chromium
- * window, fills the same form, clicks Create export, then WAITS (default 20
- * min) for you to complete the passkey on your Mac. The moment the export is
- * confirmed queued, it flips the state machine to `requested` so the normal
- * download → sync → classify pipeline takes over (no further human action).
+ * The window belongs to `session-host.ts`, launched detached. That is the fix
+ * for the old behaviour: this process timing out, being interrupted, or having
+ * its terminal closed no longer takes the browser with it.
  *
- * If Google happens NOT to challenge (fresh session), it completes with no tap
- * — i.e. this is also a safe superset of the auto path.
+ * Two things this is careful about, because both would be lies:
+ *
+ *   - An export that was already queued before this ran is reported as history,
+ *     with its own timestamp. Calling it acceptance would credit this run, and
+ *     the person's tap, with work that was already done.
+ *   - "The window is still open" is said only after the session record confirms
+ *     a live holder. A holder that failed to start is reported as exactly that.
+ *
+ * Attaching to a live window also asks its holder to resume, which is how a
+ * person who completed a sign-in by hand gets the attempt moving again without
+ * a second window.
  *
  * Run with: npx tsx scripts/takeout/approve.ts
- *   --timeout <min>  How long to wait for the passkey tap (default 20).
- *   --dry-run        Fill the form but stop before Create export.
- *   --no-headed      Run headless (testing only; will fail at the passkey gate).
+ *   --wait <min>      How long to watch for a result (default 20). Does not
+ *                     bound the window's life.
+ *   --deadline <min>  How long the window itself stays open (default 360).
+ *   --poll <sec>      Seconds between checks (default 10).
+ *   --no-launch       Watch an existing session; never start one.
+ *   --retry-unconfirmed <attempt-id>
+ *                     Give up on that attempt's unverified click and start a
+ *                     new one in the new window (see `abandonUnconfirmedAttempt`).
+ *   --help            Show usage and exit.
+ *
+ * The window's own log goes to request-session.log in the state directory.
+ *
+ * It never runs the importer. Ingestion belongs to the scheduled refresh, and a
+ * request path that could start it would be a second way into the daily job.
  *
  * Exit codes:
- *   0 = export confirmed queued, state flipped to `requested`
+ *   0 = export confirmed queued while this was watching
  *   1 = Google session cookies missing/expired — re-run `pnpm takeout:login`
- *   2 = timed out waiting for the tap, or UI failure
+ *   2 = blocked, failed, unreadable state, or the window never opened
+ *   3 = nothing to approve: already queued, or another holder owns the window
+ *   4 = still waiting for a person, with the window confirmed open
  */
 import { spawn, spawnSync } from "child_process";
+import * as fs from "fs";
 import * as path from "path";
+import { pathToFileURL } from "url";
 
-import { close, getPage, hasGoogleSessionCookies } from "./browser";
-import { LOCAL_TSX_CLI } from "./config";
-import { getDrive } from "./drive";
-import {
-  AUTH_GATE_RE,
-  clickCreateExport,
-  fillExportForm,
-  verifyExportQueued,
-} from "./flow";
-import { readState, writeState } from "./state";
+import { hasGoogleSessionCookies } from "./browser";
+import { parseCliArgs, positiveNumber } from "./cli-args";
+import { LOCAL_TSX_CLI, takeoutPaths } from "./config";
+import { exitWhenDone } from "./entry";
+import { planAttempt, readRequestState } from "./request-state";
+import { readSession, requestResume } from "./session";
 
-const DRY_RUN = process.argv.includes("--dry-run");
-const HEADED = !process.argv.includes("--no-headed");
-
-function argValue(name: string): string | undefined {
-  const i = process.argv.indexOf(name);
-  return i === -1 ? undefined : process.argv[i + 1];
-}
-const TIMEOUT_MIN = Number(argValue("--timeout") ?? 20);
-const TIMEOUT_MS = Math.max(1, TIMEOUT_MIN) * 60_000;
-const RUN_START_MS = Date.now();
 const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
+const DEFAULT_POLL_SEC = 10;
+/** Polls to allow the detached holder to register itself before giving up. */
+const HOST_START_POLLS = 3;
 
-/** Kick the orchestrator (detached) to download+sync+classify right away, so a
- *  tap ingests within minutes instead of waiting for the next cron tick. If the
- *  zip isn't in Drive yet it harmlessly no-ops and the cron picks it up later. */
-function ingestNow() {
-  const child = spawn(
-    process.execPath,
-    [LOCAL_TSX_CLI, "scripts/takeout/refresh.ts"],
-    {
-      cwd: REPO_ROOT,
-      detached: true,
-      stdio: "ignore",
-    },
-  );
-  child.unref();
+const USAGE = `Usage: tsx scripts/takeout/approve.ts [options]
+Asks for the headed approval window and watches for a result. The window belongs
+to a detached session host, so this process timing out does not close it.
+
+  --wait <min>      How long to watch (default 20). Does not bound the window.
+  --deadline <min>  How long the window keeps polling (default 360).
+  --poll <sec>      Seconds between checks (default 10).
+  --no-launch       Watch an existing window; never start one.
+  --retry-unconfirmed <attempt-id>
+                    Give up on that attempt's "Create export" click, which
+                    Google never turned into an export, and start a new one.
+  --help            Show this and exit.
+
+The window's log: request-session.log in the state directory.
+This never runs the importer.`;
+
+function emit(event: string, data: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({ event, ...data }));
 }
 
-/** Best-effort native macOS notification so the tap request is noticeable. */
+/** Best-effort native notification so the request for a tap is noticeable. */
 function notifyMac(title: string, message: string) {
   try {
     spawnSync("osascript", [
@@ -75,115 +90,236 @@ function notifyMac(title: string, message: string) {
   }
 }
 
-/** Definitive success signal: a fresh Takeout zip in Drive, created at/after
- *  this run started (minus a small margin). The export form selects only
- *  YouTube, but Google's archive number is not stable: June 2026 produced
- *  "-3-" zips and July 2026 produced "-2-" zips. */
-async function freshYouTubeZipInDrive(sinceMs: number): Promise<boolean> {
+/** Where the window's owner writes its event log. */
+export function sessionLogPath(): string {
+  return path.join(takeoutPaths().stateDir, "request-session.log");
+}
+
+/**
+ * Start the window's owner, detached, so it outlives this process. Its output
+ * goes to a file: a holder that stalls with nowhere to write leaves nothing to
+ * diagnose it by (2026-10-05).
+ */
+function launchHost(deadlineMin: number, retryId: string | null): void {
+  fs.mkdirSync(takeoutPaths().stateDir, { recursive: true });
+  const log = fs.openSync(sessionLogPath(), "a");
   try {
-    const drive = getDrive();
-    const resp = await drive.files.list({
-      q: "name contains 'takeout-' and trashed = false",
-      orderBy: "createdTime desc",
-      pageSize: 10,
-      fields: "files(name, createdTime)",
-    });
-    const cutoff = new Date(sinceMs - 5 * 60_000);
-    return (resp.data.files ?? []).some(
-      (f) =>
-        /takeout-\d{8}T\d{6}Z(?:-\d+)?-\d+\.zip$/i.test(f.name ?? "") &&
-        !!f.createdTime &&
-        new Date(f.createdTime) >= cutoff,
+    const child = spawn(
+      process.execPath,
+      [
+        LOCAL_TSX_CLI,
+        "scripts/takeout/session-host.ts",
+        "--deadline",
+        String(deadlineMin),
+        ...(retryId === null ? [] : ["--retry-unconfirmed", retryId]),
+      ],
+      { cwd: REPO_ROOT, detached: true, stdio: ["ignore", log, log] },
     );
-  } catch {
-    return false;
+    child.unref();
+  } finally {
+    fs.closeSync(log);
   }
 }
 
-async function main() {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Returns the exit code. */
+export async function main(): Promise<number> {
+  // Arguments first: before any cookie is read or any process spawned.
+  let parsed;
+  try {
+    parsed = parseCliArgs(process.argv.slice(2), {
+      flags: ["--no-launch"],
+      values: ["--wait", "--deadline", "--poll", "--retry-unconfirmed"],
+      retired: ["--then-ingest", "--timeout", "--no-headed", "--dry-run"],
+      usage: USAGE,
+    });
+  } catch (error) {
+    emit("approve_invalid_arguments", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+    console.error(USAGE);
+    return 2;
+  }
+  if (parsed.help) {
+    console.log(USAGE);
+    return 0;
+  }
+  const waitMin = positiveNumber(parsed.values.get("--wait"), 20);
+  const deadlineMin = positiveNumber(parsed.values.get("--deadline"), 360);
+  const noLaunch = parsed.flags.has("--no-launch");
+  const pollMs = positiveNumber(parsed.values.get("--poll"), DEFAULT_POLL_SEC) * 1000;
+  const retryId = parsed.values.get("--retry-unconfirmed") ?? null;
+
   if (!hasGoogleSessionCookies()) {
-    console.error(
-      "Google session cookies missing — run `pnpm takeout:login` to sign in.",
-    );
-    process.exit(1);
+    emit("approve_session_missing");
+    return 1;
   }
 
-  const page = await getPage({ headless: !HEADED });
-  await fillExportForm(page, true);
-
-  if (DRY_RUN) {
-    console.log("[approve] DRY RUN — skipping Create export click.");
-    await close();
-    process.exit(0);
+  // What the record said before this process asked for anything.
+  const before = readRequestState();
+  if (before.present && !before.state) {
+    emit("approve_state_unreadable");
+    return 2;
   }
-
-  await clickCreateExport(page);
-  console.log(
-    "[approve] WAITING_FOR_PASSKEY — complete the passkey in the browser window.",
-  );
-  notifyMac(
-    "Approve YouTube export",
-    "Tap your passkey in the open browser window to queue this week's export.",
-  );
-
-  // After "Create export", Google usually bounces to a passkey challenge on
-  // accounts.google.com. Confirm success two ways, whichever lands first:
-  //   1. A fresh YouTube ("-3-") Takeout zip appears in Drive — definitive.
-  //   2. Once off the challenge page, /manage shows "Export in progress". We
-  //      only probe /manage after leaving the auth gate, so we never navigate
-  //      away while the user is mid-tap.
-  // If Google didn't challenge at all, #2 confirms on the first pass.
-  const deadline = Date.now() + TIMEOUT_MS;
-  let queued = false;
-  let leftGate = false;
-  while (Date.now() < deadline) {
-    if (await freshYouTubeZipInDrive(RUN_START_MS)) {
-      queued = true;
-      break;
+  // A confirmed export suppresses the next request for one cycle. Past that,
+  // only Google's list can say whether it is still building, and reading it
+  // needs the window.
+  const alreadyQueued = () => {
+    emit("approve_already_queued", {
+      queued_at: before.state?.queued_at ?? null,
+      attempt_id: before.state?.attempt?.attempt_id ?? null,
+      evidence: before.state?.queue_evidence ?? null,
+    });
+    return 3;
+  };
+  if (before.state && planAttempt(before.state, new Date()).action === "already_queued") {
+    return alreadyQueued();
+  }
+  const priorAttemptId = before.state?.attempt?.attempt_id ?? null;
+  if (retryId !== null) {
+    // Checked here as well as in the window's owner, so a wrong id opens
+    // nothing. The queue check that can still refuse it needs the window.
+    const reason =
+      priorAttemptId !== retryId
+        ? "no_such_attempt"
+        : !before.state?.attempt?.submitted_at
+          ? "not_submitted"
+          : null;
+    if (reason) {
+      emit("approve_retry_refused", { reason });
+      return 2;
     }
-    if (!AUTH_GATE_RE.test(page.url())) {
-      leftGate = true;
-      if ((await verifyExportQueued(page)) === "ok") {
-        queued = true;
+  }
+
+  const session = readSession();
+  if (session.kind === "alive" && retryId !== null) {
+    // Giving up on an attempt is a decision for a fresh window; a live one may
+    // be the very place that attempt is still being finished.
+    emit("approve_retry_refused", { reason: "window_open" });
+    return 3;
+  } else if (session.kind === "alive") {
+    // A window that stopped polling — because its deadline passed, or because
+    // something needed a person — is waiting, not finished. Attaching is also
+    // how someone who signed in by hand says "carry on": the holder consumes
+    // the request and resumes in the same window, launching nothing.
+    requestResume();
+    emit("approve_watching_existing_window", { resume_requested: true });
+  } else if (session.kind === "foreign") {
+    emit("approve_foreign_session");
+    return 3;
+  } else if (session.kind === "unreadable") {
+    // An unverifiable record counts as a window that exists.
+    emit("approve_session_unreadable");
+    return 3;
+  } else if (noLaunch) {
+    emit("approve_no_session");
+    return 3;
+  } else {
+    launchHost(deadlineMin, retryId);
+    emit("approve_window_requested", {
+      deadline_min: deadlineMin,
+      retry_unconfirmed: retryId,
+      log: sessionLogPath(),
+    });
+    notifyMac(
+      "Approve YouTube export",
+      "Complete the sign-in in the browser window to queue this week's export.",
+    );
+    // The holder claims ownership before it launches the browser, so a record
+    // that never appears means no window was opened.
+    let started = false;
+    for (let poll = 0; poll < HOST_START_POLLS; poll += 1) {
+      await sleep(pollMs);
+      if (readSession().kind === "alive") {
+        started = true;
         break;
       }
     }
-    await page.waitForTimeout(15_000);
-  }
-  await close();
-
-  if (queued) {
-    const prev = readState();
-    writeState({
-      ...prev,
-      state: "requested",
-      requested_at: new Date().toISOString(),
-      last_error: null,
-      consecutive_failures: 0,
-      approval_pending_since: null,
-    });
-    console.log(
-      "[approve] EXPORT_QUEUED — state flipped to `requested`. Kicking ingest now.",
-    );
-    notifyMac(
-      "YouTube export queued",
-      "Approved — ingesting your watch history now.",
-    );
-    ingestNow();
-    process.exit(0);
+    if (!started) {
+      emit("approve_window_not_started");
+      return 2;
+    }
   }
 
-  console.error(
-    `[approve] Timed out after ${TIMEOUT_MIN} min — export not confirmed. ` +
-      (leftGate
-        ? "Returned from the passkey gate but no export was detected."
-        : "The passkey was never completed."),
-  );
-  process.exit(2);
+  const deadline = Date.now() + waitMin * 60_000;
+  let lastPhase: string | null = null;
+  while (Date.now() < deadline) {
+    await sleep(pollMs);
+    const read = readRequestState();
+    if (read.present && !read.state) {
+      emit("approve_state_unreadable");
+      return 2;
+    }
+    const state = read.state;
+    if (!state) continue;
+    // Until the new window has given the old attempt up, the record still
+    // describes it, blocker and all. That is the past, not this run's result.
+    // A window that refused the retry ends without writing anything, so its
+    // going away is the answer (the reason is in its log).
+    if (retryId !== null && state.attempt?.attempt_id === retryId) {
+      if (readSession().kind !== "alive") break;
+      continue;
+    }
+    if (state.phase !== lastPhase) {
+      emit("approve_phase", {
+        phase: state.phase,
+        blocker: state.blocker,
+        auth_step: state.auth_step,
+      });
+      lastPhase = state.phase;
+    }
+    if (state.phase === "queued") {
+      // Acceptance belongs to an attempt that queued while this was watching.
+      const attemptId = state.attempt?.attempt_id ?? null;
+      if (attemptId === priorAttemptId) {
+        // Still the record from before this run. A window that ends without
+        // starting anything new found Google still building it.
+        if (readSession().kind !== "alive") return alreadyQueued();
+        continue;
+      }
+      emit("approve_queued", {
+        queued_at: state.queued_at,
+        attempt_id: attemptId,
+        fresh: attemptId !== priorAttemptId,
+        evidence: state.queue_evidence,
+      });
+      notifyMac("YouTube export queued", "Google is building the archive.");
+      return 0;
+    }
+    if (state.phase === "failed") {
+      emit("approve_failed", { last_error: state.last_error });
+      return 2;
+    }
+    if (state.blocker && state.blocker !== "passkey_tap_required") {
+      // Something only a person can change, outside the browser flow.
+      emit("approve_blocked", { blocker: state.blocker });
+      return 2;
+    }
+  }
+
+  // Only claim the window is open if the holder's record says it is.
+  const stillOwned = readSession();
+  if (stillOwned.kind !== "alive") {
+    emit("approve_window_gone", { session: stillOwned.kind });
+    return 2;
+  }
+  emit("approve_still_waiting", {
+    waited_min: waitMin,
+    window_open_until_min: deadlineMin,
+  });
+  return 4;
 }
 
-main().catch(async (err) => {
-  console.error("Approve failed:", err);
-  await close().catch(() => undefined);
-  process.exit(2);
-});
+/**
+ * Run only when this file is the process entry. Importing it — from a test, or
+ * from another script — must not start a browser or claim a session.
+ */
+export const done =
+  import.meta.url === pathToFileURL(process.argv[1] ?? "").href
+    ? exitWhenDone(main, (error) => {
+        emit("approve_crashed", {
+          reason: error instanceof Error ? error.name : "unknown",
+        });
+      })
+    : Promise.resolve();

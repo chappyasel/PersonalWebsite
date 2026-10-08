@@ -24,10 +24,123 @@ FAILURE_EVENTS = frozenset({
     "request_needs_passkey", "requested_ok", "requested_auth_failure", "approval_in_progress",
 })
 SUCCESS_EVENTS = frozenset({"refresh_complete", "no_new_archive"})
+# Relayed by name only. A status read that fails does not fail the tick, but it
+# must not vanish either.
+NOTICE_EVENTS = frozenset({"e2e_status_unavailable"})
+
+# The end-to-end status record. Everything below is a strict allow list: the
+# child's JSON may carry anything at all, and only values that match one of
+# these shapes are forwarded. A `no_new_archive` tick says the Drive check is
+# healthy, not that the corpus is current, so the freshness verdict is relayed
+# separately and a stale verdict gets its own event.
+STATUS_EVENT = "e2e_status"
+STATUS_SCHEMA = 1
+STATUS_ENUMS = {
+    "drive_check": frozenset({"healthy", "failing", "unknown"}),
+    "freshness": frozenset({"fresh", "stale", "missing", "unknown"}),
+    "request_status": frozenset({
+        "idle", "awaiting_auth", "submitted_unverified", "queued", "failed",
+        "request_state_missing", "request_state_unreadable", "unknown",
+    }),
+    "last_observed_pending_export": frozenset({"yes", "no", "unknown"}),
+    "request_blocker": frozenset({
+        "credential_route_unavailable", "native_modal_present",
+        "native_modal_driver_unavailable", "submission_uncertain",
+        "passkey_tap_required", "request_state_unreadable",
+        "password_rejected", "second_factor_required", "sign_in_rejected",
+    }),
+    "request_detail": frozenset({
+        "ui_failure", "session_cookies_missing", "queue_unreadable",
+        "password_route_failed",
+    }),
+}
+STATUS_INSTANTS = frozenset({
+    "generated_at", "last_ingested_at", "coverage_through", "request_observed_at",
+})
+STATUS_NUMBERS = frozenset({
+    "ingest_age_hours", "coverage_age_hours", "freshness_max_age_hours",
+})
+STATUS_FAILURES = frozenset({
+    "corpus_stale", "coverage_missing", "coverage_unknown", "drive_check_failing",
+    "drive_check_unknown", "importer_state_missing", "enrichment_pending",
+    "drive_auth_failed", "download_failed", "sync_failed", "classify_failed",
+    "score_failed", "google_auth_expired", "passkey_step_up",
+    "request_stuck_gave_up", "importer_error_other", "request_state_missing",
+    "request_state_unreadable", "request_state_foreign_host", "request_blocked",
+    "request_failed",
+})
+INSTANT_RE = re.compile(r"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
+ARCHIVE_RE = re.compile(r"\Atakeout-\d{8}T\d{6}Z(?:-\d+)?-\d+\.zip\Z")
+STATUS_NUMBER_LIMIT = 10 ** 6
+# A stale corpus is reported, not treated as a broken run: the tick did its job,
+# and a gate that fails every week until an export arrives is a gate nobody reads.
+STALE_IS_FAILURE = False
 
 
 def emit(event, **fields):
     print(json.dumps({"event": event, **fields}), flush=True)
+
+
+def safe_status(record):
+    """Project the child's status record onto the allow list above.
+
+    Returns (safe, dropped). `dropped` names only our own field names, never a
+    value the child supplied. Anything unrecognised — an unknown key, a value of
+    the wrong type, a timestamp that is not a plain UTC instant, a failure code
+    nobody enumerated — is left out rather than passed along.
+    """
+    if not isinstance(record, dict) or record.get("schema") != STATUS_SCHEMA:
+        return None, ["schema"]
+    safe = {"schema": STATUS_SCHEMA}
+    dropped = []
+    for key, allowed in STATUS_ENUMS.items():
+        value = record.get(key)
+        if value is None:
+            safe[key] = None
+        elif isinstance(value, str) and value in allowed:
+            safe[key] = value
+        else:
+            dropped.append(key)
+    for key in sorted(STATUS_INSTANTS):
+        value = record.get(key)
+        if value is None:
+            safe[key] = None
+        elif isinstance(value, str) and INSTANT_RE.match(value):
+            safe[key] = value
+        else:
+            dropped.append(key)
+    for key in sorted(STATUS_NUMBERS):
+        value = record.get(key)
+        if value is None:
+            safe[key] = None
+        elif (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and -STATUS_NUMBER_LIMIT < value < STATUS_NUMBER_LIMIT
+        ):
+            safe[key] = round(float(value), 2)
+        else:
+            dropped.append(key)
+    source = record.get("coverage_source_file")
+    if source is None:
+        safe["coverage_source_file"] = None
+    elif isinstance(source, str) and ARCHIVE_RE.match(source):
+        safe["coverage_source_file"] = source
+    else:
+        dropped.append("coverage_source_file")
+
+    failures = record.get("failures")
+    if isinstance(failures, list):
+        recognised = [f for f in failures if isinstance(f, str) and f in STATUS_FAILURES]
+        safe["failures"] = sorted(set(recognised))
+        safe["unrecognised_failures"] = len(failures) - len(recognised)
+        # Derived, so no hostname from the child's file is ever relayed.
+        safe["request_state_foreign"] = "request_state_foreign_host" in safe["failures"]
+    else:
+        # An unreadable failure list is not an empty one; say nothing instead.
+        dropped.append("failures")
+        safe["request_state_foreign"] = None
+    return safe, dropped
 
 
 def worker_owns_task():
@@ -130,6 +243,7 @@ def run_child():
 
     failed = False
     completed = False
+    stale = False
     for line in output.splitlines():
         try:
             record = json.loads(line)
@@ -139,11 +253,24 @@ def run_child():
         if not isinstance(event, str):
             continue
         # Relay only known event names, never arbitrary child output or fields.
-        if event in FAILURE_EVENTS or event in SUCCESS_EVENTS:
+        if event in FAILURE_EVENTS or event in SUCCESS_EVENTS or event in NOTICE_EVENTS:
             emit("worker_child_event", child_event=event)
+        if event in NOTICE_EVENTS:
+            # A status read that could not run is a warning in its own right,
+            # not a line lost among generic child events.
+            emit("worker_status_unavailable", child_event=event)
+        if event == STATUS_EVENT:
+            safe, dropped = safe_status(record.get("status"))
+            if safe is None:
+                emit("worker_status_rejected", dropped_fields=dropped)
+            else:
+                emit("worker_e2e_status", status=safe, dropped_fields=dropped)
+                if safe.get("freshness") != "fresh":
+                    emit("worker_corpus_stale", freshness=safe.get("freshness"))
+                    stale = stale or STALE_IS_FAILURE
         failed = failed or event in FAILURE_EVENTS
         completed = completed or event in SUCCESS_EVENTS
-    if process.returncode != 0 or failed or not completed:
+    if process.returncode != 0 or failed or stale or not completed:
         emit("worker_failed", returncode=process.returncode, failure_event=failed, completion_event=completed)
         return 1
     emit("worker_complete")

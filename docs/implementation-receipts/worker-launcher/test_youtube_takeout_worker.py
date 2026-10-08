@@ -151,6 +151,222 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(worker.main(), 124)
         self.killpg.assert_any_call(98765, signal.SIGKILL)
 
+    # ---- end-to-end status relaying ----
+
+    PRODUCTION_STATUS = {
+        "schema": 1,
+        "generated_at": "2026-10-04T18:00:00.000Z",
+        "drive_check": "healthy",
+        "last_ingested_at": "2026-10-04T00:07:16.748Z",
+        "ingest_age_hours": 17.88,
+        "coverage_through": "2026-09-28T06:04:58.013Z",
+        "coverage_age_hours": 155.92,
+        "coverage_source_file": "takeout-20260928T055945Z-1-001.zip",
+        "freshness": "stale",
+        "freshness_max_age_hours": 144,
+        "request_status": "request_state_missing",
+        "request_blocker": None,
+        "request_detail": None,
+        "last_observed_pending_export": "unknown",
+        "request_observed_at": None,
+        "request_state_host": None,
+        "failures": ["corpus_stale", "request_state_missing"],
+    }
+
+    def run_with_status(self, status, event="e2e_status"):
+        self.process.communicate.return_value = (
+            json.dumps({"event": event, "status": status}) + '\n{"event":"no_new_archive"}\n',
+            None,
+        )
+        code = worker.main()
+        relayed = [
+            json.loads(line)
+            for line in self.logs.getvalue().splitlines()
+            if json.loads(line).get("event") in {
+                "worker_e2e_status", "worker_status_rejected", "worker_corpus_stale",
+                "worker_status_unavailable",
+            }
+        ]
+        return code, relayed
+
+    def test_relays_the_production_stale_status_without_failing_the_run(self):
+        code, relayed = self.run_with_status(self.PRODUCTION_STATUS)
+        self.assertEqual(code, 0)
+        status = relayed[0]["status"]
+        self.assertEqual(relayed[0]["dropped_fields"], [])
+        self.assertEqual(status["drive_check"], "healthy")
+        self.assertEqual(status["freshness"], "stale")
+        self.assertEqual(status["last_ingested_at"], "2026-10-04T00:07:16.748Z")
+        self.assertEqual(status["coverage_through"], "2026-09-28T06:04:58.013Z")
+        self.assertEqual(status["coverage_age_hours"], 155.92)
+        self.assertEqual(status["request_status"], "request_state_missing")
+        self.assertEqual(status["failures"], ["corpus_stale", "request_state_missing"])
+        self.assertFalse(status["request_state_foreign"])
+        self.assertEqual(status["unrecognised_failures"], 0)
+        # A healthy Drive check over a stale corpus gets its own loud event.
+        self.assertEqual(relayed[1]["event"], "worker_corpus_stale")
+        self.assertEqual(relayed[1]["freshness"], "stale")
+
+    def test_fresh_status_is_not_announced_as_stale(self):
+        fresh = {**self.PRODUCTION_STATUS, "freshness": "fresh", "failures": []}
+        code, relayed = self.run_with_status(fresh)
+        self.assertEqual(code, 0)
+        self.assertEqual([r["event"] for r in relayed], ["worker_e2e_status"])
+
+    def test_missing_and_unknown_freshness_are_still_announced(self):
+        for freshness in ["missing", "unknown"]:
+            with self.subTest(freshness=freshness):
+                self.logs.truncate(0)
+                self.logs.seek(0)
+                _, relayed = self.run_with_status(
+                    {**self.PRODUCTION_STATUS, "freshness": freshness}
+                )
+                self.assertEqual(relayed[1]["event"], "worker_corpus_stale")
+
+    def test_drops_every_field_outside_the_allow_list(self):
+        noisy = {
+            **self.PRODUCTION_STATUS,
+            "DATABASE_URL": "postgres://secret/db",
+            "cookies": {"SID": "must-not-log"},
+            "stdout_tail": "arbitrary child output",
+            "request_state_host": "some-other-mac.local",
+            "nested": [{"deep": "value"}],
+        }
+        code, relayed = self.run_with_status(noisy)
+        self.assertEqual(code, 0)
+        status = relayed[0]["status"]
+        self.assertEqual(
+            sorted(status),
+            sorted([
+                "schema", "drive_check", "freshness", "request_status",
+                "last_observed_pending_export", "request_blocker", "request_detail",
+                "request_observed_at",
+                "generated_at", "last_ingested_at", "coverage_through",
+                "coverage_age_hours", "freshness_max_age_hours", "ingest_age_hours",
+                "coverage_source_file", "failures", "unrecognised_failures",
+                "request_state_foreign",
+            ]),
+        )
+        logged = self.logs.getvalue()
+        for secret in ["postgres://secret/db", "must-not-log", "arbitrary child output",
+                       "some-other-mac.local", "deep"]:
+            self.assertNotIn(secret, logged)
+
+    def test_rejects_a_record_that_is_not_the_known_schema(self):
+        for status in [None, [], "stale", {"schema": 2, "freshness": "fresh"}, {}]:
+            with self.subTest(status=status):
+                self.logs.truncate(0)
+                self.logs.seek(0)
+                code, relayed = self.run_with_status(status)
+                self.assertEqual(code, 0)
+                self.assertEqual(relayed[0]["event"], "worker_status_rejected")
+                self.assertEqual(relayed[0]["dropped_fields"], ["schema"])
+
+    def test_drops_values_of_the_wrong_shape_and_names_the_field(self):
+        cases = [
+            ("freshness", "very stale"),
+            ("drive_check", True),
+            ("request_status", "queued_probably"),
+            ("request_blocker", "whatever_i_want"),
+            ("request_detail", "stack trace here"),
+            ("last_observed_pending_export", "maybe"),
+            ("request_observed_at", "recently"),
+            ("generated_at", "last Tuesday"),
+            ("last_ingested_at", "2026-10-04 00:07:16"),
+            ("coverage_through", 1759532400),
+            ("coverage_age_hours", "155.92"),
+            ("ingest_age_hours", float("inf")),
+            ("freshness_max_age_hours", True),
+            ("coverage_source_file", "/Users/chappyasel/.config/secret/takeout.zip"),
+            ("failures", "not-even-a-list"),
+        ]
+        for field, value in cases:
+            with self.subTest(field=field):
+                self.logs.truncate(0)
+                self.logs.seek(0)
+                code, relayed = self.run_with_status({**self.PRODUCTION_STATUS, field: value})
+                self.assertEqual(code, 0)
+                self.assertIn(field, relayed[0]["dropped_fields"])
+                self.assertNotIn(field, relayed[0]["status"])
+                self.assertNotIn(str(value), self.logs.getvalue())
+
+    def test_counts_unrecognised_failures_without_quoting_them(self):
+        code, relayed = self.run_with_status({
+            **self.PRODUCTION_STATUS,
+            "failures": ["corpus_stale", "ECONNREFUSED postgres://secret/db", 7, None],
+        })
+        self.assertEqual(code, 0)
+        self.assertEqual(relayed[0]["status"]["failures"], ["corpus_stale"])
+        self.assertEqual(relayed[0]["status"]["unrecognised_failures"], 3)
+        self.assertNotIn("ECONNREFUSED", self.logs.getvalue())
+
+    def test_marks_another_host_as_foreign_without_naming_it(self):
+        code, relayed = self.run_with_status({
+            **self.PRODUCTION_STATUS,
+            "request_status": "unknown",
+            "request_state_host": "some-other-mac.local",
+            "failures": ["request_state_foreign_host"],
+        })
+        self.assertEqual(code, 0)
+        self.assertTrue(relayed[0]["status"]["request_state_foreign"])
+        self.assertEqual(relayed[0]["status"]["request_status"], "unknown")
+        self.assertNotIn("some-other-mac.local", self.logs.getvalue())
+
+    def test_never_invents_a_queued_or_awaiting_auth_request(self):
+        for claimed in ["request_state_missing", "request_state_unreadable", "unknown"]:
+            with self.subTest(claimed=claimed):
+                self.logs.truncate(0)
+                self.logs.seek(0)
+                _, relayed = self.run_with_status({
+                    **self.PRODUCTION_STATUS, "request_status": claimed
+                })
+                status = relayed[0]["status"]
+                self.assertEqual(status["request_status"], claimed)
+                self.assertIsNone(status["request_blocker"])
+                self.assertIsNone(status["request_detail"])
+
+    def test_a_status_read_that_failed_is_surfaced_but_does_not_fail_the_run(self):
+        self.process.communicate.return_value = (
+            '{"event":"e2e_status_unavailable"}\n{"event":"no_new_archive"}\n', None
+        )
+        self.assertEqual(worker.main(), 0)
+        logged = [json.loads(line) for line in self.logs.getvalue().splitlines()]
+        events = [record["event"] for record in logged]
+        self.assertIn("worker_status_unavailable", events)
+        self.assertIn("worker_child_event", events)
+
+    def test_an_unreadable_failure_list_is_not_relayed_as_no_failures(self):
+        code, relayed = self.run_with_status(
+            {**self.PRODUCTION_STATUS, "failures": "corpus_stale"}
+        )
+        self.assertEqual(code, 0)
+        self.assertNotIn("failures", relayed[0]["status"])
+        self.assertIsNone(relayed[0]["status"]["request_state_foreign"])
+        self.assertIn("failures", relayed[0]["dropped_fields"])
+
+    def test_a_failure_event_still_fails_a_run_that_reported_status(self):
+        self.process.communicate.return_value = (
+            json.dumps({"event": "e2e_status", "status": self.PRODUCTION_STATUS})
+            + '\n{"event":"sync_failed"}\n{"event":"no_new_archive"}\n',
+            None,
+        )
+        self.assertEqual(worker.main(), 1)
+
+    def test_relays_the_sign_in_blockers_by_name(self):
+        for blocker in ["password_rejected", "second_factor_required", "sign_in_rejected"]:
+            with self.subTest(blocker=blocker):
+                self.logs.truncate(0)
+                self.logs.seek(0)
+                code, relayed = self.run_with_status({
+                    **self.PRODUCTION_STATUS,
+                    "request_status": "awaiting_auth",
+                    "request_blocker": blocker,
+                    "failures": ["request_blocked"],
+                })
+                self.assertEqual(code, 0)
+                self.assertEqual(relayed[0]["status"]["request_blocker"], blocker)
+                self.assertNotIn("request_blocker", relayed[0]["dropped_fields"])
+
     def test_spawn_failure_is_nonzero_without_logging_exception(self):
         self.popen.side_effect = OSError("sensitive fixture")
         self.assertEqual(worker.main(), 1)

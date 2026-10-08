@@ -1,0 +1,6 @@
+### slice 8 (sign-in steps + passkey switch, headless fixtures) — GREEN
+$ pnpm exec vitest run scripts/takeout/sign-in-dom.browser.test.ts
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  14:51:31
+   Duration  1.69s (transform 28ms, setup 0ms, import 152ms, tests 1.44s, environment 0ms)

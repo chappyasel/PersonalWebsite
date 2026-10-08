@@ -1,0 +1,10 @@
+### slice 2 (session lifecycle + resumable attempt driver) — GREEN
+$ pnpm exec vitest run scripts/takeout/session.test.ts scripts/takeout/request-flow.test.ts
+
+ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume
+
+
+ Test Files  2 passed (2)
+      Tests  34 passed (34)
+   Start at  08:40:57
+   Duration  590ms (transform 202ms, setup 0ms, import 259ms, tests 88ms, environment 0ms)

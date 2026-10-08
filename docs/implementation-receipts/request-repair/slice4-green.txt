@@ -1,0 +1,40 @@
+### slice 4 (truthful read-only e2e status + launcher relay) — GREEN
+
+$ pnpm exec vitest run scripts/takeout/status.test.ts scripts/takeout/refresh.test.ts
+ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume
+
+
+ Test Files  2 passed (2)
+      Tests  68 passed (68)
+   Start at  09:01:29
+   Duration  189ms (transform 66ms, setup 0ms, import 76ms, tests 102ms, environment 0ms)
+
+
+$ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s docs/implementation-receipts/worker-launcher -p 'test_*.py' -v
+test_a_failure_event_still_fails_a_run_that_reported_status (test_youtube_takeout_worker.WorkerTests.test_a_failure_event_still_fails_a_run_that_reported_status) ... ok
+test_a_status_read_that_failed_is_surfaced_but_does_not_fail_the_run (test_youtube_takeout_worker.WorkerTests.test_a_status_read_that_failed_is_surfaced_but_does_not_fail_the_run) ... ok
+test_accepts_nonempty_quoted_scoped_dotenv (test_youtube_takeout_worker.WorkerTests.test_accepts_nonempty_quoted_scoped_dotenv) ... ok
+test_an_unreadable_failure_list_is_not_relayed_as_no_failures (test_youtube_takeout_worker.WorkerTests.test_an_unreadable_failure_list_is_not_relayed_as_no_failures) ... ok
+test_counts_unrecognised_failures_without_quoting_them (test_youtube_takeout_worker.WorkerTests.test_counts_unrecognised_failures_without_quoting_them) ... ok
+test_drops_every_field_outside_the_allow_list (test_youtube_takeout_worker.WorkerTests.test_drops_every_field_outside_the_allow_list) ... ok
+test_drops_values_of_the_wrong_shape_and_names_the_field (test_youtube_takeout_worker.WorkerTests.test_drops_values_of_the_wrong_shape_and_names_the_field) ... ok
+test_failure_events_even_when_child_exits_zero (test_youtube_takeout_worker.WorkerTests.test_failure_events_even_when_child_exits_zero) ... ok
+test_fresh_status_is_not_announced_as_stale (test_youtube_takeout_worker.WorkerTests.test_fresh_status_is_not_announced_as_stale) ... ok
+test_lock_contention_skips (test_youtube_takeout_worker.WorkerTests.test_lock_contention_skips) ... ok
+test_marks_another_host_as_foreign_without_naming_it (test_youtube_takeout_worker.WorkerTests.test_marks_another_host_as_foreign_without_naming_it) ... ok
+test_minimal_env_command_cwd_and_lock_lifetime (test_youtube_takeout_worker.WorkerTests.test_minimal_env_command_cwd_and_lock_lifetime) ... ok
+test_missing_and_unknown_freshness_are_still_announced (test_youtube_takeout_worker.WorkerTests.test_missing_and_unknown_freshness_are_still_announced) ... ok
+test_never_invents_a_queued_or_awaiting_auth_request (test_youtube_takeout_worker.WorkerTests.test_never_invents_a_queued_or_awaiting_auth_request) ... ok
+test_nonzero_and_missing_completion_fail (test_youtube_takeout_worker.WorkerTests.test_nonzero_and_missing_completion_fail) ... ok
+test_owner_gate (test_youtube_takeout_worker.WorkerTests.test_owner_gate) ... ok
+test_rejects_a_record_that_is_not_the_known_schema (test_youtube_takeout_worker.WorkerTests.test_rejects_a_record_that_is_not_the_known_schema) ... ok
+test_relays_the_production_stale_status_without_failing_the_run (test_youtube_takeout_worker.WorkerTests.test_relays_the_production_stale_status_without_failing_the_run) ... ok
+test_required_credentials_and_permissions (test_youtube_takeout_worker.WorkerTests.test_required_credentials_and_permissions) ... ok
+test_spawn_failure_is_nonzero_without_logging_exception (test_youtube_takeout_worker.WorkerTests.test_spawn_failure_is_nonzero_without_logging_exception) ... ok
+test_timeout_kills_descendants_even_if_leader_exits_after_term (test_youtube_takeout_worker.WorkerTests.test_timeout_kills_descendants_even_if_leader_exits_after_term) ... ok
+test_timeout_terminates_then_kills_group_and_releases_lock (test_youtube_takeout_worker.WorkerTests.test_timeout_terminates_then_kills_group_and_releases_lock) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.031s
+
+OK

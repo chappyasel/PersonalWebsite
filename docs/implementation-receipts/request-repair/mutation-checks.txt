@@ -1,0 +1,137 @@
+### mutation checks — each invariant, broken on purpose, must fail a test
+
+--- (a) the polling deadline closes the window instead of holding it ---
+     × holds the window open when the deadline passes, instead of ending 1ms
+     × holds indefinitely past the deadline until something releases it 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 11 passed (13)
+
+--- (b) a blocker ends the session instead of holding the window ---
+     × holds the window open on a blocker instead of closing it 4ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 12 passed (13)
+
+--- (c) an export queued earlier is reported as fresh acceptance ---
+     × reports an export queued earlier as history, not as acceptance 11ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 34 passed (35)
+
+--- (d) session ownership is not exclusive ---
+     × refuses a second claim while the first holder is alive 3ms
+     × never takes over a holder whose process it may not signal 2ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 22 passed (24)
+
+--- (e) 'Create export' may be clicked twice for one attempt ---
+     × queues only once a /manage card proves the export exists 4ms
+     × does not call a click plus a page change a queued export 1ms
+     × will not start from a Drive listing, which is delivery and not the queue 0ms
+     × will not read a unreadable page as an empty queue 1ms
+     × will not read a auth_gate page as an empty queue 0ms
+     × will not read a not_takeout page as an empty queue 0ms
+     × will not read a missing page as an empty queue 0ms
+     × suppresses a duplicate when Google is already building an export 0ms
+     × parks on a gate found on the way in, without filling the form 0ms
+     × parks on a gate raised by the form, with the form filled 0ms
+     × writes nothing into the importer's state file 0ms
+     × records the submission before the click, so a throw cannot lose it 0ms
+     × verifies the next time instead of refilling or clicking again 0ms
+     × will not credit the export that was already pending beforehand 4ms
+     × rechecks read-only once the uncertainty outlives its window 1ms
+     × resolves the uncertainty when the recheck finds the export 0ms
+     × lets a cleared gate return the attempt to verification, not to a new one 0ms
+     × parks instead of failing when the form fill is cut off by the gate 0ms
+     × still reports a plain UI failure when no gate is showing 0ms
+     × keeps an interrupted submission uncertain even while parked at the gate 0ms
+     × does not mistake a gate probe failure for a parked attempt 0ms
+     × keeps waiting while the gate is up, without navigating away from it 0ms
+     × verifies a submitted attempt once the gate clears, without resubmitting 0ms
+     × completes the first submission after a human clears the initial gate 0ms
+     × does not refill a form the page is already holding 0ms
+     × still submits only once when the resume is retried 0ms
+     × suppresses a duplicate if an export appeared while it waited 0ms
+     × will not submit on a queue it could not read 1ms
+     × never opens a second window once the wait has aged out 0ms
+     × starts a new attempt after the wait ages out with the window gone 0ms
+     × suppresses further requests for the rest of the cycle 0ms
+     × looks at the real queue before requesting again, instead of trusting age 0ms
+     × asks again only when the queue is observed to be empty 0ms
+     × starts a fresh attempt from a blank or failed state 2ms
+     × keeps an unresolved submission unresolved after any error path 2ms
+     × verifies an unverified submission rather than clicking Create export again 1ms
+     × refuses to repeat a submission that stayed uncertain past its window 1ms
+     × clears a blocker back to the phase the record justifies 0ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 38 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  38 failed | 26 passed (64)
+
+--- (f) the opted-in route is wired to the password step, so the passkey dialog is never cleared ---
+     × runs the opted-in route at the passkey gate, which is where the dialog is 3ms
+     × leaves a visible password prompt to the person and their vault 2ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 16 passed (18)
+
+--- (g) a holding window can never be resumed ---
+     × carries on in the same window when a resume is asked for 3ms
+     × resumes a blocked holder without resubmitting a submitted attempt 1ms
+     × treats a resume as one request, not a standing instruction 0ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  3 failed | 15 passed (18)
+
+--- (h) attaching does not ask the holder to carry on ---
+     × watches an existing window instead of starting a second 128ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 35 passed (36)
+
+### mutation checks, sign-in
+
+--- (i) a refused password is typed again on the next run ---
+     × tries only for an auth wait it could plausibly finish 2ms
+     × keeps a refused password on the record through every recheck 4ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 57 passed (59)
+
+--- (j) the passkey prompt is never switched off ---
+     × fills the form, signs in with the stored password, and confirms the export 15182ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 4 skipped (5)
+
+--- (k) the password may be typed outside HTTPS accounts.google.com ---
+     × will not type a password into anything but HTTPS accounts.google.com 85ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 19 passed (20)
+
+--- (l) a Secret prints its value ---
+     × refuses to be printed by any of the usual routes 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 9 passed (10)
+
+--- (m) an authenticator code is retried after Google turns it down ---
+      Tests   (22)
+     Errors  1 error  (Error: Worker exited unexpectedly)
+  The mutated code retries without bound against a fixture that keeps asking,
+  so the run crashes rather than failing one assertion. It exits non-zero.
+
+(j) to (m) tested the stored-password sign-in, removed on 2026-10-07. They stay
+as history; the code they mutated no longer exists.
+
+### round three (2026-10-07)
+
+--- (n) the native route runs on every poll instead of once per holder ---
+     × runs the native route once per holder, not on every poll 4ms
+      Tests  1 failed | 18 passed (19)
+
+--- (o) a retry gives the attempt up while a YouTube export is building ---
+     × refuses when a YouTube export is building, which may be this attempt's 4ms
+      Tests  1 failed | 35 passed (36)
+
+--- (p) a retry gives up a click made minutes ago ---
+     × refuses while Google may still be turning the click into an export 4ms
+      Tests  1 failed | 35 passed (36)
+
+The exit fix has a true red instead: slice12-red.txt is entry.test.ts before
+entry.ts existed, and its first test shows an exitCode-only process still
+alive with the pipe held open.
+
+--- (q) approve.ts refuses at any queued record, whatever its age ---
+     × asks again once last cycle's export has aged out 3ms
+      Tests  1 failed | 42 passed (43)

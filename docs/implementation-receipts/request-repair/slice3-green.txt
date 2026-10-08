@@ -1,0 +1,10 @@
+### slice 3 (native modal adapter + password route) — GREEN
+$ pnpm exec vitest run scripts/takeout/native-modal.test.ts scripts/takeout/password-route.test.ts
+
+ RUN  v4.1.11 /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume
+
+
+ Test Files  2 passed (2)
+      Tests  49 passed (49)
+   Start at  08:51:23
+   Duration  90ms (transform 36ms, setup 0ms, import 48ms, tests 9ms, environment 0ms)

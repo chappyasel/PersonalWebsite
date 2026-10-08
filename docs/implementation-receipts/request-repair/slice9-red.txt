@@ -1,0 +1,9 @@
+### slice 9 (sign-in orchestration) — RED
+$ pnpm exec vitest run scripts/takeout/sign-in.test.ts
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  14:36:30
+   Duration  231ms (transform 40ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)

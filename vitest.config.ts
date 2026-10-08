@@ -6,10 +6,13 @@ const fromRoot = (path: string) =>
 
 export default defineConfig({
   test: {
-    // These suites use node:test and run separately in pnpm verify.
     exclude: [
       ...configDefaults.exclude,
+      // These suites use node:test and run separately in pnpm verify.
       "scripts/room-artwork-quality/*.test.mjs",
+      // These launch a headless Chromium, which CI does not install and the
+      // code gate should not need. Run them with `pnpm test:browser-fixtures`.
+      "**/*.browser.test.ts",
     ],
   },
   resolve: {

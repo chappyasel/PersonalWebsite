@@ -1,0 +1,31 @@
+### slice 2 (session lifecycle + resumable attempt driver) — RED
+$ pnpm exec vitest run scripts/takeout/session.test.ts scripts/takeout/request-flow.test.ts
+ FAIL  scripts/takeout/request-flow.test.ts [ scripts/takeout/request-flow.test.ts ]
+Error: Cannot find module './request-flow' imported from /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume/scripts/takeout/request-flow.test.ts
+ ❯ scripts/takeout/request-flow.test.ts:11:1
+      9|   manageQueueObservation,
+     10| } from "./queue-evidence";
+     11| import { type RequestFlowDeps, runRequestAttempt } from "./request-flo…
+       | ^
+     12| import {
+     13|   AWAITING_AUTH_MAX_MIN,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  scripts/takeout/session.test.ts [ scripts/takeout/session.test.ts ]
+Error: Cannot find module './session' imported from /Users/chappyasel/.superset/worktrees/PersonalWebsite/fix/youtube-request-resume/scripts/takeout/session.test.ts
+ ❯ scripts/takeout/session.test.ts:7:1
+      5|
+      6| import { acquireNamedLock, acquireRefreshLock } from "./lock";
+      7| import {
+       | ^
+      8|   type SessionRecord,
+      9|   clearSession,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  no tests
+   Start at  08:39:37
+   Duration  98ms (transform 43ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
