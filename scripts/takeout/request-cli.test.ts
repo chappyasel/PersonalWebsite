@@ -486,6 +486,21 @@ describe("approve.ts", () => {
     expect(emitted().map((record) => record.event)).not.toContain("approve_failed");
   });
 
+  it("credits a window that verified the export and closed before it was seen", async () => {
+    // Live, 2026-10-08: the export was already finished, so the window
+    // confirmed it and closed between two of this process's checks.
+    writeBouncedState("a1");
+    mocks.spawn.mockImplementation(() => {
+      writeQueuedState(new Date().toISOString(), "a1");
+      return { unref: vi.fn() };
+    });
+    await runApprove(["--wait", "1"]);
+    expect(process.exitCode).toBe(0);
+    const events = emitted().map((record) => record.event);
+    expect(events).not.toContain("approve_window_not_started");
+    expect(events).toContain("approve_queued");
+  });
+
   it("calls an aged export history when the window finds it still building", async () => {
     writeQueuedState(new Date(Date.now() - 10 * 24 * 3600_000).toISOString(), "a1");
     mocks.spawn.mockImplementation(() => {
