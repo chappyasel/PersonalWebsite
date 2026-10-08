@@ -1,0 +1,12 @@
+       |   ^
+     21|     // Headed Chrome for Testing leaves chrome_crashpad_handler holdin…
+     22|     // browser's stderr, and Playwright's close waits for that pipe (l…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  09:38:57
+   Duration  5.09s (transform 11ms, setup 0ms, import 17ms, tests 5.01s, environment 0ms)
+

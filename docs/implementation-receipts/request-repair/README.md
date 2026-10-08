@@ -305,8 +305,10 @@ holder ends cleanly when the person closes the window. The live record is
 recovered with `--retry-unconfirmed`. A cycle-old export leads to one new
 request. The retry is refused while an export is building.
 
-`flow.ts`, `browser.ts`, `state.ts`, `config.ts`, `download.ts`,
-`sync-youtube.ts` and the lock file are untouched.
+`browser.ts` changed in one place on 2026-10-08: `close()` gives up after 10
+seconds, because Playwright's close waits on the stderr pipe that headed
+Chrome's crash-reporter helpers keep open. `flow.ts`, `state.ts`, `config.ts`,
+`download.ts`, `sync-youtube.ts` and the lock file are untouched.
 
 ### The browser-fixture tests and CI
 

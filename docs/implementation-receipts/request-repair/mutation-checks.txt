@@ -148,3 +148,7 @@ slice13-red.txt: a finished YouTube row that the baseline did not hold was
 not accepted as proof. The live export read "Completed" within minutes, so
 the holder could never confirm it, and the unknown word "Completed" made
 the whole list unreadable.
+
+slice14-red.txt: browser.ts close() waited forever on a context whose close
+never resolved. Live, the released window logged host_finished and stayed
+alive until its two crash-reporter helpers were ended.
