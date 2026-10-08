@@ -352,7 +352,9 @@ cause unknown, so Chappy signed it back in with `pnpm takeout:login`. Then:
    49,446, the newest watch is now 2026-10-07, and `e2e_status` reported
    `freshness: fresh` with coverage through 13:25:25Z. Scoring then failed,
    and the worker's state says `enrichment_pending`. `refresh.ts` discards
-   the scorer's error, so the cause is not in any receipt.
+   the scorer's error, so Hermes ran the step on its own, once. The
+   `openai/gpt-5.6-luna` alias had moved to a snapshot that rejects
+   `reasoningEffort: "minimal"`. #114 uses `"none"`.
 
 Two more bugs surfaced and are fixed. First, a released window hung on
 Playwright's close, which waits on the stderr pipe Chrome's crash-reporter
@@ -384,8 +386,11 @@ two of its checks.
 3. **The live record** at `~/hermes-work/youtube-request-live/state` is
    `queued` (attempt `559feabc-c223-4cb5-81f8-cc43833e31b3`, 2026-10-08), so
    `approve.ts` opens nothing until 120 hours have passed.
-4. **Scoring on the worker failed** after the 2026-10-08 import, cause
-   unknown. The next scheduled tick retries enrichment without reimporting.
+4. **Scoring on the worker** failed after the 2026-10-08 import because the
+   model rejected `"minimal"`, fixed in #114. Until the worker runs that code,
+   every tick retries the 71-video top-up per dimension and fails the same
+   way. `refresh.ts` still discards the scorer's error text, which is why
+   finding this took a separate run.
 
 Field Notes does not apply. This is internal ingestion maintenance with
 nothing visitor-facing.
