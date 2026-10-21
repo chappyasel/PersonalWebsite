@@ -45,6 +45,19 @@ const config = {
       },
     ],
   },
+  async redirects() {
+    return [
+      // The iOS app's Settings and the MCP server's errors link the AI setup
+      // page by this address. The page is for the app's users, so it lives
+      // beside the app's privacy policy, outside the training log's layout
+      // and its exercise-sheet interceptor.
+      {
+        source: "/weightlifting/ai",
+        destination: "/weightliftingapp/ai",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       // Nothing links /favicon.ico any more, but crawlers and old bookmarks
