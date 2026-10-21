@@ -12,6 +12,7 @@ import {
   MicrophoneStageIcon,
   NotePencilIcon,
   PenNibIcon,
+  PlugsConnectedIcon,
   ShieldCheckIcon,
   TableIcon,
   UserIcon,
@@ -183,6 +184,12 @@ const FILES: Entry[] = [
     href: "/weightliftingapp/privacy",
     what: "The iOS app's privacy policy. A page nothing on the site links to.",
     icon: glyph(ShieldCheckIcon),
+  },
+  {
+    name: "Weightlifting App with AI assistants",
+    href: "/weightliftingapp/ai",
+    what: "Setup for reading your own training data in Claude, Cursor and other MCP apps. The app's Settings link here.",
+    icon: glyph(PlugsConnectedIcon),
   },
   {
     name: "meta-kb knowledge graph",
