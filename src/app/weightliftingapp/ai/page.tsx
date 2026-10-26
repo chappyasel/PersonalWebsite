@@ -114,7 +114,7 @@ function ClientCard({
 
 export default function WeightliftingAppAiPage() {
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-12 px-4 py-16 font-serif leading-relaxed text-foreground sm:px-6 sm:py-24">
+    <main className="mx-auto flex max-w-2xl flex-col gap-12 px-4 py-16 font-sans leading-relaxed text-foreground sm:px-6 sm:py-24">
       <header className="flex flex-col gap-4">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Image
@@ -126,7 +126,9 @@ export default function WeightliftingAppAiPage() {
           />
           Weightlifting App
         </div>
-        <h1 className="text-3xl font-semibold">Use with AI assistants</h1>
+        <h1 className="font-rounded text-3xl font-semibold">
+          Use with AI assistants
+        </h1>
         <p className="text-lg">
           Claude, Cursor and other MCP apps can answer questions about your
           Weightlifting App training, including your workouts, exercise history
