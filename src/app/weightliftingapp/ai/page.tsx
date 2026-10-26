@@ -208,6 +208,10 @@ export default function WeightliftingAppAiPage() {
               <strong>Add argument</strong> for the second. Save, then quit and
               reopen ChatGPT.
             </p>
+            <p>
+              Ask your questions in <strong>Work</strong>, at the top of the
+              window. Chat can&apos;t use MCP servers.
+            </p>
           </ClientCard>
           <ClientCard name="Claude Code" requirement={<NodeRequirement />}>
             <p>Run this in Terminal:</p>
