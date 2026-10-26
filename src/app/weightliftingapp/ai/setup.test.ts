@@ -15,12 +15,12 @@ afterEach(() => {
 // The iOS app, the npm README, and the Claude Desktop extension publish
 // these same values, so a change here has to ship there too.
 describe("AI setup install details", () => {
-  it("adds the server to Claude Code under its published name", () => {
+  it("adds the server to Claude Code in every folder under its published name", () => {
     expect(claudeCodeCommand()).toBe(
-      "claude mcp add weightlifting-app -- npx -y weightlifting-app-mcp",
+      "claude mcp add --scope user weightlifting-app -- npx -y weightlifting-app-mcp",
     );
     expect(claudeCodeCommand("~/Documents/WeightliftingAppData.wld")).toBe(
-      "claude mcp add weightlifting-app -- npx -y weightlifting-app-mcp ~/Documents/WeightliftingAppData.wld",
+      "claude mcp add --scope user weightlifting-app -- npx -y weightlifting-app-mcp ~/Documents/WeightliftingAppData.wld",
     );
   });
 

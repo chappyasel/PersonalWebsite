@@ -26,11 +26,15 @@ export const MCP_SERVER_CONFIG = {
   args: ["-y", MCP_PACKAGE],
 };
 
-/** `exportPath` points the server at a saved Export instead of iCloud Drive. */
+/**
+ * `exportPath` points the server at a saved Export instead of iCloud Drive.
+ * User scope loads it in every folder; Claude Code's default, local scope,
+ * loads it only in the folder where the command ran.
+ */
 export function claudeCodeCommand(exportPath?: string) {
   const launch = [MCP_SERVER_CONFIG.command, ...MCP_SERVER_CONFIG.args];
   if (exportPath) launch.push(exportPath);
-  return `claude mcp add ${MCP_SERVER_NAME} -- ${launch.join(" ")}`;
+  return `claude mcp add --scope user ${MCP_SERVER_NAME} -- ${launch.join(" ")}`;
 }
 
 /**
