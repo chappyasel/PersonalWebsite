@@ -1,4 +1,4 @@
-import { profileIconImage } from "~/lib/icons/profileIcon";
+import { brandImageResponse } from "~/lib/icons/brandImage";
 
 export const runtime = "nodejs";
 
@@ -20,8 +20,10 @@ export function generateImageMetadata() {
 
 export default async function AppleIcon({ id }: { id: Promise<string> }) {
   const px = Number(await id);
-  const frame = APP_ICON_SIZES.includes(px as (typeof APP_ICON_SIZES)[number])
-    ? px
+  const frame: (typeof APP_ICON_SIZES)[number] = APP_ICON_SIZES.includes(
+    px as (typeof APP_ICON_SIZES)[number],
+  )
+    ? (px as (typeof APP_ICON_SIZES)[number])
     : APP_ICON_SIZES[0];
-  return profileIconImage(frame, "square");
+  return brandImageResponse(`apple-icon-${frame}.png`);
 }

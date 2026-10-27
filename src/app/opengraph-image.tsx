@@ -1,4 +1,4 @@
-import { roomOgCard } from "./roomOgCard";
+import { brandImageResponse } from "~/lib/icons/brandImage";
 
 export const runtime = "nodejs";
 
@@ -9,6 +9,8 @@ export const size = {
 };
 export const contentType = "image/png";
 
+/** Companion's share card: the handle in SF Mono beside the orange block
+ * cursor, on the dark ground's dot grid. */
 export default function Image() {
-  return roomOgCard("home");
+  return brandImageResponse("home-og.png");
 }

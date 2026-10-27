@@ -19,8 +19,8 @@ export const THEME_LABEL: Record<ThemeChoice, string> = {
  * the page looks like it never switched.
  */
 export const THEME_COLOR = {
-  light: "#fafaf9", // hsl(60 9% 98%)
-  dark: "#110f0e", // hsl(24 10% 6%)
+  light: "#f7f7f4", // hsl(60 16% 96%), Companion's ground
+  dark: "#0c0c0d", // hsl(240 4% 5%)
 } as const;
 
 /** localStorage key used by next-themes; also mirrored to a cookie. */

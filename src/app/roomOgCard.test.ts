@@ -1,5 +1,5 @@
 import { ROOM_OG_CARDS } from "../../scripts/generate/room-og-config.mjs";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -11,12 +11,28 @@ import { ROOM_OG_SCENES } from "./roomOgCard";
 import * as talksCard from "./talks/opengraph-image";
 
 const routes = {
-  home: homeCard,
   projects: projectsCard,
   musings: musingsCard,
   talks: talksCard,
   golf: golfCard,
 };
+
+describe("the homepage card", () => {
+  // Companion's card, not a room still: the committed PNG, served as is.
+  it("serves the committed 1200 by 630 card byte for byte", async () => {
+    expect(homeCard.size).toEqual({ width: 1200, height: 630 });
+    const response = await homeCard.default();
+    expect(response.headers.get("content-type")).toBe(homeCard.contentType);
+    const png = Buffer.from(await response.arrayBuffer());
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+    expect(
+      png.equals(
+        readFileSync(join(process.cwd(), "public/images/brand/home-og.png")),
+      ),
+    ).toBe(true);
+  });
+});
 
 describe("room OG cards", () => {
   // The generator writes the stills and the routes read them; one table on

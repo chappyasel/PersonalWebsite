@@ -23,27 +23,27 @@ const styles = `
     padding: 1.5rem;
     text-align: center;
     font-family: Georgia, "Times New Roman", serif;
-    background: hsl(60 9% 98%);
-    color: hsl(24 6% 36%);
+    background: hsl(60 16% 96%);
+    color: hsl(0 0% 42%);
   }
-  .ge-title { margin: 0; font-size: 1.875rem; color: hsl(25 6% 32%); }
+  .ge-title { margin: 0; font-size: 1.875rem; color: hsl(0 0% 10%); }
   .ge-body p { margin: 0; max-width: 32rem; font-size: 1.125rem; }
   .ge-actions { display: flex; gap: 1rem; margin-top: 1rem; }
   .ge-button {
     font: inherit;
     cursor: pointer;
     border-radius: 0.5rem;
-    border: 1px solid hsl(25 6% 32% / 0.4);
+    border: 1px solid hsl(0 0% 10% / 0.4);
     background: none;
     padding: 0.5rem 1rem;
-    color: hsl(25 6% 32%);
+    color: hsl(0 0% 10%);
   }
   .ge-link { color: inherit; font-size: 0.875rem; text-underline-offset: 4px; }
   .ge-digest { font-size: 0.875rem; }
   @media (prefers-color-scheme: dark) {
-    .ge-body { background: hsl(24 10% 6%); color: hsl(24 5% 75%); }
-    .ge-title, .ge-button { color: hsl(24 6% 83%); }
-    .ge-button { border-color: hsl(24 6% 83% / 0.4); }
+    .ge-body { background: hsl(240 4% 5%); color: hsl(240 2% 58%); }
+    .ge-title, .ge-button { color: hsl(0 0% 93%); }
+    .ge-button { border-color: hsl(0 0% 93% / 0.4); }
   }
 `;
 
