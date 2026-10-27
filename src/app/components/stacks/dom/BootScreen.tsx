@@ -908,13 +908,20 @@ function CoordinationGlobeGlyph({
       x * pixels * COORDINATION_NETWORK_SCALE,
       centerY - y * pixels * COORDINATION_NETWORK_SCALE,
     ] as const;
-  const edgePath = BOOT_COORDINATION_NETWORK.edges
-    .map(([from, to]) => {
-      const start = point(BOOT_COORDINATION_POINTS[from]!);
-      const end = point(BOOT_COORDINATION_POINTS[to]!);
-      return `M ${bootSvgNumber(start[0])} ${bootSvgNumber(start[1])} L ${bootSvgNumber(end[0])} ${bootSvgNumber(end[1])}`;
-    })
-    .join(" ");
+  // The live orb blends each edge between its endpoints' colors. Here each
+  // endpoint draws its own half, so the edge turns color at the midpoint.
+  const edgeHalves = { human: [] as string[], agent: [] as string[] };
+  for (const [from, to] of BOOT_COORDINATION_NETWORK.edges) {
+    const start = point(BOOT_COORDINATION_POINTS[from]!);
+    const end = point(BOOT_COORDINATION_POINTS[to]!);
+    const mid = `${bootSvgNumber((start[0] + end[0]) / 2)} ${bootSvgNumber((start[1] + end[1]) / 2)}`;
+    edgeHalves[BOOT_COORDINATION_NETWORK.nodes[from]!.theme].push(
+      `M ${bootSvgNumber(start[0])} ${bootSvgNumber(start[1])} L ${mid}`,
+    );
+    edgeHalves[BOOT_COORDINATION_NETWORK.nodes[to]!.theme].push(
+      `M ${bootSvgNumber(end[0])} ${bootSvgNumber(end[1])} L ${mid}`,
+    );
+  }
   const ditherCell = pixels * COORDINATION_DITHER_CELL;
   return (
     <>
@@ -933,11 +940,18 @@ function CoordinationGlobeGlyph({
         <CoordinationDither active={ditherActive} />
       </g>
       <g className="stacks-boot-coordination-network">
-        <path
-          className="stacks-boot-coordination-link"
+        <g
           data-boot-coordination-edges={BOOT_COORDINATION_NETWORK.edges.length}
-          d={edgePath}
-        />
+        >
+          {(["human", "agent"] as const).map((theme) => (
+            <path
+              className="stacks-boot-coordination-link"
+              data-theme={theme}
+              key={theme}
+              d={edgeHalves[theme].join(" ")}
+            />
+          ))}
+        </g>
         <g
           data-boot-coordination-reveals={
             BOOT_COORDINATION_NETWORK.longConnections.length

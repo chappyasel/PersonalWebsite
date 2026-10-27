@@ -2012,8 +2012,15 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 
 .stacks-boot-coordination-link {
   fill: none;
-  stroke: color-mix(in srgb, #78bba3 45%, transparent);
   stroke-width: 0.65;
+}
+
+.stacks-boot-coordination-link[data-theme="human"] {
+  stroke: color-mix(in srgb, #638efc 45%, transparent);
+}
+
+.stacks-boot-coordination-link[data-theme="agent"] {
+  stroke: color-mix(in srgb, #f5732f 45%, transparent);
 }
 
 .stacks-boot-coordination-reveal {
