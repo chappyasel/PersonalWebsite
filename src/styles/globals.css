@@ -155,7 +155,7 @@ html:not(.dark)
     0 1px 2px rgb(28 25 23 / 0.1),
     0 12px 30px -20px rgb(28 25 23 / 0.4) !important;
   transition-property: background-color, box-shadow;
-  transition-duration: 200ms;
+  transition-duration: var(--placard-material-duration, 200ms);
   transition-timing-function: ease-out;
 }
 .dark [data-placard-surface] {
@@ -205,7 +205,7 @@ html[data-world] [data-tooltip-paper-edge]::after {
   z-index: 1;
   pointer-events: none;
   border-radius: inherit;
-  transition: box-shadow 200ms ease-out;
+  transition: box-shadow var(--placard-material-duration, 200ms) ease-out;
 }
 [data-placard-surface]::after,
 [data-placard-media-highlight]::after,
@@ -231,7 +231,8 @@ html[data-world] [data-tooltip-paper-edge]::before {
       var(--placard-edge-softness, 0px) var(--placard-edge-reflection-top),
     inset calc(-1 * var(--placard-edge-width))
       var(--placard-edge-bottom-y, calc(-1 * var(--placard-edge-width)))
-      var(--placard-edge-softness, 0px) var(--placard-edge-bottom);
+      var(--placard-edge-softness, 0px) var(--placard-edge-bottom),
+    inset 0 0 0 1px var(--placard-paper-line, transparent);
 }
 
 /* Large reading panels use a softly rounded bevel with less contrast than

@@ -2989,7 +2989,10 @@ export default function PlacardLayer({
           [data-stacks-desktop-panel] [data-placard-surface] {
             transition-property: opacity, background-color, border-color, box-shadow;
             transition-duration:
-              var(--stacks-panel-fade-duration), 200ms, 200ms, 200ms;
+              var(--stacks-panel-fade-duration),
+              var(--placard-material-duration, 200ms),
+              var(--placard-material-duration, 200ms),
+              var(--placard-material-duration, 200ms);
             transition-delay: var(--stacks-panel-fade-delay), 0ms, 0ms, 0ms;
             transition-timing-function:
               var(--stacks-panel-fade-easing), ease-out, ease-out, ease-out;

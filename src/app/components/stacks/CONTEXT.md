@@ -409,6 +409,10 @@ _Avoid_: Departure Vector, escape target, launch waypoint
 metaphor): real section content in a screen-fixed panel, never rendered inside
 the 3D scene. In a wide presentation it stands beside the World; in a narrow
 presentation it remains resident as a Peek Sheet and may expand for reading.
+While the drawing owns the screen, the Placard and its media tiles are paper:
+an opaque fill, a thin drawn outline, no edge highlights and no shadow. They
+ease to glass over 420 ms when the room view leaves the drawing, and back
+when it returns.
 
 **Travel-Synced Placard** — mobile behavior in which the resident Placard body
 changes as the Traverse crosses into each Unit, including intermediate Units

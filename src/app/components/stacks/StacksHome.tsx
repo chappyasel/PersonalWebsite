@@ -39,6 +39,7 @@ import IllustratedRoom from "./illustration/IllustratedRoom";
 import { RoomChrome } from "./illustration/RoomChrome";
 import RoomDocument from "./illustration/RoomDocument";
 import "./illustration/illustratedEntrance.css";
+import "./illustration/placardPaper.css";
 import { useIllustratedEntrance } from "./illustration/useIllustratedEntrance";
 import RoomNavigation, { navigateRoomLink } from "./input/RoomNavigation";
 import ScrollBridges from "./input/ScrollBridges";

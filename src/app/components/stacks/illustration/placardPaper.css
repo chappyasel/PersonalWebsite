@@ -1,0 +1,137 @@
+/* Placards are paper while the drawing owns the screen. Over the flat 2D
+   room they take an opaque fill and a thin drawn outline, with no glass
+   edge highlights and no shadow, on the desktop cards, the mobile sheet,
+   its cards, and the media tiles inside them. When the room view leaves
+   "illustrated", the same properties ease to the live glass, and the manual
+   return to 2D runs them backwards.
+
+   Every surface keeps its backdrop blur in both states. The opaque paper
+   hides it, and leaving it on avoids interpolating backdrop-filter, which
+   is expensive and makes its element a Backdrop Root mid-transition.
+
+   Each change animates through a transition that its element already
+   declares: background-color and box-shadow on the surfaces, box-shadow on
+   the edge pseudo-elements. The edge colors and the paper line feed those
+   box-shadows, so they need no registered properties. */
+html[data-room-view] {
+  --placard-material-duration: 420ms;
+}
+html[data-room-view="live"] {
+  --placard-material-duration: 200ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-room-view] {
+    --placard-material-duration: 0ms;
+  }
+}
+
+html[data-room-view] [data-stacks-glass-mode="native"] .stacks-sheet,
+html[data-room-view] [data-stacks-glass-mode="native"] .stacks-chip {
+  transition-property: background-color, box-shadow;
+  transition-duration: var(--placard-material-duration);
+  transition-timing-function: ease-in-out;
+}
+/* Tiles and text inside the placard rarely author a transition. Zero
+   specificity, so any element that does keeps its own. */
+:where(html[data-room-view] [data-placard-media-highlight]) {
+  transition: box-shadow var(--placard-material-duration) ease-in-out;
+}
+:where(html[data-room-view] [data-stacks-mobile-panel] *) {
+  transition: color var(--placard-material-duration) ease-in-out;
+}
+
+/* ── Shared paper treatment ─────────────────────────────────────── */
+html:not(.dark) {
+  --placard-paper: #f8f5ee;
+  --placard-paper-hover: #fdfbf7;
+  --placard-paper-sheet: #eee8db;
+  --placard-paper-ink-line: rgb(110 86 58 / 0.4);
+}
+html.dark {
+  --placard-paper: #2a3343;
+  --placard-paper-hover: #313b4d;
+  --placard-paper-sheet: #1f2734;
+  --placard-paper-ink-line: rgb(0 0 0 / 0.5);
+}
+html[data-room-view="illustrated"]
+  [data-stacks-glass-mode="native"]
+  :is(
+    [data-placard-surface],
+    [data-placard-media-highlight],
+    .stacks-sheet,
+    .stacks-chip
+  ) {
+  --placard-edge-top: transparent !important;
+  --placard-edge-reflection-top: transparent !important;
+  --placard-edge-bottom: transparent !important;
+  --placard-paper-line: var(--placard-paper-ink-line);
+  /* Same two-shadow shape as the glass value, so the tiles' and book
+     covers' lists interpolate instead of switching at the end. */
+  --placard-media-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent !important;
+}
+html[data-room-view="illustrated"]
+  .stacks-world-shell
+  [data-stacks-glass-mode="native"]
+  :is([data-placard-surface], .stacks-sheet, .stacks-chip) {
+  box-shadow: none !important;
+}
+
+/* ── Fills ──────────────────────────────────────────────────────────
+   The shell and the panel roots lift these past the mobile light
+   material's card rules, (0,4,1) at rest and (0,5,2) on hover, both
+   !important. The box-shadow rule above clears globals.css's hover
+   shadow, (0,3,2), the same way. */
+html[data-room-view="illustrated"]
+  .stacks-world-shell
+  [data-stacks-glass-mode="native"]
+  :is([data-stacks-desktop-panel], [data-stacks-mobile-panel])
+  [data-placard-surface] {
+  background-color: var(--placard-paper) !important;
+}
+html[data-room-view="illustrated"]
+  .stacks-world-shell
+  [data-stacks-glass-mode="native"]
+  :is([data-stacks-desktop-panel], [data-stacks-mobile-panel])
+  :is(a, [data-placard-link]):is(:hover, :focus-visible)
+  [data-placard-surface],
+html[data-room-view="illustrated"]
+  .stacks-world-shell
+  [data-stacks-glass-mode="native"]
+  :is([data-stacks-desktop-panel], [data-stacks-mobile-panel])
+  a[data-placard-surface]:is(:hover, :focus-visible) {
+  background-color: var(--placard-paper-hover) !important;
+}
+html[data-room-view="illustrated"]
+  .stacks-world-shell
+  [data-stacks-glass-mode="native"]
+  :is(.stacks-sheet, .stacks-chip) {
+  --sheet-fill: var(--placard-paper-sheet);
+  background-color: var(--sheet-fill);
+}
+
+/* ── Mobile ink ─────────────────────────────────────────────────────
+   The light live sheet is dark glass with white header ink. On paper the
+   header and the text outside the cards take the cards' dark ink, and
+   ease back to white with the fill. */
+html:not(.dark)[data-room-view="illustrated"]
+  [data-stacks-glass-mode="native"]
+  [data-stacks-mobile-panel] {
+  --foreground: var(--mobile-card-foreground);
+  --muted-foreground: var(--mobile-card-muted-foreground);
+}
+html:not(.dark)[data-room-view="illustrated"]
+  [data-stacks-glass-mode="native"]
+  :is(
+    [data-stacks-mobile-intro="header"] > button,
+    .stacks-sheet-grabber,
+    .stacks-chip
+  ) {
+  color: hsl(var(--mobile-card-foreground));
+  text-decoration-color: hsl(var(--mobile-card-foreground) / 0.4);
+}
+html:not(.dark)[data-room-view="illustrated"]
+  [data-stacks-glass-mode="native"]
+  .stacks-sheet-grabber
+  > span {
+  background-color: hsl(var(--mobile-card-foreground) / 0.25);
+}
