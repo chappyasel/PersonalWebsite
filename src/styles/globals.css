@@ -2028,13 +2028,13 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 }
 
 .stacks-boot-coordination-reveal[data-theme="human"] {
-  stroke: #34d399;
-  filter: drop-shadow(0 0 1.2px #34d399);
+  stroke: #638efc;
+  filter: drop-shadow(0 0 1.2px #638efc);
 }
 
 .stacks-boot-coordination-reveal[data-theme="agent"] {
-  stroke: #4d9eff;
-  filter: drop-shadow(0 0 1.2px #4d9eff);
+  stroke: #f5732f;
+  filter: drop-shadow(0 0 1.2px #f5732f);
 }
 
 @keyframes stacks-boot-coordination-reveal {
@@ -2101,11 +2101,11 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 }
 
 .stacks-boot-coordination-node[data-theme="human"] {
-  fill: #34d399;
+  fill: #638efc;
 }
 
 .stacks-boot-coordination-node[data-theme="agent"] {
-  fill: #4d9eff;
+  fill: #f5732f;
 }
 
 /* Vision Pro as the room lights it: a near-white knit band and light seal,
