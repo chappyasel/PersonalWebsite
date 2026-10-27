@@ -1,5 +1,5 @@
-export const COORDINATION_HUMAN_COLOR = "#34d399";
-export const COORDINATION_AGENT_COLOR = "#4d9eff";
+export const COORDINATION_HUMAN_COLOR = "#638efc";
+export const COORDINATION_AGENT_COLOR = "#f5732f";
 export const COORDINATION_GLOBE_INTERACTION_ID =
   "grab:coordination-research:about";
 export const COORDINATION_NODE_COUNT = 60;
