@@ -258,11 +258,14 @@ it("shares one frame callback for both mouse axes and stops writes once settled"
   const query = vi.spyOn(shell, "querySelectorAll");
   const write = vi.spyOn(hud.style, "translate", "set");
   expect(runtime.frames.size).toBe(1);
-  for (let i = 0; i < 90; i++) frame(0, 0.5, 1 / 60, -0.5);
+  // The pointer eases in on the camera's two-second arrival ramp.
+  for (let i = 0; i < 30; i++) frame(0, 0.5, 1 / 60, -0.5);
+  expect(Math.abs(parseFloat(hud.style.translate))).toBeLessThan(1);
+  for (let i = 0; i < 150; i++) frame(0, 0.5, 1 / 60, -0.5);
   expect(hud.style.translate).toBe("-6px -6px");
   expect(dock.style.transform).toBe("translate(-6px, -6px)");
   expect(toggle.style.transform).toBe(dock.style.transform);
-  expect(write.mock.calls.length).toBeLessThanOrEqual(90);
+  expect(write.mock.calls.length).toBeLessThanOrEqual(180);
   expect(rootWrite).not.toHaveBeenCalled();
   expect(query).not.toHaveBeenCalled();
   write.mockClear();

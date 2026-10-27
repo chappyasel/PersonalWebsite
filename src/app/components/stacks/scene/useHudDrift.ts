@@ -20,6 +20,7 @@ import {
   advanceHudPointerSpring,
   hudCameraDriftController,
 } from "./hudCameraDriftControl";
+import { advancePointerArrival, pointerArrivalWeight } from "./pointerArrival";
 import { STACKS_DESKTOP_MIN_WIDTH, ogCaptureFromSearch } from "./worldLayout";
 
 const MEDIA_QUERY = `(min-width: ${STACKS_DESKTOP_MIN_WIDTH}px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)`;
@@ -30,6 +31,30 @@ const MOBILE_HUD_TARGETS =
 const SIDEBAR_TARGETS =
   "[data-stacks-desktop-dock], [data-stacks-details-toggle-shell]";
 type HudTarget = { property: "translate" | "transform"; original: string };
+/** The resting style each element had before any drift claimed it. The 2D
+ * drift and the 3D drift live in different React roots, so on a dimension
+ * switch the incoming one can claim an element before the outgoing one
+ * lets go. Reading the inline style then would record the other drift's
+ * offset as the resting style and restore it on the next switch. */
+const claims = new WeakMap<
+  HTMLElement,
+  { original: string; holders: number }
+>();
+
+function claim(element: HTMLElement, property: HudTarget["property"]) {
+  let held = claims.get(element);
+  if (!held) {
+    held = { original: element.style[property], holders: 0 };
+    claims.set(element, held);
+  }
+  held.holders++;
+  return { property, original: held.original };
+}
+
+function unclaim(element: HTMLElement) {
+  const held = claims.get(element);
+  if (held && --held.holders <= 0) claims.delete(element);
+}
 const HUD_TARGETS = [
   ".stacks-hud-drift",
   ".stacks-debug-launchers",
@@ -39,6 +64,16 @@ const HUD_TARGETS = [
   "[data-stacks-globe-label]",
   "[data-prop-caption]",
 ].join(",");
+/** Matches the placard's paper-to-glass handoff (placardPaper.css). */
+const HUD_RETURN_MS = 420;
+
+function offsetValue(target: HudTarget, x: number, y: number) {
+  return target.property === "transform"
+    ? y === 0
+      ? `translateX(${x}px)`
+      : `translate(${x}px, ${y}px)`
+    : `${x}px ${y === 0 ? "0" : `${y}px`}`;
+}
 
 function writeOffset(
   element: HTMLElement,
@@ -50,11 +85,26 @@ function writeOffset(
   element.style[target.property] =
     x === 0 && y === 0 && !keepTransform
       ? target.original
-      : target.property === "transform"
-        ? y === 0
-          ? `translateX(${x}px)`
-          : `translate(${x}px, ${y}px)`
-        : `${x}px ${y === 0 ? "0" : `${y}px`}`;
+      : offsetValue(target, x, y);
+}
+
+/** Restore the resting style, then glide from the last drawn offset into
+ * whatever the element shows underneath. Leaving 3D otherwise dropped the
+ * cards up to HUD_MOUSE_MAX_PX in one frame. The implicit end keyframe
+ * follows the underlying style, so the next renderer's writes land under
+ * the glide instead of fighting it. */
+function releaseOffset(
+  element: HTMLElement,
+  target: HudTarget,
+  x: number,
+  y: number,
+) {
+  writeOffset(element, target, 0);
+  if ((x === 0 && y === 0) || typeof element.animate !== "function") return;
+  element.animate([{ [target.property]: offsetValue(target, x, y) }, {}], {
+    duration: HUD_RETURN_MS,
+    easing: "ease-in-out",
+  });
 }
 const getProfile = () =>
   window.matchMedia(MEDIA_QUERY).matches
@@ -82,6 +132,10 @@ export function useHudDrift(
   const previousProgress = useRef<number | null>(null);
   const offset = useRef(0);
   const mouseOffset = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
+  // Seconds since the pointer was first heard while this drift is active.
+  // The camera eases the pointer in on the same curve (pointerArrival.ts);
+  // without it the cards reached the mouse two seconds before the room did.
+  const mouseArrival = useRef(0);
   const renderedOffset = useRef({ x: 0, y: 0 });
   const heldPointers = useRef(new Set<number>());
 
@@ -132,18 +186,22 @@ export function useHudDrift(
     const shell = root.current?.closest<HTMLElement>(".stacks-world-shell");
     if (!shell) return;
     const elements = targets.current;
+    // Mutated in place each frame, so cleanup reads the last drawn offset.
+    const rendered = renderedOffset.current;
     previousProgress.current = null;
     offset.current = 0;
     mouseOffset.current.x = 0;
     mouseOffset.current.y = 0;
     mouseOffset.current.vx = 0;
     mouseOffset.current.vy = 0;
+    mouseArrival.current = 0;
     renderedOffset.current.x = 0;
     renderedOffset.current.y = 0;
     const refresh = () => {
       for (const [element, target] of elements) {
         if (!shell.contains(element)) {
           writeOffset(element, target, 0);
+          unclaim(element);
           elements.delete(element);
         }
       }
@@ -157,7 +215,7 @@ export function useHudDrift(
         const property = element.matches(SIDEBAR_TARGETS)
           ? "transform"
           : "translate";
-        const target = { property, original: element.style[property] } as const;
+        const target = claim(element, property);
         elements.set(element, target);
         if (renderedOffset.current.x !== 0 || renderedOffset.current.y !== 0)
           writeOffset(
@@ -184,7 +242,11 @@ export function useHudDrift(
     observer.observe(shell, { childList: true, subtree: true });
     return () => {
       observer.disconnect();
-      for (const [element, target] of elements) writeOffset(element, target, 0);
+      const { x, y } = rendered;
+      for (const [element, target] of elements) {
+        releaseOffset(element, target, x, y);
+        unclaim(element);
+      }
       elements.clear();
     };
   }, [root, mobile]);
@@ -217,16 +279,25 @@ export function useHudDrift(
       let combinedX = offset.current;
       let combinedY = 0;
       if (allowMouse && !mobile && active && settings.mouseEnabled) {
+        mouseArrival.current = advancePointerArrival(mouseArrival.current, {
+          revealed: true,
+          pointerSeen: pointer.x !== 0 || pointer.y !== 0,
+          frameSeconds: delta,
+        });
+        const arrival = pointerArrivalWeight(mouseArrival.current);
         // Both renderers provide normalized input to the same smoothing step.
-        const x = -Math.max(-1, Math.min(1, pointer.x)) * HUD_MOUSE_MAX_PX;
-        const y = Math.max(-1, Math.min(1, pointer.y)) * HUD_MOUSE_MAX_PX;
+        const x =
+          -Math.max(-1, Math.min(1, pointer.x)) * HUD_MOUSE_MAX_PX * arrival;
+        const y =
+          Math.max(-1, Math.min(1, pointer.y)) * HUD_MOUSE_MAX_PX * arrival;
         advanceHudPointerSpring(mouseOffset.current, x, y, delta);
         // Keep the approved travel curve and cap; mouse motion yields to travel.
         const mouseWeight =
           1 - Math.min(1, Math.abs(offset.current) / HUD_TRAVEL_MAX_PX);
         combinedX += mouseOffset.current.x * mouseWeight;
         combinedY = mouseOffset.current.y * mouseWeight;
-      } else if (mouseOffset.current.x !== 0 || mouseOffset.current.y !== 0) {
+      } else {
+        mouseArrival.current = 0;
         mouseOffset.current.x = 0;
         mouseOffset.current.y = 0;
         mouseOffset.current.vx = 0;
