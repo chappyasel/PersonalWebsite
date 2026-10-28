@@ -23,6 +23,7 @@ import {
   EXAMPLE_EXPORT_PATH,
   MCP_PACKAGE,
   MCP_SERVER_CONFIG,
+  MCP_SERVER_NAME,
   NPM_PACKAGE_URL,
   SETUP_PAGE_PATH,
   claudeCodeCommand,
@@ -31,7 +32,7 @@ import {
 
 const title = "Use with AI assistants | Weightlifting App";
 const description =
-  "Set up Claude, Cursor and other MCP apps to answer questions about your Weightlifting App workouts, exercise history and Personal Records.";
+  "Set up Claude, ChatGPT, Cursor and other MCP apps to answer questions about your Weightlifting App workouts, exercise history and Personal Records.";
 const appIcon = "/images/weightlifting/app-icon-256.jpg";
 
 export const metadata: Metadata = {
@@ -67,6 +68,16 @@ const QUESTIONS = [
   "What did I train most last month?",
   "What did I do in my last workout?",
 ];
+
+const codeClass = "font-mono text-sm text-foreground";
+
+/** The fields of ChatGPT's Add MCP server form, in the order it shows them. */
+const CHATGPT_FIELDS = [
+  ["Name", [MCP_SERVER_NAME]],
+  ["Type", ["STDIO"]],
+  ["Command to launch", [MCP_SERVER_CONFIG.command]],
+  ["Arguments", MCP_SERVER_CONFIG.args],
+] as const;
 
 const linkClass =
   "underline decoration-foreground/30 underline-offset-4 transition-colors hover:decoration-foreground";
@@ -130,11 +141,11 @@ export default function WeightliftingAppAiPage() {
           Use with AI assistants
         </h1>
         <p className="text-lg">
-          Claude, Cursor and other MCP apps can answer questions about your
-          Weightlifting App training, including your workouts, exercise history
-          and Personal Records. Access is read-only. The server runs on your
-          computer and reads a copy of your data from iCloud Drive. Your data
-          goes only to the AI app you connect.
+          Claude, ChatGPT, Cursor and other MCP apps can answer questions about
+          your Weightlifting App training, including your workouts, exercise
+          history and Personal Records. Access is read-only. The server runs on
+          your computer and reads a copy of your data from iCloud Drive. Your
+          data goes only to the AI app you connect.
         </p>
       </header>
 
@@ -168,6 +179,40 @@ export default function WeightliftingAppAiPage() {
               </a>
             </Button>
           </ClientCard>
+          <ClientCard name="ChatGPT" requirement={<NodeRequirement />}>
+            <p>
+              In the ChatGPT Mac app, open <strong>Settings</strong>, then{" "}
+              <strong>Plugins</strong>. Click <strong>Add</strong>, choose{" "}
+              <strong>Add MCP server</strong>, and fill in:
+            </p>
+            {/* On phones each label sits above its value; wider, they share a row. */}
+            <dl className="grid gap-y-2 sm:grid-cols-[auto_1fr] sm:gap-x-4 sm:gap-y-1">
+              {CHATGPT_FIELDS.map(([field, values]) => (
+                <div key={field} className="flex flex-col sm:contents">
+                  <dt className="text-muted-foreground">{field}</dt>
+                  <dd className="flex flex-col">
+                    {values.map((value) => (
+                      <code
+                        key={value}
+                        className={`${codeClass} whitespace-nowrap`}
+                      >
+                        {value}
+                      </code>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p>
+              Put each argument in its own field, using{" "}
+              <strong>Add argument</strong> for the second. Save, then quit and
+              reopen ChatGPT.
+            </p>
+            <p>
+              Ask your questions in <strong>Work</strong>, at the top of the
+              window. Chat can&apos;t use MCP servers.
+            </p>
+          </ClientCard>
           <ClientCard name="Claude Code" requirement={<NodeRequirement />}>
             <p>Run this in Terminal:</p>
             <div className="w-full">
@@ -186,7 +231,7 @@ export default function WeightliftingAppAiPage() {
         </div>
         <p className="text-muted-foreground">
           Other MCP apps can start the server with{" "}
-          <code className="font-mono text-sm text-foreground">
+          <code className={codeClass}>
             {[MCP_SERVER_CONFIG.command, ...MCP_SERVER_CONFIG.args].join(" ")}
           </code>
           .
