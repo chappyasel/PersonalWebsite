@@ -30,7 +30,12 @@ const MOBILE_HUD_TARGETS =
   ".stacks-mobile-hud-drift, [data-stacks-mobile-sheet-drift]";
 const SIDEBAR_TARGETS =
   "[data-stacks-desktop-dock], [data-stacks-details-toggle-shell]";
-type HudTarget = { property: "translate" | "transform"; original: string };
+type HudTarget = {
+  property: "translate" | "transform";
+  original: string;
+  /** Holds the drawn offset while the element is away from rest. */
+  hold: Animation | null;
+};
 /** The resting style each element had before any drift claimed it. The 2D
  * drift and the 3D drift live in different React roots, so on a dimension
  * switch the incoming one can claim an element before the outgoing one
@@ -48,7 +53,7 @@ function claim(element: HTMLElement, property: HudTarget["property"]) {
     claims.set(element, held);
   }
   held.holders++;
-  return { property, original: held.original };
+  return { property, original: held.original, hold: null };
 }
 
 function unclaim(element: HTMLElement) {
@@ -75,6 +80,12 @@ function offsetValue(target: HudTarget, x: number, y: number) {
     : `${x}px ${y === 0 ? "0" : `${y}px`}`;
 }
 
+/** Draw the offset through a paused Web Animation rather than the inline
+ * style. Every inline write is a `style` attribute mutation, and an ad
+ * blocker's `:has()` filters turn each one into a restyle of most of the
+ * page: AdGuard cost about 40 ms a frame during travel. Updating a held
+ * animation's keyframes moves the element without mutating the DOM.
+ * Without `animate` (jsdom), the inline style still carries the offset. */
 function writeOffset(
   element: HTMLElement,
   target: HudTarget,
@@ -82,10 +93,34 @@ function writeOffset(
   y = 0,
   keepTransform = false,
 ) {
-  element.style[target.property] =
-    x === 0 && y === 0 && !keepTransform
+  const atRest = x === 0 && y === 0 && !keepTransform;
+  if (typeof element.animate !== "function") {
+    element.style[target.property] = atRest
       ? target.original
       : offsetValue(target, x, y);
+    return;
+  }
+  if (atRest) {
+    target.hold?.cancel();
+    target.hold = null;
+    return;
+  }
+  const value = offsetValue(target, x, y);
+  const keyframes = [
+    { [target.property]: value },
+    { [target.property]: value },
+  ];
+  // A hold cancelled from outside goes idle; draw a fresh one instead.
+  const effect =
+    target.hold?.playState === "idle"
+      ? null
+      : (target.hold?.effect as KeyframeEffect | null | undefined);
+  if (effect) {
+    effect.setKeyframes(keyframes);
+    return;
+  }
+  target.hold = element.animate(keyframes, { duration: 1, fill: "both" });
+  target.hold.pause();
 }
 
 /** Restore the resting style, then glide from the last drawn offset into

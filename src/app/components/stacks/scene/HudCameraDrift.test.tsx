@@ -478,3 +478,57 @@ it("clears translations and removes frame work when disabled or reduced motion i
   expect(runtime.frames.size).toBe(0);
   expect(hud.style.translate).toBe("");
 });
+
+it("draws travel through a held animation without mutating any style attribute", () => {
+  const holds: {
+    element: Element;
+    keyframes: Keyframe[];
+    playState: string;
+  }[] = [];
+  // jsdom has no Web Animations, so this stands in for the browser's.
+  HTMLElement.prototype.animate = function (
+    this: HTMLElement,
+    keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
+  ) {
+    const hold = {
+      element: this,
+      keyframes: keyframes as Keyframe[],
+      playState: "running",
+    };
+    holds.push(hold);
+    return {
+      get playState() {
+        return hold.playState;
+      },
+      pause: () => (hold.playState = "paused"),
+      cancel: () => (hold.playState = "idle"),
+      effect: {
+        setKeyframes: (next: Keyframe[]) => (hold.keyframes = next),
+      },
+    } as unknown as Animation;
+  };
+  const { shell, hud, dock } = mount();
+  const mutations: MutationRecord[] = [];
+  const observer = new MutationObserver((records) =>
+    mutations.push(...records),
+  );
+  observer.observe(shell, { attributes: true, subtree: true });
+  frame(0);
+  for (let i = 1; i <= 20; i++) frame(i / 300);
+  observer.takeRecords().forEach((record) => mutations.push(record));
+  expect(
+    mutations.filter((record) => record.attributeName === "style"),
+  ).toEqual([]);
+  const hudHold = holds.find((hold) => hold.element === hud)!;
+  expect(hudHold.playState).toBe("paused");
+  expect(String(hudHold.keyframes[0]!.translate)).toMatch(/px/);
+  expect(
+    holds.find((hold) => hold.element === dock)!.keyframes[0]!.transform,
+  ).toMatch(/translateX/);
+  // One hold per element, reused for every later frame.
+  expect(holds.filter((hold) => hold.element === hud)).toHaveLength(1);
+  for (let i = 0; i < 240; i++) frame(20 / 300);
+  expect(hudHold.playState).toBe("idle");
+  observer.disconnect();
+  delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+});
