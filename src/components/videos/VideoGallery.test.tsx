@@ -84,7 +84,7 @@ it("loads only the requested talk and replaces the player when navigating", asyn
   ).toBe(true);
   await user.click(screen.getByRole("button", { name: "Previous video" }));
   expect(document.querySelector("iframe")!.title).toBe(
-    speaking.talks[2]!.title,
+    speaking.talks.at(-2)!.title,
   );
 });
 
