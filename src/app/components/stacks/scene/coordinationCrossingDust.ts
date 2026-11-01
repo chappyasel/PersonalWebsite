@@ -46,6 +46,9 @@ export function createCrossingDust({
   position.setUsage(THREE.DynamicDrawUsage);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", position);
+  // three sorts by this sphere even with culling off, and a 2D position computes
+  // to NaN. These are page pixels drawn alone, so any sphere will do.
+  geometry.boundingSphere = new THREE.Sphere();
   for (const name of ["aAlpha", "aKind", "aSize", "aPhase"]) {
     const attribute = source.geometry.getAttribute(name);
     geometry.setAttribute(

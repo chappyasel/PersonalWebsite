@@ -35,8 +35,8 @@ export const useHdrBlinker = () =>
  * It loads and plays only on an HDR screen, and shows only once it is playing:
  * an SDR screen, a browser without HDR video, or a blocked autoplay keeps the
  * block underneath it, unchanged. `theme` is the accent the block is drawn in,
- * not the site's theme: the orb's block is the dark accent in both, and the
- * crossing's follows the system. */
+ * not the site's theme: the orb's block and the crossing's are the dark accent
+ * in both. */
 export function HdrFill({
   theme,
   className = "",

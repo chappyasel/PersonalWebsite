@@ -87,8 +87,8 @@ describe("openCoordinationWithCrossing", () => {
     );
   });
 
-  it("uses the system theme, which coordination.sh will show", () => {
-    stubMatchMedia((query) => query.includes("prefers-color-scheme"));
+  it("stays dark on a light system, because coordination.sh does", () => {
+    stubMatchMedia((query) => query.includes("prefers-color-scheme: light"));
     coordinationCrossing.setEnabled(true);
     openCoordinationWithCrossing();
     expect(coordinationCrossing.getSnapshot().run?.theme).toBe("dark");
