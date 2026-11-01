@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { interactionZoomTarget } from "../scene/cameraZoom";
+import { coordinationCrossing } from "../scene/coordinationCrossing";
 import {
   destinationFor,
   projectPortal,
@@ -58,6 +59,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  coordinationCrossing.finish();
   cleanup();
   release();
   world.remove();
@@ -153,6 +155,23 @@ it.each([
     expect(screen.getByText("Former engineer")).toBeTruthy();
   },
 );
+
+it("drops the label for a crossing even though the pointer stays on the orb", () => {
+  render(<PortalLabel />);
+  act(() => useStacks.getState().setHovered("test:link"));
+  settle();
+  expect(screen.getByRole("status")).toBeTruthy();
+  act(() => {
+    coordinationCrossing.begin({
+      startedAt: 0,
+      origin: { x: 0, y: 0 },
+      theme: "dark",
+    });
+  });
+  settle();
+  expect(useStacks.getState().hovered).toBe("test:link");
+  expect(document.querySelector("[data-stacks-portal-label]")).toBeNull();
+});
 
 it("compresses the selected object on mouse press and releases without activating", () => {
   render(<PortalLabel />);

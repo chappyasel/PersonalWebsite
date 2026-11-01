@@ -5,7 +5,11 @@ import * as THREE from "three";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { CoordinationDustCore } from "./CoordinationDustCore";
-import { CROSSING_TIMELINE as T } from "./coordinationCrossing";
+import {
+  CROSSING_TIMELINE as T,
+  coordinationCrossing,
+  crossingOrbLight,
+} from "./coordinationCrossing";
 import { createCoordinationBurst } from "./coordinationNetwork";
 
 vi.mock("../boot/worldBootSession", async (original) => ({
@@ -14,6 +18,7 @@ vi.mock("../boot/worldBootSession", async (original) => ({
 }));
 
 afterEach(() => {
+  coordinationCrossing.finish();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -126,6 +131,38 @@ it("is the glow's own size in the room, not its size in ems", async () => {
   const { blinker } = await mountDust({ still: false });
   blinker.geometry.computeBoundingSphere();
   expect(blinker.geometry.boundingSphere!.radius).toBeLessThan(0.7);
+});
+
+it("gives the blinker and dust up to the crossing, and takes them back", async () => {
+  const { dust, frameAt, light } = await mountDust({ still: false });
+  expect(frameAt(0.2).uBlock!.value).toBe(1);
+  coordinationCrossing.begin({
+    startedAt: performance.now(),
+    origin: { x: 0, y: 0 },
+    theme: "dark",
+  });
+  const held = frameAt(0.2);
+  expect(held.uBlock!.value).toBe(0);
+  expect(held.uBloom!.value).toBe(0);
+  expect(dust.material.uniforms.uBoost!.value).toBe(0);
+  expect(light.intensity).toBeGreaterThan(0);
+
+  coordinationCrossing.finish();
+  expect(frameAt(0.2).uBlock!.value).toBe(1);
+  expect(dust.material.uniforms.uBoost!.value).toBeGreaterThan(0);
+});
+
+it("lets the orb's light go out behind the blinker", async () => {
+  const { frameAt, light } = await mountDust({ still: false });
+  frameAt(0.2);
+  coordinationCrossing.begin({
+    startedAt: performance.now() - T.orbLightFadeEnd - T.blinkPeriod * 2,
+    origin: { x: 0, y: 0 },
+    theme: "dark",
+  });
+  expect(crossingOrbLight(T.orbLightFadeEnd)).toBe(0);
+  frameAt(0.2);
+  expect(light.intensity).toBe(0);
 });
 
 it("rests solid under reduced motion", async () => {

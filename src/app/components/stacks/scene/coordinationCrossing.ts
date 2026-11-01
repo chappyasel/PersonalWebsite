@@ -8,10 +8,12 @@ export const COORDINATION_HREF = "https://coordination.sh/";
 /** coordination.sh ignores the fragment until it ships its arrival rule. */
 export const COORDINATION_ARRIVAL_HREF = `${COORDINATION_HREF}#room`;
 export const CROSSING_BLOCK_ID = "coordination-crossing-block";
+/** The orb's blinker and grains, which the crossing takes over from the scene. */
+export const COORDINATION_BLINKER_NAME = "coordination-blinker";
+export const COORDINATION_DUST_NAME = "coordination-dust";
 
 /** Milliseconds from the click. A spread delays a pixel by its distance from
- * the orb, as a fraction of the distance to the farthest corner. The blinker
- * runs whole cycles of coordination.sh's clock, so it is back on at the hold. */
+ * the orb, as a fraction of the distance to the farthest corner. */
 const T = Object.freeze({
   chromeFade: 900,
   jitter: 220,
@@ -21,9 +23,14 @@ const T = Object.freeze({
   wireStart: 1400,
   wireSpan: 1100,
   wireSpread: 1700,
-  blinkStart: 1400,
   blinkPeriod: 1100,
-  flareRise: 260,
+  travelStart: 300,
+  travelSpan: 5600,
+  orbLightRise: 900,
+  orbLightFadeStart: 1200,
+  orbLightFadeEnd: 3200,
+  flareStart: 600,
+  flareRise: 2400,
   flareFadeStart: 4400,
   flareFadeEnd: 7200,
   halftoneStart: 4500,
@@ -34,8 +41,12 @@ const T = Object.freeze({
   shrinkJitter: 240,
   orangeOutStart: 6100,
   orangeOutSpread: 900,
+  dustFadeStart: 5800,
+  dustFadeEnd: 7400,
+  gridOutStart: 6400,
+  gridOutSpan: 1700,
   handoff: 240,
-  hold: 8000,
+  hold: 8400,
   previewRest: 900,
 });
 
@@ -54,7 +65,13 @@ type Rgb = readonly [number, number, number];
 export const CROSSING_TOKENS: Readonly<
   Record<
     CrossingTheme,
-    Readonly<{ ground: Rgb; dot: Rgb; tone: Rgb; accent: Rgb }>
+    Readonly<{
+      ground: Rgb;
+      dot: Rgb;
+      tone: Rgb;
+      accent: Rgb;
+      grains: readonly [Rgb, Rgb, Rgb];
+    }>
   >
 > = Object.freeze({
   light: {
@@ -62,12 +79,22 @@ export const CROSSING_TOKENS: Readonly<
     dot: [217, 217, 211],
     tone: [26, 26, 26],
     accent: [209, 66, 26],
+    grains: [
+      [13, 79, 251],
+      [169, 61, 14],
+      [58, 58, 58],
+    ],
   },
   dark: {
     ground: [12, 12, 13],
     dot: [34, 34, 37],
     tone: [150, 150, 154],
     accent: [245, 115, 47],
+    grains: [
+      [99, 142, 252],
+      [255, 154, 82],
+      [200, 200, 204],
+    ],
   },
 });
 
@@ -121,20 +148,75 @@ export function coordinationBlinker(time: number) {
   };
 }
 
-/** How far the orb's real light has swelled, reaching full as the crossing's
- * blinker strikes. */
-export const crossingSurge = (time: number) => smooth(0, T.blinkStart, time);
+/** How much further the press drives the orb's real light past rest. */
+const ORB_LIGHT_SURGE = 5;
+
+/** The orb's real light as a multiple of its rest: it swells on the press, then
+ * goes out as the blinker leaves. The glow that travels is the crossing's. */
+export const crossingOrbLight = (time: number) =>
+  (1 + ORB_LIGHT_SURGE * smooth(0, T.orbLightRise, time)) *
+  (1 - smooth(T.orbLightFadeStart, T.orbLightFadeEnd, time));
+
+/** Where the orb's blinker is in its cycle at a moment of its clock. */
+export const blinkerPhase = (now: number) =>
+  (now % T.blinkPeriod) / T.blinkPeriod;
 
 /** The blinker at a moment of the crossing, plus `flare`, the extra light it
- * throws across the scene. */
-export function crossingBlinker(time: number) {
-  const elapsed = Math.min(time, T.hold) - T.blinkStart;
-  if (elapsed < 0) return { block: 0, bloom: 0, flare: 0 };
+ * throws across the scene. It picks up the orb's cycle at `startPhase` and runs
+ * a touch fast or slow, so a whole cycle lands on the page's first frame. */
+export function crossingBlinker(time: number, startPhase = 0) {
+  const flare =
+    smooth(T.flareStart, T.flareStart + T.flareRise, time) *
+    (1 - smooth(T.flareFadeStart, T.flareFadeEnd, time));
+  if (time >= T.hold) return { ...coordinationBlinker(0), flare };
+  const cycles =
+    Math.max(1, Math.round(T.hold / T.blinkPeriod + startPhase)) - startPhase;
+  const phase = startPhase + (cycles * Math.max(0, time)) / T.hold;
+  return { ...coordinationBlinker(phase * T.blinkPeriod), flare };
+}
+
+/** Where a blinker sits on the screen, in CSS pixels. */
+export type BlinkerSpot = Readonly<{ x: number; y: number; em: number }>;
+
+/** The one blinker on its way from the orb to the page's mark. `from` can move,
+ * so it stays on the orb through anything that nudges the room. */
+export function crossingBlinkerSpot(
+  time: number,
+  from: BlinkerSpot,
+  to: BlinkerSpot,
+): BlinkerSpot {
+  const travel = smooth(T.travelStart, T.travelStart + T.travelSpan, time);
+  const along = (start: number, end: number) => start + (end - start) * travel;
   return {
-    ...coordinationBlinker(elapsed),
-    flare:
-      smooth(0, T.flareRise, elapsed) *
-      (1 - smooth(T.flareFadeStart, T.flareFadeEnd, time)),
+    x: along(from.x, to.x),
+    y: along(from.y, to.y),
+    em: along(from.em, to.em),
+  };
+}
+
+/** The scattered grains' brightness. It starts on the page's flare and is gone
+ * before the hold frame, which has no dust: the page's own rises after it. */
+export const crossingDustGain = (time: number) =>
+  (1 + 1.5 * Math.exp(-time * 0.0009)) *
+  (1 - smooth(T.dustFadeStart, T.dustFadeEnd, time));
+
+/** The page's `intro-grid` easing, as a curve simple enough to run backwards:
+ * within 3.5% of its cubic-bezier(0.25, 0.6, 0.2, 1). */
+const introGridEase = (progress: number) => 1 - (1 - progress) ** 3.4;
+
+/** coordination.sh's grid intro played in reverse. The page opens on a bare
+ * ground and fades its dots in at 3x, tightening them to 1x, so this leaves the
+ * dots where its own will appear and the blinker alone for the cut. `scale` is
+ * about the window's centre, and both halves of the page's keyframes hold: the
+ * zoom takes the whole span, the fade the half nearest the page. */
+export function crossingGrid(time: number) {
+  const left = Math.min(
+    1,
+    Math.max(0, (T.gridOutStart + T.gridOutSpan - time) / T.gridOutSpan),
+  );
+  return {
+    scale: 3 - 2 * introGridEase(left),
+    fade: introGridEase(Math.min(1, left * 2)),
   };
 }
 

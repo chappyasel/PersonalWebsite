@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-
 import {
   COORDINATION_ARRIVAL_HREF,
   CROSSING_BLOCK_ID,
   CROSSING_MARK_SCALE,
-  CROSSING_TIMELINE as T,
   CROSSING_TOKENS,
   type CrossingRun,
+  CROSSING_TIMELINE as T,
   coordinationCrossing,
 } from "../scene/coordinationCrossing";
+import { useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 
 const rgb = (color: readonly number[]) => color.join(" ");
 
@@ -66,9 +65,7 @@ function ActiveOverlay({ run }: { run: CrossingRun }) {
         .coordination-crossing-stage {
           position: absolute;
           inset: 0;
-          background:
-            radial-gradient(circle, rgb(${rgb(tokens.dot)}) 1px, transparent 1.5px) 0 0 / 16px 16px,
-            rgb(${rgb(tokens.ground)});
+          background: rgb(${rgb(tokens.ground)});
           opacity: 0;
           animation: coordination-crossing-appear ${T.handoff}ms linear ${T.hold - T.handoff}ms forwards;
         }
@@ -105,7 +102,10 @@ function ActiveOverlay({ run }: { run: CrossingRun }) {
       `}</style>
       <div className="coordination-crossing-stage">
         <div className="coordination-crossing-mark">
-          <span id={CROSSING_BLOCK_ID} className="coordination-crossing-block" />
+          <span
+            id={CROSSING_BLOCK_ID}
+            className="coordination-crossing-block"
+          />
         </div>
       </div>
     </div>,

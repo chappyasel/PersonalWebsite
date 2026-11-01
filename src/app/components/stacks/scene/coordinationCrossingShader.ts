@@ -68,6 +68,8 @@ uniform float uEm;
 uniform float uBlock;
 uniform float uBloom;
 uniform float uFlare;
+uniform float uGridScale;
+uniform float uGridFade;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -130,7 +132,11 @@ void sampleCell(vec2 px, inout float tone, inout float hot) {
 void main() {
   vec2 uv = gl_FragCoord.xy / uBuffer;
   vec2 px = vec2(gl_FragCoord.x, uBuffer.y - gl_FragCoord.y) / uDpr;
-  vec2 cell = floor(px / 16.0);
+  // The dots' own space, as the page's transform: scale(3) sees it. Every dot
+  // keeps its cell, so the whole grid moves as one.
+  vec2 view = uBuffer / uDpr * 0.5;
+  vec2 grid = view + (px - view) / uGridScale;
+  vec2 cell = floor(grid / 16.0);
   vec2 centre = (cell + 0.5) * 16.0;
   float jitter = hash(cell);
   float front = min(distance(px, uOrb) / uReach, 1.0);
@@ -184,8 +190,8 @@ void main() {
   // Settles on the page's own radial-gradient, 1px solid to 1.5px clear, which
   // ramps linearly. A smoothstep here leaves the last dots visibly different.
   float edge = 0.25 + 0.25 * (1.0 - shrink);
-  float covered = 1.0 - clamp((distance(px, centre) - radius + edge) / (2.0 * edge), 0.0, 1.0);
-  vec3 dots = mix(uGround, ink, covered);
+  float covered = 1.0 - clamp((distance(grid, centre) - radius + edge) / (2.0 * edge), 0.0, 1.0);
+  vec3 dots = mix(uGround, ink, covered * uGridFade);
   gl_FragColor = vec4(lightBlinker(mix(matrix, dots, halftone), px), 1.0);
 }
 `;

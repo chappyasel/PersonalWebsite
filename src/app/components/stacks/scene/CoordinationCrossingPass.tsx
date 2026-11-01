@@ -5,17 +5,29 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import {
+  type BlinkerSpot,
+  COORDINATION_BLINKER_NAME,
+  COORDINATION_DUST_NAME,
   CROSSING_BLOCK_ID,
   CROSSING_TOKENS,
   type CrossingRun,
+  blinkerPhase,
   coordinationCrossing,
   crossingBlinker,
+  crossingBlinkerSpot,
+  crossingGrid,
 } from "./coordinationCrossing";
+import { createCrossingDust } from "./coordinationCrossingDust";
 import {
   COORDINATION_CROSSING_FRAGMENT,
   COORDINATION_CROSSING_VERTEX,
 } from "./coordinationCrossingShader";
 import { CROSSING_WIRE_IGNORE } from "./coordinationCrossingWire";
+import { BLINKER_EM, BLINKER_LOCAL_PER_EM } from "./coordinationDust";
+
+/** With the dust orb switched off there is no blinker to pick up, so a small
+ * one sets out from the click. */
+const NO_ORB_EM = 8;
 
 /** Runs after the composer, which renders at priority 1. */
 const CROSSING_RENDER_PRIORITY = 2;
@@ -79,6 +91,21 @@ export function collectWirePassExclusions(scene: THREE.Object3D) {
   return excluded;
 }
 
+function isShown(object: THREE.Object3D | undefined) {
+  for (let at = object ?? null; at; at = at.parent) {
+    if (!at.visible) return false;
+  }
+  return Boolean(object);
+}
+
+/** World space to the page's CSS pixels. */
+const projector =
+  (camera: THREE.Camera, width: number, height: number) =>
+  (world: THREE.Vector3) => {
+    const ndc = world.clone().project(camera);
+    return { x: ((ndc.x + 1) / 2) * width, y: ((1 - ndc.y) / 2) * height };
+  };
+
 const unitColor = ([r, g, b]: readonly [number, number, number]) =>
   new THREE.Vector3(r / 255, g / 255, b / 255);
 
@@ -103,6 +130,8 @@ function createCrossingPass(run: CrossingRun) {
     uBlock: { value: 0 },
     uBloom: { value: 0 },
     uFlare: { value: 0 },
+    uGridScale: { value: 1 },
+    uGridFade: { value: 1 },
   };
   const compositeMaterial = new THREE.ShaderMaterial({
     vertexShader: COORDINATION_CROSSING_VERTEX,
@@ -115,7 +144,10 @@ function createCrossingPass(run: CrossingRun) {
   const triangle = new THREE.BufferGeometry();
   triangle.setAttribute(
     "position",
-    new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
+    new THREE.BufferAttribute(
+      new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]),
+      3,
+    ),
   );
   const compositeMesh = new THREE.Mesh(triangle, compositeMaterial);
   compositeMesh.frustumCulled = false;
@@ -144,12 +176,22 @@ function createCrossingPass(run: CrossingRun) {
 
   const buffer = new THREE.Vector2();
   const clearColor = new THREE.Color();
+  const orbWorld = new THREE.Vector3();
+  const emWorld = new THREE.Vector3();
+  const orbScale = new THREE.Vector3();
+  const startPhase = blinkerPhase(run.startedAt);
+  let orbBlinker: THREE.Object3D | null = null;
+  let dust: ReturnType<typeof createCrossingDust> | null = null;
+  let lastTime: number | null = null;
   let roomTexture: THREE.FramebufferTexture | null = null;
   let wireTarget: THREE.WebGLRenderTarget | null = null;
   let exclusions: THREE.Object3D[] | null = null;
 
   const fit = (width: number, height: number) => {
-    if (roomTexture?.image.width === width && roomTexture.image.height === height)
+    if (
+      roomTexture?.image.width === width &&
+      roomTexture.image.height === height
+    )
       return;
     roomTexture?.dispose();
     wireTarget?.dispose();
@@ -163,6 +205,47 @@ function createCrossingPass(run: CrossingRun) {
     });
     uniforms.uRoom.value = roomTexture;
     uniforms.uWire.value = wireTarget.texture;
+  };
+
+  /** The orb's blinker on screen, through the scale its billboard draws at. */
+  const orbSpot = (
+    blinker: THREE.Object3D,
+    camera: THREE.Camera,
+    toScreen: ReturnType<typeof projector>,
+  ): BlinkerSpot => {
+    blinker.getWorldPosition(orbWorld);
+    blinker.getWorldScale(orbScale);
+    emWorld
+      .setFromMatrixColumn(camera.matrixWorld, 0)
+      .multiplyScalar(BLINKER_LOCAL_PER_EM * orbScale.x)
+      .add(orbWorld);
+    const centre = toScreen(orbWorld);
+    const edge = toScreen(emWorld);
+    return { ...centre, em: Math.hypot(edge.x - centre.x, edge.y - centre.y) };
+  };
+
+  /** Once, on the first frame: find what the orb is showing and take it over. */
+  const takeOverOrb = (
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+    width: number,
+    height: number,
+  ) => {
+    const blinker = scene.getObjectByName(COORDINATION_BLINKER_NAME);
+    if (!blinker || !isShown(blinker)) return;
+    orbBlinker = blinker;
+    const source = scene.getObjectByName(COORDINATION_DUST_NAME);
+    if (!(source as THREE.Points | undefined)?.isPoints || !isShown(source))
+      return;
+    const toScreen = projector(camera, width, height);
+    dust = createCrossingDust({
+      source: source as THREE.Points<THREE.BufferGeometry>,
+      orb: orbSpot(blinker, camera, toScreen),
+      theme: run.theme,
+      viewport: { width, height },
+      toScreen,
+    });
+    compositeScene.add(dust.points);
   };
 
   const renderWire = (
@@ -219,19 +302,40 @@ function createCrossingPass(run: CrossingRun) {
       uniforms.uDpr.value = dpr;
       const time = performance.now() - run.startedAt;
       uniforms.uTime.value = time;
-      const blinker = crossingBlinker(time);
+      if (lastTime === null) takeOverOrb(scene, camera, width, height);
+      dust?.update(time, (time - (lastTime ?? time)) / 1000, dpr);
+      lastTime = time;
+
+      const blinker = crossingBlinker(time, startPhase);
       uniforms.uBlock.value = blinker.block;
       uniforms.uBloom.value = blinker.bloom;
       uniforms.uFlare.value = blinker.flare;
+      const grid = crossingGrid(time);
+      uniforms.uGridScale.value = grid.scale;
+      uniforms.uGridFade.value = grid.fade;
+      const from = orbBlinker
+        ? orbSpot(orbBlinker, camera, projector(camera, width, height))
+        : { ...run.origin, em: NO_ORB_EM };
       // The hold frame's own block, so the shader's lands exactly on it.
       const block = document
         .getElementById(CROSSING_BLOCK_ID)
         ?.getBoundingClientRect();
-      if (block) {
-        uniforms.uBlockMin.value.set(block.left, block.top);
-        uniforms.uBlockMax.value.set(block.right, block.bottom);
-        uniforms.uEm.value = block.width / 0.6;
-      }
+      const spot = crossingBlinkerSpot(
+        time,
+        from,
+        block
+          ? {
+              x: (block.left + block.right) / 2,
+              y: (block.top + block.bottom) / 2,
+              em: block.width / BLINKER_EM.width,
+            }
+          : from,
+      );
+      const halfWidth = (spot.em * BLINKER_EM.width) / 2;
+      const halfHeight = (spot.em * BLINKER_EM.height) / 2;
+      uniforms.uBlockMin.value.set(spot.x - halfWidth, spot.y - halfHeight);
+      uniforms.uBlockMax.value.set(spot.x + halfWidth, spot.y + halfHeight);
+      uniforms.uEm.value = spot.em;
       uniforms.uReach.value = Math.hypot(
         Math.max(run.origin.x, width - run.origin.x),
         Math.max(run.origin.y, height - run.origin.y),
@@ -239,6 +343,7 @@ function createCrossingPass(run: CrossingRun) {
       renderWire(gl, scene, camera);
     },
     dispose() {
+      dust?.dispose();
       roomTexture?.dispose();
       wireTarget?.dispose();
       triangle.dispose();
@@ -262,7 +367,8 @@ function ActiveCrossingPass({ run }: { run: CrossingRun }) {
   useFrame((state) => {
     // Mounting this subscriber takes rendering away from r3f. With the
     // composer gone, as on phones, this pass has to draw the room itself.
-    if (state.internal.priority <= 1) state.gl.render(state.scene, state.camera);
+    if (state.internal.priority <= 1)
+      state.gl.render(state.scene, state.camera);
     pass.current?.draw(state.gl, state.scene, state.camera);
   }, CROSSING_RENDER_PRIORITY);
   return null;

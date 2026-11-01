@@ -21,8 +21,9 @@ export const DUST_VERTEX = /* glsl */ `
   }
 `;
 
-/** The page's dark sprite, stop for stop: a grain burns white at its core. */
-export const DUST_FRAGMENT = /* glsl */ `
+/** The page's sprite, stop for stop. `core` is how white a grain burns at its
+ * middle: fully on the dark page, not at all on the light one. */
+const grainFragment = (core: string, encode: string) => /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
 
@@ -34,11 +35,49 @@ export const DUST_FRAGMENT = /* glsl */ `
       : r < 0.4
         ? mix(1.0, 0.3, (r - 0.12) / 0.28)
         : mix(0.3, 0.0, (r - 0.4) / 0.6);
-    vec3 color = mix(vColor, vec3(1.0), 1.0 - clamp(r / 0.12, 0.0, 1.0));
+    vec3 color = mix(vColor, vec3(1.0), ${core} * (1.0 - clamp(r / 0.12, 0.0, 1.0)));
     gl_FragColor = vec4(color, a * vAlpha);
-    #include <colorspace_fragment>
+    ${encode}
   }
 `;
+
+export const DUST_FRAGMENT = grainFragment(
+  "1.0",
+  "#include <colorspace_fragment>",
+);
+
+/** The same grains once they leave the orb: drawn in the page's pixels over the
+ * finished frame, where the room's depth of field cannot blur them away. Colors
+ * go straight to the display-encoded screen, as in the crossing's composite. */
+export const SCATTER_VERTEX = /* glsl */ `
+  attribute float aKind;
+  attribute float aSize;
+  attribute float aAlpha;
+  attribute float aPhase;
+  uniform vec3 uColors[3];
+  uniform vec2 uViewport;
+  uniform float uDpr;
+  uniform float uTime;
+  uniform float uGain;
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    vColor = uColors[int(aKind + 0.5)];
+    float twinkle = 0.74 + 0.26 * sin(uTime * 2.6 + aPhase);
+    vAlpha = min(1.0, aAlpha * twinkle * uGain);
+    gl_Position = vec4(
+      position.x / uViewport.x * 2.0 - 1.0,
+      1.0 - position.y / uViewport.y * 2.0,
+      0.0,
+      1.0
+    );
+    gl_PointSize = aSize * 6.0 * uDpr;
+  }
+`;
+
+export const SCATTER_FRAGMENT = `uniform float uCore;
+${grainFragment("uCore", "")}`;
 
 /** A quad that always faces the camera, so the block and its shadow hold the
  * page's flat shape however the prop is carried. The fragment works in the

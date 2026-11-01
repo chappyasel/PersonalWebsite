@@ -2,20 +2,16 @@
 
 import { isWorldRevealed } from "../boot/worldBootSession";
 import { useStacks } from "../store";
-import {
-  type RefObject,
-  useEffect,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from "react";
+import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import {
+  COORDINATION_BLINKER_NAME,
+  COORDINATION_DUST_NAME,
   CROSSING_TOKENS,
   coordinationBlinker,
   coordinationCrossing,
-  crossingSurge,
+  crossingOrbLight,
 } from "./coordinationCrossing";
 import { CROSSING_WIRE_IGNORE } from "./coordinationCrossingWire";
 import {
@@ -77,8 +73,6 @@ const BLOCK_HEAT = 0.5;
 const GLOW_GAIN = 1.4;
 const LIGHT_REACH = 2.4;
 const LIGHT_INTENSITY = { day: 1.1, night: 0.7 };
-/** How much further the crossing's flare drives the light past rest. */
-const LIGHT_SURGE = 5;
 
 const linear = ([r, g, b]: readonly [number, number, number]) =>
   new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
@@ -117,11 +111,6 @@ export function CoordinationDustCore({
       state.dragging === COORDINATION_GLOBE_INTERACTION_ID,
   );
   const realLights = useUnitRealLights(unitIndex);
-  const runId = useSyncExternalStore(
-    coordinationCrossing.subscribe,
-    () => coordinationCrossing.getSnapshot().run?.id ?? 0,
-    () => 0,
-  );
 
   const root = useRef<THREE.Group>(null);
   const light = useRef<THREE.PointLight>(null);
@@ -185,9 +174,8 @@ export function CoordinationDustCore({
       activity: 0,
       lift: 0,
       seenBurst: burstSignal.current.revision,
-      seenRun: runId,
     }),
-    // One scratch for the component's life: the revisions only seed it.
+    // One scratch for the component's life: the revision only seeds it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -200,7 +188,7 @@ export function CoordinationDustCore({
     const now = performance.now();
     grains.uPixelRatio!.value = gl.getPixelRatio();
     const run = coordinationCrossing.getSnapshot().run;
-    const surge = run ? crossingSurge(now - run.startedAt) : 0;
+    const orbLight = run ? crossingOrbLight(now - run.startedAt) : 1;
     const blinker = still
       ? { block: 1, bloom: 0.74 }
       : coordinationBlinker(now);
@@ -218,10 +206,6 @@ export function CoordinationDustCore({
       if (burstSignal.current.revision !== scratch.seenBurst) {
         scratch.seenBurst = burstSignal.current.revision;
         kickCoordinationDust(dust, 420);
-      }
-      if (runId !== scratch.seenRun) {
-        scratch.seenRun = runId;
-        if (runId) kickCoordinationDust(dust, 120);
       }
 
       // The room moving past the dust, or the dust carried through the room,
@@ -275,10 +259,9 @@ export function CoordinationDustCore({
         scratch.probe.z / DUST_LOCAL_PER_PX,
       );
 
-      const gathered = Math.max(charge, surge);
       stepCoordinationDust(dust, dt, {
-        spin: DUST_REST_SPIN + 0.5 * gathered,
-        gather: 1 - 0.24 * charge - 0.5 * surge,
+        spin: DUST_REST_SPIN + 0.5 * charge,
+        gather: 1 - 0.24 * charge,
       });
       const horizon = horizonMaterial.current?.uniforms;
       if (horizon) {
@@ -289,19 +272,22 @@ export function CoordinationDustCore({
       dustGeometry.attributes.aAlpha!.needsUpdate = true;
       grains.uTime!.value = now / 1000;
       scratch.lift = 0.35 * scratch.activity + 1.2 * charge + 2 * burstStrength;
-      grains.uBoost!.value = 1 + scratch.lift + 1.5 * surge;
+      grains.uBoost!.value = 1 + scratch.lift;
     }
 
+    // Once a crossing runs, its pass draws this blinker and these grains, so
+    // they can leave the orb and survive the room fading around them.
     const lift = 1 + scratch.lift;
-    block.uBlock!.value = blinker.block;
-    block.uBloom!.value = blinker.bloom * lift * GLOW_GAIN;
+    if (run) grains.uBoost!.value = 0;
+    block.uBlock!.value = run ? 0 : blinker.block;
+    block.uBloom!.value = run ? 0 : blinker.bloom * lift * GLOW_GAIN;
     if (light.current) {
       // A floor under the block's blink, so the shelf breathes, not strobes.
       light.current.intensity =
         (dark ? LIGHT_INTENSITY.night : LIGHT_INTENSITY.day) *
         (0.45 + 0.55 * blinker.bloom) *
         lift *
-        (1 + LIGHT_SURGE * surge);
+        orbLight;
     }
   });
 
@@ -309,7 +295,7 @@ export function CoordinationDustCore({
     <group ref={root}>
       <group visible={visible}>
         <points
-          name="coordination-dust"
+          name={COORDINATION_DUST_NAME}
           geometry={dustGeometry}
           scale={DUST_LOCAL_PER_PX}
           frustumCulled={false}
@@ -331,7 +317,7 @@ export function CoordinationDustCore({
           />
         </points>
         <mesh
-          name="coordination-blinker"
+          name={COORDINATION_BLINKER_NAME}
           raycast={NO_RAYCAST}
           renderOrder={9}
           userData={ROOM_ONLY}

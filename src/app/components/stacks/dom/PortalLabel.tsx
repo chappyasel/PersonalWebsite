@@ -2,6 +2,7 @@
 
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { roomWindowEvents } from "../room/roomEvents";
+import { coordinationCrossing } from "../scene/coordinationCrossing";
 import {
   getSceneInteraction,
   portalLabelActivation,
@@ -11,7 +12,13 @@ import {
 } from "../scene/interactionRegistry";
 import { progressRef, touchWorldRef, useStacks } from "../store";
 import { ArrowSquareOutIcon, ArrowsOutIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Button } from "~/components/ui/button";
 
@@ -28,6 +35,8 @@ const SWITCH_DWELL_MS = TRANSITION_MS + 20;
 // the fade before React removes the node. A 20ms tail is less than two frames
 // and could visually skip straight from opaque to unmounted under WebGL load.
 const EXIT_MS = TRANSITION_MS + 100;
+
+const readCrossing = () => coordinationCrossing.getSnapshot().run !== null;
 
 function isFinePointer() {
   // A touchscreen laptop can report a coarse primary pointer while a mouse
@@ -54,6 +63,12 @@ export default function PortalLabel() {
   const dragging = useStacks((s) => s.dragging);
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
+  // The pointer is still on the orb it pressed, so hover alone keeps this open.
+  const crossing = useSyncExternalStore(
+    coordinationCrossing.subscribe,
+    readCrossing,
+    () => false,
+  );
   const interactionId = focused ?? hovered;
   const [shown, setShown] = useState<{
     id: string;
@@ -228,6 +243,7 @@ export default function PortalLabel() {
       activation &&
       !dragging &&
       !modalOpen &&
+      !crossing &&
       panelState === "closed";
     if (!eligible || !activation || !spec) {
       eligibleRef.current = false;
@@ -295,6 +311,7 @@ export default function PortalLabel() {
     }, delay);
     return () => window.clearTimeout(timeout);
   }, [
+    crossing,
     dragging,
     focused,
     interactionId,
