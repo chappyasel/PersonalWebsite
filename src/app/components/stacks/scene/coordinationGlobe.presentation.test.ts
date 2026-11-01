@@ -328,8 +328,12 @@ describe("Coordination globe presentation contract", () => {
       bankStart,
     );
     expect(primitivesSource.slice(bankStart, bankEnd)).toContain('form="back"');
-    expect(globeSource).toContain("const coordinationEngaged =");
-    expect(globeSource).toContain("focused ||");
+    expect(globeSource).toMatch(
+      /const coordinationCharging =\s*hovered &&\s*touchWorldRef\.interactionPointerType !== "touch" &&\s*!focused &&\s*!dragged &&\s*!crossingRunning;/,
+    );
+    expect(globeSource).toContain(
+      "useCoordinationCharge(\n    coordinationCharging,",
+    );
   });
 
   it("makes the dust response global, faster, brighter, and saturated", () => {

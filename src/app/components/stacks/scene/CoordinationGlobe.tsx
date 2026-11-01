@@ -1026,18 +1026,28 @@ export function CoordinationGlobe({
   const dragged = useStacks(
     (state) => state.dragging === COORDINATION_GLOBE_INTERACTION_ID,
   );
-  // Touch selection owns engagement. Synthetic touch hover can survive a
-  // cancelled swipe and must not charge the orb on its own.
-  const coordinationEngaged =
-    focused ||
-    dragged ||
-    (hovered && touchWorldRef.interactionPointerType !== "touch");
   const still = useMemo(() => prefersReducedMotion(), []);
   const crossingEnabled = useSyncExternalStore(
     coordinationCrossing.subscribe,
     () => coordinationCrossing.getSnapshot().enabled,
     () => false,
   );
+  const crossingRunning = useSyncExternalStore(
+    coordinationCrossing.subscribe,
+    () => coordinationCrossing.getSnapshot().run !== null,
+    () => false,
+  );
+  // The burst is a desktop hover charge: resting a mouse on the orb winds it
+  // up. Selecting it (a click, a tap, a carry, or the crossing a click starts)
+  // is a different gesture and must not set it off, even though the pointer
+  // usually stays over the orb while it happens. Synthetic touch hover can
+  // survive a cancelled swipe, so touch never charges.
+  const coordinationCharging =
+    hovered &&
+    touchWorldRef.interactionPointerType !== "touch" &&
+    !focused &&
+    !dragged &&
+    !crossingRunning;
   const dustOrb = useSyncExternalStore(
     coordinationCrossing.subscribe,
     () => coordinationCrossing.getSnapshot().dustOrb,
@@ -1121,7 +1131,7 @@ export function CoordinationGlobe({
     );
   }, [emitShockwave, shockwaveWorld]);
   const chargeSignal = useCoordinationCharge(
-    coordinationEngaged,
+    coordinationCharging,
     effectEnabled && !still,
     releaseCharge,
   );

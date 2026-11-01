@@ -95,7 +95,14 @@ export const BLINKER_VERTEX = /* glsl */ `
   }
 `;
 
-/** Premultiplied, so one quad holds an opaque block and an additive glow. */
+/** Premultiplied, so one quad holds an opaque block and an additive glow.
+ *
+ * The quad is a camera-facing square about five orbs wide, and on screen that
+ * square is exactly the faint warm rectangle that showed around the orb while
+ * it charged. Pixels the glow does not reach are discarded, not written as
+ * zero, so nothing in the composer (blending, ambient occlusion's transparency
+ * targets, a GPU's rounding) can see the square's edge. The cutoff is far
+ * below one display step even at the full charge-and-burst lift. */
 export const BLINKER_FRAGMENT = /* glsl */ `
   uniform vec2 uBlockMin;
   uniform vec2 uBlockMax;
@@ -111,6 +118,7 @@ export const BLINKER_FRAGMENT = /* glsl */ `
     float inside = blinkerCoverage(vEm, 1.0 / max(fwidth(vEm.x), 0.0001));
     float glow = blinkerGlow(vEm) * uBloom * (1.0 - inside);
     float block = inside * uBlock;
+    if (block <= 0.0 && glow < 1.0 / 4096.0) discard;
     gl_FragColor = vec4(uAccent * (glow + block * uHeat), block);
     #include <colorspace_fragment>
   }
