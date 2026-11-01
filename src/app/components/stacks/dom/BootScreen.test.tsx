@@ -35,6 +35,8 @@ import {
   COORDINATION_NODE_COUNT,
   createCoordinationNetwork,
 } from "../scene/coordinationNetwork";
+import { coordinationCrossing } from "../scene/coordinationCrossing";
+import { COORDINATION_DUST_COUNT } from "../scene/coordinationDust";
 import { ABOUT_GOLF_BALLS } from "../scene/golf/aboutGolfBalls";
 import { GOLF_BALL_RADIUS } from "../scene/golf/golfBallGeometry";
 import {
@@ -55,7 +57,7 @@ import { VISION_PRO_PROFILE } from "../scene/visionProGeometry";
 import { CAMERA } from "../scene/worldLayout";
 import { PALETTES } from "../theme";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import BootScreen, {
   BootReadingBooksBridge,
@@ -729,6 +731,8 @@ describe("Homepage entrance", () => {
   });
 
   it("projects the complete live Coordination network into the boot orb", () => {
+    coordinationCrossing.setDustOrb(false);
+    onTestFinished(() => coordinationCrossing.setDustOrb(true));
     const markup = renderBoot();
     const liveNetwork = createCoordinationNetwork();
 
@@ -754,6 +758,22 @@ describe("Homepage entrance", () => {
     expect(ditherPixels).toHaveLength(1);
     expect(markup).not.toContain("data-coordination-dither-animated");
     expect(markup).toContain('data-dither-grid="ordered-4x4"');
+  });
+
+  it("draws the dust orb's flat twin in place of the network", () => {
+    const markup = renderBoot();
+    expect(markup).not.toContain("stacks-boot-coordination-network");
+    expect(markup).not.toContain("stacks-boot-coordination-node");
+    expect(markup).toContain('class="stacks-boot-coordination-dither"');
+    const grains = Number(
+      /data-boot-coordination-dust="(\d+)"/.exec(markup)?.[1],
+    );
+    expect(grains).toBeGreaterThan(COORDINATION_DUST_COUNT / 2);
+    expect(grains).toBeLessThanOrEqual(COORDINATION_DUST_COUNT);
+    expect(markup).toContain("stacks-boot-coordination-blinker-block");
+    // The block and its glow blink apart, so they cannot share an element.
+    expect(markup).toContain("stacks-boot-coordination-blinker-glow");
+    expect(markup).toContain('operator="out"');
   });
 
   it("embeds the full stem top in solid square pixels in every dither frame", () => {
@@ -802,6 +822,8 @@ describe("Homepage entrance", () => {
   });
 
   it("serializes Coordination network geometry at a canonical precision", () => {
+    coordinationCrossing.setDustOrb(false);
+    onTestFinished(() => coordinationCrossing.setDustOrb(true));
     const markup = renderBoot();
     const edgePath =
       /class="stacks-boot-coordination-link"[^>]*d="([^"]+)"/.exec(markup)?.[1];

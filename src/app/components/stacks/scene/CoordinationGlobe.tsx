@@ -22,8 +22,14 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
 import { CoordinationBurstFragments } from "./CoordinationBurstFragments";
+import { CoordinationDustCore } from "./CoordinationDustCore";
 import Grabbable from "./Grabbable";
 import { aboutLandmarkNodeName } from "./aboutBootComposition";
+import {
+  coordinationCrossing,
+  openCoordinationWithCrossing,
+} from "./coordinationCrossing";
+import { CROSSING_WIRE_IGNORE } from "./coordinationCrossingWire";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import {
   COORDINATION_BASE_BOTTOM_RADIUS,
@@ -263,6 +269,7 @@ const REVEAL_LINE_WIDTH_PX = 3.4;
 const REVEAL_COLOR_INTENSITY = 1.6;
 const NO_RAYCAST = () => null;
 const COORDINATION_STENCIL_REF = 1;
+const WIRE_IGNORED = { [CROSSING_WIRE_IGNORE]: true };
 const HORIZON_STENCIL_MATERIAL_PROPS = {
   stencilWrite: true,
   stencilRef: COORDINATION_STENCIL_REF,
@@ -787,6 +794,9 @@ function AmorphousHorizon({
       raycast={NO_RAYCAST}
       renderOrder={6}
       scale={COORDINATION_HORIZON_SCALE}
+      // Its edge is a dissolving dither. Wired, it is a faceted ball with a hard
+      // outline, so it fades with the room instead.
+      userData={WIRE_IGNORED}
     >
       <icosahedronGeometry args={[COORDINATION_CORE_RADIUS, 4]} />
       <shaderMaterial
@@ -846,15 +856,60 @@ function CoordinationSingularity({
   );
 }
 
-function CoordinationGlobeBody({
+/** The approved sphere with coordination.sh's dust and blinker in place of its
+ * network. The light inside outlives `visible`, so it stays mounted. */
+function CoordinationDustOrb({
+  unitIndex,
+  visible,
   dark,
+  still,
+  burstSignal,
+  chargeSignal,
+}: {
+  unitIndex: number;
+  visible: boolean;
+  dark: boolean;
+  still: boolean;
+  burstSignal: BurstSignal;
+  chargeSignal: CoordinationChargeSignal;
+}) {
+  const horizonMaterial = useRef<THREE.ShaderMaterial>(null);
+  const legibility = useCoordinationLegibility();
+  return (
+    <>
+      {visible ? (
+        <AmorphousHorizon
+          materialRef={horizonMaterial}
+          legibility={legibility}
+        />
+      ) : null}
+      <CoordinationDustCore
+        unitIndex={unitIndex}
+        visible={visible}
+        dark={dark}
+        still={still}
+        burstSignal={burstSignal}
+        chargeSignal={chargeSignal}
+        horizonMaterial={horizonMaterial}
+        insideHorizon={NETWORK_STENCIL_MATERIAL_PROPS}
+      />
+    </>
+  );
+}
+
+function CoordinationGlobeBody({
+  unitIndex,
+  dark,
+  dustOrb,
   effectEnabled,
   still,
   burstSignal,
   chargeSignal,
   burstDebrisEnabled,
 }: {
+  unitIndex: number;
   dark: boolean;
+  dustOrb: boolean;
   effectEnabled: boolean;
   still: boolean;
   burstSignal: BurstSignal;
@@ -906,7 +961,16 @@ function CoordinationGlobeBody({
         </mesh>
       </group>
       <group position={[0, COORDINATION_CORE_CENTER_Y, 0]}>
-        {effectEnabled ? (
+        {dustOrb ? (
+          <CoordinationDustOrb
+            unitIndex={unitIndex}
+            visible={effectEnabled}
+            dark={dark}
+            still={still}
+            burstSignal={burstSignal}
+            chargeSignal={chargeSignal}
+          />
+        ) : effectEnabled ? (
           <CoordinationSingularity
             still={still}
             burstSignal={burstSignal}
@@ -969,6 +1033,16 @@ export function CoordinationGlobe({
     dragged ||
     (hovered && touchWorldRef.interactionPointerType !== "touch");
   const still = useMemo(() => prefersReducedMotion(), []);
+  const crossingEnabled = useSyncExternalStore(
+    coordinationCrossing.subscribe,
+    () => coordinationCrossing.getSnapshot().enabled,
+    () => false,
+  );
+  const dustOrb = useSyncExternalStore(
+    coordinationCrossing.subscribe,
+    () => coordinationCrossing.getSnapshot().dustOrb,
+    () => false,
+  );
   const burstSignal = useRef(createCoordinationBurst());
   const shockwaveOrigin = useRef<THREE.Group>(null);
   const shockwaveWorld = useMemo(() => new THREE.Vector3(), []);
@@ -1064,12 +1138,15 @@ export function CoordinationGlobe({
       maxThrowSpeed={2.2}
       projectedLocalBounds={projectedLocalBounds}
       href="https://coordination.sh/"
+      onTap={crossingEnabled ? openCoordinationWithCrossing : undefined}
       portalLabel="Coordination Research"
       external
     >
       <group ref={shockwaveOrigin} scale={scale}>
         <CoordinationGlobeBody
+          unitIndex={unitIndex}
           dark={dark}
+          dustOrb={dustOrb}
           effectEnabled={effectEnabled}
           still={still}
           burstSignal={burstSignal}

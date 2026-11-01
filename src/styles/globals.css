@@ -2078,6 +2078,83 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   }
 }
 
+/* The dust orb's flat twin. Its blinker runs coordination.sh's own keyframes. */
+.stacks-boot-coordination-dust {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: stacks-boot-coordination-rotate 90s linear infinite;
+  will-change: transform;
+}
+
+.stacks-boot-coordination-dust-twinkle {
+  animation: stacks-boot-coordination-twinkle 2.4s ease-in-out infinite;
+}
+
+@keyframes stacks-boot-coordination-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.48;
+  }
+}
+
+.stacks-boot-coordination-blinker-block {
+  fill: #f5732f;
+  animation: stacks-boot-coordination-blink 1.1s ease infinite;
+}
+
+.stacks-boot-coordination-blinker-glow {
+  fill: #f5732f;
+  opacity: 0.74;
+  animation: stacks-boot-coordination-bloom 1.1s linear infinite;
+}
+
+@keyframes stacks-boot-coordination-blink {
+  0%,
+  36% {
+    opacity: 1;
+  }
+  50%,
+  86% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes stacks-boot-coordination-bloom {
+  0% {
+    opacity: 0.74;
+  }
+  5% {
+    opacity: 1;
+  }
+  22% {
+    opacity: 0.9;
+  }
+  41% {
+    opacity: 0.97;
+  }
+  50% {
+    opacity: 0.84;
+  }
+  60% {
+    opacity: 0.36;
+  }
+  80% {
+    opacity: 0.16;
+  }
+  94% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0.74;
+  }
+}
+
 .stacks-boot-coordination-dither {
   fill: #030507;
   shape-rendering: crispEdges;
@@ -2391,6 +2468,10 @@ html[data-world] [contenteditable="true"] {
   .stacks-boot-item-motion,
   .stacks-boot-coordination-network,
   .stacks-boot-coordination-reveal,
+  .stacks-boot-coordination-dust,
+  .stacks-boot-coordination-dust-twinkle,
+  .stacks-boot-coordination-blinker-block,
+  .stacks-boot-coordination-blinker-glow,
   .stacks-world-curtain {
     animation: none;
     transition: none;
@@ -2407,7 +2488,8 @@ html[data-world] [contenteditable="true"] {
     will-change: auto;
   }
 
-  .stacks-boot-coordination-network {
+  .stacks-boot-coordination-network,
+  .stacks-boot-coordination-dust {
     will-change: auto;
   }
 

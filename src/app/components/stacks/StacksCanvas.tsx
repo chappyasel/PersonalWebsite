@@ -141,6 +141,8 @@ import {
 } from "./scene/qualityLog";
 import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
 import { createSceneQualitySampler } from "./scene/qualitySampler";
+import { CoordinationCrossingOverlay } from "./dom/CoordinationCrossingOverlay";
+import { CoordinationCrossingPass } from "./scene/CoordinationCrossingPass";
 import { SCENE_CANVAS_CONTEXT, sceneBackdropFor } from "./scene/sceneBackdrop";
 import { repaintFrozenScene } from "./scene/sceneClock";
 import {
@@ -2637,6 +2639,7 @@ export default function StacksCanvas({
       style={{ background: sceneBackdropFor(dark) }}
     >
       <LoadReporter />
+      <CoordinationCrossingOverlay />
       <Activity mode={roomActive ? "visible" : "hidden"}>
         <TouchInteractionLayer />
         <AutomaticPerformanceDiagnostic />
@@ -2733,6 +2736,7 @@ export default function StacksCanvas({
         <CanvasSizeBoundary />
         <SceneClockBoundary />
         <Exposure dark={dark} />
+        <CoordinationCrossingPass />
         {postfx && (
           <ContextSafeEffects
             dark={dark}

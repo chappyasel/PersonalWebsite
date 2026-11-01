@@ -1,0 +1,228 @@
+import { lastPointerPosition } from "~/lib/originFlight";
+
+/** The experimental same-tab exit from the coordination orb: the shared
+ * timeline and session state, free of Three so the diagnostics registry and
+ * the DOM overlay can read them. */
+
+export const COORDINATION_HREF = "https://coordination.sh/";
+/** coordination.sh ignores the fragment until it ships its arrival rule. */
+export const COORDINATION_ARRIVAL_HREF = `${COORDINATION_HREF}#room`;
+export const CROSSING_BLOCK_ID = "coordination-crossing-block";
+
+/** Milliseconds from the click. A spread delays a pixel by its distance from
+ * the orb, as a fraction of the distance to the farthest corner. The blinker
+ * runs whole cycles of coordination.sh's clock, so it is back on at the hold. */
+const T = Object.freeze({
+  chromeFade: 900,
+  jitter: 220,
+  backgroundStart: 0,
+  backgroundSpan: 1600,
+  backgroundSpread: 1400,
+  wireStart: 1400,
+  wireSpan: 1100,
+  wireSpread: 1700,
+  blinkStart: 1400,
+  blinkPeriod: 1100,
+  flareRise: 260,
+  flareFadeStart: 4400,
+  flareFadeEnd: 7200,
+  halftoneStart: 4500,
+  halftoneSpan: 900,
+  halftoneSpread: 700,
+  shrinkStart: 6000,
+  shrinkSpan: 900,
+  shrinkJitter: 240,
+  orangeOutStart: 6100,
+  orangeOutSpread: 900,
+  handoff: 240,
+  hold: 8000,
+  previewRest: 900,
+});
+
+export const CROSSING_TIMELINE = T;
+
+/** coordination.sh's `intro-grow` starts its mark here and eases to 1. The
+ * blinker sits at the mark's left, so this is what puts it on the page's first
+ * frame: smaller, and pulled in toward the middle. */
+export const CROSSING_MARK_SCALE = 0.85;
+
+export type CrossingTheme = "light" | "dark";
+type Rgb = readonly [number, number, number];
+
+/** coordination.sh's page tokens, so the last frame is its first. `tone` is the
+ * stage's ink: the page's ink in light, a gray on its near-black ground. */
+export const CROSSING_TOKENS: Readonly<
+  Record<
+    CrossingTheme,
+    Readonly<{ ground: Rgb; dot: Rgb; tone: Rgb; accent: Rgb }>
+  >
+> = Object.freeze({
+  light: {
+    ground: [247, 247, 244],
+    dot: [217, 217, 211],
+    tone: [26, 26, 26],
+    accent: [209, 66, 26],
+  },
+  dark: {
+    ground: [12, 12, 13],
+    dot: [34, 34, 37],
+    tone: [150, 150, 154],
+    accent: [245, 115, 47],
+  },
+});
+
+type Keyframes = readonly (readonly [number, number])[];
+
+/** coordination.sh's `blink` and `bloom` keyframes. */
+const BLINK_KEYFRAMES: Keyframes = [
+  [0, 1],
+  [0.36, 1],
+  [0.5, 0],
+  [0.86, 0],
+  [1, 1],
+];
+const BLOOM_KEYFRAMES: Keyframes = [
+  [0, 0.74],
+  [0.05, 1],
+  [0.22, 0.9],
+  [0.41, 0.97],
+  [0.5, 0.84],
+  [0.6, 0.36],
+  [0.8, 0.16],
+  [0.94, 0.2],
+  [1, 0.74],
+];
+
+function sampleKeyframes(keyframes: Keyframes, phase: number) {
+  let previous = keyframes[0]!;
+  for (const frame of keyframes) {
+    if (phase <= frame[0]) {
+      const span = frame[0] - previous[0];
+      const progress = span > 0 ? (phase - previous[0]) / span : 1;
+      return previous[1] + (frame[1] - previous[1]) * progress;
+    }
+    previous = frame;
+  }
+  return previous[1];
+}
+
+const smooth = (edge0: number, edge1: number, value: number) => {
+  const x = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return x * x * (3 - 2 * x);
+};
+
+/** coordination.sh's blinker on its own 1.1 s clock: `block` is its opacity
+ * and `bloom` its glow's. */
+export function coordinationBlinker(time: number) {
+  const phase = (time % T.blinkPeriod) / T.blinkPeriod;
+  return {
+    block: sampleKeyframes(BLINK_KEYFRAMES, phase),
+    bloom: sampleKeyframes(BLOOM_KEYFRAMES, phase),
+  };
+}
+
+/** How far the orb's real light has swelled, reaching full as the crossing's
+ * blinker strikes. */
+export const crossingSurge = (time: number) => smooth(0, T.blinkStart, time);
+
+/** The blinker at a moment of the crossing, plus `flare`, the extra light it
+ * throws across the scene. */
+export function crossingBlinker(time: number) {
+  const elapsed = Math.min(time, T.hold) - T.blinkStart;
+  if (elapsed < 0) return { block: 0, bloom: 0, flare: 0 };
+  return {
+    ...coordinationBlinker(elapsed),
+    flare:
+      smooth(0, T.flareRise, elapsed) *
+      (1 - smooth(T.flareFadeStart, T.flareFadeEnd, time)),
+  };
+}
+
+export type CrossingRun = Readonly<{
+  id: number;
+  startedAt: number;
+  origin: Readonly<{ x: number; y: number }>;
+  theme: CrossingTheme;
+}>;
+
+export type CoordinationCrossingSnapshot = Readonly<{
+  enabled: boolean;
+  leaveRoom: boolean;
+  dustOrb: boolean;
+  run: CrossingRun | null;
+}>;
+
+/** On for every visitor. Scene Diagnostics can switch it off for a session. */
+export const CROSSING_DEFAULT_ON = true;
+
+const INITIAL: CoordinationCrossingSnapshot = Object.freeze({
+  enabled: CROSSING_DEFAULT_ON,
+  leaveRoom: CROSSING_DEFAULT_ON,
+  dustOrb: CROSSING_DEFAULT_ON,
+  run: null,
+});
+
+export function createCoordinationCrossingController() {
+  let snapshot = INITIAL;
+  let nextId = 1;
+  const listeners = new Set<() => void>();
+  const publish = (next: CoordinationCrossingSnapshot) => {
+    snapshot = next;
+    for (const listener of listeners) listener();
+  };
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    setEnabled: (enabled: boolean) => {
+      if (enabled !== snapshot.enabled) publish({ ...snapshot, enabled });
+    },
+    setLeaveRoom: (leaveRoom: boolean) => {
+      if (leaveRoom !== snapshot.leaveRoom) publish({ ...snapshot, leaveRoom });
+    },
+    setDustOrb: (dustOrb: boolean) => {
+      if (dustOrb !== snapshot.dustOrb) publish({ ...snapshot, dustOrb });
+    },
+    begin: (start: Omit<CrossingRun, "id">) => {
+      if (!snapshot.enabled || snapshot.run) return false;
+      publish({ ...snapshot, run: { ...start, id: nextId++ } });
+      return true;
+    },
+    finish: () => {
+      if (snapshot.run) publish({ ...snapshot, run: null });
+    },
+  };
+}
+
+/** Session memory only. A reload returns to the defaults above. */
+export const coordinationCrossing = createCoordinationCrossingController();
+
+/** The room paints the stage, so the stage follows the visitor's system theme
+ * rather than the room's: that is the theme coordination.sh will show. */
+function systemTheme(): CrossingTheme {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+export function beginCoordinationCrossing() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return false;
+  return coordinationCrossing.begin({
+    startedAt: performance.now(),
+    origin: lastPointerPosition() ?? {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    },
+    theme: systemTheme(),
+  });
+}
+
+/** The orb's tap while the switch is on. It stands in for the portal path, so
+ * it records no portal analytics. */
+export function openCoordinationWithCrossing() {
+  if (beginCoordinationCrossing()) return;
+  window.open(COORDINATION_HREF, "_blank", "noopener,noreferrer");
+}

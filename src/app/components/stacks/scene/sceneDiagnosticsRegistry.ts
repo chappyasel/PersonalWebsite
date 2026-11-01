@@ -16,6 +16,10 @@ import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
 import { backgroundBookTreatment } from "./backgroundBookTreatment";
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { selectionCameraPitchController } from "./cameraZoom";
+import {
+  CROSSING_DEFAULT_ON,
+  coordinationCrossing,
+} from "./coordinationCrossing";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { coordinationSceneMotion } from "./coordinationSceneMotion";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
@@ -2357,6 +2361,71 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       coordinationGlobeDiagnosticsController.setBurstDebrisEnabled(
         Boolean(value),
       ),
+  }),
+  booleanDescriptor({
+    id: "render.coordination-crossing",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "Coordination crossing",
+    help: "Clicking the orb fades the grass and city, turns the props to wireframe, brings in coordination.sh's blinker with bloom, then breaks the room into its dot grid.",
+    defaultValue: CROSSING_DEFAULT_ON,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "For 8 s after the click: two extra scene draws, one frame copy, and a full-screen composite.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: coordinationCrossing,
+    read: () => coordinationCrossing.getSnapshot().enabled,
+    update: (value) => coordinationCrossing.setEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.coordination-crossing-leave",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "Crossing leaves the room",
+    help: "Navigate to coordination.sh in this tab at the end. Off, the crossing returns to the room so it can be replayed.",
+    defaultValue: CROSSING_DEFAULT_ON,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled: "One same-tab navigation when the crossing ends.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: coordinationCrossing,
+    read: () => coordinationCrossing.getSnapshot().leaveRoom,
+    update: (value) => coordinationCrossing.setLeaveRoom(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.coordination-dust-orb",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "Dust orb",
+    help: "Replace the network inside the orb's black sphere with coordination.sh's dust around its blinker, which is a real point light on the shelf.",
+    defaultValue: CROSSING_DEFAULT_ON,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "One point light, 150 dust grains stepped on the CPU, and one glow sprite while About is near.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: coordinationCrossing,
+    read: () => coordinationCrossing.getSnapshot().dustOrb,
+    update: (value) => coordinationCrossing.setDustOrb(Boolean(value)),
   }),
   performanceBoolean({
     id: "render.pause-prewarm-travel",

@@ -38,6 +38,10 @@ if (typeof window !== "undefined") {
   );
 }
 
+export function lastPointerPosition() {
+  return pointer.x || pointer.y ? { x: pointer.x, y: pointer.y } : null;
+}
+
 export type ModalOrigin = { l: number; t: number; w: number; h: number };
 
 /** Record a source rect centered on the last pointer-down — the stand-in for

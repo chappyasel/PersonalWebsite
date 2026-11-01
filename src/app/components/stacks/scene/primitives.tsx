@@ -1949,10 +1949,18 @@ export function WoodMaterial({
       map={map}
       roughnessMap={map}
       color={color}
-      roughness={roughness}
+      roughness={woodRoughnessFactor(hex, roughness)}
     />
   );
 }
+
+/** The grain map is also the roughness map, and three multiplies its green by
+ * this factor. Green is the wood's colour, so an uncorrected factor makes dark
+ * wood a mirror: #5c4832 lands on three's 0.05 floor, and every light in the
+ * room becomes a pin-sharp dot on the planks. Dividing the hex's green back out
+ * leaves `roughness` as the true mean, with only the streaks varying it. */
+export const woodRoughnessFactor = (hex: string, roughness: number) =>
+  roughness / new THREE.Color(hex).g;
 
 /** Housing charcoal. Deliberately NOT from the palette: in light theme the
  * planks are #a5845f and a fixture tinted to match them disappears, which is
@@ -1962,6 +1970,10 @@ const FIXTURE_BODY = "#2f2822";
 const FIXTURE_GLOW = "#ffcf9e";
 /** One shared box for all 21 fixtures — the mesh scales it. */
 const barGeometry = new THREE.BoxGeometry(1, 1, 1);
+export const SHELF_LIGHT_SPREAD = Math.PI / 2;
+/** Full strength to about 79 degrees off straight down, fading to nothing at
+ * the light's own height, so the plank above sits outside it. */
+const SHELF_LIGHT_PENUMBRA = 0.12;
 
 /** A shelf's own light fixture.
  *
@@ -2045,6 +2057,17 @@ export function ShelfLight({
   const day = palette !== PALETTES.dark;
   const glow = palette.glowOpacity * (day ? 1.15 : 0.5) * intensity;
   const lamp = (day ? 2.2 : 0.6) * k;
+  const lightPosition: [number, number, number] = [
+    0,
+    back ? y + 0.06 : y - 0.06,
+    zz + 0.14,
+  ];
+  const lightRef = useRef<THREE.SpotLight>(null);
+  const lightTarget = useRef<THREE.Object3D>(null);
+  useEffect(() => {
+    if (lightRef.current && lightTarget.current)
+      lightRef.current.target = lightTarget.current;
+  }, [cast]);
   return (
     <group>
       <mesh
@@ -2093,19 +2116,36 @@ export function ShelfLight({
         </group>
       )}
       {cast && (
-        <pointLight
-          visible={realLightVisible}
-          userData={
-            lightUnitIndex === undefined
-              ? undefined
-              : sceneUnitLightUserData(lightUnitIndex)
-          }
-          position={[0, back ? y + 0.06 : y - 0.06, zz + 0.14]}
-          color={FIXTURE_GLOW}
-          intensity={lamp}
-          distance={1.6}
-          decay={2}
-        />
+        <>
+          {/* A half-space, not a point. It hangs 6 cm from the plank and casts
+              no shadow, so a point light blew out the wood above it and lit
+              the shelf's top props through it. Aimed down at 90 degrees, it
+              leaves everything below as a point light would. */}
+          <spotLight
+            ref={lightRef}
+            visible={realLightVisible}
+            userData={
+              lightUnitIndex === undefined
+                ? undefined
+                : sceneUnitLightUserData(lightUnitIndex)
+            }
+            position={lightPosition}
+            color={FIXTURE_GLOW}
+            intensity={lamp}
+            angle={SHELF_LIGHT_SPREAD}
+            penumbra={SHELF_LIGHT_PENUMBRA}
+            distance={1.6}
+            decay={2}
+          />
+          <object3D
+            ref={lightTarget}
+            position={[
+              lightPosition[0],
+              lightPosition[1] + (back ? 1 : -1),
+              lightPosition[2],
+            ]}
+          />
+        </>
       )}
     </group>
   );

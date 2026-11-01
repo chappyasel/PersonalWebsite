@@ -4919,7 +4919,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/primitives.tsx",
-      "sha256": "a3f4f9f7d032dab6e0fe5f9f8f8733ca43158254e83b107d9cb2cecb92599fb7",
+      "sha256": "3cfa62ef0bef526c3873afa9e4b36e21fd15128dd0767948b51b8f3c5a0a6b75",
       "archivedSha256": "8bd6fe1015963fa693af43dcef961c62e2278f115e086a0ae984b11186e5bf57"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "dc977bebe9a4a803246c6bb1a4dd9ce4a61e4fe5fb5bbbf844c2eaf9c5a4279f",
+  "sourceFingerprint": "90943b23b25df94ddc77bb608a80e9e880ef51ed0dc932d94f6fbf8a97a87d00",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",

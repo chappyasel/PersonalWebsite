@@ -14,6 +14,7 @@ import {
 import { isBootingPhase } from "../boot/worldBootMachine";
 import { documentWorldPhase, worldBoot } from "../boot/worldBootSession";
 import { CoordinationDither } from "../illustration/CoordinationDither";
+import { CoordinationDustGlyph } from "../illustration/CoordinationDustGlyph";
 import { COORDINATION_DITHER_CELL } from "../illustration/coordinationDitherGeometry";
 import {
   ABOUT_AIC_BASE_DEPTH,
@@ -67,6 +68,7 @@ import {
   COORDINATION_STEM_HEIGHT,
   COORDINATION_STEM_TOP_RADIUS,
 } from "../scene/coordinationGlobeGeometry";
+import { coordinationCrossing } from "../scene/coordinationCrossing";
 import {
   COORDINATION_CORE_RADIUS,
   coordinationNodePosition,
@@ -142,6 +144,8 @@ const BOOT_COORDINATION_POINTS = BOOT_COORDINATION_NETWORK.nodes.map((node) =>
 );
 /** Transcendental math can differ in its last bits across JS engines. React
  * hydration needs the server and client SVG attribute strings to match. */
+const readDustOrb = () => coordinationCrossing.getSnapshot().dustOrb;
+
 function bootSvgNumber(value: number): string {
   const rounded = value.toFixed(6);
   if (rounded === "-0.000000") return "0";
@@ -883,6 +887,11 @@ function CoordinationGlobeGlyph({
   height: number;
   ditherActive: boolean;
 }) {
+  const dustOrb = useSyncExternalStore(
+    coordinationCrossing.subscribe,
+    readDustOrb,
+    readDustOrb,
+  );
   const sceneScale =
     height / (COORDINATION_GLOBE_PROFILE_HEIGHT * SCENE_TO_BOOT_SVG);
   const pixels = SCENE_TO_BOOT_SVG * sceneScale;
@@ -903,6 +912,37 @@ function CoordinationGlobeGlyph({
     -(COORDINATION_STEM_CENTER_Y + COORDINATION_STEM_HEIGHT / 2) * neckPixels,
     centerY + globeRadius * 0.65,
   );
+  const ditherCell = pixels * COORDINATION_DITHER_CELL;
+  const sphere = (
+    <>
+      <polygon
+        className="stacks-boot-coordination-base"
+        points={`${-baseBottomRadius},0 ${baseBottomRadius},0 ${baseTopRadius},${-baseHeight} ${-baseTopRadius},${-baseHeight}`}
+      />
+      <polygon
+        className="stacks-boot-coordination-stem"
+        points={`${-stemBottomRadius},${stemBottom} ${stemBottomRadius},${stemBottom} ${stemTopRadius},${stemTop} ${-stemTopRadius},${stemTop}`}
+      />
+      <g
+        data-dither-grid="ordered-4x4"
+        transform={`translate(${-ditherCell / 2} ${centerY - ditherCell / 2}) scale(${ditherCell})`}
+      >
+        <CoordinationDither active={ditherActive} />
+      </g>
+    </>
+  );
+  if (dustOrb) {
+    return (
+      <>
+        {sphere}
+        <CoordinationDustGlyph
+          centerY={centerY}
+          pixels={pixels}
+          globeRadius={globeRadius}
+        />
+      </>
+    );
+  }
   const point = ([x, y]: readonly [number, number, number]) =>
     [
       x * pixels * COORDINATION_NETWORK_SCALE,
@@ -922,23 +962,9 @@ function CoordinationGlobeGlyph({
       `M ${bootSvgNumber(end[0])} ${bootSvgNumber(end[1])} L ${mid}`,
     );
   }
-  const ditherCell = pixels * COORDINATION_DITHER_CELL;
   return (
     <>
-      <polygon
-        className="stacks-boot-coordination-base"
-        points={`${-baseBottomRadius},0 ${baseBottomRadius},0 ${baseTopRadius},${-baseHeight} ${-baseTopRadius},${-baseHeight}`}
-      />
-      <polygon
-        className="stacks-boot-coordination-stem"
-        points={`${-stemBottomRadius},${stemBottom} ${stemBottomRadius},${stemBottom} ${stemTopRadius},${stemTop} ${-stemTopRadius},${stemTop}`}
-      />
-      <g
-        data-dither-grid="ordered-4x4"
-        transform={`translate(${-ditherCell / 2} ${centerY - ditherCell / 2}) scale(${ditherCell})`}
-      >
-        <CoordinationDither active={ditherActive} />
-      </g>
+      {sphere}
       <g className="stacks-boot-coordination-network">
         <g
           data-boot-coordination-edges={BOOT_COORDINATION_NETWORK.edges.length}
