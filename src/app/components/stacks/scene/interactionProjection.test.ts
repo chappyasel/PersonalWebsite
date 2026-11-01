@@ -81,6 +81,52 @@ describe("scene interaction projection", () => {
     }
   });
 
+  it("counts an authored interaction-hit proxy as an exact touch hit", () => {
+    // The coordination orb: large projected bounds, nothing raycastable
+    // inside but its invisible pick sphere. Without the proxy the ray misses,
+    // and a large prop's ray miss is treated as background.
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+    const root = new Group();
+    const proxy = new Mesh(
+      new SphereGeometry(0.5),
+      new MeshBasicMaterial({ transparent: true, opacity: 0 }),
+    );
+    proxy.name = "interaction-hit:test-orb";
+    proxy.userData.physicsIgnore = true;
+    root.add(proxy);
+    const helper = new Mesh(
+      new BoxGeometry(4, 4, 0.1),
+      new MeshBasicMaterial(),
+    );
+    helper.userData.physicsIgnore = true;
+    root.add(helper);
+    root.updateMatrixWorld(true);
+    const release = registerSceneInteraction({
+      id: "test:touch-proxy",
+      root,
+      activeUnits: [0],
+      projectedLocalBounds: { min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] },
+    });
+    try {
+      const bounds = projectedInteractionBounds({ x: 53, y: 46 }).find(
+        (b) => b.id === "test:touch-proxy",
+      )!;
+      expect(bounds.exactHit).toBe(true);
+      proxy.name = "";
+      const unnamed = projectedInteractionBounds({ x: 53, y: 46 }).find(
+        (b) => b.id === "test:touch-proxy",
+      )!;
+      expect(unnamed.exactHit).toBe(false);
+    } finally {
+      release();
+    }
+  });
+
   it("anchors an empty linked carrier to its own world origin", () => {
     const camera = new PerspectiveCamera(50, 1, 0.1, 100);
     camera.position.z = 5;

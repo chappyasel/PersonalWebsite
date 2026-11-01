@@ -4769,7 +4769,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/interactionProjection.ts",
-      "sha256": "3fde914d3c7b5074a8d59b7090bd36cb612d86176b35217ec285f60c8a83ae7c",
+      "sha256": "32cf66422b591ca4bb364052b5534d89caa5cf90db59087543a4c29fade0a619",
       "archivedSha256": "e8baad4ae8954fe9e5493000a82ded1a4e6b87518619c42ef16ae414f47def65"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "90943b23b25df94ddc77bb608a80e9e880ef51ed0dc932d94f6fbf8a97a87d00",
+  "sourceFingerprint": "9acf9c49dc4cf6940778bc74fd2be7a0b74afe346ac78180aa26c119d3d43873",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5699,6 +5699,18 @@
           "path": "src/app/components/stacks/scene/physics.ts",
           "previousSha256": "549fa5c88f6380d7fabe6ccc57a7a27556d400222096c0106f8db465dc986dc4",
           "sha256": "26df30f20a803ba2ea1c02fc6d9f12c3271419d9a9d6dd23595692c5073d8ce2"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed touch exact-hit predicate: interaction-hit pick proxies now count as ray hits; bounds, geometry, materials and poses are unchanged.",
+      "previousFingerprint": "90943b23b25df94ddc77bb608a80e9e880ef51ed0dc932d94f6fbf8a97a87d00",
+      "sourceFingerprint": "9acf9c49dc4cf6940778bc74fd2be7a0b74afe346ac78180aa26c119d3d43873",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/interactionProjection.ts",
+          "previousSha256": "3fde914d3c7b5074a8d59b7090bd36cb612d86176b35217ec285f60c8a83ae7c",
+          "sha256": "32cf66422b591ca4bb364052b5534d89caa5cf90db59087543a4c29fade0a619"
         }
       ]
     }

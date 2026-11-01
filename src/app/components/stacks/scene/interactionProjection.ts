@@ -47,6 +47,19 @@ function isTouchMesh(node: THREE.Object3D) {
   );
 }
 
+/** An authored pointer-acquisition volume (`interaction-hit:*`) stands in for
+ * the prop it wraps: the orb's dust and the open C leave too few raycastable
+ * pixels to be hit on their own. It is physics-ignored and invisible, so it
+ * never shapes a Halo's bounds, but a ray that reaches it reached the prop. */
+function isTouchPickTarget(node: THREE.Object3D) {
+  if (isTouchMesh(node)) return true;
+  return (
+    (node as THREE.Mesh).isMesh &&
+    node.name.startsWith("interaction-hit:") &&
+    isEffectivelyVisible(node)
+  );
+}
+
 function descendantCount(root: THREE.Object3D) {
   let count = 0;
   root.traverse(() => count++);
@@ -123,7 +136,7 @@ export function projectedInteractionBounds(pointer?: {
       specs.map((s) => s.root),
       true,
     )) {
-      if (!isTouchMesh(hit.object)) continue;
+      if (!isTouchPickTarget(hit.object)) continue;
       for (
         let node: THREE.Object3D | null = hit.object;
         node;
