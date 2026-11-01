@@ -9,6 +9,7 @@ import {
   CROSSING_TIMELINE as T,
   coordinationCrossing,
 } from "../scene/coordinationCrossing";
+import { CoordinationBlinkerPlate } from "./CoordinationBlinkerPlate";
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
@@ -108,6 +109,8 @@ function ActiveOverlay({ run }: { run: CrossingRun }) {
           />
         </div>
       </div>
+      {/* Over the stage, which covers the room's plate as it fades in. */}
+      <CoordinationBlinkerPlate theme={run.theme} />
     </div>,
     document.body,
   );

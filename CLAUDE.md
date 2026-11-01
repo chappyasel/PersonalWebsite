@@ -131,6 +131,13 @@ pnpm db:migrate:prod  # Run migrations on production database
   `github.json` is the committed snapshot of GitHub activity behind the Projects
   placard; `pnpm generate:github` refreshes it, and with `GITHUB_TOKEN` set the
   page fetches live data instead (`src/server/queries/github.ts`)
+- **HDR accent**: Safari shows HDR only in video, so the blinker's block carries
+  a tiny looping video plate over its CSS or shader fill (`HdrFill`), loaded only
+  on an HDR screen. `pnpm generate:hdr-accent` rebuilds `public/hdr/` from
+  `CROSSING_TOKENS`; rerun it when the accent changes. Small flat solid marks
+  take a plate, and glows and gradients stay SDR. Hide a plate with
+  `visibility: hidden`, because a video under opacity 0 still holds the screen in
+  HDR mode.
 - **tRPC Setup**: Uses v11 RC with React Query integration, batch streaming, and development timing middleware
 - **API Routes**: All new API endpoints MUST be created as tRPC routers in `/src/server/api/routers/`
   - Do NOT create new REST endpoints in `/src/app/api/` (except webhooks or third-party integrations)

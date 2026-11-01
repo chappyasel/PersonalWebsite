@@ -231,6 +231,7 @@ export type CoordinationCrossingSnapshot = Readonly<{
   enabled: boolean;
   leaveRoom: boolean;
   dustOrb: boolean;
+  hdrBlinker: boolean;
   run: CrossingRun | null;
 }>;
 
@@ -241,6 +242,7 @@ const INITIAL: CoordinationCrossingSnapshot = Object.freeze({
   enabled: CROSSING_DEFAULT_ON,
   leaveRoom: CROSSING_DEFAULT_ON,
   dustOrb: CROSSING_DEFAULT_ON,
+  hdrBlinker: CROSSING_DEFAULT_ON,
   run: null,
 });
 
@@ -266,6 +268,10 @@ export function createCoordinationCrossingController() {
     },
     setDustOrb: (dustOrb: boolean) => {
       if (dustOrb !== snapshot.dustOrb) publish({ ...snapshot, dustOrb });
+    },
+    setHdrBlinker: (hdrBlinker: boolean) => {
+      if (hdrBlinker !== snapshot.hdrBlinker)
+        publish({ ...snapshot, hdrBlinker });
     },
     begin: (start: Omit<CrossingRun, "id">) => {
       if (!snapshot.enabled || snapshot.run) return false;

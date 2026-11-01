@@ -141,6 +141,7 @@ import {
 } from "./scene/qualityLog";
 import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
 import { createSceneQualitySampler } from "./scene/qualitySampler";
+import { CoordinationBlinkerPlate } from "./dom/CoordinationBlinkerPlate";
 import { CoordinationCrossingOverlay } from "./dom/CoordinationCrossingOverlay";
 import { CoordinationCrossingPass } from "./scene/CoordinationCrossingPass";
 import { SCENE_CANVAS_CONTEXT, sceneBackdropFor } from "./scene/sceneBackdrop";
@@ -2826,6 +2827,8 @@ export default function StacksCanvas({
           <SceneLayoutEditorGizmo />
         ) : null}
       </Canvas>
+      {/* The orb's blinker is always the dark page's orange, in either theme. */}
+      <CoordinationBlinkerPlate theme="dark" />
     </div>
   );
 }

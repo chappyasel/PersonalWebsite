@@ -2427,6 +2427,28 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     read: () => coordinationCrossing.getSnapshot().dustOrb,
     update: (value) => coordinationCrossing.setDustOrb(Boolean(value)),
   }),
+  booleanDescriptor({
+    id: "render.coordination-hdr",
+    panel: "render",
+    group: "render.scene-effects",
+    label: "HDR blinker",
+    help: "On an HDR screen, lay a video of the accent at 800 nits over the orb's blinker and the crossing's, brighter than white. The glow stays in the scene.",
+    defaultValue: CROSSING_DEFAULT_ON,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "On an HDR screen only: one looping 3 KB video and one DOM write each frame.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: coordinationCrossing,
+    read: () => coordinationCrossing.getSnapshot().hdrBlinker,
+    update: (value) => coordinationCrossing.setHdrBlinker(Boolean(value)),
+  }),
   performanceBoolean({
     id: "render.pause-prewarm-travel",
     panel: "render",

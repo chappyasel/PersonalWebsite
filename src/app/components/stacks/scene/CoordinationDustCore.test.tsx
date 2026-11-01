@@ -26,6 +26,11 @@ afterEach(() => {
 async function mountDust({ still }: { still: boolean }) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("requestAnimationFrame", vi.fn());
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
   extend({
     BufferGeometry: THREE.BufferGeometry,
     Group: THREE.Group,

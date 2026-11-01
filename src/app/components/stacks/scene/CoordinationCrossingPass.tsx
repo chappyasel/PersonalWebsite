@@ -4,8 +4,9 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
+import { blinkerPlate } from "./coordinationBlinkerPlate";
+import { blinkerSpot, isShown } from "./coordinationBlinkerSpot";
 import {
-  type BlinkerSpot,
   COORDINATION_BLINKER_NAME,
   COORDINATION_DUST_NAME,
   CROSSING_BLOCK_ID,
@@ -23,7 +24,7 @@ import {
   COORDINATION_CROSSING_VERTEX,
 } from "./coordinationCrossingShader";
 import { CROSSING_WIRE_IGNORE } from "./coordinationCrossingWire";
-import { BLINKER_EM, BLINKER_LOCAL_PER_EM } from "./coordinationDust";
+import { BLINKER_EM } from "./coordinationDust";
 
 /** With the dust orb switched off there is no blinker to pick up, so a small
  * one sets out from the click. */
@@ -89,13 +90,6 @@ export function collectWirePassExclusions(scene: THREE.Object3D) {
   };
   holdsRoom(scene);
   return excluded;
-}
-
-function isShown(object: THREE.Object3D | undefined) {
-  for (let at = object ?? null; at; at = at.parent) {
-    if (!at.visible) return false;
-  }
-  return Boolean(object);
 }
 
 /** World space to the page's CSS pixels. */
@@ -176,9 +170,6 @@ function createCrossingPass(run: CrossingRun) {
 
   const buffer = new THREE.Vector2();
   const clearColor = new THREE.Color();
-  const orbWorld = new THREE.Vector3();
-  const emWorld = new THREE.Vector3();
-  const orbScale = new THREE.Vector3();
   const startPhase = blinkerPhase(run.startedAt);
   let orbBlinker: THREE.Object3D | null = null;
   let dust: ReturnType<typeof createCrossingDust> | null = null;
@@ -207,23 +198,6 @@ function createCrossingPass(run: CrossingRun) {
     uniforms.uWire.value = wireTarget.texture;
   };
 
-  /** The orb's blinker on screen, through the scale its billboard draws at. */
-  const orbSpot = (
-    blinker: THREE.Object3D,
-    camera: THREE.Camera,
-    toScreen: ReturnType<typeof projector>,
-  ): BlinkerSpot => {
-    blinker.getWorldPosition(orbWorld);
-    blinker.getWorldScale(orbScale);
-    emWorld
-      .setFromMatrixColumn(camera.matrixWorld, 0)
-      .multiplyScalar(BLINKER_LOCAL_PER_EM * orbScale.x)
-      .add(orbWorld);
-    const centre = toScreen(orbWorld);
-    const edge = toScreen(emWorld);
-    return { ...centre, em: Math.hypot(edge.x - centre.x, edge.y - centre.y) };
-  };
-
   /** Once, on the first frame: find what the orb is showing and take it over. */
   const takeOverOrb = (
     scene: THREE.Scene,
@@ -237,13 +211,12 @@ function createCrossingPass(run: CrossingRun) {
     const source = scene.getObjectByName(COORDINATION_DUST_NAME);
     if (!(source as THREE.Points | undefined)?.isPoints || !isShown(source))
       return;
-    const toScreen = projector(camera, width, height);
     dust = createCrossingDust({
       source: source as THREE.Points<THREE.BufferGeometry>,
-      orb: orbSpot(blinker, camera, toScreen),
+      orb: blinkerSpot(blinker, camera, width, height),
       theme: run.theme,
       viewport: { width, height },
-      toScreen,
+      toScreen: projector(camera, width, height),
     });
     compositeScene.add(dust.points);
   };
@@ -314,7 +287,7 @@ function createCrossingPass(run: CrossingRun) {
       uniforms.uGridScale.value = grid.scale;
       uniforms.uGridFade.value = grid.fade;
       const from = orbBlinker
-        ? orbSpot(orbBlinker, camera, projector(camera, width, height))
+        ? blinkerSpot(orbBlinker, camera, width, height)
         : { ...run.origin, em: NO_ORB_EM };
       // The hold frame's own block, so the shader's lands exactly on it.
       const block = document
@@ -331,6 +304,7 @@ function createCrossingPass(run: CrossingRun) {
             }
           : from,
       );
+      blinkerPlate.place(spot, blinker.block);
       const halfWidth = (spot.em * BLINKER_EM.width) / 2;
       const halfHeight = (spot.em * BLINKER_EM.height) / 2;
       uniforms.uBlockMin.value.set(spot.x - halfWidth, spot.y - halfHeight);
