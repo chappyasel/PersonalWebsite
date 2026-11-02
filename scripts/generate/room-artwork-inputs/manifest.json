@@ -5194,7 +5194,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
-      "sha256": "1021e584bb54480fb68be7c8b2881d6ed8a8da3cb70cea6a0191dd975fadfd22",
+      "sha256": "836201fbf9d1e7e3d868a935b3f505757c79a1f5562cc4fc95d2e2c5dfcca7ea",
       "archivedSha256": "f2972461f1f4b817dcdbccd613cb6914e374bed34d457444f467a1ef54795965"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "1913e09bc55971847523b2a6861152b48c269ca8ffb5f576578d37b53f4a3b48",
+  "sourceFingerprint": "823367951ba2413df65736acafbec96a5756aa1bcc95d187a9cf1cd2fdc0362d",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5738,6 +5738,18 @@
           "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
           "previousSha256": "f2972461f1f4b817dcdbccd613cb6914e374bed34d457444f467a1ef54795965",
           "sha256": "1021e584bb54480fb68be7c8b2881d6ed8a8da3cb70cea6a0191dd975fadfd22"
+        }
+      ]
+    },
+    {
+      "reason": "Bathroom scale lowered into the grass; it sits outside the Training shelf artwork frame",
+      "previousFingerprint": "1913e09bc55971847523b2a6861152b48c269ca8ffb5f576578d37b53f4a3b48",
+      "sourceFingerprint": "823367951ba2413df65736acafbec96a5756aa1bcc95d187a9cf1cd2fdc0362d",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
+          "previousSha256": "1021e584bb54480fb68be7c8b2881d6ed8a8da3cb70cea6a0191dd975fadfd22",
+          "sha256": "836201fbf9d1e7e3d868a935b3f505757c79a1f5562cc4fc95d2e2c5dfcca7ea"
         }
       ]
     }

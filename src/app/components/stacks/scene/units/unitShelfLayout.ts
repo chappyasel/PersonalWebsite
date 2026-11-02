@@ -24,14 +24,15 @@ export const TRAINING_BARBELL_POSE: Readonly<{
 
 /** The bathroom scale in front of the barbell. The model is 38 units square,
  * so 0.016 gives a 0.61-unit plate, the 2 units per metre the shelf props are
- * drawn at. Grass near the shelves stands 0.13 to 0.34 tall, which buries a
- * plate on the ground, so it rests on the tuft tips instead. */
+ * drawn at. Raised 0.02, the grass tips cross its front edge and hide its
+ * feet, so it sits in the lawn. Higher, the white feet show under it and it
+ * floats; at ground level the grass pokes through the plate. */
 export const TRAINING_BATHROOM_SCALE_POSE: Readonly<{
   base: [number, number, number];
   rotation: [number, number, number];
   scale: number;
 }> = {
-  base: [2.0, SHELF_GEOMETRY.groundY + 0.1, 0.25],
+  base: [2.0, SHELF_GEOMETRY.groundY + 0.02, 0.25],
   rotation: [0, 0.2, 0],
   scale: 0.016,
 };
