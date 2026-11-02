@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { GOLF_COURSE_CENTER, suppressGolfVegetation } from "./golf/golfCourse";
 import {
+  BATHROOM_SCALE_GRASS_TIP_Y,
   EAST_FEATHER,
   FAR_FEATHER,
   FLING_APRON_FLOWERS,
@@ -60,6 +61,8 @@ import {
   ridgeGrassWidth,
   shadeScale,
   traverseGrassDensityWeight,
+  bathroomScaleGrassSpread,
+  underBathroomScale,
   underLowerShelf,
   unionWestX,
   westFeatherScale,
@@ -544,6 +547,11 @@ describe("placement", () => {
       const x = grass.near.x[i]!;
       const z = grass.near.z[i]!;
       if (x < -2 || x > 28 || z < -4) continue; // furniture strip only
+      // The bathroom scale is the one prop low enough to cap the grass.
+      if (
+        underBathroomScale(x, z, bathroomScaleGrassSpread(grass.near.width[i]!))
+      )
+        continue;
       if (
         westFeatherScale(x, z) === 1 &&
         eastFeatherScale(x, z) === 1 &&
@@ -583,10 +591,29 @@ describe("placement", () => {
         expect(stream.y[i]! + stream.height[i]!).toBeLessThanOrEqual(
           UNDER_SHELF_GRASS_TIP_Y + 1e-6,
         );
+        // The bathroom scale sits off the shelf's end and caps lower.
+        const spread = bathroomScaleGrassSpread(stream.width[i]!);
+        if (underBathroomScale(stream.x[i]!, stream.z[i]!, spread)) continue;
         expect(stream.height[i]!).toBeGreaterThan(0.14);
       }
     }
     expect(checked).toBeGreaterThanOrEqual(100);
+  });
+
+  it("keeps every tuft that reaches the bathroom scale under its glass", () => {
+    const grass = buildGrassInstances();
+    let checked = 0;
+    for (const stream of [grass.near, grass.far]) {
+      for (let i = 0; i < stream.count; i += 1) {
+        const spread = bathroomScaleGrassSpread(stream.width[i]!);
+        if (!underBathroomScale(stream.x[i]!, stream.z[i]!, spread)) continue;
+        checked += 1;
+        expect(stream.y[i]! + stream.height[i]!).toBeLessThanOrEqual(
+          BATHROOM_SCALE_GRASS_TIP_Y + 1e-6,
+        );
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(20);
   });
 
   it("caps wide tufts whose cards reach a lower shelf from outside it", () => {

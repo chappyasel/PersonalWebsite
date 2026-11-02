@@ -19,7 +19,10 @@ import {
 } from "./quality";
 import { ABOUT_COUCH, SEAT_POSE } from "./seated";
 import { SHELF_GEOMETRY, SHELF_UNDERSIDE } from "./shelfGeometry";
-import { TRAINING_BARBELL_POSE } from "./units/unitShelfLayout";
+import {
+  TRAINING_BARBELL_POSE,
+  TRAINING_BATHROOM_SCALE,
+} from "./units/unitShelfLayout";
 import {
   TRAVEL_LEAD_IN,
   TRAVEL_X,
@@ -29,7 +32,7 @@ import {
 
 /** Bump when authored instance positions or sizes change so Fast Refresh
  * rebuilds Meadow's frozen instance buffers on localhost. */
-export const MEADOW_LAYOUT_REVISION = "2026-09-13-connected-camera-lawn";
+export const MEADOW_LAYOUT_REVISION = "2026-11-02-bathroom-scale";
 
 // ---------------------------------------------------------------------------
 // Cameras the field is derived against. Every extent below is a consequence
@@ -1041,6 +1044,44 @@ export function underLowerShelf(
   return false;
 }
 
+/** Any tuft whose reach overlaps the bathroom scale's glass stops just under
+ * the glass top. A tuft card spreads well past its root, so one rooted behind
+ * or beside the scale would otherwise lean over the glass. Capped at the top,
+ * the grass in front still covers the scale's side and sets it into the lawn,
+ * and nothing shows on the glass. */
+const BATHROOM_SCALE_UNIT = 2;
+
+export function underBathroomScale(
+  x: number,
+  z: number,
+  spread = 0,
+  furniture: MeadowFurniture = MEADOW_FURNITURE_ALL,
+): boolean {
+  if (!furniturePresent(BATHROOM_SCALE_UNIT, furniture)) return false;
+  const pose = unitPose(BATHROOM_SCALE_UNIT);
+  const unitYaw = pose.rotation[1];
+  const [baseX, , baseZ] = TRAINING_BATHROOM_SCALE.base;
+  const centerX =
+    pose.position[0] + baseX * Math.cos(unitYaw) + baseZ * Math.sin(unitYaw);
+  const centerZ =
+    pose.position[2] - baseX * Math.sin(unitYaw) + baseZ * Math.cos(unitYaw);
+  const yaw = unitYaw + TRAINING_BATHROOM_SCALE.yaw;
+  const dx = x - centerX;
+  const dz = z - centerZ;
+  const localX = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+  const localZ = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+  const half = TRAINING_BATHROOM_SCALE.width / 2 + spread;
+  return Math.abs(localX) <= half && Math.abs(localZ) <= half;
+}
+
+/** How far past its root a tuft's blades reach over the glass. Narrower than
+ * the shelf's `grassTuftHorizontalReach`, which would cap a ring as far out
+ * as the lower shelf's end. */
+export const bathroomScaleGrassSpread = (width: number) => width;
+
+export const BATHROOM_SCALE_GRASS_TIP_Y =
+  TRAINING_BATHROOM_SCALE.base[1] + TRAINING_BATHROOM_SCALE.height - 0.005;
+
 function tallGrowthBias(x: number, z: number) {
   const behindShelves = 1 - smoothstep(-0.2, 2.4, z);
   const pitch = UNIT_SPACING;
@@ -1795,9 +1836,17 @@ export function buildGrassInstances(
         renderedWidth,
         authoredHeight,
       );
-      const cappedHeight = underLowerShelf(x, z, horizontalReach, furniture)
+      const shelfCapped = underLowerShelf(x, z, horizontalReach, furniture)
         ? Math.min(authoredHeight, Math.max(0, UNDER_SHELF_GRASS_TIP_Y - rootY))
         : authoredHeight;
+      const cappedHeight = underBathroomScale(
+        x,
+        z,
+        bathroomScaleGrassSpread(renderedWidth),
+        furniture,
+      )
+        ? Math.min(shelfCapped, Math.max(0, BATHROOM_SCALE_GRASS_TIP_Y - rootY))
+        : shelfCapped;
       raw.push({
         x,
         z,

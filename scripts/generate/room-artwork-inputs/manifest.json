@@ -4479,7 +4479,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/ModelProp.tsx",
-      "sha256": "eac0cfc13c69573fa0bd19c4482722b71d5fbdda4c191b698875d3e6ac65ab93",
+      "sha256": "b34657a5ac891eb2948951293b180c0387cb62bf170d4bc5bcfb254c68fcb9cd",
       "archivedSha256": "2d9e1eab12a99e3652c522936ecde2a3492d531479d426d019d582eb76881ab1"
     },
     {
@@ -4819,7 +4819,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/meadowField.ts",
-      "sha256": "77d811dad00830cbc42f4355a4692e1b73e4d46125a7e40ff2a9a7455423d7bd",
+      "sha256": "aa0f366b062b7b72440167daf51f20a3a9799110717288383258dc4a8904d35b",
       "archivedSha256": "fff202380d55bf07b94add5363503d02c08422e531f4d009804552aa67cee3d0"
     },
     {
@@ -5124,7 +5124,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
-      "sha256": "9578524d7c38bac453e0f2dc5ec2db7570dbee3056ff328a74f5fa3a5eda97be",
+      "sha256": "15ded8ae83404086c826a61cbeba78773aa4f157dd4571a640fc0d2820bf70ee",
       "archivedSha256": "08921e1ae90613c729dfbda650ddc1ed6caafafed13e1c0d0075138daede0b2d"
     },
     {
@@ -5194,7 +5194,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
-      "sha256": "836201fbf9d1e7e3d868a935b3f505757c79a1f5562cc4fc95d2e2c5dfcca7ea",
+      "sha256": "42f98d457f648e1b21f516772bd31e0a6858422e38c4d76a78779029f4565c4f",
       "archivedSha256": "f2972461f1f4b817dcdbccd613cb6914e374bed34d457444f467a1ef54795965"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "823367951ba2413df65736acafbec96a5756aa1bcc95d187a9cf1cd2fdc0362d",
+  "sourceFingerprint": "4ac0b05f7cd8c3f2e3c84c2dceb562077186231a3636889d738726daf4a2559a",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5750,6 +5750,57 @@
           "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
           "previousSha256": "1021e584bb54480fb68be7c8b2881d6ed8a8da3cb70cea6a0191dd975fadfd22",
           "sha256": "836201fbf9d1e7e3d868a935b3f505757c79a1f5562cc4fc95d2e2c5dfcca7ea"
+        }
+      ]
+    },
+    {
+      "reason": "Bathroom scale rebuilt as an authored Wyze Scale X and the meadow caps grass under it; both sit outside the Training shelf artwork frame",
+      "previousFingerprint": "823367951ba2413df65736acafbec96a5756aa1bcc95d187a9cf1cd2fdc0362d",
+      "sourceFingerprint": "5e5d1596bbd888e5f323a9779c4080da85023d157d6b975efb2321997f4561b4",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/ModelProp.tsx",
+          "previousSha256": "eac0cfc13c69573fa0bd19c4482722b71d5fbdda4c191b698875d3e6ac65ab93",
+          "sha256": "b34657a5ac891eb2948951293b180c0387cb62bf170d4bc5bcfb254c68fcb9cd"
+        },
+        {
+          "path": "src/app/components/stacks/scene/meadowField.ts",
+          "previousSha256": "77d811dad00830cbc42f4355a4692e1b73e4d46125a7e40ff2a9a7455423d7bd",
+          "sha256": "ff9d7b76e12a5c6aab8fe529aa08ef2f34ba76621dac075608680c60c45227a3"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
+          "previousSha256": "9578524d7c38bac453e0f2dc5ec2db7570dbee3056ff328a74f5fa3a5eda97be",
+          "sha256": "15ded8ae83404086c826a61cbeba78773aa4f157dd4571a640fc0d2820bf70ee"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
+          "previousSha256": "836201fbf9d1e7e3d868a935b3f505757c79a1f5562cc4fc95d2e2c5dfcca7ea",
+          "sha256": "167c6cca9edf79d45a227e0abe48d3365f5a6e3b54b925316658af7b0a3f204e"
+        }
+      ]
+    },
+    {
+      "reason": "Bathroom scale rebuilt as an authored Wyze Scale X and the meadow caps grass under it; both sit outside the Training shelf artwork frame",
+      "previousFingerprint": "5e5d1596bbd888e5f323a9779c4080da85023d157d6b975efb2321997f4561b4",
+      "sourceFingerprint": "9cb427e3bd7d0ae7caaf5949423580d9975b0f8f9aa59ea936209af5cf5249c9",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/meadowField.ts",
+          "previousSha256": "ff9d7b76e12a5c6aab8fe529aa08ef2f34ba76621dac075608680c60c45227a3",
+          "sha256": "aa0f366b062b7b72440167daf51f20a3a9799110717288383258dc4a8904d35b"
+        }
+      ]
+    },
+    {
+      "reason": "Wyze bathroom scale moved toward the barbell, between the Training shelf end and the near plates; floor prop outside the shelf drawing",
+      "previousFingerprint": "9cb427e3bd7d0ae7caaf5949423580d9975b0f8f9aa59ea936209af5cf5249c9",
+      "sourceFingerprint": "4ac0b05f7cd8c3f2e3c84c2dceb562077186231a3636889d738726daf4a2559a",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
+          "previousSha256": "167c6cca9edf79d45a227e0abe48d3365f5a6e3b54b925316658af7b0a3f204e",
+          "sha256": "42f98d457f648e1b21f516772bd31e0a6858422e38c4d76a78779029f4565c4f"
         }
       ]
     }

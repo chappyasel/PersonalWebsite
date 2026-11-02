@@ -37,12 +37,12 @@ import {
   TRAINING_PINS,
   type TrainingBoardPin,
 } from "./trainingBoardLayout";
+import { BathroomScale } from "./BathroomScale";
 import { GorillaModeTub, PreXTub, ProteinTub } from "./trainingTubs";
 import type { UnitProps } from "./types";
 import {
   REVIEWED_SHELF_LAYOUT,
   TRAINING_BARBELL_POSE,
-  TRAINING_BATHROOM_SCALE_POSE,
 } from "./unitShelfLayout";
 
 export { TRAINING_BARBELL_POSE } from "./unitShelfLayout";
@@ -853,26 +853,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
 
       {/* The bathroom scale stands on the floor in front of the barbell,
           right of the shelf, and opens the weight log. */}
-      <Grabbable
-        unitIndex={index}
-        to="weight-log"
-        hoverKey="grab:bathroom-scale"
-        base={TRAINING_BATHROOM_SCALE_POSE.base}
-        shadeColor={palette.shadow}
-        shadeWidth={0.66}
-        shape="box"
-        massKg={2}
-        standsOn="floor"
-      >
-        <React.Suspense fallback={null}>
-          <ModelProp
-            url="/models/bathroom-scale.glb"
-            dark={dark}
-            rotation={TRAINING_BATHROOM_SCALE_POSE.rotation}
-            scale={TRAINING_BATHROOM_SCALE_POSE.scale}
-          />
-        </React.Suspense>
-      </Grabbable>
+      <BathroomScale unitIndex={index} palette={palette} />
 
       <GolfExperience
         palette={palette}

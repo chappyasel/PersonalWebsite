@@ -116,8 +116,6 @@ export const MODEL_URLS = [
   // The two loose balls beside the basketball on the Training shelves.
   "/models/baseball.glb",
   "/models/tennis-ball.glb",
-  // The bathroom scale on the floor in front of the barbell.
-  "/models/bathroom-scale.glb",
   // Owner-selected CC0 plants from the same tiny-treats atlas as pothos;
   // their geometry is separate, their themed texture is already shared.
   "/models/succulent-pot.glb",
