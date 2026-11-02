@@ -116,6 +116,8 @@ export function illustrationLabel(
     return destination(id, "books");
   if (unit === 2 && id.startsWith("grab-dumbbell-training-"))
     return destination(id, "weightlifting");
+  if (unit === 2 && id === "grab-bathroom-scale")
+    return destination(id, "weight-log");
   if (unit === 3) {
     if (id === "systems-manual-row") return destination(id, "manual");
     if (id === "link-routineboard") return destination(id, "routine");

@@ -33,6 +33,7 @@ export type HomepagePortalDestination =
   | "systems"
   | "routine"
   | "blog"
+  | "weight-log"
   | "external";
 export type ContactMethod =
   | "linkedin"

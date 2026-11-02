@@ -122,7 +122,10 @@ function todColor(index: number): string {
   return TOD_COLORS[index] ?? TOD_COLORS[0]!;
 }
 
-/** Toggle choices persist across visits */
+/** Toggle choices persist across visits. The "v2" prefix dropped choices
+ * saved before the default became Total workouts. */
+const STORAGE_PREFIX = "weightlifting-stats-v2-";
+
 function readStoredChoice<T extends string>(
   key: string,
   valid: readonly T[],
@@ -130,7 +133,7 @@ function readStoredChoice<T extends string>(
 ): T {
   if (typeof window === "undefined") return fallback;
   try {
-    const stored = window.localStorage.getItem(`weightlifting-stats-${key}`);
+    const stored = window.localStorage.getItem(`${STORAGE_PREFIX}${key}`);
     return valid.includes(stored as T) ? (stored as T) : fallback;
   } catch {
     return fallback; // storage denied (embedded context, blocked site data)
@@ -139,7 +142,7 @@ function readStoredChoice<T extends string>(
 
 function storeChoice(key: string, value: string) {
   try {
-    window.localStorage.setItem(`weightlifting-stats-${key}`, value);
+    window.localStorage.setItem(`${STORAGE_PREFIX}${key}`, value);
   } catch {
     // Storage unavailable (private mode) — persistence is best-effort
   }
@@ -268,7 +271,7 @@ export function TrainingOverYears() {
   // the chip shows that slice's number for the current scope
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>(() =>
-    readStoredChoice("metric", ["volume", "hours", "workouts"], "volume"),
+    readStoredChoice("metric", ["volume", "hours", "workouts"], "workouts"),
   );
   const [mode, setMode] = useState<Mode>(() =>
     readStoredChoice("mode", ["total", "week", "day"], "total"),

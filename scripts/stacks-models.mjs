@@ -302,6 +302,19 @@ const MANIFEST = [
     license: "CC-BY 3.0",
     page: "https://poly.pizza/m/0aPpwgcBbk1",
   },
+  // The bathroom scale on the floor in front of the barbell; it opens the
+  // weight log. Poly by Google again, so the credits line does not change.
+  {
+    name: "bathroom-scale",
+    id: "bL_hCXI0e4s",
+    url: "https://static.poly.pizza/e7db1732-fffb-4d45-be77-d339af07c93c.glb",
+    texMax: 256,
+    noAo: true,
+    unit: "training",
+    author: "Poly by Google",
+    license: "CC-BY 3.0",
+    page: "https://poly.pizza/m/bL_hCXI0e4s",
+  },
   // ---- v4 round 4: the owner's named asks (Eames / Mac / +2 lamps / +2 plants).
   // eames-chair is the honest near-miss: poly.pizza has NO Eames lounge (no
   // plywood shells, no ottoman, no star base). This is the site's top

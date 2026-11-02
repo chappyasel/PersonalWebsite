@@ -120,7 +120,8 @@ export type PropDestination =
   | "manual"
   | "systems"
   | "routine"
-  | "blog";
+  | "blog"
+  | "weight-log";
 
 type Destination = Pick<PortalSpec, "label" | "external"> & {
   href: string;
@@ -181,6 +182,13 @@ export function destinationFor(to: PropDestination): Destination {
         href: "/musings",
         label: "Musings",
         actionLabel: "Browse articles",
+        external: false,
+      };
+    case "weight-log":
+      return {
+        href: "/weight-log",
+        label: "Chappy's Weight Log",
+        actionLabel: "View weight log",
         external: false,
       };
   }

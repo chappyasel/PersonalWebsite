@@ -6,6 +6,7 @@ import { categoryColor } from "../weightlifting/lib/utils";
 import {
   BarbellIcon,
   CalendarDotsIcon,
+  ChartLineIcon,
   TrophyIcon,
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
@@ -341,6 +342,14 @@ export default function Weightlifting({
           </PlacardCardHeading>
           <WorkoutHistoryCalendar data={activity} />
         </PlacardNestedLinkCard>
+        <PlacardLinkCard href="/weight-log" label="Open the weight log">
+          <PlacardCardHeading icon={ChartLineIcon} className="mb-2">
+            Weight log
+          </PlacardCardHeading>
+          <p className="homepage-card-body text-muted-foreground">
+            Bodyweight history, training phases, and DEXA scans.
+          </p>
+        </PlacardLinkCard>
       </IntersectionMotion>
     </section>
   );

@@ -22,6 +22,20 @@ export const TRAINING_BARBELL_POSE: Readonly<{
   scale: 0.77,
 };
 
+/** The bathroom scale in front of the barbell. The model is 38 units square,
+ * so 0.016 gives a 0.61-unit plate, the 2 units per metre the shelf props are
+ * drawn at. Grass near the shelves stands 0.13 to 0.34 tall, which buries a
+ * plate on the ground, so it rests on the tuft tips instead. */
+export const TRAINING_BATHROOM_SCALE_POSE: Readonly<{
+  base: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+}> = {
+  base: [2.0, SHELF_GEOMETRY.groundY + 0.1, 0.25],
+  rotation: [0, 0.2, 0],
+  scale: 0.016,
+};
+
 export const PROJECT_PHOTO_DIMENSIONS = {
   apple: {
     width: 0.336 * (824 / 1024),

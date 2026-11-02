@@ -143,7 +143,6 @@ const PAGES: Entry[] = [
     name: "Weight Log",
     href: "/weight-log",
     what: "Bodyweight history, training phases, and DEXA scans in an interactive chart.",
-    note: "Unlisted.",
     icon: glyph(ChartLineIcon),
   },
   {

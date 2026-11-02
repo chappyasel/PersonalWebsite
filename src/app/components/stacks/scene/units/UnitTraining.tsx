@@ -42,6 +42,7 @@ import type { UnitProps } from "./types";
 import {
   REVIEWED_SHELF_LAYOUT,
   TRAINING_BARBELL_POSE,
+  TRAINING_BATHROOM_SCALE_POSE,
 } from "./unitShelfLayout";
 
 export { TRAINING_BARBELL_POSE } from "./unitShelfLayout";
@@ -846,6 +847,29 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             roughness={0.45}
             rotation={TRAINING_BARBELL_POSE.rotation}
             scale={TRAINING_BARBELL_POSE.scale}
+          />
+        </React.Suspense>
+      </Grabbable>
+
+      {/* The bathroom scale stands on the floor in front of the barbell,
+          right of the shelf, and opens the weight log. */}
+      <Grabbable
+        unitIndex={index}
+        to="weight-log"
+        hoverKey="grab:bathroom-scale"
+        base={TRAINING_BATHROOM_SCALE_POSE.base}
+        shadeColor={palette.shadow}
+        shadeWidth={0.66}
+        shape="box"
+        massKg={2}
+        standsOn="floor"
+      >
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url="/models/bathroom-scale.glb"
+            dark={dark}
+            rotation={TRAINING_BATHROOM_SCALE_POSE.rotation}
+            scale={TRAINING_BATHROOM_SCALE_POSE.scale}
           />
         </React.Suspense>
       </Grabbable>

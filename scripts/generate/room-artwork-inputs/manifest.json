@@ -4479,7 +4479,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/ModelProp.tsx",
-      "sha256": "b34657a5ac891eb2948951293b180c0387cb62bf170d4bc5bcfb254c68fcb9cd",
+      "sha256": "eac0cfc13c69573fa0bd19c4482722b71d5fbdda4c191b698875d3e6ac65ab93",
       "archivedSha256": "2d9e1eab12a99e3652c522936ecde2a3492d531479d426d019d582eb76881ab1"
     },
     {
@@ -4774,7 +4774,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/interactionRegistry.ts",
-      "sha256": "8d313d37b8258cbeac36cd5e64d5d80824ffcb402d5a04ce98a84d9f01b7e9da",
+      "sha256": "98253b01541ae40e55b4c6dac0ee8befa15f7e0abd4ffc55f4e353299f880bef",
       "archivedSha256": "07cc279c15b37b44133dee7ea8b40d69120c868274b663982efb319c3e037fda"
     },
     {
@@ -5124,7 +5124,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
-      "sha256": "0873c30d4f00c1149a87b12371e25e592c7f7a8ebb665561cfe38bef0fa39d26",
+      "sha256": "9578524d7c38bac453e0f2dc5ec2db7570dbee3056ff328a74f5fa3a5eda97be",
       "archivedSha256": "08921e1ae90613c729dfbda650ddc1ed6caafafed13e1c0d0075138daede0b2d"
     },
     {
@@ -5194,7 +5194,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
-      "sha256": "f2972461f1f4b817dcdbccd613cb6914e374bed34d457444f467a1ef54795965",
+      "sha256": "1021e584bb54480fb68be7c8b2881d6ed8a8da3cb70cea6a0191dd975fadfd22",
       "archivedSha256": "f2972461f1f4b817dcdbccd613cb6914e374bed34d457444f467a1ef54795965"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "9acf9c49dc4cf6940778bc74fd2be7a0b74afe346ac78180aa26c119d3d43873",
+  "sourceFingerprint": "1913e09bc55971847523b2a6861152b48c269ca8ffb5f576578d37b53f4a3b48",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5711,6 +5711,33 @@
           "path": "src/app/components/stacks/scene/interactionProjection.ts",
           "previousSha256": "3fde914d3c7b5074a8d59b7090bd36cb612d86176b35217ec285f60c8a83ae7c",
           "sha256": "32cf66422b591ca4bb364052b5534d89caa5cf90db59087543a4c29fade0a619"
+        }
+      ]
+    },
+    {
+      "reason": "Bathroom scale added on the floor right of the Training shelf, outside the shelf artwork frame; new weight-log destination and preload entry change no drawn geometry",
+      "previousFingerprint": "9acf9c49dc4cf6940778bc74fd2be7a0b74afe346ac78180aa26c119d3d43873",
+      "sourceFingerprint": "1913e09bc55971847523b2a6861152b48c269ca8ffb5f576578d37b53f4a3b48",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/ModelProp.tsx",
+          "previousSha256": "b34657a5ac891eb2948951293b180c0387cb62bf170d4bc5bcfb254c68fcb9cd",
+          "sha256": "eac0cfc13c69573fa0bd19c4482722b71d5fbdda4c191b698875d3e6ac65ab93"
+        },
+        {
+          "path": "src/app/components/stacks/scene/interactionRegistry.ts",
+          "previousSha256": "8d313d37b8258cbeac36cd5e64d5d80824ffcb402d5a04ce98a84d9f01b7e9da",
+          "sha256": "98253b01541ae40e55b4c6dac0ee8befa15f7e0abd4ffc55f4e353299f880bef"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitTraining.tsx",
+          "previousSha256": "0873c30d4f00c1149a87b12371e25e592c7f7a8ebb665561cfe38bef0fa39d26",
+          "sha256": "9578524d7c38bac453e0f2dc5ec2db7570dbee3056ff328a74f5fa3a5eda97be"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
+          "previousSha256": "f2972461f1f4b817dcdbccd613cb6914e374bed34d457444f467a1ef54795965",
+          "sha256": "1021e584bb54480fb68be7c8b2881d6ed8a8da3cb70cea6a0191dd975fadfd22"
         }
       ]
     }
