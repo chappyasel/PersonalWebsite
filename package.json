@@ -60,6 +60,7 @@
     "generate:systems": "tsx ./scripts/generate/systems.ts",
     "generate:scene-objects": "tsx ./scripts/generate/scene-object-notes.ts",
     "generate:github": "tsx ./scripts/generate/github-activity.ts",
+    "generate:hdr-accent": "tsx ./scripts/generate/hdr-accent.ts",
     "generate:globe-map": "tsx ./scripts/generate/globe-map.ts",
     "generate:book-cover-emojis": "tsx ./scripts/book-cover-emojis/run.ts",
     "book-emoji": "dotenv -e .env -- tsx ./scripts/book-cover-emojis/apply.ts",

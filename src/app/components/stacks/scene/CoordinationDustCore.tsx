@@ -5,6 +5,7 @@ import { useStacks } from "../store";
 import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { useBlinkerPlateTracking } from "./coordinationBlinkerSpot";
 import {
   COORDINATION_BLINKER_NAME,
   COORDINATION_DUST_NAME,
@@ -117,7 +118,9 @@ export function CoordinationDustCore({
 
   const accent = useMemo(() => linear(CROSSING_TOKENS.dark.accent), []);
   const dustMaterial = useRef<THREE.ShaderMaterial>(null);
+  const blinker = useRef<THREE.Mesh>(null);
   const blinkerMaterial = useRef<THREE.ShaderMaterial>(null);
+  useBlinkerPlateTracking(blinker, blinkerMaterial);
 
   // Starting values only. r3f copies each uniform onto the material instead of
   // keeping these objects, so every per-frame write has to go through the
@@ -189,7 +192,7 @@ export function CoordinationDustCore({
     grains.uPixelRatio!.value = gl.getPixelRatio();
     const run = coordinationCrossing.getSnapshot().run;
     const orbLight = run ? crossingOrbLight(now - run.startedAt) : 1;
-    const blinker = still
+    const blink = still
       ? { block: 1, bloom: 0.74 }
       : coordinationBlinker(now);
 
@@ -279,13 +282,13 @@ export function CoordinationDustCore({
     // they can leave the orb and survive the room fading around them.
     const lift = 1 + scratch.lift;
     if (run) grains.uBoost!.value = 0;
-    block.uBlock!.value = run ? 0 : blinker.block;
-    block.uBloom!.value = run ? 0 : blinker.bloom * lift * GLOW_GAIN;
+    block.uBlock!.value = run ? 0 : blink.block;
+    block.uBloom!.value = run ? 0 : blink.bloom * lift * GLOW_GAIN;
     if (light.current) {
       // A floor under the block's blink, so the shelf breathes, not strobes.
       light.current.intensity =
         (dark ? LIGHT_INTENSITY.night : LIGHT_INTENSITY.day) *
-        (0.45 + 0.55 * blinker.bloom) *
+        (0.45 + 0.55 * blink.bloom) *
         lift *
         orbLight;
     }
@@ -317,6 +320,7 @@ export function CoordinationDustCore({
           />
         </points>
         <mesh
+          ref={blinker}
           name={COORDINATION_BLINKER_NAME}
           raycast={NO_RAYCAST}
           renderOrder={9}

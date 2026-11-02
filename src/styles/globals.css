@@ -2155,6 +2155,49 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   }
 }
 
+/* The blinker's HDR fill (HdrFill): a video of its orange at 800 nits, exactly
+   over the block. It shows only on an HDR screen, once it plays; otherwise the
+   block under it is the blinker, as everywhere else. The glow is not video. */
+.hdr {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+@media (dynamic-range: high) {
+  /* Inherit, never visible: a visible child stays on screen when its parent
+     hides, so a hidden plate would leave a block glowing. */
+  .hdr[data-playing] {
+    visibility: inherit;
+  }
+}
+
+/* Placed by the frame loop over the WebGL blinker (coordinationBlinkerPlate). */
+.coordination-hdr-plate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 16px;
+  pointer-events: none;
+  visibility: hidden;
+  will-change: transform, opacity;
+}
+
+/* Placed once over the 2D shelf's blinker, on the block's own blink. */
+.coordination-hdr-glyph {
+  position: absolute;
+  pointer-events: none;
+}
+
+.coordination-hdr-glyph > .hdr {
+  animation: stacks-boot-coordination-blink 1.1s ease infinite;
+}
+
 .stacks-boot-coordination-dither {
   fill: #030507;
   shape-rendering: crispEdges;
@@ -2472,6 +2515,7 @@ html[data-world] [contenteditable="true"] {
   .stacks-boot-coordination-dust-twinkle,
   .stacks-boot-coordination-blinker-block,
   .stacks-boot-coordination-blinker-glow,
+  .coordination-hdr-glyph > .hdr,
   .stacks-world-curtain {
     animation: none;
     transition: none;

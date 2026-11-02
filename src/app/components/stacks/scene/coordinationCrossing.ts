@@ -231,6 +231,7 @@ export type CoordinationCrossingSnapshot = Readonly<{
   enabled: boolean;
   leaveRoom: boolean;
   dustOrb: boolean;
+  hdrBlinker: boolean;
   run: CrossingRun | null;
 }>;
 
@@ -241,6 +242,7 @@ const INITIAL: CoordinationCrossingSnapshot = Object.freeze({
   enabled: CROSSING_DEFAULT_ON,
   leaveRoom: CROSSING_DEFAULT_ON,
   dustOrb: CROSSING_DEFAULT_ON,
+  hdrBlinker: CROSSING_DEFAULT_ON,
   run: null,
 });
 
@@ -267,6 +269,10 @@ export function createCoordinationCrossingController() {
     setDustOrb: (dustOrb: boolean) => {
       if (dustOrb !== snapshot.dustOrb) publish({ ...snapshot, dustOrb });
     },
+    setHdrBlinker: (hdrBlinker: boolean) => {
+      if (hdrBlinker !== snapshot.hdrBlinker)
+        publish({ ...snapshot, hdrBlinker });
+    },
     begin: (start: Omit<CrossingRun, "id">) => {
       if (!snapshot.enabled || snapshot.run) return false;
       publish({ ...snapshot, run: { ...start, id: nextId++ } });
@@ -281,13 +287,11 @@ export function createCoordinationCrossingController() {
 /** Session memory only. A reload returns to the defaults above. */
 export const coordinationCrossing = createCoordinationCrossingController();
 
-/** The room paints the stage, so the stage follows the visitor's system theme
- * rather than the room's: that is the theme coordination.sh will show. */
-function systemTheme(): CrossingTheme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
+/** The stage takes coordination.sh's theme rather than the room's or the
+ * system's, so the last frame is its first. That page is dark for every visitor
+ * (`SITE_THEME` in its src/brand.ts). The light tokens and plate stay for the day
+ * that switch flips, and this one with it. */
+const CROSSING_THEME: CrossingTheme = "dark";
 
 export function beginCoordinationCrossing() {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
@@ -298,7 +302,7 @@ export function beginCoordinationCrossing() {
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
     },
-    theme: systemTheme(),
+    theme: CROSSING_THEME,
   });
 }
 

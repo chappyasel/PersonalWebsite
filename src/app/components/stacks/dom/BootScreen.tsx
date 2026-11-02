@@ -15,6 +15,7 @@ import { isBootingPhase } from "../boot/worldBootMachine";
 import { documentWorldPhase, worldBoot } from "../boot/worldBootSession";
 import { CoordinationDither } from "../illustration/CoordinationDither";
 import { CoordinationDustGlyph } from "../illustration/CoordinationDustGlyph";
+import { CoordinationGlyphPlate } from "../illustration/CoordinationGlyphPlate";
 import { COORDINATION_DITHER_CELL } from "../illustration/coordinationDitherGeometry";
 import {
   ABOUT_AIC_BASE_DEPTH,
@@ -53,6 +54,7 @@ import {
   ABOUT_AIC_ROOT_YAW,
   ABOUT_MODEL_POSES,
 } from "../scene/aboutScenePose";
+import { coordinationCrossing } from "../scene/coordinationCrossing";
 import {
   COORDINATION_BASE_BOTTOM_RADIUS,
   COORDINATION_BASE_HEIGHT,
@@ -68,7 +70,6 @@ import {
   COORDINATION_STEM_HEIGHT,
   COORDINATION_STEM_TOP_RADIUS,
 } from "../scene/coordinationGlobeGeometry";
-import { coordinationCrossing } from "../scene/coordinationCrossing";
 import {
   COORDINATION_CORE_RADIUS,
   coordinationNodePosition,
@@ -1563,6 +1564,7 @@ export function BootScreenArtwork({
                   </g>
                 )}
               </svg>
+              {ditherActive ? <CoordinationGlyphPlate camera={camera} /> : null}
               <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
                 {Array.from(
                   { length: BOOT_DUST_COUNTS.light.maximum },
