@@ -49,6 +49,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 
 import { Duration } from "./Duration";
+import { SpokenTimes } from "./SpokenTimes";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip } from "./WeekStrip";
 import styles from "./meet.module.css";
@@ -354,6 +355,19 @@ export function MeetBooking({
                   later: canGo(PHONE_DAYS),
                 }}
                 onPicked={showCard}
+              />
+              <SpokenTimes
+                days={phoneDays}
+                hostZone={hostZone}
+                bookerZone={bookerZone}
+                host={host}
+                length={length}
+                selection={selection}
+                suggestions={suggestions}
+                onSelect={(start) => {
+                  select(start);
+                  showCard();
+                }}
               />
             </div>
             {suggestions.length > 0 && (

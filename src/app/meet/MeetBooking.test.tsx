@@ -203,7 +203,9 @@ describe("booking on /meet", () => {
     // Both grids label the booker's rail; only the computer's has Chappy's.
     expect(screen.getAllByText("ET")).toHaveLength(2);
     expect(screen.getAllByText("PT")).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: /your time/ })).toBeNull();
+    // The only time buttons are the screen readers', out of sight.
+    for (const button of screen.getAllByRole("button", { name: /your time/ }))
+      expect(button.closest(".sr-only")).toBeTruthy();
   });
 
   it("steps the phone's visible Days by 3", () => {
@@ -232,6 +234,40 @@ describe("booking on /meet", () => {
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Earlier days" }));
     expect(shownDays(phoneGrid())[0]).toBe("2026-11-13");
+  });
+
+  it("gives screen readers the phone's open starts as buttons that pick", () => {
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const days = screen.getAllByRole("region");
+    expect(days.map((d) => d.getAttribute("aria-label"))).toEqual([
+      "Tue, Nov 10th",
+      "Wed, Nov 11th",
+    ]);
+    // 9:00 and 9:30 PT, then 11:00 and 11:30 on the first Day, at 30m.
+    expect(
+      screen
+        .getAllByRole("button", { name: /your time/ })
+        .map((b) => b.textContent),
+    ).toEqual([
+      "12:00 PM your time, 9:00 AM for Chappy",
+      "12:15 PM your time, 9:15 AM for Chappy",
+      "12:30 PM your time, 9:30 AM for Chappy",
+      "2:00 PM your time, 11:00 AM for Chappy, best",
+      "2:15 PM your time, 11:15 AM for Chappy",
+      "2:30 PM your time, 11:30 AM for Chappy",
+      "1:00 PM your time, 10:00 AM for Chappy",
+      "1:15 PM your time, 10:15 AM for Chappy",
+      "1:30 PM your time, 10:30 AM for Chappy",
+    ]);
+    const best = screen.getByRole("button", {
+      name: "2:00 PM your time, 11:00 AM for Chappy, best",
+    });
+    fireEvent.click(best);
+    expect(best.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("11:00 AM PT for Chappy")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Book 30 minutes" }),
+    ).toBeTruthy();
   });
 
   it("offers a length picker only when the link has several", () => {
