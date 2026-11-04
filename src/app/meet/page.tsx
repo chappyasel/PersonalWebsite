@@ -34,10 +34,9 @@ export default async function MeetPage() {
             <div className="dl-prose">
               {page ? (
                 <p>
-                  Pick how long, then a time. Open hours are green. A sun marks
-                  the times that suit {page.link.host} best: next to other
-                  meetings or at the edge of open time, so longer stretches stay
-                  free. Book it and the invite lands in your inbox.
+                  Pick how long, then a time. Open hours are green, and a sun
+                  marks the times that suit {page.link.host} best. Book it and
+                  the invite lands in your inbox.
                 </p>
               ) : (
                 <p>

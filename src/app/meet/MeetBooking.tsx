@@ -332,16 +332,19 @@ export function MeetBooking({
               />
             </div>
             {suggestions.length > 0 && (
-              <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <p className="mt-4 flex items-start gap-1.5 text-xs leading-4 text-muted-foreground">
+                {/* Centred on the first line: (16px line - 13px icon) / 2. */}
                 <SunIcon
                   size={13}
                   weight="fill"
-                  className="text-[hsl(var(--dl-am))]"
+                  className="mt-[1.5px] shrink-0 text-[hsl(var(--dl-am))]"
                   aria-hidden
                 />
-                A sun marks the times that suit {host} best: next to other
-                meetings or at the edge of open time, so longer stretches stay
-                free.
+                <span>
+                  A sun marks the times that suit {host} best: next to other
+                  meetings or at the edge of open time, so longer stretches stay
+                  free.
+                </span>
               </p>
             )}
           </div>
