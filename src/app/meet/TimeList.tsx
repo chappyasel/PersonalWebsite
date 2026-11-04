@@ -1,7 +1,5 @@
 "use client";
 
-import { SunIcon } from "@phosphor-icons/react";
-
 import type { BookingDay } from "~/lib/booking/page";
 import { startsIn } from "~/lib/booking/slots";
 import {
@@ -12,8 +10,6 @@ import {
   zonedParts,
 } from "~/lib/booking/zones";
 import { cn } from "~/lib/utils";
-
-import { Button } from "~/components/ui/button";
 
 import styles from "./meet.module.css";
 
@@ -57,7 +53,7 @@ export function TimeList({
   const day = openDays.find((d) => d.day === activeDay) ?? openDays[0];
   if (!day) {
     return (
-      <p className="py-6 text-sm text-muted-foreground">
+      <p className={cn(styles.secondary, "py-6 text-sm")}>
         Nothing open this week at this length.
       </p>
     );
@@ -73,46 +69,45 @@ export function TimeList({
 
   return (
     <div className="space-y-5">
-      <div
-        role="group"
-        aria-label="Days"
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
-      >
+      <div role="group" aria-label="Days" className={styles.dayTrack}>
         {openDays.map((d) => {
           const best = suggestions.some((s) =>
             d.open.some((o) => o.start <= s && s < o.end),
           );
           return (
-            <Button
+            <button
               key={d.day}
               type="button"
-              variant={d.day === day.day ? "default" : "outline"}
               aria-pressed={d.day === day.day}
               onClick={() => onDay(d.day)}
-              className="h-auto shrink-0 flex-col gap-0 px-3 py-2"
+              className={styles.daySegment}
             >
-              <span className="text-[11px] uppercase tracking-[0.14em] opacity-75">
+              <span
+                className={cn(
+                  styles.secondary,
+                  "block text-[11px] font-semibold",
+                )}
+              >
                 {weekdayLabel(d.day)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center gap-1 text-[13px] font-semibold tabular-nums">
                 {dateLabel(d.day)}
                 {best && (
-                  <SunIcon
-                    size={12}
-                    weight="fill"
-                    className="text-[hsl(var(--dl-am))]"
+                  <span
+                    role="img"
                     aria-label="Has a best time"
+                    className={styles.dot}
                   />
                 )}
               </span>
-            </Button>
+            </button>
           );
         })}
       </div>
 
       {groups.map((group) => (
         <section key={group.name} aria-label={group.name}>
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <h3 className={cn(styles.secondary, "mb-2 text-xs font-semibold")}>
             {group.name}
           </h3>
           <ul className="grid grid-cols-3 gap-2">
@@ -121,30 +116,25 @@ export function TimeList({
               const both = !sameClock(start, hostZone, bookerZone);
               return (
                 <li key={start}>
-                  <Button
+                  <button
                     type="button"
-                    variant={selection === start ? "default" : "outline"}
                     aria-pressed={selection === start}
                     aria-label={`${clockLabel(start, bookerZone)} your time${
                       both ? `, ${clockLabel(start, hostZone)} for ${host}` : ""
                     }${best ? ", a best time" : ""}`}
-                    data-best={best && selection !== start ? "" : undefined}
                     onClick={() => onSelect(start)}
-                    className={cn(
-                      styles.timeChip,
-                      "h-auto w-full flex-col gap-0 px-1 py-2 tabular-nums",
-                    )}
+                    className={styles.timeButton}
                   >
-                    <span className="flex items-center gap-1 text-sm">
-                      {best && <SunIcon size={11} weight="fill" aria-hidden />}
+                    <span className="flex items-center gap-1 text-sm font-semibold">
+                      {best && <span aria-hidden className={styles.dot} />}
                       {clockLabel(start, bookerZone)}
                     </span>
                     {both && (
-                      <span className="text-[11px] opacity-70">
+                      <span className={cn(styles.secondary, "text-[11px]")}>
                         {clockLabel(start, hostZone)} {host}
                       </span>
                     )}
-                  </Button>
+                  </button>
                 </li>
               );
             })}

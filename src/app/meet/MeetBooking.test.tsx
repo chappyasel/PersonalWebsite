@@ -101,7 +101,9 @@ describe("booking on /meet", () => {
     expect(best.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByText("11:00 AM PT for Chappy")).toBeTruthy();
     expect(screen.getByText("Best for Chappy")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Book 30 min" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Book 30 minutes" }),
+    ).toBeTruthy();
   });
 
   it("resizes the selection when the length changes", () => {
@@ -109,9 +111,9 @@ describe("booking on /meet", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /^12:30 PM your time/ }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "1 hr" }));
+    fireEvent.click(screen.getByRole("button", { name: "1 hour" }));
     // 9:30 PT can't hold an hour before 10, so the meeting slides to 9:00.
-    expect(screen.getByRole("button", { name: "Book 1 hr" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Book 1 hour" })).toBeTruthy();
     expect(screen.getAllByText("12:00 PM - 1:00 PM").length).toBeGreaterThan(0);
     expect(
       screen
@@ -129,7 +131,7 @@ describe("booking on /meet", () => {
     render(<MeetBooking initial={PAGE} />);
     fireEvent.click(screen.getByRole("button", { name: /^2:00 PM your time/ }));
     const user = await fillForm();
-    await user.click(screen.getByRole("button", { name: "Book 30 min" }));
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
     expect((await screen.findByRole("alert")).textContent).toBe(MESSAGES.taken);
     expect(mocks.invalidate).toHaveBeenCalled();
     expect(
@@ -151,7 +153,7 @@ describe("booking on /meet", () => {
     render(<MeetBooking initial={PAGE} />);
     fireEvent.click(screen.getByRole("button", { name: /^2:00 PM your time/ }));
     const user = await fillForm();
-    await user.click(screen.getByRole("button", { name: "Book 30 min" }));
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
     await user.click(await screen.findByRole("button", { name: "Try again" }));
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledTimes(2));
     const [first, second] = mocks.mutateAsync.mock.calls.map(

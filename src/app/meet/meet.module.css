@@ -1,122 +1,204 @@
 /*
- * The /meet picker, in the daylight pages' palette (daylight.css,
- * globals.css): moss for open time, ochre for the slots that suit the host
- * best, and each Day's column washed from the morning arm's ochre to the
- * evening arm's dusk slate, so the hour reads as light before it reads as a
- * number. No colour here is new.
+ * /meet's pieces, drawn like Daybreak's Mac and iPhone schedule. The colours
+ * are meet.css's tokens: --mt-ink for text and hairlines, --mt-green the one
+ * accent, --mt-red only for the now line.
  */
 
-.figure {
-  --meet-open: var(--dl-ic-moss);
-  --meet-best: var(--dl-am);
-  --meet-line: var(--border);
+/* ---------- Type ---------- */
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
 }
 
-/* One Day's hours. --hour is the height of an hour in pixels. */
-.dayBody {
-  position: relative;
-  border-radius: 0.625rem;
-  background-image: repeating-linear-gradient(
-      to bottom,
-      hsl(var(--meet-line) / 0.9) 0 1px,
-      transparent 1px var(--hour)
-    ),
-    linear-gradient(
-      to bottom,
-      hsl(var(--dl-am) / 0.07),
-      hsl(var(--background) / 0) 38%,
-      hsl(var(--background) / 0) 62%,
-      hsl(var(--dl-pm) / 0.09)
-    );
-  box-shadow: inset 0 0 0 1px hsl(var(--meet-line));
-  touch-action: pan-y;
-  cursor: default;
+.lede {
+  margin-top: 0.375rem;
+  font-size: 0.9375rem;
+  color: rgb(var(--mt-ink) / 0.55);
 }
 
-.dayBody[data-closed] {
+.secondary {
+  color: rgb(var(--mt-ink) / 0.55);
+}
+
+/* A unit beside its number ("30m", "1h"), at 80% of its size and ink. */
+.unit {
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+/* ---------- Controls ---------- */
+
+/* A macOS segmented control: one rounded group, the chosen segment raised. */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgb(var(--mt-ink) / 0.06);
+}
+
+.segment {
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--mt-ink) / 0.8);
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.segment:hover {
+  color: rgb(var(--mt-ink));
+}
+
+.segment[aria-pressed="true"] {
+  background: rgb(var(--mt-raised));
+  box-shadow: var(--mt-raised-shadow);
+  color: rgb(var(--mt-ink));
+}
+
+.segment:focus-visible,
+.chevron:focus-visible,
+.timeButton:focus-visible {
+  outline: 2px solid rgb(var(--mt-green) / 0.6);
+  outline-offset: 2px;
+}
+
+.chevron {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: rgb(var(--mt-ink) / 0.7);
+}
+
+.chevron:hover:not(:disabled) {
+  background: rgb(var(--mt-ink) / 0.06);
+  color: rgb(var(--mt-ink));
+}
+
+.chevron:disabled {
+  opacity: 0.3;
+}
+
+/* ---------- The week grid ---------- */
+
+.grid {
+  --hairline: rgb(var(--mt-ink) / 0.06);
+}
+
+.railLabel {
+  position: absolute;
+  inset-inline: 0;
+  transform: translateY(-50%);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: rgb(var(--mt-ink) / 0.55);
+}
+
+/* The Days' body: hour lines run the full width, as Notion Calendar draws
+   them, and each Day is set off by a faint vertical line, no cards. */
+.days {
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
   background-image: repeating-linear-gradient(
-    135deg,
-    hsl(var(--meet-line) / 0.55) 0 1px,
-    transparent 1px 7px
+    to bottom,
+    var(--hairline) 0 1px,
+    transparent 1px var(--hour)
   );
+  outline: none;
+}
+
+.days:focus-visible:not([data-pressed]) {
+  box-shadow: 0 0 0 2px rgb(var(--mt-green) / 0.6);
+}
+
+.day {
+  position: relative;
+  border-left: 1px solid var(--hairline);
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.day:last-child {
+  border-right: 1px solid var(--hairline);
+}
+
+.day[data-weekend] {
+  background: rgb(var(--mt-shade) / var(--mt-weekend));
+}
+
+.day[data-closed] {
+  background: rgb(var(--mt-shade) / var(--mt-dim));
+}
+
+/* Hours outside the week's booking hours, at the top and bottom. */
+.offHours {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+  background: rgb(var(--mt-shade) / var(--mt-dim));
 }
 
 .open {
   position: absolute;
-  inset-inline: 3px;
-  border-radius: 0.4rem;
-  background: hsl(var(--meet-open) / 0.2);
-  box-shadow: inset 2px 0 0 hsl(var(--meet-open) / 0.7);
+  inset-inline: 0;
+  background: rgb(var(--mt-green) / 0.1);
   cursor: pointer;
 }
 
 .open:hover {
-  background: hsl(var(--meet-open) / 0.28);
+  background: rgb(var(--mt-green) / 0.15);
 }
 
-/* A slot that suits the host: an ochre glint, like the lit windows in the
-   skyline. It marks the slot without claiming it. */
-.best {
+/* A best time: a small green dot at the slot's top corner. */
+.bestDot {
   position: absolute;
-  inset-inline: 5px;
-  border-radius: 0.35rem;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgb(var(--mt-green));
   pointer-events: none;
-  background: hsl(var(--meet-best) / 0.12);
-  box-shadow:
-    inset 0 0 0 1px hsl(var(--meet-best) / 0.55),
-    0 0 14px -2px hsl(var(--meet-best) / 0.45);
-  color: hsl(var(--meet-best));
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .best {
-    animation: glint 3.2s ease-in-out infinite;
-  }
-}
-
-@keyframes glint {
-  0%,
-  100% {
-    box-shadow:
-      inset 0 0 0 1px hsl(var(--meet-best) / 0.55),
-      0 0 10px -3px hsl(var(--meet-best) / 0.35);
-  }
-  50% {
-    box-shadow:
-      inset 0 0 0 1px hsl(var(--meet-best) / 0.7),
-      0 0 18px -2px hsl(var(--meet-best) / 0.55);
-  }
 }
 
 .ghost {
   position: absolute;
-  inset-inline: 3px;
-  border-radius: 0.4rem;
+  inset-inline: 2px;
+  border-radius: 6px;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1.5px hsl(var(--foreground) / 0.35);
-  background: hsl(var(--foreground) / 0.04);
+  background: rgb(var(--mt-green) / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--mt-green) / 0.5);
 }
 
+/* The meeting, drawn like a Daybreak event block. */
 .selection {
   position: absolute;
   inset-inline: 2px;
   z-index: 2;
   overflow: hidden;
-  border-radius: 0.45rem;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  box-shadow:
-    0 6px 16px -6px hsl(var(--foreground) / 0.45),
-    0 1px 2px hsl(var(--foreground) / 0.25);
+  border-radius: 6px;
+  background: rgb(var(--mt-green));
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
   cursor: grab;
   touch-action: none;
 }
 
 .selection[data-dragging] {
   cursor: grabbing;
-  box-shadow:
-    0 12px 26px -8px hsl(var(--foreground) / 0.5),
-    0 2px 4px hsl(var(--foreground) / 0.25);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -128,32 +210,178 @@
   }
 }
 
-.railLabel {
+.nowLine {
   position: absolute;
   inset-inline: 0;
+  z-index: 3;
+  height: 2px;
+  margin-top: -1px;
+  background: rgb(var(--mt-red));
+  pointer-events: none;
+}
+
+.nowPill {
+  position: absolute;
+  left: 2px;
+  top: 50%;
   transform: translateY(-50%);
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgb(var(--mt-red));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-/* The confirmation's band takes the sky of the hour it's booked for. */
-.postcard[data-light="am"] {
-  background: linear-gradient(
-    to bottom,
-    hsl(var(--dl-am) / 0.22),
-    hsl(var(--background) / 0)
-  );
+/* ---------- The phone's list ---------- */
+
+.dayTrack {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgb(var(--mt-ink) / 0.06);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.postcard[data-light="pm"] {
-  background: linear-gradient(
-    to bottom,
-    hsl(var(--dl-pm) / 0.24),
-    hsl(var(--background) / 0)
-  );
+.dayTrack::-webkit-scrollbar {
+  display: none;
 }
 
-.timeChip[data-best] {
-  box-shadow: inset 0 0 0 1px hsl(var(--dl-am) / 0.6);
-  background: hsl(var(--dl-am) / 0.08);
+.daySegment {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  padding: 5px 10px;
+  border-radius: 8px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.daySegment[aria-pressed="true"] {
+  background: rgb(var(--mt-raised));
+  box-shadow: var(--mt-raised-shadow);
+}
+
+.timeButton {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  padding: 7px 4px;
+  border-radius: 999px;
+  background: rgb(var(--mt-green) / 0.1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  transition: background-color 150ms ease;
+}
+
+.timeButton:hover {
+  background: rgb(var(--mt-green) / 0.16);
+}
+
+.timeButton[aria-pressed="true"] {
+  background: rgb(var(--mt-green));
+  color: #fff;
+}
+
+.timeButton[aria-pressed="true"] .secondary {
+  color: rgb(255 255 255 / 0.8);
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: rgb(var(--mt-green));
+}
+
+.timeButton[aria-pressed="true"] .dot {
+  background: #fff;
+}
+
+/* ---------- The form and the confirmation ---------- */
+
+/* A grouped settings card: hairline edge, no heavy shadow. */
+.card {
+  border-radius: 12px;
+  border: 1px solid rgb(var(--mt-ink) / 0.08);
+  background: rgb(var(--mt-ink) / 0.025);
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.input {
+  height: 2.25rem;
+  border-radius: 8px;
+  border-color: rgb(var(--mt-ink) / 0.12);
+  background: rgb(var(--mt-ground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.input::placeholder {
+  color: rgb(var(--mt-ink) / 0.35);
+}
+
+.input:focus-visible {
+  border-color: rgb(var(--mt-green));
+  box-shadow: 0 0 0 3px rgb(var(--mt-green) / 0.25);
+}
+
+.primary {
+  height: 2.25rem;
+  border-radius: 8px;
+  background: rgb(var(--mt-green));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.primary:hover {
+  background: rgb(var(--mt-green) / 0.9);
+}
+
+.primary:disabled {
+  opacity: 0.4;
+}
+
+.quiet {
+  height: 2.25rem;
+  border-radius: 8px;
+  background: rgb(var(--mt-ink) / 0.06);
+  color: rgb(var(--mt-ink));
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.quiet:hover {
+  background: rgb(var(--mt-ink) / 0.1);
+}
+
+.capsule {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 1px 7px;
+  background: rgb(var(--mt-green) / 0.15);
+  color: rgb(var(--mt-green));
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.check {
+  color: rgb(var(--mt-green));
 }

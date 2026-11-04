@@ -15,13 +15,6 @@ vi.mock("./MeetBooking", () => ({
     <p>Picker with {turnstileSiteKey}</p>
   ),
 }));
-vi.mock("~/components/daylight/SkyHero", () => ({
-  default: ({ children }: { children: React.ReactNode }) => (
-    <header>{children}</header>
-  ),
-}));
-vi.mock("~/components/daylight/SkyFooter", () => ({ default: () => null }));
-vi.mock("~/components/daylight/HeroMeta", () => ({ default: () => null }));
 
 describe("/meet", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -49,5 +42,16 @@ describe("/meet", () => {
     expect(html).toContain("<h1");
     expect(html).toContain("Meet with Chappy");
     expect(html).toContain("Picker with site");
+    expect(html).toContain("Times show in your zone and Chappy&#x27;s.");
+  });
+
+  it("draws in Daybreak's look, not the site's", async () => {
+    mocks.read.mockResolvedValue({
+      status: "open",
+      page: { link: { title: "Meet with Chappy", host: "Chappy" } },
+    });
+    const html = renderToStaticMarkup(await MeetPage());
+    expect(html).toContain('class="meet-root"');
+    expect(html).not.toMatch(/dl-|daylight/);
   });
 });

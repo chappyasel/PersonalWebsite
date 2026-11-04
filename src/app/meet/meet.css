@@ -1,0 +1,114 @@
+/*
+ * /meet in Daybreak's look, not the site's: the system font, plain white or
+ * near-black ground, one green accent, and hairlines at a few percent of the
+ * ink. Everything here hangs off .meet-root, which only /meet renders, so no
+ * other page changes even after a client navigation leaves this sheet loaded.
+ *
+ * The site's own HSL tokens are redefined inside .meet-root too, so the
+ * shadcn Button and Input draw in these colours without forking them.
+ */
+
+.meet-root {
+  /* rgb channels, so each colour takes an alpha: rgb(var(--mt-ink) / 0.55) */
+  --mt-ink: 29 29 31;
+  --mt-ground: 255 255 255;
+  --mt-green: 40 180 75;
+  --mt-red: 255 59 48;
+  --mt-shade: 0 0 0;
+  --mt-weekend: 0.02;
+  --mt-dim: 0.035;
+  --mt-raised: 255 255 255;
+  --mt-raised-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+
+  --background: 0 0% 100%;
+  --foreground: 240 3% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 3% 12%;
+  --primary: 135 64% 43%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 95%;
+  --secondary-foreground: 240 3% 12%;
+  --accent: 240 5% 96%;
+  --accent-foreground: 240 3% 12%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 1% 51%;
+  --border: 240 3% 93%;
+  --input: 240 2% 87%;
+  --ring: 135 64% 43%;
+  --radius: 0.5rem;
+
+  min-height: 100vh;
+  background: rgb(var(--mt-ground));
+  color: rgb(var(--mt-ink));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", system-ui, sans-serif;
+  /* The Owner's rule: no regular-weight text. */
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark .meet-root {
+  --mt-ink: 245 245 247;
+  --mt-ground: 28 28 30;
+  --mt-green: 45 191 80;
+  --mt-red: 224 60 51;
+  --mt-weekend: 0.05;
+  --mt-dim: 0.1;
+  --mt-raised: 99 99 102;
+  --mt-raised-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+
+  --background: 240 3% 11%;
+  --foreground: 240 11% 96%;
+  --card: 240 3% 11%;
+  --card-foreground: 240 11% 96%;
+  --primary: 134 62% 46%;
+  --secondary: 240 3% 17%;
+  --secondary-foreground: 240 11% 96%;
+  --accent: 240 3% 16%;
+  --accent-foreground: 240 11% 96%;
+  --muted: 240 3% 16%;
+  --muted-foreground: 240 1% 58%;
+  --border: 240 2% 18%;
+  --input: 240 2% 22%;
+  --ring: 134 62% 46%;
+}
+
+/* Before the theme script names a class, follow the system. */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark) .meet-root {
+    --mt-ink: 245 245 247;
+    --mt-ground: 28 28 30;
+    --mt-green: 45 191 80;
+    --mt-red: 224 60 51;
+    --mt-weekend: 0.05;
+    --mt-dim: 0.1;
+    --mt-raised: 99 99 102;
+    --mt-raised-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    --background: 240 3% 11%;
+    --foreground: 240 11% 96%;
+    --card: 240 3% 11%;
+    --primary: 134 62% 46%;
+    --muted-foreground: 240 1% 58%;
+    --border: 240 2% 18%;
+    --input: 240 2% 22%;
+    --ring: 134 62% 46%;
+  }
+}
+
+/* The site paints its sand on <body>; on /meet the page and any overscroll
+   are the plain ground instead. */
+html:has(.meet-root),
+html:has(.meet-root) body {
+  background: #fff;
+}
+html.dark:has(.meet-root),
+html.dark:has(.meet-root) body {
+  background: #1c1c1e;
+}
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark):has(.meet-root),
+  html:not(.light):not(.dark):has(.meet-root) body {
+    background: #1c1c1e;
+  }
+}

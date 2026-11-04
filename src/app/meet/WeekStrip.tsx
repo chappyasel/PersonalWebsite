@@ -1,9 +1,9 @@
 "use client";
 
-import { SunIcon } from "@phosphor-icons/react";
 import {
   type KeyboardEvent,
   type PointerEvent,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -24,12 +24,13 @@ import {
   momentOnDay,
 } from "~/lib/booking/strip";
 import {
+  bareClockLabel,
   clockLabel,
   compactRangeLabel,
   dateLabel,
+  hourLabel,
   ordinalSuffix,
   sameClock,
-  shortClockLabel,
   weekdayLabel,
   zoneLabel,
   zonedDate,
@@ -38,8 +39,11 @@ import { cn } from "~/lib/utils";
 
 import styles from "./meet.module.css";
 
-/** Pixels per minute: nine open hours stand about 600 pixels tall. */
-const PX = 1.1;
+/** Pixels per minute: an hour is 60 pixels, as on Daybreak's schedule. */
+const PX = 1;
+
+/** Dimmed hours drawn above and below the week's booking hours. */
+const MARGIN = 60;
 
 type Props = {
   days: BookingDay[];
@@ -56,13 +60,14 @@ type Props = {
 type Located = { day: BookingDay; ms: number };
 
 /**
- * A week of open time drawn like Daybreak's schedule: each Day a column of
- * the host's hours, open stretches in moss, the best slots glinting in
- * ochre. Press anywhere open to place the meeting there, and drag it; it
- * snaps to the quarter hour and only lands where the whole length fits.
- * The booker's clock runs down the left rail and the host's down the right,
- * so both times sit beside every slot. Arrow keys do the same from the
- * keyboard.
+ * A week of open time drawn like Daybreak's schedule, which draws its grid
+ * the way Notion Calendar does: each Day a column of the host's hours split
+ * by hairlines, open stretches washed green, the best slots marked with a
+ * green dot, and the hours outside the booking hours dimmed. Press anywhere
+ * open to place the meeting there, and drag it; it snaps to the quarter hour
+ * and only lands where the whole length fits. The booker's clock runs down
+ * the left rail and the host's down the right, so both times sit beside
+ * every slot. Arrow keys do the same from the keyboard.
  */
 export function WeekStrip({
   days,
@@ -89,7 +94,12 @@ export function WeekStrip({
     null,
   );
 
-  const bounds = axisBounds(days, hostZone);
+  // The week's booking hours, with a dimmed hour either side.
+  const hoursOpen = axisBounds(days, hostZone);
+  const bounds = {
+    start: Math.max(0, hoursOpen.start - MARGIN),
+    end: hoursOpen.end + MARGIN,
+  };
   const hours = axisHours(bounds);
   const height = (bounds.end - bounds.start) * PX;
   const top = (ms: number, day: string) =>
@@ -98,6 +108,22 @@ export function WeekStrip({
   const reference = days[0]?.day ?? zonedDate(Date.now(), hostZone);
   const referenceMoment = momentOnDay(reference, bounds.start, hostZone);
   const twoClocks = !sameClock(referenceMoment, hostZone, bookerZone);
+
+  // Now, once mounted, so the server and the first render agree.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const today = now === null ? null : zonedDate(now, hostZone);
+  const nowMinute =
+    now !== null && today !== null ? minuteOnDay(now, today, hostZone) : null;
+  const showNow =
+    nowMinute !== null &&
+    nowMinute >= bounds.start &&
+    nowMinute <= bounds.end &&
+    days.some((d) => d.day === today);
 
   const columns = () =>
     [...(gridRef.current?.querySelectorAll<HTMLElement>("[data-day]") ?? [])]
@@ -233,28 +259,31 @@ export function WeekStrip({
     if (next !== null) onSelect(next);
   };
 
-  const bookerMinute = (minute: number) =>
-    shortClockLabel(momentOnDay(reference, minute, hostZone), bookerZone);
+  const bookerHour = (minute: number) =>
+    hourLabel(momentOnDay(reference, minute, hostZone), bookerZone);
 
   return (
-    <div className={cn(styles.figure, "select-none")}>
+    <div className={cn(styles.grid, "select-none")}>
       <div
-        className="grid gap-x-1.5"
+        className="grid"
         style={{
           gridTemplateColumns: [
-            "3.75rem",
+            "2.75rem",
             ...days.map((d) =>
-              d.open.length > 0 ? "minmax(0,1fr)" : "minmax(0,0.45fr)",
+              d.open.length > 0 ? "minmax(0,1fr)" : "minmax(0,0.5fr)",
             ),
-            twoClocks ? "3.75rem" : "0",
+            twoClocks ? "2.75rem" : "0",
           ].join(" "),
         }}
       >
         {/* Header row */}
-        <div className="flex flex-col items-end justify-end pb-2 pr-2 text-right text-[11px] font-medium leading-tight text-muted-foreground">
-          <span className="text-foreground">
-            {zoneLabel(referenceMoment, bookerZone)}
-          </span>
+        <div
+          className={cn(
+            styles.secondary,
+            "flex flex-col items-end justify-end pb-2 pr-2 text-right text-[10.5px] font-semibold leading-tight",
+          )}
+        >
+          <span>{zoneLabel(referenceMoment, bookerZone)}</span>
           <span>{twoClocks ? "You" : `You and ${host}`}</span>
         </div>
         {days.map(({ day, open }) => {
@@ -263,32 +292,37 @@ export function WeekStrip({
               ? zonedDate((open[0]!.start + open.at(-1)!.end) / 2, bookerZone)
               : day;
           return (
-            <div key={day} className="min-w-0 pb-2 font-sans">
-              <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <div key={day} className="min-w-0 px-2 pb-2">
+              <div
+                className={cn(styles.secondary, "text-[11px] font-semibold")}
+              >
                 {weekdayLabel(day)}
               </div>
               <div
                 className={cn(
-                  "truncate text-sm font-medium",
-                  open.length === 0 && "text-muted-foreground",
+                  "truncate text-[13px] font-semibold tabular-nums",
+                  open.length === 0 && styles.secondary,
                 )}
               >
                 {open.length > 0 ? dateLabel(day) : shortDate(day)}
               </div>
               {bookerDate !== day && (
-                <div className="truncate text-[11px] text-muted-foreground">
+                <div className={cn(styles.secondary, "truncate text-[11px]")}>
                   {weekdayLabel(bookerDate)} for you
                 </div>
               )}
             </div>
           );
         })}
-        <div className="flex min-w-0 flex-col items-start justify-end pb-2 pl-2 text-[11px] font-medium leading-tight text-muted-foreground">
+        <div
+          className={cn(
+            styles.secondary,
+            "flex min-w-0 flex-col items-start justify-end pb-2 pl-2 text-[10.5px] font-semibold leading-tight",
+          )}
+        >
           {twoClocks && (
             <>
-              <span className="text-foreground">
-                {zoneLabel(referenceMoment, hostZone)}
-              </span>
+              <span>{zoneLabel(referenceMoment, hostZone)}</span>
               <span className="max-w-full truncate">{host}</span>
             </>
           )}
@@ -299,13 +333,10 @@ export function WeekStrip({
           {hours.map((minute) => (
             <span
               key={minute}
-              className={cn(
-                styles.railLabel,
-                "pr-2 text-right text-[11px] font-medium text-foreground/80",
-              )}
+              className={cn(styles.railLabel, "pr-2 text-right")}
               style={{ top: (minute - bounds.start) * PX }}
             >
-              {bookerMinute(minute)}
+              {bookerHour(minute)}
             </span>
           ))}
         </div>
@@ -327,95 +358,132 @@ export function WeekStrip({
           }}
           onBlur={() => setPressed(false)}
           data-pressed={pressed ? "" : undefined}
-          className="grid rounded-[0.7rem] outline-none ring-ring ring-offset-4 ring-offset-background [&:focus-visible:not([data-pressed])]:ring-2"
+          className={cn(styles.days, "grid")}
           style={{
             gridColumn: `2 / span ${days.length}`,
             gridTemplateColumns: "subgrid",
+            ["--hour" as string]: `${60 * PX}px`,
           }}
         >
-          {days.map(({ day, open }) => (
-            <div
-              key={day}
-              data-day={day}
-              data-closed={open.length === 0 ? "" : undefined}
-              className={styles.dayBody}
-              style={{ height, ["--hour" as string]: `${60 * PX}px` }}
-            >
-              {open.length === 0 && (
-                <span className="absolute inset-x-0 top-3 text-center text-[11px] text-muted-foreground">
-                  Closed
-                </span>
-              )}
-              {open.map((stretch) => (
-                <div
-                  key={stretch.start}
-                  className={styles.open}
-                  style={{
-                    top: top(stretch.start, day),
-                    height: ((stretch.end - stretch.start) / MINUTE) * PX,
-                  }}
-                />
-              ))}
-              {suggestions
-                .filter((start) =>
-                  open.some((s) => s.start <= start && start < s.end),
-                )
-                .map((start) => (
-                  <div
-                    key={start}
+          {days.map(({ day, open }) => {
+            const weekday = weekdayLabel(day);
+            return (
+              <div
+                key={day}
+                data-day={day}
+                data-closed={open.length === 0 ? "" : undefined}
+                data-weekend={
+                  weekday === "Sat" || weekday === "Sun" ? "" : undefined
+                }
+                className={styles.day}
+                style={{ height }}
+              >
+                {open.length === 0 ? (
+                  <span
                     className={cn(
-                      styles.best,
-                      "flex items-start justify-end p-1",
+                      styles.secondary,
+                      "absolute inset-x-0 top-2 text-center text-[10.5px] font-semibold",
                     )}
-                    style={{ top: top(start, day), height: length * PX }}
                   >
-                    {selection !== start && (
-                      <SunIcon size={12} weight="fill" aria-hidden />
-                    )}
-                  </div>
+                    Closed
+                  </span>
+                ) : (
+                  <>
+                    <div
+                      className={styles.offHours}
+                      style={{
+                        top: 0,
+                        height: (hoursOpen.start - bounds.start) * PX,
+                      }}
+                    />
+                    <div
+                      className={styles.offHours}
+                      style={{
+                        top: (hoursOpen.end - bounds.start) * PX,
+                        bottom: 0,
+                      }}
+                    />
+                  </>
+                )}
+                {open.map((stretch) => (
+                  <div
+                    key={stretch.start}
+                    className={styles.open}
+                    style={{
+                      top: top(stretch.start, day),
+                      height: ((stretch.end - stretch.start) / MINUTE) * PX,
+                    }}
+                  />
                 ))}
-              {hover?.day === day && hover.start !== selection && (
-                <div
-                  className={styles.ghost}
-                  style={{ top: top(hover.start, day), height: length * PX }}
-                />
-              )}
-              {selection !== null &&
-                open.some((s) => s.start <= selection && selection < s.end) && (
+                {suggestions
+                  .filter(
+                    (start) =>
+                      start !== selection &&
+                      open.some((s) => s.start <= start && start < s.end),
+                  )
+                  .map((start) => (
+                    <span
+                      key={start}
+                      className={styles.bestDot}
+                      style={{ top: top(start, day) }}
+                    />
+                  ))}
+                {hover?.day === day && hover.start !== selection && (
                   <div
-                    data-selection
-                    data-dragging={dragging ? "" : undefined}
-                    className={cn(
-                      styles.selection,
-                      "flex flex-col overflow-hidden px-2 font-sans",
-                      length >= 45
-                        ? "justify-start py-1 leading-tight"
-                        : "justify-center leading-none",
-                    )}
-                    style={{ top: top(selection, day), height: length * PX }}
-                  >
-                    {/* A column is under 100px wide, so a block under 45
-                        minutes holds only the booker's start. The form card
-                        beside the strip gives the host's. */}
-                    <span className="truncate text-xs font-semibold tabular-nums">
-                      {length >= 45
-                        ? compactRangeLabel(
-                            selection,
-                            selection + span,
-                            bookerZone,
-                          )
-                        : clockLabel(selection, bookerZone)}
-                    </span>
-                    {twoClocks && length >= 45 && (
-                      <span className="truncate text-[11px] tabular-nums opacity-75">
-                        {clockLabel(selection, hostZone)}{" "}
-                        {zoneLabel(selection, hostZone)}
+                    className={styles.ghost}
+                    style={{ top: top(hover.start, day), height: length * PX }}
+                  />
+                )}
+                {selection !== null &&
+                  open.some(
+                    (s) => s.start <= selection && selection < s.end,
+                  ) && (
+                    <div
+                      data-selection
+                      data-dragging={dragging ? "" : undefined}
+                      className={cn(
+                        styles.selection,
+                        "flex flex-col px-1.5",
+                        length >= 45
+                          ? "justify-start py-1 leading-tight"
+                          : "justify-center leading-none",
+                      )}
+                      style={{ top: top(selection, day), height: length * PX }}
+                    >
+                      {/* A column is under 100px wide, so a block under 45
+                          minutes holds only the booker's start. The form
+                          card beside the grid gives the host's. */}
+                      <span className="truncate text-[11.5px] tabular-nums">
+                        {length >= 45
+                          ? compactRangeLabel(
+                              selection,
+                              selection + span,
+                              bookerZone,
+                            )
+                          : clockLabel(selection, bookerZone)}
                       </span>
-                    )}
+                      {twoClocks && length >= 45 && (
+                        <span className="truncate text-[10.5px] tabular-nums opacity-80">
+                          {clockLabel(selection, hostZone)}{" "}
+                          {zoneLabel(selection, hostZone)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                {showNow && day === today && (
+                  <div
+                    className={styles.nowLine}
+                    style={{ top: (nowMinute - bounds.start) * PX }}
+                    aria-hidden
+                  >
+                    <span className={styles.nowPill}>
+                      {bareClockLabel(now!, bookerZone)}
+                    </span>
                   </div>
                 )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
 
         <div className="relative" style={{ height }} aria-hidden>
@@ -423,21 +491,15 @@ export function WeekStrip({
             hours.map((minute) => (
               <span
                 key={minute}
-                className={cn(
-                  styles.railLabel,
-                  "pl-2 text-[11px] text-muted-foreground",
-                )}
+                className={cn(styles.railLabel, "pl-2")}
                 style={{ top: (minute - bounds.start) * PX }}
               >
-                {shortClockLabel(
-                  momentOnDay(reference, minute, hostZone),
-                  hostZone,
-                )}
+                {hourLabel(momentOnDay(reference, minute, hostZone), hostZone)}
               </span>
             ))}
         </div>
       </div>
-      <p id={hintId} className="mt-5 text-xs text-muted-foreground">
+      <p id={hintId} className={cn(styles.secondary, "mt-4 text-xs")}>
         Press an open time or drag the meeting. With the keyboard, arrow keys
         move it a quarter hour or a day, Shift moves an hour, and Enter
         continues.

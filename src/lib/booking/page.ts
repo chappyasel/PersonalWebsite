@@ -63,12 +63,27 @@ export function weekStart(
   return from > lastDay ? null : from;
 }
 
-/** "15 min", "1 hr", or "1 hr 30". */
-export function lengthLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
+/** A length's numbers and units: 90 is 1 "h" and 30 "m", as Daybreak writes. */
+export function lengthParts(
+  minutes: number,
+): { value: number; unit: "h" | "m" }[] {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest === 0 ? `${hours} hr` : `${hours} hr ${rest}`;
+  return [
+    ...(hours > 0 ? [{ value: hours, unit: "h" as const }] : []),
+    ...(rest > 0 || hours === 0 ? [{ value: rest, unit: "m" as const }] : []),
+  ];
+}
+
+/** "15 minutes", "1 hour", or "1 hour 30 minutes", for screen readers. */
+export function lengthWords(minutes: number): string {
+  return lengthParts(minutes)
+    .map(({ value, unit }) =>
+      unit === "h"
+        ? `${value} hour${value === 1 ? "" : "s"}`
+        : `${value} minute${value === 1 ? "" : "s"}`,
+    )
+    .join(" ");
 }
 
 /** "Google Meet", "Video call", or the place, for the call line. */

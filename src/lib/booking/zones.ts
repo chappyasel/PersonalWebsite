@@ -184,14 +184,19 @@ export function compactRangeLabel(
     : `${from} ${fromHalf}-${to} ${toHalf}`;
 }
 
-/** "2 PM", or "2:30 PM" off the hour, for axis labels. */
-export function shortClockLabel(ms: number, timeZone: string): string {
+/** "9a", "12p", or "5:30a" off the hour: the schedule's hour labels. */
+export function hourLabel(ms: number, timeZone: string): string {
   const { hour, minute } = zonedParts(ms, timeZone);
   const twelve = hour % 12 === 0 ? 12 : hour % 12;
-  const suffix = hour < 12 ? "AM" : "PM";
+  const half = hour < 12 ? "a" : "p";
   return minute === 0
-    ? `${twelve} ${suffix}`
-    : `${twelve}:${String(minute).padStart(2, "0")} ${suffix}`;
+    ? `${twelve}${half}`
+    : `${twelve}:${String(minute).padStart(2, "0")}${half}`;
+}
+
+/** "4:12" for the now pill: the clock without AM or PM. */
+export function bareClockLabel(ms: number, timeZone: string): string {
+  return clockLabel(ms, timeZone).split(" ")[0]!;
 }
 
 /**

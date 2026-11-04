@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { TRPCReactProvider } from "~/trpc/react";
 
-import "~/styles/daylight.css";
+import "./meet.css";
 
 const title = "Meet with Chappy";
 const description =

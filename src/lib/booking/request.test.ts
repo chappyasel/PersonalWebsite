@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { lengthLabel, weekStart } from "./page";
+import { lengthParts, lengthWords, weekStart } from "./page";
 import {
   MESSAGES,
   REQUEST_ID,
@@ -120,9 +120,15 @@ describe("Daybreak's answers", () => {
 
 describe("page helpers", () => {
   it("labels lengths", () => {
-    expect(lengthLabel(15)).toBe("15 min");
-    expect(lengthLabel(60)).toBe("1 hr");
-    expect(lengthLabel(90)).toBe("1 hr 30");
+    expect(lengthParts(15)).toEqual([{ value: 15, unit: "m" }]);
+    expect(lengthParts(60)).toEqual([{ value: 1, unit: "h" }]);
+    expect(lengthParts(90)).toEqual([
+      { value: 1, unit: "h" },
+      { value: 30, unit: "m" },
+    ]);
+    expect(lengthWords(30)).toBe("30 minutes");
+    expect(lengthWords(60)).toBe("1 hour");
+    expect(lengthWords(150)).toBe("2 hours 30 minutes");
   });
 
   it("steps weeks inside the bookable Days", () => {

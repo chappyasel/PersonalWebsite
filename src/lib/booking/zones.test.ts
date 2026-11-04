@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bareClockLabel,
   clockLabel,
   compactRangeLabel,
   dateLabel,
   dayLabel,
+  hourLabel,
   minutesIntoDate,
   offsetMinutes,
   rangeLabel,
   sameClock,
-  shortClockLabel,
   slotSentence,
   slotText,
   zoneCity,
@@ -35,10 +36,15 @@ describe("reading a moment in a zone", () => {
   it("reads noon and midnight on a 12-hour clock", () => {
     expect(clockLabel(Date.UTC(2026, 10, 10, 20), PT)).toBe("12:00 PM");
     expect(clockLabel(Date.UTC(2026, 10, 10, 8), PT)).toBe("12:00 AM");
-    expect(shortClockLabel(Date.UTC(2026, 10, 10, 20, 30), PT)).toBe(
-      "12:30 PM",
-    );
-    expect(shortClockLabel(Date.UTC(2026, 10, 10, 17), PT)).toBe("9 AM");
+  });
+
+  it("writes the schedule's short hour labels", () => {
+    expect(hourLabel(Date.UTC(2026, 10, 10, 17), PT)).toBe("9a");
+    expect(hourLabel(Date.UTC(2026, 10, 10, 20), PT)).toBe("12p");
+    expect(hourLabel(Date.UTC(2026, 10, 10, 8), PT)).toBe("12a");
+    expect(hourLabel(Date.UTC(2026, 10, 10, 0), PT)).toBe("4p");
+    expect(hourLabel(ELEVEN_PT, "Asia/Kolkata")).toBe("12:30a");
+    expect(bareClockLabel(ELEVEN_PT, ET)).toBe("2:00");
   });
 
   it("writes a narrow range with one AM or PM when it can", () => {

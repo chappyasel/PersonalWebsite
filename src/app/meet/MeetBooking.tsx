@@ -5,10 +5,9 @@ import {
   CaretLeftIcon,
   CaretRightIcon,
   CheckCircleIcon,
-  EnvelopeSimpleIcon,
   MapPinIcon,
-  SunIcon,
   VideoCameraIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { keepPreviousData } from "@tanstack/react-query";
 import {
@@ -23,7 +22,6 @@ import {
   type BookingDay,
   type BookingPage,
   callLabel,
-  lengthLabel,
   weekStart,
 } from "~/lib/booking/page";
 import {
@@ -41,7 +39,6 @@ import {
   rangeLabel,
   slotSentence,
   slotText,
-  zonedParts,
 } from "~/lib/booking/zones";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
@@ -49,6 +46,7 @@ import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 
+import { Duration } from "./Duration";
 import { TimeList } from "./TimeList";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip } from "./WeekStrip";
@@ -225,75 +223,70 @@ export function MeetBooking({
 
       <div className="min-w-0 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div
-            role="group"
-            aria-label="Length"
-            className="flex flex-wrap gap-1.5"
-          >
+          <div role="group" aria-label="Length" className={styles.segmented}>
             {link.lengths.map((option) => (
-              <Button
+              <button
                 key={option}
                 type="button"
-                size="sm"
-                variant={option === length ? "default" : "outline"}
                 aria-pressed={option === length}
                 onClick={() => pickLength(option)}
-                className="tabular-nums"
+                className={styles.segment}
               >
-                {lengthLabel(option)}
-              </Button>
+                <Duration minutes={option} />
+              </button>
             ))}
           </div>
           <div className="flex items-center gap-1">
-            <Button
+            <button
               type="button"
-              size="icon"
-              variant="ghost"
               aria-label="Earlier week"
               disabled={previous === null}
               onClick={() => setWeek((w) => w - 1)}
+              className={styles.chevron}
             >
-              <CaretLeftIcon aria-hidden />
-            </Button>
-            <span className="min-w-28 text-center text-sm font-medium tabular-nums">
+              <CaretLeftIcon size={14} weight="bold" aria-hidden />
+            </button>
+            <span className="min-w-28 text-center text-[13px] font-semibold tabular-nums">
               {days.length > 0
                 ? rangeLabel(days[0]!.day, days.at(-1)!.day)
                 : ""}
             </span>
-            <Button
+            <button
               type="button"
-              size="icon"
-              variant="ghost"
               aria-label="Later week"
               disabled={next === null}
               onClick={() => setWeek((w) => w + 1)}
+              className={styles.chevron}
             >
-              <CaretRightIcon aria-hidden />
-            </Button>
+              <CaretRightIcon size={14} weight="bold" aria-hidden />
+            </button>
           </div>
         </div>
 
         {failure && recoveryFor(failure.code) === "repick" && (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            {failure.message}
-          </p>
+          <Problem>{failure.message}</Problem>
         )}
 
         {read?.status === "unavailable" ? (
-          <div className="flex items-center gap-3 py-10 text-sm text-muted-foreground">
+          <div
+            className={cn(
+              styles.secondary,
+              "flex items-center gap-3 py-10 text-sm",
+            )}
+          >
             Couldn&apos;t load these days.
             <Button
               type="button"
               size="sm"
-              variant="outline"
               onClick={() => void query.refetch()}
+              className={styles.quiet}
             >
               <ArrowClockwiseIcon aria-hidden />
               Try again
             </Button>
           </div>
         ) : read?.status === "closed" ? (
-          <p className="py-10 text-sm text-muted-foreground">
+          <p className={cn(styles.secondary, "py-10 text-sm")}>
             {MESSAGES.closed}
           </p>
         ) : (
@@ -332,18 +325,18 @@ export function MeetBooking({
               />
             </div>
             {suggestions.length > 0 && (
-              <p className="mt-4 flex items-start gap-1.5 text-xs leading-4 text-muted-foreground">
-                {/* Centred on the first line: (16px line - 13px icon) / 2. */}
-                <SunIcon
-                  size={13}
-                  weight="fill"
-                  className="mt-[1.5px] shrink-0 text-[hsl(var(--dl-am))]"
-                  aria-hidden
-                />
+              <p
+                className={cn(
+                  styles.secondary,
+                  "mt-3 flex items-start gap-2 text-xs leading-4",
+                )}
+              >
+                {/* Centred on the first line: (16px line - 6px dot) / 2. */}
+                <span aria-hidden className={cn(styles.dot, "mt-[5px]")} />
                 <span>
-                  A sun marks the times that suit {host} best: next to other
-                  meetings or at the edge of open time, so longer stretches stay
-                  free.
+                  A green dot marks the times that suit {host} best: next to
+                  other meetings or at the edge of open time, so longer
+                  stretches stay free.
                 </span>
               </p>
             )}
@@ -357,43 +350,46 @@ export function MeetBooking({
       >
         <form
           onSubmit={(event) => void submit(event)}
-          className="space-y-4 rounded-xl border bg-card/80 p-5 font-sans shadow-sm backdrop-blur"
+          className={cn(styles.card, "space-y-4 p-5")}
         >
           <div>
             {slot ? (
               <>
-                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  {lengthLabel(length)}
+                <p className="flex items-center gap-2 text-[13px] font-semibold">
+                  <Duration minutes={length} />
                   {suggestions.includes(selection!) && (
-                    <span className="ml-2 inline-flex items-center gap-1 normal-case tracking-normal text-[hsl(var(--dl-am))]">
-                      <SunIcon size={12} weight="fill" aria-hidden />
-                      Best for {host}
-                    </span>
+                    <span className={styles.capsule}>Best for {host}</span>
                   )}
                 </p>
-                <p className="mt-1 text-lg font-semibold">{slot.booker.day}</p>
-                <p className="text-base font-medium tabular-nums">
+                <p className="mt-1 text-[17px] font-semibold tracking-[-0.01em]">
+                  {slot.booker.day}
+                </p>
+                <p className="text-[15px] font-semibold tabular-nums">
                   {slot.booker.start} - {slot.booker.end}{" "}
-                  <span className="text-muted-foreground">
-                    {slot.booker.zone}
-                  </span>
+                  <span className={styles.secondary}>{slot.booker.zone}</span>
                 </p>
                 {!slot.sameClock && (
-                  <p className="text-sm tabular-nums text-muted-foreground">
+                  <p
+                    className={cn(styles.secondary, "text-[13px] tabular-nums")}
+                  >
                     {slot.host.start} {slot.host.zone} for {host}
                     {slot.dateDiffers && `, ${slot.host.day}`}
                   </p>
                 )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Pick a length and a time. Every time shows in your zone and{" "}
-                {host}&apos;s.
+              <p className={cn(styles.secondary, "text-sm")}>
+                Pick a time to book it here.
               </p>
             )}
           </div>
 
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <p
+            className={cn(
+              styles.secondary,
+              "flex items-center gap-2 text-[13px]",
+            )}
+          >
             <CallIcon size={16} aria-hidden />
             {callLabel(link.call)}
             {link.call.kind !== "place" && ". The link comes with the invite."}
@@ -409,6 +405,7 @@ export function MeetBooking({
                 autoComplete="name"
                 value={fields.name}
                 onChange={(e) => setFields({ ...fields, name: e.target.value })}
+                className={styles.input}
               />
             </Field>
             <Field label="Email" id="meet-email" hint="The invite goes here.">
@@ -422,6 +419,7 @@ export function MeetBooking({
                 onChange={(e) =>
                   setFields({ ...fields, email: e.target.value })
                 }
+                className={styles.input}
               />
             </Field>
             <Field
@@ -437,6 +435,7 @@ export function MeetBooking({
                 onChange={(e) =>
                   setFields({ ...fields, about: e.target.value })
                 }
+                className={styles.input}
               />
             </Field>
             <Field label="LinkedIn" id="meet-linkedin" optional>
@@ -450,6 +449,7 @@ export function MeetBooking({
                 onChange={(e) =>
                   setFields({ ...fields, linkedin: e.target.value })
                 }
+                className={styles.input}
               />
             </Field>
           </fieldset>
@@ -463,31 +463,52 @@ export function MeetBooking({
           )}
 
           {failure && recoveryFor(failure.code) !== "repick" && (
-            <p role="alert" className="text-sm font-medium text-destructive">
-              {failure.message}
-            </p>
+            <Problem>{failure.message}</Problem>
           )}
 
-          <Button type="submit" className="w-full" disabled={!canBook}>
-            {book.isPending
-              ? "Booking..."
-              : failure && recoveryFor(failure.code) === "retry"
-                ? "Try again"
-                : selection === null
-                  ? "Pick a time first"
-                  : `Book ${lengthLabel(length)}`}
+          <Button
+            type="submit"
+            disabled={!canBook}
+            className={cn(styles.primary, "w-full")}
+          >
+            {book.isPending ? (
+              "Booking..."
+            ) : failure && recoveryFor(failure.code) === "retry" ? (
+              "Try again"
+            ) : selection === null ? (
+              "Pick a time first"
+            ) : (
+              <>
+                Book <Duration minutes={length} />
+              </>
+            )}
           </Button>
           {needsToken &&
             token === null &&
             selection !== null &&
             !book.isPending && (
-              <p className="text-center text-xs text-muted-foreground">
+              <p className={cn(styles.secondary, "text-center text-xs")}>
                 Checking you&apos;re a person...
               </p>
             )}
         </form>
       </aside>
     </div>
+  );
+}
+
+/** A refusal or failure, in the ink with an icon: red is only the now line. */
+function Problem({ children }: { children: React.ReactNode }) {
+  return (
+    <p role="alert" className="flex items-start gap-2 text-sm font-semibold">
+      <WarningCircleIcon
+        size={16}
+        weight="fill"
+        className="mt-[2px] shrink-0"
+        aria-hidden
+      />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -508,17 +529,15 @@ function Field({
     <div className="space-y-1">
       <label
         htmlFor={id}
-        className="flex items-baseline justify-between text-sm font-medium"
+        className={cn(styles.label, "flex items-baseline justify-between")}
       >
         {label}
         {optional && (
-          <span className="text-xs font-normal text-muted-foreground">
-            Optional
-          </span>
+          <span className={cn(styles.secondary, "text-xs")}>Optional</span>
         )}
       </label>
       {children}
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className={cn(styles.secondary, "text-xs")}>{hint}</p>}
     </div>
   );
 }
@@ -543,59 +562,51 @@ function Confirmation({
   onAnother: () => void;
 }) {
   const slot = slotText(booked.start, booked.end, hostZone, bookerZone);
-  const light = zonedParts(booked.start, bookerZone).hour < 12 ? "am" : "pm";
   return (
     <section
-      data-light={light}
       className={cn(
-        styles.postcard,
-        "mx-auto max-w-xl rounded-2xl border bg-card/70 px-6 py-8 font-sans shadow-sm sm:px-10",
+        styles.card,
+        "mx-auto max-w-md px-6 py-8 text-center sm:px-8",
       )}
     >
       <CheckCircleIcon
-        size={32}
-        weight="duotone"
-        className="text-[hsl(var(--dl-ic-moss))]"
+        size={40}
+        weight="fill"
+        className={cn(styles.check, "mx-auto")}
         aria-hidden
       />
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mt-3 text-2xl font-semibold outline-none"
+        className="mt-3 text-[22px] font-bold tracking-[-0.015em] outline-none"
       >
         You&apos;re meeting {host}
       </h2>
-      <p className="mt-4 text-lg font-medium">{slot.booker.day}</p>
-      <p className="text-lg tabular-nums">
+      <p className="mt-4 text-[17px] font-semibold">{slot.booker.day}</p>
+      <p className="text-[15px] font-semibold tabular-nums">
         {slot.booker.start} - {slot.booker.end}{" "}
-        <span className="text-muted-foreground">
-          your time, {slot.booker.zone}
-        </span>
+        <span className={styles.secondary}>your time, {slot.booker.zone}</span>
       </p>
       {!slot.sameClock && (
-        <p className="mt-1 tabular-nums text-muted-foreground">
+        <p className={cn(styles.secondary, "mt-1 text-[13px] tabular-nums")}>
           {slot.host.start} - {slot.host.end} {slot.host.zone} for {host}
           {slot.dateDiffers && `, ${slot.host.day}`}
         </p>
       )}
-      <p className="mt-6 flex items-start gap-2">
-        <EnvelopeSimpleIcon size={18} className="mt-0.5 shrink-0" aria-hidden />
-        <span>
-          The invite is in your inbox at{" "}
-          <span className="font-medium">{email}</span>
-          {call.kind === "meet"
-            ? ", with the Google Meet link."
-            : call.kind === "place"
-              ? `, at ${call.location ?? "the place"}.`
-              : ", with the call link."}
-        </span>
+      <p className="mt-6 text-sm">
+        The invite is in your inbox at{" "}
+        <span className="font-semibold">{email}</span>
+        {call.kind === "meet"
+          ? ", with the Google Meet link."
+          : call.kind === "place"
+            ? `, at ${call.location ?? "the place"}.`
+            : ", with the call link."}
       </p>
-      <p className="mt-1 text-sm text-muted-foreground">{booked.title}</p>
+      <p className={cn(styles.secondary, "mt-1 text-[13px]")}>{booked.title}</p>
       <Button
         type="button"
-        variant="outline"
-        className="mt-8"
         onClick={onAnother}
+        className={cn(styles.quiet, "mt-8 px-4")}
       >
         Book another time
       </Button>
