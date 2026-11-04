@@ -1,0 +1,159 @@
+/*
+ * The /meet picker, in the daylight pages' palette (daylight.css,
+ * globals.css): moss for open time, ochre for the slots that suit the host
+ * best, and each Day's column washed from the morning arm's ochre to the
+ * evening arm's dusk slate, so the hour reads as light before it reads as a
+ * number. No colour here is new.
+ */
+
+.figure {
+  --meet-open: var(--dl-ic-moss);
+  --meet-best: var(--dl-am);
+  --meet-line: var(--border);
+}
+
+/* One Day's hours. --hour is the height of an hour in pixels. */
+.dayBody {
+  position: relative;
+  border-radius: 0.625rem;
+  background-image: repeating-linear-gradient(
+      to bottom,
+      hsl(var(--meet-line) / 0.9) 0 1px,
+      transparent 1px var(--hour)
+    ),
+    linear-gradient(
+      to bottom,
+      hsl(var(--dl-am) / 0.07),
+      hsl(var(--background) / 0) 38%,
+      hsl(var(--background) / 0) 62%,
+      hsl(var(--dl-pm) / 0.09)
+    );
+  box-shadow: inset 0 0 0 1px hsl(var(--meet-line));
+  touch-action: pan-y;
+  cursor: default;
+}
+
+.dayBody[data-closed] {
+  background-image: repeating-linear-gradient(
+    135deg,
+    hsl(var(--meet-line) / 0.55) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.open {
+  position: absolute;
+  inset-inline: 3px;
+  border-radius: 0.4rem;
+  background: hsl(var(--meet-open) / 0.13);
+  box-shadow: inset 2px 0 0 hsl(var(--meet-open) / 0.55);
+  cursor: pointer;
+}
+
+.open:hover {
+  background: hsl(var(--meet-open) / 0.18);
+}
+
+/* A slot that suits the host: an ochre glint, like the lit windows in the
+   skyline. It marks the slot without claiming it. */
+.best {
+  position: absolute;
+  inset-inline: 5px;
+  border-radius: 0.35rem;
+  pointer-events: none;
+  background: hsl(var(--meet-best) / 0.12);
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--meet-best) / 0.55),
+    0 0 14px -2px hsl(var(--meet-best) / 0.45);
+  color: hsl(var(--meet-best));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .best {
+    animation: glint 3.2s ease-in-out infinite;
+  }
+}
+
+@keyframes glint {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--meet-best) / 0.55),
+      0 0 10px -3px hsl(var(--meet-best) / 0.35);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px hsl(var(--meet-best) / 0.7),
+      0 0 18px -2px hsl(var(--meet-best) / 0.55);
+  }
+}
+
+.ghost {
+  position: absolute;
+  inset-inline: 3px;
+  border-radius: 0.4rem;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1.5px hsl(var(--foreground) / 0.35);
+  background: hsl(var(--foreground) / 0.04);
+}
+
+.selection {
+  position: absolute;
+  inset-inline: 2px;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow:
+    0 6px 16px -6px hsl(var(--foreground) / 0.45),
+    0 1px 2px hsl(var(--foreground) / 0.25);
+  cursor: grab;
+  touch-action: none;
+}
+
+.selection[data-dragging] {
+  cursor: grabbing;
+  box-shadow:
+    0 12px 26px -8px hsl(var(--foreground) / 0.5),
+    0 2px 4px hsl(var(--foreground) / 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .selection {
+    transition:
+      top 110ms ease-out,
+      height 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+      box-shadow 150ms ease;
+  }
+}
+
+.railLabel {
+  position: absolute;
+  inset-inline: 0;
+  transform: translateY(-50%);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The confirmation's band takes the sky of the hour it's booked for. */
+.postcard[data-light="am"] {
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--dl-am) / 0.22),
+    hsl(var(--background) / 0)
+  );
+}
+
+.postcard[data-light="pm"] {
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--dl-pm) / 0.24),
+    hsl(var(--background) / 0)
+  );
+}
+
+.timeChip[data-best] {
+  box-shadow: inset 0 0 0 1px hsl(var(--dl-am) / 0.6);
+  background: hsl(var(--dl-am) / 0.08);
+}

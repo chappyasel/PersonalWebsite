@@ -18,6 +18,7 @@ describe("public sitemap", () => {
       "/musings",
       "/projects",
       "/talks",
+      "/meet",
     ]) {
       expect(urls).toContain(`https://www.chappyasel.com${path}`);
     }

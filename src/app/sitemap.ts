@@ -36,6 +36,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.8,
     },
+    {
+      url: "https://www.chappyasel.com/meet",
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
     ...["projects", "talks"].map((path) => ({
       url: `https://www.chappyasel.com/${path}`,
       changeFrequency: "monthly" as const,

@@ -8,6 +8,7 @@ My personal website — a portfolio, book library, strength tracker, blog, and m
 - **[Book Notes](https://chappyasel.com/books)** — a searchable library of books I've read with ratings, notes, and reviews (synced from Notion)
 - **[Weightlifting](https://chappyasel.com/weightlifting)** — strength progression analytics, personal records, and workout history (synced from my iOS app)
 - **[Blog](https://chappyasel.com)** — links to Medium articles on AI, engineering, and building communities
+- **[Meet](https://chappyasel.com/meet)** — book a call at an open time on my calendar, through Daybreak's Booking links
 - **[Projects](https://chappyasel.com)** — apps and tools I've built (Weightlifting App, Homework App, Liar's Dice calculator, etc.)
 
 ## Tech stack
@@ -49,6 +50,11 @@ The site will be available at [http://localhost:3000](http://localhost:3000).
 ## Deployment
 
 Deployed on Vercel with automated cron jobs for syncing books and weightlifting data.
+
+`/meet` needs `DAYBREAK_BOOKING_URL`, `BOOKING_PROXY_SECRET`,
+`TURNSTILE_SECRET_KEY`, and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in Production;
+`.env.example` says what each does. Without the first, the page says booking
+isn't open. Without the Turnstile secret, production refuses to book.
 
 Vercel must have `ENABLE_EXPERIMENTAL_COREPACK=1` set for Production, Preview,
 and Development. Leave the Vercel Install Command unset. Corepack will then use

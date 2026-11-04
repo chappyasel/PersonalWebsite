@@ -3,6 +3,7 @@ import {
   BarbellIcon,
   BooksIcon,
   BrainIcon,
+  CalendarCheckIcon,
   ChartLineIcon,
   CodeIcon,
   GearIcon,
@@ -144,6 +145,12 @@ const PAGES: Entry[] = [
     href: "/weight-log",
     what: "Bodyweight history, training phases, and DEXA scans in an interactive chart.",
     icon: glyph(ChartLineIcon),
+  },
+  {
+    name: "Meet with Chappy",
+    href: "/meet",
+    what: "Book a call at an open time on Chappy's calendar. Times show in both zones.",
+    icon: glyph(CalendarCheckIcon),
   },
   {
     name: "Liar's Dice",
