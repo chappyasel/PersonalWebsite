@@ -268,11 +268,11 @@ export function WeekStrip({
         className="grid"
         style={{
           gridTemplateColumns: [
-            "2.75rem",
+            "3.25rem",
             ...days.map((d) =>
               d.open.length > 0 ? "minmax(0,1fr)" : "minmax(0,0.5fr)",
             ),
-            twoClocks ? "2.75rem" : "0",
+            twoClocks ? "3.25rem" : "0",
           ].join(" "),
         }}
       >
@@ -330,15 +330,18 @@ export function WeekStrip({
 
         {/* Body row: the booker's rail, the Days, the host's rail */}
         <div className="relative" style={{ height }} aria-hidden>
-          {hours.map((minute) => (
-            <span
-              key={minute}
-              className={cn(styles.railLabel, "pr-2 text-right")}
-              style={{ top: (minute - bounds.start) * PX }}
-            >
-              {bookerHour(minute)}
-            </span>
-          ))}
+          {/* The top edge's label would sit under the zone heading. */}
+          {hours
+            .filter((m) => m > bounds.start)
+            .map((minute) => (
+              <span
+                key={minute}
+                className={cn(styles.railLabel, "pr-2 text-right")}
+                style={{ top: (minute - bounds.start) * PX }}
+              >
+                {bookerHour(minute)}
+              </span>
+            ))}
         </div>
 
         <div
@@ -488,15 +491,20 @@ export function WeekStrip({
 
         <div className="relative" style={{ height }} aria-hidden>
           {twoClocks &&
-            hours.map((minute) => (
-              <span
-                key={minute}
-                className={cn(styles.railLabel, "pl-2")}
-                style={{ top: (minute - bounds.start) * PX }}
-              >
-                {hourLabel(momentOnDay(reference, minute, hostZone), hostZone)}
-              </span>
-            ))}
+            hours
+              .filter((m) => m > bounds.start)
+              .map((minute) => (
+                <span
+                  key={minute}
+                  className={cn(styles.railLabel, "pl-2")}
+                  style={{ top: (minute - bounds.start) * PX }}
+                >
+                  {hourLabel(
+                    momentOnDay(reference, minute, hostZone),
+                    hostZone,
+                  )}
+                </span>
+              ))}
         </div>
       </div>
       <p id={hintId} className={cn(styles.secondary, "mt-4 text-xs")}>

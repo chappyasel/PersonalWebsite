@@ -233,10 +233,11 @@ function Schedule({ picked }: { picked: number }) {
             backgroundColor: `rgb(${GREEN})`,
             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.18)",
             color: "#ffffff",
-            fontSize: picked >= 30 ? 20 : 14,
+            fontSize: 20,
           }}
         >
-          {picked >= 15 ? "2:00 PM" : ""}
+          {/* A 15-minute block is too thin to hold its time. */}
+          {picked >= 30 ? "2:00 PM" : ""}
         </div>
       </div>
     </div>

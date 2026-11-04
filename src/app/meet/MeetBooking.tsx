@@ -482,9 +482,9 @@ export function MeetBooking({
             ) : selection === null ? (
               "Pick a time first"
             ) : (
-              <>
+              <span>
                 Book <Duration minutes={length} />
-              </>
+              </span>
             )}
           </Button>
           {needsToken &&
