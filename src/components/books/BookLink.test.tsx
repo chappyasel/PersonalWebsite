@@ -200,7 +200,11 @@ describe("inline book navigation", () => {
       </InlineBookPreviewProvider>,
     );
     expect(clickLink()).toBe(true);
-    expect(open).toHaveBeenCalledWith("the-culture-code", expect.any(Object));
+    expect(open).toHaveBeenCalledWith(
+      "the-culture-code",
+      expect.any(Object),
+      undefined,
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(window.location.pathname).toBe("/manual");
   });

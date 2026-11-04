@@ -17,9 +17,9 @@ vi.mock("../contexts/BookPreviewContext", () => ({
 vi.mock("~/trpc/react", () => ({
   api: { useUtils: () => ({ books: { getById: { prefetch } } }) },
 }));
-vi.mock("../components/RelatedBooks", () => ({ RelatedBooks: () => null }));
+vi.mock("../components/BookNotesEnd", () => ({ BookNotesEnd: () => null }));
 // The notes and the related list reach the page's opener through context,
-// as BookLink and RelatedBooks do.
+// as BookLink and BookNotesEnd do.
 vi.mock("../components/BookDetailContent", async () => {
   const { useInlineBookPreview, useInlineBookPrefetch } = await import(
     "~/components/books/InlineBookPreviewProvider"

@@ -19,6 +19,7 @@ Treat these code paths as authoritative:
 - Supported tag taxonomy: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/tagColors.ts`
 - Note search passages and embeddings: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/lib/books/noteChunks.ts`, `noteEmbeddings.ts`, and `semanticNoteSearch.ts`
 - Related books on each book page: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/server/queries/relatedBooks.ts`. It reads the same passages read-only, averages each book's embeddings, and lists up to 5 books by cosine similarity (floor 0.60), one reading per book and no abandoned attempts. Books without written notes have no passages, so they get no list and appear in none.
+- Backlinks ("Referenced In") on each book page: `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/server/queries/bookBacklinks.ts`. It reads `books.notes` read-only and counts only explicit links to another Book Notes page (a Notion page mention, or a books.chappyasel.com URL), never a title typed as plain text. Each citing book is listed once, from its latest reading that links, with the line holding its first link; a link to one reading counts for every reading of that book, and abandoned attempts cite nothing. Related Books leaves out any book already listed under Referenced In.
 
 If those files change the fields, filters, freshness, or query behavior described here, update this skill in the same code change.
 

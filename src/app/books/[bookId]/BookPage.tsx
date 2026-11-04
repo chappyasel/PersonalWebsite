@@ -1,10 +1,11 @@
 "use client";
 
 import { BookDetailContent } from "../components/BookDetailContent";
-import { RelatedBooks } from "../components/RelatedBooks";
+import { BookNotesEnd } from "../components/BookNotesEnd";
 import { BOOK_MODAL_HISTORY_STATE } from "../components/modalHistory";
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
+import { type BookArrival, withBookArrival } from "../lib/noteMatchLink";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -59,13 +60,13 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
     [utils],
   );
   const openLinkedBook = useCallback(
-    (linkedBookId: string, origin: DOMRect) => {
+    (linkedBookId: string, origin: DOMRect, arrival?: BookArrival) => {
       recordModalOrigin(origin);
       openModalById(linkedBookId);
       window.history.pushState(
         BOOK_MODAL_HISTORY_STATE,
         "",
-        bookPath(linkedBookId),
+        withBookArrival(bookPath(linkedBookId), arrival),
       );
     },
     [openModalById, bookPath],
@@ -112,7 +113,7 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
               bookshelfBookCount={bookshelfBookCount}
               onClose={handleClose}
               tagHref={tagHref}
-              relatedBooks={<RelatedBooks bookId={bookId} />}
+              afterNotes={<BookNotesEnd bookId={bookId} />}
             />
           </InlineBookOpener>
         </div>

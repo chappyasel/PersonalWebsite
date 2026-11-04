@@ -109,16 +109,16 @@ describe("RelatedBooks", () => {
     expect(screen.queryByText("Related Books")).toBeNull();
   });
 
-  it("sets the list off from the notes with a break", () => {
-    renderRelated([CHATTER]);
-    const section = screen.getByRole("region", { name: "Related Books" });
-    const breakMark = section.querySelector("[data-related-books-break]")!;
-    expect(breakMark.getAttribute("aria-hidden")).toBe("true");
-    // Three pills over two.
+  it("leaves out books the page already lists above it", () => {
+    renderRelated([CHATTER, THE_WAR_OF_ART], { exclude: new Set(["chatter"]) });
     expect(
-      [...breakMark.children].map((course) => course.children.length),
-    ).toEqual([3, 2]);
-    expect(breakMark.nextElementSibling?.textContent).toBe("Related Books");
+      screen.getAllByRole("link").map((link) => link.getAttribute("href")),
+    ).toEqual(["/books/the-war-of-art"]);
+  });
+
+  it("draws nothing when every book is listed above it", () => {
+    renderRelated([CHATTER], { exclude: new Set(["chatter"]) });
+    expect(document.querySelector("[data-related-books]")).toBeNull();
   });
 
   it("lists each book with its rating and when it was read", () => {
@@ -171,7 +171,11 @@ describe("RelatedBooks", () => {
     const open = renderRelated([THE_WAR_OF_ART]);
     const click = new MouseEvent("click", { bubbles: true, cancelable: true });
     fireEvent(screen.getByRole("link"), click);
-    expect(open).toHaveBeenCalledWith("the-war-of-art", expect.any(Object));
+    expect(open).toHaveBeenCalledWith(
+      "the-war-of-art",
+      expect.any(Object),
+      undefined,
+    );
     expect(click.defaultPrevented).toBe(true);
   });
 
@@ -182,7 +186,7 @@ describe("RelatedBooks", () => {
     const coverBox = new DOMRect(328, 467, 56, 84);
     vi.spyOn(cover, "getBoundingClientRect").mockReturnValue(coverBox);
     fireEvent.click(link);
-    expect(open).toHaveBeenCalledWith("chatter", coverBox);
+    expect(open).toHaveBeenCalledWith("chatter", coverBox, undefined);
   });
 
   it("fetches a book while the pointer rests on its row", () => {
@@ -221,7 +225,7 @@ describe("RelatedBooks", () => {
   });
 });
 
-describe("BookDetailContent related books slot", () => {
+describe("BookDetailContent after-notes slot", () => {
   const BOOK: BaseBook = {
     id: "talking-to-strangers",
     notionId: "notion-talking-to-strangers",
@@ -257,7 +261,7 @@ describe("BookDetailContent related books slot", () => {
           onShare={vi.fn()}
           copied={false}
           bookId={BOOK.id}
-          relatedBooks={slot}
+          afterNotes={slot}
           {...props}
         />
       </FontProvider>,

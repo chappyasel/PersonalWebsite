@@ -25,6 +25,9 @@ vi.mock("~/server/queries/books", async () => {
   };
 });
 vi.mock("~/server/queries/relatedBooks", () => ({ getRelatedBooks: vi.fn() }));
+vi.mock("~/server/queries/bookBacklinks", () => ({
+  getBookBacklinks: vi.fn(),
+}));
 vi.mock("~/lib/books/linkPreview.server", () => ({
   linkPreviewsFor: vi.fn(() => Promise.resolve({})),
 }));

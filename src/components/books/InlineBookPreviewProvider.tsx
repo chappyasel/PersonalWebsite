@@ -12,13 +12,19 @@ import {
 import { recordModalOrigin } from "~/lib/originFlight";
 
 import { inlineBookHistoryEntry } from "~/app/books/components/modalHistory";
+import type { BookArrival } from "~/app/books/lib/noteMatchLink";
 
 const InlineBookModal = dynamic(() => import("./InlineBookModal"), {
   ssr: false,
 });
-const OpenBookContext = createContext<
-  ((bookId: string, origin: DOMRect) => void) | null
->(null);
+/** Opens a book out of `origin`'s box, landing on `arrival` when given. */
+export type OpenBook = (
+  bookId: string,
+  origin: DOMRect,
+  arrival?: BookArrival,
+) => void;
+
+const OpenBookContext = createContext<OpenBook | null>(null);
 const PrefetchBookContext = createContext<((bookId: string) => void) | null>(
   null,
 );
@@ -56,7 +62,7 @@ export function InlineBookOpener({
   prefetch,
   children,
 }: {
-  open: (bookId: string, origin: DOMRect) => void;
+  open: OpenBook;
   prefetch?: (bookId: string) => void;
   children: ReactNode;
 }) {

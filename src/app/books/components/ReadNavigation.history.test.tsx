@@ -60,7 +60,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock("~/lib/analytics", () => ({ capture: vi.fn(), captureOnce: vi.fn() }));
-vi.mock("./RelatedBooks", () => ({ RelatedBooks: () => null }));
+vi.mock("./BookNotesEnd", () => ({ BookNotesEnd: () => null }));
 vi.mock("~/trpc/react", () => ({
   api: {
     useUtils: () => ({ books: { getById: { prefetch: vi.fn() } } }),

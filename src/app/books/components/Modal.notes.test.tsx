@@ -25,7 +25,7 @@ vi.mock("~/trpc/react", () => ({
 vi.mock("./ModalHost", () => ({
   fullBookPageHref: (id: string) => `/books/${id}`,
 }));
-vi.mock("./RelatedBooks", () => ({ RelatedBooks: () => null }));
+vi.mock("./BookNotesEnd", () => ({ BookNotesEnd: () => null }));
 vi.mock("~/lib/analytics", () => ({ capture: vi.fn(), captureOnce: vi.fn() }));
 
 const oldSlug = "disciplined-entrepreneurship-expanded-updated";

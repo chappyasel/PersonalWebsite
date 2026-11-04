@@ -20,6 +20,7 @@ import {
 } from "~/server/api/trpc";
 import { db } from "~/server/db";
 import { books, syncMetadata } from "~/server/db/schema";
+import { getBookBacklinks } from "~/server/queries/bookBacklinks";
 import { searchBookNotes } from "~/server/queries/bookNotesSearch";
 import {
   bookCollectionInputSchema,
@@ -75,6 +76,17 @@ export const booksRouter = createTRPCRouter({
     .input(z.object({ bookId: z.string().min(1) }))
     .query(({ input }) =>
       orEmpty("related-books", () => getRelatedBooks(input.bookId), []),
+    ),
+
+  /**
+   * The books whose notes link to this one, for the end of its page, each
+   * with the line that links it. Empty when nothing links it, and when the
+   * database is away.
+   */
+  getBacklinks: publicProcedure
+    .input(z.object({ bookId: z.string().min(1) }))
+    .query(({ input }) =>
+      orEmpty("book-backlinks", () => getBookBacklinks(input.bookId), []),
     ),
 
   /**

@@ -5,6 +5,7 @@ import { type MouseEvent, useCallback } from "react";
 import { prefersFullPage } from "~/components/modal-sheet/sheetRoute";
 
 import { useInlineBookPreview } from "./InlineBookPreviewProvider";
+import type { BookArrival } from "~/app/books/lib/noteMatchLink";
 import { navigateFullDocument } from "~/app/components/route-transition-prototype/documentNavigation";
 
 /**
@@ -13,7 +14,8 @@ import { navigateFullDocument } from "~/app/components/route-transition-prototyp
  * surface hosting the link opens the book: the Books app or an open book
  * over itself, a document in its own book modal. With no such surface the
  * link navigates. The modal flies out of `origin`'s box when one is given
- * (a row's cover), else out of the link's own.
+ * (a row's cover), else out of the link's own. A link to a passage passes
+ * its `arrival`, which `href` must already carry for the full-page case.
  */
 export function useOpenBookLink() {
   const openBook = useInlineBookPreview();
@@ -23,6 +25,7 @@ export function useOpenBookLink() {
       href: string,
       slug: string,
       origin?: Element | null,
+      arrival?: BookArrival,
     ) => {
       if (
         event.defaultPrevented ||
@@ -40,7 +43,11 @@ export function useOpenBookLink() {
       }
       if (!openBook) return;
       event.preventDefault();
-      openBook(slug, (origin ?? event.currentTarget).getBoundingClientRect());
+      openBook(
+        slug,
+        (origin ?? event.currentTarget).getBoundingClientRect(),
+        arrival,
+      );
     },
     [openBook],
   );

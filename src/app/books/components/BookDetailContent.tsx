@@ -914,8 +914,8 @@ type BookDetailContentProps = {
   onTagSelect?: (tag: string, event: MouseEvent<HTMLAnchorElement>) => void;
   /** Replace the current modal reading without adding a history entry. */
   onReadSelect?: (bookId: string, event: MouseEvent<HTMLAnchorElement>) => void;
-  /** Drawn under the notes once they have loaded (RelatedBooks). */
-  relatedBooks?: ReactNode;
+  /** Drawn under the notes once they have loaded (BookNotesEnd). */
+  afterNotes?: ReactNode;
 };
 
 export function BookDetailContent({
@@ -937,7 +937,7 @@ export function BookDetailContent({
   tagHref,
   onTagSelect,
   onReadSelect,
-  relatedBooks,
+  afterNotes,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const notice = selectBookNotice(book);
@@ -1951,7 +1951,7 @@ export function BookDetailContent({
                     </ReactMarkdown>
                   </PhotoProvider>
                 </div>
-                {relatedBooks}
+                {afterNotes}
               </>
             ) : fullBook ? null : (
               <p className="py-8 text-center text-muted-foreground">

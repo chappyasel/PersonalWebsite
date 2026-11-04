@@ -20,3 +20,19 @@ export function noteMatchHref(
     anchor ? `#${encodeURIComponent(anchor)}` : ""
   }`;
 }
+
+/** Where a book opens when a link names a passage: the words to mark there
+ * (`?hl=`) and the chapter or takeaway to scroll to (`#anchor`). */
+export type BookArrival = { highlight: string | null; anchor: string | null };
+
+/** A book's address with its arrival added. Any query it has is kept. */
+export function withBookArrival(href: string, arrival?: BookArrival): string {
+  if (!arrival) return href;
+  const [address = "", hash] = href.split("#", 2);
+  const [path = "", search = ""] = address.split("?", 2);
+  const params = new URLSearchParams(search);
+  if (arrival.highlight) params.set(SEARCH_HIGHLIGHT_PARAM, arrival.highlight);
+  const query = params.toString();
+  const anchor = arrival.anchor ? encodeURIComponent(arrival.anchor) : hash;
+  return `${path}${query ? `?${query}` : ""}${anchor ? `#${anchor}` : ""}`;
+}

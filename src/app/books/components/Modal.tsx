@@ -2,6 +2,7 @@
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { useBookPath } from "../hooks/useBookPath";
+import { type BookArrival, withBookArrival } from "../lib/noteMatchLink";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -46,9 +47,9 @@ import { Button } from "~/components/ui/button";
 
 import { BookDetailContent } from "./BookDetailContent";
 import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
+import { BookNotesEnd } from "./BookNotesEnd";
 import { ModalBackdrop } from "./ModalBackdrop";
 import { type ModalPresentation, fullBookPageHref } from "./ModalHost";
-import { RelatedBooks } from "./RelatedBooks";
 import {
   BOOK_MODAL_HISTORY_STATE,
   bookIdFromPathname,
@@ -249,16 +250,21 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   ]);
 
   // Another reading, or a book the notes link: this modal becomes that book.
-  const switchToBook = (nextBookId: string) => {
+  // A link to a passage (a backlink) lands on it, except over a document,
+  // whose address names the open book in its hash.
+  const switchToBook = (nextBookId: string, arrival?: BookArrival) => {
     if (isClosingRef.current) return;
 
     const entry =
       presentation?.source === "document"
         ? inlineBookHistoryEntry(nextBookId, window.location)
         : {
-            href: bookPath(
-              nextBookId,
-              withoutSearchHighlight(searchParams.toString()),
+            href: withBookArrival(
+              bookPath(
+                nextBookId,
+                withoutSearchHighlight(searchParams.toString()),
+              ),
+              arrival,
             ),
             state: BOOK_MODAL_HISTORY_STATE,
           };
@@ -634,7 +640,11 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       </div>
                     </div>
                   ) : book ? (
-                    <InlineBookOpener open={switchToBook}>
+                    <InlineBookOpener
+                      open={(nextBookId, _origin, arrival) =>
+                        switchToBook(nextBookId, arrival)
+                      }
+                    >
                       <BookDetailContent
                         key={book.id}
                         onReadSelect={handleReadSelect}
@@ -662,8 +672,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                         }
                         tagHref={tagHref}
                         onTagSelect={handleTagSelect}
-                        relatedBooks={
-                          <RelatedBooks
+                        afterNotes={
+                          <BookNotesEnd
                             bookId={book.id}
                             booksHref={
                               fromStacks ? presentation.booksHref : undefined

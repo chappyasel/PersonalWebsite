@@ -131,29 +131,27 @@ function splitLong(text: string): string[] {
   return parts;
 }
 
-type Context = Pick<NoteChunk, "section" | "heading" | "anchor">;
+/** Where a block of notes sits: its part, its chapter or takeaway, and the
+ * anchor the book page gives that chapter or takeaway. */
+export type NoteContext = Pick<NoteChunk, "section" | "heading" | "anchor">;
 
 /**
- * Split a book's notes into passages: one per chapter, part, or takeaway
- * toggle, with the section it belongs to and the anchor the book page gives
- * its chapter or toggle. Notes are read the way the page shows them, so
- * sections not written yet produce no passages.
+ * Walk a book's notes the way the page renders them, calling `visit` with
+ * each block that does not itself change the context (a paragraph, a list,
+ * a quote) and the context it sits in. Every part, chapter, and takeaway
+ * toggle gets a context object of its own, so a new object is a passage
+ * boundary, even when its fields match the one before.
  */
-export function chunkBookNotes(notes: string): NoteChunk[] {
+export function walkNoteBlocks(
+  notes: string,
+  visit: (node: MarkdownNode, context: NoteContext) => void,
+): void {
   const markdown = renderableNotes(withoutPlaceholders(notes));
   const tree = processor.runSync(
     processor.parse(markdown),
   ) as unknown as MarkdownNode;
 
-  const chunks: NoteChunk[] = [];
-  let context: Context = { section: null, heading: null, anchor: null };
-  let lines: string[] = [];
-  const flush = () => {
-    const text = lines.join("\n").trim();
-    lines = [];
-    for (const part of text ? splitLong(text) : [])
-      chunks.push({ ...context, text: part });
-  };
+  let context: NoteContext = { section: null, heading: null, anchor: null };
 
   function flow(nodes: MarkdownNode[]) {
     for (const node of nodes) {
@@ -161,14 +159,12 @@ export function chunkBookNotes(notes: string): NoteChunk[] {
       const label = chapterLabelOf(node);
       const chapter = label !== null || isElement(node, "h2", "h3", "h4");
       if (typeof id === "string" && isElement(node, "h1")) {
-        flush();
         context = {
           section: squash(textOfNode(node)),
           heading: null,
           anchor: id,
         };
       } else if (typeof id === "string" && chapter) {
-        flush();
         context = {
           ...context,
           heading: squash(textOfNode(label ?? node)),
@@ -178,7 +174,6 @@ export function chunkBookNotes(notes: string): NoteChunk[] {
         // A takeaway toggle is its own passage under its summary, linked to
         // the toggle (which opens when the address names it); whatever
         // chapter context it sat in comes back once it closes.
-        flush();
         const outer = context;
         const summary = toggleSummaryOf(node);
         // The summary is raw HTML, so its markdown (`Build **trusting
@@ -188,24 +183,49 @@ export function chunkBookNotes(notes: string): NoteChunk[] {
               .replace(/(\*\*|__)(.+?)\1/g, "$2")
               .replace(/(?<![\w*])\*(?!\s)(.+?)\*(?![\w*])/g, "$1")
           : "";
+        context = { ...context };
         if (title)
-          context = {
-            ...context,
-            heading: context.heading ? `${context.heading} › ${title}` : title,
-          };
-        if (typeof id === "string") context = { ...context, anchor: id };
+          context.heading = context.heading
+            ? `${context.heading} › ${title}`
+            : title;
+        if (typeof id === "string") context.anchor = id;
         flow((node.children ?? []).filter((child) => child !== summary));
-        flush();
-        context = outer;
+        // Back in the outer chapter, but as a passage of its own.
+        context = { ...outer };
       } else if (isElement(node, "div", "section")) {
         flow(node.children ?? []);
       } else {
-        lines.push(...blockLines(node));
+        visit(node, context);
       }
     }
   }
 
   flow(tree.children ?? []);
+}
+
+/**
+ * Split a book's notes into passages: one per chapter, part, or takeaway
+ * toggle, with the section it belongs to and the anchor the book page gives
+ * its chapter or toggle. Notes are read the way the page shows them, so
+ * sections not written yet produce no passages.
+ */
+export function chunkBookNotes(notes: string): NoteChunk[] {
+  const chunks: NoteChunk[] = [];
+  let current: NoteContext | null = null;
+  let lines: string[] = [];
+  const flush = () => {
+    const text = lines.join("\n").trim();
+    lines = [];
+    if (!text || !current) return;
+    for (const part of splitLong(text)) chunks.push({ ...current, text: part });
+  };
+  walkNoteBlocks(notes, (node, context) => {
+    if (context !== current) {
+      flush();
+      current = context;
+    }
+    lines.push(...blockLines(node));
+  });
   flush();
   return chunks;
 }
