@@ -181,7 +181,7 @@ export function MeetBooking({
       length,
       name: fields.name.trim(),
       email: fields.email.trim(),
-      about: fields.about.trim(),
+      ...(fields.about.trim() ? { about: fields.about.trim() } : {}),
       ...(fields.linkedin.trim() ? { linkedin: fields.linkedin.trim() } : {}),
     };
     attempt.current = attemptFor(attempt.current, attemptKey(request));
@@ -472,10 +472,10 @@ export function MeetBooking({
               label="What it's about"
               id="meet-about"
               hint="One line. It goes in the invite."
+              optional
             >
               <Input
                 id="meet-about"
-                required
                 maxLength={200}
                 value={fields.about}
                 onChange={(e) =>

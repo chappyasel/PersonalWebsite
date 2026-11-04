@@ -324,6 +324,7 @@ async function postBooking(
   clientIp: string | undefined,
   deps: Deps,
 ): Promise<BookResult> {
+  const about = request.about?.trim();
   const linkedin = request.linkedin?.trim();
   try {
     const response = await deps.fetch(
@@ -340,7 +341,8 @@ async function postBooking(
           length: request.length,
           name: request.name,
           email: request.email,
-          about: request.about,
+          // Both optional: a blank one isn't sent.
+          ...(about ? { about } : {}),
           ...(linkedin ? { linkedin } : {}),
           requestId: request.requestId,
         }),

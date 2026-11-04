@@ -115,7 +115,7 @@ async function fillForm() {
   const user = userEvent.setup();
   await user.type(screen.getByLabelText("Name"), "Ana Lopez");
   await user.type(screen.getByLabelText("Email"), "ana@example.com");
-  await user.type(screen.getByLabelText("What it's about"), "Planning");
+  await user.type(screen.getByLabelText(/^What it's about/), "Planning");
   return user;
 }
 
@@ -288,6 +288,31 @@ describe("booking on /meet", () => {
     expect(screen.getByText("12:00 PM - 1:00 PM")).toBeTruthy();
     // The block on each grid, the computer's and the phone's.
     expect(screen.getAllByText("12:00-1:00 PM")).toHaveLength(2);
+  });
+
+  it("books with what it's about left empty, which is optional", async () => {
+    mocks.mutateAsync.mockResolvedValueOnce({
+      ok: true,
+      booked: { start: at(11), end: at(11, 30), title: "Ana 🤝 Chappy" },
+    });
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    expect(screen.getByLabelText(/^What it's about/)).toHaveProperty(
+      "required",
+      false,
+    );
+    // LinkedIn's and this field's.
+    expect(screen.getAllByText("Optional")).toHaveLength(2);
+    expect(screen.getByText("One line. It goes in the invite.")).toBeTruthy();
+    pickBest();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Name"), "Ana Lopez");
+    await user.type(screen.getByLabelText("Email"), "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
+    await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledOnce());
+    expect(mocks.mutateAsync.mock.calls[0]![0]).not.toHaveProperty("about");
+    expect(
+      await screen.findByRole("heading", { name: "You're meeting Chappy" }),
+    ).toBeTruthy();
   });
 
   it("asks for another time when the slot was just taken", async () => {

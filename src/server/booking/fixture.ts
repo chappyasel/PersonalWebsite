@@ -110,7 +110,7 @@ export function fixtureBook(
 ): BookResult {
   const link = LINKS[slug];
   if (!link) return readBookingAnswer(404, { error: { code: "not_found" } });
-  const about = fields.about.toLowerCase();
+  const about = fields.about?.toLowerCase() ?? "";
   if (about.includes("taken")) {
     return readBookingAnswer(409, { error: { code: "taken" } });
   }

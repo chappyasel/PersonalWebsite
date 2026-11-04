@@ -382,6 +382,32 @@ describe("booking", () => {
     });
   });
 
+  it("leaves a blank about line out of the body", async () => {
+    const { fetch, calls } = fakeFetch(
+      json(200, { success: true }),
+      json(200, { booked }),
+      json(200, { success: true }),
+      json(200, { booked }),
+    );
+    const withoutAbout = { ...BOOKING, about: undefined };
+    for (const request of [{ ...BOOKING, about: "  " }, withoutAbout]) {
+      expect(
+        await submitBooking(
+          remote(),
+          request,
+          undefined,
+          { fetch, now },
+          createPageCache(),
+        ),
+      ).toEqual({ ok: true, booked });
+    }
+    for (const [, init] of [calls[1]!, calls[3]!]) {
+      const body = JSON.parse(init?.body as string) as Record<string, unknown>;
+      expect(body).not.toHaveProperty("about");
+      expect(body).toMatchObject({ name: "Ana", requestId: BOOKING.requestId });
+    }
+  });
+
   it("never forwards when the person check fails", async () => {
     const { fetch } = fakeFetch(json(200, { success: false }));
     const result = await submitBooking(
@@ -484,6 +510,11 @@ describe("booking", () => {
     const start = read.page.suggested[0]!;
     expect(
       await submitBooking(fixture, { ...BOOKING, start }, undefined, deps),
+    ).toMatchObject({ ok: true, booked: { title: "Ana 🤝 Chappy" } });
+    // What it's about is optional.
+    const withoutAbout = { ...BOOKING, about: undefined };
+    expect(
+      await submitBooking(fixture, { ...withoutAbout, start }, undefined, deps),
     ).toMatchObject({ ok: true, booked: { title: "Ana 🤝 Chappy" } });
     expect(
       await submitBooking(

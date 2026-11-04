@@ -41,7 +41,8 @@ export type BookingFields = {
   length: number;
   name: string;
   email: string;
-  about: string;
+  /** What it's about, optional: one line for the invite. */
+  about?: string;
   linkedin?: string;
 };
 
@@ -52,7 +53,7 @@ export function attemptKey(fields: BookingFields): string {
     fields.length,
     fields.name.trim(),
     fields.email.trim().toLowerCase(),
-    fields.about.trim(),
+    fields.about?.trim() ?? "",
     fields.linkedin?.trim() ?? "",
   ]);
 }
