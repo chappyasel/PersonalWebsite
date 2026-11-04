@@ -2,6 +2,7 @@
 
 import {
   ArrowClockwiseIcon,
+  ArrowUUpLeftIcon,
   CaretLeftIcon,
   CaretRightIcon,
   CheckCircleIcon,
@@ -30,6 +31,7 @@ import {
   blockStart,
   callLabel,
   daysBetween,
+  daysFitting,
   stepLabel,
   windowStart,
 } from "~/lib/booking/page";
@@ -73,19 +75,31 @@ import { HdrPlate } from "./HdrPlate";
 import { Pop, Reveal } from "./Reveal";
 import { SpokenTimes } from "./SpokenTimes";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
-import { WeekStrip } from "./WeekStrip";
+import { WeekStrip, layoutTop } from "./WeekStrip";
 import { confettiFrom } from "./confetti";
 import { tick } from "./haptics";
 import styles from "./meet.module.css";
+import { STICKY_HEADER } from "./sticky";
 
 const noSubscription = () => () => undefined;
 
 const PressButton = motion.create(Button);
-/** A pressed button's grow and its settle back: quick, with iOS's bounce. */
-const PRESS = { type: "spring" as const, duration: 0.35, bounce: 0.5 };
+/** The booking form, which the phone's docked Book button submits from
+ * outside it. */
+const FORM_ID = "meet-booking";
+/** A pressed button's grow and its settle back: unhurried, with a soft
+ * bounce rather than a jump. */
+const PRESS = { type: "spring" as const, duration: 0.55, bounce: 0.22 };
 
-/** Below Tailwind's `md`, where the grid shows a phone's few Days. */
-const PHONE_QUERY = "(max-width: 767.98px)";
+/**
+ * Below 872px, the phone's layout: the Days alone, with the booking in the
+ * bar at the screen's foot. From 872px the card sits beside the Days, which
+ * is where 4 of them fit next to it (32px of page sides, 4 Days of
+ * `DAY_MIN` and both rails, the 40px gap, the 21rem card). The form never
+ * sits under the schedule. The classes that switch with it say
+ * `min-[872px]` and `max-[871.98px]`.
+ */
+const PHONE_QUERY = "(max-width: 871.98px)";
 
 function isPhone(): boolean {
   return window.matchMedia?.(PHONE_QUERY).matches ?? false;
@@ -105,6 +119,72 @@ function usePhone() {
 /** The browser's zone after hydration; null while the server renders. */
 function useBookerZone() {
   return useSyncExternalStore(noSubscription, browserTimeZone, () => null);
+}
+
+/** The width of the column the grid draws in, once measured. */
+function useWidth(ref: React.RefObject<HTMLElement | null>) {
+  const [width, setWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver !== "function") return;
+    // Zero is a column not laid out yet.
+    const measure = () => setWidth(element.clientWidth || null);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+}
+
+/** Where the computer's calendar starts below the column's top, under its
+ * nav and Day headings, so the card beside lines up with it. */
+const CALENDAR_TOP = 80;
+/** The panel's rounded top the grid's sticky head draws over it: .cap. */
+const PANEL_TOP = 12;
+function useCalendarTop(ref: React.RefObject<HTMLElement | null>) {
+  const [top, setTop] = useState({ rest: CALENDAR_TOP, stuck: CALENDAR_TOP });
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver !== "function") return;
+    const measure = () => {
+      const shown = (e: HTMLElement) => e.getClientRects().length > 0;
+      const grid = [
+        ...element.querySelectorAll<HTMLElement>('[role="group"]'),
+      ].find(shown);
+      const head = [
+        ...element.querySelectorAll<HTMLElement>("[data-sticky-head]"),
+      ].find(shown);
+      // No calendar shown, or it's a phone's: the card keeps where it was.
+      if (!grid || !head) return;
+      // As laid out: the column's entrance would shift a measured rect.
+      // Stuck, the grid's top sits its sticky head's height under the
+      // window's top, less the panel's top that the head draws over it.
+      const rest = layoutTop(grid) - layoutTop(element);
+      const stuck = head.offsetHeight - PANEL_TOP;
+      setTop((was) =>
+        was.rest === rest && was.stuck === stuck ? was : { rest, stuck },
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return top;
+}
+
+/** Enough of an email to name the invite by; the server checks it. */
+const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** A first name past this many letters ends in an ellipsis in the
+ * invite's name, as one over a hundred long once did. */
+const NAME_LETTERS = 20;
+function shortName(name: string) {
+  const letters = [...name];
+  return letters.length > NAME_LETTERS
+    ? `${letters.slice(0, NAME_LETTERS).join("").trimEnd()}…`
+    : name;
 }
 
 /** How far past the shown Days the page keeps read, so a step never waits. */
@@ -156,6 +236,16 @@ export function MeetBooking({
   const hostZone = initial.timeZone;
   const bookerZone = useBookerZone() ?? hostZone;
   const phone = usePhone();
+  // The Days across the grid, by its width; before it's measured, a
+  // phone's 3 or a computer's week. The page draws both grids and shows
+  // one by the screen's width, so a phone's first paint is already its
+  // own; `count` is the one shown.
+  const column = useRef<HTMLDivElement>(null);
+  const width = useWidth(column);
+  const calendarTop = useCalendarTop(column);
+  const phoneCount = width === null ? PHONE_DAYS : daysFitting(width, true);
+  const weekCount = width === null ? WEEK : daysFitting(width, false);
+  const count = phone ? phoneCount : weekCount;
   const { host } = initial.link;
   const { firstDay, lastDay } = initial;
 
@@ -165,8 +255,8 @@ export function MeetBooking({
   const reducedMotion = useReducedMotion();
   // The Book button under a finger: grown, and HDR-bright on a screen that can.
   const [pressed, setPressed] = useState(false);
-  // Days after the first bookable one: a week steps by 7, a phone by 3. It
-  // opens on the Days holding the first best time.
+  // Days after the first bookable one, stepping by the Days shown. It
+  // opens on Days holding the first best time.
   const [offset, setOffset] = useState(() => {
     const first = selected ? daysBetween(firstDay, selected.day.day) : 0;
     return first < PHONE_DAYS ? 0 : first - (first % PHONE_DAYS);
@@ -212,18 +302,18 @@ export function MeetBooking({
     );
   const shown = (count: number, from = offset) =>
     shownDates(count, from).map((day) => known.get(day) ?? { day, open: [] });
-  const days = shown(WEEK);
-  const phoneDays = shown(PHONE_DAYS);
+  const days = shown(weekCount);
+  const phoneDays = shown(phoneCount);
   // A Day whose block hasn't come back yet, among the shown Days and the
-  // phone's Days a swipe brings in on either side; a read block that left a
+  // Days a swipe brings in on either side; a read block that left a
   // Day out has nothing open on it.
   const pending = new Set(
-    shownDates(WEEK + 2 * PHONE_DAYS, offset - PHONE_DAYS).filter(
+    shownDates(weekCount + 2 * phoneCount, offset - phoneCount).filter(
       (day) => readFor(day)?.data === undefined,
     ),
   );
   // The blocks holding the shown Days, for a read that failed or closed.
-  const shownReads = [...new Set(shownDates(WEEK).map(readFor))].filter(
+  const shownReads = [...new Set(shownDates(count).map(readFor))].filter(
     (read) => read !== undefined,
   );
   const failed = shownReads.filter(
@@ -277,6 +367,15 @@ export function MeetBooking({
   );
   const selection = selected?.start ?? null;
   const best = selection !== null && suggestions.includes(selection);
+  // The best time nearest the one picked, for the way back to it.
+  const nearestBest =
+    selection === null || suggestions.length === 0
+      ? null
+      : suggestions.reduce((near, start) =>
+          Math.abs(start - selection) < Math.abs(near - selection)
+            ? start
+            : near,
+        );
 
   const select = (start: number) => {
     const day = dayHolding(loaded, start);
@@ -286,6 +385,18 @@ export function MeetBooking({
     setSelected({ start, day });
     setFailure(null);
     setSheet((at) => (at === "closed" ? "peek" : at));
+  };
+
+  /** Picks the nearest best time, stepping the Days to it if it's out of view. */
+  const toBest = () => {
+    if (nearestBest === null) return;
+    const day = dayHolding(loaded, nearestBest);
+    if (!day) return;
+    const index = daysBetween(firstDay, day.day);
+    setOffset((at) =>
+      index >= at && index < at + count ? at : index - (index % count),
+    );
+    select(nearestBest);
   };
 
   const pickLength = (next: number) => {
@@ -320,6 +431,12 @@ export function MeetBooking({
     selection === null || now === null
       ? null
       : untilLabel(selection, now, bookerZone);
+  const namedDay =
+    until?.day === "today"
+      ? "Today"
+      : until?.day === "tomorrow"
+        ? "Tomorrow"
+        : null;
 
   const slot =
     selection === null
@@ -434,37 +551,92 @@ export function MeetBooking({
     if (canGo(direction * step)) go(direction * step);
   };
   const gridShown = failed.length === 0 && !closed;
-  const weekNav = (
+  const navFor = (n: number, shownDays: BookingDay[]) => (
     <DayNav
-      unit="week"
-      shown={days}
+      unit={n >= WEEK ? "week" : "days"}
+      shown={shownDays}
       offset={offset}
-      canEarlier={canGo(-WEEK)}
-      canLater={canGo(WEEK)}
-      onStep={(direction) => go(direction * WEEK)}
+      canEarlier={canGo(-n)}
+      canLater={canGo(n)}
+      onStep={(direction) => go(direction * n)}
       onReturn={() => go(-offset)}
     />
   );
-  const daysNav = (
-    <DayNav
-      unit="days"
-      shown={phoneDays}
-      offset={offset}
-      canEarlier={canGo(-PHONE_DAYS)}
-      canLater={canGo(PHONE_DAYS)}
-      onStep={(direction) => go(direction * PHONE_DAYS)}
-      onReturn={() => go(-offset)}
-    />
-  );
+  const weekNav = navFor(weekCount, days);
+  const daysNav = navFor(phoneCount, phoneDays);
   const needsToken = Boolean(turnstileSiteKey);
   const canBook =
     selection !== null && !book.isPending && (!needsToken || token !== null);
   const CallIcon = link.call.kind === "place" ? MapPinIcon : VideoCameraIcon;
+  const firstName = shortName(fields.name.trim().split(/\s+/)[0] ?? "");
+  const named = !!firstName && LOOKS_LIKE_EMAIL.test(fields.email.trim());
+
+  // The Book button and what's said under it: at the form's end beside the
+  // Days, docked at the phone card's foot.
+  const bookDock = (
+    <>
+      {/* Pressed, it grows on a spring and its blue goes brighter than
+          white, as iOS's own buttons light up under a finger. */}
+      <PressButton
+        type="submit"
+        // On a phone it docks at the card's foot, outside the form.
+        form={FORM_ID}
+        disabled={!canBook}
+        className={cn(styles.primary, "relative w-full")}
+        data-pressed={pressed || undefined}
+        whileTap={reducedMotion ? undefined : { scale: 1.04 }}
+        transition={PRESS}
+        onTapStart={() => {
+          setPressed(true);
+          tick();
+        }}
+        onTap={() => setPressed(false)}
+        onTapCancel={() => setPressed(false)}
+      >
+        <HdrPlate className={styles.pressPlate} />
+        <span className="relative">
+          <ButtonLabel
+            state={
+              book.isPending
+                ? "Booking..."
+                : failure && recoveryFor(failure.code) === "retry"
+                  ? "Try again"
+                  : selection === null
+                    ? "Pick a time first"
+                    : null
+            }
+            length={length}
+          />
+        </span>
+      </PressButton>
+      {needsToken &&
+        token === null &&
+        selection !== null &&
+        !book.isPending && (
+          <p className={cn(styles.secondary, "text-center text-xs")}>
+            Checking you&apos;re a person...
+          </p>
+        )}
+    </>
+  );
 
   const form = (
     <form
+      id={FORM_ID}
       onSubmit={(event) => void submit(event)}
-      className={cn("space-y-4", phone ? "px-5" : cn(styles.card, "p-5"))}
+      // The computer's card sticks 16px under the window's top, or level
+      // with the stuck calendar's top (STICKY_HEADER), so it's at most the
+      // window less that and 16px under it; past it, it scrolls, as the
+      // phone's card does.
+      className={cn(
+        "space-y-4",
+        phone
+          ? "px-5"
+          : cn(
+              styles.card,
+              "max-h-[calc(100dvh-var(--card-top)-1rem)] overflow-y-auto overscroll-contain p-5",
+            ),
+      )}
     >
       {/* The sheet's peek shows down to the end of this block. */}
       <div data-peek-end>
@@ -474,28 +646,45 @@ export function MeetBooking({
               block. */}
             <p
               className={cn(
-                "flex items-center justify-between gap-2 text-[19px] font-semibold tracking-[-0.01em]",
+                "flex items-center justify-between gap-2 text-[19px] font-bold tracking-[-0.01em]",
                 phone && "leading-tight",
               )}
             >
               <span className="min-w-0 truncate">
-                <DateText text={slot.booker.day} rolls />
+                {/* Today and Tomorrow by name, in place of the date; a Day
+                    further off keeps its date, with how far it is. */}
+                <DateText text={namedDay ?? slot.booker.day} rolls />
                 <Reveal
-                  show={!!until?.day}
+                  show={!!until?.day && !namedDay}
                   className={cn(styles.secondary, styles.aside, "font-medium")}
                 >
                   <span className={styles.dot}> · </span>
                   <SwapText text={until?.day ?? ""} />
                 </Reveal>
               </span>
-              <Pop show={best} className={styles.capsule}>
-                <StarIcon aria-hidden weight="fill" size={10} />
-                Best
-              </Pop>
+              {/* Best, or away from the best times, a quiet way back to
+                  the nearest one. They trade places, each popping. */}
+              <span className={styles.badgeSlot}>
+                <Pop show={best} className={styles.capsule}>
+                  <StarIcon aria-hidden weight="fill" size={10} />
+                  Best
+                </Pop>
+                <Pop show={!best && nearestBest !== null} className="flex">
+                  <button
+                    type="button"
+                    aria-label="Back to the nearest best time"
+                    onClick={toBest}
+                    className={styles.capsuleBack}
+                  >
+                    <ArrowUUpLeftIcon aria-hidden weight="bold" size={10} />
+                    Best
+                  </button>
+                </Pop>
+              </span>
             </p>
             <p
               className={cn(
-                "text-[17px] font-semibold tabular-nums",
+                "text-[17px] font-bold tabular-nums",
                 phone && "mt-0.5 leading-tight",
               )}
             >
@@ -527,13 +716,6 @@ export function MeetBooking({
           </p>
         )}
       </div>
-
-      <p
-        className={cn(styles.secondary, "flex items-center gap-2 text-[13px]")}
-      >
-        <CallIcon size={16} aria-hidden />
-        {callLabel(link.call)}
-      </p>
 
       <fieldset disabled={book.isPending} className="space-y-3">
         <Field label="Name" id="meet-name">
@@ -603,58 +785,38 @@ export function MeetBooking({
         <Problem>{failure.message}</Problem>
       )}
 
-      <div className={cn(phone && styles.sheetDock, "space-y-4")}>
-        {/* Pressed, it grows on a spring and its blue goes brighter than
-            white, as iOS's own buttons light up under a finger. */}
-        <PressButton
-          type="submit"
-          disabled={!canBook}
-          className={cn(styles.primary, "relative w-full")}
-          data-pressed={pressed || undefined}
-          whileTap={reducedMotion ? undefined : { scale: 1.04 }}
-          transition={PRESS}
-          onTapStart={() => {
-            setPressed(true);
-            tick();
-          }}
-          onTap={() => setPressed(false)}
-          onTapCancel={() => setPressed(false)}
-        >
-          <HdrPlate className={styles.pressPlate} />
-          <span className="relative">
-            <ButtonLabel
-              state={
-                book.isPending
-                  ? "Booking..."
-                  : failure && recoveryFor(failure.code) === "retry"
-                    ? "Try again"
-                    : selection === null
-                      ? "Pick a time first"
-                      : null
-              }
-              length={length}
-            />
-          </span>
-        </PressButton>
-        {needsToken &&
-          token === null &&
-          selection !== null &&
-          !book.isPending && (
-            <p className={cn(styles.secondary, "text-center text-xs")}>
-              Checking you&apos;re a person...
-            </p>
-          )}
-      </div>
+      {/* Where the meeting happens, the form's last line, half as far over
+        the Book button as the fields sit from it. */}
+      <p
+        className={cn(styles.secondary, "flex items-center gap-2 text-[13px]")}
+      >
+        <CallIcon size={16} aria-hidden className="shrink-0" />
+        <span className="flex min-w-0 items-baseline">
+          <span className="shrink-0">{callLabel(link.call)}</span>
+          {/* The invite's name, as the booking will title it, once
+            there's a name and an email to send it to. A long first name
+            ends in an ellipsis, short of the host's. */}
+          <Reveal show={named} className="min-w-0">
+            <span className="flex min-w-0">
+              <span className={cn(styles.dot, "shrink-0")}> · </span>
+              <span className="truncate">{firstName}</span>
+              <span className="shrink-0"> 🤝 {host}</span>
+            </span>
+          </Reveal>
+        </span>
+      </p>
+
+      {!phone && <div className="!mt-2 space-y-4">{bookDock}</div>}
     </form>
   );
 
   return (
-    <div className="grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_21rem]">
+    <div className="grid gap-x-10 gap-y-8 min-[872px]:grid-cols-[minmax(0,1fr)_21rem]">
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
 
-      <div className="min-w-0 space-y-5">
+      <div ref={column} className="min-w-0 space-y-5">
         {(link.lengths.length > 1 || !gridShown) && (
           <div
             data-enter
@@ -683,8 +845,10 @@ export function MeetBooking({
             {/* Over the grid when it's drawn; here when a read failed. */}
             {!gridShown && (
               <>
-                <div className="ml-auto hidden md:block">{weekNav}</div>
-                <div className="ml-auto md:hidden">{daysNav}</div>
+                <div className="ml-auto hidden min-[872px]:block">
+                  {weekNav}
+                </div>
+                <div className="ml-auto min-[872px]:hidden">{daysNav}</div>
               </>
             )}
           </div>
@@ -724,7 +888,7 @@ export function MeetBooking({
             style={{ ["--enter" as string]: 3 }}
             aria-busy={pending.size > 0 || undefined}
           >
-            <div className="hidden md:block">
+            <div className="hidden min-[872px]:block">
               <WeekStrip
                 days={days}
                 pending={pending}
@@ -736,11 +900,24 @@ export function MeetBooking({
                 suggestions={suggestions}
                 onSelect={select}
                 onConfirm={confirm}
-                onPastEdge={pastEdge(WEEK)}
+                onPastEdge={pastEdge(weekCount)}
                 nav={weekNav}
+                onStep={(direction) => go(direction * weekCount)}
+                canStep={{
+                  earlier: canGo(-weekCount),
+                  later: canGo(weekCount),
+                }}
+                peek={{
+                  earlier: canGo(-weekCount)
+                    ? shown(weekCount, Math.max(0, offset - weekCount))
+                    : undefined,
+                  later: canGo(weekCount)
+                    ? shown(weekCount, offset + weekCount)
+                    : undefined,
+                }}
               />
             </div>
-            <div className="md:hidden">
+            <div className="min-[872px]:hidden">
               <WeekStrip
                 compact
                 days={phoneDays}
@@ -754,19 +931,19 @@ export function MeetBooking({
                 suggestions={suggestions}
                 onSelect={select}
                 onConfirm={confirm}
-                onStep={(direction) => go(direction * PHONE_DAYS)}
-                onPastEdge={pastEdge(PHONE_DAYS)}
+                onStep={(direction) => go(direction * phoneCount)}
+                onPastEdge={pastEdge(phoneCount)}
                 nav={daysNav}
                 canStep={{
-                  earlier: canGo(-PHONE_DAYS),
-                  later: canGo(PHONE_DAYS),
+                  earlier: canGo(-phoneCount),
+                  later: canGo(phoneCount),
                 }}
                 peek={{
-                  earlier: canGo(-PHONE_DAYS)
-                    ? shown(PHONE_DAYS, Math.max(0, offset - PHONE_DAYS))
+                  earlier: canGo(-phoneCount)
+                    ? shown(phoneCount, Math.max(0, offset - phoneCount))
                     : undefined,
-                  later: canGo(PHONE_DAYS)
-                    ? shown(PHONE_DAYS, offset + PHONE_DAYS)
+                  later: canGo(phoneCount)
+                    ? shown(phoneCount, offset + phoneCount)
                     : undefined,
                 }}
               />
@@ -792,15 +969,28 @@ export function MeetBooking({
       </div>
 
       {phone ? (
-        <BookingSheet state={sheet} onState={setSheet} label="Your booking">
+        <BookingSheet
+          state={sheet}
+          onState={setSheet}
+          label="Your booking"
+          dock={bookDock}
+        >
           {form}
         </BookingSheet>
       ) : (
         <aside
           data-enter
-          style={{ ["--enter" as string]: 5 }}
+          // Level with the calendar's top, under its nav and Day headings.
+          style={{
+            ["--enter" as string]: 5,
+            ["--card-top" as string]: STICKY_HEADER
+              ? `calc(env(safe-area-inset-top, 0px) + ${calendarTop.stuck}px)`
+              : "1rem",
+            marginTop: calendarTop.rest,
+            top: "var(--card-top)",
+          }}
           aria-label="Your booking"
-          className="w-full max-md:hidden md:max-w-md lg:sticky lg:top-6 lg:self-start"
+          className="w-full max-[871.98px]:hidden min-[872px]:sticky min-[872px]:self-start"
         >
           {form}
         </aside>
@@ -809,8 +999,8 @@ export function MeetBooking({
   );
 }
 
-/** The arrows and the range they step: a week on a computer, 3 Days on a
- * phone. Away from the first, a dot before them goes back to it. */
+/** The arrows and the range they step: the Days shown, a week at the most.
+ * Away from the first, a dot before them goes back to it. */
 function DayNav({
   unit,
   shown,
@@ -832,16 +1022,6 @@ function DayNav({
   const away = offset > 0;
   return (
     <div className="relative flex items-center">
-      <Pop show={away} className={styles.navReturn}>
-        <button
-          type="button"
-          aria-label={unit === "week" ? "Back to this week" : "Back to today"}
-          onClick={onReturn}
-          className="grid size-full place-items-center rounded-[inherit] outline-none"
-        >
-          <span aria-hidden className={styles.navReturnDot} />
-        </button>
-      </Pop>
       <button
         type="button"
         aria-label={`Earlier ${unit}`}
@@ -852,15 +1032,36 @@ function DayNav({
         <CaretLeftIcon size={14} weight="bold" aria-hidden />
       </button>
       {/* How far out, since each Day carries its own date; the dates are
-        for a screen reader, which can't glance at the columns. */}
-      <span className="px-1 text-center text-[15px] font-semibold tabular-nums">
-        <SwapText text={stepLabel(offset, shown.length)} />
+        for a screen reader, which can't glance at the columns. Away from
+        the first, a blue dot over its end marks it, and a press anywhere
+        on it goes back. */}
+      <button
+        type="button"
+        disabled={!away}
+        onClick={onReturn}
+        className={cn(
+          styles.navLabel,
+          // 9px each side, so the arrows sit clear of the words.
+          "px-[9px] text-center text-[15px] font-bold tabular-nums",
+        )}
+      >
+        <span className="relative inline-block">
+          <SwapText text={stepLabel(offset, shown.length)} />
+          <Pop show={away} className={styles.navReturnDot}>
+            {null}
+          </Pop>
+        </span>
         {shown.length > 0 && (
           <span className="sr-only">
             , {rangeLabel(shown[0]!.day, shown.at(-1)!.day)}
           </span>
         )}
-      </span>
+        {away && (
+          <span className="sr-only">
+            , back to {unit === "week" ? "this week" : "today"}
+          </span>
+        )}
+      </button>
       <button
         type="button"
         aria-label={`Later ${unit}`}
@@ -1026,14 +1227,14 @@ function Confirmation({
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mt-3 text-[22px] font-bold tracking-[-0.015em] outline-none"
+        className="mt-3 text-[22px] font-extrabold tracking-[-0.015em] outline-none"
       >
         You&apos;re meeting {host}
       </h2>
-      <p className="mt-4 text-[17px] font-semibold">
+      <p className="mt-4 text-[17px] font-bold">
         <DateText text={slot.booker.day} />
       </p>
-      <p className="text-[15px] font-semibold tabular-nums">
+      <p className="text-[15px] font-bold tabular-nums">
         <DateText text={slot.booker.short.start} />
         <span className={styles.dash}>-</span>
         <DateText text={slot.booker.short.end} />{" "}

@@ -79,9 +79,24 @@ export function blockStart(firstDay: string, offset: number): string {
 /** How many Days a phone shows at once, so each column stays wide enough to tap. */
 export const PHONE_DAYS = 3;
 
+/** The narrowest a Day's column gets before the grid shows one Day fewer. */
+const DAY_MIN = 90;
+
+/**
+ * How many Days fit across the grid's width, 3 to 7: a phone shows 3, a
+ * wider window more, a computer's full width the week. Beside the Days run
+ * the time rails, the booker's alone on a phone and the host's too on a
+ * computer, which the width leaves room for.
+ */
+export function daysFitting(width: number, phone: boolean): number {
+  const rails = phone ? 40 : 104;
+  const fit = Math.floor((width - rails) / DAY_MIN);
+  return Math.max(PHONE_DAYS, Math.min(WEEK, fit));
+}
+
 /**
  * The `from` of the Days `offset` Days after the first bookable Day, or
- * null past the last one. A week steps by `WEEK`, a phone by `PHONE_DAYS`.
+ * null past the last one. The Days step by however many are shown.
  */
 export function windowStart(
   firstDay: string,

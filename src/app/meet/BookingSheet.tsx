@@ -28,8 +28,8 @@ export type SheetState = "closed" | "peek" | "full";
 /** Critically damped, so it eases all the way in with no overshoot to
  * settle back from, as iOS sheets do. */
 const SPRING = { type: "spring" as const, duration: 0.5, bounce: 0 };
-/** The room kept above the card when it's open. */
-const ABOVE = 56;
+/** The room kept above the open card, under the status bar. */
+const ABOVE = 8;
 /** Off the screen's bottom and sides: the bar sits 20px in, a little
  * narrower than Safari's toolbar, and the card grows out to 16px as it
  * grows up. It must never touch the screen's bottom edge, even while it
@@ -38,7 +38,7 @@ const BOTTOM = 8;
 const EDGE = { bar: 20, card: 16 };
 /** Its glass: clear as a bar, and as the card about as clear as the bar
  * once was, as the Owner asked on November 4, 2026. */
-const GLASS = { bar: 0.62, card: 0.78 };
+const GLASS = { bar: 0.56, card: 0.72 };
 /** Space under the time in the bar. */
 const BAR_PAD = 16;
 /** A touch this far is a drag, not a tap. */
@@ -61,21 +61,30 @@ export function BookingSheet({
   state,
   onState,
   label,
+  dock,
   children,
 }: {
   state: SheetState;
   onState: (state: SheetState) => void;
   label: string;
+  /** At the card's foot, over the form's end: the Book button. */
+  dock?: ReactNode;
   children: ReactNode;
 }) {
   const reducedMotion = useReducedMotion();
   const sheet = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
+  const docked = useRef<HTMLDivElement>(null);
+  const safeTop = useRef<HTMLSpanElement>(null);
+  const safeBottom = useRef<HTMLSpanElement>(null);
   const height = useMotionValue(0);
   const shown = useMotionValue(0);
-  const [size, setSize] = useState({ bar: 0, card: 0 });
-  const [lift, setLift] = useState(0);
+  const [size, setSize] = useState({ bar: 0, card: 0, dock: 0 });
+  // How far it rides up over the keyboard, and the most it may be tall
+  // from there: read together, so they reach the screen in the same frame.
+  const [fit, setFit] = useState({ lift: 0, max: Infinity });
+  const { lift } = fit;
   const drag = useRef<{
     id: number;
     y: number;
@@ -94,52 +103,64 @@ export function BookingSheet({
     const measure = () => {
       const end = inner.querySelector<HTMLElement>("[data-peek-end]");
       // From the sheet's top: the handle, then the content to the time's end.
+      // Screen rects carry the sheet's arrival scale, so the time's end is
+      // read back at full size, and rounded, so a fraction of a pixel's
+      // reflow as the card widens doesn't make a new size.
       const offset = inner.offsetTop;
+      const scale = outer.getBoundingClientRect().width / outer.offsetWidth;
       const bar = end
-        ? offset +
-          end.getBoundingClientRect().bottom -
-          inner.getBoundingClientRect().top +
-          BAR_PAD
+        ? Math.round(
+            offset +
+              (end.getBoundingClientRect().bottom -
+                inner.getBoundingClientRect().top) /
+                (scale || 1) +
+              BAR_PAD,
+          )
         : offset + inner.offsetHeight;
+      // The screen's visible height, keyboard or not, less the card's
+      // margin at the foot and the status bar at the top. Only the visible
+      // viewport's height is read: with the keyboard up, iOS scrolls the
+      // page and pans that viewport, and the card's rect and the viewport's
+      // offset disagreed on a phone about where the screen's top was, which
+      // left about 110px empty above the card.
+      const visible = window.visualViewport?.height ?? window.innerHeight;
       const room =
-        (window.visualViewport?.height ?? window.innerHeight) - ABOVE - BOTTOM;
-      const card = Math.max(bar, Math.min(offset + inner.offsetHeight, room));
-      setSize({ bar, card });
+        visible -
+        BOTTOM -
+        (safeBottom.current?.offsetHeight ?? 0) -
+        (safeTop.current?.offsetHeight ?? 0) -
+        ABOVE;
+      // The dock sits over the form's end, which runs on under it.
+      const dock = docked.current?.offsetHeight ?? 0;
+      const card = Math.max(
+        bar,
+        Math.min(offset + inner.offsetHeight + dock, room),
+      );
+      setSize((was) =>
+        was.bar === bar && was.card === card && was.dock === dock
+          ? was
+          : { bar, card, dock },
+      );
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(inner);
-    return () => observer.disconnect();
+    if (docked.current) observer.observe(docked.current);
+    // A window made shorter, as on a computer, leaves the card less room:
+    // past it, the form scrolls inside the card.
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
+    };
     // The keyboard changes the room above the card.
   }, [lift]);
   const sizeNow = useRef(size);
   sizeNow.current = size;
-
-  // Which edges of the card the form runs past, as it scrolls.
-  const [cut, setCut] = useState({ top: false, bottom: false });
-  const edges = () => {
-    const body = scroller.current;
-    if (!body) return;
-    const top = state === "full" && body.scrollTop > 1;
-    const bottom =
-      state === "full" &&
-      body.scrollTop + body.clientHeight < body.scrollHeight - 1;
-    setCut((was) =>
-      was.top === top && was.bottom === bottom ? was : { top, bottom },
-    );
-  };
-  const edgesNow = useRef(edges);
-  edgesNow.current = edges;
-  useEffect(() => {
-    const body = scroller.current;
-    const inner = content.current;
-    if (!body || !inner) return;
-    const observer = new ResizeObserver(() => edgesNow.current());
-    observer.observe(body);
-    observer.observe(inner);
-    edgesNow.current();
-    return () => observer.disconnect();
-  }, [state]);
 
   const rest = (at: SheetState) => (at === "full" ? size.card : size.bar);
 
@@ -150,10 +171,18 @@ export function BookingSheet({
     if (at === "closed") return;
     if (height.get() === 0) height.set(rest(at));
     else void animate(height, rest(at), { ...quick, velocity });
-    if (at !== "full") if (scroller.current) scroller.current.scrollTop = 0;
+    if (at === "full") return;
+    if (scroller.current) scroller.current.scrollTop = 0;
+    // Swiped down to pick another time, the keyboard goes with the card.
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && sheet.current?.contains(focused))
+      focused.blur();
   };
 
   useEffect(() => {
+    // Not under a finger: a size that changes mid-drag, as the card widens,
+    // would spring it back against the drag. Letting go settles it.
+    if (drag.current?.moved) return;
     settle(state);
     // Settles on a new state or size; `settle` reads both.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,13 +203,29 @@ export function BookingSheet({
         document.activeElement instanceof HTMLElement &&
         document.activeElement.matches("input, textarea, select") &&
         !!sheet.current?.contains(document.activeElement);
-      setLift(
-        typing
-          ? Math.max(
-              0,
-              window.innerHeight - viewport.height - viewport.offsetTop,
-            )
-          : 0,
+      const lift = typing
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      // The card's foot on the visible screen, and from it up to just under
+      // the status bar: the card is never taller, so its top never reaches
+      // the screen's top edge. A fixed element that touches that edge, for
+      // even a frame, makes Safari take it for the page's own header: it
+      // paints a solid strip under the status bar in place of its blur, and
+      // keeps it until Safari is quit. As the keyboard came up the card's
+      // foot rose 173px in one frame while its height was still springing
+      // down, and its top went 11px past the edge.
+      const foot =
+        window.innerHeight -
+        viewport.offsetTop -
+        lift -
+        BOTTOM -
+        (safeBottom.current?.offsetHeight ?? 0);
+      const max = Math.max(
+        0,
+        Math.floor(foot - (safeTop.current?.offsetHeight ?? 0) - ABOVE),
+      );
+      setFit((was) =>
+        was.lift === lift && was.max === max ? was : { lift, max },
       );
     };
     const follow = () => {
@@ -195,6 +240,7 @@ export function BookingSheet({
     window.addEventListener("resize", follow);
     document.addEventListener("focusin", follow);
     document.addEventListener("focusout", left);
+    read();
     return () => {
       window.clearTimeout(late);
       viewport.removeEventListener("resize", follow);
@@ -287,19 +333,23 @@ export function BookingSheet({
     (o) =>
       `rgb(var(--mt-glass) / ${(GLASS.bar + (GLASS.card - GLASS.bar) * o).toFixed(3)})`,
   );
-  // The page behind fades to half and shades as the card opens: its own
-  // parts fade, through --sheet-open, since a fixed layer over the page
-  // brings back Safari's strip under its toolbar. It's set on <html>, whose
-  // background Safari paints under its status bar, so that shades too.
+  // The page behind fades to half as the card opens: its own parts fade,
+  // through --sheet-open, since a fixed layer over the page brings back
+  // Safari's strip under its toolbar. The page's colour holds still (see
+  // --mt-page-now in meet.css), so the status bar never changes.
   useMotionValueEvent(open, "change", (o) => {
     document.documentElement.style.setProperty("--sheet-open", o.toFixed(3));
   });
-  useEffect(
-    () => () => {
-      document.documentElement.style.removeProperty("--sheet-open");
-    },
-    [],
-  );
+  // Written on mount too, not only on a change: a remount (a hot reload,
+  // or React's strict double run) clears it, and an open card that then
+  // holds still would leave the Book button's dock faded out.
+  useEffect(() => {
+    const root = document.documentElement.style;
+    root.setProperty("--sheet-open", open.get().toFixed(3));
+    return () => {
+      root.removeProperty("--sheet-open");
+    };
+  }, [open]);
   // It arrives by growing a touch from its own bottom edge, never by
   // rising from below: on its way up from under the screen's edge Safari
   // took it for a toolbar of the page's own, even at opacity 0, and kept
@@ -328,6 +378,7 @@ export function BookingSheet({
     left: edge,
     right: edge,
     bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM + lift}px)`,
+    maxHeight: Number.isFinite(fit.max) ? fit.max : undefined,
   };
 
   return (
@@ -339,9 +390,12 @@ export function BookingSheet({
         aria-hidden={state === "closed" || undefined}
         inert={state === "closed" || undefined}
         data-state={state}
-        data-more={cut.bottom || undefined}
-        className={cn(styles.sheet, "fixed z-50 md:hidden")}
-        style={{ ...place, backgroundColor: glass }}
+        className={cn(styles.sheet, "fixed z-50 min-[872px]:hidden")}
+        style={{
+          ...place,
+          backgroundColor: glass,
+          ["--dock-h" as string]: `${size.dock}px`,
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -372,17 +426,18 @@ export function BookingSheet({
         >
           <span aria-hidden />
         </button>
-        <div ref={scroller} className={styles.sheetBody} onScroll={edges}>
+        {/* The form fades out under the handle and above the dock (see
+            .sheetBody's mask), onto the card's own glass. */}
+        <span ref={safeTop} aria-hidden className={styles.sheetSafeTop} />
+        <span ref={safeBottom} aria-hidden className={styles.sheetSafeBottom} />
+        <div ref={scroller} className={styles.sheetBody}>
           <div ref={content}>{children}</div>
         </div>
-        {/* Frost where the form runs up past the handle, so it blurs out
-            at the card's top edge instead of being cut off. Its foot is
-            the Book button's dock (.sheetDock), on data-more. */}
-        <span
-          aria-hidden
-          className={styles.sheetEdge}
-          data-shown={cut.top || undefined}
-        />
+        {dock && (
+          <div ref={docked} className={styles.sheetDock}>
+            {dock}
+          </div>
+        )}
       </motion.div>
     </>
   );

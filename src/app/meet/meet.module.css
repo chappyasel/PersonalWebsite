@@ -8,7 +8,7 @@
 
 .title {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.022em;
   line-height: 1.15;
 }
@@ -93,39 +93,42 @@
   color: rgb(var(--mt-ink) / 0.7);
 }
 
-/* Centred on the label's letters, which sit a little low in their line. */
-.chevron > svg {
+/* Centred on the label's letters, which sit a little low in their line:
+   the whole button moves, so its hover ground stays centred on the arrow. */
+.chevron {
   translate: 0 1.5px;
 }
 
-/* Away from the current week or Days, a blue dot before the arrows goes
-   back to them. Outside the row, so the label doesn't move as it comes. */
-.navReturn {
-  position: absolute;
-  right: 100%;
-  top: 50%;
-  width: 24px;
-  height: 28px;
-  margin-top: -14px;
+/* The range's words. Away from the current week or Days they go back to
+   it, and a blue dot sits over their end, the way an unread mark does. */
+.navLabel {
   border-radius: 6px;
+  outline: none;
   -webkit-tap-highlight-color: transparent;
 }
 
+.navLabel:disabled {
+  cursor: default;
+}
+
+.navLabel:focus-visible {
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
+}
+
 .navReturnDot {
+  position: absolute;
+  top: 0;
+  right: -6px;
   width: 6px;
   height: 6px;
   border-radius: 999px;
   background: rgb(var(--mt-accent));
-  translate: 0 1.5px;
+  pointer-events: none;
   transition: scale 150ms ease-out;
 }
 
-.navReturn:hover .navReturnDot {
+.navLabel:hover:not(:disabled) .navReturnDot {
   scale: 1.4;
-}
-
-.navReturn :focus-visible {
-  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
 
 .chevron:hover:not(:disabled) {
@@ -150,11 +153,112 @@
   --slide: 180ms cubic-bezier(0.3, 1.25, 0.5, 1);
 }
 
-/* The booker's rail, over the Days as they slide under it on a phone. */
+/* A rail of hours, over the Days as they slide under it. Clear, so the
+   Days fade out under its labels' inner edge (.window). */
 .rail {
   position: relative;
   z-index: 1;
+}
+
+/* The Days' window, reaching 12px into the rails beside them: what slides
+   past it is cut off, and fades out over the 12px, under the hours'
+   labels, where at rest there's nothing to fade. */
+.window {
+  /* The fade past the Days on each side: under the rails' labels, and
+     short of the next page, which waits PAGE_GAP (20px) off. */
+  --fade: 20px;
+  /* How far the window reaches past the Days' right edge. A phone has only
+     its 16px gutter there, so the fade runs on past the screen's edge. */
+  --reach-end: var(--fade);
+  margin-left: calc(-1 * var(--fade));
+  margin-right: calc(-1 * var(--reach-end));
+  padding-left: var(--fade);
+  padding-right: var(--reach-end);
+  overflow-x: clip;
+  /* A finger landing on the Days sliding in mid-glide lands here, not on
+     a Day, and its sideways swipe is still the page's. */
+  touch-action: pan-y;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fade),
+    #000 calc(100% - var(--reach-end)),
+    transparent calc(100% - var(--reach-end) + var(--fade))
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fade),
+    #000 calc(100% - var(--reach-end)),
+    transparent calc(100% - var(--reach-end) + var(--fade))
+  );
+}
+
+.compact .window {
+  --reach-end: 16px;
+}
+
+/* The grid's top stays at the window's top, under a phone's status bar,
+   as the page scrolls (WeekStrip): the nav and the Day headings on the
+   page's ground, edge to edge, then the panel's
+   rounded top, which overlaps the panel's own (.body) and is clear inside
+   its corners, so the hours show through it up to the headings. */
+.stickyHead {
+  position: relative;
+  z-index: 2;
+}
+
+/* Sticking is behind a switch, STICKY_HEADER (sticky.ts). */
+.stickyHead[data-sticky] {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+}
+
+.stickyTop {
   background: var(--mt-page-now);
+  box-shadow: 0 0 0 100vmax var(--mt-page-now);
+  clip-path: inset(0 -100vmax);
+}
+
+/* The page's ground under a phone's status bar, then a short fade, so the
+   title scrolls up into it softly instead of being cut. Under the grid's
+   sticky head (.stickyHead), which covers it once stuck. */
+.statusFade {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 1;
+  height: calc(env(safe-area-inset-top, 0px) + 12px);
+  background: linear-gradient(
+    to bottom,
+    var(--mt-page-now) calc(100% - 12px),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.body {
+  margin-top: calc(-1 * var(--panel-radius));
+}
+
+.cap {
+  position: relative;
+  height: var(--panel-radius);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The panel's top edge and corners, and the ground outside the corners. */
+.cap::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 calc(-1 * var(--panel-radius));
+  /* The hairline made solid on the panel's ground, so over the panel's
+     own edge at rest it draws the same line, not a darker one. */
+  border: 1px solid
+    color-mix(in srgb, rgb(var(--mt-ink)) 6%, rgb(var(--mt-ground)));
+  border-radius: var(--panel-radius);
+  box-shadow: 0 0 0 var(--panel-radius) var(--mt-page-now);
 }
 
 /* A rail's zone heading, just under the panel's top edge, where the first
@@ -169,6 +273,18 @@
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1.25;
+}
+
+/* Over the rail's labels as they scroll up under it. */
+.stickyHead .zoneHeading {
+  top: 0;
+  padding-top: calc(var(--inset) - 1px);
+  padding-bottom: 14px;
+  background: linear-gradient(
+    to bottom,
+    var(--mt-page-now) calc(100% - 8px),
+    transparent
+  );
 }
 
 /* Whose clock, under the zone: smaller and fainter, the zone being what
@@ -255,10 +371,6 @@
   cursor: pointer;
 }
 
-.open:hover {
-  background: rgb(var(--mt-accent) / 0.15);
-}
-
 /* A best time: a small blue star at the slot's top corner, inside a 16px
    target the pointer can hover for its tooltip. A press goes on through
    to the grid, which picks the time. */
@@ -313,11 +425,14 @@
   color: rgb(var(--mt-accent));
 }
 
+/* Where the meeting would land: an outline, and inside it alone the open
+   time's wash a step deeper, as the whole stretch once went under the
+   pointer. */
 .ghost {
   position: absolute;
   border-radius: var(--block-radius);
   pointer-events: none;
-  background: rgb(var(--mt-accent) / 0.12);
+  background: rgb(var(--mt-accent) / 0.06);
   box-shadow: inset 0 0 0 1px rgb(var(--mt-accent) / 0.5);
 }
 
@@ -392,6 +507,17 @@
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
 }
 
+/* A meeting a finger lifts rides above its landing, a touch larger, and
+   follows the finger without the slide's lag. */
+.selection[data-lifted] {
+  z-index: 3;
+  scale: 1.03;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.22);
+  transition:
+    scale 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   /* The meeting and the hover block slide to a new time or Day with a
      slight spring: they pass the spot by a few percent and settle back. */
@@ -401,7 +527,8 @@
       left var(--slide),
       height 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
       background-color 100ms ease-out,
-      box-shadow 100ms ease-out;
+      box-shadow 100ms ease-out,
+      scale 150ms ease-out;
   }
 
   .ghost {
@@ -410,6 +537,22 @@
       left var(--slide),
       height 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
   }
+}
+
+/* Now on the Days that aren't today: barely there, so it only says where
+   in each Day the time is. */
+.nowGuide {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 1;
+  height: 1px;
+  margin-top: -0.5px;
+  background: repeating-linear-gradient(
+    to right,
+    rgb(var(--mt-red) / 0.32) 0 4px,
+    transparent 4px 8px
+  );
+  pointer-events: none;
 }
 
 /* Now, across today, as Daybreak draws it: a 2px line, round at both ends,
@@ -516,14 +659,14 @@
 
 /* A grouped settings card: hairline edge, no heavy shadow. */
 .card {
-  border-radius: 12px;
+  border-radius: 18px;
   border: 1px solid rgb(var(--mt-ink) / 0.08);
   background: rgb(var(--mt-ink) / 0.025);
 }
 
 .label {
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* "Optional" beside a label: a fifth smaller and fainter than other quiet text. */
@@ -534,10 +677,12 @@
 }
 
 .input {
+  /* The field's fill, which autofill below draws its own way. */
+  --field-fill: rgb(var(--mt-ground));
   height: 2.25rem;
   border-radius: 8px;
   border-color: rgb(var(--mt-ink) / 0.12);
-  background: rgb(var(--mt-ground));
+  background: var(--field-fill);
   font-size: 0.875rem;
   font-weight: 500;
   box-shadow: none;
@@ -555,6 +700,41 @@
   overflow-y: auto;
 }
 
+/* A field the browser fills in keeps its own fill and ink, not the
+   browser's tint, which no page style outranks. So the background, tint
+   and all, is clipped to the text, where the ink covers it, and the
+   field's own fill comes back as an inset shadow, see-through as it is on
+   the phone's glass. Firefox tints with a filter instead. Kept as
+   separate rules, since a selector one browser doesn't know drops the
+   whole rule. */
+.input:-webkit-autofill {
+  -webkit-text-fill-color: rgb(var(--mt-ink));
+  caret-color: rgb(var(--mt-ink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  box-shadow: inset 0 0 0 100px var(--field-fill);
+}
+
+.input:-webkit-autofill:focus-visible {
+  box-shadow:
+    inset 0 0 0 100px var(--field-fill),
+    0 0 0 3px rgb(var(--mt-accent) / 0.25);
+}
+
+.input:autofill {
+  filter: none;
+  -webkit-text-fill-color: rgb(var(--mt-ink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  box-shadow: inset 0 0 0 100px var(--field-fill);
+}
+
+.input:autofill:focus-visible {
+  box-shadow:
+    inset 0 0 0 100px var(--field-fill),
+    0 0 0 3px rgb(var(--mt-accent) / 0.25);
+}
+
 .input::placeholder {
   color: rgb(var(--mt-ink) / 0.35);
 }
@@ -570,16 +750,33 @@
   background: rgb(var(--mt-accent));
   color: #fff;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   box-shadow: none;
 }
 
+/* Solid blue in every state, as vivid as the Best badge: its label says
+   why it can't book yet. A pointer's hover only deepens it a touch, since
+   a phone's tap leaves :hover standing. */
 .primary:hover {
-  background: rgb(var(--mt-accent) / 0.9);
+  background: rgb(var(--mt-accent));
 }
 
-.primary:disabled {
-  opacity: 0.4;
+@media (hover: hover) {
+  .primary:hover:not(:disabled) {
+    background: color-mix(in srgb, rgb(var(--mt-accent)) 90%, #000);
+  }
+}
+
+/* The computer's card is rounder than a field on the page, and its fields
+   and buttons round a step with it, short of the phone's card (14px). */
+.card :is(.input, .primary, .quiet) {
+  border-radius: 10px;
+}
+
+/* The Book button stands a fifth taller than a field (2.25rem) in the
+   computer's card, and half again as tall in the phone's. */
+.card .primary {
+  height: 2.7rem;
 }
 
 .quiet {
@@ -609,6 +806,50 @@
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* The Best badge and the way back to the best times share one place, so
+   as one pops out and the other in, the row never shifts. */
+.badgeSlot {
+  display: grid;
+  flex-shrink: 0;
+  justify-items: end;
+}
+
+.badgeSlot > * {
+  grid-area: 1 / 1;
+}
+
+/* Away from the best times: the badge's shape in a faint grey, back to the
+   nearest one. Its touch area runs past its edges, for a thumb. */
+.capsuleBack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: rgb(var(--mt-ink) / 0.06);
+  color: rgb(var(--mt-ink) / 0.55);
+  font-size: 0.75rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.capsuleBack::before {
+  content: "";
+  position: absolute;
+  inset: -10px -8px;
+}
+
+.capsuleBack:hover,
+.capsuleBack:active {
+  background: rgb(var(--mt-ink) / 0.1);
+  color: rgb(var(--mt-ink) / 0.7);
+}
+
+.capsuleBack:focus-visible {
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
 
 .primary > :global(.hdr) {
@@ -681,7 +922,6 @@
     padding-top: calc(3rem + env(safe-area-inset-top, 0px));
   }
 }
-
 /* Behind the open card the page fades to half: BookingSheet sets
    --sheet-open from 0 to 1 as it grows. */
 :global(.meet-root) [data-enter] {
@@ -689,16 +929,19 @@
 }
 
 /* The phone's booking bar, and the card it grows into: floating glass,
-   clear of the screen's edges and the home indicator, round all the way. */
+   clear of the screen's edges and the home indicator, round all the way.
+   On a wider window it keeps to about a phone's width, centred. */
 .sheet {
+  max-width: 24rem;
+  margin-inline: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 30px;
+  border-radius: 43px;
   /* Its colour's strength follows how far it's open: BookingSheet. Open,
-     it lifts what's behind it a little, against the page's shade. */
-  background: rgb(var(--mt-glass) / 0.62);
-  backdrop-filter: blur(20px) saturate(1.2)
+     it lifts what's behind it a little. */
+  background: rgb(var(--mt-glass) / 0.56);
+  backdrop-filter: blur(16px) saturate(1.2)
     brightness(calc(1 + var(--mt-glass-lift) + 0.1 * var(--sheet-open, 0)));
   /* Its shadow rises from it, onto the page above, and none falls below
      into the strip by the home indicator. Safari's corner mask clips it,
@@ -712,21 +955,21 @@
 
 /* Continuous corners on the bar and card, as iOS draws its own. Chrome has
    corner-shape; Safari draws the shape with a stretchable mask instead: a
-   120-unit squircle tile cut 50 in from each side, so its corners keep
-   their curve at any height as the bar grows. The mask clips the bar's own
+   120-unit squircle tile cut 50 in from each side and drawn 72px deep, so
+   its corners keep their curve at any height as the bar grows. The mask clips the bar's own
    shadow, so the hairline draws as a masked ring inside it. Neither, and
    it keeps its round. */
 @supports (corner-shape: squircle) {
   .sheet {
     corner-shape: squircle;
-    border-radius: 50px;
+    border-radius: 72px;
   }
 }
 
 @supports (-webkit-mask-box-image: none) and (not (corner-shape: squircle)) {
   .sheet {
     -webkit-mask-box-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20viewBox='0%200%20120%20120'%3E%3Cpath%20d='M0,50L0.04,33.2L0.17,27.86L0.39,23.99L0.69,20.88L1.08,18.25L1.56,15.95L2.13,13.92L2.8,12.11L3.56,10.48L4.42,9L5.39,7.67L6.47,6.47L7.67,5.39L9,4.42L10.48,3.56L12.11,2.8L13.92,2.13L15.95,1.56L18.25,1.08L20.88,0.69L23.99,0.39L27.86,0.17L33.2,0.04L50,0L70,0L86.8,0.04L92.14,0.17L96.01,0.39L99.12,0.69L101.75,1.08L104.05,1.56L106.08,2.13L107.89,2.8L109.52,3.56L111,4.42L112.33,5.39L113.53,6.47L114.61,7.67L115.58,9L116.44,10.48L117.2,12.11L117.87,13.92L118.44,15.95L118.92,18.25L119.31,20.88L119.61,23.99L119.83,27.86L119.96,33.2L120,50L120,70L119.96,86.8L119.83,92.14L119.61,96.01L119.31,99.12L118.92,101.75L118.44,104.05L117.87,106.08L117.2,107.89L116.44,109.52L115.58,111L114.61,112.33L113.53,113.53L112.33,114.61L111,115.58L109.52,116.44L107.89,117.2L106.08,117.87L104.05,118.44L101.75,118.92L99.12,119.31L96.01,119.61L92.14,119.83L86.8,119.96L70,120L50,120L33.2,119.96L27.86,119.83L23.99,119.61L20.88,119.31L18.25,118.92L15.95,118.44L13.92,117.87L12.11,117.2L10.48,116.44L9,115.58L7.67,114.61L6.47,113.53L5.39,112.33L4.42,111L3.56,109.52L2.8,107.89L2.13,106.08L1.56,104.05L1.08,101.75L0.69,99.12L0.39,96.01L0.17,92.14L0.04,86.8L0,70Z'/%3E%3C/svg%3E")
-      50 / 50px stretch;
+      50 / 72px stretch;
     /* The mask is the only corner. A round one under it stops the glass
        short of the squircle at each corner's diagonal, and the shadow,
        which the mask clips everywhere else, showed through there. */
@@ -742,60 +985,27 @@
     pointer-events: none;
     background: rgb(var(--mt-ink) / 0.16);
     -webkit-mask-box-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20viewBox='0%200%20120%20120'%3E%3Cpath%20d='M0,50L0.04,33.2L0.17,27.86L0.39,23.99L0.69,20.88L1.08,18.25L1.56,15.95L2.13,13.92L2.8,12.11L3.56,10.48L4.42,9L5.39,7.67L6.47,6.47L7.67,5.39L9,4.42L10.48,3.56L12.11,2.8L13.92,2.13L15.95,1.56L18.25,1.08L20.88,0.69L23.99,0.39L27.86,0.17L33.2,0.04L50,0L70,0L86.8,0.04L92.14,0.17L96.01,0.39L99.12,0.69L101.75,1.08L104.05,1.56L106.08,2.13L107.89,2.8L109.52,3.56L111,4.42L112.33,5.39L113.53,6.47L114.61,7.67L115.58,9L116.44,10.48L117.2,12.11L117.87,13.92L118.44,15.95L118.92,18.25L119.31,20.88L119.61,23.99L119.83,27.86L119.96,33.2L120,50L120,70L119.96,86.8L119.83,92.14L119.61,96.01L119.31,99.12L118.92,101.75L118.44,104.05L117.87,106.08L117.2,107.89L116.44,109.52L115.58,111L114.61,112.33L113.53,113.53L112.33,114.61L111,115.58L109.52,116.44L107.89,117.2L106.08,117.87L104.05,118.44L101.75,118.92L99.12,119.31L96.01,119.61L92.14,119.83L86.8,119.96L70,120L50,120L33.2,119.96L27.86,119.83L23.99,119.61L20.88,119.31L18.25,118.92L15.95,118.44L13.92,117.87L12.11,117.2L10.48,116.44L9,115.58L7.67,114.61L6.47,113.53L5.39,112.33L4.42,111L3.56,109.52L2.8,107.89L2.13,106.08L1.56,104.05L1.08,101.75L0.69,99.12L0.39,96.01L0.17,92.14L0.04,86.8L0,70Z'%20fill='none'%20stroke='black'%20stroke-width='1'/%3E%3C/svg%3E")
-      50 / 50px stretch;
+      50 / 72px stretch;
   }
 }
 
 /* On the glass, the fields and the button are glass too. At 16px a
    field's text is big enough that iOS doesn't zoom in on it. */
 .sheet .input {
+  --field-fill: var(--mt-field);
   border-color: rgb(var(--mt-ink) / 0.1);
-  background: var(--mt-field);
+  background: var(--field-fill);
   font-size: 16px;
 }
 
 .sheet .primary {
-  background: rgb(var(--mt-accent) / 0.78);
+  height: 3.375rem;
+  font-size: 1rem;
 }
 
-/* Frost over the card's top once the form scrolls up past the handle
-   (BookingSheet): the form blurs out under it on an eased fade, the way
-   Companion's headers take what scrolls under them, right up to the card's
-   edge. */
-.sheetEdge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 44px;
-  pointer-events: none;
-  background: rgb(var(--mt-glass) / 0.35);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  opacity: 0;
-  transition: opacity 200ms ease-out;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 36%,
-    rgb(0 0 0 / 0.86) 50%,
-    rgb(0 0 0 / 0.62) 63%,
-    rgb(0 0 0 / 0.36) 76%,
-    rgb(0 0 0 / 0.14) 88%,
-    transparent
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    #000 36%,
-    rgb(0 0 0 / 0.86) 50%,
-    rgb(0 0 0 / 0.62) 63%,
-    rgb(0 0 0 / 0.36) 76%,
-    rgb(0 0 0 / 0.14) 88%,
-    transparent
-  );
-}
-
-.sheetEdge[data-shown] {
-  opacity: 1;
+/* Rounder on the card, to sit with its rounder corners. */
+.sheet :is(.input, .primary, .quiet) {
+  border-radius: 14px;
 }
 
 /* It floats over the top of the form, with no ground of its own, so the
@@ -826,18 +1036,58 @@
   background: rgb(var(--mt-ink) / 0.5);
 }
 
-/* Its top padding is the handle's height. The form fades out across it as
-   it scrolls up, rather than stopping at a line under the handle. */
+/* How far the screen's status bar reaches down, and the home indicator up,
+   read back by BookingSheet so the open card fits between them. */
+.sheetSafeTop,
+.sheetSafeBottom {
+  position: absolute;
+  top: 0;
+  height: env(safe-area-inset-top, 0px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sheetSafeBottom {
+  height: env(safe-area-inset-bottom, 0px);
+}
+
+/* The form fades out at both ends onto the card's own glass, which blurs
+   the page, each fade short enough to barely see: over the handle at the
+   top, and at the foot from just under the form's last line, at rest, to a
+   few pixels behind the Book button's top. A mask on the form, not a blur
+   of its own: a blur inside the card can see only the card's contents,
+   never the page, and Chrome drew the masked inner blurs with hard lines.
+   The foot's fade comes in with the dock (--dock-in), so the bar's time
+   never fades. */
 .sheetBody {
+  /* The Book button's top. */
+  --button-top: calc(
+    100% - (var(--dock-h, 0px) - var(--dock-gap)) * var(--dock-in)
+  );
+  --fade-from: calc(var(--button-top) - 10px * var(--dock-in));
+  --fade-to: calc(var(--button-top) + 4px * var(--dock-in));
   flex: 1 1 auto;
   min-height: 0;
   padding-top: 16px;
-  scroll-padding-bottom: 96px;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 2px, #000 16px);
-  mask-image: linear-gradient(to bottom, transparent 2px, #000 16px);
+  padding-bottom: var(--dock-h, 0px);
+  scroll-padding-bottom: calc(var(--dock-h, 0px) + 8px);
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 16px,
+    #000 var(--fade-from),
+    transparent var(--fade-to)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 16px,
+    #000 var(--fade-from),
+    transparent var(--fade-to)
+  );
 }
 
 /* The bar shows only the time, so nothing in it scrolls. */
@@ -850,53 +1100,42 @@
   touch-action: none;
 }
 
-/* The Book button stays in reach at the card's foot while the form runs
-   on under it, on Companion's docked glass (its .dock-foot): frosted where
-   the form passes under, its top edge fading in over 36px rather than
-   starting at a line. The glass shows only while there's more form below
-   (BookingSheet's data-more). It holds the form's foot padding in every
-   state, so the card's measured height never changes as it docks, and
-   docks only in the card: in the bar it lies where it falls, out of view. */
+/* The Book button stays in reach at the card's foot, over the form's end,
+   on the card's own glass where the form fades out above it (.sheetBody).
+   Its top padding, --dock-gap, is half the form's own gap, so the form's
+   last line sits that far over the button when it's scrolled to the end.
+
+   It's there in the bar too, hidden, so as the bar grows into the card the
+   button rides the card's foot and comes in with it (--dock-in, from
+   --sheet-open): fading in, rising and growing a touch. */
+.sheet {
+  --dock-in: clamp(0, var(--sheet-open, 0) * 1.6 - 0.4, 1);
+  --dock-gap: 8px;
+}
+
 .sheetDock {
-  position: relative;
-  margin-inline: -20px;
-  padding: 0 20px 20px;
-}
-
-.sheet[data-state="full"] .sheetDock {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-}
-
-.sheetDock::before {
-  content: "";
   position: absolute;
-  top: -20px;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: -1;
+  z-index: 1;
+  padding: var(--dock-gap) 20px 20px;
   pointer-events: none;
-  background: linear-gradient(
-    to top,
-    rgb(var(--mt-glass) / 0.52),
-    rgb(var(--mt-glass) / 0.3)
-  );
-  -webkit-backdrop-filter: blur(14px) saturate(1.9);
-  backdrop-filter: blur(14px) saturate(1.9);
-  -webkit-mask-image: linear-gradient(
-    to top,
-    #000 calc(100% - 36px),
-    transparent
-  );
-  mask-image: linear-gradient(to top, #000 calc(100% - 36px), transparent);
-  opacity: 0;
-  transition: opacity 200ms ease-out;
 }
 
-.sheet[data-more] .sheetDock::before {
-  opacity: 1;
+.sheetDock > * {
+  pointer-events: auto;
+  opacity: var(--dock-in);
+  scale: calc(0.94 + 0.06 * var(--dock-in));
+  translate: 0 calc((1 - var(--dock-in)) * 10px);
+}
+
+.sheet:not([data-state="full"]) .sheetDock > * {
+  pointer-events: none;
+}
+
+.sheetDock > * + * {
+  margin-top: 16px;
 }
 
 /* The error screen's ID, for a report: quieter than the sentence it ends. */

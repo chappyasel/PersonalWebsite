@@ -23,7 +23,8 @@ import { zonedDate, zonedTime } from "~/lib/booking/zones";
 const ZONE = "America/Los_Angeles";
 /** As far ahead as the Owner's links book, 60 days. */
 const DAYS_AHEAD = 60;
-const NOTICE = 4 * 60 * MINUTE;
+/** How soon a booking can start, as the Owner's Daybreak has it: 12 hours. */
+const NOTICE = 12 * 60 * MINUTE;
 
 /** One link per length, as the Owner sends them: /meet, /meet/15, /meet/60. */
 const LINKS: Record<string, BookingPage["link"]> = Object.fromEntries(

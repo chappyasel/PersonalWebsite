@@ -275,12 +275,14 @@ describe("booking on /meet", () => {
     // 375px less the 16px gutters, plus the 12px the grid reaches into the
     // left one, is 355px; the 40px rail leaves each Day 105px, and nothing
     // in the columns holds them wider.
-    // The grid sits in the row that slides, in the frame that lays it out.
-    const frame = phone.parentElement!.parentElement!;
+    // The grid sits in the row that slides, in the window that clips it
+    // over the Days' columns, in the frame that lays them out.
+    const window = phone.parentElement!.parentElement!;
+    expect(window.style.gridColumn).toBe("2 / span 3");
+    const frame = window.parentElement!;
     expect(frame.style.gridTemplateColumns).toBe(
       "2.5rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)",
     );
-    expect(frame.style.overflowX).toBe("clip");
     // Both grids label the booker's rail; only the computer's has Chappy's.
     expect(screen.getAllByText("ET")).toHaveLength(2);
     expect(screen.getAllByText("PT")).toHaveLength(1);
@@ -618,19 +620,19 @@ describe("the phone's grid by touch", () => {
   it("keeps one hover block and one meeting as the pointer and the pick move", () => {
     const { group, onSelect } = phone(at(11));
     const mouse = { pointerType: "mouse", pointerId: 1 };
-    // 9:30 and 11:30 on the first Day, then 10:30 on the second, 4px down
-    // for the panel's inset.
+    // 9:30 and 11:30 on the first Day, then 10:30 on the second, at 72px
+    // an hour and 4px down for the panel's inset.
     for (const [x, y] of [
-      [50, 34],
-      [50, 154],
-      [150, 94],
+      [50, 40],
+      [50, 184],
+      [150, 112],
     ] as const) {
       fireEvent.pointerMove(group, { ...mouse, clientX: x, clientY: y });
       expect(document.querySelectorAll('[class*="ghost"]')).toHaveLength(1);
     }
     for (const [x, y] of [
-      [50, 34],
-      [150, 94],
+      [50, 40],
+      [150, 112],
     ] as const) {
       fireEvent.pointerDown(group, { ...mouse, clientX: x, clientY: y });
       fireEvent.pointerUp(group, { ...mouse, clientX: x, clientY: y });
@@ -646,9 +648,9 @@ describe("the phone's grid by touch", () => {
     const { group, touch, onSelect, onPicked } = phone();
     // 11:40 PT on the first Day: the meeting centred on it would start at
     // 11:25, so it starts on the half hour nearest, 11:30.
-    fireEvent.pointerDown(group, { ...touch, clientX: 50, clientY: 160 });
+    fireEvent.pointerDown(group, { ...touch, clientX: 50, clientY: 191 });
     expect(onSelect).not.toHaveBeenCalled();
-    fireEvent.pointerUp(group, { ...touch, clientX: 52, clientY: 161 });
+    fireEvent.pointerUp(group, { ...touch, clientX: 52, clientY: 192 });
     expect(onSelect).toHaveBeenCalledWith(at(11, 30));
     expect(onPicked).toHaveBeenCalledOnce();
   });
@@ -725,8 +727,8 @@ describe("the phone's grid by touch", () => {
     expect(sheet.getAttribute("aria-hidden")).toBeNull();
     expect(cardTop()).toContain("2:00-2:30p ET");
     const touch = { pointerType: "touch", pointerId: 7 };
-    fireEvent.pointerDown(phoneGrid(), { ...touch, clientX: 50, clientY: 160 });
-    fireEvent.pointerUp(phoneGrid(), { ...touch, clientX: 50, clientY: 160 });
+    fireEvent.pointerDown(phoneGrid(), { ...touch, clientX: 50, clientY: 191 });
+    fireEvent.pointerUp(phoneGrid(), { ...touch, clientX: 50, clientY: 191 });
     // 11:40 PT: on the half hour nearest centring on it, 11:30, 2:30 PM for
     // the booker.
     expect(cardTop()).toContain("2:30-3:00p ET");

@@ -30,14 +30,12 @@
   --mt-weekend: 0.02;
   --mt-raised: 255 255 255;
   --mt-raised-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
-  /* The page as it stands: a shade darker behind the phone's open card,
-     which BookingSheet grows --sheet-open on <html> for, so the card's glass
-     stands off it. Whatever paints the page's colour paints this. */
-  --mt-page-now: color-mix(
-    in srgb,
-    rgb(var(--mt-page)),
-    rgb(var(--mt-shade)) calc(var(--sheet-open, 0) * 8%)
-  );
+  /* The page's colour, which never changes, not even behind the phone's
+     open card. Safari 26 tints its status bar from the page, reads it again
+     only when the viewport changes (a keyboard coming up), and keeps that
+     reading: a page shaded behind the card left the status bar grey after
+     the card closed. Whatever paints the page's colour paints this. */
+  --mt-page-now: rgb(var(--mt-page));
 
   --background: 0 0% 100%;
   --foreground: 240 3% 12%;
@@ -58,8 +56,6 @@
 
   min-height: 100vh;
   min-height: 100dvh;
-  /* A shade darker behind the phone's open card, which BookingSheet grows
-     --sheet-open for, so the card's glass stands off the page. */
   background: var(--mt-page-now);
   color: rgb(var(--mt-ink));
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
@@ -140,25 +136,21 @@
 }
 
 /* The site paints its sand on <body>; on /meet the page and any overscroll
-   are the page's grey or black instead, shaded with the page behind the
-   phone's open card, since Safari paints <html>'s colour under its status
-   bar. */
+   are the page's grey or black instead. They hold still behind the phone's
+   open card, since Safari paints <html>'s colour under its status bar (see
+   --mt-page-now). */
 html:has(.meet-root),
 html:has(.meet-root) body {
-  background: color-mix(in srgb, #f5f5f7, #000 calc(var(--sheet-open, 0) * 8%));
+  background: #f5f5f7;
 }
 html.dark:has(.meet-root),
 html.dark:has(.meet-root) body {
-  background: color-mix(in srgb, #0e0e0f, #000 calc(var(--sheet-open, 0) * 8%));
+  background: #0e0e0f;
 }
 @media (prefers-color-scheme: dark) {
   html:not(.light):not(.dark):has(.meet-root),
   html:not(.light):not(.dark):has(.meet-root) body {
-    background: color-mix(
-      in srgb,
-      #0e0e0f,
-      #000 calc(var(--sheet-open, 0) * 8%)
-    );
+    background: #0e0e0f;
   }
 }
 

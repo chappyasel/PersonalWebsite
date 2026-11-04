@@ -9,6 +9,7 @@ import { MeetThemeColor } from "./MeetThemeColor";
 import styles from "./meet.module.css";
 import { onlyLength } from "./metadata";
 import { readMeet } from "./read";
+import { STICKY_HEADER } from "./sticky";
 import { env } from "~/env";
 
 /**
@@ -26,6 +27,7 @@ export async function MeetScreen({ slug }: { slug: string }) {
   return (
     <div className="meet-root" data-entering="">
       <MeetThemeColor />
+      {STICKY_HEADER && <div aria-hidden className={styles.statusFade} />}
       <main className={styles.main}>
         <header className="mb-2">
           <h1
@@ -40,7 +42,7 @@ export async function MeetScreen({ slug }: { slug: string }) {
             <p
               data-enter
               style={{ ["--enter" as string]: 1 }}
-              className={cn(styles.facts, "max-md:hidden")}
+              className={cn(styles.facts, "max-[871.98px]:hidden")}
             >
               {length !== null && (
                 <>
