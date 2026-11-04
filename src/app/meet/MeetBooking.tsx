@@ -339,8 +339,9 @@ export function MeetBooking({
                   className="text-[hsl(var(--dl-am))]"
                   aria-hidden
                 />
-                A sun marks the times that suit {host} best. They sit against
-                other meetings, so longer stretches stay free.
+                A sun marks the times that suit {host} best: next to other
+                meetings or at the edge of open time, so longer stretches stay
+                free.
               </p>
             )}
           </div>

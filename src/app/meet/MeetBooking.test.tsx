@@ -225,6 +225,26 @@ describe("the week strip from the keyboard", () => {
     strip(at(11));
     expect(screen.getByText("ET")).toBeTruthy();
     expect(screen.getByText("PT")).toBeTruthy();
+    // A 30-minute block has room for the booker's start alone.
+    expect(screen.getByText("2:00 PM")).toBeTruthy();
+    expect(screen.queryByText("11:00 AM PT")).toBeNull();
+  });
+
+  it("puts both clocks on a block long enough for two lines", () => {
+    render(
+      <WeekStrip
+        days={PAGE.days}
+        hostZone={PT}
+        bookerZone="America/New_York"
+        host="Chappy"
+        length={60}
+        selection={at(11)}
+        suggestions={[]}
+        onSelect={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("2:00-3:00 PM")).toBeTruthy();
     expect(screen.getByText("11:00 AM PT")).toBeTruthy();
   });
 });
