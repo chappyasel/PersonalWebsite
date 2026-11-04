@@ -9,7 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { BookingPage } from "~/lib/booking/page";
+import { type BookingPage, addDays } from "~/lib/booking/page";
 import { MESSAGES, REQUEST_ID } from "~/lib/booking/request";
 import type * as Zones from "~/lib/booking/zones";
 import { zonedTime } from "~/lib/booking/zones";
@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   invalidate: vi.fn(),
   query: vi.fn(),
+  prefetch: vi.fn(),
 }));
 
 vi.mock("~/lib/booking/zones", async (original) => ({
@@ -37,7 +38,7 @@ vi.mock("~/trpc/react", () => ({
     booking: {
       page: {
         useQuery: (input: unknown, options: { initialData?: unknown }) => ({
-          data: (mocks.query(input), options.initialData),
+          data: (mocks.query(input) as unknown) ?? options.initialData,
           isPlaceholderData: false,
           refetch: vi.fn(),
         }),
@@ -49,7 +50,11 @@ vi.mock("~/trpc/react", () => ({
         }),
       },
     },
-    useUtils: () => ({ booking: { page: { invalidate: mocks.invalidate } } }),
+    useUtils: () => ({
+      booking: {
+        page: { invalidate: mocks.invalidate, prefetch: mocks.prefetch },
+      },
+    }),
   },
 }));
 
@@ -81,6 +86,24 @@ const PAGE: BookingPage = {
   suggested: [at(11)],
 };
 
+/** A week of Days from `from`, each open 9 to 10 AM PT. */
+function weekFrom(from: string): BookingPage["days"] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(from, i);
+    return { day, open: [{ start: at(9, 0, day), end: at(10, 0, day) }] };
+  });
+}
+
+/** The phone's grid: the second, since jsdom draws both. */
+function phoneGrid() {
+  return screen.getAllByRole("group", { name: "Open times this week" })[1]!;
+}
+
+const shownDays = (grid: HTMLElement) =>
+  [...grid.querySelectorAll<HTMLElement>("[data-day]")].map(
+    (d) => d.dataset.day,
+  );
+
 /** Picks the best time from the keyboard, on the computer's grid. */
 function pickBest() {
   const [grid] = screen.getAllByRole("group", { name: "Open times this week" });
@@ -97,7 +120,10 @@ async function fillForm() {
 }
 
 describe("booking on /meet", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.query.mockReset();
+  });
   afterEach(cleanup);
 
   it("shows a slot in both zones and marks the best one", () => {
@@ -155,16 +181,57 @@ describe("booking on /meet", () => {
     });
   });
 
-  it("draws the phone's grid with the booker's clock alone", () => {
-    render(<MeetBooking slug="meet" initial={PAGE} />);
-    const [, phone] = screen.getAllByRole("group", {
-      name: "Open times this week",
-    });
-    expect(phone).toBeTruthy();
+  it("draws the phone's grid, 3 Days with the rail inside 375px, and no time buttons", () => {
+    render(
+      <MeetBooking
+        slug="meet"
+        initial={{ ...PAGE, days: weekFrom("2026-11-10") }}
+      />,
+    );
+    const phone = phoneGrid();
+    expect(shownDays(phone)).toEqual([
+      "2026-11-10",
+      "2026-11-11",
+      "2026-11-12",
+    ]);
+    // 375px less the 16px gutters is 343px; the 52px rail leaves each Day
+    // about 97px, and nothing in the columns holds them wider.
+    expect(phone.parentElement!.style.gridTemplateColumns).toBe(
+      "3.25rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)",
+    );
+    expect(phone.parentElement!.style.overflowX).toBe("clip");
     // Both grids label the booker's rail; only the computer's has Chappy's.
     expect(screen.getAllByText("ET")).toHaveLength(2);
     expect(screen.getAllByText("PT")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /your time/ })).toBeNull();
+  });
+
+  it("steps the phone's visible Days by 3", () => {
+    mocks.query.mockImplementation(({ from }: { from: string }) =>
+      from === "2026-11-10"
+        ? undefined
+        : { status: "open", page: { ...PAGE, days: weekFrom(from) } },
+    );
+    render(
+      <MeetBooking
+        slug="meet"
+        initial={{ ...PAGE, days: weekFrom("2026-11-10") }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Later days" }));
+    expect(shownDays(phoneGrid())).toEqual([
+      "2026-11-13",
+      "2026-11-14",
+      "2026-11-15",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Later days" }));
+    expect(shownDays(phoneGrid())).toEqual([
+      "2026-11-16",
+      "2026-11-17",
+      "2026-11-18",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Earlier days" }));
+    expect(shownDays(phoneGrid())[0]).toBe("2026-11-13");
   });
 
   it("offers a length picker only when the link has several", () => {
@@ -417,6 +484,22 @@ describe("the phone's grid by touch", () => {
     expect(onSelect).toHaveBeenLastCalledWith(at(11, 15));
     fireEvent.pointerUp(block, { ...touch, clientX: 50, clientY: 140 });
     expect(onPicked).not.toHaveBeenCalled();
+  });
+
+  it("books the start a tap picks on the phone's grid, and brings the card up", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("max-width"),
+    }));
+    const scrolled = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrolled;
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const touch = { pointerType: "touch", pointerId: 7 };
+    fireEvent.pointerDown(phoneGrid(), { ...touch, clientX: 50, clientY: 150 });
+    fireEvent.pointerUp(phoneGrid(), { ...touch, clientX: 50, clientY: 150 });
+    // 11:30 PT, the meeting centred on it: 11:15, 2:15 PM for the booker.
+    expect(screen.getByText("2:15 PM - 2:45 PM")).toBeTruthy();
+    expect(screen.getByText("11:15 AM PT for Chappy")).toBeTruthy();
+    expect(scrolled).toHaveBeenCalledOnce();
   });
 
   it("shows only the booker's rail", () => {

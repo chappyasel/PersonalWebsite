@@ -149,6 +149,8 @@ export function WeekStrip({
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     const from = firstDay > before ? 48 : -48;
     for (const element of slidingParts(frameRef.current)) {
+      // Older browsers, and jsdom, have no Web Animations: they just swap.
+      if (typeof element.animate !== "function") return;
       element.animate(
         [
           { transform: `translateX(${from}px)`, opacity: 0.3 },
