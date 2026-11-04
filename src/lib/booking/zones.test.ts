@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   clockLabel,
+  compactRangeLabel,
   dateLabel,
   dayLabel,
   minutesIntoDate,
@@ -38,6 +39,15 @@ describe("reading a moment in a zone", () => {
       "12:30 PM",
     );
     expect(shortClockLabel(Date.UTC(2026, 10, 10, 17), PT)).toBe("9 AM");
+  });
+
+  it("writes a narrow range with one AM or PM when it can", () => {
+    expect(compactRangeLabel(ELEVEN_PT, ELEVEN_PT + 45 * 60_000, PT)).toBe(
+      "11:00-11:45 AM",
+    );
+    expect(compactRangeLabel(ELEVEN_PT, ELEVEN_PT + 90 * 60_000, PT)).toBe(
+      "11:00 AM-12:30 PM",
+    );
   });
 
   it("knows each zone's offset, daylight saving included", () => {

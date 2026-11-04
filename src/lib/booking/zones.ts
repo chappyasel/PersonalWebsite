@@ -171,6 +171,19 @@ export function clockLabel(ms: number, timeZone: string): string {
   return `${twelve}:${String(minute).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
 }
 
+/** "1:45-2:15 PM", or "11:30 AM-12:30 PM" across noon, for a narrow block. */
+export function compactRangeLabel(
+  start: number,
+  end: number,
+  timeZone: string,
+): string {
+  const [from, fromHalf] = clockLabel(start, timeZone).split(" ");
+  const [to, toHalf] = clockLabel(end, timeZone).split(" ");
+  return fromHalf === toHalf
+    ? `${from}-${to} ${toHalf}`
+    : `${from} ${fromHalf}-${to} ${toHalf}`;
+}
+
 /** "2 PM", or "2:30 PM" off the hour, for axis labels. */
 export function shortClockLabel(ms: number, timeZone: string): string {
   const { hour, minute } = zonedParts(ms, timeZone);

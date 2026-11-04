@@ -45,13 +45,13 @@
   position: absolute;
   inset-inline: 3px;
   border-radius: 0.4rem;
-  background: hsl(var(--meet-open) / 0.13);
-  box-shadow: inset 2px 0 0 hsl(var(--meet-open) / 0.55);
+  background: hsl(var(--meet-open) / 0.2);
+  box-shadow: inset 2px 0 0 hsl(var(--meet-open) / 0.7);
   cursor: pointer;
 }
 
 .open:hover {
-  background: hsl(var(--meet-open) / 0.18);
+  background: hsl(var(--meet-open) / 0.28);
 }
 
 /* A slot that suits the host: an ochre glint, like the lit windows in the

@@ -355,7 +355,7 @@ export function MeetBooking({
           onSubmit={(event) => void submit(event)}
           className="space-y-4 rounded-xl border bg-card/80 p-5 font-sans shadow-sm backdrop-blur"
         >
-          <div className="min-h-[4.5rem]">
+          <div>
             {slot ? (
               <>
                 <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">

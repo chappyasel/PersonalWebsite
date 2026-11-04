@@ -225,6 +225,6 @@ describe("the week strip from the keyboard", () => {
     strip(at(11));
     expect(screen.getByText("ET")).toBeTruthy();
     expect(screen.getByText("PT")).toBeTruthy();
-    expect(screen.getByText("11:00 AM for Chappy")).toBeTruthy();
+    expect(screen.getByText("11:00 AM PT")).toBeTruthy();
   });
 });

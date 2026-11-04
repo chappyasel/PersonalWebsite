@@ -25,7 +25,9 @@ import {
 } from "~/lib/booking/strip";
 import {
   clockLabel,
+  compactRangeLabel,
   dateLabel,
+  ordinalSuffix,
   sameClock,
   shortClockLabel,
   weekdayLabel,
@@ -80,6 +82,9 @@ export function WeekStrip({
     columns: { day: BookingDay; rect: DOMRect }[];
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  // The strip takes focus when pressed, so its keys work next; the ring is
+  // for keyboard focus only.
+  const [pressed, setPressed] = useState(false);
   const [hover, setHover] = useState<{ day: string; start: number } | null>(
     null,
   );
@@ -132,6 +137,7 @@ export function WeekStrip({
     const start = dragStart(at.day.open, at.ms, grab, length);
     if (start === null) return;
     event.preventDefault();
+    setPressed(true);
     gridRef.current?.focus({ preventScroll: true });
     onSelect(start);
     drag.current = { grab, columns: within };
@@ -245,7 +251,7 @@ export function WeekStrip({
         }}
       >
         {/* Header row */}
-        <div className="flex flex-col justify-end pb-2 text-[11px] font-medium leading-tight text-muted-foreground">
+        <div className="flex flex-col items-end justify-end pb-2 pr-2 text-right text-[11px] font-medium leading-tight text-muted-foreground">
           <span className="text-foreground">
             {zoneLabel(referenceMoment, bookerZone)}
           </span>
@@ -267,7 +273,7 @@ export function WeekStrip({
                   open.length === 0 && "text-muted-foreground",
                 )}
               >
-                {dateLabel(day)}
+                {open.length > 0 ? dateLabel(day) : shortDate(day)}
               </div>
               {bookerDate !== day && (
                 <div className="truncate text-[11px] text-muted-foreground">
@@ -277,7 +283,7 @@ export function WeekStrip({
             </div>
           );
         })}
-        <div className="flex flex-col items-end justify-end pb-2 text-right text-[11px] font-medium leading-tight text-muted-foreground">
+        <div className="flex min-w-0 flex-col items-start justify-end pb-2 pl-2 text-[11px] font-medium leading-tight text-muted-foreground">
           {twoClocks && (
             <>
               <span className="text-foreground">
@@ -315,8 +321,13 @@ export function WeekStrip({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onPointerLeave={() => setHover(null)}
-          onKeyDown={onKeyDown}
-          className="grid rounded-[0.7rem] outline-none ring-offset-4 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+          onKeyDown={(event) => {
+            setPressed(false);
+            onKeyDown(event);
+          }}
+          onBlur={() => setPressed(false)}
+          data-pressed={pressed ? "" : undefined}
+          className="grid rounded-[0.7rem] outline-none ring-ring ring-offset-4 ring-offset-background [&:focus-visible:not([data-pressed])]:ring-2"
           style={{
             gridColumn: `2 / span ${days.length}`,
             gridTemplateColumns: "subgrid",
@@ -376,19 +387,27 @@ export function WeekStrip({
                     data-dragging={dragging ? "" : undefined}
                     className={cn(
                       styles.selection,
-                      "flex flex-col px-2 font-sans leading-tight",
-                      length >= 30 ? "justify-start py-1.5" : "justify-center",
+                      "flex px-2 font-sans leading-tight",
+                      length >= 45
+                        ? "flex-col justify-start py-1"
+                        : "items-center gap-1.5",
                     )}
                     style={{ top: top(selection, day), height: length * PX }}
                   >
-                    <span className="truncate text-xs font-semibold tabular-nums">
-                      {clockLabel(selection, bookerZone)}
-                      {length >= 30 &&
-                        ` - ${clockLabel(selection + span, bookerZone)}`}
+                    {/* A short block has room for one line: both starts. */}
+                    <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums">
+                      {length >= 45
+                        ? compactRangeLabel(
+                            selection,
+                            selection + span,
+                            bookerZone,
+                          )
+                        : clockLabel(selection, bookerZone)}
                     </span>
                     {twoClocks && length >= 30 && (
-                      <span className="truncate text-[11px] tabular-nums opacity-75">
-                        {clockLabel(selection, hostZone)} for {host}
+                      <span className="min-w-0 truncate text-[11px] tabular-nums opacity-75">
+                        {clockLabel(selection, hostZone)}{" "}
+                        {zoneLabel(selection, hostZone)}
                       </span>
                     )}
                   </div>
@@ -416,11 +435,17 @@ export function WeekStrip({
             ))}
         </div>
       </div>
-      <p id={hintId} className="mt-3 text-xs text-muted-foreground">
+      <p id={hintId} className="mt-5 text-xs text-muted-foreground">
         Press an open time or drag the meeting. With the keyboard, arrow keys
         move it a quarter hour or a day, Shift moves an hour, and Enter
         continues.
       </p>
     </div>
   );
+}
+
+/** "7th" for "2026-11-07": a closed Day's narrow column. */
+function shortDate(day: string): string {
+  const date = Number(day.slice(8));
+  return `${date}${ordinalSuffix(date)}`;
 }
