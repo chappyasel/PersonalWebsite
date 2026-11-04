@@ -21,8 +21,10 @@ import {
 import {
   type BookingDay,
   type BookingPage,
+  PHONE_DAYS,
+  WEEK,
   callLabel,
-  weekStart,
+  windowStart,
 } from "~/lib/booking/page";
 import {
   type Attempt,
@@ -47,12 +49,16 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 
 import { Duration } from "./Duration";
-import { TimeList } from "./TimeList";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip } from "./WeekStrip";
 import styles from "./meet.module.css";
 
 const noSubscription = () => () => undefined;
+
+/** Below Tailwind's `md`, where the grid shows a phone's few Days. */
+function isPhone(): boolean {
+  return window.matchMedia?.("(max-width: 767.98px)").matches ?? false;
+}
 
 /** The browser's zone after hydration; null while the server renders. */
 function useBookerZone() {
@@ -78,14 +84,15 @@ export function MeetBooking({
   const bookerZone = useBookerZone() ?? hostZone;
   const { host } = initial.link;
 
-  const [week, setWeek] = useState(0);
+  // Days after the first bookable one: a week steps by 7, a phone by 3.
+  const [offset, setOffset] = useState(0);
   const from =
-    weekStart(initial.firstDay, initial.lastDay, week) ?? initial.firstDay;
+    windowStart(initial.firstDay, initial.lastDay, offset) ?? initial.firstDay;
   const query = api.booking.page.useQuery(
     { slug, from },
     {
       initialData:
-        week === 0 ? { status: "open" as const, page: initial } : undefined,
+        offset === 0 ? { status: "open" as const, page: initial } : undefined,
       placeholderData: keepPreviousData,
       staleTime: 30_000,
     },
@@ -98,7 +105,6 @@ export function MeetBooking({
 
   const [length, setLength] = useState(initial.link.defaultLength);
   const [selected, setSelected] = useState<Selected | null>(null);
-  const [phoneDay, setPhoneDay] = useState<string | null>(null);
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [token, setToken] = useState<string | null>(null);
   const [failure, setFailure] = useState<Extract<
@@ -112,6 +118,7 @@ export function MeetBooking({
   const attempt = useRef<Attempt | null>(null);
   const turnstile = useRef<TurnstileHandle>(null);
   const nameField = useRef<HTMLInputElement>(null);
+  const card = useRef<HTMLElement>(null);
   const bookedHeading = useRef<HTMLHeadingElement>(null);
   const book = api.booking.book.useMutation();
 
@@ -124,7 +131,6 @@ export function MeetBooking({
     const day = dayHolding(days, start);
     if (!day) return;
     setSelected({ start, day });
-    setPhoneDay(day.day);
     setFailure(null);
   };
 
@@ -138,6 +144,25 @@ export function MeetBooking({
   useEffect(() => {
     if (booked) bookedHeading.current?.focus();
   }, [booked]);
+
+  // A phone swipes 3 Days either way; read them ahead so they slide in full.
+  useEffect(() => {
+    if (!isPhone()) return;
+    for (const by of [PHONE_DAYS, -PHONE_DAYS]) {
+      const near = windowStart(initial.firstDay, initial.lastDay, offset + by);
+      if (near) void utils.booking.page.prefetch({ slug, from: near });
+    }
+  }, [utils, slug, offset, initial.firstDay, initial.lastDay]);
+
+  /** On a phone the card is below the grid, so a tap brings it up. */
+  const showCard = () => {
+    if (!isPhone()) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    card.current?.scrollIntoView({
+      behavior: still ? "auto" : "smooth",
+      block: "start",
+    });
+  };
 
   const slot =
     selection === null
@@ -211,8 +236,12 @@ export function MeetBooking({
     );
   }
 
-  const previous = weekStart(initial.firstDay, initial.lastDay, week - 1);
-  const next = weekStart(initial.firstDay, initial.lastDay, week + 1);
+  const canGo = (by: number) =>
+    by < 0
+      ? offset > 0
+      : windowStart(initial.firstDay, initial.lastDay, offset + by) !== null;
+  const go = (by: number) => setOffset((o) => Math.max(0, o + by));
+  const phoneDays = days.slice(0, PHONE_DAYS);
   const needsToken = Boolean(turnstileSiteKey);
   const canBook =
     selection !== null && !book.isPending && (!needsToken || token !== null);
@@ -241,31 +270,22 @@ export function MeetBooking({
               ))}
             </div>
           )}
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Earlier week"
-              disabled={previous === null}
-              onClick={() => setWeek((w) => w - 1)}
-              className={styles.chevron}
-            >
-              <CaretLeftIcon size={14} weight="bold" aria-hidden />
-            </button>
-            <span className="min-w-28 text-center text-[13px] font-semibold tabular-nums">
-              {days.length > 0
-                ? rangeLabel(days[0]!.day, days.at(-1)!.day)
-                : ""}
-            </span>
-            <button
-              type="button"
-              aria-label="Later week"
-              disabled={next === null}
-              onClick={() => setWeek((w) => w + 1)}
-              className={styles.chevron}
-            >
-              <CaretRightIcon size={14} weight="bold" aria-hidden />
-            </button>
-          </div>
+          <DayNav
+            className="hidden md:flex"
+            unit="week"
+            shown={days}
+            canEarlier={canGo(-WEEK)}
+            canLater={canGo(WEEK)}
+            onStep={(direction) => go(direction * WEEK)}
+          />
+          <DayNav
+            className="flex md:hidden"
+            unit="days"
+            shown={phoneDays}
+            canEarlier={canGo(-PHONE_DAYS)}
+            canLater={canGo(PHONE_DAYS)}
+            onStep={(direction) => go(direction * PHONE_DAYS)}
+          />
         </div>
 
         {failure && recoveryFor(failure.code) === "repick" && (
@@ -316,17 +336,24 @@ export function MeetBooking({
               />
             </div>
             <div className="md:hidden">
-              <TimeList
-                days={days}
-                activeDay={phoneDay}
+              <WeekStrip
+                compact
+                days={phoneDays}
+                boundsDays={days}
                 hostZone={hostZone}
                 bookerZone={bookerZone}
                 host={host}
                 length={length}
                 selection={selection}
                 suggestions={suggestions}
-                onDay={setPhoneDay}
                 onSelect={select}
+                onConfirm={() => nameField.current?.focus()}
+                onStep={(direction) => go(direction * PHONE_DAYS)}
+                canStep={{
+                  earlier: canGo(-PHONE_DAYS),
+                  later: canGo(PHONE_DAYS),
+                }}
+                onPicked={showCard}
               />
             </div>
             {suggestions.length > 0 && (
@@ -349,8 +376,9 @@ export function MeetBooking({
       </div>
 
       <aside
+        ref={card}
         aria-label="Your booking"
-        className="lg:sticky lg:top-6 lg:self-start"
+        className="scroll-mt-4 lg:sticky lg:top-6 lg:self-start"
       >
         <form
           onSubmit={(event) => void submit(event)}
@@ -497,6 +525,49 @@ export function MeetBooking({
             )}
         </form>
       </aside>
+    </div>
+  );
+}
+
+/** The arrows and the range they step: a week on a computer, 3 Days on a phone. */
+function DayNav({
+  className,
+  unit,
+  shown,
+  canEarlier,
+  canLater,
+  onStep,
+}: {
+  className: string;
+  unit: "week" | "days";
+  shown: BookingDay[];
+  canEarlier: boolean;
+  canLater: boolean;
+  onStep: (direction: 1 | -1) => void;
+}) {
+  return (
+    <div className={cn("ml-auto items-center gap-1", className)}>
+      <button
+        type="button"
+        aria-label={`Earlier ${unit}`}
+        disabled={!canEarlier}
+        onClick={() => onStep(-1)}
+        className={styles.chevron}
+      >
+        <CaretLeftIcon size={14} weight="bold" aria-hidden />
+      </button>
+      <span className="min-w-28 text-center text-[13px] font-semibold tabular-nums">
+        {shown.length > 0 ? rangeLabel(shown[0]!.day, shown.at(-1)!.day) : ""}
+      </span>
+      <button
+        type="button"
+        aria-label={`Later ${unit}`}
+        disabled={!canLater}
+        onClick={() => onStep(1)}
+        className={styles.chevron}
+      >
+        <CaretRightIcon size={14} weight="bold" aria-hidden />
+      </button>
     </div>
   );
 }

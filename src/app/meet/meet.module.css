@@ -73,8 +73,7 @@
 }
 
 .segment:focus-visible,
-.chevron:focus-visible,
-.timeButton:focus-visible {
+.chevron:focus-visible {
   outline: 2px solid rgb(var(--mt-green) / 0.6);
   outline-offset: 2px;
 }
@@ -101,6 +100,13 @@
 
 .grid {
   --hairline: rgb(var(--mt-ink) / 0.06);
+}
+
+/* The booker's rail, over the Days as they slide under it on a phone. */
+.rail {
+  position: relative;
+  z-index: 1;
+  background: rgb(var(--mt-ground));
 }
 
 .railLabel {
@@ -150,7 +156,7 @@
   background: rgb(var(--mt-shade) / var(--mt-dim));
 }
 
-/* Hours outside the week's booking hours, at the top and bottom. */
+/* Open time, washed green. */
 .open {
   position: absolute;
   inset-inline: 0;
@@ -237,62 +243,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- The phone's list ---------- */
-
-.dayTrack {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 10px;
-  background: rgb(var(--mt-ink) / 0.06);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.dayTrack::-webkit-scrollbar {
-  display: none;
-}
-
-.daySegment {
-  flex: 0 0 auto;
-  min-width: 4.5rem;
-  padding: 5px 10px;
-  border-radius: 8px;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.daySegment[aria-pressed="true"] {
-  background: rgb(var(--mt-raised));
-  box-shadow: var(--mt-raised-shadow);
-}
-
-.timeButton {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  align-items: center;
-  padding: 7px 4px;
-  border-radius: 999px;
-  background: rgb(var(--mt-green) / 0.1);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  transition: background-color 150ms ease;
-}
-
-.timeButton:hover {
-  background: rgb(var(--mt-green) / 0.16);
-}
-
-.timeButton[aria-pressed="true"] {
-  background: rgb(var(--mt-green));
-  color: #fff;
-}
-
-.timeButton[aria-pressed="true"] .secondary {
-  color: rgb(255 255 255 / 0.8);
-}
-
+/* The best times' dot, in the note under the grid. */
 .dot {
   display: inline-block;
   width: 6px;
@@ -300,10 +251,6 @@
   flex: none;
   border-radius: 999px;
   background: rgb(var(--mt-green));
-}
-
-.timeButton[aria-pressed="true"] .dot {
-  background: #fff;
 }
 
 /* ---------- The form and the confirmation ---------- */

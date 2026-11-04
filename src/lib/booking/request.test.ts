@@ -6,7 +6,7 @@ import {
   lengthLabel,
   lengthParts,
   lengthWords,
-  weekStart,
+  windowStart,
 } from "./page";
 import {
   MESSAGES,
@@ -153,10 +153,12 @@ describe("page helpers", () => {
     expect(isPrivateSlug("a".repeat(16))).toBe(true);
   });
 
-  it("steps weeks inside the bookable Days", () => {
-    expect(weekStart("2026-11-10", "2026-11-30", 0)).toBe("2026-11-10");
-    expect(weekStart("2026-11-10", "2026-11-30", 2)).toBe("2026-11-24");
-    expect(weekStart("2026-11-10", "2026-11-30", 3)).toBeNull();
-    expect(weekStart("2026-11-10", "2026-11-30", -1)).toBeNull();
+  it("steps weeks and a phone's Days inside the bookable Days", () => {
+    expect(windowStart("2026-11-10", "2026-11-30", 0)).toBe("2026-11-10");
+    expect(windowStart("2026-11-10", "2026-11-30", 14)).toBe("2026-11-24");
+    expect(windowStart("2026-11-10", "2026-11-30", 3)).toBe("2026-11-13");
+    expect(windowStart("2026-11-10", "2026-11-30", 20)).toBe("2026-11-30");
+    expect(windowStart("2026-11-10", "2026-11-30", 21)).toBeNull();
+    expect(windowStart("2026-11-10", "2026-11-30", -1)).toBeNull();
   });
 });

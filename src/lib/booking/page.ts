@@ -64,17 +64,20 @@ export function daysBetween(a: string, b: string): number {
 /** How many Days the page reads at once, a week. */
 export const WEEK = 7;
 
+/** How many Days a phone shows at once, so each column stays wide enough to tap. */
+export const PHONE_DAYS = 3;
+
 /**
- * The `from` of the week `offset` weeks after the first bookable Day, or
- * null past the last one.
+ * The `from` of the Days `offset` Days after the first bookable Day, or
+ * null past the last one. A week steps by `WEEK`, a phone by `PHONE_DAYS`.
  */
-export function weekStart(
+export function windowStart(
   firstDay: string,
   lastDay: string,
   offset: number,
 ): string | null {
   if (offset < 0) return null;
-  const from = addDays(firstDay, offset * WEEK);
+  const from = addDays(firstDay, offset);
   return from > lastDay ? null : from;
 }
 
