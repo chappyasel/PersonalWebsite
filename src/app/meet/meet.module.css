@@ -151,13 +151,6 @@
 }
 
 /* Hours outside the week's booking hours, at the top and bottom. */
-.offHours {
-  position: absolute;
-  inset-inline: 0;
-  pointer-events: none;
-  background: rgb(var(--mt-shade) / var(--mt-dim));
-}
-
 .open {
   position: absolute;
   inset-inline: 0;

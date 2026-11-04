@@ -42,9 +42,6 @@ import styles from "./meet.module.css";
 /** Pixels per minute: an hour is 60 pixels, as on Daybreak's schedule. */
 const PX = 1;
 
-/** Dimmed hours drawn above and below the week's booking hours. */
-const MARGIN = 60;
-
 type Props = {
   days: BookingDay[];
   hostZone: string;
@@ -94,12 +91,8 @@ export function WeekStrip({
     null,
   );
 
-  // The week's booking hours, with a dimmed hour either side.
-  const hoursOpen = axisBounds(days, hostZone);
-  const bounds = {
-    start: Math.max(0, hoursOpen.start - MARGIN),
-    end: hoursOpen.end + MARGIN,
-  };
+  // Only the week's booking hours, so the grid stays compact.
+  const bounds = axisBounds(days, hostZone);
   const hours = axisHours(bounds);
   const height = (bounds.end - bounds.start) * PX;
   const top = (ms: number, day: string) =>
@@ -381,7 +374,7 @@ export function WeekStrip({
                 className={styles.day}
                 style={{ height }}
               >
-                {open.length === 0 ? (
+                {open.length === 0 && (
                   <span
                     className={cn(
                       styles.secondary,
@@ -390,23 +383,6 @@ export function WeekStrip({
                   >
                     Closed
                   </span>
-                ) : (
-                  <>
-                    <div
-                      className={styles.offHours}
-                      style={{
-                        top: 0,
-                        height: (hoursOpen.start - bounds.start) * PX,
-                      }}
-                    />
-                    <div
-                      className={styles.offHours}
-                      style={{
-                        top: (hoursOpen.end - bounds.start) * PX,
-                        bottom: 0,
-                      }}
-                    />
-                  </>
                 )}
                 {open.map((stretch) => (
                   <div
