@@ -387,15 +387,16 @@ export function WeekStrip({
                     data-dragging={dragging ? "" : undefined}
                     className={cn(
                       styles.selection,
-                      "flex px-2 font-sans leading-tight",
+                      "flex flex-col overflow-hidden px-2 font-sans",
                       length >= 45
-                        ? "flex-col justify-start py-1"
-                        : "items-center gap-1.5",
+                        ? "justify-start py-1 leading-tight"
+                        : "justify-center gap-0.5 leading-none",
                     )}
                     style={{ top: top(selection, day), height: length * PX }}
                   >
-                    {/* A short block has room for one line: both starts. */}
-                    <span className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums">
+                    {/* A column is under 100px wide: a range only from 45
+                        minutes, and the host's start under it from 30. */}
+                    <span className="truncate text-xs font-semibold tabular-nums">
                       {length >= 45
                         ? compactRangeLabel(
                             selection,
@@ -405,7 +406,12 @@ export function WeekStrip({
                         : clockLabel(selection, bookerZone)}
                     </span>
                     {twoClocks && length >= 30 && (
-                      <span className="min-w-0 truncate text-[11px] tabular-nums opacity-75">
+                      <span
+                        className={cn(
+                          "truncate tabular-nums opacity-75",
+                          length >= 45 ? "text-[11px]" : "text-[10px]",
+                        )}
+                      >
                         {clockLabel(selection, hostZone)}{" "}
                         {zoneLabel(selection, hostZone)}
                       </span>
