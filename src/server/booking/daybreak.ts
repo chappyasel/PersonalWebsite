@@ -191,10 +191,12 @@ async function fetchPage(
  * The visitor's address: Vercel's `x-forwarded-for` first entry, else
  * `x-real-ip`. Vercel sets both itself, so a visitor can't choose them.
  */
+// Vercel's edge sets x-real-ip and overwrites any the visitor sends, so it
+// leads. x-forwarded-for's first entry is the fallback off Vercel.
 export function clientIpFrom(headers: Headers): string | undefined {
-  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (forwarded) return forwarded;
-  return nonEmpty(headers.get("x-real-ip")?.trim());
+  const real = headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  return nonEmpty(headers.get("x-forwarded-for")?.split(",")[0]?.trim());
 }
 
 function nonEmpty(value: string | null | undefined): string | undefined {

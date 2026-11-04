@@ -211,15 +211,33 @@ describe("reading a page", () => {
 });
 
 describe("the visitor's address", () => {
-  it("is the first forwarded entry, else the real IP", () => {
+  it("is the real IP Vercel sets, ahead of a forwarded entry", () => {
+    // A visitor can send their own x-forwarded-for; Vercel overwrites
+    // x-real-ip, so it wins when both are present.
+    expect(
+      clientIpFrom(
+        new Headers({
+          "x-real-ip": "203.0.113.8",
+          "x-forwarded-for": "198.51.100.1, 203.0.113.8",
+        }),
+      ),
+    ).toBe("203.0.113.8");
+    expect(clientIpFrom(new Headers({ "x-real-ip": " 203.0.113.8 " }))).toBe(
+      "203.0.113.8",
+    );
+  });
+
+  it("falls back to the first forwarded entry, else none", () => {
     expect(
       clientIpFrom(
         new Headers({ "x-forwarded-for": " 203.0.113.7 , 10.0.0.1" }),
       ),
     ).toBe("203.0.113.7");
-    expect(clientIpFrom(new Headers({ "x-real-ip": "203.0.113.8" }))).toBe(
-      "203.0.113.8",
-    );
+    expect(
+      clientIpFrom(
+        new Headers({ "x-real-ip": " ", "x-forwarded-for": "203.0.113.7" }),
+      ),
+    ).toBe("203.0.113.7");
     expect(clientIpFrom(new Headers())).toBeUndefined();
   });
 
