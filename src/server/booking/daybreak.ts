@@ -3,6 +3,8 @@ import "server-only";
 import {
   type BookingPage,
   DAY_PATTERN,
+  DEFAULT_SLUG,
+  SLUG_PATTERN,
   WEEK,
   bookingPageSchema,
 } from "~/lib/booking/page";
@@ -44,19 +46,20 @@ export type BookingConfig = {
 type EnvLike = {
   NODE_ENV?: string;
   DAYBREAK_BOOKING_URL?: string;
-  DAYBREAK_BOOKING_SLUG?: string;
   BOOKING_PROXY_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
 };
 
-export const DEFAULT_SLUG = "meet";
-
 /**
- * The booking settings from the environment. `fixture` serves canned open
- * time outside production only; a production build that has it set is
- * treated as having no deployment.
+ * The booking settings for one Booking link: the deployment from the
+ * environment, the slug from the route (/meet is `meet`, /meet/15 is `15`).
+ * `fixture` serves canned open time outside production only; a production
+ * build that has it set is treated as having no deployment.
  */
-export function bookingConfig(env: EnvLike): BookingConfig {
+export function bookingConfig(
+  env: EnvLike,
+  slug: string = DEFAULT_SLUG,
+): BookingConfig {
   const production = env.NODE_ENV === "production";
   const url = env.DAYBREAK_BOOKING_URL?.trim();
   const source: BookingSource =
@@ -67,7 +70,7 @@ export function bookingConfig(env: EnvLike): BookingConfig {
         : { kind: "remote", baseUrl: url.replace(/\/+$/, "") };
   return {
     source,
-    slug: env.DAYBREAK_BOOKING_SLUG ?? DEFAULT_SLUG,
+    slug,
     proxySecret: nonEmpty(env.BOOKING_PROXY_SECRET),
     turnstileSecret: nonEmpty(env.TURNSTILE_SECRET_KEY),
     production,
@@ -146,12 +149,15 @@ export async function readBookingPage(
 ): Promise<PageRead> {
   if (from !== undefined && !DAY_PATTERN.test(from))
     return { status: "closed" };
+  if (!SLUG_PATTERN.test(config.slug)) return { status: "closed" };
   const { source } = config;
   switch (source.kind) {
     case "off":
       return { status: "closed" };
-    case "fixture":
-      return { status: "open", page: fixturePage(from, deps.now()) };
+    case "fixture": {
+      const page = fixturePage(config.slug, from, deps.now());
+      return page ? { status: "open", page } : { status: "closed" };
+    }
     case "remote":
       return cache.read(`${config.slug}|${from ?? ""}`, deps.now(), () =>
         fetchPage(source.baseUrl, config.slug, from, deps),
@@ -267,7 +273,7 @@ export async function submitBooking(
   cache: PageCache = sharedCache,
 ): Promise<BookResult> {
   const { source } = config;
-  if (source.kind === "off") {
+  if (source.kind === "off" || !SLUG_PATTERN.test(config.slug)) {
     return { ok: false, code: "closed", message: MESSAGES.closed };
   }
   if (!REQUEST_ID.test(request.requestId)) {
@@ -292,7 +298,7 @@ export async function submitBooking(
   }
   const result =
     source.kind === "fixture"
-      ? fixtureBook(request, deps.now())
+      ? fixtureBook(config.slug, request, deps.now())
       : await postBooking(source.baseUrl, config, request, clientIp, deps);
   // A booking, or a time someone else just took, changes the open time.
   if (result.ok || result.code === "taken") cache.forget(config.slug);

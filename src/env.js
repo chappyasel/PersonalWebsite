@@ -46,11 +46,6 @@ export const env = createEnv({
     DAYBREAK_BOOKING_URL: z
       .union([z.literal("fixture"), z.string().url()])
       .optional(),
-    /** Optional. The Booking link /meet shows. Defaults to `meet`. */
-    DAYBREAK_BOOKING_SLUG: z
-      .string()
-      .regex(/^[a-z0-9-]{1,64}$/)
-      .optional(),
     /** Optional. The deployment's BOOKING_PROXY_SECRET, so Daybreak limits
      * bookings per visitor instead of counting them all as one caller. */
     BOOKING_PROXY_SECRET: z.string().optional(),
@@ -95,7 +90,6 @@ export const env = createEnv({
     GITHUB_TOKEN: process.env.GITHUB_TOKEN,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     DAYBREAK_BOOKING_URL: process.env.DAYBREAK_BOOKING_URL,
-    DAYBREAK_BOOKING_SLUG: process.env.DAYBREAK_BOOKING_SLUG,
     BOOKING_PROXY_SECRET: process.env.BOOKING_PROXY_SECRET,
     TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { lengthParts, lengthWords, weekStart } from "./page";
+import {
+  callPhrase,
+  isPrivateSlug,
+  lengthLabel,
+  lengthParts,
+  lengthWords,
+  weekStart,
+} from "./page";
 import {
   MESSAGES,
   REQUEST_ID,
@@ -58,11 +65,11 @@ describe("Daybreak's answers", () => {
   it("reads a booking", () => {
     expect(
       readBookingAnswer(200, {
-        booked: { start: 1, end: 2, title: "Ana <> Chappy: Hi" },
+        booked: { start: 1, end: 2, title: "Ana 🤝 Chappy" },
       }),
     ).toEqual({
       ok: true,
-      booked: { start: 1, end: 2, title: "Ana <> Chappy: Hi" },
+      booked: { start: 1, end: 2, title: "Ana 🤝 Chappy" },
     });
   });
 
@@ -126,9 +133,24 @@ describe("page helpers", () => {
       { value: 1, unit: "h" },
       { value: 30, unit: "m" },
     ]);
+    expect(lengthLabel(30)).toBe("30m");
+    expect(lengthLabel(90)).toBe("1h 30m");
     expect(lengthWords(30)).toBe("30 minutes");
     expect(lengthWords(60)).toBe("1 hour");
     expect(lengthWords(150)).toBe("2 hours 30 minutes");
+  });
+
+  it("names the call after a verb", () => {
+    expect(callPhrase({ kind: "meet" })).toBe("on Google Meet");
+    expect(callPhrase({ kind: "link" })).toBe("on a video call");
+    expect(callPhrase({ kind: "place", location: "Home" })).toBe("in person");
+  });
+
+  it("treats a slug of 16 characters or more as private", () => {
+    expect(isPrivateSlug("meet")).toBe(false);
+    expect(isPrivateSlug("60")).toBe(false);
+    expect(isPrivateSlug("a".repeat(15))).toBe(false);
+    expect(isPrivateSlug("a".repeat(16))).toBe(true);
   });
 
   it("steps weeks inside the bookable Days", () => {

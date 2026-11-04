@@ -28,6 +28,13 @@ describe("public sitemap", () => {
     expect(new Set(urls).size).toBe(urls.length);
   });
 
+  it("lists /meet but not the links the Owner sends", () => {
+    const urls = sitemap().map((entry) => entry.url);
+    expect(urls.filter((url) => url.includes("/meet"))).toEqual([
+      "https://www.chappyasel.com/meet",
+    ]);
+  });
+
   it("keeps article URLs consistent with their canonical metadata", () => {
     const urls = sitemap().map((entry) => entry.url);
     for (const article of musings) {

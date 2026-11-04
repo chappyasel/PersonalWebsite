@@ -95,15 +95,17 @@ describe("settings", () => {
     ).toEqual({ kind: "off" });
   });
 
-  it("read the deployment's origin, slug, and secrets", () => {
+  it("read the deployment's origin and secrets, and the route's slug", () => {
     expect(
-      bookingConfig({
-        DAYBREAK_BOOKING_URL: `${BASE}/`,
-        DAYBREAK_BOOKING_SLUG: "chat",
-        BOOKING_PROXY_SECRET: PROXY,
-        TURNSTILE_SECRET_KEY: "",
-        NODE_ENV: "production",
-      }),
+      bookingConfig(
+        {
+          DAYBREAK_BOOKING_URL: `${BASE}/`,
+          BOOKING_PROXY_SECRET: PROXY,
+          TURNSTILE_SECRET_KEY: "",
+          NODE_ENV: "production",
+        },
+        "chat",
+      ),
     ).toEqual({
       source: { kind: "remote", baseUrl: BASE },
       slug: "chat",
@@ -207,6 +209,39 @@ describe("reading a page", () => {
       [],
     );
     expect(read.page.suggested.length).toBeGreaterThan(0);
+  });
+
+  it("serves one length per fixture link and no others", async () => {
+    const deps = { fetch: fakeFetch().fetch, now: () => 0 };
+    const fixture = (slug: string) =>
+      readBookingPage(remote({ source: { kind: "fixture" }, slug }), {}, deps);
+    for (const [slug, length] of [
+      ["meet", 30],
+      ["15", 15],
+      ["60", 60],
+    ] as const) {
+      const read = await fixture(slug);
+      if (read.status !== "open") throw new Error(`${slug} closed`);
+      expect(read.page.link.lengths).toEqual([length]);
+      expect(read.page.link.defaultLength).toBe(length);
+    }
+    expect(await fixture("45")).toEqual({ status: "closed" });
+  });
+
+  it("reads a link by the route's slug and refuses a malformed one", async () => {
+    const { fetch, calls } = fakeFetch(json(200, PAGE));
+    await readBookingPage(remote({ slug: "15" }), {}, { fetch, now });
+    expect(String(calls[0]![0] as string | URL)).toContain("/book/15?");
+    expect(
+      await readBookingPage(remote({ slug: "../x" }), {}, { fetch, now }),
+    ).toEqual({ status: "closed" });
+    expect(
+      await submitBooking(remote({ slug: "Meet Me" }), BOOKING, undefined, {
+        fetch,
+        now,
+      }),
+    ).toMatchObject({ ok: false, code: "closed" });
+    expect(calls).toHaveLength(1);
   });
 });
 
@@ -314,7 +349,7 @@ describe("booking", () => {
   const booked = {
     start: BOOKING.start,
     end: BOOKING.start + 1_800_000,
-    title: "Ana <> Chappy: Planning",
+    title: "Ana 🤝 Chappy",
   };
 
   it("checks Turnstile, then forwards with the proxy headers", async () => {
@@ -449,7 +484,7 @@ describe("booking", () => {
     const start = read.page.suggested[0]!;
     expect(
       await submitBooking(fixture, { ...BOOKING, start }, undefined, deps),
-    ).toMatchObject({ ok: true });
+    ).toMatchObject({ ok: true, booked: { title: "Ana 🤝 Chappy" } });
     expect(
       await submitBooking(
         fixture,

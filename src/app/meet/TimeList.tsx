@@ -95,7 +95,7 @@ export function TimeList({
                 {best && (
                   <span
                     role="img"
-                    aria-label="Has a best time"
+                    aria-label="Has Best times"
                     className={styles.dot}
                   />
                 )}
@@ -121,7 +121,7 @@ export function TimeList({
                     aria-pressed={selection === start}
                     aria-label={`${clockLabel(start, bookerZone)} your time${
                       both ? `, ${clockLabel(start, hostZone)} for ${host}` : ""
-                    }${best ? ", a best time" : ""}`}
+                    }${best ? ", best" : ""}`}
                     onClick={() => onSelect(start)}
                     className={styles.timeButton}
                   >

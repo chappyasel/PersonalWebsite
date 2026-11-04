@@ -12,7 +12,8 @@ import { zonedDate, zonedTime } from "~/lib/booking/zones";
  * `DAYBREAK_BOOKING_URL=fixture` in development. Production never serves it
  * (bookingConfig turns it off there).
  *
- * Weekdays open 9 to 6 in San Francisco less a few busy stretches that
+ * It serves three one-length links, `meet` (30 minutes), `15`, and `60`,
+ * and no other. Weekdays open 9 to 6 in San Francisco less a few busy stretches that
  * change by date, weekends stay closed, and the first three weekdays
  * suggest the slot right after their lunch Meeting. Booking answers like
  * the deployment: an "about" line with "taken" answers 409, one with
@@ -23,14 +24,26 @@ const ZONE = "America/Los_Angeles";
 const DAYS_AHEAD = 21;
 const NOTICE = 4 * 60 * MINUTE;
 
-const LINK: BookingPage["link"] = {
-  slug: "meet",
-  title: "Meet with Chappy",
-  host: "Chappy",
-  lengths: [15, 30, 45, 60],
-  defaultLength: 30,
-  call: { kind: "meet" },
-};
+/** One link per length, as the Owner sends them: /meet, /meet/15, /meet/60. */
+const LINKS: Record<string, BookingPage["link"]> = Object.fromEntries(
+  (
+    [
+      ["meet", 30],
+      ["15", 15],
+      ["60", 60],
+    ] as const
+  ).map(([slug, length]) => [
+    slug,
+    {
+      slug,
+      title: "Meet with Chappy",
+      host: "Chappy",
+      lengths: [length],
+      defaultLength: length,
+      call: { kind: "meet" },
+    },
+  ]),
+);
 
 /** Busy stretches by date, as clock minutes, so the week looks lived in. */
 function busyOn(date: string): [number, number][] {
@@ -64,10 +77,14 @@ function openOn(date: string, now: number) {
     .filter((s) => s.end - s.start >= 15 * MINUTE);
 }
 
+/** The link's week from `from`, or null for a slug the fixture doesn't know. */
 export function fixturePage(
+  slug: string,
   from: string | undefined,
   now: number,
-): BookingPage {
+): BookingPage | null {
+  const link = LINKS[slug];
+  if (!link) return null;
   const firstDay = zonedDate(now + NOTICE, ZONE);
   const lastDay = addDays(zonedDate(now, ZONE), DAYS_AHEAD - 1);
   const start = !from || from < firstDay ? firstDay : from;
@@ -83,10 +100,16 @@ export function fixturePage(
       return open.some((s) => s.start === afterLunch) ? [afterLunch] : [];
     })
     .slice(0, 3);
-  return { link: LINK, timeZone: ZONE, firstDay, lastDay, days, suggested };
+  return { link, timeZone: ZONE, firstDay, lastDay, days, suggested };
 }
 
-export function fixtureBook(fields: BookingFields, now: number): BookResult {
+export function fixtureBook(
+  slug: string,
+  fields: BookingFields,
+  now: number,
+): BookResult {
+  const link = LINKS[slug];
+  if (!link) return readBookingAnswer(404, { error: { code: "not_found" } });
   const about = fields.about.toLowerCase();
   if (about.includes("taken")) {
     return readBookingAnswer(409, { error: { code: "taken" } });
@@ -107,7 +130,7 @@ export function fixtureBook(fields: BookingFields, now: number): BookResult {
   }
   const date = zonedDate(fields.start, ZONE);
   if (
-    !LINK.lengths.includes(fields.length) ||
+    !link.lengths.includes(fields.length) ||
     !fits(openOn(date, now), fields.start, fields.length)
   ) {
     return readBookingAnswer(409, { error: { code: "taken" } });
@@ -116,7 +139,8 @@ export function fixtureBook(fields: BookingFields, now: number): BookResult {
     booked: {
       start: fields.start,
       end: fields.start + fields.length * MINUTE,
-      title: `${fields.name.trim().split(/\s+/)[0]} <> ${LINK.host}: ${fields.about.trim()}`,
+      // Daybreak's style: the about line goes in the invite's description.
+      title: `${fields.name.trim().split(/\s+/)[0]} 🤝 ${link.host}`,
     },
   });
 }

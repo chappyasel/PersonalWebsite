@@ -34,6 +34,21 @@ export type Span = BookingDay["open"][number];
 
 export const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/** A Booking link's slug, as Daybreak's `/book/<slug>` takes it. */
+export const SLUG_PATTERN = /^[a-z0-9-]{1,64}$/;
+
+/** The link /meet shows; /meet/<slug> shows any other. */
+export const DEFAULT_SLUG = "meet";
+
+/**
+ * Daybreak gives a link it doesn't list a slug of 16 characters or more,
+ * so a slug that long is treated as a secret: no page text, image, or
+ * canonical URL repeats it, and search engines are told to skip the page.
+ */
+export function isPrivateSlug(slug: string): boolean {
+  return slug.length >= 16;
+}
+
 /** `date` moved by `days` calendar days. */
 export function addDays(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
@@ -75,6 +90,13 @@ export function lengthParts(
   ];
 }
 
+/** "15m", "1h", or "1h 30m", for text without the units' styling. */
+export function lengthLabel(minutes: number): string {
+  return lengthParts(minutes)
+    .map(({ value, unit }) => `${value}${unit}`)
+    .join(" ");
+}
+
 /** "15 minutes", "1 hour", or "1 hour 30 minutes", for screen readers. */
 export function lengthWords(minutes: number): string {
   return lengthParts(minutes)
@@ -95,5 +117,17 @@ export function callLabel(call: BookingPage["link"]["call"]): string {
       return "Video call";
     case "place":
       return call.location ?? "In person";
+  }
+}
+
+/** "on Google Meet", "on a video call", or "in person", after a verb. */
+export function callPhrase(call: BookingPage["link"]["call"]): string {
+  switch (call.kind) {
+    case "meet":
+      return "on Google Meet";
+    case "link":
+      return "on a video call";
+    case "place":
+      return "in person";
   }
 }

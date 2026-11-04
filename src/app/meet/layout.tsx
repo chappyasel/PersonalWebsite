@@ -1,32 +1,16 @@
-import type { Metadata } from "next";
+import type { Viewport } from "next";
 
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "./meet.css";
 
-const title = "Meet with Chappy";
-const description =
-  "Pick a length and a time that's open on Chappy's calendar. Every time shows in your zone and Chappy's, and the invite lands in your inbox.";
-const url = "https://www.chappyasel.com/meet";
-
-export const metadata: Metadata = {
-  title,
-  description,
-  alternates: { canonical: url },
-  openGraph: {
-    title,
-    description,
-    url,
-    siteName: "Chappy Asel",
-    locale: "en_US",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    creator: "@chappyasel",
-    title,
-    description,
-  },
+// Each page names its own title, description, and share card (metadata.ts).
+// Browser chrome follows the page's white or near-black, not the site's sand.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1c1c1e" },
+  ],
 };
 
 export default function MeetLayout({

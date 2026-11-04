@@ -24,6 +24,7 @@ const at = (hour: number, minute = 0, day = "2026-11-10") =>
 const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   invalidate: vi.fn(),
+  query: vi.fn(),
 }));
 
 vi.mock("~/lib/booking/zones", async (original) => ({
@@ -35,8 +36,8 @@ vi.mock("~/trpc/react", () => ({
   api: {
     booking: {
       page: {
-        useQuery: (_input: unknown, options: { initialData?: unknown }) => ({
-          data: options.initialData,
+        useQuery: (input: unknown, options: { initialData?: unknown }) => ({
+          data: (mocks.query(input), options.initialData),
           isPlaceholderData: false,
           refetch: vi.fn(),
         }),
@@ -93,21 +94,47 @@ describe("booking on /meet", () => {
   afterEach(cleanup);
 
   it("shows a slot in both zones and marks the best one", () => {
-    render(<MeetBooking initial={PAGE} />);
+    render(<MeetBooking slug="meet" initial={PAGE} />);
     const best = screen.getByRole("button", {
-      name: "2:00 PM your time, 11:00 AM for Chappy, a best time",
+      name: "2:00 PM your time, 11:00 AM for Chappy, best",
     });
     fireEvent.click(best);
     expect(best.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByText("11:00 AM PT for Chappy")).toBeTruthy();
-    expect(screen.getByText("Best for Chappy")).toBeTruthy();
+    expect(screen.getByText("Best")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Book 30 minutes" }),
     ).toBeTruthy();
   });
 
+  it("reads its own link and shows no length picker when it offers one", () => {
+    render(
+      <MeetBooking
+        slug="15"
+        initial={{
+          ...PAGE,
+          link: { ...PAGE.link, slug: "15", lengths: [15], defaultLength: 15 },
+        }}
+      />,
+    );
+    expect(mocks.query).toHaveBeenCalledWith({
+      slug: "15",
+      from: "2026-11-10",
+    });
+    expect(screen.queryByRole("group", { name: "Length" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^2:00 PM your time/ }));
+    expect(
+      screen.getByRole("button", { name: "Book 15 minutes" }),
+    ).toBeTruthy();
+  });
+
+  it("offers a length picker only when the link has several", () => {
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    expect(screen.getByRole("group", { name: "Length" })).toBeTruthy();
+  });
+
   it("resizes the selection when the length changes", () => {
-    render(<MeetBooking initial={PAGE} />);
+    render(<MeetBooking slug="meet" initial={PAGE} />);
     fireEvent.click(
       screen.getByRole("button", { name: /^12:30 PM your time/ }),
     );
@@ -128,7 +155,7 @@ describe("booking on /meet", () => {
       code: "taken",
       message: MESSAGES.taken,
     });
-    render(<MeetBooking initial={PAGE} />);
+    render(<MeetBooking slug="meet" initial={PAGE} />);
     fireEvent.click(screen.getByRole("button", { name: /^2:00 PM your time/ }));
     const user = await fillForm();
     await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
@@ -147,10 +174,10 @@ describe("booking on /meet", () => {
         booked: {
           start: at(11),
           end: at(11, 30),
-          title: "Ana <> Chappy: Planning",
+          title: "Ana 🤝 Chappy",
         },
       });
-    render(<MeetBooking initial={PAGE} />);
+    render(<MeetBooking slug="meet" initial={PAGE} />);
     fireEvent.click(screen.getByRole("button", { name: /^2:00 PM your time/ }));
     const user = await fillForm();
     await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
@@ -160,6 +187,10 @@ describe("booking on /meet", () => {
       ([input]) => (input as { requestId: string }).requestId,
     );
     expect(first).toMatch(REQUEST_ID);
+    expect(mocks.mutateAsync.mock.calls[0]![0]).toMatchObject({
+      slug: "meet",
+      length: 30,
+    });
     expect(second).toBe(first);
 
     const heading = await screen.findByRole("heading", {

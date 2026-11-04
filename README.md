@@ -54,7 +54,9 @@ Deployed on Vercel with automated cron jobs for syncing books and weightlifting 
 `/meet` needs `DAYBREAK_BOOKING_URL`, `BOOKING_PROXY_SECRET`,
 `TURNSTILE_SECRET_KEY`, and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` in Production;
 `.env.example` says what each does. Without the first, the page says booking
-isn't open. Without the Turnstile secret, production refuses to book.
+isn't open. `/meet` shows Daybreak's Booking link `meet`, and `/meet/<slug>`
+any other, so each length the Owner sends is its own link (`/meet/15`,
+`/meet/60`). Without the Turnstile secret, production refuses to book.
 
 Vercel must have `ENABLE_EXPERIMENTAL_COREPACK=1` set for Production, Preview,
 and Development. Leave the Vercel Install Command unset. Corepack will then use

@@ -66,9 +66,11 @@ type Fields = { name: string; email: string; about: string; linkedin: string };
 const EMPTY: Fields = { name: "", email: "", about: "", linkedin: "" };
 
 export function MeetBooking({
+  slug,
   initial,
   turnstileSiteKey,
 }: {
+  slug: string;
   initial: BookingPage;
   turnstileSiteKey?: string;
 }) {
@@ -80,7 +82,7 @@ export function MeetBooking({
   const from =
     weekStart(initial.firstDay, initial.lastDay, week) ?? initial.firstDay;
   const query = api.booking.page.useQuery(
-    { from },
+    { slug, from },
     {
       initialData:
         week === 0 ? { status: "open" as const, page: initial } : undefined,
@@ -142,7 +144,7 @@ export function MeetBooking({
       ? null
       : slotText(selection, selection + length * MINUTE, hostZone, bookerZone);
   const announcement = slot
-    ? `${slotSentence(slot, host)}${suggestions.includes(selection!) ? `, a best time for ${host}` : ""}.`
+    ? `${slotSentence(slot, host)}${suggestions.includes(selection!) ? ", best" : ""}.`
     : "";
 
   const submit = async (event: FormEvent) => {
@@ -160,6 +162,7 @@ export function MeetBooking({
     let answer: BookResult;
     try {
       answer = await book.mutateAsync({
+        slug,
         ...request,
         requestId: attempt.current.requestId,
         ...(token ? { turnstileToken: token } : {}),
@@ -223,20 +226,22 @@ export function MeetBooking({
 
       <div className="min-w-0 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div role="group" aria-label="Length" className={styles.segmented}>
-            {link.lengths.map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={option === length}
-                onClick={() => pickLength(option)}
-                className={styles.segment}
-              >
-                <Duration minutes={option} />
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1">
+          {link.lengths.length > 1 && (
+            <div role="group" aria-label="Length" className={styles.segmented}>
+              {link.lengths.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={option === length}
+                  onClick={() => pickLength(option)}
+                  className={styles.segment}
+                >
+                  <Duration minutes={option} />
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
               aria-label="Earlier week"
@@ -334,9 +339,8 @@ export function MeetBooking({
                 {/* Centred on the first line: (16px line - 6px dot) / 2. */}
                 <span aria-hidden className={cn(styles.dot, "mt-[5px]")} />
                 <span>
-                  A green dot marks the times that suit {host} best: next to
-                  other meetings or at the edge of open time, so longer
-                  stretches stay free.
+                  Best: next to other meetings or at the edge of open time, so
+                  longer stretches stay free.
                 </span>
               </p>
             )}
@@ -358,7 +362,7 @@ export function MeetBooking({
                 <p className="flex items-center gap-2 text-[13px] font-semibold">
                   <Duration minutes={length} />
                   {suggestions.includes(selection!) && (
-                    <span className={styles.capsule}>Best for {host}</span>
+                    <span className={styles.capsule}>Best</span>
                   )}
                 </p>
                 <p className="mt-1 text-[17px] font-semibold tracking-[-0.01em]">
@@ -425,7 +429,7 @@ export function MeetBooking({
             <Field
               label="What it's about"
               id="meet-about"
-              hint="One line. It titles the invite."
+              hint="One line. It goes in the invite."
             >
               <Input
                 id="meet-about"
