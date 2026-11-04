@@ -1,6 +1,6 @@
 /*
  * /meet's pieces, drawn like Daybreak's Mac and iPhone schedule. The colours
- * are meet.css's tokens: --mt-ink for text and hairlines, --mt-green the one
+ * are meet.css's tokens: --mt-ink for text and hairlines, --mt-accent the one
  * accent, --mt-red only for the now line.
  */
 
@@ -21,7 +21,7 @@
 
 /* The link's length and call under the title: "30m · Google Meet". */
 .facts {
-  margin-top: 0.375rem;
+  margin-top: 0.125rem;
   font-size: 1.0625rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -36,6 +36,12 @@
 .unit {
   font-size: 0.8em;
   opacity: 0.8;
+}
+
+/* A time's "today" or "in 5h": a step under the words it follows,
+   near the size of a date's "th". */
+.aside {
+  font-size: 0.85em;
 }
 
 /* ---------- Controls ---------- */
@@ -74,7 +80,7 @@
 
 .segment:focus-visible,
 .chevron:focus-visible {
-  outline: 2px solid rgb(var(--mt-green) / 0.6);
+  outline: 2px solid rgb(var(--mt-accent) / 0.6);
   outline-offset: 2px;
 }
 
@@ -85,6 +91,41 @@
   height: 28px;
   border-radius: 6px;
   color: rgb(var(--mt-ink) / 0.7);
+}
+
+/* Centred on the label's letters, which sit a little low in their line. */
+.chevron > svg {
+  translate: 0 1.5px;
+}
+
+/* Away from the current week or Days, a blue dot before the arrows goes
+   back to them. Outside the row, so the label doesn't move as it comes. */
+.navReturn {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  width: 24px;
+  height: 28px;
+  margin-top: -14px;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.navReturnDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--mt-accent));
+  translate: 0 1.5px;
+  transition: scale 150ms ease-out;
+}
+
+.navReturn:hover .navReturnDot {
+  scale: 1.4;
+}
+
+.navReturn :focus-visible {
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
 
 .chevron:hover:not(:disabled) {
@@ -100,13 +141,42 @@
 
 .grid {
   --hairline: rgb(var(--mt-ink) / 0.06);
+  /* Blocks sit this far inside their Day and the Days this far inside the
+     panel's edge, so a block's corner is concentric with the panel's:
+     12px = 8px + 4px. */
+  --inset: 4px;
+  --block-radius: 8px;
+  --panel-radius: calc(var(--block-radius) + var(--inset));
+  --slide: 180ms cubic-bezier(0.3, 1.25, 0.5, 1);
 }
 
 /* The booker's rail, over the Days as they slide under it on a phone. */
 .rail {
   position: relative;
   z-index: 1;
-  background: rgb(var(--mt-ground));
+  background: var(--mt-page-now);
+}
+
+/* A rail's zone heading, just under the panel's top edge, where the first
+   hour's label would be. */
+.zoneHeading {
+  position: absolute;
+  inset-inline: 0;
+  /* The zone's capitals start level with the first block's top. */
+  top: calc(var(--inset) - 1px);
+  display: flex;
+  flex-direction: column;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Whose clock, under the zone: smaller and fainter, the zone being what
+   matters. */
+.zoneWho {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgb(var(--mt-ink) / 0.36);
 }
 
 .railLabel {
@@ -123,85 +193,198 @@
 /* The Days' body: hour lines run the full width, as Notion Calendar draws
    them, and each Day is set off by a faint vertical line, no cards. */
 .days {
-  border-top: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
+  position: relative;
+  border: 1px solid var(--hairline);
+  border-radius: var(--panel-radius);
+  overflow: clip;
+  background-color: rgb(var(--mt-ground));
+  /* The hours start --inset down. Only the lines between hours are drawn;
+     the panel's own edge is the first and last. */
   background-image: repeating-linear-gradient(
     to bottom,
-    var(--hairline) 0 1px,
-    transparent 1px var(--hour)
+    transparent 0 calc(var(--hour) - 1px),
+    var(--hairline) calc(var(--hour) - 1px) var(--hour)
   );
+  background-repeat: no-repeat;
+  background-position: 0 var(--inset);
+  background-size: 100% calc(100% - 2 * var(--inset) - 1px);
   outline: none;
 }
 
-.days:focus-visible:not([data-pressed]) {
-  box-shadow: 0 0 0 2px rgb(var(--mt-green) / 0.6);
+/* Keyboard focus rings the meeting the arrow keys move, not the whole
+   grid; with no meeting yet, a faint inset edge says where the keys go. */
+.days:focus-visible:not([data-pressed]) .selection {
+  box-shadow:
+    0 0 0 2px rgb(var(--mt-ground)),
+    0 0 0 4px rgb(var(--mt-accent) / 0.6);
+}
+
+.days:focus-visible:not([data-pressed]):not(:has([data-selection])) {
+  box-shadow: inset 0 0 0 1px rgb(var(--mt-accent) / 0.45);
 }
 
 .day {
   position: relative;
-  border-left: 1px solid var(--hairline);
   cursor: default;
   touch-action: pan-y;
 }
 
-.day:last-child {
-  border-right: 1px solid var(--hairline);
+.day + .day {
+  border-left: 1px solid var(--hairline);
 }
 
 .day[data-weekend] {
   background: rgb(var(--mt-shade) / var(--mt-weekend));
 }
 
+/* A Day with nothing open is drawn like busy time, with a faint note. */
 .day[data-closed] {
-  background: rgb(var(--mt-shade) / var(--mt-dim));
+  background: none;
 }
 
-/* Open time, washed green. */
+.closedNote {
+  color: rgb(var(--mt-ink) / 0.16);
+}
+
+/* Open time, washed blue. */
 .open {
   position: absolute;
-  inset-inline: 0;
-  background: rgb(var(--mt-green) / 0.1);
+  inset-inline: var(--inset);
+  border-radius: var(--block-radius);
+  background: rgb(var(--mt-accent) / 0.1);
   cursor: pointer;
 }
 
 .open:hover {
-  background: rgb(var(--mt-green) / 0.15);
+  background: rgb(var(--mt-accent) / 0.15);
 }
 
-/* A best time: a small green dot at the slot's top corner. */
-.bestDot {
+/* A best time: a small blue star at the slot's top corner, inside a 16px
+   target the pointer can hover for its tooltip. A press goes on through
+   to the grid, which picks the time. */
+.bestTarget {
   position: absolute;
-  right: 6px;
-  width: 6px;
-  height: 6px;
-  margin-top: 5px;
-  border-radius: 999px;
-  background: rgb(var(--mt-green));
-  pointer-events: none;
+  right: calc(var(--inset) - 1px);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.bestDot {
+  position: relative;
+  display: grid;
+  color: rgb(var(--mt-accent));
+  transition: transform 150ms ease-out;
+}
+
+.bestDot > svg,
+.tipDot > svg {
+  display: block;
+}
+
+.bestTarget:hover .bestDot,
+.bestTarget[data-state="delayed-open"] .bestDot,
+.bestTarget[data-state="instant-open"] .bestDot {
+  transform: scale(1.5);
+}
+
+/* The best star's tooltip: a raised macOS popover, not the site's glass. */
+.tip {
+  max-width: 15rem;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgb(var(--mt-raised));
+  box-shadow:
+    var(--mt-raised-shadow),
+    0 8px 24px rgb(0 0 0 / 0.12);
+  color: rgb(var(--mt-ink));
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.tipDot {
+  position: relative;
+  display: grid;
+  flex: none;
+  color: rgb(var(--mt-accent));
 }
 
 .ghost {
   position: absolute;
-  inset-inline: 2px;
-  border-radius: 6px;
+  border-radius: var(--block-radius);
   pointer-events: none;
-  background: rgb(var(--mt-green) / 0.12);
-  box-shadow: inset 0 0 0 1px rgb(var(--mt-green) / 0.5);
+  background: rgb(var(--mt-accent) / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--mt-accent) / 0.5);
 }
 
 /* The meeting, drawn like a Daybreak event block. */
 .selection {
   position: absolute;
-  inset-inline: 2px;
   z-index: 2;
   overflow: hidden;
-  border-radius: 6px;
-  background: rgb(var(--mt-green));
+  border-radius: var(--block-radius);
+  background: rgb(var(--mt-accent));
   color: #fff;
   font-weight: 600;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
   cursor: grab;
   touch-action: none;
+}
+
+/* A best time's star stays on the meeting, white on its blue, where the
+   blue star sat. */
+.selection[data-best] {
+  padding-right: 14px;
+}
+
+/* The meeting sizes its own lines: the Day shows only where there's room
+   for it over the time, and the host's clock only on a block tall enough
+   for a third line. The time always shows. */
+.selection {
+  container-type: size;
+}
+
+@container (max-height: 25px) or (max-width: 76px) {
+  .selectionDate {
+    display: none;
+  }
+}
+
+@container (max-height: 52px) {
+  .selectionHost {
+    display: none;
+  }
+}
+
+.selectionDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #fff;
+}
+
+/* A Day still being read: a small spinner at its top, never the grid. */
+.dayLoading {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 999px;
+  border: 1.5px solid rgb(var(--mt-ink) / 0.15);
+  border-top-color: rgb(var(--mt-ink) / 0.5);
+  animation: meet-spin 700ms linear infinite;
+}
+
+@keyframes meet-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .selection[data-dragging] {
@@ -210,47 +393,123 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  /* The meeting and the hover block slide to a new time or Day with a
+     slight spring: they pass the spot by a few percent and settle back. */
   .selection {
     transition:
-      top 110ms ease-out,
+      top var(--slide),
+      left var(--slide),
       height 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
-      box-shadow 150ms ease;
+      background-color 100ms ease-out,
+      box-shadow 100ms ease-out;
+  }
+
+  .ghost {
+    transition:
+      top var(--slide),
+      left var(--slide),
+      height 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
   }
 }
 
+/* Now, across today, as Daybreak draws it: a 2px line, round at both ends,
+   stopping short of the Day's edge so the round shows, from a dot just
+   before the Day's leading edge. Beside the rail the pill covers the dot,
+   so the pill and the line read as one shape. */
 .nowLine {
   position: absolute;
-  inset-inline: 0;
+  left: 0;
+  right: 3px;
   z-index: 3;
   height: 2px;
   margin-top: -1px;
+  border-radius: 1px;
   background: rgb(var(--mt-red));
   pointer-events: none;
 }
 
+.nowLine::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: rgb(var(--mt-red));
+}
+
+/* From the dot's middle to the edge, so they join without a notch. */
+.nowLine::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  width: 5px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(var(--mt-red));
+}
+
+/* Now's time in the rail, white on red, in place of the hour labels it
+   covers, flush with the Days' edge over the panel's hairline. */
 .nowPill {
   position: absolute;
-  left: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 1px 5px;
-  border-radius: 999px;
+  right: -1px;
+  z-index: 1;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 4px;
   background: rgb(var(--mt-red));
   color: #fff;
   font-size: 10px;
   font-weight: 600;
   line-height: 14px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  translate: 0 -50%;
+  transform-origin: right center;
 }
 
-/* The best times' dot, in the note under the grid. */
-.dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  flex: none;
-  border-radius: 999px;
-  background: rgb(var(--mt-green));
+/* The pill and the labels it covers pop in and out on a spring, shrinking
+   toward the Days' edge, as Daybreak's do. */
+.nowPill,
+.railLabel,
+.zoneHeading {
+  transition:
+    color 100ms ease-out,
+    scale 350ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 200ms ease-out;
+}
+
+/* A minute on, it glides down to the next. */
+.nowPill {
+  transition:
+    background-color 100ms ease-out,
+    scale 350ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 200ms ease-out,
+    top 400ms ease-out;
+}
+
+.nowPill[data-hidden],
+.railLabel[data-covered],
+.zoneHeading[data-covered] {
+  scale: 0.4;
+  opacity: 0;
+}
+
+.railLabel,
+.zoneHeading {
+  transform-origin: right center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nowPill,
+  .railLabel,
+  .zoneHeading {
+    transition: opacity 200ms ease-out;
+  }
 }
 
 /* ---------- The form and the confirmation ---------- */
@@ -267,6 +526,13 @@
   font-weight: 600;
 }
 
+/* "Optional" beside a label: a fifth smaller and fainter than other quiet text. */
+.optional {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgb(var(--mt-ink) / 0.44);
+}
+
 .input {
   height: 2.25rem;
   border-radius: 8px;
@@ -277,19 +543,31 @@
   box-shadow: none;
 }
 
+/* "What it's about": the input's one line, growing to five, then
+   scrolling. 7px + 20px line + 7px + 2px border is the input's 36px. */
+.growing {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  max-height: calc(5 * 1.25rem + 14px + 2px);
+  padding-block: 7px;
+  line-height: 1.25rem;
+  resize: none;
+  overflow-y: auto;
+}
+
 .input::placeholder {
   color: rgb(var(--mt-ink) / 0.35);
 }
 
 .input:focus-visible {
-  border-color: rgb(var(--mt-green));
-  box-shadow: 0 0 0 3px rgb(var(--mt-green) / 0.25);
+  border-color: rgb(var(--mt-accent));
+  box-shadow: 0 0 0 3px rgb(var(--mt-accent) / 0.25);
 }
 
 .primary {
   height: 2.25rem;
   border-radius: 8px;
-  background: rgb(var(--mt-green));
+  background: rgb(var(--mt-accent));
   color: #fff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -297,7 +575,7 @@
 }
 
 .primary:hover {
-  background: rgb(var(--mt-green) / 0.9);
+  background: rgb(var(--mt-accent) / 0.9);
 }
 
 .primary:disabled {
@@ -319,18 +597,411 @@
 }
 
 .capsule {
+  position: relative;
   display: inline-flex;
   align-items: center;
+  gap: 3px;
   border-radius: 999px;
-  padding: 1px 7px;
-  background: rgb(var(--mt-green) / 0.15);
-  color: rgb(var(--mt-green));
-  font-size: 0.6875rem;
+  padding: 1px 8px;
+  background: rgb(var(--mt-accent));
+  color: #fff;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
 }
 
+.primary > :global(.hdr) {
+  border-radius: inherit;
+}
+
+/* The Book button's plate shows only while it's pressed, and fades out as
+   the finger lifts, then hides: a plate at opacity 0 would still hold the
+   screen in HDR. */
+.pressPlate {
+  opacity: 0;
+  transition:
+    opacity 220ms ease-out,
+    visibility 0s 220ms;
+}
+
+.primary:not([data-pressed]) > .pressPlate:global([data-playing]) {
+  visibility: hidden;
+}
+
+.primary[data-pressed] > .pressPlate {
+  opacity: 1;
+  transition: opacity 80ms ease-out;
+}
+
 .check {
-  color: rgb(var(--mt-green));
+  color: rgb(var(--mt-accent));
+}
+
+/* The dash in "2:30 - 3:00p", lighter than the times either side. */
+/* The dash between a range's two times, a touch of room each side, less
+   than a space's. */
+.dash {
+  padding-inline: 0.12em;
+  opacity: 0.4;
+}
+
+/* The dot before a time's "today" or "in 3h". */
+.dot {
+  white-space: pre;
+  opacity: 0.6;
+}
+
+/* ---------- The phone's booking sheet ---------- */
+
+/* Glass over the page's bottom, as the site's own sheets are: the grid
+   shows through it, blurred. */
+/* The page's column. It draws to the screen's edges (viewport-fit=cover in
+   layout.tsx), so it keeps clear of the status bar, a landscape phone's
+   notch, and the home indicator by their safe areas. */
+/* On a phone the title's capitals sit as far from the top as its letters
+   do from the left: 1rem, with the title trimmed to its cap height. */
+.main {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: calc(1rem + env(safe-area-inset-top, 0px))
+    calc(1rem + env(safe-area-inset-right, 0px))
+    calc(4rem + env(safe-area-inset-bottom, 0px))
+    calc(1rem + env(safe-area-inset-left, 0px));
+}
+
+@media (max-width: 639px) {
+  .main .title {
+    text-box: trim-start cap alphabetic;
+  }
+}
+
+@media (min-width: 640px) {
+  .main {
+    padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* Behind the open card the page fades to half: BookingSheet sets
+   --sheet-open from 0 to 1 as it grows. */
+:global(.meet-root) [data-enter] {
+  opacity: calc(1 - 0.5 * var(--sheet-open, 0));
+}
+
+/* The phone's booking bar, and the card it grows into: floating glass,
+   clear of the screen's edges and the home indicator, round all the way. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 30px;
+  /* Its colour's strength follows how far it's open: BookingSheet. Open,
+     it lifts what's behind it a little, against the page's shade. */
+  background: rgb(var(--mt-glass) / 0.62);
+  backdrop-filter: blur(20px) saturate(1.2)
+    brightness(calc(1 + var(--mt-glass-lift) + 0.1 * var(--sheet-open, 0)));
+  /* Its shadow rises from it, onto the page above, and none falls below
+     into the strip by the home indicator. Safari's corner mask clips it,
+     leaving the hairline ring, since a second fixed layer for the shadow
+     brought back Safari's grey strip under its toolbar. */
+  box-shadow:
+    0 0 0 0.5px rgb(var(--mt-ink) / 0.1),
+    0 -6px 24px -6px rgb(0 0 0 / 0.14);
+  color: rgb(var(--mt-ink));
+}
+
+/* Continuous corners on the bar and card, as iOS draws its own. Chrome has
+   corner-shape; Safari draws the shape with a stretchable mask instead: a
+   120-unit squircle tile cut 50 in from each side, so its corners keep
+   their curve at any height as the bar grows. The mask clips the bar's own
+   shadow, so the hairline draws as a masked ring inside it. Neither, and
+   it keeps its round. */
+@supports (corner-shape: squircle) {
+  .sheet {
+    corner-shape: squircle;
+    border-radius: 50px;
+  }
+}
+
+@supports (-webkit-mask-box-image: none) and (not (corner-shape: squircle)) {
+  .sheet {
+    -webkit-mask-box-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20viewBox='0%200%20120%20120'%3E%3Cpath%20d='M0,50L0.04,33.2L0.17,27.86L0.39,23.99L0.69,20.88L1.08,18.25L1.56,15.95L2.13,13.92L2.8,12.11L3.56,10.48L4.42,9L5.39,7.67L6.47,6.47L7.67,5.39L9,4.42L10.48,3.56L12.11,2.8L13.92,2.13L15.95,1.56L18.25,1.08L20.88,0.69L23.99,0.39L27.86,0.17L33.2,0.04L50,0L70,0L86.8,0.04L92.14,0.17L96.01,0.39L99.12,0.69L101.75,1.08L104.05,1.56L106.08,2.13L107.89,2.8L109.52,3.56L111,4.42L112.33,5.39L113.53,6.47L114.61,7.67L115.58,9L116.44,10.48L117.2,12.11L117.87,13.92L118.44,15.95L118.92,18.25L119.31,20.88L119.61,23.99L119.83,27.86L119.96,33.2L120,50L120,70L119.96,86.8L119.83,92.14L119.61,96.01L119.31,99.12L118.92,101.75L118.44,104.05L117.87,106.08L117.2,107.89L116.44,109.52L115.58,111L114.61,112.33L113.53,113.53L112.33,114.61L111,115.58L109.52,116.44L107.89,117.2L106.08,117.87L104.05,118.44L101.75,118.92L99.12,119.31L96.01,119.61L92.14,119.83L86.8,119.96L70,120L50,120L33.2,119.96L27.86,119.83L23.99,119.61L20.88,119.31L18.25,118.92L15.95,118.44L13.92,117.87L12.11,117.2L10.48,116.44L9,115.58L7.67,114.61L6.47,113.53L5.39,112.33L4.42,111L3.56,109.52L2.8,107.89L2.13,106.08L1.56,104.05L1.08,101.75L0.69,99.12L0.39,96.01L0.17,92.14L0.04,86.8L0,70Z'/%3E%3C/svg%3E")
+      50 / 50px stretch;
+    /* The mask is the only corner. A round one under it stops the glass
+       short of the squircle at each corner's diagonal, and the shadow,
+       which the mask clips everywhere else, showed through there. */
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .sheet::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: rgb(var(--mt-ink) / 0.16);
+    -webkit-mask-box-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='120'%20height='120'%20viewBox='0%200%20120%20120'%3E%3Cpath%20d='M0,50L0.04,33.2L0.17,27.86L0.39,23.99L0.69,20.88L1.08,18.25L1.56,15.95L2.13,13.92L2.8,12.11L3.56,10.48L4.42,9L5.39,7.67L6.47,6.47L7.67,5.39L9,4.42L10.48,3.56L12.11,2.8L13.92,2.13L15.95,1.56L18.25,1.08L20.88,0.69L23.99,0.39L27.86,0.17L33.2,0.04L50,0L70,0L86.8,0.04L92.14,0.17L96.01,0.39L99.12,0.69L101.75,1.08L104.05,1.56L106.08,2.13L107.89,2.8L109.52,3.56L111,4.42L112.33,5.39L113.53,6.47L114.61,7.67L115.58,9L116.44,10.48L117.2,12.11L117.87,13.92L118.44,15.95L118.92,18.25L119.31,20.88L119.61,23.99L119.83,27.86L119.96,33.2L120,50L120,70L119.96,86.8L119.83,92.14L119.61,96.01L119.31,99.12L118.92,101.75L118.44,104.05L117.87,106.08L117.2,107.89L116.44,109.52L115.58,111L114.61,112.33L113.53,113.53L112.33,114.61L111,115.58L109.52,116.44L107.89,117.2L106.08,117.87L104.05,118.44L101.75,118.92L99.12,119.31L96.01,119.61L92.14,119.83L86.8,119.96L70,120L50,120L33.2,119.96L27.86,119.83L23.99,119.61L20.88,119.31L18.25,118.92L15.95,118.44L13.92,117.87L12.11,117.2L10.48,116.44L9,115.58L7.67,114.61L6.47,113.53L5.39,112.33L4.42,111L3.56,109.52L2.8,107.89L2.13,106.08L1.56,104.05L1.08,101.75L0.69,99.12L0.39,96.01L0.17,92.14L0.04,86.8L0,70Z'%20fill='none'%20stroke='black'%20stroke-width='1'/%3E%3C/svg%3E")
+      50 / 50px stretch;
+  }
+}
+
+/* On the glass, the fields and the button are glass too. At 16px a
+   field's text is big enough that iOS doesn't zoom in on it. */
+.sheet .input {
+  border-color: rgb(var(--mt-ink) / 0.1);
+  background: var(--mt-field);
+  font-size: 16px;
+}
+
+.sheet .primary {
+  background: rgb(var(--mt-accent) / 0.78);
+}
+
+/* Frost over the card's top once the form scrolls up past the handle
+   (BookingSheet): the form blurs out under it on an eased fade, the way
+   Companion's headers take what scrolls under them, right up to the card's
+   edge. */
+.sheetEdge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  pointer-events: none;
+  background: rgb(var(--mt-glass) / 0.35);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 36%,
+    rgb(0 0 0 / 0.86) 50%,
+    rgb(0 0 0 / 0.62) 63%,
+    rgb(0 0 0 / 0.36) 76%,
+    rgb(0 0 0 / 0.14) 88%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 36%,
+    rgb(0 0 0 / 0.86) 50%,
+    rgb(0 0 0 / 0.62) 63%,
+    rgb(0 0 0 / 0.36) 76%,
+    rgb(0 0 0 / 0.14) 88%,
+    transparent
+  );
+}
+
+.sheetEdge[data-shown] {
+  opacity: 1;
+}
+
+/* It floats over the top of the form, with no ground of its own, so the
+   form scrolls up under it to the card's edge. */
+.sheetHandle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 7px 0 5px;
+  outline: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sheetHandle > span {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--mt-ink) / 0.25);
+  transition: background-color 150ms ease-out;
+}
+
+.sheetHandle:focus-visible > span {
+  background: rgb(var(--mt-ink) / 0.5);
+}
+
+/* Its top padding is the handle's height. The form fades out across it as
+   it scrolls up, rather than stopping at a line under the handle. */
+.sheetBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 16px;
+  scroll-padding-bottom: 96px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2px, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 2px, #000 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/* The bar shows only the time, so nothing in it scrolls. */
+.sheet:not([data-state="full"]) .sheetBody {
+  overflow-y: hidden;
+}
+
+/* The sheet's top, which drags it, keeps the touch from the page. */
+.sheetBody [data-peek-end] {
+  touch-action: none;
+}
+
+/* The Book button stays in reach at the card's foot while the form runs
+   on under it, on Companion's docked glass (its .dock-foot): frosted where
+   the form passes under, its top edge fading in over 36px rather than
+   starting at a line. The glass shows only while there's more form below
+   (BookingSheet's data-more). It holds the form's foot padding in every
+   state, so the card's measured height never changes as it docks, and
+   docks only in the card: in the bar it lies where it falls, out of view. */
+.sheetDock {
+  position: relative;
+  margin-inline: -20px;
+  padding: 0 20px 20px;
+}
+
+.sheet[data-state="full"] .sheetDock {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+
+.sheetDock::before {
+  content: "";
+  position: absolute;
+  top: -20px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgb(var(--mt-glass) / 0.52),
+    rgb(var(--mt-glass) / 0.3)
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(1.9);
+  backdrop-filter: blur(14px) saturate(1.9);
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 calc(100% - 36px),
+    transparent
+  );
+  mask-image: linear-gradient(to top, #000 calc(100% - 36px), transparent);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.sheet[data-more] .sheetDock::before {
+  opacity: 1;
+}
+
+/* The error screen's ID, for a report: quieter than the sentence it ends. */
+.errorId {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--mt-ink) / 0.4);
+}
+
+/* The page's arrival. While .meet-root carries data-entering, each part
+   marked data-enter rises into place and sharpens, in the order its
+   --enter gives, and then every open time cascades in, one Day after the
+   next. MeetBooking drops the attribute once it's over, so later Days and
+   steps arrive their own way. */
+@media (prefers-reduced-motion: no-preference) {
+  :global(.meet-root[data-entering]) [data-enter] {
+    animation: meet-enter 760ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(var(--enter, 0) * 70ms);
+  }
+
+  :global(.meet-root[data-entering]) [data-heading],
+  :global(.meet-root[data-entering]) .open,
+  :global(.meet-root[data-entering]) .closedNote,
+  :global(.meet-root[data-entering]) .bestTarget,
+  :global(.meet-root[data-entering]) .nowLine {
+    animation: meet-cascade 680ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(320ms + var(--col, 0) * 45ms);
+  }
+
+  :global(.meet-root[data-entering]) .selection {
+    animation: meet-cascade 680ms cubic-bezier(0.3, 1.25, 0.5, 1) backwards;
+    animation-delay: calc(420ms + var(--col, 0) * 45ms);
+  }
+}
+
+@keyframes meet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(6px);
+  }
+}
+
+@keyframes meet-cascade {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+/* The peek's swipe hint: faint, with a caret that drifts up and back. */
+.swipeHint {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--mt-ink) / 0.32);
+}
+
+.swipeLine {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.swipeUp {
+  opacity: clamp(0, (0.6 - var(--sheet-open, 0)) * 5, 1);
+}
+
+.swipeDown {
+  opacity: clamp(0, (var(--sheet-open, 0) - 0.4) * 5, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .swipeArrow {
+    animation: meet-drift 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+}
+
+/* The swipe up's words, ready for a highlight to run through them each
+   time a time is picked (SwipeHint sweeps the background). At rest the
+   gradient shows only its faint ends. */
+@media (prefers-reduced-motion: no-preference) {
+  .shimmer {
+    background-image: linear-gradient(
+      100deg,
+      rgb(var(--mt-ink) / 0.32) 0 35%,
+      rgb(var(--mt-ink) / 0.9) 50%,
+      rgb(var(--mt-ink) / 0.32) 65% 100%
+    );
+    background-size: 300% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@keyframes meet-drift {
+  0%,
+  100% {
+    transform: translateY(1px);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
 }

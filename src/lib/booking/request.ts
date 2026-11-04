@@ -46,6 +46,23 @@ export type BookingFields = {
   linkedin?: string;
 };
 
+/**
+ * A LinkedIn field as Daybreak takes it, a linkedin.com address. The field
+ * shows "/in/you", so "/in/ada" and "in/ada" are a profile path, and a bare
+ * handle like "ada" or "@ada" is the handle. Anything else, such as a full
+ * address, goes as typed for Daybreak to check.
+ */
+export function linkedinAddress(typed: string): string {
+  const trimmed = typed.trim();
+  if (!trimmed) return "";
+  const path = /^\/?(in\/\S+)$/i.exec(trimmed);
+  if (path) return `linkedin.com/${path[1]}`;
+  if (!/[./\s]/.test(trimmed)) {
+    return `linkedin.com/in/${trimmed.replace(/^@/, "")}`;
+  }
+  return trimmed;
+}
+
 /** What makes two submits the same attempt: the slot and every field, trimmed. */
 export function attemptKey(fields: BookingFields): string {
   return JSON.stringify([

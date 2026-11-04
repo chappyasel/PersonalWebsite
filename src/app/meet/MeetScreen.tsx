@@ -24,13 +24,24 @@ export async function MeetScreen({ slug }: { slug: string }) {
   const length = page ? onlyLength(page.link) : null;
 
   return (
-    <div className="meet-root">
+    <div className="meet-root" data-entering="">
       <MeetThemeColor />
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:pt-12">
-        <header className="mb-6">
-          <h1 className={styles.title}>{title}</h1>
+      <main className={styles.main}>
+        <header className="mb-2">
+          <h1
+            data-enter
+            style={{ ["--enter" as string]: 0 }}
+            className={styles.title}
+          >
+            {title}
+          </h1>
+          {/* A phone's booking card says the same, so it's left out there. */}
           {page && (
-            <p className={styles.facts}>
+            <p
+              data-enter
+              style={{ ["--enter" as string]: 1 }}
+              className={cn(styles.facts, "max-md:hidden")}
+            >
               {length !== null && (
                 <>
                   <Duration minutes={length} />
@@ -40,13 +51,17 @@ export async function MeetScreen({ slug }: { slug: string }) {
               {callLabel(page.link.call)}
             </p>
           )}
-          <p className={cn(styles.lede, page && "mt-1")}>
-            {page
-              ? `${length === null ? "Pick a length and a time" : "Pick a time"}. Times show in your zone and ${page.link.host}'s.`
-              : read.status === "unavailable"
+          {!page && (
+            <p
+              data-enter
+              style={{ ["--enter" as string]: 1 }}
+              className={styles.lede}
+            >
+              {read.status === "unavailable"
                 ? "The calendar didn't answer. Try again in a minute."
                 : "Booking isn't open right now."}
-          </p>
+            </p>
+          )}
         </header>
 
         {page && (

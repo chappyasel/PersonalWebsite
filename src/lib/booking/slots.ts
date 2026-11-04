@@ -1,36 +1,55 @@
 import type { BookingDay, Span } from "./page";
 
 /**
- * Where a booking may start. Daybreak's rule, mirrored here so the page
- * never offers a time the server would refuse: a start sits on the quarter
- * hour, and the whole length fits inside one open stretch.
+ * Where a booking may start. Daybreak takes any start on the quarter hour
+ * whose whole length fits inside one open stretch. The page offers fewer:
+ * a meeting of half an hour or more starts on the half hour, so 30 minutes
+ * books 2:00 or 2:30 and never 2:15. A 15-minute one keeps the quarter hour.
  */
 
 export const MINUTE = 60_000;
 
-/** Bookings start on the quarter hour. */
+/** Daybreak's grid: no booking starts off the quarter hour. */
 export const GRID = 15 * MINUTE;
 
-const floorGrid = (ms: number) => Math.floor(ms / GRID) * GRID;
-const ceilGrid = (ms: number) => Math.ceil(ms / GRID) * GRID;
+/** The step between the starts the page offers at `length` minutes. */
+export function gridFor(length: number): number {
+  return length >= 30 ? 30 * MINUTE : GRID;
+}
 
-/** The nearest quarter hour to `ms`, later on a tie. */
-export function snapToGrid(ms: number): number {
-  return Math.round(ms / GRID) * GRID;
+const floorGrid = (ms: number, grid = GRID) => Math.floor(ms / grid) * grid;
+const ceilGrid = (ms: number, grid = GRID) => Math.ceil(ms / grid) * grid;
+
+/** The nearest start on `grid` to `ms`, later on a tie. */
+export function snapToGrid(ms: number, grid = GRID): number {
+  return Math.round(ms / grid) * grid;
 }
 
 /** Whether `length` minutes from `start` is bookable in `open`. */
 export function fits(open: Span[], start: number, length: number): boolean {
-  if (!Number.isFinite(start) || start % GRID !== 0) return false;
+  if (!Number.isFinite(start) || start % gridFor(length) !== 0) return false;
   const end = start + length * MINUTE;
   return open.some((stretch) => stretch.start <= start && end <= stretch.end);
 }
 
 /** The first and last start a stretch allows at `length`, or null if it's too short. */
 function bounds(stretch: Span, length: number): [number, number] | null {
-  const lo = ceilGrid(stretch.start);
-  const hi = floorGrid(stretch.end - length * MINUTE);
+  const grid = gridFor(length);
+  const lo = ceilGrid(stretch.start, grid);
+  const hi = floorGrid(stretch.end - length * MINUTE, grid);
   return hi < lo ? null : [lo, hi];
+}
+
+/**
+ * The stretches drawn as open at `length`: each from its first start to its
+ * last start's end. A 15-minute edge that no half-hour start can use, and a
+ * stretch too short to hold the length, aren't drawn.
+ */
+export function bookableSpans(open: Span[], length: number): Span[] {
+  return open.flatMap((stretch) => {
+    const range = bounds(stretch, length);
+    return range ? [{ start: range[0], end: range[1] + length * MINUTE }] : [];
+  });
 }
 
 /** Every bookable start in `open` at `length`, in order. */
@@ -39,7 +58,7 @@ export function startsIn(open: Span[], length: number): number[] {
   for (const stretch of open) {
     const range = bounds(stretch, length);
     if (!range) continue;
-    for (let start = range[0]; start <= range[1]; start += GRID) {
+    for (let start = range[0]; start <= range[1]; start += gridFor(length)) {
       starts.push(start);
     }
   }
@@ -47,7 +66,7 @@ export function startsIn(open: Span[], length: number): number[] {
 }
 
 /**
- * The bookable start nearest `desired`: snapped to the quarter hour and
+ * The bookable start nearest `desired`: snapped to the length's grid and
  * pulled into whichever stretch that fits the length is closest. Earlier
  * wins a tie. Null when nothing in `open` fits.
  */
@@ -56,7 +75,7 @@ export function nearestStart(
   desired: number,
   length: number,
 ): number | null {
-  const snapped = snapToGrid(desired);
+  const snapped = snapToGrid(desired, gridFor(length));
   let best: number | null = null;
   let bestDistance = Infinity;
   for (const stretch of open) {
@@ -138,7 +157,9 @@ export function dayHolding(
  * another length this keeps the same idea without guessing at the
  * calendar: a suggestion flush with its stretch's start keeps its start,
  * and one flush with its stretch's end moves so the new length still ends
- * there. One that no longer fits is dropped.
+ * there. Either comes onto the length's grid inside its stretch, so a
+ * flush 10:15 is 10:30 at half-hour starts. One that no longer fits is
+ * dropped.
  */
 export function suggestedFor(
   days: BookingDay[],
@@ -153,13 +174,13 @@ export function suggestedFor(
       (s) => s.start <= start && start + defaultLength * MINUTE <= s.end,
     );
     if (!day || !stretch) continue;
-    let moved = start;
-    if (length !== defaultLength) {
-      const endsFlush =
-        start !== ceilGrid(stretch.start) &&
-        floorGrid(stretch.end - defaultLength * MINUTE) === start;
-      moved = endsFlush ? floorGrid(stretch.end - length * MINUTE) : start;
-    }
+    const grid = gridFor(length);
+    const endsFlush =
+      start !== ceilGrid(stretch.start) &&
+      floorGrid(stretch.end - defaultLength * MINUTE) === start;
+    const moved = endsFlush
+      ? floorGrid(stretch.end - length * MINUTE, grid)
+      : ceilGrid(start, grid);
     if (fits(day.open, moved, length)) picked.add(moved);
   }
   return [...picked].sort((a, b) => a - b);

@@ -64,6 +64,18 @@ export function daysBetween(a: string, b: string): number {
 /** How many Days the page reads at once, a week. */
 export const WEEK = 7;
 
+/**
+ * How many Days one read asks Daybreak for: its most, 28. The page reads in
+ * blocks of this from the first bookable Day and keeps the next block read
+ * ahead, so stepping or swiping never waits on the network.
+ */
+export const READ_DAYS = 28;
+
+/** The `from` of the read block holding the Day `offset` Days in. */
+export function blockStart(firstDay: string, offset: number): string {
+  return addDays(firstDay, Math.floor(offset / READ_DAYS) * READ_DAYS);
+}
+
 /** How many Days a phone shows at once, so each column stays wide enough to tap. */
 export const PHONE_DAYS = 3;
 
@@ -133,4 +145,19 @@ export function callPhrase(call: BookingPage["link"]["call"]): string {
     case "place":
       return "in person";
   }
+}
+
+/**
+ * The day nav's words for the Days shown, `offset` Days after the first
+ * bookable one. The Days carry their own dates, so this says how far out
+ * they are: a week is "This week", "Next week", then "In 3 weeks"; a
+ * phone's few Days are "Next 3 days", then "In 6 days", then weeks.
+ */
+export function stepLabel(offset: number, count: number): string {
+  const weeks = Math.round(offset / WEEK);
+  const inWeeks = weeks === 1 ? "Next week" : `In ${weeks} weeks`;
+  if (count >= WEEK) return weeks === 0 ? "This week" : inWeeks;
+  if (offset === 0) return `Next ${count} days`;
+  if (offset === 1) return "From tomorrow";
+  return offset < 2 * WEEK ? `In ${offset} days` : inWeeks;
 }

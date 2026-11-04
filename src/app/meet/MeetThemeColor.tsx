@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 import { THEME_COLOR } from "~/lib/theme";
 
-const MEET_COLOR = { light: "#ffffff", dark: "#1c1c1e" };
+const MEET_COLOR = { light: "#f5f5f7", dark: "#0e0e0f" };
 
 function paint(colors: typeof MEET_COLOR, dark: boolean) {
   for (const meta of document.querySelectorAll<HTMLMetaElement>(
@@ -16,7 +16,7 @@ function paint(colors: typeof MEET_COLOR, dark: boolean) {
 }
 
 /**
- * Browser chrome in /meet's white or near-black rather than the site's
+ * Browser chrome in /meet's page grey or near-black rather than the site's
  * sand. The site's ThemeColorSync paints after this effect (parents run
  * theirs after children), so this paints on the next frame, and gives the
  * site its colours back when the page goes.

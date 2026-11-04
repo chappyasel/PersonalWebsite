@@ -4,8 +4,8 @@ import {
   type BookingPage,
   DAY_PATTERN,
   DEFAULT_SLUG,
+  READ_DAYS,
   SLUG_PATTERN,
-  WEEK,
   bookingPageSchema,
 } from "~/lib/booking/page";
 import {
@@ -140,7 +140,7 @@ export type PageCache = ReturnType<typeof createPageCache>;
 
 const sharedCache = createPageCache();
 
-/** A week of the link's open time from `from`, or from the first bookable Day. */
+/** `READ_DAYS` of the link's open time from `from`, or from the first bookable Day. */
 export async function readBookingPage(
   config: BookingConfig,
   { from }: { from?: string },
@@ -172,7 +172,7 @@ async function fetchPage(
   deps: Deps,
 ): Promise<PageRead> {
   const url = new URL(`${baseUrl}/book/${encodeURIComponent(slug)}`);
-  url.searchParams.set("days", String(WEEK));
+  url.searchParams.set("days", String(READ_DAYS));
   if (from) url.searchParams.set("from", from);
   try {
     const response = await deps.fetch(url, {

@@ -10,9 +10,14 @@
  * hue at everyday screen brightness. At the XDR panel's 1600, a Mac without
  * that much headroom caps the red and the orange turns yellow.
  *
+ * /meet's blue gets its own plate, public/hdr/meet-accent.mp4, at MEET_HDR's
+ * nits, about 4x SDR white like the crossing's orange, for its stars, its
+ * Best badge, and its pressed Book button.
+ *
  *     pnpm generate:hdr-accent   # needs ffmpeg with libx265
  */
 import { CROSSING_TOKENS } from "../../src/app/components/stacks/scene/coordinationCrossing";
+import { MEET_HDR } from "../../src/app/meet/hdr";
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -41,13 +46,13 @@ function pq(nits: number) {
 }
 
 /** The accent in linear Rec. 2020 nits, its strongest channel at the peak. */
-function peak(accent: readonly number[]) {
+function peak(accent: readonly number[], nits = PEAK_NITS) {
   const source = accent.map(linear);
   const rec2020 = SRGB_TO_2020.map((row) =>
     row.reduce((sum, weight, index) => sum + weight * source[index]!, 0),
   );
   const strongest = Math.max(...rec2020);
-  return rec2020.map((value) => (value / strongest) * PEAK_NITS);
+  return rec2020.map((value) => (value / strongest) * nits);
 }
 
 function encode(nits: number[], out: string) {
@@ -90,3 +95,11 @@ for (const theme of ["dark", "light"] as const) {
     `${multiple}x SDR white`,
   );
 }
+
+const meet = peak(MEET_HDR.accent, MEET_HDR.nits);
+encode(meet, path.join(OUT, "meet-accent.mp4"));
+console.log(
+  "meet",
+  meet.map((value) => Math.round(value)).join(" "),
+  `${(Math.max(...meet) / SDR_WHITE_NITS).toFixed(1)}x SDR white`,
+);

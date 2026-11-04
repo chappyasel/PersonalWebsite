@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { BookingDay } from "./page";
 import {
   GRID,
+  bookableSpans,
   dragStart,
   firstPick,
   fits,
+  gridFor,
   nearestStart,
   resize,
   snapToGrid,
@@ -34,7 +36,7 @@ const wednesday: BookingDay = {
 };
 
 describe("whether a start is bookable", () => {
-  it("needs the quarter hour and the whole length inside one stretch", () => {
+  it("needs the grid and the whole length inside one stretch", () => {
     expect(fits(open, at(9), 60)).toBe(true);
     expect(fits(open, at(9, 15), 60)).toBe(false);
     expect(fits(open, at(9, 10), 15)).toBe(false);
@@ -44,19 +46,30 @@ describe("whether a start is bookable", () => {
     expect(fits(open, at(9, 45), 90)).toBe(false);
   });
 
+  it("starts 30 minutes or more on the half hour, and shorter on the quarter", () => {
+    expect(gridFor(15)).toBe(GRID);
+    expect(gridFor(30)).toBe(2 * GRID);
+    expect(gridFor(60)).toBe(2 * GRID);
+    expect(fits(open, at(13, 15), 15)).toBe(true);
+    expect(fits(open, at(13, 15), 30)).toBe(false);
+    expect(fits(open, at(13, 45), 60)).toBe(false);
+  });
+
   it("lists every start at a length", () => {
     expect(startsIn(open, 60)).toEqual([
       at(9),
       at(11),
       at(13),
-      at(13, 15),
       at(13, 30),
-      at(13, 45),
       at(14),
-      at(14, 15),
       at(14, 30),
-      at(14, 45),
       at(15),
+    ]);
+    expect(startsIn([{ start: at(9), end: at(10) }], 15)).toEqual([
+      at(9),
+      at(9, 15),
+      at(9, 30),
+      at(9, 45),
     ]);
     expect(startsIn(open, 240)).toEqual([]);
   });
@@ -78,8 +91,11 @@ describe("snapping a drag to the grid", () => {
   });
 
   it("lands the block under the pointer, less where it was grabbed", () => {
-    // Grabbed 10 minutes into a 30-minute block, pointer at 2:22.
-    expect(dragStart(open, at(14, 22), 10 * 60_000, 30)).toBe(at(14, 15));
+    // Grabbed 10 minutes into a 30-minute block, pointer at 2:37, so its
+    // top is at 2:27 and lands on the half hour.
+    expect(dragStart(open, at(14, 37), 10 * 60_000, 30)).toBe(at(14, 30));
+    // A 15-minute block lands on the quarter hour.
+    expect(dragStart(open, at(14, 22), 5 * 60_000, 15)).toBe(at(14, 15));
   });
 
   it("holds the block at a stretch's last start when dragged past its end", () => {
@@ -104,9 +120,24 @@ describe("snapping a drag to the grid", () => {
     for (let minute = 0; minute < 8 * 60; minute += 7) {
       const start = dragStart(open, at(8) + minute * 60_000, 0, 45);
       expect(start).not.toBeNull();
-      expect(start! % GRID).toBe(0);
+      expect(start! % gridFor(45)).toBe(0);
       expect(fits(open, start!, 45)).toBe(true);
     }
+  });
+});
+
+describe("the time a start can use", () => {
+  it("drops the slivers off the grid that no start can use", () => {
+    // In 9:15-10:15 the only half-hour start is 9:30, so 9:15-9:30 and
+    // 10:00-10:15 go unused, and 11:00-11:15 is too short for 30 minutes.
+    const ragged = [
+      { start: at(9, 15), end: at(10, 15) },
+      { start: at(11), end: at(11, 15) },
+    ];
+    expect(bookableSpans(ragged, 30)).toEqual([
+      { start: at(9, 30), end: at(10) },
+    ]);
+    expect(bookableSpans(ragged, 15)).toEqual(ragged);
   });
 });
 

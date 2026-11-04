@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  blockStart,
   callPhrase,
   isPrivateSlug,
   lengthLabel,
@@ -13,6 +14,7 @@ import {
   REQUEST_ID,
   attemptFor,
   attemptKey,
+  linkedinAddress,
   makeRequestId,
   readBookingAnswer,
   recoveryFor,
@@ -160,5 +162,28 @@ describe("page helpers", () => {
     expect(windowStart("2026-11-10", "2026-11-30", 20)).toBe("2026-11-30");
     expect(windowStart("2026-11-10", "2026-11-30", 21)).toBeNull();
     expect(windowStart("2026-11-10", "2026-11-30", -1)).toBeNull();
+  });
+
+  it("reads in 28-Day blocks from the first bookable Day", () => {
+    expect(blockStart("2026-11-10", 0)).toBe("2026-11-10");
+    expect(blockStart("2026-11-10", 27)).toBe("2026-11-10");
+    expect(blockStart("2026-11-10", 28)).toBe("2026-12-08");
+  });
+});
+
+describe("the LinkedIn field", () => {
+  it("makes a profile path or a handle a linkedin.com address", () => {
+    expect(linkedinAddress("/in/ada")).toBe("linkedin.com/in/ada");
+    expect(linkedinAddress(" in/ada-l ")).toBe("linkedin.com/in/ada-l");
+    expect(linkedinAddress("ada")).toBe("linkedin.com/in/ada");
+    expect(linkedinAddress("@ada")).toBe("linkedin.com/in/ada");
+  });
+
+  it("leaves an address, or nothing, as typed", () => {
+    expect(linkedinAddress("https://www.linkedin.com/in/ada")).toBe(
+      "https://www.linkedin.com/in/ada",
+    );
+    expect(linkedinAddress("linkedin.com/in/ada")).toBe("linkedin.com/in/ada");
+    expect(linkedinAddress("  ")).toBe("");
   });
 });
