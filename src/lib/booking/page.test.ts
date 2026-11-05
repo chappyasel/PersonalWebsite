@@ -26,12 +26,12 @@ describe("daysFitting", () => {
     expect(daysFitting(398, true)).toBe(3);
     // A window too narrow for the computer's layout, but wider than a phone.
     expect(daysFitting(460, true)).toBe(4);
-    expect(daysFitting(520, true)).toBe(5);
+    expect(daysFitting(560, true)).toBe(5);
     expect(daysFitting(640, true)).toBe(6);
     // The computer's grid beside the card, from 1024 to its widest.
     expect(daysFitting(616, false)).toBe(5);
-    expect(daysFitting(700, false)).toBe(6);
-    expect(daysFitting(744, false)).toBe(7);
+    expect(daysFitting(720, false)).toBe(6);
+    expect(daysFitting(808, false)).toBe(7);
   });
 
   it("never shows fewer than 3 or more than 7", () => {

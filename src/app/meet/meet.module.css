@@ -13,6 +13,56 @@
   line-height: 1.15;
 }
 
+/* The page's head: the width the title fits in (.titleRow). */
+.titleHead {
+  container-type: inline-size;
+}
+
+/* The title on one line, and on a phone Chappy's photo before it, a
+   little taller than the title's capitals, and a gap: 1.286em and 0.357em
+   at the title's size, 36px and 10px at its full 28px. Together they
+   shrink to fit the head's width, never past their full size. MeetTitle
+   gives the title's width in ems (--title-em). */
+.titleRow {
+  --title-size: min(1.75rem, 100cqi / (var(--title-em) + 1.643));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--title-size) * 0.357);
+}
+
+.titleRow .title {
+  font-size: var(--title-size);
+  white-space: nowrap;
+}
+
+/* Chappy's photo, before the title on a phone, and over the grid's rail
+   beside it on a computer, centred on the title and its facts. */
+.portrait {
+  flex: none;
+  width: calc(var(--title-size, 1.75rem) * 1.286);
+  height: calc(var(--title-size, 1.75rem) * 1.286);
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px rgb(var(--mt-ink) / 0.08);
+}
+
+@media (min-width: 872px) {
+  /* The photo is over the rail, out of the title's way. */
+  .titleRow {
+    --title-size: min(1.75rem, 100cqi / var(--title-em));
+    display: block;
+  }
+
+  .portrait {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    translate: 0 -50%;
+  }
+}
+
 .lede {
   margin-top: 0.375rem;
   font-size: 0.9375rem;
@@ -220,9 +270,115 @@
   clip-path: inset(0 -100vmax);
 }
 
-/* The page's ground under a phone's status bar, then a short fade, so the
-   title scrolls up into it softly instead of being cut. Under the grid's
-   sticky head (.stickyHead), which covers it once stuck. */
+/* A line's height ahead of the head, where it rests (WeekStrip). */
+.headRest {
+  height: 1px;
+  margin-bottom: -1px;
+  pointer-events: none;
+}
+
+/* Stuck, the head is frosted glass, side to side and down past the
+   panel's rounded top to the foot of the zones over the rails, so the
+   hours and the rails' labels show through it blurred as they scroll up
+   under it. Inside the panel's edge it's cut away (clip-path), so there
+   the hours stay sharp up to the edge, and go under the glass above it.
+   Its foot fades over the 14px the zones' own fade took, so the glass has
+   no hard bottom edge. At rest, the head is the page's ground and the
+   first hour sits sharp under the panel's top. */
+.stickyHead[data-sticky]::before {
+  content: "";
+  position: absolute;
+  /* The zones reach this far below the head: their top padding, two lines
+     at 1.25 (.zoneHeading, .zoneWho), and their 14px fade, less the
+     panel's top the head ends with. */
+  --zone-reach: calc(
+    var(--inset) - 1px + 1.25 * (10.5px + 9px) + 14px - var(--panel-radius)
+  );
+  /* Out to a phone's screen edges, where the grid runs nearly edge to
+     edge. Not 100vmax wide: Chrome blurs nothing behind glass that big. */
+  inset: 0 calc(-1 * var(--glass-reach, 0px)) calc(-1 * var(--zone-reach));
+  z-index: -1;
+  background: rgb(var(--mt-page) / 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
+  /* The panel's edge: its top, the head's foot less its rounded top; its
+     sides, the rails' width in from the head's (WeekStrip's --rail-left
+     and --rail-right). */
+  --edge-top: calc(100% - var(--zone-reach) - var(--panel-radius));
+  --edge-left: calc(var(--glass-reach, 0px) + var(--rail-left, 0px));
+  --edge-right: calc(100% - var(--glass-reach, 0px) - var(--rail-right, 0px));
+  clip-path: shape(
+    evenodd from 0 0,
+    hline to 100%,
+    vline to 100%,
+    hline to 0,
+    close,
+    move to var(--edge-left) 100%,
+    vline to calc(var(--edge-top) + var(--panel-radius)),
+    arc to calc(var(--edge-left) + var(--panel-radius)) var(--edge-top) of
+      var(--panel-radius) cw,
+    hline to calc(var(--edge-right) - var(--panel-radius)),
+    arc to var(--edge-right) calc(var(--edge-top) + var(--panel-radius)) of
+      var(--panel-radius) cw,
+    vline to 100%,
+    close
+  );
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+  pointer-events: none;
+}
+
+.stickyHead[data-stuck]::before {
+  opacity: 1;
+}
+
+@media (max-width: 871.98px) {
+  .stickyHead {
+    --glass-reach: 24px;
+  }
+}
+
+/* On an iPhone, Safari paints the status bar above the stuck head solid in
+   the page's colour (.statusFade), so the glass's top fades up into that
+   colour, as its foot fades out, rather than meeting it at a hard line.
+   Over the glass, under the head's nav. */
+@supports (-webkit-touch-callout: none) {
+  .stickyHead[data-sticky]::after {
+    content: "";
+    position: absolute;
+    inset-inline: calc(-1 * var(--glass-reach, 0px));
+    top: 0;
+    z-index: -1;
+    height: 14px;
+    background: linear-gradient(var(--mt-page-now), transparent);
+    opacity: 0;
+    transition: opacity 160ms ease-out;
+    pointer-events: none;
+  }
+
+  .stickyHead[data-stuck]::after {
+    opacity: 1;
+  }
+}
+
+/* What's opaque at rest gives way to the glass. */
+.stickyHead[data-stuck] .stickyTop {
+  background: transparent;
+  box-shadow: none;
+}
+
+.stickyHead[data-stuck] .cap::before {
+  box-shadow: none;
+}
+
+/* The page's ground pinned to the window's top from the first frame, then
+   a short fade, so the title scrolls up under it softly. Pinned at the
+   edge, it has Safari 26 and later paint the status bar solid in the
+   page's colour from the start, as the stuck head would anyway (sticky.ts),
+   so the status bar doesn't change from see-through to solid mid-scroll.
+   Under the head (.stickyHead), whose glass covers it once stuck. */
 .statusFade {
   position: fixed;
   inset-inline: 0;
@@ -275,7 +431,12 @@
   line-height: 1.25;
 }
 
-/* Over the rail's labels as they scroll up under it. */
+/* Over the rail's labels as they scroll up under it, until the glass
+   takes over. */
+.stickyHead[data-stuck] .zoneHeading {
+  background: none;
+}
+
 .stickyHead .zoneHeading {
   top: 0;
   padding-top: calc(var(--inset) - 1px);
@@ -456,14 +617,15 @@
   padding-right: 14px;
 }
 
-/* The meeting sizes its own lines: the Day shows only where there's room
-   for it over the time, and the host's clock only on a block tall enough
-   for a third line. The time always shows. */
+/* The meeting sizes its own lines: the Day shows wherever there's height
+   for it over the time (FittedDay shortens it to the weekday where it's
+   narrow), and the host's clock only on a block tall enough for a third
+   line. The time always shows. */
 .selection {
   container-type: size;
 }
 
-@container (max-height: 25px) or (max-width: 76px) {
+@container (max-height: 25px) {
   .selectionDate {
     display: none;
   }
@@ -658,6 +820,23 @@
 /* ---------- The form and the confirmation ---------- */
 
 /* A grouped settings card: hairline edge, no heavy shadow. */
+/* The computer's card sticks level with the stuck calendar, in a window
+   tall enough to hold all of it there: the card, up to about 520px with a
+   second clock and an error, under the calendar's head, about 80px. In a
+   shorter one it scrolls with the page, so its Book button is never out of
+   reach. */
+.cardAside {
+  /* Over the grid's head, whose ground at rest reaches past its sides. */
+  position: relative;
+  z-index: 3;
+}
+
+@media (min-width: 872px) and (min-height: 640px) {
+  .cardAside {
+    position: sticky;
+  }
+}
+
 .card {
   border-radius: 18px;
   border: 1px solid rgb(var(--mt-ink) / 0.08);
@@ -893,6 +1072,13 @@
   opacity: 0.6;
 }
 
+/* An unseen copy of some text, measured to see whether the text fits
+   (useFits). Drawn from attributes, it adds nothing to the page's text. */
+.measure [data-t]::before {
+  content: attr(data-t);
+  white-space: pre;
+}
+
 /* ---------- The phone's booking sheet ---------- */
 
 /* Glass over the page's bottom, as the site's own sheets are: the grid
@@ -902,8 +1088,10 @@
    notch, and the home indicator by their safe areas. */
 /* On a phone the title's capitals sit as far from the top as its letters
    do from the left: 1rem, with the title trimmed to its cap height. */
+/* 76rem leaves the computer's grid, beside the card, room for the week at
+   its narrowest Day (DAY_MIN in page.ts). */
 .main {
-  max-width: 72rem;
+  max-width: 76rem;
   margin-inline: auto;
   padding: calc(1rem + env(safe-area-inset-top, 0px))
     calc(1rem + env(safe-area-inset-right, 0px))
@@ -914,6 +1102,12 @@
 @media (max-width: 639px) {
   .main .title {
     text-box: trim-start cap alphabetic;
+  }
+
+  /* Beside the photo, trimmed to its baseline too, so the photo centres
+     on its capitals. The photo, the taller, sets the row's height. */
+  .main .titleRow .title {
+    text-box: trim-both cap alphabetic;
   }
 }
 
@@ -990,11 +1184,12 @@
 }
 
 /* On the glass, the fields and the button are glass too. At 16px a
-   field's text is big enough that iOS doesn't zoom in on it. */
+   field's text is big enough that iOS doesn't zoom in on it. Only the
+   fill changes, which .input paints: the background shorthand here again
+   would undo autofill's clip to the text, and fill the field yellow. */
 .sheet .input {
   --field-fill: var(--mt-field);
   border-color: rgb(var(--mt-ink) / 0.1);
-  background: var(--field-fill);
   font-size: 16px;
 }
 
@@ -1145,15 +1340,18 @@
   color: rgb(var(--mt-ink) / 0.4);
 }
 
-/* The page's arrival. While .meet-root carries data-entering, each part
-   marked data-enter rises into place and sharpens, in the order its
-   --enter gives, and then every open time cascades in, one Day after the
-   next. MeetBooking drops the attribute once it's over, so later Days and
-   steps arrive their own way. */
+/* The page's arrival (intro.ts). While .meet-root carries data-entering,
+   each part marked data-enter rises into place and sharpens, in the order
+   its --enter gives, and then every open time cascades in, one Day after
+   the next. Until the page has hydrated and measured its Days
+   (data-entering="wait") each part holds at its first frame, unseen. In
+   the long entrance (data-intro) MeetTitle brings the title in itself and
+   sets --intro, so the rest arrives as the title lands. The attribute goes
+   once it's over, so later Days and steps arrive their own way. */
 @media (prefers-reduced-motion: no-preference) {
   :global(.meet-root[data-entering]) [data-enter] {
     animation: meet-enter 760ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-    animation-delay: calc(var(--enter, 0) * 70ms);
+    animation-delay: calc(var(--intro, 0ms) + var(--enter, 0) * 70ms);
   }
 
   :global(.meet-root[data-entering]) [data-heading],
@@ -1162,12 +1360,54 @@
   :global(.meet-root[data-entering]) .bestTarget,
   :global(.meet-root[data-entering]) .nowLine {
     animation: meet-cascade 680ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-    animation-delay: calc(320ms + var(--col, 0) * 45ms);
+    animation-delay: calc(var(--intro, 0ms) + 320ms + var(--col, 0) * 45ms);
   }
 
   :global(.meet-root[data-entering]) .selection {
     animation: meet-cascade 680ms cubic-bezier(0.3, 1.25, 0.5, 1) backwards;
-    animation-delay: calc(420ms + var(--col, 0) * 45ms);
+    animation-delay: calc(var(--intro, 0ms) + 420ms + var(--col, 0) * 45ms);
+  }
+
+  /* In the long entrance, out of the dust gathering into them (MeetDust),
+     the open times, the stars, and the meeting pop in where they stand,
+     without the rise, all the way in as their dust lands. */
+  :global(.meet-root[data-intro][data-entering]) .open,
+  :global(.meet-root[data-intro][data-entering]) .bestTarget,
+  :global(.meet-root[data-intro][data-entering]) .selection {
+    animation-name: meet-pop;
+    animation-duration: 480ms;
+    animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  /* The frame and the card come in where they stand too, so nothing is
+     still rising when its dust lands. */
+  :global(.meet-root[data-intro][data-entering]) [data-enter] {
+    animation-name: meet-fade;
+  }
+
+  :global(.meet-root[data-entering="wait"]) [data-enter],
+  :global(.meet-root[data-entering="wait"]) [data-heading],
+  :global(.meet-root[data-entering="wait"]) .open,
+  :global(.meet-root[data-entering="wait"]) .closedNote,
+  :global(.meet-root[data-entering="wait"]) .bestTarget,
+  :global(.meet-root[data-entering="wait"]) .nowLine,
+  :global(.meet-root[data-entering="wait"]) .selection {
+    animation-play-state: paused;
+  }
+
+  :global(.meet-root[data-intro]) .titleRow [data-enter] {
+    animation: none;
+  }
+
+  :global(.meet-root[data-intro][data-entering="wait"]) .titleRow {
+    opacity: 0;
+  }
+
+  /* What's under the title in its head waits until the title has glided
+     into place (--intro-landed), so it never rides along. */
+  :global(.meet-root[data-intro]) .facts,
+  :global(.meet-root[data-intro]) .lede {
+    animation-delay: var(--intro-landed);
   }
 }
 
@@ -1183,6 +1423,20 @@
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.97);
+  }
+}
+
+@keyframes meet-fade {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+@keyframes meet-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
   }
 }
 

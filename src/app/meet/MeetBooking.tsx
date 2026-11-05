@@ -80,6 +80,7 @@ import { confettiFrom } from "./confetti";
 import { tick } from "./haptics";
 import styles from "./meet.module.css";
 import { STICKY_HEADER } from "./sticky";
+import { useFits } from "./useFits";
 
 const noSubscription = () => () => undefined;
 
@@ -93,10 +94,10 @@ const PRESS = { type: "spring" as const, duration: 0.55, bounce: 0.22 };
 
 /**
  * Below 872px, the phone's layout: the Days alone, with the booking in the
- * bar at the screen's foot. From 872px the card sits beside the Days, which
- * is where 4 of them fit next to it (32px of page sides, 4 Days of
- * `DAY_MIN` and both rails, the 40px gap, the 21rem card). The form never
- * sits under the schedule. The classes that switch with it say
+ * bar at the screen's foot. From 872px the card sits beside the Days: 3 of
+ * them at first, 4 from 912px (32px of page sides, 4 Days of `DAY_MIN` and
+ * both rails, the 40px gap, the 21rem card). The form never sits under the
+ * schedule. The classes that switch with it say
  * `min-[872px]` and `max-[871.98px]`.
  */
 const PHONE_QUERY = "(max-width: 871.98px)";
@@ -343,16 +344,6 @@ export function MeetBooking({
     const timer = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, []);
-  // The page's arrival plays once; after it, Days that come in or step
-  // arrive their own way. See data-entering in meet.module.css.
-  useEffect(() => {
-    const timer = setTimeout(
-      () =>
-        document.querySelector(".meet-root")?.removeAttribute("data-entering"),
-      1600,
-    );
-    return () => clearTimeout(timer);
-  }, []);
   const attempt = useRef<Attempt | null>(null);
   const turnstile = useRef<TurnstileHandle>(null);
   const nameField = useRef<HTMLInputElement>(null);
@@ -442,6 +433,9 @@ export function MeetBooking({
     selection === null
       ? null
       : slotText(selection, selection + length * MINUTE, hostZone, bookerZone);
+  const dayLine = useFits<HTMLSpanElement, HTMLSpanElement>(
+    `${slot?.booker.day ?? ""}|${until?.day ?? ""}`,
+  );
   const announcement = slot
     ? `${slotSentence(slot, host)}${best ? ", best" : ""}.`
     : "";
@@ -624,19 +618,9 @@ export function MeetBooking({
     <form
       id={FORM_ID}
       onSubmit={(event) => void submit(event)}
-      // The computer's card sticks 16px under the window's top, or level
-      // with the stuck calendar's top (STICKY_HEADER), so it's at most the
-      // window less that and 16px under it; past it, it scrolls, as the
-      // phone's card does.
-      className={cn(
-        "space-y-4",
-        phone
-          ? "px-5"
-          : cn(
-              styles.card,
-              "max-h-[calc(100dvh-var(--card-top)-1rem)] overflow-y-auto overscroll-contain p-5",
-            ),
-      )}
+      // The computer's card never scrolls inside itself: in a window too
+      // short to hold it stuck, it scrolls with the page (.cardAside).
+      className={cn("space-y-4", phone ? "px-5" : cn(styles.card, "p-5"))}
     >
       {/* The sheet's peek shows down to the end of this block. */}
       <div data-peek-end>
@@ -650,12 +634,30 @@ export function MeetBooking({
                 phone && "leading-tight",
               )}
             >
-              <span className="min-w-0 truncate">
+              <span
+                ref={dayLine.room}
+                className="relative min-w-0 flex-1 truncate"
+              >
                 {/* Today and Tomorrow by name, in place of the date; a Day
-                    further off keeps its date, with how far it is. */}
+                    further off keeps its date, with how far it is, where
+                    the line holds both whole. */}
+                <span
+                  ref={dayLine.whole}
+                  aria-hidden
+                  className={cn(
+                    styles.measure,
+                    "invisible absolute left-0 whitespace-pre",
+                  )}
+                >
+                  <DateText measure text={namedDay ?? slot.booker.day} />
+                  <span
+                    data-t={` · ${until?.day ?? ""}`}
+                    className={cn(styles.aside, "font-medium")}
+                  />
+                </span>
                 <DateText text={namedDay ?? slot.booker.day} rolls />
                 <Reveal
-                  show={!!until?.day && !namedDay}
+                  show={!!until?.day && !namedDay && dayLine.fits}
                   className={cn(styles.secondary, styles.aside, "font-medium")}
                 >
                   <span className={styles.dot}> · </span>
@@ -990,7 +992,10 @@ export function MeetBooking({
             top: "var(--card-top)",
           }}
           aria-label="Your booking"
-          className="w-full max-[871.98px]:hidden min-[872px]:sticky min-[872px]:self-start"
+          className={cn(
+            styles.cardAside,
+            "w-full max-[871.98px]:hidden min-[872px]:self-start",
+          )}
         >
           {form}
         </aside>

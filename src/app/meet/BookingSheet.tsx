@@ -20,6 +20,7 @@ import {
 
 import { cn } from "~/lib/utils";
 
+import { INTRO } from "./intro";
 import styles from "./meet.module.css";
 
 /** Where the sheet rests: gone, showing only its top, or all of it. */
@@ -28,6 +29,11 @@ export type SheetState = "closed" | "peek" | "full";
 /** Critically damped, so it eases all the way in with no overshoot to
  * settle back from, as iOS sheets do. */
 const SPRING = { type: "spring" as const, duration: 0.5, bounce: 0 };
+/** Its rise into view: a little slower, with a touch of overshoot. */
+const RISE = { type: "spring" as const, duration: 0.7, bounce: 0.14 };
+/** Its first rise waits for the page's entrance (intro.ts): in the long
+ * one, until the title has landed; in the short one, for the Days. */
+const FIRST_RISE = { long: (INTRO.landed - 100) / 1000, short: 0.45 };
 /** The room kept above the open card, under the status bar. */
 const ABOVE = 8;
 /** Off the screen's bottom and sides: the bar sits 20px in, a little
@@ -94,6 +100,7 @@ export function BookingSheet({
     moved: boolean;
   } | null>(null);
   const dragged = useRef(false);
+  const risen = useRef(false);
 
   // The bar's and the card's heights, kept up as the form changes.
   useLayoutEffect(() => {
@@ -167,16 +174,36 @@ export function BookingSheet({
   const settle = (at: SheetState, velocity = 0) => {
     if (size.bar === 0) return;
     const quick = reducedMotion ? { duration: 0 } : SPRING;
-    void animate(shown, at === "closed" ? 0 : 1, quick);
+    if (at === "closed" || shown.get() > 0 || reducedMotion) {
+      void animate(shown, at === "closed" ? 0 : 1, quick);
+    } else {
+      // Rising into view. The first time, on the page's arrival, it waits
+      // for the rest of the page.
+      const root = sheet.current?.closest(".meet-root");
+      const delay = risen.current
+        ? 0
+        : root?.hasAttribute("data-intro")
+          ? FIRST_RISE.long
+          : root?.hasAttribute("data-entering")
+            ? FIRST_RISE.short
+            : 0;
+      risen.current = true;
+      void animate(shown, 1, { ...RISE, delay });
+    }
+    // Swiped down to pick another time, or closed, the keyboard goes with
+    // the card, and so does whatever a password manager pinned to the
+    // field: closed, the card is inert, but Safari leaves focus where it
+    // was.
+    if (at !== "full") {
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && sheet.current?.contains(focused))
+        focused.blur();
+    }
     if (at === "closed") return;
     if (height.get() === 0) height.set(rest(at));
     else void animate(height, rest(at), { ...quick, velocity });
     if (at === "full") return;
     if (scroller.current) scroller.current.scrollTop = 0;
-    // Swiped down to pick another time, the keyboard goes with the card.
-    const focused = document.activeElement;
-    if (focused instanceof HTMLElement && sheet.current?.contains(focused))
-      focused.blur();
   };
 
   useEffect(() => {
@@ -350,11 +377,16 @@ export function BookingSheet({
       root.removeProperty("--sheet-open");
     };
   }, [open]);
-  // It arrives by growing a touch from its own bottom edge, never by
-  // rising from below: on its way up from under the screen's edge Safari
-  // took it for a toolbar of the page's own, even at opacity 0, and kept
-  // the strip under its toolbar after it settled.
-  const arrive = useTransform(shown, [0, 1], [0.94, 1]);
+  // It rises into view from its own foot: its top edge climbs and its
+  // words ride up with it, cut off at the foot, which never moves. Never
+  // by sliding the whole card up from below: on its way up from under the
+  // screen's edge Safari took it for a toolbar of the page's own, even at
+  // opacity 0, and kept the strip under its toolbar after it settled.
+  const drawn = useTransform(
+    [height, shown],
+    ([h, s]) => (h as number) * Math.max(0, s as number),
+  );
+  const fade = useTransform(shown, [0, 0.3], [0, 1]);
   const edge = useTransform(open, [0, 1], [EDGE.bar, EDGE.card]);
 
   // A tap on the page outside the card shrinks it back to the bar, and
@@ -371,10 +403,8 @@ export function BookingSheet({
   }, [state, onState]);
 
   const place = {
-    height,
-    opacity: shown,
-    scale: arrive,
-    transformOrigin: "50% 100%",
+    height: drawn,
+    opacity: fade,
     left: edge,
     right: edge,
     bottom: `calc(env(safe-area-inset-bottom, 0px) + ${BOTTOM + lift}px)`,

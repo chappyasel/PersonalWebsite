@@ -79,8 +79,12 @@ export function blockStart(firstDay: string, offset: number): string {
 /** How many Days a phone shows at once, so each column stays wide enough to tap. */
 export const PHONE_DAYS = 3;
 
-/** The narrowest a Day's column gets before the grid shows one Day fewer. */
-const DAY_MIN = 90;
+/**
+ * The narrowest a Day's column gets before the grid shows one Day fewer:
+ * wide enough that the meeting's block, less its padding and a best
+ * time's star, holds its widest Day, "Wed, Nov 22nd", about 79px.
+ */
+const DAY_MIN = 100;
 
 /**
  * How many Days fit across the grid's width, 3 to 7: a phone shows 3, a

@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({ read: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("~/env", () => ({ env: { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site" } }));
 vi.mock("./read", () => ({ readMeet: mocks.read }));
+// A plain visit: no force reload, so the short entrance (intro.ts).
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("./MeetThemeColor", () => ({ MeetThemeColor: () => null }));
 vi.mock("./MeetBooking", () => ({
   MeetBooking: ({

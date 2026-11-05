@@ -56,6 +56,8 @@
 
   min-height: 100vh;
   min-height: 100dvh;
+  /* The grid's frosted head reaches a phone's screen edges (.stickyHead). */
+  overflow-x: clip;
   background: var(--mt-page-now);
   color: rgb(var(--mt-ink));
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",

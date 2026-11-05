@@ -54,6 +54,7 @@ import {
 import { DateText } from "./DateText";
 import styles from "./meet.module.css";
 import { STICKY_HEADER } from "./sticky";
+import { useFits } from "./useFits";
 
 /** Pixels per minute at the least: an hour is 72 pixels, a fifth over
  * Daybreak's schedule. */
@@ -148,8 +149,65 @@ type Touch = {
 
 type Located = { day: BookingDay; ms: number };
 
-/** A glide under way: sliding until `stepped`, then waiting on the Days. */
-type GlideRun = { direction: 1 | -1; stepped: boolean; timer: number };
+/** A glide under way: sliding until `stepped`, then waiting on the Days.
+ * `leaving` is the meeting's fade, should it glide away with its Days. */
+type GlideRun = {
+  direction: 1 | -1;
+  stepped: boolean;
+  timer: number;
+  leaving?: Animation;
+};
+
+/** The meeting's block shrinking a little as it fades, as its Days glide
+ * away, and growing back the same way once its Days glide in. The Days
+ * beside, which a glide shows, are drawn without it. */
+const SELECTION_AWAY = [
+  { opacity: 1, transform: "scale(1)" },
+  { opacity: 0, transform: "scale(0.9)" },
+];
+
+/** The meeting moving to another time on the same Days: a slight dip in
+ * size as it slides, and back to full with a touch of spring as it lands.
+ * A drag's snaps skip it, so the block doesn't pulse under the pointer. */
+const MOVE_DIP: Keyframe[] = [
+  { transform: "scale(1)", easing: "ease-out" },
+  {
+    transform: "scale(0.93)",
+    offset: 0.35,
+    easing: "cubic-bezier(0.3, 1.25, 0.5, 1)",
+  },
+  { transform: "scale(1)" },
+];
+const MOVE_DIP_MS = 300;
+
+/**
+ * The meeting's Day, as the card reads it, or just its weekday where the
+ * block is too narrow for all of it: never cut off with an ellipsis. The
+ * grid's narrowest Day leaves room for the whole of it (DAY_MIN in
+ * page.ts), so the weekday is a fallback.
+ */
+function FittedDay({ full, short }: { full: string; short: string }) {
+  const { room, whole, fits } = useFits<HTMLSpanElement, HTMLSpanElement>(full);
+  return (
+    <span
+      ref={room}
+      className={cn(
+        styles.selectionDate,
+        "relative overflow-hidden whitespace-nowrap text-[10.5px] font-medium opacity-85",
+      )}
+    >
+      {/* The whole Day, unseen, to measure against the room. */}
+      <span
+        ref={whole}
+        aria-hidden
+        className={cn(styles.measure, "invisible absolute left-0")}
+      >
+        <DateText measure text={full} />
+      </span>
+      <DateText rolls text={fits ? full : short} />
+    </span>
+  );
+}
 
 /**
  * A week of open time drawn like Daybreak's schedule, which draws its grid
@@ -192,6 +250,8 @@ export function WeekStrip({
   const hintId = useId();
   const frameRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  const restRef = useRef<HTMLDivElement>(null);
   const touch = useRef<Touch | null>(null);
   const drag = useRef<{
     grab: number;
@@ -200,6 +260,8 @@ export function WeekStrip({
     hold?: { x: number; y: number };
   } | null>(null);
   const [dragging, setDragging] = useState(false);
+  // A drag's snap to the next start, which moves the meeting without a dip.
+  const snapping = useRef(false);
   // Under a finger the meeting lifts and follows it freely, in the grid's
   // pixels, while the hover block marks where it lands.
   const [lift, setLift] = useState<{ left: number; top: number } | null>(null);
@@ -272,6 +334,19 @@ export function WeekStrip({
     shownFirst.current = firstDay;
     if (glided.current) {
       glided.current = false;
+      // Landed on the meeting's Days: it grows in where it stands.
+      const selected = frameRef.current?.querySelector("[data-selection]");
+      if (
+        selected &&
+        typeof selected.animate === "function" &&
+        !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      ) {
+        selected.animate([...SELECTION_AWAY].reverse(), {
+          duration: 340,
+          easing: SPRINGY,
+          fill: "backwards",
+        });
+      }
       return;
     }
     if (!before || !firstDay || before === firstDay) return;
@@ -366,6 +441,15 @@ export function WeekStrip({
     void frameRef.current?.offsetWidth;
     slideTo(-direction * page, GLIDE);
     const run: GlideRun = { direction, stepped: false, timer: 0 };
+    // The meeting fades as its Days slide off, rather than leaving whole.
+    const selected = frameRef.current?.querySelector("[data-selection]");
+    if (selected && typeof selected.animate === "function") {
+      run.leaving = selected.animate(SELECTION_AWAY, {
+        duration: GLIDE_MS * 0.8,
+        easing: "ease-in",
+        fill: "forwards",
+      });
+    }
     run.timer = window.setTimeout(() => land(run), GLIDE_MS);
     glideRun.current = run;
   }
@@ -382,6 +466,7 @@ export function WeekStrip({
       if (glideRun.current !== run) return;
       glideRun.current = null;
       slideTo(0, SETTLE);
+      run.leaving?.reverse();
     }, 300);
   }
 
@@ -615,7 +700,10 @@ export function WeekStrip({
       const at = locate(event.clientX, event.clientY, drag.current.columns);
       if (!at) return;
       const start = dragStart(at.day.open, at.ms, drag.current.grab, length);
-      if (start !== null && start !== selection) onSelect(start);
+      if (start !== null && start !== selection) {
+        snapping.current = true;
+        onSelect(start);
+      }
       return;
     }
     if (event.pointerType !== "mouse") return;
@@ -774,6 +862,36 @@ export function WeekStrip({
     selection === null
       ? null
       : shortRange(selection, selection + span, bookerZone);
+
+  // The meeting placed anew on the same Days: it dips as it slides there,
+  // or grows in where it wasn't drawn before. A step plays its own.
+  const shownSelection = useRef({ selection, firstDay, drawn: !!selectionDay });
+  const dip = useRef<Animation | null>(null);
+  useLayoutEffect(() => {
+    const before = shownSelection.current;
+    const drawn = !!selectionDay;
+    shownSelection.current = { selection, firstDay, drawn };
+    const snap = snapping.current;
+    snapping.current = false;
+    if (snap || !drawn || before.selection === selection) return;
+    if (before.firstDay !== firstDay) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const block = frameRef.current?.querySelector("[data-selection]");
+    if (!block || typeof block.animate !== "function") return;
+    if (!before.drawn) {
+      block.animate([...SELECTION_AWAY].reverse(), {
+        duration: 340,
+        easing: SPRINGY,
+        fill: "backwards",
+      });
+      return;
+    }
+    // Moves in quick succession, as arrow keys make, share one dip.
+    if (dip.current?.playState === "running") return;
+    dip.current = block.animate(MOVE_DIP, { duration: MOVE_DIP_MS });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, firstDay]);
+
   const hoverIndex = hover ? days.findIndex((d) => d.day === hover.day) : -1;
   const hoverDay = days[hoverIndex];
   const column = (index: number) => {
@@ -955,6 +1073,28 @@ export function WeekStrip({
         </div>
       ),
   );
+  // The head turns to glass once stuck, the hours sliding up under it. At
+  // rest, the first hour sits under its rounded top, sharp.
+  useEffect(() => {
+    const head = headRef.current;
+    const rest = restRef.current;
+    if (!STICKY_HEADER || !head || !rest) return;
+    if (typeof IntersectionObserver !== "function") return;
+    const top = parseFloat(getComputedStyle(head).top) || 0;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        const stuck =
+          !entry.isIntersecting &&
+          entry.boundingClientRect.top < (entry.rootBounds?.top ?? top);
+        head.toggleAttribute("data-stuck", stuck);
+      },
+      { rootMargin: `${-top}px 0px 0px 0px` },
+    );
+    observer.observe(rest);
+    return () => observer.disconnect();
+  }, []);
+
   const row = {
     gridColumn: `2 / span ${days.length}`,
     gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
@@ -967,6 +1107,11 @@ export function WeekStrip({
     <TooltipProvider delayDuration={150} skipDelayDuration={300}>
       <div
         ref={frameRef}
+        // The rails' widths, for the glass head's cut around the panel.
+        style={{
+          ["--rail-left" as string]: railLeft,
+          ["--rail-right" as string]: compact ? "0px" : railRight,
+        }}
         className={cn(
           styles.grid,
           "select-none",
@@ -976,7 +1121,11 @@ export function WeekStrip({
         {/* The nav, the Day headings, the panel's rounded top, and the
           zones over the rails stay put under the title as the hours scroll
           up under them. */}
+        {/* Where the head rests: once this passes the head's sticking
+          line, the head is stuck. */}
+        <div ref={restRef} aria-hidden className={styles.headRest} />
         <div
+          ref={headRef}
           data-sticky-head
           data-sticky={STICKY_HEADER ? "" : undefined}
           className={styles.stickyHead}
@@ -1162,8 +1311,8 @@ export function WeekStrip({
                     }}
                   />
                 )}
-                {/* It fades in and out where it stands, and glides from
-                  time to time between. Driven from script (onUpdate): a
+                {/* It fades and grows in where it stands, fades and
+                  shrinks out, and glides from time to time between. Driven from script (onUpdate): a
                   compositor fade blinks a frame as Framer ends it. */}
                 <AnimatePresence>
                   {hoverDay && hover && hover.start !== selection && (
@@ -1175,10 +1324,17 @@ export function WeekStrip({
                         top: top(hover.start, hoverDay.day) + GAP,
                         height: length * px - 2 * GAP,
                       }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={GHOST_FADE}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{
+                        opacity: 0,
+                        scale: 0.9,
+                        transition: {
+                          opacity: GHOST_FADE,
+                          scale: GHOST_SHRINK,
+                        },
+                      }}
+                      transition={{ opacity: GHOST_FADE, scale: GHOST_GROW }}
                       onUpdate={noop}
                     />
                   )}
@@ -1217,16 +1373,11 @@ export function WeekStrip({
                       />
                     )}
                     {/* The Day over the time, as the card reads them. A block
-                  too short or narrow for both keeps the time: see
-                  .selectionDate. */}
-                    <span
-                      className={cn(
-                        styles.selectionDate,
-                        "truncate text-[10.5px] font-medium opacity-85",
-                      )}
-                    >
-                      <DateText rolls text={selectionDayText(selection)} />
-                    </span>
+                  too short for both keeps the time: see .selectionDate. */}
+                    <FittedDay
+                      full={selectionDayText(selection)}
+                      short={weekdayLabel(zonedDate(selection, bookerZone))}
+                    />
                     <span className="truncate text-[11.5px] tabular-nums">
                       {length >= 45 ? (
                         <>
@@ -1295,6 +1446,9 @@ export function WeekStrip({
 
 /** The hover block's fade in and out. */
 const GHOST_FADE = { duration: 0.16, ease: "easeOut" as const };
+/** The hover block grows in and shrinks away as the meeting does. */
+const GHOST_GROW = { duration: 0.3, ease: [0.3, 1.25, 0.5, 1] as const };
+const GHOST_SHRINK = { duration: 0.16, ease: "easeIn" as const };
 const noop = () => undefined;
 
 const PRESS_HINT =

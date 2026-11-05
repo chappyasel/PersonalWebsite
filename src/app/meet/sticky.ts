@@ -1,10 +1,15 @@
 /**
  * Whether the grid's head (the nav, the Day headings, the panel's rounded
- * top, and the zones) sticks at the window's top as the hours scroll. Off
- * for now, as the Owner asked on November 4, 2026: on an iPhone the page
- * scrolls under the keyboard and the strip behind the status bar didn't
- * fade with the page behind the open card. Turned on, WeekStrip sticks the
- * head, the page lays its ground under the status bar with a short fade
- * (.statusFade), and the computer's card sticks level with the stuck grid.
+ * top, and the zones) sticks at the window's top as the hours scroll, as
+ * frosted glass they show through blurred (.stickyHead). The computer's
+ * card sticks level with the stuck grid.
+ *
+ * On an iPhone, Safari 26 and later paint a solid strip under the status
+ * bar, in place of its blur, once the head touches the window's top, and
+ * keep it until Safari is quit. A strip pinned there from the first frame
+ * (.statusFade) makes it solid from the start, so it doesn't change
+ * mid-scroll. The Owner chose that over a head stuck short of the edge,
+ * which kept the blur but left the hours showing through above the head
+ * (November 4, 2026).
  */
-export const STICKY_HEADER = false;
+export const STICKY_HEADER = true;
