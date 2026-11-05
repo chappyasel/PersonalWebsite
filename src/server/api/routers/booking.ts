@@ -18,7 +18,7 @@ import { env } from "~/env";
  * throwing, so the page can tell a taken time from a dropped connection.
  */
 export const bookingRouter = createTRPCRouter({
-  /** A week of a Booking link's open time from `from`, or from its first bookable Day. */
+  /** `READ_DAYS` of a Booking link's open time from `from`, or from its first bookable Day. */
   page: publicProcedure
     .input(
       z.object({

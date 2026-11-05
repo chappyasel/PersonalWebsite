@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({ read: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("~/env", () => ({ env: { NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site" } }));
 vi.mock("./read", () => ({ readMeet: mocks.read }));
+// A plain visit: no force reload, so the short entrance (intro.ts).
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("./MeetThemeColor", () => ({ MeetThemeColor: () => null }));
 vi.mock("./MeetBooking", () => ({
   MeetBooking: ({
@@ -85,16 +87,13 @@ describe("/meet", () => {
     expect(html).toContain("Meet with Chappy");
     expect(html).toContain("30 minutes");
     expect(html).toContain("Google Meet");
-    expect(html).toContain(
-      "Pick a time. Times show in your zone and Chappy&#x27;s.",
-    );
+    expect(html).not.toContain("Pick a time.");
     expect(html).toContain("Picker for meet with site");
   });
 
-  it("asks for a length only when the link offers several", async () => {
+  it("names no length in the header when the link offers several", async () => {
     mocks.read.mockResolvedValue(open([15, 30]));
     const html = await draw(MeetPage());
-    expect(html).toContain("Pick a length and a time.");
     expect(html).not.toContain("minutes");
   });
 

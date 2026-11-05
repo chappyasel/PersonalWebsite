@@ -8,6 +8,7 @@
  */
 
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 
 const MONTHS = [
   "Jan",
@@ -242,6 +243,8 @@ export type SlotSide = {
   end: string;
   /** "PT". */
   zone: string;
+  /** "2:00" and "2:30p", or "11:30a" and "12:30p" across noon: the card's range. */
+  short: { start: string; end: string };
 };
 
 export type SlotText = {
@@ -261,6 +264,27 @@ function side(start: number, end: number, timeZone: string): SlotSide {
     start: clockLabel(start, timeZone),
     end: clockLabel(end, timeZone),
     zone: zoneLabel(start, timeZone),
+    short: shortRange(start, end, timeZone),
+  };
+}
+
+/** "2:30p" for 2:30 PM: the hour labels' a and p on a clock time. */
+export function shortClock(ms: number, timeZone: string): string {
+  const [clock, half] = clockLabel(ms, timeZone).split(" ");
+  return `${clock}${half === "AM" ? "a" : "p"}`;
+}
+
+/** A range's two ends, the start without its a or p when both share it. */
+export function shortRange(
+  start: number,
+  end: number,
+  timeZone: string,
+): { start: string; end: string } {
+  const from = shortClock(start, timeZone);
+  const to = shortClock(end, timeZone);
+  return {
+    start: from.at(-1) === to.at(-1) ? from.slice(0, -1) : from,
+    end: to,
   };
 }
 
@@ -301,4 +325,26 @@ export function browserTimeZone(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * How far off a start is, for the card. The date always gets its count of
+ * calendar days on `timeZone`'s clock: "today", "tomorrow", "in 3 days".
+ * Under a day away, the time also gets its hours, to the nearest one: "in
+ * 18h". Nothing for a start that's passed.
+ */
+export function untilLabel(
+  start: number,
+  now: number,
+  timeZone: string,
+): { day: string | null; time: string | null } {
+  const hours = (start - now) / HOUR;
+  if (hours <= 0) return { day: null, time: null };
+  const [from, to] = [zonedDate(now, timeZone), zonedDate(start, timeZone)];
+  const days = Math.round((Date.parse(to) - Date.parse(from)) / (24 * HOUR));
+  const day =
+    days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+  if (hours >= 24) return { day, time: null };
+  const n = Math.max(1, Math.round(hours));
+  return { day, time: `in ${n}h` };
 }

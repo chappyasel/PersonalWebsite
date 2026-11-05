@@ -120,7 +120,7 @@ describe("settings", () => {
 describe("reading a page", () => {
   const now = () => 0;
 
-  it("asks for a week from a Day and parses the answer", async () => {
+  it("asks for 28 Days from a Day and parses the answer", async () => {
     const { fetch, calls } = fakeFetch(json(200, PAGE));
     const read = await readBookingPage(
       remote(),
@@ -132,7 +132,7 @@ describe("reading a page", () => {
     const url = new URL(calls[0]![0] as string);
     expect(url.origin + url.pathname).toBe(`${BASE}/book/meet`);
     expect(url.searchParams.get("from")).toBe("2026-11-17");
-    expect(url.searchParams.get("days")).toBe("7");
+    expect(url.searchParams.get("days")).toBe("28");
     // Reads carry no secret; only a booking does.
     const headers = new Headers(calls[0]![1]?.headers);
     expect(headers.has("X-Daybreak-Booking-Proxy")).toBe(false);
@@ -194,7 +194,7 @@ describe("reading a page", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("serves the fixture's canned week", async () => {
+  it("serves the fixture's canned Days, 28 of its 60 in one read", async () => {
     const tuesday = zonedTime("2026-11-10", 8 * 60, "America/Los_Angeles");
     const read = await readBookingPage(
       remote({ source: { kind: "fixture" } }),
@@ -204,7 +204,8 @@ describe("reading a page", () => {
     expect(read.status).toBe("open");
     if (read.status !== "open") return;
     expect(read.page.firstDay).toBe("2026-11-10");
-    expect(read.page.days).toHaveLength(7);
+    expect(read.page.lastDay).toBe("2027-01-08");
+    expect(read.page.days).toHaveLength(28);
     expect(read.page.days.find((d) => d.day === "2026-11-14")?.open).toEqual(
       [],
     );

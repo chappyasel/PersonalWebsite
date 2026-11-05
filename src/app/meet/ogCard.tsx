@@ -10,7 +10,7 @@ export const OG_SIZE = { width: 1200, height: 630 };
 export const OG_ALT = "Meet with Chappy: a week of open time on a calendar";
 
 const INK = "29, 29, 31";
-const GREEN = "40, 180, 75";
+const ACCENT = "0, 122, 255";
 
 let pending: ReturnType<typeof readFonts> | undefined;
 
@@ -73,7 +73,7 @@ const DAYS = ["Mon", "Tue", "Wed"];
 /**
  * The share card, drawn like the page: the title in SF Pro, the length and
  * call in secondary ink, and a corner of the schedule with open time in
- * green and one meeting picked, as tall as the link's length.
+ * blue and one meeting picked, as tall as the link's length.
  */
 export function MeetOgCard({ title, length, call }: OgFacts) {
   const picked = Math.max(length ?? 30, 15);
@@ -144,7 +144,7 @@ export function MeetOgCard({ title, length, call }: OgFacts) {
   );
 }
 
-/** Three Days of faint hours, open time washed green, one meeting picked. */
+/** Three Days of faint hours, open time washed blue, one meeting picked. */
 function Schedule({ picked }: { picked: number }) {
   const open: [number, number, number][] = [
     [0, 0.5, 2.5],
@@ -215,7 +215,7 @@ function Schedule({ picked }: { picked: number }) {
               width: COLUMN - 1,
               top: from * HOUR + 1,
               height: (to - from) * HOUR - 1,
-              backgroundColor: `rgba(${GREEN}, 0.12)`,
+              backgroundColor: `rgba(${ACCENT}, 0.12)`,
             }}
           />
         ))}
@@ -230,7 +230,7 @@ function Schedule({ picked }: { picked: number }) {
             padding: "0 10px",
             alignItems: "center",
             borderRadius: 8,
-            backgroundColor: `rgb(${GREEN})`,
+            backgroundColor: `rgb(${ACCENT})`,
             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.18)",
             color: "#ffffff",
             fontSize: 20,

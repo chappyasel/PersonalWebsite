@@ -64,12 +64,43 @@ export function daysBetween(a: string, b: string): number {
 /** How many Days the page reads at once, a week. */
 export const WEEK = 7;
 
+/**
+ * How many Days one read asks Daybreak for: its most, 28. The page reads in
+ * blocks of this from the first bookable Day and keeps the next block read
+ * ahead, so stepping or swiping never waits on the network.
+ */
+export const READ_DAYS = 28;
+
+/** The `from` of the read block holding the Day `offset` Days in. */
+export function blockStart(firstDay: string, offset: number): string {
+  return addDays(firstDay, Math.floor(offset / READ_DAYS) * READ_DAYS);
+}
+
 /** How many Days a phone shows at once, so each column stays wide enough to tap. */
 export const PHONE_DAYS = 3;
 
 /**
+ * The narrowest a Day's column gets before the grid shows one Day fewer:
+ * wide enough that the meeting's block, less its padding and a best
+ * time's star, holds its widest Day, "Wed, Nov 22nd", about 79px.
+ */
+const DAY_MIN = 100;
+
+/**
+ * How many Days fit across the grid's width, 3 to 7: a phone shows 3, a
+ * wider window more, a computer's full width the week. Beside the Days run
+ * the time rails, the booker's alone on a phone and the host's too on a
+ * computer, which the width leaves room for.
+ */
+export function daysFitting(width: number, phone: boolean): number {
+  const rails = phone ? 40 : 104;
+  const fit = Math.floor((width - rails) / DAY_MIN);
+  return Math.max(PHONE_DAYS, Math.min(WEEK, fit));
+}
+
+/**
  * The `from` of the Days `offset` Days after the first bookable Day, or
- * null past the last one. A week steps by `WEEK`, a phone by `PHONE_DAYS`.
+ * null past the last one. The Days step by however many are shown.
  */
 export function windowStart(
   firstDay: string,
@@ -133,4 +164,19 @@ export function callPhrase(call: BookingPage["link"]["call"]): string {
     case "place":
       return "in person";
   }
+}
+
+/**
+ * The day nav's words for the Days shown, `offset` Days after the first
+ * bookable one. The Days carry their own dates, so this says how far out
+ * they are: a week is "This week", "Next week", then "In 3 weeks"; a
+ * phone's few Days are "Next 3 days", then "In 6 days", then weeks.
+ */
+export function stepLabel(offset: number, count: number): string {
+  const weeks = Math.round(offset / WEEK);
+  const inWeeks = weeks === 1 ? "Next week" : `In ${weeks} weeks`;
+  if (count >= WEEK) return weeks === 0 ? "This week" : inWeeks;
+  if (offset === 0) return `Next ${count} days`;
+  if (offset === 1) return "From tomorrow";
+  return offset < 2 * WEEK ? `In ${offset} days` : inWeeks;
 }
