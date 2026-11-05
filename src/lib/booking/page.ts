@@ -112,10 +112,14 @@ export function windowStart(
   return from > lastDay ? null : from;
 }
 
-/** A length's numbers and units: 90 is 1 "h" and 30 "m", as Daybreak writes. */
+/**
+ * A length's numbers and units. Under 100 minutes it reads in minutes, 60
+ * as "60m" and 90 as "90m"; from there in hours, 150 as 2 "h" and 30 "m".
+ */
 export function lengthParts(
   minutes: number,
 ): { value: number; unit: "h" | "m" }[] {
+  if (minutes < 100) return [{ value: minutes, unit: "m" }];
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return [
@@ -124,14 +128,14 @@ export function lengthParts(
   ];
 }
 
-/** "15m", "1h", or "1h 30m", for text without the units' styling. */
+/** "15m", "90m", or "2h 30m", for text without the units' styling. */
 export function lengthLabel(minutes: number): string {
   return lengthParts(minutes)
     .map(({ value, unit }) => `${value}${unit}`)
     .join(" ");
 }
 
-/** "15 minutes", "1 hour", or "1 hour 30 minutes", for screen readers. */
+/** "15 minutes", "90 minutes", or "2 hours 30 minutes", for screen readers. */
 export function lengthWords(minutes: number): string {
   return lengthParts(minutes)
     .map(({ value, unit }) =>

@@ -157,9 +157,9 @@ describe("metadata", () => {
   it("keeps the other links out of search", async () => {
     mocks.read.mockResolvedValue(open([60]));
     const metadata = await linkMetadata(params("60"));
-    expect(metadata.title).toEqual({ absolute: "Meet with Chappy · 1h" });
+    expect(metadata.title).toEqual({ absolute: "Meet with Chappy · 60m" });
     expect(metadata.description).toBe(
-      "Book 1 hour with Chappy on Google Meet. Times show in your zone.",
+      "Book 60 minutes with Chappy on Google Meet. Times show in your zone.",
     );
     expect(metadata.alternates?.canonical).toBe(
       "https://www.chappyasel.com/meet/60",

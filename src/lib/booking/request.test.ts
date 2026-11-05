@@ -130,15 +130,18 @@ describe("Daybreak's answers", () => {
 describe("page helpers", () => {
   it("labels lengths", () => {
     expect(lengthParts(15)).toEqual([{ value: 15, unit: "m" }]);
-    expect(lengthParts(60)).toEqual([{ value: 1, unit: "h" }]);
-    expect(lengthParts(90)).toEqual([
-      { value: 1, unit: "h" },
+    expect(lengthParts(60)).toEqual([{ value: 60, unit: "m" }]);
+    expect(lengthParts(99)).toEqual([{ value: 99, unit: "m" }]);
+    expect(lengthParts(120)).toEqual([{ value: 2, unit: "h" }]);
+    expect(lengthParts(150)).toEqual([
+      { value: 2, unit: "h" },
       { value: 30, unit: "m" },
     ]);
     expect(lengthLabel(30)).toBe("30m");
-    expect(lengthLabel(90)).toBe("1h 30m");
+    expect(lengthLabel(90)).toBe("90m");
+    expect(lengthLabel(100)).toBe("1h 40m");
     expect(lengthWords(30)).toBe("30 minutes");
-    expect(lengthWords(60)).toBe("1 hour");
+    expect(lengthWords(60)).toBe("60 minutes");
     expect(lengthWords(150)).toBe("2 hours 30 minutes");
   });
 

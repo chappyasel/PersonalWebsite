@@ -82,7 +82,7 @@
   color: rgb(var(--mt-ink) / 0.55);
 }
 
-/* A unit beside its number ("30m", "1h"), at 80% of its size and ink. */
+/* A unit beside its number ("30m", "2h"), at 80% of its size and ink. */
 .unit {
   font-size: 0.8em;
   opacity: 0.8;
