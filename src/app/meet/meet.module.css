@@ -1534,8 +1534,8 @@
     calc(1.5rem + env(safe-area-inset-left, 0px));
 }
 
-.ghost {
-  --ghost-day: calc(100% / 7);
+.emptyWeek {
+  --empty-day: calc(100% / 7);
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1552,7 +1552,7 @@
     linear-gradient(to right, rgb(var(--mt-ink) / 0.08) 1px, transparent 1px);
   background-size:
     100% 4.5rem,
-    var(--ghost-day) 100%;
+    var(--empty-day) 100%;
   background-position:
     0 -1px,
     -1px 0;

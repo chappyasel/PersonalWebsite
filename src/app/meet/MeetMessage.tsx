@@ -31,7 +31,7 @@ export function MeetMessage({
     <div className="meet-root" data-entering="">
       <MeetThemeColor />
       <main className={styles.message}>
-        <div aria-hidden className={styles.ghost} />
+        <div aria-hidden className={styles.emptyWeek} />
         <div className={styles.messageBody}>
           <Image
             src={portrait}
