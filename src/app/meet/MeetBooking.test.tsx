@@ -361,9 +361,9 @@ describe("booking on /meet", () => {
     // 9:00, then a half hour on: 9:30 PT, 12:30 PM for the booker.
     for (const key of ["Home", "ArrowDown"]) fireEvent.keyDown(grid, { key });
     expect(cardTop()).toContain("12:30-1:00p ET");
-    fireEvent.click(screen.getByRole("button", { name: "1 hour" }));
+    fireEvent.click(screen.getByRole("button", { name: "60 minutes" }));
     // 9:30 PT can't hold an hour before 10, so the meeting slides to 9:00.
-    expect(screen.getByRole("button", { name: "Book 1 hour" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Book 60 minutes" })).toBeTruthy();
     expect(cardTop()).toContain("12:00-1:00p ET");
     // The block on each grid, the computer's and the phone's: the Day over
     // the time.

@@ -82,7 +82,7 @@
   color: rgb(var(--mt-ink) / 0.55);
 }
 
-/* A unit beside its number ("30m", "1h"), at 80% of its size and ink. */
+/* A unit beside its number ("30m", "2h"), at 80% of its size and ink. */
 .unit {
   font-size: 0.8em;
   opacity: 0.8;
@@ -1108,6 +1108,12 @@
      on its capitals. The photo, the taller, sets the row's height. */
   .main .titleRow .title {
     text-box: trim-both cap alphabetic;
+    /* The trim leaves the descenders, Chappy's "ppy", outside the box, and
+       Safari cut them off while the entrance blurred the title: a filter
+       draws only inside the box. Padding takes them in, and the margin
+       gives the room back, so the row's layout doesn't move. */
+    padding-block: 0.15em 0.3em;
+    margin-block: -0.15em -0.3em;
   }
 }
 
@@ -1290,6 +1296,12 @@
   overflow-y: hidden;
 }
 
+/* When the whole form fits the open card, nothing in it scrolls, so a
+   drag anywhere on it shrinks it back to the bar (BookingSheet). */
+.sheet[data-fits][data-state="full"] .sheetBody {
+  touch-action: none;
+}
+
 /* The sheet's top, which drags it, keeps the touch from the page. */
 .sheetBody [data-peek-end] {
   touch-action: none;
@@ -1327,6 +1339,12 @@
 
 .sheet:not([data-state="full"]) .sheetDock > * {
   pointer-events: none;
+}
+
+/* Faded all the way out, the dock is hidden as well (BookingSheet's
+   data-dock), so nothing of it can show through the bar. */
+.sheet:not([data-dock]) .sheetDock {
+  visibility: hidden;
 }
 
 .sheetDock > * + * {

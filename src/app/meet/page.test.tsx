@@ -157,9 +157,9 @@ describe("metadata", () => {
   it("keeps the other links out of search", async () => {
     mocks.read.mockResolvedValue(open([60]));
     const metadata = await linkMetadata(params("60"));
-    expect(metadata.title).toEqual({ absolute: "Meet with Chappy · 1h" });
+    expect(metadata.title).toEqual({ absolute: "Meet with Chappy · 60m" });
     expect(metadata.description).toBe(
-      "Book 1 hour with Chappy on Google Meet. Times show in your zone.",
+      "Book 60 minutes with Chappy on Google Meet. Times show in your zone.",
     );
     expect(metadata.alternates?.canonical).toBe(
       "https://www.chappyasel.com/meet/60",
@@ -187,7 +187,12 @@ describe("metadata", () => {
 
 describe("the share card", () => {
   it("names the link's length and call", () => {
-    const html = renderToStaticMarkup(<MeetOgCard {...ogFacts(open([15]))} />);
+    const html = renderToStaticMarkup(
+      <MeetOgCard
+        {...ogFacts(open([15]))}
+        portrait="data:image/jpeg;base64,"
+      />,
+    );
     expect(html).toContain("Meet with Chappy");
     expect(html).toMatch(/15<span[^>]*>m<\/span>/);
     expect(html).toContain("Google Meet");
@@ -197,10 +202,11 @@ describe("the share card", () => {
     expect(
       ogFacts(open([30], { kind: "place", location: "1 Main St" })).call,
     ).toBe("In person");
-    expect(ogFacts({ status: "closed" })).toEqual({
+    expect(ogFacts({ status: "closed" }, Date.UTC(2026, 10, 4, 20))).toEqual({
       title: "Meet with Chappy",
       length: null,
       call: null,
+      today: "2026-11-04",
     });
   });
 });

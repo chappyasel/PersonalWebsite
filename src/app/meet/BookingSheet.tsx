@@ -31,6 +31,19 @@ export type SheetState = "closed" | "peek" | "full";
 const SPRING = { type: "spring" as const, duration: 0.5, bounce: 0 };
 /** Its rise into view: a little slower, with a touch of overshoot. */
 const RISE = { type: "spring" as const, duration: 0.7, bounce: 0.14 };
+/** How open the card is when its dock starts in: --dock-in's zero, in
+ * meet.module.css (`--sheet-open * 1.6 - 0.4`). */
+const DOCK_FROM = 0.25;
+/** How long after a field in the card loses focus it still counts as
+ * typed in: the gap as focus moves to the next field, inside the late
+ * read's 400ms, which settles it. */
+const FIELD_GAP_MS = 300;
+/** The least a keyboard takes from the visible height: less is Safari's
+ * bars coming and going. */
+const KEYBOARD_MIN = 120;
+/** A revealed field's label stays this far under the card's top, below
+ * the form's fade under the handle (.sheetBody's 16px). */
+const REVEAL_TOP = 20;
 /** Its first rise waits for the page's entrance (intro.ts): in the long
  * one, until the title has landed; in the short one, for the Days. */
 const FIRST_RISE = { long: (INTRO.landed - 100) / 1000, short: 0.45 };
@@ -84,9 +97,13 @@ export function BookingSheet({
   const docked = useRef<HTMLDivElement>(null);
   const safeTop = useRef<HTMLSpanElement>(null);
   const safeBottom = useRef<HTMLSpanElement>(null);
+  // Fixed at the foot, as the card is: where the card's bottom is measured
+  // from, read off the page rather than from innerHeight (see below).
+  const floor = useRef<HTMLSpanElement>(null);
   const height = useMotionValue(0);
   const shown = useMotionValue(0);
-  const [size, setSize] = useState({ bar: 0, card: 0, dock: 0 });
+  // `fits`: the whole form shows in the card, so nothing in it scrolls.
+  const [size, setSize] = useState({ bar: 0, card: 0, dock: 0, fits: true });
   // How far it rides up over the keyboard, and the most it may be tall
   // from there: read together, so they reach the screen in the same frame.
   const [fit, setFit] = useState({ lift: 0, max: Infinity });
@@ -100,6 +117,11 @@ export function BookingSheet({
     moved: boolean;
   } | null>(null);
   const dragged = useRef(false);
+  // The last reading taken with the keyboard up, held while a field keeps
+  // focus (see the keyboard's effect below).
+  const held = useRef<{ lift: number; max: number; visible: number } | null>(
+    null,
+  );
   const risen = useRef(false);
 
   // The bar's and the card's heights, kept up as the form changes.
@@ -130,7 +152,10 @@ export function BookingSheet({
       // page and pans that viewport, and the card's rect and the viewport's
       // offset disagreed on a phone about where the screen's top was, which
       // left about 110px empty above the card.
-      const visible = window.visualViewport?.height ?? window.innerHeight;
+      const visible =
+        held.current?.visible ??
+        window.visualViewport?.height ??
+        window.innerHeight;
       const room =
         visible -
         BOTTOM -
@@ -139,14 +164,16 @@ export function BookingSheet({
         ABOVE;
       // The dock sits over the form's end, which runs on under it.
       const dock = docked.current?.offsetHeight ?? 0;
-      const card = Math.max(
-        bar,
-        Math.min(offset + inner.offsetHeight + dock, room),
-      );
+      const whole = offset + inner.offsetHeight + dock;
+      const card = Math.max(bar, Math.min(whole, room));
+      const fits = whole <= room;
       setSize((was) =>
-        was.bar === bar && was.card === card && was.dock === dock
+        was.bar === bar &&
+        was.card === card &&
+        was.dock === dock &&
+        was.fits === fits
           ? was
-          : { bar, card, dock },
+          : { bar, card, dock, fits },
       );
     };
     measure();
@@ -158,8 +185,16 @@ export function BookingSheet({
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("scroll", measure);
+    // Back from another app or tab, the room may have changed while hidden.
+    const back = () => {
+      if (document.visibilityState === "visible") measure();
+    };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("pageshow", back);
     return () => {
       observer.disconnect();
+      document.removeEventListener("visibilitychange", back);
+      window.removeEventListener("pageshow", back);
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("scroll", measure);
@@ -170,6 +205,51 @@ export function BookingSheet({
   sizeNow.current = size;
 
   const rest = (at: SheetState) => (at === "full" ? size.card : size.bar);
+
+  /** The field in the card that has the keyboard, if one does. */
+  const typing = () => {
+    const focused = document.activeElement;
+    return focused instanceof HTMLElement &&
+      focused.matches("input, textarea, select") &&
+      !!sheet.current?.contains(focused)
+      ? focused
+      : null;
+  };
+
+  // The field that takes the keyboard, with its label, scrolled clear of
+  // the Book button floating over the form's foot, which iOS doesn't know
+  // about. The last field goes to the form's very end, so the line under
+  // it (where the meeting happens) shows too, and it stays there as the
+  // field grows. After two frames, so iOS's own scroll has gone first, and
+  // again whenever the card's size changes under the keyboard.
+  const reveal = () => {
+    const body = scroller.current;
+    const field = typing();
+    if (!body || !field || !body.contains(field)) return;
+    const fields = body.querySelectorAll(
+      "input:not([type=hidden]), textarea, select",
+    );
+    const end = body.scrollHeight - body.clientHeight;
+    let top = end;
+    if (fields[fields.length - 1] !== field) {
+      const view = body.getBoundingClientRect();
+      const box = (field.parentElement ?? field).getBoundingClientRect();
+      const upper = view.top + REVEAL_TOP;
+      const lower = view.bottom - sizeNow.current.dock;
+      top =
+        body.scrollTop +
+        (box.bottom > lower
+          ? box.bottom - lower
+          : box.top < upper
+            ? box.top - upper
+            : 0);
+    }
+    top = Math.max(0, Math.min(end, Math.round(top)));
+    if (Math.abs(top - body.scrollTop) < 1) return;
+    body.scrollTo({ top, behavior: reducedMotion ? "auto" : "smooth" });
+  };
+  const revealSoon = () =>
+    requestAnimationFrame(() => requestAnimationFrame(reveal));
 
   const settle = (at: SheetState, velocity = 0) => {
     if (size.bar === 0) return;
@@ -200,8 +280,15 @@ export function BookingSheet({
         focused.blur();
     }
     if (at === "closed") return;
-    if (height.get() === 0) height.set(rest(at));
-    else void animate(height, rest(at), { ...quick, velocity });
+    // While a field has the keyboard up, a new size is the keyboard's: its
+    // foot has already moved with it (lift), so the height changes in the
+    // same frame, and the card's top stays where it is. A spring here made
+    // the top jump and spring back each time the keyboard changed height,
+    // as it does between fields (LinkedIn's has no suggestion bar).
+    if (height.get() === 0 || (at === "full" && typing())) {
+      height.stop();
+      height.set(rest(at));
+    } else void animate(height, rest(at), { ...quick, velocity });
     if (at === "full") return;
     if (scroller.current) scroller.current.scrollTop = 0;
   };
@@ -215,6 +302,30 @@ export function BookingSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, size.bar, size.card]);
 
+  useEffect(() => {
+    const body = scroller.current;
+    if (!body) return;
+    const onFocus = () => revealSoon();
+    // Typing that grows the last field keeps the line under it in view.
+    const onInput = (event: Event) => {
+      if (event.target instanceof HTMLTextAreaElement) revealSoon();
+    };
+    body.addEventListener("focusin", onFocus);
+    body.addEventListener("input", onInput);
+    return () => {
+      body.removeEventListener("focusin", onFocus);
+      body.removeEventListener("input", onInput);
+    };
+    // `reveal` reads only refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (state === "full") revealSoon();
+    // A new size or room under the keyboard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, size.card, fit.max]);
+
   // A phone's keyboard shrinks the visible viewport but not the layout one,
   // so the card sits above it by the difference. That counts only while a
   // field in the card has focus: iOS can leave the last reading standing
@@ -225,14 +336,56 @@ export function BookingSheet({
     const viewport = window.visualViewport;
     if (!viewport) return;
     let late = 0;
+    // When focus last left a field in the card. Moving from one field to
+    // the next, nothing has focus for a moment while the keyboard stays
+    // up; read then, the card dropped to the screen's foot and rose again
+    // as the next field took focus. So a field that just lost focus still
+    // counts, until the late read settles it.
+    let leftAt = -Infinity;
+    // The visible height with no keyboard, the most seen while no field
+    // has focus, read again when the screen turns.
+    let full = 0;
+    let width = window.innerWidth;
     const read = () => {
       const typing =
-        document.activeElement instanceof HTMLElement &&
-        document.activeElement.matches("input, textarea, select") &&
-        !!sheet.current?.contains(document.activeElement);
-      const lift = typing
-        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-        : 0;
+        (document.activeElement instanceof HTMLElement &&
+          document.activeElement.matches("input, textarea, select") &&
+          !!sheet.current?.contains(document.activeElement)) ||
+        performance.now() - leftAt < FIELD_GAP_MS;
+      // Where the visible screen ends against the foot the card is fixed
+      // to. Safari now shrinks the layout viewport with the keyboard as
+      // well as scrolling the visible one, so the visible foot can sit
+      // below the layout's: then the card goes down (a lift under 0), or it
+      // stood 62px over the keyboard. Both ends are read in the page's own
+      // coordinates: the fixed foot from a marker pinned there, and the
+      // visible screen from the page's top. Back from another app with a
+      // field focused, Safari's innerHeight shrank further with each field
+      // while fixed things stayed put, and the card sank lower each time.
+      const page = document.documentElement.getBoundingClientRect().top;
+      const screenTop = floor.current
+        ? viewport.pageTop + page
+        : viewport.offsetTop;
+      const layoutFoot =
+        floor.current?.getBoundingClientRect().top ?? window.innerHeight;
+      if (window.innerWidth !== width) {
+        width = window.innerWidth;
+        full = 0;
+      }
+      if (!typing) {
+        full = Math.max(full, viewport.height);
+        held.current = null;
+      }
+      // With the keyboard still up and a field still focused, Safari once
+      // reported the whole screen as visible again, four seconds in, and
+      // the card dropped behind the keyboard. While a field has focus, a
+      // reading with no keyboard in it keeps the last one that had it.
+      const keyboard = viewport.height < full - KEYBOARD_MIN;
+      const kept = typing && !keyboard ? held.current : null;
+      const lift = kept
+        ? kept.lift
+        : typing
+          ? Math.round(layoutFoot - viewport.height - screenTop)
+          : 0;
       // The card's foot on the visible screen, and from it up to just under
       // the status bar: the card is never taller, so its top never reaches
       // the screen's top edge. A fixed element that touches that edge, for
@@ -242,15 +395,19 @@ export function BookingSheet({
       // foot rose 173px in one frame while its height was still springing
       // down, and its top went 11px past the edge.
       const foot =
-        window.innerHeight -
-        viewport.offsetTop -
+        layoutFoot -
+        screenTop -
         lift -
         BOTTOM -
         (safeBottom.current?.offsetHeight ?? 0);
-      const max = Math.max(
-        0,
-        Math.floor(foot - (safeTop.current?.offsetHeight ?? 0) - ABOVE),
-      );
+      const max = kept
+        ? kept.max
+        : Math.max(
+            0,
+            Math.floor(foot - (safeTop.current?.offsetHeight ?? 0) - ABOVE),
+          );
+      if (typing && keyboard)
+        held.current = { lift, max, visible: viewport.height };
       setFit((was) =>
         was.lift === lift && was.max === max ? was : { lift, max },
       );
@@ -260,16 +417,46 @@ export function BookingSheet({
       window.clearTimeout(late);
       late = window.setTimeout(read, 400);
     };
+    // Leaving the page with a field focused, iOS brought the keyboard back
+    // on return, but the viewport events that place the card came late or
+    // never: the card came back squashed to its Book button, standing well
+    // over the keyboard. So the field lets the keyboard go as the page
+    // hides, and the card reads the screen again as it comes back, and
+    // once more after Safari's bars have settled.
+    let back = 0;
+    const away = () => {
+      if (document.visibilityState === "hidden") {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && sheet.current?.contains(focused))
+          focused.blur();
+        return;
+      }
+      follow();
+      window.clearTimeout(back);
+      back = window.setTimeout(read, 1000);
+    };
     // During focusout the old field still looks focused, so wait a frame.
-    const left = () => requestAnimationFrame(follow);
+    const left = (event: FocusEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        sheet.current?.contains(event.target)
+      )
+        leftAt = performance.now();
+      requestAnimationFrame(follow);
+    };
     viewport.addEventListener("resize", follow);
     viewport.addEventListener("scroll", follow);
     window.addEventListener("resize", follow);
     document.addEventListener("focusin", follow);
     document.addEventListener("focusout", left);
+    document.addEventListener("visibilitychange", away);
+    window.addEventListener("pageshow", away);
     read();
     return () => {
       window.clearTimeout(late);
+      window.clearTimeout(back);
+      document.removeEventListener("visibilitychange", away);
+      window.removeEventListener("pageshow", away);
       viewport.removeEventListener("resize", follow);
       viewport.removeEventListener("scroll", follow);
       window.removeEventListener("resize", follow);
@@ -287,18 +474,20 @@ export function BookingSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [state, onState]);
 
-  // Only the handle and the time above the fields drag it, so typing,
-  // tapping a button, and scrolling a long form stay what they are.
+  // The handle and the time above the fields drag it. So does anywhere on
+  // the open card when the whole form fits, since then nothing in it
+  // scrolls (.sheet[data-fits]): a field too, since a tap still focuses it
+  // and only a move past SLOP drags. Not the field being typed in, where a
+  // drag moves the caret or selects. Buttons and links stay what they
+  // are, and so does scrolling a long form.
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (state === "closed") return;
     const target = event.target as HTMLElement;
-    if (
-      target.closest(
-        "input, textarea, select, button:not([data-handle]), a, label",
-      )
-    )
-      return;
-    if (!target.closest("[data-handle], [data-peek-end]")) return;
+    if (target.closest("button:not([data-handle]), a")) return;
+    const anywhere = state === "full" && size.fits;
+    const field = target.closest("input, textarea, select, label");
+    if (field && (!anywhere || field === document.activeElement)) return;
+    if (!anywhere && !target.closest("[data-handle], [data-peek-end]")) return;
     dragged.current = false;
     drag.current = {
       id: event.pointerId,
@@ -360,12 +549,24 @@ export function BookingSheet({
     (o) =>
       `rgb(var(--mt-glass) / ${(GLASS.bar + (GLASS.card - GLASS.bar) * o).toFixed(3)})`,
   );
+  // While the dock is faded all the way out (--dock-in at 0, under a
+  // quarter open), it's hidden too. On an iPhone the Book button showed
+  // half through the bar as the page arrived, over its opacity of 0, and
+  // a hidden button can't: nor can its HDR plate, a video that iOS draws
+  // in a layer of its own.
+  const showDock = (o: number) => {
+    const element = sheet.current;
+    if (!element) return;
+    if (o > DOCK_FROM) element.setAttribute("data-dock", "");
+    else element.removeAttribute("data-dock");
+  };
   // The page behind fades to half as the card opens: its own parts fade,
   // through --sheet-open, since a fixed layer over the page brings back
   // Safari's strip under its toolbar. The page's colour holds still (see
   // --mt-page-now in meet.css), so the status bar never changes.
   useMotionValueEvent(open, "change", (o) => {
     document.documentElement.style.setProperty("--sheet-open", o.toFixed(3));
+    showDock(o);
   });
   // Written on mount too, not only on a change: a remount (a hot reload,
   // or React's strict double run) clears it, and an open card that then
@@ -373,6 +574,7 @@ export function BookingSheet({
   useEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--sheet-open", open.get().toFixed(3));
+    showDock(open.get());
     return () => {
       root.removeProperty("--sheet-open");
     };
@@ -413,6 +615,11 @@ export function BookingSheet({
 
   return (
     <>
+      <span
+        ref={floor}
+        aria-hidden
+        className="pointer-events-none invisible fixed bottom-0 left-0 h-0 w-0"
+      />
       <motion.div
         ref={sheet}
         role="dialog"
@@ -420,6 +627,7 @@ export function BookingSheet({
         aria-hidden={state === "closed" || undefined}
         inert={state === "closed" || undefined}
         data-state={state}
+        data-fits={size.fits || undefined}
         className={cn(styles.sheet, "fixed z-50 min-[872px]:hidden")}
         style={{
           ...place,
