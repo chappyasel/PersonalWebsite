@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 
 import { reportClientError } from "~/lib/error-reporting/client";
 
 import { Button } from "~/components/ui/button";
 
-import { MeetMessage } from "./MeetMessage";
+import { HomeAction, MeetMessage } from "./MeetMessage";
 import styles from "./meet.module.css";
 
 /** Any /meet page that fails, in the booking page's look. */
@@ -29,19 +28,17 @@ export default function MeetError({
 
   return (
     <MeetMessage
+      heading="This page didn't load."
       actions={
         <>
           <Button type="button" onClick={reset} className={styles.primary}>
             Try again
           </Button>
-          <Button asChild className={styles.quiet}>
-            <Link href="/">chappyasel.com</Link>
-          </Button>
+          <HomeAction />
         </>
       }
     >
-      This page didn&apos;t load. It&apos;s usually brief, so try again in a
-      minute.
+      It&apos;s usually brief, so try again in a minute.
       {error.digest && (
         <span className={styles.errorId}> Error ID {error.digest}.</span>
       )}

@@ -4,9 +4,12 @@ import { notFound } from "next/navigation";
 import { DEFAULT_SLUG, callLabel } from "~/lib/booking/page";
 import { cn } from "~/lib/utils";
 
+import { Button } from "~/components/ui/button";
+
 import { Duration } from "./Duration";
 import { MeetBooking } from "./MeetBooking";
 import { MeetDust } from "./MeetDust";
+import { HomeAction, MeetMessage } from "./MeetMessage";
 import { MeetThemeColor } from "./MeetThemeColor";
 import { MeetTitle } from "./MeetTitle";
 import { forceReload, introScript } from "./intro";
@@ -24,9 +27,44 @@ import { env } from "~/env";
 export async function MeetScreen({ slug }: { slug: string }) {
   const read = await readMeet(slug);
   if (read.status === "closed" && slug !== DEFAULT_SLUG) notFound();
-  const page = read.status === "open" ? read.page : null;
-  const title = page?.link.title ?? "Meet with Chappy";
-  const length = page ? onlyLength(page.link) : null;
+  if (read.status === "unavailable")
+    return (
+      <MeetMessage
+        heading="The calendar didn't answer."
+        actions={
+          <>
+            {/* A plain link, so the page reads the calendar again. */}
+            <Button asChild className={styles.primary}>
+              <a href={slug === DEFAULT_SLUG ? "/meet" : `/meet/${slug}`}>
+                Try again
+              </a>
+            </Button>
+            <HomeAction />
+          </>
+        }
+      >
+        It&apos;s usually brief, so try again in a minute.
+      </MeetMessage>
+    );
+  if (read.status === "closed")
+    return (
+      <MeetMessage
+        heading="Booking isn't open right now."
+        actions={
+          <>
+            <Button asChild className={styles.primary}>
+              <a href="mailto:chappyasel@gmail.com">Email Chappy</a>
+            </Button>
+            <HomeAction />
+          </>
+        }
+      >
+        No times are open to book. Check back soon, or send an email instead.
+      </MeetMessage>
+    );
+  const { page } = read;
+  const title = page.link.title;
+  const length = onlyLength(page.link);
 
   return (
     // Its script marks the long entrance before the first paint, and
@@ -54,43 +92,28 @@ export async function MeetScreen({ slug }: { slug: string }) {
         >
           <MeetTitle title={title} />
           {/* A phone's booking card says the same, so it's left out there. */}
-          {page && (
-            <p
-              data-enter
-              style={{ ["--enter" as string]: 1 }}
-              className={cn(styles.facts, "max-[871.98px]:hidden")}
-            >
-              {length !== null && (
-                <>
-                  <Duration minutes={length} />
-                  <span aria-hidden> · </span>
-                </>
-              )}
-              {callLabel(page.link.call)}
-            </p>
-          )}
-          {!page && (
-            <p
-              data-enter
-              style={{ ["--enter" as string]: 1 }}
-              className={styles.lede}
-            >
-              {read.status === "unavailable"
-                ? "The calendar didn't answer. Try again in a minute."
-                : "Booking isn't open right now."}
-            </p>
-          )}
+          <p
+            data-enter
+            style={{ ["--enter" as string]: 1 }}
+            className={cn(styles.facts, "max-[871.98px]:hidden")}
+          >
+            {length !== null && (
+              <>
+                <Duration minutes={length} />
+                <span aria-hidden> · </span>
+              </>
+            )}
+            {callLabel(page.link.call)}
+          </p>
         </header>
 
-        {page && (
-          <section aria-label="Pick a time">
-            <MeetBooking
-              slug={slug}
-              initial={page}
-              turnstileSiteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-            />
-          </section>
-        )}
+        <section aria-label="Pick a time">
+          <MeetBooking
+            slug={slug}
+            initial={page}
+            turnstileSiteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+          />
+        </section>
       </main>
     </div>
   );
