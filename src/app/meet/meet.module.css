@@ -1516,3 +1516,96 @@
     opacity: 1;
   }
 }
+
+/* ---------- A page with no schedule (MeetMessage) ---------- */
+
+/* Closed, unknown, unanswered, or failed: the words centred on the screen
+   over an empty week, a white panel of Days and hours that fades into the
+   page on every side, as the share card draws it. */
+.message {
+  position: relative;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  padding: calc(2rem + env(safe-area-inset-top, 0px))
+    calc(1.5rem + env(safe-area-inset-right, 0px))
+    calc(3rem + env(safe-area-inset-bottom, 0px))
+    calc(1.5rem + env(safe-area-inset-left, 0px));
+}
+
+.ghost {
+  --ghost-day: calc(100% / 7);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(56rem, 140vw);
+  height: min(36rem, 90svh);
+  translate: -50% -50%;
+  border-radius: 18px;
+  background-color: rgb(var(--mt-ground));
+  background-image: linear-gradient(
+      to bottom,
+      rgb(var(--mt-ink) / 0.08) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to right, rgb(var(--mt-ink) / 0.08) 1px, transparent 1px);
+  background-size:
+    100% 4.5rem,
+    var(--ghost-day) 100%;
+  background-position:
+    0 -1px,
+    -1px 0;
+  box-shadow: inset 0 0 0 1px rgb(var(--mt-ink) / 0.06);
+  mask-image: radial-gradient(
+    closest-side,
+    rgb(0 0 0),
+    rgb(0 0 0 / 0.6) 60%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.messageBody {
+  position: relative;
+  display: flex;
+  max-width: 24rem;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.messagePortrait {
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px rgb(var(--mt-ink) / 0.08);
+}
+
+.messageHead {
+  margin-top: 1rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.messageText {
+  margin-top: 0.375rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+  color: rgb(var(--mt-ink) / 0.55);
+}
+
+.messageActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.625rem;
+  margin-top: 1.5rem;
+}
+
+.messageActions > * {
+  padding-inline: 1rem;
+}

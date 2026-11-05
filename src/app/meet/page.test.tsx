@@ -71,12 +71,15 @@ describe("/meet", () => {
     mocks.read.mockResolvedValue({ status: "closed" });
     const html = await draw(MeetPage());
     expect(html).toContain("Booking isn&#x27;t open right now.");
+    expect(html).toContain('href="mailto:chappyasel@gmail.com"');
     expect(html).not.toContain("Picker");
   });
 
   it("says the calendar didn't answer when the deployment is down", async () => {
     mocks.read.mockResolvedValue({ status: "unavailable" });
-    expect(await draw(MeetPage())).toContain("didn&#x27;t answer");
+    const html = await draw(MeetPage());
+    expect(html).toContain("didn&#x27;t answer");
+    expect(html).toMatch(/<a[^>]*href="\/meet"[^>]*>Try again<\/a>/);
   });
 
   it("reads the `meet` link and puts its one length in the header", async () => {
