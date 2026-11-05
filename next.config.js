@@ -27,7 +27,7 @@ const config = {
   reactStrictMode: false,
   outputFileTracingIncludes: {
     "/weightlifting/**": ["./src/fonts/weightlifting/*.otf"],
-    "/meet/**": ["./src/fonts/meet/*.otf"],
+    "/meet/**": ["./src/fonts/meet/*.otf", "./public/images/about/profile.jpg"],
     "/api/search": ["./content/dad-search-index.json"],
   },
   outputFileTracingExcludes: {

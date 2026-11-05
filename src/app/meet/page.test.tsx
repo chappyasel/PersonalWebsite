@@ -187,7 +187,12 @@ describe("metadata", () => {
 
 describe("the share card", () => {
   it("names the link's length and call", () => {
-    const html = renderToStaticMarkup(<MeetOgCard {...ogFacts(open([15]))} />);
+    const html = renderToStaticMarkup(
+      <MeetOgCard
+        {...ogFacts(open([15]))}
+        portrait="data:image/jpeg;base64,"
+      />,
+    );
     expect(html).toContain("Meet with Chappy");
     expect(html).toMatch(/15<span[^>]*>m<\/span>/);
     expect(html).toContain("Google Meet");
@@ -197,10 +202,11 @@ describe("the share card", () => {
     expect(
       ogFacts(open([30], { kind: "place", location: "1 Main St" })).call,
     ).toBe("In person");
-    expect(ogFacts({ status: "closed" })).toEqual({
+    expect(ogFacts({ status: "closed" }, Date.UTC(2026, 10, 4, 20))).toEqual({
       title: "Meet with Chappy",
       length: null,
       call: null,
+      today: "2026-11-04",
     });
   });
 });
