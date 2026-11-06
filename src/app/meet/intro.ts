@@ -1,12 +1,13 @@
 /**
- * The page's entrance, in two lengths. The first visit in a day plays the
+ * The page's entrance, in two lengths. The first visit in an hour plays the
  * long one: the photo and title come in at the middle of the screen among
  * drifting blue dust, then glide up to their place as the dust gathers
  * into the page's open times, stars, meeting, and Book button, and each
- * part comes in out of its dust (MeetDust). A visit within the day plays
+ * part comes in out of its dust (MeetDust). A visit within the hour plays
  * the short one, the same arrival without the title's glide or the dust.
  * A force reload plays the long one again (forceReload), a plain reload
- * doesn't. The Owner asked for all of it on November 4, 2026.
+ * doesn't. The Owner asked for all of it on November 4, 2026, and for an
+ * hour, not a day, between long ones on November 5.
  *
  * Either way the page waits at its first frame until it has hydrated and
  * measured its Days (`data-entering="wait"`), so it never shows the
@@ -16,7 +17,7 @@
 /** Where the browser keeps when the long entrance last played. */
 const INTRO_KEY = "meet:intro";
 /** The long entrance plays at most once in this long. */
-const INTRO_EVERY_MS = 24 * 60 * 60 * 1000;
+const INTRO_EVERY_MS = 60 * 60 * 1000;
 /** If the page hasn't hydrated by then, it shows without waiting more. */
 const WAIT_MAX_MS = 5000;
 
@@ -52,7 +53,7 @@ export function forceReload(headers: Headers): boolean {
 
 /**
  * Run as the page parses, before its first paint, from inside
- * `.meet-root`: picks the long entrance when it hasn't played in a day, or
+ * `.meet-root`: picks the long entrance when it hasn't played in an hour, or
  * on a force reload (and the browser allows motion), and lets the page
  * show anyway should it never hydrate.
  */
