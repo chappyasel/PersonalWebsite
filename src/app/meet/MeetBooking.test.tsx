@@ -479,6 +479,16 @@ describe("booking on /meet", () => {
     await user.type(screen.getByLabelText("Name"), "Ana Lopez");
     await user.type(screen.getByLabelText("Email"), "ana@example.com");
     await user.click(screen.getByRole("button", { name: "Add guests" }));
+    // A guest with a name needs an address; an empty row doesn't.
+    expect(screen.getByLabelText("Guest 1's email")).toHaveProperty(
+      "required",
+      false,
+    );
+    await user.type(screen.getByLabelText("Guest 1's name"), "Ben Ortiz");
+    expect(screen.getByLabelText("Guest 1's email")).toHaveProperty(
+      "required",
+      true,
+    );
     await user.type(
       screen.getByLabelText("Guest 1's email"),
       "ben@example.com",
@@ -486,8 +496,18 @@ describe("booking on /meet", () => {
     await user.click(screen.getByRole("button", { name: "Remove guest 1" }));
     expect(screen.getByRole("button", { name: "Add guests" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Name the meeting" }));
-    await user.type(screen.getByLabelText("Meeting name"), "Acme intro{Enter}");
-    // Enter names it without sending the form.
+    // Enter picking an input method's word leaves the field open.
+    fireEvent.keyDown(screen.getByLabelText("Meeting name"), {
+      key: "Enter",
+      isComposing: true,
+    });
+    expect(screen.getByLabelText("Meeting name")).toBeTruthy();
+    await user.type(
+      screen.getByLabelText("Meeting name"),
+      "Acme   intro{Enter}",
+    );
+    // Enter names it without sending the form, its spaces collapsed as
+    // the invite's will be.
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     expect(screen.getByText("Acme intro")).toBeTruthy();
     // So does the check.

@@ -988,7 +988,12 @@
   vertical-align: middle;
 }
 
-.meetingName {
+/* Under its box, so it outweighs Input's own utilities whichever
+   stylesheet loads first. */
+.meetingNameBox > .meetingName {
+  display: block;
+  height: auto;
+  box-shadow: none;
   position: absolute;
   top: 50%;
   left: 0;
@@ -1007,7 +1012,11 @@
   transform-origin: left center;
 }
 
-.meetingName::placeholder {
+.meetingNameBox > .meetingName:focus-visible {
+  border-color: rgb(var(--mt-accent) / 0.6);
+}
+
+.meetingNameBox > .meetingName::placeholder {
   color: rgb(var(--mt-ink) / 0.4);
 }
 

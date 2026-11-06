@@ -618,8 +618,8 @@ export function MeetBooking({
       ...(fields.about.trim() ? { about: fields.about.trim() } : {}),
       ...(linkedin ? { linkedin } : {}),
       ...(guests.length ? { guests } : {}),
-      ...(fields.meetingName.trim()
-        ? { meetingName: fields.meetingName.trim() }
+      ...(fields.meetingName.replace(/\s+/g, " ").trim()
+        ? { meetingName: fields.meetingName.replace(/\s+/g, " ").trim() }
         : {}),
     };
     attempt.current = attemptFor(attempt.current, attemptKey(request));
@@ -766,7 +766,9 @@ export function MeetBooking({
   // The invite's title as Daybreak will make it: the people, or the name
   // the booker gives it in place of them.
   const people = titleLead(fields.name, sentGuests(fields.guests));
-  const lead = fields.meetingName.trim() ? fields.meetingName.trim() : people;
+  // As the invite will read it: spaces collapsed, as titleLead does.
+  const meetingName = fields.meetingName.replace(/\s+/g, " ").trim();
+  const lead = meetingName || people;
   const addGuest = () => {
     if (fields.guests.length >= GUESTS_MOST) return;
     const key = ++guestKey.current;
@@ -1020,6 +1022,9 @@ export function MeetBooking({
                         type="text"
                         inputMode="email"
                         pattern={GUEST_EMAIL_PATTERN}
+                        // A guest with a name needs an address to be
+                        // invited at; a row left wholly empty is skipped.
+                        required={guest.name.trim() !== ""}
                         aria-label={`Guest ${i + 1}'s email`}
                         placeholder={GUEST_EMAIL_HINT}
                         enterKeyHint="next"
@@ -1133,7 +1138,7 @@ export function MeetBooking({
                     }}
                     {...SWAP}
                   >
-                    <input
+                    <Input
                       aria-label="Meeting name"
                       // Opened by its pencil, so it takes the keyboard at once.
                       // eslint-disable-next-line jsx-a11y/no-autofocus
@@ -1149,6 +1154,9 @@ export function MeetBooking({
                       }
                       onKeyDown={(e) => {
                         if (e.key !== "Enter" && e.key !== "Escape") return;
+                        // Enter there picks an input method's word, as in
+                        // nextField, not the name.
+                        if (e.nativeEvent.isComposing) return;
                         e.preventDefault();
                         finishNaming(e.key === "Enter");
                       }}
