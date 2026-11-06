@@ -127,7 +127,9 @@
 }
 
 /* The ticket turns in 3D: two faces back to back, each hiding when it
-   faces away. A drag sideways turns it (pan-y keeps the page scrolling). */
+   faces away. A drag sideways turns it. A finger on it keeps it whichever
+   way it goes, so the ticket is there to play with; the page scrolls from
+   around it. */
 .ticket {
   --perf: 70%;
   position: relative;
@@ -135,7 +137,7 @@
   transform: perspective(900px) rotateX(var(--rx, 0deg))
     rotateY(var(--ry, 0deg));
   transform-style: preserve-3d;
-  touch-action: pan-y;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;

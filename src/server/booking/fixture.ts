@@ -3,6 +3,7 @@ import {
   type BookResult,
   type BookingFields,
   readBookingAnswer,
+  titleLead,
 } from "~/lib/booking/request";
 import { MINUTE, fits } from "~/lib/booking/slots";
 import { zonedDate, zonedTime } from "~/lib/booking/zones";
@@ -142,7 +143,7 @@ export function fixtureBook(
       start: fields.start,
       end: fields.start + fields.length * MINUTE,
       // Daybreak's style: the about line goes in the invite's description.
-      title: `${fields.name.trim().split(/\s+/)[0]} 🤝 ${link.host}`,
+      title: `${titleLead(fields.name, fields.guests, fields.meetingName)} 🤝 ${link.host}`,
     },
   });
 }

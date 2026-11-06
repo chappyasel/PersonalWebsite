@@ -383,6 +383,32 @@ describe("booking", () => {
     });
   });
 
+  it("forwards guests with an address and a meeting name, trimmed", async () => {
+    const { fetch, calls } = fakeFetch(
+      json(200, { success: true }),
+      json(200, { booked }),
+    );
+    await submitBooking(
+      remote(),
+      {
+        ...BOOKING,
+        guests: [
+          { email: " ben@example.com ", name: " Ben " },
+          { email: "  ", name: "Nobody" },
+          { email: "cy@example.com", name: "" },
+        ],
+        meetingName: "  Intro ",
+      },
+      undefined,
+      { fetch, now },
+      createPageCache(),
+    );
+    expect(JSON.parse(calls[1]![1]?.body as string)).toMatchObject({
+      guests: [{ email: "ben@example.com", name: "Ben" }, { email: "cy@example.com" }],
+      meetingName: "Intro",
+    });
+  });
+
   it("leaves a blank about line out of the body", async () => {
     const { fetch, calls } = fakeFetch(
       json(200, { success: true }),

@@ -38,7 +38,7 @@ type Grain = {
  * the photo onto its orbit, tilted, passing behind the photo and in front,
  * and on the way out draws back into the photo as it fades. The photo
  * turns badge meanwhile: lifted on a shadow, tipped toward the pointer in
- * 3D, glossed where the light catches it, with a bright rim on top. And
+ * 3D, glossed where the light catches it. And
  * it spins like a coin under a drag any way, or once for a tap.
  *
  * Its two canvases sit where MeetDust's do: the far one with no z-index,
@@ -78,6 +78,8 @@ export function PortraitRing() {
     // about that axis (the photo the right way round again), a flick
     // carrying it on. A tap spins it once.
     const flip = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0 };
+    // The transform last set on the photo, which the box measured carries.
+    let worn: DOMMatrix | null = null;
     let grab: {
       id: number;
       x: number;
@@ -118,6 +120,7 @@ export function PortraitRing() {
       if (!el) return;
       el.style.transform = "";
       el.style.boxShadow = "";
+      worn = null;
       tilt.x = tilt.y = tilt.vx = tilt.vy = 0;
       flip.x = flip.y = flip.vx = flip.vy = flip.tx = flip.ty = 0;
     };
@@ -218,30 +221,82 @@ export function PortraitRing() {
       tilt.y += tilt.vy * dt;
       const lift = 1 + 0.08 * fade;
       const spun = Math.hypot(flip.x, flip.y);
-      el.style.transform = `perspective(${Math.round(R * 9)}px) rotateX(${tilt.x.toFixed(2)}deg) rotateY(${tilt.y.toFixed(2)}deg)${spun > 0.01 ? ` rotate3d(${flip.x.toFixed(3)}, ${flip.y.toFixed(3)}, 0, ${spun.toFixed(2)}deg)` : ""} scale(${lift.toFixed(4)})`;
+      const depth = Math.round(R * 9);
+      el.style.transform = `perspective(${depth}px) rotateX(${tilt.x.toFixed(2)}deg) rotateY(${tilt.y.toFixed(2)}deg)${spun > 0.01 ? ` rotate3d(${flip.x.toFixed(3)}, ${flip.y.toFixed(3)}, 0, ${spun.toFixed(2)}deg)` : ""} scale(${lift.toFixed(4)})`;
       el.style.boxShadow = `0 0 0 1px rgb(var(--mt-ink) / 0.08), 0 0 ${(3 + 16 * fade).toFixed(1)}px rgb(0 0 0 / ${(0.24 * fade).toFixed(3)})`;
       {
-        const gx = cx - left + (tilt.y / TILT) * R * 0.55;
-        const gy = cy - top - (tilt.x / TILT) * R * 0.55 - R * 0.25;
-        const r = R * lift;
-        ahead.save();
-        ahead.beginPath();
-        ahead.arc(cx - left, cy - top, r * 0.98, 0, Math.PI * 2);
-        ahead.clip();
-        const gloss = ahead.createRadialGradient(gx, gy, 0, gx, gy, r * 1.2);
-        gloss.addColorStop(0, `rgb(255 255 255 / ${0.5 * fade})`);
-        gloss.addColorStop(0.45, `rgb(255 255 255 / ${0.12 * fade})`);
-        gloss.addColorStop(1, "rgb(255 255 255 / 0)");
-        ahead.globalAlpha = 1;
-        ahead.fillStyle = gloss;
-        ahead.fillRect(cx - left - r, cy - top - r, r * 2, r * 2);
-        ahead.restore();
-        // A bright rim along its top edge, as a badge's bevel.
-        ahead.beginPath();
-        ahead.arc(cx - left, cy - top, r - 0.75, Math.PI * 1.1, Math.PI * 1.9);
-        ahead.strokeStyle = `rgb(255 255 255 / ${0.45 * fade})`;
-        ahead.lineWidth = 1.2;
-        ahead.stroke();
+        // The gloss is drawn on the photo's face, so they turn
+        // with it: the same transform, about the photo's middle, flattened
+        // to the affine map it makes there (the perspective is slight).
+        let m = new DOMMatrix([
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1 / depth,
+          0,
+          0,
+          0,
+          1,
+        ])
+          .rotateAxisAngle(1, 0, 0, tilt.x)
+          .rotateAxisAngle(0, 1, 0, tilt.y);
+        if (spun > 0.01) m = m.rotateAxisAngle(flip.x, flip.y, 0, spun);
+        m = m.scale(lift);
+        const through = (n: DOMMatrix, x: number, y: number) => {
+          const q = n.transformPoint(new DOMPoint(x, y, 0, 1));
+          return { x: q.x / q.w, y: q.y / q.w };
+        };
+        const at = (x: number, y: number) => through(m, x, y);
+        // The box measured is the square as last turned: its middle is off
+        // the photo's own by however far that turned square's box is.
+        let ox = cx - left;
+        let oy = cy - top;
+        if (worn) {
+          const n = worn;
+          const corners = [
+            [-R, -R],
+            [R, -R],
+            [R, R],
+            [-R, R],
+          ].map(([x, y]) => through(n, x!, y!));
+          const xs = corners.map((q) => q.x);
+          const ys = corners.map((q) => q.y);
+          ox -= (Math.min(...xs) + Math.max(...xs)) / 2;
+          oy -= (Math.min(...ys) + Math.max(...ys)) / 2;
+        }
+        worn = m;
+        const o = at(0, 0);
+        const ax = at(R, 0);
+        const ay = at(0, R);
+        const a = (ax.x - o.x) / R;
+        const b = (ax.y - o.y) / R;
+        const c = (ay.x - o.x) / R;
+        const d = (ay.y - o.y) / R;
+        if (Math.abs(a * d - b * c) > 0.02) {
+          const gx = (tilt.y / TILT) * R * 0.55;
+          const gy = -(tilt.x / TILT) * R * 0.55 - R * 0.25;
+          ahead.save();
+          ahead.transform(a, b, c, d, ox + o.x, oy + o.y);
+          ahead.beginPath();
+          ahead.arc(0, 0, R * 0.98, 0, Math.PI * 2);
+          ahead.clip();
+          const gloss = ahead.createRadialGradient(gx, gy, 0, gx, gy, R * 1.2);
+          gloss.addColorStop(0, `rgb(255 255 255 / ${0.5 * fade})`);
+          gloss.addColorStop(0.45, `rgb(255 255 255 / ${0.12 * fade})`);
+          gloss.addColorStop(1, "rgb(255 255 255 / 0)");
+          ahead.globalAlpha = 1;
+          ahead.fillStyle = gloss;
+          ahead.fillRect(-R, -R, R * 2, R * 2);
+          ahead.restore();
+        }
       }
       const tiltRing = -0.38;
       for (const g of grains) {

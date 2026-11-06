@@ -18,6 +18,7 @@ import {
   makeRequestId,
   readBookingAnswer,
   recoveryFor,
+  titleLead,
 } from "./request";
 
 describe("request IDs", () => {
@@ -171,6 +172,37 @@ describe("page helpers", () => {
     expect(blockStart("2026-11-10", 0)).toBe("2026-11-10");
     expect(blockStart("2026-11-10", 27)).toBe("2026-11-10");
     expect(blockStart("2026-11-10", 28)).toBe("2026-12-08");
+  });
+});
+
+describe("the invite's title", () => {
+  it("names up to two people, then counts the rest, as Daybreak does", () => {
+    expect(titleLead("Ana de Lima")).toBe("Ana");
+    expect(titleLead("Ana de Lima", [{ name: "Ben Ortiz" }])).toBe("Ana & Ben");
+    expect(titleLead("Ana", [{}])).toBe("Ana +1");
+    expect(titleLead("Ana", [{ name: " " }, { name: "Cy" }])).toBe("Ana, Cy +1");
+    expect(
+      titleLead("Ana", [{ name: "Ben" }, { name: "Cy" }, { name: "Di" }]),
+    ).toBe("Ana, Ben +2");
+  });
+
+  it("leads with the booker's own name for the meeting", () => {
+    expect(titleLead("Ana", [{ name: "Ben" }], "  Acme   intro ")).toBe(
+      "Acme intro",
+    );
+    expect(titleLead("Ana", [], "   ")).toBe("Ana");
+  });
+
+  it("makes guests and a meeting name part of the attempt", () => {
+    const fields = { start: 1, length: 30, name: "Ana", email: "a@x.co" };
+    const key = attemptKey(fields);
+    expect(attemptKey({ ...fields, guests: [{ email: "b@x.co" }] })).not.toBe(
+      key,
+    );
+    expect(attemptKey({ ...fields, meetingName: "Intro" })).not.toBe(key);
+    expect(
+      attemptKey({ ...fields, guests: [{ email: " B@x.co " }] }),
+    ).toBe(attemptKey({ ...fields, guests: [{ email: "b@x.co" }] }));
   });
 });
 

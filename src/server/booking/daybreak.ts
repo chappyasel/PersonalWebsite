@@ -326,6 +326,11 @@ async function postBooking(
 ): Promise<BookResult> {
   const about = request.about?.trim();
   const linkedin = request.linkedin?.trim();
+  const meetingName = request.meetingName?.trim();
+  const guests = (request.guests ?? [])
+    .map(({ email, name }) => ({ email: email.trim(), name: name?.trim() }))
+    .filter(({ email }) => email !== "")
+    .map(({ email, name }) => (name ? { email, name } : { email }));
   try {
     const response = await deps.fetch(
       `${baseUrl}/book/${encodeURIComponent(config.slug)}`,
@@ -344,6 +349,8 @@ async function postBooking(
           // Both optional: a blank one isn't sent.
           ...(about ? { about } : {}),
           ...(linkedin ? { linkedin } : {}),
+          ...(guests.length ? { guests } : {}),
+          ...(meetingName ? { meetingName } : {}),
           requestId: request.requestId,
         }),
         cache: "no-store",

@@ -211,6 +211,7 @@ function Stamp() {
 export function ConfirmTicket({
   booked,
   email,
+  guests = 0,
   host,
   slot,
   call,
@@ -1069,12 +1070,8 @@ export function ConfirmTicket({
     }
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
-    // Sideways on a phone (up and down scrolls the page); any way with a
-    // mouse.
-    if (
-      !d.moved &&
-      (e.pointerType === "touch" ? Math.abs(dx) > 8 : Math.hypot(dx, dy) > 8)
-    ) {
+    // Any way, a finger's or a mouse's: the page scrolls only from off it.
+    if (!d.moved && Math.hypot(dx, dy) > 8) {
       d.moved = true;
       e.currentTarget.setPointerCapture(e.pointerId);
     }
@@ -1278,10 +1275,12 @@ export function ConfirmTicket({
                 <div ref={perf} aria-hidden className={c.ticketPerf} />
                 <div className={cn(c.ticketStub, c.ticketLayer)}>
                   <p>
-                    Invite sent to{" "}
+                    {guests ? "Invites sent to" : "Invite sent to"}{" "}
                     <span className="font-semibold [overflow-wrap:anywhere]">
                       {email}
                     </span>
+                    {guests > 0 &&
+                      ` and ${guests === 1 ? "a guest" : `${guests} guests`}`}
                   </p>
                   {/* Where it happens and what it's called, as the booking
                       form's last line said it. */}

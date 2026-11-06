@@ -44,7 +44,44 @@ export type BookingFields = {
   /** What it's about, optional: one line for the invite. */
   about?: string;
   linkedin?: string;
+  /** Others the booker brings, up to GUESTS_MOST, each invited too. */
+  guests?: Guest[];
+  /** The booker's own name for the meeting, which the title leads with. */
+  meetingName?: string;
 };
+
+export type Guest = { email: string; name?: string };
+
+/** Guests a booker may bring, besides themselves (Daybreak's GUESTS_MOST). */
+export const GUESTS_MOST = 5;
+/** A meeting name's most characters (Daybreak's MEETING_NAME_LENGTH). */
+export const MEETING_NAME_LENGTH = 40;
+
+/**
+ * The invite's title before " 🤝 <host>", as Daybreak's `eventTitle` makes
+ * it, so the form can show it as it'll read: the booker's first name; with
+ * guests, the first two people with a name and a count of the rest, "Ana &
+ * Ben", "Ana +1", "Ana, Ben +2"; or the booker's own meeting name.
+ */
+export function titleLead(
+  name: string,
+  guests: { name?: string }[] = [],
+  meetingName?: string,
+): string {
+  const named = meetingName?.replace(/\s+/g, " ").trim();
+  if (named) return named;
+  const first = (whole: string) => whole.trim().split(/\s+/)[0] ?? "";
+  const people = [
+    first(name),
+    ...guests.flatMap((guest) =>
+      guest.name?.trim() ? [first(guest.name)] : [],
+    ),
+  ].slice(0, 2);
+  const rest = 1 + guests.length - people.length;
+  return people.length === 2 && rest === 0
+    ? people.join(" & ")
+    : `${people.join(", ")}${rest > 0 ? ` +${rest}` : ""}`;
+}
 
 /**
  * A LinkedIn field as Daybreak takes it, a linkedin.com address. The field
@@ -72,6 +109,11 @@ export function attemptKey(fields: BookingFields): string {
     fields.email.trim().toLowerCase(),
     fields.about?.trim() ?? "",
     fields.linkedin?.trim() ?? "",
+    (fields.guests ?? []).map((guest) => [
+      guest.email.trim().toLowerCase(),
+      guest.name?.trim() ?? "",
+    ]),
+    fields.meetingName?.trim() ?? "",
   ]);
 }
 

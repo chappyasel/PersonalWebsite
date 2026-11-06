@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { DAY_PATTERN, SLUG_PATTERN } from "~/lib/booking/page";
-import { REQUEST_ID } from "~/lib/booking/request";
+import { GUESTS_MOST, REQUEST_ID } from "~/lib/booking/request";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import {
   bookingConfig,
@@ -44,6 +44,16 @@ export const bookingRouter = createTRPCRouter({
         email: z.string().max(320),
         about: z.string().max(200).optional(),
         linkedin: z.string().max(400).optional(),
+        guests: z
+          .array(
+            z.object({
+              email: z.string().max(320),
+              name: z.string().max(200).optional(),
+            }),
+          )
+          .max(GUESTS_MOST)
+          .optional(),
+        meetingName: z.string().max(200).optional(),
         requestId: z.string().regex(REQUEST_ID),
         turnstileToken: z.string().max(4096).optional(),
       }),

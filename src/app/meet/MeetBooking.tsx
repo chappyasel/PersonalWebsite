@@ -5,11 +5,16 @@ import {
   ArrowUUpLeftIcon,
   CaretLeftIcon,
   CaretRightIcon,
+  CheckIcon,
   MapPinIcon,
+  PencilSimpleIcon,
+  PlusIcon,
   StarIcon,
   VideoCameraIcon,
   WarningCircleIcon,
+  XIcon,
 } from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   type FormEvent,
   useEffect,
@@ -38,11 +43,14 @@ import {
   type Attempt,
   type BookResult,
   type Booked,
+  GUESTS_MOST,
+  MEETING_NAME_LENGTH,
   MESSAGES,
   attemptFor,
   attemptKey,
   linkedinAddress,
   recoveryFor,
+  titleLead,
 } from "~/lib/booking/request";
 import {
   MINUTE,
@@ -59,6 +67,7 @@ import {
   slotSentence,
   slotText,
   untilLabel,
+  weekdayLabel,
 } from "~/lib/booking/zones";
 import { cn } from "~/lib/utils";
 import { api } from "~/trpc/react";
@@ -72,7 +81,7 @@ import { BookingSheet, type SheetState, SwipeHint } from "./BookingSheet";
 import { DateText } from "./DateText";
 import { Duration } from "./Duration";
 import { PressButton } from "./PressButton";
-import { Pop, Reveal } from "./Reveal";
+import { Collapse, Opens, Pop, Reveal } from "./Reveal";
 import { SpokenTimes } from "./SpokenTimes";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip, layoutTop } from "./WeekStrip";
@@ -212,9 +221,105 @@ function blocksNear(firstDay: string, lastDay: string, offset: number) {
 
 type Selected = { start: number; day: BookingDay };
 
-type Fields = { name: string; email: string; about: string; linkedin: string };
+/** A guest row: its key, so a removed row's neighbours keep their fields. */
+type GuestRow = { key: number; email: string; name: string };
 
-const EMPTY: Fields = { name: "", email: "", about: "", linkedin: "" };
+type Fields = {
+  name: string;
+  email: string;
+  about: string;
+  linkedin: string;
+  guests: GuestRow[];
+  meetingName: string;
+};
+
+const EMPTY: Fields = {
+  name: "",
+  email: "",
+  about: "",
+  linkedin: "",
+  guests: [],
+  meetingName: "",
+};
+
+/** The meeting's names and its name field crossing in the form's last
+ * line: a quick fade and blur each way, as Reveal's words fade. */
+const SWAP = {
+  initial: { opacity: 0, filter: "blur(3px)" },
+  animate: { opacity: 1, filter: "blur(0px)" },
+  exit: { opacity: 0, filter: "blur(3px)" },
+  transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const },
+};
+
+/** The meeting name's buttons trading places: the pencil turns away as it
+ * shrinks, and the check and the cross spring in after it, one then the
+ * other. Under reduced motion they only fade. */
+/**
+ * A guest's fields are someone else's, so nothing should offer the
+ * booker's own contact card or saved logins for them. Browsers mostly
+ * honour "off"; the password managers each want their own flag; and Safari
+ * guesses a contact field from its placeholder whatever "off" says, so the
+ * hints carry an unseen word joiner that keeps "Name" and "Email" from
+ * reading as those words to it.
+ */
+const NOT_ME = {
+  autoComplete: "off",
+  "data-1p-ignore": true,
+  "data-lpignore": "true",
+  "data-bwignore": true,
+  "data-form-type": "other",
+} as const;
+const GUEST_NAME_HINT = "Na\u2060me";
+const GUEST_EMAIL_HINT = "Em\u2060ail";
+/** An email's rough shape, for the browser's own check of a guest's. */
+const GUEST_EMAIL_PATTERN = "[^@\\s]+@[^@\\s]+\\.[^@\\s]+";
+
+/** How the host's half, and the buttons after it, slide as the field
+ * opens or closes: together, on one spring. */
+const NAME_SLIDE = { type: "spring" as const, duration: 0.36, bounce: 0.2 };
+const NAME_BUTTON_SPRING = {
+  type: "spring" as const,
+  duration: 0.34,
+  bounce: 0.35,
+};
+const nameButton = (still: boolean, turn: number, delay = 0) =>
+  still
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.15 },
+      }
+    : {
+        initial: { opacity: 0, scale: 0.4, rotate: -turn, filter: "blur(2px)" },
+        animate: {
+          opacity: 1,
+          scale: 1,
+          rotate: 0,
+          filter: "blur(0px)",
+          transitionEnd: { filter: "none" },
+        },
+        exit: {
+          opacity: 0,
+          scale: 0.4,
+          rotate: turn,
+          filter: "blur(2px)",
+          transition: { duration: 0.14, ease: [0.4, 0, 1, 1] as const },
+        },
+        transition: {
+          default: { ...NAME_BUTTON_SPRING, delay },
+          opacity: { duration: 0.16, delay },
+          filter: { duration: 0.16, delay },
+        },
+      };
+
+/** The guests a booking sends: the rows with an address, each trimmed. */
+function sentGuests(rows: GuestRow[]) {
+  return rows
+    .map(({ email, name }) => ({ email: email.trim(), name: name.trim() }))
+    .filter(({ email }) => email !== "")
+    .map(({ email, name }) => (name ? { email, name } : { email }));
+}
 
 /** The first best time, which the page opens on, and the Day holding it. */
 function firstBest(initial: BookingPage): Selected | null {
@@ -328,6 +433,22 @@ export function MeetBooking({
 
   const [length, setLength] = useState(initial.link.defaultLength);
   const [fields, setFields] = useState<Fields>(EMPTY);
+  // The meeting's own name, edited in the form's last line.
+  const [naming, setNaming] = useState(false);
+  const nameBefore = useRef("");
+  const still = !!useReducedMotion();
+  // Closes the meeting name's field, keeping what's typed or putting back
+  // what it held when it opened.
+  const finishNaming = (keep: boolean) => {
+    if (!keep) {
+      const before = nameBefore.current;
+      setFields((f) => ({ ...f, meetingName: before }));
+    }
+    setNaming(false);
+  };
+  // Guest rows' keys, and their name fields, to focus a row as it's added.
+  const guestKey = useRef(0);
+  const guestFields = useRef(new Map<number, HTMLInputElement>());
   const [token, setToken] = useState<string | null>(null);
   const [failure, setFailure] = useState<Extract<
     BookResult,
@@ -341,6 +462,7 @@ export function MeetBooking({
   const [booked, setBooked] = useState<{
     booked: Booked;
     email: string;
+    guests: number;
     from: Handoff | null;
   } | null>(null);
   useLayoutEffect(() => {
@@ -459,6 +581,13 @@ export function MeetBooking({
     selection === null
       ? null
       : slotText(selection, selection + length * MINUTE, hostZone, bookerZone);
+  // Under the pointer, a Day further off than tomorrow reads as how far it
+  // is: "Thu, Nov 12th" rolls to "Thu in 3 days".
+  const [dayHovered, setDayHovered] = useState(false);
+  const relativeDay =
+    dayHovered && slot && until?.day && !namedDay
+      ? `${weekdayLabel(slot.booker.date)} ${until.day}`
+      : null;
   const dayLine = useFits<HTMLSpanElement, HTMLSpanElement>(
     `${slot?.booker.day ?? ""}|${until?.day ?? ""}`,
   );
@@ -480,6 +609,7 @@ export function MeetBooking({
             `[data-book][form="${form.id}"]`,
           ));
     const linkedin = linkedinAddress(fields.linkedin);
+    const guests = sentGuests(fields.guests);
     const request = {
       start: selection,
       length,
@@ -487,6 +617,10 @@ export function MeetBooking({
       email: fields.email.trim(),
       ...(fields.about.trim() ? { about: fields.about.trim() } : {}),
       ...(linkedin ? { linkedin } : {}),
+      ...(guests.length ? { guests } : {}),
+      ...(fields.meetingName.trim()
+        ? { meetingName: fields.meetingName.trim() }
+        : {}),
     };
     attempt.current = attemptFor(attempt.current, attemptKey(request));
     let answer: BookResult;
@@ -530,6 +664,7 @@ export function MeetBooking({
         setBooked({
           booked: answer.booked,
           email: request.email,
+          guests: guests.length,
           from:
             centre || seeds.length
               ? { ...(centre ?? { x: innerWidth / 2, y: innerHeight }), seeds }
@@ -552,7 +687,9 @@ export function MeetBooking({
     returning.current = dust ?? null;
     setBooked(null);
     setSelected(null);
-    setFields((f) => ({ ...f, about: "" }));
+    // Another time keeps who's booking; what this one was about, who came
+    // along, and its name were this meeting's.
+    setFields((f) => ({ ...f, about: "", guests: [], meetingName: "" }));
     setFailure(null);
   };
 
@@ -562,6 +699,7 @@ export function MeetBooking({
         from={booked.from}
         booked={booked.booked}
         email={booked.email}
+        guests={booked.guests}
         host={host}
         hostZone={hostZone}
         bookerZone={bookerZone}
@@ -625,6 +763,29 @@ export function MeetBooking({
   const CallIcon = link.call.kind === "place" ? MapPinIcon : VideoCameraIcon;
   const firstName = shortName(fields.name.trim().split(/\s+/)[0] ?? "");
   const named = !!firstName && LOOKS_LIKE_EMAIL.test(fields.email.trim());
+  // The invite's title as Daybreak will make it: the people, or the name
+  // the booker gives it in place of them.
+  const people = titleLead(fields.name, sentGuests(fields.guests));
+  const lead = fields.meetingName.trim() ? fields.meetingName.trim() : people;
+  const addGuest = () => {
+    if (fields.guests.length >= GUESTS_MOST) return;
+    const key = ++guestKey.current;
+    setFields((f) => ({
+      ...f,
+      guests: [...f.guests, { key, email: "", name: "" }],
+    }));
+    requestAnimationFrame(() => guestFields.current.get(key)?.focus());
+  };
+  const setGuest = (key: number, change: Partial<GuestRow>) =>
+    setFields((f) => ({
+      ...f,
+      guests: f.guests.map((g) => (g.key === key ? { ...g, ...change } : g)),
+    }));
+  const removeGuest = (key: number) =>
+    setFields((f) => ({
+      ...f,
+      guests: f.guests.filter((g) => g.key !== key),
+    }));
 
   // The Book button and what's said under it: at the form's end beside the
   // Days, docked at the phone card's foot.
@@ -684,6 +845,10 @@ export function MeetBooking({
             >
               <span
                 ref={dayLine.room}
+                onPointerEnter={(e) =>
+                  e.pointerType === "mouse" && setDayHovered(true)
+                }
+                onPointerLeave={() => setDayHovered(false)}
                 className="relative min-w-0 flex-1 truncate"
               >
                 {/* Today and Tomorrow by name, in place of the date; a Day
@@ -703,9 +868,16 @@ export function MeetBooking({
                     className={cn(styles.aside, "font-medium")}
                   />
                 </span>
-                <DateText text={namedDay ?? slot.booker.day} rolls />
+                <DateText
+                  text={relativeDay ?? namedDay ?? slot.booker.day}
+                  rolls
+                />
+                {/* Its count, after the date, steps aside while the date
+                    itself says it. */}
                 <Reveal
-                  show={!!until?.day && !namedDay && dayLine.fits}
+                  show={
+                    !!until?.day && !namedDay && !relativeDay && dayLine.fits
+                  }
                   className={cn(styles.secondary, styles.aside, "font-medium")}
                 >
                   <span className={styles.dot}> · </span>
@@ -800,6 +972,98 @@ export function MeetBooking({
             className={styles.input}
           />
         </Field>
+        {/* The guests and their button come and go by opening and closing
+            (Collapse), each carrying the gap above it as padding, so the
+            fields below slide rather than jump. */}
+        <Collapse show={fields.guests.length > 0} className="!mt-0">
+          <div role="group" aria-label="Guests" className="space-y-1 pt-3">
+            <p
+              className={cn(
+                styles.label,
+                "flex items-baseline justify-between",
+              )}
+            >
+              Guests
+              {/* Said only once it's full, where "Add another" goes. */}
+              <Pop show={fields.guests.length >= GUESTS_MOST}>
+                <span className={styles.optional}>
+                  {GUESTS_MOST} of {GUESTS_MOST}
+                </span>
+              </Pop>
+            </p>
+            <div>
+              <AnimatePresence initial={false}>
+                {fields.guests.map((guest, i) => (
+                  <Opens key={guest.key} className={i === 0 ? "" : "pt-2"}>
+                    <div className={styles.guest}>
+                      <Input
+                        ref={(el) => {
+                          if (el) guestFields.current.set(guest.key, el);
+                          else guestFields.current.delete(guest.key);
+                        }}
+                        aria-label={`Guest ${i + 1}'s name`}
+                        placeholder={GUEST_NAME_HINT}
+                        enterKeyHint="next"
+                        onKeyDown={nextField}
+                        maxLength={100}
+                        {...NOT_ME}
+                        value={guest.name}
+                        onChange={(e) =>
+                          setGuest(guest.key, { name: e.target.value })
+                        }
+                        className={styles.input}
+                      />
+                      <Input
+                        // Text with an email keyboard and an email's shape
+                        // to check, not type="email", which Safari fills
+                        // with the booker's own address.
+                        type="text"
+                        inputMode="email"
+                        pattern={GUEST_EMAIL_PATTERN}
+                        aria-label={`Guest ${i + 1}'s email`}
+                        placeholder={GUEST_EMAIL_HINT}
+                        enterKeyHint="next"
+                        onKeyDown={nextField}
+                        maxLength={254}
+                        {...NOT_ME}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        value={guest.email}
+                        onChange={(e) =>
+                          setGuest(guest.key, { email: e.target.value })
+                        }
+                        className={styles.input}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Remove guest ${i + 1}`}
+                        onClick={() => removeGuest(guest.key)}
+                        className={styles.guestRemove}
+                      >
+                        <XIcon size={14} weight="bold" aria-hidden />
+                      </button>
+                    </div>
+                  </Opens>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+        </Collapse>
+        <Collapse show={fields.guests.length < GUESTS_MOST} className="!mt-0">
+          <div className="pt-1.5">
+            <button
+              type="button"
+              onClick={addGuest}
+              className={styles.addGuest}
+            >
+              <PlusIcon size={13} weight="bold" aria-hidden />
+              <FadeIn key={fields.guests.length ? "another" : "first"} fades>
+                {fields.guests.length ? "Add another guest" : "Add guests"}
+              </FadeIn>
+            </button>
+          </div>
+        </Collapse>
         <Field label="LinkedIn" id="meet-linkedin" optional>
           <Input
             id="meet-linkedin"
@@ -850,11 +1114,131 @@ export function MeetBooking({
           {/* The invite's name, as the booking will title it, once
             there's a name and an email to send it to. A long first name
             ends in an ellipsis, short of the host's. */}
+          {/* A pencil names it: the people's half becomes a field, with
+            them as its placeholder, the host's half fixed after it. */}
           <Reveal show={named} className="min-w-0">
-            <span className="flex min-w-0">
+            <span className="flex min-w-0 items-center">
               <span className={cn(styles.dot, "shrink-0")}> · </span>
-              <span className="truncate">{firstName}</span>
-              <span className="shrink-0"> 🤝 {host}</span>
+              {/* The names and the field cross with a blur, the host's
+                  half sliding to where the field ends (layout). */}
+              <AnimatePresence initial={false} mode="popLayout">
+                {naming ? (
+                  <motion.span
+                    key="field"
+                    className={styles.meetingNameBox}
+                    // The field's room: as wide as what it holds, in the
+                    // line's own letters.
+                    style={{
+                      width: `${Math.max(6, [...(fields.meetingName || people)].length + 1)}ch`,
+                    }}
+                    {...SWAP}
+                  >
+                    <input
+                      aria-label="Meeting name"
+                      // Opened by its pencil, so it takes the keyboard at once.
+                      // eslint-disable-next-line jsx-a11y/no-autofocus
+                      autoFocus
+                      onFocus={(e) => e.currentTarget.select()}
+                      enterKeyHint="done"
+                      maxLength={MEETING_NAME_LENGTH}
+                      autoComplete="off"
+                      placeholder={people}
+                      value={fields.meetingName}
+                      onChange={(e) =>
+                        setFields({ ...fields, meetingName: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" && e.key !== "Escape") return;
+                        e.preventDefault();
+                        finishNaming(e.key === "Enter");
+                      }}
+                      // Leaving it keeps what's typed, unless it's for its
+                      // own check or cross, which say.
+                      onBlur={(e) => {
+                        if (
+                          e.relatedTarget instanceof Element &&
+                          e.relatedTarget.closest("[data-naming]")
+                        )
+                          return;
+                        setNaming(false);
+                      }}
+                      className={styles.meetingName}
+                    />
+                  </motion.span>
+                ) : (
+                  <motion.span key="names" className="truncate" {...SWAP}>
+                    {lead}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {/* It slides only as the field opens or closes, not as the
+                  names change with every letter typed. */}
+              <motion.span
+                layout="position"
+                layoutDependency={naming}
+                transition={{ layout: still ? { duration: 0 } : NAME_SLIDE }}
+                className="shrink-0"
+              >
+                {" "}
+                🤝 {host}
+              </motion.span>
+              {/* Its buttons: the pencil, or a check and a cross while the
+                  field is open, their room widening to fit. */}
+              <motion.span
+                className="relative flex shrink-0 items-center"
+                // It rides with the host's half, as that slides.
+                layout="position"
+                layoutDependency={naming}
+                initial={false}
+                animate={{ width: naming ? "2.875rem" : "1.5rem" }}
+                transition={still ? { duration: 0 } : NAME_SLIDE}
+              >
+                <AnimatePresence initial={false} mode="popLayout">
+                  {naming ? (
+                    <motion.span
+                      key="confirm"
+                      data-naming
+                      className="flex items-center"
+                    >
+                      <motion.button
+                        type="button"
+                        aria-label="Keep meeting name"
+                        // The field keeps the keyboard until it's done.
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => finishNaming(true)}
+                        className={cn(styles.nameButton, styles.nameKeep)}
+                        {...nameButton(still, 60)}
+                      >
+                        <CheckIcon size={13} weight="bold" aria-hidden />
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        aria-label="Cancel meeting name"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => finishNaming(false)}
+                        className={styles.nameButton}
+                        {...nameButton(still, 60, 0.05)}
+                      >
+                        <XIcon size={12} weight="bold" aria-hidden />
+                      </motion.button>
+                    </motion.span>
+                  ) : (
+                    <motion.button
+                      key="pencil"
+                      type="button"
+                      aria-label="Name the meeting"
+                      onClick={() => {
+                        nameBefore.current = fields.meetingName;
+                        setNaming(true);
+                      }}
+                      className={cn(styles.nameButton, styles.namePencil)}
+                      {...nameButton(still, 45)}
+                    >
+                      <PencilSimpleIcon size={13} weight="bold" aria-hidden />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </motion.span>
             </span>
           </Reveal>
         </span>
