@@ -3,6 +3,9 @@
  * for Docker builds.
  */
 await import("./src/env.js");
+const { meetRedirects, meetRewrites } = await import(
+  "./src/lib/booking/meetRoutes.js"
+);
 
 const diagnosticBuildId = (
   process.env.VERCEL_GIT_COMMIT_SHA ??
@@ -57,6 +60,8 @@ const config = {
         destination: "/weightliftingapp/ai",
         permanent: false,
       },
+      // /meet/aic and the like moved to /aic (meetRoutes.js).
+      ...meetRedirects(),
     ];
   },
   async rewrites() {
@@ -65,6 +70,8 @@ const config = {
       // still ask for it. Serve the generated tab icon; the subdomain proxy
       // exempts the path, so every host gets the same face.
       { source: "/favicon.ico", destination: "/icon" },
+      // /aic, /aic/15, /personal, and the like are /meet/[slug] pages.
+      ...meetRewrites(),
     ];
   },
   async headers() {

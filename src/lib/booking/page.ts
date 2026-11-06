@@ -37,7 +37,7 @@ export const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 /** A Booking link's slug, as Daybreak's `/book/<slug>` takes it. */
 export const SLUG_PATTERN = /^[a-z0-9-]{1,64}$/;
 
-/** The link /meet shows; /meet/<slug> shows any other. */
+/** The link /meet shows; /meet/<slug>, /aic, and /personal show the others (meetRoutes.js). */
 export const DEFAULT_SLUG = "meet";
 
 /**
