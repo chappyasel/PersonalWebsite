@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };
 
-/** The Owner's other links: /meet/15, /meet/60, or a private slug. */
+/** The Owner's other links: /meet/15, /meet/60, a private slug, and /aic and /personal through rewrites. */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   if (!SLUG_PATTERN.test(slug)) return {};

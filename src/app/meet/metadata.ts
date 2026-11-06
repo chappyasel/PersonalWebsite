@@ -8,6 +8,7 @@ import {
   lengthLabel,
   lengthWords,
 } from "~/lib/booking/page";
+import { meetPath } from "~/lib/booking/meetRoutes";
 import type { PageRead } from "~/server/booking/daybreak";
 
 const SITE = "https://www.chappyasel.com";
@@ -20,7 +21,7 @@ export function onlyLength(link: BookingPage["link"]): number | null {
 
 /**
  * A Booking link's title, description, share card, and search rules. Only
- * /meet is indexed; /meet/15 and the like are links the Owner sends, so
+ * /meet is indexed; /meet/15, /aic, and the like are links the Owner sends, so
  * they stay out of search, and a private link's slug appears in no text
  * and no canonical URL.
  */
@@ -34,11 +35,7 @@ export function meetMetadata(slug: string, read: PageRead): Metadata {
     ? `Book ${length === null ? "a time" : lengthWords(length)} with ${host} ${callPhrase(link.call)}. Times show in your zone.`
     : `Book a time with ${host}. Times show in your zone.`;
   const main = slug === DEFAULT_SLUG;
-  const url = main
-    ? `${SITE}/meet`
-    : isPrivateSlug(slug)
-      ? undefined
-      : `${SITE}/meet/${slug}`;
+  const url = isPrivateSlug(slug) ? undefined : `${SITE}${meetPath(slug)}`;
   return {
     title: { absolute: title },
     description,

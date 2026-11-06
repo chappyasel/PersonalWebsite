@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { meetPath } from "~/lib/booking/meetRoutes";
 import { DEFAULT_SLUG, callLabel } from "~/lib/booking/page";
 import { cn } from "~/lib/utils";
 
@@ -35,7 +36,7 @@ export async function MeetScreen({ slug }: { slug: string }) {
           <>
             {/* A plain link, so the page reads the calendar again. */}
             <Button asChild className={styles.primary}>
-              <a href={slug === DEFAULT_SLUG ? "/meet" : `/meet/${slug}`}>
+              <a href={meetPath(slug)}>
                 Try again
               </a>
             </Button>

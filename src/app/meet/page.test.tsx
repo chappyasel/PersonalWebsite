@@ -170,6 +170,15 @@ describe("metadata", () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
 
+  it("gives a group's link its own address", async () => {
+    mocks.read.mockResolvedValue(open([15]));
+    const metadata = await linkMetadata(params("aic-15"));
+    expect(metadata.alternates?.canonical).toBe(
+      "https://www.chappyasel.com/aic/15",
+    );
+    expect(metadata.robots).toEqual({ index: false, follow: false });
+  });
+
   it("never repeats a private link's slug", async () => {
     mocks.read.mockResolvedValue(open([45]));
     const metadata = await linkMetadata(params(SECRET));
