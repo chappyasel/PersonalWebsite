@@ -40,6 +40,30 @@ export type Overlay = {
 };
 
 /** A canvas over the whole document, drawn in page coordinates. */
+/**
+ * The stretch of the page a frame has to wipe, in page coordinates: all
+ * the screen can show, not just `innerHeight`. iOS Safari draws the page
+ * on under its translucent toolbars, below `innerHeight`, so dust that
+ * drifts there was drawn and never wiped, and froze into streaks behind
+ * the bar. Kept with the last frame's band, so a grain drawn before a fast
+ * scroll is still wiped after it.
+ */
+export function wiper(margin = 120) {
+  let last: { top: number; bottom: number } | null = null;
+  return () => {
+    const tall = Math.max(
+      innerHeight,
+      screen.height,
+      window.visualViewport?.height ?? 0,
+    );
+    const band = { top: scrollY - margin, bottom: scrollY + tall + margin };
+    const top = Math.min(band.top, last?.top ?? band.top);
+    const bottom = Math.max(band.bottom, last?.bottom ?? band.bottom);
+    last = band;
+    return { top, height: bottom - top };
+  };
+}
+
 export function overlay(z = 60): Overlay | null {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -62,6 +86,7 @@ export function overlay(z = 60): Overlay | null {
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
   };
+  const band = wiper();
   document.body.appendChild(canvas);
   size();
   window.addEventListener("resize", size);
@@ -70,12 +95,9 @@ export function overlay(z = 60): Overlay | null {
     dpr,
     clear: () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(
-        scrollX - 20,
-        scrollY - 20,
-        innerWidth + 40,
-        innerHeight + 40,
-      );
+      const { top, height } = band();
+      // The canvas is the document's width: wipe all of it across.
+      ctx.clearRect(0, top, canvas.width / dpr, height);
     },
     remove: () => {
       window.removeEventListener("resize", size);

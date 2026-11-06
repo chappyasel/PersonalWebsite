@@ -91,6 +91,8 @@ const DRAG_PER_TURN = 420;
 /** How far a drag carries the ticket: with the finger at first, then
  * less and less, never past LEASH. */
 const LEASH = 46;
+/** How far the ticket pitches, in degrees, carried to the leash's end. */
+const CARRY_PITCH = 16;
 const leash = (d: number) =>
   Math.sign(d) * LEASH * (1 - Math.exp(-Math.abs(d) / (LEASH * 2.2)));
 
@@ -633,6 +635,10 @@ export function ConfirmTicket({
         tx = Math.sin(t * 0.9) * 3.5;
         ty = Math.sin(t * 0.6 + 1) * 6;
       }
+      // Carried up or down, it pitches as if held at its middle from
+      // behind: up tips its top away, down its foot, to CARRY_PITCH at
+      // the leash's end.
+      tx -= (cr.y / LEASH) * CARRY_PITCH;
       vrx += (90 * (tx - rx) - 11 * vrx) * dt;
       vry += (90 * (ty - ry) - 11 * vry) * dt;
       rx += vrx * dt;
@@ -653,15 +659,21 @@ export function ConfirmTicket({
       }
       card.style.setProperty("--rx", `${rx.toFixed(2)}deg`);
       card.style.setProperty("--ry", `${(ry + f.angle).toFixed(2)}deg`);
-      card.style.setProperty("--tx", (ry / 16).toFixed(3));
+      // The light, the glints, and the depth answer the whole tilt: the
+      // pointer's and the turn a drag gives it off its face, eased so a
+      // big turn sweeps the light across rather than off the card (past 90
+      // the other face is showing and the turn is measured from it).
+      const turn = f.angle - Math.round(f.angle / 180) * 180;
+      const yaw = ry + 20 * Math.tanh(turn / 20);
+      card.style.setProperty("--tx", (yaw / 16).toFixed(3));
       card.style.setProperty("--ty", (rx / 12).toFixed(3));
       // Where the light hits: opposite the tilt.
-      card.style.setProperty("--gx", `${(50 + (ry / 32) * 100).toFixed(1)}%`);
+      card.style.setProperty("--gx", `${(50 + (yaw / 32) * 100).toFixed(1)}%`);
       card.style.setProperty("--gy", `${(50 - (rx / 24) * 100).toFixed(1)}%`);
 
       // The faces' dust: the foil's glints, the back's stars.
-      const light = Math.hypot(ry, rx) / 12 + 0.15;
-      const la = Math.atan2(-rx, ry);
+      const light = Math.hypot(yaw, rx) / 12 + 0.15;
+      const la = Math.atan2(-rx, yaw);
       const lnx = Math.cos(la);
       const lny = Math.sin(la);
       fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -688,7 +700,7 @@ export function ConfirmTicket({
       sctx.clearRect(0, 0, skyW, skyH);
       // Depth: the tilt slides near stars farther than far ones (the
       // canvas overhangs the back to have room), and the sky drifts.
-      const slideX = -(ry / 16);
+      const slideX = -(yaw / 16);
       const slideY = -(rx / 12);
       for (const g of stars) {
         const facing = Math.max(0, g.nx * lnx + g.ny * lny);
@@ -1166,7 +1178,13 @@ export function ConfirmTicket({
             onPointerMove={onMove}
             onPointerUp={() => onUp()}
             onPointerCancel={() => onUp(false)}
-            onLostPointerCapture={() => onUp(false)}
+            onLostPointerCapture={(e) => {
+              // Only the ticket's own capture going. A finger is captured
+              // to whatever it touched first, and the ticket taking it over
+              // mid-swipe makes that child lose it: that event bubbles here
+              // and isn't a release.
+              if (e.target === e.currentTarget) onUp(false);
+            }}
             onDragStart={(e) => e.preventDefault()}
           >
             {/* Its thickness: slices between the faces, an edge when
