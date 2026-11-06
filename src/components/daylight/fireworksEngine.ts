@@ -113,8 +113,8 @@ function renderLaunches(
   launches: Launch[],
   now: number,
   map: { ppr: number; ox: number; oy: number },
+  dark: boolean,
 ) {
-  const dark = document.documentElement.classList.contains("dark");
   // The strip's own scale and pan offset: aspect-true, so one number serves
   // both axes, and the strip's bottom edge is e = 0.
   const { ppr, ox, oy } = map;
@@ -271,12 +271,40 @@ function renderLaunches(
   }
 }
 
+/** An element's box from layout alone, in its offset parent's frame. */
+function layoutRect(el: HTMLElement) {
+  const left = el.offsetLeft;
+  const top = el.offsetTop;
+  const width = el.offsetWidth;
+  const height = el.offsetHeight;
+  return {
+    left,
+    top,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+  };
+}
+
 export type FireworksEngine = { fire: () => void; dispose: () => void };
+
+/** For a sky that isn't the daylight page's own, like /meet's ticket back. */
+export type FireworksOptions = {
+  /** The strip the shells are placed by; else the layer's sibling strip. */
+  strip?: HTMLElement;
+  /** Always night, whatever the page's theme. */
+  dark?: boolean;
+  /** Measure by layout, not the screen: right inside a 3D-turned parent,
+   * whose on-screen box changes as it turns. */
+  layout?: boolean;
+};
 
 export function createFireworksEngine(
   layer: HTMLDivElement,
   bloom: HTMLCanvasElement,
   core: HTMLCanvasElement,
+  options: FireworksOptions = {},
 ): FireworksEngine {
   const launches: Launch[] = [];
   let raf = 0;
@@ -287,12 +315,18 @@ export function createFireworksEngine(
     raf = 0;
     const container = layer.parentElement;
     const strip =
+      options.strip ??
       container?.querySelector<HTMLElement>(
         ":scope > .dl-skyline, :scope > .dl-horizon-strip",
-      ) ?? layer;
+      ) ??
+      layer;
 
-    const cRect = layer.getBoundingClientRect();
-    const sRect = strip.getBoundingClientRect();
+    const cRect = options.layout
+      ? layoutRect(layer)
+      : layer.getBoundingClientRect();
+    const sRect = options.layout
+      ? layoutRect(strip)
+      : strip.getBoundingClientRect();
     const W = cRect.width;
     const H = cRect.height;
     if (W === 0 || H === 0) return;
@@ -315,11 +349,17 @@ export function createFireworksEngine(
       }
     }
     if (launches.length > 0) {
-      renderLaunches(g, launches, now, {
-        ppr: sRect.width / AZ_SPAN,
-        ox: sRect.left - cRect.left,
-        oy: sRect.bottom - cRect.top,
-      });
+      renderLaunches(
+        g,
+        launches,
+        now,
+        {
+          ppr: sRect.width / AZ_SPAN,
+          ox: sRect.left - cRect.left,
+          oy: sRect.bottom - cRect.top,
+        },
+        options.dark ?? document.documentElement.classList.contains("dark"),
+      );
       // Erase the shells wherever the strip's geometry stands — bridge,
       // Sutro, hills, city — pan and all (the mask rides the strip's rect).
       const mask = occluderMask(sRect.width);

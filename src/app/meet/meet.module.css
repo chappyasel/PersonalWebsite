@@ -19,6 +19,10 @@
 }
 
 /* Once a booking lands, the confirmation has the screen to itself. */
+:global(.meet-root):has([data-confirmed]) {
+  overflow-x: clip;
+}
+
 :global(.meet-root):has([data-confirmed]) .titleHead {
   display: none;
 }
@@ -43,12 +47,21 @@
 
 /* Chappy's photo, before the title on a phone, and over the grid's rail
    beside it on a computer, centred on the title and its facts. */
+/* The photo is a coin to spin (PortraitRing), not a picture to take: no
+   drag out of it, no save sheet on a long press. A drag any way spins it,
+   so the page doesn't scroll from it. */
 .portrait {
   flex: none;
   width: calc(var(--title-size, 1.75rem) * 1.286);
   height: calc(var(--title-size, 1.75rem) * 1.286);
   border-radius: 9999px;
   box-shadow: 0 0 0 1px rgb(var(--mt-ink) / 0.08);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 @media (min-width: 872px) {
@@ -91,6 +104,12 @@
 .unit {
   font-size: 0.8em;
   opacity: 0.8;
+}
+
+/* A time zone after a time, "PT": a step smaller than the time, so the
+   clock reads first. */
+.zone {
+  font-size: 0.75em;
 }
 
 /* A time's "today" or "in 5h": a step under the words it follows,
@@ -225,6 +244,11 @@
   /* How far the window reaches past the Days' right edge. A phone has only
      its 16px gutter there, so the fade runs on past the screen's edge. */
   --reach-end: var(--fade);
+  /* How much of that the fade takes. At rest, only its outer 6px: the
+     meeting, stretched as it moves, can reach 14px past the Days and
+     should show whole there; the next page, 20px off, is still clipped.
+     Mid-glide, all of it. */
+  --soft: 6px;
   margin-left: calc(-1 * var(--fade));
   margin-right: calc(-1 * var(--reach-end));
   padding-left: var(--fade);
@@ -236,17 +260,21 @@
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,
-    #000 var(--fade),
-    #000 calc(100% - var(--reach-end)),
+    #000 var(--soft),
+    #000 calc(100% - var(--reach-end) + var(--fade) - var(--soft)),
     transparent calc(100% - var(--reach-end) + var(--fade))
   );
   mask-image: linear-gradient(
     to right,
     transparent,
-    #000 var(--fade),
-    #000 calc(100% - var(--reach-end)),
+    #000 var(--soft),
+    #000 calc(100% - var(--reach-end) + var(--fade) - var(--soft)),
     transparent calc(100% - var(--reach-end) + var(--fade))
   );
+}
+
+[data-gliding] .window {
+  --soft: var(--fade);
 }
 
 .compact .window {
@@ -478,7 +506,9 @@
   position: relative;
   border: 1px solid var(--hairline);
   border-radius: var(--panel-radius);
-  overflow: clip;
+  /* Not clipped: the meeting, lifted and stretched as it moves, rides over
+     the panel's edge rather than being cut by it. The end Days round their
+     own corners instead. */
   background-color: rgb(var(--mt-ground));
   /* The hours start --inset down. Only the lines between hours are drawn;
      the panel's own edge is the first and last. */
@@ -497,6 +527,8 @@
    grid; with no meeting yet, a faint inset edge says where the keys go. */
 .days:focus-visible:not([data-pressed]) .selection {
   box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
     0 0 0 2px rgb(var(--mt-ground)),
     0 0 0 4px rgb(var(--mt-accent) / 0.6);
 }
@@ -513,6 +545,16 @@
 
 .day + .day {
   border-left: 1px solid var(--hairline);
+}
+
+.day:first-child {
+  border-start-start-radius: calc(var(--panel-radius) - 1px);
+  border-end-start-radius: calc(var(--panel-radius) - 1px);
+}
+
+.day:nth-last-child(1 of .day) {
+  border-start-end-radius: calc(var(--panel-radius) - 1px);
+  border-end-end-radius: calc(var(--panel-radius) - 1px);
 }
 
 .day[data-weekend] {
@@ -551,10 +593,14 @@
   cursor: pointer;
 }
 
+/* The star stands a little off the page: a shadow under it and a faint
+   glow of its own blue round it. */
 .bestDot {
   position: relative;
   display: grid;
   color: rgb(var(--mt-accent));
+  filter: drop-shadow(0 1px 0.6px rgb(0 0 0 / 0.22))
+    drop-shadow(0 0 2px rgb(var(--mt-accent) / 0.3));
   transition: transform 150ms ease-out;
 }
 
@@ -608,10 +654,8 @@
   z-index: 2;
   overflow: hidden;
   border-radius: var(--block-radius);
-  background: rgb(var(--mt-accent));
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
   cursor: grab;
   touch-action: none;
 }
@@ -669,20 +713,46 @@
   }
 }
 
-.selection[data-dragging] {
-  cursor: grabbing;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+/* Hovered, the meeting rises a touch on a shadow, ready to be picked up;
+   BookDust tips it toward the pointer. */
+@media (hover: hover) {
+  .selection:hover:not([data-dragging]):not([data-lifted]) {
+    scale: 1.02;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      inset 0 -1px 0 rgb(0 0 0 / 0.16),
+      0 0 4px rgb(0 0 0 / 0.1),
+      0 0 16px rgb(0 0 0 / 0.16);
+  }
 }
 
-/* A meeting a finger lifts rides above its landing, a touch larger, and
-   follows the finger without the slide's lag. */
+/* A meeting being dragged is picked up off the grid: a touch larger, on
+   a shadow all round it, as if lit from straight above, with a little
+   spring as it comes up. */
+.selection[data-dragging] {
+  z-index: 3;
+  cursor: grabbing;
+  scale: 1.05;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
+    0 0 6px rgb(0 0 0 / 0.12),
+    0 0 24px rgb(0 0 0 / 0.2);
+}
+
+/* A meeting a finger lifts rides above its landing, and follows the
+   finger without the slide's lag. */
 .selection[data-lifted] {
   z-index: 3;
-  scale: 1.03;
-  box-shadow: 0 8px 20px rgb(0 0 0 / 0.22);
+  scale: 1.06;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
+    0 0 6px rgb(0 0 0 / 0.12),
+    0 0 28px rgb(0 0 0 / 0.24);
   transition:
-    scale 150ms ease-out,
-    box-shadow 150ms ease-out;
+    scale 260ms cubic-bezier(0.3, 1.5, 0.5, 1),
+    box-shadow 200ms ease-out;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -694,8 +764,8 @@
       left var(--slide),
       height 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
       background-color 100ms ease-out,
-      box-shadow 100ms ease-out,
-      scale 150ms ease-out;
+      box-shadow 200ms ease-out,
+      scale 260ms cubic-bezier(0.3, 1.5, 0.5, 1);
   }
 
   .ghost {
@@ -928,26 +998,82 @@
   box-shadow: 0 0 0 3px rgb(var(--mt-accent) / 0.25);
 }
 
+/* The blue's finish, a solid thing lit from above: a little lighter at
+   the top and deeper at the foot, a bright top edge and a dark bottom
+   one, on a soft shadow. The Book button and the meeting share it. Each
+   shadow list keeps four entries, so a press or a lift eases between. */
+.primary,
+.selection {
+  --fill: rgb(var(--mt-accent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--fill), #fff 16%) 0%,
+    var(--fill) 55%,
+    color-mix(in srgb, var(--fill), #000 9%) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
+    0 1px 3px rgb(0 0 0 / 0.16),
+    0 0 0 rgb(0 0 0 / 0);
+}
+
 .primary {
+  overflow: hidden;
   height: 2.25rem;
   border-radius: 8px;
-  background: rgb(var(--mt-accent));
   color: #fff;
   font-size: 0.875rem;
   font-weight: 700;
-  box-shadow: none;
+  text-shadow: 0 -1px 0 rgb(0 0 0 / 0.12);
+  transition: box-shadow 260ms ease-out;
+}
+
+/* Hovered, its blue brightens from the top, eased in rather than
+   switched (a gradient itself can't ease). It sits under the label, which
+   PressButton positions. */
+.primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+      120% 140% at 50% 0%,
+      rgb(255 255 255 / 0.2),
+      rgb(255 255 255 / 0) 70%
+    ),
+    linear-gradient(180deg, rgb(140 200 255 / 0.18), rgb(0 60 200 / 0.12));
+  opacity: 0;
+  transition: opacity 320ms ease-out;
+}
+
+/* Pressed, it's picked up as a dragged meeting is: grown (PressButton),
+   on a shadow all round, as if lit from straight above. */
+.primary:active:not(:disabled),
+.quiet:active:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
+    0 0 6px rgb(0 0 0 / 0.12),
+    0 0 26px rgb(0 0 0 / 0.22);
+  transition: box-shadow 120ms ease-out;
 }
 
 /* Solid blue in every state, as vivid as the Best badge: its label says
-   why it can't book yet. A pointer's hover only deepens it a touch, since
-   a phone's tap leaves :hover standing. */
-.primary:hover {
-  background: rgb(var(--mt-accent));
-}
-
+   why it can't book yet. Only a pointer's hover lifts it (PressButton
+   grows and tips it), since a phone's tap leaves :hover standing. */
 @media (hover: hover) {
-  .primary:hover:not(:disabled) {
-    background: color-mix(in srgb, rgb(var(--mt-accent)) 90%, #000);
+  .primary:hover:not(:disabled):not(:active),
+  .quiet:hover:not(:disabled):not(:active) {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      inset 0 -1px 0 rgb(0 0 0 / 0.16),
+      0 0 4px rgb(0 0 0 / 0.1),
+      0 0 16px rgb(0 0 0 / 0.14);
+  }
+
+  .primary:hover:not(:disabled)::before {
+    opacity: 1;
   }
 }
 
@@ -970,13 +1096,22 @@
   color: rgb(var(--mt-ink));
   font-size: 0.875rem;
   font-weight: 600;
-  box-shadow: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0),
+    inset 0 -1px 0 rgb(0 0 0 / 0),
+    0 0 0 rgb(0 0 0 / 0),
+    0 0 0 rgb(0 0 0 / 0);
+  transition:
+    box-shadow 260ms ease-out,
+    background-color 150ms;
 }
 
 .quiet:hover {
   background: rgb(var(--mt-ink) / 0.1);
 }
 
+/* The Best badge in the Book button's finish: lighter at the top, a bright
+   top edge and a dark bottom one, on a small shadow. */
 .capsule {
   position: relative;
   display: inline-flex;
@@ -984,11 +1119,21 @@
   gap: 3px;
   border-radius: 999px;
   padding: 1px 8px;
-  background: rgb(var(--mt-accent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--mt-accent)), #fff 18%) 0%,
+    rgb(var(--mt-accent)) 60%,
+    color-mix(in srgb, rgb(var(--mt-accent)), #000 9%) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.32),
+    inset 0 -1px 0 rgb(0 0 0 / 0.16),
+    0 1px 2px rgb(0 0 0 / 0.16);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0;
+  text-shadow: 0 -1px 0 rgb(0 0 0 / 0.12);
   text-transform: none;
 }
 
@@ -1034,29 +1179,6 @@
 
 .capsuleBack:focus-visible {
   box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
-}
-
-.primary > :global(.hdr) {
-  border-radius: inherit;
-}
-
-/* The Book button's plate shows only while it's pressed, and fades out as
-   the finger lifts, then hides: a plate at opacity 0 would still hold the
-   screen in HDR. */
-.pressPlate {
-  opacity: 0;
-  transition:
-    opacity 220ms ease-out,
-    visibility 0s 220ms;
-}
-
-.primary:not([data-pressed]) > .pressPlate:global([data-playing]) {
-  visibility: hidden;
-}
-
-.primary[data-pressed] > .pressPlate {
-  opacity: 1;
-  transition: opacity 80ms ease-out;
 }
 
 .check {

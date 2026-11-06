@@ -116,7 +116,8 @@ const PANEL_TOP = 40;
 /**
  * The share card, drawn like the page: Chappy's photo, the title in SF Pro,
  * the length and call in secondary ink, and a corner of the schedule with
- * open time in blue and one meeting picked, as tall as the link's length.
+ * open time in blue and one meeting picked, as tall as the link's length,
+ * carried mid-drag with its dust trailing (Picked).
  */
 export function MeetOgCard({
   title,
@@ -202,6 +203,176 @@ export function MeetOgCard({
         </div>
       </div>
     </div>
+  );
+}
+
+/** The Best star, white on the meeting's blue, as the page draws it. */
+const STAR = `data:image/svg+xml;base64,${Buffer.from(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path fill="#fff" d="M239.18 97.26A16.38 16.38 0 0 0 224.92 86l-59-4.76-22.78-55.09a16.36 16.36 0 0 0-30.27 0L90.11 81.23 31.08 86a16.46 16.46 0 0 0-9.37 28.86l45 38.83L53 211.75a16.38 16.38 0 0 0 24.5 17.82l50.5-31.08 50.53 31.08A16.4 16.4 0 0 0 203 211.75l-13.76-58.07 45-38.83a16.43 16.43 0 0 0 4.94-17.59Z"/></svg>`,
+).toString("base64")}`;
+
+/** The dust's blues, as BookDust's sprites tint it. */
+const BLUES = [
+  "0, 122, 255",
+  "64, 156, 255",
+  "120, 186, 255",
+  "10, 96, 230",
+  "196, 224, 255",
+];
+
+/** Where the carried meeting is, off its landing: up, left, and tipped. */
+const LIFT = { x: -10, y: -14, turn: -3, scale: 1.06 };
+
+/**
+ * The lifted meeting's shadow, even all round as if lit from straight
+ * above (the page's `[data-lifted]`), built from rings that sum to a soft
+ * falloff: Satori draws a box-shadow untransformed, so a real one would
+ * sit flat and offset under the tipped block.
+ */
+const SHADOW = [
+  ...Array.from({ length: 4 }, (_, i) => ({ spread: 1 + i * 1.5, alpha: 0.024 })),
+  ...Array.from({ length: 14 }, (_, i) => ({
+    spread: 7 + i * 2.6,
+    alpha: 0.02 * (1 - i / 14),
+  })),
+];
+
+/** A fixed shuffle (mulberry32), so every render scatters its dust alike. */
+function seeded(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The picked meeting as the page draws it mid-drag: its landing outlined
+ * in the open time, the meeting carried just off it on its shadow, with
+ * the blue finish, the Best star, and the dust it sheds trailing back the
+ * way it came. Coordinates are the grid's.
+ */
+function Picked({ minutes, top }: { minutes: number; top: number }) {
+  const left = COLUMN + INSET;
+  const y = top * HOUR;
+  const width = COLUMN - 1 - INSET * 2;
+  const height = (minutes / 60) * HOUR;
+  const rand = seeded(7);
+  const dust = Array.from({ length: 150 }, () => {
+    const k = rand() ** 1.4;
+    return {
+      x: left - 4 - k * 210 + (rand() - 0.5) * 26 + rand() * width * 0.25,
+      y: y + height * 0.45 - k * 120 + (rand() - 0.5) * (18 + k * 70),
+      r: 1.4 + rand() * 3.4 * (1 - k * 0.55),
+      a: (1 - k * 0.6) * (0.65 + rand() * 0.35),
+      tint: BLUES[Math.floor(rand() * BLUES.length)]!,
+    };
+  });
+  return (
+    <>
+      <div
+        style={{
+          position: "absolute",
+          left,
+          top: y,
+          width,
+          height,
+          borderRadius: BLOCK_RADIUS,
+          backgroundColor: "rgb(219, 236, 255)",
+          boxShadow: `inset 0 0 0 1.5px rgba(${ACCENT}, 0.5)`,
+        }}
+      />
+      {/* A grain is a dot on a faint halo: a blurred shadow apiece costs
+          Satori seconds a card. */}
+      {dust.flatMap((g, i) => {
+        const halo = g.r * 2.6;
+        return [halo, g.r].map((r, layer) => (
+          <div
+            key={`${i}-${layer}`}
+            style={{
+              position: "absolute",
+              left: g.x - r,
+              top: g.y - r,
+              width: r * 2,
+              height: r * 2,
+              borderRadius: r,
+              backgroundColor: `rgba(${g.tint}, ${(layer ? g.a : g.a * 0.16).toFixed(3)})`,
+            }}
+          />
+        ));
+      })}
+      {/* Tipped as a whole, so the shadow's rings turn with the block. */}
+      <div
+        style={{
+          display: "flex",
+          position: "absolute",
+          left,
+          top: y,
+          width,
+          height,
+          transform: `translate(${LIFT.x}px, ${LIFT.y}px) rotate(${LIFT.turn}deg) scale(${LIFT.scale})`,
+        }}
+      >
+        {SHADOW.map(({ spread, alpha }) => (
+          <div
+            key={spread}
+            style={{
+              position: "absolute",
+              left: -spread,
+              top: -spread,
+              width: width + spread * 2,
+              height: height + spread * 2,
+              borderRadius: BLOCK_RADIUS + spread,
+              backgroundColor: `rgba(0, 0, 0, ${alpha.toFixed(4)})`,
+            }}
+          />
+        ))}
+        <div
+          style={{
+            display: "flex",
+            position: "relative",
+            alignItems: "center",
+            width,
+            height,
+            padding: "0 16px",
+            borderRadius: BLOCK_RADIUS,
+            backgroundColor: `rgb(${ACCENT})`,
+            backgroundImage:
+              "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%, rgba(0,0,0,0.09))",
+            boxShadow:
+              "inset 0 1.5px 0 rgba(255,255,255,0.3), inset 0 -1.5px 0 rgba(0,0,0,0.16)",
+            color: "#ffffff",
+          }}
+        >
+          {/* A 15-minute block is too thin to hold its time. */}
+          {minutes >= 30 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                fontSize: 30,
+                fontWeight: 700,
+              }}
+            >
+              2:00<span style={{ fontSize: 24, opacity: 0.8 }}>p</span>
+            </div>
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element -- Satori draws <img>, not next/image. */}
+          <img
+            src={STAR}
+            width={Math.min(20, height - 8)}
+            height={Math.min(20, height - 8)}
+            alt=""
+            style={{
+              position: "absolute",
+              right: 14,
+              top: (height - Math.min(20, height - 8)) / 2,
+            }}
+          />
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -302,26 +473,7 @@ function Schedule({ picked, today }: { picked: number; today: string }) {
             }}
           />
         ))}
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: COLUMN + INSET,
-            width: COLUMN - 1 - INSET * 2,
-            top: top * HOUR,
-            height: (picked / 60) * HOUR,
-            padding: "0 15px",
-            alignItems: "center",
-            borderRadius: BLOCK_RADIUS,
-            backgroundColor: `rgb(${ACCENT})`,
-            boxShadow: "0 1.5px 4.5px rgba(0, 0, 0, 0.15)",
-            color: "#ffffff",
-            fontSize: 30,
-          }}
-        >
-          {/* A 15-minute block is too thin to hold its time. */}
-          {picked >= 30 ? "2:00 PM" : ""}
-        </div>
+        <Picked minutes={picked} top={top} />
       </div>
     </div>
   );

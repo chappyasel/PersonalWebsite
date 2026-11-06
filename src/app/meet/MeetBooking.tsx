@@ -18,6 +18,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { flushSync } from "react-dom";
 
 import {
   type BookingDay,
@@ -66,6 +67,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { FadeIn, SwapText } from "~/components/ui/rolling-text";
 
+import { BookDust } from "./BookDust";
 import { BookingSheet, type SheetState, SwipeHint } from "./BookingSheet";
 import { DateText } from "./DateText";
 import { Duration } from "./Duration";
@@ -75,6 +77,14 @@ import { SpokenTimes } from "./SpokenTimes";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip, layoutTop } from "./WeekStrip";
 import { Confirmation } from "./confirmed/Confirmation";
+import {
+  type Handoff,
+  type Seed,
+  canAnimate,
+  reassemble,
+  sampleForm,
+  takeRing,
+} from "./confirmed/dust";
 import { tick } from "./haptics";
 import styles from "./meet.module.css";
 import { STICKY_HEADER } from "./sticky";
@@ -248,10 +258,13 @@ export function MeetBooking({
     firstBest(initial),
   );
   // Days after the first bookable one, stepping by the Days shown. It
-  // opens on Days holding the first best time.
+  // opens on the first Day with time to book, never an empty one, or on
+  // the first best time's Day when that's past a phone's Days from it.
   const [offset, setOffset] = useState(() => {
-    const first = selected ? daysBetween(firstDay, selected.day.day) : 0;
-    return first < PHONE_DAYS ? 0 : first - (first % PHONE_DAYS);
+    const open = initial.days.find((d) => d.open.length > 0);
+    const from = open ? daysBetween(firstDay, open.day) : 0;
+    const best = selected ? daysBetween(firstDay, selected.day.day) : from;
+    return best - from < PHONE_DAYS ? from : best;
   });
 
   // The page reads 28 Days at a time and keeps the blocks around the shown
@@ -320,11 +333,34 @@ export function MeetBooking({
     BookResult,
     { ok: false }
   > | null>(null);
+  // Back from the confirmation, its dust becomes the booking screen: each
+  // grain flies to a place on the screen as it now stands, the form's
+  // words, fields and Book button and the Days' panel, and the screen
+  // comes in under the dust as it settles.
+  const returning = useRef<Seed[] | null>(null);
   const [booked, setBooked] = useState<{
     booked: Booked;
     email: string;
-    from: { x: number; y: number } | null;
+    from: Handoff | null;
   } | null>(null);
+  useLayoutEffect(() => {
+    const dust = returning.current;
+    if (booked || !dust) return;
+    returning.current = null;
+    const form = document.getElementById(FORM_ID);
+    if (!form) return;
+    const book = [...document.querySelectorAll("[data-book]")].find(
+      (el) => el.getBoundingClientRect().width > 0,
+    );
+    const stop = reassemble(dust, sampleForm(form, book ?? null));
+    form.closest("main")?.animate?.([{ opacity: 0 }, { opacity: 1 }], {
+      duration: 460,
+      delay: 480,
+      easing: "ease-out",
+      fill: "backwards",
+    });
+    return stop;
+  }, [booked]);
   const [sheet, setSheet] = useState<SheetState>(() =>
     selected ? "peek" : "closed",
   );
@@ -376,9 +412,7 @@ export function MeetBooking({
     const day = dayHolding(loaded, nearestBest);
     if (!day) return;
     const index = daysBetween(firstDay, day.day);
-    setOffset((at) =>
-      index >= at && index < at + count ? at : index - (index % count),
-    );
+    setOffset((at) => (index >= at && index < at + count ? at : index));
     select(nearestBest);
   };
 
@@ -435,9 +469,16 @@ export function MeetBooking({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (selection === null || book.isPending) return;
-    const button = event.currentTarget.querySelector<HTMLElement>(
-      "button[type=submit]",
-    );
+    const form = event.currentTarget;
+    // The phone's Book button docks outside the form (form="…").
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const button =
+      submitter instanceof HTMLElement
+        ? submitter
+        : (form.querySelector<HTMLElement>("button[type=submit]") ??
+          document.querySelector<HTMLElement>(
+            `[data-book][form="${form.id}"]`,
+          ));
     const linkedin = linkedinAddress(fields.linkedin);
     const request = {
       start: selection,
@@ -465,19 +506,35 @@ export function MeetBooking({
     }
     turnstile.current?.reset();
     if (answer.ok) {
-      // The confirmation's dust bursts from the Book button.
+      // The confirmation's dust bursts from the Book button, where it is
+      // on the screen. The confirmation opens at the page's top, so a
+      // phone that scrolled down to the form doesn't open it half off
+      // the screen: the button's place on the screen is its place on the
+      // page from there.
+      //
+      // And the form becomes that dust: the Book button's ring and the
+      // form's own dust, taken where they are on the screen, and the
+      // confirmation drawn in the same frame (flushSync, and its layout
+      // effect), so the form never blinks out before its dust is there.
       const at = button?.getBoundingClientRect();
+      const centre = at
+        ? { x: at.left + at.width / 2, y: at.top + at.height / 2 }
+        : null;
+      const seeds = canAnimate()
+        ? [...takeRing(), ...sampleForm(form, button ?? null)]
+        : [];
       attempt.current = null;
-      setSheet("closed");
-      setBooked({
-        booked: answer.booked,
-        email: request.email,
-        from: at
-          ? {
-              x: at.left + at.width / 2 + scrollX,
-              y: at.top + at.height / 2 + scrollY,
-            }
-          : null,
+      document.scrollingElement?.scrollTo?.({ top: 0, behavior: "instant" });
+      flushSync(() => {
+        setSheet("closed");
+        setBooked({
+          booked: answer.booked,
+          email: request.email,
+          from:
+            centre || seeds.length
+              ? { ...(centre ?? { x: innerWidth / 2, y: innerHeight }), seeds }
+              : null,
+        });
       });
       void utils.booking.page.invalidate();
       return;
@@ -491,7 +548,8 @@ export function MeetBooking({
     }
   };
 
-  const reset = () => {
+  const reset = (dust?: Seed[]) => {
+    returning.current = dust ?? null;
     setBooked(null);
     setSelected(null);
     setFields((f) => ({ ...f, about: "" }));
@@ -578,6 +636,7 @@ export function MeetBooking({
         form={FORM_ID}
         disabled={!canBook}
         className="w-full"
+        data-book
       >
         <ButtonLabel
           state={
@@ -682,9 +741,11 @@ export function MeetBooking({
               <DateText text={slot.booker.short.start} rolls />
               <span className={styles.dash}>-</span>
               <DateText text={slot.booker.short.end} rolls />{" "}
-              {/* The zone at the size of the "in 4h" after it. */}
-              <span className={cn(styles.secondary, styles.aside)}>
+              {/* The zone a step smaller than the time, as everywhere. */}
+              <span className={cn(styles.secondary, styles.zone)}>
                 {slot.booker.zone}
+              </span>
+              <span className={cn(styles.secondary, styles.aside)}>
                 <Reveal show={!!until?.time} className="font-medium">
                   <span className={styles.dot}> · </span>
                   <DateText text={until?.time ?? ""} rolls />
@@ -693,9 +754,11 @@ export function MeetBooking({
             </p>
             {!slot.sameClock && (
               <p className={cn(styles.secondary, "text-[13px] tabular-nums")}>
+                <DateText rolls text={shortClock(selection!, hostZone)} />{" "}
+                <span className={styles.zone}>{slot.host.zone}</span>
                 <DateText
                   rolls
-                  text={`${shortClock(selection!, hostZone)} ${slot.host.zone} for ${host}${slot.dateDiffers ? `, ${slot.host.day}` : ""}`}
+                  text={` for ${host}${slot.dateDiffers ? `, ${slot.host.day}` : ""}`}
                 />
               </p>
             )}
@@ -806,6 +869,9 @@ export function MeetBooking({
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
+      {/* The ring holds while the booking is in flight, so a slow answer
+          still finds it there to hand to the pass (takeRing). */}
+      <BookDust ready={named && (canBook || book.isPending)} />
 
       <div ref={column} className="min-w-0 space-y-5">
         {(link.lengths.length > 1 || !gridShown) && (

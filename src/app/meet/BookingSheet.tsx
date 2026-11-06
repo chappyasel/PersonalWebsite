@@ -29,6 +29,10 @@ export type SheetState = "closed" | "peek" | "full";
 /** Critically damped, so it eases all the way in with no overshoot to
  * settle back from, as iOS sheets do. */
 const SPRING = { type: "spring" as const, duration: 0.5, bounce: 0 };
+/** Opening all the way and back down to its top: quicker, passing its
+ * mark a little and settling back, as the picked meeting slides but
+ * softer (the Owner, November 6, 2026). */
+const SNAP = { type: "spring" as const, duration: 0.38, bounce: 0.12 };
 /** Its rise into view: a little slower, with a touch of overshoot. */
 const RISE = { type: "spring" as const, duration: 0.7, bounce: 0.14 };
 /** How open the card is when its dock starts in: --dock-in's zero, in
@@ -288,7 +292,12 @@ export function BookingSheet({
     if (height.get() === 0 || (at === "full" && typing())) {
       height.stop();
       height.set(rest(at));
-    } else void animate(height, rest(at), { ...quick, velocity });
+    } else
+      void animate(
+        height,
+        rest(at),
+        reducedMotion ? quick : { ...SNAP, velocity },
+      );
     if (at === "full") return;
     if (scroller.current) scroller.current.scrollTop = 0;
   };
@@ -552,8 +561,7 @@ export function BookingSheet({
   // While the dock is faded all the way out (--dock-in at 0, under a
   // quarter open), it's hidden too. On an iPhone the Book button showed
   // half through the bar as the page arrived, over its opacity of 0, and
-  // a hidden button can't: nor can its HDR plate, a video that iOS draws
-  // in a layer of its own.
+  // a hidden button can't.
   const showDock = (o: number) => {
     const element = sheet.current;
     if (!element) return;

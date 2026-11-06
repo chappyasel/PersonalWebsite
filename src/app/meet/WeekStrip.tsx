@@ -422,6 +422,8 @@ export function WeekStrip({
     nowInHours && Math.abs(y(minute) - y(nowMinute)) < NOW_PILL;
 
   function slideTo(dx: number, transition = "") {
+    // Mid-glide the window fades the Days' edges fully (meet.module.css).
+    frameRef.current?.toggleAttribute("data-gliding", dx !== 0);
     for (const element of slidingParts(frameRef.current)) {
       element.style.transition = transition;
       element.style.transform = dx === 0 ? "" : `translateX(${dx}px)`;
@@ -775,6 +777,29 @@ export function WeekStrip({
     }
     endDrag();
   };
+
+  // A swipe or a drag held as the window loses focus (a tab switched) never
+  // hears its release: it ends then, as a cancelled one does.
+  const letGo = useRef(() => undefined as void);
+  letGo.current = () => {
+    const t = touch.current;
+    if (t) {
+      if (t.swiping) slideTo(0, SETTLE);
+      touch.current = null;
+      clearPress();
+    }
+    endDrag();
+  };
+  useEffect(() => {
+    const drop = () => letGo.current();
+    const hidden = () => document.hidden && drop();
+    window.addEventListener("blur", drop);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("blur", drop);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, []);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const keys = [
@@ -1457,7 +1482,7 @@ const TAP_HINT =
   "Tap an open time or drag the meeting. Swipe the days for more.";
 
 /**
- * A best time's blue star, brighter than white on an HDR screen. Hovered, it says "Best time" and no more. The
+ * A best time's blue star. Hovered, it says "Best time" and no more. The
  * tooltip draws inside .meet-root so it takes the page's colours and font;
  * a tap-first phone has no hover, so there a tap just picks the time.
  */

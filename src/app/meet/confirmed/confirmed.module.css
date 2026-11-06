@@ -36,30 +36,46 @@
   }
 }
 
-.passStage {
-  position: relative;
+.pass {
   isolation: isolate;
-  width: min(100%, 22rem);
 }
 
-/* The far half of the ring, behind the ticket: the ticket hides what of
-   it passes behind. */
+/* The far half of the ring, behind everything: the ticket and the button
+   hide what of it passes behind them. As wide as the window, past the
+   page's gutters, and a little above and below the screen. */
 .passBehind {
   position: absolute;
   z-index: 0;
-  top: calc(var(--reach) * -1);
-  left: calc(var(--reach) * -1);
-  width: calc(100% + var(--reach) * 2);
-  height: calc(100% + var(--reach) * 2);
+  top: -120px;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  height: calc(100% + 240px);
   pointer-events: none;
+}
+
+/* Narrow enough on a phone that the ring shows either side of it. */
+/* Over the button under it, so the ticket's shadow falls on the button
+   as a card's would above it. */
+.passStage {
+  position: relative;
+  z-index: 2;
+  /* A phone screen's shape, 3:4, sized so the ticket and the button
+     under it fit between a phone's toolbars (svh: the viewport with them
+     showing). Its type scales with its width (cqw). */
+  width: min(100% - 3.5rem, 20rem, (100svh - 11rem) * 3 / 4);
+  container-type: inline-size;
 }
 
 .ticketShadow {
   position: relative;
-  z-index: 1;
   filter: drop-shadow(0 26px 34px rgb(0 0 0 / 0.22))
     drop-shadow(0 2px 5px rgb(0 0 0 / 0.1));
-  animation: thunk 380ms ease-out 2330ms both;
+  /* Printed, lifted free, then jolted by the stamp. The print's clip
+     lets go once it's done, so the shadow and the flip aren't cut. */
+  animation:
+    print 1050ms cubic-bezier(0.3, 0.7, 0.4, 1) 760ms backwards,
+    lift 520ms ease-out 1820ms,
+    thunk 380ms ease-out 2330ms;
 }
 
 :global(.dark) .ticketShadow {
@@ -75,32 +91,6 @@
   35% {
     translate: 0 3px;
   }
-}
-
-.ticket {
-  --perf: 70%;
-  position: relative;
-  overflow: hidden;
-  border-radius: 22px;
-  background: rgb(var(--mt-ground));
-  text-align: left;
-  transform: perspective(900px) rotateX(var(--rx, 0deg))
-    rotateY(var(--ry, 0deg));
-  /* The notches either side of the perforation. */
-  -webkit-mask:
-    radial-gradient(circle 11px at 0 var(--perf), #0000 96%, #000) 0 0 / 51%
-      100% no-repeat,
-    radial-gradient(circle 11px at 100% var(--perf), #0000 96%, #000) 100% 0 /
-      51% 100% no-repeat;
-  mask:
-    radial-gradient(circle 11px at 0 var(--perf), #0000 96%, #000) 0 0 / 51%
-      100% no-repeat,
-    radial-gradient(circle 11px at 100% var(--perf), #0000 96%, #000) 100% 0 /
-      51% 100% no-repeat;
-  animation:
-    print 1050ms 760ms both,
-    lift 520ms ease-out 1820ms both;
-  animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1), ease-out;
 }
 
 /* Fed up out of the slot under it in three pulls: the bottom of what
@@ -134,6 +124,298 @@
   45% {
     scale: 1.035;
   }
+}
+
+/* The ticket turns in 3D: two faces back to back, each hiding when it
+   faces away. A drag sideways turns it (pan-y keeps the page scrolling). */
+.ticket {
+  --perf: 70%;
+  position: relative;
+  text-align: left;
+  transform: perspective(900px) rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.ticket:active {
+  cursor: grabbing;
+}
+
+/* Nothing on it comes away under a drag: not the link, not a picture. */
+.ticket,
+.ticket * {
+  -webkit-user-drag: none;
+}
+
+/* A face takes part in the ticket's 3D, so nothing on it may flatten it:
+   no mask, no overflow. Its inside (faceInner) carries those. */
+.face {
+  position: relative;
+  border-radius: 22px;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* The notches either side of the perforation, and the rounding. */
+.faceInner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  -webkit-mask:
+    radial-gradient(circle 11px at 0 var(--perf), #0000 96%, #000) 0 0 / 51%
+      100% no-repeat,
+    radial-gradient(circle 11px at 100% var(--perf), #0000 96%, #000) 100% 0 /
+      51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 11px at 0 var(--perf), #0000 96%, #000) 0 0 / 51%
+      100% no-repeat,
+    radial-gradient(circle 11px at 100% var(--perf), #0000 96%, #000) 100% 0 /
+      51% 100% no-repeat;
+}
+
+/* Each face sits on its side of the card's thickness (THICK). */
+/* 3:4, or taller should a narrow phone's text need it: the face is a
+   flex box, so its content sets its least height. */
+.ticketFront {
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 3 / 4;
+  transform: translateZ(2.5px);
+}
+
+.frontInner {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  background: rgb(var(--mt-ground));
+}
+
+/* The slices of card between the faces: the edge, seen side on. No mask
+   (it would flatten them, as on a face), so they stop short of the
+   notches instead, and never show through one. */
+.ticketEdge {
+  position: absolute;
+  inset: 0 12px;
+  border-radius: 22px;
+  /* White card stock, a little shaded toward its foot. */
+  background: linear-gradient(#f2f2f4, #d6d7dc);
+  pointer-events: none;
+}
+
+:global(.dark) .ticketEdge {
+  background: linear-gradient(#3a4558, #1d2535);
+}
+
+/* Whichever face is turned away takes no taps. */
+.ticket[data-side="front"] .ticketBack,
+.ticket[data-side="back"] .ticketFront {
+  pointer-events: none;
+}
+
+/* The back: San Francisco at night, under a sky of the same dust, and a
+   way to the rest of the site. */
+.ticketBack {
+  position: absolute;
+  inset: 0;
+  display: block;
+  color: #fff;
+  text-decoration: none;
+  transform: rotateY(180deg) translateZ(2.5px);
+}
+
+.backInner {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 70% at 50% 0%,
+    color-mix(in srgb, rgb(var(--mt-accent)) 38%, #0b1530) 0%,
+    #0b1530 58%,
+    #060b1d 100%
+  );
+}
+
+/* The back's depths, each sliding its own way as the ticket tilts: the
+   stars most, then the bridge, the ridge, and the city, so the night has
+   room in it. */
+/* Overhanging the back, for the near stars' parallax (drawn per star, by
+   depth, in ConfirmTicket). */
+.backSky {
+  position: absolute;
+  inset: -30px;
+  width: calc(100% + 60px);
+  height: calc(100% + 60px);
+  pointer-events: none;
+}
+
+.backScene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The strip at the size the back has always shown it: the Golden Gate on
+   the left, the city running off to the right. */
+.backStrip {
+  position: absolute;
+  left: -114px;
+  bottom: 0;
+  width: 1170px;
+  height: 121.2px;
+}
+
+.backStrip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.backFireworks,
+.backBridge {
+  translate: calc(var(--tx, 0) * -11px) calc(var(--ty, 0) * -7px);
+}
+
+.backRidge {
+  translate: calc(var(--tx, 0) * -6px) calc(var(--ty, 0) * -4px);
+}
+
+.backCity {
+  translate: calc(var(--tx, 0) * -2px) calc(var(--ty, 0) * -1.5px);
+}
+
+/* Ground under the city's own, for when the tilt lifts it. */
+.backCity::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 16px;
+  background: rgb(20 27 43 / 0.8);
+}
+
+.backFireworks {
+  position: absolute;
+  inset: 0;
+}
+
+.backFireworks canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.backBloom {
+  filter: blur(4px);
+  opacity: 0.85;
+}
+
+.backCore {
+  filter: blur(0.5px);
+}
+
+.backLamps {
+  stroke: #ff9e3d;
+  stroke-dasharray: 2 1.6;
+  opacity: 0.55;
+}
+
+.backBeacon {
+  opacity: 0.27;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .backBeacon {
+    animation: beacon 2.31s steps(1) infinite;
+  }
+}
+
+@keyframes beacon {
+  0%,
+  12.9% {
+    opacity: 1;
+  }
+  13%,
+  100% {
+    opacity: 0.27;
+  }
+}
+
+/* The top quarter is the way to the site. */
+.backLink {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  display: block;
+  height: 25%;
+  padding: 20px 22px;
+  color: #fff;
+  text-decoration: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.backTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  translate: calc(var(--tx, 0) * -4px) calc(var(--ty, 0) * -3px);
+}
+
+.backFace {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.75);
+}
+
+.backArrow {
+  width: 1em;
+  height: 1em;
+  margin-left: -3px;
+  opacity: 0.6;
+  transition:
+    opacity 200ms,
+    translate 200ms;
+}
+
+.backLink:hover .backArrow,
+.backLink:focus-visible .backArrow {
+  opacity: 1;
+  translate: 2px -2px;
+}
+
+.backLink:focus-visible .backTitle {
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.7);
+}
+
+/* The rest is the bridge's: a tap there sets off its fireworks. */
+.backFire {
+  position: absolute;
+  inset: 25% 0 0 0;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Reached by Tab, the sky it fires into is ringed; Enter sets it off. */
+.backFire:focus-visible {
+  outline: none;
+  border-radius: 0 0 22px 22px;
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.55);
 }
 
 .ticketFoil {
@@ -197,7 +479,7 @@
   position: relative;
   z-index: 1;
   translate: calc(var(--tx, 0) * 4px) calc(var(--ty, 0) * -3px);
-  padding: 20px 22px 24px;
+  padding: 18px 20px 20px;
 }
 
 .ticketEyebrow {
@@ -220,8 +502,8 @@
 }
 
 .ticketHeading {
-  margin-top: 18px;
-  font-size: 27px;
+  margin-top: 16px;
+  font-size: clamp(21px, 8cqw, 26px);
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: -0.022em;
@@ -229,9 +511,23 @@
   text-wrap: balance;
 }
 
+/* The date, the hero of the ticket: it takes whatever height is left. */
 .ticketBody {
   position: relative;
-  padding: 20px 22px 20px;
+  /* The day's figure and the stamp share a row, the stamp centred on the
+     figure; the times sit at the foot, over the perforation. */
+  --day: clamp(64px, 31cqw, 100px);
+  --stamp: clamp(70px, 25cqw, 84px);
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  padding: 18px 20px 16px;
+}
+
+.ticketBody > .ticketLayer {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
 }
 
 /* Layers slide a little apart as the ticket tilts, so it reads as card
@@ -242,27 +538,46 @@
 
 .ticketDate {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+}
+
+/* The weekday and month over the day, small and spaced, as a ticket's
+   label over its figure. */
+.ticketMonth {
+  order: -1;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--mt-ink) / 0.55);
 }
 
 .ticketDay {
-  font-size: 58px;
+  margin-top: 2px;
+  margin-left: -0.04em;
+  font-size: var(--day);
   font-weight: 800;
   line-height: 0.9;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.06em;
   color: rgb(var(--mt-accent));
 }
 
-.ticketMonth {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.2;
+/* The day's "th", small and raised by its top, a little lighter. */
+.ticketOrdinal {
+  margin-left: 0.05em;
+  font-size: 0.3em;
+  letter-spacing: 0;
+  vertical-align: top;
+  position: relative;
+  top: 0.14em;
+  opacity: 0.75;
 }
 
 .ticketTime {
-  margin-top: 12px;
-  font-size: 20px;
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: clamp(18px, 7.2cqw, 23px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -273,8 +588,8 @@
 }
 
 .ticketStub {
-  padding: 16px 22px 22px;
-  font-size: 14px;
+  padding: 14px 20px 18px;
+  font-size: 13.5px;
   line-height: 1.45;
 }
 
@@ -290,26 +605,17 @@
   pointer-events: none;
 }
 
+/* A rubber stamp, not foil: a notched seal edge round a ring, the check and
+   the word, all run through one ink filter (rough edges, a few dry spots). */
 .ticketStamp {
   position: absolute;
-  top: 16px;
+  /* Under the label (12px at 1.35, and the figure's 2px), on the
+     figure's middle. */
+  top: calc(18px + 18.2px + (var(--day) * 0.9 - var(--stamp)) / 2);
   right: 18px;
-  display: grid;
-  width: 78px;
-  height: 78px;
-  place-content: center;
-  justify-items: center;
-  gap: 1px;
-  border: 2px solid currentColor;
-  border-radius: 50%;
-  box-shadow:
-    inset 0 0 0 3px rgb(var(--mt-ground)),
-    inset 0 0 0 4.5px currentColor;
+  width: var(--stamp);
+  height: var(--stamp);
   color: rgb(var(--mt-accent));
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;
@@ -320,10 +626,18 @@
 }
 
 .ticketStamp svg {
-  width: 26px;
-  height: 26px;
-  stroke-width: 2.8;
-  stroke-dashoffset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0.9;
+}
+
+.ticketStamp text {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
 }
 
 @keyframes stamp {
@@ -372,7 +686,9 @@
 }
 
 .passAfter {
-  margin-top: 2.5rem;
+  position: relative;
+  z-index: 1;
+  margin-top: 2.25rem;
   animation: rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 2450ms both;
 }
 
@@ -380,6 +696,43 @@
   height: 2.7rem;
   padding-inline: 1.5rem;
   border-radius: 10px;
+}
+
+/* A raised light key, solid, so it reads against the page and under the
+   ticket's shadow, and the ring's far half passes behind it, not through
+   it. */
+.pass .passAgain {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--mt-raised)), #fff 50%),
+    color-mix(in srgb, rgb(var(--mt-raised)), rgb(var(--mt-ink)) 4%)
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -1px 0 rgb(0 0 0 / 0.06),
+    0 0 0 1px rgb(var(--mt-ink) / 0.1),
+    0 1px 3px rgb(0 0 0 / 0.12);
+}
+
+.pass .passAgain:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--mt-raised)), #fff 60%),
+    color-mix(in srgb, rgb(var(--mt-raised)), #fff 15%)
+  );
+}
+
+:global(.dark) .pass .passAgain {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--mt-raised)), #fff 12%),
+    rgb(var(--mt-raised))
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 -1px 0 rgb(0 0 0 / 0.3),
+    0 0 0 1px rgb(255 255 255 / 0.08),
+    0 1px 3px rgb(0 0 0 / 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {
