@@ -79,7 +79,9 @@ describe("/meet", () => {
     mocks.read.mockResolvedValue({ status: "unavailable" });
     const html = await draw(MeetPage());
     expect(html).toContain("didn&#x27;t answer");
-    expect(html).toMatch(/<a[^>]*href="\/meet"[^>]*>Try again<\/a>/);
+    expect(html).toMatch(
+      /<a[^>]*href="\/meet"[^>]*><span[^>]*>Try again<\/span><\/a>/,
+    );
   });
 
   it("reads the `meet` link and puts its one length in the header", async () => {

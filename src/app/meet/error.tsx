@@ -4,9 +4,8 @@ import { useEffect } from "react";
 
 import { reportClientError } from "~/lib/error-reporting/client";
 
-import { Button } from "~/components/ui/button";
-
 import { HomeAction, MeetMessage } from "./MeetMessage";
+import { PressButton } from "./PressButton";
 import styles from "./meet.module.css";
 
 /** Any /meet page that fails, in the booking page's look. */
@@ -31,9 +30,9 @@ export default function MeetError({
       heading="This page didn't load."
       actions={
         <>
-          <Button type="button" onClick={reset} className={styles.primary}>
+          <PressButton type="button" onClick={reset}>
             Try again
-          </Button>
+          </PressButton>
           <HomeAction />
         </>
       }

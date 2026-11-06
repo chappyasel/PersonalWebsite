@@ -1,11 +1,7 @@
-import Link from "next/link";
-
 import { DEFAULT_SLUG } from "~/lib/booking/page";
 
-import { Button } from "~/components/ui/button";
-
 import { HomeAction, MeetMessage } from "./MeetMessage";
-import styles from "./meet.module.css";
+import { PressLink } from "./PressButton";
 
 /**
  * A Booking link that's closed or unknown, in the booking page's look. It
@@ -18,9 +14,7 @@ export default function MeetNotFound() {
       heading="This link isn't open."
       actions={
         <>
-          <Button asChild className={styles.primary}>
-            <Link href={`/${DEFAULT_SLUG}`}>See open times</Link>
-          </Button>
+          <PressLink href={`/${DEFAULT_SLUG}`}>See open times</PressLink>
           <HomeAction />
         </>
       }
