@@ -5,8 +5,6 @@ import { meetPath } from "~/lib/booking/meetRoutes";
 import { DEFAULT_SLUG, callLabel } from "~/lib/booking/page";
 import { cn } from "~/lib/utils";
 
-import { Button } from "~/components/ui/button";
-
 import { Duration } from "./Duration";
 import { MeetBooking } from "./MeetBooking";
 import { MeetDust } from "./MeetDust";
@@ -14,6 +12,7 @@ import { HomeAction, MeetMessage } from "./MeetMessage";
 import { MeetThemeColor } from "./MeetThemeColor";
 import { MeetTitle } from "./MeetTitle";
 import { PortraitRing } from "./PortraitRing";
+import { PressLink } from "./PressButton";
 import { forceReload, introScript } from "./intro";
 import styles from "./meet.module.css";
 import { onlyLength } from "./metadata";
@@ -36,9 +35,9 @@ export async function MeetScreen({ slug }: { slug: string }) {
         actions={
           <>
             {/* A plain link, so the page reads the calendar again. */}
-            <Button asChild className={styles.primary}>
-              <a href={meetPath(slug)}>Try again</a>
-            </Button>
+            <PressLink plain href={meetPath(slug)}>
+              Try again
+            </PressLink>
             <HomeAction />
           </>
         }
@@ -52,9 +51,9 @@ export async function MeetScreen({ slug }: { slug: string }) {
         heading="Booking isn't open right now."
         actions={
           <>
-            <Button asChild className={styles.primary}>
-              <a href="mailto:chappyasel@gmail.com">Email Chappy</a>
-            </Button>
+            <PressLink plain href="mailto:chappyasel@gmail.com">
+              Email Chappy
+            </PressLink>
             <HomeAction />
           </>
         }

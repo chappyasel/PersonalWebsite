@@ -5,8 +5,10 @@ import { useEffect, useRef } from "react";
 import { blues, canAnimate, palette, trackPointer } from "./confirmed/dust";
 import styles from "./meet.module.css";
 
-/** Grains in the ring. */
+/** Grains in the ring round the booking page's photo; a bigger photo's
+ * ring has more, so it's as dense. */
 const COUNT = 150;
+const MOST = 260;
 /** How long a tap shows it on a phone. */
 const TAP_SHOWS = 3600;
 /** How far the photo tips toward the pointer, in degrees. */
@@ -14,8 +16,26 @@ const TILT = 9;
 /** A drag turns the photo this many degrees a pixel: slowly, a coin
  * turned under the finger rather than spun off it. */
 const DEG_PER_PX = 0.9;
-/** How far out of the photo the canvas reaches, in photo radii. */
+/** How far out of the photo the canvas reaches, in photo radii, and at
+ * least this far past the ring, so a burst isn't cut off. */
 const REACH = 3.4;
+const BURST_ROOM = 150;
+/** A click near the ring, as the Book button's (BookDust): a pull toward
+ * it, then a burst away, falling, out of the patch of ring it reaches. A
+ * tap on the photo bursts the whole ring out of it. */
+const PULL_MS = 170;
+const BLAST = 70;
+/** After a click near the ring, it stays out this long, so the burst plays
+ * out and the grains come home. */
+const LINGER = 1800;
+
+type Blast = {
+  x: number;
+  y: number;
+  at: number;
+  popped: boolean;
+  whole: boolean;
+};
 
 type Grain = {
   a: number;
@@ -30,6 +50,11 @@ type Grain = {
   y: number;
   vx: number;
   vy: number;
+  /** Thrown by a burst until then; then easing home as `back` reaches 1. */
+  free: number;
+  back: number;
+  /** The side it was last drawn on, which a thrown grain keeps till home. */
+  ahead: boolean;
 };
 
 /**
@@ -37,15 +62,29 @@ type Grain = {
  * the photo, or for a few seconds after a tap on a phone. It blooms out of
  * the photo onto its orbit, tilted, passing behind the photo and in front,
  * and on the way out draws back into the photo as it fades. The photo
- * turns badge meanwhile: lifted on a shadow, tipped toward the pointer in
- * 3D, glossed where the light catches it, with a bright rim on top. And
- * it spins like a coin under a drag any way, or once for a tap.
+ * turns badge meanwhile: lifted on a shadow and tipped toward the pointer
+ * in 3D. And it spins like a coin under a drag any way, or once for a tap,
+ * which also bursts the ring out of it. A click near the ring pulls its grains
+ * in and bursts them, as the Book button's ring does.
  *
  * Its two canvases sit where MeetDust's do: the far one with no z-index,
  * ahead of the page's head in the document, so the photo draws over it;
  * the near one over everything.
+ *
+ * `always` keeps the ring out for good, from `after` ms on, as on a page
+ * with nothing else to look at (MeetMessage): the pointer on the photo
+ * then only lifts and tips it, and a tap only spins it.
  */
-export function PortraitRing() {
+export function PortraitRing({
+  photo = styles.portrait,
+  always = false,
+  after = 0,
+}: {
+  /** The photo's class. */
+  photo?: string;
+  always?: boolean;
+  after?: number;
+} = {}) {
   const back = useRef<HTMLCanvasElement>(null);
   const front = useRef<HTMLCanvasElement>(null);
 
@@ -56,14 +95,19 @@ export function PortraitRing() {
     const ahead = near?.getContext("2d");
     if (!canAnimate() || !far || !near || !behind || !ahead) return;
     const root = document.querySelector<HTMLElement>(".meet-root");
-    const selector = `.meet-root .${styles.portrait}`;
+    const selector = `.meet-root .${photo}`;
     const dpr = Math.min(2, devicePixelRatio || 1);
 
     let sprites: HTMLCanvasElement[] = [];
     let pick = () => 0;
     let grains: Grain[] = [];
+    const blasts: Blast[] = [];
     let shown = false;
     let amount = 0;
+    // The badge's lift: with the ring, or with the pointer on the photo
+    // when the ring is always out.
+    let hot = false;
+    let heat = 0;
     let raf = 0;
     let prev = 0;
     let hideAt = 0;
@@ -124,7 +168,7 @@ export function PortraitRing() {
 
     // The canvases' corner, in page coordinates, and their size.
     const place = (cx: number, cy: number, R: number) => {
-      const want = Math.ceil(R * REACH * 2);
+      const want = Math.ceil(Math.max(R * REACH, R * 2.8 + BURST_ROOM) * 2);
       if (want !== side) {
         side = want;
         for (const c of [far, near]) {
@@ -146,7 +190,8 @@ export function PortraitRing() {
 
     const seed = (cx: number, cy: number, R: number) => {
       const between = (a: number, b: number) => a + Math.random() * (b - a);
-      grains = Array.from({ length: COUNT }, () => {
+      const count = Math.round(Math.min(MOST, COUNT * Math.max(1, R / 30)));
+      grains = Array.from({ length: count }, () => {
         // Out of the photo, thrown gently outward.
         const a = Math.random() * Math.PI * 2;
         const d = Math.sqrt(Math.random()) * R * 0.6;
@@ -163,6 +208,9 @@ export function PortraitRing() {
           y: cy + Math.sin(a) * d,
           vx: Math.cos(a) * between(40, 160),
           vy: Math.sin(a) * between(40, 160),
+          free: 0,
+          back: 1,
+          ahead: true,
         };
       });
     };
@@ -174,12 +222,14 @@ export function PortraitRing() {
       // Held, it stays out however long the hold.
       if (grab && hideAt) hideAt = now + TAP_SHOWS;
       if (hideAt && now > hideAt) {
-        shown = false;
+        if (!always) shown = false;
+        hot = false;
         hideAt = 0;
       }
       // In, a little quicker than out.
       amount +=
         ((shown ? 1 : 0) - amount) * Math.min(1, dt * (shown ? 4.5 : 3.8));
+      heat += ((hot ? 1 : 0) - heat) * Math.min(1, dt * (hot ? 4.5 : 3.8));
       const box = photoBox();
       for (const ctx of [ahead, behind]) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -206,42 +256,43 @@ export function PortraitRing() {
       // Blooms out onto its orbit; draws back in as it goes.
       const bloom = 0.2 + 0.8 * Math.pow(amount, 0.7);
       const fade = amount * amount * (3 - 2 * amount);
+      const glow = heat * heat * (3 - 2 * heat);
       const p = pointer!.p;
 
       // The photo as a badge: lifted a little on a shadow all round, and
-      // tipped toward the pointer, with a gloss where the light catches.
-      const nx = shown ? Math.max(-1, Math.min(1, (p.x - cx) / (R * 2.2))) : 0;
-      const ny = shown ? Math.max(-1, Math.min(1, (p.y - cy) / (R * 2.2))) : 0;
+      // tipped toward the pointer.
+      const nx = hot ? Math.max(-1, Math.min(1, (p.x - cx) / (R * 2.2))) : 0;
+      const ny = hot ? Math.max(-1, Math.min(1, (p.y - cy) / (R * 2.2))) : 0;
       tilt.vx += (120 * (-ny * TILT - tilt.x) - 13 * tilt.vx) * dt;
       tilt.vy += (120 * (nx * TILT - tilt.y) - 13 * tilt.vy) * dt;
       tilt.x += tilt.vx * dt;
       tilt.y += tilt.vy * dt;
-      const lift = 1 + 0.08 * fade;
+      const lift = 1 + 0.08 * glow;
       const spun = Math.hypot(flip.x, flip.y);
       el.style.transform = `perspective(${Math.round(R * 9)}px) rotateX(${tilt.x.toFixed(2)}deg) rotateY(${tilt.y.toFixed(2)}deg)${spun > 0.01 ? ` rotate3d(${flip.x.toFixed(3)}, ${flip.y.toFixed(3)}, 0, ${spun.toFixed(2)}deg)` : ""} scale(${lift.toFixed(4)})`;
-      el.style.boxShadow = `0 0 0 1px rgb(var(--mt-ink) / 0.08), 0 0 ${(3 + 16 * fade).toFixed(1)}px rgb(0 0 0 / ${(0.24 * fade).toFixed(3)})`;
-      {
-        const gx = cx - left + (tilt.y / TILT) * R * 0.55;
-        const gy = cy - top - (tilt.x / TILT) * R * 0.55 - R * 0.25;
-        const r = R * lift;
-        ahead.save();
-        ahead.beginPath();
-        ahead.arc(cx - left, cy - top, r * 0.98, 0, Math.PI * 2);
-        ahead.clip();
-        const gloss = ahead.createRadialGradient(gx, gy, 0, gx, gy, r * 1.2);
-        gloss.addColorStop(0, `rgb(255 255 255 / ${0.5 * fade})`);
-        gloss.addColorStop(0.45, `rgb(255 255 255 / ${0.12 * fade})`);
-        gloss.addColorStop(1, "rgb(255 255 255 / 0)");
-        ahead.globalAlpha = 1;
-        ahead.fillStyle = gloss;
-        ahead.fillRect(cx - left - r, cy - top - r, r * 2, r * 2);
-        ahead.restore();
-        // A bright rim along its top edge, as a badge's bevel.
-        ahead.beginPath();
-        ahead.arc(cx - left, cy - top, r - 0.75, Math.PI * 1.1, Math.PI * 1.9);
-        ahead.strokeStyle = `rgb(255 255 255 / ${0.45 * fade})`;
-        ahead.lineWidth = 1.2;
-        ahead.stroke();
+      el.style.boxShadow = `0 0 0 1px rgb(var(--mt-ink) / 0.08), 0 0 ${(3 + 16 * glow).toFixed(1)}px rgb(0 0 0 / ${(0.24 * glow).toFixed(3)})`;
+      // A burst, once its pull is over.
+      for (let i = blasts.length - 1; i >= 0; i--) {
+        const b = blasts[i]!;
+        if (now - b.at > 1400) {
+          blasts.splice(i, 1);
+          continue;
+        }
+        if (b.popped || now - b.at < PULL_MS) continue;
+        b.popped = true;
+        for (const g of grains) {
+          const d = Math.hypot(g.x - b.x, g.y - b.y);
+          if (!b.whole && d > BLAST) continue;
+          const a =
+            Math.atan2(g.y - b.y, g.x - b.x) + (Math.random() - 0.5) * 0.6;
+          const v = b.whole
+            ? 200 + Math.random() * 280
+            : (190 + Math.random() * 300) * (1.25 - d / BLAST);
+          g.vx += Math.cos(a) * v;
+          g.vy += Math.sin(a) * v - 80;
+          g.free = now + 260 + Math.random() * 260;
+          g.back = 0;
+        }
       }
       const tiltRing = -0.38;
       for (const g of grains) {
@@ -251,8 +302,29 @@ export function PortraitRing() {
         const ey = Math.sin(a) * rr * (0.36 + g.lift);
         const tx = cx + ex * Math.cos(tiltRing) - ey * Math.sin(tiltRing);
         const ty = cy + ex * Math.sin(tiltRing) + ey * Math.cos(tiltRing);
-        g.vx += (220 * (tx - g.x) - 20 * g.vx) * dt;
-        g.vy += (220 * (ty - g.y) - 20 * g.vy) * dt;
+        if (now < g.free) {
+          // Thrown: falling, with air.
+          g.vy += 900 * dt;
+          g.vx -= g.vx * 1.1 * dt;
+          g.vy -= g.vy * 1.1 * dt;
+        } else {
+          if (g.back < 1) g.back = Math.min(1, g.back + dt * 1.8);
+          const k = 220 * g.back * g.back;
+          const damp = 6 + 14 * g.back;
+          g.vx += (k * (tx - g.x) - damp * g.vx) * dt;
+          g.vy += (k * (ty - g.y) - damp * g.vy) * dt;
+        }
+        // Drawn in toward a click before it bursts.
+        for (const b of blasts) {
+          if (b.popped) continue;
+          const dx = b.x - g.x;
+          const dy = b.y - g.y;
+          const d = Math.hypot(dx, dy);
+          if (d < 1 || (!b.whole && d > BLAST * 1.1)) continue;
+          const pullIn = (b.whole ? 0.8 : 1 - d / (BLAST * 1.1)) * 2600 * dt;
+          g.vx += (dx / d) * pullIn;
+          g.vy += (dy / d) * pullIn;
+        }
         // Out of the pointer's way, gently: it's on the photo.
         const dx = g.x - p.x;
         const dy = g.y - p.y;
@@ -265,13 +337,14 @@ export function PortraitRing() {
         }
         g.x += g.vx * dt;
         g.y += g.vy * dt;
-        const z = Math.sin(a);
+        // Thrown, it keeps to its side till it's home.
+        if (now >= g.free && g.back >= 1) g.ahead = Math.sin(a) > 0;
         const twinkle = 0.78 + 0.22 * Math.sin(t * 9 + g.phase);
         // Behind the photo it's dimmer, as if in its shadow.
-        const light = g.peak * fade * twinkle * (z < 0 ? 0.6 : 1);
+        const light = g.peak * fade * twinkle * (g.ahead ? 1 : 0.6);
         if (light < 0.005) continue;
         const s = g.size * (0.75 + 0.25 * bloom);
-        const ctx = z > 0 ? ahead : behind;
+        const ctx = g.ahead ? ahead : behind;
         ctx.globalAlpha = light;
         ctx.drawImage(
           sprites[g.tint]!,
@@ -285,10 +358,15 @@ export function PortraitRing() {
     };
 
     const show = (on: boolean) => {
-      if (on && root?.hasAttribute("data-entering")) return;
+      if (on && !always && root?.hasAttribute("data-entering")) return;
+      hot = on;
+      if (always) on = true;
       if (on === shown) return;
       shown = on;
-      if (!on) return;
+      if (on) wake();
+    };
+
+    const wake = () => {
       const box = photoBox();
       if (!box) return;
       if (!sprites.length) {
@@ -308,7 +386,10 @@ export function PortraitRing() {
       e.target instanceof Element && e.target.closest(selector) !== null;
     const over = (e: PointerEvent) => {
       if (e.pointerType === "touch") return;
-      if (onPhoto(e)) show(true);
+      if (onPhoto(e)) {
+        hideAt = 0;
+        show(true);
+      }
     };
     const out = (e: PointerEvent) => {
       if (e.pointerType === "touch" || grab) return;
@@ -325,7 +406,7 @@ export function PortraitRing() {
     // Either way, a press on the photo may turn it.
     const down = (e: PointerEvent) => {
       if (onPhoto(e)) {
-        if (root?.hasAttribute("data-entering")) return;
+        if (!always && root?.hasAttribute("data-entering")) return;
         show(true);
         if (e.pointerType === "touch") hideAt = performance.now() + TAP_SHOWS;
         grab = {
@@ -341,6 +422,30 @@ export function PortraitRing() {
           vx: 0,
           vy: 0,
         };
+        return;
+      }
+      // A click near the ring while it's out pulls it in, then bursts it,
+      // and the ring stays out till its grains are home. A tap anywhere
+      // else on a phone lets it go.
+      const box = photoBox();
+      const near =
+        box &&
+        amount > 0.15 &&
+        Math.hypot(e.pageX - box.cx, (e.pageY - box.cy) * 1.6) <
+          box.R * 2.8 + BLAST;
+      if (near) {
+        blasts.push({
+          x: e.pageX,
+          y: e.pageY,
+          at: performance.now(),
+          popped: false,
+          whole: false,
+        });
+        if (!always) {
+          shown = true;
+          hideAt = performance.now() + LINGER;
+          wake();
+        }
       } else if (e.pointerType === "touch" && shown) {
         hideAt = performance.now();
       }
@@ -377,6 +482,16 @@ export function PortraitRing() {
       if (e.pointerType === "touch") hideAt = performance.now() + TAP_SHOWS;
       if (!moved) {
         ({ x: flip.tx, y: flip.ty } = whole(flip.x, flip.y, 360));
+        // A tap bursts the whole ring out of the photo as it spins.
+        const box = photoBox();
+        if (box)
+          blasts.push({
+            x: box.cx,
+            y: box.cy,
+            at: performance.now(),
+            popped: false,
+            whole: true,
+          });
         return;
       }
       // The flick, as a turn, at most 300 degrees of it.
@@ -397,6 +512,8 @@ export function PortraitRing() {
       )
         show(false);
     };
+    // Out of the photo as it comes in, and there for good.
+    const start = always ? window.setTimeout(() => show(false), after) : 0;
     document.addEventListener("pointerover", over);
     document.addEventListener("pointerout", out);
     document.addEventListener("pointerdown", down, { passive: true });
@@ -418,6 +535,7 @@ export function PortraitRing() {
     window.addEventListener("blur", drop);
     document.addEventListener("visibilitychange", hidden);
     return () => {
+      window.clearTimeout(start);
       window.removeEventListener("blur", drop);
       document.removeEventListener("visibilitychange", hidden);
       document.removeEventListener("pointermove", move);
@@ -430,7 +548,7 @@ export function PortraitRing() {
       pointer?.stop();
       settle();
     };
-  }, []);
+  }, [photo, always, after]);
 
   return (
     <>
