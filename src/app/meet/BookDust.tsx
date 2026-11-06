@@ -19,9 +19,11 @@ const PER_PX = 0.14;
 const RING_CLEAR = 20;
 /** The ring's perspective, as the ticket's is. */
 const PERSPECTIVE = 900;
-/** A click near the ring: its pull, then its burst, as the ticket's. */
+/** A click near the ring: its pull, then its burst. The burst opens a
+ * patch of the ring about the click, not the whole ring: the grains it
+ * reaches go as hard as ever, the rest keep orbiting. */
 const PULL_MS = 170;
-const BLAST = 200;
+const BLAST = 70;
 /** The trail: grains per pixel the meeting moves, and the most per frame. */
 const TRAIL_PER_PX = 0.45;
 const TRAIL_MOST = 14;
@@ -250,7 +252,9 @@ export function BookDust({ ready }: { ready: boolean }) {
           r: stray ? between(0.78, 1.3) : between(0.93, 1.07),
           dy: (Math.random() - 0.5) * (stray ? 22 : 7),
           phase: Math.random() * Math.PI * 2,
-          size: stray ? between(0.5, 1.1) : between(0.8, 2.3),
+          // The meeting's trail's sizes (motes), so the two read as one
+          // dust: a bigger grain is only a bigger, softer glow.
+          size: stray ? between(0.45, 0.9) : between(0.6, 1.8),
           tint: pick(),
           peak: stray ? between(0.35, 0.6) : between(0.6, 1),
           free: 0,
@@ -533,13 +537,14 @@ export function BookDust({ ready }: { ready: boolean }) {
           draw(
             g.x,
             g.y,
-            g.size * s3 * s3 * (0.7 + depth * 0.35),
+            // Near grains a touch larger, never past a fresh mote by much.
+            g.size * s3 * (0.85 + depth * 0.2),
             g.tint,
             amount *
               g.peak *
               twinkle *
-              (dark ? 0.6 : 0.55) *
-              (ahead && g.back < 1 ? 1 : 0.3 + depth * 0.7),
+              (dark ? 0.7 : 0.62) *
+              (ahead && g.back < 1 ? 1 : 0.55 + depth * 0.45),
           );
         }
       }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { blues, curl, trackPointer } from "./confirmed/dust";
+import { blues, curl, trackPointer, wiper } from "./confirmed/dust";
 import { INTRO } from "./intro";
 import styles from "./meet.module.css";
 
@@ -461,16 +461,16 @@ export function MeetDust() {
 
     let raf = 0;
     let prev = performance.now();
+    const band = wiper();
     const tick = (nowMs: number) => {
       const ms = nowMs - start;
       const t = ms / 1000;
       const dt = Math.min(1 / 30, (nowMs - prev) / 1000);
       prev = nowMs;
-      const top = scrollY - 40;
-      const bottom = scrollY + innerHeight + 40;
+      const { top, height } = band();
       for (const ctx of [ahead, behind]) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, top, W, bottom - top);
+        ctx.clearRect(0, top, W, height);
       }
       const p = pointer.p;
       // The ring rides with the photo as it glides.
@@ -529,7 +529,7 @@ export function MeetDust() {
         } else {
           alpha = g.peak * g.end * (1 - (ms - g.land) / OUT);
         }
-        if (alpha <= 0.005 || g.y < top || g.y > bottom) continue;
+        if (alpha <= 0.005 || g.y < top || g.y > top + height) continue;
         const twinkle = 0.78 + 0.22 * Math.sin(t * 9 + g.phase);
         const near = !homing && g.orbit ? z > 0 : g.front || homing;
         // Behind the photo the ring is dimmer, as if in its shadow.
