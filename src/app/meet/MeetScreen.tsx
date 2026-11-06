@@ -36,9 +36,7 @@ export async function MeetScreen({ slug }: { slug: string }) {
           <>
             {/* A plain link, so the page reads the calendar again. */}
             <Button asChild className={styles.primary}>
-              <a href={meetPath(slug)}>
-                Try again
-              </a>
+              <a href={meetPath(slug)}>Try again</a>
             </Button>
             <HomeAction />
           </>

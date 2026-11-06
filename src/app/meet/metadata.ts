@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { meetPath } from "~/lib/booking/meetRoutes";
 import {
   type BookingPage,
   DEFAULT_SLUG,
@@ -8,7 +9,6 @@ import {
   lengthLabel,
   lengthWords,
 } from "~/lib/booking/page";
-import { meetPath } from "~/lib/booking/meetRoutes";
 import type { PageRead } from "~/server/booking/daybreak";
 
 const SITE = "https://www.chappyasel.com";

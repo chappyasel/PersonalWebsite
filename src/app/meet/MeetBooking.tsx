@@ -5,13 +5,11 @@ import {
   ArrowUUpLeftIcon,
   CaretLeftIcon,
   CaretRightIcon,
-  CheckCircleIcon,
   MapPinIcon,
   StarIcon,
   VideoCameraIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { motion, useReducedMotion } from "framer-motion";
 import {
   type FormEvent,
   useEffect,
@@ -71,12 +69,12 @@ import { FadeIn, SwapText } from "~/components/ui/rolling-text";
 import { BookingSheet, type SheetState, SwipeHint } from "./BookingSheet";
 import { DateText } from "./DateText";
 import { Duration } from "./Duration";
-import { HdrPlate } from "./HdrPlate";
+import { PressButton } from "./PressButton";
 import { Pop, Reveal } from "./Reveal";
 import { SpokenTimes } from "./SpokenTimes";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip, layoutTop } from "./WeekStrip";
-import { confettiFrom } from "./confetti";
+import { Confirmation } from "./confirmed/Confirmation";
 import { tick } from "./haptics";
 import styles from "./meet.module.css";
 import { STICKY_HEADER } from "./sticky";
@@ -84,13 +82,9 @@ import { useFits } from "./useFits";
 
 const noSubscription = () => () => undefined;
 
-const PressButton = motion.create(Button);
 /** The booking form, which the phone's docked Book button submits from
  * outside it. */
 const FORM_ID = "meet-booking";
-/** A pressed button's grow and its settle back: unhurried, with a soft
- * bounce rather than a jump. */
-const PRESS = { type: "spring" as const, duration: 0.55, bounce: 0.22 };
 
 /**
  * Below 872px, the phone's layout: the Days alone, with the booking in the
@@ -253,9 +247,6 @@ export function MeetBooking({
   const [selected, setSelected] = useState<Selected | null>(() =>
     firstBest(initial),
   );
-  const reducedMotion = useReducedMotion();
-  // The Book button under a finger: grown, and HDR-bright on a screen that can.
-  const [pressed, setPressed] = useState(false);
   // Days after the first bookable one, stepping by the Days shown. It
   // opens on Days holding the first best time.
   const [offset, setOffset] = useState(() => {
@@ -332,6 +323,7 @@ export function MeetBooking({
   const [booked, setBooked] = useState<{
     booked: Booked;
     email: string;
+    from: { x: number; y: number } | null;
   } | null>(null);
   const [sheet, setSheet] = useState<SheetState>(() =>
     selected ? "peek" : "closed",
@@ -473,10 +465,20 @@ export function MeetBooking({
     }
     turnstile.current?.reset();
     if (answer.ok) {
-      if (button) confettiFrom(button.getBoundingClientRect());
+      // The confirmation's dust bursts from the Book button.
+      const at = button?.getBoundingClientRect();
       attempt.current = null;
       setSheet("closed");
-      setBooked({ booked: answer.booked, email: request.email });
+      setBooked({
+        booked: answer.booked,
+        email: request.email,
+        from: at
+          ? {
+              x: at.left + at.width / 2 + scrollX,
+              y: at.top + at.height / 2 + scrollY,
+            }
+          : null,
+      });
       void utils.booking.page.invalidate();
       return;
     }
@@ -499,6 +501,7 @@ export function MeetBooking({
   if (booked) {
     return (
       <Confirmation
+        from={booked.from}
         booked={booked.booked}
         email={booked.email}
         host={host}
@@ -569,39 +572,25 @@ export function MeetBooking({
   // Days, docked at the phone card's foot.
   const bookDock = (
     <>
-      {/* Pressed, it grows on a spring and its blue goes brighter than
-          white, as iOS's own buttons light up under a finger. */}
       <PressButton
         type="submit"
         // On a phone it docks at the card's foot, outside the form.
         form={FORM_ID}
         disabled={!canBook}
-        className={cn(styles.primary, "relative w-full")}
-        data-pressed={pressed || undefined}
-        whileTap={reducedMotion ? undefined : { scale: 1.04 }}
-        transition={PRESS}
-        onTapStart={() => {
-          setPressed(true);
-          tick();
-        }}
-        onTap={() => setPressed(false)}
-        onTapCancel={() => setPressed(false)}
+        className="w-full"
       >
-        <HdrPlate className={styles.pressPlate} />
-        <span className="relative">
-          <ButtonLabel
-            state={
-              book.isPending
-                ? "Booking..."
-                : failure && recoveryFor(failure.code) === "retry"
-                  ? "Try again"
-                  : selection === null
-                    ? "Pick a time first"
-                    : null
-            }
-            length={length}
-          />
-        </span>
+        <ButtonLabel
+          state={
+            book.isPending
+              ? "Booking..."
+              : failure && recoveryFor(failure.code) === "retry"
+                ? "Try again"
+                : selection === null
+                  ? "Pick a time first"
+                  : null
+          }
+          length={length}
+        />
       </PressButton>
       {needsToken &&
         token === null &&
@@ -1193,83 +1182,5 @@ function Field({
       </label>
       {children}
     </div>
-  );
-}
-
-function Confirmation({
-  booked,
-  email,
-  host,
-  hostZone,
-  bookerZone,
-  call,
-  headingRef,
-  onAnother,
-}: {
-  booked: Booked;
-  email: string;
-  host: string;
-  hostZone: string;
-  bookerZone: string;
-  call: BookingPage["link"]["call"];
-  headingRef: React.RefObject<HTMLHeadingElement | null>;
-  onAnother: () => void;
-}) {
-  const slot = slotText(booked.start, booked.end, hostZone, bookerZone);
-  return (
-    <section
-      className={cn(
-        styles.card,
-        "mx-auto max-w-md px-6 py-8 text-center sm:px-8",
-      )}
-    >
-      <CheckCircleIcon
-        size={40}
-        weight="fill"
-        className={cn(styles.check, "mx-auto")}
-        aria-hidden
-      />
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        className="mt-3 text-[22px] font-extrabold tracking-[-0.015em] outline-none"
-      >
-        You&apos;re meeting {host}
-      </h2>
-      <p className="mt-4 text-[17px] font-bold">
-        <DateText text={slot.booker.day} />
-      </p>
-      <p className="text-[15px] font-bold tabular-nums">
-        <DateText text={slot.booker.short.start} />
-        <span className={styles.dash}>-</span>
-        <DateText text={slot.booker.short.end} />{" "}
-        <span className={styles.secondary}>{slot.booker.zone}, your time</span>
-      </p>
-      {!slot.sameClock && (
-        <p className={cn(styles.secondary, "mt-1 text-[13px] tabular-nums")}>
-          <DateText text={slot.host.short.start} />
-          <span className={styles.dash}>-</span>
-          <DateText text={slot.host.short.end} /> {slot.host.zone} for {host}
-          {slot.dateDiffers && `, ${slot.host.day}`}
-        </p>
-      )}
-      <p className="mt-6 text-sm">
-        The invite is in your inbox at{" "}
-        <span className="font-semibold">{email}</span>
-        {call.kind === "meet"
-          ? ", with the Google Meet link."
-          : call.kind === "place"
-            ? `, at ${call.location ?? "the place"}.`
-            : ", with the call link."}
-      </p>
-      <p className={cn(styles.secondary, "mt-1 text-[13px]")}>{booked.title}</p>
-      <Button
-        type="button"
-        onClick={onAnother}
-        className={cn(styles.quiet, "mt-8 px-4")}
-      >
-        Book another time
-      </Button>
-    </section>
   );
 }
