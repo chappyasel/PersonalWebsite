@@ -1321,9 +1321,11 @@ export function ConfirmTicket({
                 </Link>
                 <button
                   type="button"
-                  tabIndex={-1}
                   aria-label="Fireworks over the Golden Gate"
                   className={c.backFire}
+                  onFocus={() => {
+                    if (showingFront()) turnTo(flip.current.target + 180);
+                  }}
                   onClick={() => {
                     if (dragged.current) {
                       dragged.current = false;

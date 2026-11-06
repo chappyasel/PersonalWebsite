@@ -869,7 +869,9 @@ export function MeetBooking({
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
-      <BookDust ready={named && canBook} />
+      {/* The ring holds while the booking is in flight, so a slow answer
+          still finds it there to hand to the pass (takeRing). */}
+      <BookDust ready={named && (canBook || book.isPending)} />
 
       <div ref={column} className="min-w-0 space-y-5">
         {(link.lengths.length > 1 || !gridShown) && (
