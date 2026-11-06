@@ -17,6 +17,8 @@ import type { Handoff, Seed } from "./dust";
 export type ConfirmationProps = {
   booked: Booked;
   email: string;
+  /** How many guests the booker brought, each invited too. */
+  guests?: number;
   host: string;
   hostZone: string;
   bookerZone: string;

@@ -923,6 +923,142 @@
   font-weight: 700;
 }
 
+/* A guest: their name, their email, wider, and a small remove. */
+.guest {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 1.75rem;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.guestRemove {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  color: rgb(var(--mt-ink) / 0.45);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.guestRemove:hover {
+  color: rgb(var(--mt-ink));
+  background: rgb(var(--mt-ink) / 0.06);
+}
+
+.guestRemove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
+}
+
+/* "Add guests": a quiet line in the secondary ink, as the call's line
+   under the fields, darkening to the ink on hover. */
+.addGuest {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 6px;
+  color: rgb(var(--mt-ink) / 0.55);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: color 150ms ease;
+}
+
+.addGuest:hover {
+  color: rgb(var(--mt-ink));
+}
+
+.addGuest:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
+}
+
+/* The meeting's name, typed in the form's last line in place of the
+   people. Its text is 16px, so iOS doesn't zoom in on it, drawn at the
+   line's 13px (scale 13/16) inside a box of the line's own size: the
+   field is 16/13 of the box's width, and scaled back down into it. */
+.meetingNameBox {
+  position: relative;
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  height: 1.35em;
+  vertical-align: middle;
+}
+
+/* Under its box, so it outweighs Input's own utilities whichever
+   stylesheet loads first. */
+.meetingNameBox > .meetingName {
+  display: block;
+  height: auto;
+  box-shadow: none;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 123.077%;
+  padding: 0 1px;
+  border: 0;
+  border-bottom: 1px solid rgb(var(--mt-accent) / 0.6);
+  border-radius: 0;
+  background: transparent;
+  color: rgb(var(--mt-ink));
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.35;
+  outline: none;
+  transform: translateY(-50%) scale(0.8125);
+  transform-origin: left center;
+}
+
+.meetingNameBox > .meetingName:focus-visible {
+  border-color: rgb(var(--mt-accent) / 0.6);
+}
+
+.meetingNameBox > .meetingName::placeholder {
+  color: rgb(var(--mt-ink) / 0.4);
+}
+
+/* The pencil that opens it, and the check and cross that close it. */
+.nameButton {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-left: 0.125rem;
+  border-radius: 999px;
+  color: rgb(var(--mt-ink) / 0.45);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.nameButton:hover {
+  color: rgb(var(--mt-ink) / 0.8);
+  background: rgb(var(--mt-ink) / 0.06);
+}
+
+.nameButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
+}
+
+.namePencil:hover {
+  color: rgb(var(--mt-accent));
+  background: rgb(var(--mt-accent) / 0.08);
+}
+
+.nameKeep,
+.nameKeep:hover {
+  color: rgb(var(--mt-accent));
+}
+
+.nameKeep:hover {
+  background: rgb(var(--mt-accent) / 0.1);
+}
+
 /* "Optional" beside a label: a fifth smaller and fainter than other quiet text. */
 .optional {
   font-size: 0.6rem;

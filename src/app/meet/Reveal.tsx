@@ -62,6 +62,66 @@ export function Reveal({
   );
 }
 
+/** A block's height opening: the same small overshoot as `WIDTH`. */
+const HEIGHT = { type: "spring" as const, duration: 0.42, bounce: 0.14 };
+
+/**
+ * A block that comes and goes, as `Reveal` does for a few words: it opens
+ * to its height as it fades and sharpens in, and on the way out fades and
+ * blurs before its room closes, so what's below slides rather than jumps.
+ * Give the space above it as its own padding, inside what opens, and not
+ * as a margin, which would jump. Clipped by clip-path just past its edges,
+ * so a field's focus ring inside isn't cut.
+ */
+export function Collapse({
+  show,
+  className,
+  children,
+}: {
+  show: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <AnimatePresence initial={false}>
+      {show && <Opens className={className}>{children}</Opens>}
+    </AnimatePresence>
+  );
+}
+
+/** One of a list's blocks that come and go, under the list's own
+ * AnimatePresence: Collapse's opening and closing, for each. */
+export function Opens({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  const reducedMotion = useReducedMotion();
+  const hidden = reducedMotion
+    ? { opacity: 0 }
+    : { opacity: 0, height: 0, filter: "blur(3px)" };
+  return (
+    <motion.div
+      className={cn("[clip-path:inset(-6px)]", className)}
+      initial={hidden}
+      animate={{ opacity: 1, height: "auto", filter: "blur(0px)" }}
+      exit={{
+        ...hidden,
+        transition: {
+          height: { ...HEIGHT, bounce: 0, delay: 0.06 },
+          opacity: FADE_OUT,
+          filter: FADE_OUT,
+        },
+      }}
+      transition={{ height: HEIGHT, opacity: FADE_IN, filter: FADE_IN }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 /** The Best badge, which pops in with a slight spring and shrinks away. */
 export function Pop({
   show,

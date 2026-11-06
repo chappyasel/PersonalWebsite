@@ -404,6 +404,129 @@ describe("booking on /meet", () => {
     ).toBeTruthy();
   });
 
+  it("brings guests, titles the invite as Daybreak will, and says who's invited", async () => {
+    mocks.mutateAsync.mockResolvedValueOnce({
+      ok: true,
+      booked: {
+        start: at(11),
+        end: at(11, 30),
+        title: "Ana, Ben +1 🤝 Chappy",
+      },
+    });
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Name"), "Ana Lopez");
+    await user.type(screen.getByLabelText("Email"), "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Add guests" }));
+    await user.type(
+      screen.getByLabelText("Guest 1's email"),
+      "ben@example.com",
+    );
+    await user.type(screen.getByLabelText("Guest 1's name"), "Ben Ortiz");
+    await user.click(screen.getByRole("button", { name: "Add another guest" }));
+    await user.type(screen.getByLabelText("Guest 2's email"), "cy@example.com");
+    // The form's last line reads as the invite will, and no count shows
+    // short of a full five.
+    expect(screen.getByText("Ana, Ben +1")).toBeTruthy();
+    expect(screen.queryByText(/of 5/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Name the meeting" }));
+    expect(screen.getByLabelText("Meeting name")).toHaveProperty(
+      "placeholder",
+      "Ana, Ben +1",
+    );
+    await user.type(screen.getByLabelText("Meeting name"), "Scrap");
+    // The cross puts back what it held.
+    await user.click(
+      screen.getByRole("button", { name: "Cancel meeting name" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Meeting name")).toBeNull(),
+    );
+    expect(screen.getByText("Ana, Ben +1")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Name the meeting" }));
+    await user.keyboard("{Escape}");
+    // It fades out, then goes.
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Meeting name")).toBeNull(),
+    );
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
+    await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledOnce());
+    expect(mocks.mutateAsync.mock.calls[0]![0]).toMatchObject({
+      guests: [
+        { email: "ben@example.com", name: "Ben Ortiz" },
+        { email: "cy@example.com" },
+      ],
+    });
+    expect(mocks.mutateAsync.mock.calls[0]![0]).not.toHaveProperty(
+      "meetingName",
+    );
+    expect(
+      await screen.findByText(
+        (_, el) =>
+          el?.tagName === "P" &&
+          el.textContent === "Invites sent to ana@example.com and 2 guests",
+      ),
+    ).toBeTruthy();
+  }, 15_000);
+
+  it("leads the title with a meeting name and drops a removed guest", async () => {
+    mocks.mutateAsync.mockResolvedValueOnce({
+      ok: true,
+      booked: { start: at(11), end: at(11, 30), title: "Acme intro 🤝 Chappy" },
+    });
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Name"), "Ana Lopez");
+    await user.type(screen.getByLabelText("Email"), "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Add guests" }));
+    // A guest with a name needs an address; an empty row doesn't.
+    expect(screen.getByLabelText("Guest 1's email")).toHaveProperty(
+      "required",
+      false,
+    );
+    await user.type(screen.getByLabelText("Guest 1's name"), "Ben Ortiz");
+    expect(screen.getByLabelText("Guest 1's email")).toHaveProperty(
+      "required",
+      true,
+    );
+    await user.type(
+      screen.getByLabelText("Guest 1's email"),
+      "ben@example.com",
+    );
+    await user.click(screen.getByRole("button", { name: "Remove guest 1" }));
+    expect(screen.getByRole("button", { name: "Add guests" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Name the meeting" }));
+    // Enter picking an input method's word leaves the field open.
+    fireEvent.keyDown(screen.getByLabelText("Meeting name"), {
+      key: "Enter",
+      isComposing: true,
+    });
+    expect(screen.getByLabelText("Meeting name")).toBeTruthy();
+    await user.type(
+      screen.getByLabelText("Meeting name"),
+      "Acme   intro{Enter}",
+    );
+    // Enter names it without sending the form, its spaces collapsed as
+    // the invite's will be.
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    expect(screen.getByText("Acme intro")).toBeTruthy();
+    // So does the check.
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Meeting name")).toBeNull(),
+    );
+    await user.click(screen.getByRole("button", { name: "Name the meeting" }));
+    await user.clear(screen.getByLabelText("Meeting name"));
+    await user.type(screen.getByLabelText("Meeting name"), "Acme kickoff");
+    await user.click(screen.getByRole("button", { name: "Keep meeting name" }));
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    expect(screen.getByText("Acme kickoff")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
+    await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledOnce());
+    const sent = mocks.mutateAsync.mock.calls[0]![0] as Record<string, unknown>;
+    expect(sent).not.toHaveProperty("guests");
+    expect(sent).toMatchObject({ meetingName: "Acme kickoff" });
+  }, 15_000);
+
   it("asks for another time when the slot was just taken", async () => {
     mocks.mutateAsync.mockResolvedValueOnce({
       ok: false,
