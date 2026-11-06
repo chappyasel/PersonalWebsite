@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { curl, sprite, trackPointer } from "./confirmed/dust";
+import { blues, curl, trackPointer } from "./confirmed/dust";
 import { INTRO } from "./intro";
 import styles from "./meet.module.css";
 
 /*
  * The long entrance's dust (intro.ts), in the confirmation's Gather style.
  * As the photo pops in at the middle of the screen it bursts into a puff
- * of blue dust, tinted here and there cyan and violet, that billows out
+ * of blue dust, in shades from deep to icy, that billows out
  * around the photo and title, stirred by a slow swirl. A share of it never
  * leaves the photo: it becomes a tilted ring orbiting it, passing behind
  * it and in front, and rides up with it as the title starts its glide.
@@ -343,11 +343,7 @@ export function MeetDust() {
       .split(/\s+/)
       .map(Number);
     const dark = (page[0]! + page[1]! + page[2]!) / 3 < 128;
-    const tints = [
-      sprite(accent, dark),
-      sprite(dark ? "100 210 255" : "50 173 230", dark),
-      sprite(dark ? "191 90 242" : "88 86 214", dark),
-    ];
+    const { sprites: tints, pick } = blues(accent, dark);
 
     const dpr = Math.min(2, devicePixelRatio || 1);
     const W = document.documentElement.clientWidth;
@@ -442,7 +438,7 @@ export function MeetDust() {
           peak: orbits
             ? 1
             : (s.kind === "open" ? 0.55 : 0.72) + Math.random() * 0.28,
-          tint: Math.random() < 0.72 ? 0 : Math.random() < 0.7 ? 1 : 2,
+          tint: pick(),
           phase: Math.random() * 7,
           front: Math.random() < FRONT,
           ...(orbits

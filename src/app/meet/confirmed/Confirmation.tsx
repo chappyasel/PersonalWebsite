@@ -5,6 +5,7 @@ import type { Booked } from "~/lib/booking/request";
 import { type SlotText, slotText } from "~/lib/booking/zones";
 
 import { ConfirmTicket } from "./ConfirmTicket";
+import type { Handoff, Seed } from "./dust";
 
 /**
  * The screen after a booking lands: Pass, a ticket that prints out of a
@@ -21,9 +22,11 @@ export type ConfirmationProps = {
   bookerZone: string;
   call: BookingPage["link"]["call"];
   headingRef: React.RefObject<HTMLHeadingElement | null>;
-  onAnother: () => void;
-  /** Where the dust comes from, in page coordinates: the Book button. */
-  from?: { x: number; y: number } | null;
+  /** Back to booking, with the ticket's dust to turn into it. */
+  onAnother: (dust?: Seed[]) => void;
+  /** Where the dust comes from, in page coordinates: the Book button, and
+   * the booking form's own dust, handed over as it leaves (dust.ts). */
+  from?: Handoff | null;
 };
 
 export type VariantProps = ConfirmationProps & { slot: SlotText };
@@ -36,15 +39,6 @@ export function Confirmation(props: ConfirmationProps) {
     props.bookerZone,
   );
   return <ConfirmTicket {...props} slot={slot} />;
-}
-
-/** "with the Google Meet link." and its kin, after the email. */
-export function callTail(call: BookingPage["link"]["call"]) {
-  return call.kind === "meet"
-    ? ", with the Google Meet link."
-    : call.kind === "place"
-      ? `, at ${call.location ?? "the place"}.`
-      : ", with the call link.";
 }
 
 /** The date's parts on the booker's clock, for big type. */

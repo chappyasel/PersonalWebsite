@@ -82,8 +82,7 @@ export function Pop({
         <motion.span
           className={className}
           initial={hidden}
-          // No filter once it's in, so the badge's HDR plate isn't drawn
-          // through one.
+          // No filter once it's in.
           animate={{
             opacity: 1,
             scale: 1,

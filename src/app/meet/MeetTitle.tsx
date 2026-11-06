@@ -199,6 +199,7 @@ export function MeetTitle({ title }: { title: string }) {
         width={88}
         height={88}
         preload
+        draggable={false}
         data-enter
         style={{ ["--enter" as string]: 0 }}
         className={styles.portrait}

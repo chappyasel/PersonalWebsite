@@ -13,6 +13,7 @@ import { MeetDust } from "./MeetDust";
 import { HomeAction, MeetMessage } from "./MeetMessage";
 import { MeetThemeColor } from "./MeetThemeColor";
 import { MeetTitle } from "./MeetTitle";
+import { PortraitRing } from "./PortraitRing";
 import { forceReload, introScript } from "./intro";
 import styles from "./meet.module.css";
 import { onlyLength } from "./metadata";
@@ -76,6 +77,7 @@ export async function MeetScreen({ slug }: { slug: string }) {
       />
       <MeetThemeColor />
       <MeetDust />
+      <PortraitRing />
       {STICKY_HEADER && <div aria-hidden className={styles.statusFade} />}
       <main className={styles.main}>
         {/* On a phone, centred over the Days, as the grid's nav is: the

@@ -450,10 +450,13 @@ describe("booking on /meet", () => {
       name: "You're meeting Chappy",
     });
     expect(document.activeElement).toBe(heading);
-    expect(document.body.textContent).toContain("2:00-2:30p ET, your time");
+    expect(document.body.textContent).toContain("2:00-2:30p ET");
     expect(document.body.textContent).toContain("11:00-11:30a PT for Chappy");
     expect(screen.getByText("ana@example.com")).toBeTruthy();
-    expect(document.body.textContent).toContain("with the Google Meet link");
+    expect(document.body.textContent).toContain(
+      "Invite sent to ana@example.com",
+    );
+    expect(document.body.textContent).toContain("Google Meet");
   });
 });
 
