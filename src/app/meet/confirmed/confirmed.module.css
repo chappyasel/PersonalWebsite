@@ -1,0 +1,390 @@
+/*
+ * The confirmation, Pass (ConfirmTicket.tsx). It owns the screen once a
+ * booking lands: the page's head is hidden (meet.module.css,
+ * [data-confirmed]) and the ticket sits in the middle of the screen. The
+ * delays here are the beats the dust in ConfirmTicket keeps to.
+ */
+
+.screen {
+  position: relative;
+  display: flex;
+  min-height: calc(100dvh - 5rem);
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-block: 2rem;
+  text-align: center;
+}
+
+@media (min-width: 872px) {
+  .screen {
+    min-height: calc(100dvh - 7rem);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.passStage {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 22rem);
+}
+
+/* The far half of the ring, behind the ticket: the ticket hides what of
+   it passes behind. */
+.passBehind {
+  position: absolute;
+  z-index: 0;
+  top: calc(var(--reach) * -1);
+  left: calc(var(--reach) * -1);
+  width: calc(100% + var(--reach) * 2);
+  height: calc(100% + var(--reach) * 2);
+  pointer-events: none;
+}
+
+.ticketShadow {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 26px 34px rgb(0 0 0 / 0.22))
+    drop-shadow(0 2px 5px rgb(0 0 0 / 0.1));
+  animation: thunk 380ms ease-out 2330ms both;
+}
+
+:global(.dark) .ticketShadow {
+  filter: drop-shadow(0 26px 40px rgb(0 0 0 / 0.6))
+    drop-shadow(0 2px 5px rgb(0 0 0 / 0.4));
+}
+
+@keyframes thunk {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  35% {
+    translate: 0 3px;
+  }
+}
+
+.ticket {
+  --perf: 70%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background: rgb(var(--mt-ground));
+  text-align: left;
+  transform: perspective(900px) rotateX(var(--rx, 0deg))
+    rotateY(var(--ry, 0deg));
+  /* The notches either side of the perforation. */
+  -webkit-mask:
+    radial-gradient(circle 11px at 0 var(--perf), #0000 96%, #000) 0 0 / 51%
+      100% no-repeat,
+    radial-gradient(circle 11px at 100% var(--perf), #0000 96%, #000) 100% 0 /
+      51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 11px at 0 var(--perf), #0000 96%, #000) 0 0 / 51%
+      100% no-repeat,
+    radial-gradient(circle 11px at 100% var(--perf), #0000 96%, #000) 100% 0 /
+      51% 100% no-repeat;
+  animation:
+    print 1050ms 760ms both,
+    lift 520ms ease-out 1820ms both;
+  animation-timing-function: cubic-bezier(0.3, 0.7, 0.4, 1), ease-out;
+}
+
+/* Fed up out of the slot under it in three pulls: the bottom of what
+   shows stays at the slot. */
+@keyframes print {
+  0% {
+    translate: 0 100%;
+    clip-path: inset(0 0 100% 0);
+  }
+  30%,
+  37% {
+    translate: 0 64%;
+    clip-path: inset(0 0 64% 0);
+  }
+  64%,
+  70% {
+    translate: 0 26%;
+    clip-path: inset(0 0 26% 0);
+  }
+  100% {
+    translate: 0 0;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes lift {
+  0%,
+  100% {
+    scale: 1;
+  }
+  45% {
+    scale: 1.035;
+  }
+}
+
+.ticketFoil {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  background: radial-gradient(
+    130% 160% at var(--gx, 50%) var(--gy, 40%),
+    color-mix(in srgb, rgb(var(--mt-accent)) 62%, #fff) 0%,
+    rgb(var(--mt-accent)) 42%,
+    color-mix(in srgb, rgb(var(--mt-accent)) 62%, #000) 100%
+  );
+}
+
+/* A fine security print, rings over rings, drifting with the tilt. */
+.ticketFoil::before {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  background: repeating-radial-gradient(
+      circle at 12% 130%,
+      rgb(255 255 255 / 0.09) 0 1px,
+      transparent 1px 6px
+    ),
+    repeating-radial-gradient(
+      circle at 95% -40%,
+      rgb(255 255 255 / 0.07) 0 1px,
+      transparent 1px 7px
+    );
+  translate: calc(var(--tx, 0) * -6px) calc(var(--ty, 0) * 5px);
+  pointer-events: none;
+}
+
+/* A holographic band that slides with the light. */
+.ticketFoil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent calc(var(--gx, 50%) - 32%),
+    rgb(255 64 200 / 0.22) calc(var(--gx, 50%) - 10%),
+    rgb(64 255 240 / 0.22) calc(var(--gx, 50%) + 6%),
+    rgb(255 230 80 / 0.16) calc(var(--gx, 50%) + 18%),
+    transparent calc(var(--gx, 50%) + 34%)
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.ticketGlitter {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.ticketFoilBody {
+  position: relative;
+  z-index: 1;
+  translate: calc(var(--tx, 0) * 4px) calc(var(--ty, 0) * -3px);
+  padding: 20px 22px 24px;
+}
+
+.ticketEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.82);
+}
+
+.ticketFace {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.75);
+}
+
+.ticketHeading {
+  margin-top: 18px;
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  outline: none;
+  text-wrap: balance;
+}
+
+.ticketBody {
+  position: relative;
+  padding: 20px 22px 20px;
+}
+
+/* Layers slide a little apart as the ticket tilts, so it reads as card
+   stock with print on it, and the stamp sits proud of both. */
+.ticketLayer {
+  translate: calc(var(--tx, 0) * 3px) calc(var(--ty, 0) * -2px);
+}
+
+.ticketDate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ticketDay {
+  font-size: 58px;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: rgb(var(--mt-accent));
+}
+
+.ticketMonth {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ticketTime {
+  margin-top: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticketPerf {
+  margin-inline: 18px;
+  border-top: 2px dashed rgb(var(--mt-ink) / 0.13);
+}
+
+.ticketStub {
+  padding: 16px 22px 22px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ticketGlare {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 40%),
+    rgb(255 255 255 / 0.28),
+    transparent 46%
+  );
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.ticketStamp {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  display: grid;
+  width: 78px;
+  height: 78px;
+  place-content: center;
+  justify-items: center;
+  gap: 1px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 3px rgb(var(--mt-ground)),
+    inset 0 0 0 4.5px currentColor;
+  color: rgb(var(--mt-accent));
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transform: rotate(-14deg);
+  translate: calc(var(--tx, 0) * 7px) calc(var(--ty, 0) * -5px);
+  animation: stamp 300ms cubic-bezier(0.55, 0, 0.8, 0.25) 2150ms both;
+}
+
+.ticketStamp svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.8;
+  stroke-dashoffset: 0;
+}
+
+@keyframes stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-32deg) scale(2.7);
+  }
+  75% {
+    opacity: 1;
+    transform: rotate(-12deg) scale(0.93);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-14deg) scale(1);
+  }
+}
+
+/* The slot the ticket prints out of. */
+.passSlot {
+  position: absolute;
+  bottom: -3px;
+  left: -16px;
+  right: -16px;
+  height: 6px;
+  border-radius: 6px;
+  background: linear-gradient(rgb(0 0 0 / 0.55), rgb(var(--mt-ink) / 0.18));
+  box-shadow: 0 1px 0 rgb(var(--mt-ink) / 0.1);
+  z-index: 2;
+  animation: slot 1500ms ease 500ms both;
+}
+
+@keyframes slot {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.1);
+  }
+  14%,
+  78% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1.06);
+  }
+}
+
+.passAfter {
+  margin-top: 2.5rem;
+  animation: rise 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 2450ms both;
+}
+
+.passAgain {
+  height: 2.7rem;
+  padding-inline: 1.5rem;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen,
+  .screen * {
+    animation: none !important;
+  }
+}

@@ -35,10 +35,7 @@ const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   invalidate: vi.fn(),
   query: vi.fn(),
-  confetti: vi.fn(),
 }));
-
-vi.mock("./confetti", () => ({ confettiFrom: mocks.confetti }));
 
 vi.mock("~/lib/booking/zones", async (original) => ({
   ...(await original<typeof Zones>()),
@@ -363,7 +360,9 @@ describe("booking on /meet", () => {
     expect(cardTop()).toContain("12:30-1:00p ET");
     fireEvent.click(screen.getByRole("button", { name: "60 minutes" }));
     // 9:30 PT can't hold an hour before 10, so the meeting slides to 9:00.
-    expect(screen.getByRole("button", { name: "Book 60 minutes" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Book 60 minutes" }),
+    ).toBeTruthy();
     expect(cardTop()).toContain("12:00-1:00p ET");
     // The block on each grid, the computer's and the phone's: the Day over
     // the time.
@@ -403,7 +402,6 @@ describe("booking on /meet", () => {
     expect(
       await screen.findByRole("heading", { name: "You're meeting Chappy" }),
     ).toBeTruthy();
-    expect(mocks.confetti).toHaveBeenCalledOnce();
   });
 
   it("asks for another time when the slot was just taken", async () => {
@@ -454,7 +452,6 @@ describe("booking on /meet", () => {
     expect(document.activeElement).toBe(heading);
     expect(document.body.textContent).toContain("2:00-2:30p ET, your time");
     expect(document.body.textContent).toContain("11:00-11:30a PT for Chappy");
-    expect(mocks.confetti).toHaveBeenCalledOnce();
     expect(screen.getByText("ana@example.com")).toBeTruthy();
     expect(document.body.textContent).toContain("with the Google Meet link");
   });

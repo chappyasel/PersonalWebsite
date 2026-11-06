@@ -18,6 +18,11 @@
   container-type: inline-size;
 }
 
+/* Once a booking lands, the confirmation has the screen to itself. */
+:global(.meet-root):has([data-confirmed]) .titleHead {
+  display: none;
+}
+
 /* The title on one line, and on a phone Chappy's photo before it, a
    little taller than the title's capitals, and a gap: 1.286em and 0.357em
    at the title's size, 36px and 10px at its full 28px. Together they

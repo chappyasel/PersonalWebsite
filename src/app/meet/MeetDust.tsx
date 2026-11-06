@@ -2,28 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { curl, sprite, trackPointer } from "./confirmed/dust";
 import { INTRO } from "./intro";
 import styles from "./meet.module.css";
 
 /*
- * The long entrance's dust (intro.ts): faint blue dust, as Companion's
- * pages open with, that forms the page. From the first frame the screen is
- * full of grains drifting at random through space, some far behind the
- * screen and some in front of it, while the photo and title come in at the
- * middle. Just after the title starts its glide up, the dust gathers,
- * quickly, and springs into the shapes of the open times on screen, the
- * stars, the meeting, and the Book button. Each part comes in out of its
- * dust and is all the way in just as its dust lands, and the dust fades
- * into it. Nothing stays. The short entrance has none.
+ * The long entrance's dust (intro.ts), in the confirmation's Gather style.
+ * As the photo pops in at the middle of the screen it bursts into a puff
+ * of blue dust, tinted here and there cyan and violet, that billows out
+ * around the photo and title, stirred by a slow swirl. A share of it never
+ * leaves the photo: it becomes a tilted ring orbiting it, passing behind
+ * it and in front, and rides up with it as the title starts its glide.
+ *
+ * Just after the glide starts, the dust springs, quickly and a touch past
+ * its mark, into the shapes of the open times on screen, the stars, the
+ * meeting, and the Book button, the ring breaking up to join it. Each part
+ * comes in out of its dust and is all the way in just as its dust lands,
+ * and the dust fades into it. Nothing stays. The short entrance has none.
  *
  * The grains fill each shape, most densely the meeting and Book, then the
- * stars, and least the open times.
+ * stars, and least the open times. Grains scatter out of the pointer's way
+ * as they fly.
  *
- * Depth: each grain has its own distance and is drawn in perspective from
- * the middle of the screen, far ones small and dim, near ones large and
- * soft, out of focus. The whole cloud turns slowly about the vertical, so
- * the parallax shows it's in space, and comes square as it gathers. Every
- * grain lands at the screen's own depth, on its shape.
+ * Most of the puff is drawn behind the page's head, so the photo and title
+ * stand in front; some of it, and the near half of the ring, in front of
+ * everything.
  *
  * The canvas spans the document and scrolls with it, not fixed: a fixed
  * layer touching the screen's bottom brings back Safari's strip under its
@@ -52,31 +55,25 @@ const LEAST_SHOWN = 0.3;
 const IN = 0.92;
 
 /** The grains show in this fast at the start. None gathers before the
- * title has started its glide and this long more. A grain gathers in
+ * title has started its glide and this long more. A grain springs home in
  * about this long, and fades into its part over this long once it lands. */
-const APPEAR = 450;
+const APPEAR = 140;
 const STILL_AFTER_RISE = 140;
-const GATHER = 700;
-const OUT = 200;
+const GATHER = 640;
+const OUT = 220;
 /** Over the end of its gather a grain dims to this share of its light on
  * the faintest part, and to the other on a solid one: it turns into what
  * it forms, as strong as that is. */
 const END_FAINT = 0.3;
 const END_SOLID = 0.85;
-/** Past this far behind the screen a grain is drawn behind the page's
- * head, the photo and the title; nearer, in front of everything. */
-const BEHIND = 60;
-
-/** The camera: its focal length in pixels, how far grains sit in front of
- * and behind the screen, and the cloud's turn while it drifts. */
-const FOCAL = 900;
-const NEAREST = -480;
-const FARTHEST = 1600;
-const NEAR_SHARE = 0.3;
-/** How bright a near grain is, against a far one's dimming. */
-const NEAR_LIGHT = 1.25;
-const TURN = 0.32; // radians at the start
-const TURNING = 0.09; // radians a second, while it drifts
+/** The share of the puff drawn in front of the head. */
+const FRONT = 0.25;
+/** The share of grains that orbit the photo, and the most that do. */
+const ORBIT = 0.16;
+const MOST_ORBIT = 460;
+/** The spring home: stiffness and damping, a touch under critical. */
+const K = 240;
+const DAMP = 12.5;
 
 interface Shape {
   kind: Kind;
@@ -92,42 +89,23 @@ interface Shape {
 }
 
 interface Grain {
-  sx: number;
-  sy: number;
-  sz: number;
+  x: number;
+  y: number;
   vx: number;
   vy: number;
-  vz: number;
   hx: number;
   hy: number;
   end: number;
   gather: number;
   land: number;
-  /** The spring's ring, in radians across the gather. */
-  ring: number;
   size: number;
   peak: number;
-  curl: number;
+  tint: number;
   phase: number;
+  front: boolean;
+  /** Orbiting the photo until it gathers. */
+  orbit?: { a: number; r: number; w: number; lift: number };
 }
-
-const flowAt = (x: number, y: number, t: number) => {
-  const a =
-    Math.sin(x * 0.0021 + t * 0.35) +
-    Math.cos(y * 0.0027 - t * 0.27) +
-    Math.sin((x + y) * 0.0013 + t * 0.21);
-  return [Math.cos(a * 1.7), Math.sin(a * 1.7)] as const;
-};
-
-/** A spring from rest: off slowly, a quick pull, a small overshoot, and
- * settled by the end. */
-const DAMPING = 6.5;
-const spring = (s: number, ring: number) =>
-  s >= 1
-    ? 1
-    : 1 -
-      Math.exp(-DAMPING * s) *
-        (Math.cos(ring * s) + (DAMPING / ring) * Math.sin(ring * s));
 
 /** Where a CSS cubic-bezier, or one of its keywords, first reaches `y`, as
  * a share of the animation's time. */
@@ -150,27 +128,6 @@ function timeToReach(easing: string, y: number) {
     if (at(y1!, y2!, t) >= y) return at(x1!, x2!, t);
   }
   return 1;
-}
-
-function sprite(rgb: string, dark: boolean, soft: boolean) {
-  const c = document.createElement("canvas");
-  c.width = c.height = 64;
-  const x = c.getContext("2d")!;
-  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  if (soft) {
-    // Out of focus: an even disc with a soft rim, no bright core.
-    g.addColorStop(0, `rgb(${rgb} / 0.8)`);
-    g.addColorStop(0.55, `rgb(${rgb} / 0.6)`);
-    g.addColorStop(1, `rgb(${rgb} / 0)`);
-  } else {
-    g.addColorStop(0, dark ? "rgb(255 255 255 / 1)" : `rgb(${rgb} / 1)`);
-    g.addColorStop(0.14, `rgb(${rgb} / 1)`);
-    g.addColorStop(0.42, `rgb(${rgb} / 0.3)`);
-    g.addColorStop(1, `rgb(${rgb} / 0)`);
-  }
-  x.fillStyle = g;
-  x.fillRect(0, 0, 64, 64);
-  return c;
 }
 
 /** A computed colour's alpha, or 1 with none to read (no fill at all, as
@@ -350,6 +307,21 @@ function entranceElapsed() {
 
 const between = (a: number, b: number) => a + Math.random() * (b - a);
 
+/** An element's live box, in page coordinates. */
+function pageBox(el: Element | null) {
+  const r = el?.getBoundingClientRect();
+  return r && r.width > 0
+    ? {
+        x: r.left + scrollX,
+        y: r.top + scrollY,
+        w: r.width,
+        h: r.height,
+        cx: r.left + r.width / 2 + scrollX,
+        cy: r.top + r.height / 2 + scrollY,
+      }
+    : null;
+}
+
 export function MeetDust() {
   const [on, setOn] = useState(false);
   const front = useRef<HTMLCanvasElement>(null);
@@ -371,8 +343,11 @@ export function MeetDust() {
       .split(/\s+/)
       .map(Number);
     const dark = (page[0]! + page[1]! + page[2]!) / 3 < 128;
-    const sharp = sprite(accent, dark, false);
-    const soft = sprite(accent, dark, true);
+    const tints = [
+      sprite(accent, dark),
+      sprite(dark ? "100 210 255" : "50 173 230", dark),
+      sprite(dark ? "191 90 242" : "88 86 214", dark),
+    ];
 
     const dpr = Math.min(2, devicePixelRatio || 1);
     const W = document.documentElement.clientWidth;
@@ -383,6 +358,7 @@ export function MeetDust() {
       canvas!.style.width = `${W}px`;
       canvas!.style.height = `${H}px`;
     }
+    const pointer = trackPointer();
 
     // The dust's clock starts with the page's entrance, a frame or two ago.
     const elapsed = entranceElapsed();
@@ -395,9 +371,27 @@ export function MeetDust() {
     const scale = Math.min(1, MOST / Math.max(1, sum));
     const earliest = INTRO.rise + STILL_AFTER_RISE;
 
-    // The camera looks at the middle of the screen as it is at the start.
-    const cx0 = scrollX + innerWidth / 2;
-    const cy0 = scrollY + innerHeight / 2;
+    // The puff comes out of the photo and the title, where they sit now,
+    // in the middle of the screen.
+    const photo = document.querySelector(`.meet-root .${styles.portrait}`);
+    const title = document.querySelector(`.meet-root .${styles.title}`);
+    const face = pageBox(photo) ?? {
+      x: scrollX + innerWidth / 2 - 30,
+      y: scrollY + innerHeight * 0.44 - 30,
+      w: 60,
+      h: 60,
+      cx: scrollX + innerWidth / 2,
+      cy: scrollY + innerHeight * 0.44,
+    };
+    const words = pageBox(title) ?? face;
+
+    const total = shapes.reduce(
+      (n, s, i) =>
+        n +
+        Math.max(s.kind === "star" ? 24 : 12, Math.round(wanted[i]! * scale)),
+      0,
+    );
+    const orbitShare = Math.min(ORBIT, MOST_ORBIT / Math.max(1, total));
     const grains: Grain[] = [];
     shapes.forEach((s, i) => {
       const n = Math.max(
@@ -406,128 +400,166 @@ export function MeetDust() {
       );
       for (let k = 0; k < n; k++) {
         const [hx, hy] = s.kind === "star" ? starPoint(s) : pointIn(s);
-        // Starts anywhere on the screen, a little past its sides, at its
-        // own depth: placed in space so it's drawn there at the start.
-        const sz =
-          Math.random() < NEAR_SHARE
-            ? NEAREST * between(0.2, 1)
-            : FARTHEST * between(0.1, 1);
-        const k0 = FOCAL / (FOCAL + sz);
-        const px = scrollX + between(-0.1, 1.1) * innerWidth;
-        const py = scrollY + between(-0.1, 1.1) * innerHeight;
-        const heading = Math.random() * Math.PI * 2;
-        const speed = between(8, 26);
         const land = s.at + between(-60, 20);
+        const orbits = Math.random() < orbitShare;
+        // A little over a quarter from the photo, the rest from along the
+        // title, each thrown out from where it starts: round the photo, and
+        // wide of the title.
+        let x: number;
+        let y: number;
+        let a: number;
+        if (orbits || Math.random() < 0.28) {
+          a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * face.w * 0.45;
+          x = face.cx + Math.cos(a) * d;
+          y = face.cy + Math.sin(a) * d;
+        } else {
+          x = between(words.x, words.x + words.w);
+          y = between(words.y, words.y + words.h);
+          a =
+            Math.atan2(y - words.cy, (x - words.cx) * 0.4) + between(-0.6, 0.6);
+        }
+        const speed = between(140, 860);
         grains.push({
-          sx: cx0 + (px - cx0) / k0,
-          sy: cy0 + (py - cy0) / k0,
-          sz,
-          vx: Math.cos(heading) * speed,
-          vy: Math.sin(heading) * speed,
-          vz: between(-60, 60),
+          x,
+          y,
+          vx: Math.cos(a) * speed * 1.5,
+          vy: Math.sin(a) * speed - 120,
           hx,
           hy,
           end: END_FAINT + (END_SOLID - END_FAINT) * s.solid,
           land,
           // Never sooner than the title's glide allows, and never so late
-          // that it has no time to gather.
+          // that it has no time to spring home.
           gather: Math.min(
-            land - GATHER * 0.4,
+            land - GATHER * 0.5,
             Math.max(
               earliest + between(0, 120),
-              land - GATHER * between(0.85, 1.15),
+              land - GATHER * between(0.9, 1.1),
             ),
           ),
-          ring: between(6, 8.5),
-          size: between(0.45, 1.05),
-          peak: (s.kind === "open" ? 0.5 : 0.68) + Math.random() * 0.3,
-          curl: between(20, 60),
+          size: orbits ? between(2.3, 4) : between(1.3, 2.9),
+          peak: orbits
+            ? 1
+            : (s.kind === "open" ? 0.55 : 0.72) + Math.random() * 0.28,
+          tint: Math.random() < 0.72 ? 0 : Math.random() < 0.7 ? 1 : 2,
           phase: Math.random() * 7,
+          front: Math.random() < FRONT,
+          ...(orbits
+            ? {
+                vx: between(-60, 60),
+                vy: between(-60, 60),
+                orbit: {
+                  a: Math.random() * Math.PI * 2,
+                  r:
+                    Math.random() < 0.75 ? between(1.35, 2.1) : between(2.1, 3),
+                  w: between(0.55, 0.95),
+                  lift: between(-0.1, 0.1),
+                },
+              }
+            : {}),
         });
       }
     });
     const last = Math.max(0, ...grains.map((g) => g.land)) + OUT;
 
     let raf = 0;
+    let prev = performance.now();
     const tick = (nowMs: number) => {
       const ms = nowMs - start;
       const t = ms / 1000;
+      const dt = Math.min(1 / 30, (nowMs - prev) / 1000);
+      prev = nowMs;
       const top = scrollY - 40;
       const bottom = scrollY + innerHeight + 40;
       for (const ctx of [ahead, behind]) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, top, W, bottom - top);
       }
-      const cx = scrollX + innerWidth / 2;
-      const cy = scrollY + innerHeight / 2;
+      const p = pointer.p;
+      // The ring rides with the photo as it glides.
+      const ring = pageBox(photo) ?? face;
+      const R = ring.w / 2;
       for (const g of grains) {
-        let alpha: number;
-        let x: number;
-        let y: number;
-        let k = 1;
-        let blur = 0;
-        let far = false;
+        let tx = g.hx;
+        let ty = g.hy;
+        let z = 1;
+        const homing = ms >= g.gather;
+        if (!homing && g.orbit) {
+          const a = g.orbit.a + t * 1.6 * g.orbit.w;
+          const rr = R * g.orbit.r;
+          const ex = Math.cos(a) * rr;
+          const ey = Math.sin(a) * rr * (0.36 + g.orbit.lift);
+          const tilt = -0.38;
+          tx = ring.cx + ex * Math.cos(tilt) - ey * Math.sin(tilt);
+          ty = ring.cy + ex * Math.sin(tilt) + ey * Math.cos(tilt);
+          z = Math.sin(a);
+          const kk = 260 * Math.min(1, ms / 260);
+          g.vx += (kk * (tx - g.x) - 22 * g.vx) * dt;
+          g.vy += (kk * (ty - g.y) - 22 * g.vy) * dt;
+        } else if (!homing) {
+          // The puff: thrown out, slowing, stirred.
+          const [fx, fy] = curl(g.x, g.y, t);
+          g.vx += fx * 110 * dt - g.vx * 1.9 * dt;
+          g.vy += fy * 110 * dt - g.vy * 1.9 * dt;
+        } else {
+          const ramp = Math.min(1, (ms - g.gather) / 200);
+          const kk = K * ramp * ramp;
+          g.vx += (kk * (tx - g.x) - DAMP * g.vx) * dt;
+          g.vy += (kk * (ty - g.y) - DAMP * g.vy) * dt;
+        }
+        // Out of the pointer's way while it flies.
         if (ms < g.land) {
-          // Drifting where it was going, then sprung home.
-          const at = Math.min(ms, g.gather) / 1000;
-          const s = Math.max(0, (ms - g.gather) / (g.land - g.gather));
-          const e = spring(s, g.ring);
-          const left = Math.max(0, 1 - e);
-          const [fx, fy] = flowAt(g.sx, g.sy, t);
-          const dx = g.sx + g.vx * at + fx * g.curl * left;
-          const dy = g.sy + g.vy * at + fy * g.curl * left;
-          const dz = g.sz + g.vz * at;
-          const wx = dx + (g.hx - dx) * e;
-          const wy = dy + (g.hy - dy) * e;
-          const wz = dz * (1 - e);
-          // The cloud's turn about the vertical, through the screen's
-          // middle: slow while it drifts, square once it's gathered.
-          const turn = (TURN - TURNING * at) * left ** 2;
-          const ox = wx - cx;
-          const rx = ox * Math.cos(turn) - wz * Math.sin(turn);
-          const rz = Math.max(
-            -FOCAL * 0.7,
-            ox * Math.sin(turn) + wz * Math.cos(turn),
-          );
-          k = FOCAL / (FOCAL + rz);
-          x = cx + rx * k;
-          y = cy + (wy - cy) * k;
-          // In focus at the screen's depth: softer the further off it, a
-          // near one less so, so it reads as close, not lost.
-          blur = Math.min(1, rz > 0 ? rz / 700 : -rz / 1100);
-          // A grain that starts in front stays in front.
-          far = g.sz > 0 && rz > BEHIND;
-          // Far grains dim; near ones stay bright, over the title too.
-          const depthLight = k < 1 ? k ** 0.35 : NEAR_LIGHT;
+          const dx = g.x - p.x;
+          const dy = g.y - p.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 3600 && d2 > 0.01) {
+            const d = Math.sqrt(d2);
+            const push = (1 - d / 60) * 2400 * dt;
+            g.vx += (dx / d) * push;
+            g.vy += (dy / d) * push;
+          }
+        }
+        g.x += g.vx * dt;
+        g.y += g.vy * dt;
+
+        let alpha: number;
+        if (ms < g.land) {
           // Over the end of its gather, it dims to what it forms.
+          const s = Math.max(0, (ms - g.gather) / (g.land - g.gather));
           const ending = Math.min(1, Math.max(0, (s - 0.55) / 0.45));
           const turning = 1 - (1 - g.end) * ending * ending * (3 - 2 * ending);
-          alpha = g.peak * Math.min(1, ms / APPEAR) * depthLight * turning;
+          alpha = g.peak * Math.min(1, ms / APPEAR) * turning;
         } else {
-          x = g.hx;
-          y = g.hy;
           alpha = g.peak * g.end * (1 - (ms - g.land) / OUT);
         }
-        if (alpha <= 0.005 || y < top || y > bottom) continue;
-        const twinkle = 0.85 + 0.15 * Math.sin(t * 2.1 + g.phase);
-        const size = g.size * (dark ? 5 : 4.4) * k * (1 + blur * 1.2);
-        const light = Math.min(1, alpha * twinkle * (dark ? 1 : 0.75));
-        // Sharp at the screen's depth, cross-fading to a soft disc off it.
-        const ctx = far ? behind : ahead;
-        if (blur < 0.98) {
-          ctx.globalAlpha = light * (1 - blur);
-          ctx.drawImage(sharp, x - size / 2, y - size / 2, size, size);
-        }
-        if (blur > 0.02) {
-          ctx.globalAlpha = light * blur;
-          ctx.drawImage(soft, x - size / 2, y - size / 2, size, size);
-        }
+        if (alpha <= 0.005 || g.y < top || g.y > bottom) continue;
+        const twinkle = 0.78 + 0.22 * Math.sin(t * 9 + g.phase);
+        const near = !homing && g.orbit ? z > 0 : g.front || homing;
+        // Behind the photo the ring is dimmer, as if in its shadow.
+        const light =
+          Math.min(1, alpha * twinkle * (dark ? 1 : 0.8)) *
+          (!homing && g.orbit && z < 0 ? 0.5 : 1);
+        const landing = ms < g.land ? 1 : 0.6 + 0.4 * (1 - (ms - g.land) / OUT);
+        const size = g.size * landing;
+        const ctx = near ? ahead : behind;
+        ctx.globalAlpha = light;
+        ctx.drawImage(
+          tints[g.tint]!,
+          g.x - size,
+          g.y - size,
+          size * 2,
+          size * 2,
+        );
       }
       if (ms < last) raf = requestAnimationFrame(tick);
       else setOn(false);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      pointer.stop();
+    };
   }, [on]);
 
   if (!on) return null;
