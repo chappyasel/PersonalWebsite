@@ -39,7 +39,6 @@ export type Overlay = {
   remove: () => void;
 };
 
-/** A canvas over the whole document, drawn in page coordinates. */
 /**
  * The stretch of the page a frame has to wipe, in page coordinates: all
  * the screen can show, not just `innerHeight`. iOS Safari draws the page
@@ -64,6 +63,13 @@ export function wiper(margin = 120) {
   };
 }
 
+/**
+ * A canvas over the whole document, drawn in page coordinates. It keeps to
+ * the document's height as that changes, not only the window's: the room a
+ * phone leaves under the grid for its booking card came after the canvas was
+ * sized, so with the page scrolled, the card's Book button sat past the
+ * canvas's foot and its ring was cut off in a straight line.
+ */
 export function overlay(z = 60): Overlay | null {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -78,11 +84,15 @@ export function overlay(z = 60): Overlay | null {
   });
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const size = () => {
+    // Out of the way for the reading: it would hold the document's height.
     canvas.style.width = canvas.style.height = "0px";
     const w = document.documentElement.clientWidth;
     const h = Math.max(document.documentElement.scrollHeight, innerHeight);
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
+    // Setting a canvas's size wipes it, so only when it has changed.
+    const across = Math.floor(w * dpr);
+    const down = Math.floor(h * dpr);
+    if (canvas.width !== across) canvas.width = across;
+    if (canvas.height !== down) canvas.height = down;
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
   };
@@ -90,6 +100,9 @@ export function overlay(z = 60): Overlay | null {
   document.body.appendChild(canvas);
   size();
   window.addEventListener("resize", size);
+  // Positioned, the canvas never moves the body's box, so this can't loop.
+  const page = new ResizeObserver(size);
+  page.observe(document.body);
   return {
     ctx,
     dpr,
@@ -101,6 +114,7 @@ export function overlay(z = 60): Overlay | null {
     },
     remove: () => {
       window.removeEventListener("resize", size);
+      page.disconnect();
       canvas.remove();
     },
   };
