@@ -20,7 +20,7 @@ import { cn } from "~/lib/utils";
 import { type CellColor, weekTableColors } from "~/lib/weight-log/color-scale";
 import { addDays, weekStartOf } from "~/lib/weight-log/phases";
 import type { WeekTableRow } from "~/lib/weight-log/week-table";
-import { type RouterOutputs, api } from "~/trpc/react";
+import { api } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
 import { CollapsibleSection } from "~/components/ui/collapsible-section";
@@ -42,8 +42,6 @@ import {
 } from "~/components/ui/tooltip";
 
 import { PlanEditor, SetPointsEditor } from "./PlanEditor";
-
-type Phase = RouterOutputs["weightLog"]["phases"]["phases"][number];
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -121,14 +119,6 @@ function signed(value: number | null) {
   const rounded = Math.round(value * 10) / 10;
   if (rounded === 0) return "0.0";
   return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
-}
-
-/** The phase whose weeks hold this Monday. The newest phase has no end, so a
- * weigh-in past its plan still belongs to it. */
-function phaseOfWeek(phases: Phase[], week: string) {
-  return phases.find(
-    (phase, index) => phase.start <= week && (index === 0 || week <= phase.end),
-  );
 }
 
 /** The summary columns, after the seven days, in the workbook's order. A
@@ -218,7 +208,9 @@ function Editor() {
   const [draft, setDraft] = useState<{ date: string; text: string } | null>(
     null,
   );
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /** The date whose Delete the owner is confirming. */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const confirmingDelete = confirming === date;
   const [status, setStatus] = useState<string | null>(null);
 
   // The day turned over while the page stayed open. A form still on the old
@@ -230,7 +222,7 @@ function Editor() {
     const drafting = draft !== null && draft.date === date;
     if (!drafting && (date === seenToday || date > today)) {
       setDate(today);
-      setConfirmingDelete(false);
+      setConfirming(null);
       setStatus(null);
     }
   }
@@ -241,18 +233,16 @@ function Editor() {
   const phasesQuery = api.weightLog.phases.useQuery();
   const phases = phasesQuery.data?.phases ?? [];
   const week = weekStartOf(date);
-  const gridPhaseId = phaseOfWeek(phases, week)?.id ?? null;
   const shownPhaseId = tablePhaseId ?? phasesQuery.data?.currentId ?? null;
-  const gridQuery = api.weightLog.weekTable.useQuery(
-    { phaseId: gridPhaseId ?? "" },
-    { enabled: gridPhaseId !== null },
-  );
+  // The grid reads its calendar week whatever phase holds it, so a weigh-in
+  // dated before the first phase still shows and can be deleted.
+  const gridQuery = api.weightLog.week.useQuery({ week });
   const tableQuery = api.weightLog.weekTable.useQuery(
     { phaseId: shownPhaseId ?? "" },
     { enabled: shownPhaseId !== null },
   );
 
-  const gridRow = gridQuery.data?.rows.find((row) => row.week === week);
+  const gridRow = gridQuery.data;
   const weekDays = Array.from({ length: 7 }, (_, day) => ({
     date: addDays(week, day),
     weight: gridRow?.weights[day] ?? null,
@@ -278,31 +268,35 @@ function Editor() {
   const unchanged =
     replacing && valid && Math.round(entered * 10) / 10 === existing;
 
-  const refresh = () => utils.weightLog.weekTable.invalidate();
+  // Each mutation refetches before its call's own onSuccess below runs, so
+  // a cleared draft gives way to the saved value without a blank frame.
+  const refresh = () =>
+    Promise.all([
+      utils.weightLog.week.invalidate(),
+      utils.weightLog.weekTable.invalidate(),
+    ]);
   const upsert = api.weightLog.upsertWeighIn.useMutation({
-    onSuccess: async () => {
-      await refresh();
-      setDraft(null);
-    },
+    onSuccess: refresh,
     onError: () => setStatus("The weigh-in didn't save. Try again."),
   });
   const remove = api.weightLog.deleteWeighIn.useMutation({
-    onSuccess: async (_result, input) => {
-      setStatus(
-        `Deleted the weigh-in for ${formatDay(input.date, { month: "short", day: "numeric" })}.`,
-      );
-      setConfirmingDelete(false);
-      await refresh();
-      setDraft(null);
-    },
+    onSuccess: refresh,
     onError: () => setStatus("The weigh-in didn't delete. Try again."),
   });
   const busy = upsert.isPending || remove.isPending;
 
+  /**
+   * Clear the draft a request carried once it lands. The owner may have moved
+   * to another date and typed there while it was pending, and that draft
+   * stays.
+   */
+  const clearDraft = (sent: typeof draft) =>
+    setDraft((current) => (current === sent ? null : current));
+
   const choose = (next: string) => {
     setDate(next > today ? today : next);
     setDraft(null);
-    setConfirmingDelete(false);
+    setConfirming(null);
     setStatus(null);
   };
 
@@ -310,13 +304,32 @@ function Editor() {
     event.preventDefault();
     if (!valid || busy || unchanged) return;
     const verb = replacing ? "Replaced" : "Saved";
+    const sent = draft;
     upsert.mutate(
       { date, pounds: entered },
       {
-        onSuccess: (row) =>
+        onSuccess: (row) => {
           setStatus(
             `${verb} ${pounds(row.pounds)} lb for ${formatDay(row.date, { month: "short", day: "numeric" })}.`,
-          ),
+          );
+          clearDraft(sent);
+        },
+      },
+    );
+  };
+
+  const confirmDelete = () => {
+    const sent = draft;
+    remove.mutate(
+      { date },
+      {
+        onSuccess: (_result, input) => {
+          setStatus(
+            `Deleted the weigh-in for ${formatDay(input.date, { month: "short", day: "numeric" })}.`,
+          );
+          setConfirming((open) => (open === input.date ? null : open));
+          clearDraft(sent);
+        },
       },
     );
   };
@@ -391,7 +404,7 @@ function Editor() {
                     size="sm"
                     className={date === today ? "-ml-3" : undefined}
                     disabled={busy}
-                    onClick={() => setConfirmingDelete(true)}
+                    onClick={() => setConfirming(date)}
                   >
                     <TrashIcon aria-hidden />
                     Delete
@@ -409,7 +422,7 @@ function Editor() {
                       variant="destructive"
                       size="sm"
                       disabled={busy}
-                      onClick={() => remove.mutate({ date })}
+                      onClick={confirmDelete}
                     >
                       Delete
                     </Button>
@@ -417,7 +430,7 @@ function Editor() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setConfirmingDelete(false)}
+                      onClick={() => setConfirming(null)}
                     >
                       Cancel
                     </Button>
@@ -491,7 +504,7 @@ function Editor() {
                         <span className="text-muted-foreground">
                           {Number(day.date.slice(8))}
                         </span>
-                        {gridQuery.isPending && gridPhaseId !== null ? (
+                        {gridQuery.isPending ? (
                           <Skeleton className="h-4 w-8" />
                         ) : (
                           <span

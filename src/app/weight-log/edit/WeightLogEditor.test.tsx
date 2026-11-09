@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,9 +15,22 @@ import { WeightLogEditor } from "./WeightLogEditor";
 
 // Invented numbers. None of them is the owner's.
 
+/** A mutate call the test settles by hand, as the server would. */
+interface Call {
+  input: { date: string; pounds?: number };
+  hook: MutationOptions;
+  call?: MutationOptions;
+}
+interface MutationOptions {
+  onSuccess?: (result: unknown, input: Call["input"]) => unknown;
+}
+
 const mocks = vi.hoisted(() => ({
   rows: [] as WeekTableRow[],
+  /** Weeks no phase holds. Only the calendar-week query returns them. */
+  unphased: [] as WeekTableRow[],
   upsert: vi.fn(),
+  calls: [] as Call[],
 }));
 
 const empty = [null, null, null, null, null, null, null];
@@ -39,15 +53,20 @@ const row = (
 });
 
 vi.mock("~/trpc/react", () => {
-  const mutation = (mutate: (...args: unknown[]) => void) => () => ({
-    mutate,
-    isPending: false,
-  });
+  const mutation =
+    (mutate: (...args: unknown[]) => void) => (hook: MutationOptions) => ({
+      mutate: (input: Call["input"], call?: MutationOptions) => {
+        mocks.calls.push({ input, hook, call });
+        mutate(input, call);
+      },
+      isPending: false,
+    });
   return {
     api: {
       useUtils: () => ({
         weightLog: {
           phases: { invalidate: () => Promise.resolve() },
+          week: { invalidate: () => Promise.resolve() },
           weekTable: { invalidate: () => Promise.resolve() },
           setPoints: { invalidate: () => Promise.resolve() },
         },
@@ -71,13 +90,37 @@ vi.mock("~/trpc/react", () => {
             isFetching: false,
           }),
         },
+        // Like React Query, a disabled query has no data and stays pending.
         weekTable: {
-          useQuery: () => ({
-            data: { phaseId: "1", rows: mocks.rows },
-            isPending: false,
-            isError: false,
-            isFetching: false,
-          }),
+          useQuery: (
+            { phaseId }: { phaseId: string },
+            options?: { enabled?: boolean },
+          ) =>
+            options?.enabled === false || phaseId !== "1"
+              ? { data: undefined, isPending: true, isError: false }
+              : {
+                  data: { phaseId, rows: mocks.rows },
+                  isPending: false,
+                  isError: false,
+                  isFetching: false,
+                },
+        },
+        week: {
+          useQuery: ({ week }: { week: string }) => {
+            const found = [...mocks.rows, ...mocks.unphased].find(
+              (item) => item.week === week,
+            );
+            return {
+              data: {
+                week,
+                weights: found?.weights ?? empty,
+                excludedDays: found?.excludedDays ?? [],
+              },
+              isPending: false,
+              isError: false,
+              isFetching: false,
+            };
+          },
         },
         upsertWeighIn: { useMutation: mutation(mocks.upsert) },
         deleteWeighIn: { useMutation: mutation(vi.fn()) },
@@ -112,6 +155,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  mocks.calls = [];
+  mocks.unphased = [];
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -262,5 +307,83 @@ describe("weekly table", () => {
     // Target 100 is the low end of the shared scale; the gap columns stay plain.
     expect(fill(cells[9]!)).toBe("#5a8ac6");
     expect(fill(cells[10]!)).toBeNull();
+  });
+});
+
+/** The server answers a mutate call: the hook's handler, then the call's. */
+async function settle(call: Call, result: unknown) {
+  await act(async () => {
+    await call.hook.onSuccess?.(result, call.input);
+    await call.call?.onSuccess?.(result, call.input);
+  });
+}
+
+describe("a request that settles after the owner moved on", () => {
+  it("keeps what the owner typed on the next date when a save lands", async () => {
+    vi.setSystemTime(at(9, 7));
+    render(<WeightLogEditor />);
+    fireEvent.change(poundsInput(), { target: { value: "99.8" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const save = mocks.calls[0]!;
+    expect(save.input).toEqual({ date: "2030-01-09", pounds: 99.8 });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, January 7/ }));
+    fireEvent.change(poundsInput(), { target: { value: "99.6" } });
+    await settle(save, { date: "2030-01-09", pounds: 99.8 });
+
+    expect(dateInput().value).toBe("2030-01-07");
+    expect(poundsInput().value).toBe("99.6");
+  });
+
+  it("clears the draft it saved when the owner stayed on that date", async () => {
+    vi.setSystemTime(at(9, 7));
+    render(<WeightLogEditor />);
+    fireEvent.change(poundsInput(), { target: { value: "99.8" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    mocks.rows = [
+      row("2030-01-07", [100, 100.4, 99.8, ...empty.slice(3)], 100),
+      row("2030-01-14", empty, 101),
+    ];
+    await settle(mocks.calls[0]!, { date: "2030-01-09", pounds: 99.8 });
+    expect(poundsInput().value).toBe("99.8");
+    const replace = screen.getByRole("button", { name: "Replace" });
+    // The Plan section below has a status line of its own.
+    expect(
+      within(replace.closest("form")!).getByRole("status").textContent,
+    ).toBe("Saved 99.8 lb for Jan 9.");
+  });
+
+  it("keeps the next date's draft and open confirmation when a delete lands", async () => {
+    render(<WeightLogEditor />);
+    fireEvent.click(screen.getByRole("button", { name: /^Monday, January 7/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const remove = mocks.calls[0]!;
+    expect(remove.input).toEqual({ date: "2030-01-07" });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Tuesday, January 8/ }),
+    );
+    fireEvent.change(poundsInput(), { target: { value: "99.0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await settle(remove, { deleted: true });
+
+    expect(dateInput().value).toBe("2030-01-08");
+    expect(poundsInput().value).toBe("99.0");
+    expect(screen.getByText(/Delete 100.4 lb on/)).toBeTruthy();
+  });
+});
+
+describe("a date no phase holds", () => {
+  it("shows the weigh-in saved there, so it can be replaced or deleted", () => {
+    mocks.unphased = [row("2029-12-03", [null, 99.5, ...empty.slice(2)], null)];
+    render(<WeightLogEditor />);
+    fireEvent.change(dateInput(), { target: { value: "2029-12-04" } });
+
+    expect(poundsInput().value).toBe("99.5");
+    expect(screen.getByRole("button", { name: "Replace" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(mocks.calls.at(-1)!.input).toEqual({ date: "2029-12-04" });
   });
 });

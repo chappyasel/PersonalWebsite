@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { loadWeekRecords } from "~/lib/weight-log/database";
@@ -192,6 +192,47 @@ export const weightLogRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "No such phase." });
       }
       return { phaseId, rows: buildWeekTable(log, phaseId) };
+    }),
+
+  /**
+   * One calendar week's weigh-ins, Monday to Sunday, for the editor's
+   * correction grid. It reads by date, not by phase, so a weigh-in no phase
+   * holds (one dated before the first phase starts) can still be replaced or
+   * deleted from the page.
+   */
+  week: ownerProcedure
+    .input(
+      z.object({
+        week: z.iso
+          .date()
+          .refine((date) => weekStartOf(date) === date, "Not a Monday."),
+      }),
+    )
+    .query(async ({ ctx, input: { week } }) => {
+      const rows = await ctx.db
+        .select({
+          date: weightLogWeighIns.date,
+          pounds: weightLogWeighIns.pounds,
+          excluded: weightLogWeighIns.excluded,
+        })
+        .from(weightLogWeighIns)
+        .where(
+          and(
+            gte(weightLogWeighIns.date, week),
+            lte(weightLogWeighIns.date, addDays(week, 6)),
+          ),
+        );
+      const byDate = new Map(rows.map((row) => [row.date, row]));
+      const days = Array.from({ length: 7 }, (_, day) =>
+        byDate.get(addDays(week, day)),
+      );
+      return {
+        week,
+        weights: days.map((day) => day?.pounds ?? null),
+        excludedDays: days.flatMap((day, index) =>
+          day?.excluded ? [index] : [],
+        ),
+      };
     }),
 
   /**
