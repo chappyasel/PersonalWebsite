@@ -18,15 +18,14 @@ describe("weightlifting Pareto server boundary", () => {
   });
   afterEach(() => vi.restoreAllMocks());
   it.each([
-    ["ENOENT", "snapshot_missing"],
-    ["AccessDenied", "access_denied"],
-    ["sensitive provider code", "source_failed"],
+    ["ZodError", "data_invalid"],
+    ["PostgresError", "source_failed"],
   ])(
     "logs only a safe reason for weight-log failure %s",
-    async (code, reason) => {
+    async (name, reason) => {
       mocks.weights.mockRejectedValue(
-        Object.assign(new Error("sensitive storage path and credential"), {
-          code,
+        Object.assign(new Error("sensitive database host and credential"), {
+          name,
         }),
       );
       mocks.lifting.mockResolvedValue({ attempts: [], liftingSyncedAt: null });

@@ -471,9 +471,6 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
         <SelectItem value="all">All phases</SelectItem>
         {log.phases.map((item) => (
           <SelectItem key={item.id} value={item.id}>
-            {item.kind === "other"
-              ? ""
-              : `${item.kind === "bulk" ? "Bulk" : item.kind === "maintenance" ? "Maintain" : "Cut"} · `}
             {item.label}
           </SelectItem>
         ))}

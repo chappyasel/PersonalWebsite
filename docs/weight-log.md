@@ -8,40 +8,53 @@ The full-history calendar shows all 12 months of a selected year, with Monday-fi
 
 Main-chart data lines use phase colors, with solid weekly averages, long-dashed seven-day trends, dotted twelve-month averages, short-dashed targets, dotted original targets, and longer-dashed future plans. Body-fat estimates use dash-dot lines between scans, dotted lines after the latest scan, and round dots for future values. Global set-point guides stay neutral. Continuous lines change color at dated phase boundaries; when phase templates overlap, the latest start takes precedence. Dates without an assigned phase are gray. Each phase's separate weekly and target lines keep its own color. SVG gradients use the resolved time axis so cropping, resizing, flat lines, and sparse data retain the same phase boundaries.
 
+## Storage
+
+The data lives in Postgres, in seven `weight_log_` tables defined in `src/server/db/schema.ts` (migration `0023_weight_log.sql`). The `wl_` prefix already belongs to weightlifting.
+
+- `weight_log_weigh_ins`: one row per date, with pounds and an `excluded` flag. Weigh-ins are independent of phases and belong to whichever phase covers their date.
+- `weight_log_phases`: kind (`bulk`, `cut`, or `maintenance`), a Monday start, and a Sunday end. A null end marks the running phase. Phases never overlap. There is no name column: the site derives names like "Bulk Aug '26 - Aug '27" from kind and dates, and a running phase uses its last planned week as the end.
+- `weight_log_planned_weeks`: one row per Monday, with its phase, target, and original target.
+- `weight_log_set_points`: the set-point guides, by position.
+- `weight_log_scans`: DEXA scans with every workbook column, including bone mineral content, the regional panel, BMD, T- and Z-scores, the A/G ratio, visceral fat, and the conditions note. The regional panel exists for only some scans, so its columns are nullable.
+- `weight_log_body_fat_recollections` and `weight_log_strength_history`: the historical context behind the early body-fat estimate.
+
+`getWeightLog()` in `src/lib/weight-log/data.ts` reads every table in one repeatable-read, read-only transaction and builds the `WeightLog` DTO in `records.ts`. Weeks with weigh-ins but no planned row still appear, with no target. `importedAt` and `sourceModifiedAt` both report the latest weigh-in change.
+
 ## Local workspace setup
 
-Superset setup restores the ignored encrypted snapshot after installing dependencies. It validates existing local files, otherwise copies from the main checkout or downloads the current private S3 snapshot. Files are decrypted and schema-checked in memory before creation, with private file permissions. Setup fails if restoration fails.
+There is nothing to restore. A workspace reads whichever database its `DATABASE_URL` points to. The repository's `.env` points at production, so local development shows the real chart, and any write from a local script reaches production. Point `DATABASE_URL` at a Neon branch before trying the import or anything else that writes.
 
-To repair a checkout manually:
+## Importing the workbook
 
-```sh
-pnpm restore:weight-log
-```
-
-To prefer another local checkout over S3 when the snapshot is missing:
-
-```sh
-pnpm restore:weight-log --source-root "$MAIN_CHECKOUT"
-```
-
-The command loads development environment files in Next.js precedence order. It never overwrites existing files, uploads data, or prints measurements or credentials. A missing `history-context.enc` companion is copied from the source checkout when available, otherwise reconstructed from the snapshot's historical context. Existing corrupt files cause an error and must be repaired or moved aside explicitly before retrying. Repeated setup validates the local snapshot; it does not refresh it from S3.
-
-## Refreshing the snapshot
-
-Run from the website repository. The importer writes sensitive JSON to stdout, so always pipe it directly into the encryptor. The source workbook stays outside the repository.
+The workbook stays in iCloud as the archive. The import is a one-time move into the database, run on cutover day after the morning weigh-in. Weigh-ins after that go in through `/weight-log/edit`, and a reading entered in the workbook after the import must be re-entered by hand.
 
 ```sh
 set -o pipefail
 python3 scripts/weight-log/import_workbook.py "$WEIGHT_WORKBOOK" \
-  | node --env-file=.env --import tsx scripts/weight-log/store.ts
-node --env-file=.env --import tsx scripts/weight-log/store.ts --upload
+  | node --env-file=.env --import tsx scripts/weight-log/import.ts \
+      --history-context data/weight-log/history-context.enc \
+      --expect-host "$DATABASE_HOST"
 ```
 
-`WEIGHT_WORKBOOK` is the path to the local workbook. The first command validates weekly calculations and writes an encrypted, ignored development snapshot. The second uploads that ciphertext with a private ACL and verifies the stored bytes and decryption. Neither command prints measurements or secrets.
+`WEIGHT_WORKBOOK` is the path to the workbook. `--history-context` is the old encrypted companion holding the recollection and strength summaries, decrypted in memory with `NEXTAUTH_SECRET`; a plain JSON file also works. `--expect-host` must match the host in `DATABASE_URL`, so the command cannot write to a database you did not name. The import prints the host before connecting.
+
+The import writes everything in one transaction. It refuses to run when any `weight_log_` table already holds rows. `--replace` deletes the existing rows first, inside the same transaction. It prints only counts, the running phase's name, and the dates of trimmed weeks.
+
+On the way in it applies the phase rules. Every phase must start on a Monday and be a bulk, cut, or maintenance. Each phase ends the day before the next one starts, and its planned weeks from that day on are dropped when they hold no weigh-ins. A dropped week that holds a weigh-in stops the import. A date has at most one weigh-in, and the one excluded reading keeps its flag.
+
+To check the result against the old encrypted snapshot:
+
+```sh
+node --env-file=.env --import tsx scripts/weight-log/parity.ts \
+  --snapshot data/weight-log/snapshot.enc --workbook "$WEIGHT_WORKBOOK"
+```
+
+The parity check is read-only. It requires exact equality for every weigh-in, exclusion, scan value, set point, target, original target, weekly average, and historical-context value in the weeks kept. It lists the intended differences by name: the trimmed weeks and shortened phase ends, the derived phase names, the removed `other` kind, and the added scan columns, which it checks against the workbook. Anything else is printed as a date and field name, never a value, and makes it exit 1. Its tests use synthetic data and run in `pnpm verify`; the real check needs the snapshot and the database, so it runs by hand. Both scripts and the decryption helper in `scripts/weight-log/sources.ts` exist only for the cutover.
 
 ### Refreshing the training-room DEXA image
 
-The training room also shows a committed PNG. Refreshing the encrypted snapshot updates the live chart, estimates, and bulk scenarios, but does not rebuild this image. Render it from the same workbook with the analysis repository's Python environment:
+The training room also shows a committed PNG. The database updates the live chart, estimates, and bulk scenarios, but does not rebuild this image. Render it from the workbook with the analysis repository's Python environment:
 
 ```sh
 ~/Desktop/Repos/WeightliftingApp-AnalyzeData/venv/bin/python \
@@ -49,23 +62,19 @@ The training room also shows a committed PNG. Refreshing the encrypted snapshot 
   --workbook "$WEIGHT_WORKBOOK"
 ```
 
-This command validates the workbook with the website importer and uses the analysis repository's existing DEXA chart renderer. It keeps the imported data in memory and replaces only `public/images/stacks/training-figures/dexa-lean-mass-vs-bodyweight.png`. Review the rendered image before deploying it through the normal website release. No other training figures or analysis-repository files change.
+This command validates the workbook with the website importer and uses the analysis repository's existing DEXA chart renderer. It keeps the imported data in memory and replaces only `public/images/stacks/training-figures/dexa-lean-mass-vs-bodyweight.png`. Review the rendered image before deploying it through the normal website release. No other training figures or analysis-repository files change. A scan taken after cutover is not in the workbook, so this image needs a database source before the next scan.
 
 The October 7, 2026 refresh includes ten scans. The workbook calculates body fat from its rounded masses; its latest value rounds to 13.9%, while the BodySpec report prints 14.0%. The import preserves the workbook value. No Field Note is added for a data refresh; quality-bar test 2 requires a distinct semantic completion beyond ordinary viewing.
 
 ## Automatic refresh
 
-The Hermes job "Weight Log Refresh" runs both commands every day at 8:00 local time. Its ID is `7bd64831c4b3` and its script is `~/.hermes/scripts/cron/weight_log_refresh.py`. It runs from the main checkout, `~/Desktop/Repos/PersonalWebsite`, against `iCloud Drive/Spreadsheets/Weight Log.xlsx`. When the workbook is byte-identical to the last successful upload, the job does nothing. If iCloud has offloaded the file to save space, the job asks `brctl` to download it first.
+There is none. The chart reads the database on every request, so a weigh-in shows on the next page load. The Hermes job "Weight Log Refresh" (`7bd64831c4b3`, `~/.hermes/scripts/cron/weight_log_refresh.py`) used to import the workbook and upload an encrypted snapshot every morning. It is disabled on cutover day and removed a week later.
 
-When `history-context.enc` is missing, the job renames any local `snapshot.enc` to `snapshot.enc.bak-<timestamp>` and rebuilds the companion with `restore:weight-log`. Restore prefers a local snapshot over S3, and an old one would roll the historical context back. Renaming it loses nothing, because the import overwrites `snapshot.enc` anyway. The job refuses to upload unless restore downloaded production.
+## Workbook importer
 
-Failures post to the Hermes `#ops` channel, and the last failed step's full output goes to `~/.hermes/workspace/state/weight-log/last-failure.log`. Three failures in a row pause the job. If the Mac is asleep at 8:00, the run happens when it wakes, up to 12 hours late.
+The importer keeps actual date cells, daily weights, phase boundaries, target values, and the days included in each weekly calculation. It checks recomputed averages against Excel's saved values. Formula-specific exclusions survive import; excluded readings remain visible. Nonnumeric daily annotations are counted and skipped. No formulas are evaluated as code. DEXA values come from the `BF%` sheet: the total-body row with reported body-fat overrides, bone mineral content, and the conditions note, plus the regional, bone-density, and visceral-fat panel for the scans that have it. A zero in that panel is kept as zero.
 
-The upload is automatic, so a plausible typo in the workbook goes live on the next run. The importer still rejects weekly averages that differ from Excel's saved values.
-
-The importer keeps actual date cells, daily weights, phase boundaries, target values, and the days included in each weekly calculation. It checks recomputed averages against Excel's saved values. Formula-specific exclusions survive import; excluded readings remain visible. Nonnumeric daily annotations are counted and skipped. No formulas are evaluated as code. DEXA values come from the total-body section of the workbook, including reported body-fat overrides.
-
-Overlapping phases retain separate chart series. A blank template cannot replace another phase's recorded weigh-ins. Dates come from workbook cells, even when a copied tab has a newer name. To omit an unfinished tab after reviewing it, pass `--exclude-sheet "Sheet name"` to the importer. Correcting a mislabeled date requires changing the source workbook and importing again.
+Dates come from workbook cells, even when a copied tab has a newer name. To omit an unfinished tab after reviewing it, pass `--exclude-sheet "Sheet name"` to the importer. Correcting a mislabeled date before the import requires changing the source workbook and importing again.
 
 ## Analysis choices
 
@@ -85,7 +94,7 @@ The body-fat overlay uses a transparent visualization heuristic. At scan anchors
 
 The default-off `Early body fat · exploratory` layer reconstructs history between a provisional recollection and the first usable DEXA. It uses phase colors, a faint dotted center line, and a shaded envelope of alternative histories. Recollections are labeled separately from scans. Hovering shows the center and full range. The percentage axis retains its 4% floor, clipping lower band values visually without changing them. Fitting happens before date filters and zooming.
 
-The optional encrypted snapshot field `historicalContext` contains a dated body-fat range, its provenance note, and comparable strength readings. A recollection needs a matching scale weight to establish starting fat-free mass. An approximate date must be disclosed in the note, especially when the recollection predates the first recorded weight. Missing context produces no early curve. No personal assumptions or fitted values belong in source code or test fixtures.
+The DTO's optional `historicalContext` field, built from the recollection and strength-history tables, contains a dated body-fat range, its provenance note, and comparable strength readings. A recollection needs a matching scale weight to establish starting fat-free mass. An approximate date must be disclosed in the note, especially when the recollection predates the first recorded weight. Missing context produces no early curve. No personal assumptions or fitted values belong in source code or test fixtures.
 
 `historical-body-fat.ts` converts each end of the starting range into fat-free mass using the weight at that date. The center line starts at the midpoint of the recollection and reaches the first DEXA's reported composition. Fat-free mass can change over time, so revisiting the same weight no longer implies the same body composition. The scale correction fades from zero at the starting recollection to the scan-to-scale difference at the DEXA. Missing smoothed weights remain gaps, and dates outside the two anchors receive no early estimate.
 
@@ -97,13 +106,13 @@ The shaded envelope spans both ends of the recollection, calendar, front-loaded,
 
 Strength and lean-mass changes can have weak associations over a training block, as shown in [Bagheri et al.](https://pubmed.ncbi.nlm.nih.gov/39206316/). Hydration and glycogen also affect DEXA lean-mass measurements, as shown in [Toomey et al.](https://pubmed.ncbi.nlm.nih.gov/28204901/). These findings explain why performance is supporting evidence and why the paths remain explicit assumptions. Neither study validates this reconstruction.
 
-The private companion file `data/weight-log/history-context.enc` preserves recollections and strength summaries independently of workbook imports. The storage script merges it into each new encrypted snapshot, and fails on invalid or undecryptable context rather than silently dropping it. Local edits and a hand-run import do not upload data; `--upload` is a separate step, which the daily Hermes job runs after each import. Releasing a model revision requires both the code and its matching encrypted snapshot update. Verify the private upload by reading back and decrypting the stored bytes before deploying the code.
+The recollection and strength summaries live in `weight_log_body_fat_recollections` and `weight_log_strength_history`, apart from the weigh-ins. The import fills them from the old `history-context.enc` companion and fails on invalid or undecryptable context rather than silently dropping it. When the DTO builder finds several recollections, it uses the earliest.
 
 After the last scan, the model uses `FFM = anchor FFM + k * weight change`, the relationship in the analysis repo's `src/dexa/forecast.py`. Separate gain and loss values of `k` are medians of consecutive scan ratios. Intervals with less than 2 lb of change, more than 365 days between scans, or a ratio outside zero to one are excluded. With fewer than two usable intervals in a direction, FFM stays constant and the interface states that fallback. Planned future weight drives a separate dashed body-fat projection. Impossible percentages are omitted rather than clamped. These are heuristic estimates, not daily measurements or validated predictive intervals. The main time-series chart does not reproduce the analysis repo's bootstrap forecast or the workbook's Bull/Bear scenarios.
 
 The DEXA panel plots lean soft tissue against bodyweight, adapting `WeightliftingApp-AnalyzeData/src/dexa/calculations.py` and `src/dexa/charts.py`. Numbered scans follow chronological order, with red gain arrows and blue loss arrows. The dashed least-squares trend uses all scans with lean mass; a dotted line connects the latest two complete consecutive scans. Vertical bars show signed residuals. The panel preserves scan numbers, interval efficiencies, and the full-history fit independently of the bodyweight chart filters. Missing lean mass leaves a gap. Selecting or focusing a scan shows its values and interval efficiency, defined as lean gain divided by weight gain for bulks and one minus lean loss divided by weight loss for cuts. No ratio is shown for unchanged weight.
 
-Body-fat contours use one percentage-point steps and hold bone mineral content constant. The snapshot has no explicit bone field, so the panel infers it from the latest scan’s weight minus lean and fat mass. It omits contours if those components are missing or the remainder is nonpositive. Reported body-fat overrides do not change this reference. The measurements table retains scans with missing lean mass.
+Body-fat contours use one percentage-point steps and hold bone mineral content constant. The database stores each scan's bone mineral content, but the DTO does not carry it yet, so the panel infers it from the latest scan’s weight minus lean and fat mass. It omits contours if those components are missing or the remainder is nonpositive. Reported body-fat overrides do not change this reference. The measurements table retains scans with missing lean mass.
 
 The DEXA chart also projects the current bulk to 240 lb, anchored at the latest scan. A checkbox toggles the overlay; it appears only when the date range includes that scan. The expected path is the median, with a ribbon from the 2.5th to 97.5th percentiles and best/expected/worst endpoint values. Best and worst are percentile scenarios, not absolute limits. Body-fat scenarios use the same inferred bone mass as the contour lines.
 
@@ -111,21 +120,19 @@ The DEXA chart also projects the current bulk to 240 lb, anchored at the latest 
 
 This is a conditional model prediction interval, not a validated 95% coverage claim. It holds the latest scan exact, includes observed scan variation in the historical ratios, and adds no separate measurement-error model. The ribbon therefore narrows to zero at the anchor. It assumes constant lean gain per pound and that the next bulk resembles prior bulks. The UI states the sparse interval count, exclusions, and these limitations. The distinction between a fitted-mean confidence interval and uncertainty for a future outcome follows [NIST's prediction-interval guidance](https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm).
 
-The calculation tests verify scan-anchor agreement, sparse sampling, gap limits, separate observed and planned values, and fallback behavior. All model inputs stay in the encrypted snapshot. Filtering the chart never recalibrates the model or changes its historical context.
+The calculation tests verify scan-anchor agreement, sparse sampling, gap limits, separate observed and planned values, and fallback behavior. All model inputs come from the Weight Log tables. Filtering the chart never recalibrates the model or changes its historical context.
 
 Workbook weekly means use available readings in the recorded weekly range, trimming one extreme at each end only when at least three remain. The chart displays each weekly mean across that week. It preserves empty calendar weeks rather than drawing through missing history. The DEXA panel follows the analysis project's distinction between lean soft tissue and bone mineral content; it does not substitute fat-free mass for lean mass.
 
 ## Access and storage
 
 - The page and server-only data loader allow anonymous reads. There is no public data API or static data import.
-- Production reads ciphertext from S3 at request time. Local development reads an ignored encrypted file. Local data is excluded from Vercel uploads and Next.js output traces.
-- AES-256-GCM encrypts and authenticates the snapshot with fresh salt and nonce. HKDF derives a separate key from `NEXTAUTH_SECRET`; the site password alone cannot decrypt the object. Rotating the server secret requires re-encrypting and uploading the snapshot.
+- Production and local development read the `weight_log_` tables at request time through the site's existing `DATABASE_URL`. No other credential is involved, and no measurement is stored in the repository, S3, or build output.
 - The route is dynamic, uses no shared data cache, and sets private/no-store, noindex, no-referrer, and frame-denial headers. Metadata contains no measurements. The route is absent from public search and sitemaps. No chart state or readings go into analytics, URLs, or browser storage.
-- `pnpm check:weight-log-boundary` runs after builds to check prerendering, the Git index, public assets, and server file traces.
+- `pnpm check:weight-log-boundary` runs after builds. It fails if the route was prerendered, which would freeze measurements into build output, if a workbook entered the Git index, public assets, or a server file trace, or if the chart DTO entered public assets.
+- Strength at Bodyweight reads the same tables through `getWeightLog()`, and `pnpm refresh:lifting-pareto` reads them directly.
 
-The server needs its existing AWS read credentials and the same `NEXTAUTH_SECRET` used during export. Encryption is additional protection for the existing bucket, whose bucket-level public-access blocks were not enabled during implementation. The uploaded object has a private ACL. Do not replace ciphertext with plaintext or publish a signed storage URL.
-
-The server-only data and DTO boundary follow the [Next.js data-security guidance](https://nextjs.org/docs/app/guides/data-security). Bucket-wide [S3 public-access blocking](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html) remains a separate infrastructure setting.
+The server-only data and DTO boundary follow the [Next.js data-security guidance](https://nextjs.org/docs/app/guides/data-security).
 
 ## Verification and Field Notes
 

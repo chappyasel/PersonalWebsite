@@ -10,6 +10,8 @@ function files(directory) {
   });
 }
 
+// The chart reads the database on each request. A prerendered page would
+// freeze measurements into build output.
 const manifest = JSON.parse(
   readFileSync(".next/prerender-manifest.json", "utf8"),
 );
@@ -21,43 +23,32 @@ if (
   throw new Error("Weight log must never be prerendered");
 }
 
+// The workbook stays in iCloud as the archive. A copy must never ship.
 const tracked = execFileSync("git", ["ls-files", "-z"], {
   encoding: "utf8",
 }).split("\0");
-if (
-  tracked.some(
-    (path) =>
-      path.startsWith("data/weight-log/") ||
-      /weight.log.*\.(xlsx|csv|enc)$/i.test(path),
-  )
-) {
-  throw new Error("Private weight data entered the Git index");
+if (tracked.some((path) => /weight.log.*\.(xlsx|csv)$/i.test(path))) {
+  throw new Error("A Weight Log workbook entered the Git index");
 }
 
 for (const path of files(".next/server")) {
   if (!path.endsWith(".nft.json")) continue;
   const trace = JSON.parse(readFileSync(path, "utf8"));
-  if (
-    trace.files.some(
-      (/** @type {string} */ file) =>
-        file.includes("data/weight-log/") || file.endsWith(".xlsx"),
-    )
-  ) {
-    throw new Error("Private local data entered a production file trace");
-  }
+  if (trace.files.some((/** @type {string} */ file) => file.endsWith(".xlsx")))
+    throw new Error("A workbook entered a production file trace");
 }
 
 for (const path of [...files(".next/static"), ...files("public")]) {
-  if (/weight.log.*\.(xlsx|csv|enc)$/i.test(path))
-    throw new Error("Private snapshot entered public assets");
+  if (/weight.log.*\.(xlsx|csv)$/i.test(path))
+    throw new Error("A Weight Log workbook entered public assets");
   if (!/\.(json|js|html|txt|map)$/.test(path)) continue;
-  // Detect the snapshot document, including JSON escaped inside another document.
+  // Detect the chart DTO, including JSON escaped inside another document.
   if (
     /sourceModifiedAt\\?"\s*:\s*\\?"\d{4}-/.test(readFileSync(path, "utf8"))
   ) {
-    throw new Error("Weight snapshot contents entered public assets");
+    throw new Error("Weight Log chart data entered public assets");
   }
 }
 console.log(
-  "Weight log privacy boundary passed: dynamic route, no private data in Git, public assets, or file traces.",
+  "Weight log privacy boundary passed: dynamic route, no workbook in Git, public assets, or file traces, and no chart data in public assets.",
 );

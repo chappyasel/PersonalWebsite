@@ -49,7 +49,7 @@ const log: WeightLog = {
   phases: [
     {
       id: "test",
-      label: "Test",
+      label: "Cut Jan '20 - Jan '20",
       kind: "cut",
       start: "2020-01-06",
       end: "2020-01-19",
@@ -176,7 +176,9 @@ it("keeps filters inside the bodyweight chart and leaves DEXA history unchanged 
   const table = screen.getByRole("table", { name: "DEXA scan measurements" });
   expect(within(table).getAllByRole("row")).toHaveLength(4);
   fireEvent.keyDown(phase, { key: "Enter" });
-  fireEvent.click(screen.getByRole("option", { name: "Cut · Test" }));
+  fireEvent.click(
+    screen.getByRole("option", { name: "Cut Jan '20 - Jan '20" }),
+  );
   await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
   await waitFor(() =>
     expect(within(table).getAllByRole("row")).toHaveLength(4),
