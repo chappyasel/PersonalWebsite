@@ -85,9 +85,9 @@ vi.mock("~/trpc/react", () => {
 const at = (day: number, hour: number) => new Date(2030, 0, day, hour);
 
 const dateInput = () =>
-  screen.getByLabelText("Date", { selector: "input" });
+  screen.getByLabelText<HTMLInputElement>("Date", { selector: "input" });
 const poundsInput = () =>
-  screen.getByLabelText("Pounds", { selector: "input" });
+  screen.getByLabelText<HTMLInputElement>("Pounds", { selector: "input" });
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -153,7 +153,7 @@ describe("today", () => {
     expect(poundsInput().value).toBe("99.8");
     expect(dateInput().max).toBe("2030-01-09");
     expect(screen.getByRole("button", { name: "Back to today" })).toBeTruthy();
-    const wednesday = screen.getByRole("button", {
+    const wednesday = screen.getByRole<HTMLButtonElement>("button", {
       name: /^Wednesday, January 9/,
     });
     expect(wednesday.disabled).toBe(false);
@@ -177,7 +177,7 @@ describe("replacing a weigh-in", () => {
     vi.setSystemTime(at(7, 21));
     render(<WeightLogEditor />);
     expect(poundsInput().value).toBe("100.0");
-    const replace = screen.getByRole("button", {
+    const replace = screen.getByRole<HTMLButtonElement>("button", {
       name: "Replace",
     });
     // The same value replaces nothing.
