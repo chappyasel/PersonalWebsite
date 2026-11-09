@@ -17,7 +17,7 @@ import { syncYouTube } from "~/lib/youtube/sync";
 import {
   cookieProtectedProcedure,
   createTRPCRouter,
-  protectedProcedure,
+  ownerProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { db } from "~/server/db";
@@ -1293,7 +1293,7 @@ export const youtubeRouter = createTRPCRouter({
     }),
 
   /** Manual sync trigger — pass path to watch-history.json */
-  triggerSync: protectedProcedure
+  triggerSync: ownerProcedure
     .input(z.object({ filePath: z.string() }))
     .mutation(async ({ input }) => {
       const result = await syncYouTube("manual", input.filePath);

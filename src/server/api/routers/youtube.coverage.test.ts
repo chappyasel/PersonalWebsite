@@ -17,7 +17,7 @@ vi.mock("~/server/api/trpc", async () => {
   return {
     createTRPCRouter: t.router,
     publicProcedure: t.procedure,
-    protectedProcedure: t.procedure,
+    ownerProcedure: t.procedure,
     cookieProtectedProcedure: t.procedure,
   };
 });

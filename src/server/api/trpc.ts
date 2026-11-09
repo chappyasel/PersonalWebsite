@@ -14,6 +14,7 @@ import { isValidDadAccessToken } from "~/lib/dad/access";
 import { isValidYoutubeAccessToken } from "~/lib/youtube/access";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import { isOwnerEmail } from "~/server/owner";
 
 import { env } from "~/env";
 
@@ -114,18 +115,26 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
 /**
- * Protected (authenticated) procedure
+ * Owner-only procedure
  *
- * If you want a query or mutation to ONLY be accessible to logged in users, use this. It verifies
- * the session is valid and guarantees `ctx.session.user` is not null.
+ * For anything only the site's owner may call: the owner's Google session from
+ * `/weight-log/edit`. Anonymous callers get UNAUTHORIZED; a session for any
+ * other address gets FORBIDDEN. The `signIn` callback already admits only
+ * `OWNER_EMAIL`. This repeats the check so a session that outlives a change to
+ * `OWNER_EMAIL`, or a regression in the callback, still stops here.
+ * `src/server/api/routers/weightLogOwnerOnly.test.ts` requires every
+ * `weightLog.*` procedure to use it.
  *
  * @see https://trpc.io/docs/procedures
  */
-export const protectedProcedure = t.procedure
+export const ownerProcedure = t.procedure
   .use(timingMiddleware)
   .use(({ ctx, next }) => {
     if (!ctx.session?.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    if (!isOwnerEmail(ctx.session.user.email)) {
+      throw new TRPCError({ code: "FORBIDDEN" });
     }
     return next({
       ctx: {
