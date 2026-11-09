@@ -215,7 +215,9 @@ function Editor() {
   const [draft, setDraft] = useState<{ date: string; text: string } | null>(
     null,
   );
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /** The date whose Delete the owner is confirming. */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const confirmingDelete = confirming === date;
   const [status, setStatus] = useState<string | null>(null);
 
   // The day turned over while the page stayed open. A form still on the old
@@ -227,7 +229,7 @@ function Editor() {
     const drafting = draft !== null && draft.date === date;
     if (!drafting && (date === seenToday || date > today)) {
       setDate(today);
-      setConfirmingDelete(false);
+      setConfirming(null);
       setStatus(null);
     }
   }
@@ -275,31 +277,31 @@ function Editor() {
   const unchanged =
     replacing && valid && Math.round(entered * 10) / 10 === existing;
 
+  // Each mutation refetches before its call's own onSuccess below runs, so
+  // a cleared draft gives way to the saved value without a blank frame.
   const refresh = () => utils.weightLog.weekTable.invalidate();
   const upsert = api.weightLog.upsertWeighIn.useMutation({
-    onSuccess: async () => {
-      await refresh();
-      setDraft(null);
-    },
+    onSuccess: refresh,
     onError: () => setStatus("The weigh-in didn't save. Try again."),
   });
   const remove = api.weightLog.deleteWeighIn.useMutation({
-    onSuccess: async (_result, input) => {
-      setStatus(
-        `Deleted the weigh-in for ${formatDay(input.date, { month: "short", day: "numeric" })}.`,
-      );
-      setConfirmingDelete(false);
-      await refresh();
-      setDraft(null);
-    },
+    onSuccess: refresh,
     onError: () => setStatus("The weigh-in didn't delete. Try again."),
   });
   const busy = upsert.isPending || remove.isPending;
 
+  /**
+   * Clear the draft a request carried once it lands. The owner may have moved
+   * to another date and typed there while it was pending, and that draft
+   * stays.
+   */
+  const clearDraft = (sent: typeof draft) =>
+    setDraft((current) => (current === sent ? null : current));
+
   const choose = (next: string) => {
     setDate(next > today ? today : next);
     setDraft(null);
-    setConfirmingDelete(false);
+    setConfirming(null);
     setStatus(null);
   };
 
@@ -307,13 +309,32 @@ function Editor() {
     event.preventDefault();
     if (!valid || busy || unchanged) return;
     const verb = replacing ? "Replaced" : "Saved";
+    const sent = draft;
     upsert.mutate(
       { date, pounds: entered },
       {
-        onSuccess: (row) =>
+        onSuccess: (row) => {
           setStatus(
             `${verb} ${pounds(row.pounds)} lb for ${formatDay(row.date, { month: "short", day: "numeric" })}.`,
-          ),
+          );
+          clearDraft(sent);
+        },
+      },
+    );
+  };
+
+  const confirmDelete = () => {
+    const sent = draft;
+    remove.mutate(
+      { date },
+      {
+        onSuccess: (_result, input) => {
+          setStatus(
+            `Deleted the weigh-in for ${formatDay(input.date, { month: "short", day: "numeric" })}.`,
+          );
+          setConfirming((open) => (open === input.date ? null : open));
+          clearDraft(sent);
+        },
       },
     );
   };
@@ -388,7 +409,7 @@ function Editor() {
                     size="sm"
                     className={date === today ? "-ml-3" : undefined}
                     disabled={busy}
-                    onClick={() => setConfirmingDelete(true)}
+                    onClick={() => setConfirming(date)}
                   >
                     <TrashIcon aria-hidden />
                     Delete
@@ -406,7 +427,7 @@ function Editor() {
                       variant="destructive"
                       size="sm"
                       disabled={busy}
-                      onClick={() => remove.mutate({ date })}
+                      onClick={confirmDelete}
                     >
                       Delete
                     </Button>
@@ -414,7 +435,7 @@ function Editor() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setConfirmingDelete(false)}
+                      onClick={() => setConfirming(null)}
                     >
                       Cancel
                     </Button>
