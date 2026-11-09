@@ -20,7 +20,7 @@ import { cn } from "~/lib/utils";
 import { type CellColor, weekTableColors } from "~/lib/weight-log/color-scale";
 import { addDays, weekStartOf } from "~/lib/weight-log/phases";
 import type { WeekTableRow } from "~/lib/weight-log/week-table";
-import { type RouterOutputs, api } from "~/trpc/react";
+import { api } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
 import { CollapsibleSection } from "~/components/ui/collapsible-section";
@@ -40,8 +40,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-
-type Phase = RouterOutputs["weightLog"]["phases"]["phases"][number];
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -119,14 +117,6 @@ function signed(value: number | null) {
   const rounded = Math.round(value * 10) / 10;
   if (rounded === 0) return "0.0";
   return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
-}
-
-/** The phase whose weeks hold this Monday. The newest phase has no end, so a
- * weigh-in past its plan still belongs to it. */
-function phaseOfWeek(phases: Phase[], week: string) {
-  return phases.find(
-    (phase, index) => phase.start <= week && (index === 0 || week <= phase.end),
-  );
 }
 
 /** The summary columns, after the seven days, in the workbook's order. A
@@ -240,18 +230,16 @@ function Editor() {
   const phasesQuery = api.weightLog.phases.useQuery();
   const phases = phasesQuery.data?.phases ?? [];
   const week = weekStartOf(date);
-  const gridPhaseId = phaseOfWeek(phases, week)?.id ?? null;
   const shownPhaseId = tablePhaseId ?? phasesQuery.data?.currentId ?? null;
-  const gridQuery = api.weightLog.weekTable.useQuery(
-    { phaseId: gridPhaseId ?? "" },
-    { enabled: gridPhaseId !== null },
-  );
+  // The grid reads its calendar week whatever phase holds it, so a weigh-in
+  // dated before the first phase still shows and can be deleted.
+  const gridQuery = api.weightLog.week.useQuery({ week });
   const tableQuery = api.weightLog.weekTable.useQuery(
     { phaseId: shownPhaseId ?? "" },
     { enabled: shownPhaseId !== null },
   );
 
-  const gridRow = gridQuery.data?.rows.find((row) => row.week === week);
+  const gridRow = gridQuery.data;
   const weekDays = Array.from({ length: 7 }, (_, day) => ({
     date: addDays(week, day),
     weight: gridRow?.weights[day] ?? null,
@@ -279,7 +267,11 @@ function Editor() {
 
   // Each mutation refetches before its call's own onSuccess below runs, so
   // a cleared draft gives way to the saved value without a blank frame.
-  const refresh = () => utils.weightLog.weekTable.invalidate();
+  const refresh = () =>
+    Promise.all([
+      utils.weightLog.week.invalidate(),
+      utils.weightLog.weekTable.invalidate(),
+    ]);
   const upsert = api.weightLog.upsertWeighIn.useMutation({
     onSuccess: refresh,
     onError: () => setStatus("The weigh-in didn't save. Try again."),
@@ -509,7 +501,7 @@ function Editor() {
                         <span className="text-muted-foreground">
                           {Number(day.date.slice(8))}
                         </span>
-                        {gridQuery.isPending && gridPhaseId !== null ? (
+                        {gridQuery.isPending ? (
                           <Skeleton className="h-4 w-8" />
                         ) : (
                           <span

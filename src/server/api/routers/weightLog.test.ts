@@ -149,6 +149,33 @@ describe("weightLog.deleteWeighIn", () => {
   });
 });
 
+describe("weightLog.week", () => {
+  it("reads one calendar week's weigh-ins, before any phase as well as inside one", async () => {
+    returned = [
+      ["2029-12-04", 99.5, false],
+      ["2029-12-08", 120, true],
+    ];
+    await expect(caller.week({ week: "2029-12-03" })).resolves.toEqual({
+      week: "2029-12-03",
+      weights: [null, 99.5, null, null, null, 120, null],
+      excludedDays: [5],
+    });
+    expect(queries).toEqual([
+      {
+        sql: 'select "date", "pounds", "excluded" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" >= $1 and "weight_log_weigh_ins"."date" <= $2)',
+        params: ["2029-12-03", "2029-12-09"],
+      },
+    ]);
+  });
+
+  it("refuses a day that is not a Monday, without a query", async () => {
+    expect(await errorCode(caller.week({ week: "2029-12-04" }))).toBe(
+      "BAD_REQUEST",
+    );
+    expect(queries).toEqual([]);
+  });
+});
+
 // Rows in column order, as the driver returns them. A cut of two planned
 // weeks, then a running bulk of two, with a weigh-in past the bulk's plan.
 function seed() {

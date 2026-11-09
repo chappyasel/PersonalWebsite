@@ -26,6 +26,8 @@ interface MutationOptions {
 
 const mocks = vi.hoisted(() => ({
   rows: [] as WeekTableRow[],
+  /** Weeks no phase holds. Only the calendar-week query returns them. */
+  unphased: [] as WeekTableRow[],
   upsert: vi.fn(),
   calls: [] as Call[],
 }));
@@ -61,7 +63,10 @@ vi.mock("~/trpc/react", () => {
   return {
     api: {
       useUtils: () => ({
-        weightLog: { weekTable: { invalidate: () => Promise.resolve() } },
+        weightLog: {
+          week: { invalidate: () => Promise.resolve() },
+          weekTable: { invalidate: () => Promise.resolve() },
+        },
       }),
       weightLog: {
         phases: {
@@ -81,13 +86,37 @@ vi.mock("~/trpc/react", () => {
             isFetching: false,
           }),
         },
+        // Like React Query, a disabled query has no data and stays pending.
         weekTable: {
-          useQuery: () => ({
-            data: { phaseId: "1", rows: mocks.rows },
-            isPending: false,
-            isError: false,
-            isFetching: false,
-          }),
+          useQuery: (
+            { phaseId }: { phaseId: string },
+            options?: { enabled?: boolean },
+          ) =>
+            options?.enabled === false || phaseId !== "1"
+              ? { data: undefined, isPending: true, isError: false }
+              : {
+                  data: { phaseId, rows: mocks.rows },
+                  isPending: false,
+                  isError: false,
+                  isFetching: false,
+                },
+        },
+        week: {
+          useQuery: ({ week }: { week: string }) => {
+            const found = [...mocks.rows, ...mocks.unphased].find(
+              (item) => item.week === week,
+            );
+            return {
+              data: {
+                week,
+                weights: found?.weights ?? empty,
+                excludedDays: found?.excludedDays ?? [],
+              },
+              isPending: false,
+              isError: false,
+              isFetching: false,
+            };
+          },
         },
         upsertWeighIn: { useMutation: mutation(mocks.upsert) },
         deleteWeighIn: { useMutation: mutation(vi.fn()) },
@@ -115,6 +144,7 @@ beforeEach(() => {
 
 afterEach(() => {
   mocks.calls = [];
+  mocks.unphased = [];
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -328,5 +358,19 @@ describe("a request that settles after the owner moved on", () => {
     expect(dateInput().value).toBe("2030-01-08");
     expect(poundsInput().value).toBe("99.0");
     expect(screen.getByText(/Delete 100.4 lb on/)).toBeTruthy();
+  });
+});
+
+describe("a date no phase holds", () => {
+  it("shows the weigh-in saved there, so it can be replaced or deleted", () => {
+    mocks.unphased = [row("2029-12-03", [null, 99.5, ...empty.slice(2)], null)];
+    render(<WeightLogEditor />);
+    fireEvent.change(dateInput(), { target: { value: "2029-12-04" } });
+
+    expect(poundsInput().value).toBe("99.5");
+    expect(screen.getByRole("button", { name: "Replace" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(mocks.calls.at(-1)!.input).toEqual({ date: "2029-12-04" });
   });
 });
