@@ -144,6 +144,16 @@ async function fillForm() {
   return user;
 }
 
+// The fixtures open on Tuesday, Nov 10th, 2026, and the page names today and
+// tomorrow by name. Pin the clock to the week before so the dates render as
+// dates whatever day the suite runs.
+beforeEach(() => {
+  vi.setSystemTime(new Date("2026-11-06T20:00:00Z"));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("booking on /meet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
