@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PHASE_KINDS } from "./phases";
+
 const date = z.iso.date();
 const weight = z.number().positive().max(1500).nullable();
 
@@ -41,7 +43,7 @@ export const weightLogSchema = z.object({
       z.object({
         id: z.string(),
         label: z.string(),
-        kind: z.enum(["bulk", "cut", "maintenance", "other"]),
+        kind: z.enum(PHASE_KINDS),
         start: date,
         end: date,
       }),
