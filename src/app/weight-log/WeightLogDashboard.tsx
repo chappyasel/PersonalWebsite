@@ -328,9 +328,11 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
     annual: false,
     setPoints: false,
     projections: true,
-    bodyFatProjections: true,
-    bodyFat: true,
-    historicalBodyFat: true,
+    // Body fat shares the chart on a second axis, which is hard to read beside
+    // the weight lines, so its series start off and stay one click away.
+    bodyFatProjections: false,
+    bodyFat: false,
+    historicalBodyFat: false,
   });
   const [zoomBase, setZoomBase] = useState<[string, string] | null>(null);
   const [dragging, setDragging] = useState(false);
