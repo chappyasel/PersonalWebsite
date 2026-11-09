@@ -1,11 +1,11 @@
 // Prove the imported Weight Log tables match the old encrypted snapshot.
 //
 //   node --env-file=.env --import tsx scripts/weight-log/parity.ts \
-//     --snapshot data/weight-log/snapshot.enc [--workbook "$WEIGHT_WORKBOOK"]
+//     --snapshot data/weight-log/snapshot.enc --workbook "$WEIGHT_WORKBOOK"
 //
 // Read-only. DATABASE_URL picks the database; NEXTAUTH_SECRET decrypts the
-// snapshot in memory. With --workbook it also runs import_workbook.py and
-// checks the added scan columns. Output names dates, phases, and fields, never
+// snapshot in memory. It also runs import_workbook.py on --workbook to check
+// the added scan columns, which the snapshot never held. Output names dates, phases, and fields, never
 // measurements. Exits 1 when anything other than decision 26's intended
 // differences turns up.
 import { loadWeightLogRecords } from "../../src/lib/weight-log/database";
@@ -30,13 +30,15 @@ try {
   if (!url) throw new Error("Set DATABASE_URL");
   if (!values.snapshot)
     throw new Error("Pass --snapshot with the old snapshot");
+  if (!values.workbook)
+    throw new Error("Pass --workbook to check the added scan columns");
   console.log(`Database host (read-only): ${new URL(url).host}`);
   const snapshot = await readLegacySnapshot(
     values.snapshot,
     process.env.NEXTAUTH_SECRET ?? "",
   );
   let workbook;
-  if (values.workbook) {
+  {
     const exported = spawnSync(
       "python3",
       ["scripts/weight-log/import_workbook.py", values.workbook],

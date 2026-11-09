@@ -188,16 +188,25 @@ export function compareParity({
     if (!snapshot.scans.some((scan) => scan.date === date))
       unexpected.push(`Scan ${date}: only in the database`);
   report.intended.addedScanColumns = [...ADDED_SCAN_FIELDS];
-  if (workbook)
+  if (workbook) {
+    for (const date of newScans.keys())
+      if (!workbook.scans.some((source) => source.date === date))
+        unexpected.push(`Scan ${date}: not in the workbook`);
     for (const source of workbook.scans) {
       const scan = newScans.get(source.date);
-      if (!scan) continue;
+      if (!scan) {
+        unexpected.push(
+          `Scan ${source.date}: in the workbook, not the database`,
+        );
+        continue;
+      }
       for (const field of ADDED_SCAN_FIELDS)
         if (!same(scan[field], source[field]))
           unexpected.push(
             `Scan ${source.date}: ${field} differs from the workbook`,
           );
     }
+  }
 
   // Set points, in order.
   const setPoints = [...records.setPoints].sort(
