@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   customType,
+  date,
   doublePrecision,
   index,
   integer,
@@ -405,6 +406,150 @@ export const wlSetsRelations = relations(wlSets, ({ one }) => ({
     references: [wlExercises.id],
   }),
 }));
+
+// ── Weight Log tables ────────────────────────────────────────────────
+// `wl_` already means weightlifting. Terms follow src/lib/weight-log/CONTEXT.md.
+
+/** One bodyweight reading per calendar day, independent of phases. */
+export const weightLogWeighIns = pgTable(
+  "weight_log_weigh_ins",
+  {
+    date: date("date", { mode: "string" }).primaryKey(),
+    pounds: doublePrecision("pounds").notNull(),
+    // Kept on record but left out of its week's weekly average.
+    excluded: boolean("excluded").default(false).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`)
+      .$onUpdate(() => new Date()),
+  },
+  (table) => ({
+    poundsCheck: check(
+      "weight_log_weigh_ins_pounds_check",
+      sql`${table.pounds} > 0 AND ${table.pounds} <= 1500`,
+    ),
+  }),
+);
+
+/**
+ * A bounded stretch of whole weeks with one goal. The name is derived from
+ * kind and dates. `end_date` is null while the phase is running; a running
+ * phase ends with its plan's last week.
+ */
+export const weightLogPhases = pgTable(
+  "weight_log_phases",
+  {
+    id: serial("id").primaryKey(),
+    kind: varchar("kind", { length: 16 }).notNull(),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }),
+  },
+  (table) => ({
+    startIdx: uniqueIndex("weight_log_phase_start_idx").on(table.startDate),
+    kindCheck: check(
+      "weight_log_phases_kind_check",
+      sql`${table.kind} IN ('bulk', 'cut', 'maintenance')`,
+    ),
+    weeksCheck: check(
+      "weight_log_phases_weeks_check",
+      sql`EXTRACT(ISODOW FROM ${table.startDate}) = 1 AND (${table.endDate} IS NULL OR (${table.endDate} > ${table.startDate} AND EXTRACT(ISODOW FROM ${table.endDate}) = 7))`,
+    ),
+  }),
+);
+
+/** A phase's target for one week. Phases never overlap, so a week has one row. */
+export const weightLogPlannedWeeks = pgTable(
+  "weight_log_planned_weeks",
+  {
+    weekStart: date("week_start", { mode: "string" }).primaryKey(),
+    phaseId: integer("phase_id")
+      .notNull()
+      .references(() => weightLogPhases.id, { onDelete: "cascade" }),
+    target: doublePrecision("target"),
+    // Set when the phase begins and never changed. Weeks added later have none.
+    originalTarget: doublePrecision("original_target"),
+  },
+  (table) => ({
+    phaseIdx: index("weight_log_planned_week_phase_idx").on(table.phaseId),
+    mondayCheck: check(
+      "weight_log_planned_weeks_monday_check",
+      sql`EXTRACT(ISODOW FROM ${table.weekStart}) = 1`,
+    ),
+  }),
+);
+
+/** Long-term reference bodyweights, independent of any phase. */
+export const weightLogSetPoints = pgTable("weight_log_set_points", {
+  position: integer("position").primaryKey(),
+  pounds: doublePrecision("pounds").notNull(),
+});
+
+/**
+ * DEXA total-body scans with every column the workbook kept. The regional
+ * panel exists for only some scans, so those columns are nullable. Masses are
+ * pounds, body fat is a percentage, and visceral fat is as reported.
+ */
+export const weightLogScans = pgTable("weight_log_scans", {
+  date: date("date", { mode: "string" }).primaryKey(),
+  weight: doublePrecision("weight").notNull(),
+  leanMass: doublePrecision("lean_mass"),
+  fatMass: doublePrecision("fat_mass"),
+  boneMineralContent: doublePrecision("bone_mineral_content"),
+  bodyFatPercent: doublePrecision("body_fat_percent"),
+  armsFat: doublePrecision("arms_fat"),
+  armsLean: doublePrecision("arms_lean"),
+  armsBoneMineralContent: doublePrecision("arms_bone_mineral_content"),
+  legsFat: doublePrecision("legs_fat"),
+  legsLean: doublePrecision("legs_lean"),
+  legsBoneMineralContent: doublePrecision("legs_bone_mineral_content"),
+  trunkFat: doublePrecision("trunk_fat"),
+  trunkLean: doublePrecision("trunk_lean"),
+  trunkBoneMineralContent: doublePrecision("trunk_bone_mineral_content"),
+  androidFat: doublePrecision("android_fat"),
+  androidLean: doublePrecision("android_lean"),
+  androidBoneMineralContent: doublePrecision("android_bone_mineral_content"),
+  gynoidFat: doublePrecision("gynoid_fat"),
+  gynoidLean: doublePrecision("gynoid_lean"),
+  gynoidBoneMineralContent: doublePrecision("gynoid_bone_mineral_content"),
+  boneMineralDensity: doublePrecision("bone_mineral_density"),
+  tScore: doublePrecision("t_score"),
+  zScore: doublePrecision("z_score"),
+  androidGynoidRatio: doublePrecision("android_gynoid_ratio"),
+  visceralFat: doublePrecision("visceral_fat"),
+  // Time of day, fasting, caffeine, and time since the last workout.
+  conditions: text("conditions"),
+});
+
+/** The dated body-fat recollection that anchors early estimates. */
+export const weightLogBodyFatRecollections = pgTable(
+  "weight_log_body_fat_recollections",
+  {
+    id: serial("id").primaryKey(),
+    date: date("date", { mode: "string" }).notNull(),
+    bodyFatLow: doublePrecision("body_fat_low").notNull(),
+    bodyFatHigh: doublePrecision("body_fat_high").notNull(),
+    note: text("note").notNull(),
+  },
+  (table) => ({
+    rangeCheck: check(
+      "weight_log_body_fat_recollections_range_check",
+      sql`${table.bodyFatLow} >= 0 AND ${table.bodyFatLow} <= ${table.bodyFatHigh} AND ${table.bodyFatHigh} <= 100`,
+    ),
+  }),
+);
+
+/** Comparable strength readings behind the early body-fat progress curve. */
+export const weightLogStrengthHistory = pgTable(
+  "weight_log_strength_history",
+  {
+    date: date("date", { mode: "string" }).notNull(),
+    lift: varchar("lift", { length: 100 }).notNull(),
+    value: doublePrecision("value").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.date, table.lift] }),
+  }),
+);
 
 // ── YouTube watch history tables ────────────────────────────────────
 
