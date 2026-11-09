@@ -319,9 +319,10 @@ export function planEndMove(
 
   if (lastWeek < last.weekStart) {
     const removed = weeks.filter((row) => row.weekStart > lastWeek);
-    const weighedIn = removed.find((row) =>
-      state.weighInWeeks.has(row.weekStart),
-    );
+    // Name the latest week in the way: the plan has to reach at least it.
+    const weighedIn = [...removed]
+      .reverse()
+      .find((row) => state.weighInWeeks.has(row.weekStart));
     if (weighedIn) {
       throw new PlanEditError(
         `The week of ${shortDate(weighedIn.weekStart)} has weigh-ins, so the plan can't end before it.`,

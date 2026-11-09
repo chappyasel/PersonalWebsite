@@ -249,11 +249,14 @@ describe("planEndMove", () => {
     expect(targetsOf(apply(state, edit), 2)).toEqual([100, 100.5, 101]);
   });
 
-  it("refuses to remove a week that holds weigh-ins, and moves nothing", () => {
+  it("refuses to remove a week that holds weigh-ins, naming the latest one", () => {
     const state = seed();
-    expect(
-      refusal(() => planEndMove(state, { phaseId: 2, lastWeek: "2030-01-28" })),
-    ).toBe("BAD_REQUEST");
+    expect(() =>
+      planEndMove(
+        { ...state, weighInWeeks: new Set(["2030-02-04", "2030-02-11"]) },
+        { phaseId: 2, lastWeek: "2030-01-28" },
+      ),
+    ).toThrow("The week of Feb 11, 2030 has weigh-ins");
     // Ending right after the last weigh-in is allowed.
     expect(
       planEndMove(state, { phaseId: 2, lastWeek: "2030-02-04" }).deleteWeeks,
