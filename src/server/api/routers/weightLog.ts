@@ -47,23 +47,25 @@ const weighInDate = z.iso
   .refine((date) => date >= EARLIEST_DATE, "That date is too early.")
   .refine((date) => date <= latestDate(), "That date is in the future.");
 
-/** Pounds to one decimal place (decision 22), within the table's check. */
-const pounds = z
-  .number()
-  .positive()
-  .max(1500)
-  .transform((value) => Math.round(value * 10) / 10);
+/**
+ * Pounds to one decimal place (decision 22), checked after rounding, since
+ * 0.01 is positive but rounds to 0.
+ */
+const tenthsOfAPound = (max: number) =>
+  z
+    .number()
+    .transform((value) => Math.round(value * 10) / 10)
+    .pipe(z.number().positive().max(max));
+
+/** A weigh-in, within the table's check. */
+const pounds = tenthsOfAPound(1500);
 
 const monday = z.iso.date().refine(isMonday, "Pick a Monday.");
 
 const phaseId = z.string().regex(/^\d{1,9}$/, "No such phase.");
 
 /** A target or set point, in pounds to one decimal place. */
-const targetPounds = z
-  .number()
-  .positive()
-  .max(MAX_TARGET)
-  .transform((value) => Math.round(value * 10) / 10);
+const targetPounds = tenthsOfAPound(MAX_TARGET);
 
 /** A weekly rate, in pounds to two decimal places, such as 0.25. */
 const poundsPerWeek = z

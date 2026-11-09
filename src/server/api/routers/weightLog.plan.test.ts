@@ -272,6 +272,10 @@ describe("weightLog set points", () => {
     expect(await refusal(caller.saveSetPoints({ pounds: [0] }))).toMatch(
       /^BAD_REQUEST/,
     );
+    // 0.01 is positive but rounds to 0 lb.
+    expect(await refusal(caller.saveSetPoints({ pounds: [0.01] }))).toMatch(
+      /^BAD_REQUEST/,
+    );
     expect(statements).toEqual([]);
   });
 });
