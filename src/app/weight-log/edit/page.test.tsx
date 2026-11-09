@@ -11,12 +11,18 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("~/env", () => ({ env: mocks.env }));
 vi.mock("~/server/auth", () => ({ auth: mocks.auth }));
+vi.mock("~/trpc/react", () => ({
+  TRPCReactProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+vi.mock("./WeightLogEditor", () => ({
+  WeightLogEditor: () => "Owner editor",
+}));
 vi.mock("./actions", () => ({
   signInWithGoogle: vi.fn(),
   signOutOwner: vi.fn(),
 }));
 
-const PLACEHOLDER = "Weigh-in entry arrives with the cutover.";
+const EDITOR = "Owner editor";
 const SIGN_IN = "Sign in with Google";
 
 function session(email: string): Session {
@@ -49,7 +55,7 @@ describe("/weight-log/edit", () => {
     mocks.auth.mockResolvedValue(null);
     const html = await render();
     expect(html).toContain(SIGN_IN);
-    expect(html).not.toContain(PLACEHOLDER);
+    expect(html).not.toContain(EDITOR);
     expect(html).not.toContain("Sign out");
   });
 
@@ -57,14 +63,14 @@ describe("/weight-log/edit", () => {
     mocks.auth.mockResolvedValue(session("someone@example.test"));
     const html = await render();
     expect(html).toContain(SIGN_IN);
-    expect(html).not.toContain(PLACEHOLDER);
+    expect(html).not.toContain(EDITOR);
     expect(html).not.toContain("someone@example.test");
   });
 
-  it("shows the owner the placeholder and no sign-in button", async () => {
+  it("shows the owner the editor and no sign-in button", async () => {
     mocks.auth.mockResolvedValue(session("owner@example.test"));
     const html = await render();
-    expect(html).toContain(PLACEHOLDER);
+    expect(html).toContain(EDITOR);
     expect(html).toContain("Sign out");
     expect(html).not.toContain(SIGN_IN);
   });

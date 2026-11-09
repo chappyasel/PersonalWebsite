@@ -29,3 +29,28 @@ export async function loadWeightLogRecords<
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
+
+/**
+ * Read only what the owner's weekly table needs: weigh-ins, phases, and
+ * planned weeks. The three reads run in parallel on separate connections, so
+ * the page waits one round trip instead of three; the owner is the only
+ * writer, so they see one state.
+ */
+export async function loadWeekRecords<Schema extends Record<string, unknown>>(
+  db: PostgresJsDatabase<Schema>,
+): Promise<WeightLogRecords> {
+  const [weighIns, phases, plannedWeeks] = await Promise.all([
+    db.select().from(weightLogWeighIns),
+    db.select().from(weightLogPhases),
+    db.select().from(weightLogPlannedWeeks),
+  ]);
+  return {
+    weighIns,
+    phases,
+    plannedWeeks,
+    setPoints: [],
+    scans: [],
+    recollections: [],
+    strength: [],
+  };
+}

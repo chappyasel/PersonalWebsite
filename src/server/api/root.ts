@@ -3,6 +3,7 @@ import { booksRouter } from "~/server/api/routers/books";
 import { dadRouter } from "~/server/api/routers/dad";
 import { liarsdiceRouter } from "~/server/api/routers/liarsdice";
 import { postRouter } from "~/server/api/routers/post";
+import { weightLogRouter } from "~/server/api/routers/weightLog";
 import { weightliftingRouter } from "~/server/api/routers/weightlifting";
 import { youtubeRouter } from "~/server/api/routers/youtube";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
   books: booksRouter,
   dad: dadRouter,
   liarsdice: liarsdiceRouter,
+  weightLog: weightLogRouter,
   weightlifting: weightliftingRouter,
   youtube: youtubeRouter,
 });

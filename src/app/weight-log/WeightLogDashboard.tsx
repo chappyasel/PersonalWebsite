@@ -737,7 +737,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
           </p>
         </div>
         <p className="text-xs text-muted-foreground sm:self-end">
-          Last import {formatDate(log.importedAt.slice(0, 10))}
+          Updated {formatDate(log.importedAt.slice(0, 10))}
         </p>
       </header>
 

@@ -138,7 +138,7 @@ it("shows history length and import freshness at the top, with colored scan data
     />,
   );
   expect(screen.getByText(/2 weigh-ins · 8.0 years/)).toBeTruthy();
-  expect(screen.getByText(/Last import/).closest("header")).toBeTruthy();
+  expect(screen.getByText(/^Updated /).closest("header")).toBeTruthy();
   expect(screen.queryByText("Private · Read only")).toBeNull();
   expect(container.querySelector('[id$="-zoom-help"]')?.className).toBe(
     "sr-only",
