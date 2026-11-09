@@ -572,10 +572,10 @@ function Editor() {
                 aria-label={
                   shownPhase ? `Weeks of ${shownPhase.label}` : "Weeks"
                 }
-                className="w-full min-w-max border-collapse text-xs tabular-nums"
+                className="w-full min-w-max border-separate border-spacing-0 text-xs tabular-nums"
               >
                 <thead>
-                  <tr className="border-b border-neutral-200 text-muted-foreground dark:border-neutral-700">
+                  <tr className="text-muted-foreground [&>th]:border-b [&>th]:border-neutral-200 dark:[&>th]:border-neutral-700">
                     <th
                       scope="col"
                       className="sticky left-0 bg-white py-2 pl-3 pr-2 text-left font-normal dark:bg-neutral-800 sm:pl-4"
@@ -627,7 +627,9 @@ function Editor() {
                         key={row.week}
                         aria-current={current ? "date" : undefined}
                         className={cn(
-                          "border-b border-neutral-100 last:border-0 dark:border-neutral-700/60",
+                          // Borders sit on the cells: a separated table keeps them with the
+                          // sticky Week column when the row scrolls under it.
+                          "[&:last-child>*]:border-b-0 [&>*]:border-b [&>*]:border-neutral-100 dark:[&>*]:border-neutral-700/60",
                           future && "text-muted-foreground",
                           current && "font-medium",
                         )}

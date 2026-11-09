@@ -6,6 +6,13 @@ import { isOwnerEmail, isOwnerSignInConfigured } from "~/server/owner";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 
 import { WeightLogEditor } from "./WeightLogEditor";
 import { signInWithGoogle, signOutOwner } from "./actions";
@@ -72,25 +79,37 @@ export default async function WeightLogEditPage({
   const error = signInError((await searchParams).error);
 
   return (
-    <div className="mx-auto max-w-lg py-24">
-      <h1 className="font-rounded text-3xl font-semibold">Weight Log</h1>
-      {error ? (
-        <p role="alert" className="mt-4 text-muted-foreground">
-          {error}
-        </p>
-      ) : null}
-      {isOwnerSignInConfigured() ? (
-        <form action={signInWithGoogle} className="mt-6">
-          <Button type="submit">
-            <GoogleLogo aria-hidden />
-            Sign in with Google
-          </Button>
-        </form>
-      ) : (
-        <p role="status" className="mt-4 text-muted-foreground">
-          Sign-in isn&apos;t available on this deployment.
-        </p>
-      )}
+    <div className="flex min-h-[70svh] items-center justify-center px-4 py-12">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="items-center text-center">
+          <CardTitle className="font-rounded text-2xl">
+            <h1>Weight Log</h1>
+          </CardTitle>
+          <CardDescription>Sign in to add weigh-ins.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {error ? (
+            <p role="alert" className="text-center text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+          {isOwnerSignInConfigured() ? (
+            <form action={signInWithGoogle}>
+              <Button type="submit" className="w-full">
+                <GoogleLogo aria-hidden weight="bold" />
+                Sign in with Google
+              </Button>
+            </form>
+          ) : (
+            <p
+              role="status"
+              className="text-center text-sm text-muted-foreground"
+            >
+              Sign-in isn&apos;t available on this deployment.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
