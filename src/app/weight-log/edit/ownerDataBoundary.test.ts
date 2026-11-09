@@ -153,17 +153,15 @@ function boundaryViolations(fileName: string, text: string) {
 }
 
 function sourceFiles(directory: string): string[] {
-  return fs
-    .readdirSync(directory, { withFileTypes: true })
-    .flatMap((entry) => {
-      const full = path.join(directory, entry.name);
-      if (entry.isDirectory()) return sourceFiles(full);
-      if (!/\.(c|m)?(t|j)sx?$/.test(entry.name)) return [];
-      // Tests run in vitest, not on the page, and this one quotes the
-      // forbidden imports on purpose.
-      if (/\.test\.(c|m)?(t|j)sx?$/.test(entry.name)) return [];
-      return [full];
-    });
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(directory, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    if (!/\.(c|m)?(t|j)sx?$/.test(entry.name)) return [];
+    // Tests run in vitest, not on the page, and this one quotes the
+    // forbidden imports on purpose.
+    if (/\.test\.(c|m)?(t|j)sx?$/.test(entry.name)) return [];
+    return [full];
+  });
 }
 
 describe("/weight-log/edit reads owner data only through tRPC", () => {
