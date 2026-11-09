@@ -67,18 +67,32 @@ function usesOwnerProcedure(procedure: Procedure) {
   );
 }
 
+/** A segment that reads as the Weight Log router under another spelling,
+ * such as `weight_log` or `WeightLogs`. `weightlifting` does not match. */
+const MISSPELLED_ROUTER_KEY = /^weight[-_]?log/i;
+
+/** Every router segment of a path: all but the procedure name. A Weight Log
+ * router can sit at any depth, so the checks look at each one. */
+function routerSegments(path: string) {
+  return path.split(".").slice(0, -1);
+}
+
 function ownerOnlyViolations(
   router: AnyRouter,
   publicQueries: ReadonlySet<string> = PUBLIC_WEIGHT_LOG_QUERIES,
 ) {
   return proceduresOf(router).flatMap(([path, procedure]) => {
-    const [routerKey] = path.split(".");
+    const segments = routerSegments(path);
     // A Weight Log router mounted under another spelling would dodge the
-    // prefix check below.
-    if (routerKey !== ROUTER_KEY && /^weight[-_]?log/i.test(routerKey ?? "")) {
-      return [`${path} is mounted at "${routerKey}", not "${ROUTER_KEY}"`];
+    // exact-key check below.
+    const misspelled = segments.find(
+      (segment) =>
+        segment !== ROUTER_KEY && MISSPELLED_ROUTER_KEY.test(segment),
+    );
+    if (misspelled) {
+      return [`${path} is mounted at "${misspelled}", not "${ROUTER_KEY}"`];
     }
-    if (routerKey !== ROUTER_KEY) return [];
+    if (!segments.includes(ROUTER_KEY)) return [];
     const { type } = procedure._def;
     if (type === "query" && publicQueries.has(path)) return [];
     if (usesOwnerProcedure(procedure)) return [];
@@ -91,7 +105,7 @@ function weightLogPaths(router: AnyRouter) {
     .map(([path]) => path)
     .filter(
       (path) =>
-        path.startsWith(`${ROUTER_KEY}.`) &&
+        routerSegments(path).includes(ROUTER_KEY) &&
         !PUBLIC_WEIGHT_LOG_QUERIES.has(path),
     );
 }
@@ -146,6 +160,12 @@ const leakyRouter = createTRPCRouter({
     phases: ownerProcedure.query(anything),
   }),
   weight_log: createTRPCRouter({ weighIns: ownerProcedure.query(anything) }),
+  admin: createTRPCRouter({
+    weightLog: createTRPCRouter({
+      exportCsv: publicProcedure.query(anything),
+    }),
+    weight_log: createTRPCRouter({ phases: ownerProcedure.query(anything) }),
+  }),
 });
 
 const guardedRouter = createTRPCRouter({
@@ -156,6 +176,12 @@ const guardedRouter = createTRPCRouter({
     weekTable: ownerProcedure.query(anything),
   }),
   weightlifting: createTRPCRouter({ stats: publicProcedure.query(anything) }),
+  admin: createTRPCRouter({
+    weightLog: createTRPCRouter({ exportCsv: ownerProcedure.query(anything) }),
+    weightlifting: createTRPCRouter({
+      stats: publicProcedure.query(anything),
+    }),
+  }),
 });
 
 beforeAll(() => {
@@ -189,6 +215,8 @@ describe("weightLog procedures are owner-only", () => {
       "weightLog.deleteWeighIn (mutation) does not use ownerProcedure",
       "weightLog.weekTable (query) does not use ownerProcedure",
       'weight_log.weighIns is mounted at "weight_log", not "weightLog"',
+      "admin.weightLog.exportCsv (query) does not use ownerProcedure",
+      'admin.weight_log.phases is mounted at "weight_log", not "weightLog"',
     ]);
   });
 
@@ -198,13 +226,19 @@ describe("weightLog procedures are owner-only", () => {
       "weightLog.upsertWeighIn (mutation) does not use ownerProcedure",
       "weightLog.deleteWeighIn (mutation) does not use ownerProcedure",
       'weight_log.weighIns is mounted at "weight_log", not "weightLog"',
+      "admin.weightLog.exportCsv (query) does not use ownerProcedure",
+      'admin.weight_log.phases is mounted at "weight_log", not "weightLog"',
     ]);
   });
 
   it("passes a router built on ownerProcedure, and its procedures refuse strangers", async () => {
     expect(ownerOnlyViolations(guardedRouter)).toEqual([]);
     const paths = weightLogPaths(guardedRouter);
-    expect(paths).toEqual(["weightLog.upsertWeighIn", "weightLog.weekTable"]);
+    expect(paths).toEqual([
+      "weightLog.upsertWeighIn",
+      "weightLog.weekTable",
+      "admin.weightLog.exportCsv",
+    ]);
     expect(await refusalCodes(guardedRouter, paths, null)).toEqual(
       paths.map((path) => ({ path, code: "UNAUTHORIZED" })),
     );
