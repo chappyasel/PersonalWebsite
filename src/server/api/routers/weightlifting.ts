@@ -12,7 +12,7 @@ import { getWldLastModified } from "~/lib/weightlifting/s3";
 import { syncWeightlifting } from "~/lib/weightlifting/sync";
 import {
   createTRPCRouter,
-  protectedProcedure,
+  ownerProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { db } from "~/server/db";
@@ -583,7 +583,7 @@ export const weightliftingRouter = createTRPCRouter({
   }),
 
   /** Manual sync trigger */
-  triggerSync: protectedProcedure.mutation(async () => {
+  triggerSync: ownerProcedure.mutation(async () => {
     const result = await syncWeightlifting("manual");
     revalidateTag(WEIGHTLIFTING_TAG, "max");
     revalidateTag(WEIGHTLIFTING_ACTIVITY_TAG, "max");

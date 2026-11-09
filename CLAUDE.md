@@ -141,7 +141,7 @@ pnpm db:migrate:prod  # Run migrations on production database
 - **tRPC Setup**: Uses v11 RC with React Query integration, batch streaming, and development timing middleware
 - **API Routes**: All new API endpoints MUST be created as tRPC routers in `/src/server/api/routers/`
   - Do NOT create new REST endpoints in `/src/app/api/` (except webhooks or third-party integrations)
-  - Use `publicProcedure` for unauthenticated endpoints, `protectedProcedure` for authenticated
+  - Use `publicProcedure` for unauthenticated endpoints and `ownerProcedure` for the owner's Google session (`OWNER_EMAIL`, signed in at `/weight-log/edit`). Dad's Journal and YouTube use `cookieProtectedProcedure` (ADR 0003)
   - Use `.query()` for GET-like operations (cacheable), `.mutation()` for POST/PUT/DELETE
   - Register new routers in `/src/server/api/root.ts`
 

@@ -51,6 +51,16 @@ export const env = createEnv({
     BOOKING_PROXY_SECRET: z.string().optional(),
     /** Optional in development. Production refuses to book without it. */
     TURNSTILE_SECRET_KEY: z.string().optional(),
+    /** Google sign-in for the owner's pages. All three are set in Vercel
+     * Production only. Without all three, the Google provider is left out
+     * and `/weight-log/edit` says sign-in is unavailable. */
+    AUTH_GOOGLE_ID: z.string().optional(),
+    AUTH_GOOGLE_SECRET: z.string().optional(),
+    /** The one Google address that may sign in (`signIn` callback) and use
+     * `ownerProcedure`. Compared trimmed and case-blind. Never commit it.
+     * A plain string, so a malformed value refuses sign-in instead of
+     * failing the production build. */
+    OWNER_EMAIL: z.string().optional(),
   },
 
   /**
@@ -92,6 +102,9 @@ export const env = createEnv({
     DAYBREAK_BOOKING_URL: process.env.DAYBREAK_BOOKING_URL,
     BOOKING_PROXY_SECRET: process.env.BOOKING_PROXY_SECRET,
     TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+    AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
+    AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+    OWNER_EMAIL: process.env.OWNER_EMAIL,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
