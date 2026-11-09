@@ -60,6 +60,13 @@ export class PlanEditError extends Error {
   }
 }
 
+/**
+ * The transaction-scoped advisory lock every plan and set point edit takes
+ * first, so they run one at a time. A real import takes it before its table
+ * lock, so an import and an edit never hold locks the other waits for.
+ */
+export const PLAN_LOCK = 0x574c50;
+
 /** The longest plan the page writes, about three years. */
 export const MAX_PLAN_WEEKS = 156;
 /** The largest weekly change a plan may ask for, in pounds. */
