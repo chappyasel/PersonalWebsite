@@ -1,13 +1,17 @@
-// Prove the imported Weight Log tables match the old encrypted snapshot.
+// Prove the imported Weight Log tables match the workbook the import read.
 //
 //   node --env-file=.env --import tsx scripts/weight-log/parity.ts \
-//     --snapshot data/weight-log/snapshot.enc --workbook "$WEIGHT_WORKBOOK"
+//     --workbook "$WEIGHT_WORKBOOK" \
+//     --snapshot /Users/chappyasel/Desktop/Repos/PersonalWebsite/data/weight-log/snapshot.enc
 //
-// Read-only. DATABASE_URL picks the database; NEXTAUTH_SECRET decrypts the
-// snapshot in memory. It also runs import_workbook.py on --workbook to check
-// the added scan columns, which the snapshot never held. Output names dates, phases, and fields, never
-// measurements. Exits 1 when anything other than decision 26's intended
-// differences turns up.
+// Read-only. DATABASE_URL picks the database. It runs import_workbook.py on
+// --workbook, the same export the import read, and requires exact equality
+// with it. NEXTAUTH_SECRET decrypts the old snapshot in memory; the snapshot
+// supplies the historical context, which must match, and a second comparison
+// whose differences are printed but never fail the check. Pass the same
+// --exclude-sheet values the import used. Output names dates, phases, and
+// fields, never measurements. Exits 1 when anything other than decision 26's
+// intended differences turns up.
 import { loadWeightLogRecords } from "../../src/lib/weight-log/database";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { spawnSync } from "node:child_process";
@@ -21,6 +25,7 @@ const { values } = parseArgs({
   options: {
     snapshot: { type: "string" },
     workbook: { type: "string" },
+    "exclude-sheet": { type: "string", multiple: true, default: [] },
   },
 });
 
@@ -28,10 +33,10 @@ let connection: ReturnType<typeof postgres> | undefined;
 try {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("Set DATABASE_URL");
+  if (!values.workbook)
+    throw new Error("Pass --workbook with the workbook the import read");
   if (!values.snapshot)
     throw new Error("Pass --snapshot with the old snapshot");
-  if (!values.workbook)
-    throw new Error("Pass --workbook to check the added scan columns");
   console.log(`Database host (read-only): ${new URL(url).host}`);
   const snapshot = await readLegacySnapshot(
     values.snapshot,
@@ -41,7 +46,14 @@ try {
   {
     const exported = spawnSync(
       "python3",
-      ["scripts/weight-log/import_workbook.py", values.workbook],
+      [
+        "scripts/weight-log/import_workbook.py",
+        values.workbook,
+        ...values["exclude-sheet"].flatMap((sheet) => [
+          "--exclude-sheet",
+          sheet,
+        ]),
+      ],
       { encoding: "utf8", maxBuffer: 5_000_000 },
     );
     if (exported.status !== 0)
@@ -50,7 +62,7 @@ try {
   }
   connection = postgres(url, { max: 1, connect_timeout: 15 });
   const records = await loadWeightLogRecords(drizzle(connection));
-  const report = compareParity({ snapshot, records, workbook });
+  const report = compareParity({ workbook, snapshot, records });
 
   console.log(
     Object.entries(report.counts)
@@ -61,23 +73,26 @@ try {
     ["Trimmed weeks", report.intended.trimmedWeeks],
     ["Derived phase names", report.intended.derivedPhaseNames],
     ["Removed other kind", report.intended.removedOtherKind],
-    [
-      `Added scan columns${workbook ? " (checked against the workbook)" : ""}`,
-      report.intended.addedScanColumns,
-    ],
+    ["Added scan columns", report.intended.addedScanColumns],
   ] as const;
   console.log("\nIntended differences (decision 26):");
   for (const [name, items] of sections) {
     console.log(`- ${name}: ${items.length}`);
     for (const item of items) console.log(`    ${item}`);
   }
-  console.log(`\nUnexpected differences: ${report.unexpected.length}`);
+  console.log(
+    `\nDifferences from the old snapshot (informational, never fail): ${report.snapshot.length}`,
+  );
+  for (const item of report.snapshot) console.log(`  ${item}`);
+  console.log(
+    `\nUnexpected differences from the workbook export and historical context: ${report.unexpected.length}`,
+  );
   for (const item of report.unexpected) console.log(`  ${item}`);
   if (report.unexpected.length) process.exitCode = 1;
 } catch (error) {
   const message = error instanceof Error ? error.message : "";
   console.error(
-    /^(Set DATABASE_URL|Pass --snapshot|Workbook export|Decrypting|Invalid encrypted|Input too large)/.test(
+    /^(Set DATABASE_URL|Pass --snapshot|Pass --workbook|Workbook export|Decrypting|Invalid encrypted|Input too large)/.test(
       message,
     )
       ? message

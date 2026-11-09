@@ -148,3 +148,32 @@ export function planImport(
   }
   return plan;
 }
+
+/**
+ * Dates of weigh-ins the database holds that the workbook export lacks or
+ * records with different pounds. After cutover these are site entries, and
+ * the workbook no longer has them (decision 27).
+ */
+export function findSiteEntries(
+  existing: { date: string; pounds: number }[],
+  exported: ImportPlan["weighIns"],
+) {
+  const fromWorkbook = new Map(exported.map((row) => [row.date, row.pounds]));
+  return existing
+    .filter((row) => fromWorkbook.get(row.date) !== row.pounds)
+    .map((row) => row.date)
+    .sort();
+}
+
+/**
+ * Why `--replace` must not run, or null when it may. It refuses to delete
+ * site entries unless the operator also passes `--discard-site-entries`. The
+ * message names counts and dates, never pounds.
+ */
+export function replaceRefusal(siteEntries: string[], discard: boolean) {
+  if (!siteEntries.length || discard) return null;
+  const shown = siteEntries.slice(0, 20).join(", ");
+  const more =
+    siteEntries.length > 20 ? `, and ${siteEntries.length - 20} more` : "";
+  return `Refusing to replace: the database holds ${siteEntries.length} weigh-in${siteEntries.length === 1 ? "" : "s"} that the workbook lacks or records differently, likely entered on the site (${shown}${more}). The workbook cannot restore them. Pass --discard-site-entries as well to delete them.`;
+}
