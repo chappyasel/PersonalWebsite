@@ -46,13 +46,18 @@ vi.mock("~/trpc/react", () => {
   return {
     api: {
       useUtils: () => ({
-        weightLog: { weekTable: { invalidate: () => Promise.resolve() } },
+        weightLog: {
+          phases: { invalidate: () => Promise.resolve() },
+          weekTable: { invalidate: () => Promise.resolve() },
+          setPoints: { invalidate: () => Promise.resolve() },
+        },
       }),
       weightLog: {
         phases: {
           useQuery: () => ({
             data: {
               currentId: "1",
+              runningId: "1",
               phases: [
                 {
                   id: "1",
@@ -76,6 +81,14 @@ vi.mock("~/trpc/react", () => {
         },
         upsertWeighIn: { useMutation: mutation(mocks.upsert) },
         deleteWeighIn: { useMutation: mutation(vi.fn()) },
+        // The plan and set point forms have their own tests (PlanEditor.test.tsx).
+        changeRate: { useMutation: mutation(vi.fn()) },
+        moveEnd: { useMutation: mutation(vi.fn()) },
+        startPhase: { useMutation: mutation(vi.fn()) },
+        setPoints: {
+          useQuery: () => ({ data: [], isError: false, isFetching: false }),
+        },
+        saveSetPoints: { useMutation: mutation(vi.fn()) },
       },
     },
   };

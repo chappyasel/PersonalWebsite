@@ -41,6 +41,8 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import { PlanEditor, SetPointsEditor } from "./PlanEditor";
+
 type Phase = RouterOutputs["weightLog"]["phases"]["phases"][number];
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -186,7 +188,8 @@ const subscribeNever = () => () => undefined;
 
 /**
  * The owner's Weight Log editor: a weigh-in form, the week around its date
- * for corrections, and the weekly table. Everything reads and writes through
+ * for corrections, the weekly table, the running phase's plan, and the set
+ * points. Everything reads and writes through
  * `api.weightLog.*`, which is owner-only.
  *
  * "Today" is the device's date, which the server cannot know, so the editor
@@ -736,6 +739,9 @@ function Editor() {
             </div>
           )}
         </CollapsibleSection>
+
+        <PlanEditor today={today} />
+        <SetPointsEditor />
       </div>
     </TooltipProvider>
   );
