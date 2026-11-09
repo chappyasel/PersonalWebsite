@@ -78,7 +78,7 @@ ENC=/Users/chappyasel/Desktop/Repos/PersonalWebsite/data/weight-log
      --workbook "$WEIGHT_WORKBOOK" --snapshot "$ENC/snapshot.enc"
    ```
 5. Once the site holds an entry, never revert the cutover PR. A revert brings back the S3 reader, which shows the last snapshot without the site's entries, and nothing refreshes it once the Hermes job is off. Roll forward with a fix, or use Neon point-in-time restore.
-6. Once cutover passes, delete the cutover scripts in a follow-up PR: `import.ts`, `import-plan.ts`, `parity.ts`, `parity-check.ts`, `pending-migrations.ts`, `sources.ts`, and their tests. Keep `import_workbook.py`, which the DEXA image refresh below still uses. Also delete the main checkout's `data/weight-log` folder, the S3 snapshot object, and the Neon branch `weight-log-import-test`.
+6. Once cutover passes, delete the cutover scripts in a follow-up PR: `import.ts`, `import-database.ts`, `import-plan.ts`, `parity.ts`, `parity-check.ts`, `pending-migrations.ts`, `sources.ts`, and their tests. Keep `import_workbook.py`, which the DEXA image refresh below still uses. Also delete the main checkout's `data/weight-log` folder, the S3 snapshot object, and the Neon branch `weight-log-import-test`.
 
 ### Refreshing the training-room DEXA image
 
