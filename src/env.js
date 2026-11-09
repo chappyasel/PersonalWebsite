@@ -64,8 +64,9 @@ export const env = createEnv({
     /** The bearer token the owner's Apple Health Shortcuts send to
      * `/api/weight-log/mirror`, and nothing else. Set in Vercel Production
      * and pasted into the Shortcuts. Without it the route refuses every
-     * request. */
-    WEIGHT_LOG_MIRROR_TOKEN: z.string().optional(),
+     * request. At least 32 characters, so a short or mistyped value fails
+     * the build instead of guarding the route weakly. */
+    WEIGHT_LOG_MIRROR_TOKEN: z.string().min(32).optional(),
   },
 
   /**
