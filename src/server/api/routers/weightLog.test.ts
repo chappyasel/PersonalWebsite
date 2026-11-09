@@ -181,6 +181,7 @@ describe("weightLog.phases", () => {
     seed();
     await expect(caller.phases()).resolves.toEqual({
       currentId: "2",
+      runningId: "2",
       phases: [
         {
           id: "2",
