@@ -105,7 +105,7 @@ describe("YouTube tRPC procedures", () => {
     const outcomes = await settle(youtubeAccessToken("correct-password"));
 
     for (const { name, result } of outcomes) {
-      // triggerSync also needs a signed-in NextAuth session.
+      // triggerSync also needs the owner's Google session (ownerProcedure).
       if (name === "triggerSync") continue;
       expect({ name, code: errorCode(result) }).not.toEqual({
         name,

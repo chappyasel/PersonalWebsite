@@ -15,7 +15,7 @@ import { getBookWithNotes } from "~/lib/books/ogDataAccess";
 import { syncBooksFromNotion } from "~/lib/books/sync";
 import {
   createTRPCRouter,
-  protectedProcedure,
+  ownerProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { db } from "~/server/db";
@@ -160,9 +160,9 @@ export const booksRouter = createTRPCRouter({
   getTags: publicProcedure.query(getBookTags),
 
   /**
-   * Manual sync trigger (protected - require authentication)
+   * Manual sync trigger (owner only)
    */
-  triggerSync: protectedProcedure.mutation(async () => {
+  triggerSync: ownerProcedure.mutation(async () => {
     const result = await syncBooksFromNotion("manual", async (bookIds) => {
       await refreshBookCachesAfterSync(
         {
