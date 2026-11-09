@@ -524,6 +524,9 @@ function StartForm({
     phaseId: string | null;
     revision: string;
   } | null>(null);
+  // Our own start changes the revision too. Between the save and the
+  // refetch, the form waits instead of reporting the change as another tab's.
+  const [landing, setLanding] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const refresh = useRefreshPlan();
   const mutation = api.weightLog.startPhase.useMutation();
@@ -576,7 +579,7 @@ function StartForm({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!valid || !lastWeek || mutation.isPending) return;
+    if (!valid || !lastWeek || mutation.isPending || landing) return;
     if (current && !confirming) {
       setConfirmed({ phaseId: currentId, revision });
       setStatus(null);
@@ -595,12 +598,15 @@ function StartForm({
         revision: confirmed?.revision ?? revision,
       },
       {
-        onSuccess: () =>
+        onSuccess: () => {
+          setConfirmed(null);
+          setLanding(true);
           void refresh().then(() => {
+            setLanding(false);
             setOpen(false);
-            setConfirmed(null);
             setStatus(`Started ${name}.`);
-          }),
+          });
+        },
         onError: (error) => {
           if (isConflict(error)) void refresh();
           setConfirmed(null);
@@ -710,7 +716,7 @@ function StartForm({
         <Button
           type="submit"
           variant={confirming ? "destructive" : "default"}
-          disabled={!valid || mutation.isPending}
+          disabled={!valid || mutation.isPending || landing}
         >
           {confirming ? "Start phase" : "Start"}
         </Button>

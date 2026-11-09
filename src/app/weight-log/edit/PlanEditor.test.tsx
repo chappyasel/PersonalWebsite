@@ -347,12 +347,27 @@ describe("start a phase", () => {
       mocks.weeksLoading = true;
       return options.onSuccess?.();
     });
-    render(<PlanEditor today="2030-02-06" />);
+    // The refetch lands before the invalidation settles.
+    let settle: () => void = () => undefined;
+    const refetching = new Promise<void>((resolve) => (settle = resolve));
+    mocks.invalidate
+      .mockImplementationOnce(() => refetching)
+      .mockImplementationOnce(() => refetching);
+    const { rerender } = render(<PlanEditor today="2030-02-06" />);
     fireEvent.click(button("Start a phase"));
     type("Starting target", "101.2", START);
     type("Weeks", "8", START);
     fireEvent.click(button("Start"));
     fireEvent.click(button("Start phase"));
+
+    // The refetch brings the plan this start wrote. That is not another
+    // tab's change, so the page doesn't say so.
+    mocks.phases = { ...mocks.phases, revision: "rev-2" };
+    rerender(<PlanEditor today="2030-02-06" />);
+    expect(
+      screen.queryByText(/The plan changed while you were confirming/),
+    ).toBeNull();
+    settle();
     expect(
       await screen.findByText("Started Maintain Feb '30 - Apr '30."),
     ).toBeTruthy();
