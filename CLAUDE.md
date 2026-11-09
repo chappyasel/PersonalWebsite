@@ -165,6 +165,19 @@ Schema changes workflow:
 - SF Pro Display font (via Geist package) for sans-serif, Georgia for serif
 - Body text uses serif font (font-serif class)
 
+## Build wave
+
+- Plans live in `docs/plans/<topic>.md`, and each build review lives beside its
+  plan as `docs/plans/<topic>-build-review.md`.
+- Devin reviews every PR automatically, and the lead answers each finding
+  before merge. The deep review is Codex, then a fresh Claude reviewer.
+- A slice waits for the deep review when it touches access control, database
+  migrations or imports, or writes to an outside service. Otherwise it is
+  on-screen.
+- Work lands as a squash-merged PR. Merging to `main` deploys production
+  through Vercel, so merge only when the owner says to, even during Phase 2.
+- UI checks run on the worker Mac and are shown to the owner on a ParaDev page.
+
 ## Development Philosophy
 
 - Worry minimally about backwards compatibility since this is a web app for our internal team

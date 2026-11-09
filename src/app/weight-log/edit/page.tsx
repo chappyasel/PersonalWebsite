@@ -1,7 +1,9 @@
-import { GoogleLogo, SignOut } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, GoogleLogo, SignOut } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
 
 import { auth } from "~/server/auth";
 import { isOwnerEmail, isOwnerSignInConfigured } from "~/server/owner";
+import { TRPCReactProvider } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -12,6 +14,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 
+import { WeightLogEditor } from "./WeightLogEditor";
 import { signInWithGoogle, signOutOwner } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -42,17 +45,33 @@ export default async function WeightLogEditPage({
 
   if (isOwnerEmail(session?.user?.email)) {
     return (
-      <div className="mx-auto max-w-lg py-24">
-        <h1 className="font-rounded text-3xl font-semibold">Weight Log</h1>
-        <p className="mt-4 text-muted-foreground">
-          Signed in. Weigh-in entry arrives with the cutover.
-        </p>
-        <form action={signOutOwner} className="mt-6">
-          <Button type="submit" variant="outline">
-            <SignOut aria-hidden />
-            Sign out
-          </Button>
-        </form>
+      <div className="flex min-w-0 flex-col gap-6 pb-12">
+        <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3">
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight md:text-2xl">
+            <Link
+              href="/weight-log"
+              prefetch={false}
+              aria-label="Weight Log chart"
+              className="group flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <ArrowLeft
+                aria-hidden
+                weight="bold"
+                className="h-6 w-6 shrink-0 transition-transform group-hover:-translate-x-0.5 motion-reduce:transition-none"
+              />
+              <span className="truncate font-rounded">Weight Log</span>
+            </Link>
+          </h1>
+          <form action={signOutOwner}>
+            <Button type="submit" variant="ghost" size="sm">
+              <SignOut aria-hidden />
+              Sign out
+            </Button>
+          </form>
+        </header>
+        <TRPCReactProvider>
+          <WeightLogEditor />
+        </TRPCReactProvider>
       </div>
     );
   }

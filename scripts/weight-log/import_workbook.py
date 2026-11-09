@@ -21,6 +21,66 @@ def number(value):
         return None
 
 
+def finite(value):
+    try:
+        result = float(value)
+        return result if math.isfinite(result) else None
+    except (ValueError, TypeError):
+        return None
+
+
+# The BF% sheet's regional DEXA panel: one column per scan date, rows labelled
+# by section (column A) and measurement (column B). Derived rows (BF%, Z %) are skipped.
+REGIONAL_ROWS = {
+    **{(section, label): f"{section}{suffix}"
+       for section in ("arms", "legs", "trunk", "android", "gynoid")
+       for label, suffix in (("Fat", "Fat"), ("Lean", "Lean"), ("BMC", "BoneMineralContent"))},
+    ("bmd", "BMD"): "boneMineralDensity",
+    ("bmd", "T-Score"): "tScore",
+    ("bmd", "Z-Score"): "zScore",
+    ("other", "A/G"): "androidGynoidRatio",
+    ("other", "Visceral"): "visceralFat",
+}
+REGIONAL_FIELDS = tuple(REGIONAL_ROWS.values())
+DERIVED_ROWS = {"BF%", "Z %"}
+
+
+def column_number(letters):
+    result = 0
+    for letter in letters:
+        result = result * 26 + ord(letter) - ord("A") + 1
+    return result
+
+
+def add_regional_panel(cells, header, date, scans):
+    by_date = {scan["date"]: scan for scan in scans}
+    columns = {}
+    for ref in cells:
+        letters = ref.rstrip("0123456789")
+        if ref[len(letters):] == str(header) and column_number(letters) >= 3:
+            day = date(cells[ref])
+            if day is not None:
+                if day.isoformat() not in by_date:
+                    raise ValueError("A regional DEXA column has no matching total-body scan")
+                columns[letters] = by_date[day.isoformat()]
+    section = None
+    for row in range(header + 1, header + 60):
+        heading = cells.get(f"A{row}")
+        if heading == "Fit3D":
+            break
+        if heading:
+            section = heading.split("\n")[0].strip().lower()
+        label = (cells.get(f"B{row}") or "").strip()
+        if not label or label in DERIVED_ROWS:
+            continue
+        field = REGIONAL_ROWS.get((section, label))
+        if field is None:
+            raise ValueError("Unrecognized regional DEXA row; review the BF% sheet before import")
+        # Zero is a reading here (visceral fat can be zero), and T- and Z-scores can be negative.
+        for letters, scan in columns.items():
+            scan[field] = finite(cells.get(f"{letters}{row}"))
+
+
 def trimmed_mean(values):
     valid = sorted(v for v in values if v is not None)
     if len(valid) >= 3:
@@ -112,18 +172,27 @@ def extract(path, excluded_sheets=()):
                                    "end": (dt.date.fromisoformat(phase_weeks[-1]["date"]) + dt.timedelta(days=6)).isoformat()})
                     weeks.extend(phase_weeks)
             elif name == "BF%":
-                # Only total-body DEXA rows. Other methods and regional values are separate datasets.
+                # DEXA rows only. Fit3D, tape measurements, and SizeStream stay in the archive.
+                regional_header = None
                 for row in range(3, 50):
                     if cells.get(f"A{row}") == "DEXA":
+                        regional_header = row
                         break
                     day = date(cells.get(f"A{row}"))
                     weight = number(cells.get(f"B{row}"))
                     if day and weight:
                         body_fat = number(cells.get(f"F{row}"))
-                        scans.append({"date": day.isoformat(), "weight": weight,
-                                      "leanMass": number(cells.get(f"C{row}")),
-                                      "fatMass": number(cells.get(f"D{row}")),
-                                      "bodyFatPercent": body_fat * 100 if body_fat is not None else None})
+                        note = (cells.get(f"N{row}") or "").strip()
+                        scan = {"date": day.isoformat(), "weight": weight,
+                                "leanMass": number(cells.get(f"C{row}")),
+                                "fatMass": number(cells.get(f"D{row}")),
+                                "bodyFatPercent": body_fat * 100 if body_fat is not None else None,
+                                "boneMineralContent": number(cells.get(f"E{row}")),
+                                "conditions": note or None}
+                        scan.update({field: None for field in REGIONAL_FIELDS})
+                        scans.append(scan)
+                if regional_header is not None:
+                    add_regional_panel(cells, regional_header, date, scans)
     if not seen or mismatches:
         raise ValueError("Import failed: no weigh-ins or weekly averages differ from Excel")
     result = {"version": 1, "importedAt": dt.datetime.now(dt.timezone.utc).isoformat(),

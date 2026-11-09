@@ -49,7 +49,7 @@ const log: WeightLog = {
   phases: [
     {
       id: "test",
-      label: "Test",
+      label: "Cut Jan '20 - Jan '20",
       kind: "cut",
       start: "2020-01-06",
       end: "2020-01-19",
@@ -131,7 +131,7 @@ it("shows history length and import freshness at the top, with colored scan data
     />,
   );
   expect(screen.getByText(/2 weigh-ins · 8.0 years/)).toBeTruthy();
-  expect(screen.getByText(/Last import/).closest("header")).toBeTruthy();
+  expect(screen.getByText(/^Updated /).closest("header")).toBeTruthy();
   expect(screen.queryByText("Private · Read only")).toBeNull();
   expect(container.querySelector('[id$="-zoom-help"]')?.className).toBe(
     "sr-only",
@@ -169,7 +169,9 @@ it("keeps filters inside the bodyweight chart and leaves DEXA history unchanged 
   const table = screen.getByRole("table", { name: "DEXA scan measurements" });
   expect(within(table).getAllByRole("row")).toHaveLength(4);
   fireEvent.keyDown(phase, { key: "Enter" });
-  fireEvent.click(screen.getByRole("option", { name: "Cut · Test" }));
+  fireEvent.click(
+    screen.getByRole("option", { name: "Cut Jan '20 - Jan '20" }),
+  );
   await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
   await waitFor(() =>
     expect(within(table).getAllByRole("row")).toHaveLength(4),

@@ -35,7 +35,6 @@ const config = {
   },
   outputFileTracingExcludes: {
     "/*": [
-      "./data/weight-log/**/*",
       "./data/personality-prototype/**/*",
       "./data/personalities/**/*",
       "./**/*.xlsx",

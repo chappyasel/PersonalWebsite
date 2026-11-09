@@ -10,62 +10,37 @@ Exercise display names come directly from the existing taxonomy. Every variation
 
 Lifting attempts come from `wl_sets`, joined to `wl_exercises` and `wl_workouts`. The existing weightlifting sync remains responsible for importing the phone backup. A repeatable-read, read-only transaction reads all positive 1RMe sets for the requested `reps_weight` variation and its sync timestamp. It uses the site's Pacific reporting dates, stored as UTC calendar fields. It never selects only session maxima, PRs, or sets above the display floor. Missing reps or lifted weight do not remove an otherwise valid 1RMe attempt.
 
-The lifting tables contain no bodyweight column. Bodyweight already has production storage: `getWeightLog()` reads the encrypted Weight Log snapshot from private S3 storage in production and an ignored encrypted snapshot in development. The Pareto estimator extracts only actual daily cells from its weekly rows. Weekly averages, targets, scans, phase names, and historical recollections never enter the analysis payload.
+The lifting tables contain no bodyweight column. Bodyweight comes from the Weight Log: `getWeightLog()` reads the `weight_log_` tables in the same database. The Pareto estimator extracts only actual daily cells from its weekly rows. Weekly averages, targets, scans, phase names, and historical recollections never enter the analysis payload.
 
 `weightlifting.getBodyweightPareto` is a public tRPC query. The server returns dates, recorded lifting metrics, estimated bodyweights, estimate provenance, frontier membership, counts, and source timestamps. It does not return workout identifiers, names, comments, source files, storage keys, credentials, or daily weigh-in arrays. The chart masks its measurements from PostHog DOM capture and keeps controls in component state. Provider errors become a generic unavailable state with Retry.
 
-The query caches each exact exercise display name for five minutes and shares the existing weightlifting invalidation tag. A lifting sync invalidates it. A bodyweight upload becomes visible on a subsequent request after cache expiry; the first expired read can serve the previous result while Next.js refreshes it. The displayed analysis timestamp identifies that generation. The browser query also has a five-minute stale time and refetches through normal query mount/focus behavior.
+The query caches each exact exercise display name for five minutes and shares the existing weightlifting invalidation tag. A lifting sync invalidates it. A new weigh-in becomes visible on a subsequent request after cache expiry; the first expired read can serve the previous result while Next.js refreshes it. The displayed analysis timestamp identifies that generation. The browser query also has a five-minute stale time and refetches through normal query mount/focus behavior.
 
-Server failures log `[weightlifting-pareto]` with a fixed stage of `weight_log`, `lifting`, or `analysis`, and a safe reason such as `snapshot_missing`, `access_denied`, or `snapshot_invalid`. Unknown source failures use `source_failed`; analysis failures use `analysis_failed`. Logs omit raw exceptions, provider messages, query inputs, and measurements. The public error stays generic. If a local snapshot is missing, run `pnpm restore:weight-log`; Superset workspace setup also restores it automatically. See [local setup](weight-log.md#local-workspace-setup).
+Server failures log `[weightlifting-pareto]` with a fixed stage of `weight_log`, `lifting`, or `analysis`, and a safe reason. A Weight Log row the DTO schema rejects logs `data_invalid`; other source failures, such as a database error, log `source_failed`; analysis failures log `analysis_failed`. Logs omit raw exceptions, provider messages, query inputs, and measurements. The public error stays generic.
 
 ## Refresh command
 
-From this workspace, with the existing server environment in `.env` and `WEIGHT_WORKBOOK` pointing to the workbook outside the repository:
-
-```sh
-pnpm refresh:lifting-pareto --workbook "$WEIGHT_WORKBOOK" --check-reference
-```
-
-This validates the workbook with the existing Python importer, pipes its JSON into the existing encryptor without displaying measurements, reads the current lifting database, discovers every exercise with positive recorded 1RMe and regenerates all of their payloads, verifies each frontier against an independent pairwise dominance calculation, and checks that there are zero unestimated valid attempts. It atomically replaces an encrypted analysis artifact at `data/weight-log/pareto.enc` and verifies decrypted readback. No database writes, sync mutations, uploads, or deployments occur.
-
-The encrypted analysis artifact is an audit output. The website regenerates the same DTO from its runtime sources; it does not depend on a developer's generated file. Both encrypted files are already excluded from Git, Vercel uploads, and Next.js local-data tracing. Repeating the command replaces the snapshot instead of appending records. Analysis results are deterministic for unchanged source contents; refresh timestamps and encryption nonces change.
-
-`--check-reference` is an optional regression against the supplied September 12, 2026 sources. It checks the 320 × 14 bench attempt, recorded 473 1RMe, estimated bodyweight approximately 217.34 lb, and strict dominance by the January 14 343 × 11 attempt at approximately 213.29 lb with the same 1RMe. These expectations are confined to the opt-in verification command. They are never production model parameters. Later weigh-ins can legitimately revise historical smoothed estimates, so omit this historical check for future routine refreshes.
-
-Once the local encrypted Weight Log exists, regenerate and verify without reading a spreadsheet:
+From this workspace, with the server environment in `.env`:
 
 ```sh
 pnpm refresh:lifting-pareto
 ```
 
-Verify the actual production sources, including S3 rather than the local snapshot:
+This reads the Weight Log tables and the lifting tables from `DATABASE_URL`, discovers every exercise with positive recorded 1RMe, and regenerates all of their payloads. It verifies each frontier against an independent pairwise dominance calculation and checks that there are zero unestimated valid attempts. It prints only counts and verification outcomes. It writes nothing: no database writes, sync mutations, files, uploads, or deployments. Repeating it gives the same analysis contents apart from the refresh timestamp.
+
+`--check-reference` is an optional regression against the September 12, 2026 sources. It checks the 320 × 14 bench attempt, recorded 473 1RMe, estimated bodyweight approximately 217.34 lb, and strict dominance by the January 14 343 × 11 attempt at approximately 213.29 lb with the same 1RMe. These expectations are confined to the opt-in verification command. They are never production model parameters. Later weigh-ins revise historical smoothed estimates, and by November 2026 the September 12 bodyweight no longer matches, so omit this check for routine refreshes.
+
+To run against production explicitly:
 
 ```sh
 NODE_ENV=production pnpm refresh:lifting-pareto --production
 ```
 
-Production verification writes only the local encrypted audit artifact. It needs the existing database read access, AWS read credentials, bucket configuration, and matching `NEXTAUTH_SECRET`. No new migration, credential, scheduler, or public storage object is required. `--production` rejects a workbook import.
+`--production` needs only database read access. The phone-backup sync remains independent; run it through the existing site workflow if the lifting database is behind. This command does not sync or replace the lifting tables.
 
 ### Publishing fresh weigh-ins
 
-Publishing current bodyweight uses the existing [Weight Log refresh workflow](weight-log.md#refreshing-the-snapshot). Preserve the authoritative encrypted `history-context.enc` companion before importing, so the workbook refresh retains unrelated historical recollections. An isolated checkout can restore this companion from the current production snapshot's `historicalContext`, encrypted with the same server secret. Do not overwrite that production field with an empty local copy.
-
-From the checkout holding that companion:
-
-```sh
-set -o pipefail
-python3 scripts/weight-log/import_workbook.py "$WEIGHT_WORKBOOK" \
-  | node --env-file=.env --import tsx scripts/weight-log/store.ts
-node --env-file=.env --import tsx scripts/weight-log/store.ts --upload
-```
-
-Then verify the actual production data:
-
-```sh
-NODE_ENV=production pnpm refresh:lifting-pareto --production --check-reference
-```
-
-Upload performs ciphertext readback and decryption verification. The existing phone-backup sync remains independent; run it through the existing site workflow if the lifting database is behind. This change does not sync or replace the lifting tables.
+There is no publishing step. A weigh-in entered at `/weight-log/edit` is in the database immediately, and the chart picks it up once its five-minute cache expires.
 
 ## Axes and layout
 

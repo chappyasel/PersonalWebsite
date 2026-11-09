@@ -16,15 +16,13 @@ async function analysisStep<T>(
     return await run();
   } catch (error) {
     let reason = stage === "analysis" ? "analysis_failed" : "source_failed";
-    if (stage === "weight_log" && error instanceof Error) {
-      const code = "code" in error ? error.code : error.name;
-      if (code === "ENOENT" || code === "NoSuchKey")
-        reason = "snapshot_missing";
-      else if (code === "EACCES" || code === "AccessDenied")
-        reason = "access_denied";
-      else if (error.name === "ZodError" || error instanceof SyntaxError)
-        reason = "snapshot_invalid";
-    }
+    // A Weight Log row the DTO schema rejects, as opposed to a read failure.
+    if (
+      stage === "weight_log" &&
+      error instanceof Error &&
+      error.name === "ZodError"
+    )
+      reason = "data_invalid";
     // Never log the error object, cause, provider text, query input, or measurements.
     console.error("[weightlifting-pareto]", { stage, reason });
     throw new Error("Bodyweight analysis is temporarily unavailable");

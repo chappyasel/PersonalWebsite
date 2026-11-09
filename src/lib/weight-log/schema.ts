@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PHASE_KINDS } from "./phases";
+
 const date = z.iso.date();
 const weight = z.number().positive().max(1500).nullable();
 
@@ -27,6 +29,11 @@ export type HistoricalContext = z.infer<typeof historicalContextSchema>;
 
 export const weightLogSchema = z.object({
   version: z.literal(1),
+  // Built from the tables, both are the owner's Pacific calendar date of the
+  // latest weigh-in change (records.ts), never a time of day, since this DTO
+  // reaches the public page. They stay plain strings because the cutover
+  // scripts parse the old snapshot, which holds full timestamps, with this
+  // schema (scripts/weight-log/sources.ts).
   importedAt: z.string(),
   sourceModifiedAt: z.string(),
   historicalContext: historicalContextSchema.optional(),
@@ -41,7 +48,7 @@ export const weightLogSchema = z.object({
       z.object({
         id: z.string(),
         label: z.string(),
-        kind: z.enum(["bulk", "cut", "maintenance", "other"]),
+        kind: z.enum(PHASE_KINDS),
         start: date,
         end: date,
       }),
