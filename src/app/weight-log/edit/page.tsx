@@ -38,7 +38,7 @@ export default async function WeightLogEditPage({
 
   if (isOwnerEmail(session?.user?.email)) {
     return (
-      <div className="flex flex-col gap-6 pb-12">
+      <div className="flex min-w-0 flex-col gap-6 pb-12">
         <header className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3">
           <h1 className="min-w-0 text-xl font-semibold tracking-tight md:text-2xl">
             <Link

@@ -224,7 +224,7 @@ function Editor() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="mx-auto grid w-full min-w-0 max-w-2xl grid-cols-[minmax(0,1fr)] gap-6">
         <section ref={formRef} aria-label="Weigh-in" className="scroll-mt-4">
           <CollapsibleSection
             title="Weigh-in"
@@ -232,7 +232,7 @@ function Editor() {
           >
             <form onSubmit={submit} className="flex flex-col gap-3">
               <div className="flex flex-wrap items-end gap-2">
-                <label className="flex min-w-[9.5rem] flex-1 flex-col gap-1 text-xs text-muted-foreground">
+                <label className="flex min-w-0 flex-1 basis-36 flex-col gap-1 text-xs text-muted-foreground">
                   Date
                   <Input
                     type="date"
@@ -244,7 +244,7 @@ function Editor() {
                     }}
                   />
                 </label>
-                <label className="flex w-28 flex-col gap-1 text-xs text-muted-foreground">
+                <label className="flex w-24 flex-col gap-1 text-xs text-muted-foreground">
                   Pounds
                   <Input
                     type="number"
