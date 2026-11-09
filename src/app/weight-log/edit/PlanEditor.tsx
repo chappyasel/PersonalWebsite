@@ -167,20 +167,52 @@ export function PlanEditor({ today }: { today: string }) {
     (row) => row.target !== null,
   );
 
+  // The running phase's forms wait for its weeks; Start a phase only needs
+  // the phase list. Keeping it mounted through a refetch keeps its result
+  // line on screen after a start.
+  let runningPlan: ReactNode = null;
+  if (running && weeksQuery.isError) {
+    runningPlan = (
+      <LoadFailed
+        message="The plan failed to load."
+        onRetry={() => void weeksQuery.refetch()}
+        retrying={weeksQuery.isFetching}
+      />
+    );
+  } else if (running && !weeksQuery.data) {
+    runningPlan = (
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-5 w-48" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    );
+  } else if (running && planned.length) {
+    runningPlan = (
+      <>
+        <div>
+          <p className="text-sm font-medium">{running.label}</p>
+          <p className="text-xs text-muted-foreground">
+            {weeksBetween(running.start, addDays(running.end, 1))} weeks, ending{" "}
+            {longDay(running.end)}
+          </p>
+        </div>
+        <RateForm key={`rate-${running.id}`} rows={planned} today={today} />
+        <EndForm key={`end-${running.id}`} phase={running} rows={planned} />
+      </>
+    );
+  }
+
   let body: ReactNode;
-  if (phasesQuery.isError || weeksQuery.isError) {
+  if (phasesQuery.isError) {
     body = (
       <LoadFailed
         message="The plan failed to load."
-        onRetry={() =>
-          void (phasesQuery.isError
-            ? phasesQuery.refetch()
-            : weeksQuery.refetch())
-        }
-        retrying={phasesQuery.isFetching || weeksQuery.isFetching}
+        onRetry={() => void phasesQuery.refetch()}
+        retrying={phasesQuery.isFetching}
       />
     );
-  } else if (!phasesQuery.data || (running && !weeksQuery.data)) {
+  } else if (!phasesQuery.data) {
     body = (
       <div className="flex flex-col gap-2">
         <Skeleton className="h-5 w-48" />
@@ -191,28 +223,8 @@ export function PlanEditor({ today }: { today: string }) {
   } else {
     body = (
       <div className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-700 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
-        {running && planned.length ? (
-          <>
-            <div>
-              <p className="text-sm font-medium">{running.label}</p>
-              <p className="text-xs text-muted-foreground">
-                {weeksBetween(running.start, addDays(running.end, 1))} weeks,
-                ending {longDay(running.end)}
-              </p>
-            </div>
-            <RateForm
-              key={`rate-${running.id}`}
-              rows={planned}
-              today={today}
-            />
-            <EndForm key={`end-${running.id}`} phase={running} rows={planned} />
-          </>
-        ) : null}
-        <StartForm
-          key={`start-${current?.id ?? "none"}`}
-          current={current ?? null}
-          today={today}
-        />
+        {runningPlan}
+        <StartForm current={current ?? null} today={today} />
       </div>
     );
   }
@@ -447,9 +459,8 @@ function StartForm({
   const nextMonday = addDays(weekStartOf(today), 7);
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<PhaseKind>("maintenance");
-  const [start, setStart] = useState(
-    choices.includes(nextMonday) ? nextMonday : choices[0]!,
-  );
+  const defaultStart = choices.includes(nextMonday) ? nextMonday : choices[0]!;
+  const [start, setStart] = useState(defaultStart);
   const [targetText, setTargetText] = useState("");
   const [rateText, setRateText] = useState("0");
   const [weeksText, setWeeksText] = useState("12");
@@ -481,6 +492,9 @@ function StartForm({
             type="button"
             variant="outline"
             onClick={() => {
+              // The current phase may have changed since the form last opened.
+              setStart(defaultStart);
+              setTargetText("");
               setOpen(true);
               setStatus(null);
             }}
@@ -617,8 +631,8 @@ function StartForm({
       {confirming && current ? (
         <p className="text-xs">
           {replaces
-            ? `This replaces ${current.label}, which starts the same Monday. Its plan and original targets go.`
-            : `${current.label} ends ${longDay(addDays(start, -1))}. Its weeks from ${shortDay(start)} on take the new plan's targets, and its empty weeks past the new plan go.`}
+            ? `This replaces ${current.label}, which starts the same Monday, along with its plan and original targets.`
+            : `${current.label} ends ${longDay(addDays(start, -1))}, and this plan replaces its planned weeks from ${shortDay(start)} on.`}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">

@@ -22,6 +22,8 @@ type Options = {
 
 const mocks = vi.hoisted(() => ({
   rows: [] as WeekTableRow[],
+  /** The running phase's weeks are refetching, as right after a start. */
+  weeksLoading: false,
   setPoints: [] as number[],
   changeRate: vi.fn(),
   moveEnd: vi.fn(),
@@ -88,7 +90,9 @@ vi.mock("~/trpc/react", () => {
         },
         weekTable: {
           useQuery: () => ({
-            data: { phaseId: "2", rows: mocks.rows },
+            data: mocks.weeksLoading
+              ? undefined
+              : { phaseId: "2", rows: mocks.rows },
             isError: false,
             isFetching: false,
           }),
@@ -131,6 +135,7 @@ beforeEach(() => {
     row("2030-02-18", 101.5, 0.5),
   ];
   mocks.setPoints = [150, 160];
+  mocks.weeksLoading = false;
 });
 
 afterEach(() => {
@@ -242,7 +247,7 @@ describe("start a phase", () => {
     expect(mocks.startPhase).not.toHaveBeenCalled();
     expect(
       screen.getByText(
-        "Bulk Jan '30 - Feb '30 ends Sunday, Feb 10, 2030. Its weeks from Feb 11, 2030 on take the new plan's targets, and its empty weeks past the new plan go.",
+        "Bulk Jan '30 - Feb '30 ends Sunday, Feb 10, 2030, and this plan replaces its planned weeks from Feb 11, 2030 on.",
       ),
     ).toBeTruthy();
     fireEvent.click(button("Start phase"));
@@ -257,6 +262,23 @@ describe("start a phase", () => {
       },
       expect.anything(),
     );
+  });
+
+  it("says what started once the page has the new plan", async () => {
+    mocks.startPhase.mockImplementation((_input, options: Options) => {
+      mocks.weeksLoading = true;
+      return options.onSuccess?.();
+    });
+    render(<PlanEditor today="2030-02-06" />);
+    fireEvent.click(button("Start a phase"));
+    type("Starting target", "101.2", START);
+    type("Weeks", "8", START);
+    fireEvent.click(button("Start"));
+    fireEvent.click(button("Start phase"));
+    expect(
+      await screen.findByText("Started Maintain Feb '30 - Apr '30."),
+    ).toBeTruthy();
+    expect(screen.queryByRole("form", { name: START })).toBeNull();
   });
 
   it("drops the confirmation when a value changes", () => {
