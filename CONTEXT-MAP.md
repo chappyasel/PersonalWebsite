@@ -7,6 +7,8 @@
 - [Universal Search](./src/lib/universal-search/CONTEXT.md): lets visitors find destinations, content, and site actions from any route
 - [Weightlifting](./src/app/weightlifting/CONTEXT.md) — Chappy's complete training log as a public, explorable record, following the iOS app's presentation idioms
 
+- [Weight Log](./src/lib/weight-log/CONTEXT.md) — Chappy's bodyweight, phases, weekly plan, and DEXA scans, recorded on the site
+
 ## Relationships
 
 - **YouTube Information Diet → Personal Website**: presents private, personal viewing analysis; it is not a public rating system
