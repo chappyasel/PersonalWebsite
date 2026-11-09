@@ -175,5 +175,5 @@ export function replaceRefusal(siteEntries: string[], discard: boolean) {
   const shown = siteEntries.slice(0, 20).join(", ");
   const more =
     siteEntries.length > 20 ? `, and ${siteEntries.length - 20} more` : "";
-  return `Refusing to replace: the database holds ${siteEntries.length} weigh-in${siteEntries.length === 1 ? "" : "s"} that the workbook lacks or records differently, likely entered on the site (${shown}${more}). The workbook cannot restore them. Pass --discard-site-entries as well to delete them.`;
+  return `Refusing to replace: the database holds ${siteEntries.length} weigh-in${siteEntries.length === 1 ? "" : "s"} that the workbook lacks or records differently, likely entered on the site (${shown}${more}). The workbook cannot restore these. Pass --discard-site-entries as well to delete them.`;
 }

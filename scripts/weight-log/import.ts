@@ -112,7 +112,7 @@ try {
     if (refusal) throw new Error(refusal);
     if (siteEntries.length)
       console.log(
-        `Discarding ${siteEntries.length} weigh-ins the workbook lacks or records differently: ${siteEntries.join(", ")}.`,
+        `Discarding ${siteEntries.length} weigh-in${siteEntries.length === 1 ? "" : "s"} the workbook lacks or records differently: ${siteEntries.join(", ")}.`,
       );
     return true;
   }

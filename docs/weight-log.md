@@ -39,28 +39,46 @@ There is nothing to restore. A workspace reads whichever database its `DATABASE_
 
 The workbook stays in iCloud as the archive. The import is a one-time move into the database, run on cutover day after the morning weigh-in. Weigh-ins after that go in through `/weight-log/edit`, and a reading entered in the workbook after the import must be re-entered by hand.
 
-```sh
-set -o pipefail
-python3 scripts/weight-log/import_workbook.py "$WEIGHT_WORKBOOK" \
-  | node --env-file=.env --import tsx scripts/weight-log/import.ts \
-      --history-context data/weight-log/history-context.enc \
-      --expect-host "$DATABASE_HOST"
-```
-
-`WEIGHT_WORKBOOK` is the path to the workbook. `--history-context` is the old encrypted companion holding the recollection and strength summaries, decrypted in memory with `NEXTAUTH_SECRET`; a plain JSON file also works. `--expect-host` must match the host in `DATABASE_URL`, so the command cannot write to a database you did not name. The import prints the host before connecting.
-
-The import writes everything in one transaction. It refuses to run when any `weight_log_` table already holds rows. `--replace` deletes the existing rows first, inside the same transaction. It prints only counts, the running phase's name, and the dates of trimmed weeks.
+The import writes everything in one transaction. `--expect-host` must match the host in `DATABASE_URL`, so the command cannot write to a database you did not name. It refuses to run when any `weight_log_` table already holds rows. `--replace` deletes the existing rows first, inside the same transaction, but refuses while the database holds a weigh-in whose date the workbook export lacks or whose pounds differ from it. After cutover those are site entries, and the workbook cannot restore them. The refusal names their count and dates. `--discard-site-entries` overrides it. `--dry-run` runs every check, including the `--replace` guard, in a read-only transaction and writes nothing. `--history-context` is the old encrypted companion holding the recollection and strength summaries, decrypted in memory with `NEXTAUTH_SECRET`; a plain JSON file also works. The import prints only counts, the running phase's name, and the dates of trimmed weeks.
 
 On the way in it applies the phase rules. Every phase must start on a Monday and be a bulk, cut, or maintenance. Each phase ends the day before the next one starts, and its planned weeks from that day on are dropped when they hold no weigh-ins. A dropped week that holds a weigh-in stops the import. A date has at most one weigh-in, and the one excluded reading keeps its flag.
 
-To check the result against the old encrypted snapshot:
+The parity check is read-only. It runs `import_workbook.py` on the same workbook the import read and requires exact equality with that export for every weigh-in, exclusion, scan value (including the added scan columns), set point, target, original target, and weekly average in the weeks kept. The recollection and strength readings must match the old encrypted snapshot, which is their only other copy. It lists decision 26's intended differences by name: the trimmed weeks and shortened phase ends, the derived phase names, the removed `other` kind, and the added scan columns. Anything else is printed as a date and field name, never a value, and makes it exit 1. It also compares the database with the old snapshot and prints those differences without failing, because the snapshot changes only when the Hermes job uploads. Pass parity the same `--exclude-sheet` values the import's export used. Its tests use synthetic data and run in `pnpm verify`.
+
+### Cutover day
+
+The plan's "Cutover day" list is the order of the day. These are the commands for its database steps. Run them from a checkout of the cutover branch whose `.env` holds production's `DATABASE_URL` and `NEXTAUTH_SECRET`, in a shell where `DATABASE_URL` is unset, because an exported value overrides `.env` for every command below. The `.enc` files exist only in the main checkout, so pass them by absolute path.
 
 ```sh
-node --env-file=.env --import tsx scripts/weight-log/parity.ts \
-  --snapshot data/weight-log/snapshot.enc --workbook "$WEIGHT_WORKBOOK"
+unset DATABASE_URL
+WEIGHT_WORKBOOK="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Spreadsheets/Weight Log.xlsx"
+ENC=/Users/chappyasel/Desktop/Repos/PersonalWebsite/data/weight-log
 ```
 
-The parity check is read-only. It requires exact equality for every weigh-in, exclusion, scan value, set point, target, original target, weekly average, and historical-context value in the weeks kept. It lists the intended differences by name: the trimmed weeks and shortened phase ends, the derived phase names, the removed `other` kind, and the added scan columns, which it checks against the workbook. Anything else is printed as a date and field name, never a value, and makes it exit 1. Its tests use synthetic data and run in `pnpm verify`; the real check needs the snapshot and the database, so it runs by hand. Both scripts and the decryption helper in `scripts/weight-log/sources.ts` exist only for the cutover.
+1. Check that production has nothing pending except 0023. The script reads `drizzle.__drizzle_migrations` and the journal, prints the host, and must print `Pending: 0023_weight_log` and exit 0. Stop if anything else is pending. Confirm the host is production's, not a Neon branch.
+   ```sh
+   node --env-file=.env --import tsx scripts/weight-log/pending-migrations.ts
+   ```
+2. Apply the migration.
+   ```sh
+   pnpm db:migrate:prod
+   ```
+3. After the owner has entered the morning weigh-in in the workbook, dry-run the import, then run it. Set `HOST` to the host step 1 printed.
+   ```sh
+   set -o pipefail
+   python3 scripts/weight-log/import_workbook.py "$WEIGHT_WORKBOOK" \
+     | node --env-file=.env --import tsx scripts/weight-log/import.ts \
+         --history-context "$ENC/history-context.enc" \
+         --expect-host "$HOST" --dry-run
+   ```
+   Run the same command again without `--dry-run`.
+4. Run the parity check. It must end with `Unexpected differences from the workbook export and historical context: 0` and exit 0. The informational snapshot section can list weigh-ins entered in the workbook since the last Hermes upload, and the weeks that hold them. Nothing else should appear there.
+   ```sh
+   node --env-file=.env --import tsx scripts/weight-log/parity.ts \
+     --workbook "$WEIGHT_WORKBOOK" --snapshot "$ENC/snapshot.enc"
+   ```
+5. Once the site holds an entry, never revert the cutover PR. A revert brings back the S3 reader, which shows the last snapshot without the site's entries, and nothing refreshes it once the Hermes job is off. Roll forward with a fix, or use Neon point-in-time restore.
+6. Once cutover passes, delete the cutover scripts in a follow-up PR: `import.ts`, `import-plan.ts`, `parity.ts`, `parity-check.ts`, `pending-migrations.ts`, `sources.ts`, and their tests. Keep `import_workbook.py`, which the DEXA image refresh below still uses. Also delete the main checkout's `data/weight-log` folder, the S3 snapshot object, and the Neon branch `weight-log-import-test`.
 
 ### Refreshing the training-room DEXA image
 
