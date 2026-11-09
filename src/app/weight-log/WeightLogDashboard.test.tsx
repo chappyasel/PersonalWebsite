@@ -101,14 +101,7 @@ const log: WeightLog = {
 function renderTrendOnly(data: WeightLog) {
   const view = render(<WeightLogDashboard log={data} />);
   fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
-  for (const name of [
-    "Future weight plan",
-    "Body fat %",
-    "Early body fat · exploratory",
-    "Future body fat plan",
-  ]) {
-    fireEvent.click(screen.getByRole("checkbox", { name }));
-  }
+  fireEvent.click(screen.getByRole("checkbox", { name: "Future weight plan" }));
   fireEvent.click(screen.getByRole("button", { name: "Close layers" }));
   return view;
 }
@@ -275,7 +268,7 @@ it("does not draw DEXA markers for null readings along the chart's top edge", ()
   expect([...dots].every((dot) => dot.hasAttribute("cy"))).toBe(true);
 });
 
-it("opens with the trend, future weight and all three purple body-fat layers", () => {
+it("opens with the trend and future weight on and the purple body-fat layers off", () => {
   const { container } = render(<WeightLogDashboard log={log} />);
   expect(screen.queryByRole("checkbox")).toBeNull();
   expect(
@@ -288,24 +281,36 @@ it("opens with the trend, future weight and all three purple body-fat layers", (
       .querySelector(".future-weight-plan .recharts-line-curve")
       ?.getAttribute("stroke"),
   ).toBe("#2563eb");
-  expect(
-    container
-      .querySelector(".future-body-fat-plan .recharts-line-curve")
-      ?.getAttribute("stroke"),
-  ).toBe("#a78bfa");
+  expect(container.querySelector(".future-body-fat-plan")).toBeNull();
+  expect(container.querySelector(".historical-body-fat-line")).toBeNull();
+  expect(container.querySelectorAll(".body-fat-grid-major")).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
   expect(
     screen
       .getAllByRole("checkbox")
       .filter((input) => input.getAttribute("aria-checked") === "true")
       .map((input) => input.getAttribute("aria-label")),
-  ).toEqual([
-    "7-day trend",
-    "Future weight plan",
+  ).toEqual(["7-day trend", "Future weight plan"]);
+  for (const name of [
     "Body fat %",
     "Early body fat · exploratory",
     "Future body fat plan",
-  ]);
+  ]) {
+    expect(
+      screen.getByRole("checkbox", { name }).getAttribute("aria-checked"),
+    ).toBe("false");
+  }
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "Future body fat plan" }),
+  );
+  expect(
+    container
+      .querySelector(".future-body-fat-plan .recharts-line-curve")
+      ?.getAttribute("stroke"),
+  ).toBe("#a78bfa");
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "Future body fat plan" }),
+  );
   fireEvent.click(screen.getByRole("checkbox", { name: "12-month average" }));
   fireEvent.click(screen.getByRole("button", { name: "Close layers" }));
   expect(screen.queryByRole("checkbox")).toBeNull();
