@@ -67,6 +67,10 @@ export class PlanEditError extends Error {
  */
 export const PLAN_LOCK = 0x574c50;
 
+/** The refusal when the page edited a plan that has changed since it loaded. */
+export const STALE_PLAN =
+  "The plan changed since this page loaded it. Check it and try again.";
+
 /** The longest plan the page writes, about three years. */
 export const MAX_PLAN_WEEKS = 156;
 /** The largest weekly change a plan may ask for, in pounds. */
@@ -238,6 +242,8 @@ export function planStartPhase(
 }
 
 export interface RateChangeInput {
+  /** The phase the page showed the week in. */
+  phaseId: number;
   /** The Monday of the week whose lb/wk changes. */
   weekStart: string;
   poundsPerWeek: number;
@@ -250,7 +256,7 @@ export interface RateChangeInput {
  */
 export function planRateChange(
   state: PlanState,
-  { weekStart, poundsPerWeek }: RateChangeInput,
+  { phaseId, weekStart, poundsPerWeek }: RateChangeInput,
 ): PlanEdit {
   checkMonday(weekStart, "week");
   const week = state.weeks.find((row) => row.weekStart === weekStart);
@@ -260,6 +266,9 @@ export function planRateChange(
       "NOT_FOUND",
     );
   }
+  // A phase started since the page loaded can own this week now. Its
+  // targets are not the ones the owner was looking at.
+  if (week.phaseId !== phaseId) throw new PlanEditError(STALE_PLAN, "CONFLICT");
   const weeks = weeksOf(state, week.phaseId);
   const previous = weeks.find(
     (row) => row.weekStart === addDays(weekStart, -7),
@@ -360,6 +369,49 @@ export function planEndMove(
     };
   });
   return { ...EMPTY_EDIT, writeWeeks };
+}
+
+/**
+ * A fingerprint of every phase and planned week, so an edit can tell whether
+ * the plan the page showed is still the plan. Row order and weigh-ins do not
+ * count: a weigh-in never changes a target. It runs in the browser too, so it
+ * is a plain 64-bit string hash rather than a crypto digest. It only has to
+ * tell two versions of one small plan apart.
+ */
+export function planRevision({
+  phases,
+  weeks,
+}: {
+  phases: readonly (Omit<PlanPhase, "kind"> & { kind: string })[];
+  weeks: readonly PlanWeek[];
+}) {
+  const text = JSON.stringify([
+    [...phases]
+      .sort((a, b) => a.id - b.id)
+      .map((phase) => [phase.id, phase.kind, phase.startDate, phase.endDate]),
+    [...weeks]
+      .sort((a, b) => byString(a.weekStart, b.weekStart))
+      .map((week) => [
+        week.weekStart,
+        week.phaseId,
+        week.target,
+        week.originalTarget,
+      ]),
+  ]);
+  // cyrb53's mixing, kept to two full 32-bit halves.
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let index = 0; index < text.length; index++) {
+    const char = text.charCodeAt(index);
+    h1 = Math.imul(h1 ^ char, 2654435761);
+    h2 = Math.imul(h2 ^ char, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hex = (value: number) => (value >>> 0).toString(16).padStart(8, "0");
+  return hex(h2) + hex(h1);
 }
 
 /**

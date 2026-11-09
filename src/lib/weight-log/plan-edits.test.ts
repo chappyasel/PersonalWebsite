@@ -10,6 +10,7 @@ import {
   applyPlanEdit,
   planEndMove,
   planRateChange,
+  planRevision,
   planStartPhase,
   planViolations,
 } from "./plan-edits";
@@ -114,6 +115,7 @@ describe("planRateChange", () => {
   it("sets the week's target from the week before and shifts every later target by the same amount", () => {
     const state = seed();
     const edit = planRateChange(state, {
+      phaseId: 2,
       weekStart: "2030-02-11",
       poundsPerWeek: 0.25,
     });
@@ -135,7 +137,7 @@ describe("planRateChange", () => {
     const state = seed();
     const next = apply(
       state,
-      planRateChange(state, { weekStart: "2030-02-04", poundsPerWeek: -1 }),
+      planRateChange(state, { phaseId: 2, weekStart: "2030-02-04", poundsPerWeek: -1 }),
     );
     expect(targetsOf(next, 2)).toEqual([100, 99, 99.5, 100, 100.5, 101]);
     expect(originalsOf(next, 2)).toEqual(originalsOf(state, 2));
@@ -145,11 +147,11 @@ describe("planRateChange", () => {
     let state = seed();
     state = apply(
       state,
-      planRateChange(state, { weekStart: "2030-02-04", poundsPerWeek: 0.1 }),
+      planRateChange(state, { phaseId: 2, weekStart: "2030-02-04", poundsPerWeek: 0.1 }),
     );
     state = apply(
       state,
-      planRateChange(state, { weekStart: "2030-02-25", poundsPerWeek: 0.2 }),
+      planRateChange(state, { phaseId: 2, weekStart: "2030-02-25", poundsPerWeek: 0.2 }),
     );
     expect(targetsOf(state, 2)).toEqual([100, 100.1, 100.6, 101.1, 101.3, 101.8]);
   });
@@ -158,7 +160,7 @@ describe("planRateChange", () => {
     const state = seed();
     const next = apply(
       state,
-      planRateChange(state, { weekStart: "2030-01-14", poundsPerWeek: -0.5 }),
+      planRateChange(state, { phaseId: 1, weekStart: "2030-01-14", poundsPerWeek: -0.5 }),
     );
     expect(targetsOf(next, 1)).toEqual([102, 101.5, 100.5]);
     expect(targetsOf(next, 2)).toEqual(targetsOf(state, 2));
@@ -166,7 +168,7 @@ describe("planRateChange", () => {
 
   it("writes nothing when the rate is unchanged", () => {
     expect(
-      planRateChange(seed(), { weekStart: "2030-02-11", poundsPerWeek: 0.5 })
+      planRateChange(seed(), { phaseId: 2, weekStart: "2030-02-11", poundsPerWeek: 0.5 })
         .writeWeeks,
     ).toEqual([]);
   });
@@ -175,27 +177,99 @@ describe("planRateChange", () => {
     const state = seed();
     expect(
       refusal(() =>
-        planRateChange(state, { weekStart: "2030-01-28", poundsPerWeek: 1 }),
+        planRateChange(state, { phaseId: 2, weekStart: "2030-01-28", poundsPerWeek: 1 }),
       ),
     ).toBe("BAD_REQUEST");
     expect(
       refusal(() =>
-        planRateChange(state, { weekStart: "2031-01-06", poundsPerWeek: 1 }),
+        planRateChange(state, { phaseId: 2, weekStart: "2031-01-06", poundsPerWeek: 1 }),
       ),
     ).toBe("NOT_FOUND");
     expect(
       refusal(() =>
-        planRateChange(state, { weekStart: "2030-02-12", poundsPerWeek: 1 }),
+        planRateChange(state, { phaseId: 2, weekStart: "2030-02-12", poundsPerWeek: 1 }),
       ),
     ).toBe("BAD_REQUEST");
     expect(
       refusal(() =>
         planRateChange(state, {
+          phaseId: 2,
           weekStart: "2030-02-04",
           poundsPerWeek: -100.5,
         }),
       ),
     ).toBe("BAD_REQUEST");
+  });
+
+  it("refuses a week that has moved to another phase since the page loaded", () => {
+    // Tab A shows the bulk (phase 2). Tab B starts a cut on 2030-02-11, so
+    // the weeks A shows from that Monday on now belong to the cut.
+    let state = seed();
+    state = apply(
+      state,
+      planStartPhase(state, {
+        kind: "cut",
+        startDate: "2030-02-11",
+        startTarget: 101,
+        poundsPerWeek: -0.5,
+        lastWeek: "2030-03-04",
+        currentPhaseId: 2,
+      }),
+    );
+    expect(
+      refusal(() =>
+        planRateChange(state, {
+          phaseId: 2,
+          weekStart: "2030-02-18",
+          poundsPerWeek: 1,
+        }),
+      ),
+    ).toBe("CONFLICT");
+  });
+});
+
+describe("planRevision", () => {
+  it("ignores row order and weigh-ins", () => {
+    const state = seed();
+    const shuffled: PlanState = {
+      phases: [...state.phases].reverse(),
+      weeks: [...state.weeks].reverse(),
+      weighInWeeks: new Set(),
+    };
+    expect(planRevision(shuffled)).toBe(planRevision(state));
+  });
+
+  it("changes with any phase or planned week", () => {
+    const state = seed();
+    const base = planRevision(state);
+    const changed = (patch: (copy: PlanState) => PlanState) =>
+      planRevision(
+        patch({ ...state, phases: [...state.phases], weeks: [...state.weeks] }),
+      );
+    const withWeek = (index: number, week: Partial<PlanWeek>) => (copy: PlanState) => ({
+      ...copy,
+      weeks: copy.weeks.map((row, at) => (at === index ? { ...row, ...week } : row)),
+    });
+    const revisions = [
+      changed(withWeek(4, { target: 100.51 })),
+      changed(withWeek(4, { originalTarget: null })),
+      changed(withWeek(4, { phaseId: 1 })),
+      changed((copy) => ({ ...copy, weeks: copy.weeks.slice(0, -1) })),
+      changed((copy) => ({
+        ...copy,
+        phases: copy.phases.map((phase) =>
+          phase.id === 2 ? { ...phase, endDate: "2030-03-10" } : phase,
+        ),
+      })),
+      changed((copy) => ({
+        ...copy,
+        phases: copy.phases.map((phase) =>
+          phase.id === 2 ? { ...phase, kind: "cut" as const } : phase,
+        ),
+      })),
+    ];
+    for (const revision of revisions) expect(revision).not.toBe(base);
+    expect(new Set(revisions).size).toBe(revisions.length);
   });
 });
 
@@ -218,7 +292,7 @@ describe("planEndMove", () => {
     let state = seed();
     state = apply(
       state,
-      planRateChange(state, { weekStart: "2030-03-04", poundsPerWeek: 0.2 }),
+      planRateChange(state, { phaseId: 2, weekStart: "2030-03-04", poundsPerWeek: 0.2 }),
     );
     state = apply(
       state,
@@ -501,8 +575,10 @@ describe("plan rules hold after every edit", () => {
           });
         } else {
           kind = "rate";
+          const week = pick(state.weeks);
           edit = planRateChange(state, {
-            weekStart: pick(state.weeks).weekStart,
+            phaseId: week.phaseId,
+            weekStart: week.weekStart,
             poundsPerWeek: Math.round((next() - 0.5) * 20) / 10,
           });
         }

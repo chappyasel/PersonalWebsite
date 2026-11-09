@@ -109,6 +109,11 @@ function failure(error: unknown, fallback: string) {
   return fallback;
 }
 
+/** The server refused an edit made from a plan or list that has changed since. */
+const isConflict = (error: unknown) =>
+  error instanceof TRPCClientError &&
+  (error.data as { code?: string } | undefined)?.code === "CONFLICT";
+
 function Field({
   label,
   className,
@@ -187,7 +192,8 @@ export function PlanEditor({ today }: { today: string }) {
         <Skeleton className="h-9 w-full" />
       </div>
     );
-  } else if (running && planned.length) {
+  } else if (running && weeksQuery.data && planned.length) {
+    const { phaseId, revision } = weeksQuery.data;
     runningPlan = (
       <>
         <div>
@@ -197,8 +203,19 @@ export function PlanEditor({ today }: { today: string }) {
             {longDay(running.end)}
           </p>
         </div>
-        <RateForm key={`rate-${running.id}`} rows={planned} today={today} />
-        <EndForm key={`end-${running.id}`} phase={running} rows={planned} />
+        <RateForm
+          key={`rate-${running.id}`}
+          phaseId={phaseId}
+          revision={revision}
+          rows={planned}
+          today={today}
+        />
+        <EndForm
+          key={`end-${running.id}`}
+          phase={running}
+          revision={revision}
+          rows={planned}
+        />
       </>
     );
   }
@@ -224,7 +241,11 @@ export function PlanEditor({ today }: { today: string }) {
     body = (
       <div className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-700 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
         {runningPlan}
-        <StartForm current={current ?? null} today={today} />
+        <StartForm
+          current={current ?? null}
+          revision={phasesQuery.data.revision}
+          today={today}
+        />
       </div>
     );
   }
@@ -243,18 +264,36 @@ export function PlanEditor({ today }: { today: string }) {
  * Change one week's lb/wk (decision 11). The form shows how far every later
  * target moves before the owner saves.
  */
-function RateForm({ rows, today }: { rows: WeekTableRow[]; today: string }) {
+function RateForm({
+  phaseId,
+  revision,
+  rows,
+  today,
+}: {
+  phaseId: string;
+  revision: string;
+  rows: WeekTableRow[];
+  today: string;
+}) {
   const editable = rows.filter((row) => row.poundsPerWeek !== null);
   const thisWeek = weekStartOf(today);
-  const initial =
-    editable.find((row) => row.week >= thisWeek) ?? editable.at(-1);
-  const [week, setWeek] = useState(initial?.week ?? "");
-  const [text, setText] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
+  // The rows change after a length edit or another tab's. The chosen week
+  // can go, or a one-week plan can gain its first week with a rate, so the
+  // form falls back to this week, or the last one, whenever its own is gone.
+  const row =
+    editable.find((item) => item.week === chosen) ??
+    editable.find((item) => item.week >= thisWeek) ??
+    editable.at(-1);
+  const [draft, setDraft] = useState<{ week: string; text: string } | null>(
+    null,
+  );
   const [status, setStatus] = useState<string | null>(null);
   const refresh = useRefreshPlan();
   const mutation = api.weightLog.changeRate.useMutation();
 
-  const row = editable.find((item) => item.week === week);
+  // A rate typed for a week that has gone is not a rate for the fallback.
+  if (draft !== null && draft.week !== row?.week) setDraft(null);
   if (!row) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -262,8 +301,9 @@ function RateForm({ rows, today }: { rows: WeekTableRow[]; today: string }) {
       </p>
     );
   }
+  const week = row.week;
   const currentRate = row.poundsPerWeek!;
-  const value = text ?? currentRate.toFixed(2);
+  const value = draft?.week === week ? draft.text : currentRate.toFixed(2);
   const entered = parse(value);
   const moveBy = validRate(entered) ? entered - currentRate : null;
   const changed = moveBy !== null && Math.round(moveBy * 100) !== 0;
@@ -272,17 +312,19 @@ function RateForm({ rows, today }: { rows: WeekTableRow[]; today: string }) {
     event.preventDefault();
     if (!changed || !validRate(entered) || mutation.isPending) return;
     mutation.mutate(
-      { weekStart: week, poundsPerWeek: entered },
+      { phaseId, weekStart: week, poundsPerWeek: entered, revision },
       {
         onSuccess: () =>
           void refresh().then(() => {
-            setText(null);
+            setDraft(null);
             setStatus(
               `Set ${shortDay(week)} to ${signed(entered)} lb/wk. Targets from that week on moved ${signed(moveBy)} lb.`,
             );
           }),
-        onError: (error) =>
-          setStatus(failure(error, "The rate didn't save. Try again.")),
+        onError: (error) => {
+          if (isConflict(error)) void refresh();
+          setStatus(failure(error, "The rate didn't save. Try again."));
+        },
       },
     );
   };
@@ -299,8 +341,8 @@ function RateForm({ rows, today }: { rows: WeekTableRow[]; today: string }) {
           <Select
             value={week}
             onValueChange={(next) => {
-              setWeek(next);
-              setText(null);
+              setChosen(next);
+              setDraft(null);
               setStatus(null);
             }}
           >
@@ -326,7 +368,7 @@ function RateForm({ rows, today }: { rows: WeekTableRow[]; today: string }) {
             value={value}
             className="tabular-nums"
             onChange={(event) => {
-              setText(event.target.value);
+              setDraft({ week, text: event.target.value });
               setStatus(null);
             }}
           />
@@ -352,7 +394,15 @@ function RateForm({ rows, today }: { rows: WeekTableRow[]; today: string }) {
  * last rate; fewer weeks come off the end, and the server refuses a week
  * that has weigh-ins.
  */
-function EndForm({ phase, rows }: { phase: Phase; rows: WeekTableRow[] }) {
+function EndForm({
+  phase,
+  revision,
+  rows,
+}: {
+  phase: Phase;
+  revision: string;
+  rows: WeekTableRow[];
+}) {
   const lastWeek = rows.at(-1)!.week;
   const count = weeksBetween(phase.start, lastWeek) + 1;
   const lastRate = rows.at(-1)!.poundsPerWeek ?? 0;
@@ -371,15 +421,17 @@ function EndForm({ phase, rows }: { phase: Phase; rows: WeekTableRow[] }) {
     event.preventDefault();
     if (!changed || !newLast || mutation.isPending) return;
     mutation.mutate(
-      { phaseId: phase.id, lastWeek: newLast },
+      { phaseId: phase.id, lastWeek: newLast, revision },
       {
         onSuccess: () =>
           void refresh().then(() => {
             setText(null);
             setStatus(`The plan now ends ${longDay(addDays(newLast, 6))}.`);
           }),
-        onError: (error) =>
-          setStatus(failure(error, "The end didn't move. Try again.")),
+        onError: (error) => {
+          if (isConflict(error)) void refresh();
+          setStatus(failure(error, "The end didn't move. Try again."));
+        },
       },
     );
   };
@@ -446,13 +498,17 @@ function startChoices(current: Phase | null, today: string) {
 
 /**
  * Start a phase (decisions 8, 9, 10, and 12). The owner confirms after
- * reading what happens to the current phase.
+ * reading what happens to the current phase. The confirmation belongs to the
+ * plan it described: if a refetch brings another current phase or another
+ * plan, it lapses and the owner reads the new one before starting.
  */
 function StartForm({
   current,
+  revision,
   today,
 }: {
   current: Phase | null;
+  revision: string;
   today: string;
 }) {
   const choices = startChoices(current, today);
@@ -464,7 +520,10 @@ function StartForm({
   const [targetText, setTargetText] = useState("");
   const [rateText, setRateText] = useState("0");
   const [weeksText, setWeeksText] = useState("12");
-  const [confirming, setConfirming] = useState(false);
+  const [confirmed, setConfirmed] = useState<{
+    phaseId: string | null;
+    revision: string;
+  } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const refresh = useRefreshPlan();
   const mutation = api.weightLog.startPhase.useMutation();
@@ -477,10 +536,16 @@ function StartForm({
   const lastWeek = validWeeks(weeks) ? addDays(start, (weeks - 1) * 7) : null;
   const name = lastWeek ? phaseName(kind, start, addDays(lastWeek, 6)) : null;
   const replaces = current?.start === start;
+  const currentId = current?.id ?? null;
+  const confirming =
+    confirmed !== null &&
+    confirmed.phaseId === currentId &&
+    confirmed.revision === revision;
+  const lapsed = confirmed !== null && !confirming;
 
   const edit = (apply: () => void) => {
     apply();
-    setConfirming(false);
+    setConfirmed(null);
     setStatus(null);
   };
 
@@ -495,6 +560,7 @@ function StartForm({
               // The current phase may have changed since the form last opened.
               setStart(defaultStart);
               setTargetText("");
+              setConfirmed(null);
               setOpen(true);
               setStatus(null);
             }}
@@ -512,7 +578,8 @@ function StartForm({
     event.preventDefault();
     if (!valid || !lastWeek || mutation.isPending) return;
     if (current && !confirming) {
-      setConfirming(true);
+      setConfirmed({ phaseId: currentId, revision });
+      setStatus(null);
       return;
     }
     mutation.mutate(
@@ -522,17 +589,21 @@ function StartForm({
         startTarget: target,
         poundsPerWeek: weeklyRate,
         lastWeek,
-        currentPhaseId: current?.id ?? null,
+        // The plan the confirmation described, which the server checks
+        // again under its lock.
+        currentPhaseId: confirmed?.phaseId ?? currentId,
+        revision: confirmed?.revision ?? revision,
       },
       {
         onSuccess: () =>
           void refresh().then(() => {
             setOpen(false);
-            setConfirming(false);
+            setConfirmed(null);
             setStatus(`Started ${name}.`);
           }),
         onError: (error) => {
-          setConfirming(false);
+          if (isConflict(error)) void refresh();
+          setConfirmed(null);
           setStatus(failure(error, "The phase didn't start. Try again."));
         },
       },
@@ -647,14 +718,19 @@ function StartForm({
           type="button"
           variant="ghost"
           onClick={() => {
-            if (confirming) setConfirming(false);
-            else setOpen(false);
+            if (!confirming) setOpen(false);
+            setConfirmed(null);
           }}
         >
           Cancel
         </Button>
       </div>
-      <Status>{status}</Status>
+      <Status>
+        {status ??
+          (lapsed
+            ? "The plan changed while you were confirming. Check the details and tap Start again."
+            : null)}
+      </Status>
     </form>
   );
 }
@@ -667,23 +743,28 @@ export function SetPointsEditor() {
   const query = api.weightLog.setPoints.useQuery();
   const utils = api.useUtils();
   const mutation = api.weightLog.saveSetPoints.useMutation();
-  const [drafts, setDrafts] = useState<string[] | null>(null);
+  // A draft remembers the list it started from. The save sends it, and the
+  // server refuses if another tab saved a different list since.
+  const [draft, setDraft] = useState<{ base: number[]; texts: string[] } | null>(
+    null,
+  );
   const [status, setStatus] = useState<string | null>(null);
 
   const saved = query.data ?? [];
-  const texts = drafts ?? saved.map((pounds) => pounds.toFixed(1));
+  const base = draft?.base ?? saved;
+  const texts = draft?.texts ?? saved.map((pounds) => pounds.toFixed(1));
   const values = texts.map(parse);
   const valid = values.every(validPounds);
   const changed =
-    drafts !== null &&
-    (values.length !== saved.length ||
+    draft !== null &&
+    (values.length !== base.length ||
       values.some(
         (value, index) =>
-          value === null || Math.round(value * 10) / 10 !== saved[index],
+          value === null || Math.round(value * 10) / 10 !== base[index],
       ));
 
   const update = (next: string[]) => {
-    setDrafts(next);
+    setDraft({ base, texts: next });
     setStatus(null);
   };
 
@@ -691,15 +772,17 @@ export function SetPointsEditor() {
     event.preventDefault();
     if (!valid || !changed || mutation.isPending) return;
     mutation.mutate(
-      { pounds: values },
+      { pounds: values, previous: base },
       {
         onSuccess: () =>
           void utils.weightLog.setPoints.invalidate().then(() => {
-            setDrafts(null);
+            setDraft(null);
             setStatus("Saved the set points.");
           }),
-        onError: (error) =>
-          setStatus(failure(error, "The set points didn't save. Try again.")),
+        onError: (error) => {
+          if (isConflict(error)) void utils.weightLog.setPoints.invalidate();
+          setStatus(failure(error, "The set points didn't save. Try again."));
+        },
       },
     );
   };
@@ -775,12 +858,12 @@ export function SetPointsEditor() {
             <Button type="submit" disabled={!valid || !changed || mutation.isPending}>
               Save set points
             </Button>
-            {drafts !== null ? (
+            {draft !== null ? (
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  setDrafts(null);
+                  setDraft(null);
                   setStatus(null);
                 }}
               >

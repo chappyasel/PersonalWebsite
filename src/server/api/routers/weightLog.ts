@@ -12,12 +12,15 @@ import {
 import {
   MAX_POUNDS_PER_WEEK,
   MAX_TARGET,
+  PLAN_LOCK,
   type PlanEdit,
   PlanEditError,
   type PlanState,
+  STALE_PLAN,
   isMonday,
   planEndMove,
   planRateChange,
+  planRevision,
   planStartPhase,
 } from "~/lib/weight-log/plan-edits";
 import { buildWeightLog } from "~/lib/weight-log/records";
@@ -67,6 +70,9 @@ const phaseId = z.string().regex(/^\d{1,9}$/, "No such phase.");
 /** A target or set point, in pounds to one decimal place. */
 const targetPounds = tenthsOfAPound(MAX_TARGET);
 
+/** The `planRevision` of the plan the page showed when the owner edited it. */
+const revision = z.string().max(32);
+
 /** A weekly rate, in pounds to two decimal places, such as 0.25. */
 const poundsPerWeek = z
   .number()
@@ -74,19 +80,18 @@ const poundsPerWeek = z
   .max(MAX_POUNDS_PER_WEEK)
   .transform((value) => Math.round(value * 100) / 100);
 
-/** Plan edits wait on each other, so a double tap can't interleave two. */
-const PLAN_LOCK = 0x574c50;
-
 type Database = typeof database;
 
 /**
  * Run one plan edit in one transaction: take the plan lock, read phases,
- * planned weeks, and the weeks that hold weigh-ins, ask the planner for the
- * rows to change, and write them. Weigh-ins are only read. A refused edit
- * writes nothing and reaches the page as its message.
+ * planned weeks, and the weeks that hold weigh-ins, check that the plan is
+ * still the one the page showed, ask the planner for the rows to change, and
+ * write them. Weigh-ins are only read. A refused edit writes nothing and
+ * reaches the page as its message.
  */
 async function editPlan(
   db: Database,
+  expected: string,
   plan: (state: PlanState) => PlanEdit,
 ): Promise<{ newPhaseId: number | null }> {
   try {
@@ -97,6 +102,12 @@ async function editPlan(
       const weighIns = await tx
         .select({ date: weightLogWeighIns.date })
         .from(weightLogWeighIns);
+      // Another tab may have changed the plan since this page loaded it.
+      // Phase ids alone don't catch every case: a rate change or a new end
+      // keeps the ids and moves the targets.
+      if (planRevision({ phases, weeks }) !== expected) {
+        throw new PlanEditError(STALE_PLAN, "CONFLICT");
+      }
       const edit = plan({
         phases: phases.map((phase) => ({
           ...phase,
@@ -167,7 +178,8 @@ export const weightLogRouter = createTRPCRouter({
   /**
    * Every phase for the picker, newest first. `currentId` is the latest
    * phase, and `runningId` is the one with no end date, whose plan the page
-   * can extend or shorten.
+   * can extend or shorten. `revision` goes back with a plan edit, which the
+   * server refuses if the plan has changed since.
    */
   phases: ownerProcedure.query(async ({ ctx }) => {
     const records = await loadWeekRecords(ctx.db);
@@ -176,6 +188,10 @@ export const weightLogRouter = createTRPCRouter({
     return {
       currentId: currentPhase(log.phases)?.id ?? null,
       runningId: running ? String(running.id) : null,
+      revision: planRevision({
+        phases: records.phases,
+        weeks: records.plannedWeeks,
+      }),
       phases: [...log.phases].reverse().map(({ id, label, start, end }) => ({
         id,
         label,
@@ -185,15 +201,26 @@ export const weightLogRouter = createTRPCRouter({
     };
   }),
 
-  /** One phase's weekly table (decision 23). */
+  /**
+   * One phase's weekly table (decision 23), with the revision of the plan
+   * its targets came from.
+   */
   weekTable: ownerProcedure
     .input(z.object({ phaseId: z.string().max(32) }))
     .query(async ({ ctx, input: { phaseId } }) => {
-      const log = buildWeightLog(await loadWeekRecords(ctx.db));
+      const records = await loadWeekRecords(ctx.db);
+      const log = buildWeightLog(records);
       if (!log.phases.some((phase) => phase.id === phaseId)) {
         throw new TRPCError({ code: "NOT_FOUND", message: "No such phase." });
       }
-      return { phaseId, rows: buildWeekTable(log, phaseId) };
+      return {
+        phaseId,
+        rows: buildWeekTable(log, phaseId),
+        revision: planRevision({
+          phases: records.phases,
+          weeks: records.plannedWeeks,
+        }),
+      };
     }),
 
   /**
@@ -285,10 +312,11 @@ export const weightLogRouter = createTRPCRouter({
         poundsPerWeek,
         lastWeek: monday,
         currentPhaseId: phaseId.nullable(),
+        revision,
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { newPhaseId } = await editPlan(ctx.db, (state) =>
+      const { newPhaseId } = await editPlan(ctx.db, input.revision, (state) =>
         planStartPhase(state, {
           ...input,
           currentPhaseId:
@@ -298,11 +326,20 @@ export const weightLogRouter = createTRPCRouter({
       return { phaseId: String(newPhaseId) };
     }),
 
-  /** Change one week's lb/wk, moving every later target in its phase (decision 11). */
+  /**
+   * Change one week's lb/wk, moving every later target in its phase
+   * (decision 11). `phaseId` is the phase the page showed the week in.
+   */
   changeRate: ownerProcedure
-    .input(z.object({ weekStart: monday, poundsPerWeek }))
+    .input(z.object({ phaseId, weekStart: monday, poundsPerWeek, revision }))
     .mutation(async ({ ctx, input }) => {
-      await editPlan(ctx.db, (state) => planRateChange(state, input));
+      await editPlan(ctx.db, input.revision, (state) =>
+        planRateChange(state, {
+          phaseId: Number(input.phaseId),
+          weekStart: input.weekStart,
+          poundsPerWeek: input.poundsPerWeek,
+        }),
+      );
       return { weekStart: input.weekStart };
     }),
 
@@ -312,9 +349,9 @@ export const weightLogRouter = createTRPCRouter({
    * end and refuses a week that holds weigh-ins.
    */
   moveEnd: ownerProcedure
-    .input(z.object({ phaseId, lastWeek: monday }))
+    .input(z.object({ phaseId, lastWeek: monday, revision }))
     .mutation(async ({ ctx, input }) => {
-      await editPlan(ctx.db, (state) =>
+      await editPlan(ctx.db, input.revision, (state) =>
         planEndMove(state, {
           phaseId: Number(input.phaseId),
           lastWeek: input.lastWeek,
@@ -334,12 +371,34 @@ export const weightLogRouter = createTRPCRouter({
 
   /**
    * Replace the set points with this list, in order (decision 24). The chart
-   * labels them by position, so the list is written whole.
+   * labels them by position, so the list is written whole. `previous` is the
+   * list the page started from. Saves take the plan lock, so two at once run
+   * in turn, and the second finds the list changed and is refused.
    */
   saveSetPoints: ownerProcedure
-    .input(z.object({ pounds: z.array(targetPounds).max(10) }))
+    .input(
+      z.object({
+        pounds: z.array(targetPounds).max(10),
+        previous: z.array(z.number()).max(10),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await ctx.db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(${PLAN_LOCK})`);
+        const current = await tx
+          .select()
+          .from(weightLogSetPoints)
+          .orderBy(asc(weightLogSetPoints.position));
+        if (
+          current.length !== input.previous.length ||
+          current.some((row, index) => row.pounds !== input.previous[index])
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "The set points changed since this page loaded them. Cancel to see them, then edit again.",
+          });
+        }
         await tx.delete(weightLogSetPoints);
         if (input.pounds.length) {
           await tx.insert(weightLogSetPoints).values(

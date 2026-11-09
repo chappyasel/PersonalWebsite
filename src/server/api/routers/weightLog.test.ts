@@ -206,7 +206,10 @@ function seed() {
 describe("weightLog.phases", () => {
   it("lists derived names newest first and marks the running phase", async () => {
     seed();
-    await expect(caller.phases()).resolves.toEqual({
+    const { revision, ...phases } = await caller.phases();
+    // The plan's fingerprint, which plan edits send back.
+    expect(revision).toMatch(/^[0-9a-f]{16}$/);
+    expect(phases).toEqual({
       currentId: "2",
       runningId: "2",
       phases: [
