@@ -7,9 +7,17 @@ import {
   TableIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { type FormEvent, useRef, useState, useSyncExternalStore } from "react";
+import {
+  type CSSProperties,
+  type FormEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { cn } from "~/lib/utils";
+import { type CellColor, weekTableColors } from "~/lib/weight-log/color-scale";
 import { addDays, weekStartOf } from "~/lib/weight-log/phases";
 import type { WeekTableRow } from "~/lib/weight-log/week-table";
 import { type RouterOutputs, api } from "~/trpc/react";
@@ -44,6 +52,41 @@ function localToday() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/**
+ * Re-reads the device's date whenever it may have moved: when the tab comes
+ * back into view, when the browser restores the page from its back-forward
+ * cache, on focus, and at local midnight. A phone can keep the page alive for
+ * days without reloading it.
+ */
+function subscribeToToday(onChange: () => void) {
+  window.addEventListener("focus", onChange);
+  window.addEventListener("pageshow", onChange);
+  document.addEventListener("visibilitychange", onChange);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const armForMidnight = () => {
+    const now = new Date();
+    const midnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    );
+    timer = setTimeout(
+      () => {
+        onChange();
+        armForMidnight();
+      },
+      midnight.getTime() - now.getTime() + 1000,
+    );
+  };
+  armForMidnight();
+  return () => {
+    window.removeEventListener("focus", onChange);
+    window.removeEventListener("pageshow", onChange);
+    document.removeEventListener("visibilitychange", onChange);
+    clearTimeout(timer);
+  };
+}
+
 const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
@@ -52,6 +95,23 @@ const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
 
 const pounds = (value: number | null) =>
   value === null ? "—" : value.toFixed(1);
+
+/**
+ * A cell's workbook color in both themes. The values are computed, so they
+ * travel as custom properties and the class below picks the theme's pair.
+ */
+function fillStyle(color: CellColor | null): CSSProperties | undefined {
+  if (!color) return undefined;
+  return {
+    "--wl-fill": color.light.background,
+    "--wl-ink": color.light.text,
+    "--wl-fill-dark": color.dark.background,
+    "--wl-ink-dark": color.dark.text,
+  } as CSSProperties;
+}
+
+const FILLED =
+  "bg-[color:var(--wl-fill)] text-[color:var(--wl-ink)] dark:bg-[color:var(--wl-fill-dark)] dark:text-[color:var(--wl-ink-dark)]";
 
 /** A difference to one decimal, with its sign. Zero has none. */
 function signed(value: number | null) {
@@ -69,20 +129,33 @@ function phaseOfWeek(phases: Phase[], week: string) {
   );
 }
 
+/** The summary columns, after the seven days, in the workbook's order. A
+ * colored column takes the shared blue-white-red scale. */
 const COLUMNS: {
   key: keyof WeekTableRow;
   label: string;
   hint: string;
   signed?: boolean;
+  colored?: "average" | "target" | "originalTarget";
 }[] = [
-  { key: "average", label: "Avg", hint: "Weekly average" },
+  {
+    key: "average",
+    label: "Avg",
+    hint: "Weekly average",
+    colored: "average",
+  },
   {
     key: "change",
     label: "Chg",
     hint: "Change from last week's average",
     signed: true,
   },
-  { key: "target", label: "Target", hint: "This week's target" },
+  {
+    key: "target",
+    label: "Target",
+    hint: "This week's target",
+    colored: "target",
+  },
   {
     key: "gapToTarget",
     label: "Gap",
@@ -99,6 +172,7 @@ const COLUMNS: {
     key: "originalTarget",
     label: "Orig",
     hint: "Original target, set when the phase began",
+    colored: "originalTarget",
   },
   {
     key: "gapToOriginalTarget",
@@ -136,13 +210,27 @@ export function WeightLogEditor() {
 }
 
 function Editor() {
-  const today = useState(localToday)[0];
+  const today = useSyncExternalStore(subscribeToToday, localToday, localToday);
   const [date, setDate] = useState(today);
   const [draft, setDraft] = useState<{ date: string; text: string } | null>(
     null,
   );
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+
+  // The day turned over while the page stayed open. A form still on the old
+  // today with nothing typed moves to the new one, so the morning's reading
+  // can't land on yesterday. A typed draft stays where it is.
+  const [seenToday, setSeenToday] = useState(today);
+  if (seenToday !== today) {
+    setSeenToday(today);
+    const drafting = draft !== null && draft.date === date;
+    if (!drafting && (date === seenToday || date > today)) {
+      setDate(today);
+      setConfirmingDelete(false);
+      setStatus(null);
+    }
+  }
   const [tablePhaseId, setTablePhaseId] = useState<string | null>(null);
   const formRef = useRef<HTMLElement>(null);
 
@@ -180,13 +268,16 @@ function Editor() {
     Number.isFinite(entered) &&
     entered > 0 &&
     entered <= 1500;
+  // Decision 7 lets a save replace the date's weigh-in. The button says so,
+  // and the old value stays on screen: in the field until the owner types,
+  // then beside the buttons.
+  const replacing = existing !== null;
+  const unchanged =
+    replacing && valid && Math.round(entered * 10) / 10 === existing;
 
   const refresh = () => utils.weightLog.weekTable.invalidate();
   const upsert = api.weightLog.upsertWeighIn.useMutation({
-    onSuccess: async (row) => {
-      setStatus(
-        `Saved ${pounds(row.pounds)} lb for ${formatDay(row.date, { month: "short", day: "numeric" })}.`,
-      );
+    onSuccess: async () => {
       await refresh();
       setDraft(null);
     },
@@ -214,13 +305,27 @@ function Editor() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!valid || busy) return;
-    upsert.mutate({ date, pounds: entered });
+    if (!valid || busy || unchanged) return;
+    const verb = replacing ? "Replaced" : "Saved";
+    upsert.mutate(
+      { date, pounds: entered },
+      {
+        onSuccess: (row) =>
+          setStatus(
+            `${verb} ${pounds(row.pounds)} lb for ${formatDay(row.date, { month: "short", day: "numeric" })}.`,
+          ),
+      },
+    );
   };
 
   const oldest = phases.at(-1)?.start ?? week;
   const shownPhase = phases.find((phase) => phase.id === shownPhaseId);
   const currentWeek = weekStartOf(today);
+  const tableRows = tableQuery.data?.rows;
+  const colors = useMemo(
+    () => (tableRows ? weekTableColors(tableRows) : []),
+    [tableRows],
+  );
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -260,8 +365,8 @@ function Editor() {
                     }}
                   />
                 </label>
-                <Button type="submit" disabled={!valid || busy}>
-                  Save
+                <Button type="submit" disabled={!valid || busy || unchanged}>
+                  {replacing ? "Replace" : "Save"}
                 </Button>
               </div>
               <div className="flex min-h-8 flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -288,6 +393,9 @@ function Editor() {
                     <TrashIcon aria-hidden />
                     Delete
                   </Button>
+                ) : null}
+                {replacing && !unchanged && !confirmingDelete ? (
+                  <span>Replaces {pounds(existing)} lb</span>
                 ) : null}
                 {confirmingDelete && existing !== null ? (
                   <span className="flex items-center gap-2">
@@ -464,7 +572,7 @@ function Editor() {
                 aria-label={
                   shownPhase ? `Weeks of ${shownPhase.label}` : "Weeks"
                 }
-                className="w-full min-w-[30rem] border-collapse text-xs tabular-nums"
+                className="w-full min-w-max border-collapse text-xs tabular-nums"
               >
                 <thead>
                   <tr className="border-b border-neutral-200 text-muted-foreground dark:border-neutral-700">
@@ -474,11 +582,24 @@ function Editor() {
                     >
                       Week
                     </th>
-                    {COLUMNS.map((column) => (
+                    {DAY_NAMES.map((day) => (
+                      <th
+                        key={day}
+                        scope="col"
+                        className="px-1.5 py-2 text-right font-normal"
+                      >
+                        {day}
+                      </th>
+                    ))}
+                    {COLUMNS.map((column, index) => (
                       <th
                         key={column.key}
                         scope="col"
-                        className="px-1.5 py-2 text-right font-normal last:pr-3 sm:last:pr-4"
+                        className={cn(
+                          "px-1.5 py-2 text-right font-normal last:pr-3 sm:last:pr-4",
+                          index === 0 &&
+                            "border-l border-neutral-200 dark:border-neutral-700",
+                        )}
                       >
                         <Tooltip allowTapFirst>
                           <TooltipTrigger asChild>
@@ -497,7 +618,8 @@ function Editor() {
                   </tr>
                 </thead>
                 <tbody>
-                  {tableQuery.data.rows.map((row) => {
+                  {tableQuery.data.rows.map((row, rowIndex) => {
+                    const rowColors = colors[rowIndex];
                     const current = row.week === currentWeek;
                     const future = row.week > currentWeek;
                     return (
@@ -549,12 +671,56 @@ function Editor() {
                             </Button>
                           )}
                         </th>
-                        {COLUMNS.map((column) => {
+                        {row.weights.map((weight, day) => {
+                          const excluded = row.excludedDays.includes(day);
+                          const fill = rowColors?.days[day] ?? null;
+                          return (
+                            <td
+                              key={day}
+                              style={fillStyle(fill)}
+                              className={cn(
+                                "px-1.5 py-1.5 text-right",
+                                fill && FILLED,
+                              )}
+                            >
+                              {weight === null ? null : excluded ? (
+                                <Tooltip allowTapFirst>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      tabIndex={0}
+                                      className="cursor-help rounded-sm text-muted-foreground line-through focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    >
+                                      {pounds(weight)}
+                                      <span className="sr-only">
+                                        , left out of the weekly average
+                                      </span>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Left out of the weekly average
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                pounds(weight)
+                              )}
+                            </td>
+                          );
+                        })}
+                        {COLUMNS.map((column, index) => {
                           const value = row[column.key] as number | null;
+                          const fill = column.colored
+                            ? (rowColors?.[column.colored] ?? null)
+                            : null;
                           return (
                             <td
                               key={column.key}
-                              className="px-1.5 py-1.5 text-right last:pr-3 sm:last:pr-4"
+                              style={fillStyle(fill)}
+                              className={cn(
+                                "px-1.5 py-1.5 text-right last:pr-3 sm:last:pr-4",
+                                index === 0 &&
+                                  "border-l border-neutral-200 dark:border-neutral-700",
+                                fill && FILLED,
+                              )}
                             >
                               {column.signed ? signed(value) : pounds(value)}
                             </td>
