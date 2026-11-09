@@ -29,6 +29,11 @@ export type HistoricalContext = z.infer<typeof historicalContextSchema>;
 
 export const weightLogSchema = z.object({
   version: z.literal(1),
+  // Built from the tables, both are the owner's Pacific calendar date of the
+  // latest weigh-in change (records.ts), never a time of day, since this DTO
+  // reaches the public page. They stay plain strings because the cutover
+  // scripts parse the old snapshot, which holds full timestamps, with this
+  // schema (scripts/weight-log/sources.ts).
   importedAt: z.string(),
   sourceModifiedAt: z.string(),
   historicalContext: historicalContextSchema.optional(),

@@ -149,12 +149,16 @@ describe("buildWeightLog", () => {
     ]);
   });
 
-  it("reports the latest weigh-in change as the import time", () => {
+  it("reports the latest weigh-in change as a Pacific date, with no time", () => {
     const input = records();
+    // 5:06 am UTC is still the evening before in Los Angeles.
     input.weighIns[0]!.updatedAt = new Date("2030-03-04T05:06:07Z");
     const log = buildWeightLog(input);
-    expect(log.importedAt).toBe("2030-03-04T05:06:07.000Z");
+    expect(log.importedAt).toBe("2030-03-03");
     expect(log.sourceModifiedAt).toBe(log.importedAt);
+
+    input.weighIns[0]!.updatedAt = new Date("2030-03-04T15:06:07Z");
+    expect(buildWeightLog(input).importedAt).toBe("2030-03-04");
   });
 
   it("includes the historical context only when a recollection exists", () => {

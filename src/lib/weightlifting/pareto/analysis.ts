@@ -177,7 +177,8 @@ export type ParetoPayload = {
   displayFloor: number;
   refreshedAt: string;
   liftingSyncedAt: string | null;
-  bodyweightImportedAt: string;
+  /** The Pacific date of the latest weigh-in change, with no time of day. */
+  bodyweightUpdatedOn: string;
   lastWeighIn: string;
   evaluatedCount: number;
   unestimatedCount: number;
@@ -227,7 +228,7 @@ export function buildParetoPayload(
     displayFloor: config.floor,
     refreshedAt,
     liftingSyncedAt,
-    bodyweightImportedAt: log.importedAt,
+    bodyweightUpdatedOn: log.importedAt,
     lastWeighIn: readings.at(-1)!.date,
     evaluatedCount: points.length,
     unestimatedCount: points.filter(

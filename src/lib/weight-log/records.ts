@@ -1,3 +1,4 @@
+import { zonedDate } from "~/lib/booking/zones";
 import type {
   weightLogBodyFatRecollections,
   weightLogPhases,
@@ -23,6 +24,12 @@ export interface WeightLogRecords {
 }
 
 const UNASSIGNED = "unassigned";
+
+/**
+ * The owner's time zone, which dates the public "Updated" line. The site's
+ * other owner-facing dates (books, YouTube, /meet) use the same zone.
+ */
+export const OWNER_TIME_ZONE = "America/Los_Angeles";
 const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
@@ -108,6 +115,9 @@ export function buildWeightLog(records: WeightLogRecords): WeightLog {
     (latest, row) => Math.max(latest, row.updatedAt.getTime()),
     0,
   );
+  // The DTO reaches the public page, so it carries the day of the latest
+  // change and never the time of day the owner saved it.
+  const updatedOn = zonedDate(updatedAt, OWNER_TIME_ZONE);
   const recollection = [...records.recollections].sort((a, b) =>
     byString(a.date, b.date),
   )[0];
@@ -115,9 +125,9 @@ export function buildWeightLog(records: WeightLogRecords): WeightLog {
   return weightLogSchema.parse({
     version: 1,
     // The tables replace the imported snapshot, so "imported" now means the
-    // most recent weigh-in change.
-    importedAt: new Date(updatedAt).toISOString(),
-    sourceModifiedAt: new Date(updatedAt).toISOString(),
+    // date of the most recent weigh-in change.
+    importedAt: updatedOn,
+    sourceModifiedAt: updatedOn,
     historicalContext: recollection && {
       anchor: {
         date: recollection.date,

@@ -163,7 +163,7 @@ export function ParetoChart({
             <p>
               Last weigh-in: {data.lastWeighIn}
               <br />
-              Bodyweight imported: {data.bodyweightImportedAt}
+              Bodyweight updated: {data.bodyweightUpdatedOn}
               <br />
               Lifting synced: {data.liftingSyncedAt ?? "unavailable"}
               <br />
