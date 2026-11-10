@@ -174,10 +174,21 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     `excluded` flag stays.
 40. The Shortcut shows the week as a notification with the card image, not
     Quick Look, so it runs from the Action button, Control Center, or a widget
-    without opening the Shortcuts app.
+    without opening the Shortcuts app. Changed November 10, 2026, after the
+    owner found the text a lot to read: the route adds a `title` with the
+    outcome as a plain Unicode symbol and the pounds ("✓ 221.0",
+    "↻ 221.0, was 220.0", "= 221.0", with " · excluded" on a day left out of
+    the average), and `summary` shrinks to one line, "Avg 221.0 · 4.0 under
+    target". The Replace question reads "Today has 220.0. Replace with
+    221.0?" and names the date instead when it is not today in Los Angeles.
+    The owner has yet to confirm the wording.
 41. The card's first version: the week's seven days, the average so far,
     the target, the gap to target, and the change from last week. No
-    sparkline.
+    sparkline. Replaced November 10, 2026, at the owner's ask: the card is
+    now a snapshot of the editor's Weeks table, its header and two rows (last
+    week and this week) with the editor's fills and today's red ring. It
+    is set for a notification about 360 pt wide: 16 px type, tight cells,
+    and no Orig, its Gap, or lb/wk, so its text lands near 9 pt.
 42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
     weigh-in (decision 32).
 43. The owner builds the Shortcut by hand from a written recipe in

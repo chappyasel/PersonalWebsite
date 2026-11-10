@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as Records from "~/lib/weight-log/records";
 import { SYNTHETIC_LOG } from "~/lib/weight-log/week-summary.fixture";
 import type * as WeighIns from "~/lib/weight-log/weigh-ins";
 
@@ -24,7 +25,8 @@ vi.mock("~/lib/weight-log/weigh-ins", async (original) => ({
   saveWeighIn: mocks.save,
 }));
 vi.mock("~/lib/weight-log/database", () => ({ loadWeekRecords: mocks.load }));
-vi.mock("~/lib/weight-log/records", () => ({
+vi.mock("~/lib/weight-log/records", async (original) => ({
+  ...(await original<typeof Records>()),
   buildWeightLog: () => SYNTHETIC_LOG,
 }));
 
@@ -73,8 +75,8 @@ describe("POST /api/weight-log/weigh-in", () => {
       date: "2030-02-04",
       pounds: 100.9,
       previous: null,
-      summary:
-        "100.9 saved. Week avg 100.9 (1 of 7), target 101.0, 0.1 under. Last week 100.6.",
+      title: "✓ 100.9",
+      summary: "Avg 100.9 · 0.1 under target",
     });
     expect(mocks.save).toHaveBeenCalledWith(
       { synthetic: true },
@@ -90,10 +92,13 @@ describe("POST /api/weight-log/weigh-in", () => {
     [
       "exists",
       101.4,
-      { question: "Mon, Feb 4 already has 101.4. Replace it with 100.9?" },
+      {
+        title: "Kept 101.4",
+        question: "Today has 101.4. Replace with 100.9?",
+      },
     ],
-    ["replaced", 101.4, {}],
-    ["unchanged", 100.9, {}],
+    ["replaced", 101.4, { title: "↻ 100.9, was 101.4" }],
+    ["unchanged", 100.9, { title: "= 100.9" }],
   ] as const)(
     "answers %s with a 200 and the previous pounds",
     async (status, previous, extra) => {
@@ -108,11 +113,11 @@ describe("POST /api/weight-log/weigh-in", () => {
       expect(response.status).toBe(200);
       const body = (await response.json()) as Record<string, unknown>;
       expect(body).toMatchObject({ status, previous, ...extra });
-      expect(body.summary).toContain("Week avg 100.9");
+      expect(body.summary).toBe("Avg 100.9 · 0.1 under target");
     },
   );
 
-  it("asks about an excluded weigh-in by saying it is left out", async () => {
+  it("asks about an excluded weigh-in by marking it excluded", async () => {
     mocks.save.mockResolvedValue({
       status: "exists",
       previous: 101.4,
@@ -122,8 +127,25 @@ describe("POST /api/weight-log/weigh-in", () => {
       post({ date: "2030-02-04", pounds: 100.9 }),
     );
     expect(await response.json()).toMatchObject({
+      title: "Kept 101.4 · excluded",
       question:
-        "Mon, Feb 4 already has 101.4, which is left out of the weekly average. Replace it with 100.9? The new value stays left out.",
+        "Today has 101.4, excluded. Replace with 100.9? It stays excluded.",
+    });
+  });
+
+  it("names the date when it is not today in Los Angeles", async () => {
+    // 05:00 UTC on Feb 5 is still Feb 4 in Los Angeles, so Feb 5 is named.
+    vi.setSystemTime(new Date("2030-02-05T05:00:00Z"));
+    mocks.save.mockResolvedValue({
+      status: "exists",
+      previous: 101.4,
+      excluded: false,
+    });
+    const response = await route.POST(
+      post({ date: "2030-02-05", pounds: 100.9 }),
+    );
+    expect(await response.json()).toMatchObject({
+      question: "Tue, Feb 5 has 101.4. Replace with 100.9?",
     });
   });
 
@@ -268,7 +290,8 @@ describe("POST /api/weight-log/weigh-in", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       status: "saved",
-      summary: "100.9 saved.",
+      title: "✓ 100.9",
+      summary: "Week unavailable",
     });
   });
 
