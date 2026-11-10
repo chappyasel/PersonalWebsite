@@ -944,3 +944,14 @@ Builder `quick-entry`, PR #150, report `reports/slice-5.md`. The apple-health ru
   - Font tracing on Vercel.
   - The three device-only recipe steps: the JSON field types, attaching the image to Show Notification, and the decimal key.
 - **Out of slice.** `/api/og/section` fetches its fonts over HTTP at runtime, because it has no tracing include. It needs a one-line follow-up.
+
+## After slice 5: generated Shortcut and the sheet card (November 10)
+
+- **Token and Shortcut.** At the owner's "do all the work for me", the lead generated `WEIGHT_LOG_ENTRY_TOKEN` and saved it to `~/.config/personal-website/weight-log-entry-token` (mode 600). The lead added it to Vercel Production and redeployed with `vercel redeploy --scope openlattice`. Agent `log-weight-shortcut` added a generated, signed Log Weight to `build_shortcut.py`, with the token built in, writing to the gitignored `shortcut/private/` (apple-health `44e5aff`). The owner installed it on the Mac, and the first run worked.
+- **Owner's feedback on the card.** In their words: "ugly ass image tho that doesn't match the design of the actual site. and should show the previous week as well for comparison and look more like an actual snapshot of the spreadsheet." On the notification text: "a lot to read. thoughts on using icons too?"
+- **#151, merged as `7f3a3701`** (report `reports/week-card-sheet.md`). The card is now the Weeks table's header plus last week's and this week's rows, in the editor's SF Pro and colors. lb/wk, Orig, and Orig's Gap are left off so the text reads at about 8.9 pt in a 360 pt notification. The route returns a `title` (`✓ 221.0`, `↻ 221.0, was 220.0`, `= 221.0`) and a one-line `summary`. The lead's pixel worry turned out to be the surroundings: sampled colors are identical. Devin's one finding is fixed in `8c0d71e2`. The lead rebuilt the Shortcut to use `title` (apple-health `9a35fca`), and the owner reinstalls it.
+- **Owner to confirm:**
+  - lb/wk dropped from the card
+  - plain-symbol titles
+  - "Kept 220.0" as the title on `exists`
+  - the card's tighter spacing compared with the editor
