@@ -38,3 +38,33 @@ function monthYear(date: string) {
 export function phaseName(kind: PhaseKind, start: string, end: string) {
   return `${KIND_WORDS[kind]} ${monthYear(start)} - ${monthYear(end)}`;
 }
+
+/**
+ * Each phase's cycle number for the owner's phase picker: every phase counted
+ * by start date, all kinds together, so the first phase is Cycle 1. This is a
+ * provisional reading of "cycle" that the owner has yet to confirm, kept here
+ * alone so another reading changes one function.
+ */
+export function cycleNumbers(
+  phases: readonly { id: string; start: string }[],
+): Map<string, number> {
+  return new Map(
+    [...phases]
+      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
+      .map((phase, index) => [phase.id, index + 1]),
+  );
+}
+
+/** The calendar weeks a phase spans, counting its first and last. */
+export function phaseWeekCount(start: string, end: string) {
+  return weeksBetween(weekStartOf(start), weekStartOf(end)) + 1;
+}
+
+/** Whole weeks from one Monday to another. */
+export function weeksBetween(fromMonday: string, toMonday: string) {
+  return Math.round(
+    (Date.parse(`${toMonday}T00:00:00Z`) -
+      Date.parse(`${fromMonday}T00:00:00Z`)) /
+      (7 * DAY),
+  );
+}

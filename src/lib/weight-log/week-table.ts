@@ -1,5 +1,5 @@
 import { trimmedMean } from "./chart";
-import { addDays } from "./phases";
+import { addDays, weekStartOf, weeksBetween } from "./phases";
 import type { WeightLog } from "./schema";
 
 /**
@@ -83,4 +83,12 @@ export function currentPhase<Phase extends { start: string }>(
     (latest, phase) => (!latest || phase.start > latest.start ? phase : latest),
     undefined,
   );
+}
+
+/**
+ * A week's number within its phase, counting the phase's first week as 0, as
+ * the owner's left-hand column in the weekly table.
+ */
+export function weekNumber(week: string, phaseStart: string) {
+  return weeksBetween(weekStartOf(phaseStart), weekStartOf(week));
 }

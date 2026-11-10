@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { WeightLog } from "./schema";
-import { buildWeekTable, currentPhase, weeklyAverage } from "./week-table";
+import {
+  buildWeekTable,
+  currentPhase,
+  weekNumber,
+  weeklyAverage,
+} from "./week-table";
 
 // Invented numbers. None of them is the owner's.
 type Week = WeightLog["weeks"][number];
@@ -139,5 +144,17 @@ describe("currentPhase", () => {
       ])?.id,
     ).toBe("c");
     expect(currentPhase([])).toBeUndefined();
+  });
+});
+
+describe("weekNumber", () => {
+  it("counts the phase's first week as 0", () => {
+    expect(weekNumber("2030-01-07", "2030-01-07")).toBe(0);
+    expect(weekNumber("2030-01-14", "2030-01-07")).toBe(1);
+    expect(weekNumber("2030-03-04", "2030-01-07")).toBe(8);
+  });
+
+  it("counts calendar weeks, across a year and from a start that isn't a Monday", () => {
+    expect(weekNumber("2030-01-07", "2029-12-26")).toBe(2);
   });
 });
