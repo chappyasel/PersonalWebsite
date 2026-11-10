@@ -143,10 +143,22 @@ Sync` Shortcut gains a step that asks the site for recent weigh-ins and logs
     Backfill" Shortcut then writes every weigh-in from the site, one year per
     run, in the foreground. Samples are timed 07:00 local on their date. Then
     the 08:00 mirror takes over.
+    *Lead edit, 2026-11-09, after two reviews (owner to confirm):* samples are
+    written at 12:00 UTC on their date, so the duplicate check survives travel.
+    The check skips a date that has a Weight sample from any source, not only
+    from Shortcuts. Before the delete, the runbook adds a dry run, a fresh
+    Health export with a check for readings the site lacks, and a one-day test
+    of the timestamp. See `apple-health/shortcut/RUNBOOK-iphone.md`.
 34. The 52 days that only Health has (29 MyFitnessPal days before 2018-09-27 and
     23 scattered later) are not imported. They remain in the 2026-09-04 export
     at `~/Desktop/Agents/apple-health/export/export.xml` and in `health.db`.
 35. The site's read endpoint for the Shortcut uses its own read-only token.
+38. (Owner, 2026-11-09.) Retire `Log My Weight`. It writes only to Health, so
+    its readings never reach the site and they block the mirror for that date.
+    Weigh-ins are entered on the site.
+39. (Owner, 2026-11-09.) The 08:00 mirror's range runs through today. Abroad,
+    east of UTC-4, today's sample is stamped later than the moment it is
+    written. That is accepted, so a normal morning at home isn't delayed a day.
 
 ### Delivery
 
@@ -493,7 +505,7 @@ end date, and the public chart shows the new plan.
 - `apple-health/shortcut/build_shortcut.py`:
   - Add the mirror step to `Health Daily Sync`. It fetches the last 14 days,
     finds Weight samples from Shortcuts in that range, and logs a sample at
-    07:00 local for each date that has none.
+    07:00 local for each date that has none (shipped as 12:00 UTC; see decision 33's lead edit).
   - Add a separate `Weight Backfill` Shortcut that takes a year and does the
     same for that year.
   - Store the token the way the existing Shortcut stores its settings. Check
