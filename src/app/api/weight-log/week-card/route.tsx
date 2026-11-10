@@ -19,7 +19,7 @@ import { env } from "~/env";
  * The week card the Log Weight Shortcut shows in its notification: a PNG of
  * the week holding `?date=YYYY-MM-DD`, with that day marked as today. It
  * answers the same `WEIGHT_LOG_ENTRY_TOKEN` as `/api/weight-log/weigh-in`,
- * only for a date in the entry window, and never writes.
+ * only for a date in the Shortcut's window, and never writes.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

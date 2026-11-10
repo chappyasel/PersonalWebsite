@@ -89,17 +89,17 @@ export async function saveWeighIn<Schema extends Record<string, unknown>>(
  * Yesterday fits until UTC midnight passes, which is 4 or 5 PM in Pacific
  * time. Older corrections go through `/weight-log/edit`.
  */
-export function entryWindow(now = new Date()) {
+export function shortcutWindow(now = new Date()) {
   const today = now.toISOString().slice(0, 10);
   return { earliest: addDays(today, -1), latest: addDays(today, 1) };
 }
 
-export function isInEntryWindow(date: string, now = new Date()) {
-  const { earliest, latest } = entryWindow(now);
+export function isInShortcutWindow(date: string, now = new Date()) {
+  const { earliest, latest } = shortcutWindow(now);
   return date >= earliest && date <= latest;
 }
 
-export const OUTSIDE_ENTRY_WINDOW =
+export const OUTSIDE_SHORTCUT_WINDOW =
   "Only today's or yesterday's weigh-in can be sent here. Use /weight-log/edit for other dates.";
 
 /**
@@ -126,19 +126,19 @@ const replace = z
   ])
   .default(false);
 
-const entrySchema = z.object({ date: z.iso.date(), pounds, replace });
+const requestSchema = z.object({ date: z.iso.date(), pounds, replace });
 
-export type WeighInEntry = WeighIn & { replace: boolean };
+export type WeighInRequest = WeighIn & { replace: boolean };
 
 /**
  * Read the Shortcut's JSON body: `{ date, pounds, replace }`. The date must
- * be a real `YYYY-MM-DD` date inside the entry window.
+ * be a real `YYYY-MM-DD` date inside the Shortcut's window.
  */
-export function parseWeighInEntry(
+export function parseWeighInRequest(
   body: unknown,
   now = new Date(),
-): { entry: WeighInEntry } | { error: string } {
-  const parsed = entrySchema.safeParse(body);
+): { weighIn: WeighInRequest } | { error: string } {
+  const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     const field = parsed.error.issues[0]?.path[0];
     return {
@@ -152,13 +152,13 @@ export function parseWeighInEntry(
               : "Send a JSON object with date, pounds, and replace",
     };
   }
-  if (!isInEntryWindow(parsed.data.date, now)) {
-    return { error: OUTSIDE_ENTRY_WINDOW };
+  if (!isInShortcutWindow(parsed.data.date, now)) {
+    return { error: OUTSIDE_SHORTCUT_WINDOW };
   }
-  return { entry: parsed.data };
+  return { weighIn: parsed.data };
 }
 
-/** Read the card's `?date=`: a real date inside the entry window. */
+/** Read the card's `?date=`: a real date inside the Shortcut's window. */
 export function parseCardDate(
   value: string | null,
   now = new Date(),
@@ -166,7 +166,7 @@ export function parseCardDate(
   const parsed = z.iso.date().safeParse(value);
   if (!parsed.success)
     return { error: "date must be a date written YYYY-MM-DD" };
-  if (!isInEntryWindow(parsed.data, now)) {
+  if (!isInShortcutWindow(parsed.data, now)) {
     return {
       error:
         "Only this week's card for today or yesterday can be read here. Use /weight-log/edit for other weeks.",

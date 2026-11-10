@@ -5,10 +5,10 @@ import * as schema from "~/server/db/schema";
 
 import { PLAN_LOCK } from "./plan-edits";
 import {
-  OUTSIDE_ENTRY_WINDOW,
-  entryWindow,
+  OUTSIDE_SHORTCUT_WINDOW,
+  shortcutWindow,
   parseCardDate,
-  parseWeighInEntry,
+  parseWeighInRequest,
   saveWeighIn,
 } from "./weigh-ins";
 
@@ -146,23 +146,23 @@ describe("saveWeighIn", () => {
   });
 });
 
-describe("entryWindow", () => {
+describe("shortcutWindow", () => {
   it("is the server's UTC date and a day either side", () => {
-    expect(entryWindow(new Date("2030-01-01T23:30:00Z"))).toEqual({
+    expect(shortcutWindow(new Date("2030-01-01T23:30:00Z"))).toEqual({
       earliest: "2029-12-31",
       latest: "2030-01-02",
     });
   });
 });
 
-describe("parseWeighInEntry", () => {
+describe("parseWeighInRequest", () => {
   const now = new Date("2030-01-08T12:00:00Z");
 
   it.each(["2030-01-07", "2030-01-08", "2030-01-09"])(
     "accepts %s, inside the window",
     (date) => {
-      expect(parseWeighInEntry({ date, pounds: 150 }, now)).toEqual({
-        entry: { date, pounds: 150, replace: false },
+      expect(parseWeighInRequest({ date, pounds: 150 }, now)).toEqual({
+        weighIn: { date, pounds: 150, replace: false },
       });
     },
   );
@@ -170,53 +170,53 @@ describe("parseWeighInEntry", () => {
   it.each(["2030-01-06", "2030-01-10", "2029-01-08"])(
     "refuses %s, outside the window",
     (date) => {
-      expect(parseWeighInEntry({ date, pounds: 150 }, now)).toEqual({
-        error: OUTSIDE_ENTRY_WINDOW,
+      expect(parseWeighInRequest({ date, pounds: 150 }, now)).toEqual({
+        error: OUTSIDE_SHORTCUT_WINDOW,
       });
     },
   );
 
   it("takes pounds as a number or a numeric string, rounded to one decimal", () => {
     const pounds = (value: unknown) =>
-      parseWeighInEntry({ date: "2030-01-08", pounds: value }, now);
-    expect(pounds(150.25)).toMatchObject({ entry: { pounds: 150.3 } });
-    expect(pounds("150.24")).toMatchObject({ entry: { pounds: 150.2 } });
-    expect(pounds(" 150 ")).toMatchObject({ entry: { pounds: 150 } });
+      parseWeighInRequest({ date: "2030-01-08", pounds: value }, now);
+    expect(pounds(150.25)).toMatchObject({ weighIn: { pounds: 150.3 } });
+    expect(pounds("150.24")).toMatchObject({ weighIn: { pounds: 150.2 } });
+    expect(pounds(" 150 ")).toMatchObject({ weighIn: { pounds: 150 } });
   });
 
   it.each([0, 0.04, -1, 1500.1, "", "abc", "1e2", "150,2", null, true])(
     "refuses pounds of %j",
     (value) => {
       expect(
-        parseWeighInEntry({ date: "2030-01-08", pounds: value }, now),
+        parseWeighInRequest({ date: "2030-01-08", pounds: value }, now),
       ).toEqual({ error: "pounds must be a number above 0 and at most 1500" });
     },
   );
 
   it("reads replace as a boolean or as the text true or false", () => {
     const replace = (value: unknown) =>
-      parseWeighInEntry(
+      parseWeighInRequest(
         { date: "2030-01-08", pounds: 150, replace: value },
         now,
       );
-    expect(replace(true)).toMatchObject({ entry: { replace: true } });
-    expect(replace("true")).toMatchObject({ entry: { replace: true } });
-    expect(replace(false)).toMatchObject({ entry: { replace: false } });
-    expect(replace("false")).toMatchObject({ entry: { replace: false } });
+    expect(replace(true)).toMatchObject({ weighIn: { replace: true } });
+    expect(replace("true")).toMatchObject({ weighIn: { replace: true } });
+    expect(replace(false)).toMatchObject({ weighIn: { replace: false } });
+    expect(replace("false")).toMatchObject({ weighIn: { replace: false } });
     expect(replace("yes")).toEqual({ error: "replace must be true or false" });
   });
 
   it("refuses a malformed date or body", () => {
-    expect(parseWeighInEntry({ date: "2030-02-30", pounds: 150 }, now)).toEqual(
+    expect(parseWeighInRequest({ date: "2030-02-30", pounds: 150 }, now)).toEqual(
       { error: "date must be a date written YYYY-MM-DD" },
     );
-    expect(parseWeighInEntry({ date: "Jan 8", pounds: 150 }, now)).toEqual({
+    expect(parseWeighInRequest({ date: "Jan 8", pounds: 150 }, now)).toEqual({
       error: "date must be a date written YYYY-MM-DD",
     });
-    expect(parseWeighInEntry(null, now)).toEqual({
+    expect(parseWeighInRequest(null, now)).toEqual({
       error: "Send a JSON object with date, pounds, and replace",
     });
-    expect(parseWeighInEntry([150], now)).toEqual({
+    expect(parseWeighInRequest([150], now)).toEqual({
       error: "Send a JSON object with date, pounds, and replace",
     });
   });

@@ -153,7 +153,7 @@ export function weekLine(summary: WeekSummary) {
  * the week could be read. On `exists` nothing was saved, and `question` is
  * what the Shortcut asks before replacing.
  */
-export function entrySummary(
+export function saveSummary(
   {
     status,
     date,

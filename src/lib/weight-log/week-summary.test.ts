@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { weekTableColors } from "./color-scale";
 import {
-  entrySummary,
+  saveSummary,
   pounds,
   shortDate,
   signed,
@@ -147,27 +147,27 @@ describe("weekLine", () => {
   });
 });
 
-describe("entrySummary", () => {
+describe("saveSummary", () => {
   const week = summaryOn("2030-02-04");
   const line =
     "Week avg 100.9 (1 of 7), target 101.0, 0.1 under. Last week 100.6.";
-  const entry = { date: "2030-02-04", pounds: 100.9 };
+  const sent = { date: "2030-02-04", pounds: 100.9 };
 
   it("says what each outcome did, then the week", () => {
     expect(
-      entrySummary({ ...entry, status: "saved", previous: null }, week),
+      saveSummary({ ...sent, status: "saved", previous: null }, week),
     ).toEqual({ summary: `100.9 saved. ${line}` });
     expect(
-      entrySummary({ ...entry, status: "replaced", previous: 101.4 }, week),
+      saveSummary({ ...sent, status: "replaced", previous: 101.4 }, week),
     ).toEqual({ summary: `100.9 saved, replacing 101.4. ${line}` });
     expect(
-      entrySummary({ ...entry, status: "unchanged", previous: 100.9 }, week),
+      saveSummary({ ...sent, status: "unchanged", previous: 100.9 }, week),
     ).toEqual({ summary: `100.9 was already saved. ${line}` });
   });
 
   it("asks before replacing, and says what was kept", () => {
     expect(
-      entrySummary({ ...entry, status: "exists", previous: 101.4 }, week),
+      saveSummary({ ...sent, status: "exists", previous: 101.4 }, week),
     ).toEqual({
       summary: `Kept 101.4. ${line}`,
       question: "Mon, Feb 4 already has 101.4. Replace it with 100.9?",
@@ -176,7 +176,7 @@ describe("entrySummary", () => {
 
   it("leaves the week off when it could not be read", () => {
     expect(
-      entrySummary({ ...entry, status: "saved", previous: null }, null),
+      saveSummary({ ...sent, status: "saved", previous: null }, null),
     ).toEqual({ summary: "100.9 saved." });
   });
 });

@@ -5,10 +5,10 @@ import { loadWeekRecords } from "~/lib/weight-log/database";
 import { buildWeightLog } from "~/lib/weight-log/records";
 import {
   type WeekSummary,
-  entrySummary,
+  saveSummary,
   weekSummary,
 } from "~/lib/weight-log/week-summary";
-import { parseWeighInEntry, saveWeighIn } from "~/lib/weight-log/weigh-ins";
+import { parseWeighInRequest, saveWeighIn } from "~/lib/weight-log/weigh-ins";
 import { db } from "~/server/db";
 
 import { env } from "~/env";
@@ -23,7 +23,7 @@ import { env } from "~/env";
  *
  * It answers only `Authorization: Bearer <WEIGHT_LOG_ENTRY_TOKEN>`, a token
  * used for nothing but this route and the week card, and refuses everything
- * while that is unset. It writes only dates in the entry window (today and a
+ * while that is unset. It writes only dates in the Shortcut's window (today and a
  * day either side, by UTC) and never deletes. See "Entry from a Shortcut" in
  * `docs/weight-log.md`.
  */
@@ -66,13 +66,13 @@ export async function POST(request: NextRequest) {
       400,
     );
   }
-  const parsed = parseWeighInEntry(body);
+  const parsed = parseWeighInRequest(body);
   if ("error" in parsed) return reply({ error: parsed.error }, 400);
-  const { entry } = parsed;
+  const { weighIn } = parsed;
 
   let saved: Awaited<ReturnType<typeof saveWeighIn>>;
   try {
-    saved = await saveWeighIn(db, entry);
+    saved = await saveWeighIn(db, weighIn);
   } catch (error) {
     logFailure("save", error);
     return reply({ error: "The weigh-in didn't save. Try again." }, 500);
@@ -80,17 +80,17 @@ export async function POST(request: NextRequest) {
   // The weigh-in is saved by now, so a failed read only costs the week line.
   let week: WeekSummary | null = null;
   try {
-    week = weekSummary(buildWeightLog(await loadWeekRecords(db)), entry.date);
+    week = weekSummary(buildWeightLog(await loadWeekRecords(db)), weighIn.date);
   } catch (error) {
     logFailure("week", error);
   }
   // Every expected outcome is a 200, so the Shortcut branches on `status`.
   return reply({
     status: saved.status,
-    date: entry.date,
-    pounds: entry.pounds,
+    date: weighIn.date,
+    pounds: weighIn.pounds,
     previous: saved.previous,
-    ...entrySummary({ ...entry, ...saved }, week),
+    ...saveSummary({ ...weighIn, ...saved }, week),
   });
 }
 

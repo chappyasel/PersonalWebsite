@@ -119,7 +119,7 @@ describe("POST /api/weight-log/weigh-in", () => {
     await route.POST(post({ date: "2030-02-04", pounds: "100.94" }));
     await route.POST(post({ date: "2030-02-04", pounds: 100.95 }));
     const sent = mocks.save.mock.calls as [unknown, { pounds: number }][];
-    expect(sent.map(([, entry]) => entry.pounds)).toEqual([100.9, 101]);
+    expect(sent.map(([, weighIn]) => weighIn.pounds)).toEqual([100.9, 101]);
   });
 
   it.each([
