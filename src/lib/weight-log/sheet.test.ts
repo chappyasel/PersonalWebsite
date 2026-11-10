@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { cleanTarget } from "./plan-edits";
 import {
   bareRow,
   cellKey,
@@ -97,12 +98,16 @@ describe("targetEdit", () => {
     });
   });
 
-  it("rounds the target to a tenth and the rate to a hundredth", () => {
-    expect(targetEdit("2030-01-14", "121.04", 120.9, 120.333333)).toEqual({
+  it("rounds the target to a tenth and keeps the rate exact, so the target lands where typed", () => {
+    const edit = targetEdit("2030-01-14", "121.04", 120.9, 120.333333);
+    expect(edit).toEqual({
       type: "changeRate",
       week: "2030-01-14",
-      poundsPerWeek: 0.67,
+      poundsPerWeek: 0.666667,
     });
+    // The server's target: the previous one plus the rate, to six decimals.
+    const rate = edit.type === "changeRate" ? edit.poundsPerWeek : NaN;
+    expect(cleanTarget(120.333333 + rate)).toBe(121);
   });
 
   it("sends nothing for the target the cell shows", () => {
@@ -148,45 +153,64 @@ describe("rateEdit", () => {
 describe("undoOf", () => {
   it("deletes a weigh-in the change added", () => {
     expect(
-      undoOf({ kind: "weighIn", date: "2030-01-08", before: null, after: 1 }),
+      undoOf({
+        kind: "weighIn",
+        date: "2030-01-08",
+        before: null,
+        after: 1,
+        excluded: false,
+      }),
     ).toEqual({ mutation: "deleteWeighIn", input: { date: "2030-01-08" } });
   });
 
-  it("restores the pounds a replace or a delete removed", () => {
-    const restore = {
-      mutation: "upsertWeighIn",
-      input: { date: "2030-01-08", pounds: 120.4 },
-    };
+  it("restores the pounds a replace removed, leaving the flag alone", () => {
     expect(
       undoOf({
         kind: "weighIn",
         date: "2030-01-08",
         before: 120.4,
         after: 121,
+        excluded: true,
       }),
-    ).toEqual(restore);
-    expect(
-      undoOf({
-        kind: "weighIn",
-        date: "2030-01-08",
-        before: 120.4,
-        after: null,
-      }),
-    ).toEqual(restore);
+    ).toEqual({
+      mutation: "upsertWeighIn",
+      input: { date: "2030-01-08", pounds: 120.4 },
+    });
   });
 
-  it("sets the week's old rate back", () => {
+  it("puts a deleted weigh-in back with the flag it had", () => {
+    for (const excluded of [true, false]) {
+      expect(
+        undoOf({
+          kind: "weighIn",
+          date: "2030-01-08",
+          before: 120.4,
+          after: null,
+          excluded,
+        }),
+      ).toEqual({
+        mutation: "restoreWeighIn",
+        input: { date: "2030-01-08", pounds: 120.4, excluded },
+      });
+    }
+  });
+
+  it("sets the week's old rate back exactly, even one imported with many decimals", () => {
     expect(
       undoOf({
         kind: "rate",
         phaseId: "3",
         week: "2030-01-14",
-        before: 0.5,
+        before: 0.333333,
         after: 0.8,
       }),
     ).toEqual({
       mutation: "changeRate",
-      input: { phaseId: "3", weekStart: "2030-01-14", poundsPerWeek: 0.5 },
+      input: {
+        phaseId: "3",
+        weekStart: "2030-01-14",
+        poundsPerWeek: 0.333333,
+      },
     });
   });
 });
@@ -258,17 +282,42 @@ describe("bareRow and withWeeks", () => {
       week: "2030-01-21",
       weights: [120, 150, 121, ...empty.slice(3)],
       excludedDays: [1],
+      previousAverage: null,
     });
     expect(bare.average).toBeCloseTo(120.5);
+    expect(bare.change).toBeNull();
     expect(bare.target).toBeNull();
     expect(bare.excludedDays).toEqual([1]);
+  });
+
+  it("changes from the previous calendar week's average, as the table does", () => {
+    const week = {
+      week: "2030-01-21",
+      weights: [120, 121, ...empty.slice(2)],
+      excludedDays: [],
+    };
+    expect(bareRow({ ...week, previousAverage: 119.5 }).change).toBeCloseTo(1);
+    // No average this week, or none the week before: no change.
+    expect(
+      bareRow({ ...week, weights: empty, previousAverage: 119.5 }).change,
+    ).toBeNull();
   });
 
   it("adds a missing week in calendar order and keeps the table's own", () => {
     const rows = [row("2030-01-07", 120, null), row("2030-01-28", 121, 0.5)];
     const merged = withWeeks(rows, [
-      bareRow({ week: "2030-01-14", weights: empty, excludedDays: [] }),
-      bareRow({ week: "2030-01-28", weights: empty, excludedDays: [] }),
+      bareRow({
+        week: "2030-01-14",
+        weights: empty,
+        excludedDays: [],
+        previousAverage: null,
+      }),
+      bareRow({
+        week: "2030-01-28",
+        weights: empty,
+        excludedDays: [],
+        previousAverage: null,
+      }),
     ]);
     expect(merged.map((item) => [item.week, item.target])).toEqual([
       ["2030-01-07", 120],

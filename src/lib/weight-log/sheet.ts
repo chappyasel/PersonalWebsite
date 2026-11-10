@@ -1,5 +1,5 @@
 import { addDays } from "./phases";
-import { MAX_POUNDS_PER_WEEK, MAX_TARGET } from "./plan-edits";
+import { MAX_POUNDS_PER_WEEK, MAX_TARGET, cleanTarget } from "./plan-edits";
 import { type WeekTableRow, weeklyAverage } from "./week-table";
 
 /**
@@ -78,9 +78,9 @@ export function weighInEdit(
 /**
  * A target cell. lb/wk is a week's target minus the previous week's, so a
  * new target is the rate change that reaches it, and every later target in
- * the phase moves with it, as a rate edit does. The rate goes to the server
- * to two decimals, so the saved target can differ from the typed one by
- * under 0.005 lb when the previous target has more decimals than that.
+ * the phase moves with it, as a rate edit does. The rate keeps the six
+ * decimals the server keeps targets with, so the saved target is the typed
+ * one even when the previous target has more decimals than the page shows.
  */
 export function targetEdit(
   week: string,
@@ -101,14 +101,13 @@ export function targetEdit(
     };
   }
   if (target === roundTenth(current)) return NONE;
-  const poundsPerWeek = roundHundredth(target - previous);
+  const poundsPerWeek = cleanTarget(target - previous);
   if (Math.abs(poundsPerWeek) > MAX_POUNDS_PER_WEEK) {
     return {
       type: "invalid",
       message: `A target can be at most ${MAX_POUNDS_PER_WEEK} lb from the week before.`,
     };
   }
-  if (poundsPerWeek === roundHundredth(current - previous)) return NONE;
   return { type: "changeRate", week, poundsPerWeek };
 }
 
@@ -143,6 +142,8 @@ export type SheetChange =
       before: number | null;
       /** Null when the change deleted it. */
       after: number | null;
+      /** Whether the day's weigh-in was left out of the weekly average. */
+      excluded: boolean;
     }
   | {
       kind: "rate";
@@ -156,14 +157,20 @@ export type UndoRequest =
   | { mutation: "upsertWeighIn"; input: { date: string; pounds: number } }
   | { mutation: "deleteWeighIn"; input: { date: string } }
   | {
+      mutation: "restoreWeighIn";
+      input: { date: string; pounds: number; excluded: boolean };
+    }
+  | {
       mutation: "changeRate";
       input: { phaseId: string; weekStart: string; poundsPerWeek: number };
     };
 
 /**
- * The request that puts a change back. A weigh-in returns to its old pounds,
- * or goes if the day had none. A rate change sets the week's old rate, which
- * moves its target and every later one back by the same amount.
+ * The request that puts a change back. A new weigh-in goes, a replaced one
+ * gets its old pounds (its excluded flag never changed), and a deleted one
+ * comes back with its pounds and its flag. A rate change sets the week's old
+ * rate exactly, which moves its target and every later one back by the same
+ * amount.
  */
 export function undoOf(change: SheetChange): UndoRequest {
   if (change.kind === "rate") {
@@ -172,16 +179,27 @@ export function undoOf(change: SheetChange): UndoRequest {
       input: {
         phaseId: change.phaseId,
         weekStart: change.week,
-        poundsPerWeek: roundHundredth(change.before),
+        poundsPerWeek: cleanTarget(change.before),
       },
     };
   }
-  return change.before === null
-    ? { mutation: "deleteWeighIn", input: { date: change.date } }
-    : {
-        mutation: "upsertWeighIn",
-        input: { date: change.date, pounds: change.before },
-      };
+  if (change.before === null) {
+    return { mutation: "deleteWeighIn", input: { date: change.date } };
+  }
+  if (change.after === null) {
+    return {
+      mutation: "restoreWeighIn",
+      input: {
+        date: change.date,
+        pounds: change.before,
+        excluded: change.excluded,
+      },
+    };
+  }
+  return {
+    mutation: "upsertWeighIn",
+    input: { date: change.date, pounds: change.before },
+  };
 }
 
 /**
@@ -244,26 +262,32 @@ export function phaseHolding<
 
 /**
  * A table row for a week the phase's table lacks: one with no plan and no
- * weigh-ins yet, or one outside every phase. Only the days and the average
- * have values.
+ * weigh-ins yet, or one outside every phase. Only the days, the average,
+ * and the change from the previous calendar week's average have values,
+ * as `buildWeekTable` gives them.
  */
 export function bareRow(week: {
   week: string;
   weights: readonly (number | null)[];
   excludedDays: readonly number[];
+  previousAverage: number | null;
 }): WeekTableRow {
   const weights = [...week.weights];
+  const average = weeklyAverage({
+    weights,
+    averageDays: [0, 1, 2, 3, 4, 5, 6].filter(
+      (day) => !week.excludedDays.includes(day),
+    ),
+  });
   return {
     week: week.week,
     weights,
     excludedDays: [...week.excludedDays],
-    average: weeklyAverage({
-      weights,
-      averageDays: [0, 1, 2, 3, 4, 5, 6].filter(
-        (day) => !week.excludedDays.includes(day),
-      ),
-    }),
-    change: null,
+    average,
+    change:
+      average === null || week.previousAverage === null
+        ? null
+        : average - week.previousAverage,
     target: null,
     gapToTarget: null,
     poundsPerWeek: null,

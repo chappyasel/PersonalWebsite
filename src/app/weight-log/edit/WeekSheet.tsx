@@ -403,6 +403,9 @@ export function WeekSheet({ today }: { today: string }) {
 
   const weightOn = (date: string) =>
     rowByWeek.get(weekStartOf(date))?.weights[dayIndex(date)] ?? null;
+  const excludedOn = (date: string) =>
+    rowByWeek.get(weekStartOf(date))?.excludedDays.includes(dayIndex(date)) ??
+    false;
 
   // Today's empty cell starts from the latest counted weigh-in before it,
   // as the old form did. Nothing is saved until the owner presses Return.
@@ -420,7 +423,7 @@ export function WeekSheet({ today }: { today: string }) {
       utils.weightLog.phases.invalidate(),
       utils.weightLog.weekTable.invalidate(),
     ]);
-  // Each mutation refetches before its call's own callbacks run, so a sent
+  // Each mutation refetches before its call's promise settles, so a sent
   // value gives way to the saved one without a blank frame.
   const upsert = api.weightLog.upsertWeighIn.useMutation({
     onSuccess: refreshWeighIns,
@@ -428,10 +431,27 @@ export function WeekSheet({ today }: { today: string }) {
   const remove = api.weightLog.deleteWeighIn.useMutation({
     onSuccess: refreshWeighIns,
   });
+  const restore = api.weightLog.restoreWeighIn.useMutation({
+    onSuccess: refreshWeighIns,
+  });
   const changeRate = api.weightLog.changeRate.useMutation({
     onSuccess: refreshPlan,
   });
-  const busy = upsert.isPending || remove.isPending || changeRate.isPending;
+  // Every write settles through its own promise. TanStack Query runs a
+  // `mutate` call's own callbacks only for the latest call on a hook, so two
+  // quick edits would leave the first cell saving, with no status or undo.
+  const [inFlight, setInFlight] = useState(0);
+  const write = <Result,>(
+    request: Promise<Result>,
+    done: (result: Result) => void,
+    fail: (error: unknown) => void,
+  ) => {
+    setInFlight((count) => count + 1);
+    void request
+      .then(done, fail)
+      .finally(() => setInFlight((count) => count - 1));
+  };
+  const busy = inFlight > 0;
 
   const dayLabel = (date: string) =>
     formatDay(date, {
@@ -529,54 +549,59 @@ export function WeekSheet({ today }: { today: string }) {
     };
     if (edit.type === "saveWeighIn" || edit.type === "deleteWeighIn") {
       const before = weightOn(edit.date);
+      const excluded = excludedOn(edit.date);
       const sent = edit.type === "saveWeighIn" ? edit.pounds.toFixed(1) : "";
       setPending((current) => ({ ...current, [key]: sent }));
+      // A later edit of the same cell owns it from then on.
       const settle = () =>
         setPending((current) =>
           current[key] === sent ? without(current, [key]) : current,
         );
       const day = dayLabel(edit.date);
       if (edit.type === "deleteWeighIn") {
-        remove.mutate(
-          { date: edit.date },
-          {
-            onSuccess: () => {
-              settle();
-              setStatus({
-                message: `Deleted ${pounds(before)} lb from ${day}.`,
-                undo: { kind: "weighIn", date: edit.date, before, after: null },
-              });
-            },
-            onError: (error) => {
-              settle();
-              refused(error, "The weigh-in didn't delete. Try again.");
-            },
-          },
-        );
-        return;
-      }
-      upsert.mutate(
-        { date: edit.date, pounds: edit.pounds },
-        {
-          onSuccess: () => {
+        write(
+          remove.mutateAsync({ date: edit.date }),
+          () => {
             settle();
             setStatus({
-              message:
-                before === null
-                  ? `Saved ${sent} lb for ${day}.`
-                  : `Changed ${day} from ${pounds(before)} to ${sent} lb.`,
+              message: `Deleted ${pounds(before)} lb from ${day}.`,
               undo: {
                 kind: "weighIn",
                 date: edit.date,
                 before,
-                after: edit.pounds,
+                after: null,
+                excluded,
               },
             });
           },
-          onError: (error) => {
+          (error) => {
             settle();
-            refused(error, "The weigh-in didn't save. Try again.");
+            refused(error, "The weigh-in didn't delete. Try again.");
           },
+        );
+        return;
+      }
+      write(
+        upsert.mutateAsync({ date: edit.date, pounds: edit.pounds }),
+        () => {
+          settle();
+          setStatus({
+            message:
+              before === null
+                ? `Saved ${sent} lb for ${day}.`
+                : `Changed ${day} from ${pounds(before)} to ${sent} lb.`,
+            undo: {
+              kind: "weighIn",
+              date: edit.date,
+              before,
+              after: edit.pounds,
+              excluded,
+            },
+          });
+        },
+        (error) => {
+          settle();
+          refused(error, "The weigh-in didn't save. Try again.");
         },
       );
       return;
@@ -609,36 +634,33 @@ export function WeekSheet({ today }: { today: string }) {
     };
     // The revision travels with the edit, so the server refuses it if
     // another tab changed the plan since this page loaded it.
-    changeRate.mutate(
-      {
+    write(
+      changeRate.mutateAsync({
         phaseId,
         weekStart: edit.week,
         poundsPerWeek: edit.poundsPerWeek,
         revision,
+      }),
+      () => {
+        settle();
+        setStatus({
+          message: `Set the week of ${weekLabel(edit.week)} to ${pounds(target)} lb at ${rate(edit.poundsPerWeek)} lb/wk.${later ? ` Later targets moved ${rate(moved)} lb.` : ""}`,
+          undo: {
+            kind: "rate",
+            phaseId,
+            week: edit.week,
+            before: row.poundsPerWeek!,
+            after: edit.poundsPerWeek,
+          },
+        });
       },
-      {
-        onSuccess: () => {
-          settle();
-          setStatus({
-            message: `Set the week of ${weekLabel(edit.week)} to ${pounds(target)} lb at ${rate(edit.poundsPerWeek)} lb/wk.${later ? ` Later targets moved ${rate(moved)} lb.` : ""}`,
-            undo: {
-              kind: "rate",
-              phaseId,
-              week: edit.week,
-              before: row.poundsPerWeek!,
-              after: edit.poundsPerWeek,
-            },
-          });
-        },
-        onError: (error) => {
-          settle();
-          if (isConflict(error)) void refreshPlan();
-          refused(error, "The plan didn't change. Try again.");
-        },
+      (error) => {
+        settle();
+        if (isConflict(error)) void refreshPlan();
+        refused(error, "The plan didn't change. Try again.");
       },
     );
   };
-
   /**
    * End the open cell's edit. A message comes back when the text can't be
    * sent, and Return or Tab keep the cell open on it. Leaving the cell keeps
@@ -696,50 +718,64 @@ export function WeekSheet({ today }: { today: string }) {
 
   const runUndo = (change: SheetChange) => {
     const request = undoOf(change);
+    const undone = (message: string) => setStatus({ message, undo: null });
     const undoFailed = (error: unknown) =>
       setStatus({
         message: failure(error, "The undo didn't go through. Try again."),
         undo: change,
       });
-    if (request.mutation === "changeRate") {
-      const revision = phasesQuery.data?.revision;
-      if (!revision) return;
-      setPlanLanding(true);
-      changeRate.mutate(
-        { ...request.input, revision },
-        {
-          onSuccess: () => {
+    switch (request.mutation) {
+      case "changeRate": {
+        const revision = phasesQuery.data?.revision;
+        if (!revision) return;
+        setPlanLanding(true);
+        write(
+          changeRate.mutateAsync({ ...request.input, revision }),
+          () => {
             setPlanLanding(false);
-            setStatus({
-              message: `Put the week of ${weekLabel(request.input.weekStart)} back to ${rate(request.input.poundsPerWeek)} lb/wk.`,
-              undo: null,
-            });
+            undone(
+              `Put the week of ${weekLabel(request.input.weekStart)} back to ${rate(request.input.poundsPerWeek)} lb/wk.`,
+            );
           },
-          onError: (error) => {
+          (error) => {
             setPlanLanding(false);
             if (isConflict(error)) void refreshPlan();
             undoFailed(error);
           },
-        },
-      );
-    } else if (request.mutation === "deleteWeighIn") {
-      remove.mutate(request.input, {
-        onSuccess: () =>
-          setStatus({
-            message: `Removed the weigh-in for ${dayLabel(request.input.date)}.`,
-            undo: null,
-          }),
-        onError: undoFailed,
-      });
-    } else {
-      upsert.mutate(request.input, {
-        onSuccess: () =>
-          setStatus({
-            message: `Put ${dayLabel(request.input.date)} back to ${pounds(request.input.pounds)} lb.`,
-            undo: null,
-          }),
-        onError: undoFailed,
-      });
+        );
+        return;
+      }
+      case "deleteWeighIn":
+        write(
+          remove.mutateAsync(request.input),
+          () =>
+            undone(`Removed the weigh-in for ${dayLabel(request.input.date)}.`),
+          undoFailed,
+        );
+        return;
+      case "restoreWeighIn":
+        write(
+          restore.mutateAsync(request.input),
+          () =>
+            undone(
+              `Put ${dayLabel(request.input.date)} back to ${pounds(request.input.pounds)} lb${request.input.excluded ? ", still left out of the weekly average" : ""}.`,
+            ),
+          (error) => {
+            if (isConflict(error)) void refreshWeighIns();
+            undoFailed(error);
+          },
+        );
+        return;
+      case "upsertWeighIn":
+        write(
+          upsert.mutateAsync(request.input),
+          () =>
+            undone(
+              `Put ${dayLabel(request.input.date)} back to ${pounds(request.input.pounds)} lb.`,
+            ),
+          undoFailed,
+        );
+        return;
     }
   };
 

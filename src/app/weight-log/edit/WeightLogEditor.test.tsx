@@ -22,6 +22,9 @@ interface Call {
   input: Record<string, unknown>;
   hook: MutationOptions;
   call?: MutationOptions;
+  /** A `mutateAsync` call's promise, which the page awaits. */
+  resolve?: (result: unknown) => void;
+  reject?: (error: unknown) => void;
 }
 interface MutationOptions {
   onSuccess?: (result: unknown, input: Call["input"]) => unknown;
@@ -35,6 +38,8 @@ const mocks = vi.hoisted(() => ({
   /** The latest counted weigh-in ahead of any week the grid asks for. */
   before: null as { date: string; pounds: number } | null,
   calls: [] as Call[],
+  /** Each hook's latest call, as TanStack Query tracks it. */
+  latest: {} as Record<string, Call>,
   invalidate: vi.fn(() => Promise.resolve()),
 }));
 
@@ -59,10 +64,17 @@ const row = (
 });
 
 vi.mock("~/trpc/react", () => {
+  const record = (call: Call) => {
+    mocks.calls.push(call);
+    mocks.latest[call.name] = call;
+  };
   const mutation = (name: string) => (hook: MutationOptions) => ({
-    mutate: (input: Call["input"], call?: MutationOptions) => {
-      mocks.calls.push({ name, input, hook, call });
-    },
+    mutate: (input: Call["input"], call?: MutationOptions) =>
+      record({ name, input, hook, call }),
+    mutateAsync: (input: Call["input"]) =>
+      new Promise((resolve, reject) =>
+        record({ name, input, hook, resolve, reject }),
+      ),
     isPending: false,
   });
   const invalidate = { invalidate: mocks.invalidate };
@@ -129,6 +141,7 @@ vi.mock("~/trpc/react", () => {
                 week,
                 weights: found?.weights ?? empty,
                 excludedDays: found?.excludedDays ?? [],
+                previousAverage: null,
                 before: mocks.before,
               },
               isPending: false,
@@ -139,6 +152,7 @@ vi.mock("~/trpc/react", () => {
         },
         upsertWeighIn: { useMutation: mutation("upsertWeighIn") },
         deleteWeighIn: { useMutation: mutation("deleteWeighIn") },
+        restoreWeighIn: { useMutation: mutation("restoreWeighIn") },
         changeRate: { useMutation: mutation("changeRate") },
         // The plan and set point forms have their own tests (PlanEditor.test.tsx).
         moveEnd: { useMutation: mutation("moveEnd") },
@@ -170,16 +184,31 @@ function typeInto(name: string, value: string) {
 const press = (target: HTMLElement, key: string, shiftKey = false) =>
   fireEvent.keyDown(target, { key, shiftKey });
 
-/** The server answers a mutate call: the hook's handler, then the call's. */
+/** Let the page's `.then` handlers run. */
+async function flush() {
+  for (let tick = 0; tick < 5; tick++) await Promise.resolve();
+}
+/**
+ * The server answers a call: the hook's handler, then the call's own, which
+ * TanStack Query v5 runs only for the hook's latest `mutate` call, then the
+ * promise of a `mutateAsync` call.
+ */
 async function settle(call: Call, result: unknown = {}) {
   await act(async () => {
     await call.hook.onSuccess?.(result, call.input);
-    await call.call?.onSuccess?.(result, call.input);
+    if (mocks.latest[call.name] === call) {
+      await call.call?.onSuccess?.(result, call.input);
+    }
+    call.resolve?.(result);
+    await flush();
   });
 }
 async function refuse(call: Call, error: unknown) {
   await act(async () => {
-    await call.call?.onError?.(error);
+    await call.hook.onError?.(error);
+    if (mocks.latest[call.name] === call) await call.call?.onError?.(error);
+    call.reject?.(error);
+    await flush();
   });
 }
 const refusal = (message: string, code = "BAD_REQUEST") =>
@@ -199,6 +228,7 @@ beforeEach(() => {
 
 afterEach(() => {
   mocks.calls = [];
+  mocks.latest = {};
   mocks.unphased = [];
   mocks.before = null;
   cleanup();
@@ -321,11 +351,55 @@ describe("clearing a day", () => {
     expect(screen.getByText("Deleted 100.0 lb from Mon, Jan 7.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-    expect(mocks.calls[1]!.name).toBe("upsertWeighIn");
-    expect(mocks.calls[1]!.input).toEqual({ date: "2030-01-07", pounds: 100 });
+    expect(mocks.calls[1]!.name).toBe("restoreWeighIn");
+    expect(mocks.calls[1]!.input).toEqual({
+      date: "2030-01-07",
+      pounds: 100,
+      excluded: false,
+    });
     await settle(mocks.calls[1]!);
     expect(screen.getByText("Put Mon, Jan 7 back to 100.0 lb.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("puts an excluded weigh-in back still excluded", async () => {
+    mocks.rows[0] = row(
+      "2030-01-07",
+      [100, 100.4, ...empty.slice(2)],
+      100,
+      null,
+      [1],
+    );
+    render(<WeightLogEditor />);
+    press(typeInto("Weigh-in, Tue, Jan 8", ""), "Enter");
+    mocks.rows[0] = row("2030-01-07", [100, ...empty.slice(1)], 100);
+    await settle(mocks.calls[0]!);
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(mocks.calls[1]!.name).toBe("restoreWeighIn");
+    expect(mocks.calls[1]!.input).toEqual({
+      date: "2030-01-08",
+      pounds: 100.4,
+      excluded: true,
+    });
+    await settle(mocks.calls[1]!);
+    expect(
+      screen.getByText(
+        "Put Tue, Jan 8 back to 100.4 lb, still left out of the weekly average.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("leaves a day that has a weigh-in again, and refetches it", async () => {
+    render(<WeightLogEditor />);
+    press(typeInto("Weigh-in, Mon, Jan 7", ""), "Enter");
+    await settle(mocks.calls[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    const again =
+      "That day has a weigh-in again, so the undo left it as it is.";
+    await refuse(mocks.calls[1]!, refusal(again, "CONFLICT"));
+    expect(screen.getByText(again)).toBeTruthy();
+    expect(mocks.invalidate).toHaveBeenCalled();
   });
 
   it("undoes a new weigh-in by deleting it", async () => {
@@ -348,6 +422,62 @@ describe("clearing a day", () => {
       date: "2030-01-08",
       pounds: 100.4,
     });
+  });
+});
+
+describe("overlapping saves", () => {
+  it("settle each cell, in whichever order the server answers", async () => {
+    render(<WeightLogEditor />);
+    press(typeInto("Weigh-in, Mon, Jan 7", "99.8"), "Enter");
+    press(typeInto("Weigh-in, Tue, Jan 8", "99.6"), "Enter");
+    const [first, second] = mocks.calls;
+    const saving = (name: string) =>
+      cell(name).getAttribute("aria-label")!.endsWith("saving");
+    expect(saving("Weigh-in, Mon, Jan 7")).toBe(true);
+    expect(saving("Weigh-in, Tue, Jan 8")).toBe(true);
+
+    // The later save lands first. The first is still in flight, so Undo
+    // waits for it.
+    mocks.rows[0] = row("2030-01-07", [100, 99.6, ...empty.slice(2)], 100);
+    await settle(second!);
+    expect(
+      screen.getByText("Changed Tue, Jan 8 from 100.4 to 99.6 lb."),
+    ).toBeTruthy();
+    expect(saving("Weigh-in, Tue, Jan 8")).toBe(false);
+    expect(saving("Weigh-in, Mon, Jan 7")).toBe(true);
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Undo" }).disabled,
+    ).toBe(true);
+
+    mocks.rows[0] = row("2030-01-07", [99.8, 99.6, ...empty.slice(2)], 100);
+    await settle(first!);
+    expect(saving("Weigh-in, Mon, Jan 7")).toBe(false);
+    expect(cell("Weigh-in, Mon, Jan 7").textContent).toBe("99.8");
+    expect(
+      screen.getByText("Changed Mon, Jan 7 from 100.0 to 99.8 lb."),
+    ).toBeTruthy();
+    const undo = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Undo",
+    });
+    expect(undo.disabled).toBe(false);
+    fireEvent.click(undo);
+    expect(mocks.calls[2]!.input).toEqual({ date: "2030-01-07", pounds: 100 });
+  });
+
+  it("settle a refusal and a save on their own cells", async () => {
+    render(<WeightLogEditor />);
+    press(typeInto("Weigh-in, Mon, Jan 7", "99.8"), "Enter");
+    press(typeInto("Weigh-in, Tue, Jan 8", "99.6"), "Enter");
+    const [first, second] = mocks.calls;
+    await settle(second!);
+    await refuse(first!, refusal("That date is too early."));
+    expect(screen.getByText("That date is too early.")).toBeTruthy();
+    expect(cell("Weigh-in, Mon, Jan 7").getAttribute("aria-label")).toMatch(
+      /not saved$/,
+    );
+    expect(cell("Weigh-in, Tue, Jan 8").getAttribute("aria-label")).not.toMatch(
+      /saving|not saved/,
+    );
   });
 });
 
@@ -412,6 +542,19 @@ describe("the plan cells", () => {
       poundsPerWeek: 0.5,
       revision: "rev-1",
     });
+  });
+
+  it("lands a target exactly on what was typed, and undoes an imported rate exactly", async () => {
+    mocks.rows = [
+      row("2030-01-07", empty, 100.333333),
+      row("2030-01-14", empty, 100.666666, 0.333333),
+    ];
+    render(<WeightLogEditor />);
+    press(typeInto("Target, week of Jan 14", "101"), "Enter");
+    expect(mocks.calls[0]!.input).toMatchObject({ poundsPerWeek: 0.666667 });
+    await settle(mocks.calls[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(mocks.calls[1]!.input).toMatchObject({ poundsPerWeek: 0.333333 });
   });
 
   it("sends an lb/wk to two decimals", () => {
