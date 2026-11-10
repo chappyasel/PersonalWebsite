@@ -1,15 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { weekTableColors } from "./color-scale";
-import {
-  pounds,
-  saveSummary,
-  shortDate,
-  signed,
-  weekLine,
-  weekSummary,
-} from "./week-summary";
-import { SYNTHETIC_LOG } from "./week-summary.fixture";
+import { pounds, signed } from "./format";
+import { saveSummary, shortDate, weekLine, weekSummary } from "./week-summary";
+import { HALF_TENTH_LOG, SYNTHETIC_LOG } from "./week-summary.fixture";
 import { buildWeekTable } from "./week-table";
 
 const summaryOn = (date: string) => weekSummary(SYNTHETIC_LOG, date);
@@ -116,6 +110,23 @@ describe("formatting", () => {
     expect(signed(-0.24)).toBe("−0.2");
     expect(signed(-0.04)).toBe("0.0");
     expect(shortDate("2030-01-21")).toBe("Mon, Jan 21");
+  });
+});
+
+describe("a mean that ends in a hundredths 5", () => {
+  const summary = weekSummary(HALF_TENTH_LOG, "2030-02-05");
+
+  it("rounds the way the editor's weekly table does", () => {
+    expect(summary.average).toBeCloseTo(150.35, 10);
+    expect(pounds(summary.average)).toBe(summary.average!.toFixed(1));
+    expect(pounds(summary.average)).toBe("150.3");
+    expect(signed(summary.gapToTarget)).toBe("+0.3");
+  });
+
+  it("writes a line whose numbers agree", () => {
+    expect(weekLine(summary)).toContain(
+      "Week avg 150.3 (2 of 7), target 150.0, 0.3 over.",
+    );
   });
 });
 

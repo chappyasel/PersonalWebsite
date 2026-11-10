@@ -1,4 +1,5 @@
 import { weekTableColors } from "./color-scale";
+import { pounds, toTenth } from "./format";
 import { addDays, weekStartOf } from "./phases";
 import type { WeightLog } from "./schema";
 import { buildWeekTable, weeklyAverage } from "./week-table";
@@ -99,18 +100,6 @@ export function weekSummary(log: WeightLog, date: string): WeekSummary {
   };
 }
 
-/** Pounds to one decimal place, as the editor shows them. */
-export function pounds(value: number) {
-  return (Math.round(value * 10) / 10).toFixed(1);
-}
-
-/** A signed difference to one decimal place, such as +0.4 or −0.2. */
-export function signed(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  if (rounded === 0) return "0.0";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
-}
-
 /** "Mon, Nov 9" for a `YYYY-MM-DD` date. */
 export function shortDate(date: string) {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -134,7 +123,7 @@ export function weekLine(summary: WeekSummary) {
     if (summary.target === null || summary.gapToTarget === null) {
       parts.push(`${average}, no target this week.`);
     } else {
-      const gap = Math.round(summary.gapToTarget * 10) / 10;
+      const gap = toTenth(summary.gapToTarget);
       const offBy =
         gap === 0
           ? "on target"

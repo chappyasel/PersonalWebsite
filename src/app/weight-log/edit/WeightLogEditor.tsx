@@ -28,6 +28,7 @@ import {
   weekTableColors,
 } from "~/lib/weight-log/color-scale";
 import { lastWeighInBefore, relativeDayLabel } from "~/lib/weight-log/entry";
+import { pounds, signed } from "~/lib/weight-log/format";
 import {
   addDays,
   cycleNumbers,
@@ -108,9 +109,6 @@ const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
     ...options,
   });
 
-const pounds = (value: number | null) =>
-  value === null ? "—" : value.toFixed(1);
-
 /**
  * A cell's workbook color in both themes. The values are computed, so they
  * travel as custom properties and the class below picks the theme's pair.
@@ -139,14 +137,6 @@ export function tablePhaseToShow(
   currentId: string | null,
 ) {
   return phases.some((phase) => phase.id === chosenId) ? chosenId : currentId;
-}
-
-/** A difference to one decimal, with its sign. Zero has none. */
-function signed(value: number | null) {
-  if (value === null) return "—";
-  const rounded = Math.round(value * 10) / 10;
-  if (rounded === 0) return "0.0";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
 }
 
 /** The summary columns, after the seven days, in the workbook's order. Each

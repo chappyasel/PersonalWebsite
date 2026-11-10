@@ -62,3 +62,22 @@ export const SYNTHETIC_LOG: WeightLog = {
     week("2030-02-18", "2", [101.5, 101.7, null, null, null, null, null], null),
   ],
 };
+
+/**
+ * A week whose trimmed mean ends in a hundredths 5: 150.2 and 150.5 average
+ * to 150.35, which a double stores as 150.34999... The editor's weekly table
+ * shows 150.3, so the line and the card must too.
+ */
+export const HALF_TENTH_LOG: WeightLog = {
+  ...SYNTHETIC_LOG,
+  weeks: SYNTHETIC_LOG.weeks.map((item) =>
+    item.date === "2030-02-04"
+      ? {
+          ...item,
+          weights: [150.2, 150.5, null, null, null, null, null],
+          target: 150,
+          originalTarget: 150,
+        }
+      : item,
+  ),
+};

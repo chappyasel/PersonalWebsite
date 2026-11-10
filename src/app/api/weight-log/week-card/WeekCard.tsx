@@ -1,11 +1,7 @@
 import type { ReactNode } from "react";
 
-import {
-  type Fill,
-  type WeekSummary,
-  pounds,
-  signed,
-} from "~/lib/weight-log/week-summary";
+import { pounds, signed } from "~/lib/weight-log/format";
+import type { Fill, WeekSummary } from "~/lib/weight-log/week-summary";
 
 /**
  * The Log Weight Shortcut's week card, drawn by satori (`next/og`). A
@@ -182,7 +178,7 @@ export function WeekCard({ summary }: { summary: WeekSummary }) {
       <Stat
         key="target"
         label="Target"
-        value={pounds(summary.target!)}
+        value={pounds(summary.target)}
         fill={summary.fills.target}
       />
     ) : (
