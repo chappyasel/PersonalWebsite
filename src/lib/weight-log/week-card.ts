@@ -78,24 +78,25 @@ export function weekCard(
     ...(logged.has(previous) || phaseOf(previous) ? [previous] : []),
     current,
   ];
+  // Each phase's table, and outside every phase, a table of the one week:
+  // the editor shows a week no phase holds on its own unless the owner has
+  // also gone to another.
   const tables = new Map<
-    string | null,
+    string,
     { rows: WeekTableRow[]; colors: WeekRowColors[] }
   >();
-  const tableOf = (phase: Phase | undefined) => {
-    const id = phase?.id ?? null;
-    const cached = tables.get(id);
+  const tableOf = (monday: string, phase: Phase | undefined) => {
+    const key = phase ? `phase:${phase.id}` : `outside:${monday}`;
+    const cached = tables.get(key);
     if (cached) return cached;
-    const extras = weeks
-      .filter((monday) => (phaseOf(monday)?.id ?? null) === id)
-      .map(bare);
-    // Outside every phase, the editor's table holds only the weeks it was
-    // asked for.
     const rows = phase
-      ? withWeeks(buildWeekTable(log, phase.id), extras)
-      : extras;
+      ? withWeeks(
+          buildWeekTable(log, phase.id),
+          weeks.filter((week) => phaseOf(week)?.id === phase.id).map(bare),
+        )
+      : [bare(monday)];
     const table = { rows, colors: weekTableColors(rows) };
-    tables.set(id, table);
+    tables.set(key, table);
     return table;
   };
 
@@ -103,7 +104,7 @@ export function weekCard(
     date,
     rows: weeks.map((monday) => {
       const phase = phaseOf(monday);
-      const { rows, colors } = tableOf(phase);
+      const { rows, colors } = tableOf(monday, phase);
       const index = rows.findIndex((row) => row.week === monday);
       return {
         row: rows[index]!,

@@ -111,6 +111,22 @@ const OUTSIDE_LOG: Pick<WeightLog, "phases" | "weeks"> = {
   ),
 };
 
+/** Two weeks in a row outside every phase, both with weigh-ins. */
+const OUTSIDE_PAIR_LOG: Pick<WeightLog, "phases" | "weeks"> = {
+  ...OUTSIDE_LOG,
+  weeks: [
+    ...OUTSIDE_LOG.weeks,
+    {
+      date: "2030-02-25",
+      phaseId: "unassigned",
+      weights: [102.4, 101.9, null, null, null, null, null],
+      averageDays: [0, 1, 2, 3, 4, 5, 6],
+      target: null,
+      originalTarget: null,
+    },
+  ],
+};
+
 /** A color as the DOM reads it back, so hex and rgb() compare equal. */
 function colorOf(value: string) {
   const probe = document.createElement("div");
@@ -204,6 +220,12 @@ describe("WeekCardImage", () => {
     ["no target past the plan", SYNTHETIC_LOG, "2030-02-19", "2"],
     ["an empty week the running phase holds", SYNTHETIC_LOG, "2030-02-26", "2"],
     ["weeks outside every phase", OUTSIDE_LOG, "2030-02-26", null],
+    [
+      "two weigh-in weeks outside every phase",
+      OUTSIDE_PAIR_LOG,
+      "2030-02-26",
+      null,
+    ],
     ["the log's first week", SYNTHETIC_LOG, "2030-01-08", "2"],
   ] as const)(
     "reads and colors each row as the editor's table does: %s",
