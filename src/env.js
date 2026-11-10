@@ -73,7 +73,8 @@ export const env = createEnv({
      * yesterday in some time zone, three or four dates at any moment, and
      * never deletes. Set in Vercel Production and pasted into the
      * Shortcut. Without it both routes refuse every request. At least 32
-     * characters, as the mirror's. */
+     * characters, as the mirror's, and never the mirror's value (see
+     * `createFinalSchema` below). */
     WEIGHT_LOG_ENTRY_TOKEN: z.string().min(32).optional(),
   },
 
@@ -123,6 +124,26 @@ export const env = createEnv({
     WEIGHT_LOG_ENTRY_TOKEN: process.env.WEIGHT_LOG_ENTRY_TOKEN,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
+  /**
+   * The checks that span variables. The Log Weight Shortcut's token must not
+   * be the Health mirror's, or the mirror's token, which lives on the Mac,
+   * could write weigh-ins. The issue names the variable, never its value.
+   */
+  createFinalSchema: (shape, isServer) =>
+    z.object(shape).superRefine((values, context) => {
+      if (
+        isServer &&
+        values.WEIGHT_LOG_ENTRY_TOKEN &&
+        values.WEIGHT_LOG_ENTRY_TOKEN === values.WEIGHT_LOG_MIRROR_TOKEN
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["WEIGHT_LOG_ENTRY_TOKEN"],
+          message:
+            "WEIGHT_LOG_ENTRY_TOKEN must differ from WEIGHT_LOG_MIRROR_TOKEN",
+        });
+      }
+    }),
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
    * useful for Docker builds.
