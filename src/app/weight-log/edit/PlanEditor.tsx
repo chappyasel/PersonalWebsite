@@ -366,7 +366,7 @@ function RateForm({
           <Input
             type="number"
             inputMode="decimal"
-            step="0.05"
+            step="0.01"
             min={-MAX_POUNDS_PER_WEEK}
             max={MAX_POUNDS_PER_WEEK}
             value={value}
@@ -675,7 +675,7 @@ function StartForm({
           <Input
             type="number"
             inputMode="decimal"
-            step="0.05"
+            step="0.01"
             min={-MAX_POUNDS_PER_WEEK}
             max={MAX_POUNDS_PER_WEEK}
             required
