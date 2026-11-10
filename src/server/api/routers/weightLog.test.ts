@@ -98,36 +98,46 @@ beforeEach(() => {
 
 describe("weightLog.upsertWeighIn", () => {
   it("replaces a same-date weigh-in's pounds and leaves its excluded flag", async () => {
-    returned = [["2001-01-09", 150.2]];
+    // The plan lock, then the date's row with its old pounds, then the update.
+    replies = [[], [[149.8]], []];
     await expect(
       caller.upsertWeighIn({ date: "2001-01-09", pounds: 150.24 }),
     ).resolves.toEqual({ date: "2001-01-09", pounds: 150.2 });
 
     // The save waits for any plan edit in flight, so it can't land in a
-    // week that edit is deleting.
+    // week that edit is deleting. saveWeighIn's own tests pin each statement.
     expect(queries.map((query) => query.sql.split(" ")[0])).toEqual([
       "begin",
       "select",
-      "insert",
+      "select",
+      "update",
       "commit",
     ]);
     expect(queries[1]!.sql).toMatch(
       /^select pg_advisory_xact_lock_shared\(\$1\)$/,
     );
-    const { sql, params } = queries[2]!;
+    const { sql, params } = queries[3]!;
     expect(sql).toMatch(
-      /^insert into "weight_log_weigh_ins" \("date", "pounds", "excluded", "updated_at"\) values \(\$1, \$2, default, default\) on conflict \("date"\) do update set "pounds" = \$3, "updated_at" = \$4 returning "date", "pounds"$/,
+      /^update "weight_log_weigh_ins" set "pounds" = \$1, "updated_at" = \$2 where "weight_log_weigh_ins"."date" = \$3$/,
     );
-    // The conflict branch never writes `excluded` (decision 14).
-    expect(sql.split("do update set")[1]).not.toContain('"excluded"');
-    expect(params.slice(0, 3)).toEqual(["2001-01-09", 150.2, 150.2]);
-    expect(typeof params[3]).toBe("string");
+    // A replace never writes `excluded` (decision 14).
+    expect(sql).not.toContain('"excluded"');
+    expect([params[0], params[2]]).toEqual([150.2, "2001-01-09"]);
+  });
+
+  it("saves a date with no weigh-in", async () => {
+    replies = [[], [], [["2001-01-09"]]];
+    await expect(
+      caller.upsertWeighIn({ date: "2001-01-09", pounds: 150.2 }),
+    ).resolves.toEqual({ date: "2001-01-09", pounds: 150.2 });
+    expect(queries[3]!.sql).toMatch(/^insert into "weight_log_weigh_ins"/);
+    expect(queries[3]!.params).toEqual(["2001-01-09", 150.2]);
   });
 
   it("rounds pounds to one decimal place", async () => {
-    returned = [["2001-01-09", 150.3]];
+    replies = [[], [], [["2001-01-09"]]];
     await caller.upsertWeighIn({ date: "2001-01-09", pounds: 150.25 });
-    expect(queries[2]!.params[1]).toBe(150.3);
+    expect(queries[3]!.params[1]).toBe(150.3);
   });
 
   it("refuses a date after tomorrow, bad pounds, and a malformed date, without a query", async () => {
@@ -136,6 +146,7 @@ describe("weightLog.upsertWeighIn", () => {
       now: new Date("2030-01-08T12:00:00Z"),
       toFake: ["Date"],
     });
+    replies = [[], [], [["2030-01-09"]]];
     expect(
       await errorCode(
         caller.upsertWeighIn({ date: "2030-01-09", pounds: 150 }),
