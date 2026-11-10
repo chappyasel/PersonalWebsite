@@ -119,10 +119,10 @@ const FILLED =
 /**
  * Touch screens get wider, taller cells, so a finger lands on the right one
  * and a 16 px input (iOS zooms the page into anything smaller) fits a
- * weigh-in such as 000.0.
+ * weigh-in such as 000.0 with the input's padding on both sides.
  */
 const TOUCH_CELL =
-  "[@media(pointer:coarse)]:min-w-[3.25rem] [@media(pointer:coarse)]:py-2.5";
+  "[@media(pointer:coarse)]:min-w-[3.75rem] [@media(pointer:coarse)]:py-2.5";
 
 /** Today's day cell, in light and dark mode. */
 const TODAY_RING = "ring-2 ring-inset ring-red-600 dark:ring-red-500";
@@ -1106,7 +1106,9 @@ export function WeekSheet({ today }: { today: string }) {
     >
       <div className="mb-3 flex flex-wrap items-center gap-2 px-3 sm:px-4">
         <Select
-          value={shownPhaseId ?? undefined}
+          // "" shows the placeholder and keeps the Select controlled while
+          // the phases load.
+          value={shownPhaseId ?? ""}
           onValueChange={(next) => {
             setChosenPhaseId(next);
             setEditing(null);
