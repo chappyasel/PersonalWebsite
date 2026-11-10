@@ -110,7 +110,7 @@ describe("GET /api/weight-log/week-card", () => {
       expect([meta.width, meta.height]).toEqual([size.width, size.height]);
 
       // Every filled cell the card shows is drawn in its scale color, and
-      // today has its red ring. A cell is 100 by 64 device pixels, less its
+      // today has its red ring. A cell is 108 by 56 device pixels, less its
       // text.
       const fills = card.rows.flatMap(({ colors }) =>
         [

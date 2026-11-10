@@ -14,12 +14,13 @@ import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
  * headers, and the red ring on today's cell. A notification image never
  * follows dark mode, so the card is always light.
  *
- * The iPhone shows the card about 360 pt wide in an expanded notification,
+ * The iPhone shows the card about 350 pt wide in an expanded notification,
  * and that is where the owner reads it. So the card is set for that width,
- * not the editor's: it leaves out Orig, its Gap, and lb/wk
- * (`CARD_COLUMNS`), keeps only 3 px between a cell's text and its edge, and
- * sets SF Pro Display at 16 px, which lands near 9 pt at 360 pt wide. The
- * editor's 12 px with all its columns would land near 6 pt.
+ * not the editor's: it leaves out Orig and its Gap (`CARD_COLUMNS`), keeps
+ * 2 px between a cell's text and its edge, drops the gutter and border
+ * around the table, and sets SF Pro Display at 18 px, the size at which the
+ * widest cell's text just fits. That lands near 8.5 pt at 350 pt wide. The
+ * editor's 12 px with all its columns would land near 5.6 pt.
  *
  * Satori lays out flexbox only, so each row is a flex row of fixed-width
  * cells. It also throws on a style value that is undefined, after the route
@@ -39,40 +40,42 @@ const RULE = "#e5e5e5"; // neutral-200: the header and Avg's edge
 const ROW_RULE = "#f5f5f5"; // neutral-100: between rows
 const TODAY = "#dc2626"; // red-600
 
-const FONT_SIZE = 16;
-const LINE_HEIGHT = 20;
-const PADDING_Y = 8;
-const CAPTION_HEIGHT = 20;
-const CAPTION_GAP = 2;
-const HEADER_HEIGHT = 30;
-const ROW_HEIGHT = 32;
-/** The space between a cell's text and its edge. */
-const CELL_PAD = 3;
-/** A day or summary cell: "Target", the widest text, at 16 px plus pads. */
-const NUMBER_WIDTH = 50;
+const FONT_SIZE = 18;
+const LINE_HEIGHT = 22;
+const PADDING_Y = 4;
+const CAPTION_SIZE = 13;
+const CAPTION_HEIGHT = 18;
+const HEADER_HEIGHT = 26;
+const ROW_HEIGHT = 28;
+/**
+ * The space between a cell's text and its edge, so two numbers side by
+ * side sit about a space apart.
+ */
+const CELL_PAD = 2;
+/**
+ * A day or summary cell: 50 px holds the widest text at 18 px, "Target"
+ * (2.75 em), just ahead of "178.6" and "+0.30" in medium (2.70 em).
+ */
+const NUMBER_WIDTH = 50 + CELL_PAD * 2;
 /** The card's left edge to the `#` column's text. */
-const EDGE_PAD = 6;
-/** `#`: two digits. */
-const INDEX_WIDTH = 28;
+const EDGE_PAD = 2;
+/** `#`: two digits in medium. */
+const INDEX_WIDTH = EDGE_PAD + 23;
 /** Week: "May 31" in medium, or "May 31, 2030" with a year. */
-const WEEK_WIDTH = 64;
-const WEEK_WIDTH_WITH_YEAR = 110;
-const WEEK_PAD_RIGHT = 4;
-/** The last column's room at the card's right edge, past `CELL_PAD`. */
-const LAST_EXTRA = 4;
-/** Today's ring, inside the cell's pad so it never touches the text. */
-const RING = 2;
+const WEEK_PAD_LEFT = 4;
+const WEEK_PAD_RIGHT = 2;
+const WEEK_WIDTH = WEEK_PAD_LEFT + 60 + WEEK_PAD_RIGHT;
+const WEEK_WIDTH_WITH_YEAR = WEEK_PAD_LEFT + 112 + WEEK_PAD_RIGHT;
+/** Today's ring, thinner than the pad so it clears the text. */
+const RING = 1.5;
 
 /**
- * The editor's summary columns less the original target, its gap, and the
- * plan's lb/wk. All three change only when the plan does, so they say the
- * least about a weigh-in.
+ * The editor's summary columns less the original target and its gap. Both
+ * change only when the plan does, so they say the least about a weigh-in.
  */
 export const CARD_COLUMNS = SUMMARY_COLUMNS.filter(
   (column) =>
-    column.key !== "originalTarget" &&
-    column.key !== "gapToOriginalTarget" &&
-    column.key !== "poundsPerWeek",
+    column.key !== "originalTarget" && column.key !== "gapToOriginalTarget",
 );
 
 const showsYear = (card: WeekCard) =>
@@ -84,12 +87,10 @@ export function cardSize(card: WeekCard) {
     INDEX_WIDTH +
     (showsYear(card) ? WEEK_WIDTH_WITH_YEAR : WEEK_WIDTH) +
     NUMBER_WIDTH * (DAY_NAMES.length + CARD_COLUMNS.length) +
-    1 + // Avg's left rule
-    LAST_EXTRA;
+    1; // Avg's left rule
   const height =
     PADDING_Y * 2 +
     CAPTION_HEIGHT +
-    CAPTION_GAP +
     HEADER_HEIGHT +
     1 +
     card.rows.length * (ROW_HEIGHT + 1) -
@@ -161,17 +162,12 @@ const indexStyle: CSSProperties = {
 };
 const weekStyle: CSSProperties = {
   justifyContent: "flex-start",
-  paddingLeft: px(EDGE_PAD),
+  paddingLeft: px(WEEK_PAD_LEFT),
   paddingRight: px(WEEK_PAD_RIGHT),
 };
 const avgEdge = (index: number): CSSProperties =>
   index === 0 ? { borderLeft: `${px(1)}px solid ${RULE}` } : {};
-const lastPad = (index: number): CSSProperties =>
-  index === CARD_COLUMNS.length - 1 ? { paddingRight: px(6 + LAST_EXTRA) } : {};
-const summaryWidth = (index: number) =>
-  NUMBER_WIDTH +
-  (index === 0 ? 1 : 0) +
-  (index === CARD_COLUMNS.length - 1 ? LAST_EXTRA : 0);
+const summaryWidth = (index: number) => NUMBER_WIDTH + (index === 0 ? 1 : 0);
 
 function HeaderRow({ weekWidth }: { weekWidth: number }) {
   const cell = { height: HEADER_HEIGHT, rule: RULE };
@@ -193,7 +189,7 @@ function HeaderRow({ weekWidth }: { weekWidth: number }) {
           key={column.key}
           {...cell}
           width={summaryWidth(index)}
-          style={{ ...avgEdge(index), ...lastPad(index) }}
+          style={avgEdge(index)}
         >
           {column.label}
         </Cell>
@@ -256,7 +252,6 @@ function SheetRow({
           width={summaryWidth(index)}
           style={{
             ...avgEdge(index),
-            ...lastPad(index),
             ...fillOf(colors[column.key]),
           }}
         >
@@ -286,24 +281,25 @@ function Caption({ card }: { card: WeekCard }) {
     <div
       style={{
         display: "flex",
-        gap: px(16),
+        gap: px(12),
         height: px(CAPTION_HEIGHT),
-        marginBottom: px(CAPTION_GAP),
         paddingLeft: px(EDGE_PAD),
+        fontSize: px(CAPTION_SIZE),
+        lineHeight: `${px(CAPTION_HEIGHT)}px`,
         color: MUTED,
       }}
     >
       {names.map((name) => (
         <div
           key={name.key}
-          style={{ display: "flex", alignItems: "center", gap: px(6) }}
+          style={{ display: "flex", alignItems: "center", gap: px(5) }}
         >
           {name.dot ? (
             <div
               style={{
-                width: px(10),
-                height: px(10),
-                borderRadius: px(5),
+                width: px(8),
+                height: px(8),
+                borderRadius: px(4),
                 backgroundColor: name.dot,
               }}
             />
