@@ -151,7 +151,9 @@ export function weekLine(summary: WeekSummary) {
 /**
  * The notification line after a save: what happened, then the week, when
  * the week could be read. On `exists` nothing was saved, and `question` is
- * what the Shortcut asks before replacing.
+ * what the Shortcut asks before replacing. When the date's weigh-in is left
+ * out of the weekly average, both say so, since a replace keeps the flag
+ * (decision 39).
  */
 export function saveSummary(
   {
@@ -159,11 +161,13 @@ export function saveSummary(
     date,
     pounds: sent,
     previous,
+    excluded,
   }: {
     status: SaveStatus;
     date: string;
     pounds: number;
     previous: number | null;
+    excluded: boolean;
   },
   summary: WeekSummary | null,
 ): { summary: string; question?: string } {
@@ -173,13 +177,21 @@ export function saveSummary(
     case "saved":
       return { summary: `${pounds(sent)} saved.${week}` };
     case "replaced":
-      return { summary: `${pounds(sent)} saved, replacing ${before}.${week}` };
-    case "unchanged":
-      return { summary: `${pounds(sent)} was already saved.${week}` };
-    case "exists":
       return {
-        summary: `Kept ${before}.${week}`,
-        question: `${shortDate(date)} already has ${before}. Replace it with ${pounds(sent)}?`,
+        summary: `${pounds(sent)} saved, replacing ${before}.${excluded ? " It stays left out of the weekly average." : ""}${week}`,
       };
+    case "unchanged":
+      return {
+        summary: `${pounds(sent)} was already saved.${excluded ? " It is left out of the weekly average." : ""}${week}`,
+      };
+    case "exists": {
+      const kept = excluded
+        ? `${before}, which is left out of the weekly average`
+        : before;
+      return {
+        summary: `Kept ${kept}.${week}`,
+        question: `${shortDate(date)} already has ${kept}. Replace it with ${pounds(sent)}?${excluded ? " The new value stays left out." : ""}`,
+      };
+    }
   }
 }

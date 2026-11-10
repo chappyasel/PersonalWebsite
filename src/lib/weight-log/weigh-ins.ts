@@ -29,6 +29,11 @@ export interface SaveResult {
   status: SaveStatus;
   /** The date's pounds before the save, or null when it had none. */
   previous: number | null;
+  /**
+   * Whether the date's weigh-in is left out of its weekly average. A save
+   * never changes the flag, so it is the same before and after.
+   */
+  excluded: boolean;
 }
 
 export interface WeighIn {
@@ -56,7 +61,10 @@ export async function saveWeighIn<Schema extends Record<string, unknown>>(
     // finds that save's row, since Postgres waited for it to commit.
     for (let pass = 0; pass < 2; pass++) {
       const [current] = await tx
-        .select({ pounds: weightLogWeighIns.pounds })
+        .select({
+          pounds: weightLogWeighIns.pounds,
+          excluded: weightLogWeighIns.excluded,
+        })
         .from(weightLogWeighIns)
         .where(eq(weightLogWeighIns.date, date))
         .for("update");
@@ -66,17 +74,21 @@ export async function saveWeighIn<Schema extends Record<string, unknown>>(
           .values({ date, pounds })
           .onConflictDoNothing({ target: weightLogWeighIns.date })
           .returning({ date: weightLogWeighIns.date });
-        if (inserted.length) return { status: "saved", previous: null };
+        if (inserted.length) {
+          return { status: "saved", previous: null, excluded: false };
+        }
         continue;
       }
-      const previous = current.pounds;
-      if (previous === pounds) return { status: "unchanged", previous };
-      if (!replace) return { status: "exists", previous };
+      const { pounds: previous, excluded } = current;
+      if (previous === pounds) {
+        return { status: "unchanged", previous, excluded };
+      }
+      if (!replace) return { status: "exists", previous, excluded };
       await tx
         .update(weightLogWeighIns)
         .set({ pounds })
         .where(eq(weightLogWeighIns.date, date));
-      return { status: "replaced", previous };
+      return { status: "replaced", previous, excluded };
     }
     throw new Error("The weigh-in did not save. Try again.");
   });

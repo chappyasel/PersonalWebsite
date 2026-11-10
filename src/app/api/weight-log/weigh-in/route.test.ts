@@ -47,7 +47,11 @@ const NO_STORE = "private, no-store, max-age=0";
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.env.WEIGHT_LOG_ENTRY_TOKEN = "invented-entry-token";
-  mocks.save.mockResolvedValue({ status: "saved", previous: null });
+  mocks.save.mockResolvedValue({
+    status: "saved",
+    previous: null,
+    excluded: false,
+  });
   mocks.load.mockResolvedValue({});
   vi.useFakeTimers({ now: new Date("2030-02-04T15:00:00Z"), toFake: ["Date"] });
   vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -93,7 +97,7 @@ describe("POST /api/weight-log/weigh-in", () => {
   ] as const)(
     "answers %s with a 200 and the previous pounds",
     async (status, previous, extra) => {
-      mocks.save.mockResolvedValue({ status, previous });
+      mocks.save.mockResolvedValue({ status, previous, excluded: false });
       const response = await route.POST(
         post({
           date: "2030-02-04",
@@ -107,6 +111,21 @@ describe("POST /api/weight-log/weigh-in", () => {
       expect(body.summary).toContain("Week avg 100.9");
     },
   );
+
+  it("asks about an excluded weigh-in by saying it is left out", async () => {
+    mocks.save.mockResolvedValue({
+      status: "exists",
+      previous: 101.4,
+      excluded: true,
+    });
+    const response = await route.POST(
+      post({ date: "2030-02-04", pounds: 100.9 }),
+    );
+    expect(await response.json()).toMatchObject({
+      question:
+        "Mon, Feb 4 already has 101.4, which is left out of the weekly average. Replace it with 100.9? The new value stays left out.",
+    });
+  });
 
   it("passes replace through", async () => {
     await route.POST(

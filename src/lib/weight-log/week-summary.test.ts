@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { weekTableColors } from "./color-scale";
 import {
-  saveSummary,
   pounds,
+  saveSummary,
   shortDate,
   signed,
   weekLine,
@@ -155,28 +155,60 @@ describe("saveSummary", () => {
 
   it("says what each outcome did, then the week", () => {
     expect(
-      saveSummary({ ...sent, status: "saved", previous: null }, week),
+      saveSummary(
+        { ...sent, status: "saved", previous: null, excluded: false },
+        week,
+      ),
     ).toEqual({ summary: `100.9 saved. ${line}` });
     expect(
-      saveSummary({ ...sent, status: "replaced", previous: 101.4 }, week),
+      saveSummary(
+        { ...sent, status: "replaced", previous: 101.4, excluded: false },
+        week,
+      ),
     ).toEqual({ summary: `100.9 saved, replacing 101.4. ${line}` });
     expect(
-      saveSummary({ ...sent, status: "unchanged", previous: 100.9 }, week),
+      saveSummary(
+        { ...sent, status: "unchanged", previous: 100.9, excluded: false },
+        week,
+      ),
     ).toEqual({ summary: `100.9 was already saved. ${line}` });
   });
 
   it("asks before replacing, and says what was kept", () => {
     expect(
-      saveSummary({ ...sent, status: "exists", previous: 101.4 }, week),
+      saveSummary(
+        { ...sent, status: "exists", previous: 101.4, excluded: false },
+        week,
+      ),
     ).toEqual({
       summary: `Kept 101.4. ${line}`,
       question: "Mon, Feb 4 already has 101.4. Replace it with 100.9?",
     });
   });
 
+  it("says when the date's weigh-in is left out of the weekly average", () => {
+    const excluded = { ...sent, previous: 101.4, excluded: true };
+    expect(saveSummary({ ...excluded, status: "exists" }, week)).toEqual({
+      summary: `Kept 101.4, which is left out of the weekly average. ${line}`,
+      question:
+        "Mon, Feb 4 already has 101.4, which is left out of the weekly average. Replace it with 100.9? The new value stays left out.",
+    });
+    expect(saveSummary({ ...excluded, status: "replaced" }, week)).toEqual({
+      summary: `100.9 saved, replacing 101.4. It stays left out of the weekly average. ${line}`,
+    });
+    expect(
+      saveSummary({ ...excluded, status: "unchanged", previous: 100.9 }, week),
+    ).toEqual({
+      summary: `100.9 was already saved. It is left out of the weekly average. ${line}`,
+    });
+  });
+
   it("leaves the week off when it could not be read", () => {
     expect(
-      saveSummary({ ...sent, status: "saved", previous: null }, null),
+      saveSummary(
+        { ...sent, status: "saved", previous: null, excluded: false },
+        null,
+      ),
     ).toEqual({ summary: "100.9 saved." });
   });
 });

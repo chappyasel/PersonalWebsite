@@ -6,10 +6,10 @@ import * as schema from "~/server/db/schema";
 import { PLAN_LOCK } from "./plan-edits";
 import {
   OUTSIDE_SHORTCUT_WINDOW,
-  shortcutWindow,
   parseCardDate,
   parseWeighInRequest,
   saveWeighIn,
+  shortcutWindow,
 } from "./weigh-ins";
 
 /**
@@ -49,7 +49,7 @@ Object.assign(db, {
 
 const LOCK = "select pg_advisory_xact_lock_shared($1)";
 const READ =
-  'select "pounds" from "weight_log_weigh_ins" where "weight_log_weigh_ins"."date" = $1 for update';
+  'select "pounds", "excluded" from "weight_log_weigh_ins" where "weight_log_weigh_ins"."date" = $1 for update';
 const INSERT =
   'insert into "weight_log_weigh_ins" ("date", "pounds", "excluded", "updated_at") values ($1, $2, default, default) on conflict ("date") do nothing returning "date"';
 const UPDATE =
@@ -71,7 +71,7 @@ describe("saveWeighIn", () => {
         pounds: 150.2,
         replace: false,
       }),
-    ).resolves.toEqual({ status: "saved", previous: null });
+    ).resolves.toEqual({ status: "saved", previous: null, excluded: false });
     expect(statements()).toEqual(["begin", LOCK, READ, INSERT, "commit"]);
     expect(queries[1]!.params).toEqual([PLAN_LOCK]);
     expect(queries[2]!.params).toEqual(["2001-01-09"]);
@@ -89,26 +89,26 @@ describe("saveWeighIn", () => {
   });
 
   it("reports a different weigh-in and writes nothing when replace is false", async () => {
-    replies = [[], [[149.8]]];
+    replies = [[], [[149.8, false]]];
     await expect(
       saveWeighIn(db as never, {
         date: "2001-01-09",
         pounds: 150.2,
         replace: false,
       }),
-    ).resolves.toEqual({ status: "exists", previous: 149.8 });
+    ).resolves.toEqual({ status: "exists", previous: 149.8, excluded: false });
     expect(statements()).toEqual(["begin", LOCK, READ, "commit"]);
   });
 
   it("replaces only the pounds when replace is true, so excluded stays", async () => {
-    replies = [[], [[149.8]], []];
+    replies = [[], [[149.8, true]], []];
     await expect(
       saveWeighIn(db as never, {
         date: "2001-01-09",
         pounds: 150.2,
         replace: true,
       }),
-    ).resolves.toEqual({ status: "replaced", previous: 149.8 });
+    ).resolves.toEqual({ status: "replaced", previous: 149.8, excluded: true });
     expect(statements()).toEqual(["begin", LOCK, READ, UPDATE, "commit"]);
     expect(queries[3]!.sql).not.toContain('"excluded"');
     const { params } = queries[3]!;
@@ -119,14 +119,18 @@ describe("saveWeighIn", () => {
   it.each([true, false])(
     "writes nothing when the date already has these pounds (replace %s)",
     async (replace) => {
-      replies = [[], [[150.2]]];
+      replies = [[], [[150.2, false]]];
       await expect(
         saveWeighIn(db as never, {
           date: "2001-01-09",
           pounds: 150.2,
           replace,
         }),
-      ).resolves.toEqual({ status: "unchanged", previous: 150.2 });
+      ).resolves.toEqual({
+        status: "unchanged",
+        previous: 150.2,
+        excluded: false,
+      });
       expect(statements()).toEqual(["begin", LOCK, READ, "commit"]);
     },
   );
@@ -134,14 +138,14 @@ describe("saveWeighIn", () => {
   it("reads again when another save inserted the date first", async () => {
     // The first read finds nothing, the insert loses to a concurrent save,
     // and the second read finds that save's row.
-    replies = [[], [], [], [[149.8]]];
+    replies = [[], [], [], [[149.8, false]]];
     await expect(
       saveWeighIn(db as never, {
         date: "2001-01-09",
         pounds: 150.2,
         replace: false,
       }),
-    ).resolves.toEqual({ status: "exists", previous: 149.8 });
+    ).resolves.toEqual({ status: "exists", previous: 149.8, excluded: false });
     expect(statements()).toEqual(["begin", LOCK, READ, INSERT, READ, "commit"]);
   });
 });
@@ -241,9 +245,9 @@ describe("parseWeighInRequest", () => {
   });
 
   it("refuses a malformed date or body", () => {
-    expect(parseWeighInRequest({ date: "2030-02-30", pounds: 150 }, now)).toEqual(
-      { error: "date must be a date written YYYY-MM-DD" },
-    );
+    expect(
+      parseWeighInRequest({ date: "2030-02-30", pounds: 150 }, now),
+    ).toEqual({ error: "date must be a date written YYYY-MM-DD" });
     expect(parseWeighInRequest({ date: "Jan 8", pounds: 150 }, now)).toEqual({
       error: "date must be a date written YYYY-MM-DD",
     });
