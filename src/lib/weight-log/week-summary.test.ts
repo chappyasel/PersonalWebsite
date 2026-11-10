@@ -1,39 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { weekTableColors } from "./color-scale";
 import { pounds, signed } from "./format";
 import { saveSummary, shortDate, weekLine, weekSummary } from "./week-summary";
 import { HALF_TENTH_LOG, SYNTHETIC_LOG } from "./week-summary.fixture";
-import { buildWeekTable } from "./week-table";
 
 const summaryOn = (date: string) => weekSummary(SYNTHETIC_LOG, date);
 
 describe("weekSummary", () => {
-  it("finds the week holding the date and marks its days", () => {
-    const summary = summaryOn("2030-01-23");
-    expect(summary.week).toBe("2030-01-21");
-    expect(summary.date).toBe("2030-01-23");
-    expect(summary.phase).toBe("Bulk Jan '30 - Feb '30");
-    expect(summary.days.map((day) => day.date)).toEqual([
-      "2030-01-21",
-      "2030-01-22",
-      "2030-01-23",
-      "2030-01-24",
-      "2030-01-25",
-      "2030-01-26",
-      "2030-01-27",
-    ]);
-    expect(summary.days.map((day) => day.pounds)).toEqual([
-      100,
-      100.4,
-      null,
-      null,
-      null,
-      null,
-      null,
-    ]);
-  });
-
   it("averages one weigh-in as itself", () => {
     const summary = summaryOn("2030-02-04");
     expect(summary.counted).toBe(1);
@@ -51,18 +24,10 @@ describe("weekSummary", () => {
     expect(summary.counted).toBe(3);
     // 100.2, 100.6, and 100.8 count; 130 is excluded. The trim keeps 100.6.
     expect(summary.average).toBeCloseTo(100.6);
-    expect(summary.days[2]).toMatchObject({
-      pounds: 130,
-      excluded: true,
-      fill: null,
-    });
-    expect(summary.days[0]!.fill).not.toBeNull();
   });
 
-  it("changes from last week's average across a phase boundary", () => {
-    const summary = summaryOn("2030-01-22");
-    expect(summary.lastWeek).toBeCloseTo(99.5);
-    expect(summary.change).toBeCloseTo(0.7);
+  it("reads last week's average across a phase boundary", () => {
+    expect(summaryOn("2030-01-22").lastWeek).toBeCloseTo(99.5);
   });
 
   it("has no target or gap past the plan's end", () => {
@@ -70,34 +35,15 @@ describe("weekSummary", () => {
     expect(summary.average).toBeCloseTo(101.6);
     expect(summary.target).toBeNull();
     expect(summary.gapToTarget).toBeNull();
-    expect(summary.fills.target).toBeNull();
-    expect(summary.phase).toBe("Bulk Jan '30 - Feb '30");
   });
 
   it("is empty for a week the log has no row for", () => {
-    const summary = summaryOn("2030-02-26");
-    expect(summary.week).toBe("2030-02-25");
-    expect(summary.phase).toBeNull();
-    expect(summary.days.every((day) => day.pounds === null)).toBe(true);
-    expect(summary).toMatchObject({
+    expect(summaryOn("2030-02-26")).toEqual({
       counted: 0,
       average: null,
       target: null,
-      change: null,
+      gapToTarget: null,
       lastWeek: 101.6,
-    });
-  });
-
-  it("colors the week as the editor's table colors it, over the whole phase", () => {
-    const summary = summaryOn("2030-01-22");
-    const rows = buildWeekTable(SYNTHETIC_LOG, "2");
-    const colors = weekTableColors(rows)[0]!;
-    expect(summary.days[0]!.fill).toEqual(colors.days[0]!.light);
-    expect(summary.fills).toEqual({
-      average: colors.average!.light,
-      target: colors.target!.light,
-      gapToTarget: colors.gapToTarget!.light,
-      change: colors.change!.light,
     });
   });
 });

@@ -23,7 +23,7 @@ import {
   weekTableColors,
 } from "~/lib/weight-log/color-scale";
 import { lastWeighInBefore, relativeDayLabel } from "~/lib/weight-log/entry";
-import { pounds, signed } from "~/lib/weight-log/format";
+import { pounds, rate, weekLabel as labelOfWeek } from "~/lib/weight-log/format";
 import {
   addDays,
   cycleNumbers,
@@ -46,6 +46,10 @@ import {
   weighInEdit,
   withWeeks,
 } from "~/lib/weight-log/sheet";
+import {
+  DAY_NAMES,
+  SUMMARY_COLUMNS as COLUMNS,
+} from "~/lib/weight-log/week-columns";
 import { type WeekTableRow, weekNumber } from "~/lib/weight-log/week-table";
 import { api } from "~/trpc/react";
 
@@ -70,8 +74,6 @@ import { EditorSection } from "./EditorSection";
 import { WEEKS_CONTROLS_ID } from "./headerSlot";
 import { failure, isConflict } from "./refusal";
 
-const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
 const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
@@ -81,14 +83,6 @@ const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
 /** A date's place in its week, Monday 0 to Sunday 6. */
 const dayIndex = (date: string) =>
   (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
-
-/** A weekly rate to two decimals, as the plan stores it, with its sign. */
-function rate(value: number | null) {
-  if (value === null) return "—";
-  const rounded = Math.round(value * 100) / 100;
-  if (rounded === 0) return "0.00";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(2)}`;
-}
 
 /**
  * A cell's workbook color in both themes. The values are computed, so they
@@ -131,53 +125,6 @@ export function tablePhaseToShow(
 ) {
   return phases.some((phase) => phase.id === chosenId) ? chosenId : homeId;
 }
-
-/** The summary columns, after the seven days, in the workbook's order. Each
- * takes its fill from the matching key of the row's colors. */
-const COLUMNS: {
-  key: keyof WeekTableRow & keyof WeekRowColors;
-  label: string;
-  hint: string;
-  format: (value: number | null) => string;
-}[] = [
-  { key: "average", label: "Avg", hint: "Weekly average", format: pounds },
-  {
-    key: "change",
-    label: "Chg",
-    hint: "Change from last week's average",
-    format: signed,
-  },
-  {
-    key: "target",
-    label: "Target",
-    hint: "This week's target",
-    format: pounds,
-  },
-  {
-    key: "gapToTarget",
-    label: "Gap",
-    hint: "Weekly average minus target",
-    format: signed,
-  },
-  {
-    key: "poundsPerWeek",
-    label: "lb/wk",
-    hint: "Target minus last week's target",
-    format: rate,
-  },
-  {
-    key: "originalTarget",
-    label: "Orig",
-    hint: "Original target, set when the phase began",
-    format: pounds,
-  },
-  {
-    key: "gapToOriginalTarget",
-    label: "Gap",
-    hint: "Target minus original target",
-    format: signed,
-  },
-];
 
 /**
  * Opens the date picker on a click anywhere in the control. The native
@@ -455,12 +402,7 @@ export function WeekSheet({ today }: { today: string }) {
       day: "numeric",
       year: date.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
     });
-  const weekLabel = (week: string) =>
-    formatDay(week, {
-      month: "short",
-      day: "numeric",
-      year: week.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
-    });
+  const weekLabel = (week: string) => labelOfWeek(week, today);
   const cellLabel = (cell: SheetCell) =>
     cell.kind === "day"
       ? `Weigh-in, ${dayLabel(cell.date)}`

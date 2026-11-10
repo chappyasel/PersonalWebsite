@@ -1,24 +1,24 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
 import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import { loadWeekRecords } from "~/lib/weight-log/database";
 import { buildWeightLog } from "~/lib/weight-log/records";
-import { weekSummary } from "~/lib/weight-log/week-summary";
+import { weekCard } from "~/lib/weight-log/week-card";
 import { parseCardDate } from "~/lib/weight-log/weigh-ins";
 import { db } from "~/server/db";
 
 import { NO_STORE_HEADERS, logFailure, refuseMethod, reply } from "../responses";
-import { CARD_HEIGHT, CARD_WIDTH, WeekCard } from "./WeekCard";
-import {
-  loadGeorgiaProBold,
-  loadGeorgiaProRegular,
-} from "~/app/books/[bookId]/fonts";
+import { WeekCardImage, cardSize } from "./WeekCard";
 import { env } from "~/env";
 
 /**
  * The week card the Log Weight Shortcut shows in its notification: a PNG of
- * the week holding `?date=YYYY-MM-DD`, with that day marked as today. It
+ * the weekly table's rows for the week holding `?date=YYYY-MM-DD` and the
+ * week before, with that day marked as today. It
  * answers the same `WEIGHT_LOG_ENTRY_TOKEN` as `/api/weight-log/weigh-in`,
  * only for a date in the Shortcut's window, and never writes.
  */
@@ -26,19 +26,27 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Both Georgia Pro weights, read once per warm function. `next.config.js`
- * traces the two files into this route's bundle, so they come from disk, not
- * over HTTP. A failed read is forgotten so the next request tries again.
+ * The editor's SF Pro Display, regular and medium, read once per warm
+ * function. `next.config.js` traces the two files into this route's bundle,
+ * so they come from disk, not over HTTP. A failed read is forgotten so the
+ * next request tries again. `scripts/generate/weight-log-card-fonts.py`
+ * makes them, with tabular figures built in.
  */
 let fonts: Promise<[ArrayBuffer, ArrayBuffer]> | undefined;
 
+const readFont = async (name: string) =>
+  new Uint8Array(
+    await readFile(join(process.cwd(), "src/fonts/weight-log", name)),
+  ).buffer;
+
 function loadFonts() {
-  fonts ??= Promise.all([loadGeorgiaProRegular(), loadGeorgiaProBold()]).catch(
-    (error: unknown) => {
-      fonts = undefined;
-      throw error;
-    },
-  );
+  fonts ??= Promise.all([
+    readFont("SF-Pro-Display-Regular.otf"),
+    readFont("SF-Pro-Display-Medium.otf"),
+  ]).catch((error: unknown) => {
+    fonts = undefined;
+    throw error;
+  });
   return fonts;
 }
 
@@ -73,20 +81,24 @@ export async function GET(request: NextRequest) {
     logFailure("week-card", "load", error);
     return couldNotDraw();
   }
-  const [records, [regular, bold]] = loaded;
-  let summary: ReturnType<typeof weekSummary>;
+  const [records, [regular, medium]] = loaded;
+  let card: ReturnType<typeof weekCard>;
   try {
-    summary = weekSummary(buildWeightLog(records), parsed.date);
+    const running = records.phases.find((phase) => phase.endDate === null);
+    card = weekCard(
+      buildWeightLog(records),
+      parsed.date,
+      running ? String(running.id) : null,
+    );
   } catch (error) {
     logFailure("week-card", "build", error);
     return couldNotDraw();
   }
-  return new ImageResponse(<WeekCard summary={summary} />, {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
+  return new ImageResponse(<WeekCardImage card={card} />, {
+    ...cardSize(card),
     fonts: [
-      { name: "Georgia Pro", data: regular, weight: 400, style: "normal" },
-      { name: "Georgia Pro", data: bold, weight: 700, style: "normal" },
+      { name: "SF Pro Display", data: regular, weight: 400, style: "normal" },
+      { name: "SF Pro Display", data: medium, weight: 500, style: "normal" },
     ],
     // ImageResponse sets its own cache header first; these replace it.
     headers: NO_STORE_HEADERS,

@@ -2,10 +2,10 @@ import { NextRequest } from "next/server";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { weekSummary } from "~/lib/weight-log/week-summary";
+import { weekCard } from "~/lib/weight-log/week-card";
 import { SYNTHETIC_LOG } from "~/lib/weight-log/week-summary.fixture";
 
-import { CARD_HEIGHT, CARD_WIDTH } from "./WeekCard";
+import { cardSize } from "./WeekCard";
 import * as route from "./route";
 
 /**
@@ -63,7 +63,13 @@ async function pixelsOf(png: Buffer, hex: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.env.WEIGHT_LOG_ENTRY_TOKEN = "invented-entry-token";
-  mocks.load.mockResolvedValue({});
+  // Phase 2 is still running, so it holds weeks past its plan.
+  mocks.load.mockResolvedValue({
+    phases: [
+      { id: 1, endDate: "2030-01-20" },
+      { id: 2, endDate: null },
+    ],
+  });
   mocks.build.mockReturnValue(SYNTHETIC_LOG);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -84,8 +90,10 @@ describe("GET /api/weight-log/week-card", () => {
     ["an excluded day", "2030-01-31"],
     ["a week with no target", "2030-02-19"],
     ["a planned week with no weigh-ins", "2030-02-12"],
+    ["last week in another phase", "2030-01-22"],
+    ["the log's first week, with no week before it", "2030-01-08"],
   ])(
-    "renders %s as a PNG with each day's color",
+    "renders %s as a PNG with each cell's color",
     async (_label, date) => {
       at(date);
       const response = await route.GET(get(date));
@@ -97,17 +105,21 @@ describe("GET /api/weight-log/week-card", () => {
       );
       const png = Buffer.from(await response.arrayBuffer());
       const meta = await sharp(png).metadata();
-      expect([meta.width, meta.height]).toEqual([CARD_WIDTH, CARD_HEIGHT]);
+      const card = weekCard(SYNTHETIC_LOG, date, "2");
+      const size = cardSize(card);
+      expect([meta.width, meta.height]).toEqual([size.width, size.height]);
 
-      // Every counted weigh-in's cell is filled with its scale color.
-      const summary = weekSummary(SYNTHETIC_LOG, date);
-      for (const day of summary.days) {
-        if (day.fill) {
-          expect(await pixelsOf(png, day.fill.background)).toBeGreaterThan(
-            5000,
-          );
-        }
+      // Every filled cell is drawn in its scale color, and today has its
+      // red ring. A cell is 92 by 58 device pixels, less its text.
+      const fills = card.rows.flatMap(({ colors }) =>
+        Object.values(colors)
+          .flat()
+          .flatMap((color) => (color ? [color.light.background] : [])),
+      );
+      for (const fill of new Set(fills)) {
+        expect(await pixelsOf(png, fill)).toBeGreaterThan(2000);
       }
+      expect(await pixelsOf(png, "#dc2626")).toBeGreaterThan(500);
     },
     30_000,
   );

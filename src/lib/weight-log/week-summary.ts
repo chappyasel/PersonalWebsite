@@ -1,4 +1,3 @@
-import { weekTableColors } from "./color-scale";
 import { pounds } from "./format";
 import { roundTenth } from "./sheet";
 import { addDays, weekStartOf } from "./phases";
@@ -7,35 +6,12 @@ import { buildWeekTable, weeklyAverage } from "./week-table";
 import type { SaveStatus } from "./weigh-ins";
 
 /**
- * How the owner's week is going, for the Log Weight Shortcut's card and
- * notification line. Every number comes from the weekly table
- * (`buildWeekTable`), and every color from the editor's scales over the
- * whole phase (`weekTableColors`), so the card agrees with `/weight-log/edit`.
+ * How the owner's week is going, for the Log Weight Shortcut's notification
+ * line. Every number comes from the weekly table (`buildWeekTable`), so the
+ * line agrees with `/weight-log/edit`. The card draws the table's rows
+ * itself (`week-card.ts`).
  */
-
-/** A filled cell on the card, which is always light. */
-export interface Fill {
-  background: string;
-  text: string;
-}
-
-export interface WeekDay {
-  date: string;
-  pounds: number | null;
-  /** Kept on record but left out of the weekly average. */
-  excluded: boolean;
-  fill: Fill | null;
-}
-
 export interface WeekSummary {
-  /** The day asked about, which the card marks as today. */
-  date: string;
-  /** The week's Monday. */
-  week: string;
-  /** The derived name of the phase holding the week, if any. */
-  phase: string | null;
-  /** Monday to Sunday. */
-  days: WeekDay[];
   /** Weigh-ins that count toward the weekly average. */
   counted: number;
   /** The weekly average so far: the trimmed mean of the counted weigh-ins. */
@@ -45,59 +21,26 @@ export interface WeekSummary {
   gapToTarget: number | null;
   /** The previous calendar week's average, in any phase. */
   lastWeek: number | null;
-  /** The average minus last week's. */
-  change: number | null;
-  fills: {
-    average: Fill | null;
-    target: Fill | null;
-    gapToTarget: Fill | null;
-    change: Fill | null;
-  };
 }
 
 /** The week holding `date`, with nothing in it when the log has no row. */
 export function weekSummary(log: WeightLog, date: string): WeekSummary {
   const week = weekStartOf(date);
   const logWeek = log.weeks.find((item) => item.date === week);
-  const rows = logWeek ? buildWeekTable(log, logWeek.phaseId) : [];
-  const index = rows.findIndex((row) => row.week === week);
-  const row = rows[index];
-  const colors = row ? weekTableColors(rows)[index] : undefined;
-  const phase =
-    log.phases.find((item) => item.id === logWeek?.phaseId) ??
-    // A week with no row yet still sits in the phase whose dates cover it.
-    (logWeek
-      ? undefined
-      : log.phases.find((item) => item.start <= date && date <= item.end));
+  const row = logWeek
+    ? buildWeekTable(log, logWeek.phaseId).find((item) => item.week === week)
+    : undefined;
   const previous = log.weeks.find((item) => item.date === addDays(week, -7));
-
-  const days = Array.from({ length: 7 }, (_, day) => {
-    const pounds = row?.weights[day] ?? null;
-    return {
-      date: addDays(week, day),
-      pounds,
-      excluded: pounds !== null && !!row?.excludedDays.includes(day),
-      fill: colors?.days[day]?.light ?? null,
-    };
-  });
-
   return {
-    date,
-    week,
-    phase: phase?.label ?? null,
-    days,
-    counted: days.filter((day) => day.pounds !== null && !day.excluded).length,
+    counted: row
+      ? row.weights.filter(
+          (weight, day) => weight !== null && !row.excludedDays.includes(day),
+        ).length
+      : 0,
     average: row?.average ?? null,
     target: row?.target ?? null,
     gapToTarget: row?.gapToTarget ?? null,
     lastWeek: previous ? weeklyAverage(previous) : null,
-    change: row?.change ?? null,
-    fills: {
-      average: colors?.average?.light ?? null,
-      target: colors?.target?.light ?? null,
-      gapToTarget: colors?.gapToTarget?.light ?? null,
-      change: colors?.change?.light ?? null,
-    },
   };
 }
 
