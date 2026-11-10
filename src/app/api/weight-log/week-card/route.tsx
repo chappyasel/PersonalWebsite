@@ -16,10 +16,10 @@ import { WeekCardImage, cardSize } from "./WeekCard";
 import { env } from "~/env";
 
 /**
- * The week card the Log Weight Shortcut shows in its notification: a PNG of
- * the weekly table's rows for the week holding `?date=YYYY-MM-DD` and the
- * week before, with that day marked as today. It
- * answers the same `WEIGHT_LOG_ENTRY_TOKEN` as `/api/weight-log/weigh-in`,
+ * The week card the Log Weight Shortcut shows in its notification: a
+ * portrait PNG of the week holding `?date=YYYY-MM-DD`, its days large with
+ * that day marked as today, over the weekly table's summary for up to five
+ * weeks either side. It answers the same `WEIGHT_LOG_ENTRY_TOKEN` as `/api/weight-log/weigh-in`,
  * only for a date in the Shortcut's window, and never writes.
  */
 export const runtime = "nodejs";

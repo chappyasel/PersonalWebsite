@@ -188,7 +188,17 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     now a snapshot of the editor's Weeks table, its header and two rows (last
     week and this week) with the editor's fills and today's red ring. It
     is set for a notification about 360 pt wide: 16 px type, tight cells,
-    and no Orig, its Gap, or lb/wk, so its text lands near 9 pt.
+    and no Orig, its Gap, or lb/wk, so its text lands near 9 pt. Changed
+    again later on November 10, 2026, at the owner's ask, because the phone
+    is always upright: the card is now portrait, 360 px wide and as tall as
+    its rows. This week's seven days sit large at the top (16 pt), under a
+    caption with the phase and the week's number. Below them, a table of
+    `#`, Week, Avg, Chg, Target, Gap, and lb/wk (14 pt) covers up to five
+    weeks before this one, this week, and up to five after. A phase change
+    inside the window gets a rule and the new phase's dot and name. The
+    owner has yet to confirm the layout. A one-table version with all 16
+    columns and color-only day cells came out near 6.5 pt and was not
+    shipped.
 42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
     weigh-in (decision 32).
 43. The owner builds the Shortcut by hand from a written recipe in
