@@ -1,5 +1,6 @@
 import { weekTableColors } from "./color-scale";
-import { pounds, toTenth } from "./format";
+import { pounds } from "./format";
+import { roundTenth } from "./sheet";
 import { addDays, weekStartOf } from "./phases";
 import type { WeightLog } from "./schema";
 import { buildWeekTable, weeklyAverage } from "./week-table";
@@ -123,7 +124,7 @@ export function weekLine(summary: WeekSummary) {
     if (summary.target === null || summary.gapToTarget === null) {
       parts.push(`${average}, no target this week.`);
     } else {
-      const gap = toTenth(summary.gapToTarget);
+      const gap = roundTenth(summary.gapToTarget);
       const offBy =
         gap === 0
           ? "on target"

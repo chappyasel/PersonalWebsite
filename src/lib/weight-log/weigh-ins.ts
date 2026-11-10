@@ -6,6 +6,7 @@ import { weightLogWeighIns } from "~/server/db/schema";
 
 import { addDays } from "./phases";
 import { PLAN_LOCK } from "./plan-edits";
+import { MAX_WEIGH_IN } from "./sheet";
 
 /**
  * Recording a weigh-in. A date holds at most one (decision 7). The owner page
@@ -139,7 +140,7 @@ const pounds = z
       .transform(Number),
   ])
   .transform((value) => Math.round(value * 10) / 10)
-  .pipe(z.number().positive().max(1500));
+  .pipe(z.number().positive().max(MAX_WEIGH_IN));
 
 const replace = z
   .union([
