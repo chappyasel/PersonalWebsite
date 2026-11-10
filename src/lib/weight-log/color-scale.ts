@@ -11,6 +11,10 @@ import type { WeekTableRow } from "./week-table";
  *   percentile (#FCFCFF) to the highest (#F8696B). Equal pounds get equal
  *   colors in any of the three columns.
  *
+ * The workbook left the signed columns (change, both gaps, and lb/wk) plain.
+ * The owner asked for them colored too, so each takes the same blue, white,
+ * and red with white fixed at zero: blue for a drop, red for a rise.
+ *
  * Excel interpolates each RGB channel linearly between neighbouring stops,
  * takes the 50th percentile as the median, and leaves blank cells uncolored.
  * Dark mode swaps the white stop for the dark card's background so cells
@@ -149,25 +153,55 @@ export function targetScale(values: readonly number[]) {
   };
 }
 
+/**
+ * A signed column's scale: blue below zero, white at zero, and red above, as
+ * Excel's 3-color scale with its midpoint set to the number 0. Both sides
+ * reach full color at the column's largest distance from zero, so a drop and a
+ * rise of the same size get the same strength.
+ */
+export function signedScale(values: readonly number[]) {
+  if (!values.length) return () => null;
+  const reach = Math.max(...values.map(Math.abs));
+  return (value: number): CellColor => {
+    const t = reach === 0 ? 0 : Math.abs(value) / reach;
+    const end = value < 0 ? BLUE : RED;
+    return cell(mix(EXCEL_WHITE, end, t), mix(DARK_CARD, end, t));
+  };
+}
+
+/** The weekly table's signed columns, each colored on a scale of its own. */
+export const SIGNED_COLUMNS = [
+  "change",
+  "gapToTarget",
+  "poundsPerWeek",
+  "gapToOriginalTarget",
+] as const;
+type SignedColumn = (typeof SIGNED_COLUMNS)[number];
+
 /** The colors for one row of the weekly table. Null means no fill. */
-export interface WeekRowColors {
+export type WeekRowColors = {
   days: (CellColor | null)[];
   average: CellColor | null;
   target: CellColor | null;
   originalTarget: CellColor | null;
-}
+} & Record<SignedColumn, CellColor | null>;
 
 const present = (value: number | null): value is number => value !== null;
 
 /**
- * Colors for a phase's weekly table, both scales computed over the rows
+ * Colors for a phase's weekly table, every scale computed over the rows
  * given. Excluded weigh-ins get no fill and stay out of the green scale's
- * range. The change and gap columns stay uncolored, as on the workbook's tabs.
+ * range.
  */
 export function weekTableColors(
   rows: readonly Pick<
     WeekTableRow,
-    "weights" | "excludedDays" | "average" | "target" | "originalTarget"
+    | "weights"
+    | "excludedDays"
+    | "average"
+    | "target"
+    | "originalTarget"
+    | SignedColumn
   >[],
 ): WeekRowColors[] {
   const counted = (row: (typeof rows)[number]) =>
@@ -185,10 +219,20 @@ export function weekTableColors(
   const fill =
     (scale: (value: number) => CellColor | null) => (value: number | null) =>
       value === null ? null : scale(value);
+  const signed = Object.fromEntries(
+    SIGNED_COLUMNS.map((column) => [
+      column,
+      fill(signedScale(rows.map((row) => row[column]).filter(present))),
+    ]),
+  ) as Record<SignedColumn, (value: number | null) => CellColor | null>;
   return rows.map((row) => ({
     days: counted(row).map(fill(green)),
     average: fill(shared)(row.average),
     target: fill(shared)(row.target),
     originalTarget: fill(shared)(row.originalTarget),
+    change: signed.change(row.change),
+    gapToTarget: signed.gapToTarget(row.gapToTarget),
+    poundsPerWeek: signed.poundsPerWeek(row.poundsPerWeek),
+    gapToOriginalTarget: signed.gapToOriginalTarget(row.gapToOriginalTarget),
   }));
 }

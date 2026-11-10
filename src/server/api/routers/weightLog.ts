@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { loadWeekRecords } from "~/lib/weight-log/database";
@@ -192,12 +192,15 @@ export const weightLogRouter = createTRPCRouter({
         phases: records.phases,
         weeks: records.plannedWeeks,
       }),
-      phases: [...log.phases].reverse().map(({ id, label, start, end }) => ({
-        id,
-        label,
-        start,
-        end,
-      })),
+      phases: [...log.phases]
+        .reverse()
+        .map(({ id, label, kind, start, end }) => ({
+          id,
+          label,
+          kind,
+          start,
+          end,
+        })),
     };
   }),
 
@@ -227,7 +230,8 @@ export const weightLogRouter = createTRPCRouter({
    * One calendar week's weigh-ins, Monday to Sunday, for the editor's
    * correction grid. It reads by date, not by phase, so a weigh-in no phase
    * holds (one dated before the first phase starts) can still be replaced or
-   * deleted from the page.
+   * deleted from the page. `before` is the latest counted weigh-in ahead of
+   * the week, which the form starts from on a date with none of its own.
    */
   week: ownerProcedure
     .input(
@@ -238,19 +242,35 @@ export const weightLogRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input: { week } }) => {
-      const rows = await ctx.db
-        .select({
-          date: weightLogWeighIns.date,
-          pounds: weightLogWeighIns.pounds,
-          excluded: weightLogWeighIns.excluded,
-        })
-        .from(weightLogWeighIns)
-        .where(
-          and(
-            gte(weightLogWeighIns.date, week),
-            lte(weightLogWeighIns.date, addDays(week, 6)),
+      const [rows, [before]] = await Promise.all([
+        ctx.db
+          .select({
+            date: weightLogWeighIns.date,
+            pounds: weightLogWeighIns.pounds,
+            excluded: weightLogWeighIns.excluded,
+          })
+          .from(weightLogWeighIns)
+          .where(
+            and(
+              gte(weightLogWeighIns.date, week),
+              lte(weightLogWeighIns.date, addDays(week, 6)),
+            ),
           ),
-        );
+        ctx.db
+          .select({
+            date: weightLogWeighIns.date,
+            pounds: weightLogWeighIns.pounds,
+          })
+          .from(weightLogWeighIns)
+          .where(
+            and(
+              lt(weightLogWeighIns.date, week),
+              eq(weightLogWeighIns.excluded, false),
+            ),
+          )
+          .orderBy(desc(weightLogWeighIns.date))
+          .limit(1),
+      ]);
       const byDate = new Map(rows.map((row) => [row.date, row]));
       const days = Array.from({ length: 7 }, (_, day) =>
         byDate.get(addDays(week, day)),
@@ -261,6 +281,7 @@ export const weightLogRouter = createTRPCRouter({
         excludedDays: days.flatMap((day, index) =>
           day?.excluded ? [index] : [],
         ),
+        before: before ?? null,
       };
     }),
 

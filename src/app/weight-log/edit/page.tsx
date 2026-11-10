@@ -13,6 +13,12 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 import { WeightLogEditor } from "./WeightLogEditor";
 import { signInWithGoogle, signOutOwner } from "./actions";
@@ -62,11 +68,23 @@ export default async function WeightLogEditPage({
               <span className="truncate font-rounded">Weight Log</span>
             </Link>
           </h1>
+          {/* Icon only: the owner rarely signs out. */}
           <form action={signOutOwner}>
-            <Button type="submit" variant="ghost" size="sm">
-              <SignOut aria-hidden />
-              Sign out
-            </Button>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Sign out"
+                  >
+                    <SignOut aria-hidden className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Sign out</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </form>
         </header>
         <TRPCReactProvider>

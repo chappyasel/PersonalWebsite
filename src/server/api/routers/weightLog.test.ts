@@ -33,12 +33,16 @@ interface Query {
 let queries: Query[] = [];
 let tables: Record<string, unknown[][]> = {};
 let returned: unknown[][] = [];
+/** Replies for the next queries in order, ahead of `returned`. */
+let replies: unknown[][][] = [];
 
 const db = drizzle(
   async (sql, params) => {
     queries.push({ sql, params });
     const read = /^select .* from "(weight_log_[a-z_]+)"$/.exec(sql);
-    return { rows: read ? (tables[read[1]!] ?? []) : returned };
+    return {
+      rows: read ? (tables[read[1]!] ?? []) : (replies.shift() ?? returned),
+    };
   },
   { schema },
 );
@@ -88,6 +92,7 @@ beforeEach(() => {
   queries = [];
   tables = {};
   returned = [];
+  replies = [];
   vi.useRealTimers();
 });
 
@@ -176,21 +181,36 @@ describe("weightLog.deleteWeighIn", () => {
 
 describe("weightLog.week", () => {
   it("reads one calendar week's weigh-ins, before any phase as well as inside one", async () => {
-    returned = [
-      ["2029-12-04", 99.5, false],
-      ["2029-12-08", 120, true],
+    replies = [
+      [
+        ["2029-12-04", 99.5, false],
+        ["2029-12-08", 120, true],
+      ],
+      [["2029-11-30", 99.8]],
     ];
     await expect(caller.week({ week: "2029-12-03" })).resolves.toEqual({
       week: "2029-12-03",
       weights: [null, 99.5, null, null, null, 120, null],
       excludedDays: [5],
+      before: { date: "2029-11-30", pounds: 99.8 },
     });
     expect(queries).toEqual([
       {
         sql: 'select "date", "pounds", "excluded" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" >= $1 and "weight_log_weigh_ins"."date" <= $2)',
         params: ["2029-12-03", "2029-12-09"],
       },
+      {
+        sql: 'select "date", "pounds" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" < $1 and "weight_log_weigh_ins"."excluded" = $2) order by "weight_log_weigh_ins"."date" desc limit $3',
+        params: ["2029-12-03", false, 1],
+      },
     ]);
+  });
+
+  it("has no earlier weigh-in to start from before the first one", async () => {
+    replies = [[], []];
+    await expect(caller.week({ week: "2029-12-03" })).resolves.toMatchObject({
+      before: null,
+    });
   });
 
   it("refuses a day that is not a Monday, without a query", async () => {
@@ -241,12 +261,14 @@ describe("weightLog.phases", () => {
         {
           id: "2",
           label: "Bulk Jan '30 - Feb '30",
+          kind: "bulk",
           start: "2030-01-21",
           end: "2030-02-03",
         },
         {
           id: "1",
           label: "Cut Jan '30 - Jan '30",
+          kind: "cut",
           start: "2030-01-07",
           end: "2030-01-20",
         },

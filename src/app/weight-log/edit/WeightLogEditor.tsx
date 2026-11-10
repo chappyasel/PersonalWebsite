@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  CalendarBlankIcon,
   CaretLeftIcon,
   CaretRightIcon,
+  CheckIcon,
   ScalesIcon,
   TableIcon,
   TrashIcon,
@@ -10,6 +12,8 @@ import {
 import {
   type CSSProperties,
   type FormEvent,
+  type MouseEvent,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -17,9 +21,20 @@ import {
 } from "react";
 
 import { cn } from "~/lib/utils";
-import { type CellColor, weekTableColors } from "~/lib/weight-log/color-scale";
-import { addDays, weekStartOf } from "~/lib/weight-log/phases";
-import type { WeekTableRow } from "~/lib/weight-log/week-table";
+import { PHASE_COLORS } from "~/lib/weight-log/chart";
+import {
+  type CellColor,
+  type WeekRowColors,
+  weekTableColors,
+} from "~/lib/weight-log/color-scale";
+import { lastWeighInBefore, relativeDayLabel } from "~/lib/weight-log/entry";
+import {
+  addDays,
+  cycleNumbers,
+  phaseWeekCount,
+  weekStartOf,
+} from "~/lib/weight-log/phases";
+import { type WeekTableRow, weekNumber } from "~/lib/weight-log/week-table";
 import { api } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
@@ -113,7 +128,6 @@ function fillStyle(color: CellColor | null): CSSProperties | undefined {
 const FILLED =
   "bg-[color:var(--wl-fill)] text-[color:var(--wl-ink)] dark:bg-[color:var(--wl-fill-dark)] dark:text-[color:var(--wl-ink-dark)]";
 
-/** A difference to one decimal, with its sign. Zero has none. */
 /**
  * The phase the weekly table shows: the one picked in Weeks while it still
  * exists, otherwise the current one. Starting a phase on the current phase's
@@ -127,6 +141,7 @@ export function tablePhaseToShow(
   return phases.some((phase) => phase.id === chosenId) ? chosenId : currentId;
 }
 
+/** A difference to one decimal, with its sign. Zero has none. */
 function signed(value: number | null) {
   if (value === null) return "—";
   const rounded = Math.round(value * 10) / 10;
@@ -134,20 +149,18 @@ function signed(value: number | null) {
   return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
 }
 
-/** The summary columns, after the seven days, in the workbook's order. A
- * colored column takes the shared blue-white-red scale. */
+/** The summary columns, after the seven days, in the workbook's order. Each
+ * takes its fill from the matching key of the row's colors. */
 const COLUMNS: {
-  key: keyof WeekTableRow;
+  key: keyof WeekTableRow & keyof WeekRowColors;
   label: string;
   hint: string;
   signed?: boolean;
-  colored?: "average" | "target" | "originalTarget";
 }[] = [
   {
     key: "average",
     label: "Avg",
     hint: "Weekly average",
-    colored: "average",
   },
   {
     key: "change",
@@ -159,7 +172,6 @@ const COLUMNS: {
     key: "target",
     label: "Target",
     hint: "This week's target",
-    colored: "target",
   },
   {
     key: "gapToTarget",
@@ -177,7 +189,6 @@ const COLUMNS: {
     key: "originalTarget",
     label: "Orig",
     hint: "Original target, set when the phase began",
-    colored: "originalTarget",
   },
   {
     key: "gapToOriginalTarget",
@@ -188,6 +199,22 @@ const COLUMNS: {
 ];
 
 const subscribeNever = () => () => undefined;
+
+/**
+ * Opens the date picker on a click anywhere in the field. The native input
+ * sits invisible over the field's label, so on a desktop browser a click
+ * would otherwise land on an unseen month or day segment. A phone opens its
+ * picker on the tap itself.
+ */
+function openPicker(event: MouseEvent<HTMLInputElement>) {
+  const input = event.currentTarget;
+  if (typeof input.showPicker !== "function") return;
+  try {
+    input.showPicker();
+  } catch {
+    // Some browsers refuse outside a trusted gesture; the input still works.
+  }
+}
 
 /**
  * The owner's Weight Log editor: a weigh-in form, the week around its date
@@ -266,12 +293,22 @@ function Editor() {
     excluded: gridRow?.excludedDays.includes(day) ?? false,
   }));
   const existing = weekDays.find((day) => day.date === date)?.weight ?? null;
-  const poundsText =
-    draft?.date === date
-      ? draft.text
-      : existing === null
-        ? ""
-        : pounds(existing);
+  // A date with no weigh-in starts from the latest one before it, so the
+  // owner nudges a number instead of typing all of it. Nothing is saved
+  // until they press Save, and the field and the line under it say so.
+  const carried =
+    existing === null && gridRow
+      ? lastWeighInBefore(date, gridRow, gridRow.before)
+      : null;
+  const typed = draft?.date === date;
+  const poundsText = typed
+    ? draft.text
+    : existing !== null
+      ? pounds(existing)
+      : carried
+        ? pounds(carried.pounds)
+        : "";
+  const showingCarried = !typed && carried !== null;
   const entered = Number.parseFloat(poundsText);
   const valid =
     poundsText.trim() !== "" &&
@@ -353,6 +390,11 @@ function Editor() {
 
   const oldest = phases.at(-1)?.start ?? week;
   const shownPhase = phases.find((phase) => phase.id === shownPhaseId);
+  const cycles = cycleNumbers(phases);
+  const dateId = useId();
+  const carriedFrom = carried
+    ? relativeDayLabel(carried.date, today).replace(/^Yesterday$/, "yesterday")
+    : null;
   const currentWeek = weekStartOf(today);
   const tableRows = tableQuery.data?.rows;
   const colors = useMemo(
@@ -368,21 +410,43 @@ function Editor() {
             title="Weigh-in"
             icon={<ScalesIcon className="h-5 w-5" weight="bold" />}
           >
-            <form onSubmit={submit} className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="flex min-w-0 flex-1 basis-36 flex-col gap-1 text-xs text-muted-foreground">
-                  Date
-                  <Input
-                    type="date"
-                    value={date}
-                    max={today}
-                    required
-                    onChange={(event) => {
-                      if (event.target.value) choose(event.target.value);
-                    }}
-                  />
-                </label>
-                <label className="flex w-24 flex-col gap-1 text-xs text-muted-foreground">
+            <form onSubmit={submit} className="flex flex-col gap-1.5">
+              <div className="flex items-end gap-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <label
+                    htmlFor={dateId}
+                    className="text-xs text-muted-foreground"
+                  >
+                    Date
+                  </label>
+                  {/* The field shows the date as words, and the native input
+                      lies invisible over it, so a tap still opens the
+                      browser's own picker. Absolute and min-w-0, the input
+                      can't push the row wider: iOS Safari gives a date
+                      input a wide minimum width of its own. */}
+                  <div className="relative flex h-9 min-w-0 items-center gap-2 rounded-md border border-input px-3 text-base shadow-sm transition-colors focus-within:border-primary/60 md:text-sm">
+                    <CalendarBlankIcon
+                      aria-hidden
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
+                    />
+                    <span aria-hidden className="truncate">
+                      {relativeDayLabel(date, today)}
+                    </span>
+                    <Input
+                      id={dateId}
+                      type="date"
+                      value={date}
+                      max={today}
+                      required
+                      className="absolute inset-0 h-full min-w-0 cursor-pointer appearance-none border-0 opacity-0 shadow-none"
+                      onClick={openPicker}
+                      onChange={(event) => {
+                        if (event.target.value) choose(event.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+                <label className="flex w-24 shrink-0 flex-col gap-1 text-xs text-muted-foreground">
                   Pounds
                   <Input
                     type="number"
@@ -391,24 +455,42 @@ function Editor() {
                     min="0.1"
                     max="1500"
                     value={poundsText}
-                    className="tabular-nums"
+                    className={cn(
+                      "tabular-nums",
+                      showingCarried && "text-muted-foreground",
+                    )}
                     onChange={(event) => {
                       setDraft({ date, text: event.target.value });
                       setStatus(null);
                     }}
                   />
                 </label>
-                <Button type="submit" disabled={!valid || busy || unchanged}>
-                  {replacing ? "Replace" : "Save"}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="submit"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label={replacing ? "Replace" : "Save"}
+                      disabled={!valid || busy || unchanged}
+                    >
+                      <CheckIcon aria-hidden weight="bold" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {replacing ? "Replace" : "Save"}
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <div className="flex min-h-8 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {/* One line tall whatever it holds, so a status appearing
+                  doesn't move the week below. */}
+              <div className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                 {date !== today ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="-ml-3"
+                    className="-ml-2 h-6 px-2"
                     onClick={() => choose(today)}
                   >
                     Back to today
@@ -419,7 +501,7 @@ function Editor() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className={date === today ? "-ml-3" : undefined}
+                    className={cn("h-6 px-2", date === today && "-ml-2")}
                     disabled={busy}
                     onClick={() => setConfirming(date)}
                   >
@@ -430,6 +512,9 @@ function Editor() {
                 {replacing && !unchanged && !confirmingDelete ? (
                   <span>Replaces {pounds(existing)} lb</span>
                 ) : null}
+                {showingCarried && carriedFrom && !status ? (
+                  <span>Filled in from {carriedFrom}. Not saved yet.</span>
+                ) : null}
                 {confirmingDelete && existing !== null ? (
                   <span className="flex items-center gap-2">
                     Delete {pounds(existing)} lb on{" "}
@@ -438,6 +523,7 @@ function Editor() {
                       type="button"
                       variant="destructive"
                       size="sm"
+                      className="h-6 px-2"
                       disabled={busy}
                       onClick={confirmDelete}
                     >
@@ -447,6 +533,7 @@ function Editor() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="h-6 px-2"
                       onClick={() => setConfirming(null)}
                     >
                       Cancel
@@ -459,7 +546,7 @@ function Editor() {
               </div>
             </form>
 
-            <div className="mt-4 border-t border-neutral-200 pt-4 dark:border-neutral-700">
+            <div className="mt-2 border-t border-neutral-200 pt-3 dark:border-neutral-700">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <Button
                   type="button"
@@ -570,14 +657,25 @@ function Editor() {
             >
               <SelectTrigger
                 aria-label="Phase"
-                className="h-8 w-[220px] text-xs"
+                className="h-8 w-auto max-w-full gap-2 text-xs"
               >
                 <SelectValue placeholder="Phase" />
               </SelectTrigger>
               <SelectContent className="ph-no-capture ph-mask font-sans">
                 {phases.map((phase) => (
                   <SelectItem key={phase.id} value={phase.id}>
-                    {phase.label}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        aria-hidden
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: PHASE_COLORS[phase.kind] }}
+                      />
+                      <span className="truncate">{phase.label}</span>
+                      <span className="shrink-0 text-muted-foreground">
+                        Cycle {cycles.get(phase.id)} ·{" "}
+                        {phaseWeekCount(phase.start, phase.end)} wk
+                      </span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -611,7 +709,14 @@ function Editor() {
                   <tr className="text-muted-foreground [&>th]:border-b [&>th]:border-neutral-200 dark:[&>th]:border-neutral-700">
                     <th
                       scope="col"
-                      className="sticky left-0 bg-white py-2 pl-3 pr-2 text-left font-normal dark:bg-neutral-800 sm:pl-4"
+                      className="sticky left-0 w-9 min-w-9 bg-white py-2 pl-3 text-right font-normal dark:bg-neutral-800 sm:w-10 sm:min-w-10 sm:pl-4"
+                    >
+                      <span aria-hidden>#</span>
+                      <span className="sr-only">Week number</span>
+                    </th>
+                    <th
+                      scope="col"
+                      className="sticky left-9 bg-white py-2 pl-3 pr-2 text-left font-normal dark:bg-neutral-800 sm:left-10"
                     >
                       Week
                     </th>
@@ -667,10 +772,15 @@ function Editor() {
                           current && "font-medium",
                         )}
                       >
+                        <td className="sticky left-0 w-9 min-w-9 bg-white py-1.5 pl-3 text-right text-muted-foreground dark:bg-neutral-800 sm:w-10 sm:min-w-10 sm:pl-4">
+                          {shownPhase
+                            ? weekNumber(row.week, shownPhase.start)
+                            : null}
+                        </td>
                         <th
                           scope="row"
                           className={cn(
-                            "sticky left-0 bg-white py-0 pl-1 pr-2 text-left dark:bg-neutral-800 sm:pl-2",
+                            "sticky left-9 bg-white py-0 pl-1 pr-2 text-left dark:bg-neutral-800 sm:left-10",
                             current ? "font-medium" : "font-normal",
                           )}
                         >
@@ -742,10 +852,8 @@ function Editor() {
                           );
                         })}
                         {COLUMNS.map((column, index) => {
-                          const value = row[column.key] as number | null;
-                          const fill = column.colored
-                            ? (rowColors?.[column.colored] ?? null)
-                            : null;
+                          const value = row[column.key];
+                          const fill = rowColors?.[column.key] ?? null;
                           return (
                             <td
                               key={column.key}
