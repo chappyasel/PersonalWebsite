@@ -24,7 +24,6 @@ import type { WeekTableRow } from "~/lib/weight-log/week-table";
 import { type RouterOutputs, api } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
-import { CollapsibleSection } from "~/components/ui/collapsible-section";
 import { Input } from "~/components/ui/input";
 import { LoadFailed } from "~/components/ui/load-failed";
 import {
@@ -36,6 +35,7 @@ import {
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 
+import { EditorSection } from "./EditorSection";
 import { failure, isConflict } from "./refusal";
 
 type Phase = RouterOutputs["weightLog"]["phases"]["phases"][number];
@@ -228,12 +228,12 @@ export function PlanEditor({ today }: { today: string }) {
   }
 
   return (
-    <CollapsibleSection
+    <EditorSection
       title="Plan"
       icon={<ChartLineUpIcon className="h-5 w-5" weight="bold" />}
     >
       {body}
-    </CollapsibleSection>
+    </EditorSection>
   );
 }
 
@@ -637,7 +637,7 @@ export function SetPointsEditor() {
   };
 
   return (
-    <CollapsibleSection
+    <EditorSection
       title="Set points"
       icon={<TargetIcon className="h-5 w-5" weight="bold" />}
     >
@@ -726,6 +726,6 @@ export function SetPointsEditor() {
           <Status>{status}</Status>
         </form>
       )}
-    </CollapsibleSection>
+    </EditorSection>
   );
 }

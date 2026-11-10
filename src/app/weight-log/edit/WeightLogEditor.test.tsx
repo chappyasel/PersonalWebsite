@@ -13,6 +13,7 @@ import type { WeekTableRow } from "~/lib/weight-log/week-table";
 
 import { tablePhaseToShow } from "./WeekSheet";
 import { WeightLogEditor } from "./WeightLogEditor";
+import { WEEKS_CONTROLS_ID } from "./headerSlot";
 
 // Invented numbers. None of them is the owner's.
 
@@ -237,15 +238,79 @@ afterEach(() => {
 });
 
 describe("the page", () => {
-  it("has no weigh-in form or weekly rate form, and keeps Length and Start", () => {
+  it("shows the Weeks table open, with no form and no section to fold", () => {
     render(<WeightLogEditor />);
     expect(screen.queryByRole("button", { name: "Weigh-in" })).toBeNull();
     expect(screen.queryByLabelText("Date")).toBeNull();
     expect(screen.queryByLabelText("Pounds")).toBeNull();
     expect(screen.queryByRole("form", { name: "Weekly rate" })).toBeNull();
+    // Plan and Set points have pages of their own.
+    expect(screen.queryByRole("form", { name: "Length" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Set points" })).toBeNull();
+    // The table isn't an accordion, and has no heading of its own.
+    expect(screen.queryByRole("button", { name: "Weeks" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Weeks" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Weeks" })).toBeTruthy();
+  });
+
+  it("shows Length and Start a phase on the Plan page", () => {
+    render(<WeightLogEditor view="plan" />);
+    expect(screen.getByRole("heading", { name: "Plan" })).toBeTruthy();
     expect(screen.getByRole("form", { name: "Length" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start a phase" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Weeks" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Weeks" })).toBeNull();
+  });
+
+  it("shows the set points on their own page", () => {
+    render(<WeightLogEditor view="set-points" />);
+    expect(screen.getByRole("heading", { name: "Set points" })).toBeTruthy();
+    expect(screen.queryByRole("form", { name: "Length" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Weeks" })).toBeNull();
+  });
+
+  it("puts the phase picker and Go to date in the header's slot", () => {
+    const slot = document.createElement("div");
+    slot.id = WEEKS_CONTROLS_ID;
+    document.body.append(slot);
+    try {
+      render(<WeightLogEditor />);
+      const region = screen.getByRole("region", { name: "Weeks" });
+      for (const control of [
+        screen.getByRole("combobox", { name: "Phase" }),
+        screen.getByLabelText("Go to date"),
+      ]) {
+        expect(slot.contains(control)).toBe(true);
+        expect(region.contains(control)).toBe(false);
+      }
+    } finally {
+      slot.remove();
+    }
+  });
+
+  it("opens where the page starts, without scrolling to this week", () => {
+    const scrollIntoView = vi.fn();
+    const original = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "scrollIntoView",
+    );
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    try {
+      render(<WeightLogEditor />);
+      // This week's day still carries its outline.
+      expect(
+        document.querySelector('button[aria-current="date"]'),
+      ).not.toBeNull();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      if (original)
+        Object.defineProperty(Element.prototype, "scrollIntoView", original);
+      else
+        delete (Element.prototype as { scrollIntoView?: unknown })
+          .scrollIntoView;
+    }
   });
 });
 

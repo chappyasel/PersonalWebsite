@@ -3,7 +3,6 @@
 import {
   ArrowCounterClockwiseIcon,
   CalendarBlankIcon,
-  TableIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -14,6 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "~/lib/utils";
 import { PHASE_COLORS } from "~/lib/weight-log/chart";
@@ -49,7 +49,6 @@ import { type WeekTableRow, weekNumber } from "~/lib/weight-log/week-table";
 import { api } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
-import { CollapsibleSection } from "~/components/ui/collapsible-section";
 import { Input } from "~/components/ui/input";
 import { LoadFailed } from "~/components/ui/load-failed";
 import {
@@ -66,6 +65,8 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import { EditorSection } from "./EditorSection";
+import { WEEKS_CONTROLS_ID } from "./headerSlot";
 import { failure, isConflict } from "./refusal";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -366,11 +367,15 @@ export function WeekSheet({ today }: { today: string }) {
   /** Text sent and not yet back, shown in its cell meanwhile. */
   const [pending, setPending] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status | null>(null);
+  // The header's slot for the phase picker and Go to date. The editor
+  // renders only in the browser, so the document is there.
+  const [headerSlot] = useState(() =>
+    document.getElementById(WEEKS_CONTROLS_ID),
+  );
   // A plan edit changes the revision and later targets. Until the page has
   // the new plan, the plan cells wait.
   const [planLanding, setPlanLanding] = useState(false);
   const focusAfter = useRef<string | null>(null);
-  const scrolledToToday = useRef(false);
 
   // Weeks the phase's table lacks: this week before anything is in it, and
   // the week Go to date picked. Each joins the table of the phase that holds
@@ -779,20 +784,15 @@ export function WeekSheet({ today }: { today: string }) {
     }
   };
 
-  // A button's ref: Return and Escape hand focus back to the cell, and the
-  // page opens on this week, once.
-  const cellRef =
-    (key: string, isToday: boolean) => (node: HTMLElement | null) => {
-      if (!node) return;
-      if (focusAfter.current === key) {
-        focusAfter.current = null;
-        node.focus({ preventScroll: true });
-      }
-      if (isToday && !scrolledToToday.current) {
-        scrolledToToday.current = true;
-        node.scrollIntoView?.({ block: "center", inline: "nearest" });
-      }
-    };
+  // A button's ref: Return and Escape hand focus back to the cell. The page
+  // opens at the top: the owner enters most weigh-ins through a Shortcut,
+  // so the table doesn't scroll to this week.
+  const cellRef = (key: string) => (node: HTMLElement | null) => {
+    if (node && focusAfter.current === key) {
+      focusAfter.current = null;
+      node.focus({ preventScroll: true });
+    }
+  };
 
   /** One editable cell: a button that turns into an input. */
   const editableCell = ({
@@ -835,7 +835,7 @@ export function WeekSheet({ today }: { today: string }) {
     }
     const button = (
       <button
-        ref={cellRef(key, isToday)}
+        ref={cellRef(key)}
         type="button"
         disabled={disabled}
         aria-label={name}
@@ -1134,76 +1134,89 @@ export function WeekSheet({ today }: { today: string }) {
     );
   }
 
-  return (
-    <CollapsibleSection
-      title="Weeks"
-      icon={<TableIcon className="h-5 w-5" weight="bold" />}
-      cardClassName="px-0 sm:px-0"
-    >
-      <div className="mb-3 flex flex-wrap items-center gap-2 px-3 sm:px-4">
-        <Select
-          // "" shows the placeholder and keeps the Select controlled while
-          // the phases load.
-          value={shownPhaseId ?? ""}
-          onValueChange={(next) => {
-            setChosenPhaseId(next);
-            setEditing(null);
-          }}
-          disabled={!phases.length}
+  // The phase picker and Go to date sit in the page header's nav. Without
+  // the header (in tests), they sit above the table.
+  const controls = (
+    <>
+      <Select
+        // "" shows the placeholder and keeps the Select controlled while
+        // the phases load.
+        value={shownPhaseId ?? ""}
+        onValueChange={(next) => {
+          setChosenPhaseId(next);
+          setEditing(null);
+        }}
+        disabled={!phases.length}
+      >
+        <SelectTrigger
+          aria-label="Phase"
+          className="h-9 w-auto min-w-0 flex-1 gap-2 text-xs lg:max-w-sm lg:flex-none"
         >
-          <SelectTrigger
-            aria-label="Phase"
-            className="h-8 w-auto min-w-0 max-w-full gap-2 text-xs"
-          >
-            <SelectValue placeholder="Phase" />
-          </SelectTrigger>
-          <SelectContent className="ph-no-capture ph-mask font-sans">
-            {phases.map((phase) => (
-              <SelectItem key={phase.id} value={phase.id}>
-                <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: PHASE_COLORS[phase.kind] }}
-                  />
-                  <span className="truncate">{phase.label}</span>
-                  <span className="shrink-0 text-muted-foreground">
-                    Cycle {cycles.get(phase.id)} ·{" "}
-                    {phaseWeekCount(phase.start, phase.end)} wk
-                  </span>
+          <SelectValue placeholder="Phase" />
+        </SelectTrigger>
+        <SelectContent className="ph-no-capture ph-mask font-sans">
+          {phases.map((phase) => (
+            <SelectItem key={phase.id} value={phase.id}>
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  aria-hidden
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: PHASE_COLORS[phase.kind] }}
+                />
+                <span className="truncate">{phase.label}</span>
+                <span className="shrink-0 text-muted-foreground">
+                  Cycle {cycles.get(phase.id)} ·{" "}
+                  {phaseWeekCount(phase.start, phase.end)} wk
                 </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* The native date input lies invisible over the button, so a tap
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {/* The native date input lies invisible over the button, so a tap
             opens the phone's own picker. Any date up to today, in a phase
             or not, opens its day for typing. */}
-        <div className="relative">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            tabIndex={-1}
-            aria-hidden
-            className="pointer-events-none h-8 gap-1.5 text-xs"
-          >
-            <CalendarBlankIcon aria-hidden className="h-4 w-4" />
-            Go to date
-          </Button>
-          <Input
-            type="date"
-            aria-label="Go to date"
-            max={today}
-            value={jumpDate ?? ""}
-            className="absolute inset-0 h-full min-w-0 cursor-pointer appearance-none border-0 opacity-0 shadow-none"
-            onClick={openPicker}
-            onChange={(event) => {
-              if (event.target.value) jump(event.target.value);
-            }}
-          />
-        </div>
+      <div className="relative shrink-0">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          tabIndex={-1}
+          aria-hidden
+          className="pointer-events-none h-9 w-9 gap-1.5 px-0 text-xs sm:w-auto sm:px-3"
+        >
+          <CalendarBlankIcon aria-hidden className="h-4 w-4" />
+          <span className="hidden sm:inline">Go to date</span>
+        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Input
+              type="date"
+              aria-label="Go to date"
+              max={today}
+              value={jumpDate ?? ""}
+              className="absolute inset-0 h-full min-w-0 cursor-pointer appearance-none border-0 opacity-0 shadow-none"
+              onClick={openPicker}
+              onChange={(event) => {
+                if (event.target.value) jump(event.target.value);
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent className="sm:hidden">Go to date</TooltipContent>
+        </Tooltip>
       </div>
+    </>
+  );
+
+  return (
+    <EditorSection title="Weeks" showTitle={false} cardClassName="px-0 sm:px-0">
+      {headerSlot ? (
+        createPortal(controls, headerSlot)
+      ) : (
+        <div className="mb-3 flex flex-wrap items-center gap-2 px-3 sm:px-4">
+          {controls}
+        </div>
+      )}
       {body}
       {/* One status line for every cell. It floats above the bottom of the
           screen, where it stays in view however far down the table the
@@ -1251,6 +1264,6 @@ export function WeekSheet({ today }: { today: string }) {
           </div>
         ) : null}
       </div>
-    </CollapsibleSection>
+    </EditorSection>
   );
 }

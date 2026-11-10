@@ -7,6 +7,7 @@ import { TooltipProvider } from "~/components/ui/tooltip";
 
 import { PlanEditor, SetPointsEditor } from "./PlanEditor";
 import { WeekSheet } from "./WeekSheet";
+import type { EditorView } from "./headerSlot";
 
 /** Today in the device's time zone (decision 22), as an ISO date. */
 function localToday() {
@@ -53,15 +54,17 @@ function subscribeToToday(onChange: () => void) {
 const subscribeNever = () => () => undefined;
 
 /**
- * The owner's Weight Log editor: the weekly table, which takes weigh-ins and
- * plan changes cell by cell, the running phase's plan, and the set points.
+ * One page of the owner's Weight Log editor: the weekly table, which takes
+ * weigh-ins and plan changes cell by cell, the running phase's plan, or the
+ * set points. Each has its own address, and the header's nav moves between
+ * them.
  * Everything reads and writes through `api.weightLog.*`, which is
  * owner-only.
  *
  * "Today" is the device's date, which the server cannot know, so the editor
  * renders only in the browser.
  */
-export function WeightLogEditor() {
+export function WeightLogEditor({ view = "weeks" }: { view?: EditorView }) {
   const inBrowser = useSyncExternalStore(
     subscribeNever,
     () => true,
@@ -69,24 +72,26 @@ export function WeightLogEditor() {
   );
   if (!inBrowser) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-3">
-        <Skeleton className="h-6 w-32" />
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-48 w-full" />
       </div>
     );
   }
-  return <Editor />;
+  return <Editor view={view} />;
 }
 
-function Editor() {
+function Editor({ view }: { view: EditorView }) {
   const today = useSyncExternalStore(subscribeToToday, localToday, localToday);
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="mx-auto grid w-full min-w-0 max-w-2xl grid-cols-[minmax(0,1fr)] gap-6">
+      {view === "weeks" ? (
         <WeekSheet today={today} />
-        <PlanEditor today={today} />
-        <SetPointsEditor />
-      </div>
+      ) : (
+        // The plan's forms read best at a column's width, under the header.
+        <div className="grid w-full min-w-0 max-w-2xl grid-cols-[minmax(0,1fr)]">
+          {view === "plan" ? <PlanEditor today={today} /> : <SetPointsEditor />}
+        </div>
+      )}
     </TooltipProvider>
   );
 }
