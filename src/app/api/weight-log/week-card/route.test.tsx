@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { weekCard } from "~/lib/weight-log/week-card";
 import { SYNTHETIC_LOG } from "~/lib/weight-log/week-summary.fixture";
 
-import { cardSize } from "./WeekCard";
+import { CARD_COLUMNS, cardSize } from "./WeekCard";
 import * as route from "./route";
 
 /**
@@ -109,12 +109,14 @@ describe("GET /api/weight-log/week-card", () => {
       const size = cardSize(card);
       expect([meta.width, meta.height]).toEqual([size.width, size.height]);
 
-      // Every filled cell is drawn in its scale color, and today has its
-      // red ring. A cell is 92 by 58 device pixels, less its text.
+      // Every filled cell the card shows is drawn in its scale color, and
+      // today has its red ring. A cell is 92 by 58 device pixels, less its
+      // text.
       const fills = card.rows.flatMap(({ colors }) =>
-        Object.values(colors)
-          .flat()
-          .flatMap((color) => (color ? [color.light.background] : [])),
+        [
+          ...colors.days,
+          ...CARD_COLUMNS.map((column) => colors[column.key]),
+        ].flatMap((color) => (color ? [color.light.background] : [])),
       );
       for (const fill of new Set(fills)) {
         expect(await pixelsOf(png, fill)).toBeGreaterThan(2000);

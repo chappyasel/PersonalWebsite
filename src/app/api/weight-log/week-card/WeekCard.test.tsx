@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { addDays, weekStartOf } from "~/lib/weight-log/phases";
 import type { WeightLog } from "~/lib/weight-log/schema";
 import { weekCard } from "~/lib/weight-log/week-card";
+import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
 import {
   HALF_TENTH_LOG,
   SYNTHETIC_LOG,
@@ -14,9 +15,8 @@ import { buildWeekTable, weeklyAverage } from "~/lib/weight-log/week-table";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
 
+import { CARD_COLUMNS, WeekCardImage } from "./WeekCard";
 import { WeekSheet } from "~/app/weight-log/edit/WeekSheet";
-
-import { WeekCardImage } from "./WeekCard";
 
 /**
  * The card is a snapshot of the editor's Weeks table, so each of its rows
@@ -48,7 +48,11 @@ vi.mock("~/trpc/react", async () => {
   return {
     api: {
       useUtils: () => ({
-        weightLog: { phases: invalidate, week: invalidate, weekTable: invalidate },
+        weightLog: {
+          phases: invalidate,
+          week: invalidate,
+          weekTable: invalidate,
+        },
       }),
       weightLog: {
         phases: {
@@ -205,7 +209,17 @@ function expectRowsMatchEditor(
     const table = item.phase
       ? `Weeks of ${item.phase.label}`
       : "Weeks outside every phase";
-    expect(cells).toEqual(editorRow(today, table, cells[1]!.text));
+    const editor = editorRow(today, table, cells[1]!.text);
+    // The card keeps #, Week, the days, and `CARD_COLUMNS` of the summary.
+    const shown = [
+      ...editor.slice(0, 2 + DAY_NAMES.length),
+      ...CARD_COLUMNS.map(
+        (column) =>
+          editor[2 + DAY_NAMES.length + SUMMARY_COLUMNS.indexOf(column)]!,
+      ),
+    ];
+    expect(editor).toHaveLength(2 + DAY_NAMES.length + SUMMARY_COLUMNS.length);
+    expect(cells).toEqual(shown);
   }
   return rows;
 }

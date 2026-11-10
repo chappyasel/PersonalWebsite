@@ -15,6 +15,10 @@ import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
  * fills, rules, and the red ring on today's cell. A notification image never
  * follows dark mode, so the card is always light.
  *
+ * It leaves out the table's last two columns, Orig and its Gap, so the type
+ * stays as large as it can when an expanded notification shrinks the card to
+ * about 350 pt wide (`CARD_COLUMNS`).
+ *
  * Satori lays out flexbox only, so each row is a flex row of fixed-width
  * cells. It also throws on a style value that is undefined, after the route
  * has returned, so every optional style here is spread in only when it has
@@ -54,6 +58,15 @@ const WEEK_WIDTH_WITH_YEAR = 103;
 /** The last column's `pr-3`, past a cell's own 6 px. */
 const LAST_EXTRA = 6;
 
+/**
+ * The editor's summary columns less the original target and its gap. Both
+ * change only when the plan does, so they say the least about a weigh-in.
+ */
+export const CARD_COLUMNS = SUMMARY_COLUMNS.filter(
+  (column) =>
+    column.key !== "originalTarget" && column.key !== "gapToOriginalTarget",
+);
+
 const showsYear = (card: WeekCard) =>
   card.rows.some((item) => item.row.week.slice(0, 4) !== card.date.slice(0, 4));
 
@@ -62,7 +75,7 @@ export function cardSize(card: WeekCard) {
   const table =
     INDEX_WIDTH +
     (showsYear(card) ? WEEK_WIDTH_WITH_YEAR : WEEK_WIDTH) +
-    NUMBER_WIDTH * (DAY_NAMES.length + SUMMARY_COLUMNS.length) +
+    NUMBER_WIDTH * (DAY_NAMES.length + CARD_COLUMNS.length) +
     1 + // Avg's left rule
     LAST_EXTRA;
   const body =
@@ -145,13 +158,11 @@ const weekStyle: CSSProperties = {
 const avgEdge = (index: number): CSSProperties =>
   index === 0 ? { borderLeft: `${px(1)}px solid ${RULE}` } : {};
 const lastPad = (index: number): CSSProperties =>
-  index === SUMMARY_COLUMNS.length - 1
-    ? { paddingRight: px(6 + LAST_EXTRA) }
-    : {};
+  index === CARD_COLUMNS.length - 1 ? { paddingRight: px(6 + LAST_EXTRA) } : {};
 const summaryWidth = (index: number) =>
   NUMBER_WIDTH +
   (index === 0 ? 1 : 0) +
-  (index === SUMMARY_COLUMNS.length - 1 ? LAST_EXTRA : 0);
+  (index === CARD_COLUMNS.length - 1 ? LAST_EXTRA : 0);
 
 function HeaderRow({ weekWidth }: { weekWidth: number }) {
   const cell = { height: HEADER_HEIGHT, rule: RULE };
@@ -168,7 +179,7 @@ function HeaderRow({ weekWidth }: { weekWidth: number }) {
           {day}
         </Cell>
       ))}
-      {SUMMARY_COLUMNS.map((column, index) => (
+      {CARD_COLUMNS.map((column, index) => (
         <Cell
           key={column.key}
           {...cell}
@@ -229,7 +240,7 @@ function SheetRow({
           </Cell>
         );
       })}
-      {SUMMARY_COLUMNS.map((column, index) => (
+      {CARD_COLUMNS.map((column, index) => (
         <Cell
           key={column.key}
           {...cell}
