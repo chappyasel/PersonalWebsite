@@ -82,16 +82,26 @@ export async function saveWeighIn<Schema extends Record<string, unknown>>(
   });
 }
 
+const HOUR = 3_600_000;
+
+/** The calendar date `hours` from `now`, as a clock at that UTC offset reads it. */
+const dateAtOffset = (now: Date, hours: number) =>
+  new Date(now.getTime() + hours * HOUR).toISOString().slice(0, 10);
+
 /**
- * The dates the Log Weight Shortcut may write or read: the server's UTC date
- * and one day either side. The Shortcut sends the phone's own date (decision
- * 22), which is never more than a day from UTC's, so today always fits.
- * Yesterday fits until UTC midnight passes, which is 4 or 5 PM in Pacific
- * time. Older corrections go through `/weight-log/edit`.
+ * The dates the Log Weight Shortcut may write or read: a date that is today
+ * or yesterday in some real time zone, from UTC−12 to UTC+14 (decision 38).
+ * The earliest is yesterday in UTC−12 and the latest is today in UTC+14. The
+ * Shortcut sends the phone's own date, so today and yesterday always fit
+ * wherever the owner is, and a date that has not begun in any time zone
+ * never does. The window holds three or four dates. Older corrections go through
+ * `/weight-log/edit`.
  */
 export function shortcutWindow(now = new Date()) {
-  const today = now.toISOString().slice(0, 10);
-  return { earliest: addDays(today, -1), latest: addDays(today, 1) };
+  return {
+    earliest: addDays(dateAtOffset(now, -12), -1),
+    latest: dateAtOffset(now, 14),
+  };
 }
 
 export function isInShortcutWindow(date: string, now = new Date()) {

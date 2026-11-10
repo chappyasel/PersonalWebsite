@@ -23,8 +23,8 @@ import { env } from "~/env";
  *
  * It answers only `Authorization: Bearer <WEIGHT_LOG_ENTRY_TOKEN>`, a token
  * used for nothing but this route and the week card, and refuses everything
- * while that is unset. It writes only dates in the Shortcut's window (today and a
- * day either side, by UTC) and never deletes. See "Entry from a Shortcut" in
+ * while that is unset. It writes only dates in the Shortcut's window (today or
+ * yesterday in some time zone) and never deletes. See "Entry from a Shortcut" in
  * `docs/weight-log.md`.
  */
 export const dynamic = "force-dynamic";

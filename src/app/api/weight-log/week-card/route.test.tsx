@@ -114,6 +114,20 @@ describe("GET /api/weight-log/week-card", () => {
     expect(mocks.load).not.toHaveBeenCalled();
   });
 
+  it("reads Pacific time's yesterday after UTC midnight, and not UTC's tomorrow", async () => {
+    // 4:30 PM on Feb 4 in Pacific Standard Time.
+    vi.useFakeTimers({
+      now: new Date("2030-02-05T00:30:00Z"),
+      toFake: ["Date"],
+    });
+    expect((await route.GET(get("2030-02-06"))).status).toBe(400);
+    expect(mocks.load).not.toHaveBeenCalled();
+    const response = await route.GET(get("2030-02-03"));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    await response.arrayBuffer();
+  });
+
   it.each([
     ["no Authorization header", undefined],
     ["a wrong token", "Bearer invented-entry-tokem"],

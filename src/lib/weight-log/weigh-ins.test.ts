@@ -147,11 +147,34 @@ describe("saveWeighIn", () => {
 });
 
 describe("shortcutWindow", () => {
-  it("is the server's UTC date and a day either side", () => {
-    expect(shortcutWindow(new Date("2030-01-01T23:30:00Z"))).toEqual({
-      earliest: "2029-12-31",
-      latest: "2030-01-02",
+  const window = (now: string) => shortcutWindow(new Date(now));
+
+  it("runs from yesterday in UTC−12 to today in UTC+14", () => {
+    // 15:00 UTC is 03:00 on Jan 8 in UTC−12 and 05:00 on Jan 9 in UTC+14.
+    expect(window("2030-01-08T15:00:00Z")).toEqual({
+      earliest: "2030-01-07",
+      latest: "2030-01-09",
     });
+  });
+
+  it("keeps Pacific time's yesterday on both sides of UTC midnight", () => {
+    // 3:30 PM and 4:30 PM on Jan 7 in Pacific Standard Time.
+    for (const now of ["2030-01-07T23:30:00Z", "2030-01-08T00:30:00Z"]) {
+      expect(window(now)).toEqual({
+        earliest: "2030-01-06",
+        latest: "2030-01-08",
+      });
+    }
+  });
+
+  it("adds tomorrow's date when it starts in UTC+14", () => {
+    expect(window("2030-01-08T09:59:59.999Z").latest).toBe("2030-01-08");
+    expect(window("2030-01-08T10:00:00Z").latest).toBe("2030-01-09");
+  });
+
+  it("drops the day before yesterday when today starts in UTC−12", () => {
+    expect(window("2030-01-08T11:59:59.999Z").earliest).toBe("2030-01-06");
+    expect(window("2030-01-08T12:00:00Z").earliest).toBe("2030-01-07");
   });
 });
 
@@ -166,6 +189,17 @@ describe("parseWeighInRequest", () => {
       });
     },
   );
+
+  it("accepts Pacific time's yesterday after UTC midnight, and not UTC's tomorrow", () => {
+    // 4:30 PM on Jan 7 in Pacific Standard Time.
+    const evening = new Date("2030-01-08T00:30:00Z");
+    expect(
+      parseWeighInRequest({ date: "2030-01-06", pounds: 150 }, evening),
+    ).toMatchObject({ weighIn: { date: "2030-01-06" } });
+    expect(
+      parseWeighInRequest({ date: "2030-01-09", pounds: 150 }, evening),
+    ).toEqual({ error: OUTSIDE_SHORTCUT_WINDOW });
+  });
 
   it.each(["2030-01-06", "2030-01-10", "2029-01-08"])(
     "refuses %s, outside the window",

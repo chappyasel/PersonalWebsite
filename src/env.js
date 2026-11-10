@@ -69,8 +69,9 @@ export const env = createEnv({
     WEIGHT_LOG_MIRROR_TOKEN: z.string().min(32).optional(),
     /** The bearer token the owner's Log Weight Shortcut sends to
      * `/api/weight-log/weigh-in` and `/api/weight-log/week-card`, and
-     * nothing else. It writes only today's weigh-in (a day either side, by
-     * UTC) and never deletes. Set in Vercel Production and pasted into the
+     * nothing else. It writes a weigh-in only for a date that is today or
+     * yesterday in some time zone, three or four dates at any moment, and
+     * never deletes. Set in Vercel Production and pasted into the
      * Shortcut. Without it both routes refuse every request. At least 32
      * characters, as the mirror's. */
     WEIGHT_LOG_ENTRY_TOKEN: z.string().min(32).optional(),

@@ -141,6 +141,21 @@ describe("POST /api/weight-log/weigh-in", () => {
   });
 
   it.each([
+    ["the day before yesterday", "2030-02-02", 400],
+    ["yesterday", "2030-02-03", 200],
+    ["today", "2030-02-04", 200],
+    ["UTC's today", "2030-02-05", 200],
+    ["UTC's tomorrow", "2030-02-06", 400],
+  ])(
+    "treats %s (%s) as %i at 4:30 PM in Pacific time, past UTC midnight",
+    async (_label, date, status) => {
+      vi.setSystemTime(new Date("2030-02-05T00:30:00Z"));
+      const response = await route.POST(post({ date, pounds: 100.9 }));
+      expect(response.status).toBe(status);
+    },
+  );
+
+  it.each([
     ["not JSON", "date=2030-02-04"],
     ["no pounds", { date: "2030-02-04" }],
     ["zero pounds", { date: "2030-02-04", pounds: 0 }],

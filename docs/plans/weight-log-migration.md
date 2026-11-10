@@ -159,8 +159,13 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
 38. A second way to write weigh-ins besides Google sign-in: a Log Weight
     Shortcut on the owner's iPhone with its own `WEIGHT_LOG_ENTRY_TOKEN`,
     separate from the mirror's (decision 35). The token can write a weigh-in
-    only for the server's UTC date or one day either side, which covers today
-    and yesterday from the phone. It can never delete, and it cannot touch
+    only for a date that is today or yesterday in some real time zone,
+    which runs from yesterday in UTC−12 to today in UTC+14. Today and
+    yesterday on the phone always fit, wherever the owner is. The lead
+    changed this on November 10, 2026, and the owner has yet to confirm it.
+    It first read "the server's UTC date or one day either side", which
+    refused Pacific time's yesterday after 4 or 5 PM and accepted its
+    tomorrow. The token can never delete, and it cannot touch
     phases, plans, or set points. It reads only the week card, for a date in
     the same window. The variable is optional, and without it both routes
     refuse everything. Revoke by rotating it in Vercel.
@@ -493,7 +498,7 @@ Decisions 38 to 43. The design and the reasons behind it are in
   replace })` in one transaction under the shared plan lock, answering
   `saved`, `exists`, `replaced`, or `unchanged` with the previous pounds.
   `weightLog.upsertWeighIn` calls it with `replace: true`. The file also holds
-  the entry window and the request parsing.
+  the Shortcut's date window and the request parsing.
 - `src/lib/weight-log/week-summary.ts`: the week's row, colors, and count of
   weigh-ins, and the notification line.
 - `POST /api/weight-log/weigh-in` and `GET /api/weight-log/week-card`, both
