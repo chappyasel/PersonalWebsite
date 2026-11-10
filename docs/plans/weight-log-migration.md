@@ -187,8 +187,8 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     sparkline. Replaced November 10, 2026, at the owner's ask: the card is
     now a snapshot of the editor's Weeks table, its header and two rows (last
     week and this week) with the editor's fills and today's red ring. It
-    leaves out Orig and its Gap so its text stays as large as it can at a
-    notification's width.
+    is set for a notification about 360 pt wide: 16 px type, tight cells,
+    and no Orig, its Gap, or lb/wk, so its text lands near 9 pt.
 42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
     weigh-in (decision 32).
 43. The owner builds the Shortcut by hand from a written recipe in

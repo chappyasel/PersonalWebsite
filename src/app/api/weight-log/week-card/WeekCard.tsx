@@ -10,14 +10,16 @@ import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
 /**
  * The Log Weight Shortcut's week card: a snapshot of the editor's Weeks
  * table (`WeekSheet.tsx`) holding last week's row and this week's, drawn by
- * satori (`next/og`). It copies the table's light theme at a phone's width,
- * in CSS pixels times `SCALE`: SF Pro Display at 12 px, the same columns,
- * fills, rules, and the red ring on today's cell. A notification image never
+ * satori (`next/og`). It keeps the table's light theme, fills, rules,
+ * headers, and the red ring on today's cell. A notification image never
  * follows dark mode, so the card is always light.
  *
- * It leaves out the table's last two columns, Orig and its Gap, so the type
- * stays as large as it can when an expanded notification shrinks the card to
- * about 350 pt wide (`CARD_COLUMNS`).
+ * The iPhone shows the card about 360 pt wide in an expanded notification,
+ * and that is where the owner reads it. So the card is set for that width,
+ * not the editor's: it leaves out Orig, its Gap, and lb/wk
+ * (`CARD_COLUMNS`), keeps only 3 px between a cell's text and its edge, and
+ * sets SF Pro Display at 16 px, which lands near 9 pt at 360 pt wide. The
+ * editor's 12 px with all its columns would land near 6 pt.
  *
  * Satori lays out flexbox only, so each row is a flex row of fixed-width
  * cells. It also throws on a style value that is undefined, after the route
@@ -30,41 +32,47 @@ const SCALE = 2;
 const px = (value: number) => value * SCALE;
 
 /** The page's light tokens and the table's Tailwind colors. */
-const PAGE = "#fafaf9"; // --background, hsl(60 9% 98%)
 const INK = "#413c39"; // --foreground, hsl(25 7% 24%)
 const MUTED = "#56514d"; // --muted-foreground, hsl(24 6% 32%)
 const CARD = "#ffffff";
-const RULE = "#e5e5e5"; // neutral-200: the card, the header, and Avg's edge
+const RULE = "#e5e5e5"; // neutral-200: the header and Avg's edge
 const ROW_RULE = "#f5f5f5"; // neutral-100: between rows
 const TODAY = "#dc2626"; // red-600
 
-/** The page's gutter around the card, trimmed from the phone's 12 px. */
-const GUTTER = 8;
-const CARD_PADDING_Y = 12;
-const CAPTION_HEIGHT = 16;
-const CAPTION_GAP = 4;
-const HEADER_HEIGHT = 32;
-const ROW_HEIGHT = 28;
-/**
- * A day or summary cell: "000.0" at 12 px plus 6 px either side, which is
- * the width the editor's columns settle at.
- */
-const NUMBER_WIDTH = 44;
-/** `#`: 36 px with 12 px on its left, as `w-9 pl-3`. */
-const INDEX_WIDTH = 36;
-/** Week: "May 31" plus 12 px before and 16 px after, or with a year. */
-const WEEK_WIDTH = 67;
-const WEEK_WIDTH_WITH_YEAR = 103;
-/** The last column's `pr-3`, past a cell's own 6 px. */
-const LAST_EXTRA = 6;
+const FONT_SIZE = 16;
+const LINE_HEIGHT = 20;
+const PADDING_Y = 8;
+const CAPTION_HEIGHT = 20;
+const CAPTION_GAP = 2;
+const HEADER_HEIGHT = 30;
+const ROW_HEIGHT = 32;
+/** The space between a cell's text and its edge. */
+const CELL_PAD = 3;
+/** A day or summary cell: "Target", the widest text, at 16 px plus pads. */
+const NUMBER_WIDTH = 50;
+/** The card's left edge to the `#` column's text. */
+const EDGE_PAD = 6;
+/** `#`: two digits. */
+const INDEX_WIDTH = 28;
+/** Week: "May 31" in medium, or "May 31, 2030" with a year. */
+const WEEK_WIDTH = 64;
+const WEEK_WIDTH_WITH_YEAR = 110;
+const WEEK_PAD_RIGHT = 4;
+/** The last column's room at the card's right edge, past `CELL_PAD`. */
+const LAST_EXTRA = 4;
+/** Today's ring, inside the cell's pad so it never touches the text. */
+const RING = 2;
 
 /**
- * The editor's summary columns less the original target and its gap. Both
- * change only when the plan does, so they say the least about a weigh-in.
+ * The editor's summary columns less the original target, its gap, and the
+ * plan's lb/wk. All three change only when the plan does, so they say the
+ * least about a weigh-in.
  */
 export const CARD_COLUMNS = SUMMARY_COLUMNS.filter(
   (column) =>
-    column.key !== "originalTarget" && column.key !== "gapToOriginalTarget",
+    column.key !== "originalTarget" &&
+    column.key !== "gapToOriginalTarget" &&
+    column.key !== "poundsPerWeek",
 );
 
 const showsYear = (card: WeekCard) =>
@@ -72,24 +80,21 @@ const showsYear = (card: WeekCard) =>
 
 /** The card's size in device pixels, which the route hands to satori. */
 export function cardSize(card: WeekCard) {
-  const table =
+  const width =
     INDEX_WIDTH +
     (showsYear(card) ? WEEK_WIDTH_WITH_YEAR : WEEK_WIDTH) +
     NUMBER_WIDTH * (DAY_NAMES.length + CARD_COLUMNS.length) +
     1 + // Avg's left rule
     LAST_EXTRA;
-  const body =
-    CARD_PADDING_Y * 2 +
+  const height =
+    PADDING_Y * 2 +
     CAPTION_HEIGHT +
     CAPTION_GAP +
     HEADER_HEIGHT +
     1 +
     card.rows.length * (ROW_HEIGHT + 1) -
     1;
-  return {
-    width: px(GUTTER * 2 + 2 + table),
-    height: px(GUTTER * 2 + 2 + body),
-  };
+  return { width: px(width), height: px(height) };
 }
 
 function fillOf(color: CellColor | null): CSSProperties {
@@ -122,8 +127,9 @@ function Cell({
         position: "relative",
         width: px(width),
         height: px(height + (rule ? 1 : 0)),
-        paddingLeft: px(6),
-        paddingRight: px(6),
+        paddingLeft: px(CELL_PAD),
+        paddingRight: px(CELL_PAD),
+        whiteSpace: "nowrap",
         ...(rule && { borderBottom: `${px(1)}px solid ${rule}` }),
         ...style,
       }}
@@ -143,17 +149,20 @@ function TodayRing() {
         left: 0,
         right: 0,
         height: px(ROW_HEIGHT),
-        border: `${px(2)}px solid ${TODAY}`,
+        border: `${px(RING)}px solid ${TODAY}`,
       }}
     />
   );
 }
 
-const indexStyle: CSSProperties = { paddingLeft: px(12), paddingRight: 0 };
+const indexStyle: CSSProperties = {
+  paddingLeft: px(EDGE_PAD),
+  paddingRight: 0,
+};
 const weekStyle: CSSProperties = {
   justifyContent: "flex-start",
-  paddingLeft: px(12),
-  paddingRight: px(16),
+  paddingLeft: px(EDGE_PAD),
+  paddingRight: px(WEEK_PAD_RIGHT),
 };
 const avgEdge = (index: number): CSSProperties =>
   index === 0 ? { borderLeft: `${px(1)}px solid ${RULE}` } : {};
@@ -280,21 +289,21 @@ function Caption({ card }: { card: WeekCard }) {
         gap: px(16),
         height: px(CAPTION_HEIGHT),
         marginBottom: px(CAPTION_GAP),
-        paddingLeft: px(12),
+        paddingLeft: px(EDGE_PAD),
         color: MUTED,
       }}
     >
       {names.map((name) => (
         <div
           key={name.key}
-          style={{ display: "flex", alignItems: "center", gap: px(8) }}
+          style={{ display: "flex", alignItems: "center", gap: px(6) }}
         >
           {name.dot ? (
             <div
               style={{
-                width: px(8),
-                height: px(8),
-                borderRadius: px(4),
+                width: px(10),
+                height: px(10),
+                borderRadius: px(5),
                 backgroundColor: name.dot,
               }}
             />
@@ -312,39 +321,29 @@ export function WeekCardImage({ card }: { card: WeekCard }) {
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
-        padding: px(GUTTER),
-        backgroundColor: PAGE,
+        paddingTop: px(PADDING_Y),
+        paddingBottom: px(PADDING_Y),
+        backgroundColor: CARD,
         color: INK,
         fontFamily: "SF Pro Display",
-        fontSize: px(12),
-        lineHeight: `${px(16)}px`,
+        fontSize: px(FONT_SIZE),
+        lineHeight: `${px(LINE_HEIGHT)}px`,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          paddingTop: px(CARD_PADDING_Y),
-          paddingBottom: px(CARD_PADDING_Y),
-          backgroundColor: CARD,
-          border: `${px(1)}px solid ${RULE}`,
-          borderRadius: px(12),
-        }}
-      >
-        <Caption card={card} />
-        <HeaderRow weekWidth={weekWidth} />
-        {card.rows.map((item, index) => (
-          <SheetRow
-            key={item.row.week}
-            item={item}
-            date={card.date}
-            last={index === card.rows.length - 1}
-            weekWidth={weekWidth}
-          />
-        ))}
-      </div>
+      <Caption card={card} />
+      <HeaderRow weekWidth={weekWidth} />
+      {card.rows.map((item, index) => (
+        <SheetRow
+          key={item.row.week}
+          item={item}
+          date={card.date}
+          last={index === card.rows.length - 1}
+          weekWidth={weekWidth}
+        />
+      ))}
     </div>
   );
 }
