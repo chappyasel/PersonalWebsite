@@ -2,7 +2,10 @@ import type { Session } from "next-auth";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { WEEKS_CONTROLS_ID } from "./headerSlot";
 import WeightLogEditPage from "./page";
+import WeightLogPlanPage from "./plan/page";
+import WeightLogSetPointsPage from "./set-points/page";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn<() => Promise<Session | null>>(),
@@ -15,7 +18,7 @@ vi.mock("~/trpc/react", () => ({
   TRPCReactProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("./WeightLogEditor", () => ({
-  WeightLogEditor: () => "Owner editor",
+  WeightLogEditor: ({ view }: { view: string }) => `Owner editor: ${view}`,
 }));
 vi.mock("./actions", () => ({
   signInWithGoogle: vi.fn(),
@@ -32,11 +35,24 @@ function session(email: string): Session {
   };
 }
 
-async function render(error?: string) {
+type Page = typeof WeightLogEditPage;
+
+async function render(error?: string, page: Page = WeightLogEditPage) {
   return renderToStaticMarkup(
-    await WeightLogEditPage({
+    await page({
       searchParams: Promise.resolve(error ? { error } : {}),
     }),
+  );
+}
+
+/** Each nav link's opening tag, by its accessible name. */
+function navLinks(html: string) {
+  const nav = /<nav[^>]*>(.*?)<\/nav>/.exec(html)![1]!;
+  return new Map(
+    [...nav.matchAll(/<a[^>]*aria-label="([^"]+)"[^>]*>/g)].map((m) => [
+      m[1]!,
+      m[0],
+    ]),
   );
 }
 
@@ -107,5 +123,72 @@ describe("/weight-log/edit", () => {
     mocks.auth.mockResolvedValue(null);
     await render();
     expect(mocks.auth).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the title free of a standing back arrow", async () => {
+    mocks.auth.mockResolvedValue(session("owner@example.test"));
+    const html = await render();
+    const title = /<h1[^>]*>(.*?)<\/h1>/.exec(html)![1]!;
+    expect(title).toContain('href="/weight-log"');
+    expect(title).toContain("Weight Log");
+    // Like the chart's own title, the icon turns into an arrow only on
+    // hover or focus.
+    expect(title).toMatch(
+      /class="[^"]*\bopacity-0\b[^"]*group-hover:opacity-100/,
+    );
+  });
+});
+
+describe("the editor's nav", () => {
+  const pages: [string, Page, string, string][] = [
+    ["/weight-log/edit", WeightLogEditPage, "weeks", "Weeks"],
+    ["/weight-log/edit/plan", WeightLogPlanPage, "plan", "Plan"],
+    [
+      "/weight-log/edit/set-points",
+      WeightLogSetPointsPage,
+      "set-points",
+      "Set points",
+    ],
+  ];
+
+  it.each(pages)(
+    "%s shows its own editor and marks its own link",
+    async (href, page, view, label) => {
+      mocks.auth.mockResolvedValue(session("owner@example.test"));
+      const html = await render(undefined, page);
+      expect(html).toContain(`${EDITOR}: ${view}`);
+      const links = navLinks(html);
+      expect([...links.keys()]).toEqual(["Weeks", "Plan", "Set points"]);
+      for (const [name, tag] of links) {
+        expect(tag.includes('aria-current="page"')).toBe(name === label);
+        expect(tag).not.toContain("title=");
+      }
+      expect(links.get(label)).toContain(`href="${href}"`);
+      expect(html).toContain('aria-label="Sign out"');
+    },
+  );
+
+  it.each(pages)(
+    "%s shows only the sign-in button without a session",
+    async (_href, page) => {
+      mocks.auth.mockResolvedValue(null);
+      const html = await render(undefined, page);
+      expect(html).toContain(SIGN_IN);
+      expect(html).not.toContain(EDITOR);
+      expect(html).not.toContain("<nav");
+    },
+  );
+
+  it("gives only the Weeks page a slot for the table's controls", async () => {
+    mocks.auth.mockResolvedValue(session("owner@example.test"));
+    expect(await render()).toContain(`id="${WEEKS_CONTROLS_ID}"`);
+    expect(await render(undefined, WeightLogPlanPage)).not.toContain(
+      WEEKS_CONTROLS_ID,
+    );
+  });
+
+  it("never uses a native title for a hint", async () => {
+    mocks.auth.mockResolvedValue(session("owner@example.test"));
+    expect(await render()).not.toContain("title=");
   });
 });

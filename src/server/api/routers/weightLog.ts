@@ -17,6 +17,7 @@ import {
   PlanEditError,
   type PlanState,
   STALE_PLAN,
+  cleanTarget,
   isMonday,
   planEndMove,
   planRateChange,
@@ -24,7 +25,12 @@ import {
   planStartPhase,
 } from "~/lib/weight-log/plan-edits";
 import { buildWeightLog } from "~/lib/weight-log/records";
-import { buildWeekTable, currentPhase } from "~/lib/weight-log/week-table";
+import { MAX_WEIGH_IN } from "~/lib/weight-log/sheet";
+import {
+  buildWeekTable,
+  currentPhase,
+  weeklyAverage,
+} from "~/lib/weight-log/week-table";
 import { createTRPCRouter, ownerProcedure } from "~/server/api/trpc";
 import type { db as database } from "~/server/db";
 import {
@@ -61,7 +67,7 @@ const tenthsOfAPound = (max: number) =>
     .pipe(z.number().positive().max(max));
 
 /** A weigh-in, within the table's check. */
-const pounds = tenthsOfAPound(1500);
+const pounds = tenthsOfAPound(MAX_WEIGH_IN);
 
 const monday = z.iso.date().refine(isMonday, "Pick a Monday.");
 
@@ -73,12 +79,17 @@ const targetPounds = tenthsOfAPound(MAX_TARGET);
 /** The `planRevision` of the plan the page showed when the owner edited it. */
 const revision = z.string().max(32);
 
-/** A weekly rate, in pounds to two decimal places, such as 0.25. */
+/**
+ * A weekly rate, such as 0.25, kept to the six decimals targets keep. A
+ * target typed on the page arrives as the rate that reaches it from the
+ * week before, and an undo sends back an imported rate, so rounding it any
+ * coarser would move the target off what the owner typed or had.
+ */
 const poundsPerWeek = z
   .number()
   .min(-MAX_POUNDS_PER_WEEK)
   .max(MAX_POUNDS_PER_WEEK)
-  .transform((value) => Math.round(value * 100) / 100);
+  .transform(cleanTarget);
 
 type Database = typeof database;
 
@@ -242,6 +253,7 @@ export const weightLogRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input: { week } }) => {
+      const previousWeek = addDays(week, -7);
       const [rows, [before]] = await Promise.all([
         ctx.db
           .select({
@@ -252,7 +264,7 @@ export const weightLogRouter = createTRPCRouter({
           .from(weightLogWeighIns)
           .where(
             and(
-              gte(weightLogWeighIns.date, week),
+              gte(weightLogWeighIns.date, previousWeek),
               lte(weightLogWeighIns.date, addDays(week, 6)),
             ),
           ),
@@ -272,15 +284,24 @@ export const weightLogRouter = createTRPCRouter({
           .limit(1),
       ]);
       const byDate = new Map(rows.map((row) => [row.date, row]));
-      const days = Array.from({ length: 7 }, (_, day) =>
-        byDate.get(addDays(week, day)),
-      );
+      const daysOf = (monday: string) =>
+        Array.from({ length: 7 }, (_, day) => byDate.get(addDays(monday, day)));
+      const days = daysOf(week);
+      // The week before's average gives a row the table lacks its Change,
+      // as the table's own rows have.
+      const previous = daysOf(previousWeek);
       return {
         week,
         weights: days.map((day) => day?.pounds ?? null),
         excludedDays: days.flatMap((day, index) =>
           day?.excluded ? [index] : [],
         ),
+        previousAverage: weeklyAverage({
+          weights: previous.map((day) => day?.pounds ?? null),
+          averageDays: previous.flatMap((day, index) =>
+            day && !day.excluded ? [index] : [],
+          ),
+        }),
         before: before ?? null,
       };
     }),
@@ -312,6 +333,40 @@ export const weightLogRouter = createTRPCRouter({
             pounds: weightLogWeighIns.pounds,
           });
         return row!;
+      }),
+    ),
+
+  /**
+   * Put back a weigh-in the page deleted, with the excluded flag it had, so
+   * undoing a delete restores it exactly. It only fills an empty date: if
+   * the date has a weigh-in again, it refuses rather than replace it. This
+   * is no exclude control (decision 14): it can only return a row to the
+   * state the owner just saw it in.
+   */
+  restoreWeighIn: ownerProcedure
+    .input(z.object({ date: weighInDate, pounds, excluded: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      ctx.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock_shared(${PLAN_LOCK})`,
+        );
+        const [row] = await tx
+          .insert(weightLogWeighIns)
+          .values(input)
+          .onConflictDoNothing({ target: weightLogWeighIns.date })
+          .returning({
+            date: weightLogWeighIns.date,
+            pounds: weightLogWeighIns.pounds,
+            excluded: weightLogWeighIns.excluded,
+          });
+        if (!row) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "That day has a weigh-in again, so the undo left it as it is.",
+          });
+        }
+        return row;
       }),
     ),
 

@@ -179,10 +179,68 @@ describe("weightLog.deleteWeighIn", () => {
   });
 });
 
+describe("weightLog.restoreWeighIn", () => {
+  it("puts a deleted weigh-in back with its excluded flag, only on an empty date", async () => {
+    returned = [["2001-01-09", 150.2, true]];
+    await expect(
+      caller.restoreWeighIn({
+        date: "2001-01-09",
+        pounds: 150.2,
+        excluded: true,
+      }),
+    ).resolves.toEqual({ date: "2001-01-09", pounds: 150.2, excluded: true });
+    expect(queries.map((query) => query.sql.split(" ")[0])).toEqual([
+      "begin",
+      "select",
+      "insert",
+      "commit",
+    ]);
+    expect(queries[1]!.sql).toMatch(
+      /^select pg_advisory_xact_lock_shared\(\$1\)$/,
+    );
+    const { sql, params } = queries[2]!;
+    expect(sql).toMatch(
+      /^insert into "weight_log_weigh_ins" \("date", "pounds", "excluded", "updated_at"\) values \(\$1, \$2, \$3, default\) on conflict \("date"\) do nothing returning "date", "pounds", "excluded"$/,
+    );
+    expect(params).toEqual(["2001-01-09", 150.2, true]);
+  });
+
+  it("refuses a date that has a weigh-in again, leaving it alone", async () => {
+    returned = [];
+    expect(
+      await errorCode(
+        caller.restoreWeighIn({
+          date: "2001-01-09",
+          pounds: 150.2,
+          excluded: false,
+        }),
+      ),
+    ).toBe("CONFLICT");
+    expect(queries.at(-1)!.sql).toBe("rollback");
+    expect(queries.some(({ sql }) => /^(update|delete)/.test(sql))).toBe(false);
+  });
+
+  it("checks the date and pounds as a save does, without a query", async () => {
+    expect(
+      await errorCode(
+        caller.restoreWeighIn({
+          date: "2001-01-09",
+          pounds: 0.04,
+          excluded: true,
+        }),
+      ),
+    ).toBe("BAD_REQUEST");
+    expect(queries).toEqual([]);
+  });
+});
+
 describe("weightLog.week", () => {
   it("reads one calendar week's weigh-ins, before any phase as well as inside one", async () => {
     replies = [
       [
+        ["2029-11-27", 99, false],
+        ["2029-11-28", 130, true],
+        ["2029-11-30", 99.8, false],
         ["2029-12-04", 99.5, false],
         ["2029-12-08", 120, true],
       ],
@@ -192,12 +250,14 @@ describe("weightLog.week", () => {
       week: "2029-12-03",
       weights: [null, 99.5, null, null, null, 120, null],
       excludedDays: [5],
+      // The week before's counted days only, for the row's Change.
+      previousAverage: 99.4,
       before: { date: "2029-11-30", pounds: 99.8 },
     });
     expect(queries).toEqual([
       {
         sql: 'select "date", "pounds", "excluded" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" >= $1 and "weight_log_weigh_ins"."date" <= $2)',
-        params: ["2029-12-03", "2029-12-09"],
+        params: ["2029-11-26", "2029-12-09"],
       },
       {
         sql: 'select "date", "pounds" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" < $1 and "weight_log_weigh_ins"."excluded" = $2) order by "weight_log_weigh_ins"."date" desc limit $3',
@@ -209,6 +269,7 @@ describe("weightLog.week", () => {
   it("has no earlier weigh-in to start from before the first one", async () => {
     replies = [[], []];
     await expect(caller.week({ week: "2029-12-03" })).resolves.toMatchObject({
+      previousAverage: null,
       before: null,
     });
   });

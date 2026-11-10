@@ -1,7 +1,7 @@
 import { addDays } from "./phases";
 
 /**
- * The weigh-in form's date as the owner reads it: "Today", "Yesterday", or a
+ * A date as the owner reads it: "Today", "Yesterday", or a
  * short date such as "Mon, Jan 7", with the year when it isn't this year.
  */
 export function relativeDayLabel(date: string, today: string) {
