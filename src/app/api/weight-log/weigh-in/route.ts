@@ -1,0 +1,121 @@
+import { type NextRequest, NextResponse } from "next/server";
+
+import { isBearerAuthorized } from "~/lib/weight-log/bearer";
+import { loadWeekRecords } from "~/lib/weight-log/database";
+import { buildWeightLog } from "~/lib/weight-log/records";
+import {
+  type WeekSummary,
+  entrySummary,
+  weekSummary,
+} from "~/lib/weight-log/week-summary";
+import { parseWeighInEntry, saveWeighIn } from "~/lib/weight-log/weigh-ins";
+import { db } from "~/server/db";
+
+import { env } from "~/env";
+
+/**
+ * The owner's Log Weight Shortcut records today's weigh-in here. It posts
+ * `{ date, pounds, replace }` with the phone's own date and gets back JSON
+ * with `status` (`saved`, `exists`, `replaced`, or `unchanged`), `previous`,
+ * and `summary`, the notification line. On `exists` nothing was written, and
+ * `question` is the Replace prompt; the Shortcut posts again with
+ * `replace: true` if the owner taps Replace.
+ *
+ * It answers only `Authorization: Bearer <WEIGHT_LOG_ENTRY_TOKEN>`, a token
+ * used for nothing but this route and the week card, and refuses everything
+ * while that is unset. It writes only dates in the entry window (today and a
+ * day either side, by UTC) and never deletes. See "Entry from a Shortcut" in
+ * `docs/weight-log.md`.
+ */
+export const dynamic = "force-dynamic";
+
+const HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+  "X-Robots-Tag": "noindex, nofollow, noarchive",
+  "X-Content-Type-Options": "nosniff",
+};
+
+function reply(body: unknown, status = 200, extra: HeadersInit = {}) {
+  return NextResponse.json(body, {
+    status,
+    headers: { ...HEADERS, ...extra },
+  });
+}
+
+export async function POST(request: NextRequest) {
+  if (!env.WEIGHT_LOG_ENTRY_TOKEN) {
+    return reply({ error: "Weigh-in entry is not configured" }, 503);
+  }
+  if (
+    !isBearerAuthorized(
+      request.headers.get("authorization"),
+      env.WEIGHT_LOG_ENTRY_TOKEN,
+    )
+  ) {
+    return reply({ error: "Unauthorized" }, 401, {
+      "WWW-Authenticate": "Bearer",
+    });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return reply(
+      { error: "Send a JSON object with date, pounds, and replace" },
+      400,
+    );
+  }
+  const parsed = parseWeighInEntry(body);
+  if ("error" in parsed) return reply({ error: parsed.error }, 400);
+  const { entry } = parsed;
+
+  let saved: Awaited<ReturnType<typeof saveWeighIn>>;
+  try {
+    saved = await saveWeighIn(db, entry);
+  } catch (error) {
+    logFailure("save", error);
+    return reply({ error: "The weigh-in didn't save. Try again." }, 500);
+  }
+  // The weigh-in is saved by now, so a failed read only costs the week line.
+  let week: WeekSummary | null = null;
+  try {
+    week = weekSummary(buildWeightLog(await loadWeekRecords(db)), entry.date);
+  } catch (error) {
+    logFailure("week", error);
+  }
+  // Every expected outcome is a 200, so the Shortcut branches on `status`.
+  return reply({
+    status: saved.status,
+    date: entry.date,
+    pounds: entry.pounds,
+    previous: saved.previous,
+    ...entrySummary({ ...entry, ...saved }, week),
+  });
+}
+
+/**
+ * Log what failed and the database's error code, never the error itself: a
+ * Postgres error's detail can quote the row it refused, weight included.
+ */
+function logFailure(step: string, error: unknown) {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String(error.code)
+      : error instanceof Error
+        ? error.name
+        : "unknown";
+  console.error(`weigh-in route: ${step} failed (${code})`);
+}
+
+/** The route only records a weigh-in. Every other method is refused. */
+function postOnly() {
+  return reply({ error: "Weigh-ins are recorded with POST" }, 405, {
+    Allow: "POST",
+  });
+}
+
+export const GET = postOnly;
+export const PUT = postOnly;
+export const PATCH = postOnly;
+export const DELETE = postOnly;

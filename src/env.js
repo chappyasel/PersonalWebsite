@@ -67,6 +67,13 @@ export const env = createEnv({
      * request. At least 32 characters, so a short or mistyped value fails
      * the build instead of guarding the route weakly. */
     WEIGHT_LOG_MIRROR_TOKEN: z.string().min(32).optional(),
+    /** The bearer token the owner's Log Weight Shortcut sends to
+     * `/api/weight-log/weigh-in` and `/api/weight-log/week-card`, and
+     * nothing else. It writes only today's weigh-in (a day either side, by
+     * UTC) and never deletes. Set in Vercel Production and pasted into the
+     * Shortcut. Without it both routes refuse every request. At least 32
+     * characters, as the mirror's. */
+    WEIGHT_LOG_ENTRY_TOKEN: z.string().min(32).optional(),
   },
 
   /**
@@ -112,6 +119,7 @@ export const env = createEnv({
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     OWNER_EMAIL: process.env.OWNER_EMAIL,
     WEIGHT_LOG_MIRROR_TOKEN: process.env.WEIGHT_LOG_MIRROR_TOKEN,
+    WEIGHT_LOG_ENTRY_TOKEN: process.env.WEIGHT_LOG_ENTRY_TOKEN,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
