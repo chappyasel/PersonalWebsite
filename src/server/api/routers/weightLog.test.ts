@@ -42,6 +42,21 @@ const db = drizzle(
   },
   { schema },
 );
+// The proxy driver has no transactions. This records where each begins and
+// ends, so a test can see which statements share one.
+Object.assign(db, {
+  transaction: async (run: (tx: typeof db) => Promise<unknown>) => {
+    queries.push({ sql: "begin", params: [] });
+    try {
+      const result = await run(db);
+      queries.push({ sql: "commit", params: [] });
+      return result;
+    } catch (error) {
+      queries.push({ sql: "rollback", params: [] });
+      throw error;
+    }
+  },
+});
 
 const owner: Session = {
   user: { id: "owner", email: "owner@example.test" },
@@ -83,8 +98,18 @@ describe("weightLog.upsertWeighIn", () => {
       caller.upsertWeighIn({ date: "2001-01-09", pounds: 150.24 }),
     ).resolves.toEqual({ date: "2001-01-09", pounds: 150.2 });
 
-    expect(queries).toHaveLength(1);
-    const [{ sql, params }] = queries as [Query];
+    // The save waits for any plan edit in flight, so it can't land in a
+    // week that edit is deleting.
+    expect(queries.map((query) => query.sql.split(" ")[0])).toEqual([
+      "begin",
+      "select",
+      "insert",
+      "commit",
+    ]);
+    expect(queries[1]!.sql).toMatch(
+      /^select pg_advisory_xact_lock_shared\(\$1\)$/,
+    );
+    const { sql, params } = queries[2]!;
     expect(sql).toMatch(
       /^insert into "weight_log_weigh_ins" \("date", "pounds", "excluded", "updated_at"\) values \(\$1, \$2, default, default\) on conflict \("date"\) do update set "pounds" = \$3, "updated_at" = \$4 returning "date", "pounds"$/,
     );
@@ -97,7 +122,7 @@ describe("weightLog.upsertWeighIn", () => {
   it("rounds pounds to one decimal place", async () => {
     returned = [["2001-01-09", 150.3]];
     await caller.upsertWeighIn({ date: "2001-01-09", pounds: 150.25 });
-    expect(queries[0]!.params[1]).toBe(150.3);
+    expect(queries[2]!.params[1]).toBe(150.3);
   });
 
   it("refuses a date after tomorrow, bad pounds, and a malformed date, without a query", async () => {

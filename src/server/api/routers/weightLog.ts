@@ -271,20 +271,28 @@ export const weightLogRouter = createTRPCRouter({
    */
   upsertWeighIn: ownerProcedure
     .input(z.object({ date: weighInDate, pounds }))
-    .mutation(async ({ ctx, input }) => {
-      const [row] = await ctx.db
-        .insert(weightLogWeighIns)
-        .values({ date: input.date, pounds: input.pounds })
-        .onConflictDoUpdate({
-          target: weightLogWeighIns.date,
-          set: { pounds: input.pounds },
-        })
-        .returning({
-          date: weightLogWeighIns.date,
-          pounds: weightLogWeighIns.pounds,
-        });
-      return row!;
-    }),
+    .mutation(({ ctx, input }) =>
+      // A plan edit decides which weeks it may delete from the weigh-ins it
+      // reads. The shared plan lock makes a save wait for an edit in flight,
+      // so a new weigh-in can't land in a week that edit removes.
+      ctx.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock_shared(${PLAN_LOCK})`,
+        );
+        const [row] = await tx
+          .insert(weightLogWeighIns)
+          .values({ date: input.date, pounds: input.pounds })
+          .onConflictDoUpdate({
+            target: weightLogWeighIns.date,
+            set: { pounds: input.pounds },
+          })
+          .returning({
+            date: weightLogWeighIns.date,
+            pounds: weightLogWeighIns.pounds,
+          });
+        return row!;
+      }),
+    ),
 
   /** Remove a date's weigh-in. Deleting a date with none is not an error. */
   deleteWeighIn: ownerProcedure
