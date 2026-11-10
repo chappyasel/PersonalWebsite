@@ -23,6 +23,7 @@ import {
   weekTableColors,
 } from "~/lib/weight-log/color-scale";
 import { lastWeighInBefore, relativeDayLabel } from "~/lib/weight-log/entry";
+import { pounds, signed } from "~/lib/weight-log/format";
 import {
   addDays,
   cycleNumbers,
@@ -80,17 +81,6 @@ const formatDay = (date: string, options: Intl.DateTimeFormatOptions) =>
 /** A date's place in its week, Monday 0 to Sunday 6. */
 const dayIndex = (date: string) =>
   (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
-
-const pounds = (value: number | null) =>
-  value === null ? "—" : value.toFixed(1);
-
-/** A difference to one decimal, with its sign. Zero has none. */
-function signed(value: number | null) {
-  if (value === null) return "—";
-  const rounded = Math.round(value * 10) / 10;
-  if (rounded === 0) return "0.0";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
-}
 
 /** A weekly rate to two decimals, as the plan stores it, with its sign. */
 function rate(value: number | null) {

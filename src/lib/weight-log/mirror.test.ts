@@ -3,37 +3,12 @@ import postgres from "postgres";
 import { describe, expect, it } from "vitest";
 
 import {
-  isMirrorAuthorized,
   mirrorWeighInsQuery,
   parseMirrorRange,
   toMirrorWeighIns,
 } from "./mirror";
 
 const params = (query: string) => new URLSearchParams(query);
-
-describe("isMirrorAuthorized", () => {
-  it("accepts only the configured bearer token", () => {
-    expect(isMirrorAuthorized("Bearer invented-token", "invented-token")).toBe(
-      true,
-    );
-    expect(isMirrorAuthorized("bearer invented-token", "invented-token")).toBe(
-      true,
-    );
-    expect(isMirrorAuthorized("Bearer invented-tokem", "invented-token")).toBe(
-      false,
-    );
-    expect(isMirrorAuthorized("Bearer invented", "invented-token")).toBe(false);
-    expect(isMirrorAuthorized("invented-token", "invented-token")).toBe(false);
-    expect(isMirrorAuthorized("Bearer ", "invented-token")).toBe(false);
-    expect(isMirrorAuthorized(null, "invented-token")).toBe(false);
-  });
-
-  it("refuses everything when no token is configured", () => {
-    expect(isMirrorAuthorized("Bearer ", undefined)).toBe(false);
-    expect(isMirrorAuthorized("Bearer anything", undefined)).toBe(false);
-    expect(isMirrorAuthorized("Bearer ", "")).toBe(false);
-  });
-});
 
 describe("parseMirrorRange", () => {
   it("reads an inclusive range of real dates", () => {

@@ -31,6 +31,7 @@ import {
   currentPhase,
   weeklyAverage,
 } from "~/lib/weight-log/week-table";
+import { saveWeighIn } from "~/lib/weight-log/weigh-ins";
 import { createTRPCRouter, ownerProcedure } from "~/server/api/trpc";
 import type { db as database } from "~/server/db";
 import {
@@ -309,32 +310,15 @@ export const weightLogRouter = createTRPCRouter({
   /**
    * Record a date's weigh-in. A date has at most one (decision 7), so
    * entering a date that has one replaces its pounds. The excluded flag stays
-   * as it was (decision 14). Drizzle's `$onUpdate` sets `updated_at`.
+   * as it was (decision 14). `saveWeighIn` takes the shared plan lock first,
+   * so a save waits for a plan edit in flight.
    */
   upsertWeighIn: ownerProcedure
     .input(z.object({ date: weighInDate, pounds }))
-    .mutation(({ ctx, input }) =>
-      // A plan edit decides which weeks it may delete from the weigh-ins it
-      // reads. The shared plan lock makes a save wait for an edit in flight,
-      // so a new weigh-in can't land in a week that edit removes.
-      ctx.db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock_shared(${PLAN_LOCK})`,
-        );
-        const [row] = await tx
-          .insert(weightLogWeighIns)
-          .values({ date: input.date, pounds: input.pounds })
-          .onConflictDoUpdate({
-            target: weightLogWeighIns.date,
-            set: { pounds: input.pounds },
-          })
-          .returning({
-            date: weightLogWeighIns.date,
-            pounds: weightLogWeighIns.pounds,
-          });
-        return row!;
-      }),
-    ),
+    .mutation(async ({ ctx, input }) => {
+      await saveWeighIn(ctx.db, { ...input, replace: true });
+      return { date: input.date, pounds: input.pounds };
+    }),
 
   /**
    * Put back a weigh-in the page deleted, with the excluded flag it had, so

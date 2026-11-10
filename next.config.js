@@ -32,6 +32,11 @@ const config = {
     "/weightlifting/**": ["./src/fonts/weightlifting/*.otf"],
     "/meet/**": ["./src/fonts/meet/*.otf", "./public/images/about/profile.jpg"],
     "/api/search": ["./content/dad-search-index.json"],
+    // The Log Weight card renders on request, so its fonts must be on disk.
+    "/api/weight-log/week-card": [
+      "./public/fonts/GeorgiaPro-Regular.ttf",
+      "./public/fonts/GeorgiaPro-Bold.ttf",
+    ],
   },
   outputFileTracingExcludes: {
     "/*": [

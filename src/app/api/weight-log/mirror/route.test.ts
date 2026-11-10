@@ -112,7 +112,7 @@ describe("GET /api/weight-log/mirror", () => {
 });
 
 describe("other methods", () => {
-  it.each(["POST", "PUT", "PATCH", "DELETE"] as const)(
+  it.each(["POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const)(
     "refuses %s with 405 and never reads or writes",
     (method) => {
       const response = route[method]();
@@ -124,8 +124,15 @@ describe("other methods", () => {
 
   it("routes every exported method but GET to the same refusal", () => {
     const handlers = Object.keys(route).filter((key) => /^[A-Z]+$/.test(key));
-    expect(handlers.sort()).toEqual(["DELETE", "GET", "PATCH", "POST", "PUT"]);
-    for (const method of ["PUT", "PATCH", "DELETE"] as const) {
+    expect(handlers.sort()).toEqual([
+      "DELETE",
+      "GET",
+      "OPTIONS",
+      "PATCH",
+      "POST",
+      "PUT",
+    ]);
+    for (const method of ["PUT", "PATCH", "DELETE", "OPTIONS"] as const) {
       expect(route[method]).toBe(route.POST);
     }
   });

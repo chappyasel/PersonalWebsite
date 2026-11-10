@@ -146,9 +146,43 @@ Sync` Shortcut gains a step that asks the site for recent weigh-ins and logs
 ### Delivery
 
 36. Four PRs, in this order: Google sign-in; cutover; plan editing and set
-    points; Apple Health mirror.
+    points; Apple Health mirror. Slice 5, the Log Weight Shortcut, adds a
+    fifth (decision 38).
 37. Each PR merges only when the owner says so. Never push to `main`; a push to
     `main` deploys production.
+
+### Log Weight Shortcut
+
+Chappy's decisions from November 10, 2026, accepting the recommendations in
+[`shortcut-api-research.md`](./weight-log-migration-reports/shortcut-api-research.md).
+
+38. A second way to write weigh-ins besides Google sign-in: a Log Weight
+    Shortcut on the owner's iPhone with its own `WEIGHT_LOG_ENTRY_TOKEN`,
+    separate from the mirror's (decision 35). The token can write a weigh-in
+    only for a date that is today or yesterday in some real time zone,
+    which runs from yesterday in UTC−12 to today in UTC+14. Today and
+    yesterday on the phone always fit, wherever the owner is. The lead
+    changed this on November 10, 2026, and the owner has yet to confirm it.
+    It first read "the server's UTC date or one day either side", which
+    refused Pacific time's yesterday after 4 or 5 PM and accepted its
+    tomorrow. The token can never delete, and it cannot touch
+    phases, plans, or set points. It reads only the week card, for a date in
+    the same window. The variable is optional, and without it both routes
+    refuse everything. Revoke by rotating it in Vercel.
+39. When the date already has a weigh-in, the Shortcut asks Replace or Cancel
+    and shows both values. Decision 7 still holds: Replace replaces, and the
+    `excluded` flag stays.
+40. The Shortcut shows the week as a notification with the card image, not
+    Quick Look, so it runs from the Action button, Control Center, or a widget
+    without opening the Shortcuts app.
+41. The card's first version: the week's seven days, the average so far,
+    the target, the gap to target, and the change from last week. No
+    sparkline.
+42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
+    weigh-in (decision 32).
+43. The owner builds the Shortcut by hand from a written recipe in
+    `apple-health/shortcut/RUNBOOK-iphone.md`. `build_shortcut.py` does not
+    generate it.
 
 ### Deferred
 
@@ -158,7 +192,6 @@ Sync` Shortcut gains a step that asks the site for recent weigh-ins and logs
 - A scan entry form, and exporting scans for the analysis repo's DEXA PNG
   renderer. Build both before the owner's next DEXA scan. Until then the
   renderer keeps reading the frozen workbook, which still holds all 10 scans.
-- A one-tap "Log Weight" Shortcut for entry.
 
 ## Facts the plan relies on
 
@@ -198,10 +231,12 @@ Checked on November 9, 2026. A slice re-checks any fact it builds on.
 Every PR gets Devin's automatic review, and the lead answers each finding before
 merge. Every slice here **waits** for the deep review before it lands: slice 1
 controls access, slice 2 migrates data and changes outside systems, slice 3
-rewrites stored plans, and slice 4 writes to Apple Health.
+rewrites stored plans, slice 4 writes to Apple Health, and slice 5 adds a token
+that writes weigh-ins.
 
 Run order: slices 1 and 2a in parallel. Slice 2b starts after slice 1 lands, on
 top of 2a. Slices 3 and 4 start after slice 2 lands and can run in parallel.
+Slice 5 starts after slices 3 and 4 land.
 
 ### Slice 1: Google sign-in and `ownerProcedure` (PR 1, #137)
 
@@ -450,6 +485,49 @@ end date, and the public chart shows the new plan.
 2018-09-27 on, from Shortcuts only, and a new weigh-in on the site reaches
 Health by the next 08:00 run.
 
+### Slice 5: Log Weight Shortcut (PR 5)
+
+Decisions 38 to 43. The design and the reasons behind it are in
+[`shortcut-api-research.md`](./weight-log-migration-reports/shortcut-api-research.md).
+
+**Changes**
+
+- `src/lib/weight-log/bearer.ts`: `isBearerAuthorized`, moved from the
+  mirror. The mirror route calls it.
+- `src/lib/weight-log/weigh-ins.ts`: `saveWeighIn(db, { date, pounds,
+  replace })` in one transaction under the shared plan lock, answering
+  `saved`, `exists`, `replaced`, or `unchanged` with the previous pounds.
+  `weightLog.upsertWeighIn` calls it with `replace: true`. The file also holds
+  the Shortcut's date window and the request parsing.
+- `src/lib/weight-log/week-summary.ts`: the week's row, colors, and count of
+  weigh-ins, and the notification line.
+- `POST /api/weight-log/weigh-in` and `GET /api/weight-log/week-card`, both
+  on `WEIGHT_LOG_ENTRY_TOKEN`, with the card drawn by `next/og`.
+- `WEIGHT_LOG_ENTRY_TOKEN` in `src/env.js` and `.env.example`, optional.
+- "Entry from a Shortcut" in `docs/weight-log.md`, with token rotation.
+- A "Log Weight" recipe in `apple-health/shortcut/RUNBOOK-iphone.md`.
+
+**Tests:**
+
+- `routes.guard.test.ts` lists every route under `src/app/api/weight-log/`
+  with its token, and checks that each exported method refuses no token, a
+  wrong token, and the other route's token before touching the database.
+- `saveWeighIn`'s four outcomes, the lock, and `excluded` kept on a replace.
+- The POST's date window, pounds as number or string, rounding, 503, 405, and
+  no-store headers on every response.
+- The week summary's trimmed average, a change across a phase boundary, a
+  week with no target, and the summary line.
+- The card through the real satori renderer for an empty week, one weigh-in,
+  a full week, an excluded day, and a week with no target.
+
+**Checks:** `pnpm verify`. `pnpm dev` against a Neon child branch with
+invented weigh-ins, the POST through every outcome with `curl`, and the card's
+PNGs on a ParaDev page.
+
+**Done when** the owner runs Log Weight on the iPhone, the weigh-in appears on
+`/weight-log/edit` and the public chart, a second run the same day asks before
+replacing, and the notification shows the week card.
+
 ## Owner steps
 
 - Slice 1: run the Google Console wizard and set the three Vercel variables.
@@ -460,4 +538,6 @@ Health by the next 08:00 run.
   2. Delete Weight samples.
   3. Install both Shortcuts by AirDrop.
   4. Run the backfill year by year.
+- Slice 5: set `WEIGHT_LOG_ENTRY_TOKEN` in Vercel Production and redeploy.
+  Then build Log Weight on the iPhone from the runbook and run it once.
 - Every PR: say when to merge.
