@@ -71,8 +71,21 @@ describe("/weight-log/edit", () => {
     mocks.auth.mockResolvedValue(session("owner@example.test"));
     const html = await render();
     expect(html).toContain(EDITOR);
-    expect(html).toContain("Sign out");
+    expect(html).toContain('aria-label="Sign out"');
     expect(html).not.toContain(SIGN_IN);
+  });
+
+  it("signs out from an icon button with a name but no visible text", async () => {
+    mocks.auth.mockResolvedValue(session("owner@example.test"));
+    const html = await render();
+    const button =
+      /<button[^>]*aria-label="Sign out"[^>]*>(.*?)<\/button>/.exec(html);
+    expect(button).not.toBeNull();
+    // Only the icon's markup, with no text between tags.
+    expect(button![1]!.replace(/<[^>]+>/g, "").trim()).toBe("");
+    expect(button![1]).toContain("<svg");
+    // The hint is a Tooltip, never a native title.
+    expect(button![0]).not.toContain("title=");
   });
 
   it("says sign-in is unavailable where Google is not configured", async () => {
