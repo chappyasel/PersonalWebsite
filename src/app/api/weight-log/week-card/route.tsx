@@ -63,7 +63,10 @@ export async function GET(request: NextRequest) {
   // Satori's own errors happen while the body streams, after this returns,
   // so these catches see only the reads and the week's math. The render
   // tests guard the rest.
-  let loaded: [Awaited<ReturnType<typeof loadWeekRecords>>, ArrayBuffer[]];
+  let loaded: [
+    Awaited<ReturnType<typeof loadWeekRecords>>,
+    [ArrayBuffer, ArrayBuffer],
+  ];
   try {
     loaded = await Promise.all([loadWeekRecords(db), loadFonts()]);
   } catch (error) {
