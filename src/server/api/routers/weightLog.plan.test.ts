@@ -120,7 +120,12 @@ function revision() {
     ),
     weeks: (tables.weight_log_planned_weeks ?? []).map(
       ([weekStart, phaseId, target, originalTarget]) =>
-        ({ weekStart, phaseId, target, originalTarget }) as PlanState["weeks"][number],
+        ({
+          weekStart,
+          phaseId,
+          target,
+          originalTarget,
+        }) as PlanState["weeks"][number],
     ),
   };
   return planRevision(state);
@@ -177,7 +182,9 @@ describe("weightLog.startPhase", () => {
       'insert into "weight_log_planned_weeks" (…)',
       "commit",
     ]);
-    expect(statements.some((sql) => /^(insert|update|delete).*weigh_ins/.test(sql))).toBe(false);
+    expect(
+      statements.some((sql) => /^(insert|update|delete).*weigh_ins/.test(sql)),
+    ).toBe(false);
     // The empty week past the one-week plan goes; the bulk ends Sunday.
     expect(params[5]).toEqual(["2030-02-18"]);
     expect(params[6]).toEqual(["2030-02-10", 2]);
@@ -220,7 +227,9 @@ describe("weightLog.startPhase", () => {
     expect(short).toBe(
       "BAD_REQUEST: The plan has to run through the week of Feb 4, 2030, which has weigh-ins.",
     );
-    expect(statements.filter((sql) => /^(insert|update|delete)/.test(sql))).toEqual([]);
+    expect(
+      statements.filter((sql) => /^(insert|update|delete)/.test(sql)),
+    ).toEqual([]);
   });
 
   it("refuses a start that is not a Monday before reading anything", async () => {
@@ -254,9 +263,43 @@ describe("weightLog.changeRate", () => {
     ]);
     // Three rows of (week, phase, target, original target).
     expect(params.at(-2)).toEqual([
-      "2030-02-04", 2, 100.25, 100.5,
-      "2030-02-11", 2, 100.75, 101,
-      "2030-02-18", 2, 101.25, 101.5,
+      "2030-02-04",
+      2,
+      100.25,
+      100.5,
+      "2030-02-11",
+      2,
+      100.75,
+      101,
+      "2030-02-18",
+      2,
+      101.25,
+      101.5,
+    ]);
+  });
+
+  it("keeps a rate to the six decimals targets keep, not to 0.01", async () => {
+    // A typed target arrives as the rate that reaches it, and an undo sends
+    // an imported rate back, so the rate must not be rounded to cents.
+    await caller.changeRate({
+      phaseId: "2",
+      weekStart: "2030-02-04",
+      poundsPerWeek: 0.3333334,
+      revision: revision(),
+    });
+    expect(params.at(-2)).toEqual([
+      "2030-02-04",
+      2,
+      100.333333,
+      100.5,
+      "2030-02-11",
+      2,
+      100.833333,
+      101,
+      "2030-02-18",
+      2,
+      101.333333,
+      101.5,
     ]);
   });
 });
@@ -269,18 +312,26 @@ describe("weightLog.moveEnd", () => {
       revision: revision(),
     });
     expect(params.at(-2)).toEqual([
-      "2030-02-25", 2, 102, null,
-      "2030-03-04", 2, 102.5, null,
+      "2030-02-25",
+      2,
+      102,
+      null,
+      "2030-03-04",
+      2,
+      102.5,
+      null,
     ]);
   });
 
   it("refuses to remove a week with weigh-ins", async () => {
     expect(
-      await refusal(caller.moveEnd({
+      await refusal(
+        caller.moveEnd({
           phaseId: "2",
           lastWeek: "2030-01-28",
           revision: revision(),
-        })),
+        }),
+      ),
     ).toBe(
       "BAD_REQUEST: The week of Feb 4, 2030 has weigh-ins, so the plan can't end before it.",
     );
@@ -359,9 +410,14 @@ describe("stale pages", () => {
 
 describe("weightLog set points", () => {
   it("reads them in order", async () => {
-    tables.weight_log_set_points = [[1, 150], [2, 160.5]];
+    tables.weight_log_set_points = [
+      [1, 150],
+      [2, 160.5],
+    ];
     await expect(caller.setPoints()).resolves.toEqual([150, 160.5]);
-    expect(statements[0]).toMatch(/order by "weight_log_set_points"\."position" asc$/);
+    expect(statements[0]).toMatch(
+      /order by "weight_log_set_points"\."position" asc$/,
+    );
   });
 
   it("replaces the list under the plan lock, numbered in order and rounded", async () => {
