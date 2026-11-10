@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import { loadWeekRecords } from "~/lib/weight-log/database";
@@ -11,6 +11,7 @@ import {
 import { parseWeighInRequest, saveWeighIn } from "~/lib/weight-log/weigh-ins";
 import { db } from "~/server/db";
 
+import { logFailure, refuseMethod, reply } from "../responses";
 import { env } from "~/env";
 
 /**
@@ -28,19 +29,6 @@ import { env } from "~/env";
  * `docs/weight-log.md`.
  */
 export const dynamic = "force-dynamic";
-
-const HEADERS = {
-  "Cache-Control": "private, no-store, max-age=0",
-  "X-Robots-Tag": "noindex, nofollow, noarchive",
-  "X-Content-Type-Options": "nosniff",
-};
-
-function reply(body: unknown, status = 200, extra: HeadersInit = {}) {
-  return NextResponse.json(body, {
-    status,
-    headers: { ...HEADERS, ...extra },
-  });
-}
 
 export async function POST(request: NextRequest) {
   if (!env.WEIGHT_LOG_ENTRY_TOKEN) {
@@ -74,7 +62,7 @@ export async function POST(request: NextRequest) {
   try {
     saved = await saveWeighIn(db, weighIn);
   } catch (error) {
-    logFailure("save", error);
+    logFailure("weigh-in", "save", error);
     return reply({ error: "The weigh-in didn't save. Try again." }, 500);
   }
   // The weigh-in is saved by now, so a failed read only costs the week line.
@@ -82,7 +70,7 @@ export async function POST(request: NextRequest) {
   try {
     week = weekSummary(buildWeightLog(await loadWeekRecords(db)), weighIn.date);
   } catch (error) {
-    logFailure("week", error);
+    logFailure("weigh-in", "week", error);
   }
   // Every expected outcome is a 200, so the Shortcut branches on `status`.
   return reply({
@@ -94,28 +82,11 @@ export async function POST(request: NextRequest) {
   });
 }
 
-/**
- * Log what failed and the database's error code, never the error itself: a
- * Postgres error's detail can quote the row it refused, weight included.
- */
-function logFailure(step: string, error: unknown) {
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? String(error.code)
-      : error instanceof Error
-        ? error.name
-        : "unknown";
-  console.error(`weigh-in route: ${step} failed (${code})`);
-}
-
 /** The route only records a weigh-in. Every other method is refused. */
-function postOnly() {
-  return reply({ error: "Weigh-ins are recorded with POST" }, 405, {
-    Allow: "POST",
-  });
-}
+const postOnly = refuseMethod("POST", "Weigh-ins are recorded with POST");
 
 export const GET = postOnly;
 export const PUT = postOnly;
 export const PATCH = postOnly;
 export const DELETE = postOnly;
+export const OPTIONS = postOnly;

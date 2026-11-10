@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import { loadWeekRecords } from "~/lib/weight-log/database";
@@ -8,6 +8,7 @@ import { weekSummary } from "~/lib/weight-log/week-summary";
 import { parseCardDate } from "~/lib/weight-log/weigh-ins";
 import { db } from "~/server/db";
 
+import { NO_STORE_HEADERS, logFailure, refuseMethod, reply } from "../responses";
 import { CARD_HEIGHT, CARD_WIDTH, WeekCard } from "./WeekCard";
 import {
   loadGeorgiaProBold,
@@ -24,17 +25,21 @@ import { env } from "~/env";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const HEADERS = {
-  "Cache-Control": "private, no-store, max-age=0",
-  "X-Robots-Tag": "noindex, nofollow, noarchive",
-  "X-Content-Type-Options": "nosniff",
-};
+/**
+ * Both Georgia Pro weights, read once per warm function. `next.config.js`
+ * traces the two files into this route's bundle, so they come from disk, not
+ * over HTTP. A failed read is forgotten so the next request tries again.
+ */
+let fonts: Promise<[ArrayBuffer, ArrayBuffer]> | undefined;
 
-function reply(body: unknown, status: number, extra: HeadersInit = {}) {
-  return NextResponse.json(body, {
-    status,
-    headers: { ...HEADERS, ...extra },
-  });
+function loadFonts() {
+  fonts ??= Promise.all([loadGeorgiaProRegular(), loadGeorgiaProBold()]).catch(
+    (error: unknown) => {
+      fonts = undefined;
+      throw error;
+    },
+  );
+  return fonts;
 }
 
 export async function GET(request: NextRequest) {
@@ -55,12 +60,24 @@ export async function GET(request: NextRequest) {
   const parsed = parseCardDate(request.nextUrl.searchParams.get("date"));
   if ("error" in parsed) return reply({ error: parsed.error }, 400);
 
-  const [records, regular, bold] = await Promise.all([
-    loadWeekRecords(db),
-    loadGeorgiaProRegular(),
-    loadGeorgiaProBold(),
-  ]);
-  const summary = weekSummary(buildWeightLog(records), parsed.date);
+  // Satori's own errors happen while the body streams, after this returns,
+  // so these catches see only the reads and the week's math. The render
+  // tests guard the rest.
+  let loaded: [Awaited<ReturnType<typeof loadWeekRecords>>, ArrayBuffer[]];
+  try {
+    loaded = await Promise.all([loadWeekRecords(db), loadFonts()]);
+  } catch (error) {
+    logFailure("week-card", "load", error);
+    return couldNotDraw();
+  }
+  const [records, [regular, bold]] = loaded;
+  let summary: ReturnType<typeof weekSummary>;
+  try {
+    summary = weekSummary(buildWeightLog(records), parsed.date);
+  } catch (error) {
+    logFailure("week-card", "build", error);
+    return couldNotDraw();
+  }
   return new ImageResponse(<WeekCard summary={summary} />, {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
@@ -69,18 +86,19 @@ export async function GET(request: NextRequest) {
       { name: "Georgia Pro", data: bold, weight: 700, style: "normal" },
     ],
     // ImageResponse sets its own cache header first; these replace it.
-    headers: HEADERS,
+    headers: NO_STORE_HEADERS,
   });
 }
 
-/** The card only reads. Every other method is refused. */
-function readOnly() {
-  return reply({ error: "The week card only reads" }, 405, {
-    Allow: "GET, HEAD",
-  });
+function couldNotDraw() {
+  return reply({ error: "The week card could not be drawn." }, 500);
 }
+
+/** The card only reads. Every other method is refused. */
+const readOnly = refuseMethod("GET, HEAD", "The week card only reads");
 
 export const POST = readOnly;
 export const PUT = readOnly;
 export const PATCH = readOnly;
 export const DELETE = readOnly;
+export const OPTIONS = readOnly;

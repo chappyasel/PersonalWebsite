@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import {
@@ -8,6 +8,7 @@ import {
 } from "~/lib/weight-log/mirror";
 import { db } from "~/server/db";
 
+import { refuseMethod, reply } from "../responses";
 import { env } from "~/env";
 
 /**
@@ -22,19 +23,6 @@ import { env } from "~/env";
  * Shortcuts.
  */
 export const dynamic = "force-dynamic";
-
-const HEADERS = {
-  "Cache-Control": "private, no-store, max-age=0",
-  "X-Robots-Tag": "noindex, nofollow, noarchive",
-  "X-Content-Type-Options": "nosniff",
-};
-
-function reply(body: unknown, status = 200, extra: HeadersInit = {}) {
-  return NextResponse.json(body, {
-    status,
-    headers: { ...HEADERS, ...extra },
-  });
-}
 
 export async function GET(request: NextRequest) {
   if (!env.WEIGHT_LOG_MIRROR_TOKEN) {
@@ -59,13 +47,10 @@ export async function GET(request: NextRequest) {
 }
 
 /** The mirror only reads. Every other method is refused. */
-function readOnly() {
-  return reply({ error: "The Health mirror only reads" }, 405, {
-    Allow: "GET, HEAD",
-  });
-}
+const readOnly = refuseMethod("GET, HEAD", "The Health mirror only reads");
 
 export const POST = readOnly;
 export const PUT = readOnly;
 export const PATCH = readOnly;
 export const DELETE = readOnly;
+export const OPTIONS = readOnly;

@@ -1,9 +1,12 @@
+import { autoImplementMethods } from "next/dist/server/route-modules/app-route/helpers/auto-implement-methods";
+import { HTTP_METHODS } from "next/dist/server/web/http";
 import { NextRequest } from "next/server";
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -16,19 +19,43 @@ import {
  * Every route under `src/app/api/weight-log/` sits outside the tRPC guard
  * (`weightLogOwnerOnly.test.ts`) and the owner page's boundary test, since it
  * answers a Shortcut, not a signed-in owner. This test is their guard: each
- * route must be listed below with the one token env var it answers, and every
- * method it exports must refuse a missing token, a wrong one, and another
- * route's token before it touches the database. A new route fails here until
- * it is listed and refuses those requests.
+ * route must be listed below with the one token env var it answers and a
+ * request it would serve. Every method Next answers for it, its own exports
+ * and the HEAD and OPTIONS Next adds, must refuse a missing token, a wrong
+ * one, and another route's token before it touches the database, even when
+ * the rest of the request is valid. A new route fails here until it is listed
+ * and refuses those requests.
  */
 
 type TokenVar = "WEIGHT_LOG_MIRROR_TOKEN" | "WEIGHT_LOG_ENTRY_TOKEN";
 
-/** Each route file, relative to this folder, and the token it answers. */
-const ROUTE_TOKENS: Record<string, TokenVar> = {
-  "mirror/route.ts": "WEIGHT_LOG_MIRROR_TOKEN",
-  "weigh-in/route.ts": "WEIGHT_LOG_ENTRY_TOKEN",
-  "week-card/route.tsx": "WEIGHT_LOG_ENTRY_TOKEN",
+/** The day the tests run on. The valid requests below name it. */
+const NOW = new Date("2030-02-04T15:00:00Z");
+
+interface ValidRequest {
+  /** A query string the route would serve. */
+  query?: string;
+  /** A JSON body the route would accept, sent with every method but GET and HEAD. */
+  body?: unknown;
+}
+
+/**
+ * Each route file, relative to this folder, the token it answers, and a
+ * request it would serve with that token.
+ */
+const ROUTES: Record<string, { token: TokenVar; valid: ValidRequest }> = {
+  "mirror/route.ts": {
+    token: "WEIGHT_LOG_MIRROR_TOKEN",
+    valid: { query: "from=2030-01-22&to=2030-02-04" },
+  },
+  "weigh-in/route.ts": {
+    token: "WEIGHT_LOG_ENTRY_TOKEN",
+    valid: { body: { date: "2030-02-04", pounds: 150.2, replace: true } },
+  },
+  "week-card/route.tsx": {
+    token: "WEIGHT_LOG_ENTRY_TOKEN",
+    valid: { query: "date=2030-02-04" },
+  },
 };
 
 const TOKENS: Record<TokenVar, string> = {
@@ -56,7 +83,7 @@ vi.mock("~/server/db", () => ({
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const ROUTE_FILE = /^route\.(ts|tsx|js|jsx|mjs)$/;
-const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+const NO_STORE = "private, no-store, max-age=0";
 
 /** Every route handler file under a folder, relative to it. */
 function routeFiles(root: string) {
@@ -67,7 +94,7 @@ function routeFiles(root: string) {
 }
 
 /** Route files missing from the list, and listed files that are gone. */
-function listViolations(files: string[], listed: Record<string, TokenVar>) {
+function listViolations(files: string[], listed: Record<string, unknown>) {
   return [
     ...files
       .filter((file) => !(file in listed))
@@ -80,34 +107,60 @@ function listViolations(files: string[], listed: Record<string, TokenVar>) {
 
 type Handler = (request: NextRequest) => Response | Promise<Response>;
 
+/**
+ * Every method Next answers for a route file: its exports, with HEAD and
+ * OPTIONS filled in the way Next fills them when the file leaves them out,
+ * and a bare 405 for the rest.
+ */
 async function handlersOf(file: string) {
   const exports = (await import(join(HERE, file))) as Record<string, unknown>;
-  return METHODS.flatMap((method) =>
-    typeof exports[method] === "function"
-      ? [[method, exports[method] as Handler] as const]
-      : [],
-  );
+  const methods = autoImplementMethods(exports as never) as unknown as Record<
+    string,
+    Handler
+  >;
+  return HTTP_METHODS.map((method) => [method, methods[method]!] as const);
 }
 
-function request(file: string, method: string, authorization?: string) {
-  const url = `https://www.chappyasel.com/api/weight-log/${file.split("/")[0]}`;
+function request(
+  file: string,
+  method: string,
+  authorization: string | undefined,
+  { query, body }: ValidRequest = {},
+) {
+  const url = `https://www.chappyasel.com/api/weight-log/${file.split("/")[0]}${query ? `?${query}` : ""}`;
+  const sendsBody = body !== undefined && method !== "GET" && method !== "HEAD";
   return new NextRequest(url, {
     method,
-    headers: authorization ? { authorization } : {},
+    headers: {
+      ...(authorization ? { authorization } : {}),
+      ...(sendsBody ? { "content-type": "application/json" } : {}),
+    },
+    ...(sendsBody ? { body: JSON.stringify(body) } : {}),
   });
 }
 
-/** A refusal: 401 for a bad token, or 405 for a method the route never serves. */
+/**
+ * What a handler answered. A 405 must name the methods the route serves, and
+ * every answer here must carry the no-store header, so a refusal can't be
+ * cached by a proxy.
+ */
 async function outcome(handler: Handler, req: NextRequest) {
   try {
     const response = await handler(req);
-    return response.status === 405
-      ? `405 Allow: ${response.headers.get("allow")}`
-      : String(response.status);
+    const status =
+      response.status === 405
+        ? `405 Allow: ${response.headers.get("allow")}`
+        : String(response.status);
+    return response.headers.get("cache-control") === NO_STORE
+      ? status
+      : `${status} without no-store`;
   } catch (error) {
     return `threw ${(error as Error).message}`;
   }
 }
+
+const isMethodRefusal = (result: string) =>
+  /^405 Allow: [A-Z]/.test(result) && !result.endsWith("without no-store");
 
 beforeAll(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -120,11 +173,16 @@ afterAll(() => {
 beforeEach(() => {
   Object.assign(mocks.env, TOKENS);
   mocks.touched = [];
+  vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("weight-log API routes", () => {
   it("lists every route with its token", () => {
-    expect(listViolations(routeFiles(HERE), ROUTE_TOKENS)).toEqual([]);
+    expect(listViolations(routeFiles(HERE), ROUTES)).toEqual([]);
   });
 
   it("names a route that is not listed, and a listed route that is gone", () => {
@@ -144,7 +202,7 @@ describe("weight-log API routes", () => {
     expect(new Set(Object.values(TOKENS)).size).toBe(2);
   });
 
-  describe.each(Object.entries(ROUTE_TOKENS))("%s", (file, own) => {
+  describe.each(Object.entries(ROUTES))("%s", (file, { token: own, valid }) => {
     const others = (Object.keys(TOKENS) as TokenVar[]).filter(
       (token) => token !== own,
     );
@@ -161,17 +219,17 @@ describe("weight-log API routes", () => {
     it.each(refused)(
       "refuses %s on every method before touching the database",
       async (_label, authorization) => {
-        const handlers = await handlersOf(file);
-        expect(handlers.length).toBeGreaterThan(0);
-        for (const [method, handler] of handlers) {
-          const result = await outcome(
-            handler,
-            request(file, method, authorization),
-          );
-          expect(
-            result === "401" || result.startsWith("405 Allow:"),
-            `${method} ${file} answered ${result}`,
-          ).toBe(true);
+        for (const input of [{}, valid]) {
+          for (const [method, handler] of await handlersOf(file)) {
+            const result = await outcome(
+              handler,
+              request(file, method, authorization, input),
+            );
+            expect(
+              result === "401" || isMethodRefusal(result),
+              `${method} ${file} answered ${result}`,
+            ).toBe(true);
+          }
         }
         expect(mocks.touched).toEqual([]);
       },
@@ -182,10 +240,10 @@ describe("weight-log API routes", () => {
       for (const [method, handler] of await handlersOf(file)) {
         const result = await outcome(
           handler,
-          request(file, method, `Bearer ${TOKENS[own]}`),
+          request(file, method, `Bearer ${TOKENS[own]}`, valid),
         );
         expect(
-          result === "503" || result.startsWith("405 Allow:"),
+          result === "503" || isMethodRefusal(result),
           `${method} ${file} answered ${result}`,
         ).toBe(true);
       }
@@ -203,6 +261,18 @@ describe("weight-log API routes", () => {
       expect(results).toContain("400");
       expect(results).not.toContain("401");
       expect(mocks.touched).toEqual([]);
+    });
+
+    it("reaches the database with its token and the valid request", async () => {
+      // Shows the valid request above is one the route would serve, so the
+      // refusals before it were the token's doing.
+      for (const [method, handler] of await handlersOf(file)) {
+        await outcome(
+          handler,
+          request(file, method, `Bearer ${TOKENS[own]}`, valid),
+        );
+      }
+      expect(mocks.touched).not.toEqual([]);
     });
   });
 });

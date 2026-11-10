@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   },
   save: vi.fn(),
   load: vi.fn(),
+  report: vi.fn(),
+}));
+vi.mock("~/server/errorReporting", () => ({
+  reportServerErrorAfterResponse: mocks.report,
 }));
 vi.mock("~/env", () => ({ env: mocks.env }));
 vi.mock("~/server/db", () => ({ db: { synthetic: true } }));
@@ -215,6 +219,28 @@ describe("POST /api/weight-log/weigh-in", () => {
     );
   });
 
+  it("reports a failed save with only the step and the code", async () => {
+    const failure = Object.assign(
+      new Error("Failing row contains (2030-02-04, 100.9)"),
+      { code: "23514" },
+    );
+    mocks.save.mockRejectedValue(failure);
+    await route.POST(post({ date: "2030-02-04", pounds: 100.9 }));
+    expect(mocks.report).toHaveBeenCalledTimes(1);
+    const [reported, context] = mocks.report.mock.calls[0] as [
+      Error,
+      Record<string, unknown>,
+    ];
+    expect(reported).not.toBe(failure);
+    expect(reported.message).toBe("weigh-in route: save failed (23514)");
+    expect(reported.cause).toBeUndefined();
+    expect(context).toEqual({
+      source: "request",
+      route: "/api/weight-log/weigh-in",
+      label: "save",
+    });
+  });
+
   it("still reports a save when the week can't be read", async () => {
     mocks.load.mockRejectedValue(new Error("connection reset"));
     const response = await route.POST(
@@ -240,7 +266,7 @@ describe("POST /api/weight-log/weigh-in", () => {
 });
 
 describe("other methods", () => {
-  it.each(["GET", "PUT", "PATCH", "DELETE"] as const)(
+  it.each(["GET", "PUT", "PATCH", "DELETE", "OPTIONS"] as const)(
     "refuses %s with 405 and never reads or writes",
     (method) => {
       const response = route[method]();

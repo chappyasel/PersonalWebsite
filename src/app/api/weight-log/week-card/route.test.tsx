@@ -21,12 +21,17 @@ const mocks = vi.hoisted(() => ({
     WEIGHT_LOG_ENTRY_TOKEN: "invented-entry-token" as string | undefined,
   },
   load: vi.fn(),
+  build: vi.fn(),
+  report: vi.fn(),
+}));
+vi.mock("~/server/errorReporting", () => ({
+  reportServerErrorAfterResponse: mocks.report,
 }));
 vi.mock("~/env", () => ({ env: mocks.env }));
 vi.mock("~/server/db", () => ({ db: { synthetic: true } }));
 vi.mock("~/lib/weight-log/database", () => ({ loadWeekRecords: mocks.load }));
 vi.mock("~/lib/weight-log/records", () => ({
-  buildWeightLog: () => SYNTHETIC_LOG,
+  buildWeightLog: mocks.build,
 }));
 
 const URL = "https://www.chappyasel.com/api/weight-log/week-card";
@@ -59,10 +64,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.env.WEIGHT_LOG_ENTRY_TOKEN = "invented-entry-token";
   mocks.load.mockResolvedValue({});
+  mocks.build.mockReturnValue(SYNTHETIC_LOG);
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.mocked(console.error).mockRestore();
 });
 
 const at = (date: string) =>
@@ -129,6 +137,54 @@ describe("GET /api/weight-log/week-card", () => {
   });
 
   it.each([
+    [
+      "the read",
+      "load",
+      () =>
+        mocks.load.mockRejectedValue(
+          Object.assign(new Error("Failing row contains (100.9)"), {
+            code: "57P01",
+          }),
+        ),
+      "57P01",
+    ],
+    [
+      "the week's math",
+      "build",
+      () =>
+        mocks.build.mockImplementation(() => {
+          throw new RangeError("100.9 is out of range");
+        }),
+      "RangeError",
+    ],
+  ])(
+    "answers a JSON 500 with the no-store headers when %s fails",
+    async (_label, step, fail, code) => {
+      at("2030-02-04");
+      fail();
+      const response = await route.GET(get("2030-02-04"));
+      expect(response.status).toBe(500);
+      expect(response.headers.get("content-type")).toContain(
+        "application/json",
+      );
+      expect(response.headers.get("cache-control")).toBe(NO_STORE);
+      expect(response.headers.get("x-robots-tag")).toBe(
+        "noindex, nofollow, noarchive",
+      );
+      expect(await response.json()).toEqual({
+        error: "The week card could not be drawn.",
+      });
+      const line = `week-card route: ${step} failed (${code})`;
+      expect(console.error).toHaveBeenCalledWith(line);
+      expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(
+        "100.9",
+      );
+      const [reported] = mocks.report.mock.calls[0] as [Error];
+      expect(reported.message).toBe(line);
+    },
+  );
+
+  it.each([
     ["no Authorization header", undefined],
     ["a wrong token", "Bearer invented-entry-tokem"],
   ])("answers 401 to %s without reading", async (_label, auth) => {
@@ -146,7 +202,7 @@ describe("GET /api/weight-log/week-card", () => {
     expect(mocks.load).not.toHaveBeenCalled();
   });
 
-  it.each(["POST", "PUT", "PATCH", "DELETE"] as const)(
+  it.each(["POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const)(
     "refuses %s with 405",
     (method) => {
       const response = route[method]();
