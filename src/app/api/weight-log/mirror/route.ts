@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import {
-  isMirrorAuthorized,
   mirrorWeighInsQuery,
   parseMirrorRange,
   toMirrorWeighIns,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     return reply({ error: "The Health mirror is not configured" }, 503);
   }
   if (
-    !isMirrorAuthorized(
+    !isBearerAuthorized(
       request.headers.get("authorization"),
       env.WEIGHT_LOG_MIRROR_TOKEN,
     )
