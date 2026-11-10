@@ -809,3 +809,138 @@ import never refreshed `weight_log`, and the old workbook reader didn't
 either. So a new site weigh-in doesn't reach `health.db` on its own. The
 next step is the owner's call: add the refresh to the hourly import, making
 it non-fatal so a network failure can't fail the snapshot.
+
+## Merges on the owner's "no need to ask me for this session" (November 9, evening)
+
+- **#146** squash-merged as `c651a514`. Before merging, the lead fixed Devin's
+  two findings and answered them on the PR:
+  - `c28a7db9`: `upsertWeighIn` takes the plan lock shared. This is the race
+    Devin and the Claude review (P3-5) both found, so that P3 is fixed.
+  - `65d2a94e`: the rate inputs use `step="0.01"`.
+
+  The deploy succeeded, and both pages answer 200.
+- **#147** squash-merged as `62e67fe2`. Devin found no issues. The deploy
+  succeeded. `/api/weight-log/mirror` answers 503 (no token set yet) and 405
+  to a POST, as designed.
+- **Entry polish.** The owner's first iPhone feedback is with an agent on
+  branch `weight-log-entry-polish`, reporting to `reports/entry-polish.md`:
+  - Sign out shows the icon only.
+  - The date reads relative, and is sized to stop overlapping Pounds.
+  - Pounds is pre-filled with the last weight, and Save is a check mark.
+  - The gap above the week grid is tightened.
+  - The Weeks table gains a week number from 0 and colors on every column.
+  - The phase picker gains kind dots, the cycle number, and the week count.
+  Cycle is numbered across all phases by start date. Owner to confirm.
+- **#148** (entry polish) squash-merged as `c1de0296`. All checks passed and
+  Devin found no issues. The deploy succeeded.
+  - The lead pushed the builder's main-merge `b2eb3684` before its typecheck
+    finished. It had a duplicate `tablePhaseToShow` (TS2393). The builder
+    fixed it in `1f521c3c` before merge. Lead mistake: run tsc before
+    pushing, never `;` the push after the checks.
+  - Owner to confirm, from `reports/entry-polish.md`:
+    - Cycle is numbered across all phases. `CONTEXT.md` currently lists
+      "cycle" as a word to avoid.
+    - Pounds has no select-on-focus.
+    - A carried value saves in one tap.
+    - Excluded weigh-ins never seed Pounds.
+    - Signed colors show direction (blue down, red up), with a scale per
+      column.
+
+## Owner ask: edit the sheet itself (November 9, night)
+
+Owner's words, condensed: they want to change any number in the Weeks area
+like a spreadsheet, tapping a cell to type. Today gets a red outline. The
+Weigh-in section at the top "feels kind of pointless and not contextual". They
+also want to edit lb/wk and the target for any week, and changing one moves
+the other.
+
+Delegated to agent `sheet-editing` (branch `weight-log-sheet-editing`,
+report `reports/sheet-editing.md`). The lead's calls, each Owner to confirm:
+
+- **Layout.** The Weigh-in section and the Plan section's Weekly rate form
+  are removed. Length, Start a phase, and Set points stay.
+- **Editable cells.**
+  - Day cells save, replace, or delete a weigh-in.
+  - Target and lb/wk are both one `changeRate` edit, with rate = target
+    minus the previous week's target, so later targets in the phase shift
+    (decision 11).
+  - Original targets never change (decision 12).
+- **Interaction.** Return or blur saves, and Escape cancels. Clearing a day
+  cell deletes the weigh-in, with one level of Undo in a status line.
+- **Today.** Today's cell has a red outline. An empty today cell pre-fills
+  the last counted weigh-in. The table scrolls this week into view on load.
+- **Excluded.** The excluded flag stays read-only (decision 14).
+- **Other dates.** Dates outside every phase must stay reachable for
+  weigh-ins. The builder picks how.
+
+### #149 fix round, layout round, and merge (November 10)
+
+- **Fix round** (`f20110a4`, report section "Fix round"). Devin's two findings and the lead's two are all fixed:
+  - Every write in the Weeks table settles through `mutateAsync`.
+  - `bareRow` computes Change from the previous week's average.
+  - Undo of a delete goes through the new `restoreWeighIn`, which keeps the excluded flag and refuses with CONFLICT when the date has a weigh-in again.
+  - Targets and rates keep six decimals.
+- **Layout round** (`0befe40d`, report section "Layout round"). Owner's words, condensed: put Plan and Set points in the top nav beside Sign out; no back button; Weeks isn't collapsible because it is the main content; move the phase picker and Go to date into the top nav; no auto-scroll to the current week, "because the main way, pretty much exclusively, how we're going to be doing this is via the shortcut". Built as:
+  - Plan and Set points became pages, `/weight-log/edit/plan` and `/weight-log/edit/set-points`, at every width. The lead's brief allowed a popover from 640 px; the builder chose pages. Owner to confirm.
+  - The title copies the chart's barbell, which turns into an arrow only on hover.
+  - The picker and Go to date portal into the header.
+  - The column is 1024 px.
+  - Today keeps its outline, and nothing scrolls on load.
+- **Devin's re-review** found one issue: the nav icons were bold, and the site uses regular for navigation. The lead fixed it in `bc794afb`.
+- **Merged** as `57ffac86` on the owner's standing "no need to ask me for this session". The production deploy succeeded. All three pages answer 200 on www, and `/weight-log/edit/plan` serves the sign-in card, so the deploy has the new routes.
+- **Cleanup.**
+  - The `localhost:3000` preview is stopped.
+  - Neon branch `weight-log-owner-preview` is deleted.
+  - These worktrees are removed: `owner-preview`, `sheet-editing`, `entry-polish`, `slice4-health-mirror`.
+- **Near miss** (builder's report). Another cleanup removed the builder's id file from the shared scratchpad, so a `neonctl branches get` ran with an empty id and read the default (production) branch. It was a read only. Lesson for future briefs: keep each agent's Neon ids in its own scratchpad file, and refuse an empty id before any neonctl call.
+
+## Slice 5: Log Weight Shortcut (November 10, owner said "Yes, recommended")
+
+The owner accepted every recommendation in `reports/shortcut-api-research.md`:
+
+- a separate entry token that can write only today's or yesterday's weigh-in and never deletes
+- Replace or Cancel when the date already has a weigh-in
+- the week card as a notification
+- no sparkline
+- no Health write
+- a hand-built recipe
+
+Builder `quick-entry`, PR #150, report `reports/slice-5.md`. The apple-health runbook commit `05b0b8b` is local.
+
+- **Deep review.**
+  - Codex (scratchpad `codex-slice5-review.md`) found one medium and two lows: the date window followed the server's UTC date, not the phone's today and yesterday; Next's implicit OPTIONS answered 204 with no auth and no cache header; and the guard test sent only empty input.
+  - The fresh Claude reviewer (`reports/slice-5-claude-review.md`) found one medium and six lows:
+    - the card rounds averages differently from the editor (off by 0.1 lb in about 12% of two-weigh-in weeks)
+    - a replaced excluded day isn't mentioned
+    - card failures answer a bare 500
+    - font tracing on Vercel
+    - nothing stops the two tokens from being equal
+    - Shortcut save failures never reach `reportServerError`
+    - wording
+- **Lead's call on the window, Owner to confirm.** Accept a date that is today or yesterday in some real time zone, UTC−12 through UTC+14. The owner travels, and the Shortcut sends the phone's date. A Pacific-only window would refuse a morning weigh-in in Europe.
+- **Fix round** given to a fresh fixer, `slice5-fix`, with every finding above, starting with a merge of `origin/main` after #149.
+- **Fix round result** (`d99f7476`, report section "Review fix round"). All ten findings are fixed, each with a test that failed on the old code. The changes:
+  - `shortcutWindow` covers UTC−12 yesterday through UTC+14 today.
+  - Every route, the mirror included, answers OPTIONS with a 405 and the no-store headers.
+  - The guard test runs Next's auto-implemented methods with both empty and valid input.
+  - `format.ts` is shared by the editor, card, and notification.
+  - Excluded days are named in the question and summary.
+  - The card returns a JSON 500 on a failed load or build.
+  - The week-card route has `outputFileTracingIncludes` for the Georgia Pro fonts.
+  - `env.js` refuses equal tokens.
+  - `logFailure` reports through `reportServerErrorAfterResponse` with a message carrying no data.
+  - The request types are renamed away from "entry".
+  - The runbook's step 9 has a fallback (apple-health `07b2e4b`, local).
+
+  `heavy -- pnpm verify` passed on the merged head with 6,634 tests.
+- **Devin.** The first pass at 09:32 found no issues. Two `/devin review` requests on the fix round (10:37 and 11:19) each posted "Starting Devin Review." and then nothing for 40 and 12 minutes. On #149 a re-review answered in 2 minutes. The lead merged without that re-review, because Codex and a fresh Claude had both reviewed the slice and their findings were all fixed with tests. If Devin posts later, answer it in a follow-up.
+- **Merged** as `1c88cd27` on the owner's standing merge authorization.
+- **Open from the fix round, each Owner to confirm.**
+  - The any-zone window (decision 38) can accept four dates at once.
+  - OPTIONS answers 405, and that now includes the mirror.
+  - The excluded-day wording.
+  - The after-response error reporter.
+- **Unverified until the owner's first run.**
+  - Font tracing on Vercel.
+  - The three device-only recipe steps: the JSON field types, attaching the image to Show Notification, and the decimal key.
+- **Out of slice.** `/api/og/section` fetches its fonts over HTTP at runtime, because it has no tracing include. It needs a one-line follow-up.
