@@ -61,6 +61,12 @@ export const env = createEnv({
      * A plain string, so a malformed value refuses sign-in instead of
      * failing the production build. */
     OWNER_EMAIL: z.string().optional(),
+    /** The bearer token the owner's Apple Health Shortcuts send to
+     * `/api/weight-log/mirror`, and nothing else. Set in Vercel Production
+     * and pasted into the Shortcuts. Without it the route refuses every
+     * request. At least 32 characters, so a short or mistyped value fails
+     * the build instead of guarding the route weakly. */
+    WEIGHT_LOG_MIRROR_TOKEN: z.string().min(32).optional(),
   },
 
   /**
@@ -105,6 +111,7 @@ export const env = createEnv({
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     OWNER_EMAIL: process.env.OWNER_EMAIL,
+    WEIGHT_LOG_MIRROR_TOKEN: process.env.WEIGHT_LOG_MIRROR_TOKEN,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
