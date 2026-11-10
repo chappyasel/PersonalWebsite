@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WeekTableRow } from "~/lib/weight-log/week-table";
 
-import { WeightLogEditor } from "./WeightLogEditor";
+import { WeightLogEditor, tablePhaseToShow } from "./WeightLogEditor";
 
 // Invented numbers. None of them is the owner's.
 
@@ -385,5 +385,22 @@ describe("a date no phase holds", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(mocks.calls.at(-1)!.input).toEqual({ date: "2029-12-04" });
+  });
+});
+
+describe("the phase the weekly table shows", () => {
+  const phases = [{ id: "4" }, { id: "5" }];
+
+  it("keeps a picked phase while it exists", () => {
+    expect(tablePhaseToShow("4", phases, "5")).toBe("4");
+  });
+
+  it("falls back to the current phase when the picked one was replaced", () => {
+    expect(tablePhaseToShow("3", phases, "5")).toBe("5");
+  });
+
+  it("shows the current phase when nothing is picked", () => {
+    expect(tablePhaseToShow(null, phases, "5")).toBe("5");
+    expect(tablePhaseToShow(null, [], null)).toBeNull();
   });
 });

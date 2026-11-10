@@ -114,6 +114,19 @@ const FILLED =
   "bg-[color:var(--wl-fill)] text-[color:var(--wl-ink)] dark:bg-[color:var(--wl-fill-dark)] dark:text-[color:var(--wl-ink-dark)]";
 
 /** A difference to one decimal, with its sign. Zero has none. */
+/**
+ * The phase the weekly table shows: the one picked in Weeks while it still
+ * exists, otherwise the current one. Starting a phase on the current phase's
+ * own Monday deletes it, and a pick left pointing at it would fail to load.
+ */
+export function tablePhaseToShow(
+  chosenId: string | null,
+  phases: readonly { id: string }[],
+  currentId: string | null,
+) {
+  return phases.some((phase) => phase.id === chosenId) ? chosenId : currentId;
+}
+
 function signed(value: number | null) {
   if (value === null) return "—";
   const rounded = Math.round(value * 10) / 10;
@@ -233,7 +246,11 @@ function Editor() {
   const phasesQuery = api.weightLog.phases.useQuery();
   const phases = phasesQuery.data?.phases ?? [];
   const week = weekStartOf(date);
-  const shownPhaseId = tablePhaseId ?? phasesQuery.data?.currentId ?? null;
+  const shownPhaseId = tablePhaseToShow(
+    tablePhaseId,
+    phases,
+    phasesQuery.data?.currentId ?? null,
+  );
   // The grid reads its calendar week whatever phase holds it, so a weigh-in
   // dated before the first phase still shows and can be deleted.
   const gridQuery = api.weightLog.week.useQuery({ week });

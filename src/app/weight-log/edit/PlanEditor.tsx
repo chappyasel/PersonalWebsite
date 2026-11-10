@@ -135,7 +135,11 @@ function Field({
 
 function Status({ children }: { children: ReactNode }) {
   return (
-    <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+    <p
+      role="status"
+      aria-live="polite"
+      className="text-xs text-muted-foreground"
+    >
       {children}
     </p>
   );
@@ -239,7 +243,7 @@ export function PlanEditor({ today }: { today: string }) {
     );
   } else {
     body = (
-      <div className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-700 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+      <div className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-700 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0 [&>*]:py-4">
         {runningPlan}
         <StartForm
           current={current ?? null}
@@ -448,11 +452,7 @@ function EndForm({
   }
 
   return (
-    <form
-      onSubmit={submit}
-      aria-label="Length"
-      className="flex flex-col gap-2"
-    >
+    <form onSubmit={submit} aria-label="Length" className="flex flex-col gap-2">
       <h3 className="text-sm font-medium">Length</h3>
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Weeks" className="w-24">
@@ -668,9 +668,7 @@ function StartForm({
             required
             value={targetText}
             className="tabular-nums"
-            onChange={(event) =>
-              edit(() => setTargetText(event.target.value))
-            }
+            onChange={(event) => edit(() => setTargetText(event.target.value))}
           />
         </Field>
         <Field label="lb/wk">
@@ -751,9 +749,10 @@ export function SetPointsEditor() {
   const mutation = api.weightLog.saveSetPoints.useMutation();
   // A draft remembers the list it started from. The save sends it, and the
   // server refuses if another tab saved a different list since.
-  const [draft, setDraft] = useState<{ base: number[]; texts: string[] } | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<{
+    base: number[];
+    texts: string[];
+  } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   const saved = query.data ?? [];
@@ -861,7 +860,10 @@ export function SetPointsEditor() {
               <PlusIcon aria-hidden />
               Add
             </Button>
-            <Button type="submit" disabled={!valid || !changed || mutation.isPending}>
+            <Button
+              type="submit"
+              disabled={!valid || !changed || mutation.isPending}
+            >
               Save set points
             </Button>
             {draft !== null ? (

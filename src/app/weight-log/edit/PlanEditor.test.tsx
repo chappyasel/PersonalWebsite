@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { TRPCClientError } from "@trpc/client";
 import {
   cleanup,
   fireEvent,
@@ -7,6 +6,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { TRPCClientError } from "@trpc/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WeekTableRow } from "~/lib/weight-log/week-table";
@@ -167,7 +167,9 @@ describe("weekly rate", () => {
   it("opens on this week's rate and says how far later targets move", () => {
     render(<PlanEditor today="2030-02-06" />);
     expect(screen.getByText("Bulk Jan '30 - Feb '30")).toBeTruthy();
-    expect(screen.getByText("4 weeks, ending Sunday, Feb 24, 2030")).toBeTruthy();
+    expect(
+      screen.getByText("4 weeks, ending Sunday, Feb 24, 2030"),
+    ).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "Week" }).textContent).toBe(
       "Feb 4, 2030",
     );
@@ -225,7 +227,9 @@ describe("weekly rate", () => {
   it("refetches the plan when the server says it changed", () => {
     mocks.changeRate.mockImplementation((_input, options: Options) =>
       options.onError?.(
-        conflict("The plan changed since this page loaded it. Check it and try again."),
+        conflict(
+          "The plan changed since this page loaded it. Check it and try again.",
+        ),
       ),
     );
     render(<PlanEditor today="2030-02-06" />);
@@ -317,7 +321,9 @@ describe("start a phase", () => {
     type("lb/wk", "-0.5", START);
     type("Weeks", "8", START);
     expect(
-      screen.getByText("Maintain Feb '30 - Apr '30, ending Sunday, Apr 7, 2030."),
+      screen.getByText(
+        "Maintain Feb '30 - Apr '30, ending Sunday, Apr 7, 2030.",
+      ),
     ).toBeTruthy();
 
     fireEvent.click(button("Start"));
