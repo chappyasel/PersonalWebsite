@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   rows: [] as WeekTableRow[],
   /** Weeks no phase holds. Only the calendar-week query returns them. */
   unphased: [] as WeekTableRow[],
+  /** The latest counted weigh-in ahead of any week the grid asks for. */
+  before: null as { date: string; pounds: number } | null,
   upsert: vi.fn(),
   calls: [] as Call[],
 }));
@@ -81,8 +83,16 @@ vi.mock("~/trpc/react", () => {
                 {
                   id: "1",
                   label: "Bulk Jan '30 - Feb '30",
+                  kind: "bulk",
                   start: "2030-01-07",
                   end: "2030-02-03",
+                },
+                {
+                  id: "0",
+                  label: "Cut Nov '29 - Jan '30",
+                  kind: "cut",
+                  start: "2029-11-05",
+                  end: "2030-01-06",
                 },
               ],
             },
@@ -115,6 +125,7 @@ vi.mock("~/trpc/react", () => {
                 week,
                 weights: found?.weights ?? empty,
                 excludedDays: found?.excludedDays ?? [],
+                before: mocks.before,
               },
               isPending: false,
               isError: false,
@@ -157,6 +168,7 @@ beforeEach(() => {
 afterEach(() => {
   mocks.calls = [];
   mocks.unphased = [];
+  mocks.before = null;
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -175,7 +187,9 @@ describe("today", () => {
     });
     expect(dateInput().value).toBe("2030-01-09");
     expect(dateInput().max).toBe("2030-01-09");
-    expect(poundsInput().value).toBe("");
+    // Tuesday's weigh-in, carried to the new day and not saved.
+    expect(poundsInput().value).toBe("100.4");
+    expect(screen.getByText("Today")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Save" })).toBeTruthy();
   });
 
@@ -230,6 +244,107 @@ describe("today", () => {
   });
 });
 
+describe("the date field", () => {
+  it("shows the date as words over the native picker", () => {
+    render(<WeightLogEditor />);
+    expect(dateInput().type).toBe("date");
+    expect(screen.getByText("Today")).toBeTruthy();
+
+    fireEvent.change(dateInput(), { target: { value: "2030-01-07" } });
+    expect(screen.getByText("Yesterday")).toBeTruthy();
+    expect(screen.queryByText("Today")).toBeNull();
+  });
+
+  it("shows an older date short", () => {
+    vi.setSystemTime(at(15, 7));
+    render(<WeightLogEditor />);
+    fireEvent.change(dateInput(), { target: { value: "2030-01-07" } });
+    expect(screen.getByText("Mon, Jan 7")).toBeTruthy();
+  });
+});
+
+/** The muted text class itself, not the input's placeholder variant. */
+const MUTED = /(^|\s)text-muted-foreground(\s|$)/;
+
+describe("a date with no weigh-in", () => {
+  it("starts from the latest weigh-in before it, unsaved, with Save ready", () => {
+    vi.setSystemTime(at(9, 7));
+    render(<WeightLogEditor />);
+    const field = poundsInput();
+    expect(field.value).toBe("100.4");
+    // Muted, like a value the owner hasn't entered yet.
+    expect(field.className).toMatch(MUTED);
+    expect(
+      screen.getByText("Filled in from yesterday. Not saved yet."),
+    ).toBeTruthy();
+    // Nothing went to the server just by opening the form.
+    expect(mocks.calls).toEqual([]);
+
+    const save = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Save",
+    });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      { date: "2030-01-09", pounds: 100.4 },
+      expect.anything(),
+    );
+  });
+
+  it("takes a nudge as a typed draft", () => {
+    vi.setSystemTime(at(9, 7));
+    render(<WeightLogEditor />);
+    fireEvent.change(poundsInput(), { target: { value: "100.2" } });
+    expect(poundsInput().value).toBe("100.2");
+    expect(poundsInput().className).not.toMatch(MUTED);
+    expect(screen.queryByText(/Not saved yet/)).toBeNull();
+  });
+
+  it("looks before the week when the week has nothing earlier", () => {
+    mocks.before = { date: "2030-01-03", pounds: 98.6 };
+    vi.setSystemTime(at(15, 7));
+    render(<WeightLogEditor />);
+    expect(poundsInput().value).toBe("98.6");
+    expect(
+      screen.getByText("Filled in from Thu, Jan 3. Not saved yet."),
+    ).toBeTruthy();
+  });
+
+  it("stays empty with no weigh-in before it", () => {
+    vi.setSystemTime(at(15, 7));
+    render(<WeightLogEditor />);
+    expect(poundsInput().value).toBe("");
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: "Save" }).disabled,
+    ).toBe(true);
+  });
+});
+
+describe("the save button", () => {
+  it("is a check mark with a name and no visible text", () => {
+    vi.setSystemTime(at(9, 7));
+    render(<WeightLogEditor />);
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save.textContent).toBe("");
+    expect(save.querySelector("svg")).not.toBeNull();
+    expect(save.getAttribute("title")).toBeNull();
+  });
+});
+
+describe("the phase picker", () => {
+  it("shows the picked phase with its color, cycle, and weeks", () => {
+    render(<WeightLogEditor />);
+    const trigger = screen.getByRole("combobox", { name: "Phase" });
+    // The bulk started second, so it is Cycle 2. Jan 7 to Feb 3 is 4 weeks.
+    expect(trigger.textContent).toContain("Bulk Jan '30 - Feb '30");
+    expect(trigger.textContent).toContain("Cycle 2 · 4 wk");
+    const dot = trigger.querySelector<HTMLElement>(
+      "[aria-hidden].rounded-full",
+    );
+    expect(dot?.style.background).toBe("rgb(220, 38, 38)");
+  });
+});
+
 describe("replacing a weigh-in", () => {
   it("says Replace and shows the value it replaces", () => {
     vi.setSystemTime(at(7, 21));
@@ -263,8 +378,11 @@ describe("replacing a weigh-in", () => {
 describe("weekly table", () => {
   it("shows the seven days before the summary and fills them from the scales", () => {
     mocks.rows = [
-      row("2030-01-07", [100, 140, 102, 104, null, null, null], 100, [1]),
-      row("2030-01-14", empty, 101),
+      {
+        ...row("2030-01-07", [100, 140, 102, 104, null, null, null], 100, [1]),
+        gapToTarget: 1,
+      },
+      { ...row("2030-01-14", empty, 101), gapToTarget: -0.5 },
     ];
     render(<WeightLogEditor />);
     const table = screen.getByRole("table");
@@ -272,6 +390,7 @@ describe("weekly table", () => {
       (cell) => cell.textContent,
     );
     expect(headers).toEqual([
+      "#Week number",
       "Week",
       "Mon",
       "Tue",
@@ -288,9 +407,15 @@ describe("weekly table", () => {
       "Orig",
       "Gap",
     ]);
-    const cells = [...table.querySelectorAll("tbody tr")][0]!.querySelectorAll(
-      "td",
-    );
+    const [number, ...cells] = [
+      ...[...table.querySelectorAll("tbody tr")][0]!.querySelectorAll("td"),
+    ];
+    // The phase's first week is week 0, the next week 1.
+    expect(number!.textContent).toBe("0");
+    expect(
+      [...table.querySelectorAll("tbody tr")][1]!.querySelector("td")!
+        .textContent,
+    ).toBe("1");
     const fill = (cell: Element) =>
       (cell as HTMLElement).style.getPropertyValue("--wl-fill") || null;
     // Lowest counted weigh-in is white, highest green; the excluded 140 has
@@ -304,9 +429,11 @@ describe("weekly table", () => {
     expect(cells[1]!.querySelector(".line-through")?.textContent).toContain(
       "140.0",
     );
-    // Target 100 is the low end of the shared scale; the gap columns stay plain.
+    // Target 100 is the low end of the shared scale. The gap is colored
+    // around zero, and a column with nothing in it stays plain.
     expect(fill(cells[9]!)).toBe("#5a8ac6");
-    expect(fill(cells[10]!)).toBeNull();
+    expect(fill(cells[10]!)).toBe("#f8696b");
+    expect(fill(cells[8]!)).toBeNull();
   });
 });
 
