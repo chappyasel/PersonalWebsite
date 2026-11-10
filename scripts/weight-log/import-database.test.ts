@@ -1,3 +1,4 @@
+import { PLAN_LOCK } from "../../src/lib/weight-log/plan-edits";
 import { drizzle } from "drizzle-orm/pg-proxy";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,6 +39,7 @@ const plan: ImportPlan = {
 };
 
 let queries: string[] = [];
+let params: unknown[][] = [];
 let configs: unknown[] = [];
 
 /**
@@ -45,8 +47,9 @@ let configs: unknown[] = [];
  * transactions, so the fake runs the callback on the recorder and keeps the
  * transaction's settings. The tables already hold the workbook's one row.
  */
-const recorder = drizzle(async (sql, _params, method) => {
+const recorder = drizzle(async (sql, values, method) => {
   queries.push(sql);
+  params.push(values);
   if (method === "execute") return { rows: [{ rows: 1 }] };
   if (sql.startsWith('select "date", "pounds" from "weight_log_weigh_ins"'))
     return { rows: [["2030-01-07", 100]] };
@@ -62,6 +65,7 @@ const db = {
 
 beforeEach(() => {
   queries = [];
+  params = [];
   configs = [];
   vi.spyOn(console, "log").mockImplementation(() => undefined);
 });
@@ -79,9 +83,18 @@ describe("writeImport", () => {
     const lock = position(
       /^lock table weight_log_weigh_ins in exclusive mode$/i,
     );
-    expect(lock).toBe(0);
+    expect(lock).toBe(1);
     expect(lock).toBeLessThan(position(/from "weight_log_weigh_ins"/));
     expect(lock).toBeLessThan(position(/^delete from "weight_log_weigh_ins"/));
+  });
+
+  it("waits for plan edits before it locks any table", async () => {
+    await writeImport(db, plan, options);
+    // A phase start holds the plan lock, then locks phase and week rows. An
+    // import that locked first and took the plan lock second could deadlock
+    // with it, so the plan lock comes first.
+    expect(position(/^select pg_advisory_xact_lock\(\$1\)$/i)).toBe(0);
+    expect(params[0]).toEqual([PLAN_LOCK]);
   });
 
   it("dry-runs in a read-only transaction, which takes no write lock", async () => {
@@ -90,6 +103,7 @@ describe("writeImport", () => {
     ).resolves.toBe(true);
     expect(configs).toEqual([{ accessMode: "read only" }]);
     expect(position(/^lock table/i)).toBe(-1);
+    expect(position(/advisory/i)).toBe(-1);
     expect(position(/^(insert|delete|update)/)).toBe(-1);
   });
 });

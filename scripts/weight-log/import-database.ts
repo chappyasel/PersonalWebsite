@@ -1,3 +1,4 @@
+import { PLAN_LOCK } from "../../src/lib/weight-log/plan-edits";
 import {
   weightLogBodyFatRecollections,
   weightLogPhases,
@@ -94,6 +95,11 @@ export async function writeImport(
     });
 
   return db.transaction(async (tx) => {
+    // Plan and set point edits from /weight-log/edit take this lock first and
+    // then lock phase and planned-week rows. Taking it here before any table
+    // lock makes the import wait for an edit in progress, and an edit wait
+    // for the import, so neither holds rows the other needs (a deadlock).
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${PLAN_LOCK})`);
     // The site-entry check below reads the weigh-ins and --replace then
     // deletes them. EXCLUSIVE mode makes a save from /weight-log/edit wait
     // until this transaction ends, so none can land in between and be lost.

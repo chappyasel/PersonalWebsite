@@ -5,12 +5,13 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WeekTableRow } from "~/lib/weight-log/week-table";
 
-import { WeightLogEditor } from "./WeightLogEditor";
+import { WeightLogEditor, tablePhaseToShow } from "./WeightLogEditor";
 
 // Invented numbers. None of them is the owner's.
 
@@ -64,8 +65,10 @@ vi.mock("~/trpc/react", () => {
     api: {
       useUtils: () => ({
         weightLog: {
+          phases: { invalidate: () => Promise.resolve() },
           week: { invalidate: () => Promise.resolve() },
           weekTable: { invalidate: () => Promise.resolve() },
+          setPoints: { invalidate: () => Promise.resolve() },
         },
       }),
       weightLog: {
@@ -73,6 +76,7 @@ vi.mock("~/trpc/react", () => {
           useQuery: () => ({
             data: {
               currentId: "1",
+              runningId: "1",
               phases: [
                 {
                   id: "1",
@@ -120,6 +124,14 @@ vi.mock("~/trpc/react", () => {
         },
         upsertWeighIn: { useMutation: mutation(mocks.upsert) },
         deleteWeighIn: { useMutation: mutation(vi.fn()) },
+        // The plan and set point forms have their own tests (PlanEditor.test.tsx).
+        changeRate: { useMutation: mutation(vi.fn()) },
+        moveEnd: { useMutation: mutation(vi.fn()) },
+        startPhase: { useMutation: mutation(vi.fn()) },
+        setPoints: {
+          useQuery: () => ({ data: [], isError: false, isFetching: false }),
+        },
+        saveSetPoints: { useMutation: mutation(vi.fn()) },
       },
     },
   };
@@ -334,10 +346,11 @@ describe("a request that settles after the owner moved on", () => {
     ];
     await settle(mocks.calls[0]!, { date: "2030-01-09", pounds: 99.8 });
     expect(poundsInput().value).toBe("99.8");
-    expect(screen.getByRole("button", { name: "Replace" })).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toBe(
-      "Saved 99.8 lb for Jan 9.",
-    );
+    const replace = screen.getByRole("button", { name: "Replace" });
+    // The Plan section below has a status line of its own.
+    expect(
+      within(replace.closest("form")!).getByRole("status").textContent,
+    ).toBe("Saved 99.8 lb for Jan 9.");
   });
 
   it("keeps the next date's draft and open confirmation when a delete lands", async () => {
@@ -372,5 +385,22 @@ describe("a date no phase holds", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(mocks.calls.at(-1)!.input).toEqual({ date: "2029-12-04" });
+  });
+});
+
+describe("the phase the weekly table shows", () => {
+  const phases = [{ id: "4" }, { id: "5" }];
+
+  it("keeps a picked phase while it exists", () => {
+    expect(tablePhaseToShow("4", phases, "5")).toBe("4");
+  });
+
+  it("falls back to the current phase when the picked one was replaced", () => {
+    expect(tablePhaseToShow("3", phases, "5")).toBe("5");
+  });
+
+  it("shows the current phase when nothing is picked", () => {
+    expect(tablePhaseToShow(null, phases, "5")).toBe("5");
+    expect(tablePhaseToShow(null, [], null)).toBeNull();
   });
 });
