@@ -6,7 +6,6 @@ import {
   TargetIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { TRPCClientError } from "@trpc/client";
 import { type FormEvent, type ReactNode, useState } from "react";
 
 import {
@@ -36,6 +35,8 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
+
+import { failure, isConflict } from "./refusal";
 
 type Phase = RouterOutputs["weightLog"]["phases"]["phases"][number];
 
@@ -92,28 +93,6 @@ const validWeeks = (value: number | null): value is number =>
   value >= 1 &&
   value <= MAX_PLAN_WEEKS;
 
-/**
- * The server's own refusal, such as a week with weigh-ins in the way, or a
- * plain fallback. Refusals name dates, never weights.
- */
-function failure(error: unknown, fallback: string) {
-  if (
-    error instanceof TRPCClientError &&
-    !(error.data as { zodError?: unknown } | undefined)?.zodError &&
-    ["BAD_REQUEST", "NOT_FOUND", "CONFLICT"].includes(
-      (error.data as { code?: string } | undefined)?.code ?? "",
-    )
-  ) {
-    return error.message;
-  }
-  return fallback;
-}
-
-/** The server refused an edit made from a plan or list that has changed since. */
-const isConflict = (error: unknown) =>
-  error instanceof TRPCClientError &&
-  (error.data as { code?: string } | undefined)?.code === "CONFLICT";
-
 function Field({
   label,
   className,
@@ -156,9 +135,10 @@ function useRefreshPlan() {
 }
 
 /**
- * The running phase's plan: its weekly rates and its end, and a form to
- * start the next phase (decisions 8 to 12). Every edit goes through
- * `api.weightLog.*`; the server checks the rules again.
+ * The running phase's plan: its length, and a form to start the next phase
+ * (decisions 8 to 12). A week's target and lb/wk change in the Weeks table.
+ * Every edit goes through `api.weightLog.*`; the server checks the rules
+ * again.
  */
 export function PlanEditor({ today }: { today: string }) {
   const phasesQuery = api.weightLog.phases.useQuery();
@@ -197,7 +177,7 @@ export function PlanEditor({ today }: { today: string }) {
       </div>
     );
   } else if (running && weeksQuery.data && planned.length) {
-    const { phaseId, revision } = weeksQuery.data;
+    const { revision } = weeksQuery.data;
     runningPlan = (
       <>
         <div>
@@ -207,13 +187,6 @@ export function PlanEditor({ today }: { today: string }) {
             {longDay(running.end)}
           </p>
         </div>
-        <RateForm
-          key={`rate-${running.id}`}
-          phaseId={phaseId}
-          revision={revision}
-          rows={planned}
-          today={today}
-        />
         <EndForm
           key={`end-${running.id}`}
           phase={running}
@@ -261,135 +234,6 @@ export function PlanEditor({ today }: { today: string }) {
     >
       {body}
     </CollapsibleSection>
-  );
-}
-
-/**
- * Change one week's lb/wk (decision 11). The form shows how far every later
- * target moves before the owner saves.
- */
-function RateForm({
-  phaseId,
-  revision,
-  rows,
-  today,
-}: {
-  phaseId: string;
-  revision: string;
-  rows: WeekTableRow[];
-  today: string;
-}) {
-  const editable = rows.filter((row) => row.poundsPerWeek !== null);
-  const thisWeek = weekStartOf(today);
-  const [chosen, setChosen] = useState<string | null>(null);
-  // The rows change after a length edit or another tab's. The chosen week
-  // can go, or a one-week plan can gain its first week with a rate, so the
-  // form falls back to this week, or the last one, whenever its own is gone.
-  const row =
-    editable.find((item) => item.week === chosen) ??
-    editable.find((item) => item.week >= thisWeek) ??
-    editable.at(-1);
-  const [draft, setDraft] = useState<{ week: string; text: string } | null>(
-    null,
-  );
-  const [status, setStatus] = useState<string | null>(null);
-  const refresh = useRefreshPlan();
-  const mutation = api.weightLog.changeRate.useMutation();
-
-  // A rate typed for a week that has gone is not a rate for the fallback.
-  if (draft !== null && draft.week !== row?.week) setDraft(null);
-  if (!row) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        The plan has no week after its first, so there is no lb/wk to change.
-      </p>
-    );
-  }
-  const week = row.week;
-  const currentRate = row.poundsPerWeek!;
-  const value = draft?.week === week ? draft.text : currentRate.toFixed(2);
-  const entered = parse(value);
-  const moveBy = validRate(entered) ? entered - currentRate : null;
-  const changed = moveBy !== null && Math.round(moveBy * 100) !== 0;
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!changed || !validRate(entered) || mutation.isPending) return;
-    mutation.mutate(
-      { phaseId, weekStart: week, poundsPerWeek: entered, revision },
-      {
-        onSuccess: () =>
-          void refresh().then(() => {
-            setDraft(null);
-            setStatus(
-              `Set ${shortDay(week)} to ${signed(entered)} lb/wk. Targets from that week on moved ${signed(moveBy)} lb.`,
-            );
-          }),
-        onError: (error) => {
-          if (isConflict(error)) void refresh();
-          setStatus(failure(error, "The rate didn't save. Try again."));
-        },
-      },
-    );
-  };
-
-  return (
-    <form
-      onSubmit={submit}
-      aria-label="Weekly rate"
-      className="flex flex-col gap-2"
-    >
-      <h3 className="text-sm font-medium">Weekly rate</h3>
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="Week" className="flex-1 basis-40">
-          <Select
-            value={week}
-            onValueChange={(next) => {
-              setChosen(next);
-              setDraft(null);
-              setStatus(null);
-            }}
-          >
-            <SelectTrigger aria-label="Week" className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="ph-no-capture ph-mask font-sans">
-              {editable.map((item) => (
-                <SelectItem key={item.week} value={item.week}>
-                  {shortDay(item.week)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="lb/wk" className="w-24">
-          <Input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min={-MAX_POUNDS_PER_WEEK}
-            max={MAX_POUNDS_PER_WEEK}
-            value={value}
-            className="tabular-nums"
-            onChange={(event) => {
-              setDraft({ week, text: event.target.value });
-              setStatus(null);
-            }}
-          />
-        </Field>
-        <Button type="submit" disabled={!changed || mutation.isPending}>
-          Save rate
-        </Button>
-      </div>
-      <Status>
-        {status ??
-          (changed
-            ? `Targets from ${shortDay(week)} on move ${signed(moveBy)} lb.`
-            : entered !== null && !validRate(entered)
-              ? `Keep the rate within ${MAX_POUNDS_PER_WEEK} lb/wk either way.`
-              : null)}
-      </Status>
-    </form>
   );
 }
 

@@ -47,7 +47,6 @@ const mocks = vi.hoisted(() => ({
   /** The running phase's weeks are refetching, as right after a start. */
   weeksLoading: false,
   setPoints: [] as number[],
-  changeRate: vi.fn(),
   moveEnd: vi.fn(),
   startPhase: vi.fn(),
   saveSetPoints: vi.fn(),
@@ -113,7 +112,6 @@ vi.mock("~/trpc/react", () => {
             isFetching: false,
           }),
         },
-        changeRate: { useMutation: mutation(mocks.changeRate) },
         moveEnd: { useMutation: mutation(mocks.moveEnd) },
         startPhase: { useMutation: mutation(mocks.startPhase) },
         saveSetPoints: { useMutation: mutation(mocks.saveSetPoints) },
@@ -137,7 +135,6 @@ const conflict = (message: string) =>
     result: { error: { data: { code: "CONFLICT" } } },
   } as never);
 
-const RATE = "Weekly rate";
 const LENGTH = "Length";
 const START = "Start a phase";
 
@@ -163,119 +160,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("weekly rate", () => {
-  it("opens on this week's rate and says how far later targets move", () => {
+describe("the plan section", () => {
+  it("has no weekly rate form, since the Weeks table edits lb/wk", () => {
     render(<PlanEditor today="2030-02-06" />);
+    expect(screen.queryByRole("form", { name: "Weekly rate" })).toBeNull();
     expect(screen.getByText("Bulk Jan '30 - Feb '30")).toBeTruthy();
     expect(
       screen.getByText("4 weeks, ending Sunday, Feb 24, 2030"),
     ).toBeTruthy();
-    expect(screen.getByRole("combobox", { name: "Week" }).textContent).toBe(
-      "Feb 4, 2030",
-    );
-    expect(field("lb/wk", RATE).value).toBe("0.50");
-    expect(button("Save rate").disabled).toBe(true);
-
-    type("lb/wk", "0.25", RATE);
-    expect(
-      screen.getByText("Targets from Feb 4, 2030 on move −0.25 lb."),
-    ).toBeTruthy();
-    fireEvent.click(button("Save rate"));
-    expect(mocks.changeRate).toHaveBeenCalledWith(
-      {
-        phaseId: "2",
-        weekStart: "2030-02-04",
-        poundsPerWeek: 0.25,
-        revision: "rev-1",
-      },
-      expect.anything(),
-    );
-  });
-
-  it("shows the server's refusal", () => {
-    mocks.changeRate.mockImplementation((_input, options: Options) =>
-      options.onError?.(
-        new TRPCClientError("The week of Feb 4, 2030 has no target.", {
-          result: { error: { data: { code: "BAD_REQUEST" } } },
-        } as never),
-      ),
-    );
-    render(<PlanEditor today="2030-02-06" />);
-    type("lb/wk", "1", RATE);
-    fireEvent.click(button("Save rate"));
-    expect(
-      screen.getByText("The week of Feb 4, 2030 has no target."),
-    ).toBeTruthy();
-  });
-
-  it("does not show a validation dump from the server", () => {
-    mocks.changeRate.mockImplementation((_input, options: Options) =>
-      options.onError?.(
-        new TRPCClientError('[{"code":"too_big"}]', {
-          result: {
-            error: { data: { code: "BAD_REQUEST", zodError: { x: 1 } } },
-          },
-        } as never),
-      ),
-    );
-    render(<PlanEditor today="2030-02-06" />);
-    type("lb/wk", "1", RATE);
-    fireEvent.click(button("Save rate"));
-    expect(screen.getByText("The rate didn't save. Try again.")).toBeTruthy();
-  });
-
-  it("refetches the plan when the server says it changed", () => {
-    mocks.changeRate.mockImplementation((_input, options: Options) =>
-      options.onError?.(
-        conflict(
-          "The plan changed since this page loaded it. Check it and try again.",
-        ),
-      ),
-    );
-    render(<PlanEditor today="2030-02-06" />);
-    type("lb/wk", "1", RATE);
-    fireEvent.click(button("Save rate"));
-    expect(
-      screen.getByText(
-        "The plan changed since this page loaded it. Check it and try again.",
-      ),
-    ).toBeTruthy();
-    expect(mocks.invalidate).toHaveBeenCalled();
-  });
-
-  it("offers a week once a one-week plan grows", () => {
-    mocks.rows = [row("2030-01-28", 100, null)];
-    const { rerender } = render(<PlanEditor today="2030-02-06" />);
-    expect(screen.queryByRole("combobox", { name: "Week" })).toBeNull();
-
-    // The length form, or another tab, added two weeks.
-    mocks.rows = [
-      row("2030-01-28", 100, null),
-      row("2030-02-04", 100.5, 0.5),
-      row("2030-02-11", 101, 0.5),
-    ];
-    rerender(<PlanEditor today="2030-02-06" />);
-    expect(screen.getByRole("combobox", { name: "Week" }).textContent).toBe(
-      "Feb 4, 2030",
-    );
-    expect(field("lb/wk", RATE).value).toBe("0.50");
-  });
-
-  it("moves to a week that still exists when the plan shrinks past the chosen one", () => {
-    const { rerender } = render(<PlanEditor today="2030-02-20" />);
-    expect(screen.getByRole("combobox", { name: "Week" }).textContent).toBe(
-      "Feb 18, 2030",
-    );
-    type("lb/wk", "0.75", RATE);
-
-    mocks.rows = mocks.rows.slice(0, 3);
-    rerender(<PlanEditor today="2030-02-20" />);
-    expect(screen.getByRole("combobox", { name: "Week" }).textContent).toBe(
-      "Feb 11, 2030",
-    );
-    // The draft was for the week that went, so it goes too.
-    expect(field("lb/wk", RATE).value).toBe("0.50");
-    expect(button("Save rate").disabled).toBe(true);
   });
 });
 
