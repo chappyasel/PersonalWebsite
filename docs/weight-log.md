@@ -37,6 +37,30 @@ The data lives in Postgres, in seven `weight_log_` tables defined in `src/server
 
 The public chart is `force-dynamic` with no shared cache, so a saved weigh-in appears there on the next request. Strength at Bodyweight caches its analysis for five minutes (`src/server/queries/weightliftingPareto.ts`), so a new weigh-in reaches it within five minutes.
 
+## Entry from a Shortcut
+
+The owner's Log Weight Shortcut records the day's weigh-in from the iPhone without signing in, then shows the week as a notification. It is the one way to write owner data besides Google sign-in (plan decision 38), so its token can do very little. The Shortcut's recipe is the "Log Weight" section of `~/Desktop/Agents/apple-health/shortcut/RUNBOOK-iphone.md`.
+
+- `POST /api/weight-log/weigh-in` takes a JSON body such as `{ "date": "2030-01-08", "pounds": 150.2, "replace": false }`. The date is the phone's own. Pounds may be a number or a numeric string, and the server rounds them to one decimal place. Every expected outcome answers 200 with a `status`, so the Shortcut branches on a field rather than a status code. `saved` means the date had no weigh-in. `exists` means it has a different one and nothing was written; the answer carries `previous` and a `question` for the Replace prompt. `replaced` means `replace` was true and the pounds changed, with the `excluded` flag kept. `unchanged` means the date already had those pounds, so a retried request does nothing. Every 200 also carries `summary`, the notification line, such as "150.2 saved. Week avg 150.4 (3 of 7), target 150.0, 0.4 over. Last week 149.9." A bad body or a date outside the window answers 400, a failed save 500, and every other method 405.
+- `GET /api/weight-log/week-card?date=YYYY-MM-DD` answers a 1200 by 640 PNG of the week holding that date, with the date marked as today: Monday to Sunday colored as the weekly table colors them, then the average so far with its count of weigh-ins, the target, the gap to target, and the change from last week. A week past the plan says "No target this week". The card is always light, because a notification image does not follow dark mode.
+- Both routes answer only `Authorization: Bearer <WEIGHT_LOG_ENTRY_TOKEN>`, and both answer 503 to everything while the variable is unset, which it is everywhere but Vercel Production. The token is separate from the Health mirror's `WEIGHT_LOG_MIRROR_TOKEN`; never set them to the same value.
+- The token's scope is enforced on the server. It writes a weigh-in only for the server's UTC date or one day either side, which covers today and yesterday from the phone. After 4 or 5 PM in Pacific time UTC has moved on a day, and yesterday falls outside the window. It never deletes and has no route to phases, plans, or set points. The card answers only for a date in the same window. A leaked token can change at most three dates, each visible and fixable on `/weight-log/edit`.
+- Saves go through `saveWeighIn` in `src/lib/weight-log/weigh-ins.ts`, the same function the owner page's `weightLog.upsertWeighIn` calls with `replace: true`. It takes the shared plan lock, locks the date's row, and then inserts, updates, or does nothing.
+- Every answer, refusals included, sends `Cache-Control: private, no-store, max-age=0`, `X-Robots-Tag: noindex, nofollow, noarchive`, and `X-Content-Type-Options: nosniff`. The token travels only in the header, never the URL. A failed save logs its step and the database's error code, never the body or the row.
+- `src/app/api/weight-log/routes.guard.test.ts` lists every route under `src/app/api/weight-log/` with the token it answers. Each exported method must refuse no token, a wrong one, and the other route's token before the database is touched. A new route there fails the test until it is listed.
+
+### Rotating the entry token
+
+Rotate it if the phone or the Shortcut file may have reached someone else. The Shortcut holds the token in a Text action, so anyone with the Shortcut file has it: never share Log Weight by iCloud link or AirDrop it to another person.
+
+1. On the Mac, run `openssl rand -hex 32` and keep the 64-character value in the password manager.
+2. Vercel > the PersonalWebsite project > Settings > Environment Variables > `WEIGHT_LOG_ENTRY_TOKEN` (Production) > Edit, and paste the new value.
+3. Redeploy Production. The old token stops working when the new deployment is live.
+4. On the iPhone, open Log Weight and paste the new value into the Text action that holds the token.
+5. Run Log Weight once and check that the notification shows the week.
+
+To turn entry off without a new token, delete the variable in Vercel and redeploy. Both routes then answer 503, and the Shortcut's notification shows "Weigh-in entry is not configured".
+
 ## Local workspace setup
 
 There is nothing to restore. A workspace reads whichever database its `DATABASE_URL` points to. The repository's `.env` points at production, so local development shows the real chart, and any write from a local script reaches production. Point `DATABASE_URL` at a Neon branch before trying the import or anything else that writes.
