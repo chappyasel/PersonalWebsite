@@ -110,7 +110,7 @@ export function EditorHeader({ view }: { view: EditorView }) {
                     aria-label={label}
                     aria-current={page === view ? "page" : undefined}
                   >
-                    <Icon aria-hidden weight="bold" className="h-5 w-5" />
+                    <Icon aria-hidden weight="regular" className="h-5 w-5" />
                     <span className="hidden sm:inline">{label}</span>
                   </Link>
                 </Button>
