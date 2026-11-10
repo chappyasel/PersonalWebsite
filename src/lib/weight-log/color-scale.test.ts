@@ -6,6 +6,7 @@ import {
   median,
   mix,
   rgbToHex,
+  signedScale,
   targetScale,
   weekTableColors,
   weighInScale,
@@ -74,12 +75,43 @@ describe("targetScale", () => {
   });
 });
 
+describe("signedScale", () => {
+  // The largest distance from zero is 2, so -2 and +2 are the full ends.
+  const scale = signedScale([-2, -0.5, 0, 1]);
+
+  it("runs blue below zero, white at zero, and red above", () => {
+    expect(scale(-2)?.light.background).toBe("#5a8ac6");
+    expect(scale(0)?.light.background).toBe("#fcfcff");
+    expect(scale(2)?.light.background).toBe("#f8696b");
+    // Half of 2, halfway from white to red.
+    expect(scale(1)?.light.background).toBe("#fab3b5");
+  });
+
+  it("gives a drop and a rise of the same size the same strength", () => {
+    // -1 sits halfway to blue, as +1 sits halfway to red.
+    expect(scale(-1)?.light.background).toBe("#abc3e3");
+  });
+
+  it("passes through the dark card in dark mode", () => {
+    expect(scale(0)?.dark.background).toBe("#262626");
+    expect(scale(-2)?.dark.background).toBe("#5a8ac6");
+  });
+
+  it("keeps zero white when every value is zero, and colors nothing in an empty column", () => {
+    expect(signedScale([0, 0])(0)?.light.background).toBe("#fcfcff");
+    expect(signedScale([])(1)).toBeNull();
+  });
+});
+
 describe("text on fills", () => {
   it("keeps 4.5:1 contrast on every fill in both themes", () => {
     const values = Array.from({ length: 101 }, (_, index) => 100 + index / 10);
     const fills = [
       ...values.map(weighInScale(values)),
       ...values.map(targetScale(values)),
+      ...values.map((value) =>
+        signedScale(values.map((v) => v - 105))(value - 105),
+      ),
     ];
     for (const fill of fills) {
       for (const theme of [fill!.light, fill!.dark]) {
@@ -98,7 +130,17 @@ describe("weekTableColors", () => {
     target: number | null,
     originalTarget: number | null,
     excludedDays: number[] = [],
-  ) => ({ weights, excludedDays, average, target, originalTarget });
+  ) => ({
+    weights,
+    excludedDays,
+    average,
+    target,
+    originalTarget,
+    change: null,
+    gapToTarget: null,
+    poundsPerWeek: null,
+    gapToOriginalTarget: null,
+  });
   const empty = [null, null, null, null, null];
 
   it("colors days over the phase and leaves blanks and excluded days unfilled", () => {
@@ -123,5 +165,19 @@ describe("weekTableColors", () => {
     expect(colors[0]!.average?.light.background).toBe("#5a8ac6");
     expect(colors[0]!.originalTarget?.light.background).toBe("#f8696b");
     expect(colors[1]!.originalTarget).toBeNull();
+  });
+
+  it("colors each signed column on its own scale around zero", () => {
+    const blank = Array<number | null>(7).fill(null);
+    const colors = weekTableColors([
+      { ...row(blank, 100, 100, 100), change: -1, gapToTarget: 0.5 },
+      { ...row(blank, 99, 99.5, 100), change: 0.5, gapToTarget: -0.25 },
+    ]);
+    // Change reaches 1, so -1 is full blue and 0.5 is half red.
+    expect(colors[0]!.change?.light.background).toBe("#5a8ac6");
+    expect(colors[1]!.change?.light.background).toBe("#fab3b5");
+    // Gap reaches only 0.5, so its own 0.5 is full red.
+    expect(colors[0]!.gapToTarget?.light.background).toBe("#f8696b");
+    expect(colors[0]!.poundsPerWeek).toBeNull();
   });
 });
