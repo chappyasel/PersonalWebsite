@@ -24,6 +24,7 @@ import {
   planStartPhase,
 } from "~/lib/weight-log/plan-edits";
 import { buildWeightLog } from "~/lib/weight-log/records";
+import { MAX_WEIGH_IN } from "~/lib/weight-log/sheet";
 import { buildWeekTable, currentPhase } from "~/lib/weight-log/week-table";
 import { createTRPCRouter, ownerProcedure } from "~/server/api/trpc";
 import type { db as database } from "~/server/db";
@@ -61,7 +62,7 @@ const tenthsOfAPound = (max: number) =>
     .pipe(z.number().positive().max(max));
 
 /** A weigh-in, within the table's check. */
-const pounds = tenthsOfAPound(1500);
+const pounds = tenthsOfAPound(MAX_WEIGH_IN);
 
 const monday = z.iso.date().refine(isMonday, "Pick a Monday.");
 
