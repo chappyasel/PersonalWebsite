@@ -1,33 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import { pounds, signed } from "./format";
-import { saveSummary, shortDate, weekLine, weekSummary } from "./week-summary";
+import {
+  ownerToday,
+  saveSummary,
+  shortDate,
+  weekLine,
+  weekSummary,
+} from "./week-summary";
 import { HALF_TENTH_LOG, SYNTHETIC_LOG } from "./week-summary.fixture";
 
 const summaryOn = (date: string) => weekSummary(SYNTHETIC_LOG, date);
 
 describe("weekSummary", () => {
   it("averages one weigh-in as itself", () => {
-    const summary = summaryOn("2030-02-04");
-    expect(summary.counted).toBe(1);
-    expect(summary.average).toBeCloseTo(100.9);
+    expect(summaryOn("2030-02-04").average).toBeCloseTo(100.9);
   });
 
   it("averages two weigh-ins without trimming", () => {
-    const summary = summaryOn("2030-01-22");
-    expect(summary.counted).toBe(2);
-    expect(summary.average).toBeCloseTo(100.2);
+    expect(summaryOn("2030-01-22").average).toBeCloseTo(100.2);
   });
 
   it("drops the high and low from three or more, and leaves out an excluded day", () => {
-    const summary = summaryOn("2030-01-31");
-    expect(summary.counted).toBe(3);
     // 100.2, 100.6, and 100.8 count; 130 is excluded. The trim keeps 100.6.
-    expect(summary.average).toBeCloseTo(100.6);
-  });
-
-  it("reads last week's average across a phase boundary", () => {
-    expect(summaryOn("2030-01-22").lastWeek).toBeCloseTo(99.5);
+    expect(summaryOn("2030-01-31").average).toBeCloseTo(100.6);
   });
 
   it("has no target or gap past the plan's end", () => {
@@ -39,11 +35,9 @@ describe("weekSummary", () => {
 
   it("is empty for a week the log has no row for", () => {
     expect(summaryOn("2030-02-26")).toEqual({
-      counted: 0,
       average: null,
       target: null,
       gapToTarget: null,
-      lastWeek: 101.6,
     });
   });
 });
@@ -70,102 +64,132 @@ describe("a mean that ends in a hundredths 5", () => {
   });
 
   it("writes a line whose numbers agree", () => {
-    expect(weekLine(summary)).toContain(
-      "Week avg 150.3 (2 of 7), target 150.0, 0.3 over.",
-    );
+    expect(weekLine(summary)).toBe("Avg 150.3 · 0.3 over target");
   });
 });
 
 describe("weekLine", () => {
-  it("names the average, its count, the target, and how far off it is", () => {
+  it("names the average and how far it is from the target", () => {
     expect(weekLine(summaryOn("2030-01-22"))).toBe(
-      "Week avg 100.2 (2 of 7), target 100.0, 0.2 over. Last week 99.5.",
+      "Avg 100.2 · 0.2 over target",
     );
     expect(weekLine(summaryOn("2030-02-04"))).toBe(
-      "Week avg 100.9 (1 of 7), target 101.0, 0.1 under. Last week 100.6.",
+      "Avg 100.9 · 0.1 under target",
     );
   });
 
-  it("says when there is no target, no average, or no last week", () => {
-    expect(weekLine(summaryOn("2030-02-19"))).toBe(
-      "Week avg 101.6 (2 of 7), no target this week.",
-    );
-    expect(weekLine(summaryOn("2030-02-11"))).toBe(
-      "No weigh-ins count toward this week yet. Last week 100.9.",
-    );
-    expect(weekLine(summaryOn("2030-01-08"))).toBe(
-      "Week avg 101.2 (7 of 7), target 101.0, 0.2 over.",
-    );
+  it("is the average alone past the plan's end", () => {
+    expect(weekLine(summaryOn("2030-02-19"))).toBe("Avg 101.6");
   });
 
   it("reads on target when the gap rounds to zero", () => {
     const summary = { ...summaryOn("2030-01-22"), gapToTarget: 0.04 };
-    expect(weekLine(summary)).toContain(", on target.");
+    expect(weekLine(summary)).toBe("Avg 100.2 · on target");
+  });
+
+  it("is never empty", () => {
+    expect(weekLine(summaryOn("2030-02-11"))).toBe("No average yet");
+    expect(weekLine(summaryOn("2030-02-26"))).toBe("No average yet");
+    expect(weekLine(null)).toBe("Week unavailable");
   });
 });
 
 describe("saveSummary", () => {
   const week = summaryOn("2030-02-04");
-  const line =
-    "Week avg 100.9 (1 of 7), target 101.0, 0.1 under. Last week 100.6.";
+  const line = "Avg 100.9 · 0.1 under target";
   const sent = { date: "2030-02-04", pounds: 100.9 };
+  const today = "2030-02-04";
 
-  it("says what each outcome did, then the week", () => {
+  it("titles each outcome with its symbol, then gives the week", () => {
     expect(
       saveSummary(
         { ...sent, status: "saved", previous: null, excluded: false },
         week,
+        today,
       ),
-    ).toEqual({ summary: `100.9 saved. ${line}` });
+    ).toEqual({ title: "✓ 100.9", summary: line });
     expect(
       saveSummary(
         { ...sent, status: "replaced", previous: 101.4, excluded: false },
         week,
+        today,
       ),
-    ).toEqual({ summary: `100.9 saved, replacing 101.4. ${line}` });
+    ).toEqual({ title: "↻ 100.9, was 101.4", summary: line });
     expect(
       saveSummary(
         { ...sent, status: "unchanged", previous: 100.9, excluded: false },
         week,
+        today,
       ),
-    ).toEqual({ summary: `100.9 was already saved. ${line}` });
+    ).toEqual({ title: "= 100.9", summary: line });
   });
 
-  it("asks before replacing, and says what was kept", () => {
+  it("asks before replacing today's weigh-in", () => {
     expect(
       saveSummary(
         { ...sent, status: "exists", previous: 101.4, excluded: false },
         week,
+        today,
       ),
     ).toEqual({
-      summary: `Kept 101.4. ${line}`,
-      question: "Mon, Feb 4 already has 101.4. Replace it with 100.9?",
+      title: "Kept 101.4",
+      summary: line,
+      question: "Today has 101.4. Replace with 100.9?",
     });
   });
 
-  it("says when the date's weigh-in is left out of the weekly average", () => {
+  it("names the date when it is not today in the owner's time zone", () => {
+    const exists = {
+      ...sent,
+      status: "exists",
+      previous: 101.4,
+      excluded: false,
+    } as const;
+    expect(saveSummary(exists, week, "2030-02-05").question).toBe(
+      "Mon, Feb 4 has 101.4. Replace with 100.9?",
+    );
+    expect(saveSummary(exists, week, "2030-02-03").question).toBe(
+      "Mon, Feb 4 has 101.4. Replace with 100.9?",
+    );
+  });
+
+  it("marks a weigh-in left out of the weekly average", () => {
     const excluded = { ...sent, previous: 101.4, excluded: true };
-    expect(saveSummary({ ...excluded, status: "exists" }, week)).toEqual({
-      summary: `Kept 101.4, which is left out of the weekly average. ${line}`,
-      question:
-        "Mon, Feb 4 already has 101.4, which is left out of the weekly average. Replace it with 100.9? The new value stays left out.",
-    });
-    expect(saveSummary({ ...excluded, status: "replaced" }, week)).toEqual({
-      summary: `100.9 saved, replacing 101.4. It stays left out of the weekly average. ${line}`,
-    });
+    expect(saveSummary({ ...excluded, status: "exists" }, week, today)).toEqual(
+      {
+        title: "Kept 101.4 · excluded",
+        summary: line,
+        question:
+          "Today has 101.4, excluded. Replace with 100.9? It stays excluded.",
+      },
+    );
     expect(
-      saveSummary({ ...excluded, status: "unchanged", previous: 100.9 }, week),
-    ).toEqual({
-      summary: `100.9 was already saved. It is left out of the weekly average. ${line}`,
-    });
+      saveSummary({ ...excluded, status: "replaced" }, week, today),
+    ).toEqual({ title: "↻ 100.9, was 101.4 · excluded", summary: line });
+    expect(
+      saveSummary(
+        { ...excluded, status: "unchanged", previous: 100.9 },
+        week,
+        today,
+      ),
+    ).toEqual({ title: "= 100.9 · excluded", summary: line });
   });
 
-  it("leaves the week off when it could not be read", () => {
+  it("still titles the save when the week could not be read", () => {
     expect(
       saveSummary(
         { ...sent, status: "saved", previous: null, excluded: false },
         null,
+        today,
       ),
-    ).toEqual({ summary: "100.9 saved." });
+    ).toEqual({ title: "✓ 100.9", summary: "Week unavailable" });
+  });
+});
+
+describe("ownerToday", () => {
+  it("is the date in Pacific time, not UTC", () => {
+    // 05:00 UTC on Feb 5 is 21:00 on Feb 4 in Los Angeles.
+    expect(ownerToday(new Date("2030-02-05T05:00:00Z"))).toBe("2030-02-04");
+    expect(ownerToday(new Date("2030-02-05T09:00:00Z"))).toBe("2030-02-05");
   });
 });

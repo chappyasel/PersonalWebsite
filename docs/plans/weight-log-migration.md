@@ -174,7 +174,14 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     `excluded` flag stays.
 40. The Shortcut shows the week as a notification with the card image, not
     Quick Look, so it runs from the Action button, Control Center, or a widget
-    without opening the Shortcuts app.
+    without opening the Shortcuts app. Changed November 10, 2026, after the
+    owner found the text a lot to read: the route adds a `title` with the
+    outcome as a plain Unicode symbol and the pounds ("✓ 221.0",
+    "↻ 221.0, was 220.0", "= 221.0", with " · excluded" on a day left out of
+    the average), and `summary` shrinks to one line, "Avg 221.0 · 4.0 under
+    target". The Replace question reads "Today has 220.0. Replace with
+    221.0?" and names the date instead when it is not today in Los Angeles.
+    The owner has yet to confirm the wording.
 41. The card's first version: the week's seven days, the average so far,
     the target, the gap to target, and the change from last week. No
     sparkline. Replaced November 10, 2026, at the owner's ask: the card is

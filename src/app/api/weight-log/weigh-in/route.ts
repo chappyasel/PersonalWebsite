@@ -5,6 +5,7 @@ import { loadWeekRecords } from "~/lib/weight-log/database";
 import { buildWeightLog } from "~/lib/weight-log/records";
 import {
   type WeekSummary,
+  ownerToday,
   saveSummary,
   weekSummary,
 } from "~/lib/weight-log/week-summary";
@@ -18,7 +19,9 @@ import { env } from "~/env";
  * The owner's Log Weight Shortcut records today's weigh-in here. It posts
  * `{ date, pounds, replace }` with the phone's own date and gets back JSON
  * with `status` (`saved`, `exists`, `replaced`, or `unchanged`), `previous`,
- * and `summary`, the notification line. On `exists` nothing was written, and
+ * `title`, the outcome in a few characters ("✓ 221.0"), and `summary`, the
+ * week in one line ("Avg 221.0 · 4.0 under target"), which every 200 carries
+ * because the first Shortcut reads it. On `exists` nothing was written, and
  * `question` is the Replace prompt; the Shortcut posts again with
  * `replace: true` if the owner taps Replace.
  *
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
     date: weighIn.date,
     pounds: weighIn.pounds,
     previous: saved.previous,
-    ...saveSummary({ ...weighIn, ...saved }, week),
+    ...saveSummary({ ...weighIn, ...saved }, week, ownerToday()),
   });
 }
 

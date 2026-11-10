@@ -1,26 +1,25 @@
+import { zonedDate } from "~/lib/booking/zones";
+
 import { pounds } from "./format";
-import { roundTenth } from "./sheet";
-import { addDays, weekStartOf } from "./phases";
+import { weekStartOf } from "./phases";
+import { OWNER_TIME_ZONE } from "./records";
 import type { WeightLog } from "./schema";
-import { buildWeekTable, weeklyAverage } from "./week-table";
+import { roundTenth } from "./sheet";
+import { buildWeekTable } from "./week-table";
 import type { SaveStatus } from "./weigh-ins";
 
 /**
- * How the owner's week is going, for the Log Weight Shortcut's notification
- * line. Every number comes from the weekly table (`buildWeekTable`), so the
- * line agrees with `/weight-log/edit`. The card draws the table's rows
- * itself (`week-card.ts`).
+ * How the owner's week is going, for the Log Weight Shortcut's notification.
+ * Every number comes from the weekly table (`buildWeekTable`), so the line
+ * agrees with `/weight-log/edit`. The card draws the table's rows itself
+ * (`week-card.ts`).
  */
 export interface WeekSummary {
-  /** Weigh-ins that count toward the weekly average. */
-  counted: number;
   /** The weekly average so far: the trimmed mean of the counted weigh-ins. */
   average: number | null;
   target: number | null;
   /** The average minus the target. */
   gapToTarget: number | null;
-  /** The previous calendar week's average, in any phase. */
-  lastWeek: number | null;
 }
 
 /** The week holding `date`, with nothing in it when the log has no row. */
@@ -30,17 +29,10 @@ export function weekSummary(log: WeightLog, date: string): WeekSummary {
   const row = logWeek
     ? buildWeekTable(log, logWeek.phaseId).find((item) => item.week === week)
     : undefined;
-  const previous = log.weeks.find((item) => item.date === addDays(week, -7));
   return {
-    counted: row
-      ? row.weights.filter(
-          (weight, day) => weight !== null && !row.excludedDays.includes(day),
-        ).length
-      : 0,
     average: row?.average ?? null,
     target: row?.target ?? null,
     gapToTarget: row?.gapToTarget ?? null,
-    lastWeek: previous ? weeklyAverage(previous) : null,
   };
 }
 
@@ -54,39 +46,42 @@ export function shortDate(date: string) {
   });
 }
 
-/**
- * The week in one line: "Week avg 182.3 (3 of 7), target 182.0, 0.3 over.
- * Last week 181.6."
- */
-export function weekLine(summary: WeekSummary) {
-  const parts: string[] = [];
-  if (summary.average === null) {
-    parts.push("No weigh-ins count toward this week yet.");
-  } else {
-    const average = `Week avg ${pounds(summary.average)} (${summary.counted} of 7)`;
-    if (summary.target === null || summary.gapToTarget === null) {
-      parts.push(`${average}, no target this week.`);
-    } else {
-      const gap = roundTenth(summary.gapToTarget);
-      const offBy =
-        gap === 0
-          ? "on target"
-          : `${pounds(Math.abs(gap))} ${gap > 0 ? "over" : "under"}`;
-      parts.push(`${average}, target ${pounds(summary.target)}, ${offBy}.`);
-    }
-  }
-  if (summary.lastWeek !== null) {
-    parts.push(`Last week ${pounds(summary.lastWeek)}.`);
-  }
-  return parts.join(" ");
-}
+/** Today's date where the owner lives, which names the day in `question`. */
+export const ownerToday = (now = new Date()) =>
+  zonedDate(now.getTime(), OWNER_TIME_ZONE);
+
+/** Shown when no weigh-in counts toward the week yet. */
+export const NO_AVERAGE = "No average yet";
+/** Shown when the save worked but the week could not be read. */
+export const NO_WEEK = "Week unavailable";
 
 /**
- * The notification line after a save: what happened, then the week, when
- * the week could be read. On `exists` nothing was saved, and `question` is
- * what the Shortcut asks before replacing. When the date's weigh-in is left
- * out of the weekly average, both say so, since a replace keeps the flag
- * (decision 39).
+ * The week in one short line: "Avg 182.3 · 0.3 over target", or "Avg 182.3"
+ * past the plan's end. It is never empty, because the first Log Weight
+ * Shortcut treats an empty `summary` as a failed request.
+ */
+export function weekLine(summary: WeekSummary | null) {
+  if (!summary) return NO_WEEK;
+  if (summary.average === null) return NO_AVERAGE;
+  const average = `Avg ${pounds(summary.average)}`;
+  if (summary.gapToTarget === null) return average;
+  const gap = roundTenth(summary.gapToTarget);
+  if (gap === 0) return `${average} · on target`;
+  return `${average} · ${pounds(Math.abs(gap))} ${gap > 0 ? "over" : "under"} target`;
+}
+
+/** Marks a weigh-in left out of the weekly average (decision 39). */
+const EXCLUDED = " · excluded";
+
+/**
+ * What the notification says after a save. `title` is the outcome:
+ * "✓ 221.0" saved, "↻ 221.0, was 220.0" replaced, "= 221.0" already saved,
+ * and "Kept 220.0" when nothing was saved, each with " · excluded" when the
+ * date's weigh-in is left out of the weekly average, since a replace keeps
+ * the flag (decision 39). `summary` is the week (`weekLine`). On `exists`,
+ * `question` is what the Shortcut asks before replacing. It says "Today"
+ * only when the date is today in the owner's time zone; otherwise it names
+ * the date, because the server can't know the phone's date.
  */
 export function saveSummary(
   {
@@ -103,27 +98,29 @@ export function saveSummary(
     excluded: boolean;
   },
   summary: WeekSummary | null,
-): { summary: string; question?: string } {
-  const week = summary ? ` ${weekLine(summary)}` : "";
+  today: string,
+): { title: string; summary: string; question?: string } {
+  const week = weekLine(summary);
   const before = previous === null ? "" : pounds(previous);
+  const flag = excluded ? EXCLUDED : "";
   switch (status) {
     case "saved":
-      return { summary: `${pounds(sent)} saved.${week}` };
+      return { title: `✓ ${pounds(sent)}${flag}`, summary: week };
     case "replaced":
       return {
-        summary: `${pounds(sent)} saved, replacing ${before}.${excluded ? " It stays left out of the weekly average." : ""}${week}`,
+        title: `↻ ${pounds(sent)}, was ${before}${flag}`,
+        summary: week,
       };
     case "unchanged":
-      return {
-        summary: `${pounds(sent)} was already saved.${excluded ? " It is left out of the weekly average." : ""}${week}`,
-      };
+      return { title: `= ${pounds(sent)}${flag}`, summary: week };
     case "exists": {
-      const kept = excluded
-        ? `${before}, which is left out of the weekly average`
-        : before;
+      const day = date === today ? "Today" : shortDate(date);
       return {
-        summary: `Kept ${kept}.${week}`,
-        question: `${shortDate(date)} already has ${kept}. Replace it with ${pounds(sent)}?${excluded ? " The new value stays left out." : ""}`,
+        title: `Kept ${before}${flag}`,
+        summary: week,
+        question: excluded
+          ? `${day} has ${before}, excluded. Replace with ${pounds(sent)}? It stays excluded.`
+          : `${day} has ${before}. Replace with ${pounds(sent)}?`,
       };
     }
   }
