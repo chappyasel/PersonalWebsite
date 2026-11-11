@@ -93,8 +93,10 @@ const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Whole weeks from one Monday to another. */
 export const weeksBetween = (from: string, to: string) =>
-  Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
-    (7 * 86_400_000));
+  Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      (7 * 86_400_000),
+  );
 
 /**
  * Targets are sums of rates, so they collect floating-point noise such as
@@ -179,9 +181,7 @@ export function planStartPhase(
   }
   const count = weeksBetween(startDate, lastWeek) + 1;
   if (count > MAX_PLAN_WEEKS) {
-    throw new PlanEditError(
-      `A plan can run at most ${MAX_PLAN_WEEKS} weeks.`,
-    );
+    throw new PlanEditError(`A plan can run at most ${MAX_PLAN_WEEKS} weeks.`);
   }
 
   const current = latestPhase(state.phases);
@@ -244,7 +244,7 @@ export function planStartPhase(
 export interface RateChangeInput {
   /** The phase the page showed the week in. */
   phaseId: number;
-  /** The Monday of the week whose lb/wk changes. */
+  /** The Monday of the week whose lbs/w changes. */
   weekStart: string;
   poundsPerWeek: number;
 }
@@ -275,7 +275,7 @@ export function planRateChange(
   );
   if (previous?.target == null || week.target === null) {
     throw new PlanEditError(
-      `The week of ${shortDate(weekStart)} has no target before it in its phase, so it has no lb/wk to change.`,
+      `The week of ${shortDate(weekStart)} has no target before it in its phase, so it has no lbs/w to change.`,
     );
   }
   const target = cleanTarget(previous.target + poundsPerWeek);
@@ -323,9 +323,7 @@ export function planEndMove(
     throw new PlanEditError("The last week can't come before the start.");
   }
   if (weeksBetween(phase.startDate, lastWeek) + 1 > MAX_PLAN_WEEKS) {
-    throw new PlanEditError(
-      `A plan can run at most ${MAX_PLAN_WEEKS} weeks.`,
-    );
+    throw new PlanEditError(`A plan can run at most ${MAX_PLAN_WEEKS} weeks.`);
   }
   const weeks = weeksOf(state, phaseId);
   const last = weeks.at(-1);
@@ -445,7 +443,11 @@ export function applyPlanEdit(
   for (const week of edit.writeWeeks) {
     weeks.set(week.weekStart, { ...week, phaseId: week.phaseId ?? newPhaseId });
   }
-  return { phases, weeks: [...weeks.values()], weighInWeeks: state.weighInWeeks };
+  return {
+    phases,
+    weeks: [...weeks.values()],
+    weighInWeeks: state.weighInWeeks,
+  };
 }
 
 /**
@@ -461,13 +463,17 @@ export function planViolations(state: PlanState): string[] {
   const byId = new Map(phases.map((phase) => [phase.id, phase]));
   phases.forEach((phase, index) => {
     if (!isMonday(phase.startDate)) {
-      problems.push(`phase ${phase.id} starts on ${phase.startDate}, not a Monday`);
+      problems.push(
+        `phase ${phase.id} starts on ${phase.startDate}, not a Monday`,
+      );
     }
     if (
       phase.endDate !== null &&
       (phase.endDate <= phase.startDate || !isMonday(addDays(phase.endDate, 1)))
     ) {
-      problems.push(`phase ${phase.id} ends on ${phase.endDate}, not a Sunday after its start`);
+      problems.push(
+        `phase ${phase.id} ends on ${phase.endDate}, not a Sunday after its start`,
+      );
     }
     const next = phases[index + 1];
     if (!next) return;

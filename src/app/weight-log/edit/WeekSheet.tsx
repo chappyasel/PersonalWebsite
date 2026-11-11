@@ -587,7 +587,7 @@ export function WeekSheet({ today }: { today: string }) {
       () => {
         settle();
         setStatus({
-          message: `Set the week of ${weekLabel(edit.week)} to ${pounds(target)} lb at ${rate(edit.poundsPerWeek)} lb/wk.${later ? ` Later targets moved ${rate(moved)} lb.` : ""}`,
+          message: `Set the week of ${weekLabel(edit.week)} to ${pounds(target)} lb at ${rate(edit.poundsPerWeek)} lbs/w.${later ? ` Later targets moved ${rate(moved)} lb.` : ""}`,
           undo: {
             kind: "rate",
             phaseId,
@@ -677,7 +677,7 @@ export function WeekSheet({ today }: { today: string }) {
           () => {
             setPlanLanding(false);
             undone(
-              `Put the week of ${weekLabel(request.input.weekStart)} back to ${rate(request.input.poundsPerWeek)} lb/wk.`,
+              `Put the week of ${weekLabel(request.input.weekStart)} back to ${rate(request.input.poundsPerWeek)} lbs/w.`,
             );
           },
           (error) => {

@@ -222,7 +222,7 @@ describe("editableCells", () => {
     row("2030-01-21", null, null),
   ];
 
-  it("lists days through today, then each week's target and lb/wk", () => {
+  it("lists days through today, then each week's target and lbs/w", () => {
     const keys = editableCells(rows, "2030-01-16").map(cellKey);
     expect(keys).toEqual([
       "day:2030-01-07",

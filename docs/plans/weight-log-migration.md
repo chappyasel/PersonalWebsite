@@ -98,9 +98,10 @@ restore:weight-log`, and the `.superset/setup.sh` restore step.
     target, lb/wk, original target, gap to original target. Show the current
     phase first, with a picker for older phases. Revised November 11, 2026,
     at the owner's ask: the change column's header is "+/-" and the rate's is
-    "lbs/w", on the Weeks table and the card, and rates show one decimal
-    ("always to 0-1 decimal place not 2"). The plan still stores six
-    decimals, and the rate's edit field still opens on two.
+    "lbs/w", on the Weeks table, the card, Plan's rate field, and every
+    message, and rates show one decimal ("always to 0-1 decimal place not
+    2"). The plan still stores six decimals, and the edit fields still show
+    two.
 24. Set points are editable in version 1.
 
 ### Cutover and outside systems

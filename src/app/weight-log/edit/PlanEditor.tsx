@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { type FormEvent, type ReactNode, useState } from "react";
 
+import { rate } from "~/lib/weight-log/format";
 import {
   PHASE_KINDS,
   type PhaseKind,
@@ -62,13 +63,6 @@ const longDay = (date: string) =>
 
 const shortDay = (date: string) =>
   formatDay(date, { month: "short", day: "numeric", year: "numeric" });
-
-/** Pounds to two decimals, with a sign, for rates and the shifts they cause. */
-function signed(value: number) {
-  const rounded = Math.round(value * 100) / 100;
-  if (rounded === 0) return "0.00";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(2)}`;
-}
 
 const weeksBetween = (from: string, to: string) =>
   Math.round(
@@ -289,7 +283,7 @@ function EndForm({
     const difference = entered - count;
     preview =
       difference > 0
-        ? `Adds ${difference} ${difference === 1 ? "week" : "weeks"} at ${signed(lastRate)} lb/wk, ending ${longDay(addDays(newLast!, 6))}.`
+        ? `Adds ${difference} ${difference === 1 ? "week" : "weeks"} at ${rate(lastRate)} lbs/w, ending ${longDay(addDays(newLast!, 6))}.`
         : `Removes ${-difference} ${difference === -1 ? "week" : "weeks"} from the end, ending ${longDay(addDays(newLast!, 6))}.`;
   } else if (entered !== null && !valid) {
     preview = `A plan runs 1 to ${MAX_PLAN_WEEKS} weeks.`;
@@ -515,7 +509,7 @@ function StartForm({
             onChange={(event) => edit(() => setTargetText(event.target.value))}
           />
         </Field>
-        <Field label="lb/wk">
+        <Field label="lbs/w">
           <Input
             type="number"
             inputMode="decimal"

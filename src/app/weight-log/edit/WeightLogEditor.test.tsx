@@ -596,7 +596,7 @@ describe("the plan cells", () => {
     await settle(mocks.calls[0]!);
     expect(
       screen.getByText(
-        "Set the week of Jan 14 to 101.2 lb at +1.2 lb/wk. Later targets moved +0.7 lb.",
+        "Set the week of Jan 14 to 101.2 lb at +1.2 lbs/w. Later targets moved +0.7 lb.",
       ),
     ).toBeTruthy();
 
