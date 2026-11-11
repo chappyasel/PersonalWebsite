@@ -3,13 +3,16 @@ import { cleanup, render } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { type Rgb, contrast } from "~/lib/weight-log/color-scale";
 import { weekLabel } from "~/lib/weight-log/format";
 import { addDays } from "~/lib/weight-log/phases";
 import type { WeightLog } from "~/lib/weight-log/schema";
 import {
+  GRID_WEEKS,
   WEEKS_AFTER,
   WEEKS_BEFORE,
   currentRow,
+  gridRows,
   weekCard,
 } from "~/lib/weight-log/week-card";
 import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
@@ -22,13 +25,13 @@ import { buildWeekTable, weeklyAverage } from "~/lib/weight-log/week-table";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
 
-import { CARD_COLUMNS, WeekCardImage } from "./WeekCard";
+import { CARD_COLUMNS, WEIGHT, WeekCardImage } from "./WeekCard";
 import { WeekSheet } from "~/app/weight-log/edit/WeekSheet";
 
 /**
- * The card is drawn from the editor's Weeks table, so this week's day cells
- * and each summary row must read and color exactly as the editor's row for
- * the same week does.
+ * The card is drawn from the editor's Weeks table, so the day cells of each
+ * week in its grid and each summary row must read and color exactly as the
+ * editor's row for the same week does.
  * The editor here is the real `WeekSheet`, fed the same invented log through
  * a stand-in for its tRPC queries that answers as the server would. Every
  * number is invented.
@@ -146,6 +149,14 @@ function colorOf(value: string) {
   return probe.style.color;
 }
 
+/** A color as red, green, and blue, from whatever the DOM reads back. */
+function rgbOf(value: string): Rgb {
+  const [red = 0, green = 0, blue = 0] = (colorOf(value).match(/\d+/g) ?? [])
+    .slice(0, 3)
+    .map(Number);
+  return [red, green, blue];
+}
+
 interface Cell {
   text: string;
   fill: string | null;
@@ -232,8 +243,8 @@ const summaryOf = (editor: Cell[]) => [
 ];
 
 /**
- * This week's day cells and each summary row against the editor's table
- * for that row's phase.
+ * The day cells of each week in the grid, and each summary row, against
+ * the editor's table for that row's phase.
  */
 function expectCardMatchesEditor(
   log: Pick<WeightLog, "phases" | "weeks">,
@@ -247,19 +258,19 @@ function expectCardMatchesEditor(
   const tableOf = (phase: (typeof card.rows)[number]["phase"]) =>
     phase ? `Weeks of ${phase.label}` : "Weeks outside every phase";
 
-  const current = currentRow(card);
-  const editorCurrent = editorRow(
-    date,
-    current.row.week,
-    tableOf(current.phase),
-  );
-  expect(editorCurrent).toHaveLength(
-    2 + DAY_NAMES.length + SUMMARY_COLUMNS.length,
-  );
-  const strip = host.querySelector(`[data-days="${current.row.week}"]`)!;
-  expect(readCells(strip)).toEqual(
-    editorCurrent.slice(2, 2 + DAY_NAMES.length),
-  );
+  const grid = gridRows(card);
+  expect(grid.at(-1)).toBe(currentRow(card));
+  expect(
+    [...host.querySelectorAll("[data-grid]")].map((row) =>
+      row.getAttribute("data-grid"),
+    ),
+  ).toEqual(grid.map((item) => item.row.week));
+  for (const item of grid) {
+    const editor = editorRow(date, item.row.week, tableOf(item.phase));
+    expect(editor).toHaveLength(2 + DAY_NAMES.length + SUMMARY_COLUMNS.length);
+    const days = host.querySelector(`[data-days="${item.row.week}"]`)!;
+    expect(readCells(days)).toEqual(editor.slice(2, 2 + DAY_NAMES.length));
+  }
 
   const rows = [...host.querySelectorAll("[data-week]")];
   expect(rows.map((row) => row.getAttribute("data-week"))).toEqual(
@@ -319,7 +330,7 @@ describe("WeekCardImage", () => {
       "3",
     ],
   ] as const)(
-    "reads and colors this week's days and each row as the editor does: %s",
+    "reads and colors the grid's days and each row as the editor does: %s",
     (_label, log, date, runningId) => {
       expectCardMatchesEditor(log, date, runningId);
     },
@@ -368,12 +379,52 @@ describe("WeekCardImage", () => {
     ]);
   });
 
+  it("grids this week and the two before it, where the card has them", () => {
+    const weeks = (date: string) =>
+      gridRows(weekCard(SYNTHETIC_LOG, date, "2")).map((item) => item.row.week);
+    expect(weeks("2030-02-04")).toEqual([
+      "2030-01-21",
+      "2030-01-28",
+      "2030-02-04",
+    ]);
+    expect(weeks("2030-02-04")).toHaveLength(GRID_WEEKS);
+    // The log's first weeks: only the weeks it has.
+    expect(weeks("2030-01-15")).toEqual(["2030-01-07", "2030-01-14"]);
+    expect(weeks("2030-01-08")).toEqual(["2030-01-07"]);
+  });
+
+  it("names a phase where it changes in the grid, as the table does", () => {
+    mocks.runningId = "2";
+    const grid = (date: string) =>
+      [
+        ...cardMarkup(SYNTHETIC_LOG, date).host.querySelectorAll(
+          '[data-block="grid"] :is([data-grid], [data-phase])',
+        ),
+      ].map(
+        (node) => node.getAttribute("data-grid") ?? `label ${node.textContent}`,
+      );
+    // Two cut weeks, then the bulk's first.
+    expect(grid("2030-01-22")).toEqual([
+      "label Cut Jan '30 - Jan '30",
+      "2030-01-07",
+      "2030-01-14",
+      "label Bulk Jan '30 - Feb '30",
+      "2030-01-21",
+    ]);
+    // One phase: no labels in the grid.
+    expect(grid("2030-02-12")).toEqual([
+      "2030-01-28",
+      "2030-02-04",
+      "2030-02-11",
+    ]);
+  });
+
   it("names a phase where it changes, and the first one when it isn't this week's", () => {
     mocks.runningId = "3";
     const labels = (date: string) =>
       [
         ...cardMarkup(loggedThrough(date), date).host.querySelectorAll(
-          "[data-phase]",
+          '[data-block="table"] [data-phase]',
         ),
       ].map((node) => node.textContent);
     expect(labels("2030-06-12")).toEqual([]);
@@ -391,20 +442,30 @@ describe("WeekCardImage", () => {
     expect(host.textContent).toContain("Week 1 · Jan 28");
   });
 
-  it("sets this week's row in medium and later weeks muted, as the editor does", () => {
+  it("sets this week a step bolder and later weeks muted, as the editor does", () => {
     mocks.runningId = "3";
     const { host } = cardMarkup(loggedThrough("2030-06-12"), "2030-06-12");
-    const style = (week: string) =>
-      host.querySelector<HTMLElement>(`[data-week="${week}"]`)!.style;
-    expect(style("2030-06-03").fontWeight).toBe("400");
-    expect(style("2030-06-03").color).toBe("");
-    expect(style("2030-06-10").fontWeight).toBe("500");
-    expect(colorOf(style("2030-06-17").color)).toBe(colorOf("#56514d"));
+    const style = (selector: string) =>
+      host.querySelector<HTMLElement>(selector)!.style;
+    const number = String(WEIGHT.number);
+    const current = String(WEIGHT.current);
+    expect(style('[data-week="2030-06-03"]').fontWeight).toBe(number);
+    expect(style('[data-week="2030-06-03"]').color).toBe("");
+    expect(style('[data-week="2030-06-10"]').fontWeight).toBe(current);
+    expect(colorOf(style('[data-week="2030-06-17"]').color)).toBe(
+      colorOf("#56514d"),
+    );
+    expect(style('[data-grid="2030-05-27"]').fontWeight).toBe(number);
+    expect(style('[data-grid="2030-06-03"]').fontWeight).toBe(number);
+    expect(style('[data-grid="2030-06-10"]').fontWeight).toBe(current);
   });
 
-  it("strikes an excluded day in the large row", () => {
+  it.each([
+    ["this week's row", "2030-01-31"],
+    ["last week's row", "2030-02-04"],
+  ])("strikes an excluded day in %s of the grid", (_label, date) => {
     mocks.runningId = "2";
-    const { host } = cardMarkup(SYNTHETIC_LOG, "2030-01-31");
+    const { host } = cardMarkup(SYNTHETIC_LOG, date);
     const wednesday = host.querySelector('[data-days="2030-01-28"]')!
       .children[2] as HTMLElement;
     expect(wednesday.textContent).toBe("130.0");
@@ -412,7 +473,29 @@ describe("WeekCardImage", () => {
     expect(wednesday.style.backgroundColor).toBe("");
   });
 
-  it("rings the asked-about day in the large row, and nowhere else", () => {
+  it("keeps 4.5:1 contrast for every number the card draws", () => {
+    mocks.runningId = "3";
+    for (const date of ["2030-06-12", "2030-07-24"]) {
+      const { host } = cardMarkup(loggedThrough(date), date);
+      const cells = [
+        ...host.querySelectorAll("[data-days] > div, [data-week] > div"),
+      ] as HTMLElement[];
+      expect(cells.length).toBeGreaterThan(50);
+      for (const cell of cells) {
+        if (!cell.textContent) continue;
+        // A cell without a fill is on the white card, in its row's ink.
+        let ink = cell.style.color;
+        for (let node: HTMLElement | null = cell; !ink && node; ) {
+          node = node.parentElement;
+          ink = node?.style.color ?? "";
+        }
+        const fill = cell.style.backgroundColor || "#ffffff";
+        expect(contrast(rgbOf(fill), rgbOf(ink))).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("rings the asked-about day in the grid, and nowhere else", () => {
     mocks.runningId = "2";
     const { host } = cardMarkup(SYNTHETIC_LOG, "2030-01-31");
     const rings = [...host.querySelectorAll("div")].filter((node) =>

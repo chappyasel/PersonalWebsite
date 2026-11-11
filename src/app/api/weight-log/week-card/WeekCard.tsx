@@ -8,6 +8,7 @@ import {
   type WeekCard,
   type WeekCardRow,
   currentRow,
+  gridRows,
 } from "~/lib/weight-log/week-card";
 import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
 
@@ -22,12 +23,16 @@ import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
  * as tall as its rows, so 1 px of its layout is about 1 pt on the phone.
  * It has two blocks:
  *
- * 1. This week's seven days, large, under a caption naming the phase and
- *    the week.
+ * 1. A day grid of this week and the two before it, under a caption naming
+ *    this week's phase and number, so a day reads against the same day of
+ *    the last two weeks.
  * 2. The weekly summary (`CARD_COLUMNS`) for up to five weeks before this
- *    one, this week, and up to five after. A row names its phase only where
- *    the phase changes, and the first rows name theirs when it isn't this
- *    week's.
+ *    one, this week, and up to five after.
+ *
+ * In both, a row names its phase only where the phase changes, and the
+ * first rows name theirs when it isn't this week's. Labels are Medium,
+ * numbers Semibold, and this week's rows Bold, a step up from the rest as
+ * the editor's medium current row is from its regular ones.
  *
  * Satori lays out flexbox only, so each row is a flex row of fixed-width
  * cells. It also throws on a style value that is undefined, after the route
@@ -53,35 +58,42 @@ export const CARD_WIDTH = 360;
 const EDGE = 5;
 const PADDING_Y = 10;
 
-/** The table's type. */
+/** The subsets the route loads: `weight-log-card-fonts.py` makes them. */
+export const WEIGHT = { label: 500, number: 600, current: 700 } as const;
+
+/** The table's type, and the day grid's numbers. */
 const FONT_SIZE = 14;
 const LINE_HEIGHT = 18;
-/** The caption's and the phase labels' type. */
+/** The caption's, the column headers', and the phase labels' type. */
 const SMALL_SIZE = 12;
+/** The day grid's month, over the Monday's day of the month. */
+const MONTH_SIZE = 11;
 
 const CAPTION_HEIGHT = 22;
 const DAY_HEADER_HEIGHT = 22;
 /**
- * This week's day cells. SF Pro regular "178.6" is 2.63 em, 42 px of the
- * cell's 50, which leaves the ring 2 px clear of the text.
+ * The day grid's cells, in whole device pixels. Bold "178.6" is 2.83 em,
+ * 39.6 px of a 46 px cell at 14 px, which leaves the ring 1.2 px clear of
+ * the text. The week label takes what the seven days leave.
  */
-const DAY_FONT_SIZE = 16;
-const DAY_HEIGHT = 40;
-const DAY_WIDTH = (CARD_WIDTH - EDGE * 2) / DAY_NAMES.length;
+export const DAY_FONT_SIZE = FONT_SIZE;
+const DAY_HEIGHT = 36;
+const DAY_WIDTH = 46;
+const GRID_LABEL_WIDTH = CARD_WIDTH - EDGE - DAY_WIDTH * DAY_NAMES.length;
 const STRIP_GAP = 14;
 const HEADER_HEIGHT = 24;
 const ROW_HEIGHT = 26;
 const LABEL_HEIGHT = 22;
 /** The space between a cell's text and its edge. */
-const CELL_PAD = 4;
+const CELL_PAD = 3;
 /** Today's ring, inside the cell as the editor's `ring-inset`. */
 const RING = 2;
 
-/** `#`: two digits in medium, 1.24 em. */
-const INDEX_WIDTH = EDGE + 18 + CELL_PAD;
-/** Week: "May 31" in medium is 3.29 em, "May 31, 2030" 6.0 em. */
-const WEEK_TEXT = 47;
-const WEEK_TEXT_WITH_YEAR = 84;
+/** `#`: two digits in bold, 1.29 em. */
+const INDEX_WIDTH = EDGE + 19 + CELL_PAD;
+/** Week: "May 31" in bold is 3.44 em, "May 31, 2030" 6.47 em. */
+const WEEK_TEXT = 49;
+const WEEK_TEXT_WITH_YEAR = 91;
 
 /**
  * The editor's summary columns less the original target and its gap, which
@@ -120,16 +132,17 @@ type Line =
   | { kind: "row"; item: WeekCardRow; rule: boolean };
 
 /**
- * The summary table's lines in order: a label where the phase changes, and
- * one at the top when the first rows aren't in this week's phase, since the
- * caption names this week's. A row has a rule under it unless a label or
- * the end follows; a label has one over it unless it opens the table.
+ * A block's lines in order, for the day grid or the summary table: a label
+ * where the phase changes, and one at the top when the first rows aren't
+ * in this week's phase, since the caption names this week's. A row has a
+ * rule under it unless a label or the end follows; a label has one over it
+ * unless it opens the block.
  */
-function tableLines(card: WeekCard): Line[] {
+function linesOf(card: WeekCard, rows: WeekCardRow[]): Line[] {
   const home = phaseKey(currentRow(card));
   const lines: Line[] = [];
-  card.rows.forEach((item, index) => {
-    const before = card.rows[index - 1];
+  rows.forEach((item, index) => {
+    const before = rows[index - 1];
     const changes = before
       ? phaseKey(before) !== phaseKey(item)
       : phaseKey(item) !== home;
@@ -142,25 +155,30 @@ function tableLines(card: WeekCard): Line[] {
   return lines;
 }
 
-/** The card's size in device pixels, which the route hands to satori. */
-export function cardSize(card: WeekCard) {
-  const table = tableLines(card).reduce(
+const gridLines = (card: WeekCard) => linesOf(card, gridRows(card));
+const tableLines = (card: WeekCard) => linesOf(card, card.rows);
+
+const linesHeight = (lines: Line[], rowHeight: number) =>
+  lines.reduce(
     (sum, line) =>
       sum +
-      (line.kind === "row" ? ROW_HEIGHT : LABEL_HEIGHT) +
+      (line.kind === "row" ? rowHeight : LABEL_HEIGHT) +
       (line.rule ? 1 : 0),
     0,
   );
+
+/** The card's size in device pixels, which the route hands to satori. */
+export function cardSize(card: WeekCard) {
   const height =
     PADDING_Y * 2 +
     CAPTION_HEIGHT +
     DAY_HEADER_HEIGHT +
     1 +
-    DAY_HEIGHT +
+    linesHeight(gridLines(card), DAY_HEIGHT) +
     STRIP_GAP +
     HEADER_HEIGHT +
     1 +
-    table;
+    linesHeight(tableLines(card), ROW_HEIGHT);
   return { width: px(CARD_WIDTH), height: px(height) };
 }
 
@@ -260,6 +278,7 @@ function Caption({ card }: { card: WeekCard }) {
         paddingRight: px(EDGE),
         color: MUTED,
         fontSize: px(SMALL_SIZE),
+        fontWeight: WEIGHT.label,
       }}
     >
       <PhaseName item={item} />
@@ -270,46 +289,95 @@ function Caption({ card }: { card: WeekCard }) {
   );
 }
 
-/** This week's row of the editor's table, day cells only, set large. */
-function DayStrip({ card }: { card: WeekCard }) {
-  const { row, colors } = currentRow(card);
+/** The grid's day names over its seven columns. */
+function DayHeader() {
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
-        paddingLeft: px(EDGE),
-        paddingRight: px(EDGE),
+        color: MUTED,
+        fontSize: px(SMALL_SIZE),
+        fontWeight: WEIGHT.label,
       }}
     >
-      <div style={{ display: "flex", color: MUTED }}>
-        {DAY_NAMES.map((day) => (
-          <Cell
-            key={day}
-            width={DAY_WIDTH}
-            height={DAY_HEADER_HEIGHT}
-            rule={RULE}
-            style={{ justifyContent: "center" }}
-          >
-            {day}
-          </Cell>
-        ))}
-      </div>
-      <div
-        data-days={row.week}
-        style={{ display: "flex", fontSize: px(DAY_FONT_SIZE) }}
+      <Cell width={GRID_LABEL_WIDTH} height={DAY_HEADER_HEIGHT} rule={RULE} />
+      {DAY_NAMES.map((day) => (
+        <Cell
+          key={day}
+          width={DAY_WIDTH}
+          height={DAY_HEADER_HEIGHT}
+          rule={RULE}
+          style={{ justifyContent: "center" }}
+        >
+          {day}
+        </Cell>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * One week's day cells, as the editor's row reads and colors them, under a
+ * label of its Monday: the month over the day, with no year, since the
+ * summary below gives it.
+ */
+function DayRow({
+  item,
+  date,
+  rule,
+}: {
+  item: WeekCardRow;
+  date: string;
+  rule: boolean;
+}) {
+  const { row, colors } = item;
+  const current = row.week === weekStartOf(date);
+  const [month, day] = weekLabel(row.week, row.week).split(" ");
+  const cell = { height: DAY_HEIGHT, rule: rule ? ROW_RULE : null };
+  return (
+    <div
+      data-grid={row.week}
+      style={{
+        display: "flex",
+        fontSize: px(DAY_FONT_SIZE),
+        fontWeight: current ? WEIGHT.current : WEIGHT.number,
+      }}
+    >
+      <Cell
+        {...cell}
+        width={GRID_LABEL_WIDTH}
+        style={{
+          flexDirection: "column",
+          alignItems: "flex-start",
+          justifyContent: "center",
+          paddingLeft: px(EDGE),
+          paddingRight: 0,
+        }}
       >
-        {row.weights.map((weight, day) => {
-          const excluded = weight !== null && row.excludedDays.includes(day);
+        <div
+          style={{
+            display: "flex",
+            color: MUTED,
+            fontSize: px(MONTH_SIZE),
+            fontWeight: WEIGHT.label,
+            lineHeight: `${px(13)}px`,
+          }}
+        >
+          {month}
+        </div>
+        <div style={{ display: "flex", lineHeight: `${px(16)}px` }}>{day}</div>
+      </Cell>
+      <div data-days={row.week} style={{ display: "flex" }}>
+        {row.weights.map((weight, index) => {
+          const excluded = weight !== null && row.excludedDays.includes(index);
           return (
             <Cell
-              key={day}
+              key={index}
+              {...cell}
               width={DAY_WIDTH}
-              height={DAY_HEIGHT}
-              rule={null}
               style={{
                 justifyContent: "center",
-                ...fillOf(colors.days[day] ?? null),
+                ...fillOf(colors.days[index] ?? null),
                 ...(excluded && {
                   color: MUTED,
                   textDecoration: "line-through",
@@ -317,13 +385,38 @@ function DayStrip({ card }: { card: WeekCard }) {
               }}
             >
               {weight === null ? "" : pounds(weight)}
-              {addDays(row.week, day) === card.date ? (
+              {addDays(row.week, index) === date ? (
                 <TodayRing height={DAY_HEIGHT} />
               ) : null}
             </Cell>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** This week and the two before it, day by day. */
+function DayGrid({ card }: { card: WeekCard }) {
+  return (
+    <div data-block="grid" style={{ display: "flex", flexDirection: "column" }}>
+      <DayHeader />
+      {gridLines(card).map((line) =>
+        line.kind === "label" ? (
+          <LabelRow
+            key={`label-${line.item.row.week}`}
+            item={line.item}
+            rule={line.rule}
+          />
+        ) : (
+          <DayRow
+            key={line.item.row.week}
+            item={line.item}
+            date={card.date}
+            rule={line.rule}
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -346,7 +439,7 @@ const weekStyle: CSSProperties = { justifyContent: "flex-start" };
 function HeaderRow({ widths }: { widths: ReturnType<typeof columnWidths> }) {
   const cell = { height: HEADER_HEIGHT, rule: RULE };
   return (
-    <div style={{ display: "flex", color: MUTED }}>
+    <div style={{ display: "flex", color: MUTED, fontWeight: WEIGHT.label }}>
       <Cell {...cell} width={widths.index} style={indexStyle}>
         #
       </Cell>
@@ -380,6 +473,7 @@ function LabelRow({ item, rule }: { item: WeekCardRow; rule: boolean }) {
         paddingBottom: px(3),
         color: MUTED,
         fontSize: px(SMALL_SIZE),
+        fontWeight: WEIGHT.label,
         ...(rule && { borderTop: `${px(1)}px solid ${RULE}` }),
       }}
     >
@@ -389,8 +483,8 @@ function LabelRow({ item, rule }: { item: WeekCardRow; rule: boolean }) {
 }
 
 /**
- * One week's summary, as the editor's row reads it: medium for this week,
- * muted for a week still to come.
+ * One week's summary, as the editor's row reads it: a step bolder for this
+ * week, muted for a week still to come.
  */
 function SummaryRow({
   item,
@@ -411,7 +505,7 @@ function SummaryRow({
       data-week={row.week}
       style={{
         display: "flex",
-        fontWeight: row.week === thisWeek ? 500 : 400,
+        fontWeight: row.week === thisWeek ? WEIGHT.current : WEIGHT.number,
         ...(row.week > thisWeek && { color: MUTED }),
       }}
     >
@@ -453,31 +547,37 @@ export function WeekCardImage({ card }: { card: WeekCard }) {
         backgroundColor: CARD,
         color: INK,
         fontFamily: "SF Pro Display",
+        fontWeight: WEIGHT.number,
         fontSize: px(FONT_SIZE),
         lineHeight: `${px(LINE_HEIGHT)}px`,
       }}
     >
       <Caption card={card} />
-      <DayStrip card={card} />
+      <DayGrid card={card} />
       <div style={{ display: "flex", height: px(STRIP_GAP) }} />
-      <HeaderRow widths={widths} />
-      {tableLines(card).map((line) =>
-        line.kind === "label" ? (
-          <LabelRow
-            key={`label-${line.item.row.week}`}
-            item={line.item}
-            rule={line.rule}
-          />
-        ) : (
-          <SummaryRow
-            key={line.item.row.week}
-            item={line.item}
-            date={card.date}
-            rule={line.rule}
-            widths={widths}
-          />
-        ),
-      )}
+      <div
+        data-block="table"
+        style={{ display: "flex", flexDirection: "column" }}
+      >
+        <HeaderRow widths={widths} />
+        {tableLines(card).map((line) =>
+          line.kind === "label" ? (
+            <LabelRow
+              key={`label-${line.item.row.week}`}
+              item={line.item}
+              rule={line.rule}
+            />
+          ) : (
+            <SummaryRow
+              key={line.item.row.week}
+              item={line.item}
+              date={card.date}
+              rule={line.rule}
+              widths={widths}
+            />
+          ),
+        )}
+      </div>
     </div>
   );
 }

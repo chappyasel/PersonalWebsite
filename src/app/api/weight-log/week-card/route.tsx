@@ -1,8 +1,13 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-
+import {
+  NO_STORE_HEADERS,
+  logFailure,
+  refuseMethod,
+  reply,
+} from "../responses";
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import { loadWeekRecords } from "~/lib/weight-log/database";
@@ -11,28 +16,28 @@ import { weekCard } from "~/lib/weight-log/week-card";
 import { parseCardDate } from "~/lib/weight-log/weigh-ins";
 import { db } from "~/server/db";
 
-import { NO_STORE_HEADERS, logFailure, refuseMethod, reply } from "../responses";
-import { WeekCardImage, cardSize } from "./WeekCard";
+import { WEIGHT, WeekCardImage, cardSize } from "./WeekCard";
 import { env } from "~/env";
 
 /**
  * The week card the Log Weight Shortcut shows in its notification: a
- * portrait PNG of the week holding `?date=YYYY-MM-DD`, its days large with
- * that day marked as today, over the weekly table's summary for up to five
- * weeks either side. It answers the same `WEIGHT_LOG_ENTRY_TOKEN` as `/api/weight-log/weigh-in`,
+ * portrait PNG of the week holding `?date=YYYY-MM-DD` and the two before
+ * it, day by day with that day marked as today, over the weekly table's
+ * summary for up to five weeks either side. It answers the same `WEIGHT_LOG_ENTRY_TOKEN` as `/api/weight-log/weigh-in`,
  * only for a date in the Shortcut's window, and never writes.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * The editor's SF Pro Display, regular and medium, read once per warm
- * function. `next.config.js` traces the two files into this route's bundle,
- * so they come from disk, not over HTTP. A failed read is forgotten so the
+ * The editor's SF Pro Display in the card's three weights (`WEIGHT`), read
+ * once per warm function. `next.config.js` traces the files into this
+ * route's bundle, so they come from disk, not over HTTP. A failed read is forgotten so the
  * next request tries again. `scripts/generate/weight-log-card-fonts.py`
  * makes them, with tabular figures built in.
  */
-let fonts: Promise<[ArrayBuffer, ArrayBuffer]> | undefined;
+type Fonts = [ArrayBuffer, ArrayBuffer, ArrayBuffer];
+let fonts: Promise<Fonts> | undefined;
 
 const readFont = async (name: string) =>
   new Uint8Array(
@@ -41,8 +46,9 @@ const readFont = async (name: string) =>
 
 function loadFonts() {
   fonts ??= Promise.all([
-    readFont("SF-Pro-Display-Regular.otf"),
     readFont("SF-Pro-Display-Medium.otf"),
+    readFont("SF-Pro-Display-Semibold.otf"),
+    readFont("SF-Pro-Display-Bold.otf"),
   ]).catch((error: unknown) => {
     fonts = undefined;
     throw error;
@@ -71,17 +77,14 @@ export async function GET(request: NextRequest) {
   // Satori's own errors happen while the body streams, after this returns,
   // so these catches see only the reads and the week's math. The render
   // tests guard the rest.
-  let loaded: [
-    Awaited<ReturnType<typeof loadWeekRecords>>,
-    [ArrayBuffer, ArrayBuffer],
-  ];
+  let loaded: [Awaited<ReturnType<typeof loadWeekRecords>>, Fonts];
   try {
     loaded = await Promise.all([loadWeekRecords(db), loadFonts()]);
   } catch (error) {
     logFailure("week-card", "load", error);
     return couldNotDraw();
   }
-  const [records, [regular, medium]] = loaded;
+  const [records, [medium, semibold, bold]] = loaded;
   let card: ReturnType<typeof weekCard>;
   try {
     const running = records.phases.find((phase) => phase.endDate === null);
@@ -94,11 +97,13 @@ export async function GET(request: NextRequest) {
     logFailure("week-card", "build", error);
     return couldNotDraw();
   }
+  const style = "normal";
   return new ImageResponse(<WeekCardImage card={card} />, {
     ...cardSize(card),
     fonts: [
-      { name: "SF Pro Display", data: regular, weight: 400, style: "normal" },
-      { name: "SF Pro Display", data: medium, weight: 500, style: "normal" },
+      { name: "SF Pro Display", data: medium, weight: WEIGHT.label, style },
+      { name: "SF Pro Display", data: semibold, weight: WEIGHT.number, style },
+      { name: "SF Pro Display", data: bold, weight: WEIGHT.current, style },
     ],
     // ImageResponse sets its own cache header first; these replace it.
     headers: NO_STORE_HEADERS,

@@ -6,6 +6,9 @@ each digit's character maps straight to its tabular glyph. The subset also
 keeps U+2212, the minus sign the table prints, which the weightlifting
 subset lacks.
 
+The card sets its labels in Medium, its numbers in Semibold, and this
+week in Bold, so it needs no Regular.
+
 Run with a Python environment containing fontTools, on a Mac with SF Pro
 installed:
 
@@ -21,7 +24,11 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "src/fonts/weight-log"
-FONTS = ("SF-Pro-Display-Regular.otf", "SF-Pro-Display-Medium.otf")
+FONTS = (
+    "SF-Pro-Display-Medium.otf",
+    "SF-Pro-Display-Semibold.otf",
+    "SF-Pro-Display-Bold.otf",
+)
 UNICODES = [
     *range(0x20, 0x7F),
     *range(0xA0, 0x100),

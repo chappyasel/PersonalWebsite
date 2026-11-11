@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WeightLog } from "~/lib/weight-log/schema";
-import { currentRow, weekCard } from "~/lib/weight-log/week-card";
+import { gridRows, weekCard } from "~/lib/weight-log/week-card";
 import {
   SYNTHETIC_LOG,
   loggedThrough,
@@ -98,13 +98,14 @@ const THREE_PHASES = {
 describe("GET /api/weight-log/week-card", () => {
   it.each<[string, string, WeightLog | null]>([
     ["an empty week", "2030-02-26", null],
-    ["one weigh-in", "2030-02-04", null],
+    ["one weigh-in, with an excluded day last week", "2030-02-04", null],
     ["a full week", "2030-01-13", null],
     ["an excluded day", "2030-01-31", null],
     ["a week with no target", "2030-02-19", null],
     ["a planned week with no weigh-ins", "2030-02-12", null],
-    ["a window across a phase start", "2030-01-22", null],
+    ["a grid and a window across a phase start", "2030-01-22", null],
     ["the log's first week, with no week before it", "2030-01-08", null],
+    ["the log's second week, with a two-week grid", "2030-01-15", null],
     ["an empty week after the plan's end", "2030-03-05", null],
     [
       "eleven weeks of one phase, with an excluded day",
@@ -138,11 +139,11 @@ describe("GET /api/weight-log/week-card", () => {
       expect([meta.width, meta.height]).toEqual([size.width, size.height]);
       expect(meta.width).toBe(720);
 
-      // Every filled cell the card shows is drawn in its scale color: this
-      // week's days and each row's summary. Today has its red ring. The
-      // smallest cell is 95 by 52 device pixels, less its text.
+      // Every filled cell the card shows is drawn in its scale color: each
+      // grid week's days and each row's summary. Today has its red ring.
+      // The smallest cell is 93 by 52 device pixels, less its text.
       const fills = [
-        ...currentRow(card).colors.days,
+        ...gridRows(card).flatMap(({ colors }) => colors.days),
         ...card.rows.flatMap(({ colors }) =>
           CARD_COLUMNS.map((column) => colors[column.key]),
         ),

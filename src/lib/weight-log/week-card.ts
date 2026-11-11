@@ -45,6 +45,22 @@ export function currentRow(card: WeekCard): WeekCardRow {
   return card.rows.find((item) => item.row.week === monday)!;
 }
 
+/** How many weeks the card's day grid shows, ending with the date's. */
+export const GRID_WEEKS = 3;
+
+/**
+ * The day grid's rows, oldest first: the date's week and the two before
+ * it, each where the card has a row for it, so the log's first weeks show
+ * only the weeks it has.
+ */
+export function gridRows(card: WeekCard): WeekCardRow[] {
+  const monday = weekStartOf(card.date);
+  const first = addDays(monday, -7 * (GRID_WEEKS - 1));
+  return card.rows.filter(
+    (item) => item.row.week >= first && item.row.week <= monday,
+  );
+}
+
 const EMPTY_WEEK = [null, null, null, null, null, null, null];
 
 /**
