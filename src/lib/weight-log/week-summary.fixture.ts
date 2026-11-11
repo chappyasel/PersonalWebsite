@@ -81,3 +81,91 @@ export const HALF_TENTH_LOG: WeightLog = {
       : item,
   ),
 };
+
+const OFFSETS = [0.3, -0.2, 0.5, 0.1, -0.4, 0.2, 0];
+const plannedWeeks = (
+  phaseId: string,
+  start: string,
+  count: number,
+  target: (index: number) => number,
+) =>
+  Array.from({ length: count }, (_, index) => {
+    const date = new Date(`${start}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + index * 7);
+    const goal = Math.round(target(index) * 10) / 10;
+    return week(
+      date.toISOString().slice(0, 10),
+      phaseId,
+      OFFSETS.map(
+        (offset, day) =>
+          Math.round((goal + offset + (index % 3) * 0.1 + day * 0.02) * 10) /
+          10,
+      ),
+      goal,
+    );
+  });
+
+/**
+ * Three phases long enough to fill the card's eleven weeks: a finished cut,
+ * a finished bulk, and a running maintenance phase, every week planned and
+ * weighed. Tuesday, Jun 11 is left out of its average. `loggedThrough`
+ * keeps only the weigh-ins up to a day, as the log stood then.
+ */
+const WINDOW_WEEKS = [
+  ...plannedWeeks("1", "2030-03-04", 8, (index) => 190 - 0.5 * index),
+  ...plannedWeeks("2", "2030-04-29", 12, (index) => 186.5 + 0.25 * index),
+  ...plannedWeeks("3", "2030-07-22", 6, () => 189.5),
+].map((item) =>
+  item.date === "2030-06-10"
+    ? {
+        ...item,
+        weights: item.weights.map((weight, day) =>
+          day === 1 ? 191.4 : weight,
+        ),
+        averageDays: [0, 2, 3, 4, 5, 6],
+      }
+    : item,
+);
+
+export const WINDOW_LOG: WeightLog = {
+  ...SYNTHETIC_LOG,
+  phases: [
+    {
+      id: "1",
+      label: "Cut Mar '30 - Apr '30",
+      kind: "cut",
+      start: "2030-03-04",
+      end: "2030-04-28",
+    },
+    {
+      id: "2",
+      label: "Bulk Apr '30 - Jul '30",
+      kind: "bulk",
+      start: "2030-04-29",
+      end: "2030-07-21",
+    },
+    {
+      id: "3",
+      label: "Maintenance Jul '30 - Sep '30",
+      kind: "maintenance",
+      start: "2030-07-22",
+      end: "2030-09-01",
+    },
+  ],
+  weeks: WINDOW_WEEKS,
+};
+
+/** `WINDOW_LOG` as it stood on `date`, with no weigh-ins after it. */
+export function loggedThrough(date: string): WeightLog {
+  return {
+    ...WINDOW_LOG,
+    weeks: WINDOW_LOG.weeks.map((item) => ({
+      ...item,
+      weights: item.weights.map((weight, day) => {
+        const on = new Date(`${item.date}T00:00:00Z`);
+        on.setUTCDate(on.getUTCDate() + day);
+        return on.toISOString().slice(0, 10) <= date ? weight : null;
+      }),
+    })),
+  };
+}

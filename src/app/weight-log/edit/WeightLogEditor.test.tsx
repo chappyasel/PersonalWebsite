@@ -400,7 +400,7 @@ describe("a day cell", () => {
     press(input("Weigh-in, Mon, Jan 14"), "Tab");
     expect(document.activeElement).toBe(input("Target, week of Jan 14"));
     press(input("Target, week of Jan 14"), "Tab");
-    expect(document.activeElement).toBe(input("lb/wk, week of Jan 14"));
+    expect(document.activeElement).toBe(input("lbs/w, week of Jan 14"));
   });
 });
 
@@ -592,11 +592,11 @@ describe("the plan cells", () => {
     ]);
     // Both views of the edit show it until the plan comes back.
     expect(cell("Target, week of Jan 14").textContent).toBe("101.2");
-    expect(cell("lb/wk, week of Jan 14").textContent).toBe("+1.20");
+    expect(cell("lbs/w, week of Jan 14").textContent).toBe("+1.2");
     await settle(mocks.calls[0]!);
     expect(
       screen.getByText(
-        "Set the week of Jan 14 to 101.2 lb at +1.20 lb/wk. Later targets moved +0.70 lb.",
+        "Set the week of Jan 14 to 101.2 lb at +1.2 lbs/w. Later targets moved +0.7 lb.",
       ),
     ).toBeTruthy();
 
@@ -622,9 +622,9 @@ describe("the plan cells", () => {
     expect(mocks.calls[1]!.input).toMatchObject({ poundsPerWeek: 0.333333 });
   });
 
-  it("sends an lb/wk to two decimals", () => {
+  it("sends an lbs/w to two decimals", () => {
     render(<WeightLogEditor />);
-    press(typeInto("lb/wk, week of Jan 21", "-0.254"), "Enter");
+    press(typeInto("lbs/w, week of Jan 21", "-0.254"), "Enter");
     expect(mocks.calls[0]!.input).toEqual({
       phaseId: "1",
       weekStart: "2030-01-21",
@@ -633,10 +633,32 @@ describe("the plan cells", () => {
     });
   });
 
-  it("starts an lb/wk from its two-decimal value", () => {
+  it("starts an lbs/w from its two-decimal value", () => {
     render(<WeightLogEditor />);
-    fireEvent.click(cell("lb/wk, week of Jan 21"));
-    expect(input("lb/wk, week of Jan 21").value).toBe("0.50");
+    fireEvent.click(cell("lbs/w, week of Jan 21"));
+    expect(input("lbs/w, week of Jan 21").value).toBe("0.50");
+  });
+
+  it("reads a quarter-pound rate to one decimal but edits it at two", () => {
+    mocks.rows = [
+      row("2030-01-07", empty, 100),
+      row("2030-01-14", empty, 100.25, 0.25),
+      row("2030-01-21", empty, 100, -0.25),
+    ];
+    render(<WeightLogEditor />);
+    expect(cell("lbs/w, week of Jan 14").textContent).toBe("+0.3");
+    expect(cell("lbs/w, week of Jan 21").textContent).toBe("−0.3");
+    // The field opens on the stored 0.25, so saving it untouched sends
+    // nothing, and a typed 0.3 still saves as 0.3.
+    fireEvent.click(cell("lbs/w, week of Jan 14"));
+    expect(input("lbs/w, week of Jan 14").value).toBe("0.25");
+    press(input("lbs/w, week of Jan 14"), "Enter");
+    expect(mocks.calls).toEqual([]);
+    press(typeInto("lbs/w, week of Jan 14", "0.3"), "Enter");
+    expect(mocks.calls[0]!.input).toMatchObject({
+      weekStart: "2030-01-14",
+      poundsPerWeek: 0.3,
+    });
   });
 
   it("keeps the phase's first week read-only", () => {
@@ -645,7 +667,7 @@ describe("the plan cells", () => {
       screen.queryByRole("button", { name: /^Target, week of Jan 7/ }),
     ).toBeNull();
     expect(
-      screen.queryByRole("button", { name: /^lb\/wk, week of Jan 7/ }),
+      screen.queryByRole("button", { name: /^lbs\/w, week of Jan 7/ }),
     ).toBeNull();
   });
 });
@@ -787,7 +809,6 @@ describe("weekly table", () => {
       (item) => item.textContent,
     );
     expect(headers).toEqual([
-      "#Week number",
       "Week",
       "Mon",
       "Tue",
@@ -797,22 +818,29 @@ describe("weekly table", () => {
       "Sat",
       "Sun",
       "Avg",
-      "Chg",
+      "+/-",
       "Target",
       "Gap",
-      "lb/wk",
+      "lbs/w",
       "Orig",
       "Gap",
     ]);
-    const [number, ...cells] = [
+    const cells = [
       ...[...table.querySelectorAll("tbody tr")][0]!.querySelectorAll("td"),
     ];
-    // The phase's first week is week 0, the next week 1.
-    expect(number!.textContent).toBe("0");
+    // Each row is headed by its number in the phase beside its Monday, the
+    // month over the day, as on the Log Weight card. The phase's first week
+    // is week 0, the next week 1.
+    const rowHeaders = screen.getAllByRole("rowheader");
+    expect(rowHeaders.map((item) => item.textContent)).toEqual([
+      "0Jan7Jan 7, week 0",
+      "1Jan14Jan 14, week 1",
+    ]);
     expect(
-      [...table.querySelectorAll("tbody tr")][1]!.querySelector("td")!
-        .textContent,
-    ).toBe("1");
+      rowHeaders.map(
+        (item) => item.querySelector("[data-number]")!.textContent,
+      ),
+    ).toEqual(["0", "1"]);
     const fill = (item: Element) =>
       (item as HTMLElement).style.getPropertyValue("--wl-fill") || null;
     // Lowest counted weigh-in is white, highest green; the excluded 140 has
@@ -834,11 +862,15 @@ describe("weekly table", () => {
     expect(fill(cells[9]!)).toBe("#5a8ac6");
     expect(fill(cells[10]!)).toBe("#f8696b");
     expect(fill(cells[8]!)).toBeNull();
-    // lb/wk reads to two decimals, as the plan stores it.
+    // lbs/w reads to one decimal, though the plan stores six.
     const second = [
       ...[...table.querySelectorAll("tbody tr")][1]!.querySelectorAll("td"),
     ];
-    expect(second[12]!.textContent).toBe("+1.00");
+    expect(second[11]!.textContent).toBe("+1.0");
+    // An empty value's dash is light gray, and a number never is.
+    expect(second[7]!.textContent).toBe("—");
+    expect(second[7]!.className).toContain("text-neutral-300");
+    expect(second[9]!.className).not.toContain("text-neutral-300");
   });
 });
 

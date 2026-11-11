@@ -161,7 +161,7 @@ afterEach(() => {
 });
 
 describe("the plan section", () => {
-  it("has no weekly rate form, since the Weeks table edits lb/wk", () => {
+  it("has no weekly rate form, since the Weeks table edits lbs/w", () => {
     render(<PlanEditor today="2030-02-06" />);
     expect(screen.queryByRole("form", { name: "Weekly rate" })).toBeNull();
     expect(screen.getByText("Bulk Jan '30 - Feb '30")).toBeTruthy();
@@ -179,7 +179,7 @@ describe("length", () => {
     type("Weeks", "6", LENGTH);
     expect(
       screen.getByText(
-        "Adds 2 weeks at +0.50 lb/wk, ending Sunday, Mar 10, 2030.",
+        "Adds 2 weeks at +0.5 lbs/w, ending Sunday, Mar 10, 2030.",
       ),
     ).toBeTruthy();
     fireEvent.click(button("Save length"));
@@ -210,7 +210,7 @@ describe("start a phase", () => {
     );
     expect(button("Start").disabled).toBe(true);
     type("Starting target", "101.2", START);
-    type("lb/wk", "-0.5", START);
+    type("lbs/w", "-0.5", START);
     type("Weeks", "8", START);
     expect(
       screen.getByText(

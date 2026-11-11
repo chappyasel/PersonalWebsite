@@ -111,7 +111,7 @@ export function targetEdit(
   return { type: "changeRate", week, poundsPerWeek };
 }
 
-/** An lb/wk cell, in pounds to two decimals, as the server rounds it. */
+/** An lbs/w cell, in pounds to two decimals, as the server rounds it. */
 export function rateEdit(
   week: string,
   text: string,
@@ -125,7 +125,7 @@ export function rateEdit(
   if (Math.abs(value) > MAX_POUNDS_PER_WEEK) {
     return {
       type: "invalid",
-      message: `Keep the rate within ${MAX_POUNDS_PER_WEEK} lb/wk either way.`,
+      message: `Keep the rate within ${MAX_POUNDS_PER_WEEK} lbs/w either way.`,
     };
   }
   const poundsPerWeek = roundHundredth(value);

@@ -96,7 +96,12 @@ restore:weight-log`, and the `.superset/setup.sh` restore step.
     decimal place.
 23. Weekly table columns: weekly average, change from last week, target, gap to
     target, lb/wk, original target, gap to original target. Show the current
-    phase first, with a picker for older phases.
+    phase first, with a picker for older phases. Revised November 11, 2026,
+    at the owner's ask: the change column's header is "+/-" and the rate's is
+    "lbs/w", on the Weeks table, the card, Plan's rate field, and every
+    message, and rates show one decimal ("always to 0-1 decimal place not
+    2"). The plan still stores six decimals, and the edit fields still show
+    two.
 24. Set points are editable in version 1.
 
 ### Cutover and outside systems
@@ -188,7 +193,32 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     now a snapshot of the editor's Weeks table, its header and two rows (last
     week and this week) with the editor's fills and today's red ring. It
     is set for a notification about 360 pt wide: 16 px type, tight cells,
-    and no Orig, its Gap, or lb/wk, so its text lands near 9 pt.
+    and no Orig, its Gap, or lb/wk, so its text lands near 9 pt. Changed
+    again later on November 10, 2026, at the owner's ask, because the phone
+    is always upright: the card is now portrait, 360 px wide and as tall as
+    its rows. This week's seven days sit large at the top (16 pt), under a
+    caption with the phase and the week's number. Below them, a table of
+    `#`, Week, Avg, Chg, Target, Gap, and lb/wk (14 pt) covers up to five
+    weeks before this one, this week, and up to five after. A phase change
+    inside the window gets a rule and the new phase's dot and name. The
+    owner has yet to confirm the layout. A one-table version with all 16
+    columns and color-only day cells came out near 6.5 pt and was not
+    shipped. Revised November 11, 2026, at the owner's ask ("bolder fonts
+    please", and the previous two weeks in the grid "for comparison"): the
+    day grid has three rows, two weeks ago, last week, and this week, each
+    labelled with its Monday and colored within its own phase's table, with
+    the table's phase labels where the phase changes. Its numbers are 14 pt
+    so seven bold days and the label fit 360 pt. Labels are SF Pro Medium,
+    numbers Semibold, and this week's rows Bold. The card's Week labels never
+    carry a year, even across New Year ("it's obvious it's the next year").
+    The owner has yet to confirm the layout. Revised again November 11,
+    2026, at the owner's ask ("why are the numbers bold?"): headers and
+    labels are SF Pro Bold, numbers Regular, and this week's numbers Medium.
+    The grid and the table label each week the same way, its number beside
+    its Monday with the month over the day, so the table's `#` and Week
+    columns are one. Table rows are 34 pt for the two-line label, and the
+    table's numbers 15 pt. An empty value's dash is light gray. The owner
+    has yet to confirm the layout.
 42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
     weigh-in (decision 32).
 43. The owner builds the Shortcut by hand from a written recipe in

@@ -23,7 +23,11 @@ import {
   weekTableColors,
 } from "~/lib/weight-log/color-scale";
 import { lastWeighInBefore, relativeDayLabel } from "~/lib/weight-log/entry";
-import { pounds, rate, weekLabel as labelOfWeek } from "~/lib/weight-log/format";
+import {
+  weekLabel as labelOfWeek,
+  pounds,
+  rate,
+} from "~/lib/weight-log/format";
 import {
   addDays,
   cycleNumbers,
@@ -47,8 +51,8 @@ import {
   withWeeks,
 } from "~/lib/weight-log/sheet";
 import {
-  DAY_NAMES,
   SUMMARY_COLUMNS as COLUMNS,
+  DAY_NAMES,
 } from "~/lib/weight-log/week-columns";
 import { type WeekTableRow, weekNumber } from "~/lib/weight-log/week-table";
 import { api } from "~/trpc/react";
@@ -111,6 +115,52 @@ const TOUCH_CELL =
 
 /** Today's day cell, in light and dark mode. */
 const TODAY_RING = "ring-2 ring-inset ring-red-600 dark:ring-red-500";
+
+/** An empty value's dash: light, so the weeks with numbers lead. */
+const EMPTY_DASH = "text-neutral-300 dark:text-neutral-600";
+
+/**
+ * A week's row header, as the Log Weight card labels it: the week's number
+ * in its phase beside its Monday, the month over the day of the month. It
+ * fits the row's 28 px so the day cells and today's ring keep their height.
+ * Screen readers hear the full label, with the year when it isn't today's,
+ * and the number.
+ */
+function WeekLabelCell({
+  week,
+  number,
+  label,
+}: {
+  week: string;
+  number: number | null;
+  label: string;
+}) {
+  const [month, day] = labelOfWeek(week, week, { year: false }).split(" ");
+  return (
+    <th
+      scope="row"
+      className="sticky left-0 z-[2] bg-white py-0 pl-3 pr-2 text-left font-bold dark:bg-neutral-800 sm:pl-4"
+    >
+      <span aria-hidden className="flex items-center gap-1.5">
+        <span
+          data-number
+          className="w-4 text-right text-[11px] text-muted-foreground"
+        >
+          {number ?? ""}
+        </span>
+        <span data-date className="flex flex-col">
+          <span className="text-[10px] leading-[11px] text-muted-foreground">
+            {month}
+          </span>
+          <span className="text-[13px] leading-[14px]">{day}</span>
+        </span>
+      </span>
+      <span className="sr-only">
+        {number === null ? label : `${label}, week ${number}`}
+      </span>
+    </th>
+  );
+}
 
 /**
  * The phase the weekly table shows: the one picked in Weeks while it still
@@ -259,7 +309,7 @@ const without = (record: Record<string, string>, keys: string[]) => {
 
 /**
  * The Weeks table, edited like a spreadsheet. Tap a day to type its
- * weigh-in, or a week's target or lb/wk to change the plan. Return or
+ * weigh-in, or a week's target or lbs/w to change the plan. Return or
  * leaving the cell saves, Escape cancels, and an emptied day deletes its
  * weigh-in. One status line, shared by every cell, reports the last change
  * and offers to undo it.
@@ -406,7 +456,7 @@ export function WeekSheet({ today }: { today: string }) {
   const cellLabel = (cell: SheetCell) =>
     cell.kind === "day"
       ? `Weigh-in, ${dayLabel(cell.date)}`
-      : `${cell.kind === "target" ? "Target" : "lb/wk"}, week of ${weekLabel(cell.week)}`;
+      : `${cell.kind === "target" ? "Target" : "lbs/w"}, week of ${weekLabel(cell.week)}`;
 
   /** Where an opened cell starts: a refused draft, the value, or a carry. */
   const editingFor = (cell: SheetCell): Editing => {
@@ -425,6 +475,8 @@ export function WeekSheet({ today }: { today: string }) {
       return { cell, key, text: "", prefilled: false };
     }
     const row = rowByWeek.get(cell.week)!;
+    // The cell reads a rate to one decimal, but the field opens on the two
+    // the plan is edited to, so 0.25 opens as 0.25, not 0.3.
     return {
       cell,
       key,
@@ -581,7 +633,7 @@ export function WeekSheet({ today }: { today: string }) {
       () => {
         settle();
         setStatus({
-          message: `Set the week of ${weekLabel(edit.week)} to ${pounds(target)} lb at ${rate(edit.poundsPerWeek)} lb/wk.${later ? ` Later targets moved ${rate(moved)} lb.` : ""}`,
+          message: `Set the week of ${weekLabel(edit.week)} to ${pounds(target)} lb at ${rate(edit.poundsPerWeek)} lbs/w.${later ? ` Later targets moved ${rate(moved)} lb.` : ""}`,
           undo: {
             kind: "rate",
             phaseId,
@@ -671,7 +723,7 @@ export function WeekSheet({ today }: { today: string }) {
           () => {
             setPlanLanding(false);
             undone(
-              `Put the week of ${weekLabel(request.input.weekStart)} back to ${rate(request.input.poundsPerWeek)} lb/wk.`,
+              `Put the week of ${weekLabel(request.input.weekStart)} back to ${rate(request.input.poundsPerWeek)} lbs/w.`,
             );
           },
           (error) => {
@@ -774,7 +826,7 @@ export function WeekSheet({ today }: { today: string }) {
         aria-current={isToday ? "date" : undefined}
         onClick={() => open(cell)}
         className={cn(
-          "block w-full scroll-ml-28 px-1.5 py-1.5 text-right tabular-nums transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-white/10 dark:focus-visible:ring-neutral-300",
+          "block w-full scroll-ml-20 px-1.5 py-1.5 text-right tabular-nums transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-white/10 dark:focus-visible:ring-neutral-300",
           TOUCH_CELL,
           isToday && TODAY_RING,
         )}
@@ -829,6 +881,7 @@ export function WeekSheet({ today }: { today: string }) {
       return (
         <tr
           key={row.week}
+          data-week={row.week}
           aria-current={current ? "date" : undefined}
           className={cn(
             // Borders sit on the cells: a separated table keeps them with the
@@ -838,20 +891,11 @@ export function WeekSheet({ today }: { today: string }) {
             current && "font-medium",
           )}
         >
-          <td className="sticky left-0 z-[2] w-9 min-w-9 bg-white py-1.5 pl-3 text-right text-muted-foreground dark:bg-neutral-800 sm:w-10 sm:min-w-10 sm:pl-4">
-            {phaseStart ? weekNumber(row.week, phaseStart) : null}
-          </td>
-          <th
-            scope="row"
-            className={cn(
-              "sticky left-9 z-[2] bg-white py-0 pl-1 pr-2 text-left dark:bg-neutral-800 sm:left-10",
-              current ? "font-medium" : "font-normal",
-            )}
-          >
-            <span className="inline-block px-2 py-1.5">
-              {weekLabel(row.week)}
-            </span>
-          </th>
+          <WeekLabelCell
+            week={row.week}
+            number={phaseStart ? weekNumber(row.week, phaseStart) : null}
+            label={weekLabel(row.week)}
+          />
           {row.weights.map((weight, day) => {
             const date = addDays(row.week, day);
             const cell: SheetCell = { kind: "day", date };
@@ -920,6 +964,7 @@ export function WeekSheet({ today }: { today: string }) {
                 style={fillStyle(fill)}
                 className={cn(
                   "text-right last:pr-3 sm:last:pr-4",
+                  value === null && !fill && EMPTY_DASH,
                   editableKind && plan
                     ? "relative p-0"
                     : cn("px-1.5 py-1.5", editableKind && TOUCH_CELL),
@@ -948,26 +993,15 @@ export function WeekSheet({ today }: { today: string }) {
         className="w-full min-w-max border-separate border-spacing-0 text-xs tabular-nums"
       >
         <thead>
-          <tr className="text-muted-foreground [&>th]:border-b [&>th]:border-neutral-200 dark:[&>th]:border-neutral-700">
+          <tr className="font-bold text-muted-foreground [&>th]:border-b [&>th]:border-neutral-200 dark:[&>th]:border-neutral-700">
             <th
               scope="col"
-              className="sticky left-0 z-[2] w-9 min-w-9 bg-white py-2 pl-3 text-right font-normal dark:bg-neutral-800 sm:w-10 sm:min-w-10 sm:pl-4"
-            >
-              <span aria-hidden>#</span>
-              <span className="sr-only">Week number</span>
-            </th>
-            <th
-              scope="col"
-              className="sticky left-9 z-[2] bg-white py-2 pl-3 pr-2 text-left font-normal dark:bg-neutral-800 sm:left-10"
+              className="sticky left-0 z-[2] bg-white py-2 pl-3 pr-2 text-left dark:bg-neutral-800 sm:pl-4"
             >
               Week
             </th>
             {DAY_NAMES.map((day) => (
-              <th
-                key={day}
-                scope="col"
-                className="px-1.5 py-2 text-right font-normal"
-              >
+              <th key={day} scope="col" className="px-1.5 py-2 text-right">
                 {day}
               </th>
             ))}
@@ -976,7 +1010,7 @@ export function WeekSheet({ today }: { today: string }) {
                 key={column.key}
                 scope="col"
                 className={cn(
-                  "px-1.5 py-2 text-right font-normal last:pr-3 sm:last:pr-4",
+                  "px-1.5 py-2 text-right last:pr-3 sm:last:pr-4",
                   index === 0 &&
                     "border-l border-neutral-200 dark:border-neutral-700",
                 )}

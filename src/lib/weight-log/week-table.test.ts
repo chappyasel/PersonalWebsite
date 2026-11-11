@@ -94,7 +94,7 @@ describe("buildWeekTable", () => {
     expect(second!.gapToOriginalTarget).toBeCloseTo(-0.5);
   });
 
-  it("measures change across a phase boundary but lb/wk only within one", () => {
+  it("measures change across a phase boundary but lbs/w only within one", () => {
     const [first] = buildWeekTable({ weeks }, "2");
     // The previous calendar week belongs to the cut.
     expect(first!.change).toBeCloseTo(0.7);

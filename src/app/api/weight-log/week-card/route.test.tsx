@@ -2,8 +2,12 @@ import { NextRequest } from "next/server";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { weekCard } from "~/lib/weight-log/week-card";
-import { SYNTHETIC_LOG } from "~/lib/weight-log/week-summary.fixture";
+import type { WeightLog } from "~/lib/weight-log/schema";
+import { gridRows, weekCard } from "~/lib/weight-log/week-card";
+import {
+  SYNTHETIC_LOG,
+  loggedThrough,
+} from "~/lib/weight-log/week-summary.fixture";
 
 import { CARD_COLUMNS, cardSize } from "./WeekCard";
 import * as route from "./route";
@@ -82,20 +86,45 @@ afterEach(() => {
 const at = (date: string) =>
   vi.useFakeTimers({ now: new Date(`${date}T15:00:00Z`), toFake: ["Date"] });
 
+/** Phase 3 of `loggedThrough`'s log is running. */
+const THREE_PHASES = {
+  phases: [
+    { id: 1, endDate: "2030-04-28" },
+    { id: 2, endDate: "2030-07-21" },
+    { id: 3, endDate: null },
+  ],
+};
+
 describe("GET /api/weight-log/week-card", () => {
-  it.each([
-    ["an empty week", "2030-02-26"],
-    ["one weigh-in", "2030-02-04"],
-    ["a full week", "2030-01-13"],
-    ["an excluded day", "2030-01-31"],
-    ["a week with no target", "2030-02-19"],
-    ["a planned week with no weigh-ins", "2030-02-12"],
-    ["last week in another phase", "2030-01-22"],
-    ["the log's first week, with no week before it", "2030-01-08"],
+  it.each<[string, string, WeightLog | null]>([
+    ["an empty week", "2030-02-26", null],
+    ["one weigh-in, with an excluded day last week", "2030-02-04", null],
+    ["a full week", "2030-01-13", null],
+    ["an excluded day", "2030-01-31", null],
+    ["a week with no target", "2030-02-19", null],
+    ["a planned week with no weigh-ins", "2030-02-12", null],
+    ["a grid and a window across a phase start", "2030-01-22", null],
+    ["the log's first week, with no week before it", "2030-01-08", null],
+    ["the log's second week, with a two-week grid", "2030-01-15", null],
+    ["an empty week after the plan's end", "2030-03-05", null],
+    [
+      "eleven weeks of one phase, with an excluded day",
+      "2030-06-12",
+      loggedThrough("2030-06-12"),
+    ],
+    [
+      "the next phase's planned weeks",
+      "2030-07-10",
+      loggedThrough("2030-07-10"),
+    ],
   ])(
     "renders %s as a PNG with each cell's color",
-    async (_label, date) => {
+    async (_label, date, log) => {
       at(date);
+      if (log) {
+        mocks.load.mockResolvedValue(THREE_PHASES);
+        mocks.build.mockReturnValue(log);
+      }
       const response = await route.GET(get(date));
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toBe("image/png");
@@ -105,23 +134,32 @@ describe("GET /api/weight-log/week-card", () => {
       );
       const png = Buffer.from(await response.arrayBuffer());
       const meta = await sharp(png).metadata();
-      const card = weekCard(SYNTHETIC_LOG, date, "2");
+      const card = weekCard(log ?? SYNTHETIC_LOG, date, log ? "3" : "2");
       const size = cardSize(card);
       expect([meta.width, meta.height]).toEqual([size.width, size.height]);
+      expect(meta.width).toBe(720);
 
-      // Every filled cell the card shows is drawn in its scale color, and
-      // today has its red ring. A cell is 100 by 64 device pixels, less its
-      // text.
-      const fills = card.rows.flatMap(({ colors }) =>
-        [
-          ...colors.days,
-          ...CARD_COLUMNS.map((column) => colors[column.key]),
-        ].flatMap((color) => (color ? [color.light.background] : [])),
-      );
+      // Every filled cell the card shows is drawn in its scale color: each
+      // grid week's days and each row's summary. Today has its red ring.
+      // The smallest cell is 93 by 52 device pixels, less its text.
+      const fills = [
+        ...gridRows(card).flatMap(({ colors }) => colors.days),
+        ...card.rows.flatMap(({ colors }) =>
+          CARD_COLUMNS.map((column) => colors[column.key]),
+        ),
+      ].flatMap((color) => (color ? [color.light.background] : []));
       for (const fill of new Set(fills)) {
         expect(await pixelsOf(png, fill)).toBeGreaterThan(2000);
       }
       expect(await pixelsOf(png, "#dc2626")).toBeGreaterThan(500);
+      // Nothing is drawn in the bottom padding, so no row was cut off.
+      const { data, info } = await sharp(png)
+        .removeAlpha()
+        .extract({ left: 0, top: meta.height! - 16, width: 720, height: 16 })
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect(info.height).toBe(16);
+      expect(data.every((value) => value === 255)).toBe(true);
     },
     30_000,
   );

@@ -10,12 +10,16 @@ import {
 } from "./week-table";
 
 /**
- * The Log Weight card's two rows of the weekly table: the previous calendar
- * week and the week holding the asked-about date. Each row is the one the
- * editor's Weeks table shows for that week, with its colors computed over
- * the table that holds it, so a week in another phase gets that phase's
- * scales.
+ * The Log Weight card's rows of the weekly table: up to five weeks before
+ * the asked-about date's week, that week, and up to five after. Each row is
+ * the one the editor's Weeks table shows for that week, with its colors
+ * computed over the table that holds it, so a week in another phase gets
+ * that phase's scales.
  */
+
+/** How many weeks the card shows on each side of the date's week. */
+export const WEEKS_BEFORE = 5;
+export const WEEKS_AFTER = 5;
 
 type Phase = WeightLog["phases"][number];
 
@@ -31,8 +35,30 @@ export interface WeekCardRow {
 export interface WeekCard {
   /** The day asked about, which the card marks as today. */
   date: string;
-  /** The previous week first, when it has a row, then the date's week. */
+  /** Oldest first. The date's week is always among them. */
   rows: WeekCardRow[];
+}
+
+/** The row of the week holding the card's date. */
+export function currentRow(card: WeekCard): WeekCardRow {
+  const monday = weekStartOf(card.date);
+  return card.rows.find((item) => item.row.week === monday)!;
+}
+
+/** How many weeks the card's day grid shows, ending with the date's. */
+export const GRID_WEEKS = 3;
+
+/**
+ * The day grid's rows, oldest first: the date's week and the two before
+ * it, each where the card has a row for it, so the log's first weeks show
+ * only the weeks it has.
+ */
+export function gridRows(card: WeekCard): WeekCardRow[] {
+  const monday = weekStartOf(card.date);
+  const first = addDays(monday, -7 * (GRID_WEEKS - 1));
+  return card.rows.filter(
+    (item) => item.row.week >= first && item.row.week <= monday,
+  );
 }
 
 const EMPTY_WEEK = [null, null, null, null, null, null, null];
@@ -47,8 +73,12 @@ export function weekCard(
   runningId: string | null,
 ): WeekCard {
   const current = weekStartOf(date);
-  const previous = addDays(current, -7);
   const logged = new Map(log.weeks.map((week) => [week.date, week]));
+  const first = log.weeks.reduce<string | null>(
+    (earliest, week) =>
+      earliest === null || week.date < earliest ? week.date : earliest,
+    null,
+  );
 
   // A week the log has is in its phase's table, or outside every phase when
   // the loader found none. A week it lacks joins the table of the phase that
@@ -74,10 +104,22 @@ export function weekCard(
     });
   };
 
-  const weeks = [
-    ...(logged.has(previous) || phaseOf(previous) ? [previous] : []),
-    current,
-  ];
+  // The date's week always shows. A week the log has shows. An earlier week
+  // the log lacks shows while a phase holds it and the log has begun, so a
+  // week without weigh-ins reads as one. A later week the log lacks is past
+  // the plan, where the editor has no row for it.
+  const shown = (monday: string) =>
+    monday === current ||
+    logged.has(monday) ||
+    (monday < current &&
+      first !== null &&
+      monday >= first &&
+      phaseOf(monday) !== undefined);
+  const weeks = Array.from(
+    { length: WEEKS_BEFORE + 1 + WEEKS_AFTER },
+    (_, index) => addDays(current, (index - WEEKS_BEFORE) * 7),
+  ).filter(shown);
+
   // Each phase's table, and outside every phase, a table of the one week:
   // the editor shows a week no phase holds on its own unless the owner has
   // also gone to another.
