@@ -85,15 +85,14 @@ const HEADER_HEIGHT = 24;
 const ROW_HEIGHT = 26;
 const LABEL_HEIGHT = 22;
 /** The space between a cell's text and its edge. */
-const CELL_PAD = 3;
+const CELL_PAD = 4;
 /** Today's ring, inside the cell as the editor's `ring-inset`. */
 const RING = 2;
 
 /** `#`: two digits in bold, 1.29 em. */
 const INDEX_WIDTH = EDGE + 19 + CELL_PAD;
-/** Week: "May 31" in bold is 3.44 em, "May 31, 2030" 6.47 em. */
+/** Week: "May 31" in bold is 3.44 em. The card never writes a year. */
 const WEEK_TEXT = 49;
-const WEEK_TEXT_WITH_YEAR = 91;
 
 /**
  * The editor's summary columns less the original target and its gap, which
@@ -105,16 +104,19 @@ export const CARD_COLUMNS = SUMMARY_COLUMNS.filter(
     column.key !== "originalTarget" && column.key !== "gapToOriginalTarget",
 );
 
-const showsYear = (card: WeekCard) =>
-  card.rows.some((item) => item.row.week.slice(0, 4) !== card.date.slice(0, 4));
+/**
+ * A week's Monday with no year, even across New Year: the rows run in
+ * order, so "Jan 6" after "Dec 30" is plainly the next year.
+ */
+export const cardWeekLabel = (week: string) =>
+  weekLabel(week, week, { year: false });
 
 /**
  * The summary table's column widths. The number columns share what Week
  * leaves, in whole device pixels so neighbouring fills meet on a pixel.
  */
-function columnWidths(card: WeekCard) {
-  const week =
-    (showsYear(card) ? WEEK_TEXT_WITH_YEAR : WEEK_TEXT) + CELL_PAD * 2;
+function columnWidths() {
+  const week = WEEK_TEXT + CELL_PAD * 2;
   // Avg's left rule, and the last column's wider pad at the card's edge.
   const rest = CARD_WIDTH - INDEX_WIDTH - week - 1 - (EDGE - CELL_PAD);
   const number = Math.floor((rest * SCALE) / CARD_COLUMNS.length) / SCALE;
@@ -266,7 +268,7 @@ function PhaseName({ item }: { item: WeekCardRow }) {
 /** This week's phase on the left, its number and Monday on the right. */
 function Caption({ card }: { card: WeekCard }) {
   const item = currentRow(card);
-  const week = weekLabel(item.row.week, card.date);
+  const week = cardWeekLabel(item.row.week);
   return (
     <div
       style={{
@@ -318,8 +320,7 @@ function DayHeader() {
 
 /**
  * One week's day cells, as the editor's row reads and colors them, under a
- * label of its Monday: the month over the day, with no year, since the
- * summary below gives it.
+ * label of its Monday: the month over the day.
  */
 function DayRow({
   item,
@@ -332,7 +333,7 @@ function DayRow({
 }) {
   const { row, colors } = item;
   const current = row.week === weekStartOf(date);
-  const [month, day] = weekLabel(row.week, row.week).split(" ");
+  const [month, day] = cardWeekLabel(row.week).split(" ");
   const cell = { height: DAY_HEIGHT, rule: rule ? ROW_RULE : null };
   return (
     <div
@@ -513,7 +514,7 @@ function SummaryRow({
         {item.number === null ? "" : String(item.number)}
       </Cell>
       <Cell {...cell} width={widths.week} style={weekStyle}>
-        {weekLabel(row.week, date)}
+        {cardWeekLabel(row.week)}
       </Cell>
       {CARD_COLUMNS.map((column, index) => (
         <Cell
@@ -534,7 +535,7 @@ function SummaryRow({
 }
 
 export function WeekCardImage({ card }: { card: WeekCard }) {
-  const widths = columnWidths(card);
+  const widths = columnWidths();
   return (
     <div
       style={{

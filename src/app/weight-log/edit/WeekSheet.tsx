@@ -23,7 +23,11 @@ import {
   weekTableColors,
 } from "~/lib/weight-log/color-scale";
 import { lastWeighInBefore, relativeDayLabel } from "~/lib/weight-log/entry";
-import { pounds, rate, weekLabel as labelOfWeek } from "~/lib/weight-log/format";
+import {
+  weekLabel as labelOfWeek,
+  pounds,
+  rate,
+} from "~/lib/weight-log/format";
 import {
   addDays,
   cycleNumbers,
@@ -47,8 +51,8 @@ import {
   withWeeks,
 } from "~/lib/weight-log/sheet";
 import {
-  DAY_NAMES,
   SUMMARY_COLUMNS as COLUMNS,
+  DAY_NAMES,
 } from "~/lib/weight-log/week-columns";
 import { type WeekTableRow, weekNumber } from "~/lib/weight-log/week-table";
 import { api } from "~/trpc/react";
@@ -259,7 +263,7 @@ const without = (record: Record<string, string>, keys: string[]) => {
 
 /**
  * The Weeks table, edited like a spreadsheet. Tap a day to type its
- * weigh-in, or a week's target or lb/wk to change the plan. Return or
+ * weigh-in, or a week's target or lbs/w to change the plan. Return or
  * leaving the cell saves, Escape cancels, and an emptied day deletes its
  * weigh-in. One status line, shared by every cell, reports the last change
  * and offers to undo it.
@@ -406,7 +410,7 @@ export function WeekSheet({ today }: { today: string }) {
   const cellLabel = (cell: SheetCell) =>
     cell.kind === "day"
       ? `Weigh-in, ${dayLabel(cell.date)}`
-      : `${cell.kind === "target" ? "Target" : "lb/wk"}, week of ${weekLabel(cell.week)}`;
+      : `${cell.kind === "target" ? "Target" : "lbs/w"}, week of ${weekLabel(cell.week)}`;
 
   /** Where an opened cell starts: a refused draft, the value, or a carry. */
   const editingFor = (cell: SheetCell): Editing => {
@@ -425,6 +429,8 @@ export function WeekSheet({ today }: { today: string }) {
       return { cell, key, text: "", prefilled: false };
     }
     const row = rowByWeek.get(cell.week)!;
+    // The cell reads a rate to one decimal, but the field opens on the two
+    // the plan is edited to, so 0.25 opens as 0.25, not 0.3.
     return {
       cell,
       key,

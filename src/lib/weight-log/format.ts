@@ -19,23 +19,34 @@ export function signed(value: number | null) {
   return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)}`;
 }
 
-/** A weekly rate to two decimals, as the plan stores it, with its sign. */
+/**
+ * A weekly rate to one decimal, with its sign, as the owner reads every
+ * column. Halves round away from zero, so a cut's −0.25 reads as −0.3 just
+ * as a bulk's +0.25 reads as +0.3. The plan still stores six decimals, and
+ * the edit field shows two.
+ */
 export function rate(value: number | null) {
   if (value === null) return "—";
-  const rounded = Math.round(value * 100) / 100;
-  if (rounded === 0) return "0.00";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(2)}`;
+  const rounded = Math.round(Math.abs(value) * 10) / 10;
+  if (rounded === 0) return "0.0";
+  return `${value > 0 ? "+" : "−"}${rounded.toFixed(1)}`;
 }
 
 /**
  * A week's Monday as the weekly table's Week column writes it: "Nov 9", with
- * the year only when it isn't today's.
+ * the year only when it isn't today's. `{ year: false }` never writes it,
+ * as on the Log Weight card, where the next year is plain from the order.
  */
-export function weekLabel(week: string, today: string) {
+export function weekLabel(
+  week: string,
+  today: string,
+  { year = true }: { year?: boolean } = {},
+) {
   return new Date(`${week}T00:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
     month: "short",
     day: "numeric",
-    year: week.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
+    year:
+      year && week.slice(0, 4) !== today.slice(0, 4) ? "numeric" : undefined,
   });
 }

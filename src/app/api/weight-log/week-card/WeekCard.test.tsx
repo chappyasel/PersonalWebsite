@@ -25,7 +25,7 @@ import { buildWeekTable, weeklyAverage } from "~/lib/weight-log/week-table";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
 
-import { CARD_COLUMNS, WEIGHT, WeekCardImage } from "./WeekCard";
+import { CARD_COLUMNS, WEIGHT, WeekCardImage, cardWeekLabel } from "./WeekCard";
 import { WeekSheet } from "~/app/weight-log/edit/WeekSheet";
 
 /**
@@ -282,7 +282,7 @@ function expectCardMatchesEditor(
     const editor = summaryOf(
       editorRow(date, item.row.week, tableOf(item.phase)),
     );
-    expect(cells[1]!.text).toBe(weekLabel(item.row.week, date));
+    expect(cells[1]!.text).toBe(cardWeekLabel(item.row.week));
     expect({ ...cells, 1: null }).toEqual({ ...editor, 1: null });
   }
   return { card, host };
@@ -433,6 +433,42 @@ describe("WeekCardImage", () => {
       "Bulk Apr '30 - Jul '30",
       "Maintenance Jul '30 - Sep '30",
     ]);
+  });
+
+  it("writes no year in any label, even across New Year", () => {
+    const log: Pick<WeightLog, "phases" | "weeks"> = {
+      phases: [
+        {
+          id: "9",
+          label: "Bulk Dec '30 - Jan '31",
+          kind: "bulk",
+          start: "2030-12-16",
+          end: "2031-01-19",
+        },
+      ],
+      weeks: [
+        "2030-12-16",
+        "2030-12-23",
+        "2030-12-30",
+        "2031-01-06",
+        "2031-01-13",
+      ].map((date, index) => ({
+        date,
+        phaseId: "9",
+        weights: [180 + index / 10, null, null, null, null, null, null],
+        averageDays: [0, 1, 2, 3, 4, 5, 6],
+        target: 180 + index / 4,
+        originalTarget: 180 + index / 4,
+      })),
+    };
+    mocks.runningId = "9";
+    const { host } = cardMarkup(log, "2031-01-01");
+    expect(host.textContent).toContain("Week 2 · Dec 30");
+    expect(host.textContent).toContain("Jan 6");
+    expect(host.textContent).toContain("Dec 16");
+    expect(host.textContent).not.toMatch(/20[0-9]{2}/);
+    // The editor still writes it.
+    expect(weekLabel("2031-01-06", "2030-12-30")).toBe("Jan 6, 2031");
   });
 
   it("captions this week's phase, number, and Monday", () => {

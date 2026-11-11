@@ -24,7 +24,7 @@ export const SUMMARY_COLUMNS: readonly {
   { key: "average", label: "Avg", hint: "Weekly average", format: pounds },
   {
     key: "change",
-    label: "Chg",
+    label: "+/-",
     hint: "Change from last week's average",
     format: signed,
   },
@@ -42,7 +42,7 @@ export const SUMMARY_COLUMNS: readonly {
   },
   {
     key: "poundsPerWeek",
-    label: "lb/wk",
+    label: "lbs/w",
     hint: "Target minus last week's target",
     format: rate,
   },

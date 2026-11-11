@@ -96,7 +96,11 @@ restore:weight-log`, and the `.superset/setup.sh` restore step.
     decimal place.
 23. Weekly table columns: weekly average, change from last week, target, gap to
     target, lb/wk, original target, gap to original target. Show the current
-    phase first, with a picker for older phases.
+    phase first, with a picker for older phases. Revised November 11, 2026,
+    at the owner's ask: the change column's header is "+/-" and the rate's is
+    "lbs/w", on the Weeks table and the card, and rates show one decimal
+    ("always to 0-1 decimal place not 2"). The plan still stores six
+    decimals, and the rate's edit field still opens on two.
 24. Set points are editable in version 1.
 
 ### Cutover and outside systems
@@ -204,8 +208,9 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     labelled with its Monday and colored within its own phase's table, with
     the table's phase labels where the phase changes. Its numbers are 14 pt
     so seven bold days and the label fit 360 pt. Labels are SF Pro Medium,
-    numbers Semibold, and this week's rows Bold. The owner has yet to
-    confirm the layout.
+    numbers Semibold, and this week's rows Bold. The card's Week labels never
+    carry a year, even across New Year ("it's obvious it's the next year").
+    The owner has yet to confirm the layout.
 42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
     weigh-in (decision 32).
 43. The owner builds the Shortcut by hand from a written recipe in
