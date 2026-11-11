@@ -211,7 +211,14 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
     so seven bold days and the label fit 360 pt. Labels are SF Pro Medium,
     numbers Semibold, and this week's rows Bold. The card's Week labels never
     carry a year, even across New Year ("it's obvious it's the next year").
-    The owner has yet to confirm the layout.
+    The owner has yet to confirm the layout. Revised again November 11,
+    2026, at the owner's ask ("why are the numbers bold?"): headers and
+    labels are SF Pro Bold, numbers Regular, and this week's numbers Medium.
+    The grid and the table label each week the same way, its number beside
+    its Monday with the month over the day, so the table's `#` and Week
+    columns are one. Table rows are 34 pt for the two-line label, and the
+    table's numbers 15 pt. An empty value's dash is light gray. The owner
+    has yet to confirm the layout.
 42. The Shortcut does not write to Apple Health. The 08:00 mirror copies the
     weigh-in (decision 32).
 43. The owner builds the Shortcut by hand from a written recipe in

@@ -25,7 +25,13 @@ import { buildWeekTable, weeklyAverage } from "~/lib/weight-log/week-table";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
 
-import { CARD_COLUMNS, WEIGHT, WeekCardImage, cardWeekLabel } from "./WeekCard";
+import {
+  CARD_COLUMNS,
+  DASH,
+  WEIGHT,
+  WeekCardImage,
+  cardWeekLabel,
+} from "./WeekCard";
 import { WeekSheet } from "~/app/weight-log/edit/WeekSheet";
 
 /**
@@ -234,13 +240,25 @@ function cardMarkup(log: Pick<WeightLog, "phases" | "weeks">, date: string) {
   return { card, host };
 }
 
-/** The editor's cells the card keeps: #, Week, and `CARD_COLUMNS`. */
-const summaryOf = (editor: Cell[]) => [
-  ...editor.slice(0, 2),
-  ...CARD_COLUMNS.map(
+/** The editor's summary cells the card keeps, `CARD_COLUMNS`. */
+const summaryOf = (editor: Cell[]) =>
+  CARD_COLUMNS.map(
     (column) => editor[2 + DAY_NAMES.length + SUMMARY_COLUMNS.indexOf(column)]!,
-  ),
-];
+  );
+
+/**
+ * A grid or table row's week label, its first cell: the number, and the
+ * Monday as "Nov 18" from the month over the day.
+ */
+function labelOf(row: Element) {
+  const label = row.firstElementChild!;
+  return {
+    number: label.querySelector("[data-number]")!.textContent,
+    week: [...label.querySelector("[data-date]")!.children]
+      .map((line) => line.textContent)
+      .join(" "),
+  };
+}
 
 /**
  * The day cells of each week in the grid, and each summary row, against
@@ -270,6 +288,9 @@ function expectCardMatchesEditor(
     expect(editor).toHaveLength(2 + DAY_NAMES.length + SUMMARY_COLUMNS.length);
     const days = host.querySelector(`[data-days="${item.row.week}"]`)!;
     expect(readCells(days)).toEqual(editor.slice(2, 2 + DAY_NAMES.length));
+    expect(
+      labelOf(host.querySelector(`[data-grid="${item.row.week}"]`)!),
+    ).toEqual({ number: editor[0]!.text, week: cardWeekLabel(item.row.week) });
   }
 
   const rows = [...host.querySelectorAll("[data-week]")];
@@ -278,12 +299,12 @@ function expectCardMatchesEditor(
   );
   for (const item of card.rows) {
     const row = host.querySelector(`[data-week="${item.row.week}"]`)!;
-    const cells = readCells(row);
-    const editor = summaryOf(
-      editorRow(date, item.row.week, tableOf(item.phase)),
-    );
-    expect(cells[1]!.text).toBe(cardWeekLabel(item.row.week));
-    expect({ ...cells, 1: null }).toEqual({ ...editor, 1: null });
+    const editor = editorRow(date, item.row.week, tableOf(item.phase));
+    expect(labelOf(row)).toEqual({
+      number: editor[0]!.text,
+      week: cardWeekLabel(item.row.week),
+    });
+    expect(readCells(row).slice(1)).toEqual(summaryOf(editor));
   }
   return { card, host };
 }
@@ -464,8 +485,11 @@ describe("WeekCardImage", () => {
     mocks.runningId = "9";
     const { host } = cardMarkup(log, "2031-01-01");
     expect(host.textContent).toContain("Week 2 · Dec 30");
-    expect(host.textContent).toContain("Jan 6");
-    expect(host.textContent).toContain("Dec 16");
+    const labels = [...host.querySelectorAll("[data-week]")].map(
+      (row) => labelOf(row).week,
+    );
+    expect(labels).toContain("Jan 6");
+    expect(labels).toContain("Dec 16");
     expect(host.textContent).not.toMatch(/20[0-9]{2}/);
     // The editor still writes it.
     expect(weekLabel("2031-01-06", "2030-12-30")).toBe("Jan 6, 2031");
@@ -476,6 +500,63 @@ describe("WeekCardImage", () => {
     const { host } = cardMarkup(SYNTHETIC_LOG, "2030-01-31");
     expect(host.textContent).toContain("Bulk Jan '30 - Feb '30");
     expect(host.textContent).toContain("Week 1 · Jan 28");
+  });
+
+  it("labels each week with its number and Monday, the same in both blocks", () => {
+    mocks.runningId = "3";
+    const { host } = cardMarkup(loggedThrough("2030-06-12"), "2030-06-12");
+    for (const week of ["2030-05-27", "2030-06-03", "2030-06-10"]) {
+      expect(labelOf(host.querySelector(`[data-grid="${week}"]`)!)).toEqual(
+        labelOf(host.querySelector(`[data-week="${week}"]`)!),
+      );
+    }
+    expect(labelOf(host.querySelector('[data-week="2030-06-10"]')!)).toEqual({
+      number: "6",
+      week: "Jun 10",
+    });
+    // The table's header has no `#` column: the label carries the number.
+    const header = host.querySelector(
+      '[data-block="table"]',
+    )!.firstElementChild!;
+    expect([...header.children].map((cell) => cell.textContent)).toEqual([
+      "Week",
+      ...CARD_COLUMNS.map((column) => column.label),
+    ]);
+  });
+
+  it("sets labels and headers in Bold and numbers in Regular", () => {
+    mocks.runningId = "3";
+    const { host } = cardMarkup(loggedThrough("2030-06-12"), "2030-06-12");
+    const label = String(WEIGHT.label);
+    for (const block of ["grid", "table"]) {
+      const header = host.querySelector(`[data-block="${block}"]`)!
+        .firstElementChild as HTMLElement;
+      expect(header.style.fontWeight).toBe(label);
+    }
+    for (const row of host.querySelectorAll("[data-grid], [data-week]")) {
+      expect((row.firstElementChild as HTMLElement).style.fontWeight).toBe(
+        label,
+      );
+    }
+    expect(WEIGHT.number).toBe(400);
+    expect(WEIGHT.label).toBeGreaterThan(WEIGHT.current);
+  });
+
+  it("draws an empty value's dash in light gray, and no number that way", () => {
+    mocks.runningId = "3";
+    const { host } = cardMarkup(loggedThrough("2030-06-12"), "2030-06-12");
+    const cells = [
+      ...host.querySelectorAll("[data-week] > div"),
+    ] as HTMLElement[];
+    const dashes = cells.filter((cell) => cell.textContent === "—");
+    expect(dashes.length).toBeGreaterThan(0);
+    for (const dash of dashes) {
+      expect(colorOf(dash.style.color)).toBe(colorOf(DASH));
+    }
+    for (const cell of cells) {
+      if (cell.textContent === "—") continue;
+      expect(colorOf(cell.style.color)).not.toBe(colorOf(DASH));
+    }
   });
 
   it("sets this week a step bolder and later weeks muted, as the editor does", () => {
@@ -518,7 +599,8 @@ describe("WeekCardImage", () => {
       ] as HTMLElement[];
       expect(cells.length).toBeGreaterThan(50);
       for (const cell of cells) {
-        if (!cell.textContent) continue;
+        // An empty value's dash is light on purpose: it marks no number.
+        if (!cell.textContent || cell.textContent === "—") continue;
         // A cell without a fill is on the white card, in its row's ink.
         let ink = cell.style.color;
         for (let node: HTMLElement | null = cell; !ink && node; ) {

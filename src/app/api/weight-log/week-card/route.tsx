@@ -46,8 +46,8 @@ const readFont = async (name: string) =>
 
 function loadFonts() {
   fonts ??= Promise.all([
+    readFont("SF-Pro-Display-Regular.otf"),
     readFont("SF-Pro-Display-Medium.otf"),
-    readFont("SF-Pro-Display-Semibold.otf"),
     readFont("SF-Pro-Display-Bold.otf"),
   ]).catch((error: unknown) => {
     fonts = undefined;
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     logFailure("week-card", "load", error);
     return couldNotDraw();
   }
-  const [records, [medium, semibold, bold]] = loaded;
+  const [records, [regular, medium, bold]] = loaded;
   let card: ReturnType<typeof weekCard>;
   try {
     const running = records.phases.find((phase) => phase.endDate === null);
@@ -101,9 +101,9 @@ export async function GET(request: NextRequest) {
   return new ImageResponse(<WeekCardImage card={card} />, {
     ...cardSize(card),
     fonts: [
-      { name: "SF Pro Display", data: medium, weight: WEIGHT.label, style },
-      { name: "SF Pro Display", data: semibold, weight: WEIGHT.number, style },
-      { name: "SF Pro Display", data: bold, weight: WEIGHT.current, style },
+      { name: "SF Pro Display", data: regular, weight: WEIGHT.number, style },
+      { name: "SF Pro Display", data: medium, weight: WEIGHT.current, style },
+      { name: "SF Pro Display", data: bold, weight: WEIGHT.label, style },
     ],
     // ImageResponse sets its own cache header first; these replace it.
     headers: NO_STORE_HEADERS,
