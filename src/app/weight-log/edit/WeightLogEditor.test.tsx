@@ -809,7 +809,6 @@ describe("weekly table", () => {
       (item) => item.textContent,
     );
     expect(headers).toEqual([
-      "#Week number",
       "Week",
       "Mon",
       "Tue",
@@ -826,15 +825,22 @@ describe("weekly table", () => {
       "Orig",
       "Gap",
     ]);
-    const [number, ...cells] = [
+    const cells = [
       ...[...table.querySelectorAll("tbody tr")][0]!.querySelectorAll("td"),
     ];
-    // The phase's first week is week 0, the next week 1.
-    expect(number!.textContent).toBe("0");
+    // Each row is headed by its number in the phase beside its Monday, the
+    // month over the day, as on the Log Weight card. The phase's first week
+    // is week 0, the next week 1.
+    const rowHeaders = screen.getAllByRole("rowheader");
+    expect(rowHeaders.map((item) => item.textContent)).toEqual([
+      "0Jan7Jan 7, week 0",
+      "1Jan14Jan 14, week 1",
+    ]);
     expect(
-      [...table.querySelectorAll("tbody tr")][1]!.querySelector("td")!
-        .textContent,
-    ).toBe("1");
+      rowHeaders.map(
+        (item) => item.querySelector("[data-number]")!.textContent,
+      ),
+    ).toEqual(["0", "1"]);
     const fill = (item: Element) =>
       (item as HTMLElement).style.getPropertyValue("--wl-fill") || null;
     // Lowest counted weigh-in is white, highest green; the excluded 140 has
@@ -860,7 +866,11 @@ describe("weekly table", () => {
     const second = [
       ...[...table.querySelectorAll("tbody tr")][1]!.querySelectorAll("td"),
     ];
-    expect(second[12]!.textContent).toBe("+1.0");
+    expect(second[11]!.textContent).toBe("+1.0");
+    // An empty value's dash is light gray, and a number never is.
+    expect(second[7]!.textContent).toBe("—");
+    expect(second[7]!.className).toContain("text-neutral-300");
+    expect(second[9]!.className).not.toContain("text-neutral-300");
   });
 });
 

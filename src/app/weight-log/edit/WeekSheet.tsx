@@ -116,6 +116,52 @@ const TOUCH_CELL =
 /** Today's day cell, in light and dark mode. */
 const TODAY_RING = "ring-2 ring-inset ring-red-600 dark:ring-red-500";
 
+/** An empty value's dash: light, so the weeks with numbers lead. */
+const EMPTY_DASH = "text-neutral-300 dark:text-neutral-600";
+
+/**
+ * A week's row header, as the Log Weight card labels it: the week's number
+ * in its phase beside its Monday, the month over the day of the month. It
+ * fits the row's 28 px so the day cells and today's ring keep their height.
+ * Screen readers hear the full label, with the year when it isn't today's,
+ * and the number.
+ */
+function WeekLabelCell({
+  week,
+  number,
+  label,
+}: {
+  week: string;
+  number: number | null;
+  label: string;
+}) {
+  const [month, day] = labelOfWeek(week, week, { year: false }).split(" ");
+  return (
+    <th
+      scope="row"
+      className="sticky left-0 z-[2] bg-white py-0 pl-3 pr-2 text-left font-bold dark:bg-neutral-800 sm:pl-4"
+    >
+      <span aria-hidden className="flex items-center gap-1.5">
+        <span
+          data-number
+          className="w-4 text-right text-[11px] text-muted-foreground"
+        >
+          {number ?? ""}
+        </span>
+        <span data-date className="flex flex-col">
+          <span className="text-[10px] leading-[11px] text-muted-foreground">
+            {month}
+          </span>
+          <span className="text-[13px] leading-[14px]">{day}</span>
+        </span>
+      </span>
+      <span className="sr-only">
+        {number === null ? label : `${label}, week ${number}`}
+      </span>
+    </th>
+  );
+}
+
 /**
  * The phase the weekly table shows: the one picked in Weeks while it still
  * exists, otherwise the one holding today. Starting a phase on the current
@@ -780,7 +826,7 @@ export function WeekSheet({ today }: { today: string }) {
         aria-current={isToday ? "date" : undefined}
         onClick={() => open(cell)}
         className={cn(
-          "block w-full scroll-ml-28 px-1.5 py-1.5 text-right tabular-nums transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-white/10 dark:focus-visible:ring-neutral-300",
+          "block w-full scroll-ml-20 px-1.5 py-1.5 text-right tabular-nums transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-500 disabled:cursor-default disabled:hover:bg-transparent dark:hover:bg-white/10 dark:focus-visible:ring-neutral-300",
           TOUCH_CELL,
           isToday && TODAY_RING,
         )}
@@ -835,6 +881,7 @@ export function WeekSheet({ today }: { today: string }) {
       return (
         <tr
           key={row.week}
+          data-week={row.week}
           aria-current={current ? "date" : undefined}
           className={cn(
             // Borders sit on the cells: a separated table keeps them with the
@@ -844,20 +891,11 @@ export function WeekSheet({ today }: { today: string }) {
             current && "font-medium",
           )}
         >
-          <td className="sticky left-0 z-[2] w-9 min-w-9 bg-white py-1.5 pl-3 text-right text-muted-foreground dark:bg-neutral-800 sm:w-10 sm:min-w-10 sm:pl-4">
-            {phaseStart ? weekNumber(row.week, phaseStart) : null}
-          </td>
-          <th
-            scope="row"
-            className={cn(
-              "sticky left-9 z-[2] bg-white py-0 pl-1 pr-2 text-left dark:bg-neutral-800 sm:left-10",
-              current ? "font-medium" : "font-normal",
-            )}
-          >
-            <span className="inline-block px-2 py-1.5">
-              {weekLabel(row.week)}
-            </span>
-          </th>
+          <WeekLabelCell
+            week={row.week}
+            number={phaseStart ? weekNumber(row.week, phaseStart) : null}
+            label={weekLabel(row.week)}
+          />
           {row.weights.map((weight, day) => {
             const date = addDays(row.week, day);
             const cell: SheetCell = { kind: "day", date };
@@ -926,6 +964,7 @@ export function WeekSheet({ today }: { today: string }) {
                 style={fillStyle(fill)}
                 className={cn(
                   "text-right last:pr-3 sm:last:pr-4",
+                  value === null && !fill && EMPTY_DASH,
                   editableKind && plan
                     ? "relative p-0"
                     : cn("px-1.5 py-1.5", editableKind && TOUCH_CELL),
@@ -954,26 +993,15 @@ export function WeekSheet({ today }: { today: string }) {
         className="w-full min-w-max border-separate border-spacing-0 text-xs tabular-nums"
       >
         <thead>
-          <tr className="text-muted-foreground [&>th]:border-b [&>th]:border-neutral-200 dark:[&>th]:border-neutral-700">
+          <tr className="font-bold text-muted-foreground [&>th]:border-b [&>th]:border-neutral-200 dark:[&>th]:border-neutral-700">
             <th
               scope="col"
-              className="sticky left-0 z-[2] w-9 min-w-9 bg-white py-2 pl-3 text-right font-normal dark:bg-neutral-800 sm:w-10 sm:min-w-10 sm:pl-4"
-            >
-              <span aria-hidden>#</span>
-              <span className="sr-only">Week number</span>
-            </th>
-            <th
-              scope="col"
-              className="sticky left-9 z-[2] bg-white py-2 pl-3 pr-2 text-left font-normal dark:bg-neutral-800 sm:left-10"
+              className="sticky left-0 z-[2] bg-white py-2 pl-3 pr-2 text-left dark:bg-neutral-800 sm:pl-4"
             >
               Week
             </th>
             {DAY_NAMES.map((day) => (
-              <th
-                key={day}
-                scope="col"
-                className="px-1.5 py-2 text-right font-normal"
-              >
+              <th key={day} scope="col" className="px-1.5 py-2 text-right">
                 {day}
               </th>
             ))}
@@ -982,7 +1010,7 @@ export function WeekSheet({ today }: { today: string }) {
                 key={column.key}
                 scope="col"
                 className={cn(
-                  "px-1.5 py-2 text-right font-normal last:pr-3 sm:last:pr-4",
+                  "px-1.5 py-2 text-right last:pr-3 sm:last:pr-4",
                   index === 0 &&
                     "border-l border-neutral-200 dark:border-neutral-700",
                 )}

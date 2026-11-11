@@ -169,12 +169,17 @@ interface Cell {
   ink: string | null;
 }
 
+/** An editor row: its week label, then its day and summary cells. */
+interface EditorRow {
+  label: ReturnType<typeof labelOf>;
+  cells: Cell[];
+}
+
 /**
  * Every row of every table the editor shows on `today`, by table name and
- * then by the Week column's text. A render per day is enough, so they're
- * kept.
+ * then by the week's Monday. A render per day is enough, so they're kept.
  */
-const editorTables = new Map<string, Map<string, Map<string, Cell[]>>>();
+const editorTables = new Map<string, Map<string, Map<string, EditorRow>>>();
 function editorAt(today: string) {
   const key = `${JSON.stringify(mocks.log.weeks)}|${mocks.runningId}|${today}`;
   const cached = editorTables.get(key);
@@ -184,11 +189,11 @@ function editorAt(today: string) {
       <WeekSheet today={today} />
     </TooltipProvider>,
   );
-  const tables = new Map<string, Map<string, Cell[]>>();
+  const tables = new Map<string, Map<string, EditorRow>>();
   for (const table of container.querySelectorAll("table[aria-label]")) {
-    const rows = new Map<string, Cell[]>();
+    const rows = new Map<string, EditorRow>();
     for (const row of table.querySelectorAll("tbody tr")) {
-      const cells = [...row.children].map((cell) => {
+      const cells = [...row.children].slice(1).map((cell) => {
         const style = (cell as HTMLElement).style;
         const fill = style.getPropertyValue("--wl-fill");
         const ink = style.getPropertyValue("--wl-ink");
@@ -198,7 +203,10 @@ function editorAt(today: string) {
           ink: ink ? colorOf(ink) : null,
         };
       });
-      rows.set(cells[1]!.text, cells);
+      rows.set(row.getAttribute("data-week")!, {
+        label: labelOf(row),
+        cells,
+      });
     }
     tables.set(table.getAttribute("aria-label")!, rows);
   }
@@ -211,12 +219,11 @@ function editorAt(today: string) {
  * The editor's row for a week, from the table named `table`. The editor
  * opens on the phase holding its today and adds today's week when its table
  * lacks it, so a row it doesn't show on the card's date is read with today
- * set to that week's Sunday. The Week column then carries a year by that
- * day, so it is checked apart.
+ * set to that week's Sunday.
  */
-function editorRow(date: string, week: string, table: string): Cell[] {
+function editorRow(date: string, week: string, table: string): EditorRow {
   for (const today of [date, addDays(week, 6)]) {
-    const row = editorAt(today).get(table)?.get(weekLabel(week, today));
+    const row = editorAt(today).get(table)?.get(week);
     if (row) return row;
   }
   throw new Error(`The editor's ${table} has no row for ${week}`);
@@ -241,14 +248,15 @@ function cardMarkup(log: Pick<WeightLog, "phases" | "weeks">, date: string) {
 }
 
 /** The editor's summary cells the card keeps, `CARD_COLUMNS`. */
-const summaryOf = (editor: Cell[]) =>
+const summaryOf = (editor: EditorRow) =>
   CARD_COLUMNS.map(
-    (column) => editor[2 + DAY_NAMES.length + SUMMARY_COLUMNS.indexOf(column)]!,
+    (column) =>
+      editor.cells[DAY_NAMES.length + SUMMARY_COLUMNS.indexOf(column)]!,
   );
 
 /**
- * A grid or table row's week label, its first cell: the number, and the
- * Monday as "Nov 18" from the month over the day.
+ * A row's week label, its first cell, on the card or in the editor: the
+ * number, and the Monday as "Nov 18" from the month over the day.
  */
 function labelOf(row: Element) {
   const label = row.firstElementChild!;
@@ -285,12 +293,16 @@ function expectCardMatchesEditor(
   ).toEqual(grid.map((item) => item.row.week));
   for (const item of grid) {
     const editor = editorRow(date, item.row.week, tableOf(item.phase));
-    expect(editor).toHaveLength(2 + DAY_NAMES.length + SUMMARY_COLUMNS.length);
+    expect(editor.cells).toHaveLength(
+      DAY_NAMES.length + SUMMARY_COLUMNS.length,
+    );
     const days = host.querySelector(`[data-days="${item.row.week}"]`)!;
-    expect(readCells(days)).toEqual(editor.slice(2, 2 + DAY_NAMES.length));
-    expect(
-      labelOf(host.querySelector(`[data-grid="${item.row.week}"]`)!),
-    ).toEqual({ number: editor[0]!.text, week: cardWeekLabel(item.row.week) });
+    expect(readCells(days)).toEqual(editor.cells.slice(0, DAY_NAMES.length));
+    const label = labelOf(
+      host.querySelector(`[data-grid="${item.row.week}"]`)!,
+    );
+    expect(label).toEqual(editor.label);
+    expect(label.week).toBe(cardWeekLabel(item.row.week));
   }
 
   const rows = [...host.querySelectorAll("[data-week]")];
@@ -300,10 +312,8 @@ function expectCardMatchesEditor(
   for (const item of card.rows) {
     const row = host.querySelector(`[data-week="${item.row.week}"]`)!;
     const editor = editorRow(date, item.row.week, tableOf(item.phase));
-    expect(labelOf(row)).toEqual({
-      number: editor[0]!.text,
-      week: cardWeekLabel(item.row.week),
-    });
+    expect(labelOf(row)).toEqual(editor.label);
+    expect(labelOf(row).week).toBe(cardWeekLabel(item.row.week));
     expect(readCells(row).slice(1)).toEqual(summaryOf(editor));
   }
   return { card, host };
