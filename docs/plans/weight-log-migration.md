@@ -153,12 +153,6 @@ Sync` Shortcut gains a step that asks the site for recent weigh-ins and logs
     23 scattered later) are not imported. They remain in the 2026-09-04 export
     at `~/Desktop/Agents/apple-health/export/export.xml` and in `health.db`.
 35. The site's read endpoint for the Shortcut uses its own read-only token.
-36. (Owner, 2026-11-09; numbered after 43 because 38-43 were taken by slice 5.) Retire `Log My Weight`. It writes only to Health, so
-    its readings never reach the site and they block the mirror for that date.
-    Weigh-ins are entered on the site.
-37. (Owner, 2026-11-09.) The 08:00 mirror's range runs through today. Abroad,
-    east of UTC-4, today's sample is stamped later than the moment it is
-    written. That is accepted, so a normal morning at home isn't delayed a day.
 
 ### Delivery
 
@@ -236,6 +230,12 @@ Chappy's decisions from November 10, 2026, accepting the recommendations in
 43. The owner builds the Shortcut by hand from a written recipe in
     `apple-health/shortcut/RUNBOOK-iphone.md`. `build_shortcut.py` does not
     generate it.
+44. (Owner, 2026-11-09. Numbered after 43 because slice 5 took 38 to 43 first.) Retire `Log My Weight`. It writes only to Health, so
+    its readings never reach the site and they block the mirror for that date.
+    Weigh-ins are entered on the site.
+45. (Owner, 2026-11-09.) The 08:00 mirror's range runs through today. Abroad,
+    east of UTC-4, today's sample is stamped later than the moment it is
+    written. That is accepted, so a normal morning at home isn't delayed a day.
 
 ### Deferred
 
