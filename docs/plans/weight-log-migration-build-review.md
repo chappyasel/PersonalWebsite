@@ -73,8 +73,7 @@ hasn't run on a device yet.
 - `.env` and `.env.development.local` both resolve `DATABASE_URL` to the Neon
   production branch. Slice 2a imports into a separate Neon branch of project
   `dark-truth-49514399` (Personal Website, us-west-2).
-- The wizard sets the Google variables in Vercel Production only, per decision
-  17. Preview builds must still pass without them.
+- The wizard sets the Google variables in Vercel Production only, per decision 17. Preview builds must still pass without them.
 - `protectedProcedure` callers today: `youtube.triggerSync`,
   `books.triggerSync`, `weightlifting`, and `post`. All become `ownerProcedure`.
 
@@ -188,8 +187,7 @@ cutover-day commands. The Neon test branch is `weight-log-import-test`
 
 ### Issues
 
-- The plan's fact was wrong: the Jan '26 cut has 20 empty planned weeks, not
-  19. The same rule also trims one empty week from Feb '19 - Jul '19. That
+- The plan's fact was wrong: the Jan '26 cut has 20 empty planned weeks, not 19. The same rule also trims one empty week from Feb '19 - Jul '19. That
   makes 21 dropped weeks plus 2 shortened phase ends. The import computes this
   from the data.
 - `refresh-pareto.ts --check-reference` (the September 12 reference) fails on
@@ -419,8 +417,7 @@ afterwards. The report goes to `reports/slice-3.md`.
 - The token is `WEIGHT_LOG_MIRROR_TOKEN`, compared as a constant-time SHA-256.
   With no token set, every request gets 503. A missing or wrong token gets
   401, and neither touches the database. The response carries only date and
-  pounds, over at most 366 days, with no-store and noindex. Other methods get
-  405.
+  pounds, over at most 366 days, with no-store and noindex. Other methods get 405.
 - The Shortcuts live in `~/Desktop/Agents/apple-health/shortcut/`, uncommitted,
   in six paths. `Health Daily Sync` keeps its 210 actions unchanged and adds 37
   for the mirror. `Weight Backfill` is new, 36 actions, one year per run, and
@@ -474,8 +471,8 @@ installed. The report goes to `weight-log-migration-reports/slice-4.md`.
   2. A date before the first phase can be saved and then can't be reached or
      deleted from the page.
   3. A pending save's completion wipes a newer draft typed on another date.
-  Slice 3 was told to finish on `5fe9e9f6` and merge the cutover branch
-  afterwards.
+     Slice 3 was told to finish on `5fe9e9f6` and merge the cutover branch
+     afterwards.
 - **Codex on slice 4** (`reports/codex-slice4-review.md`): the endpoint is
   sound. Four Shortcut findings went to fresh fixer `fix-d-health`, whose
   report goes to `reports/fix-d.md`:
@@ -514,7 +511,7 @@ installed. The report goes to `weight-log-migration-reports/slice-4.md`.
 
 - All three Codex 2b findings held up and are fixed, each test-first:
   1. A real `--replace` run now starts with `LOCK TABLE weight_log_weigh_ins
-     IN EXCLUSIVE MODE`, held to commit. The transaction moved into
+IN EXCLUSIVE MODE`, held to commit. The transaction moved into
      `scripts/weight-log/import-database.ts`. A live race on a Neon child
      branch lost the save without the lock and kept it with the lock. The dry
      run stays read-only, with no lock.
@@ -635,12 +632,8 @@ installed. The report goes to `weight-log-migration-reports/slice-4.md`.
      the payload names only `weekStart`.
   2. A refetch can retarget an armed start confirmation, so it replaces a
      phase the owner never saw.
-- P2:
-  3. The rate selector disappears after a length change.
-  4. Two concurrent set-point saves can collide on the primary key.
-  5. The import and a phase start can deadlock.
-- P3:
-  6. Rounding lets a set point of 0 through.
+- P2: 3. The rate selector disappears after a length change. 4. Two concurrent set-point saves can collide on the primary key. 5. The import and a phase start can deadlock.
+- P3: 6. Rounding lets a set point of 0 through.
 - All six went to fresh fixer `fix-f-plan`, whose report goes to
   `reports/fix-f.md`. A fresh Claude reviewer follows, the last round.
 - Lead note: both P1s need two tabs editing the plan at once. Real but
@@ -797,7 +790,7 @@ repository" was stale: it has no commits.
   keeping the role create and rotate script). Both are local and unpushed,
   on top of slice 4's `816b7fa`.
 - **Live run.** The table was backed up first, and `health_sync.py
-  weight-log` wrote 1,627 weigh-ins. All 1,624 shared dates are equal on
+weight-log` wrote 1,627 weigh-ins. All 1,624 shared dates are equal on
   weight, phase, week, and target. Only the three days from Nov 2 to Nov 4
   are new in `daily`, and `validate` passes.
 - **Intended differences.**
@@ -829,11 +822,13 @@ it non-fatal so a network failure can't fail the snapshot.
 
 - **#146** squash-merged as `c651a514`. Before merging, the lead fixed Devin's
   two findings and answered them on the PR:
+
   - `c28a7db9`: `upsertWeighIn` takes the plan lock shared. This is the race
     Devin and the Claude review (P3-5) both found, so that P3 is fixed.
   - `65d2a94e`: the rate inputs use `step="0.01"`.
 
   The deploy succeeded, and both pages answer 200.
+
 - **#147** squash-merged as `62e67fe2`. Devin found no issues. The deploy
   succeeded. `/api/weight-log/mirror` answers 503 (no token set yet) and 405
   to a POST, as designed.
@@ -845,7 +840,7 @@ it non-fatal so a network failure can't fail the snapshot.
   - The gap above the week grid is tightened.
   - The Weeks table gains a week number from 0 and colors on every column.
   - The phase picker gains kind dots, the cycle number, and the week count.
-  Cycle is numbered across all phases by start date. Owner to confirm.
+    Cycle is numbered across all phases by start date. Owner to confirm.
 - **#148** (entry polish) squash-merged as `c1de0296`. All checks passed and
   Devin found no issues. The deploy succeeded.
   - The lead pushed the builder's main-merge `b2eb3684` before its typecheck
@@ -935,6 +930,7 @@ Builder `quick-entry`, PR #150, report `reports/slice-5.md`. The apple-health ru
 - **Lead's call on the window, Owner to confirm.** Accept a date that is today or yesterday in some real time zone, UTC−12 through UTC+14. The owner travels, and the Shortcut sends the phone's date. A Pacific-only window would refuse a morning weigh-in in Europe.
 - **Fix round** given to a fresh fixer, `slice5-fix`, with every finding above, starting with a merge of `origin/main` after #149.
 - **Fix round result** (`d99f7476`, report section "Review fix round"). All ten findings are fixed, each with a test that failed on the old code. The changes:
+
   - `shortcutWindow` covers UTC−12 yesterday through UTC+14 today.
   - Every route, the mirror included, answers OPTIONS with a 405 and the no-store headers.
   - The guard test runs Next's auto-implemented methods with both empty and valid input.
@@ -948,6 +944,7 @@ Builder `quick-entry`, PR #150, report `reports/slice-5.md`. The apple-health ru
   - The runbook's step 9 has a fallback (apple-health `07b2e4b`, local).
 
   `heavy -- pnpm verify` passed on the merged head with 6,634 tests.
+
 - **Devin.** The first pass at 09:32 found no issues. Two `/devin review` requests on the fix round (10:37 and 11:19) each posted "Starting Devin Review." and then nothing for 40 and 12 minutes. On #149 a re-review answered in 2 minutes. The lead merged without that re-review, because Codex and a fresh Claude had both reviewed the slice and their findings were all fixed with tests. If Devin posts later, answer it in a follow-up.
 - **Merged** as `1c88cd27` on the owner's standing merge authorization.
 - **Open from the fix round, each Owner to confirm.**

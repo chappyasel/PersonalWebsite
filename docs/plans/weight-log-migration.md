@@ -143,7 +143,7 @@ Sync` Shortcut gains a step that asks the site for recent weigh-ins and logs
     Backfill" Shortcut then writes every weigh-in from the site, one year per
     run, in the foreground. Samples are timed 07:00 local on their date. Then
     the 08:00 mirror takes over.
-    *Lead edit, 2026-11-09, after two reviews (owner to confirm):* samples are
+    _Lead edit, 2026-11-09, after two reviews (owner to confirm):_ samples are
     written at 12:00 UTC on their date, so the duplicate check survives travel.
     The check skips a date that has a Weight sample from any source, not only
     from Shortcuts. Before the delete, the runbook adds a dry run, a fresh
@@ -153,10 +153,10 @@ Sync` Shortcut gains a step that asks the site for recent weigh-ins and logs
     23 scattered later) are not imported. They remain in the 2026-09-04 export
     at `~/Desktop/Agents/apple-health/export/export.xml` and in `health.db`.
 35. The site's read endpoint for the Shortcut uses its own read-only token.
-44. (Owner, 2026-11-09; numbered after 43 because 38-43 were taken by slice 5.) Retire `Log My Weight`. It writes only to Health, so
+36. (Owner, 2026-11-09; numbered after 43 because 38-43 were taken by slice 5.) Retire `Log My Weight`. It writes only to Health, so
     its readings never reach the site and they block the mirror for that date.
     Weigh-ins are entered on the site.
-45. (Owner, 2026-11-09.) The 08:00 mirror's range runs through today. Abroad,
+37. (Owner, 2026-11-09.) The 08:00 mirror's range runs through today. Abroad,
     east of UTC-4, today's sample is stamped later than the moment it is
     written. That is accepted, so a normal morning at home isn't delayed a day.
 
@@ -548,7 +548,7 @@ Decisions 38 to 43. The design and the reasons behind it are in
 - `src/lib/weight-log/bearer.ts`: `isBearerAuthorized`, moved from the
   mirror. The mirror route calls it.
 - `src/lib/weight-log/weigh-ins.ts`: `saveWeighIn(db, { date, pounds,
-  replace })` in one transaction under the shared plan lock, answering
+replace })` in one transaction under the shared plan lock, answering
   `saved`, `exists`, `replaced`, or `unchanged` with the previous pounds.
   `weightLog.upsertWeighIn` calls it with `replace: true`. The file also holds
   the Shortcut's date window and the request parsing.
