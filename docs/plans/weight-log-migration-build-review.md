@@ -7,48 +7,63 @@ Phase 2 started on November 9, 2026. The lead works in the
 
 ## Where it stands
 
-Updated November 9, evening.
+Updated November 12. Every Weight Log PR has landed: #141 to #144 and #146 to
+#154. The plan's slices are all live, and the session that ran the wave closed
+on this date.
 
-**Live on production:**
+**Live on production (`www.chappyasel.com`):**
 
-- #141: sign-in and `ownerProcedure`. The owner confirmed Google sign-in.
-- #142: the `/meet` test clock.
-- #143: body fat off by default.
-- #144: the cutover (`44c9112d`). The import ran first: 1,627 weigh-ins,
-  parity 0 unexpected.
+- `/weight-log` reads Postgres. The workbook was retired on Nov 4 and stays in
+  iCloud as the archive.
+- `/weight-log/edit` (Google sign-in, `OWNER_EMAIL`): the Weeks table is the
+  editor. Days, targets, and lbs/w are edited in their cells, with Plan and Set
+  points on their own pages. Headers read "+/-" and "lbs/w", and rates display
+  to one decimal while storage keeps six. Each row is labelled with its week
+  number beside the month over the day, without a year.
+- Log Weight Shortcut: `POST /api/weight-log/weigh-in` saves, and
+  `GET /api/weight-log/week-card` draws the portrait notification card (three
+  weeks of days, then five weeks back to three ahead). Both use
+  `WEIGHT_LOG_ENTRY_TOKEN`, which is set in Vercel Production.
+  `GET /api/weight-log/weigh-in?date=` (#154) answers the last counted weigh-in
+  before that date, but no Shortcut calls it since the prompt moved to a local
+  cache. Removing it is optional.
+- `/api/weight-log/mirror` (#147) answers 503 because
+  `WEIGHT_LOG_MIRROR_TOKEN` isn't set. The Health mirror isn't running yet.
 
-`/weight-log` reads Postgres, and `/weight-log/edit` takes entries. The
-workbook is retired from Nov 4. The Hermes refresh job is paused.
-
-**apple-health and sleep-debt** read the database through a read-only role.
-One sync matched every row. The commits are local in apple-health, not
-pushed.
-
-**Ready, waiting on the owner's merge:**
-
-- #146 (slice 3, plan editing). Both review rounds are done, and `27d123bc`
-  fixes the one P3 an owner could hit.
-- #147 (slice 4, the Health mirror endpoint). Rebuilt on main.
-  After merge, the owner sets `WEIGHT_LOG_MIRROR_TOKEN` in Vercel and runs the
-  iPhone runbook W0-W9 (apple-health `shortcut/`).
+**apple-health** (`~/Desktop/Agents/apple-health`, local commits, not
+pushed): the generated Log Weight Shortcut, last built from `84e31f0`, is at
+`shortcut/private/Log Weight.shortcut`. It is signed with the entry token, so it
+must not be shared. Its prompt reads `apple-health-sync/log-weight-last.txt` in
+the Shortcuts iCloud folder and writes the file after each save. The read step
+hasn't run on a device yet.
 
 **Owner's next steps:**
 
-- Enter Nov 5-9 on `/weight-log/edit`.
-- Merge #146 and #147.
+- Reinstall Log Weight from `shortcut/private/` and run it twice. The first
+  prompt is empty, and the second should open at once with the last weight. If
+  the first run stops before the prompt, the missing-file read needs a fix
+  (`reports/shortcut-placeholder.md`, Cache).
+- Confirm the card fits the expanded notification with three weeks ahead.
+- To start the Health mirror: set `WEIGHT_LOG_MIRROR_TOKEN` in Vercel, then
+  run the iPhone runbook W0 to W9 (apple-health `shortcut/`).
 - Say whether to push apple-health `main`.
-- Answer the 7 quick-entry Shortcut questions (`reports/shortcut-api-research.md`).
-- Decide on the hourly `health.db` refresh.
-- Go through each "Owner to confirm" below.
+- Decide whether the hourly `health.db` refresh should add site weigh-ins.
+- Go through each "Owner to confirm" in this file and in the reports. Open ones
+  include the any-timezone entry window, "cycle" (listed in `CONTEXT.md` as a
+  word to avoid), 21 vs 19 trimmed weeks, and the one-decimal and half-rounding
+  rules in `reports/week-card-portrait.md`.
 
-**Lead, after the owner's merges:**
+**Next session (lead), whenever it picks this up:**
 
-- Check every decision against what shipped.
-- Open a follow-up PR that deletes the cutover scripts, and remove the main
+- A close-out PR that deletes the cutover scripts. Also remove the main
   checkout's `data/weight-log`, the S3 object, and the Neon branch
-  `weight-log-import-test`.
-- After a week of clean entries (around Nov 16), remove the Hermes job and
+  `weight-log-import-test` (`ep-proud-union-akswp9yx`). Guard the branch id
+  before any delete, because `neonctl branches get ""` returns production.
+- From around Nov 16, after a week of clean entries, remove the Hermes job and
   `weight_log_refresh.py`.
+- `/api/og/section` font tracing follow-up (see slice 5's notes).
+- Plan decisions 44 and 45 were 38 and 39 on this branch. Slice 5 took 38 to
+  43 on main first, so they were renumbered when this branch was rebased.
 
 ## Lead notes
 
