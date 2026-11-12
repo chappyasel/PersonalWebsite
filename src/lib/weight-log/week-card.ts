@@ -11,7 +11,7 @@ import {
 
 /**
  * The Log Weight card's rows of the weekly table: up to five weeks before
- * the asked-about date's week, that week, and up to five after. Each row is
+ * the asked-about date's week, that week, and up to three after. Each row is
  * the one the editor's Weeks table shows for that week, with its colors
  * computed over the table that holds it, so a week in another phase gets
  * that phase's scales.
@@ -19,7 +19,7 @@ import {
 
 /** How many weeks the card shows on each side of the date's week. */
 export const WEEKS_BEFORE = 5;
-export const WEEKS_AFTER = 5;
+export const WEEKS_AFTER = 3;
 
 type Phase = WeightLog["phases"][number];
 
