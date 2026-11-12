@@ -247,7 +247,10 @@ describe("weightLog.restoreWeighIn", () => {
 
 describe("weightLog.week", () => {
   it("reads one calendar week's weigh-ins, before any phase as well as inside one", async () => {
+    // lastCountedWeighInBefore starts its read when called, so it runs
+    // before the week's rows, which start when Promise.all awaits them.
     replies = [
+      [["2029-11-30", 99.8]],
       [
         ["2029-11-27", 99, false],
         ["2029-11-28", 130, true],
@@ -255,7 +258,6 @@ describe("weightLog.week", () => {
         ["2029-12-04", 99.5, false],
         ["2029-12-08", 120, true],
       ],
-      [["2029-11-30", 99.8]],
     ];
     await expect(caller.week({ week: "2029-12-03" })).resolves.toEqual({
       week: "2029-12-03",
@@ -267,12 +269,12 @@ describe("weightLog.week", () => {
     });
     expect(queries).toEqual([
       {
-        sql: 'select "date", "pounds", "excluded" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" >= $1 and "weight_log_weigh_ins"."date" <= $2)',
-        params: ["2029-11-26", "2029-12-09"],
-      },
-      {
         sql: 'select "date", "pounds" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" < $1 and "weight_log_weigh_ins"."excluded" = $2) order by "weight_log_weigh_ins"."date" desc limit $3',
         params: ["2029-12-03", false, 1],
+      },
+      {
+        sql: 'select "date", "pounds", "excluded" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" >= $1 and "weight_log_weigh_ins"."date" <= $2)',
+        params: ["2029-11-26", "2029-12-09"],
       },
     ]);
   });

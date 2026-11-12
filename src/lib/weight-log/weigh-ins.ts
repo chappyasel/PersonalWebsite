@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { z } from "zod";
 
@@ -95,6 +95,32 @@ export async function saveWeighIn<Schema extends Record<string, unknown>>(
   });
 }
 
+/**
+ * The latest weigh-in before `date` that counts toward its weekly average,
+ * or null when the log has none. An excluded weigh-in is an outlier, so it
+ * never seeds a new entry. The editor's empty today cell starts from this,
+ * and so does the Log Weight Shortcut's prompt.
+ */
+export async function lastCountedWeighInBefore<
+  Schema extends Record<string, unknown>,
+>(db: PostgresJsDatabase<Schema>, date: string): Promise<WeighIn | null> {
+  const [row] = await db
+    .select({
+      date: weightLogWeighIns.date,
+      pounds: weightLogWeighIns.pounds,
+    })
+    .from(weightLogWeighIns)
+    .where(
+      and(
+        lt(weightLogWeighIns.date, date),
+        eq(weightLogWeighIns.excluded, false),
+      ),
+    )
+    .orderBy(desc(weightLogWeighIns.date))
+    .limit(1);
+  return row ?? null;
+}
+
 const HOUR = 3_600_000;
 
 /** The calendar date `hours` from `now`, as a clock at that UTC offset reads it. */
@@ -181,19 +207,37 @@ export function parseWeighInRequest(
   return { weighIn: parsed.data };
 }
 
-/** Read the card's `?date=`: a real date inside the Shortcut's window. */
-export function parseCardDate(
+/**
+ * Read a `?date=` the Shortcut sends: a real date inside its window.
+ * `outside` is the refusal for a date past the window.
+ */
+function parseWindowDate(
   value: string | null,
-  now = new Date(),
+  outside: string,
+  now: Date,
 ): { date: string } | { error: string } {
   const parsed = z.iso.date().safeParse(value);
   if (!parsed.success)
     return { error: "date must be a date written YYYY-MM-DD" };
-  if (!isInShortcutWindow(parsed.data, now)) {
-    return {
-      error:
-        "Only this week's card for today or yesterday can be read here. Use /weight-log/edit for other weeks.",
-    };
-  }
+  if (!isInShortcutWindow(parsed.data, now)) return { error: outside };
   return { date: parsed.data };
 }
+
+/** Read the card's `?date=`: a real date inside the Shortcut's window. */
+export const parseCardDate = (value: string | null, now = new Date()) =>
+  parseWindowDate(
+    value,
+    "Only this week's card for today or yesterday can be read here. Use /weight-log/edit for other weeks.",
+    now,
+  );
+
+/**
+ * Read the `?date=` the Shortcut asks the last weigh-in before: the phone's
+ * today, so a real date inside the Shortcut's window.
+ */
+export const parseLastWeighInDate = (value: string | null, now = new Date()) =>
+  parseWindowDate(
+    value,
+    "Only the weigh-in before today or yesterday can be read here. Use /weight-log/edit for other dates.",
+    now,
+  );

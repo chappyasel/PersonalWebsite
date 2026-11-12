@@ -6,7 +6,9 @@ import * as schema from "~/server/db/schema";
 import { PLAN_LOCK } from "./plan-edits";
 import {
   OUTSIDE_SHORTCUT_WINDOW,
+  lastCountedWeighInBefore,
   parseCardDate,
+  parseLastWeighInDate,
   parseWeighInRequest,
   saveWeighIn,
   shortcutWindow,
@@ -150,6 +152,28 @@ describe("saveWeighIn", () => {
   });
 });
 
+describe("lastCountedWeighInBefore", () => {
+  it("reads the latest weigh-in before the date that isn't excluded", async () => {
+    replies = [[["2001-01-08", 150.4]]];
+    await expect(
+      lastCountedWeighInBefore(db as never, "2001-01-09"),
+    ).resolves.toEqual({ date: "2001-01-08", pounds: 150.4 });
+    expect(queries).toEqual([
+      {
+        sql: 'select "date", "pounds" from "weight_log_weigh_ins" where ("weight_log_weigh_ins"."date" < $1 and "weight_log_weigh_ins"."excluded" = $2) order by "weight_log_weigh_ins"."date" desc limit $3',
+        params: ["2001-01-09", false, 1],
+      },
+    ]);
+  });
+
+  it("is null when the log has nothing counted before the date", async () => {
+    replies = [[]];
+    await expect(
+      lastCountedWeighInBefore(db as never, "2001-01-09"),
+    ).resolves.toBeNull();
+  });
+});
+
 describe("shortcutWindow", () => {
   const window = (now: string) => shortcutWindow(new Date(now));
 
@@ -269,6 +293,27 @@ describe("parseCardDate", () => {
     const refused = parseCardDate("2030-01-06", now);
     expect("error" in refused && refused.error).toContain("today or yesterday");
     expect(parseCardDate(null, now)).toEqual({
+      error: "date must be a date written YYYY-MM-DD",
+    });
+  });
+});
+
+describe("parseLastWeighInDate", () => {
+  const now = new Date("2030-01-08T12:00:00Z");
+
+  it("reads a date inside the window and refuses the rest", () => {
+    expect(parseLastWeighInDate("2030-01-07", now)).toEqual({
+      date: "2030-01-07",
+    });
+    expect(parseLastWeighInDate("2030-01-09", now)).toEqual({
+      date: "2030-01-09",
+    });
+    const refused = parseLastWeighInDate("2030-01-06", now);
+    expect("error" in refused && refused.error).toContain(
+      "before today or yesterday",
+    );
+    expect(parseLastWeighInDate("2030-01-10", now)).toEqual(refused);
+    expect(parseLastWeighInDate(null, now)).toEqual({
       error: "date must be a date written YYYY-MM-DD",
     });
   });
