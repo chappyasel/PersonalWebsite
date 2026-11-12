@@ -19,7 +19,7 @@ import {
 
 /** How many weeks the card shows on each side of the date's week. */
 export const WEEKS_BEFORE = 5;
-export const WEEKS_AFTER = 5;
+export const WEEKS_AFTER = 3;
 
 type Phase = WeightLog["phases"][number];
 

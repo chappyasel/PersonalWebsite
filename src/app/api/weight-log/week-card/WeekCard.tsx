@@ -27,7 +27,8 @@ import { DAY_NAMES, SUMMARY_COLUMNS } from "~/lib/weight-log/week-columns";
  *    this week's phase and number, so a day reads against the same day of
  *    the last two weeks.
  * 2. The weekly summary (`CARD_COLUMNS`) for up to five weeks before this
- *    one, this week, and up to five after.
+ *    one, this week, and up to three after, so the card fits an expanded
+ *    notification without iOS cropping it.
  *
  * In both, a row names its phase only where the phase changes, and the
  * first rows name theirs when it isn't this week's. Both label a week the

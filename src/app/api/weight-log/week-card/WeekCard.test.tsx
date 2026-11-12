@@ -371,7 +371,7 @@ describe("WeekCardImage", () => {
     const card = weekCard(loggedThrough("2030-06-12"), "2030-06-12", "3");
     expect(card.rows).toHaveLength(WEEKS_BEFORE + 1 + WEEKS_AFTER);
     expect(card.rows.map((item) => [item.row.week, item.number])).toEqual(
-      Array.from({ length: 11 }, (_, index) => [
+      Array.from({ length: WEEKS_BEFORE + 1 + WEEKS_AFTER }, (_, index) => [
         addDays("2030-05-06", index * 7),
         index + 1,
       ]),
@@ -386,8 +386,6 @@ describe("WeekCardImage", () => {
       "2030-01-14",
       "2030-01-21",
       "2030-01-28",
-      "2030-02-04",
-      "2030-02-11",
     ]);
   });
 
