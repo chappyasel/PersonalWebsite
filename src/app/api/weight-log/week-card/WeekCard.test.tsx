@@ -367,7 +367,7 @@ describe("WeekCardImage", () => {
     },
   );
 
-  it("shows five weeks either side of this one", () => {
+  it("shows five weeks before this one and three after", () => {
     const card = weekCard(loggedThrough("2030-06-12"), "2030-06-12", "3");
     expect(card.rows).toHaveLength(WEEKS_BEFORE + 1 + WEEKS_AFTER);
     expect(card.rows.map((item) => [item.row.week, item.number])).toEqual(

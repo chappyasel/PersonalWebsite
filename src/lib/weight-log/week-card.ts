@@ -11,7 +11,7 @@ import {
 
 /**
  * The Log Weight card's rows of the weekly table: up to five weeks before
- * the asked-about date's week, that week, and up to five after. Each row is
+ * the asked-about date's week, that week, and up to three after. Each row is
  * the one the editor's Weeks table shows for that week, with its colors
  * computed over the table that holds it, so a week in another phase gets
  * that phase's scales.
