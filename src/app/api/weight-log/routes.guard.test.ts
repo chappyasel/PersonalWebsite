@@ -50,7 +50,10 @@ const ROUTES: Record<string, { token: TokenVar; valid: ValidRequest }> = {
   },
   "weigh-in/route.ts": {
     token: "WEIGHT_LOG_ENTRY_TOKEN",
-    valid: { body: { date: "2030-02-04", pounds: 150.2, replace: true } },
+    valid: {
+      query: "date=2030-02-04",
+      body: { date: "2030-02-04", pounds: 150.2, replace: true },
+    },
   },
   "week-card/route.tsx": {
     token: "WEIGHT_LOG_ENTRY_TOKEN",

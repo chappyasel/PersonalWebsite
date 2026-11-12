@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     WEIGHT_LOG_ENTRY_TOKEN: "invented-entry-token" as string | undefined,
   },
   save: vi.fn(),
+  last: vi.fn(),
   load: vi.fn(),
   report: vi.fn(),
 }));
@@ -23,6 +24,7 @@ vi.mock("~/server/db", () => ({ db: { synthetic: true } }));
 vi.mock("~/lib/weight-log/weigh-ins", async (original) => ({
   ...(await original<typeof WeighIns>()),
   saveWeighIn: mocks.save,
+  lastCountedWeighInBefore: mocks.last,
 }));
 vi.mock("~/lib/weight-log/database", () => ({ loadWeekRecords: mocks.load }));
 vi.mock("~/lib/weight-log/records", async (original) => ({
@@ -44,6 +46,12 @@ function post(body: unknown, authorization: string | undefined = TOKEN) {
   });
 }
 
+function get(query: string, authorization: string | null = TOKEN) {
+  return new NextRequest(`${URL}${query}`, {
+    headers: authorization ? { authorization } : {},
+  });
+}
+
 const NO_STORE = "private, no-store, max-age=0";
 
 beforeEach(() => {
@@ -55,6 +63,7 @@ beforeEach(() => {
     excluded: false,
   });
   mocks.load.mockResolvedValue({});
+  mocks.last.mockResolvedValue({ date: "2030-02-03", pounds: 100.4 });
   vi.useFakeTimers({ now: new Date("2030-02-04T15:00:00Z"), toFake: ["Date"] });
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -307,15 +316,100 @@ describe("POST /api/weight-log/weigh-in", () => {
   });
 });
 
+describe("GET /api/weight-log/weigh-in", () => {
+  it("answers the latest counted weigh-in before the phone's date", async () => {
+    const response = await route.GET(get("?date=2030-02-04"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      date: "2030-02-03",
+      pounds: 100.4,
+    });
+    expect(mocks.last).toHaveBeenCalledWith({ synthetic: true }, "2030-02-04");
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(response.headers.get("cache-control")).toBe(NO_STORE);
+    expect(response.headers.get("x-robots-tag")).toBe(
+      "noindex, nofollow, noarchive",
+    );
+  });
+
+  it("answers nulls when the log has no weigh-in before the date", async () => {
+    mocks.last.mockResolvedValue(null);
+    const response = await route.GET(get("?date=2030-02-04"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ date: null, pounds: null });
+  });
+
+  it("reads yesterday too, at the window's other end", async () => {
+    await route.GET(get("?date=2030-02-03"));
+    expect(mocks.last).toHaveBeenCalledWith({ synthetic: true }, "2030-02-03");
+  });
+
+  it.each([
+    ["", "date must be a date written YYYY-MM-DD"],
+    ["?date=Feb%204", "date must be a date written YYYY-MM-DD"],
+    ["?date=2030-02-31", "date must be a date written YYYY-MM-DD"],
+    [
+      "?date=2030-01-20",
+      "Only the weigh-in before today or yesterday can be read here. Use /weight-log/edit for other dates.",
+    ],
+    [
+      "?date=2030-02-06",
+      "Only the weigh-in before today or yesterday can be read here. Use /weight-log/edit for other dates.",
+    ],
+  ])("refuses %j with 400 before reading", async (query, error) => {
+    const response = await route.GET(get(query));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error });
+    expect(response.headers.get("cache-control")).toBe(NO_STORE);
+    expect(mocks.last).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no token", null],
+    ["a wrong token", "Bearer invented-entry-tokenx"],
+  ])("refuses %s with 401 before reading", async (_label, auth) => {
+    const response = await route.GET(get("?date=2030-02-04", auth));
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe("Bearer");
+    expect(mocks.last).not.toHaveBeenCalled();
+  });
+
+  it("answers 503 while the token is unset", async () => {
+    mocks.env.WEIGHT_LOG_ENTRY_TOKEN = undefined;
+    const response = await route.GET(get("?date=2030-02-04"));
+    expect(response.status).toBe(503);
+    expect(mocks.last).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when the read fails, and logs only the step and code", async () => {
+    mocks.last.mockRejectedValue(
+      Object.assign(new Error("row (2030-02-03, 100.4)"), { code: "57P01" }),
+    );
+    const response = await route.GET(get("?date=2030-02-04"));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "The last weigh-in could not be read.",
+    });
+    expect(response.headers.get("cache-control")).toBe(NO_STORE);
+    expect(console.error).toHaveBeenCalledWith(
+      "weigh-in route: last failed (57P01)",
+    );
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(
+      "100.4",
+    );
+  });
+});
+
 describe("other methods", () => {
-  it.each(["GET", "PUT", "PATCH", "DELETE", "OPTIONS"] as const)(
+  it.each(["PUT", "PATCH", "DELETE", "OPTIONS"] as const)(
     "refuses %s with 405 and never reads or writes",
     (method) => {
       const response = route[method]();
       expect(response.status).toBe(405);
-      expect(response.headers.get("allow")).toBe("POST");
+      expect(response.headers.get("allow")).toBe("GET, HEAD, POST");
       expect(response.headers.get("cache-control")).toBe(NO_STORE);
       expect(mocks.save).not.toHaveBeenCalled();
+      expect(mocks.last).not.toHaveBeenCalled();
     },
   );
 });

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { loadWeekRecords } from "~/lib/weight-log/database";
@@ -31,7 +31,10 @@ import {
   currentPhase,
   weeklyAverage,
 } from "~/lib/weight-log/week-table";
-import { saveWeighIn } from "~/lib/weight-log/weigh-ins";
+import {
+  lastCountedWeighInBefore,
+  saveWeighIn,
+} from "~/lib/weight-log/weigh-ins";
 import { createTRPCRouter, ownerProcedure } from "~/server/api/trpc";
 import type { db as database } from "~/server/db";
 import {
@@ -255,7 +258,7 @@ export const weightLogRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input: { week } }) => {
       const previousWeek = addDays(week, -7);
-      const [rows, [before]] = await Promise.all([
+      const [rows, before] = await Promise.all([
         ctx.db
           .select({
             date: weightLogWeighIns.date,
@@ -269,20 +272,7 @@ export const weightLogRouter = createTRPCRouter({
               lte(weightLogWeighIns.date, addDays(week, 6)),
             ),
           ),
-        ctx.db
-          .select({
-            date: weightLogWeighIns.date,
-            pounds: weightLogWeighIns.pounds,
-          })
-          .from(weightLogWeighIns)
-          .where(
-            and(
-              lt(weightLogWeighIns.date, week),
-              eq(weightLogWeighIns.excluded, false),
-            ),
-          )
-          .orderBy(desc(weightLogWeighIns.date))
-          .limit(1),
+        lastCountedWeighInBefore(ctx.db, week),
       ]);
       const byDate = new Map(rows.map((row) => [row.date, row]));
       const daysOf = (monday: string) =>
@@ -303,7 +293,7 @@ export const weightLogRouter = createTRPCRouter({
             day && !day.excluded ? [index] : [],
           ),
         }),
-        before: before ?? null,
+        before,
       };
     }),
 
