@@ -81,7 +81,7 @@ import { BookingSheet, type SheetState, SwipeHint } from "./BookingSheet";
 import { DateText } from "./DateText";
 import { Duration } from "./Duration";
 import { PressButton } from "./PressButton";
-import { Collapse, Opens, Pop, Reveal } from "./Reveal";
+import { Collapse, Opens, Pop, Reveal, Stowed } from "./Reveal";
 import { SpokenTimes } from "./SpokenTimes";
 import { Turnstile, type TurnstileHandle } from "./Turnstile";
 import { WeekStrip, layoutTop } from "./WeekStrip";
@@ -273,6 +273,9 @@ const NOT_ME = {
 } as const;
 const GUEST_NAME_HINT = "Na\u2060me";
 const GUEST_EMAIL_HINT = "Em\u2060ail";
+/** Room past an "Add" button's sides for its focus ring, which Reveal's
+ * own clip would cut. */
+const ADD_CLIP = "[clip-path:inset(-0.5em_-4px)]";
 /** An email's rough shape, for the browser's own check of a guest's. */
 const GUEST_EMAIL_PATTERN = "[^@\\s]+@[^@\\s]+\\.[^@\\s]+";
 
@@ -451,6 +454,13 @@ export function MeetBooking({
   // Guest rows' keys, and their name fields, to focus a row as it's added.
   const guestKey = useRef(0);
   const guestFields = useRef(new Map<number, HTMLInputElement>());
+  // The phone field stays in the page while it's closed, so a browser's
+  // autofill can reach it with the name and email. Whatever fills it opens
+  // it: a number is never sent that the booker wasn't shown.
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [phoneFilled, setPhoneFilled] = useState(false);
+  const phoneField = useRef<HTMLInputElement>(null);
+  const addPhoneButton = useRef<HTMLButtonElement>(null);
   const [token, setToken] = useState<string | null>(null);
   const [failure, setFailure] = useState<Extract<
     BookResult,
@@ -791,6 +801,18 @@ export function MeetBooking({
       ...f,
       guests: f.guests.filter((g) => g.key !== key),
     }));
+  const addPhone = () => {
+    setPhoneOpen(true);
+    requestAnimationFrame(() => phoneField.current?.focus());
+  };
+  const removePhone = () => {
+    setFields((f) => ({ ...f, phone: "" }));
+    setPhoneOpen(false);
+    setPhoneFilled(false);
+    // Its own button closes with the field, so the keyboard goes to the
+    // button that opens it again.
+    requestAnimationFrame(() => addPhoneButton.current?.focus());
+  };
 
   // The Book button and what's said under it: at the form's end beside the
   // Days, docked at the phone card's foot.
@@ -977,6 +999,50 @@ export function MeetBooking({
             className={styles.input}
           />
         </Field>
+        {/* The booker's phone, closed until it's asked for or filled. It
+            stays laid out while closed (Stowed), where the browser's
+            autofill still fills it with the name and the email, and
+            anything that fills or focuses it opens it. */}
+        <Stowed show={phoneOpen} className="!mt-0">
+          <div className="pt-3">
+            <Field label="Phone" id="meet-phone" optional>
+              <div className={styles.phone}>
+                <Input
+                  ref={phoneField}
+                  id="meet-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  enterKeyHint="next"
+                  onKeyDown={nextField}
+                  maxLength={40}
+                  placeholder="In case the call link fails"
+                  tabIndex={phoneOpen ? undefined : -1}
+                  value={fields.phone}
+                  onFocus={() => setPhoneOpen(true)}
+                  onChange={(e) => {
+                    const phone = e.target.value;
+                    setFields((f) => ({ ...f, phone }));
+                    if (phone && !phoneOpen) {
+                      setPhoneOpen(true);
+                      setPhoneFilled(true);
+                    }
+                  }}
+                  className={styles.input}
+                />
+                <button
+                  type="button"
+                  aria-label="Remove phone"
+                  tabIndex={phoneOpen ? undefined : -1}
+                  onClick={removePhone}
+                  className={styles.remove}
+                >
+                  <XIcon size={14} weight="bold" aria-hidden />
+                </button>
+              </div>
+            </Field>
+          </div>
+        </Stowed>
         {/* The guests and their button come and go by opening and closing
             (Collapse), each carrying the gap above it as padding, so the
             fields below slide rather than jump. */}
@@ -1047,7 +1113,7 @@ export function MeetBooking({
                         type="button"
                         aria-label={`Remove guest ${i + 1}`}
                         onClick={() => removeGuest(guest.key)}
-                        className={styles.guestRemove}
+                        className={styles.remove}
                       >
                         <XIcon size={14} weight="bold" aria-hidden />
                       </button>
@@ -1058,18 +1124,36 @@ export function MeetBooking({
             </div>
           </div>
         </Collapse>
-        <Collapse show={fields.guests.length < GUESTS_MOST} className="!mt-0">
-          <div className="pt-1.5">
-            <button
-              type="button"
-              onClick={addGuest}
-              className={styles.addGuest}
+        {/* What can still be added, on one quiet line: each button leaves
+            once its field is open, and the line closes after the last. */}
+        <Collapse
+          show={fields.guests.length < GUESTS_MOST || !phoneOpen}
+          className="!mt-0"
+        >
+          <div className="flex items-center pt-1.5">
+            <Reveal
+              show={fields.guests.length < GUESTS_MOST}
+              className={ADD_CLIP}
             >
-              <PlusIcon size={13} weight="bold" aria-hidden />
-              <FadeIn key={fields.guests.length ? "another" : "first"} fades>
-                {fields.guests.length ? "Add another guest" : "Add guests"}
-              </FadeIn>
-            </button>
+              <button type="button" onClick={addGuest} className={styles.add}>
+                <PlusIcon size={13} weight="bold" aria-hidden />
+                <FadeIn key={fields.guests.length ? "another" : "first"} fades>
+                  {fields.guests.length ? "Add another guest" : "Add guests"}
+                </FadeIn>
+              </button>
+              <span aria-hidden className="inline-block w-4" />
+            </Reveal>
+            <Reveal show={!phoneOpen} className={ADD_CLIP}>
+              <button
+                ref={addPhoneButton}
+                type="button"
+                onClick={addPhone}
+                className={styles.add}
+              >
+                <PlusIcon size={13} weight="bold" aria-hidden />
+                Add phone
+              </button>
+            </Reveal>
           </div>
         </Collapse>
         <Field label="LinkedIn" id="meet-linkedin" optional>
@@ -1086,21 +1170,6 @@ export function MeetBooking({
             placeholder="/in/chappyasel"
             value={fields.linkedin}
             onChange={(e) => setFields({ ...fields, linkedin: e.target.value })}
-            className={styles.input}
-          />
-        </Field>
-        <Field label="Phone" id="meet-phone" optional>
-          <Input
-            id="meet-phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            enterKeyHint="next"
-            onKeyDown={nextField}
-            maxLength={40}
-            placeholder="In case the call link fails"
-            value={fields.phone}
-            onChange={(e) => setFields({ ...fields, phone: e.target.value })}
             className={styles.input}
           />
         </Field>
@@ -1278,6 +1347,13 @@ export function MeetBooking({
     <div className="grid gap-x-10 gap-y-8 min-[872px]:grid-cols-[minmax(0,1fr)_21rem]">
       <p aria-live="polite" className="sr-only">
         {announcement}
+      </p>
+      {/* Said when a fill opened the phone field, for a booker who can't
+          see it open. */}
+      <p aria-live="polite" className="sr-only">
+        {phoneFilled
+          ? "Your phone number was filled in. It's optional, and you can remove it."
+          : ""}
       </p>
       {/* The ring holds while the booking is in flight, so a slow answer
           still finds it there to hand to the pass (takeRing). */}
@@ -1556,11 +1632,12 @@ function DayNav({
  */
 function nextField(event: React.KeyboardEvent<HTMLInputElement>) {
   if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+  // A closed field (Stowed) isn't one to step into.
   const fields = [
     ...(event.currentTarget.form?.querySelectorAll<HTMLElement>(
       "input:not([type=hidden]), textarea",
     ) ?? []),
-  ];
+  ].filter((field) => !field.closest("[aria-hidden=true]"));
   const next = fields[fields.indexOf(event.currentTarget) + 1];
   if (!next) return;
   event.preventDefault();

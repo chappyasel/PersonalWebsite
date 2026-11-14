@@ -391,8 +391,11 @@ export function sampleForm(form: Element, book: Element | null): Seed[] {
   if (getComputedStyle(form).borderTopWidth !== "0px") near.outline(box, 4, 2);
   for (const field of form.querySelectorAll<HTMLElement>(
     "input:not([type=hidden]), textarea",
-  ))
+  )) {
+    // A closed field (Stowed) is laid out but not drawn.
+    if (field.closest("[aria-hidden=true]")) continue;
     near.outline(field.getBoundingClientRect(), 3, 1.9);
+  }
   // The Book button, inside the form or docked outside it on a phone.
   const shown = new DOMRect(0, 0, innerWidth, innerHeight);
   const pressed = book?.getBoundingClientRect();

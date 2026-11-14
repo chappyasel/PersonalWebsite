@@ -931,7 +931,7 @@
   gap: 0.375rem;
 }
 
-.guestRemove {
+.remove {
   display: grid;
   place-items: center;
   width: 1.75rem;
@@ -943,19 +943,27 @@
     background-color 150ms ease;
 }
 
-.guestRemove:hover {
+.remove:hover {
   color: rgb(var(--mt-ink));
   background: rgb(var(--mt-ink) / 0.06);
 }
 
-.guestRemove:focus-visible {
+.remove:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
 
-/* "Add guests": a quiet line in the secondary ink, as the call's line
+/* The phone field and its remove, as a guest's row ends. */
+.phone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.75rem;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* "Add guests" and "Add phone": a quiet line in the secondary ink, as the call's line
    under the fields, darkening to the ink on hover. */
-.addGuest {
+.add {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -966,11 +974,11 @@
   transition: color 150ms ease;
 }
 
-.addGuest:hover {
+.add:hover {
   color: rgb(var(--mt-ink));
 }
 
-.addGuest:focus-visible {
+.add:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
