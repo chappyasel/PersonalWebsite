@@ -6,13 +6,35 @@ until a booker asks for it or autofill fills it.
 ## Owner's decisions
 
 Asked on 2026-11-14 whether to ship the design, where Phone opens, whether a
-filled field should say why it's asked, and whether to push a preview. The
-Owner answered:
+filled field should say why it's asked, and whether to push a preview. The Owner
+answered:
 
 > 1. ship
 > 2. under email
-> 3. yes, not at the placeholder pls. can do a little (?) phsophor icon with tooltip
+> 3. yes, not at the placeholder pls. can do a little (?) phsophor icon with
+>    tooltip
 > 4. go for it
+
+## Result on the Owner's iPhone
+
+The closed field shipped in PR #156 (54f1291f) and failed on the Owner's iPhone
+the same day. Neither Chrome nor Safari filled the phone, Safari when the Owner
+picked "AutoFill Contact". The report also showed the booking sheet's glass
+drawn out of place, offset down and right of the sheet, after the change. The
+glass wasn't reproduced here: headless WebKit draws no `backdrop-filter`, and
+the worker's iOS Simulator couldn't render the page under a load of 545. The
+only new thing inside the sheet was the always-mounted closed field, with
+`filter: blur(3px)`, `opacity: 0`, and a `clip-path`.
+
+Chrome for iOS has its own form script, and its `isVisibleNode` in
+`components/autofill/ios/form_util/resources/fill_util.ts` checks only
+`visibility: hidden` and `display: none`, so that check alone doesn't explain
+the miss. The tests below ran desktop Chrome's engine through DevTools, which is
+not what a booker's iPhone runs.
+
+So Phone is shown again, under Email, with the question mark. Don't hide a field
+autofill should fill on the strength of a desktop test; try it on an iPhone
+first.
 
 ## The rule the design rests on
 
@@ -25,15 +47,15 @@ booker never sees is the known autofill data-harvesting pattern.
 
 Chrome 157, tested on a matrix page and on the real form:
 
-| How the phone field is hidden | Chrome |
-| --- | --- |
-| `display:none`, `hidden`, closed `<details>` | Not filled |
-| `visibility:hidden`, `content-visibility:hidden` | Not filled |
-| `inert`, `disabled`, `readonly` | Not filled |
-| Laid out in a parent of no height and no opacity (`Stowed`) | Filled |
-| The same with `tabindex="-1"` and `aria-hidden` | Filled |
-| 1px screen-reader-only box, off-screen, `opacity:0` | Filled |
-| Mounted or shown after the fill (0.3s and 6s later) | Not filled |
+| How the phone field is hidden                               | Chrome     |
+| ----------------------------------------------------------- | ---------- |
+| `display:none`, `hidden`, closed `<details>`                | Not filled |
+| `visibility:hidden`, `content-visibility:hidden`            | Not filled |
+| `inert`, `disabled`, `readonly`                             | Not filled |
+| Laid out in a parent of no height and no opacity (`Stowed`) | Filled     |
+| The same with `tabindex="-1"` and `aria-hidden`             | Filled     |
+| 1px screen-reader-only box, off-screen, `opacity:0`         | Filled     |
+| Mounted or shown after the fill (0.3s and 6s later)         | Not filled |
 
 Chrome fills any focusable field. The rule is in Chromium's
 `components/autofill/core/browser/filling/form_filler.cc`: "Don't fill
@@ -51,8 +73,8 @@ Safari's AutoFill is closed source ("Autofill is a Safari feature", WebKit bug
 227342). A third-party copy of Safari 27.2's `FormMetadata.js`
 (github.com/NohamR/safari-internal-js) drops a control that is `display:none`,
 not visible, or under 2px in either direction, or under 6px at opacity 0. The
-input here keeps its full size inside a parent of no height, so it should
-fill. A 1px screen-reader-only box would not.
+input here keeps its full size inside a parent of no height, so it should fill.
+A 1px screen-reader-only box would not.
 
 ## Not tested
 
@@ -61,8 +83,8 @@ fill. A 1px screen-reader-only box would not.
 - Any browser on an iPhone.
 - Chrome's suggestion dropdown. The fill ran Chrome's engine through DevTools.
 
-If a browser skips the closed field, the booker sees the form without Phone
-and "Add phone" still opens it.
+If a browser skips the closed field, the booker sees the form without Phone and
+"Add phone" still opens it.
 
 ## How to rerun the Chrome check
 
@@ -71,10 +93,10 @@ Start the fixture form with
 Launch Chrome with `--headless=new` and a debugging port, open `/meet`, pick a
 time, then send DevTools `Autofill.trigger` with the `backendNodeId` of
 `#meet-name` and an address whose fields are `NAME_FULL`, `EMAIL_ADDRESS`, and
-`PHONE_HOME_WHOLE_NUMBER`. Read `#meet-phone`'s value and whether its
-`Stowed` parent is still `aria-hidden`.
+`PHONE_HOME_WHOLE_NUMBER`. Read `#meet-phone`'s value and whether its `Stowed`
+parent is still `aria-hidden`.
 
 Two things mislead in that harness. A Radix tooltip closes on a pointer move
-that follows the leave, so one jump of the mouse leaves it open. The first
-load after a recompile can log a hydration mismatch in `WeekStrip` that a
-second load does not repeat.
+that follows the leave, so one jump of the mouse leaves it open. The first load
+after a recompile can log a hydration mismatch in `WeekStrip` that a second load
+does not repeat.
