@@ -180,7 +180,9 @@ describe("the invite's title", () => {
     expect(titleLead("Ana de Lima")).toBe("Ana");
     expect(titleLead("Ana de Lima", [{ name: "Ben Ortiz" }])).toBe("Ana & Ben");
     expect(titleLead("Ana", [{}])).toBe("Ana +1");
-    expect(titleLead("Ana", [{ name: " " }, { name: "Cy" }])).toBe("Ana, Cy +1");
+    expect(titleLead("Ana", [{ name: " " }, { name: "Cy" }])).toBe(
+      "Ana, Cy +1",
+    );
     expect(
       titleLead("Ana", [{ name: "Ben" }, { name: "Cy" }, { name: "Di" }]),
     ).toBe("Ana, Ben +2");
@@ -200,9 +202,10 @@ describe("the invite's title", () => {
       key,
     );
     expect(attemptKey({ ...fields, meetingName: "Intro" })).not.toBe(key);
-    expect(
-      attemptKey({ ...fields, guests: [{ email: " B@x.co " }] }),
-    ).toBe(attemptKey({ ...fields, guests: [{ email: "b@x.co" }] }));
+    expect(attemptKey({ ...fields, phone: "555 010 0199" })).not.toBe(key);
+    expect(attemptKey({ ...fields, guests: [{ email: " B@x.co " }] })).toBe(
+      attemptKey({ ...fields, guests: [{ email: "b@x.co" }] }),
+    );
   });
 });
 

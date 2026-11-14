@@ -360,7 +360,7 @@ describe("booking", () => {
     );
     const result = await submitBooking(
       remote(),
-      { ...BOOKING, linkedin: "  " },
+      { ...BOOKING, linkedin: "  ", phone: " " },
       "203.0.113.7",
       { fetch, now },
       createPageCache(),
@@ -398,14 +398,19 @@ describe("booking", () => {
           { email: "cy@example.com", name: "" },
         ],
         meetingName: "  Intro ",
+        phone: " +1 555 010 0199 ",
       },
       undefined,
       { fetch, now },
       createPageCache(),
     );
     expect(JSON.parse(calls[1]![1]?.body as string)).toMatchObject({
-      guests: [{ email: "ben@example.com", name: "Ben" }, { email: "cy@example.com" }],
+      guests: [
+        { email: "ben@example.com", name: "Ben" },
+        { email: "cy@example.com" },
+      ],
       meetingName: "Intro",
+      phone: "+1 555 010 0199",
     });
   });
 

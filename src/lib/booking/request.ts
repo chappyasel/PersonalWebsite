@@ -44,6 +44,8 @@ export type BookingFields = {
   /** What it's about, optional: one line for the invite. */
   about?: string;
   linkedin?: string;
+  /** The booker's phone number, so the host can call if the call link fails. */
+  phone?: string;
   /** Others the booker brings, up to GUESTS_MOST, each invited too. */
   guests?: Guest[];
   /** The booker's own name for the meeting, which the title leads with. */
@@ -109,6 +111,7 @@ export function attemptKey(fields: BookingFields): string {
     fields.email.trim().toLowerCase(),
     fields.about?.trim() ?? "",
     fields.linkedin?.trim() ?? "",
+    fields.phone?.trim() ?? "",
     (fields.guests ?? []).map((guest) => [
       guest.email.trim().toLowerCase(),
       guest.name?.trim() ?? "",

@@ -44,6 +44,7 @@ export const bookingRouter = createTRPCRouter({
         email: z.string().max(320),
         about: z.string().max(200).optional(),
         linkedin: z.string().max(400).optional(),
+        phone: z.string().max(100).optional(),
         guests: z
           .array(
             z.object({

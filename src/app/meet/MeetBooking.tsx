@@ -229,6 +229,7 @@ type Fields = {
   email: string;
   about: string;
   linkedin: string;
+  phone: string;
   guests: GuestRow[];
   meetingName: string;
 };
@@ -238,6 +239,7 @@ const EMPTY: Fields = {
   email: "",
   about: "",
   linkedin: "",
+  phone: "",
   guests: [],
   meetingName: "",
 };
@@ -617,6 +619,7 @@ export function MeetBooking({
       email: fields.email.trim(),
       ...(fields.about.trim() ? { about: fields.about.trim() } : {}),
       ...(linkedin ? { linkedin } : {}),
+      ...(fields.phone.trim() ? { phone: fields.phone.trim() } : {}),
       ...(guests.length ? { guests } : {}),
       ...(fields.meetingName.replace(/\s+/g, " ").trim()
         ? { meetingName: fields.meetingName.replace(/\s+/g, " ").trim() }
@@ -1083,6 +1086,21 @@ export function MeetBooking({
             placeholder="/in/chappyasel"
             value={fields.linkedin}
             onChange={(e) => setFields({ ...fields, linkedin: e.target.value })}
+            className={styles.input}
+          />
+        </Field>
+        <Field label="Phone" id="meet-phone" optional>
+          <Input
+            id="meet-phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            enterKeyHint="next"
+            onKeyDown={nextField}
+            maxLength={40}
+            placeholder="In case the call link fails"
+            value={fields.phone}
+            onChange={(e) => setFields({ ...fields, phone: e.target.value })}
             className={styles.input}
           />
         </Field>

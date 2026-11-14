@@ -326,6 +326,7 @@ async function postBooking(
 ): Promise<BookResult> {
   const about = request.about?.trim();
   const linkedin = request.linkedin?.trim();
+  const phone = request.phone?.trim();
   const meetingName = request.meetingName?.trim();
   const guests = (request.guests ?? [])
     .map(({ email, name }) => ({ email: email.trim(), name: name?.trim() }))
@@ -346,9 +347,10 @@ async function postBooking(
           length: request.length,
           name: request.name,
           email: request.email,
-          // Both optional: a blank one isn't sent.
+          // Each optional: a blank one isn't sent.
           ...(about ? { about } : {}),
           ...(linkedin ? { linkedin } : {}),
+          ...(phone ? { phone } : {}),
           ...(guests.length ? { guests } : {}),
           ...(meetingName ? { meetingName } : {}),
           requestId: request.requestId,
