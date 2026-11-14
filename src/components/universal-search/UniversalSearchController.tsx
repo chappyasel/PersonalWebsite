@@ -110,8 +110,10 @@ export function scheduleIdlePalettePreload(
 }
 
 export function isUniversalSearchShortcut(event: KeyboardEvent) {
+  // Chrome's autofill sends each field it fills a keydown with no `key`.
+  const key = (event as { key?: string }).key;
   return (
-    event.key.toLowerCase() === "k" &&
+    key?.toLowerCase() === "k" &&
     (event.metaKey || event.ctrlKey) &&
     !event.altKey
   );

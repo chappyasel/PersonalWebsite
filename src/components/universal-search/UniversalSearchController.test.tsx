@@ -11,10 +11,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  isUniversalSearchShortcut,
   OPEN_UNIVERSAL_SEARCH_EVENT,
+  scheduleIdlePalettePreload,
   UniversalSearchController,
   type UniversalSearchPaletteProps,
-  scheduleIdlePalettePreload,
 } from "./UniversalSearchController";
 import {
   UniversalSearchPaletteContent,
@@ -588,6 +589,20 @@ describe("UniversalSearchController", () => {
       screen.getByRole("dialog", { name: "Universal Search" }),
     ).toBeTruthy();
     consoleError.mockRestore();
+  });
+});
+
+describe("isUniversalSearchShortcut", () => {
+  it("takes Command-K, and says no to the keyless keydown Chrome's autofill sends", () => {
+    expect(
+      isUniversalSearchShortcut(
+        new KeyboardEvent("keydown", { key: "k", metaKey: true }),
+      ),
+    ).toBe(true);
+    // Autofill's keydown is a plain event with no `key` on it.
+    expect(
+      isUniversalSearchShortcut(new Event("keydown") as KeyboardEvent),
+    ).toBe(false);
   });
 });
 
