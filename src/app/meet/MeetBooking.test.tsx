@@ -443,6 +443,12 @@ describe("booking on /meet", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Add phone" })).toBeNull(),
     );
+    // Why it asks is under a question mark, not in the field.
+    expect(phone).toHaveProperty("placeholder", "");
+    await user.hover(screen.getByRole("button", { name: "Why a phone number" }));
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "In case the call link fails",
+    );
     await user.type(phone, "415 555 0123");
     await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledOnce());

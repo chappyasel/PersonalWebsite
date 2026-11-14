@@ -953,6 +953,29 @@
   box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
 
+/* A field's question mark, after its label: the secondary ink, darkening
+   under the pointer or while its tooltip is open. */
+.hint {
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  color: rgb(var(--mt-ink) / 0.45);
+  transition: color 150ms ease;
+}
+
+.hint:hover,
+.hint[data-state="delayed-open"],
+.hint[data-state="instant-open"] {
+  color: rgb(var(--mt-ink));
+}
+
+.hint:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
+}
+
 /* The phone field and its remove, as a guest's row ends. */
 .phone {
   display: grid;

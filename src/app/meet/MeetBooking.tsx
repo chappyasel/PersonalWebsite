@@ -9,11 +9,13 @@ import {
   MapPinIcon,
   PencilSimpleIcon,
   PlusIcon,
+  QuestionIcon,
   StarIcon,
   VideoCameraIcon,
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   type FormEvent,
@@ -75,6 +77,11 @@ import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { FadeIn, SwapText } from "~/components/ui/rolling-text";
+import {
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 import { BookDust } from "./BookDust";
 import { BookingSheet, type SheetState, SwipeHint } from "./BookingSheet";
@@ -1005,7 +1012,19 @@ export function MeetBooking({
             anything that fills or focuses it opens it. */}
         <Stowed show={phoneOpen} className="!mt-0">
           <div className="pt-3">
-            <Field label="Phone" id="meet-phone" optional>
+            <Field
+              label="Phone"
+              id="meet-phone"
+              optional
+              hint={
+                <Hint
+                  label="Why a phone number"
+                  tabIndex={phoneOpen ? undefined : -1}
+                >
+                  In case the call link fails
+                </Hint>
+              }
+            >
               <div className={styles.phone}>
                 <Input
                   ref={phoneField}
@@ -1016,7 +1035,6 @@ export function MeetBooking({
                   enterKeyHint="next"
                   onKeyDown={nextField}
                   maxLength={40}
-                  placeholder="In case the call link fails"
                   tabIndex={phoneOpen ? undefined : -1}
                   value={fields.phone}
                   onFocus={() => setPhoneOpen(true)}
@@ -1717,23 +1735,90 @@ function Field({
   label,
   id,
   optional,
+  hint,
   children,
 }: {
   label: string;
   id: string;
   optional?: boolean;
+  /** A `Hint` after the label, for why the field asks. */
+  hint?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
-      <label
-        htmlFor={id}
-        className={cn(styles.label, "flex items-baseline justify-between")}
-      >
-        {label}
-        {optional && <span className={styles.optional}>Optional</span>}
-      </label>
+      {/* Two labels for the one field, so its name still ends in
+          "Optional" and a hint's button sits outside both. */}
+      <div className={cn(styles.label, "flex items-baseline justify-between")}>
+        <span className="flex items-center gap-1">
+          <label htmlFor={id}>{label}</label>
+          {hint}
+        </span>
+        {optional && (
+          <label htmlFor={id} className={styles.optional}>
+            Optional
+          </label>
+        )}
+      </div>
       {children}
     </div>
+  );
+}
+
+/**
+ * A small question mark after a field's label that says why the field
+ * asks, under the pointer or the keyboard's focus, and on a tap where
+ * there's no hover. Its tooltip is the best star's, drawn inside
+ * .meet-root for the page's colours and font.
+ */
+function Hint({
+  label,
+  tabIndex,
+  children,
+}: {
+  /** What the button is, for a screen reader. */
+  label: string;
+  tabIndex?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip allowTapFirst>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={label}
+            tabIndex={tabIndex}
+            // Radix closes a tooltip on its trigger's click unless the click
+            // was default-prevented, which would shut the one a tap just
+            // opened on pointer-up.
+            onClick={(event) => event.preventDefault()}
+            className={styles.hint}
+          >
+            <QuestionIcon size={13} weight="bold" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipPrimitive.Portal
+          container={
+            typeof document === "undefined"
+              ? undefined
+              : document.querySelector<HTMLElement>(".meet-root")
+          }
+        >
+          <TooltipPrimitive.Content
+            // Beside the label, where it covers no field.
+            side="right"
+            sideOffset={6}
+            collisionPadding={12}
+            className={cn(
+              styles.tip,
+              "z-[100] animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+            )}
+          >
+            {children}
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
