@@ -392,8 +392,12 @@ describe("booking on /meet", () => {
       "required",
       false,
     );
-    // LinkedIn's and this field's.
-    expect(screen.getAllByText("Optional")).toHaveLength(2);
+    // LinkedIn's and this field's; the phone's is closed with its field.
+    expect(
+      screen
+        .getAllByText("Optional")
+        .filter((mark) => !mark.closest("[aria-hidden=true]")),
+    ).toHaveLength(2);
     // No hints under the fields: where the invite goes is plain.
     expect(screen.queryByText("It goes in the invite.")).toBeNull();
     expect(screen.queryByText("The invite goes here.")).toBeNull();
@@ -412,6 +416,90 @@ describe("booking on /meet", () => {
     expect(
       await screen.findByRole("heading", { name: "You're meeting Chappy" }),
     ).toBeTruthy();
+  });
+
+  it("keeps the phone field closed but in the page, and opens it for a booker who asks", async () => {
+    mocks.mutateAsync.mockResolvedValueOnce({
+      ok: true,
+      booked: { start: at(11), end: at(11, 30), title: "Ana 🤝 Chappy" },
+    });
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    // Closed, it's still an input the browser's autofill can fill, out of
+    // the tab order and out of a screen reader's way.
+    const phone = screen.getByLabelText(/^Phone/);
+    expect(phone).toHaveProperty("autocomplete", "tel");
+    expect(phone).toHaveProperty("tabIndex", -1);
+    expect(phone.closest("[aria-hidden=true]")).toBeTruthy();
+    expect(phone.closest("[hidden], [inert]")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /^Phone/ })).toBeNull();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Name"), "Ana Lopez");
+    await user.type(screen.getByLabelText("Email"), "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Add phone" }));
+    expect(phone.closest("[aria-hidden=true]")).toBeNull();
+    expect(phone).toHaveProperty("tabIndex", 0);
+    await waitFor(() => expect(document.activeElement).toBe(phone));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Add phone" })).toBeNull(),
+    );
+    // Why it asks is under a question mark, not in the field.
+    expect(phone).toHaveProperty("placeholder", "");
+    await user.hover(screen.getByRole("button", { name: "Why a phone number" }));
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "In case the call link fails",
+    );
+    await user.type(phone, "415 555 0123");
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
+    await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledOnce());
+    expect(mocks.mutateAsync.mock.calls[0]![0]).toMatchObject({
+      phone: "415 555 0123",
+    });
+  });
+
+  it("opens the phone field when autofill fills it, and sends nothing once it's removed", async () => {
+    mocks.mutateAsync.mockResolvedValueOnce({
+      ok: true,
+      booked: { start: at(11), end: at(11, 30), title: "Ana 🤝 Chappy" },
+    });
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const phone = screen.getByLabelText(/^Phone/);
+    const said = () =>
+      screen.queryByText(/^Your phone number was filled in\./);
+    expect(said()).toBeNull();
+    // As a browser's autofill does it: the value set on the closed field,
+    // with the input event a typed letter would send.
+    fireEvent.change(phone, { target: { value: "+1 415 555 0123" } });
+    expect(phone.closest("[aria-hidden=true]")).toBeNull();
+    expect(phone).toHaveProperty("value", "+1 415 555 0123");
+    expect(said()).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Add phone" })).toBeNull(),
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Remove phone" }));
+    expect(phone).toHaveProperty("value", "");
+    expect(phone.closest("[aria-hidden=true]")).toBeTruthy();
+    expect(said()).toBeNull();
+    const add = await screen.findByRole("button", { name: "Add phone" });
+    await waitFor(() => expect(document.activeElement).toBe(add));
+
+    await user.type(screen.getByLabelText("Name"), "Ana Lopez");
+    await user.type(screen.getByLabelText("Email"), "ana@example.com");
+    await user.click(screen.getByRole("button", { name: "Book 30 minutes" }));
+    await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledOnce());
+    expect(mocks.mutateAsync.mock.calls[0]![0]).not.toHaveProperty("phone");
+  });
+
+  it("steps past the closed phone field on Return", async () => {
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Email"));
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(
+      screen.getByPlaceholderText("/in/chappyasel"),
+    );
   });
 
   it("brings guests, titles the invite as Daybreak will, and says who's invited", async () => {
