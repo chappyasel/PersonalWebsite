@@ -32,9 +32,14 @@ Chrome for iOS has its own form script, and its `isVisibleNode` in
 the miss. The tests below ran desktop Chrome's engine through DevTools, which is
 not what a booker's iPhone runs.
 
-So Phone is shown again, under Email, with the question mark. Don't hide a field
-autofill should fill on the strength of a desktop test; try it on an iPhone
-first.
+Offered a choice between showing Phone again and another hidden attempt, the
+Owner picked "Keep it hidden, try again" (2026-11-14). So the closed field now
+opens the first time the booker focuses Name or Email, before an iPhone's
+AutoFill runs, and stays closed after the booker removes it. At rest the closed
+field carries no filter, only while it moves, since a blur left inside the sheet
+is the likeliest cause of the glass. Both still need the Owner's iPhone to
+confirm. Don't hide a field autofill should fill on the strength of a desktop
+test.
 
 ## The rule the design rests on
 

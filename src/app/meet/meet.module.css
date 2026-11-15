@@ -976,7 +976,15 @@
   box-shadow: 0 0 0 2px rgb(var(--mt-accent) / 0.5);
 }
 
-/* "Add guests": a quiet line in the secondary ink, as the call's line
+/* The phone field and its remove, as a guest's row ends. */
+.phone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.75rem;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* "Add guests" and "Add phone": a quiet line in the secondary ink, as the call's line
    under the fields, darkening to the ink on hover. */
 .add {
   display: inline-flex;

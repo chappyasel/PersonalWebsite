@@ -122,6 +122,70 @@ export function Opens({
   );
 }
 
+/**
+ * Collapse's opening and closing for a block that stays in the page while
+ * it's closed, such as a field the browser's autofill should still reach.
+ * Chrome fills a field that's laid out, however small, and skips one under
+ * `display: none`, `hidden`, or `inert`, so closed is no height and no
+ * opacity. Closed, it's out of reach of the pointer and of a screen
+ * reader; the fields inside take themselves out of the tab order.
+ *
+ * At rest it carries no filter, only while it moves. A blur left on it
+ * inside the booking sheet is the likeliest reason Safari drew the sheet's
+ * glass out of place.
+ */
+export function Stowed({
+  show,
+  className,
+  children,
+}: {
+  show: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const reducedMotion = useReducedMotion();
+  const still = { duration: 0 };
+  return (
+    <motion.div
+      aria-hidden={!show || undefined}
+      className={cn(
+        "[clip-path:inset(-6px)]",
+        !show && "pointer-events-none",
+        className,
+      )}
+      initial={false}
+      animate={
+        show
+          ? {
+              opacity: 1,
+              height: "auto",
+              filter: "blur(0px)",
+              transitionEnd: { filter: "none" },
+            }
+          : {
+              opacity: 0,
+              height: 0,
+              filter: "blur(3px)",
+              transitionEnd: { filter: "none" },
+            }
+      }
+      transition={
+        reducedMotion
+          ? still
+          : show
+            ? { height: HEIGHT, opacity: FADE_IN, filter: FADE_IN }
+            : {
+                height: { ...HEIGHT, bounce: 0, delay: 0.06 },
+                opacity: FADE_OUT,
+                filter: FADE_OUT,
+              }
+      }
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 /** The Best badge, which pops in with a slight spring and shrinks away. */
 export function Pop({
   show,
