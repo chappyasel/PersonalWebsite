@@ -461,10 +461,13 @@ export function MeetBooking({
   // Guest rows' keys, and their name fields, to focus a row as it's added.
   const guestKey = useRef(0);
   const guestFields = useRef(new Map<number, HTMLInputElement>());
-  // The phone field stays in the page while it's closed, so a browser's
-  // autofill can reach it with the name and email. Whatever fills it opens
-  // it: a number is never sent that the booker wasn't shown.
+  // The phone field stays in the page while it's closed, and opens the
+  // first time the booker starts on their name or email, so it's on screen
+  // before an iPhone's AutoFill runs: Safari and Chrome there skipped it
+  // closed. Whatever fills it opens it too: a number is never sent that the
+  // booker wasn't shown.
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const phoneOffered = useRef(false);
   const [phoneFilled, setPhoneFilled] = useState(false);
   const phoneField = useRef<HTMLInputElement>(null);
   const addPhoneButton = useRef<HTMLButtonElement>(null);
@@ -808,11 +811,18 @@ export function MeetBooking({
       ...f,
       guests: f.guests.filter((g) => g.key !== key),
     }));
+  // Once only, and never after the booker removed it.
+  const offerPhone = () => {
+    if (phoneOffered.current) return;
+    phoneOffered.current = true;
+    setPhoneOpen(true);
+  };
   const addPhone = () => {
     setPhoneOpen(true);
     requestAnimationFrame(() => phoneField.current?.focus());
   };
   const removePhone = () => {
+    phoneOffered.current = true;
     setFields((f) => ({ ...f, phone: "" }));
     setPhoneOpen(false);
     setPhoneFilled(false);
@@ -982,6 +992,7 @@ export function MeetBooking({
           <Input
             ref={nameField}
             id="meet-name"
+            onFocus={offerPhone}
             enterKeyHint="next"
             onKeyDown={nextField}
             required
@@ -996,6 +1007,7 @@ export function MeetBooking({
           <Input
             id="meet-email"
             type="email"
+            onFocus={offerPhone}
             enterKeyHint="next"
             onKeyDown={nextField}
             required

@@ -129,6 +129,10 @@ export function Opens({
  * `display: none`, `hidden`, or `inert`, so closed is no height and no
  * opacity. Closed, it's out of reach of the pointer and of a screen
  * reader; the fields inside take themselves out of the tab order.
+ *
+ * At rest it carries no filter, only while it moves. A blur left on it
+ * inside the booking sheet is the likeliest reason Safari drew the sheet's
+ * glass out of place.
  */
 export function Stowed({
   show,
@@ -152,8 +156,18 @@ export function Stowed({
       initial={false}
       animate={
         show
-          ? { opacity: 1, height: "auto", filter: "blur(0px)" }
-          : { opacity: 0, height: 0, filter: "blur(3px)" }
+          ? {
+              opacity: 1,
+              height: "auto",
+              filter: "blur(0px)",
+              transitionEnd: { filter: "none" },
+            }
+          : {
+              opacity: 0,
+              height: 0,
+              filter: "blur(3px)",
+              transitionEnd: { filter: "none" },
+            }
       }
       transition={
         reducedMotion
