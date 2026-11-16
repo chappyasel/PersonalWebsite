@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-09-04T15:30:00.000Z",
+  "lastUpdated": "2026-11-16T18:27:00.000Z",
   "intro": [
     {
       "type": "paragraph",
@@ -1429,6 +1429,27 @@
         "benefits": "Testosterone, libido"
       },
       {
+        "name": "Magnesium L-Threonate",
+        "link": "https://www.amazon.com/dp/B0CFS267GP?amp=",
+        "costPerDay": "$0.91",
+        "dosage": "144mg",
+        "benefits": "Cognitive function"
+      },
+      {
+        "name": "Gotu Kola",
+        "link": "https://www.amazon.com/s?k=Natural%20Systems%20Gotu%20Kola%20500mg",
+        "costPerDay": "$0.10",
+        "dosage": "500mg",
+        "benefits": "Calm, cognitive function"
+      },
+      {
+        "name": "NAC",
+        "link": "https://www.amazon.com/dp/B0013OUQ3S",
+        "costPerDay": "$0.12",
+        "dosage": "600mg",
+        "benefits": "Antioxidant, liver health"
+      },
+      {
         "name": "Alpha GPC",
         "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
         "costPerDay": "$0.42",
@@ -1445,11 +1466,11 @@
     ],
     "pm": [
       {
-        "name": "Magnesium",
-        "link": "https://www.amazon.com/dp/B0CFS267GP?amp=",
-        "costPerDay": "$1.82",
-        "dosage": "144mg x2",
-        "benefits": "Cognitive function"
+        "name": "Magnesium Glycinate",
+        "link": "https://www.amazon.com/dp/B07NWMVMT1",
+        "costPerDay": "$0.21",
+        "dosage": "200mg",
+        "benefits": "Sleep quality"
       },
       {
         "name": "Glycine",
@@ -1901,6 +1922,60 @@
             },
             {
               "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Magnesium L-Threonate",
+                "link": "https://www.amazon.com/dp/B0CFS267GP?amp="
+              },
+              "$/Day": {
+                "text": "$0.91"
+              },
+              "Dosage": {
+                "text": "144mg"
+              },
+              "Benefits": {
+                "text": "Cognitive function"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Gotu Kola",
+                "link": "https://www.amazon.com/s?k=Natural%20Systems%20Gotu%20Kola%20500mg"
+              },
+              "$/Day": {
+                "text": "$0.10"
+              },
+              "Dosage": {
+                "text": "500mg"
+              },
+              "Benefits": {
+                "text": "Calm, cognitive function"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "NAC",
+                "link": "https://www.amazon.com/dp/B0013OUQ3S"
+              },
+              "$/Day": {
+                "text": "$0.12"
+              },
+              "Dosage": {
+                "text": "600mg"
+              },
+              "Benefits": {
+                "text": "Antioxidant, liver health"
+              }
+            },
+            {
+              "Time": {
                 "text": "Late AM"
               },
               "Name": {
@@ -1952,17 +2027,17 @@
                 "text": "PM"
               },
               "Name": {
-                "text": "Magnesium",
-                "link": "https://www.amazon.com/dp/B0CFS267GP?amp="
+                "text": "Magnesium Glycinate",
+                "link": "https://www.amazon.com/dp/B07NWMVMT1"
               },
               "$/Day": {
-                "text": "$1.82"
+                "text": "$0.21"
               },
               "Dosage": {
-                "text": "144mg x2"
+                "text": "200mg"
               },
               "Benefits": {
-                "text": "Cognitive function"
+                "text": "Sleep quality"
               }
             },
             {
