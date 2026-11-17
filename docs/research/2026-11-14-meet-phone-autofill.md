@@ -38,8 +38,14 @@ opens the first time the booker focuses Name or Email, before an iPhone's
 AutoFill runs, and stays closed after the booker removes it. At rest the closed
 field carries no filter, only while it moves, since a blur left inside the sheet
 is the likeliest cause of the glass. Both still need the Owner's iPhone to
-confirm. Don't hide a field autofill should fill on the strength of a desktop
-test.
+confirm.
+
+On 2026-11-16 the Owner asked whether it could hide again after AutoFill. It now
+closes about 400ms after the name and email both arrive whole, within 250ms of
+each other, as a fill sets them, when no number came with them and the booker
+hasn't opened or focused Phone. Typing adds a letter at a time and a paste
+brings one field, so neither closes it. Don't hide a field autofill should fill
+on the strength of a desktop test.
 
 ## The rule the design rests on
 

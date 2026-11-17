@@ -475,6 +475,42 @@ describe("booking on /meet", () => {
     expect(document.activeElement).toBe(phone);
   });
 
+  it("closes the phone field again when AutoFill brings a name and email but no number", async () => {
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const phone = screen.getByLabelText(/^Phone/);
+    const name = screen.getByLabelText("Name");
+    const user = userEvent.setup();
+    await user.click(name);
+    expect(phone.closest("[aria-hidden=true]")).toBeNull();
+    // As AutoFill does it: both fields set whole, one after the other.
+    fireEvent.change(name, { target: { value: "Ana Lopez" } });
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "ana@example.com" },
+    });
+    await waitFor(() =>
+      expect(phone.closest("[aria-hidden=true]")).toBeTruthy(),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Add phone" }),
+    ).toBeTruthy();
+  });
+
+  it("keeps the phone field open when AutoFill fills a number with the name and email", async () => {
+    render(<MeetBooking slug="meet" initial={PAGE} />);
+    const phone = screen.getByLabelText(/^Phone/);
+    const name = screen.getByLabelText("Name");
+    const user = userEvent.setup();
+    await user.click(name);
+    fireEvent.change(name, { target: { value: "Ana Lopez" } });
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "ana@example.com" },
+    });
+    fireEvent.change(phone, { target: { value: "+1 415 555 0123" } });
+    await new Promise((done) => setTimeout(done, 600));
+    expect(phone.closest("[aria-hidden=true]")).toBeNull();
+    expect(phone).toHaveProperty("value", "+1 415 555 0123");
+  });
+
   it("opens the phone field when autofill fills it, and sends nothing once it's removed", async () => {
     mocks.mutateAsync.mockResolvedValueOnce({
       ok: true,
