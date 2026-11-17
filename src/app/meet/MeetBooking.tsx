@@ -464,10 +464,17 @@ export function MeetBooking({
   // The phone field stays in the page while it's closed, and opens the
   // first time the booker starts on their name or email, so it's on screen
   // before an iPhone's AutoFill runs: Safari and Chrome there skipped it
-  // closed. Whatever fills it opens it too: a number is never sent that the
-  // booker wasn't shown.
+  // closed. If AutoFill then fills the name and email but no number, it
+  // closes again. Whatever fills it opens it or keeps it open: a number is
+  // never sent that the booker wasn't shown.
   const [phoneOpen, setPhoneOpen] = useState(false);
   const phoneOffered = useRef(false);
+  /** The booker opened or focused it themselves, so it stays. */
+  const phoneAsked = useRef(false);
+  /** When the name and the email last arrived whole, as a fill sets them. */
+  const arrivedWhole = useRef({ name: -Infinity, email: -Infinity });
+  const phoneClose = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(phoneClose.current), []);
   const [phoneFilled, setPhoneFilled] = useState(false);
   const phoneField = useRef<HTMLInputElement>(null);
   const addPhoneButton = useRef<HTMLButtonElement>(null);
@@ -817,7 +824,30 @@ export function MeetBooking({
     phoneOffered.current = true;
     setPhoneOpen(true);
   };
+  // A fill sets the name and the email at once, each whole, where typing
+  // adds a letter at a time and a paste brings one field. Once both have
+  // arrived that way, a fill has run; if it brought no number and the
+  // booker hasn't reached for the field, it closes again.
+  const noteWhole = (
+    field: "name" | "email",
+    before: string,
+    after: string,
+  ) => {
+    if (after.length - before.length < 2) return;
+    const now = performance.now();
+    arrivedWhole.current[field] = now;
+    const other = field === "name" ? "email" : "name";
+    if (now - arrivedWhole.current[other] > 250) return;
+    window.clearTimeout(phoneClose.current);
+    phoneClose.current = window.setTimeout(() => {
+      const phone = phoneField.current;
+      if (!phone || phone.value || phoneAsked.current) return;
+      if (document.activeElement === phone) return;
+      setPhoneOpen(false);
+    }, 400);
+  };
   const addPhone = () => {
+    phoneAsked.current = true;
     setPhoneOpen(true);
     requestAnimationFrame(() => phoneField.current?.focus());
   };
@@ -999,7 +1029,10 @@ export function MeetBooking({
             maxLength={100}
             autoComplete="name"
             value={fields.name}
-            onChange={(e) => setFields({ ...fields, name: e.target.value })}
+            onChange={(e) => {
+              noteWhole("name", fields.name, e.target.value);
+              setFields({ ...fields, name: e.target.value });
+            }}
             className={styles.input}
           />
         </Field>
@@ -1014,7 +1047,10 @@ export function MeetBooking({
             maxLength={254}
             autoComplete="email"
             value={fields.email}
-            onChange={(e) => setFields({ ...fields, email: e.target.value })}
+            onChange={(e) => {
+              noteWhole("email", fields.email, e.target.value);
+              setFields({ ...fields, email: e.target.value });
+            }}
             className={styles.input}
           />
         </Field>
@@ -1049,7 +1085,10 @@ export function MeetBooking({
                   maxLength={40}
                   tabIndex={phoneOpen ? undefined : -1}
                   value={fields.phone}
-                  onFocus={() => setPhoneOpen(true)}
+                  onFocus={() => {
+                    phoneAsked.current = true;
+                    setPhoneOpen(true);
+                  }}
                   onChange={(e) => {
                     const phone = e.target.value;
                     setFields((f) => ({ ...f, phone }));
