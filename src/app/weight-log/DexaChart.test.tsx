@@ -39,6 +39,7 @@ describe("DEXA chart selection", () => {
     const scanTwo = screen.getByRole("button", { name: /Scan 2,/ });
     fireEvent.focus(scanTwo);
     expect(scanTwo.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: /^Scan 2 ·/ }));
     expect(screen.getByText(/Bulk efficiency 50%/)).toBeTruthy();
     rerender(<DexaChart scans={scans} start="2020-03-01" end="2020-03-01" />);
     expect(screen.queryByRole("button", { name: /Scan 2,/ })).toBeNull();
@@ -91,6 +92,12 @@ describe("DEXA bulk ribbon", () => {
     const { container, rerender } = render(
       <DexaChart scans={history} start="2020-01-01" end="2020-06-01" />,
     );
+    const trigger = screen.getByRole("button", {
+      name: "Projected lean mass at 240 and 250 lb",
+    });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("table")).toBeNull();
+    fireEvent.click(trigger);
     const table = screen.getByRole("table", {
       name: /Projected lean mass/,
     });
@@ -113,6 +120,11 @@ describe("DEXA bulk ribbon", () => {
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.getByText(/Include the latest DEXA scan/)).toBeTruthy();
     rerender(<DexaChart scans={history} start="2020-06-01" end="2020-06-01" />);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Projected lean mass at 240 and 250 lb",
+      }),
+    );
     expect(
       screen.getByRole("table", { name: /Projected lean mass/ }).textContent,
     ).toMatch(/166\.0 lb lean/);

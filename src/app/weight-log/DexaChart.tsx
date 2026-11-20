@@ -527,97 +527,119 @@ export const DexaChart = memo(function DexaChart({
           </span>
         )}
       </div>
-      <div className="mt-6 text-sm tabular-nums">
-        <p>
-          <span className="font-medium">
+      <Accordion
+        type="single"
+        collapsible
+        className="mt-4 text-sm tabular-nums"
+      >
+        <AccordionItem value="details" className="border-0">
+          <AccordionTrigger className="py-2 text-sm hover:no-underline">
             Scan {selected.number} · {dateLabel(selected.date)}
             {selected.date === analysis.latestDate ? " · Latest" : ""}
-          </span>
-          <span className="text-muted-foreground">
-            {" "}
-            · {selected.weight.toFixed(1)} lb · {selected.leanMass.toFixed(1)}{" "}
-            lb lean
-            {selected.residual !== null
-              ? ` · ${signed(selected.residual)} lb vs trend`
-              : ""}
-          </span>
-        </p>
-        {selected.efficiency !== null && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {selected.direction === "bulk" ? "Bulk" : "Cut"} efficiency{" "}
-            {Math.round(selected.efficiency * 100)}% since scan{" "}
-            {selected.number - 1} (
-            {selected.direction === "bulk"
-              ? "lean gained per pound gained"
-              : "1 − lean lost per pound lost"}
-            )
-          </p>
-        )}
-      </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="mt-1 text-muted-foreground">
+              {selected.weight.toFixed(1)} lb bodyweight ·{" "}
+              {selected.leanMass.toFixed(1)} lb lean
+              {selected.residual !== null
+                ? ` · ${signed(selected.residual)} lb vs trend`
+                : ""}
+            </p>
+            {selected.efficiency !== null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selected.direction === "bulk" ? "Bulk" : "Cut"} efficiency{" "}
+                {Math.round(selected.efficiency * 100)}% since scan{" "}
+                {selected.number - 1} (
+                {selected.direction === "bulk"
+                  ? "lean gained per pound gained"
+                  : "1 − lean lost per pound lost"}
+                )
+              </p>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
       {farthest && (
-        <div className="mt-6">
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap text-left text-xs tabular-nums sm:w-auto">
-              <caption className="pb-2 text-left text-sm font-medium">
-                Projected lean mass from the {dateLabel(farthest.anchor.date)}{" "}
-                scan
-              </caption>
-              <thead className="text-muted-foreground">
-                <tr>
-                  <th scope="col" className="py-2 pr-4 font-medium sm:pr-8">
-                    Scenario
-                  </th>
-                  {projections.map((projection) => (
-                    <th
-                      key={projection.target}
-                      scope="col"
-                      className="py-2 pr-4 font-medium sm:pr-8"
-                    >
-                      At {projection.target} lb
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {scenarios.map((scenario) => (
-                  <tr key={scenario.label} className="border-t">
-                    <th
-                      scope="row"
-                      className="py-2 pr-4 align-top font-medium sm:pr-8"
-                    >
-                      {scenario.label}
-                      <span className="block font-normal text-muted-foreground">
-                        {scenario.percentile}
-                      </span>
-                    </th>
-                    {projections.map((projection) => {
-                      const lean = projection[scenario.key];
-                      return (
-                        <td
-                          key={projection.target}
-                          className="py-2 pr-4 align-top sm:pr-8"
+        <Accordion type="single" collapsible className="mt-4">
+          <AccordionItem value="details" className="border-0">
+            <AccordionTrigger className="py-2 text-sm hover:no-underline">
+              Projected lean mass at{" "}
+              {projections.map((projection) => projection.target).join(" and ")}{" "}
+              lb
+            </AccordionTrigger>
+            <AccordionContent>
+              <p className="mt-1 text-xs text-muted-foreground">
+                From the {dateLabel(farthest.anchor.date)} scan
+              </p>
+              <div className="mt-2">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap text-left text-xs tabular-nums sm:w-auto">
+                    <caption className="sr-only">
+                      Projected lean mass from the{" "}
+                      {dateLabel(farthest.anchor.date)} scan
+                    </caption>
+                    <thead className="text-muted-foreground">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="py-2 pr-4 font-medium sm:pr-8"
                         >
-                          {lean.toFixed(1)} lb lean
-                          <span className="block text-muted-foreground">
-                            {signed(lean - projection.anchor.leanMass)} lb
-                            {analysis.boneMass !== null
-                              ? ` · ${(100 * (1 - (lean + analysis.boneMass) / projection.target)).toFixed(1)}% fat`
-                              : ""}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            The ribbon holds the middle 95% of modeled outcomes, fitted on{" "}
-            {farthest.intervals} past bulk intervals. Its real-world coverage is
-            untested.
-          </p>
-        </div>
+                          Scenario
+                        </th>
+                        {projections.map((projection) => (
+                          <th
+                            key={projection.target}
+                            scope="col"
+                            className="py-2 pr-4 font-medium sm:pr-8"
+                          >
+                            At {projection.target} lb
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scenarios.map((scenario) => (
+                        <tr key={scenario.label} className="border-t">
+                          <th
+                            scope="row"
+                            className="py-2 pr-4 align-top font-medium sm:pr-8"
+                          >
+                            {scenario.label}
+                            <span className="block font-normal text-muted-foreground">
+                              {scenario.percentile}
+                            </span>
+                          </th>
+                          {projections.map((projection) => {
+                            const lean = projection[scenario.key];
+                            return (
+                              <td
+                                key={projection.target}
+                                className="py-2 pr-4 align-top sm:pr-8"
+                              >
+                                {lean.toFixed(1)} lb lean
+                                <span className="block text-muted-foreground">
+                                  {signed(lean - projection.anchor.leanMass)} lb
+                                  {analysis.boneMass !== null
+                                    ? ` · ${(100 * (1 - (lean + analysis.boneMass) / projection.target)).toFixed(1)}% fat`
+                                    : ""}
+                                </span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  The ribbon holds the middle 95% of modeled outcomes, fitted on{" "}
+                  {farthest.intervals} past bulk intervals. Its real-world
+                  coverage is untested.
+                </p>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
       <Accordion
         type="single"
