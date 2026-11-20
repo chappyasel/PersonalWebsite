@@ -320,7 +320,7 @@ export function WeightLogDashboard({ log }: { log: WeightLog }) {
   const [end, setEnd] = useState(last);
   const [phase, setPhase] = useState("all");
   const [visible, setVisible] = useState({
-    weight: false,
+    weight: true,
     weekly: false,
     target: false,
     originalTarget: false,
