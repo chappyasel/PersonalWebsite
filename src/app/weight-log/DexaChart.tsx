@@ -21,7 +21,15 @@ const palette = {
   latest: "#f97316",
   positive: "#16a34a",
   negative: "#dc6060",
+  projection: "#8b5cf6",
 };
+const targets = [240, 250] as const;
+const targetList = targets.join(" and ");
+const scenarios = [
+  { label: "Best", percentile: "97.5th percentile", key: "upper" },
+  { label: "Expected", percentile: "Median", key: "expected" },
+  { label: "Worst", percentile: "2.5th percentile", key: "lower" },
+] as const;
 const signed = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(1)}`;
 const dateLabel = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -57,8 +65,14 @@ export const DexaChart = memo(function DexaChart({
   const id = useId().replaceAll(":", "");
   const analysis = useMemo(() => buildDexaAnalysis(scans), [scans]);
   const [showProjection, setShowProjection] = useState(true);
-  const forecast = useMemo(
-    () => (showProjection ? projectDexaBulk(scans) : null),
+  const forecasts = useMemo(
+    () =>
+      showProjection
+        ? targets.map((target) => ({
+            target,
+            ...projectDexaBulk(scans, target),
+          }))
+        : [],
     [scans, showProjection],
   );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -75,21 +89,38 @@ export const DexaChart = memo(function DexaChart({
   const latest = points.at(-1)!;
   const selected =
     points.find((point) => point.date === selectedDate) ?? latest;
-  const projection =
-    forecast?.projection &&
-    points.some((point) => point.date === forecast.projection.anchor.date)
-      ? forecast.projection
-      : null;
+  const latestShown = points.some(
+    (point) => point.date === analysis.latestDate,
+  );
+  const projections = latestShown
+    ? forecasts.flatMap((forecast) =>
+        forecast.projection ? [forecast.projection] : [],
+      )
+    : [];
+  // The model is linear in pounds gained, so every target's scenarios sit on
+  // the same three lines. The farthest target sets the ribbon's end.
+  const farthest = projections.at(-1);
+  const failed = forecasts.find((forecast) => forecast.reason !== null);
+  const projectionNote = !showProjection
+    ? null
+    : !latestShown
+      ? "Include the latest DEXA scan in the selected dates to see the current bulk projection."
+      : failed && projections.length > 0
+        ? `No ${failed.target} lb projection. ${failed.reason}`
+        : (failed?.reason ?? null);
   const xBounds = bounds([
     ...points.map((point) => point.weight),
-    ...(projection ? [projection.target] : []),
+    ...projections.map((projection) => projection.target),
   ]);
   const yBounds = bounds([
     ...points.flatMap((point) => [
       point.leanMass,
       ...(point.predicted === null ? [] : [point.predicted]),
     ]),
-    ...(projection ? [projection.lower, projection.upper] : []),
+    ...projections.flatMap((projection) => [
+      projection.lower,
+      projection.upper,
+    ]),
   ]);
   const plot = { left: 76, right: 866, top: 30, bottom: 450 };
   const x = (weight: number) =>
@@ -113,17 +144,14 @@ export const DexaChart = memo(function DexaChart({
     <div className="mt-5">
       <label className="mt-3 flex w-fit cursor-pointer items-center gap-2 text-xs">
         <Checkbox
-          aria-label="Project current bulk to 240 lb · 95% ribbon"
+          aria-label={`Project current bulk to ${targetList} lb`}
           checked={showProjection}
           onCheckedChange={(checked) => setShowProjection(checked === true)}
         />
-        Project current bulk to 240 lb · 95% ribbon
+        Project current bulk to {targetList} lb
       </label>
-      {showProjection && !projection && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {forecast?.reason ??
-            "Include the latest DEXA scan in the selected dates to see the current bulk projection."}
-        </p>
+      {projectionNote && (
+        <p className="mt-2 text-xs text-muted-foreground">{projectionNote}</p>
       )}
       <div className="mt-3 overflow-x-auto">
         <svg
@@ -139,8 +167,8 @@ export const DexaChart = memo(function DexaChart({
             order. Blue arrows show weight loss and red arrows show weight gain.
             Select or focus a scan for its measurements below. Exact values also
             follow in the table.{" "}
-            {projection
-              ? "A purple ribbon extends from the latest scan to 240 lb, showing the modeled 95% prediction interval and median path."
+            {farthest
+              ? `A purple ribbon extends from the latest scan to ${farthest.target} lb, showing the modeled 95% prediction interval and median path, with scenario points at ${projections.map((projection) => projection.target).join(" and ")} lb.`
               : ""}
           </desc>
           <defs>
@@ -229,77 +257,67 @@ export const DexaChart = memo(function DexaChart({
                 opacity={0.08}
               />
             ))}
-            {projection && (
-              <g aria-label="Bulk projection to 240 lb">
+            {farthest && (
+              <g aria-label={`Bulk projection to ${targetList} lb`}>
                 <polygon
-                  points={`${x(projection.anchor.weight)},${y(projection.anchor.leanMass)} ${x(projection.target)},${y(projection.upper)} ${x(projection.target)},${y(projection.lower)}`}
-                  fill="#8b5cf6"
+                  points={`${x(farthest.anchor.weight)},${y(farthest.anchor.leanMass)} ${x(farthest.target)},${y(farthest.upper)} ${x(farthest.target)},${y(farthest.lower)}`}
+                  fill={palette.projection}
                   fillOpacity="0.16"
                 />
-                <line
-                  x1={x(projection.target)}
-                  x2={x(projection.target)}
-                  y1={plot.top}
-                  y2={plot.bottom}
-                  stroke="#8b5cf6"
-                  strokeOpacity="0.3"
-                  strokeDasharray="3 5"
-                />
-                <text
-                  x={x(projection.target) - 8}
-                  y={plot.top + 16}
-                  textAnchor="end"
-                  fill="currentColor"
-                  fontSize="12"
-                >
-                  240 lb target
-                </text>
-                {[
-                  {
-                    label: "Best",
-                    lean: projection.upper,
-                    dash: "3 5",
-                    opacity: 0.65,
-                  },
-                  {
-                    label: "Expected",
-                    lean: projection.expected,
-                    dash: "8 4",
-                    opacity: 1,
-                  },
-                  {
-                    label: "Worst",
-                    lean: projection.lower,
-                    dash: "3 5",
-                    opacity: 0.65,
-                  },
-                ].map((scenario) => (
-                  <g key={scenario.label}>
+                {scenarios.map((scenario) => (
+                  <line
+                    key={scenario.label}
+                    x1={x(farthest.anchor.weight)}
+                    y1={y(farthest.anchor.leanMass)}
+                    x2={x(farthest.target)}
+                    y2={y(farthest[scenario.key])}
+                    stroke={palette.projection}
+                    strokeWidth={scenario.label === "Expected" ? 2.5 : 1.5}
+                    strokeOpacity={scenario.label === "Expected" ? 1 : 0.65}
+                    strokeDasharray={
+                      scenario.label === "Expected" ? "8 4" : "3 5"
+                    }
+                  />
+                ))}
+                {projections.map((projection) => (
+                  <g key={projection.target}>
                     <line
-                      x1={x(projection.anchor.weight)}
-                      y1={y(projection.anchor.leanMass)}
+                      x1={x(projection.target)}
                       x2={x(projection.target)}
-                      y2={y(scenario.lean)}
-                      stroke="#8b5cf6"
-                      strokeWidth={scenario.label === "Expected" ? 2.5 : 1.5}
-                      strokeOpacity={scenario.opacity}
-                      strokeDasharray={scenario.dash}
-                    />
-                    <circle
-                      cx={x(projection.target)}
-                      cy={y(scenario.lean)}
-                      r="4"
-                      fill="#8b5cf6"
+                      y1={plot.top}
+                      y2={plot.bottom}
+                      stroke={palette.projection}
+                      strokeOpacity="0.3"
+                      strokeDasharray="3 5"
                     />
                     <text
                       x={x(projection.target) - 8}
-                      y={y(scenario.lean) - 8}
+                      y={plot.top + 16}
                       textAnchor="end"
                       fill="currentColor"
-                      fontSize="11"
+                      fontSize="12"
                     >
-                      {scenario.label} {scenario.lean.toFixed(1)}
+                      {projection.target} lb
                     </text>
+                    {scenarios.map((scenario) => (
+                      <g key={scenario.label}>
+                        <circle
+                          cx={x(projection.target)}
+                          cy={y(projection[scenario.key])}
+                          r="4"
+                          fill={palette.projection}
+                        />
+                        <text
+                          x={x(projection.target) - 8}
+                          y={y(projection[scenario.key]) - 8}
+                          textAnchor="end"
+                          fill="currentColor"
+                          fontSize="11"
+                        >
+                          {projection[scenario.key].toFixed(1)}
+                        </text>
+                      </g>
+                    ))}
                   </g>
                 ))}
               </g>
@@ -498,125 +516,17 @@ export const DexaChart = memo(function DexaChart({
           />{" "}
           Bulk
         </span>
-        <span>− − Full-history trend</span>
+        <span>− − Trend across all scans</span>
         <span>··· Latest two scans</span>
         <span>
           <span style={{ color: palette.latest }}>●</span> Latest scan
         </span>
+        {farthest && (
+          <span>
+            <span style={{ color: palette.projection }}>■</span> 95% projection
+          </span>
+        )}
       </div>
-      {projection && (
-        <Accordion
-          type="single"
-          collapsible
-          aria-label="Bulk scenarios at 240 lb"
-          className="mt-6"
-        >
-          <AccordionItem value="details" className="border-0">
-            <AccordionTrigger className="py-2 text-sm hover:no-underline">
-              Current bulk · Scenarios at 240 lb
-            </AccordionTrigger>
-            <AccordionContent>
-              <p className="mt-1 text-xs text-muted-foreground">
-                From the {dateLabel(projection.anchor.date)} scan · 95% model
-                prediction interval
-              </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                {[
-                  {
-                    label: "Worst case",
-                    percentile: "2.5th percentile",
-                    lean: projection.lower,
-                  },
-                  {
-                    label: "Expected case",
-                    percentile: "Median",
-                    lean: projection.expected,
-                  },
-                  {
-                    label: "Best case",
-                    percentile: "97.5th percentile",
-                    lean: projection.upper,
-                  },
-                ].map((scenario) => (
-                  <div key={scenario.label} className="tabular-nums">
-                    <p className="text-xs font-medium">
-                      {scenario.label}{" "}
-                      <span className="font-normal text-muted-foreground">
-                        · {scenario.percentile}
-                      </span>
-                    </p>
-                    <p className="mt-1 text-lg font-medium">
-                      {scenario.lean.toFixed(1)}{" "}
-                      <span className="text-xs font-normal">lb lean</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {signed(scenario.lean - projection.anchor.leanMass)} lb
-                      lean since scan
-                      {analysis.boneMass !== null
-                        ? ` · ${(100 * (1 - (scenario.lean + analysis.boneMass) / projection.target)).toFixed(1)}% body fat`
-                        : ""}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                The ribbon contains the middle 95% of modeled outcomes. Best and
-                worst are percentile scenarios, not absolute limits. Only{" "}
-                {projection.intervals} usable bulk intervals in{" "}
-                {projection.blocks} scan groups support this estimate; actual
-                95% coverage has not been validated.
-              </p>
-              <Accordion
-                type="single"
-                collapsible
-                className="mt-3 text-xs text-muted-foreground"
-              >
-                <AccordionItem value="details" className="border-0">
-                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
-                    Projection assumptions
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <p className="mt-2 leading-relaxed">
-                      Lean mass starts at the latest scan and changes by a
-                      constant share of each pound gained. We resample whole
-                      groups of bulk intervals that share a scan, then add the
-                      variation of one future bulk. The expected path is the
-                      median of {projection.simulations.toLocaleString()}{" "}
-                      deterministic simulations. Date filters never refit the
-                      model.
-                    </p>
-                    <p className="mt-2 leading-relaxed">
-                      Usable intervals are consecutive scans with at least 2 lb
-                      gained and no more than 365 days between them, with lean
-                      mass recorded at both ends. {projection.excluded} gain
-                      intervals were excluded. Observed scan variation is
-                      retained; there is no additional measurement-error model.
-                      The ribbon conditions on the latest scan being exact and
-                      narrows to zero there. It projects lean soft tissue,
-                      including water, rather than muscle alone. Body fat holds
-                      inferred bone mineral content constant.
-                    </p>
-                    <p className="mt-2 leading-relaxed">
-                      A future bulk needs a{" "}
-                      <a
-                        className="underline"
-                        href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        prediction interval
-                      </a>
-                      , which includes variation in future outcomes as well as
-                      uncertainty in the fitted average. These empirical bounds
-                      assume the next bulk resembles past bulks.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      )}
       <Accordion
         type="single"
         collapsible
@@ -630,7 +540,7 @@ export const DexaChart = memo(function DexaChart({
           <AccordionContent>
             <p className="mt-1 text-muted-foreground">
               {selected.weight.toFixed(1)} lb bodyweight ·{" "}
-              {selected.leanMass.toFixed(1)} lb lean mass
+              {selected.leanMass.toFixed(1)} lb lean
               {selected.residual !== null
                 ? ` · ${signed(selected.residual)} lb vs trend`
                 : ""}
@@ -638,16 +548,99 @@ export const DexaChart = memo(function DexaChart({
             {selected.efficiency !== null && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {selected.direction === "bulk" ? "Bulk" : "Cut"} efficiency{" "}
-                {Math.round(selected.efficiency * 100)}% ·{" "}
+                {Math.round(selected.efficiency * 100)}% since scan{" "}
+                {selected.number - 1} (
                 {selected.direction === "bulk"
-                  ? "Lean mass gained / weight gained"
-                  : "1 − lean mass lost / weight lost"}{" "}
-                since the preceding scan.
+                  ? "lean gained per pound gained"
+                  : "1 − lean lost per pound lost"}
+                )
               </p>
             )}
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+      {farthest && (
+        <Accordion type="single" collapsible className="mt-4">
+          <AccordionItem value="details" className="border-0">
+            <AccordionTrigger className="py-2 text-sm hover:no-underline">
+              Projected lean mass at{" "}
+              {projections.map((projection) => projection.target).join(" and ")}{" "}
+              lb
+            </AccordionTrigger>
+            <AccordionContent>
+              <p className="mt-1 text-xs text-muted-foreground">
+                From the {dateLabel(farthest.anchor.date)} scan
+              </p>
+              <div className="mt-2">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap text-left text-xs tabular-nums sm:w-auto">
+                    <caption className="sr-only">
+                      Projected lean mass from the{" "}
+                      {dateLabel(farthest.anchor.date)} scan
+                    </caption>
+                    <thead className="text-muted-foreground">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="py-2 pr-4 font-medium sm:pr-8"
+                        >
+                          Scenario
+                        </th>
+                        {projections.map((projection) => (
+                          <th
+                            key={projection.target}
+                            scope="col"
+                            className="py-2 pr-4 font-medium sm:pr-8"
+                          >
+                            At {projection.target} lb
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scenarios.map((scenario) => (
+                        <tr key={scenario.label} className="border-t">
+                          <th
+                            scope="row"
+                            className="py-2 pr-4 align-top font-medium sm:pr-8"
+                          >
+                            {scenario.label}
+                            <span className="block font-normal text-muted-foreground">
+                              {scenario.percentile}
+                            </span>
+                          </th>
+                          {projections.map((projection) => {
+                            const lean = projection[scenario.key];
+                            return (
+                              <td
+                                key={projection.target}
+                                className="py-2 pr-4 align-top sm:pr-8"
+                              >
+                                {lean.toFixed(1)} lb lean
+                                <span className="block text-muted-foreground">
+                                  {signed(lean - projection.anchor.leanMass)} lb
+                                  {analysis.boneMass !== null
+                                    ? ` · ${(100 * (1 - (lean + analysis.boneMass) / projection.target)).toFixed(1)}% fat`
+                                    : ""}
+                                </span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  The ribbon holds the middle 95% of modeled outcomes, fitted on{" "}
+                  {farthest.intervals} past bulk intervals. Its real-world
+                  coverage is untested.
+                </p>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
       <Accordion
         type="single"
         collapsible
@@ -663,15 +656,48 @@ export const DexaChart = memo(function DexaChart({
               {analysis.rSquared?.toFixed(2) ?? "unavailable"}
             </p>
             <p className="mt-3 leading-relaxed">
-              Numbers follow scan order. Vertical bars show distance from the
-              fitted trend. Select a point for details. Arrows reflect weight
-              change between scans.
+              Numbers follow scan order. Select a scan for its details. Arrows
+              show weight change between scans, and vertical bars show distance
+              from the fitted trend.
               {analysis.boneMass !== null
                 ? ` Diagonal lines show body fat in 1 percentage-point steps, holding inferred bone mineral content at ${analysis.boneMass.toFixed(1)} lb from the latest scan’s weight minus lean and fat mass.`
                 : " Body-fat contours are unavailable without complete mass components in the latest scan."}{" "}
               Lean soft tissue excludes bone and includes water. Efficiency
               describes the scan interval and can fall outside 0–100%.
             </p>
+            {farthest && (
+              <>
+                <p className="mt-3 leading-relaxed">
+                  The projection starts at the latest scan and adds lean mass as
+                  a constant share of each pound gained. It resamples whole
+                  groups of bulk intervals that share a scan ({farthest.blocks}{" "}
+                  groups), then adds the variation of one future bulk. The
+                  expected path is the median of{" "}
+                  {farthest.simulations.toLocaleString()} deterministic
+                  simulations. Date filters never refit the model.
+                </p>
+                <p className="mt-3 leading-relaxed">
+                  Usable intervals are consecutive scans with at least 2 lb
+                  gained and no more than 365 days between them, with lean mass
+                  recorded at both ends. {farthest.excluded} gain intervals were
+                  excluded. Observed scan variation is retained, with no
+                  separate measurement-error model. The ribbon treats the latest
+                  scan as exact, so it narrows to zero there. Body fat holds
+                  inferred bone mineral content constant. A future bulk needs a{" "}
+                  <a
+                    className="underline"
+                    href="https://www.itl.nist.gov/div898/handbook/pmd/section5/pmd512.htm"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    prediction interval
+                  </a>
+                  , which covers variation in future outcomes as well as
+                  uncertainty in the fitted average. These bounds assume the
+                  next bulk resembles past bulks.
+                </p>
+              </>
+            )}
           </AccordionContent>
         </AccordionItem>
       </Accordion>

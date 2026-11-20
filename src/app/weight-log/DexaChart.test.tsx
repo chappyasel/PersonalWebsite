@@ -88,37 +88,46 @@ describe("DEXA bulk ribbon", () => {
     bodyFatPercent: null,
   }));
 
-  it("shows the 240 lb scenarios, hides the ribbon on demand, and preserves historical date filters", () => {
+  it("shows the 240 and 250 lb scenarios, hides the ribbon on demand, and preserves historical date filters", () => {
     const { container, rerender } = render(
       <DexaChart scans={history} start="2020-01-01" end="2020-06-01" />,
     );
-    expect(screen.getByLabelText("Bulk scenarios at 240 lb")).toBeTruthy();
-    const scenarios = screen.getByRole("button", {
-      name: "Current bulk · Scenarios at 240 lb",
+    const trigger = screen.getByRole("button", {
+      name: "Projected lean mass at 240 and 250 lb",
     });
-    expect(scenarios.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(screen.getByText("Current bulk · Scenarios at 240 lb"));
-    expect(scenarios.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("166.0")).toBeTruthy();
-    expect(container.querySelector("polygon")).not.toBeNull();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("table")).toBeNull();
+    fireEvent.click(trigger);
+    const table = screen.getByRole("table", {
+      name: /Projected lean mass/,
+    });
+    expect(
+      screen.getAllByRole("columnheader").map((header) => header.textContent),
+    ).toEqual(["Scenario", "At 240 lb", "At 250 lb"]);
+    expect(table.textContent).toMatch(/166\.0 lb lean/);
+    expect(screen.getAllByText("166.0").length).toBeGreaterThan(0);
+    expect(screen.getByText("250 lb")).toBeTruthy();
+    expect(container.querySelectorAll("polygon")).toHaveLength(1);
     fireEvent.click(
       screen.getByRole("checkbox", { name: /Project current bulk/ }),
     );
     expect(container.querySelector("polygon")).toBeNull();
-    expect(screen.queryByLabelText("Bulk scenarios at 240 lb")).toBeNull();
+    expect(screen.queryByRole("table")).toBeNull();
     fireEvent.click(
       screen.getByRole("checkbox", { name: /Project current bulk/ }),
     );
     rerender(<DexaChart scans={history} start="2020-01-01" end="2020-04-01" />);
-    expect(screen.queryByLabelText("Bulk scenarios at 240 lb")).toBeNull();
+    expect(screen.queryByRole("table")).toBeNull();
     expect(screen.getByText(/Include the latest DEXA scan/)).toBeTruthy();
     rerender(<DexaChart scans={history} start="2020-06-01" end="2020-06-01" />);
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Current bulk · Scenarios at 240 lb",
+        name: "Projected lean mass at 240 and 250 lb",
       }),
     );
-    expect(screen.getByText("166.0")).toBeTruthy();
+    expect(
+      screen.getByRole("table", { name: /Projected lean mass/ }).textContent,
+    ).toMatch(/166\.0 lb lean/);
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });
 });

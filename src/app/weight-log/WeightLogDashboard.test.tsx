@@ -101,6 +101,7 @@ const log: WeightLog = {
 function renderTrendOnly(data: WeightLog) {
   const view = render(<WeightLogDashboard log={data} />);
   fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Weigh-ins" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "Future weight plan" }));
   fireEvent.click(screen.getByRole("button", { name: "Close layers" }));
   return view;
@@ -268,7 +269,7 @@ it("does not draw DEXA markers for null readings along the chart's top edge", ()
   expect([...dots].every((dot) => dot.hasAttribute("cy"))).toBe(true);
 });
 
-it("opens with the trend and future weight on and the purple body-fat layers off", () => {
+it("opens with weigh-ins, the trend, and future weight on and the purple body-fat layers off", () => {
   const { container } = render(<WeightLogDashboard log={log} />);
   expect(screen.queryByRole("checkbox")).toBeNull();
   expect(
@@ -290,7 +291,7 @@ it("opens with the trend and future weight on and the purple body-fat layers off
       .getAllByRole("checkbox")
       .filter((input) => input.getAttribute("aria-checked") === "true")
       .map((input) => input.getAttribute("aria-label")),
-  ).toEqual(["7-day trend", "Future weight plan"]);
+  ).toEqual(["Weigh-ins", "7-day trend", "Future weight plan"]);
   for (const name of [
     "Body fat %",
     "Early body fat · exploratory",
@@ -551,7 +552,7 @@ it("closes Layers with the trigger after changing multiple checkboxes", async ()
     screen
       .getByRole("checkbox", { name: "Weigh-ins" })
       .getAttribute("aria-checked"),
-  ).toBe("true");
+  ).toBe("false");
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).toBeNull();
 });
