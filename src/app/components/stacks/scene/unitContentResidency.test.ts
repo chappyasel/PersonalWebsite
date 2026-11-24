@@ -77,13 +77,10 @@ describe("uploadUnitTextures", () => {
         new THREE.BoxGeometry(),
         new THREE.MeshStandardMaterial({ map, normalMap: normal }),
       ),
-      new THREE.Mesh(
-        new THREE.BoxGeometry(),
-        [
-          new THREE.MeshBasicMaterial({ map }),
-          new THREE.MeshBasicMaterial({ map: unloaded }),
-        ],
-      ),
+      new THREE.Mesh(new THREE.BoxGeometry(), [
+        new THREE.MeshBasicMaterial({ map }),
+        new THREE.MeshBasicMaterial({ map: unloaded }),
+      ]),
     );
     const initTexture = vi.fn();
     expect(uploadUnitTextures({ initTexture }, root)).toBe(2);

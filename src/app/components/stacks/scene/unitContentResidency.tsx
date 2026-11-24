@@ -15,15 +15,15 @@
 // The unit root group stays mounted throughout: activity, physics, and insect
 // collision register against it, and pick up late children on their own
 // schedules (physics at grab time, insects on their index refresh).
-import { UNIT_COUNT, initialScenePositionFromLocation } from "../data";
+import { assetLoadComplete } from "../boot/worldBootMachine";
 import { worldBoot } from "../boot/worldBootSession";
+import { UNIT_COUNT, initialScenePositionFromLocation } from "../data";
 import { useStacks } from "../store";
 import { useProgress } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
-import { assetLoadComplete } from "../boot/worldBootMachine";
 import { preloadModels } from "./ModelProp";
 import { scenePrewarmDeferred } from "./scenePerformance";
 import { screenshotModeController } from "./screenshotMode";
@@ -254,9 +254,7 @@ export function UnitContentPromoter() {
           }
         }
       }
-      const next = unitContentResidency.next(
-        useStacks.getState().activeUnit,
-      );
+      const next = unitContentResidency.next(useStacks.getState().activeUnit);
       if (next === null) return;
       const mountNext = () => {
         if (cancelled) return;
