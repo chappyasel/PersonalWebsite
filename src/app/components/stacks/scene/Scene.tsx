@@ -156,7 +156,10 @@ function CollisionIndexedUnit({
   );
 }
 
-/** A shelf's contents, held back until `unitContentResidency` mounts them. */
+/** A shelf's contents, held back until `unitContentResidency` mounts them.
+ * Each shelf suspends on its own: r3f wraps the whole Canvas in one Suspense
+ * boundary, so a shelf mounted after the reveal would otherwise hide the
+ * entire room until its textures arrived. */
 function UnitContentGate({
   index,
   children,
@@ -164,7 +167,9 @@ function UnitContentGate({
   index: number;
   children: ReactNode;
 }) {
-  return useUnitContentMounted(index) ? <>{children}</> : null;
+  return useUnitContentMounted(index) ? (
+    <Suspense fallback={null}>{children}</Suspense>
+  ) : null;
 }
 
 function SharedPhysicsRoot({ children }: { children: ReactNode }) {

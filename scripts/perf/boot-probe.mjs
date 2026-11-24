@@ -9,6 +9,7 @@
 //
 // Prints one JSON line: wall time, the boot_complete report (gate milestones
 // and timeline), and every resource as [start, end, KB, initiator, path].
+// Exits 1 when the boot did not reach the live room.
 import { chromium } from "playwright";
 
 const [
@@ -74,4 +75,6 @@ console.log(
   }),
 );
 await browser.close();
-process.exit(0);
+// A boot that never reported, or reported without reaching the live room
+// (failed, or the 2D illustration only), is not a reveal time.
+process.exit(done?.boot_status === "live" ? 0 : 1);

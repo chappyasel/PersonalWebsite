@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { GOLF_CUP } from "./golf/golfCourse";
 import { GOLF_FOG_POLICY } from "./golf/golfPresentation";
 import { useResolvedMeadowVisibility } from "./scenePerformance";
+import { preloadWithUnit } from "./unitContentResidencyStore";
 import { useRoomFrame } from "./useRoomFrame";
 
 const FLAG_URL = "/models/golf-flag.glb";
@@ -182,5 +183,7 @@ export default function WavingGolfFlag({
   );
 }
 
-useGLTF.preload(FLAG_URL);
-useTexture.preload(FLAG_LOGO_URL);
+preloadWithUnit("training", () => {
+  useGLTF.preload(FLAG_URL);
+  useTexture.preload(FLAG_LOGO_URL);
+});

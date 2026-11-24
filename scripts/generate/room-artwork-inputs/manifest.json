@@ -4439,7 +4439,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/FrozenBag.tsx",
-      "sha256": "47e7eecfc5aa9a85b01def4a0948d588c132441148ab49851615868b5fc701c3",
+      "sha256": "baf530cdd7cc5fd82ff1f9999c0af50cd407cfe38555840cd9e136ad78b0e48d",
       "archivedSha256": "47e7eecfc5aa9a85b01def4a0948d588c132441148ab49851615868b5fc701c3"
     },
     {
@@ -4474,7 +4474,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/MioBottle.tsx",
-      "sha256": "0dcd128a380dd32fb82f785e1f266f2f3237771b05299c8214585204f07ca4e5",
+      "sha256": "f602d6d0388f121f3464e31c72bdf8780cea58330a36749b5ee2633bccbc9875",
       "archivedSha256": "0dcd128a380dd32fb82f785e1f266f2f3237771b05299c8214585204f07ca4e5"
     },
     {
@@ -4519,7 +4519,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/WavingGolfFlag.tsx",
-      "sha256": "9c38885e739449aa1e0592844baae03e7d8273a014b4f497bc53202a6ab0bbbf",
+      "sha256": "d356f6d87a69b0be00f3666b27b76b53b36ce859cf6a4b30d4845c451b0693bc",
       "archivedSha256": "caa69a1b6a80e4f789f1824ee39f220e8a6ec45bb0bbd06cc45070ee467d2ad8"
     },
     {
@@ -4844,7 +4844,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/objects.tsx",
-      "sha256": "5cd1546cc767719e78e921602112aaaada88c89edcc70e2a11f498d9f933a710",
+      "sha256": "0d35fccdd84b0213e7a4ed64c5ba169f5c432fb20e3919f25947bdb75a2c80a2",
       "archivedSha256": "03d77434b40fa153548e452a1b5ddb22badbd198cef92591e48a7930a1991846"
     },
     {
@@ -5094,12 +5094,12 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/TrustEssay.tsx",
-      "sha256": "f4be1518994f6272a4b066543b72903ea665ce9159d998a30d277a29e33e0f3c",
+      "sha256": "74cb0dc180798273342bd77c10e07aee164df795e4f756166496506e39064559",
       "archivedSha256": "3d54bfa11b54616f55d5a7105964b64c61f63830139b429c0eb6a410b72ccfd8"
     },
     {
       "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
-      "sha256": "58360b6e6703e796a105c0aa8e962b48396ed712d970d312952526130819864b",
+      "sha256": "27228d21e2e453b554ba5bf81649f3992ffc3f5d79698e3b6e922a9c935e9fc3",
       "archivedSha256": "d73050d98a7c2420a2f3b21b75d7745e5762c4e9857e9e0ba939e1932c03858c"
     },
     {
@@ -5134,7 +5134,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/units/VineyardSign.tsx",
-      "sha256": "abb6456de9456334d59b9ab1104c03556a0de05f6bba8977c0862b6166bb9627",
+      "sha256": "89023e3b6395dcd90e1106dc4991957be2442c969691aaa6e1992880f0e48bca",
       "archivedSha256": "abb6456de9456334d59b9ab1104c03556a0de05f6bba8977c0862b6166bb9627"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "4ac0b05f7cd8c3f2e3c84c2dceb562077186231a3636889d738726daf4a2559a",
+  "sourceFingerprint": "b0fbe095fffa15e990e32a5bacd63882c6d879cac862245d5b1daf0d0e21fe8d",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
@@ -5801,6 +5801,48 @@
           "path": "src/app/components/stacks/scene/units/unitShelfLayout.ts",
           "previousSha256": "167c6cca9edf79d45a227e0abe48d3365f5a6e3b54b925316658af7b0a3f204e",
           "sha256": "42f98d457f648e1b21f516772bd31e0a6858422e38c4d76a78779029f4565c4f"
+        }
+      ]
+    },
+    {
+      "reason": "Reviewed preload-timing edits: module-level texture and GLB preloads now start when their shelf mounts; no geometry, material, or layout change",
+      "previousFingerprint": "4ac0b05f7cd8c3f2e3c84c2dceb562077186231a3636889d738726daf4a2559a",
+      "sourceFingerprint": "b0fbe095fffa15e990e32a5bacd63882c6d879cac862245d5b1daf0d0e21fe8d",
+      "changes": [
+        {
+          "path": "src/app/components/stacks/scene/FrozenBag.tsx",
+          "previousSha256": "47e7eecfc5aa9a85b01def4a0948d588c132441148ab49851615868b5fc701c3",
+          "sha256": "baf530cdd7cc5fd82ff1f9999c0af50cd407cfe38555840cd9e136ad78b0e48d"
+        },
+        {
+          "path": "src/app/components/stacks/scene/MioBottle.tsx",
+          "previousSha256": "0dcd128a380dd32fb82f785e1f266f2f3237771b05299c8214585204f07ca4e5",
+          "sha256": "f602d6d0388f121f3464e31c72bdf8780cea58330a36749b5ee2633bccbc9875"
+        },
+        {
+          "path": "src/app/components/stacks/scene/WavingGolfFlag.tsx",
+          "previousSha256": "9c38885e739449aa1e0592844baae03e7d8273a014b4f497bc53202a6ab0bbbf",
+          "sha256": "d356f6d87a69b0be00f3666b27b76b53b36ce859cf6a4b30d4845c451b0693bc"
+        },
+        {
+          "path": "src/app/components/stacks/scene/objects.tsx",
+          "previousSha256": "5cd1546cc767719e78e921602112aaaada88c89edcc70e2a11f498d9f933a710",
+          "sha256": "0d35fccdd84b0213e7a4ed64c5ba169f5c432fb20e3919f25947bdb75a2c80a2"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/TrustEssay.tsx",
+          "previousSha256": "f4be1518994f6272a4b066543b72903ea665ce9159d998a30d277a29e33e0f3c",
+          "sha256": "74cb0dc180798273342bd77c10e07aee164df795e4f756166496506e39064559"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/UnitBlog.tsx",
+          "previousSha256": "58360b6e6703e796a105c0aa8e962b48396ed712d970d312952526130819864b",
+          "sha256": "27228d21e2e453b554ba5bf81649f3992ffc3f5d79698e3b6e922a9c935e9fc3"
+        },
+        {
+          "path": "src/app/components/stacks/scene/units/VineyardSign.tsx",
+          "previousSha256": "abb6456de9456334d59b9ab1104c03556a0de05f6bba8977c0862b6166bb9627",
+          "sha256": "89023e3b6395dcd90e1106dc4991957be2442c969691aaa6e1992880f0e48bca"
         }
       ]
     }

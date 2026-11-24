@@ -1,8 +1,5 @@
 "use client";
 
-import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
-
-
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import type { ArtifactPreviewFrameLayer } from "../modal/artifactPreviewFrame";
@@ -38,6 +35,8 @@ import {
 } from "./portraitFrameGeometry";
 import { propReactionIsEngaged } from "./reactionEngagement";
 import { useUnitFrame } from "./unitActivity";
+import { preloadWithUnit } from "./unitContentResidencyStore";
+import { roomWindowEvents } from "~/app/components/stacks/room/roomEvents";
 
 /**
  * The only click path in this scene that actually fires under a real pointer.
@@ -1157,7 +1156,9 @@ export function PaperStack({
   );
 }
 
-for (const url of MUSINGS_PDF_PAGE_URLS) useTexture.preload(url);
+preloadWithUnit("blog", () => {
+  for (const url of MUSINGS_PDF_PAGE_URLS) useTexture.preload(url);
+});
 
 /**
  * A drinks can, at the room's real scale, in whatever colour the shelf wants.

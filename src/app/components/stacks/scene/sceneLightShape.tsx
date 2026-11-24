@@ -3,12 +3,12 @@
 import { UNIT_COUNT } from "../data";
 import { useStacks } from "../store";
 import { useThree } from "@react-three/fiber";
-import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 
 import { SCENE_UNIT_LIGHT_USER_DATA_KEY } from "./sceneGpuPrewarm";
 import { useScenePerformanceSettings } from "./scenePerformance";
-import { unitContentResidency } from "./unitContentResidency";
+import { useAllUnitContentMounted } from "./unitContentResidencyStore";
 
 export type SceneLightCounts = Readonly<{ point: number; spot: number }>;
 
@@ -91,11 +91,7 @@ function ActiveSceneLightShapePadding() {
   // is sized from the busiest neighbourhood in the whole room. Recount once
   // the last shelf has mounted, so the shape changes once, after the reveal,
   // and not on the visitor's first travel.
-  const allUnitsMounted = useSyncExternalStore(
-    unitContentResidency.subscribe,
-    () => unitContentResidency.allMounted(),
-    () => true,
-  );
+  const allUnitsMounted = useAllUnitContentMounted();
   const pointLights = useRef<Array<THREE.PointLight | null>>([]);
   const spotLights = useRef<Array<THREE.SpotLight | null>>([]);
 

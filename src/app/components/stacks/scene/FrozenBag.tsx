@@ -13,6 +13,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
 import { projectStandingBagUvs } from "./bagLabelUvs";
+import { preloadWithUnit } from "./unitContentResidencyStore";
 
 export const BAG_MODEL_URL = "/models/bag.glb";
 
@@ -35,7 +36,9 @@ export const BAG_LABEL_URL = BAG_LABEL_URLS.realgood;
 // The GLB rides the shared MODEL_URLS warm batch; the labels are this file's
 // own assets, so they warm here the way the golf flag's logo does. Without it
 // the bags suspend on a small webp and pop in after the shelf has settled.
-for (const url of Object.values(BAG_LABEL_URLS)) useTexture.preload(url);
+preloadWithUnit("systems", () => {
+  for (const url of Object.values(BAG_LABEL_URLS)) useTexture.preload(url);
+});
 
 /** The model's printed face is +x; this yaw turns it to the viewer (+z). */
 export const BAG_FACE_YAW = -Math.PI / 2;

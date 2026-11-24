@@ -133,6 +133,16 @@ about 250 programs against the old boot's 129, because the light padding
 changes shape as late shelves add their lights. It runs on idle time after the
 reveal; folding it back to one light shape is a follow-up.
 
+After review (PR #161): each shelf now suspends inside its own Suspense
+boundary, because r3f wraps the Canvas in one and a late shelf would have hidden
+the whole room while its textures loaded. A 15 s screenshot series during
+promotion stayed within 1.2% of the ready frame. Shelf modules that preloaded
+at chunk evaluation (Systems bags and MiO, the Training flag, the Musings
+paper, sign, essay and sticker) now register with `preloadWithUnit` and start
+when their shelf mounts. Scene Diagnostics has a "Mount far shelves after the
+reveal" switch. A rerun on the loaded worker: 4x reveal 12.0 and 10.9 s against
+13.2 and 12.7 s; 1x 4.3 and 4.8 s against 5.3 and 5.8 s.
+
 ## Not in scope
 
 - Bundle size. 2.2 MB of JS in 97 files matters for parse time, but the probe
