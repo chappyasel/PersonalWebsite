@@ -1,7 +1,7 @@
 # Room boot speed
 
-Status: plan, written 2026-11-24 on `slow-3d-scene-load-8fae38a9`. Nothing
-here is built. Measurements are against production at 97506fe7.
+Status: steps 1 (PR #161) and 2 built. Plan written 2026-11-24; the first
+measurements are against production at 97506fe7.
 
 ## Outcome
 
@@ -142,6 +142,41 @@ paper, sign, essay and sticker) now register with `preloadWithUnit` and start
 when their shelf mounts. Scene Diagnostics has a "Mount far shelves after the
 reveal" switch. A rerun on the loaded worker: 4x reveal 12.0 and 10.9 s against
 13.2 and 12.7 s; 1x 4.3 and 4.8 s against 5.3 and 5.8 s.
+
+## Step 2 results (2026-11-25, local production build)
+
+The chain was inside each shelf, not between shelves. A shelf's contents sit
+in one Suspense boundary, and when its first model suspends React stops
+rendering the rest of that boundary until the model resolves. On the About
+shelf that made five links: the models, then the prop atlases, then the globe
+map, then the five role icons, then the AI Collective mark. Each reopened the
+boot gate.
+
+`scene/unitAssetManifest.ts` now lists every model, texture, texture pair, and
+SVG each shelf loads, and `unitContentResidency.tsx` preloads a shelf's list
+through `preloadWithUnit` the moment the shelf mounts, with the same cache key
+as each call site. `unitAssetManifest.test.ts` reads each shelf's source and
+fails when a model path, a role or project icon, the SVG mark, or a known
+loader component (ShelfSucculent, EggLamp, VisionProProp, TJMedallionProp) is
+missing from its list. It already caught the desk lamp on Projects. Photos stay
+with Scene's preview warmer. `?unit-preload=off` restores the chain for timing.
+
+Three cold runs each at 4x CPU, alternating, against `next start`:
+
+| Network               | Batches, new / old | Room appears (world_ready), new / old | Live, new / old                         |
+| --------------------- | ------------------ | ------------------------------------- | --------------------------------------- |
+| local, no latency     | 2 / 9              | 4.6, 4.7 s / 4.0, 5.4, 4.2 s          | 7.4, 7.2 s / 7.5, 7.2, 7.7 s            |
+| 150 ms RTT, 10 Mbit/s | 2 / 3-4            | 6.7, 7.0, 7.1 s / 8.6, 8.1, 8.2 s     | 10.0, 10.3, 10.7 s / 11.3, 10.5, 10.8 s |
+
+(One new local run was a 12.4 s outlier and is left out.) With no latency the
+chain costs little, so the time barely moves. With phone-like latency each
+link costs a round trip, and the room appears about 1.2 s sooner. "Live" is
+when the camera finishes travelling from the drawing into the room; the room
+is already on screen from world_ready, and that travel (about 2.5 s at 4x) is
+now the largest piece of the wait. Before this change, props could still be
+loading while the room travelled in.
+
+`PROBE_RTT=150` on `boot-probe.mjs` adds the latency.
 
 ## Not in scope
 

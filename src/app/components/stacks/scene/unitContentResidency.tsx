@@ -6,16 +6,23 @@
 // Diagnostics panel can read it.
 import { assetLoadComplete } from "../boot/worldBootMachine";
 import { worldBoot } from "../boot/worldBootSession";
+import { UNITS } from "../data";
 import { useStacks } from "../store";
-import { useProgress } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
+import { useGLTF, useProgress, useTexture } from "@react-three/drei";
+import { useLoader, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import * as THREE from "three";
+import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 
 import { preloadModels } from "./ModelProp";
 import { scenePrewarmDeferred } from "./scenePerformance";
 import { screenshotModeController } from "./screenshotMode";
-import { nearUnits, unitContentResidency } from "./unitContentResidencyStore";
+import { UNIT_ASSETS } from "./unitAssetManifest";
+import {
+  nearUnits,
+  preloadWithUnit,
+  unitContentResidency,
+} from "./unitContentResidencyStore";
 
 export {
   nearUnits,
@@ -25,6 +32,24 @@ export {
   useAllUnitContentMounted,
   useUnitContentMounted,
 } from "./unitContentResidencyStore";
+
+// Start every listed load of a shelf the moment it mounts, so its assets
+// arrive in one batch instead of a chain (unitAssetManifest.ts). Each call
+// matches its call site's cache key: `useGLTF(url, false)`, `useTexture(url)`,
+// `useTexture([a, b])`, `useLoader(SVGLoader, url)`. `?unit-preload=off`
+// skips it, to time the chained boot against this one.
+const unitPreloadOff =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("unit-preload") === "off";
+for (const { slug } of unitPreloadOff ? [] : UNITS) {
+  const assets = UNIT_ASSETS[slug];
+  preloadWithUnit(slug, () => {
+    for (const url of assets.models) useGLTF.preload(url, false);
+    for (const url of assets.textures) useTexture.preload(url);
+    for (const set of assets.textureSets) useTexture.preload([...set]);
+    for (const url of assets.svgs) useLoader.preload(SVGLoader, url);
+  });
+}
 
 const TEXTURE_SLOTS = [
   "map",

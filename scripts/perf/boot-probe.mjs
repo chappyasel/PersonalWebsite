@@ -7,6 +7,9 @@
 //   node scripts/perf/boot-probe.mjs base "" 4
 //   node scripts/perf/boot-probe.mjs light "&perf-profile=light-boot" 4 http://localhost:3000
 //
+// PROBE_RTT=150 adds that many ms of round-trip latency and caps throughput at
+// 10 Mbit/s down, a phone on a middling connection.
+//
 // Prints one JSON line: wall time, the boot_complete report (gate milestones
 // and timeline), and every resource as [start, end, KB, initiator, path].
 // Exits 1 when the boot did not reach the live room.
@@ -45,6 +48,14 @@ await context.route("**/api/performance-diagnostic", async (route) => {
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("Emulation.setCPUThrottlingRate", { rate: Number(cpu) });
+const rtt = Number(process.env.PROBE_RTT ?? 0);
+if (rtt > 0)
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: rtt,
+    downloadThroughput: (10 * 1024 * 1024) / 8,
+    uploadThroughput: (5 * 1024 * 1024) / 8,
+  });
 
 const t0 = Date.now();
 await page.goto(url, { waitUntil: "commit" });
