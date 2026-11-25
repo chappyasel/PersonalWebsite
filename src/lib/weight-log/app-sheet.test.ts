@@ -61,6 +61,28 @@ describe("appSheet", () => {
     });
     expect(later.sections[0]!.rows[0]!.week).toBe("2030-03-04");
   });
+
+  it("keeps that section after the week's first weigh-in", () => {
+    const logged = {
+      ...SYNTHETIC_LOG,
+      weeks: [
+        ...SYNTHETIC_LOG.weeks,
+        {
+          ...SYNTHETIC_LOG.weeks.at(-1)!,
+          date: "2030-03-04",
+          weights: [101.2, null, null, null, null, null, null],
+          averageDays: [0],
+        },
+      ],
+    };
+    const sheet = appSheet(logged, {
+      today: "2030-03-06",
+      phaseId: null,
+      runningId: null,
+    });
+    expect(sheet.sections[0]!.title).toBe("Outside every phase");
+    expect(sheet.sections[0]!.rows[0]!.days[0]!.value).toBe(101.2);
+  });
 });
 
 describe("carriedWeighIn", () => {

@@ -35,6 +35,7 @@ enum WeightLogAPI {
         case offline
         case refused(Refusal)
         case unreadable
+        case badSite
 
         var errorDescription: String? {
             switch self {
@@ -42,6 +43,7 @@ enum WeightLogAPI {
             case .offline: "No connection to the site."
             case .refused(let refusal): refusal.message
             case .unreadable: "The site's answer couldn't be read."
+            case .badSite: "The site address isn't a URL. Fix it on the token screen."
             }
         }
 
@@ -52,8 +54,17 @@ enum WeightLogAPI {
             case .refused(let refusal) where refusal.isOwnMessage: refusal.message
             case .refused(let refusal) where refusal.code == "UNAUTHORIZED":
                 "The site refused the token. Check it on the token screen."
-            case .noToken, .offline: errorDescription ?? fallback
+            case .noToken, .offline, .badSite: errorDescription ?? fallback
             default: fallback
+            }
+        }
+
+        /// A refusal no retry fixes on its own: the token or the site needs changing.
+        var needsSetup: Bool {
+            switch self {
+            case .noToken, .badSite: true
+            case .refused(let refusal): ["UNAUTHORIZED", "FORBIDDEN"].contains(refusal.code)
+            default: false
             }
         }
 
@@ -95,14 +106,16 @@ enum WeightLogAPI {
 
     static func query<In: Encodable, Out: Decodable>(_ path: String, _ input: In) async throws -> Out {
         let body = try JSONEncoder().encode(Input(json: input))
-        var components = URLComponents(string: "\(base)/api/trpc/\(path)")!
+        guard var components = URLComponents(string: "\(base)/api/trpc/\(path)") else { throw Failure.badSite }
         components.queryItems = [URLQueryItem(name: "input", value: String(decoding: body, as: UTF8.self))]
-        var request = URLRequest(url: components.url!)
+        guard let url = components.url else { throw Failure.badSite }
+        var request = URLRequest(url: url)
         return try await send(request: &request)
     }
 
     static func mutate<In: Encodable, Out: Decodable>(_ path: String, _ input: In) async throws -> Out {
-        var request = URLRequest(url: URL(string: "\(base)/api/trpc/\(path)")!)
+        guard let url = URL(string: "\(base)/api/trpc/\(path)") else { throw Failure.badSite }
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(Input(json: input))

@@ -183,10 +183,10 @@ export function appSheet(
 
   const sections: AppSection[] = [];
   const currentHolder = phaseHolding(currentWeek, log.phases, runningId);
-  const hasCurrent = log.weeks.some((week) => week.date === currentWeek);
-  // This week shows before anything is in it: in the phase that holds it,
-  // or on its own when no phase does.
-  if (!currentHolder && !hasCurrent) {
+  // This week always shows, before and after its first weigh-in: in the
+  // phase that holds it, or on its own when no phase does, since no phase
+  // table lists a week outside every phase.
+  if (!currentHolder) {
     const rows = [bareWeek(log, currentWeek)];
     const colors = weekTableColors(rows);
     sections.push({

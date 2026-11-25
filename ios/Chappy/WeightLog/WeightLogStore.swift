@@ -49,6 +49,10 @@ final class WeightLogStore {
     var focusEntry = false
     /// A day Go to date picked, opened once its row is on screen.
     var openAfterLoad: SheetCell?
+    /// The table came from the site this launch, not the cache. Cell edits
+    /// wait for it, since a cached cell can miss a weigh-in made elsewhere
+    /// and Undo would then delete instead of restore.
+    private(set) var live = false
 
     var today: String { WeekDate.today() }
 
@@ -68,6 +72,7 @@ final class WeightLogStore {
         do {
             let next = try await WeightLogAPI.sheet(today: today, phaseId: chosenPhaseId)
             sheet = next
+            live = true
             loadError = nil
             if chosenPhaseId == nil { Self.writeCache(next) }
         } catch let failure as WeightLogAPI.Failure {
@@ -186,6 +191,10 @@ final class WeightLogStore {
                 saveQueue()
                 apply(result, excluded: false)
             } catch WeightLogAPI.Failure.offline {
+                return
+            } catch let failure as WeightLogAPI.Failure where failure.needsSetup {
+                // Kept on the phone: it sends once the token or site is fixed.
+                status = Status(message: failure.message(fallback: "The site refused the token."))
                 return
             } catch {
                 queued.removeAll { $0 == item }

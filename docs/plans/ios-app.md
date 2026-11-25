@@ -72,6 +72,11 @@ refreshes on open; App Intents replace the Log Weight Shortcut. The bar is
 
 - Weight Log: no background refresh (`BGAppRefreshTask`), so the cache
   refreshes only on open. Plan and Set points stay on the web editor.
+- Devin's PR #162 findings left open: Go to date into another phase loads
+  it but doesn't open the day's cell; Go to date on a past week with no row
+  opens nothing (the web editor builds a bare row); the 3-week card under
+  today's entry keeps the save's values after a table correction; widgets
+  show gallery samples as live data when the fetch fails.
 - The Weight tab ships in every build. Gate it out of the App Store build
   before submitting.
 - The hand-built Log Weight Shortcut and its `WEIGHT_LOG_ENTRY_TOKEN` still

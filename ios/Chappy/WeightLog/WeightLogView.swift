@@ -61,6 +61,7 @@ private struct WeightLogContent: View {
                             Label("The weekly table failed to load", systemImage: "exclamationmark.triangle")
                         } description: { Text(error) } actions: {
                             Button("Try again") { Task { await store.refresh() } }
+                            Button("Forget Token", role: .destructive, action: onForget)
                         }
                     } else {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
@@ -125,6 +126,11 @@ private struct WeightLogContent: View {
     }
 
     private func open(_ cell: SheetCell) {
+        guard store.live else {
+            store.status = WeightLogStore.Status(message: "Loading the latest table. Try again in a moment.")
+            Task { await store.refresh() }
+            return
+        }
         entryFocused = false
         editing = cell
     }
