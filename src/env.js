@@ -76,6 +76,13 @@ export const env = createEnv({
      * characters, as the mirror's, and never the mirror's value (see
      * `createFinalSchema` below). */
     WEIGHT_LOG_ENTRY_TOKEN: z.string().min(32).optional(),
+    /** The bearer token the owner's iOS app (`ios/`) sends to tRPC. It
+     * stands in for the owner's Google session on `weightLog.*` procedures
+     * and nothing else (`ownerProcedure`), so unlike the entry token it can
+     * edit and delete any weigh-in and change the plan. It lives in the
+     * phone's Keychain. Without it the app's Weight Log is refused. At
+     * least 32 characters, and never another weight log token's value. */
+    WEIGHT_LOG_APP_TOKEN: z.string().min(32).optional(),
   },
 
   /**
@@ -122,6 +129,7 @@ export const env = createEnv({
     OWNER_EMAIL: process.env.OWNER_EMAIL,
     WEIGHT_LOG_MIRROR_TOKEN: process.env.WEIGHT_LOG_MIRROR_TOKEN,
     WEIGHT_LOG_ENTRY_TOKEN: process.env.WEIGHT_LOG_ENTRY_TOKEN,
+    WEIGHT_LOG_APP_TOKEN: process.env.WEIGHT_LOG_APP_TOKEN,
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
@@ -141,6 +149,21 @@ export const env = createEnv({
           path: ["WEIGHT_LOG_ENTRY_TOKEN"],
           message:
             "WEIGHT_LOG_ENTRY_TOKEN must differ from WEIGHT_LOG_MIRROR_TOKEN",
+        });
+      }
+      // The app's token edits everything, so a narrower token that shares
+      // its value would widen to the app's reach.
+      if (
+        isServer &&
+        values.WEIGHT_LOG_APP_TOKEN &&
+        (values.WEIGHT_LOG_APP_TOKEN === values.WEIGHT_LOG_ENTRY_TOKEN ||
+          values.WEIGHT_LOG_APP_TOKEN === values.WEIGHT_LOG_MIRROR_TOKEN)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["WEIGHT_LOG_APP_TOKEN"],
+          message:
+            "WEIGHT_LOG_APP_TOKEN must differ from the entry and mirror tokens",
         });
       }
     }),

@@ -1,0 +1,54 @@
+name: Chappy
+options:
+  bundleIdPrefix: com.chappyasel
+  deploymentTarget:
+    iOS: '26.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    DEVELOPMENT_TEAM: Q82S7VERUD
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: '0.1'
+    CURRENT_PROJECT_VERSION: '5'
+targets:
+  Chappy:
+    type: application
+    platform: iOS
+    sources:
+      - Chappy
+      - Shared
+    dependencies:
+      - target: ChappyWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chappyasel.site
+        TARGETED_DEVICE_FAMILY: '1'
+        GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: Chappy
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    info:
+      path: Chappy/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: com.chappyasel.site
+            CFBundleURLSchemes: [chappy]
+  ChappyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - ChappyWidget
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chappyasel.site.widget
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Chappy
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    info:
+      path: ChappyWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension

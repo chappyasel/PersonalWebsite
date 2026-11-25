@@ -1,3 +1,4 @@
+import { nativeAppRouter } from "~/server/api/routers/app";
 import { bookingRouter } from "~/server/api/routers/booking";
 import { booksRouter } from "~/server/api/routers/books";
 import { dadRouter } from "~/server/api/routers/dad";
@@ -15,6 +16,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  */
 export const appRouter = createTRPCRouter({
   post: postRouter,
+  app: nativeAppRouter,
   booking: bookingRouter,
   books: booksRouter,
   dad: dadRouter,

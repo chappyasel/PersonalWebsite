@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { appCardRows, appSheet } from "~/lib/weight-log/app-sheet";
 import { loadWeekRecords } from "~/lib/weight-log/database";
 import {
   PHASE_KINDS,
@@ -26,6 +27,12 @@ import {
 } from "~/lib/weight-log/plan-edits";
 import { buildWeightLog } from "~/lib/weight-log/records";
 import { MAX_WEIGH_IN } from "~/lib/weight-log/sheet";
+import { weekCard } from "~/lib/weight-log/week-card";
+import {
+  ownerToday,
+  saveSummary,
+  weekSummary,
+} from "~/lib/weight-log/week-summary";
 import {
   buildWeekTable,
   currentPhase,
@@ -416,6 +423,67 @@ export const weightLogRouter = createTRPCRouter({
         }),
       );
       return { lastWeek: input.lastWeek };
+    }),
+
+  /**
+   * The Weeks table as the iOS app draws it (`appSheet`): the shown phase's
+   * rows and any outside every phase, each cell formatted and colored, with
+   * the revision a plan edit sends back. `today` is the phone's date
+   * (decision 22), and `phaseId` the phase picked, or null for the one
+   * holding today.
+   */
+  sheet: ownerProcedure
+    .input(
+      z.object({
+        today: z.iso.date(),
+        phaseId: z.string().max(32).nullable(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const records = await loadWeekRecords(ctx.db);
+      const log = buildWeightLog(records);
+      const running = records.phases.find((phase) => phase.endDate === null);
+      return {
+        ...appSheet(log, {
+          today: input.today,
+          phaseId: input.phaseId,
+          runningId: running ? String(running.id) : null,
+        }),
+        revision: planRevision({
+          phases: records.phases,
+          weeks: records.plannedWeeks,
+        }),
+      };
+    }),
+
+  /**
+   * The app's Log Weight: the Shortcut's save, as `POST
+   * /api/weight-log/weigh-in` makes it. With `replace` false, a date holding
+   * a different weigh-in comes back `exists` with nothing written, and the
+   * app asks before sending `replace: true`. The answer carries the
+   * outcome line, the week line, and the card's three weeks of days.
+   */
+  logWeighIn: ownerProcedure
+    .input(z.object({ date: weighInDate, pounds, replace: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const saved = await saveWeighIn(ctx.db, input);
+      const records = await loadWeekRecords(ctx.db);
+      const log = buildWeightLog(records);
+      const running = records.phases.find((phase) => phase.endDate === null);
+      return {
+        status: saved.status,
+        date: input.date,
+        pounds: input.pounds,
+        previous: saved.previous,
+        ...saveSummary(
+          { ...input, ...saved },
+          weekSummary(log, input.date),
+          ownerToday(),
+        ),
+        card: appCardRows(
+          weekCard(log, input.date, running ? String(running.id) : null),
+        ),
+      };
     }),
 
   /** The set points in order (decision 24). */
