@@ -11,6 +11,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { isValidDadAccessToken } from "~/lib/dad/access";
+import { isBearerAuthorized } from "~/lib/weight-log/bearer";
 import { isValidYoutubeAccessToken } from "~/lib/youtube/access";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
@@ -115,10 +116,34 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
 /**
+ * The owner's iOS app (`ios/`): `Authorization: Bearer <WEIGHT_LOG_APP_TOKEN>`
+ * on a `weightLog.*` path. It opens the Weight Log and nothing else, so a
+ * leaked phone token can't reach the other owner procedures. A session wins
+ * when there is one, and a wrong token is just no session.
+ */
+export function isOwnerApp(headers: Headers, path: string) {
+  return (
+    path.startsWith("weightLog.") &&
+    isBearerAuthorized(headers.get("authorization"), env.WEIGHT_LOG_APP_TOKEN)
+  );
+}
+
+/**
+ * The session an app call runs as. No `weightLog.*` procedure reads the
+ * session, and `isOwnerApp` admits no other path, so this only satisfies the
+ * type the procedures after this middleware see.
+ */
+const ownerAppSession = () => ({
+  user: { id: "owner-app", email: env.OWNER_EMAIL ?? null },
+  expires: new Date(Date.now() + 60_000).toISOString(),
+});
+
+/**
  * Owner-only procedure
  *
  * For anything only the site's owner may call: the owner's Google session from
- * `/weight-log/edit`. Anonymous callers get UNAUTHORIZED; a session for any
+ * `/weight-log/edit`, or on `weightLog.*` only, the owner's iOS app
+ * (`isOwnerApp`). Anonymous callers get UNAUTHORIZED; a session for any
  * other address gets FORBIDDEN. The `signIn` callback already admits only
  * `OWNER_EMAIL`. This repeats the check so a session that outlives a change to
  * `OWNER_EMAIL`, or a regression in the callback, still stops here.
@@ -129,8 +154,11 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
  */
 export const ownerProcedure = t.procedure
   .use(timingMiddleware)
-  .use(({ ctx, next }) => {
+  .use(({ ctx, next, path }) => {
     if (!ctx.session?.user) {
+      if (isOwnerApp(ctx.headers, path)) {
+        return next({ ctx: { session: ownerAppSession() } });
+      }
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
     if (!isOwnerEmail(ctx.session.user.email)) {
