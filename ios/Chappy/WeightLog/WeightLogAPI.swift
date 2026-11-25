@@ -7,14 +7,18 @@ enum WeightLogAPI {
     static let defaultBase = "https://www.chappyasel.com"
 
     /// Settable on the token screen, for trying a local build of the site.
+    /// The key moved from `weightLogBase` in build 5 so phones that tested
+    /// against a dev server fall back to the live site.
+    private static let baseKey = "weightLogSite"
+
     static var base: String {
-        get { UserDefaults.standard.string(forKey: "weightLogBase") ?? defaultBase }
+        get { UserDefaults.standard.string(forKey: baseKey) ?? defaultBase }
         set {
             let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty || trimmed == defaultBase {
-                UserDefaults.standard.removeObject(forKey: "weightLogBase")
+                UserDefaults.standard.removeObject(forKey: baseKey)
             } else {
-                UserDefaults.standard.set(trimmed, forKey: "weightLogBase")
+                UserDefaults.standard.set(trimmed, forKey: baseKey)
             }
         }
     }
