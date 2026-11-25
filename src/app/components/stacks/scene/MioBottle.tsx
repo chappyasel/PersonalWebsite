@@ -11,6 +11,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
 import { MIO_SIZES, mioBottleGeometry } from "./mioBottleGeometry";
+import { preloadWithUnit } from "./unitContentResidencyStore";
 
 export type MioFlavor = keyof typeof MIO_SIZES;
 
@@ -21,7 +22,9 @@ export const MIO_LABEL_URLS: Record<MioFlavor, string> = {
 
 // Warm both skins with the scene, like the bag label and the golf flag logo;
 // a bottle that suspends on a small webp pops in after the shelf settles.
-for (const url of Object.values(MIO_LABEL_URLS)) useTexture.preload(url);
+preloadWithUnit("systems", () => {
+  for (const url of Object.values(MIO_LABEL_URLS)) useTexture.preload(url);
+});
 
 /** The lathe's seam (u = 0) starts at +z, so a half turn puts u = 0.5 — the
  * label's front — toward the viewer, with u increasing to the viewer's

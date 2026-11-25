@@ -13,6 +13,7 @@ import Grabbable from "../Grabbable";
 import HeldFacing from "../HeldFacing";
 import { MUSINGS_LOWER_LAYOUT } from "../musingsShelfGeometry";
 import { WoodMaterial } from "../primitives";
+import { preloadWithUnit } from "../unitContentResidencyStore";
 import { useTexture } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -135,4 +136,4 @@ export function VineyardSign({
   );
 }
 
-useTexture.preload(SIGN_URL);
+preloadWithUnit("blog", () => useTexture.preload(SIGN_URL));

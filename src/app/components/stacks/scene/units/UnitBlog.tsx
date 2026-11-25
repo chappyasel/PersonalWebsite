@@ -22,6 +22,7 @@ import { PaperStack } from "../objects";
 import { deskFrameHeight } from "../photoGeometry";
 import { DeskFrame } from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
+import { preloadWithUnit } from "../unitContentResidencyStore";
 import { useUnitLod } from "../useUnitLod";
 import { useTexture } from "@react-three/drei";
 import React, { useEffect, useMemo } from "react";
@@ -501,4 +502,4 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
   );
 }
 
-useTexture.preload(VINEYARD_VINES_STICKER_URL);
+preloadWithUnit("blog", () => useTexture.preload(VINEYARD_VINES_STICKER_URL));

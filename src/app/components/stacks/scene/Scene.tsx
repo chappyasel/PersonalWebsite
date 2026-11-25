@@ -31,7 +31,7 @@ import CameraRig from "./CameraRig";
 import GroundPool, { FootPool } from "./GroundPool";
 import HudCameraDrift from "./HudCameraDrift";
 import InsectPerchDiagnostics from "./InsectPerchDiagnostics";
-import ModelProp, { preloadModels } from "./ModelProp";
+import ModelProp from "./ModelProp";
 import PhysicsDiagnosticsOverlay from "./PhysicsDiagnosticsOverlay";
 import {
   PhysicsSceneFrameDriver,
@@ -59,6 +59,10 @@ import {
   useSoloUnits,
   useUnitActivityRoot,
 } from "./unitActivity";
+import {
+  UnitContentPromoter,
+  useUnitContentMounted,
+} from "./unitContentResidency";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
 import UnitBooks, { featuredBookPerchDefinitions } from "./units/UnitBooks";
@@ -152,6 +156,22 @@ function CollisionIndexedUnit({
   );
 }
 
+/** A shelf's contents, held back until `unitContentResidency` mounts them.
+ * Each shelf suspends on its own: r3f wraps the whole Canvas in one Suspense
+ * boundary, so a shelf mounted after the reveal would otherwise hide the
+ * entire room until its textures arrived. */
+function UnitContentGate({
+  index,
+  children,
+}: {
+  index: number;
+  children: ReactNode;
+}) {
+  return useUnitContentMounted(index) ? (
+    <Suspense fallback={null}>{children}</Suspense>
+  ) : null;
+}
+
 function SharedPhysicsRoot({ children }: { children: ReactNode }) {
   const root = useRef<THREE.Group>(null);
   const physicsScene = usePhysicsScene();
@@ -192,42 +212,8 @@ const SceneContent = memo(function SceneContent({
   // Screenshot mode drops the seam monstera behind About's right end: it is
   // the tallest thing in the room and the header wants the shelf alone.
   const screenshot = useScreenshotMode();
-  // Prefetch the compact GLB set only when it cannot compete with travel. The
-  // callback checks again when it fires because it may have been queued while
-  // still and become eligible only after a traverse began.
-  useEffect(() => {
-    let cancelled = false;
-    let timeout = 0;
-    let idle = 0;
-    const idleApi = window as Window & {
-      requestIdleCallback?: Window["requestIdleCallback"];
-      cancelIdleCallback?: Window["cancelIdleCallback"];
-    };
-    const run = () => {
-      if (cancelled) return;
-      if (scenePrewarmDeferred()) {
-        timeout = window.setTimeout(schedule, 250);
-        return;
-      }
-      preloadModels();
-    };
-    const schedule = () => {
-      if (cancelled) return;
-      if (scenePrewarmDeferred()) {
-        timeout = window.setTimeout(schedule, 250);
-      } else if (idleApi.requestIdleCallback) {
-        idle = idleApi.requestIdleCallback(run, { timeout: 1200 });
-      } else {
-        timeout = window.setTimeout(run, 250);
-      }
-    };
-    schedule();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-      if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
-    };
-  }, []);
+  // The compact GLB set is prefetched by UnitContentPromoter once the room is
+  // live, so it no longer joins the boot's asset gate.
   // Warm role-sized previews for the current unit and its neighbours. Local
   // photographs stay on these right-sized assets; loading all 27 masters in
   // the background added decode work and texture uploads without helping the
@@ -299,21 +285,23 @@ const SceneContent = memo(function SceneContent({
             index={i}
             headOnCapture={headOnCapture}
           >
-            <UnitInsectPerches
-              unitIndex={i}
-              definitions={i === 1 ? bookPerches : undefined}
-            />
-            <Unit
-              data={data}
-              palette={palette}
-              dark={dark}
-              index={i}
-              headOnCapture={headOnCapture}
-              coverWidth={coverWidth}
-              onOpenBook={onOpenBook}
-              onOpenBookId={onOpenBookId}
-              onOpenUrl={onOpenUrl}
-            />
+            <UnitContentGate index={i}>
+              <UnitInsectPerches
+                unitIndex={i}
+                definitions={i === 1 ? bookPerches : undefined}
+              />
+              <Unit
+                data={data}
+                palette={palette}
+                dark={dark}
+                index={i}
+                headOnCapture={headOnCapture}
+                coverWidth={coverWidth}
+                onOpenBook={onOpenBook}
+                onOpenBookId={onOpenBookId}
+                onOpenUrl={onOpenUrl}
+              />
+            </UnitContentGate>
             {/* Invisible raycast plane BEHIND the interactive props (covers
                 sit at z 0.06+ and stopPropagation first) — a lateral travel
                 target only. The active unit deliberately does nothing.
@@ -469,6 +457,7 @@ function Scene({
       <ScenePointerTracking />
       <HudCameraDrift />
       <SceneUnitActivityDriver />
+      <UnitContentPromoter />
       <ArrivalBeats />
       <PhysicsSceneProvider>
         <QualityLayer

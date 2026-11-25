@@ -15,6 +15,7 @@ import Grabbable from "../Grabbable";
 import HeldFacing from "../HeldFacing";
 import { MUSINGS_TRUST_ESSAY } from "../musingsShelfGeometry";
 import { WoodMaterial } from "../primitives";
+import { preloadWithUnit } from "../unitContentResidencyStore";
 import { RoundedBox, useTexture } from "@react-three/drei";
 import { useEffect } from "react";
 import * as THREE from "three";
@@ -192,4 +193,4 @@ export function TrustEssay({
   );
 }
 
-useTexture.preload(TRUST_COVER_URL);
+preloadWithUnit("blog", () => useTexture.preload(TRUST_COVER_URL));

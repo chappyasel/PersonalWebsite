@@ -83,6 +83,10 @@ import {
   screenshotModeUrl,
   useScreenshotMode,
 } from "../scene/screenshotMode";
+import {
+  unitContentResidency,
+  useAllUnitContentMounted,
+} from "../scene/unitContentResidencyStore";
 import { CAMERA } from "../scene/worldLayout";
 import { useStacks } from "../store";
 import { ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
@@ -1473,6 +1477,7 @@ export default function SceneDiagnostics({
       typeof document === "undefined" ||
       document.documentElement.dataset.golfFlagMotion !== "off",
   );
+  const allShelvesMounted = useAllUnitContentMounted();
   const dimensionView = useSyncExternalStore(
     (listener) => worldBoot.subscribe(listener),
     () => worldBoot.getView(),
@@ -1962,6 +1967,17 @@ export default function SceneDiagnostics({
               }
             />{" "}
             Keep 3D ready for 30 seconds in 2D
+          </label>
+          <label className="stacks-diagnostics-control">
+            <input
+              type="checkbox"
+              disabled={allShelvesMounted}
+              checked={!allShelvesMounted}
+              onChange={(event) => {
+                if (!event.target.checked) unitContentResidency.mountAll();
+              }}
+            />{" "}
+            Mount far shelves after the reveal
           </label>
           <label className="stacks-diagnostics-control">
             <input

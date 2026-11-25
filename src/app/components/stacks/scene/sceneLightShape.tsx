@@ -8,6 +8,7 @@ import * as THREE from "three";
 
 import { SCENE_UNIT_LIGHT_USER_DATA_KEY } from "./sceneGpuPrewarm";
 import { useScenePerformanceSettings } from "./scenePerformance";
+import { useAllUnitContentMounted } from "./unitContentResidencyStore";
 
 export type SceneLightCounts = Readonly<{ point: number; spot: number }>;
 
@@ -86,6 +87,11 @@ function setVisiblePadding<T extends THREE.Light>(
 function ActiveSceneLightShapePadding() {
   const scene = useThree((state) => state.scene);
   const activeUnit = useStacks((state) => state.activeUnit);
+  // Shelves mounted after the reveal bring their own lights, and the padding
+  // is sized from the busiest neighbourhood in the whole room. Recount once
+  // the last shelf has mounted, so the shape changes once, after the reveal,
+  // and not on the visitor's first travel.
+  const allUnitsMounted = useAllUnitContentMounted();
   const pointLights = useRef<Array<THREE.PointLight | null>>([]);
   const spotLights = useRef<Array<THREE.SpotLight | null>>([]);
 
@@ -99,7 +105,7 @@ function ActiveSceneLightShapePadding() {
       padding.spot <= SCENE_LIGHT_PADDING_CAPACITY.spot;
     setVisiblePadding(pointLights.current, supported ? padding.point : 0);
     setVisiblePadding(spotLights.current, supported ? padding.spot : 0);
-  }, [activeUnit, scene]);
+  }, [activeUnit, allUnitsMounted, scene]);
 
   return (
     <group name="scene-light-shape-padding">
