@@ -1,6 +1,6 @@
 # Room boot speed
 
-Status: steps 1 (PR #161) and 2 built. Plan written 2026-11-24; the first
+Status: steps 1 (PR #161) and 2 (PR #164) shipped; the light shape fix is built. Plan written 2026-11-24; the first
 measurements are against production at 97506fe7.
 
 ## Outcome
@@ -177,6 +177,34 @@ now the largest piece of the wait. Before this change, props could still be
 loading while the room travelled in.
 
 `PROBE_RTT=150` on `boot-probe.mjs` adds the latency.
+
+## One light shape from the first frame (2026-11-25)
+
+Step 1 left the shader light shape growing after the reveal. The padding in
+`scene/sceneLightShape.tsx` keeps visible point and spot lights at the
+busiest neighbourhood's count, but it counted only mounted shelves, so it
+started at 3 point and 3 spot and grew to 6 and 6 once the far shelves
+mounted, and every lit material compiled again.
+
+The padding now takes each shelf's count from `EXPECTED_UNIT_LIGHT_COUNTS`,
+measured on production with every shelf mounted (the same in light and dark),
+or from the scene when the scene has more. It recounts before each frame until
+every expected light is in, or 30 s after the last shelf mounts, because a
+shelf's lights mount after its own loads and an earlier recount drew a frame
+with a third shape (9 and 8). One traversal costs about 0.07 ms.
+
+Tracked by sampling `renderer.info.programs` every 500 ms for 35 s
+(script kept in the session scratchpad, not the repo):
+
+| Build      | CPU | Light shapes seen           | Programs at the end |
+| ---------- | --- | --------------------------- | ------------------- |
+| new, local | 1x  | 6/6 only                    | 122, 122, 122       |
+| new, local | 4x  | 6/6 only                    | 131, 117, 116, 132  |
+| production | 1x  | 3/3, then 6/6               | 255, 248            |
+| production | 4x  | 3/3 or 4/5, then 6/6 or 7/7 | 255, 185+           |
+
+The reveal itself was not re-timed: the boot compiles the same programs, each
+with three more padding lights.
 
 ## Not in scope
 

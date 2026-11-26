@@ -1,9 +1,12 @@
+import { UNIT_COUNT } from "../data";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { sceneUnitLightUserData } from "./sceneGpuPrewarm";
 import {
+  EXPECTED_UNIT_LIGHT_COUNTS,
   SCENE_LIGHT_PADDING_CAPACITY,
+  lightCountsReached,
   managedLightCountsByUnit,
   neighborhoodLightCounts,
   stableNeighborhoodLightPadding,
@@ -69,5 +72,74 @@ describe("stable nearby-light shader shape", () => {
     expect(largestRequiredPadding.spot).toBeLessThanOrEqual(
       SCENE_LIGHT_PADDING_CAPACITY.spot,
     );
+  });
+
+  it("pads to the expected counts before the far shelves have mounted", () => {
+    // Boot at About: only About and Books have their contents.
+    const booting = EXPECTED_UNIT_LIGHT_COUNTS.map((counts, unitIndex) =>
+      unitIndex <= 1 ? counts : { point: 0, spot: 0 },
+    );
+    const atBoot = stableNeighborhoodLightPadding(
+      booting,
+      0,
+      EXPECTED_UNIT_LIGHT_COUNTS,
+    );
+    const mounted = stableNeighborhoodLightPadding(
+      EXPECTED_UNIT_LIGHT_COUNTS,
+      0,
+      EXPECTED_UNIT_LIGHT_COUNTS,
+    );
+    expect(atBoot).toEqual(mounted);
+    // The visible total, nearby lights plus padding, is the same at every stop.
+    const totals = EXPECTED_UNIT_LIGHT_COUNTS.map((_, unit) => {
+      const near = neighborhoodLightCounts(EXPECTED_UNIT_LIGHT_COUNTS, unit);
+      const padding = stableNeighborhoodLightPadding(
+        EXPECTED_UNIT_LIGHT_COUNTS,
+        unit,
+        EXPECTED_UNIT_LIGHT_COUNTS,
+      );
+      return {
+        point: near.point + padding.point,
+        spot: near.spot + padding.spot,
+      };
+    });
+    expect(new Set(totals.map((t) => `${t.point}:${t.spot}`)).size).toBe(1);
+  });
+
+  it("honours a shelf that has more lights than expected", () => {
+    const counts = EXPECTED_UNIT_LIGHT_COUNTS.map((c) => ({ ...c }));
+    counts[4] = { point: 5, spot: 2 };
+    const padding = stableNeighborhoodLightPadding(
+      counts,
+      4,
+      EXPECTED_UNIT_LIGHT_COUNTS,
+    );
+    expect(padding).toEqual({ point: 0, spot: 0 });
+  });
+
+  it("lists one expected count per shelf, inside the padding allocation", () => {
+    expect(EXPECTED_UNIT_LIGHT_COUNTS).toHaveLength(UNIT_COUNT);
+    const atAbout = stableNeighborhoodLightPadding(
+      EXPECTED_UNIT_LIGHT_COUNTS.map(() => ({ point: 0, spot: 0 })),
+      0,
+      EXPECTED_UNIT_LIGHT_COUNTS,
+    );
+    expect(atAbout.point).toBeLessThanOrEqual(
+      SCENE_LIGHT_PADDING_CAPACITY.point,
+    );
+    expect(atAbout.spot).toBeLessThanOrEqual(SCENE_LIGHT_PADDING_CAPACITY.spot);
+  });
+
+  it("knows when every shelf's lights are in", () => {
+    const partial = EXPECTED_UNIT_LIGHT_COUNTS.map((c, i) =>
+      i === 0 ? { point: 0, spot: 0 } : c,
+    );
+    expect(lightCountsReached(partial, EXPECTED_UNIT_LIGHT_COUNTS)).toBe(false);
+    expect(
+      lightCountsReached(
+        EXPECTED_UNIT_LIGHT_COUNTS,
+        EXPECTED_UNIT_LIGHT_COUNTS,
+      ),
+    ).toBe(true);
   });
 });
