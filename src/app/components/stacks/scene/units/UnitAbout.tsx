@@ -17,6 +17,7 @@ import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import RetrySuspense from "../RetrySuspense";
 import { RoundedBox } from "../RoundedBox";
 import SitChair from "../SitChair";
 import { VisionProProp } from "../VisionProProp";
@@ -412,7 +413,7 @@ function ReadingStack({
                   thickness={thickness}
                 />
                 {book.coverUrl && (
-                  <React.Suspense fallback={null}>
+                  <RetrySuspense>
                     <group
                       position={[
                         0,
@@ -431,7 +432,7 @@ function ReadingStack({
                         gradeChroma
                       />
                     </group>
-                  </React.Suspense>
+                  </RetrySuspense>
                 )}
               </HeldReadingCover>
             </ReadingBookHover>
@@ -736,7 +737,7 @@ export default function UnitAbout({
               portalLabel="The AI Collective"
               portalDetail={["Founder & Chairman"]}
             >
-              <React.Suspense fallback={null}>
+              <RetrySuspense>
                 <group
                   name={aboutLandmarkNodeName("ai-collective")}
                   rotation={[0, ABOUT_AIC_ROOT_YAW, 0]}
@@ -762,7 +763,7 @@ export default function UnitAbout({
                   </mesh>
                   <CollectiveLogo palette={palette} unitIndex={index} />
                 </group>
-              </React.Suspense>
+              </RetrySuspense>
             </Grabbable>
             <CoordinationGlobe
               unitIndex={index}
@@ -797,7 +798,7 @@ export default function UnitAbout({
                 onOpenBook={onOpenBook}
               />
             </group>
-            <React.Suspense fallback={null}>
+            <RetrySuspense>
               <TJMedallionProp
                 unitIndex={index}
                 palette={palette}
@@ -817,7 +818,7 @@ export default function UnitAbout({
                 scale={ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale}
                 yaw={ABOUT_TJ_LIGHT_YAW}
               />
-            </React.Suspense>
+            </RetrySuspense>
             {/* The warm practical from the original desk composition. The
                 model and its measured light rig share this one transform;
                 fixed task lighting is architecture, not a throwable prop. */}
@@ -890,7 +891,7 @@ export default function UnitAbout({
                 }
                 trigger={false}
               >
-                <React.Suspense fallback={null}>
+                <RetrySuspense>
                   <ModelProp
                     url="/models/globe.glb"
                     dark={dark}
@@ -904,7 +905,7 @@ export default function UnitAbout({
                         : ABOUT_GLOBE_STAND_ATLAS.light
                     }
                   />
-                </React.Suspense>
+                </RetrySuspense>
               </SpinProp>
             </GlobeCloseUp>
           </group>
@@ -925,7 +926,7 @@ export default function UnitAbout({
         >
           <group name={aboutLandmarkNodeName("cactus")}>
             <group name="room-sway">
-              <React.Suspense fallback={null}>
+              <RetrySuspense>
                 <ModelProp
                   url="/models/cactus.glb"
                   dark={dark}
@@ -933,7 +934,7 @@ export default function UnitAbout({
                   rotation={[...ABOUT_MODEL_POSES.cactus.rotation]}
                   scale={ABOUT_BOOT_LANDMARKS.cactus.sceneScale}
                 />
-              </React.Suspense>
+              </RetrySuspense>
             </group>
           </group>
         </Grabbable>
@@ -1143,7 +1144,7 @@ export default function UnitAbout({
         >
           <group name={aboutLandmarkNodeName("large-plant")}>
             <group name="room-sway">
-              <React.Suspense fallback={null}>
+              <RetrySuspense>
                 <ModelProp
                   url="/models/potted-plant.glb"
                   plantWind={{
@@ -1155,7 +1156,7 @@ export default function UnitAbout({
                   rotation={[...ABOUT_MODEL_POSES["large-plant"].rotation]}
                   scale={ABOUT_BOOT_LANDMARKS["large-plant"].sceneScale}
                 />
-              </React.Suspense>
+              </RetrySuspense>
             </group>
           </group>
         </Grabbable>
@@ -1186,7 +1187,7 @@ export default function UnitAbout({
         standsOn="floor"
         to="weightlifting"
       >
-        <React.Suspense fallback={null}>
+        <RetrySuspense>
           <ModelProp
             url={ABOUT_MODEL_POSES.dumbbell.source}
             dark={dark}
@@ -1194,7 +1195,7 @@ export default function UnitAbout({
             rotation={[...ABOUT_MODEL_POSES.dumbbell.rotation]}
             scale={ABOUT_MODEL_POSES.dumbbell.scale}
           />
-        </React.Suspense>
+        </RetrySuspense>
       </Grabbable>
 
       {/* The couch and its shadow leave the frame in screenshot mode: the
@@ -1206,7 +1207,7 @@ export default function UnitAbout({
             rotation={[0, ABOUT_COUCH.yaw, 0]}
           >
             <SitChair unitIndex={index}>
-              <React.Suspense fallback={null}>
+              <RetrySuspense>
                 <ModelProp
                   url="/models/couch.glb"
                   dark={dark}
@@ -1218,7 +1219,7 @@ export default function UnitAbout({
                   roughness={0.84}
                   scale={ABOUT_COUCH.scale}
                 />
-              </React.Suspense>
+              </RetrySuspense>
             </SitChair>
           </group>
           <FootPool

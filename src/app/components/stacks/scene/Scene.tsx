@@ -38,6 +38,7 @@ import {
   PhysicsSceneProvider,
   usePhysicsScene,
 } from "./PhysicsSceneProvider";
+import RetrySuspense from "./RetrySuspense";
 import SceneEnvironment from "./SceneEnvironment";
 import TouchFocusTarget from "./TouchFocusTarget";
 import { proxiedBookCover } from "./bookCoverTexture";
@@ -61,6 +62,7 @@ import {
 } from "./unitActivity";
 import {
   UnitContentPromoter,
+  unitContentResidency,
   useUnitContentMounted,
 } from "./unitContentResidency";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
@@ -168,7 +170,9 @@ function UnitContentGate({
   children: ReactNode;
 }) {
   return useUnitContentMounted(index) ? (
-    <Suspense fallback={null}>{children}</Suspense>
+    <RetrySuspense onCommit={() => unitContentResidency.markCommitted(index)}>
+      {children}
+    </RetrySuspense>
   ) : null;
 }
 

@@ -122,6 +122,11 @@ function releaseUnitPreloads(indexes: Iterable<number>) {
 
 class UnitContentResidency {
   private mounted: Set<number> | null = null;
+  /** Shelves whose contents React has committed, past their Suspense. A
+   * mounted shelf can sit behind its fallback well after its loads finish:
+   * the retry that shows it is low-priority render work, and on a slow CPU it
+   * shares the main thread with the frame loop. */
+  private readonly committed = new Set<number>();
   private readonly listeners = new Set<() => void>();
 
   private ensure(): Set<number> {
@@ -156,6 +161,36 @@ class UnitContentResidency {
     if (!changed) return;
     releaseUnitPreloads(indexes);
     for (const listener of this.listeners) listener();
+  }
+
+  /** Called from inside a shelf's Suspense once its contents commit. */
+  markCommitted(index: number) {
+    if (this.committed.has(index)) return;
+    this.committed.add(index);
+    for (const listener of this.listeners) listener();
+  }
+
+  /** Whether every shelf mounted so far has committed its contents. The
+   * canvas reports its first frame only after this, so the reveal never
+   * opens on a room whose arrival shelf is still behind its fallback. */
+  mountedCommitted() {
+    for (const index of this.ensure())
+      if (!this.committed.has(index)) return false;
+    return true;
+  }
+
+  /** Run `callback` once every mounted shelf has committed. Returns a cancel. */
+  whenMountedCommitted(callback: () => void) {
+    if (this.mountedCommitted()) {
+      callback();
+      return () => undefined;
+    }
+    const unsubscribe = this.subscribe(() => {
+      if (!this.mountedCommitted()) return;
+      unsubscribe();
+      callback();
+    });
+    return unsubscribe;
   }
 
   mountAll() {
