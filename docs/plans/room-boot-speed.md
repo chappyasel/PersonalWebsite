@@ -279,11 +279,13 @@ window with the profiler running.
 
 - Step 3 would save at most the texture upload share, about 0.2 s at 4x, so
   it is not worth building.
-- Step 4 is moot. `opening` follows `firstFrame` directly, so the meadow is
-  ready before the shelves and is no longer a gate.
-- The shader share is `getProgramInfoLog` inside three's `getUniforms` on a
-  program's first draw: programs the prewarm did not compile, waited on
-  synchronously. At most 0.3 to 0.4 s.
+- Step 4 is moot for now. In every run `opening` followed `firstFrame`
+  directly, so the meadow finished before the shelves and did not hold up the
+  reveal. `worldGatesOpen` still requires it, so recheck if the meadow grows.
+- The shader share is mostly `getProgramInfoLog` inside three's `getUniforms`
+  on a program's first draw: programs the prewarm did not compile, waited on
+  synchronously. Its self time was 1.5 s in a 7.5 s window, then 0.3 s in
+  5.9 s and 5.2 s windows, so it varies with how much the prewarm covered.
 - `getBoundingClientRect` is `IllustrationHotspots` measuring the drawing's
   hotspots once the entrance completes. It forces a layout the next frame
   would pay anyway.
