@@ -57,9 +57,11 @@ export function useIllustratedEntrance(
   const [phase, setPhase] = useState<IllustratedEntrancePhase>("shelf");
   const completed = useRef(false);
   const hurryRef = useRef(hurry);
-  hurryRef.current = hurry;
   const running = useRef<Set<Animation> | null>(null);
+  // Declared before the entrance's own effect, so the ref is current when it
+  // starts in the same commit.
   useLayoutEffect(() => {
+    hurryRef.current = hurry;
     if (hurry && running.current) hurryStage(running.current);
   }, [hurry]);
   useLayoutEffect(() => {

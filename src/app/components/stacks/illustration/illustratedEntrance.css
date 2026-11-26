@@ -7,6 +7,7 @@
   --room-entry-nav-offset: 0px;
   --room-entry-nav-delay: 0ms;
   --room-entry-nav-slide-ms: 650ms;
+  --room-entry-nav-fade-ms: 500ms;
 }
 .stacks-world-shell:is(
     [data-room-entrance="shelf"],
@@ -199,7 +200,7 @@
     .stacks-theme-toggle
   ) {
   transition:
-    opacity 500ms ease-out var(--room-entry-nav-delay),
+    opacity var(--room-entry-nav-fade-ms) ease-out var(--room-entry-nav-delay),
     translate var(--room-entry-nav-slide-ms) cubic-bezier(0.16, 1, 0.3, 1)
       var(--room-entry-nav-delay);
 }
@@ -300,4 +301,13 @@
     ) {
     transition: none !important;
   }
+}
+
+/* Once the room is ready, placement plays within ILLUSTRATED_ENTRANCE.hurryMs
+   (360ms). The controls arrive inside it rather than snapping at the end.
+   Last, so it also overrides the desktop timing above. */
+.stacks-world-shell[data-room-entrance="placing"][data-room-entrance-hurry] {
+  --room-entry-nav-delay: 0ms;
+  --room-entry-nav-slide-ms: 320ms;
+  --room-entry-nav-fade-ms: 320ms;
 }
