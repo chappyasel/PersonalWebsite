@@ -117,8 +117,18 @@ it("fades desktop controls without making the blur's ancestor translucent", () =
   const opacityTransition =
     desktopDeclarations(controls).transition!.split(",")[0]!;
   expect(opacityTransition).toContain("var(--room-entry-nav-delay)");
-  const fade = Number(/opacity (\d+)ms/.exec(opacityTransition)![1]);
+  expect(opacityTransition).toContain("var(--room-entry-nav-fade-ms)");
+  const fade = parseFloat(timing["--room-entry-nav-fade-ms"]!);
   expect(delay + fade).toBeLessThanOrEqual(ILLUSTRATED_ENTRANCE.nameMs);
+
+  // Once the room is ready, placement plays within hurryMs; so do the controls.
+  shell.setAttribute("data-room-entrance-hurry", "");
+  const hurried = desktopDeclarations(shell);
+  const hurriedDelay = parseFloat(hurried["--room-entry-nav-delay"]!);
+  for (const name of ["--room-entry-nav-slide-ms", "--room-entry-nav-fade-ms"])
+    expect(hurriedDelay + parseFloat(hurried[name]!)).toBeLessThanOrEqual(
+      ILLUSTRATED_ENTRANCE.hurryMs,
+    );
 });
 
 it("keeps the navigation tint mounted through the room dissolve", () => {

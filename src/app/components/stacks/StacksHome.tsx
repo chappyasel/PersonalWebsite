@@ -337,11 +337,14 @@ export default function StacksHome({
   const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
   const entranceUnit = useStacks((state) => state.activeUnit);
+  // Every fact about the room is in; only the drawing is left to finish.
+  const entranceHurry = boot.waitStage === "opening";
   const entrance = useIllustratedEntrance(
     illustratedEnabled && roomMounted && roomActive,
     worldShellRef,
     `${entranceUnit}:${theme}:${viewport}`,
     presentation === "live",
+    entranceHurry,
   );
 
   // Bound to this boot's generation. The canvas can lose its context or throw
@@ -597,6 +600,9 @@ export default function StacksHome({
           }
           data-illustrated-entry={illustratedEnabled ? "" : undefined}
           data-room-entrance={illustratedEnabled ? entrance : undefined}
+          data-room-entrance-hurry={
+            illustratedEnabled && entranceHurry ? "" : undefined
+          }
           data-boot-status={boot.status}
           data-boot-wait={boot.waitStage}
           data-boot-failure={boot.failure ?? undefined}
