@@ -18,18 +18,50 @@ export const ILLUSTRATED_ENTRANCE = {
   maxStaggerMs: 1500,
   placementMs: 620,
   nameMs: 850,
+  /** Once the room is ready, the most each remaining stage may still take. */
+  hurryMs: 360,
 } as const;
 
-/** One assembly per resident room. WebGL readiness never shortens it; input
- * can settle it immediately without consuming the visitor's gesture. */
+/** Speed a stage's animations up together, so the slowest ends within
+ * `hurryMs`. They share a start time, so one rate keeps the stagger's shape. */
+function hurryStage(animations: Iterable<Animation>) {
+  const stage = [...animations].filter(
+    (animation) =>
+      typeof animation.updatePlaybackRate === "function" &&
+      animation.playState !== "finished",
+  );
+  let rate = 1;
+  for (const animation of stage) {
+    const end = animation.effect?.getComputedTiming().endTime;
+    const current = animation.currentTime;
+    if (typeof end !== "number" || typeof current !== "number") continue;
+    rate = Math.max(rate, (end - current) / ILLUSTRATED_ENTRANCE.hurryMs);
+  }
+  if (rate <= 1) return;
+  for (const animation of stage)
+    if (animation.playbackRate < rate) animation.updatePlaybackRate(rate);
+}
+
+/** One assembly per resident room. Input can settle it immediately without
+ * consuming the visitor's gesture. Once the room is ready (`hurry`), whatever
+ * is left plays out within `hurryMs` per stage: the owner's trade, the room
+ * as soon as it is ready over one full-length read of the drawing
+ * (docs/plans/room-boot-speed.md). */
 export function useIllustratedEntrance(
   enabled: boolean,
   root: RefObject<HTMLElement | null>,
   identity: string,
   skip = false,
+  hurry = false,
 ) {
   const [phase, setPhase] = useState<IllustratedEntrancePhase>("shelf");
   const completed = useRef(false);
+  const hurryRef = useRef(hurry);
+  hurryRef.current = hurry;
+  const running = useRef<Set<Animation> | null>(null);
+  useLayoutEffect(() => {
+    if (hurry && running.current) hurryStage(running.current);
+  }, [hurry]);
   useLayoutEffect(() => {
     if (!enabled || completed.current || skip) {
       if (skip) completed.current = true;
@@ -42,6 +74,7 @@ export function useIllustratedEntrance(
     const controller = new AbortController();
     const { signal } = controller;
     const animations = new Set<Animation>();
+    running.current = animations;
     let disposeArtwork: (() => void) | undefined;
     let started = false;
     let preparationTimer = 0;
@@ -141,6 +174,7 @@ export function useIllustratedEntrance(
           },
         ),
       );
+      if (hurryRef.current) hurryStage(reveals);
       setPhase("items");
       await Promise.all(reveals.map((animation) => animation.finished));
       signal.throwIfAborted();
@@ -169,6 +203,8 @@ export function useIllustratedEntrance(
           fill: "both",
         },
       );
+      if (hurryRef.current)
+        hurryStage(nameArrival ? [placement, nameArrival] : [placement]);
       setPhase("placing");
       // The name, sheet and navigation arrive together only after every item.
       // Wait for both compositor timelines before the room may dissolve.
@@ -182,6 +218,7 @@ export function useIllustratedEntrance(
     });
     return () => {
       stop();
+      if (running.current === animations) running.current = null;
       // Shelf/theme changes and resident returns never replay a shown sequence.
       // Strict Mode's pre-start cleanup can retry.
       if (started) completed.current = true;

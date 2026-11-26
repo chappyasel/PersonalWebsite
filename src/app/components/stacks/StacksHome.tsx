@@ -342,6 +342,8 @@ export default function StacksHome({
     worldShellRef,
     `${entranceUnit}:${theme}:${viewport}`,
     presentation === "live",
+    // Every fact about the room is in; only the drawing is left to finish.
+    boot.waitStage === "opening",
   );
 
   // Bound to this boot's generation. The canvas can lose its context or throw

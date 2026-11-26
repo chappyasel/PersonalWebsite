@@ -20,6 +20,17 @@ let animations: TestAnimation[];
 let decode: ReturnType<typeof vi.fn<() => Promise<void>>>;
 class TestAnimation {
   playState = "running";
+  currentTime = 0;
+  playbackRate = 1;
+  effect = {
+    getComputedTiming: () => ({
+      endTime:
+        Number(this.options.delay ?? 0) + Number(this.options.duration ?? 0),
+    }),
+  };
+  updatePlaybackRate(rate: number) {
+    this.playbackRate = rate;
+  }
   resolve!: () => void;
   reject!: (error: Error) => void;
   finished = new Promise<void>((resolve, reject) => {
@@ -453,4 +464,45 @@ it("assembles About's two golf balls and dumbbell in the last visible row", asyn
   expect(
     animations.filter((a) => a.element.closest(".stacks-boot-floor-props")),
   ).toHaveLength(3);
+});
+
+it("plays the rest of each stage within hurryMs once the room is ready", async () => {
+  const view = renderHook(
+    ({ hurry }) =>
+      useIllustratedEntrance(true, root, "projects:light", false, hurry),
+    { initialProps: { hurry: false } },
+  );
+  await prepare();
+  expect(animations.map((animation) => animation.playbackRate)).toEqual([
+    1, 1, 1,
+  ]);
+  // 100 ms in, the room reports ready.
+  animations.forEach((animation) => (animation.currentTime = 100));
+  view.rerender({ hurry: true });
+  const itemsEnd = P.emptyMs + 2 * P.itemStepMs + P.itemMs;
+  const itemsRate = (itemsEnd - 100) / P.hurryMs;
+  // One rate for the whole stage keeps the stagger.
+  expect(animations.map((animation) => animation.playbackRate)).toEqual([
+    itemsRate,
+    itemsRate,
+    itemsRate,
+  ]);
+  await finishAll();
+  expect(view.result.current).toBe("placing");
+  expect(animations.at(-1)!.playbackRate).toBe(P.placementMs / P.hurryMs);
+  await finishAll();
+  expect(view.result.current).toBe("complete");
+});
+
+it("keeps the full-length entrance while the room is still loading", async () => {
+  const view = renderHook(() =>
+    useIllustratedEntrance(true, root, "projects:light", false, false),
+  );
+  await prepare();
+  await finishAll();
+  expect(view.result.current).toBe("placing");
+  await finishAll();
+  expect(animations.every((animation) => animation.playbackRate === 1)).toBe(
+    true,
+  );
 });

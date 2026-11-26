@@ -1,6 +1,6 @@
 # Room boot speed
 
-Status: steps 1 (PR #161) and 2 (PR #164) shipped; the light shape fix is built. Plan written 2026-11-24; the first
+Status: steps 1 (PR #161) and 2 (PR #164), the light shape (PR #165) and the handoff fix (PR #166) shipped; the drawing entrance follow-up is in review. Plan written 2026-11-24; the first
 measurements are against production at 97506fe7.
 
 ## Outcome
@@ -253,6 +253,15 @@ What still holds live at 4x is the drawing's own entrance animation
 (`useIllustratedEntrance`): `entranceSettled` gates the illustration key, and
 the match gate opened at about 7 s, 2.3 s after `firstFrame`. Shortening that
 animation is a design choice for the Owner, not a load cost.
+
+**Follow-up (2026-11-26).** The Owner chose to let the drawing finish early.
+`useIllustratedEntrance` takes `hurry`, which StacksHome sets once
+`waitStage` reaches `opening` (every fact about the room is in). From then,
+each remaining stage (items, then placement and name) plays at one shared rate
+so it ends within `hurryMs` (360 ms); before that, the assembly runs at full
+length. Room live: 4.2 s to 3.3 s at 1x and 7.6 to 7.9 s to 6.5 to 6.9 s at
+4x, without recording. Recording at 4x hides the gain. Videos are on the
+ParaDev page `drawing-entrance`, built from gitignored `.pages/room-entrance/`.
 
 Before and after recordings are on the ParaDev page `room-camera`, built from
 gitignored `.pages/room-camera/`.
