@@ -42,6 +42,8 @@ import { useWorldBootScope } from "./boot/useWorldBoot";
 import { assetLoadComplete } from "./boot/worldBootMachine";
 import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { type StacksData, UNIT_COUNT } from "./data";
+import { CoordinationBlinkerPlate } from "./dom/CoordinationBlinkerPlate";
+import { CoordinationCrossingOverlay } from "./dom/CoordinationCrossingOverlay";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { setLoadProgress } from "./loading";
 import {
@@ -62,6 +64,7 @@ import { useRoomActive } from "./room/ResidentRoomHost";
 import { roomResidency } from "./room/roomResidency";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import CanvasSizeBoundary from "./scene/CanvasSizeBoundary";
+import { CoordinationCrossingPass } from "./scene/CoordinationCrossingPass";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
 import SceneClockBoundary from "./scene/SceneClockBoundary";
@@ -141,9 +144,6 @@ import {
 } from "./scene/qualityLog";
 import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
 import { createSceneQualitySampler } from "./scene/qualitySampler";
-import { CoordinationBlinkerPlate } from "./dom/CoordinationBlinkerPlate";
-import { CoordinationCrossingOverlay } from "./dom/CoordinationCrossingOverlay";
-import { CoordinationCrossingPass } from "./scene/CoordinationCrossingPass";
 import { SCENE_CANVAS_CONTEXT, sceneBackdropFor } from "./scene/sceneBackdrop";
 import { repaintFrozenScene } from "./scene/sceneClock";
 import {
@@ -202,6 +202,7 @@ import {
 } from "./scene/seated";
 import { StaticWorldInvariantProbe } from "./scene/staticWorld";
 import { sceneUnitActivityController } from "./scene/unitActivity";
+import { unitContentResidency } from "./scene/unitContentResidencyStore";
 import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
 import { progressRef, touchWorldRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
@@ -2726,12 +2727,21 @@ export default function StacksCanvas({
               gl.domElement.removeEventListener("webglcontextlost", handleLost);
           }
           // Signal readiness only after a frame has actually been painted so
-          // the boot→world crossfade never reveals a blank canvas.
-          const outerFrame = requestAnimationFrame(() => {
-            const innerFrame = requestAnimationFrame(onReady);
-            retireReadyFrames.current = () => cancelAnimationFrame(innerFrame);
+          // the boot→world crossfade never reveals a blank canvas, and only
+          // once every mounted shelf has committed past its Suspense, so it
+          // never reveals a meadow whose arrival shelf is still loading in.
+          let cancelFrame = () => undefined as void;
+          const cancelWait = unitContentResidency.whenMountedCommitted(() => {
+            const outerFrame = requestAnimationFrame(() => {
+              const innerFrame = requestAnimationFrame(onReady);
+              cancelFrame = () => cancelAnimationFrame(innerFrame);
+            });
+            cancelFrame = () => cancelAnimationFrame(outerFrame);
           });
-          retireReadyFrames.current = () => cancelAnimationFrame(outerFrame);
+          retireReadyFrames.current = () => {
+            cancelWait();
+            cancelFrame();
+          };
         }}
       >
         <CanvasSizeBoundary />

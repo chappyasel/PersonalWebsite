@@ -206,6 +206,57 @@ Tracked by sampling `renderer.info.programs` every 500 ms for 35 s
 The reveal itself was not re-timed: the boot compiles the same programs, each
 with three more padding lights.
 
+## Drawing-to-room handoff (2026-11-25)
+
+The camera move is not the wait. `travel` never moves the camera; it ends on
+the first painted frame. What went wrong at 4x was the shelf under it.
+
+Production at 4x, headless Chrome: the About shelf's loads finished by about
+4.2 s, but `shelf-structure:0` appeared at 9 to 21 s, always after the room
+was live. The reveal opened on an empty meadow, `registerAboutShelf` kept
+throwing `ShelfNotMountedError`, and the handoff fell back to the plain fade
+after `illustrationMatchTimeoutMs`. At 1x the same match took about 0.1 s.
+
+Two causes, one fix each, plus one cost cut:
+
+1. **Suspense retries.** React shows a boundary whose promise resolved through
+   a retry lane, rendered in 5 ms slices that never expire. Behind the r3f
+   frame loop at 4x those slices were seconds apart. `RetrySuspense` remounts
+   a boundary still behind its fallback once drei's loading manager settles,
+   and up to three times a frame after mount for promises the manager never
+   sees. A state update renders in one pass; with the loads cached nothing
+   suspends. Used for each shelf's gate in `Scene.tsx` and the About props'
+   inner boundaries, which the registration needs (globe, cactus, lamp,
+   Vision Pro).
+2. **Reveal on a committed shelf.** `unitContentResidency` records each shelf
+   whose contents committed. `StacksCanvas` sends `firstFrame` only after every
+   mounted shelf has, so the reveal never shows a meadow with its arrival
+   shelf missing.
+3. **Cover lift.** `liftBookCoverShadows` ran six `pow` calls per pixel during
+   render: 94 ms per 384x576 cover. Table lookups give the same bytes in
+   8.8 ms. A test compares it with the old per-pixel version on every grey and
+   200,000 random pixels. `bookCoverTreatment.ts` is in the room artwork's
+   dependency lock, so its sha and the source fingerprint were restamped and
+   `pnpm generate:room-artwork` repackaged (fingerprint lines only).
+
+Fix 2 alone made the shelf correct but late (live at 10.9 to 11.1 s at 4x).
+With all three, three runs each, local production build:
+
+| Build      | CPU | Shelf on screen | Handoff | Live         |
+| ---------- | --- | --------------- | ------- | ------------ |
+| production | 4x  | 9 to 21 s       | timeout | 7.3 to 8.1 s |
+| branch     | 4x  | 4.1 to 4.6 s    | matched | 7.7 to 7.8 s |
+| production | 1x  | 2.3 s           | matched | 4.5 s        |
+| branch     | 1x  | 1.7 to 1.8 s    | matched | 4.0 to 4.1 s |
+
+What still holds live at 4x is the drawing's own entrance animation
+(`useIllustratedEntrance`): `entranceSettled` gates the illustration key, and
+the match gate opened at about 7 s, 2.3 s after `firstFrame`. Shortening that
+animation is a design choice for the Owner, not a load cost.
+
+Before and after recordings are on the ParaDev page `room-camera`, built from
+gitignored `.pages/room-camera/`.
+
 ## Not in scope
 
 - Bundle size. 2.2 MB of JS in 97 files matters for parse time, but the probe

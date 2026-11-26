@@ -4599,7 +4599,7 @@
     },
     {
       "path": "src/app/components/stacks/scene/bookCoverTreatment.ts",
-      "sha256": "7c920e9b52d2dba0a06176bfa675f26e0a27a8ec8ef356d63098ee9b8859713f",
+      "sha256": "00344545bef378b6d4dd7f5855d9546ecafb63294425d578244fdcbe6b02df12",
       "archivedSha256": "7c920e9b52d2dba0a06176bfa675f26e0a27a8ec8ef356d63098ee9b8859713f"
     },
     {
@@ -5223,7 +5223,7 @@
       "archivedSha256": "6da526cbab3f5197f94add248d244ed2ef52ba2b868d51b19bdc4a949ac53865"
     }
   ],
-  "sourceFingerprint": "b0fbe095fffa15e990e32a5bacd63882c6d879cac862245d5b1daf0d0e21fe8d",
+  "sourceFingerprint": "6f320a41723d37ad59edf87e4f138758b16e7d52eb021a412001828a74cbb108",
   "reviewedSourceChanges": [
     {
       "reason": "Reviewed stable semantic names and identity-only wrappers; shelf geometry, materials and authored poses are unchanged.",
