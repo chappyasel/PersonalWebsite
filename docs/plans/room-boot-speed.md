@@ -1,6 +1,6 @@
 # Room boot speed
 
-Status: steps 1 (PR #161) and 2 (PR #164), the light shape (PR #165) and the handoff fix (PR #166) shipped; the drawing entrance follow-up is in review. Plan written 2026-11-24; the first
+Status: done. Steps 1 (PR #161) and 2 (PR #164), the light shape (PR #165), the handoff fix (PR #166) and the drawing entrance (PR #167) shipped. Steps 3 and 4 were measured and dropped (see "Steps 3 and 4 dropped"). Plan written 2026-11-24; the first
 measurements are against production at 97506fe7.
 
 ## Outcome
@@ -262,6 +262,33 @@ so it ends within `hurryMs` (360 ms); before that, the assembly runs at full
 length. Room live: 4.2 s to 3.3 s at 1x and 7.6 to 7.9 s to 6.5 to 6.9 s at
 4x, without recording. Recording at 4x hides the gain. Videos are on the
 ParaDev page `drawing-entrance`, built from gitignored `.pages/room-entrance/`.
+
+## Steps 3 and 4 dropped (2026-11-26)
+
+Measured on production at 7d7a6c60, 4x CPU, three runs: a CPU profile from
+`waitStage` `firstFrame` (every file in) to `opening` (room ready), a 5 to 6 s
+window with the profiler running.
+
+| Self time                       | Share |
+| ------------------------------- | ----- |
+| JavaScript, spread thin         | ~70%  |
+| Native `(program)`              | ~14%  |
+| Shader compile and link         | 7-23% |
+| `getBoundingClientRect`         | ~5%   |
+| Texture upload, decode included | ~3-4% |
+
+- Step 3 would save at most the texture upload share, about 0.2 s at 4x, so
+  it is not worth building.
+- Step 4 is moot. `opening` follows `firstFrame` directly, so the meadow is
+  ready before the shelves and is no longer a gate.
+- The shader share is `getProgramInfoLog` inside three's `getUniforms` on a
+  program's first draw: programs the prewarm did not compile, waited on
+  synchronously. At most 0.3 to 0.4 s.
+- `getBoundingClientRect` is `IllustrationHotspots` measuring the drawing's
+  hotspots once the entrance completes. It forces a layout the next frame
+  would pay anyway.
+- Nothing else stands out. The rest is building the near shelves: React
+  render, three objects and geometry, a few tens of ms per function.
 
 Before and after recordings are on the ParaDev page `room-camera`, built from
 gitignored `.pages/room-camera/`.
