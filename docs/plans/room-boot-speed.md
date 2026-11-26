@@ -266,8 +266,8 @@ ParaDev page `drawing-entrance`, built from gitignored `.pages/room-entrance/`.
 ## Steps 3 and 4 dropped (2026-11-26)
 
 Measured on production at 7d7a6c60, 4x CPU, three runs: a CPU profile from
-`waitStage` `firstFrame` (every file in) to `opening` (room ready), a 5 to 6 s
-window with the profiler running.
+`waitStage` `firstFrame` (every file in) to `opening` (room ready). The
+windows were 7.5, 5.9 and 5.2 s with the profiler running.
 
 | Self time                       | Share |
 | ------------------------------- | ----- |
