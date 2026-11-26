@@ -266,8 +266,8 @@ ParaDev page `drawing-entrance`, built from gitignored `.pages/room-entrance/`.
 ## Steps 3 and 4 dropped (2026-11-26)
 
 Measured on production at 7d7a6c60, 4x CPU, three runs: a CPU profile from
-`waitStage` `firstFrame` (every file in) to `opening` (room ready), a 5 to 6 s
-window with the profiler running.
+`waitStage` `firstFrame` (every file in) to `opening` (room ready). The
+windows were 7.5, 5.9 and 5.2 s with the profiler running.
 
 | Self time                       | Share |
 | ------------------------------- | ----- |
@@ -279,11 +279,13 @@ window with the profiler running.
 
 - Step 3 would save at most the texture upload share, about 0.2 s at 4x, so
   it is not worth building.
-- Step 4 is moot. `opening` follows `firstFrame` directly, so the meadow is
-  ready before the shelves and is no longer a gate.
-- The shader share is `getProgramInfoLog` inside three's `getUniforms` on a
-  program's first draw: programs the prewarm did not compile, waited on
-  synchronously. At most 0.3 to 0.4 s.
+- Step 4 is moot for now. In every run `opening` followed `firstFrame`
+  directly, so the meadow finished before the shelves and did not hold up the
+  reveal. `worldGatesOpen` still requires it, so recheck if the meadow grows.
+- The shader share is mostly `getProgramInfoLog` inside three's `getUniforms`
+  on a program's first draw: programs the prewarm did not compile, waited on
+  synchronously. Its self time was 1.5 s in a 7.5 s window, then 0.3 s in
+  5.9 s and 5.2 s windows, so it varies with how much the prewarm covered.
 - `getBoundingClientRect` is `IllustrationHotspots` measuring the drawing's
   hotspots once the entrance completes. It forces a layout the next frame
   would pay anyway.
