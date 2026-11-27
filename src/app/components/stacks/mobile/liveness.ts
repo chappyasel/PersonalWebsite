@@ -1,5 +1,7 @@
 import { SCENE_ARRIVAL_SESSION_KEY } from "../scene/sceneVisitStorage";
 
+import { type NativeHaptic, nativeHaptic } from "~/lib/nativeHaptic";
+
 export function browserStorage(kind: "localStorage" | "sessionStorage") {
   if (typeof window === "undefined") return null;
   try {
@@ -38,10 +40,18 @@ export function claimArrivalBeat(storage: Storage | null, unit: number) {
   return true;
 }
 
+/** The iOS app's feel for each pulse length the room asks for. */
+const NATIVE_HAPTIC: Record<6 | 8 | 12, NativeHaptic> = {
+  6: "selection",
+  8: "light",
+  12: "medium",
+};
+
 export function haptic(
   milliseconds: 6 | 8 | 12,
   vibrate?: (ms: number) => unknown,
 ) {
+  if (!vibrate && nativeHaptic(NATIVE_HAPTIC[milliseconds])) return true;
   try {
     const run =
       vibrate ??

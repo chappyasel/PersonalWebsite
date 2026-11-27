@@ -48,6 +48,7 @@ final class SiteBrowser: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptM
         // The content controller holds this handler strongly. Browsers live as
         // long as the app, so the cycle is never collected anyway.
         config.userContentController.add(self, name: "chappyRoom")
+        config.userContentController.add(self, name: "chappyHaptic")
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -117,6 +118,12 @@ final class SiteBrowser: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptM
         _ controller: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
+        if message.name == "chappyHaptic" {
+            if let body = message.body as? [String: Any], let kind = body["kind"] as? String {
+                Haptics.play(kind)
+            }
+            return
+        }
         guard message.name == "chappyRoom",
               let body = message.body as? [String: Any],
               let boot = body["boot"] as? String else { return }
@@ -326,6 +333,30 @@ enum RoomSnapshot {
             guard let data = image?.jpegData(compressionQuality: 0.8) else { return }
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try? data.write(to: target, options: .atomic)
+        }
+    }
+}
+
+/// The site's haptics (`src/lib/nativeHaptic.ts`), which WKWebView can't play.
+@MainActor
+enum Haptics {
+    private static let selection = UISelectionFeedbackGenerator()
+    private static let light = UIImpactFeedbackGenerator(style: .light)
+    private static let medium = UIImpactFeedbackGenerator(style: .medium)
+
+    static func play(_ kind: String) {
+        switch kind {
+        case "selection":
+            selection.selectionChanged()
+            selection.prepare()
+        case "light":
+            light.impactOccurred()
+            light.prepare()
+        case "medium":
+            medium.impactOccurred()
+            medium.prepare()
+        default:
+            break
         }
     }
 }
