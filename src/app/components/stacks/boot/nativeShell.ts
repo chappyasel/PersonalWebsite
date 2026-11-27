@@ -23,7 +23,15 @@ type MessageHandlers = {
   chappyRoom?: { postMessage(message: unknown): void };
 };
 
+/** Waits two frames, so React has revealed the canvas and WebKit has painted
+ * it before the app snapshots the room and lifts its cover. */
 export function tellNativeShell(boot: NativeShellBoot, epoch: number): void {
+  const frame = window.requestAnimationFrame?.bind(window);
+  if (!frame) return post(boot, epoch);
+  frame(() => frame(() => post(boot, epoch)));
+}
+
+function post(boot: NativeShellBoot, epoch: number): void {
   const handlers = (
     window as Window & { webkit?: { messageHandlers?: MessageHandlers } }
   ).webkit?.messageHandlers;

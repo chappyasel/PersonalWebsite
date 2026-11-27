@@ -32,6 +32,11 @@ function roomAssetVersion() {
   for (const dir of ROOM_ASSET_DIRS) walk(join("public", dir));
   return hash.digest("hex").slice(0, 10);
 }
+// Production only: `next dev` computes this once at startup, so an asset
+// edited mid-session would keep its old, year-cached URL.
+const roomAssetHash =
+  process.env.NODE_ENV === "production" ? roomAssetVersion() : "";
+
 const diagnosticBuildId = (
   process.env.VERCEL_GIT_COMMIT_SHA ??
   process.env.GITHUB_SHA ??
@@ -46,7 +51,7 @@ const config = {
   skipProxyUrlNormalize: process.env.NODE_ENV === "development",
   env: {
     NEXT_PUBLIC_STACKS_BUILD_ID: diagnosticBuildId,
-    NEXT_PUBLIC_ROOM_ASSET_VERSION: roomAssetVersion(),
+    NEXT_PUBLIC_ROOM_ASSET_VERSION: roomAssetHash,
   },
   // React Three Fiber releases an unmounted Canvas on a 500 ms delay. React
   // Strict Mode's development remount reuses that canvas/root before the old
@@ -128,9 +133,11 @@ const config = {
           { key: "X-Frame-Options", value: "DENY" },
         ],
       },
-      ...ROOM_ASSET_DIRS.map((dir) => ({
+      // Only this build's hash: older hand-written `?v=` URLs (the Musings
+      // paper textures) keep the default revalidating cache.
+      ...(roomAssetHash ? ROOM_ASSET_DIRS : []).map((dir) => ({
         source: `/${dir}/:path*`,
-        has: [{ type: "query", key: "v" }],
+        has: [{ type: "query", key: "v", value: roomAssetHash }],
         headers: [
           {
             key: "Cache-Control",

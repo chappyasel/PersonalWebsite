@@ -78,13 +78,20 @@ refreshes on open; App Intents replace the Log Weight Shortcut. The bar is
   whose web process iOS ends is reloaded under the cover.
 - three's loaders fetch `/models` and `/images/stacks` with `?v=<hash>`
   (`scene/roomAssetVersion.ts`, hash in `next.config.js`), served
-  `max-age=31536000, immutable`. Drawing-layer `<img>` tags keep plain URLs and
+  `max-age=31536000, immutable`, only for the build's own hash and only in
+  production builds (`next dev` leaves URLs plain). The Musings paper
+  textures' hand-written `?v=` keeps the revalidating cache. Drawing-layer `<img>` tags keep plain URLs and
   still revalidate (eight 304s per launch).
 - Debug builds take `-ChappyHomeRoot <url>` to open Home on a local build.
 - Phone, local production build over the tailnet: warm app launches went live
-  at 1.6 and 1.8 s; Safari on the same build revealed at 2.8 to 3.9 s. The
+  at 1.55 to 1.80 s (four runs); Safari on the same build revealed at 2.8 to 3.9 s. The
   first two launches after install took 16.7 and 5.2 s (cold cache, first
   shader compile); not yet explained further.
+- The page posts `live` two frames after the boot settles, so the canvas
+  reveal has painted before the app snapshots it.
+- Snapshots are keyed by iOS appearance, the one input known before the page
+  loads. A site theme override is in the stored frame, so only the first
+  launch after changing it shows the other theme for about 1.7 s.
 - Order: merge the site before publishing build 7. Against a site without the
   announcement, a phone that already holds a snapshot shows it, then drops
   back to the old drawing at load.
