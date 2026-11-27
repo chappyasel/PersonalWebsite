@@ -144,6 +144,8 @@ import {
 } from "./scene/qualityLog";
 import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
 import { createSceneQualitySampler } from "./scene/qualitySampler";
+// Installs versioned room asset URLs before the scene's first load.
+import "./scene/roomAssetVersion";
 import { SCENE_CANVAS_CONTEXT, sceneBackdropFor } from "./scene/sceneBackdrop";
 import { repaintFrozenScene } from "./scene/sceneClock";
 import {

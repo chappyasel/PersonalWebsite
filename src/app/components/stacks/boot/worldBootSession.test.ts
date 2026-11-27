@@ -63,6 +63,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function frames(count: number) {
+  return new Promise<void>((resolve) => {
+    const step = (left: number) =>
+      left === 0 ? resolve() : requestAnimationFrame(() => step(left - 1));
+    step(count);
+  });
+}
 function optIn() {
   document.documentElement.setAttribute(P.illustrationAttribute, "enabled");
 }
@@ -106,6 +113,42 @@ describe("illustrated browser adapter", () => {
     expect(root.getAttribute(P.presentationAttribute)).toBe("live");
     expect(root.getAttribute(P.worldAttribute)).toBe("ready");
     expect(records.map((record) => record.attributeName)).toEqual([]);
+  });
+
+  it("tells the iOS app once, when the room goes live, and skips the handoff", async () => {
+    const postMessage = vi.fn();
+    vi.stubGlobal("webkit", {
+      messageHandlers: { chappyRoom: { postMessage } },
+    });
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+      "Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 ChappyApp/1",
+    );
+    optIn();
+    session.start("hydrate");
+    session.send({ type: "illustrationChanged", key: KEY }, 0);
+    expect(postMessage).not.toHaveBeenCalled();
+    ready();
+    expect(document.documentElement.getAttribute(P.presentationAttribute)).toBe(
+      "live",
+    );
+    session.send({ type: "tick" }, 2_000);
+    // Posted two frames later, after the canvas reveal has painted.
+    expect(postMessage).not.toHaveBeenCalled();
+    await frames(2);
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith({ boot: "live", epoch: 1 });
+  });
+
+  it("never messages from an ordinary browser", async () => {
+    const postMessage = vi.fn();
+    vi.stubGlobal("webkit", {
+      messageHandlers: { chappyRoom: { postMessage } },
+    });
+    optIn();
+    session.start("hydrate");
+    promote();
+    await frames(2);
+    expect(postMessage).not.toHaveBeenCalled();
   });
 
   it("opts in only from the page marker and leaves OG on its legacy path", () => {

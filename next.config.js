@@ -2,10 +2,40 @@
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
  * for Docker builds.
  */
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 await import("./src/env.js");
 const { meetRedirects, meetRewrites } = await import(
   "./src/lib/booking/meetRoutes.js"
 );
+
+const ROOM_ASSET_DIRS = ["models", "images/stacks"];
+
+/** One hash over the room's models and images in `public/`. three's loaders
+ * fetch them with `?v=<this>`, which the headers below cache for a year, so a
+ * deploy that leaves them alone leaves the phone's copies valid
+ * (`src/app/components/stacks/scene/roomAssetVersion.ts`). */
+function roomAssetVersion() {
+  const hash = createHash("sha1");
+  /** @param {string} dir */
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else hash.update(path).update(readFileSync(path));
+    }
+  };
+  for (const dir of ROOM_ASSET_DIRS) walk(join("public", dir));
+  return hash.digest("hex").slice(0, 10);
+}
+// Production only: `next dev` computes this once at startup, so an asset
+// edited mid-session would keep its old, year-cached URL.
+const roomAssetHash =
+  process.env.NODE_ENV === "production" ? roomAssetVersion() : "";
 
 const diagnosticBuildId = (
   process.env.VERCEL_GIT_COMMIT_SHA ??
@@ -21,6 +51,7 @@ const config = {
   skipProxyUrlNormalize: process.env.NODE_ENV === "development",
   env: {
     NEXT_PUBLIC_STACKS_BUILD_ID: diagnosticBuildId,
+    NEXT_PUBLIC_ROOM_ASSET_VERSION: roomAssetHash,
   },
   // React Three Fiber releases an unmounted Canvas on a 500 ms delay. React
   // Strict Mode's development remount reuses that canvas/root before the old
@@ -102,6 +133,18 @@ const config = {
           { key: "X-Frame-Options", value: "DENY" },
         ],
       },
+      // Only this build's hash: older hand-written `?v=` URLs (the Musings
+      // paper textures) keep the default revalidating cache.
+      ...(roomAssetHash ? ROOM_ASSET_DIRS : []).map((dir) => ({
+        source: `/${dir}/:path*`,
+        has: [{ type: "query", key: "v", value: roomAssetHash }],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      })),
       {
         source: "/fonts/v1/:font*.woff2",
         headers: [

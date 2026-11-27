@@ -24,6 +24,22 @@ describe("mobile liveness persistence", () => {
     expect(claimArrivalBeat(storage, 1)).toBe(true);
   });
 
+  it("plays the iOS app's haptic for each pulse length", () => {
+    const postMessage = vi.fn();
+    const global = globalThis as { webkit?: unknown };
+    global.webkit = { messageHandlers: { chappyHaptic: { postMessage } } };
+    try {
+      expect(haptic(6)).toBe(true);
+      expect(haptic(12)).toBe(true);
+    } finally {
+      delete global.webkit;
+    }
+    expect(postMessage.mock.calls).toEqual([
+      [{ kind: "selection" }],
+      [{ kind: "medium" }],
+    ]);
+  });
+
   it("uses best-effort haptics", () => {
     const vibrate = vi.fn(() => true);
     expect(haptic(12, vibrate)).toBe(true);

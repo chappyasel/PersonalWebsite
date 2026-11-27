@@ -5,6 +5,9 @@ import SwiftUI
 struct ChappyApp: App {
     init() {
         OwnerToken.importDroppedFile()
+        // Don't create a web view here: one made before iOS sets up the
+        // window crashes on the first swipe (UIGestureRecognizer inserts nil
+        // into its delayed touches). ChappyUITests swipes after launch.
     }
 
     var body: some Scene {
@@ -39,7 +42,7 @@ struct RootView: View {
         TabView(selection: $navigation.selection) {
             ForEach(SiteTab.allCases) { tab in
                 Tab(tab.title, systemImage: tab.symbol, value: AppNavigation.Destination.site(tab)) {
-                    SiteWebView(root: tab.rootURL, pending: binding(for: tab))
+                    SiteWebView(tab: tab, pending: binding(for: tab))
                         .ignoresSafeArea()
                 }
             }

@@ -107,6 +107,8 @@ import {
   sampleMeadowGust,
 } from "./meadowMotion";
 import { type SceneContentTier } from "./quality";
+// The preloads at the bottom run at chunk eval, so they need versioned URLs first.
+import "./roomAssetVersion";
 import {
   isSceneTraveling,
   meadowTilePopulationLimit,

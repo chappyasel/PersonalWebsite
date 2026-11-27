@@ -77,6 +77,14 @@ function live() {
 const view = (state: WorldBootState) => worldBootView(state);
 
 describe("illustrated promotion", () => {
+  it("goes straight to the live room in the iOS app once the room is ready", () => {
+    const loading = run([start({ nativeShell: true }), changed(KEY)]);
+    expect(view(loading).revealed).toBe(false);
+    const loaded = ready(loading);
+    expect(loaded.status).toBe("live");
+    expect(view(loaded).revealed).toBe(true);
+  });
+
   it("automatically promotes the current shelf after navigation during loading", () => {
     const browsing = run([
       start(),

@@ -61,6 +61,44 @@ refreshes on open; App Intents replace the Log Weight Shortcut. The bar is
   `Documents/weight-log-base` of `https://www.chappyasel.com` was dropped
   so build 4 talks to production.
 
+## Room boot in the app (2026-11-27, build 7)
+
+- The site skips its drawing handoff when the user agent carries
+  `ChappyApp/` (`src/app/components/stacks/boot/nativeShell.ts`). The room
+  goes live as soon as it is ready, with no dissolve or camera travel.
+- The page posts to the app's `chappyRoom` handler: `starting` from the
+  inline script in `RoomHomePage`, then `live` or `fallback` when the boot
+  settles. `SiteBrowser` covers Home's room pages until then. With no
+  `starting` by the load event, the cover lifts, which covers pages without
+  the room and deploys from before this change. A 10-second limit backs both.
+- The cover shows the room as it looked the last time it went live
+  (`Library/Caches/room-cover/<page>-<theme>-<w>x<h>.jpg`), or the site's
+  background color (`LaunchBackground`, also the launch screen).
+- Each tab's web view lives for the app's life and is created when SwiftUI
+  first shows the tab. Creating Home's in `ChappyApp.init` (the first cut of
+  build 7) made every swipe crash: UIKit's gesture code inserted nil into its
+  delayed touches. `ChappyUITests` swipes four ways after launch to catch it.
+  A page whose web process iOS ends is reloaded under the cover.
+- three's loaders fetch `/models` and `/images/stacks` with `?v=<hash>`
+  (`scene/roomAssetVersion.ts`, hash in `next.config.js`), served
+  `max-age=31536000, immutable`, only for the build's own hash and only in
+  production builds (`next dev` leaves URLs plain). The Musings paper
+  textures' hand-written `?v=` keeps the revalidating cache. Drawing-layer `<img>` tags keep plain URLs and
+  still revalidate (eight 304s per launch).
+- Debug builds take `-ChappyHomeRoot <url>` to open Home on a local build.
+- Phone, local production build over the tailnet: warm app launches went live
+  at 1.55 to 1.80 s (four runs); Safari on the same build revealed at 2.8 to 3.9 s. The
+  first two launches after install took 16.7 and 5.2 s (cold cache, first
+  shader compile); not yet explained further.
+- The page posts `live` two frames after the boot settles, so the canvas
+  reveal has painted before the app snapshots it.
+- Snapshots are keyed by iOS appearance, the one input known before the page
+  loads. A site theme override is in the stored frame, so only the first
+  launch after changing it shows the other theme for about 1.7 s.
+- Order: merge the site before publishing build 7. Against a site without the
+  announcement, a phone that already holds a snapshot shows it, then drops
+  back to the old drawing at load.
+
 ## Known gaps
 
 - App icon is the site's 512 px tile upscaled to 1024. Needs a real 1024 render.

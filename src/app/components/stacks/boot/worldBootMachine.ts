@@ -162,6 +162,9 @@ export type WorldBootEvent =
       /** A URL-scoped presentation aid. It deliberately disables both the
        * reveal gate and hang deadline while leaving the world free to load. */
       holdBoot?: boolean;
+      /** The iOS app's web view (`nativeShell.ts`). Its own launch cover hides
+       * the wait, so the drawing hands off without the dissolve or travel. */
+      nativeShell?: boolean;
       warm: WarmEvidence;
       /** The pre-paint backstop already fired for THIS document load, so the
        * visitor has been reading the flat page for twenty seconds. Hydrating
@@ -256,6 +259,8 @@ export type WorldBootState = {
   ogCapture: boolean;
   holdBoot: boolean;
   illustratedMode: boolean;
+  /** Started inside the iOS app, which covers the boot natively. */
+  nativeShell: boolean;
   illustrationKey: string | null;
   registeredIllustrationKey: string | null;
   /** A ready resting view can fade in without claiming an exact image match. */
@@ -372,6 +377,7 @@ export function initialWorldBootState(): WorldBootState {
     ogCapture: false,
     holdBoot: false,
     illustratedMode: false,
+    nativeShell: false,
     illustrationKey: null,
     registeredIllustrationKey: null,
     ordinaryIllustrationKey: null,
@@ -669,6 +675,7 @@ function settleIllustrated(
       if (
         !staged.motionEnabled ||
         staged.reducedMotion ||
+        staged.nativeShell ||
         (staged.skipIllustrationMatch &&
           (staged.matchUnavailable || staged.illustrationKey === null))
       ) {
@@ -877,6 +884,7 @@ export function reduceWorldBoot(
         ogCapture: event.ogCapture,
         holdBoot: event.holdBoot ?? false,
         illustratedMode,
+        nativeShell: event.nativeShell ?? false,
         illustrationKey: sameVisit ? state.illustrationKey : null,
         matchUnavailable: sameVisit && state.matchUnavailable,
         skipIllustrationMatch:

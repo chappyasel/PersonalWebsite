@@ -1,6 +1,9 @@
+import { nativeHaptic } from "~/lib/nativeHaptic";
+
 /**
  * A light tap of the phone's haptics, for a time picked or a button
- * pressed. Android has the Vibration API. iOS Safari has none, but since
+ * pressed. The iOS app plays it natively (`nativeHaptic`). Android has the
+ * Vibration API. iOS Safari has none, but since
  * iOS 18 flipping an `<input type="checkbox" switch>` plays the system's
  * switch tick, and a click on its label flips it, so a hidden one, flipped
  * and thrown away, gives the same tick. Either works only inside a tap's
@@ -10,6 +13,7 @@
  */
 export function tick() {
   if (typeof document === "undefined") return;
+  if (nativeHaptic("light")) return;
   if (typeof navigator.vibrate === "function") {
     navigator.vibrate(8);
     return;
