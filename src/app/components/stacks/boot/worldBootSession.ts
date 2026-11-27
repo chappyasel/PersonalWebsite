@@ -13,6 +13,7 @@
 // from here ships there too.
 import { setLoadProgress } from "../loading";
 
+import { isNativeShell, tellNativeShell } from "./nativeShell";
 import {
   type WorldBootEvent,
   type WorldBootState,
@@ -249,6 +250,17 @@ const UNSTARTED_STATE = initialWorldBootState();
 export const SERVER_WORLD_BOOT_VIEW: WorldBootView =
   worldBootView(UNSTARTED_STATE);
 
+/** The boot has nothing left to show the app's cover: the room is on screen,
+ * or the visitor has a readable page without it. */
+function nativeShellSettled(state: WorldBootState): boolean {
+  return (
+    worldBootView(state).revealed ||
+    state.status === "ineligible" ||
+    state.status === "illustrated" ||
+    state.status === "failed"
+  );
+}
+
 export class WorldBootSession {
   private state = UNSTARTED_STATE;
   private snapshot = SERVER_WORLD_BOOT_VIEW;
@@ -279,6 +291,7 @@ export class WorldBootSession {
     const next = reduceWorldBoot(this.state, event);
     if (next === this.state) return this.snapshot;
     const wasRevealed = this.snapshot.revealed;
+    const wasSettled = nativeShellSettled(this.state);
     this.state = next;
     this.snapshot = worldBootView(next);
     applyDocument(this.snapshot);
@@ -287,6 +300,9 @@ export class WorldBootSession {
       // The published number is presentation state only from here on;
       // readiness came from the live loading manager.
       setLoadProgress(1);
+    }
+    if (next.nativeShell && !wasSettled && nativeShellSettled(next)) {
+      tellNativeShell(this.snapshot.revealed ? "live" : "fallback", next.epoch);
     }
     for (const listener of this.listeners) listener();
     return this.snapshot;
@@ -326,6 +342,7 @@ export class WorldBootSession {
       explicitRequest: options.explicitRequest,
       dimensionRequest: options.dimensionRequest,
       holdBoot: params.has(WORLD_BOOT_POLICY.holdBootParam),
+      nativeShell: isNativeShell(navigator.userAgent),
       // The attribute for a document's first start, the stored record for an
       // SPA re-entry, which cleared that attribute itself on the way out.
       warm: warmEvidenceFor({

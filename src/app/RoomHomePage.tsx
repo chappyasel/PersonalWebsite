@@ -30,6 +30,7 @@ import {
   selectHomepageReadingBooks,
   toBootReadingBooks,
 } from "./components/stacks/boot/homepageReadingBooks";
+import { nativeShellAnnounceScript } from "./components/stacks/boot/nativeShell";
 import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";
 import { type StacksData } from "./components/stacks/data";
 import { BootReadingBooksBridge } from "./components/stacks/dom/BootScreen";
@@ -63,6 +64,7 @@ export default function RoomHomePage({
         dangerouslySetInnerHTML={{
           __html:
             'document.documentElement.setAttribute("data-room-illustration","enabled");' +
+            nativeShellAnnounceScript +
             worldBootPrepaintScript(),
         }}
       />

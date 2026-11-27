@@ -5,6 +5,8 @@ import SwiftUI
 struct ChappyApp: App {
     init() {
         OwnerToken.importDroppedFile()
+        // The room is the slowest page; start it before the first frame.
+        SiteBrowser.of(.home).start()
     }
 
     var body: some Scene {
@@ -39,7 +41,7 @@ struct RootView: View {
         TabView(selection: $navigation.selection) {
             ForEach(SiteTab.allCases) { tab in
                 Tab(tab.title, systemImage: tab.symbol, value: AppNavigation.Destination.site(tab)) {
-                    SiteWebView(root: tab.rootURL, pending: binding(for: tab))
+                    SiteWebView(tab: tab, pending: binding(for: tab))
                         .ignoresSafeArea()
                 }
             }
