@@ -54,3 +54,14 @@ targets:
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  ChappyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [ChappyUITests]
+    dependencies:
+      - target: Chappy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chappyasel.site.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Chappy

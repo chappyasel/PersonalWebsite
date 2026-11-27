@@ -74,8 +74,11 @@ refreshes on open; App Intents replace the Log Weight Shortcut. The bar is
 - The cover shows the room as it looked the last time it went live
   (`Library/Caches/room-cover/<page>-<theme>-<w>x<h>.jpg`), or the site's
   background color (`LaunchBackground`, also the launch screen).
-- Home's web view is created and starts loading in `ChappyApp.init`. A page
-  whose web process iOS ends is reloaded under the cover.
+- Each tab's web view lives for the app's life and is created when SwiftUI
+  first shows the tab. Creating Home's in `ChappyApp.init` (the first cut of
+  build 7) made every swipe crash: UIKit's gesture code inserted nil into its
+  delayed touches. `ChappyUITests` swipes four ways after launch to catch it.
+  A page whose web process iOS ends is reloaded under the cover.
 - three's loaders fetch `/models` and `/images/stacks` with `?v=<hash>`
   (`scene/roomAssetVersion.ts`, hash in `next.config.js`), served
   `max-age=31536000, immutable`, only for the build's own hash and only in

@@ -5,8 +5,9 @@ import SwiftUI
 struct ChappyApp: App {
     init() {
         OwnerToken.importDroppedFile()
-        // The room is the slowest page; start it before the first frame.
-        SiteBrowser.of(.home).start()
+        // Don't create a web view here: one made before iOS sets up the
+        // window crashes on the first swipe (UIGestureRecognizer inserts nil
+        // into its delayed touches). ChappyUITests swipes after launch.
     }
 
     var body: some Scene {

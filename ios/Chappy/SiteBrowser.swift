@@ -2,8 +2,8 @@ import SafariServices
 import UIKit
 import WebKit
 
-/// One tab's browser, kept for the life of the app. Home's starts loading in
-/// `ChappyApp.init`, before SwiftUI draws the first tab.
+/// One tab's browser, kept for the life of the app. It is created when SwiftUI
+/// first shows its tab, never earlier (see `ChappyApp.init`).
 ///
 /// On a room page (Home and its shelf stops) a cover hides the web view until
 /// the room says it is on screen. The site skips its drawing handoff in this
@@ -238,8 +238,8 @@ final class SiteBrowser: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptM
 final class BrowserView: UIView {
     let webView: WKWebView
     private let cover = UIImageView()
-    /// Home's cover goes up in `ChappyApp.init`, before this view has a window,
-    /// a size or an appearance, so its image is looked up at the first layout.
+    /// The cover goes up when the first page loads, before this view has a
+    /// window, a size or an appearance, so its image is looked up at layout.
     private var coverImage: ((CGSize, UIUserInterfaceStyle) -> UIImage?)?
 
     var isCovered: Bool { !cover.isHidden && cover.alpha > 0 }
